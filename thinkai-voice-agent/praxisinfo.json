@@ -17,6 +17,11 @@
       "nev": "Dr. Kiss Péter",
       "szak": "kapafog szakértő",
       "svc": "Implantátum beültetés"
+    },
+    {
+      "nev": "asd",
+      "szak": "asd",
+      "svc": "asd"
     }
   ],
   "campaigns": [
@@ -26,5 +31,8 @@
     }
   ],
   "exceptions": [],
-  "last_updated": "2026-04-28T23:55:23.964428"
+  "modositas_eng": "igen",
+  "lemondas_24h": "figyelmeztetoSzoveggel",
+  "figyelmezteto_szoveg": "Tájékoztatjuk, hogy 24 órán belüli lemondás esetén rendelőnk külön szabályzata lehet érvényben.",
+  "last_updated": "2026-04-29T14:41:05.535751"
 }

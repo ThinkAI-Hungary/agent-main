@@ -1,0 +1,100 @@
+            </div>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
+              <div>
+                <label class="tt-label">Páciens beazonosítását szolgáló kérdés</label>
+                <input id="tt-paciens-kerdes" class="tt-input" type="text" value="Korábban járt már a rendelőnkben?" />
+              </div>
+              <div>
+                <label class="tt-label">Új páciens – kötelezően bekérendő adat</label>
+                <input id="tt-uj-kotelezo" class="tt-input" type="text" value="Születési dátum, teljes név" />
+              </div>
+              <div style="display:flex;align-items:center;gap:12px;">
+                <label class="tt-label" style="margin:0;white-space:nowrap;">Új páciensnek automatikus első vizit</label>
+                <label class="tt-toggle"><input id="tt-uj-auto-vizit" checked type="checkbox" /><span class="tt-toggle-slider"></span></label>
+              </div>
+              <div>
+                <label class="tt-label">Visszatérő páciens – kötelező szabály</label>
+                <input id="tt-visszatero-kotelezo" class="tt-input" type="text" value="Páciens azonosító vagy telefonszám" />
+              </div>
+            </div>
+          </div>
+          <!-- 2. Szolgáltatások -->
+          <div class="tt-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <div class="tt-section-title" style="margin-bottom: 0;">️ Szolgáltatások és időtartamok</div>
+              <div>
+                <button class="tt-save-btn" onclick="saveAllServices()" style="margin: 0; margin-right: 8px;">Mentés</button>
+                <button class="tt-add-btn" onclick="addServiceUiRow()" style="margin: 0;">+ Új szolgáltatás hozzáadása</button>
+              </div>
+            </div>
+            <div id="doctors-list" style="display: flex; flex-direction: column; gap: 8px;">
+              <!-- JS tölti be -->
+            </div>
+          </div>
+          <!-- 3. Kivételek és Lemondás (Egymás mellett) -->
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: stretch; margin-bottom: 24px;">
+            <!-- Kivételek -->
+            <div class="tt-section" style="margin-bottom: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div class="tt-section-title" style="margin-bottom: 0;"> Kivételek kezelése </div>
+                <button class="tt-save-btn" onclick="savePraxisinfo(this, 'Kivételek sikeresen elmentve')" style="margin: 0; padding: 8px 16px; font-size: 13px;">&#128190; Mentés</button>
+              </div>
+              <p style="font-size:12px;color:#6b7280;margin-bottom:12px;">Add meg azokat a helyzeteket, amikor a DigiDesk
+                nem foglalhat automatikusan.</p>
+              <div id="tt-kivetelek-list">
+                <!-- Dinamikusan töltődik -->
+              </div>
+              <div style="display: flex; align-items: center; margin-top: 14px;">
+                <button class="tt-add-btn" onclick="addKivetel()" style="background: transparent; border: none; color: #10b981; font-weight: 600; cursor: pointer; padding: 0;">+ Kivétel hozzáadása</button>
+              </div>
+            </div>
+
+            <!-- Lemondás és módosítás -->
+            <div class="tt-section" style="margin-bottom: 0;">
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div class="tt-section-title" style="margin-bottom: 0;"> Lemondás és módosítás </div>
+                <button class="tt-save-btn" onclick="savePraxisinfo(this, 'Lemondási beállítások elmentve')" style="margin: 0; padding: 8px 16px; font-size: 13px;">&#128190; Mentés</button>
+              </div>
+              <div style="display:flex; flex-direction: column; gap:14px;">
+                <div>
+                  <label class="tt-label">Időpont módosításának engedélyezése</label>
+                  <select class="tt-select" id="tt-modositas-eng">
+                    <option value="igen">Igen</option>
+                    <option value="nem">Nem</option>
+                  </select>
+                </div>
+                <div>
+                  <label class="tt-label">24 órán belüli lemondás kezelése</label>
+                  <select class="tt-select" id="tt-lemondas-24h" onchange="toggleFigyelmeztetoSzoveg()">
+                    <option value="elfogadhato">Elfogadható</option>
+                    <option selected="" value="figyelmeztetoSzoveggel">Elfogadható figyelmeztető szöveggel</option>
+                    <option value="eloAtadas">Élő átadás szükséges</option>
+                  </select>
+                </div>
+                <div id="tt-figyelmezteto-wrap">
+                  <textarea id="tt-figyelmezteto-szoveg"
+                    class="tt-textarea">Tájékoztatjuk, hogy 24 órán belüli lemondás esetén rendelőnk külön szabályzata lehet érvényben.</textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- 4. Triázs szabályok -->
+          <div class="tt-section">
+            <div class="tt-section-title" style="margin-bottom: 20px;">Triázs szabályok</div>
+            
+            <table style="width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 13px; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px; overflow: hidden;">
+              <thead>
+                <tr style="background: #f9fafb; color: #4b5563; text-align: left; border-bottom: 1px solid #e5e7eb;">
+                  <th style="padding: 16px; font-weight: 600; width: 30%;">Helyzet</th>
+                  <th style="padding: 16px; font-weight: 600; width: 35%;">Prioritás</th>
+                  <th style="padding: 16px; font-weight: 600; width: 30%;">Eszkalációs e-mail</th>
+                  <th style="padding: 16px; width: 5%;"></th>
+                </tr>
+              </thead>
+              <tbody id="triage-rules-list">
+                <!-- JS fogja feltölteni -->
+              </tbody>
+            </table>
+            
+            <div style="display: flex; justify-content: space-between; align-items: center;">

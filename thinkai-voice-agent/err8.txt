@@ -1,0 +1,40 @@
+          } else {
+            list.innerHTML = '<tr><td colspan="3" style="font-size:13px; color:#9ca3af; padding:20px; text-align:center;">Nincsenek orvosok.</td></tr>';
+          }
+          fetchServices(); // Orvosok letöltése után töltsük le a szolgáltatásokat, mert kell az orvos lista!
+        })
+        .catch(err => console.error("Hiba az orvosok betöltésekor:", err));
+    }
+
+    function createDoctorRow(doc = { id: '', name: '', specialty: '', related_services: '' }) {
+      const row = document.createElement('div');
+      row.className = 'tt-dynamic-row tt-doctor-row';
+      row.style.display = 'grid';
+      row.style.gridTemplateColumns = '1fr 1fr 2fr auto';
+      row.style.gap = '8px';
+      row.style.alignItems = 'start';
+      row.dataset.id = doc.id || '';
+
+      const isNew = !doc.id;
+      
+      row.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 11px; font-weight: 600; color: #6b7280; margin-left: 4px;">Orvos neve</label>
+          <input class="tt-input doc-name" type="text" placeholder="Orvos neve" value="${esc(doc.name)}">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 11px; font-weight: 600; color: #6b7280; margin-left: 4px;">Szakterület</label>
+          <input class="tt-input doc-spec" type="text" placeholder="Szakterület" value="${esc(doc.specialty)}">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 11px; font-weight: 600; color: #6b7280; margin-left: 4px;">Kapcsolódó szolgáltatás</label>
+          <input class="tt-input doc-svc" type="text" placeholder="Kapcsolódó szolgáltatás" value="${esc(doc.related_services || '')}">
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; height: 100%; padding-top: 20px;">
+          <button class="tt-remove-btn" onclick="if(${isNew}) { this.closest('.tt-doctor-row').remove(); } else { deleteDoctor(${doc.id}, this.closest('.tt-doctor-row')); }"></button>
+        </div>
+      `;
+      return row;
+    }
+
+    function addDoctorUiRow() {
