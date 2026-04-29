@@ -3738,26 +3738,16 @@
           </div>
           <!-- 3. Orvosok -->
           <div class="tt-section">
-            <div class="tt-section-title">‍️ Orvosok</div>
-            <div id="tt-orvosok-list">
-              <div class="tt-dynamic-row tt-doctor-row"
-                style="font-size:11px;font-weight:600;color:#6b7280;margin-bottom:4px;">
-                <span>Név</span><span>Szakterület</span><span>Szolgáltatás</span><span></span>
-              </div>
-              <div class="tt-dynamic-row tt-doctor-row" data-id="1">
-                <input class="tt-input" placeholder="Név" type="text" value="Dr. Szabó Júlia" />
-                <input class="tt-input" placeholder="Szakterület" type="text" value="Általános fogászat" />
-                <input class="tt-input" placeholder="Szolgáltatás" type="text" value="Vizsgálat, tömés" />
-                <button class="tt-remove-btn" onclick="removeDoctorRow(1)"></button>
-              </div>
-              <div class="tt-dynamic-row tt-doctor-row" data-id="2">
-                <input class="tt-input" placeholder="Név" type="text" value="Dr. Kiss Péter" />
-                <input class="tt-input" placeholder="Szakterület" type="text" value="Implantológia" />
-                <input class="tt-input" placeholder="Szolgáltatás" type="text" value="Implantátum beültetés" />
-                <button class="tt-remove-btn" onclick="removeDoctorRow(2)"></button>
-              </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <div class="tt-section-title" style="margin-bottom: 0;">Orvosok – szolgáltatások</div>
+              <button class="tt-save-btn" onclick="saveAllDoctors()" style="margin: 0; padding: 8px 16px; font-size: 13px;">&#128190; Mentés</button>
             </div>
-            <button class="tt-add-btn" onclick="addDoctorRow()">+ Orvos hozzáadása</button>
+            <div id="doctors-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+              <!-- JS tölti be -->
+            </div>
+            <div style="display: flex; align-items: center;">
+              <button class="tt-add-btn" onclick="addDoctorUiRow()" style="background: transparent; border: none; color: #10b981; font-weight: 600; cursor: pointer; padding: 0;">+ Orvos hozzáadása</button>
+            </div>
           </div>
 
           <!-- 5. Árlista -->
@@ -3799,85 +3789,72 @@
         </div><!-- end praxis content -->
         <!-- SZABÁLYOK TAB -->
         <div id="settings-view-szabalyok" class="settings-subview" style="display:none;">
+          <div class="page-title" style="margin-bottom: 32px;">Foglalási szabályok</div>
           <!-- Foglalási szabályok – 1. blokk -->
           <div class="tt-section">
-            <div class="tt-section-title">
-              Új és visszatérő páciensek kezelése
-              <span class="wip-badge">🚧</span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <div class="tt-section-title" style="margin-bottom: 0;">
+                Új és visszatérő páciensek kezelése
+                <span class="wip-badge" style="display:none;">🚧</span>
+              </div>
+              <button class="tt-save-btn" onclick="savePraxisinfo(this, 'Páciens beállítások sikeresen elmentve')" style="margin: 0; padding: 8px 16px; font-size: 13px;">&#128190; Mentés</button>
             </div>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px;">
               <div>
                 <label class="tt-label">Páciens beazonosítását szolgáló kérdés</label>
-                <input class="tt-input" type="text" value="Korábban járt már a rendelőnkben?" />
+                <input id="tt-paciens-kerdes" class="tt-input" type="text" value="Korábban járt már a rendelőnkben?" />
               </div>
               <div>
                 <label class="tt-label">Új páciens – kötelezően bekérendő adat</label>
-                <input class="tt-input" type="text" value="Születési dátum, teljes név" />
+                <input id="tt-uj-kotelezo" class="tt-input" type="text" value="Születési dátum, teljes név" />
               </div>
               <div style="display:flex;align-items:center;gap:12px;">
-                <label class="tt-label" style="margin:0;white-space:nowrap;">Új páciensnek automatikus első
-                  vizit</label>
-                <label class="tt-toggle"><input checked="" type="checkbox" /><span
-                    class="tt-toggle-slider"></span></label>
+                <label class="tt-label" style="margin:0;white-space:nowrap;">Új páciensnek automatikus első vizit</label>
+                <label class="tt-toggle"><input id="tt-uj-auto-vizit" checked type="checkbox" /><span class="tt-toggle-slider"></span></label>
               </div>
               <div>
                 <label class="tt-label">Visszatérő páciens – kötelező szabály</label>
-                <input class="tt-input" type="text" value="Páciens azonosító vagy telefonszám" />
+                <input id="tt-visszatero-kotelezo" class="tt-input" type="text" value="Páciens azonosító vagy telefonszám" />
               </div>
             </div>
           </div>
           <!-- 2. Szolgáltatások -->
           <div class="tt-section">
-            <div class="tt-section-title">️ Szolgáltatások és időtartamok <span class="wip-badge">🚧</span></div>
-            <div
-              style="display:grid;grid-template-columns:2fr 1fr 1.5fr 2fr auto;gap:8px;margin-bottom:8px;font-size:11px;font-weight:600;color:#6b7280;">
-              <span>Szolgáltatás</span><span>Időtartam</span><span>Orvos</span><span>Megjegyzés</span><span></span>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <div class="tt-section-title" style="margin-bottom: 0;">Szolgáltatások és időtartamok</div>
+              <button class="tt-save-btn" onclick="saveAllServices()" style="margin: 0; padding: 8px 16px; font-size: 13px;">&#128190; Mentés</button>
             </div>
-            <div id="tt-szolgaltatasok-list">
-              <div class="tt-dynamic-row tt-service-row" data-svc="">
-                <input class="tt-input" placeholder="Szolgáltatás neve" type="text" value="Konzultáció" />
-                <input class="tt-input" placeholder="perc" type="text" value="30" />
-                <select class="tt-select">
-                  <option>Mind</option>
-                  <option>Dr. Szabó Júlia</option>
-                  <option>Dr. Kiss Péter</option>
-                </select>
-                <input class="tt-input" placeholder="Megjegyzés" type="text" />
-                <button class="tt-remove-btn" onclick="this.closest('[data-svc]').remove()"></button>
-              </div>
-              <div class="tt-dynamic-row tt-service-row" data-svc="">
-                <input class="tt-input" placeholder="Szolgáltatás neve" type="text" value="Fogászati vizsgálat" />
-                <input class="tt-input" placeholder="perc" type="text" value="45" />
-                <select class="tt-select">
-                  <option>Mind</option>
-                  <option>Dr. Szabó Júlia</option>
-                  <option>Dr. Kiss Péter</option>
-                </select>
-                <input class="tt-input" placeholder="Megjegyzés" type="text" />
-                <button class="tt-remove-btn" onclick="this.closest('[data-svc]').remove()"></button>
-              </div>
+            <div id="services-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+              <!-- JS tölti be -->
             </div>
-            <button class="tt-add-btn" onclick="addSzolgaltatas()">+ Szolgáltatás hozzáadása</button>
+            <div style="display: flex; align-items: center;">
+              <button class="tt-add-btn" onclick="addServiceUiRow()" style="background: transparent; border: none; color: #10b981; font-weight: 600; cursor: pointer; padding: 0;">+ Szolgáltatás hozzáadása</button>
+            </div>
           </div>
           <!-- 3. Kivételek és Lemondás (Egymás mellett) -->
           <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 24px; align-items: stretch; margin-bottom: 24px;">
             <!-- Kivételek -->
             <div class="tt-section" style="margin-bottom: 0;">
-              <div class="tt-section-title"> Kivételek kezelése </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div class="tt-section-title" style="margin-bottom: 0;"> Kivételek kezelése </div>
+                <button class="tt-save-btn" onclick="savePraxisinfo(this, 'Kivételek sikeresen elmentve')" style="margin: 0; padding: 8px 16px; font-size: 13px;">&#128190; Mentés</button>
+              </div>
               <p style="font-size:12px;color:#6b7280;margin-bottom:12px;">Add meg azokat a helyzeteket, amikor a DigiDesk
                 nem foglalhat automatikusan.</p>
               <div id="tt-kivetelek-list">
                 <!-- Dinamikusan töltődik -->
               </div>
-              <div style="display: flex; justify-content: space-between; align-items: center; margin-top: 14px;">
+              <div style="display: flex; align-items: center; margin-top: 14px;">
                 <button class="tt-add-btn" onclick="addKivetel()" style="background: transparent; border: none; color: #10b981; font-weight: 600; cursor: pointer; padding: 0;">+ Kivétel hozzáadása</button>
-                <button class="tt-save-btn" onclick="savePraxisinfo(this, 'Kivételek sikeresen elmentve')" style="margin: 0; padding: 8px 16px; font-size: 13px;">&#128190; Mentés</button>
               </div>
             </div>
 
             <!-- Lemondás és módosítás -->
             <div class="tt-section" style="margin-bottom: 0;">
-              <div class="tt-section-title"> Lemondás és módosítás </div>
+              <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                <div class="tt-section-title" style="margin-bottom: 0;"> Lemondás és módosítás </div>
+                <button class="tt-save-btn" onclick="savePraxisinfo(this, 'Lemondási beállítások elmentve')" style="margin: 0; padding: 8px 16px; font-size: 13px;">&#128190; Mentés</button>
+              </div>
               <div style="display:flex; flex-direction: column; gap:14px;">
                 <div>
                   <label class="tt-label">Időpont módosításának engedélyezése</label>
@@ -4518,16 +4495,34 @@
 
     // ── Page navigation ───────────────────────────────────────────────────────────
     function showPage(page) {
+      const parentMap = {
+        'sessions': 'interactions',
+        'kanban': 'interactions',
+        'clients': 'interactions',
+        'emails': 'interactions'
+      };
+      const actualPage = parentMap[page] || page;
+
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
-      document.getElementById(`page-${page}`).classList.add('active');
-      document.getElementById(`nav-${page}`).classList.add('active');
+      
+      const pg = document.getElementById(`page-${actualPage}`);
+      if (pg) pg.classList.add('active');
+      
+      const nav = document.getElementById(`nav-${actualPage}`);
+      if (nav) nav.classList.add('active');
 
-      if (page === 'calendar') loadCalendar();
-      if (page === 'settings') { loadSettings(); loadPraxisinfo(); }
-      if (page === 'kanban') loadKanban();
-      if (page === 'clients') loadClientsTable();
-      if (page === 'tudastar') initTudastar();
+      if (parentMap[page]) {
+        const btn = document.querySelector(`[onclick*="switchCustomerView('${page}'"]`);
+        if (typeof switchCustomerView === 'function') switchCustomerView(page, btn);
+      } else {
+        if (page === 'calendar') loadCalendar();
+        if (page === 'settings') { loadSettings(); loadPraxisinfo(); if (typeof fetchTriageRules === 'function') fetchTriageRules();
+      fetchDoctors(); }
+        if (page === 'kanban') loadKanban();
+        if (page === 'clients') loadClientsTable();
+        if (page === 'tudastar') initTudastar();
+      }
     }
 
     async function openAlertDetails(type) {
@@ -6412,24 +6407,7 @@
         if (data.megkozelites!== undefined && v('tt-megkozelites'))v('tt-megkozelites').value= data.megkozelites;
         if (data.price_list  !== undefined && v('tt-arlista'))     v('tt-arlista').value     = data.price_list;
 
-        // Doctors
-        const docList = document.getElementById('tt-orvosok-list');
-        if (docList && data.doctors && data.doctors.length) {
-          const header = docList.querySelector('.tt-doctor-row:not([data-id])');
-          docList.innerHTML = '';
-          if (header) docList.appendChild(header);
-          data.doctors.forEach((doc, i) => {
-            const row = document.createElement('div');
-            row.className = 'tt-dynamic-row tt-doctor-row';
-            row.dataset.id = Date.now() + i;
-            row.innerHTML = `
-          <input class="tt-input" type="text" placeholder="Név" value="${esc(doc.nev || '')}">
-          <input class="tt-input" type="text" placeholder="Szakterület" value="${esc(doc.szak || '')}">
-          <input class="tt-input" type="text" placeholder="Szolgáltatás" value="${esc(doc.svc || '')}">
-          <button class="tt-remove-btn" onclick="this.closest('[data-id]').remove()"></button>`;
-            docList.appendChild(row);
-          });
-        }
+
 
         // Campaigns
         const campList = document.getElementById('tt-kampanyok-list');
@@ -6464,6 +6442,24 @@
               excList.appendChild(row);
             });
           }
+        }
+
+        // Új / Visszatérő páciens szabályok
+        if (data.pacient_id_question !== undefined) {
+          const pq = document.getElementById('tt-paciens-kerdes');
+          if (pq) pq.value = data.pacient_id_question;
+        }
+        if (data.new_patient_required !== undefined) {
+          const npr = document.getElementById('tt-uj-kotelezo');
+          if (npr) npr.value = data.new_patient_required;
+        }
+        if (data.new_patient_auto_visit !== undefined) {
+          const npav = document.getElementById('tt-uj-auto-vizit');
+          if (npav) npav.checked = data.new_patient_auto_visit;
+        }
+        if (data.returning_patient_required !== undefined) {
+          const rpr = document.getElementById('tt-visszatero-kotelezo');
+          if (rpr) rpr.value = data.returning_patient_required;
         }
 
         // Lemondás és módosítás
@@ -6512,6 +6508,11 @@
         const modositas_eng  = (v('tt-modositas-eng') && v('tt-modositas-eng').value)      || 'igen';
         const lemondas_24h   = (v('tt-lemondas-24h') && v('tt-lemondas-24h').value)        || 'figyelmeztetoSzoveggel';
         const figyelmezteto_szoveg = (v('tt-figyelmezteto-szoveg') && v('tt-figyelmezteto-szoveg').value.trim()) || '';
+        
+        const pacient_id_question = v('tt-paciens-kerdes') ? v('tt-paciens-kerdes').value.trim() : 'Korábban járt már a rendelőnkben?';
+        const new_patient_required = v('tt-uj-kotelezo') ? v('tt-uj-kotelezo').value.trim() : 'Születési dátum, teljes név';
+        const new_patient_auto_visit = v('tt-uj-auto-vizit') ? v('tt-uj-auto-vizit').checked : true;
+        const returning_patient_required = v('tt-visszatero-kotelezo') ? v('tt-visszatero-kotelezo').value.trim() : 'Páciens azonosító vagy telefonszám';
 
         // Doctors
         const doctors = [];
@@ -6538,7 +6539,7 @@
         const res = await authFetch('/admin/api/praxisinfo', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ practice_name, description, address, markanev, szakterulet, kulcsszavak, megkozelites, price_list, doctors, campaigns, exceptions, modositas_eng, lemondas_24h, figyelmezteto_szoveg })
+          body: JSON.stringify({ practice_name, description, address, markanev, szakterulet, kulcsszavak, megkozelites, price_list, doctors, campaigns, exceptions, modositas_eng, lemondas_24h, figyelmezteto_szoveg, pacient_id_question, new_patient_required, new_patient_auto_visit, returning_patient_required })
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'Mentési hiba'); }
 
@@ -6743,6 +6744,270 @@
       }
     });
 
+    
+    // --- Orvosok CRUD ---
+    let globalDoctors = [];
+    
+    function fetchDoctors() {
+      authFetch('/admin/api/doctors')
+        .then(res => res.json())
+        .then(docs => {
+          globalDoctors = docs || [];
+          const list = document.getElementById('doctors-list');
+          if (!list) return;
+          list.innerHTML = '';
+          if (docs && docs.length > 0) {
+            docs.forEach(doc => list.appendChild(createDoctorRow(doc)));
+          } else {
+            list.innerHTML = '<tr><td colspan="3" style="font-size:13px; color:#9ca3af; padding:20px; text-align:center;">Nincsenek orvosok.</td></tr>';
+          }
+          fetchServices(); // Orvosok letöltése után töltsük le a szolgáltatásokat, mert kell az orvos lista!
+        })
+        .catch(err => console.error("Hiba az orvosok betöltésekor:", err));
+    }
+
+    function createDoctorRow(doc = { id: '', name: '', specialty: '', related_services: '' }) {
+      const row = document.createElement('div');
+      row.className = 'tt-dynamic-row tt-doctor-row';
+      row.style.display = 'grid';
+      row.style.gridTemplateColumns = '1fr 1fr 2fr auto';
+      row.style.gap = '16px';
+      row.style.alignItems = 'end';
+      row.style.background = '#f9fafb';
+      row.style.padding = '16px';
+      row.style.borderRadius = '8px';
+      row.dataset.id = doc.id || '';
+
+      const isNew = !doc.id;
+      
+      row.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 11px; font-weight: 600; color: #6b7280; margin-left: 4px;">Orvos neve</label>
+          <input class="tt-input doc-name" type="text" placeholder="Orvos neve" value="${esc(doc.name)}">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 11px; font-weight: 600; color: #6b7280; margin-left: 4px;">Szakterület</label>
+          <input class="tt-input doc-spec" type="text" placeholder="Szakterület" value="${esc(doc.specialty)}">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 11px; font-weight: 600; color: #6b7280; margin-left: 4px;">Kapcsolódó szolgáltatás</label>
+          <input class="tt-input doc-svc" type="text" placeholder="Kapcsolódó szolgáltatás" value="${esc(doc.related_services || '')}">
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; height: 38px;">
+          <button class="tt-remove-btn" onclick="if(${isNew}) { this.closest('.tt-doctor-row').remove(); } else { deleteDoctor(${doc.id}, this.closest('.tt-doctor-row')); }"></button>
+        </div>
+      `;
+      return row;
+    }
+
+    function addDoctorUiRow() {
+      const list = document.getElementById('doctors-list');
+      if (list.querySelector('td[colspan]')) list.innerHTML = '';
+      const newRow = createDoctorRow();
+      list.appendChild(newRow);
+      newRow.querySelector('input').focus();
+    }
+
+    function editDoctorRow(btn) {
+      const tr = btn.closest('tr');
+      const inputs = tr.querySelectorAll('input');
+      inputs.forEach(inp => {
+        inp.readOnly = false;
+        inp.style.borderColor = '#e5e7eb';
+        inp.style.background = '#fff';
+      });
+      const td = tr.cells[2];
+      td.innerHTML = `
+        <button onclick="saveDoctorRow(this)" style="background:#00d4c8; color:white; border:none; border-radius:4px; padding:4px 8px; font-size:12px; cursor:pointer; font-weight:600; margin-right:4px;">Mentés</button>
+        <button onclick="fetchDoctors()" style="background:#f3f4f6; color:#4b5563; border:none; border-radius:4px; padding:4px 8px; font-size:12px; cursor:pointer; font-weight:600;">Mégse</button>
+      `;
+    }
+
+    async function saveAllDoctors() {
+      const rows = document.querySelectorAll('#doctors-list .tt-doctor-row');
+      const promises = [];
+      
+      for (let row of rows) {
+        const docId = row.dataset.id;
+        const name = row.querySelector('.doc-name').value.trim();
+        const specialty = row.querySelector('.doc-spec').value.trim();
+        const related_services = row.querySelector('.doc-svc').value.trim();
+
+        if (!name && !specialty && !related_services) continue; // Skip completely empty rows
+        if (!name) {
+          showToast('error', 'Minden orvosnál kötelező megadni a nevet!');
+          return;
+        }
+
+        const url = docId ? '/admin/api/doctors/' + docId : '/admin/api/doctors';
+        const method = docId ? 'PUT' : 'POST';
+
+        promises.push(
+          authFetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ name, specialty, related_services })
+          }).then(res => {
+            if (!res.ok) throw new Error('Hiba mentéskor');
+          })
+        );
+      }
+      
+      try {
+        if (promises.length > 0) {
+          await Promise.all(promises);
+          showToast('success', '✅ Minden orvos elmentve!');
+        }
+        fetchDoctors(); // Refresh from server
+      } catch (err) {
+        console.error(err);
+        showToast('error', 'Hiba történt a mentéskor!');
+      }
+    }
+
+    function deleteDoctor(docId, rowElement) {
+      if (!confirm('Biztosan törlöd ezt az orvost? (A hozzá tartozó szolgáltatásoknál az orvos "Mind" lesz)')) return;
+      authFetch('/admin/api/doctors/' + docId, { method: 'DELETE' })
+      .then(res => {
+        if (!res.ok) throw new Error('Törlési hiba');
+        showToast('success', '🗑️ Orvos törölve');
+        rowElement.remove(); // Remove immediately without fetching everything
+      })
+      .catch(err => {
+        console.error(err);
+        showToast('error', 'Hiba történt a törléskor');
+      });
+    }
+
+    // --- Szolgáltatások CRUD ---
+    function fetchServices() {
+      authFetch('/admin/api/services')
+        .then(res => res.json())
+        .then(svcs => {
+          const list = document.getElementById('services-list');
+          if (!list) return;
+          list.innerHTML = '';
+          if (svcs && svcs.length > 0) {
+            svcs.forEach(svc => list.appendChild(createServiceRow(svc)));
+          } else {
+            list.innerHTML = '<tr><td colspan="4" style="font-size:13px; color:#9ca3af; padding:20px; text-align:center;">Nincsenek szolgáltatások.</td></tr>';
+          }
+        })
+        .catch(err => console.error("Hiba a szolgáltatások betöltésekor:", err));
+    }
+
+    function createServiceRow(svc = { id: '', service_name: '', duration_minutes: 30, doctor_id: null, note: '' }) {
+      const row = document.createElement('div');
+      row.className = 'tt-dynamic-row tt-service-row';
+      row.style.display = 'grid';
+      row.style.gridTemplateColumns = '3fr 2fr 3fr 3fr auto';
+      row.style.gap = '16px';
+      row.style.alignItems = 'end';
+      row.style.background = '#f9fafb';
+      row.style.padding = '16px';
+      row.style.borderRadius = '8px';
+      row.dataset.id = svc.id || '';
+
+      const isNew = !svc.id;
+      
+      let docOptions = `<option value="">Mind</option>`;
+      globalDoctors.forEach(d => {
+        const sel = (svc.doctor_id === d.id) ? 'selected' : '';
+        docOptions += `<option value="${d.id}" ${sel}>${esc(d.name)}</option>`;
+      });
+      
+      row.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 11px; font-weight: 600; color: #6b7280; margin-left: 4px;">Szolgáltatás neve</label>
+          <input class="tt-input svc-name" type="text" placeholder="Konzultáció" value="${esc(svc.service_name)}">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 11px; font-weight: 600; color: #6b7280; margin-left: 4px;">Időtartam (perc)</label>
+          <div style="display: flex; align-items: center; gap: 8px;">
+            <input class="tt-input svc-dur" type="number" placeholder="30" value="${svc.duration_minutes}" style="flex: 1;">
+            <span style="font-size: 13px; color: #6b7280; padding-right: 8px; margin-bottom: 0;">perc</span>
+          </div>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 11px; font-weight: 600; color: #6b7280; margin-left: 4px;">Orvos</label>
+          <select class="tt-select svc-doc">
+            ${docOptions}
+          </select>
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 11px; font-weight: 600; color: #6b7280; margin-left: 4px;">Megjegyzés</label>
+          <input class="tt-input svc-note" type="text" placeholder="Megjegyzés" value="${esc(svc.note || '')}">
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; height: 38px;">
+          <button class="tt-remove-btn" onclick="if(${isNew}) { this.closest('.tt-service-row').remove(); } else { deleteService(${svc.id}, this.closest('.tt-service-row')); }"></button>
+        </div>
+      `;
+      return row;
+    }
+
+    function addServiceUiRow() {
+      const list = document.getElementById('services-list');
+      if (list.querySelector('td[colspan]')) list.innerHTML = '';
+      const newRow = createServiceRow();
+      list.appendChild(newRow);
+      newRow.querySelector('input').focus();
+    }
+
+    async function saveAllServices() {
+      const rows = document.querySelectorAll('#services-list .tt-service-row');
+      const promises = [];
+      
+      for (let row of rows) {
+        const srvId = row.dataset.id;
+        const service_name = row.querySelector('.svc-name').value.trim();
+        const duration_minutes = parseInt(row.querySelector('.svc-dur').value) || 30;
+        const docVal = row.querySelector('.svc-doc').value;
+        const doctor_id = docVal ? parseInt(docVal) : null;
+        const note = row.querySelector('.svc-note').value.trim();
+
+        if (!service_name) continue;
+
+        const url = srvId ? '/admin/api/services/' + srvId : '/admin/api/services';
+        const method = srvId ? 'PUT' : 'POST';
+
+        promises.push(
+          authFetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ service_name, duration_minutes, doctor_id, note })
+          }).then(res => {
+            if (!res.ok) throw new Error('Hiba mentéskor');
+          })
+        );
+      }
+      
+      try {
+        if (promises.length > 0) {
+          await Promise.all(promises);
+          showToast('success', '✅ Szolgáltatások elmentve!');
+        }
+        fetchServices();
+      } catch (err) {
+        console.error(err);
+        showToast('error', 'Hiba történt a szolgáltatások mentésekor!');
+      }
+    }
+
+    function deleteService(srvId, rowElement) {
+      if (!confirm('Biztosan törlöd ezt a szolgáltatást?')) return;
+      authFetch('/admin/api/services/' + srvId, { method: 'DELETE' })
+      .then(res => {
+        if (!res.ok) throw new Error('Törlési hiba');
+        showToast('success', '🗑️ Szolgáltatás törölve');
+        rowElement.remove();
+      })
+      .catch(err => {
+        console.error(err);
+        showToast('error', 'Hiba történt a törléskor');
+      });
+    }
+
+
     // --- Triázs Szabályok Logika ---
     function fetchTriageRules() {
       authFetch('/admin/api/triage_rules')
@@ -6921,6 +7186,7 @@
     // Call fetchTriageRules when the page loads
     document.addEventListener('DOMContentLoaded', () => {
       fetchTriageRules();
+      fetchDoctors();
     });
 
   </script>

@@ -1,3 +1,4 @@
+from typing import Optional
 """
 ThinkAI Voice Agent — Web Server
 Serves the voice widget, generates LiveKit tokens,
@@ -1051,6 +1052,10 @@ class PraxisinfoSaveRequest(BaseModel):
     modositas_eng: str = "igen"
     lemondas_24h: str = "figyelmeztetoSzoveggel"
     figyelmezteto_szoveg: str = ""
+    pacient_id_question: str = "Korábban járt már a rendelőnkben?"
+    new_patient_required: str = "Születési dátum, teljes név"
+    new_patient_auto_visit: bool = True
+    returning_patient_required: str = "Páciens azonosító vagy telefonszám"
 
 @app.get("/admin/api/triage_rules")
 def api_get_triage_rules(admin: dict = Depends(verify_jwt)):
@@ -1080,6 +1085,68 @@ def api_delete_triage_rules(rule_id: int, admin: dict = Depends(verify_jwt)):
         return {"ok": True}
     raise HTTPException(status_code=400, detail="Hiba a törléskor")
 
+# ── Orvosok ───────────────────────────────────────────────────────────────────
+
+class DoctorCreate(BaseModel):
+    name: str
+    specialty: str = ""
+    related_services: str = ""
+
+@app.get("/admin/api/doctors")
+def api_get_doctors(admin: dict = Depends(verify_jwt)):
+    return db.get_doctors()
+
+@app.post("/admin/api/doctors")
+def api_post_doctors(doc: DoctorCreate, admin: dict = Depends(verify_jwt)):
+    new_id = db.add_doctor(doc.name, doc.specialty, doc.related_services)
+    if new_id:
+        return {"ok": True, "id": new_id}
+    raise HTTPException(status_code=500, detail="Hiba a létrehozáskor")
+
+@app.put("/admin/api/doctors/{doc_id}")
+def api_put_doctors(doc_id: int, doc: DoctorCreate, admin: dict = Depends(verify_jwt)):
+    if db.update_doctor(doc_id, doc.name, doc.specialty, doc.related_services):
+        return {"ok": True}
+    raise HTTPException(status_code=400, detail="Hiba a frissítéskor")
+
+@app.delete("/admin/api/doctors/{doc_id}")
+def api_delete_doctors(doc_id: int, admin: dict = Depends(verify_jwt)):
+    if db.delete_doctor(doc_id):
+        return {"ok": True}
+    raise HTTPException(status_code=400, detail="Hiba a törléskor")
+
+# ── Szolgáltatások ────────────────────────────────────────────────────────────
+
+class ServiceCreate(BaseModel):
+    service_name: str
+    duration_minutes: int
+    doctor_id: Optional[int] = None
+    note: str = ""
+
+@app.get("/admin/api/services")
+def api_get_services(admin: dict = Depends(verify_jwt)):
+    return db.get_services()
+
+@app.post("/admin/api/services")
+def api_post_services(svc: ServiceCreate, admin: dict = Depends(verify_jwt)):
+    new_id = db.add_service(svc.service_name, svc.duration_minutes, svc.doctor_id, svc.note)
+    if new_id:
+        return {"ok": True, "id": new_id}
+    raise HTTPException(status_code=500, detail="Hiba a létrehozáskor")
+
+@app.put("/admin/api/services/{srv_id}")
+def api_put_services(srv_id: int, svc: ServiceCreate, admin: dict = Depends(verify_jwt)):
+    if db.update_service(srv_id, svc.service_name, svc.duration_minutes, svc.doctor_id, svc.note):
+        return {"ok": True}
+    raise HTTPException(status_code=400, detail="Hiba a frissítéskor")
+
+@app.delete("/admin/api/services/{srv_id}")
+def api_delete_services(srv_id: int, admin: dict = Depends(verify_jwt)):
+    if db.delete_service(srv_id):
+        return {"ok": True}
+    raise HTTPException(status_code=400, detail="Hiba a törléskor")
+
+
 @app.get("/admin/api/praxisinfo")
 async def get_praxisinfo(username: str = Depends(verify_jwt)):
     """Return saved practice info."""
@@ -1108,6 +1175,10 @@ async def save_praxisinfo(payload: PraxisinfoSaveRequest, username: str = Depend
         "modositas_eng": payload.modositas_eng,
         "lemondas_24h":  payload.lemondas_24h,
         "figyelmezteto_szoveg": payload.figyelmezteto_szoveg,
+        "pacient_id_question": payload.pacient_id_question,
+        "new_patient_required": payload.new_patient_required,
+        "new_patient_auto_visit": payload.new_patient_auto_visit,
+        "returning_patient_required": payload.returning_patient_required,
         "last_updated":  datetime.utcnow().isoformat(),
     }
     PRAXISINFO_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")

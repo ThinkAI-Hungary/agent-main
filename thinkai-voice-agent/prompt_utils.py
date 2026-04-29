@@ -2,6 +2,7 @@ import json
 from datetime import datetime
 from pathlib import Path
 from loguru import logger
+import database
 
 THIS_DIR = Path(__file__).resolve().parent
 PROMPT_FILE      = THIS_DIR / "system_prompt.md"
@@ -26,19 +27,35 @@ def _load_praxisinfo() -> dict:
             logger.warning(f"Could not read praxisinfo.json: {e}")
     return {}
 
-def _format_doctors(doctors: list) -> str:
+def _format_doctors() -> str:
+    doctors = database.get_doctors()
     if not doctors:
         return "Nincs megadva"
     lines = []
     for d in doctors:
-        name = d.get("nev", "")
-        spec = d.get("szak", "")
-        svc  = d.get("svc", "")
+        name = d.get("name", "")
+        spec = d.get("specialty", "")
         line = name
         if spec: line += f" ({spec})"
-        if svc:  line += f" – {svc}"
         if line: lines.append(line)
     return "\n".join(f"- {l}" for l in lines) if lines else "Nincs megadva"
+
+def _format_services() -> str:
+    services = database.get_services()
+    if not services:
+        return "Nincs megadva"
+    lines = []
+    for s in services:
+        name = s.get("service_name", "")
+        dur = s.get("duration_minutes", 30)
+        doc = s.get("doctors")
+        doc_name = doc.get("name") if isinstance(doc, dict) else "Bárki (Mind)"
+        note = s.get("note", "")
+        
+        line = f"- {name} ({dur} perc) – Orvos: {doc_name}"
+        if note: line += f" [Megjegyzés: {note}]"
+        lines.append(line)
+    return "\n".join(lines) if lines else "Nincs megadva"
 
 def _format_campaigns(campaigns: list) -> str:
     active = [c.get("text", "").strip() for c in campaigns if c.get("active") and c.get("text")]
@@ -78,6 +95,29 @@ def _format_cancellation_policy(pi: dict) -> str:
 
     return "\n".join(f"- {r}" for r in rules) if rules else "Nincs külön lemondási/módosítási szabály."
 
+def _format_patient_rules(pi: dict) -> str:
+    rules = []
+    
+    # Kérdés a beazonosításra
+    question = pi.get("pacient_id_question", "Korábban járt már a rendelőnkben?")
+    if question:
+        rules.append(f"1. A beszélgetés elején, amint lehetőség van rá, tedd fel a következő kérdést az ügyfél beazonosításához: '{question}'")
+    else:
+        rules.append("1. A beszélgetés elején derítsd ki, hogy az ügyfél járt-e már a rendelőben (új vagy visszatérő páciens).")
+
+    # Új páciens szabályok
+    new_req = pi.get("new_patient_required", "Születési dátum, teljes név")
+    rules.append(f"2. HA AZ ÜGYFÉL ÚJ PÁCIENS: Kötelezően kérd be a következő adatokat: '{new_req}'.")
+    
+    if pi.get("new_patient_auto_visit", True):
+        rules.append("   - SZIGORÚ SZABÁLY: Mivel ő egy ÚJ páciens, az első alkalommal KIZÁRÓLAG állapotfelmérésre / általános vizitre (pl. Konzultáció) foglalhatsz neki időpontot! Semmilyen más konkrét kezelésre (pl. tömés, foghúzás) NEM adhatsz időpontot látatlanban. Mondd el neki, hogy az első alkalommal mindenképp egy állapotfelmérésre van szükség.")
+
+    # Visszatérő páciens szabályok
+    ret_req = pi.get("returning_patient_required", "Páciens azonosító vagy telefonszám")
+    rules.append(f"3. HA AZ ÜGYFÉL VISSZATÉRŐ PÁCIENS: Kötelezően kérd be a következő adatokat az azonosításhoz: '{ret_req}'.")
+
+    return "\n".join(rules)
+
 def get_system_prompt() -> str:
     """Load system prompt from system_prompt.md and inject runtime variables."""
     if not PROMPT_FILE.exists():
@@ -96,10 +136,12 @@ def get_system_prompt() -> str:
         "kulcsszavak":    pi.get("kulcsszavak", ""),
         "megkozelites":   pi.get("megkozelites", ""),
         "price_list":     pi.get("price_list", ""),
-        "doctors":        _format_doctors(pi.get("doctors", [])),
+        "doctors":        _format_doctors(),
+        "services_list":  _format_services(),
         "campaigns":      _format_campaigns(pi.get("campaigns", [])),
         "exceptions":     _format_exceptions(pi.get("exceptions", [])),
         "cancellation_policy": _format_cancellation_policy(pi),
+        "patient_rules":  _format_patient_rules(pi),
         "knowledge":      _format_knowledge(settings.get("knowledge_content", "")),
         "tone":           settings.get("tone", ""),
     }

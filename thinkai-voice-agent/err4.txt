@@ -1,0 +1,100 @@
+        };
+
+        if (!data.situation) continue; // Skip empty
+        if ((data.priority === 'Sürgős' || data.priority === 'Kiemelt') && !data.escalation_email) {
+          showToast('error', 'Kérlek add meg az eszkalációs e-mailt a sürgős/kiemelt szabályokhoz!');
+          return;
+        }
+
+        const method = ruleId ? 'PUT' : 'POST';
+        const url = ruleId ? '/admin/api/triage_rules/' + ruleId : '/admin/api/triage_rules';
+
+        promises.push(
+          authFetch(url, {
+            method: method,
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          }).then(res => res.json()).then(resData => {
+            if (resData.ok && !ruleId && resData.id) {
+              row.dataset.id = resData.id;
+            }
+          }).catch(err => {
+            hasError = true;
+            console.error(err);
+          })
+        );
+      }
+
+      const btn = document.querySelector('button[onclick="saveAllTriageRules()"]');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = 'Mentés...';
+      btn.disabled = true;
+
+      await Promise.all(promises);
+      
+      btn.disabled = false;
+      if (hasError) {
+        showToast('error', 'Hiba történt néhány szabály mentésekor!');
+        btn.innerHTML = originalText;
+      } else {
+        showFancySuccess('Szabályok sikeresen elmentve');
+        btn.innerHTML = '&#128190; Mentve';
+        setTimeout(() => { btn.innerHTML = originalText; }, 2000);
+      }
+    }
+
+    function showFancySuccess(msg) {
+      const el = document.createElement('div');
+      el.innerHTML = `
+        <div style="display:flex; align-items:center; gap:12px; background: rgba(16, 185, 129, 0.1); backdrop-filter: blur(10px); border: 1px solid rgba(16, 185, 129, 0.2); padding: 14px 24px; border-radius: 50px; box-shadow: 0 10px 25px -5px rgba(16, 185, 129, 0.15);">
+          <div style="display:flex; align-items:center; justify-content:center; width:24px; height:24px; background:#10b981; color:#fff; border-radius:50%; font-size:12px;">✓</div>
+          <span style="color:#065f46; font-weight:600; font-size:15px;">${msg}</span>
+        </div>
+      `;
+      el.style.position = 'fixed';
+      el.style.top = '-100px';
+      el.style.left = '50%';
+      el.style.transform = 'translateX(-50%)';
+      el.style.zIndex = '10000';
+      el.style.transition = 'all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275)';
+      document.body.appendChild(el);
+      
+      requestAnimationFrame(() => {
+        el.style.top = '40px';
+      });
+      
+      setTimeout(() => {
+        el.style.top = '-100px';
+        el.style.opacity = '0';
+        setTimeout(() => el.remove(), 400);
+      }, 3000);
+    }
+
+    function deleteTriageRule(btn) {
+      if (!confirm("Biztosan törlöd ezt a triázs szabályt?")) return;
+      const row = btn.closest('tr');
+      const ruleId = row.dataset.id;
+      
+      if (!ruleId) {
+        row.remove();
+        return;
+      }
+
+      authFetch('/admin/api/triage_rules/' + ruleId, { method: 'DELETE' })
+        .then(res => res.json())
+        .then(resData => {
+          if (resData.ok) row.remove();
+          else alert("Hiba a törlés során.");
+        })
+        .catch(err => alert("Hiba a hálózatban."));
+    }
+
+    // Call fetchTriageRules when the page loads
+    document.addEventListener('DOMContentLoaded', () => {
+      fetchTriageRules();
+      fetchDoctors();
+    });
+
+  </script>
+
+  <!-- Alert Details Modal HTML -->

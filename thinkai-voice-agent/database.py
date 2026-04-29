@@ -911,3 +911,91 @@ def delete_triage_rule(rule_id: int) -> bool:
         return True
     except Exception:
         return False
+
+# ──────────────────────────────────────────────────────────────────────────────
+# DOCTORS & SERVICES
+# ──────────────────────────────────────────────────────────────────────────────
+
+def get_doctors() -> list[dict]:
+    if not supabase: return []
+    try:
+        res = supabase.table("doctors").select("*").order("id", desc=False).execute()
+        return res.data
+    except Exception:
+        return []
+
+def add_doctor(name: str, specialty: str, related_services: str = "") -> int:
+    if not supabase: return 0
+    try:
+        res = supabase.table("doctors").insert({
+            "name": name,
+            "specialty": specialty,
+            "related_services": related_services
+        }).execute()
+        return res.data[0]["id"] if res.data else 0
+    except Exception as e:
+        logger.error(f"Add doctor error: {e}")
+        return 0
+
+def update_doctor(doc_id: int, name: str, specialty: str, related_services: str = "") -> bool:
+    if not supabase: return False
+    try:
+        supabase.table("doctors").update({
+            "name": name,
+            "specialty": specialty,
+            "related_services": related_services
+        }).eq("id", doc_id).execute()
+        return True
+    except Exception:
+        return False
+
+def delete_doctor(doc_id: int) -> bool:
+    if not supabase: return False
+    try:
+        supabase.table("doctors").delete().eq("id", doc_id).execute()
+        return True
+    except Exception:
+        return False
+
+def get_services() -> list[dict]:
+    if not supabase: return []
+    try:
+        res = supabase.table("services").select("*, doctors(name)").order("id", desc=False).execute()
+        return res.data
+    except Exception:
+        return []
+
+def add_service(service_name: str, duration_minutes: int, doctor_id: int = None, note: str = "") -> int:
+    if not supabase: return 0
+    try:
+        res = supabase.table("services").insert({
+            "service_name": service_name,
+            "duration_minutes": duration_minutes,
+            "doctor_id": doctor_id,
+            "note": note
+        }).execute()
+        return res.data[0]["id"] if res.data else 0
+    except Exception as e:
+        logger.error(f"Add service error: {e}")
+        return 0
+
+def update_service(srv_id: int, service_name: str, duration_minutes: int, doctor_id: int = None, note: str = "") -> bool:
+    if not supabase: return False
+    try:
+        supabase.table("services").update({
+            "service_name": service_name,
+            "duration_minutes": duration_minutes,
+            "doctor_id": doctor_id,
+            "note": note
+        }).eq("id", srv_id).execute()
+        return True
+    except Exception:
+        return False
+
+def delete_service(srv_id: int) -> bool:
+    if not supabase: return False
+    try:
+        supabase.table("services").delete().eq("id", srv_id).execute()
+        return True
+    except Exception:
+        return False

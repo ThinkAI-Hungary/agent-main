@@ -1,0 +1,30 @@
+      } catch (err) {
+        console.error(err);
+        showToast('error', 'Hiba történt a szolgáltatások mentésekor!');
+      }
+    }
+
+    function deleteService(srvId, rowElement) {
+      if (!confirm('Biztosan törlöd ezt a szolgáltatást?')) return;
+      authFetch('/admin/api/services/' + srvId, { method: 'DELETE' })
+      .then(res => {
+        if (!res.ok) throw new Error('Törlési hiba');
+        showToast('success', '🗑️ Szolgáltatás törölve');
+        rowElement.remove();
+      })
+      .catch(err => {
+        console.error(err);
+        showToast('error', 'Hiba történt a törléskor');
+      });
+    })
+      .then(res => {
+        if (!res.ok) throw new Error('Törlési hiba');
+        showToast('success', '🗑️ Szolgáltatás törölve');
+        fetchServices();
+      })
+      .catch(err => {
+        console.error(err);
+        showToast('error', 'Hiba történt a törléskor');
+      });
+    }
+
