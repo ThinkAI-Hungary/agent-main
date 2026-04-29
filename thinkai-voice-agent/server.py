@@ -123,13 +123,26 @@ class ThinkAIAgent(Agent):
         )
 
     async def on_enter(self):
-        """Greet the user when they connect."""
+        """Greet the user when they connect (web widget or SIP phone call)."""
         settings = load_agent_settings()
-        greeting = settings.get("greeting") or (
-            "Szia! A Tink-éj-áj virtuális asszisztense vagyok. "
-            "Kérdezz a szolgáltatásainkról, foglalj időpontot, "
-            "vagy akár emailt is küldhetek helyetted. Miben segíthetek?"
-        )
+
+        # Detect if this is an inbound phone call (room name starts with 'call-')
+        room_name = self.session.room.name if self.session and self.session.room else ""
+        is_sip_call = room_name.startswith("call-")
+
+        if is_sip_call:
+            # Shorter, phone-appropriate greeting
+            greeting = (
+                "Jó napot! A ThinkAI ügyfélszolgálata. Miben segíthetek?"
+            )
+            logger.info(f"SIP inbound call detected in room: {room_name}")
+        else:
+            greeting = settings.get("greeting") or (
+                "Szia! A Tink-éj-áj virtuális asszisztense vagyok. "
+                "Kérdezz a szolgáltatásainkról, foglalj időpontot, "
+                "vagy akár emailt is küldhetek helyetted. Miben segíthetek?"
+            )
+
         self.session.say(greeting)
 
     async def stt_node(self, audio, model_settings):
@@ -195,7 +208,13 @@ async def entrypoint(ctx: JobContext):
     db.init_db()
     db.create_session(session_id=session_id, room_name=room_name)
     set_session_id(session_id)
-    logger.info(f"Session started: {session_id}")
+
+    # Log if this is an inbound SIP phone call
+    is_sip_call = room_name.startswith("call-")
+    if is_sip_call:
+        logger.info(f"📞 Inbound SIP call — room: {room_name}")
+    else:
+        logger.info(f"Session started: {session_id}")
 
     # NOTE: ElevenLabs keyterms only work in batch mode (not realtime streaming).
     # The scribe_v2_realtime model ignores keyterms in the WebSocket streaming path.
@@ -220,7 +239,7 @@ async def entrypoint(ctx: JobContext):
         ),
         tts=cartesia.TTS(
             api_key=os.getenv("CARTESIA_API_KEY"),
-            voice=_load_agent_settings().get("voice_id") or os.getenv("CARTESIA_VOICE_ID", "93896c4f-aa00-4c17-a360-fec55579d7fa"),
+            voice=load_agent_settings().get("voice_id") or os.getenv("CARTESIA_VOICE_ID", "93896c4f-aa00-4c17-a360-fec55579d7fa"),
             model="sonic-3",
             speed=1.0,
             language="hu",
