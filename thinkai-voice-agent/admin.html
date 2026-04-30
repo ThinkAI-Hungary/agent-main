@@ -7702,7 +7702,7 @@
       tr.style.borderBottom = '1px solid #f3f4f6';
       tr.dataset.id = rule.id || '';
 
-      const isSurgosOrKiemelt = rule.priority === 'Sürgős' || rule.priority === 'Kiemelt';
+      const isKiemelt = rule.priority === 'Kiemelt';
 
       tr.innerHTML = `
         <td style="padding: 16px;">
@@ -7719,7 +7719,7 @@
           </select>
         </td>
         <td style="padding: 16px;">
-          <div class="triage-email-container" style="visibility: ${isSurgosOrKiemelt ? 'visible' : 'hidden'};">
+          <div class="triage-email-container" style="visibility: ${isKiemelt ? 'visible' : 'hidden'};">
             <input class="tt-input triage-email" type="email" placeholder="Eszkalációs e-mail" value="${rule.escalation_email || ''}" 
                    style="margin:0; border:none; background:#f3f4f6; padding:10px 14px; border-radius:6px; color: #4b5563; font-size: 13px; width:100%; outline:none;" />
           </div>
@@ -7764,8 +7764,8 @@
         };
 
         if (!data.situation) continue; // Skip empty
-        if ((data.priority === 'Sürgős' || data.priority === 'Kiemelt') && !data.escalation_email) {
-          showToast('error', 'Kérlek add meg az eszkalációs e-mailt a sürgős/kiemelt szabályokhoz!');
+        if (data.priority === 'Kiemelt' && !data.escalation_email) {
+          showToast('error', 'Kérlek add meg az eszkalációs e-mailt a kiemelt szabályokhoz!');
           return;
         }
 
@@ -8032,7 +8032,7 @@
               </div>
               <div class="approval-card-title">${esc(senderName)}</div>
               ${senderEmail ? `<div class="approval-card-subtitle">${esc(senderEmail)}</div>` : ''}
-              <div class="approval-card-preview">${esc(draftData.body || '')}</div>
+              <div class="approval-card-preview">${esc((draftData.body || '').replace(/<br\s*\/?>/gi, ' '))}</div>
               <div class="approval-card-footer">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> ${dateStr}
               </div>
@@ -8050,7 +8050,9 @@
       try { draftData = JSON.parse(c.ai_draft_response || '{}'); } catch(e){}
       
       document.getElementById('approval-original-topic').textContent = (c.topic || '') + " - " + (c.summary || '');
-      document.getElementById('approval-draft-text').value = draftData.body || '';
+      let initialDraft = draftData.body || '';
+      initialDraft = initialDraft.replace(/<br\s*\/?>/gi, '\n');
+      document.getElementById('approval-draft-text').value = initialDraft;
       
       const isHistory = currentApprovalTab === 'history';
       document.getElementById('btn-approval-approve').style.display = isHistory ? 'none' : 'block';

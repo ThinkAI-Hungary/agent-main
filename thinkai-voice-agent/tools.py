@@ -729,7 +729,7 @@ async def report_alert(
             triage_rules = db.get_triage_rules()
             email_to_send = None
             for r in triage_rules:
-                if r.get("priority") == "Sürgős" and r.get("escalation_email"):
+                if r.get("priority") == "Kiemelt" and r.get("escalation_email"):
                     email_to_send = r["escalation_email"]
                     break
             
@@ -739,7 +739,7 @@ async def report_alert(
                     patient_name="Ismeretlen (Hangasszisztens)",
                     patient_contact="Lásd a rendszerben",
                     problem_description=reason or "Sürgős eset bejelentése telefonon.",
-                    priority="Sürgős"
+                    priority="Kiemelt"
                 ))
 
         return "Riasztás sikeresen rögzítve az adminisztrátorok felé a háttérben."

@@ -280,7 +280,7 @@ A lehetséges alert_tags értékek:
             email_to_send = None
             t_rules = db.get_triage_rules()
             for r in t_rules:
-                if r.get("priority") == "Sürgős" and r.get("escalation_email"):
+                if r.get("priority") == "Kiemelt" and r.get("escalation_email"):
                     email_to_send = r["escalation_email"]
                     break
             
@@ -290,7 +290,7 @@ A lehetséges alert_tags értékek:
                     patient_name=from_name,
                     patient_contact=from_email,
                     problem_description=f"E-mail tárgy: {subject}\n{text_content[:200]}...",
-                    priority="Sürgős"
+                    priority="Kiemelt"
                 ))
 
 

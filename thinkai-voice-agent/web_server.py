@@ -418,7 +418,7 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
                         tool_result = f"Sikeres mentés. ID: {client_id}"
 
                         priority = tool_args.get("priority", "Normál")
-                        if priority == "Sürgős":
+                        if priority == "Kiemelt":
                             rule_id = tool_args.get("triage_rule_id", 0)
                             problem = tool_args.get("problem_description", "Nincs megadva leírás.")
                             email_to_send = None
@@ -1480,7 +1480,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                         "sender": {"name": "Bégé Design Kft.", "email": "bege@thinkai.hu"},
                         "to": [{"email": draft.get("to_email"), "name": draft.get("to_name", "")}],
                         "subject": draft.get("subject", "Re:"),
-                        "htmlContent": f'<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">{final_text}</div>',
+                        "htmlContent": f'<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">{final_text.replace(chr(10), "<br>")}</div>',
                     },
                     timeout=20,
                 )
