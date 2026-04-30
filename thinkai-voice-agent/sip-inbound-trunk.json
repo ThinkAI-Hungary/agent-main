@@ -1,0 +1,5 @@
+{
+  "name": "Telefonalo.hu Bejövő",
+  "numbers": ["+3617001622"],
+  "allowed_addresses": ["91.223.222.0/24", "91.223.221.0/24"]
+}

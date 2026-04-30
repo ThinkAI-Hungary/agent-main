@@ -3302,6 +3302,10 @@
     body.dark .summary-link:hover {
       color: #4cf2e6;
     }
+    @keyframes callPulse {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(1.3); }
+    }
   </style>
 </head>
 
@@ -3355,6 +3359,12 @@
           <path d="M16 2v4M8 2v4M3 10h18"></path>
         </svg>
         <span>Naptár</span>
+      </button>
+      <button class="nav-item" id="nav-calls" onclick="showPage('calls')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+          <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.07 1.18 2 2 0 012.07 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"></path>
+        </svg>
+        <span>Hívások</span>
       </button>
 
 
@@ -3575,6 +3585,74 @@
           </div>
         </div><!-- end analytics-shell -->
       </div><!-- end page-analytics -->
+
+      <!-- CALLS PAGE -->
+      <div class="page" id="page-calls">
+        <div class="page-header" style="margin-bottom:24px;">
+          <div>
+            <div class="page-title">📞 Hívások</div>
+            <div class="page-subtitle">Kimenő AI-hívás indítása telefonszámra</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:380px 1fr;gap:24px;align-items:start;">
+          <!-- Dialer panel -->
+          <div class="panel-white" style="padding:28px;">
+            <div style="font-size:13px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:20px;">Új hívás indítása</div>
+            <div style="margin-bottom:16px;">
+              <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px;">Telefonszám</label>
+              <input id="call-phone-input" type="tel" placeholder="+36301234567"
+                style="width:100%;padding:12px 16px;border:1.5px solid var(--border,#e5e7eb);border-radius:10px;font-size:16px;font-weight:600;color:var(--text);background:var(--bg2,#f9fafb);outline:none;box-sizing:border-box;transition:border 0.2s;"
+                oninput="onCallPhoneInput(this)"
+                onkeydown="if(event.key==='Enter') startCall()" />
+            </div>
+            <div style="margin-bottom:20px;">
+              <label style="font-size:12px;font-weight:600;color:var(--text-muted);display:block;margin-bottom:6px;">Megjegyzés <span style="font-weight:400;opacity:.6;">(opcionális)</span></label>
+              <input id="call-note-input" type="text" placeholder="pl. Visszahívás a foglalással kapcsolatban"
+                style="width:100%;padding:10px 14px;border:1.5px solid var(--border,#e5e7eb);border-radius:10px;font-size:13px;color:var(--text);background:var(--bg2,#f9fafb);outline:none;box-sizing:border-box;" />
+            </div>
+            <!-- Call button -->
+            <button id="call-start-btn" onclick="startCall()"
+              style="width:100%;padding:14px;background:linear-gradient(135deg,#1ceee0,#0bbdb1);border:none;border-radius:12px;font-size:15px;font-weight:700;color:#082432;cursor:pointer;display:flex;align-items:center;justify-content:center;gap:10px;transition:all 0.2s;box-shadow:0 4px 16px rgba(28,238,224,0.3);">
+              <svg fill="none" stroke="currentColor" stroke-width="2.5" viewbox="0 0 24 24" width="18" height="18">
+                <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.07 1.18 2 2 0 012.07 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"></path>
+              </svg>
+              Hívás indítása
+            </button>
+            <!-- Status -->
+            <div id="call-status-box" style="display:none;margin-top:20px;padding:16px;border-radius:12px;background:rgba(28,238,224,0.08);border:1px solid rgba(28,238,224,0.2);">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px;">
+                <div id="call-status-dot" style="width:10px;height:10px;border-radius:50%;background:#1ceee0;animation:callPulse 1s infinite;"></div>
+                <span id="call-status-text" style="font-size:14px;font-weight:600;color:var(--text);">Hívás felépítése...</span>
+              </div>
+              <div id="call-status-phone" style="font-size:13px;color:var(--text-muted);"></div>
+            </div>
+            <div id="call-error-box" style="display:none;margin-top:16px;padding:14px;border-radius:10px;background:rgba(239,68,68,0.08);border:1px solid rgba(239,68,68,0.2);font-size:13px;color:#ef4444;"></div>
+          </div>
+          <!-- Info panel -->
+          <div class="panel-white" style="padding:28px;">
+            <div style="font-size:13px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:20px;">Hogyan működik?</div>
+            <div style="display:flex;flex-direction:column;gap:16px;">
+              <div style="display:flex;gap:14px;align-items:flex-start;">
+                <div style="width:32px;height:32px;border-radius:50%;background:rgba(28,238,224,0.15);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#1ceee0;flex-shrink:0;">1</div>
+                <div><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">Add meg a telefonszámot</div><div style="font-size:13px;color:var(--text-muted);">Magyar formátum: +36301234567 vagy 06301234567</div></div>
+              </div>
+              <div style="display:flex;gap:14px;align-items:flex-start;">
+                <div style="width:32px;height:32px;border-radius:50%;background:rgba(28,238,224,0.15);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#1ceee0;flex-shrink:0;">2</div>
+                <div><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">Az AI felhívja a személyt</div><div style="font-size:13px;color:var(--text-muted);">A telefonalo.hu számon (3617001622) keresztül kezdeményez hívást</div></div>
+              </div>
+              <div style="display:flex;gap:14px;align-items:flex-start;">
+                <div style="width:32px;height:32px;border-radius:50%;background:rgba(28,238,224,0.15);display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:700;color:#1ceee0;flex-shrink:0;">3</div>
+                <div><div style="font-size:14px;font-weight:600;color:var(--text);margin-bottom:4px;">Valós idejű AI beszélgetés</div><div style="font-size:13px;color:var(--text-muted);">A ThinkAI agent átveszi a hívást és a system prompt alapján kommunikál</div></div>
+              </div>
+            </div>
+            <div style="margin-top:24px;padding:14px;border-radius:10px;background:rgba(251,191,36,0.08);border:1px solid rgba(251,191,36,0.2);">
+              <div style="font-size:12px;font-weight:600;color:#d97706;margin-bottom:4px;">⚠️ Fontos</div>
+              <div style="font-size:12px;color:var(--text-muted);">A hívás indításához a <strong>server.py agentnek futnia kell</strong> a háttérben. Ha nem fut, a hívott fél csöndet hall.</div>
+            </div>
+          </div>
+        </div>
+      </div><!-- end page-calls -->
+
       <!-- SETTINGS PAGE -->
       <div class="page" id="page-settings">
 
@@ -4548,6 +4626,60 @@
         if (page === 'kanban') loadKanban();
         if (page === 'clients') loadClientsTable();
         if (page === 'tudastar') initTudastar();
+      }
+    }
+
+    function onCallPhoneInput(el) {
+      // Auto-format: ha 06-tal kezdődik, cseréljük +36-ra
+      let v = el.value.replace(/\s/g, '');
+      if (v.startsWith('06')) el.value = '+36' + v.slice(2);
+    }
+
+    async function startCall() {
+      const phone = document.getElementById('call-phone-input').value.trim();
+      const note  = document.getElementById('call-note-input').value.trim();
+      const statusBox = document.getElementById('call-status-box');
+      const errorBox  = document.getElementById('call-error-box');
+      const btn       = document.getElementById('call-start-btn');
+      const statusTxt = document.getElementById('call-status-text');
+      const statusPh  = document.getElementById('call-status-phone');
+
+      if (!phone) {
+        document.getElementById('call-phone-input').style.borderColor = '#ef4444';
+        setTimeout(() => document.getElementById('call-phone-input').style.borderColor = '', 1500);
+        return;
+      }
+
+      // Reset UI
+      errorBox.style.display  = 'none';
+      statusBox.style.display = 'block';
+      statusTxt.textContent   = 'Hívás felépítése...';
+      statusPh.textContent    = phone;
+      btn.disabled = true;
+      btn.style.opacity = '0.6';
+
+      try {
+        const token = localStorage.getItem('thinkai_admin_token');
+        const resp = await fetch('/admin/api/sip/call', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
+          body: JSON.stringify({ phone_number: phone, note })
+        });
+        const data = await resp.json();
+        if (!resp.ok) throw new Error(data.detail || 'Ismeretlen hiba');
+
+        statusTxt.textContent = '✅ Hívás felépült!';
+        document.getElementById('call-status-dot').style.animation = 'none';
+        document.getElementById('call-status-dot').style.background = '#22c55e';
+        document.getElementById('call-phone-input').value = '';
+        document.getElementById('call-note-input').value  = '';
+      } catch(e) {
+        statusBox.style.display = 'none';
+        errorBox.style.display  = 'block';
+        errorBox.textContent    = '❌ Hiba: ' + e.message;
+      } finally {
+        btn.disabled = false;
+        btn.style.opacity = '1';
       }
     }
 

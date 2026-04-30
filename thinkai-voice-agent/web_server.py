@@ -23,6 +23,7 @@ from pydantic import BaseModel
 import jwt as pyjwt
 
 from livekit.api import AccessToken, VideoGrants, RoomConfiguration, RoomAgentDispatch
+import livekit.api as lk_api_module
 import asyncio
 
 import database as db
@@ -52,6 +53,46 @@ async def startup_event():
     task = asyncio.create_task(email_processor.email_worker_loop())
     background_tasks.add(task)
     task.add_done_callback(background_tasks.discard)
+    # Inbound SIP szoba monitor
+    mon = asyncio.create_task(inbound_sip_room_monitor())
+    background_tasks.add(mon)
+    mon.add_done_callback(background_tasks.discard)
+
+async def inbound_sip_room_monitor():
+    """Figyeli a 'call-' prefix szobakat es dispatch-eli az agentet ha meg nem csatlakozott."""
+    lk_url    = os.getenv("LIVEKIT_URL", "").replace("wss://", "https://")
+    lk_key    = os.getenv("LIVEKIT_API_KEY", "")
+    lk_secret = os.getenv("LIVEKIT_API_SECRET", "")
+    dispatched = set()  # mar dispatch-elt szobak
+    while True:
+        try:
+            await asyncio.sleep(3)
+            if not lk_key or not lk_secret:
+                continue
+            lk = lk_api_module.LiveKitAPI(url=lk_url, api_key=lk_key, api_secret=lk_secret)
+            rooms = await lk.room.list_rooms(lk_api_module.ListRoomsRequest())
+            for room in rooms.rooms:
+                if not room.name.startswith("call-"):
+                    continue
+                if room.name in dispatched:
+                    continue
+                # Van-e mar agent a szobaban?
+                parts = await lk.room.list_participants(lk_api_module.ListParticipantsRequest(room=room.name))
+                has_agent = any(p.identity.startswith("agent-") or p.identity == "thinkai-dobozos-local"
+                               for p in parts.participants)
+                if not has_agent:
+                    await lk.agent_dispatch.create_dispatch(
+                        lk_api_module.CreateAgentDispatchRequest(
+                            agent_name="thinkai-dobozos-local",
+                            room=room.name,
+                            metadata="inbound_sip",
+                        )
+                    )
+                    dispatched.add(room.name)
+                    print(f"[SIP Monitor] Agent dispatch -> {room.name}", flush=True)
+            await lk.aclose()
+        except Exception as e:
+            pass  # csendben folytatjuk
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
@@ -1265,6 +1306,77 @@ async def cartesia_voices(username: str = Depends(verify_jwt)):
         return resp.json()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Cartesia API hiba: {e}")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SIP OUTBOUND CALL API
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class SipCallRequest(BaseModel):
+    phone_number: str   # E.164 format pl. +36301234567
+    note: str = ""      # Megjegyzés (nem kerül mentésre egyelőre)
+
+@app.post("/admin/api/sip/call")
+async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_jwt)):
+    """Kimenő SIP hívás indítása az AI agenttel."""
+    from livekit import api as lk_api_module
+
+    lk_url    = os.getenv("LIVEKIT_URL")
+    lk_key    = os.getenv("LIVEKIT_API_KEY")
+    lk_secret = os.getenv("LIVEKIT_API_SECRET")
+    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_2wJZqGsWZBC3")
+
+    phone = req.phone_number.strip()
+    if not phone.startswith("+"):
+        phone = "+" + phone
+
+    # Egyedi szoba a híváshoz
+    room_name = f"call-out-{uuid.uuid4().hex[:8]}"
+
+    try:
+        lk = lk_api_module.LiveKitAPI(url=lk_url, api_key=lk_key, api_secret=lk_secret)
+
+        # 1. Szoba létrehozása
+        await lk.room.create_room(
+            lk_api_module.CreateRoomRequest(
+                name=room_name,
+                empty_timeout=120,
+            )
+        )
+
+        # 2. Agent explicit dispatch a szobába
+        await lk.agent_dispatch.create_dispatch(
+            lk_api_module.CreateAgentDispatchRequest(
+                agent_name="thinkai-dobozos-local",
+                room=room_name,
+                metadata="outbound_call",
+            )
+        )
+
+        # 3. Kimenő SIP hívás indítása (blokkoló — megvárja hogy felvegyék)
+        participant = await lk.sip.create_sip_participant(
+            lk_api_module.CreateSIPParticipantRequest(
+                sip_trunk_id=trunk_id,
+                sip_call_to=phone,
+                room_name=room_name,
+                participant_identity="phone-caller",
+                participant_name=phone,
+                wait_until_answered=True,
+            )
+        )
+
+        await lk.aclose()
+
+        return {
+            "ok": True,
+            "room": room_name,
+            "phone": phone,
+            "participant": participant.participant_identity,
+        }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Hívás sikertelen: {str(e)}")
+
 
 
 if __name__ == "__main__":
