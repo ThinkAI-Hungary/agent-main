@@ -3306,6 +3306,89 @@
       0%, 100% { opacity: 1; transform: scale(1); }
       50% { opacity: 0.4; transform: scale(1.3); }
     }
+
+    /* APPROVALS PAGE CSS */
+    .approvals-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+      gap: 16px;
+      margin-top: 20px;
+    }
+    .approval-card {
+      background: var(--bg-card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 18px;
+      cursor: pointer;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      display: flex;
+      flex-direction: column;
+    }
+    .approval-card:hover {
+      border-color: var(--primary);
+      transform: translateY(-4px);
+      box-shadow: 0 10px 25px -5px rgba(0,0,0,0.1), 0 8px 10px -6px rgba(0,0,0,0.1);
+    }
+    .approval-card-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 14px;
+    }
+    .approval-card-channel {
+      font-size: 14px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .approval-card-tag {
+      font-size: 10px;
+      font-weight: 800;
+      padding: 4px 10px;
+      border-radius: 6px;
+      text-transform: uppercase;
+      background: rgba(34, 197, 94, 0.1);
+      color: #22c55e;
+      border: 1px solid rgba(34, 197, 94, 0.2);
+    }
+    .approval-card-tag.urgent { background: rgba(239, 68, 68, 0.1); color: #ef4444; border-color: rgba(239, 68, 68, 0.2); }
+    .approval-card-title {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 4px;
+    }
+    .approval-card-subtitle {
+      font-size: 13px;
+      color: var(--primary);
+      margin-bottom: 14px;
+      font-weight: 500;
+    }
+    .approval-card-preview {
+      font-size: 14px;
+      color: var(--text);
+      line-height: 1.6;
+      opacity: 0.85;
+      display: -webkit-box;
+      -webkit-line-clamp: 4;
+      -webkit-box-orient: vertical;
+      overflow: hidden;
+      flex-grow: 1;
+    }
+    .approval-card-footer {
+      margin-top: 16px;
+      padding-top: 16px;
+      border-top: 1px solid var(--border);
+      font-size: 12px;
+      color: var(--text-muted);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-weight: 600;
+    }
+
   </style>
 </head>
 
@@ -3368,6 +3451,12 @@
       </button>
 
 
+      <button class="nav-item" id="nav-approvals" onclick="showPage('approvals')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+        </svg>
+        <span>Jóváhagyó rendszer</span>
+      </button>
       <button class="nav-item" id="nav-settings" onclick="showPage('settings')">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
           <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"></path>
@@ -3401,6 +3490,21 @@
     </aside>
     <!-- Main content -->
     <main class="main">
+    <!-- ÉRTESÍTÉSI HARANG ÉS TOAST KONTÉNER (SÜRGŐS ESETEK) -->
+    <div id="urgent-bell-wrapper" style="position:fixed; top:24px; right:32px; z-index:100; display:flex; flex-direction:column; align-items:flex-end;">
+      <div id="urgent-bell-container" title="Sürgős esetek" onclick="toggleUrgentDropdown()" style="position:relative; cursor:pointer; background:var(--bg3); border:1px solid var(--border); border-radius:50%; width:44px; height:44px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); transition:all 0.2s;">
+      <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="20" height="20" style="color:var(--text);"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
+      <span id="urgent-badge" style="display:none; position:absolute; top:-4px; right:-4px; background:#ef4444; color:white; border-radius:50%; width:20px; height:20px; font-size:11px; font-weight:bold; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(239,68,68,0.3);">0</span>
+      </div>
+      <div id="urgent-dropdown" style="display:none; position:absolute; top:54px; right:0; width:300px; background:var(--bg3); border:1px solid var(--border); border-radius:8px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); max-height:400px; overflow-y:auto; flex-direction:column;">
+        <div style="padding:12px 16px; border-bottom:1px solid var(--border); font-weight:600; font-size:14px; color:var(--text);">Sürgős riasztások</div>
+        <div id="urgent-dropdown-list" style="display:flex; flex-direction:column;">
+          <!-- List items will be injected here -->
+        </div>
+      </div>
+    </div>
+    <div id="urgent-toast-container" style="position:fixed; bottom:24px; right:24px; z-index:9999; display:flex; flex-direction:column; gap:12px; pointer-events:none;"></div>
+
       <!-- ANALYTICS PAGE -->
       <div class="page active" id="page-analytics">
         <div class="analytics-shell">
@@ -3652,6 +3756,101 @@
           </div>
         </div>
       </div><!-- end page-calls -->
+
+      <!-- APPROVALS PAGE -->
+      <div class="page" id="page-approvals">
+        <div class="page-header" style="margin-bottom:18px; display: flex; align-items: center;">
+          <div style="display: flex; align-items: center;">
+            <div style="width: 48px; height: 48px; background: #eef2f6; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-right: 16px;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 24px; height: 24px; color: #1e293b;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+            <div class="page-title" style="margin:0;">E-mail jóváhagyás</div>
+          </div>
+          
+          <div class="view-switcher-container" style="margin-left: 32px; display: flex; gap: 8px;">
+            <button class="view-btn active" id="btn-tab-pending" onclick="switchApprovalTab('pending')" style="display: flex; align-items: center;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px; margin-right: 8px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+              </svg> Várakozó
+            </button>
+            <button class="view-btn" id="btn-tab-history" onclick="switchApprovalTab('history')" style="display: flex; align-items: center;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px; margin-right: 8px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg> Előzmények
+            </button>
+          </div>
+
+          <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+            <div id="approval-bulk-actions" style="display: none; align-items: center; gap: 8px; margin-right: 8px; border-right: 1px solid var(--border); padding-right: 12px;">
+              <span id="approval-selected-count" style="color: var(--text-muted); font-size: 13px; font-weight: 600;">0 kijelölve</span>
+              <button onclick="deleteSelectedApprovals()" style="background: #ef4444; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.2s; display: flex; align-items: center;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 14px; height: 14px; margin-right: 6px;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Törlés
+              </button>
+            </div>
+            
+            <label style="display: flex; align-items: center; cursor: pointer; color: var(--text-muted); font-size: 13px; font-weight: 600;">
+              <input type="checkbox" id="approval-select-all" onclick="toggleAllApprovals(this)" style="margin-right: 6px; cursor: pointer; width: 16px; height: 16px;"> Mind
+            </label>
+            <select id="approval-category-filter" onchange="loadApprovals()" style="background: var(--bg2); color: var(--text); border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 16px; font-weight: 600; outline: none; cursor: pointer;">
+              <option value="all">Összes kategória</option>
+              <option value="urgent">Sürgős</option>
+              <option value="complaint">Panasz</option>
+              <option value="stuck">Technikai hiba</option>
+              <option value="ajanlat">Árajánlat</option>
+              <option value="foglalt">Időpontfoglalás</option>
+              <option value="irrelevant">Spam / Irreleváns</option>
+              <option value="other">Egyéb</option>
+            </select>
+            <button class="btn-refresh" onclick="loadApprovals()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 16px; height: 16px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg></button>
+          </div>
+        </div>
+
+        <div id="approval-count-label" style="text-align: right; margin-bottom: 12px; font-size: 13px; color: var(--text-muted); font-weight: 600;">0 megjelenítve</div>
+        <div class="approvals-grid" id="approvals-grid">
+          <!-- Cards will be injected here -->
+        </div>
+      </div>
+      
+  <!-- APPROVAL MODAL -->
+  <div id="approval-modal" style="display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
+    <div class="login-card" style="width:800px; max-width:90vw; padding:24px;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border);">
+        <h3 class="modal-title" style="font-size: 22px; font-weight: 700; margin: 0; display: flex; align-items: center; color: #0f172a;">Üzenet jóváhagyása</h3>
+        <button onclick="closeApprovalModal()" style="background: transparent; border: none; cursor: pointer; color: var(--text-muted); padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='transparent'">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 24px; height: 24px;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom: 16px; background: var(--bg); padding: 16px; border-radius: 8px; border: 1px solid var(--border);">
+          <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; font-weight: 700;">Eredeti üzenet / Kontextus:</div>
+          <div id="approval-original-topic" style="font-weight: 500; font-size: 15px; line-height: 1.5;"></div>
+        </div>
+        <div style="margin-bottom: 24px;">
+          <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; font-weight: 700;">AI által generált válasz piszkozata:</div>
+          <textarea id="approval-draft-text" class="form-control" style="height: 350px; resize: vertical; width: 100%; font-family: inherit; font-size: 14px; line-height: 1.6; padding: 16px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);"></textarea>
+        </div>
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+          <button onclick="submitApproval('reject')" id="btn-approval-reject" style="background: #ef4444; color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
+            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="width: 16px; height: 16px; margin-right: 8px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+            </svg> Elutasítás
+          </button>
+          
+          <button onclick="submitApproval('approve')" id="btn-approval-approve" style="background: linear-gradient(135deg, #1ceee0, #0bbdb1); color: #082432; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; display: flex; align-items: center; box-shadow: 0 4px 16px rgba(28,238,224,0.3);" onmouseover="this.style.filter='brightness(1.05)'" onmouseout="this.style.filter='brightness(1)'">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 16px; height: 16px; margin-right: 8px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+            </svg> Jóváhagyás és Küldés
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
 
       <!-- SETTINGS PAGE -->
       <div class="page" id="page-settings">
@@ -4353,9 +4552,8 @@
                       <th
                         style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border);">
                         ÖSSZEFOGLALÓ</th>
-                      <th
-                        style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border);">
-                        EREDMÉNY</th>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border);">NAPLÓ</th>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border);">EREDMÉNY</th>
                     </tr>
                   </thead>
                   <tbody id="cd-history-body">
@@ -4599,6 +4797,7 @@
 
     // ── Page navigation ───────────────────────────────────────────────────────────
     function showPage(page) {
+      if (page === 'approvals') loadApprovals();
       const parentMap = {
         'sessions': 'interactions',
         'kanban': 'interactions',
@@ -5703,6 +5902,145 @@
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    // ── SÜRGŐS ESETEK (URGENT ALERTS) POLLING ──────────────────────────────────────
+    let knownUrgentIds = new Set();
+    let viewedUrgentIds = new Set();
+    const urgentAudio = new Audio('data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq'); // Fallback placeholder ha nincs natív, de inkább egy diszkrét ding:
+    urgentAudio.src = "https://actions.google.com/sounds/v1/alarms/beep_short.ogg"; // Rövid csilingelés
+    
+    function toggleUrgentDropdown() {
+      const dropdown = document.getElementById('urgent-dropdown');
+      if (dropdown.style.display === 'none' || dropdown.style.display === '') {
+        dropdown.style.display = 'flex';
+      } else {
+        dropdown.style.display = 'none';
+      }
+    }
+
+        async function viewUrgentAlert(clientId, name, email, phone) {
+      document.getElementById('urgent-dropdown').style.display = 'none';
+      
+      viewedUrgentIds.add(clientId);
+
+      // Update UI manually immediately
+      const badge = document.getElementById('urgent-badge');
+      const currentCount = parseInt(badge.textContent || '0');
+      if (currentCount > 0) {
+        badge.textContent = currentCount - 1;
+        if (currentCount - 1 === 0) badge.style.display = 'none';
+      }
+
+      pollUrgentCases(); // This will re-render without it once backend catches up
+
+      try {
+        await authFetch('/admin/api/alerts/urgent/' + clientId + '/view', { method: 'POST' });
+        // DO NOT delete from knownUrgentIds to prevent the toast from showing again!
+        pollUrgentCases(); // Final sync with backend
+      } catch(e) { console.error('Hiba az alert megtekintésekor', e); }
+      
+      if(typeof showPage === 'function') showPage('clients'); 
+      if(typeof openClientDetails === 'function') {
+        openClientDetails({id: clientId, name: name, email: email || '', phone: phone || ''});
+      }
+    }
+
+    async function pollUrgentCases() {
+      if (!authToken) return;
+      try {
+        const res = await authFetch('/admin/api/alerts/urgent');
+        if (!res.ok) return;
+        const data = await res.json();
+        const urgentClients = (data.urgent_clients || []).filter(c => !viewedUrgentIds.has(c.id));
+        
+        let newCount = 0;
+        urgentClients.forEach(c => {
+          if (!knownUrgentIds.has(c.id)) {
+            knownUrgentIds.add(c.id);
+            newCount++;
+            showUrgentToast(c);
+          }
+        });
+        
+        const badge = document.getElementById('urgent-badge');
+        const listDiv = document.getElementById('urgent-dropdown-list');
+        
+        if (urgentClients.length > 0) {
+          badge.textContent = urgentClients.length;
+          badge.style.display = 'flex';
+          if (newCount > 0) {
+            urgentAudio.play().catch(e => console.log('Audio autoplay prevented'));
+          }
+          
+          if (listDiv) {
+            listDiv.innerHTML = urgentClients.map(c => `
+              <div onclick="viewUrgentAlert(${c.id}, '${esc(c.name)}', '${esc(c.email || '')}', '${esc(c.phone || '')}')" style="padding:12px 16px; border-bottom:1px solid var(--border); cursor:pointer; display:flex; flex-direction:column; gap:4px; transition:background 0.2s;" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='transparent'">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span style="font-weight:600; font-size:13px; color:var(--text);">${esc(c.name)}</span>
+                  <span style="font-size:10px; font-weight:500; color:#ef4444; background:rgba(239,68,68,0.1); padding:2px 6px; border-radius:4px;">${esc(c.channel)}</span>
+                </div>
+                <div style="font-size:12px; color:var(--text-muted); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${esc(c.problem)}</div>
+              </div>
+            `).join('');
+          }
+        } else {
+          badge.style.display = 'none';
+          if (listDiv) {
+            listDiv.innerHTML = '<div style="padding:16px; text-align:center; color:var(--text-muted); font-size:13px;">Nincs új sürgős riasztás.</div>';
+          }
+        }
+      } catch (e) {
+        console.error('Hiba a sürgős esetek lekérdezésekor:', e);
+      }
+    }
+    
+    function showUrgentToast(c) {
+      const container = document.getElementById('urgent-toast-container');
+      if (!container) return;
+      
+      const toast = document.createElement('div');
+      // Tailwind stílusú felugró ablak
+      toast.style.cssText = 'pointer-events:auto; width:320px; background:white; border-left:4px solid #ef4444; border-radius:6px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); padding:16px; transform:translateX(120%); opacity:0; transition:all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display:flex; flex-direction:column; gap:6px;';
+      
+      if (document.body.classList.contains('dark')) {
+         toast.style.background = '#1e293b';
+         toast.style.color = '#f8fafc';
+         toast.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.5)';
+      }
+      
+      toast.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:16px;">🚨</span>
+            <span style="font-weight:700; font-size:13px; color:#ef4444;">Sürgős eset beérkezett!</span>
+          </div>
+          <button style="background:none; border:none; cursor:pointer; color:#9ca3af; font-size:16px;" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+        <div style="font-size:14px; font-weight:600; margin-top:4px; color:var(--text);">${esc(c.name)} <span style="font-size:11px; font-weight:500; color:#6b7280; padding:2px 6px; background:#f3f4f6; border-radius:4px; margin-left:6px;">${esc(c.channel)}</span></div>
+        <div style="font-size:12px; color:var(--text-muted); line-height:1.4;">${esc(c.problem)}</div>
+        <button onclick="if(typeof showPage === 'function') showPage('clients'); if(typeof openClientDetails === 'function') openClientDetails({name: '${esc(c.name)}', email: '${esc(c.email || '')}', phone: '${esc(c.phone || '')}'}); this.parentElement.remove();" style="margin-top:8px; align-self:flex-start; font-size:12px; font-weight:600; color:#2563eb; background:none; border:none; cursor:pointer; padding:0;">Ugrás az ügyfél adatlapjára ➔</button>
+      `;
+      
+      container.appendChild(toast);
+      
+      // Animáció be
+      requestAnimationFrame(() => {
+        toast.style.transform = 'translateX(0)';
+        toast.style.opacity = '1';
+      });
+      
+      // 10 másodperc után eltűnik
+      setTimeout(() => {
+        toast.style.transform = 'translateX(120%)';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 400);
+      }, 10000);
+    }
+    
+    // Indítás
+    setInterval(pollUrgentCases, 15000);
+    setTimeout(pollUrgentCases, 2000);
+
+
     // ── Auto login if token exists ────────────────────────────────────────────────
     if (authToken) {
       authFetch('/admin/api/stats?period=month')
@@ -5779,7 +6117,19 @@
         await initClientFields();
         currentKanbanColumns.forEach(col => {
           const container = document.getElementById('cards-' + col.id);
-          const colClients = clientsByStatus[col.id] || [];
+          let colClients = clientsByStatus[col.id] || [];
+          
+          // Sürgős esetek rendezése legfelülre
+          colClients.sort((a, b) => {
+            const aData = a.custom_data ? JSON.parse(a.custom_data) : {};
+            const bData = b.custom_data ? JSON.parse(b.custom_data) : {};
+            const aSurgos = (aData.prioritas === 'Sürgős' || aData.priority === 'Sürgős' || aData.prioritas === 'Kiemelt');
+            const bSurgos = (bData.prioritas === 'Sürgős' || bData.priority === 'Sürgős' || bData.prioritas === 'Kiemelt');
+            if (aSurgos && !bSurgos) return -1;
+            if (!aSurgos && bSurgos) return 1;
+            return new Date(b.created_at) - new Date(a.created_at);
+          });
+          
           colClients.forEach(c => {
             const div = document.createElement('div');
             div.className = 'kanban-card';
@@ -5791,6 +6141,13 @@
             div.ondblclick = () => openClientModal(c.id, btoa(encodeURIComponent(c.custom_data || '{}')));
 
             // Build dynamic UI for card
+            const cData = c.custom_data ? JSON.parse(c.custom_data) : {};
+            const isSurgos = (cData.prioritas === 'Sürgős' || cData.priority === 'Sürgős' || cData.prioritas === 'Kiemelt');
+            if (isSurgos) {
+                div.style.border = '2px solid #ef4444';
+                div.style.backgroundColor = document.body.classList.contains('dark') ? 'rgba(239, 68, 68, 0.05)' : '#fef2f2';
+            }
+
             const fieldsCount = currentClientFields.length;
             let titleVal = fieldsCount > 0 && c.custom_data ? JSON.parse(c.custom_data)[currentClientFields[0].id] : c.name;
             let otherHtml = currentClientFields.slice(1, 3).map(f => {
@@ -5799,6 +6156,7 @@
             }).join('');
 
             div.innerHTML = `
+              ${isSurgos ? '<div style="display:inline-block;background:#ef4444;color:white;font-size:10px;font-weight:bold;padding:2px 6px;border-radius:4px;margin-bottom:6px;box-shadow:0 1px 2px rgba(239,68,68,0.4);">🚨 SÜRGŐS</div>' : ''}
               <div class="client-name">${esc(titleVal || "Névtelen")}</div>
               ${otherHtml}
               <div style="text-align:right"><button onclick="deleteClient(${c.id})" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:11px;">Törlés</button></div>
@@ -6876,9 +7234,37 @@
       if (viewId === 'sessions') loadSessions();
     }
 
-    let lastActiveCustomerView = 'clients';
+        let lastActiveCustomerView = 'clients';
+
+    
+    async function viewFullLogForClient() {
+      const cData = window.currentClientDataForLog;
+      if (!cData) return alert('Nincs kiválasztva ügyfél.');
+      
+      try {
+        const res = await authFetch('/admin/api/clients');
+        const data = await res.json();
+        const client = data.clients.find(c => 
+          (cData.id && c.id == cData.id) || 
+          (cData.email && c.custom_data && c.custom_data.includes(cData.email)) ||
+          (cData.name && c.name && c.name.toLowerCase() === cData.name.toLowerCase())
+        );
+        if (client && client.custom_data) {
+          let customObj = typeof client.custom_data === 'string' ? JSON.parse(client.custom_data) : client.custom_data;
+          let log = customObj.beszelgetes_naplo || 'Nincs rögzített beszélgetés napló ehhez az ügyfélhez.';
+          openLogModal(btoa(encodeURIComponent(log)), cData.name, 'Rendszer', '');
+        } else {
+          alert('Nem található részletes napló.');
+        }
+      } catch (e) {
+        console.error(e);
+        alert('Hiba a napló lekérésekor.');
+      }
+    }
 
     function openClientDetails(clientData) {
+      window.currentClientDataForLog = clientData;
+
       // Save current active view
       document.querySelectorAll('.customer-view').forEach(el => {
         if (el.style.display !== 'none' && el.id !== 'view-client-details') {
@@ -6939,7 +7325,8 @@
                     type: r.type || '-',
                     topic: r.topic || '-',
                     summary: r.summary || '-',
-                    result: r.result || ''
+                    result: r.result || '',
+                    alert_tags: r.alert_tags || []
                   });
                 });
               }
@@ -6962,13 +7349,17 @@
                 dStr = pt[0].replace(/-/g, '. ') + '.';
                 tStr = pt[1] ? pt[1].substring(0, 5) : '';
               }
+              const isUrgent = (r.alert_tags && r.alert_tags.includes('urgent')) || (r.type === 'voice_alert' && (r.result || '').includes('urgent'));
+              let alertBadge = isUrgent ? '<div onclick="viewFullLogForClient()" style="display:inline-block;background:#ef4444;color:white;font-size:10px;font-weight:bold;padding:2px 6px;border-radius:4px;margin-bottom:4px;box-shadow:0 1px 2px rgba(239,68,68,0.4);cursor:pointer;" title="Kattints az e-mail megtekintéséhez!">🚨 SÜRGŐS</div><br>' : '';
+
               return `
-                <tr>
+                <tr ${isUrgent ? 'style="background-color:rgba(239, 68, 68, 0.05);"' : ''}>
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px; color:var(--text);">${dStr}<br><span style="color:var(--text-muted);font-size:11px;">${tStr}</span></td>
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px; color:var(--text);">${esc(r.channel)}</td>
-                  <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px;">${typeChip(r.type)}</td>
+                  <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px;">${alertBadge}${typeChip(r.type)}</td>
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px;"><span class="badge" style="background:var(--bg3);color:var(--text);">${esc(r.topic)}</span></td>
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px; color:var(--text);">${esc(r.summary)}</td>
+                  <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px;"><button onclick="viewFullLogForClient()" style="background:rgba(0,212,200,0.1);border:1px solid var(--accent);color:var(--accent);border-radius:4px;cursor:pointer;padding:4px 8px;font-size:11px;">Megtekintés</button></td>
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px;">${resultBadge(r.result)}</td>
                 </tr>
                `;
@@ -7002,12 +7393,12 @@
 
       if (card) {
         let name = "Ügyfél";
-        let strong = card.querySelector('strong');
-        if (strong) name = strong.innerText;
+        const nameDiv = card.querySelector('.client-name');
+        if (nameDiv) name = nameDiv.innerText;
 
         let email = '';
         let phone = '';
-        const infoDivs = card.querySelectorAll('div[style*="font-size:12px"]');
+        const infoDivs = card.querySelectorAll('.client-info');
         infoDivs.forEach(d => {
           if (d.innerText.includes('@')) email = d.innerText.trim();
           else if (d.innerText.trim().length > 0) phone = d.innerText.trim();
@@ -7466,6 +7857,245 @@
       fetchTriageRules();
       fetchDoctors();
     });
+
+  
+    // ═══════════════════════════════════════════════════════════════════════════════
+    // JÓVÁHAGYÓ RENDSZER (HUMAN-IN-THE-LOOP) LOGIKA
+    // ═══════════════════════════════════════════════════════════════════════════════
+    let currentApprovalTab = 'pending';
+    let currentApprovalId = null;
+
+    function switchApprovalTab(tab) {
+      currentApprovalTab = tab;
+      document.getElementById('btn-tab-pending').classList.toggle('active', tab === 'pending');
+      document.getElementById('btn-tab-history').classList.toggle('active', tab === 'history');
+      loadApprovals();
+    }
+
+    
+    function toggleAllApprovals(source) {
+      const checkboxes = document.querySelectorAll('.approval-checkbox');
+      checkboxes.forEach(cb => cb.checked = source.checked);
+      updateApprovalBulkActions();
+    }
+    
+    function updateApprovalBulkActions() {
+      const checkboxes = document.querySelectorAll('.approval-checkbox:checked');
+      const count = checkboxes.length;
+      const bar = document.getElementById('approval-bulk-actions');
+      const countLabel = document.getElementById('approval-selected-count');
+      
+      if (count > 0) {
+        bar.style.display = 'flex';
+        countLabel.innerText = `${count} kijelölve`;
+      } else {
+        bar.style.display = 'none';
+        document.getElementById('approval-select-all').checked = false;
+      }
+    }
+    
+    async function deleteSelectedApprovals() {
+      const checkboxes = document.querySelectorAll('.approval-checkbox:checked');
+      if (checkboxes.length === 0) return;
+      
+      if (!confirm(`Biztosan törölni szeretnél ${checkboxes.length} db üzenetet? Ez a művelet nem vonható vissza!`)) {
+        return;
+      }
+      
+      const ids = Array.from(checkboxes).map(cb => parseInt(cb.value));
+      const token = localStorage.getItem('thinkai_admin_token') || authToken;
+      
+      try {
+        const res = await fetch('/admin/api/approvals', {
+          method: 'DELETE',
+          headers: {
+             'Authorization': 'Bearer ' + token,
+             'Content-Type': 'application/json'
+          },
+          body: JSON.stringify({ ids: ids })
+        });
+        
+        if (!res.ok) throw new Error('Hiba a törlés során');
+        
+        document.getElementById('approval-select-all').checked = false;
+        updateApprovalBulkActions();
+        loadApprovals();
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    async function loadApprovals() {
+      const grid = document.getElementById('approvals-grid');
+      if (!grid) return;
+      grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted);"><div style="display:inline-block; animation: callPulse 1.5s infinite; font-size: 24px;">⌛</div><br><br>Betöltés...</div>';
+      
+      try {
+        const res = await authFetch('/admin/api/approvals?status=' + currentApprovalTab);
+        if (!res.ok) { const text = await res.text(); throw new Error('Hiba a jóváhagyások betöltésekor: ' + text); }
+        const data = await res.json();
+        const items = data.approvals || [];
+        
+        const filterCat = document.getElementById('approval-category-filter') ? document.getElementById('approval-category-filter').value : 'all';
+        
+        // Filter items
+        let filteredItems = items;
+        if (filterCat !== 'all') {
+           filteredItems = items.filter(c => {
+               const tags = c.alert_tags || [];
+               const stage = c.funnel_stage || '';
+               if (filterCat === 'urgent') return tags.includes('urgent');
+               if (filterCat === 'complaint') return tags.includes('complaint');
+               if (filterCat === 'stuck') return tags.includes('stuck');
+               if (filterCat === 'ajanlat') return stage === 'ajanlat';
+               if (filterCat === 'foglalt') return stage === 'foglalt';
+               if (filterCat === 'irrelevant') return stage === 'irrelevant';
+               if (filterCat === 'other') return !tags.length && !['ajanlat', 'foglalt', 'irrelevant'].includes(stage);
+               return true;
+           });
+        }
+        
+        const countLabel = document.getElementById('approval-count-label');
+        if (countLabel) {
+           countLabel.innerText = `${filteredItems.length} megjelenítve`;
+        }
+        document.getElementById('approval-select-all').checked = false;
+        updateApprovalBulkActions();
+        
+        if (filteredItems.length === 0) {
+          grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted);"><svg fill="none" stroke="var(--success)" stroke-width="2" viewBox="0 0 24 24" style="width:48px;height:48px;margin-bottom:16px;display:inline-block;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><br><br>Nincs megjeleníthető elem a kiválasztott szűrők alapján!</div>';
+          return;
+        }
+        
+        grid.innerHTML = filteredItems.map(c => {
+          let channelIconSVG = `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path></svg>`;
+          let channelColor = '#eab308';
+          if (c.type === 'messenger' || c.type === 'meta') { 
+             channelIconSVG = `<svg fill="currentColor" viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M12 2C6.477 2 2 6.145 2 11.26c0 2.91 1.5 5.513 3.843 7.185v3.42c0 .484.542.766.945.502l3.435-2.22c1.7.472 3.518.472 5.218 0l3.435 2.22c.403.264.945-.018.945-.502v-3.42C20.5 16.773 22 14.17 22 11.26 22 6.145 17.523 2 12 2zm1 9h-2V7h2v4zm0 4h-2v-2h2v2z"/></svg>`;
+             channelColor = '#3b82f6'; 
+          }
+          if (c.type === 'whatsapp') { 
+             channelIconSVG = `<svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M3 5a2 2 0 012-2h3.28a1 1 0 01.948.684l1.498 4.493a1 1 0 01-.502 1.21l-2.257 1.13a11.042 11.042 0 005.516 5.516l1.13-2.257a1 1 0 011.21-.502l4.493 1.498a1 1 0 01.684.949V19a2 2 0 01-2 2h-1C9.716 21 3 14.284 3 6V5z"></path></svg>`;
+             channelColor = '#22c55e'; 
+          }
+          
+          let draftData = {};
+          try { draftData = JSON.parse(c.ai_draft_response || '{}'); } catch(e){}
+          
+          const senderName = draftData.to_name || draftData.sender_id || c.session_id || 'Ismeretlen';
+          const senderEmail = draftData.to_email || '';
+          
+          let tagHtml = '';
+          
+          // Localization map for tags and stages
+          const localMap = {
+             'urgent': 'Sürgős',
+             'complaint': 'Panasz',
+             'stuck': 'Technikai hiba',
+             'ajanlat': 'Árajánlat',
+             'foglalt': 'Időpontfoglalás',
+             'irrelevant': 'Irreleváns / Spam'
+          };
+          
+          // Show alert tags first
+          if (c.alert_tags && c.alert_tags.length > 0) {
+            const isUrgent = c.alert_tags.includes('urgent');
+            const dispTag = localMap[c.alert_tags[0]] || c.alert_tags[0];
+            tagHtml += `<div class="approval-card-tag ${isUrgent ? 'urgent' : ''}">${dispTag}</div>`;
+          }
+          
+          // Show funnel stage if relevant and no tags
+          if (!tagHtml) {
+            let dispStage = localMap[c.funnel_stage];
+            if (!dispStage) {
+               dispStage = 'Egyéb'; // Fallback for unknown/empty stages like 'relevant', 'valaszolt'
+            }
+            tagHtml += `<div class="approval-card-tag" style="background: var(--bg2); color: var(--text-muted); border-color: var(--border);">${dispStage}</div>`;
+          }
+          
+          if (currentApprovalTab === 'history') {
+             const statusColor = c.approval_status === 'approved' ? '#22c55e' : '#ef4444';
+             const statusText = c.approval_status === 'approved' ? 'Elküldve' : 'Elutasítva';
+             tagHtml += `<div class="approval-card-tag" style="background: transparent; color: ${statusColor}; border-color: ${statusColor};">${statusText}</div>`;
+          }
+          
+          const dateStr = new Date(c.created_at).toLocaleString('hu-HU', {year:'numeric', month:'short', day:'numeric', hour:'2-digit', minute:'2-digit'});
+          
+          // Replace single quotes for html onclick
+          const safeC = JSON.stringify(c).replace(/'/g, "&#39;").replace(/"/g, "&quot;");
+          return `
+            <div class="approval-card" onclick="openApprovalModal(${safeC})" style="position: relative;">
+              <input type="checkbox" class="approval-checkbox" value="${c.id}" onclick="event.stopPropagation(); updateApprovalBulkActions()" style="position: absolute; top: 16px; left: 16px; z-index: 10; width: 18px; height: 18px; cursor: pointer;">
+              <div class="approval-card-header">
+                <div class="approval-card-channel" style="color: ${channelColor}; display: flex; align-items: center; gap: 6px; padding-left: 28px;">${channelIconSVG} <span>${c.type === 'email' ? 'E-mail' : c.type}</span></div>
+                <div style="display:flex; gap:6px;">${tagHtml}</div>
+              </div>
+              <div class="approval-card-title">${esc(senderName)}</div>
+              ${senderEmail ? `<div class="approval-card-subtitle">${esc(senderEmail)}</div>` : ''}
+              <div class="approval-card-preview">${esc(draftData.body || '')}</div>
+              <div class="approval-card-footer">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px;height:14px;margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg> ${dateStr}
+              </div>
+            </div>
+          `;
+        }).join('');
+      } catch (e) {
+        grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #ef4444;">${e.message}</div>`;
+      }
+    }
+
+    function openApprovalModal(c) {
+      currentApprovalId = c.id;
+      let draftData = {};
+      try { draftData = JSON.parse(c.ai_draft_response || '{}'); } catch(e){}
+      
+      document.getElementById('approval-original-topic').textContent = (c.topic || '') + " - " + (c.summary || '');
+      document.getElementById('approval-draft-text').value = draftData.body || '';
+      
+      const isHistory = currentApprovalTab === 'history';
+      document.getElementById('btn-approval-approve').style.display = isHistory ? 'none' : 'block';
+      document.getElementById('btn-approval-reject').style.display = isHistory ? 'none' : 'block';
+      document.getElementById('approval-draft-text').disabled = isHistory;
+      
+      document.getElementById('approval-modal').style.display = 'flex';
+    }
+
+    function closeApprovalModal() {
+      document.getElementById('approval-modal').style.display = 'none';
+      currentApprovalId = null;
+    }
+
+    async function submitApproval(action) {
+      if (!currentApprovalId) return;
+      const text = document.getElementById('approval-draft-text').value;
+      const btn = action === 'approve' ? document.getElementById('btn-approval-approve') : document.getElementById('btn-approval-reject');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Kis türelmet...';
+      btn.disabled = true;
+      
+      try {
+        let endpoint = `/admin/api/approvals/${currentApprovalId}/${action}`;
+        const res = await authFetch(endpoint, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ modified_draft: text })
+        });
+        
+        if (!res.ok) {
+           const d = await res.json();
+           throw new Error(d.detail || 'Hiba történt a mentés során');
+        }
+        
+        closeApprovalModal();
+        loadApprovals(); // Frissíti a listát
+        showToast('Sikeres művelet!', 'success');
+      } catch (e) {
+        alert(e.message);
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
+      }
+    }
 
   </script>
 
