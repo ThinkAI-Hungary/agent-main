@@ -279,14 +279,21 @@ def delete_task(task_id: int) -> bool:
 # ANALYTICS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def get_alerts_stats() -> dict:
+def get_alerts_stats(period: str = "month", channel: str = "mind") -> dict:
     if not supabase: 
         return {"urgent_count": 0, "complaint_count": 0, "callback_count": 0, "recurring_count": 0, "stuck_count": 0}
     try:
-        urgent_res = supabase.table("interactions").select("id", count="exact", head=True).contains("alert_tags", '["urgent"]').execute()
-        complaint_res = supabase.table("interactions").select("id", count="exact", head=True).contains("alert_tags", '["complaint"]').execute()
-        callback_res = supabase.table("interactions").select("id", count="exact", head=True).contains("alert_tags", '["callback"]').execute()
-        recurring_res = supabase.table("interactions").select("id", count="exact", head=True).contains("alert_tags", '["recurring"]').execute()
+        # We fetch all matching interactions to filter them in Python since count="exact" is hard to combine dynamically without complex query builder.
+        all_alerts_query = supabase.table("interactions").select("type, alert_tags").not_.is_("alert_tags", "null").execute()
+        urgent_count = complaint_count = callback_count = recurring_count = 0
+        for row in all_alerts_query.data:
+            if not _matches_channel(row.get("type"), channel): continue
+            tags = row.get("alert_tags", [])
+            if "urgent" in tags: urgent_count += 1
+            if "complaint" in tags: complaint_count += 1
+            if "callback" in tags: callback_count += 1
+            if "recurring" in tags: recurring_count += 1
+
         
         # Stuck cases: older than 24 hours and not in a closed status
         yesterday = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
@@ -300,10 +307,10 @@ def get_alerts_stats() -> dict:
                 stuck_count += 1
                 
         return {
-            "urgent_count": urgent_res.count or 0,
-            "complaint_count": complaint_res.count or 0,
-            "callback_count": callback_res.count or 0,
-            "recurring_count": recurring_res.count or 0,
+            "urgent_count": urgent_count,
+            "complaint_count": complaint_count,
+            "callback_count": callback_count,
+            "recurring_count": recurring_count,
             "stuck_count": stuck_count
         }
     except Exception as e:
@@ -381,7 +388,20 @@ def save_ai_insights(insights: list[str]) -> bool:
         logger.error(f"Save AI insights error: {e}")
         return False
 
-def get_stats(period: str = "month") -> dict:
+
+def _matches_channel(type_str: str, channel: str) -> bool:
+    if channel == "mind": return True
+    t = (type_str or "telefon").lower()
+    if channel == "telefon":
+        return "email" not in t and "whatsapp" not in t and "messenger" not in t and "meta" not in t and "facebook" not in t and "instagram" not in t
+    if channel == "email": return "email" in t
+    if channel == "whatsapp": return "whatsapp" in t
+    if channel == "instagram": return "instagram" in t
+    if channel in ["facebook", "messenger"]:
+        return "messenger" in t or "meta" in t or "facebook" in t
+    return False
+
+def get_stats(period: str = "month", channel: str = "mind") -> dict:
     if not supabase: return {}
     today = datetime.now(timezone.utc)
     
@@ -399,10 +419,25 @@ def get_stats(period: str = "month") -> dict:
         prev_start = prev_end - timedelta(days=365)
 
     try:
-        sess_res = supabase.table("sessions").select("id", count="exact", head=True).gte("started_at", start_dt.isoformat()).execute()
-        inter_res = supabase.table("interactions").select("id", count="exact", head=True).gte("created_at", start_dt.isoformat()).execute()
-        email_res = supabase.table("email_logs").select("id", count="exact", head=True).gte("sent_at", start_dt.isoformat()).execute()
-        cal_res = supabase.table("calendar_events").select("id", count="exact", head=True).gte("start_dt", start_dt.isoformat()).execute()
+        # Fallback to count="exact" for Mind channel
+        if channel == "mind":
+            sess_res = supabase.table("sessions").select("id", count="exact", head=True).gte("started_at", start_dt.isoformat()).execute()
+            inter_res = supabase.table("interactions").select("id", count="exact", head=True).gte("created_at", start_dt.isoformat()).execute()
+            email_res = supabase.table("email_logs").select("id", count="exact", head=True).gte("sent_at", start_dt.isoformat()).execute()
+            cal_res = supabase.table("calendar_events").select("id", count="exact", head=True).gte("start_dt", start_dt.isoformat()).execute()
+            
+            tot_sess = sess_res.count or 0
+            tot_inter = inter_res.count or 0
+            tot_email = email_res.count or 0
+            tot_cal = cal_res.count or 0
+        else:
+            # If a specific channel is selected, we compute these via Python filtering or approximation
+            # Since emails and calendar events don't have "channel" easily, we'll just keep them 0 or fetch all.
+            # Actually, total_interactions can be calculated from all_inters below.
+            tot_sess = 0
+            tot_inter = 0
+            tot_email = 0
+            tot_cal = 0
         
         prev_sess = supabase.table("sessions").select("id", count="exact", head=True).gte("started_at", prev_start.isoformat()).lt("started_at", prev_end.isoformat()).execute()
         prev_inter = supabase.table("interactions").select("id", count="exact", head=True).gte("created_at", prev_start.isoformat()).lt("created_at", prev_end.isoformat()).execute()
@@ -426,12 +461,16 @@ def get_stats(period: str = "month") -> dict:
         interactions_by_hour = {"total": [0]*24, "channels": {}}
         
         for i in all_inters.data:
+            if not _matches_channel(i.get("type"), channel):
+                continue
             t_raw = (i.get("type") or "Telefon").lower()
             if "email" in t_raw:
                 t = "E-Mail"
             elif "whatsapp" in t_raw:
                 t = "Whatsapp"
-            elif "messenger" in t_raw or "meta" in t_raw or "instagram" in t_raw:
+            elif "instagram" in t_raw:
+                t = "Instagram"
+            elif "messenger" in t_raw or "meta" in t_raw or "facebook" in t_raw:
                 t = "Messenger"
             else:
                 t = "Telefon"
@@ -514,10 +553,10 @@ def get_stats(period: str = "month") -> dict:
         filled_days = [{"day": k, "count": day_counts.get(k, 0)} for k in all_keys]
 
         return {
-            "total_sessions": sess_res.count or 0,
-            "total_interactions": inter_res.count or 0,
-            "total_emails": email_res.count or 0,
-            "total_bookings": cal_res.count or 0,
+            "total_sessions": tot_sess if channel == "mind" else len([i for i in all_sess.data if _matches_channel(i.get("room_name",""), channel)]) ,
+            "total_interactions": tot_inter if channel == "mind" else sum(type_counts.values()),
+            "total_emails": tot_email if channel == "mind" else (tot_email if channel == "email" else 0),
+            "total_bookings": tot_cal if channel == "mind" else 0,
             "open_tasks": tasks_res.count or 0,
             "avg_session_duration": round(avg_dur),
             "handovers": handovers,
@@ -538,7 +577,7 @@ def get_stats(period: str = "month") -> dict:
         logger.error(f"Stats error: {e}")
         return {}
 
-def get_outbound_stats(period: str = "month") -> dict:
+def get_outbound_stats(period: str = "month", channel: str = "mind") -> dict:
     if not supabase: return {"total_outbound": 0, "reached_rate": 0, "booked_count": 0, "booked_rate": 0, "open_followup": 0}
     today = datetime.now(timezone.utc)
     
@@ -557,6 +596,8 @@ def get_outbound_stats(period: str = "month") -> dict:
         total_outbound = 0
         
         for i in all_inters.data:
+            if not _matches_channel(i.get("type"), channel):
+                continue
             d = i.get("direction", "inbound") or "inbound"
             if d == "outbound":
                 total_outbound += 1
@@ -613,11 +654,16 @@ def get_outbound_stats(period: str = "month") -> dict:
         logger.error(f"Outbound stats error: {e}")
         return {"total_outbound": 0, "reached_rate": 0, "booked_count": 0, "booked_rate": 0, "open_followup": 0}
 
-def get_funnel_stats() -> dict:
+def get_funnel_stats(period: str = "month", channel: str = "mind") -> dict:
     if not supabase: return {}
     try:
-        res = supabase.table("interactions").select("funnel_stage").execute()
-        stages = [r.get("funnel_stage") or "relevant" for r in res.data]
+        today = datetime.now(timezone.utc)
+        if period == "week": start_dt = today - timedelta(days=today.weekday())
+        elif period == "month": start_dt = today.replace(day=1)
+        else: start_dt = today - timedelta(days=365)
+        
+        res = supabase.table("interactions").select("funnel_stage, type").gte("created_at", start_dt.isoformat()).execute()
+        stages = [r.get("funnel_stage") or "relevant" for r in res.data if _matches_channel(r.get("type"), channel)]
         
         relevant_count = len([s for s in stages if s not in ("irrelevant", "spam")])
         valaszolt_count = len([s for s in stages if s in ("valaszolt", "ajanlat", "foglalt")])

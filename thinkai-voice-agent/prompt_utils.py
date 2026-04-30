@@ -118,6 +118,17 @@ def _format_patient_rules(pi: dict) -> str:
 
     return "\n".join(rules)
 
+def _format_faq(faq: list) -> str:
+    if not faq:
+        return "Nincs megadva külön GYIK."
+    lines = ["SZIGORÚ SZABÁLY: Az alábbi Gyakran Ismételt Kérdések (GYIK) alapján válaszolj! Ha a felhasználó kérdése tartalmilag/jelentésben megegyezik valamelyik Kérdéssel, akkor KÖTELEZŐEN a hozzá tartozó Választ kell adnod, lényegi változtatás nélkül!"]
+    for idx, item in enumerate(faq, 1):
+        q = item.get("question", "").strip()
+        a = item.get("answer", "").strip()
+        if q and a:
+            lines.append(f"Kérdés #{idx}: {q}\nVálasz #{idx}: {a}\n")
+    return "\n".join(lines)
+
 def get_system_prompt() -> str:
     """Load system prompt from system_prompt.md and inject runtime variables."""
     if not PROMPT_FILE.exists():
@@ -142,6 +153,7 @@ def get_system_prompt() -> str:
         "exceptions":     _format_exceptions(pi.get("exceptions", [])),
         "cancellation_policy": _format_cancellation_policy(pi),
         "patient_rules":  _format_patient_rules(pi),
+        "faq":            _format_faq(pi.get("faq", [])),
         "knowledge":      _format_knowledge(settings.get("knowledge_content", "")),
         "tone":           settings.get("tone", ""),
     }

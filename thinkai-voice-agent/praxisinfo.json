@@ -6,24 +6,12 @@
   "szakterulet": "box, szájbaverés",
   "kulcsszavak": "box, szájbaverés",
   "megkozelites": "a nyócker legsötétt sikátora, ahova a nap soha nem sütött be.",
-  "price_list": "fog kiverés: 5000 Ft\nCsapágy csere: 12000 Ft",
-  "doctors": [
-    {
-      "nev": "Dr. Szabó Júlia",
-      "szak": "Általános fogászat",
-      "svc": "Vizsgálat, tömés"
-    },
-    {
-      "nev": "Dr. Kiss Péter",
-      "szak": "kapafog szakértő",
-      "svc": "Implantátum beültetés"
-    },
-    {
-      "nev": "asd",
-      "szak": "asd",
-      "svc": "asd"
-    }
-  ],
+  "price_list": "Fog húzás - 12000",
+  "price_list_file_meta": {
+    "filename": "Árlista.xlsx",
+    "uploaded_at": "2026. 04. 30."
+  },
+  "doctors": [],
   "campaigns": [
     {
       "active": true,
@@ -31,8 +19,26 @@
     }
   ],
   "exceptions": [],
+  "faq": [
+    {
+      "question": "Mennyi idővel előre kell foglalni időpontot?",
+      "answer": "Általában 1-2 héttel előre javasoljuk az időpontfoglalást, de sürgős esetekben akár azonnali ellátást is tudunk biztosítani."
+    },
+    {
+      "question": "Fogadnak-e TB-s betegeket?",
+      "answer": "Igen, TB-s ellátást is biztosítunk. Kérjük, hozza magával a TAJ-kártyáját és személyi igazolványát."
+    },
+    {
+      "question": "Van parkolási lehetőség a rendelő közelében?",
+      "answer": "Igen, az utcában fizetős parkolási lehetőség van, valamint 100 méterre található egy mélygarázs is."
+    }
+  ],
   "modositas_eng": "igen",
   "lemondas_24h": "figyelmeztetoSzoveggel",
   "figyelmezteto_szoveg": "Tájékoztatjuk, hogy 24 órán belüli lemondás esetén rendelőnk külön szabályzata lehet érvényben.",
-  "last_updated": "2026-04-29T14:41:05.535751"
+  "pacient_id_question": "Korábban járt már a rendelőnkben?",
+  "new_patient_required": "Születési dátum, teljes név",
+  "new_patient_auto_visit": true,
+  "returning_patient_required": "Páciens azonosító vagy telefonszám",
+  "last_updated": "2026-04-30T00:24:35.622186"
 }

@@ -3406,7 +3406,7 @@
             </div>
             <div class="filter-group">
               <label>Csatorna</label>
-              <select class="filter-select-figma" id="filter-csatorna">
+              <select class="filter-select-figma" id="filter-csatorna" onchange="loadStats()">
                 <option value="mind">Mind</option>
                 <option value="telefon">Telefon</option>
                 <option value="email">E-mail</option>
@@ -3581,8 +3581,7 @@
         <div class="view-switcher-container" style="margin-bottom: 20px;">
           <button class="view-btn active" onclick="switchSettingsView('agent', this)">Agent Beállítások</button>
           <button class="view-btn" onclick="switchSettingsView('praxis', this)">Praxisinformáció</button>
-          <button class="view-btn" onclick="switchSettingsView('szabalyok', this)">Szabályok <span
-              class="wip-badge">🚧</span></button>
+          <button class="view-btn" onclick="switchSettingsView('szabalyok', this)">Szabályok</button>
         </div>
         <div id="settings-view-agent" class="settings-subview" style="display:block;">
           <div class="page-header" style="margin-bottom:18px;">
@@ -3752,10 +3751,23 @@
 
           <!-- 5. Árlista -->
           <div class="tt-section">
-            <div class="tt-section-title"> Árlista</div>
-            <div style="font-size:11px;color:var(--text-muted);margin-bottom:10px;">Az árak és szolgáltatások listája, amit az agent referenciálhat kérdés esetén.</div>
-            <textarea class="tt-textarea" id="tt-arlista" placeholder="Konzultáció: 5000 Ft" style="min-height:120px;font-family:'Courier New',monospace;font-size:12px;"></textarea>
-
+            <div class="tt-section-title">Árak</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px;">Az aktuális árlista XLSX vagy CSV formátumban tölthető fel. Az előző fájl törölhető és új fájl tölthető fel helyette.</div>
+            
+            <div id="price-file-card" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-bottom: 16px; align-items: center; justify-content: space-between;">
+              <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="color: #22c55e; font-size: 24px;">&#128196;</div>
+                <div style="display: flex; flex-direction: column;">
+                  <span id="price-file-name" style="font-size: 13px; font-weight: 600; color: #1f2937;"></span>
+                  <span id="price-file-date" style="font-size: 11px; color: #6b7280; margin-top: 2px;"></span>
+                  <span style="font-size: 10px; color: #22c55e; font-weight: 600; margin-top: 4px;">Aktív</span>
+                </div>
+              </div>
+              <button onclick="deletePriceList()" style="background: transparent; border: none; color: #ef4444; font-size: 18px; cursor: pointer; padding: 4px;">&#128465;</button>
+            </div>
+            
+            <input type="file" id="price-upload-input" accept=".csv, .xlsx" style="display:none;" onchange="uploadPriceList(event)">
+            <button class="tt-save-btn" onclick="document.getElementById('price-upload-input').click()" style="width: 100%; text-align: center; justify-content: center; background: #1ceee0; color: #000; font-weight: 600; border: none; padding: 12px; border-radius: 6px; cursor: pointer;">&#8673; Új árlista feltöltése</button>
           </div>
 
           <!-- 6. Kampányok -->
@@ -3775,6 +3787,20 @@
               </div>
             </div>
             <button class="tt-add-btn" onclick="addKampany()">+ Kampány hozzáadása</button>
+          </div>
+
+          <!-- 7. GYIK -->
+          <div class="tt-section">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <div class="tt-section-title" style="margin-bottom: 0;">GYIK</div>
+              <button class="tt-save-btn" onclick="savePraxisinfo(this, 'GYIK sikeresen elmentve')" style="margin: 0; padding: 8px 16px; font-size: 13px;">&#128190; Mentés</button>
+            </div>
+            <div id="tt-faq-list" style="display: flex; flex-direction: column; gap: 16px; margin-bottom: 16px;">
+              <!-- JS tölti be -->
+            </div>
+            <div style="display: flex; align-items: center;">
+              <button class="tt-add-btn" onclick="addFaq()" style="background: transparent; border: none; color: #1ceee0; font-weight: 600; cursor: pointer; padding: 0;">+ Kérdés hozzáadása</button>
+            </div>
           </div>
 
           <!-- Action bar -->
@@ -4572,6 +4598,7 @@
     // ── ANALYTICS ─────────────────────────────────────────────────────────────────
     async function loadStats() {
       const period = document.getElementById('stats-days').value;
+      const channel = document.getElementById('filter-csatorna').value;
       const kpiGrid = document.getElementById('kpi-grid-figma');
       kpiGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#6b7280;"><div class="spinner" style="border-color:#e5e7eb;border-top-color:#1ceee0;"></div></div>`;
 
@@ -4579,7 +4606,7 @@
       loadInsights();
 
       try {
-        const res = await authFetch(`/admin/api/stats?period=${period}`);
+        const res = await authFetch(`/admin/api/stats?period=${period}&channel=${channel}`);
         const data = await res.json();
         _analyticsData = data;
         renderStats(data);
@@ -4592,8 +4619,10 @@
     }
 
     async function loadAlerts() {
+      const period = document.getElementById('stats-days').value;
+      const channel = document.getElementById('filter-csatorna').value;
       try {
-        const res = await authFetch('/admin/api/analytics/alerts');
+        const res = await authFetch(`/admin/api/analytics/alerts?period=${period}&channel=${channel}`);
         const data = await res.json();
         document.getElementById('alert-urgent').textContent = data.urgent_count || 0;
         document.getElementById('alert-complaint').textContent = data.complaint_count || 0;
@@ -4609,8 +4638,10 @@
       const container = document.getElementById('funnel-container');
       if (!container) return;
       
+      const period = document.getElementById('stats-days').value;
+      const channel = document.getElementById('filter-csatorna').value;
       try {
-        const res = await authFetch('/admin/api/analytics/funnel');
+        const res = await authFetch(`/admin/api/analytics/funnel?period=${period}&channel=${channel}`);
         const data = await res.json();
         
         const total = data.osszes_relevans || 0;
@@ -4656,8 +4687,9 @@
 
     async function loadOutboundStats() {
       const period = document.getElementById('stats-days').value;
+      const channel = document.getElementById('filter-csatorna').value;
       try {
-        const res = await authFetch(`/admin/api/analytics/outbound/summary?period=${period}`);
+        const res = await authFetch(`/admin/api/analytics/outbound/summary?period=${period}&channel=${channel}`);
         const data = await res.json();
         
         const total = data.total_outbound || 0;
@@ -6405,7 +6437,20 @@
         if (data.szakterulet !== undefined && v('tt-szakterulet')) v('tt-szakterulet').value = data.szakterulet;
         if (data.kulcsszavak !== undefined && v('tt-kulcsszavak')) v('tt-kulcsszavak').value = data.kulcsszavak;
         if (data.megkozelites!== undefined && v('tt-megkozelites'))v('tt-megkozelites').value= data.megkozelites;
-        if (data.price_list  !== undefined && v('tt-arlista'))     v('tt-arlista').value     = data.price_list;
+        
+        window.currentPriceList = data.price_list || '';
+        window.currentPriceListMeta = data.price_list_file_meta || null;
+        
+        const priceCard = document.getElementById('price-file-card');
+        if (priceCard) {
+          if (window.currentPriceListMeta) {
+            priceCard.style.display = 'flex';
+            document.getElementById('price-file-name').textContent = window.currentPriceListMeta.filename;
+            document.getElementById('price-file-date').textContent = 'Utolsó frissítés: ' + window.currentPriceListMeta.uploaded_at;
+          } else {
+            priceCard.style.display = 'none';
+          }
+        }
 
 
 
@@ -6440,6 +6485,17 @@
                 <input class="tt-input" type="text" value="${esc(exc)}">
                 <button class="tt-remove-btn" onclick="this.closest('[data-exc]').remove()"></button>`;
               excList.appendChild(row);
+            });
+          }
+        }
+
+        // GYIK
+        const faqList = document.getElementById('tt-faq-list');
+        if (faqList) {
+          faqList.innerHTML = '';
+          if (data.faq && data.faq.length) {
+            data.faq.forEach(f => {
+              addFaq(f.question, f.answer);
             });
           }
         }
@@ -6504,7 +6560,9 @@
         const szakterulet    = (v('tt-szakterulet')  && v('tt-szakterulet').value.trim())  || '';
         const kulcsszavak    = (v('tt-kulcsszavak')  && v('tt-kulcsszavak').value.trim())  || '';
         const megkozelites   = (v('tt-megkozelites') && v('tt-megkozelites').value.trim()) || '';
-        const price_list     = (v('tt-arlista')      && v('tt-arlista').value.trim())      || '';
+        
+        const price_list = window.currentPriceList || '';
+        const price_list_file_meta = window.currentPriceListMeta || null;
         const modositas_eng  = (v('tt-modositas-eng') && v('tt-modositas-eng').value)      || 'igen';
         const lemondas_24h   = (v('tt-lemondas-24h') && v('tt-lemondas-24h').value)        || 'figyelmeztetoSzoveggel';
         const figyelmezteto_szoveg = (v('tt-figyelmezteto-szoveg') && v('tt-figyelmezteto-szoveg').value.trim()) || '';
@@ -6536,10 +6594,18 @@
           if (inp && inp.value.trim()) exceptions.push(inp.value.trim());
         });
 
+        // GYIK
+        const faq = [];
+        document.querySelectorAll('#tt-faq-list .faq-card').forEach(card => {
+          const q = card.querySelector('.faq-question').value.trim();
+          const a = card.querySelector('.faq-answer').value.trim();
+          if (q || a) faq.push({ question: q, answer: a });
+        });
+
         const res = await authFetch('/admin/api/praxisinfo', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ practice_name, description, address, markanev, szakterulet, kulcsszavak, megkozelites, price_list, doctors, campaigns, exceptions, modositas_eng, lemondas_24h, figyelmezteto_szoveg, pacient_id_question, new_patient_required, new_patient_auto_visit, returning_patient_required })
+          body: JSON.stringify({ practice_name, description, address, markanev, szakterulet, kulcsszavak, megkozelites, price_list, price_list_file_meta, doctors, campaigns, exceptions, faq, modositas_eng, lemondas_24h, figyelmezteto_szoveg, pacient_id_question, new_patient_required, new_patient_auto_visit, returning_patient_required })
         });
         if (!res.ok) { const d = await res.json(); throw new Error(d.detail || 'Mentési hiba'); }
 
@@ -6558,6 +6624,86 @@
         showToast('error', '❌ Hiba: ' + e.message);
       } finally {
         if (btn) { btn.disabled = false; btn.innerHTML = originalText || '&#128190; Változtatások mentése'; }
+      }
+    }
+
+    function addFaq(q = '', a = '') {
+      const faqList = document.getElementById('tt-faq-list');
+      if (!faqList) return;
+      const index = faqList.children.length + 1;
+      const card = document.createElement('div');
+      card.className = 'faq-card';
+      card.style.cssText = 'border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; background: #fff; position: relative;';
+      card.innerHTML = `
+        <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
+          <span class="faq-index" style="font-size: 13px; font-weight: 600; color: #4b5563;">Kérdés-válasz #${index}</span>
+          <button onclick="this.closest('.faq-card').remove(); updateFaqIndices();" style="background: transparent; border: none; color: #ef4444; font-size: 18px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+          <div>
+            <label class="tt-label" style="font-size: 12px;">Kérdés</label>
+            <textarea class="tt-textarea faq-question" style="min-height: 80px; background: #f3f4f6; border: 1px solid transparent; padding: 12px;">${esc(q)}</textarea>
+          </div>
+          <div>
+            <label class="tt-label" style="font-size: 12px;">Válasz</label>
+            <textarea class="tt-textarea faq-answer" style="min-height: 80px; background: #f3f4f6; border: 1px solid transparent; padding: 12px;">${esc(a)}</textarea>
+          </div>
+        </div>
+      `;
+      faqList.appendChild(card);
+    }
+
+    function updateFaqIndices() {
+      const cards = document.querySelectorAll('#tt-faq-list .faq-card');
+      cards.forEach((card, idx) => {
+        card.querySelector('.faq-index').textContent = 'Kérdés-válasz #' + (idx + 1);
+      });
+    }
+
+    async function uploadPriceList(event) {
+      const file = event.target.files[0];
+      if (!file) return;
+      
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      try {
+        const res = await fetch('/admin/api/upload_prices', {
+          method: 'POST',
+          headers: { 'Authorization': 'Bearer ' + authToken },
+          body: formData
+        });
+        
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.detail || 'Feltöltési hiba');
+        
+        window.currentPriceList = data.price_list;
+        window.currentPriceListMeta = data.price_list_file_meta;
+        
+        showToast('success', 'Árlista sikeresen feltöltve és feldolgozva!');
+        
+        const priceCard = document.getElementById('price-file-card');
+        if (priceCard) {
+          priceCard.style.display = 'flex';
+          document.getElementById('price-file-name').textContent = data.price_list_file_meta.filename;
+          document.getElementById('price-file-date').textContent = 'Utolsó frissítés: ' + data.price_list_file_meta.uploaded_at;
+        }
+      } catch (err) {
+        showToast('error', 'Hiba: ' + err.message);
+      } finally {
+        event.target.value = ''; // reset input
+      }
+    }
+
+    function deletePriceList() {
+      if (confirm('Biztosan törölni szeretnéd a jelenlegi árlistát?')) {
+        window.currentPriceList = '';
+        window.currentPriceListMeta = null;
+        
+        const priceCard = document.getElementById('price-file-card');
+        if (priceCard) priceCard.style.display = 'none';
+        
+        savePraxisinfo(null, 'Árlista törölve');
       }
     }
 

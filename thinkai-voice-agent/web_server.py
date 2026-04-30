@@ -8,12 +8,14 @@ and provides a JWT-protected admin API with analytics.
 import json
 import os
 import uuid
+import csv
+import io
 from datetime import datetime, timedelta
 from pathlib import Path
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, Depends, HTTPException, Request, status
+from fastapi import FastAPI, Depends, HTTPException, Request, status, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -630,19 +632,19 @@ def admin_login(req: LoginRequest):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @app.get("/admin/api/stats")
-def admin_stats(period: str = "month", username: str = Depends(verify_jwt)):
+def admin_stats(period: str = "month", channel: str = "mind", username: str = Depends(verify_jwt)):
     """Analytics summary stats."""
-    return db.get_stats(period=period)
+    return db.get_stats(period=period, channel=channel)
 
 @app.get("/admin/api/analytics/funnel")
-def admin_funnel(username: str = Depends(verify_jwt)):
+def admin_funnel(period: str = "month", channel: str = "mind", username: str = Depends(verify_jwt)):
     """Funnel stats based on interaction stages."""
-    return db.get_funnel_stats()
+    return db.get_funnel_stats(period=period, channel=channel)
 
 @app.get("/admin/api/analytics/alerts")
-def admin_alerts(username: str = Depends(verify_jwt)):
+def admin_alerts(period: str = "month", channel: str = "mind", username: str = Depends(verify_jwt)):
     """Operational alerts and tasks stats."""
-    return db.get_alerts_stats()
+    return db.get_alerts_stats(period=period, channel=channel)
 
 @app.get("/admin/api/analytics/alerts/details")
 def admin_alerts_details(type: str, username: str = Depends(verify_jwt)):
@@ -1046,9 +1048,11 @@ class PraxisinfoSaveRequest(BaseModel):
     kulcsszavak:   str = ""
     megkozelites:  str = ""
     price_list:    str = ""
+    price_list_file_meta: dict = {}
     doctors:  list = []
     campaigns: list = []
     exceptions: list = []
+    faq: list = []
     modositas_eng: str = "igen"
     lemondas_24h: str = "figyelmeztetoSzoveggel"
     figyelmezteto_szoveg: str = ""
@@ -1169,9 +1173,11 @@ async def save_praxisinfo(payload: PraxisinfoSaveRequest, username: str = Depend
         "kulcsszavak":   payload.kulcsszavak,
         "megkozelites":  payload.megkozelites,
         "price_list":    payload.price_list,
+        "price_list_file_meta": payload.price_list_file_meta,
         "doctors":       payload.doctors,
         "campaigns":     payload.campaigns,
         "exceptions":    payload.exceptions,
+        "faq":           payload.faq,
         "modositas_eng": payload.modositas_eng,
         "lemondas_24h":  payload.lemondas_24h,
         "figyelmezteto_szoveg": payload.figyelmezteto_szoveg,
@@ -1183,6 +1189,64 @@ async def save_praxisinfo(payload: PraxisinfoSaveRequest, username: str = Depend
     }
     PRAXISINFO_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     return {"ok": True, "message": "Praxisinformáció elmentve."}
+
+@app.post("/admin/api/upload_prices")
+async def upload_prices(file: UploadFile = File(...), username: str = Depends(verify_jwt)):
+    content = await file.read()
+    prices_text = ""
+    
+    if file.filename.endswith(".csv"):
+        try:
+            text = content.decode("utf-8")
+        except UnicodeDecodeError:
+            text = content.decode("iso-8859-2", errors="replace")
+        
+        reader = csv.reader(io.StringIO(text))
+        lines = []
+        for row in reader:
+            if any(row):
+                lines.append(" - ".join(str(item).strip() for item in row if str(item).strip()))
+        prices_text = "\n".join(lines)
+        
+    elif file.filename.endswith(".xlsx"):
+        try:
+            import pandas as pd
+            df = pd.read_excel(io.BytesIO(content))
+            lines = []
+            for _, row in df.iterrows():
+                row_items = [str(item).strip() for item in row if pd.notna(item) and str(item).strip()]
+                if row_items:
+                    lines.append(" - ".join(row_items))
+            prices_text = "\n".join(lines)
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=f"Nem sikerült beolvasni az Excel fájlt: {e}")
+    else:
+        raise HTTPException(status_code=400, detail="Kizárólag .csv vagy .xlsx fájl tölthető fel!")
+        
+    if not prices_text.strip():
+        raise HTTPException(status_code=400, detail="A fájl üres vagy nem tartalmaz értelmezhető adatot.")
+        
+    data = {}
+    if PRAXISINFO_FILE.exists():
+        try:
+            data = json.loads(PRAXISINFO_FILE.read_text(encoding="utf-8"))
+        except:
+            pass
+            
+    data["price_list"] = prices_text
+    data["price_list_file_meta"] = {
+        "filename": file.filename,
+        "uploaded_at": datetime.now().strftime("%Y. %m. %d.")
+    }
+    
+    PRAXISINFO_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    
+    return {
+        "ok": True, 
+        "message": "Árlista sikeresen feltöltve és feldolgozva.", 
+        "price_list": prices_text,
+        "price_list_file_meta": data["price_list_file_meta"]
+    }
 
 
 
