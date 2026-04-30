@@ -155,6 +155,14 @@ A lehetséges alert_tags értékek:
             details["jarmu_tipusa"] = kanban["jarmu_tipusa"]
         if kanban.get("jarmu_modell"):
             details["jarmu_modell"] = kanban["jarmu_modell"]
+            
+        if isinstance(alert_tags, list) and "urgent" in alert_tags:
+            details["prioritas"] = "Sürgős"
+            
+        if beszelgetes:
+            details["problem_description"] = beszelgetes
+        else:
+            details["problem_description"] = f"E-mail tárgy: {subject}"
         
         # Mentsük Kanban "uj" oszlopba
         cols = db.get_kanban_columns()
@@ -217,39 +225,26 @@ A lehetséges alert_tags értékek:
             logger.error(f"Hiba a naptáresemény törlésekor: {e}")
 
     if email_reply:
-        # Email küldés Brevo API-n
-        brevo_key = os.getenv("BREVO_API_KEY", "")
-        api_key = brevo_key
-        if brevo_key and not brevo_key.startswith("xkeysib-"):
-            try:
-                import base64 as b64module
-                decoded = b64module.b64decode(brevo_key).decode()
-                parsed = json.loads(decoded)
-                api_key = parsed.get("api_key", brevo_key)
-            except Exception:
-                pass
-                
+        # Email "kiküldés" helyett piszkozat mentése a Jóváhagyó rendszerbe (Human-in-the-loop)
+
         sent_ok = False
-        error_msg = ""
-        try:
-            async with httpx.AsyncClient() as http_client:
-                resp = await http_client.post(
-                    "https://api.brevo.com/v3/smtp/email",
-                    headers={"api-key": api_key, "Content-Type": "application/json"},
-                    json={
-                        "sender": {"name": "Bégé Design Kft.", "email": "bege@thinkai.hu"},
-                        "to": [{"email": from_email, "name": from_name}],
-                        "subject": f"Re: {subject}",
-                        "htmlContent": f'<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">{email_reply}</div>',
-                    },
-                    timeout=20,
-                )
-                resp.raise_for_status()
-                sent_ok = True
-                logger.info(f"Válasz e-mail elküldve neki: {from_email}")
-        except Exception as e:
-            error_msg = str(e)
-            logger.error(f"Hiba a válaszlevél küldésekor: {e}")
+
+        draft_payload = {
+            "channel": "Email",
+
+            "to_email": from_email,
+
+            "to_name": from_name,
+
+            "subject": f"Re: {subject}",
+
+            "body": email_reply
+
+        }
+
+        draft_json = json.dumps(draft_payload)
+
+        logger.info(f"E-mail piszkozat mentve jóváhagyásra: {from_email}")
 
         # Naplózás
         session_id = f"email_{from_email}"
@@ -260,7 +255,7 @@ A lehetséges alert_tags értékek:
             to_email=from_email,
             subject=f"Re: {subject}",
             message=email_reply,
-            status="sent" if sent_ok else f"failed ({error_msg})",
+            status="pending",
             session_id=session_id
         )
         f_stage = "valaszolt"
@@ -271,12 +266,14 @@ A lehetséges alert_tags értékek:
             type="email",
             topic="Email AI válasz",
             summary=f"Bejövő e-mail {from_email} címről",
-            result="Sikeres válasz" if sent_ok else "Hibás küldés",
+            result="Várakozik jóváhagyásra",
             tool_name="imap_worker_ai",
             session_id=session_id,
             funnel_stage=f_stage,
             alert_tags=alert_tags if isinstance(alert_tags, list) else [],
-            handover_reason=handover_reason
+            handover_reason=handover_reason,
+            approval_status="pending",
+            ai_draft_response=draft_json
         )
 
         if isinstance(alert_tags, list) and "urgent" in alert_tags:

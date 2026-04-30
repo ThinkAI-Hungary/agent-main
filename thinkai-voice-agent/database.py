@@ -127,7 +127,7 @@ def get_sessions(limit: int = 50) -> list[dict]:
 # INTERACTIONS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def log_interaction(type: str, topic: str = "", summary: str = "", result: str = "", tool_name: str = "", session_id: str = "", funnel_stage: str = "relevant", alert_tags: list = None, handover_reason: str = None, direction: str = "inbound") -> None:
+def log_interaction(type: str, topic: str = "", summary: str = "", result: str = "", tool_name: str = "", session_id: str = "", funnel_stage: str = "relevant", alert_tags: list = None, handover_reason: str = None, direction: str = "inbound", approval_status: str = "pending", ai_draft_response: str = None) -> None:
     if not supabase: return
     try:
         supabase.table("interactions").insert({
@@ -140,7 +140,9 @@ def log_interaction(type: str, topic: str = "", summary: str = "", result: str =
             "funnel_stage": funnel_stage,
             "alert_tags": alert_tags or [],
             "handover_reason": handover_reason,
-            "direction": direction
+            "direction": direction,
+            "approval_status": approval_status,
+            "ai_draft_response": ai_draft_response
         }).execute()
     except Exception as e:
         logger.error(f"Error logging interaction: {e}")
@@ -1044,4 +1046,38 @@ def delete_service(srv_id: int) -> bool:
         supabase.table("services").delete().eq("id", srv_id).execute()
         return True
     except Exception:
+        return False
+
+
+def get_approvals(status: str = 'pending', limit: int = 100) -> list[dict]:
+    if not supabase: return []
+    try:
+        if status == 'history':
+            res = supabase.table('interactions').select('*').neq('approval_status', 'pending').not_.is_('ai_draft_response', 'null').order('created_at', desc=True).limit(limit).execute()
+        else:
+            res = supabase.table('interactions').select('*').eq('approval_status', status).not_.is_('ai_draft_response', 'null').order('created_at', desc=True).limit(limit).execute()
+        return res.data
+    except Exception as e:
+        logger.error(f'Error fetching approvals: {e}')
+        return []
+
+def delete_approvals(interaction_ids: list[int]) -> bool:
+    if not supabase: return False
+    try:
+        supabase.table('interactions').delete().in_('id', interaction_ids).execute()
+        return True
+    except Exception as e:
+        logger.error(f'Error deleting approvals: {e}')
+        return False
+
+def update_approval_status(interaction_id: int, status: str, new_draft: str = None) -> bool:
+    if not supabase: return False
+    try:
+        updates = {'approval_status': status}
+        if new_draft is not None:
+            updates['ai_draft_response'] = new_draft
+        supabase.table('interactions').update(updates).eq('id', interaction_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f'Error updating approval status: {e}')
         return False

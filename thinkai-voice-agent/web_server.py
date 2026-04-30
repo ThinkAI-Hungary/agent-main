@@ -536,57 +536,28 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
             session_id = f"{source_channel.lower()}_{sender_id}"
             db.create_session(session_id=session_id, room_name=f"{source_channel} Chat", participant=sender_id)
             alert_tags = await alert_tags_task if alert_tags_task else []
+            import json
+            draft_payload = {
+                "channel": source_channel,
+                "sender_id": sender_id,
+                "phone_number_id": phone_number_id,
+                "body": final_text
+            }
+            draft_json = json.dumps(draft_payload)
+
             db.log_interaction(
                 type=source_channel.lower(),
                 topic=f"{source_channel} AI válasz",
                 summary=final_text[:100],
-                result="Üzenet generálva",
+                result="Piszkozat mentve",
                 tool_name="process_meta_message",
                 session_id=session_id,
                 funnel_stage=f_stage,
-                alert_tags=alert_tags if isinstance(alert_tags, list) else []
+                alert_tags=alert_tags if isinstance(alert_tags, list) else [],
+                approval_status="pending",
+                ai_draft_response=draft_json
             )
-
-            async with httpx.AsyncClient() as http_client:
-                if source_channel == "WhatsApp":
-                    wa_token = os.getenv("WHATSAPP_TOKEN", os.getenv("META_PAGE_ACCESS_TOKEN", ""))
-                    wa_phone_id = phone_number_id or os.getenv("WHATSAPP_PHONE_ID", "")
-                    
-                    if wa_token and wa_phone_id:
-                        send_endpoint = f"https://graph.facebook.com/v25.0/{wa_phone_id}/messages"
-                        payload = {
-                            "messaging_product": "whatsapp",
-                            "to": sender_id,
-                            "type": "text",
-                            "text": {"body": final_text}
-                        }
-                        fb_resp = await http_client.post(
-                            send_endpoint,
-                            headers={"Authorization": f"Bearer {wa_token}"},
-                            json=payload
-                        )
-                        print(f"[Meta AI Process] Graph API response (WhatsApp): {fb_resp.status_code} - {fb_resp.text}")
-                    else:
-                        print("[Meta AI Process] Hiba: WhatsApp üzenet nem lett elküldve, mert hiányzik a WHATSAPP_TOKEN vagy WHATSAPP_PHONE_ID.")
-                        
-                else:
-                    # Messenger / Instagram
-                    page_access_token = os.getenv("META_PAGE_ACCESS_TOKEN", "")
-                    if page_access_token:
-                        send_endpoint = "https://graph.facebook.com/v25.0/me/messages"
-                        payload = {
-                            "recipient": {"id": sender_id},
-                            "message": {"text": final_text}
-                        }
-                        
-                        fb_resp = await http_client.post(
-                            send_endpoint,
-                            headers={"Authorization": f"Bearer {page_access_token}"},
-                            json=payload
-                        )
-                        print(f"[Meta AI Process] Graph API response ({source_channel}): {fb_resp.status_code} - {fb_resp.text}")
-                    else:
-                        print(f"[Meta AI Process] META_PAGE_ACCESS_TOKEN hiányzik, {source_channel} üzenet nem lett elküldve.")
+            print(f"[Meta AI Process] {source_channel} piszkozat mentve jóváhagyásra.")
 
     except Exception as e:
         print(f"[Meta AI Process] Hiba: {e}")
@@ -828,6 +799,65 @@ class ClientCreateRequest(BaseModel):
 
 class ClientStatusUpdateRequest(BaseModel):
     status: str
+
+@app.get("/admin/api/alerts/urgent")
+def admin_alerts_urgent(username: str = Depends(verify_jwt)):
+    """Fetch unhandled urgent alerts for notification."""
+    clients = db.get_clients()
+    urgent_clients = []
+    
+    for c in clients:
+        status = c.get("status", "uj")
+        if status in ["szerzodott", "siker", "sikeres", "lezart", "sikertelen"]:
+            continue
+            
+        custom_data = c.get("custom_data")
+        if isinstance(custom_data, str):
+            try:
+                import json
+                custom_data = json.loads(custom_data)
+            except:
+                custom_data = {}
+        if not isinstance(custom_data, dict):
+            custom_data = {}
+            
+        if (custom_data.get("prioritas") == "Sürgős" or custom_data.get("priority") == "Sürgős") and not custom_data.get("urgent_viewed"):
+            # Extract basic info for the toast
+            name = custom_data.get("nev") or custom_data.get("name") or custom_data.get("név") or c.get("name", "Ismeretlen")
+            channel = custom_data.get("forras_csatorna") or ("Messenger" if custom_data.get("messenger_id") else "Manuális")
+            problem = custom_data.get("problem_description") or "Sürgős megkeresés beérkezett."
+            
+            urgent_clients.append({
+                "id": c.get("id"),
+                "name": name,
+                "channel": channel,
+                "problem": problem,
+                "created_at": c.get("created_at")
+            })
+            
+    return {"urgent_clients": urgent_clients}
+
+@app.post("/admin/api/alerts/urgent/{client_id}/view")
+def mark_urgent_alert_viewed(client_id: int, username: str = Depends(verify_jwt)):
+    """Mark an urgent alert as viewed so it disappears from the notification bell."""
+    clients = db.get_clients()
+    for c in clients:
+        if c.get("id") == client_id:
+            custom_data = c.get("custom_data")
+            if isinstance(custom_data, str):
+                try:
+                    import json
+                    custom_data = json.loads(custom_data)
+                except:
+                    custom_data = {}
+            if not isinstance(custom_data, dict):
+                custom_data = {}
+            
+            custom_data["urgent_viewed"] = True
+            db.edit_client_details(client_id, custom_data)
+            return {"status": "success"}
+    
+    raise HTTPException(status_code=404, detail="Client not found")
 
 @app.get("/admin/api/clients")
 def admin_clients(username: str = Depends(verify_jwt)):
@@ -1377,6 +1407,129 @@ async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Hívás sikertelen: {str(e)}")
 
+
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# JÓVÁHAGYÓ RENDSZER (HUMAN-IN-THE-LOOP) API
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/admin/api/approvals")
+def get_approvals_api(status: str = "pending", username: str = Depends(verify_jwt)):
+    approvals = db.get_approvals(status)
+    return {"approvals": approvals}
+
+@app.post("/admin/api/approvals/{id}/reject")
+def reject_approval_api(id: int, username: str = Depends(verify_jwt)):
+    success = db.update_approval_status(id, "rejected")
+    if success: return {"status": "success"}
+    raise HTTPException(status_code=500, detail="Hiba az elutasítás során")
+
+class DeleteApprovalsRequest(BaseModel):
+    ids: list[int]
+
+@app.delete("/admin/api/approvals")
+def delete_approvals_api(req: DeleteApprovalsRequest, username: str = Depends(verify_jwt)):
+    success = db.delete_approvals(req.ids)
+    if success: return {"status": "success"}
+    raise HTTPException(status_code=500, detail="Hiba a törlés során")
+
+class ApproveRequest(BaseModel):
+    modified_draft: str
+
+@app.post("/admin/api/approvals/{id}/approve")
+async def approve_approval_api(id: int, req: ApproveRequest, username: str = Depends(verify_jwt)):
+    import json
+    import httpx
+    import base64 as b64module
+    
+    # 1. Keresés a pending és rejected listában (hátha egy rejected-et hagynak jóvá utólag)
+    approvals = db.get_approvals("pending") + db.get_approvals("rejected")
+    target = next((a for a in approvals if a.get("id") == id), None)
+    if not target:
+        raise HTTPException(status_code=404, detail="Piszkozat nem található")
+        
+    draft_json = target.get("ai_draft_response")
+    if not draft_json:
+        raise HTTPException(status_code=400, detail="Nincs érvényes piszkozat")
+        
+    try:
+        draft = json.loads(draft_json)
+    except:
+        raise HTTPException(status_code=400, detail="Érvénytelen JSON piszkozat")
+        
+    channel = draft.get("channel", "").lower()
+    final_text = req.modified_draft
+    
+    try:
+        async with httpx.AsyncClient() as http_client:
+            if channel == "email":
+                brevo_key = os.getenv("BREVO_API_KEY", "")
+                api_key = brevo_key
+                if brevo_key and not brevo_key.startswith("xkeysib-"):
+                    try:
+                        decoded = b64module.b64decode(brevo_key).decode()
+                        parsed = json.loads(decoded)
+                        api_key = parsed.get("api_key", brevo_key)
+                    except: pass
+                
+                resp = await http_client.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    headers={"api-key": api_key, "Content-Type": "application/json"},
+                    json={
+                        "sender": {"name": "Bégé Design Kft.", "email": "bege@thinkai.hu"},
+                        "to": [{"email": draft.get("to_email"), "name": draft.get("to_name", "")}],
+                        "subject": draft.get("subject", "Re:"),
+                        "htmlContent": f'<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">{final_text}</div>',
+                    },
+                    timeout=20,
+                )
+                resp.raise_for_status()
+                
+            elif channel == "whatsapp":
+                wa_token = os.getenv("WHATSAPP_TOKEN", os.getenv("META_PAGE_ACCESS_TOKEN", ""))
+                wa_phone_id = draft.get("phone_number_id") or os.getenv("WHATSAPP_PHONE_ID", "")
+                if not wa_token or not wa_phone_id:
+                    raise Exception("Hiányzó WhatsApp token vagy Phone ID")
+                
+                resp = await http_client.post(
+                    f"https://graph.facebook.com/v25.0/{wa_phone_id}/messages",
+                    headers={"Authorization": f"Bearer {wa_token}"},
+                    json={
+                        "messaging_product": "whatsapp",
+                        "to": draft.get("sender_id"),
+                        "type": "text",
+                        "text": {"body": final_text}
+                    }
+                )
+                resp.raise_for_status()
+                
+            elif channel in ["messenger", "instagram"]:
+                page_access_token = os.getenv("META_PAGE_ACCESS_TOKEN", "")
+                if not page_access_token:
+                    raise Exception("Hiányzó Meta oldal token")
+                    
+                resp = await http_client.post(
+                    "https://graph.facebook.com/v25.0/me/messages",
+                    headers={"Authorization": f"Bearer {page_access_token}"},
+                    json={
+                        "recipient": {"id": draft.get("sender_id")},
+                        "message": {"text": final_text}
+                    }
+                )
+                resp.raise_for_status()
+                
+    except Exception as e:
+        print(f"[Approval Error] Hiba a kiküldéskor: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+        
+    # 2. Adatbázis frissítése
+    draft["body"] = final_text
+    new_draft_json = json.dumps(draft)
+    success = db.update_approval_status(id, "approved", new_draft=new_draft_json)
+    
+    if success: return {"status": "success"}
+    raise HTTPException(status_code=500, detail="Sikeres küldés, de adatbázis frissítés hibás")
 
 
 if __name__ == "__main__":
