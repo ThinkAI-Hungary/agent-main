@@ -10,7 +10,7 @@ LK_URL             = "https://thinkai-ugyfelszolgalat-f05w09v7.livekit.cloud"
 LK_KEY             = "APIYS7bZkZBFZpt"
 LK_SECRET          = "ufxdDeubWjmzKMYoHTePc8vwCVhzBn36i2HCjSddgrSB"
 OUTBOUND_TRUNK_ID  = "ST_PB2SW4XszX52"
-AGENT_NAME         = "thinkai-dobozos-local"
+AGENT_NAME         = "thinkai-ugyfelszolg"
 ASTERISK_IP        = "165.227.139.84"
 
 async def main(callid: str, callerid: str):

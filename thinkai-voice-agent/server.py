@@ -127,7 +127,10 @@ class ThinkAIAgent(Agent):
         settings = load_agent_settings()
 
         # Detect if this is an inbound phone call (room name starts with 'call-')
-        room_name = self.session.room.name if self.session and self.session.room else ""
+        try:
+            room_name = self.session.room.name
+        except AttributeError:
+            room_name = ""
         is_sip_call = room_name.startswith("call-")
 
         if is_sip_call:
@@ -203,6 +206,22 @@ async def entrypoint(ctx: JobContext):
     logger.info(f"Agent connecting to room: {room_name}")
 
     await ctx.connect()
+
+    # ── Kick phantom agents: remove any cloud-hosted agents already in the room ─
+    for p in ctx.room.remote_participants.values():
+        if p.identity.startswith("agent-"):
+            logger.warning(f"Removing phantom agent {p.identity} from room {room_name}")
+            try:
+                from livekit import api as lk_api
+                admin = lk_api.LiveKitAPI()
+                await admin.room.remove_participant(
+                    lk_api.RoomParticipantIdentity(room=room_name, identity=p.identity)
+                )
+                await admin.aclose()
+                logger.info(f"Phantom agent {p.identity} removed.")
+            except Exception as e:
+                logger.error(f"Failed to remove phantom agent: {e}")
+
 
     # Initialize DB + log session start
     db.init_db()
@@ -304,6 +323,6 @@ if __name__ == "__main__":
     cli.run_app(
         WorkerOptions(
             entrypoint_fnc=entrypoint,
-            agent_name="thinkai-dobozos-local",
+            agent_name="thinkai-ugyfelszolg",
         ),
     )
