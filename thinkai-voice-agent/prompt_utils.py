@@ -137,6 +137,16 @@ def get_system_prompt() -> str:
     template = PROMPT_FILE.read_text(encoding="utf-8")
     pi       = _load_praxisinfo()
     settings = load_agent_settings()
+    
+    # Telephelyek lekérdezése
+    clinics_str = ""
+    try:
+        clinics = database.get_clinics()
+        if clinics and len(clinics) > 1:
+            clinics_text = ", ".join([f"{c['name_and_address']} (ID: {c['id']})" for c in clinics])
+            clinics_str = f"\n\n--- TELEPHELYEK ---\nTöbb telephelyünk van: {clinics_text}. Ha az ügyfél időpontot foglal, KÖTELEZŐ megkérdezned, hogy melyik telephelyet választja!\n----------------------------------------------------"
+    except Exception as e:
+        logger.error(f"Error loading clinics for prompt: {e}")
 
     variables = {
         "today":          datetime.now().strftime("%Y-%m-%d (%A)"),
@@ -156,6 +166,7 @@ def get_system_prompt() -> str:
         "faq":            _format_faq(pi.get("faq", [])),
         "knowledge":      _format_knowledge(settings.get("knowledge_content", "")),
         "tone":           settings.get("tone", ""),
+        "clinics_prompt": clinics_str,
     }
 
     try:

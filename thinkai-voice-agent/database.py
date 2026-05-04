@@ -127,7 +127,7 @@ def get_sessions(limit: int = 50) -> list[dict]:
 # INTERACTIONS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def log_interaction(type: str, topic: str = "", summary: str = "", result: str = "", tool_name: str = "", session_id: str = "", funnel_stage: str = "relevant", alert_tags: list = None, handover_reason: str = None, direction: str = "inbound", approval_status: str = "pending", ai_draft_response: str = None) -> None:
+def log_interaction(type: str, topic: str = "", summary: str = "", result: str = "", tool_name: str = "", session_id: str = "", funnel_stage: str = "relevant", alert_tags: list = None, handover_reason: str = None, direction: str = "inbound", approval_status: str = "pending", ai_draft_response: str = None, clinic_id: int = None) -> None:
     if not supabase: return
     try:
         supabase.table("interactions").insert({
@@ -142,7 +142,8 @@ def log_interaction(type: str, topic: str = "", summary: str = "", result: str =
             "handover_reason": handover_reason,
             "direction": direction,
             "approval_status": approval_status,
-            "ai_draft_response": ai_draft_response
+            "ai_draft_response": ai_draft_response,
+            "clinic_id": clinic_id
         }).execute()
     except Exception as e:
         logger.error(f"Error logging interaction: {e}")
@@ -281,15 +282,16 @@ def delete_task(task_id: int) -> bool:
 # ANALYTICS
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def get_alerts_stats(period: str = "month", channel: str = "mind") -> dict:
+def get_alerts_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind") -> dict:
     if not supabase: 
         return {"urgent_count": 0, "complaint_count": 0, "callback_count": 0, "recurring_count": 0, "stuck_count": 0}
     try:
         # We fetch all matching interactions to filter them in Python since count="exact" is hard to combine dynamically without complex query builder.
-        all_alerts_query = supabase.table("interactions").select("type, alert_tags").not_.is_("alert_tags", "null").execute()
+        all_alerts_query = supabase.table("interactions").select("type, alert_tags, clinic_id").not_.is_("alert_tags", "null").execute()
         urgent_count = complaint_count = callback_count = recurring_count = 0
         for row in all_alerts_query.data:
             if not _matches_channel(row.get("type"), channel): continue
+            if clinic_id and clinic_id != "mind" and str(row.get("clinic_id")) != str(clinic_id): continue
             tags = row.get("alert_tags", [])
             if "urgent" in tags: urgent_count += 1
             if "complaint" in tags: complaint_count += 1
@@ -403,7 +405,26 @@ def _matches_channel(type_str: str, channel: str) -> bool:
         return "messenger" in t or "meta" in t or "facebook" in t
     return False
 
-def get_stats(period: str = "month", channel: str = "mind") -> dict:
+def map_topic_category(raw_topic: str) -> str:
+    if not raw_topic: return "Egyéb"
+    t = str(raw_topic).lower()
+    
+    if any(x in t for x in ["sürgős", "fáj", "panasz", "gyulladás", "vérzik", "letört", "kiesett", "sürgősségi", "duzzanat"]):
+        return "Sürgős panasz"
+    if any(x in t for x in ["kontroll", "varratszedés", "visszarendelés", "későbbi", "folytatás"]):
+        return "Kontroll időpont"
+    if any(x in t for x in ["időpont", "foglalás", "bejelentkezés", "lemondás", "módosítás", "booking"]):
+        return "Időpontfoglalás"
+    if any(x in t for x in ["ár", "mennyi", "költség", "ajánlat", "fizetés", "akció", "részletfizetés"]):
+        return "Árkérdés"
+    if any(x in t for x in ["nyitva", "óra", "mikor", "rendelési idő", "rendelés"]):
+        return "Nyitvatartás"
+    if "email" in t or "e-mail" in t or "marketing" in t or "növelje" in t or "hírlevél" in t:
+        return "E-mail megkeresés"
+    
+    return "Általános érdeklődés"
+
+def get_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind") -> dict:
     if not supabase: return {}
     today = datetime.now(timezone.utc)
     
@@ -422,7 +443,7 @@ def get_stats(period: str = "month", channel: str = "mind") -> dict:
 
     try:
         # Fallback to count="exact" for Mind channel
-        if channel == "mind":
+        if channel == "mind" and clinic_id == "mind":
             sess_res = supabase.table("sessions").select("id", count="exact", head=True).gte("started_at", start_dt.isoformat()).execute()
             inter_res = supabase.table("interactions").select("id", count="exact", head=True).gte("created_at", start_dt.isoformat()).execute()
             email_res = supabase.table("email_logs").select("id", count="exact", head=True).gte("sent_at", start_dt.isoformat()).execute()
@@ -448,7 +469,7 @@ def get_stats(period: str = "month", channel: str = "mind") -> dict:
 
         tasks_res = supabase.table("tasks").select("id", count="exact", head=True).eq("completed", 0).execute()
 
-        all_inters = supabase.table("interactions").select("type, topic, handover_reason, created_at").gte("created_at", start_dt.isoformat()).execute()
+        all_inters = supabase.table("interactions").select("type, topic, handover_reason, created_at, clinic_id").gte("created_at", start_dt.isoformat()).execute()
         type_counts = {}
         topic_counts = {}
         handover_counts = {
@@ -464,6 +485,8 @@ def get_stats(period: str = "month", channel: str = "mind") -> dict:
         
         for i in all_inters.data:
             if not _matches_channel(i.get("type"), channel):
+                continue
+            if clinic_id and clinic_id != "mind" and str(i.get("clinic_id")) != str(clinic_id):
                 continue
             t_raw = (i.get("type") or "Telefon").lower()
             if "email" in t_raw:
@@ -502,10 +525,9 @@ def get_stats(period: str = "month", channel: str = "mind") -> dict:
             if topic_raw:
                 t_topic = str(topic_raw).strip()
                 if t_topic.lower() not in ["", "none", "null", "ismeretlen"]:
-                    # Shorten very long topics for display
-                    if len(t_topic) > 35:
-                        t_topic = t_topic[:32] + "..."
-                    topic_counts[t_topic] = topic_counts.get(t_topic, 0) + 1
+                    # Group into predefined categories
+                    mapped_topic = map_topic_category(t_topic)
+                    topic_counts[mapped_topic] = topic_counts.get(mapped_topic, 0) + 1
 
             ho_reason = i.get("handover_reason")
             if ho_reason:
@@ -579,7 +601,7 @@ def get_stats(period: str = "month", channel: str = "mind") -> dict:
         logger.error(f"Stats error: {e}")
         return {}
 
-def get_outbound_stats(period: str = "month", channel: str = "mind") -> dict:
+def get_outbound_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind") -> dict:
     if not supabase: return {"total_outbound": 0, "reached_rate": 0, "booked_count": 0, "booked_rate": 0, "open_followup": 0}
     today = datetime.now(timezone.utc)
     
@@ -591,7 +613,7 @@ def get_outbound_stats(period: str = "month", channel: str = "mind") -> dict:
         start_dt = today - timedelta(days=365)
 
     try:
-        all_inters = supabase.table("interactions").select("session_id, direction, funnel_stage, handover_reason, created_at").gte("created_at", start_dt.isoformat()).execute()
+        all_inters = supabase.table("interactions").select("session_id, direction, funnel_stage, handover_reason, created_at, type, clinic_id").gte("created_at", start_dt.isoformat()).execute()
         
         sessions = {}
         # also count interactions without session_id that are outbound
@@ -599,6 +621,8 @@ def get_outbound_stats(period: str = "month", channel: str = "mind") -> dict:
         
         for i in all_inters.data:
             if not _matches_channel(i.get("type"), channel):
+                continue
+            if clinic_id and clinic_id != "mind" and str(i.get("clinic_id")) != str(clinic_id):
                 continue
             d = i.get("direction", "inbound") or "inbound"
             if d == "outbound":
@@ -656,7 +680,7 @@ def get_outbound_stats(period: str = "month", channel: str = "mind") -> dict:
         logger.error(f"Outbound stats error: {e}")
         return {"total_outbound": 0, "reached_rate": 0, "booked_count": 0, "booked_rate": 0, "open_followup": 0}
 
-def get_funnel_stats(period: str = "month", channel: str = "mind") -> dict:
+def get_funnel_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind") -> dict:
     if not supabase: return {}
     try:
         today = datetime.now(timezone.utc)
@@ -664,8 +688,12 @@ def get_funnel_stats(period: str = "month", channel: str = "mind") -> dict:
         elif period == "month": start_dt = today.replace(day=1)
         else: start_dt = today - timedelta(days=365)
         
-        res = supabase.table("interactions").select("funnel_stage, type").gte("created_at", start_dt.isoformat()).execute()
-        stages = [r.get("funnel_stage") or "relevant" for r in res.data if _matches_channel(r.get("type"), channel)]
+        res = supabase.table("interactions").select("funnel_stage, type, clinic_id").gte("created_at", start_dt.isoformat()).execute()
+        stages = []
+        for r in res.data:
+            if not _matches_channel(r.get("type"), channel): continue
+            if clinic_id and clinic_id != "mind" and str(r.get("clinic_id")) != str(clinic_id): continue
+            stages.append(r.get("funnel_stage") or "relevant")
         
         relevant_count = len([s for s in stages if s not in ("irrelevant", "spam")])
         valaszolt_count = len([s for s in stages if s in ("valaszolt", "ajanlat", "foglalt")])
@@ -1095,4 +1123,49 @@ def update_approval_status(interaction_id: int, status: str, new_draft: str = No
         return True
     except Exception as e:
         logger.error(f'Error updating approval status: {e}')
+        return False
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CLINICS (TELEPHELYEK)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_clinics() -> list[dict]:
+    if not supabase: return []
+    try:
+        res = supabase.table("clinics").select("*").order("id", desc=False).execute()
+        return res.data
+    except Exception as e:
+        logger.error(f"Get clinics error: {e}")
+        return []
+
+def save_clinics(clinics: list[dict]) -> bool:
+    if not supabase: return False
+    try:
+        # Keep track of updated IDs to delete removed clinics
+        updated_ids = []
+        for clinic in clinics:
+            cid = clinic.get("id")
+            if cid:
+                supabase.table("clinics").update({
+                    "name_and_address": clinic.get("name_and_address", ""),
+                    "access_info": clinic.get("access_info", "")
+                }).eq("id", cid).execute()
+                updated_ids.append(int(cid))
+            else:
+                res = supabase.table("clinics").insert({
+                    "name_and_address": clinic.get("name_and_address", ""),
+                    "access_info": clinic.get("access_info", "")
+                }).execute()
+                if res.data:
+                    updated_ids.append(res.data[0]["id"])
+        
+        # Remove any clinics that weren't in the list
+        all_clinics = get_clinics()
+        for c in all_clinics:
+            if c["id"] not in updated_ids:
+                supabase.table("clinics").delete().eq("id", c["id"]).execute()
+
+        return True
+    except Exception as e:
+        logger.error(f"Save clinics error: {e}")
         return False

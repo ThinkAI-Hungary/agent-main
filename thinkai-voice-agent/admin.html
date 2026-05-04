@@ -3511,11 +3511,9 @@
           <!-- Filter row -->
           <div class="filter-row-figma">
             <div class="filter-group">
-              <label>Telephely <span class="wip-badge">🚧</span></label>
-              <select class="filter-select-figma" disabled="" id="filter-telephely">
+              <label>Telephely</label>
+              <select class="filter-select-figma" id="filter-telephely" onchange="loadStats()">
                 <option value="mind">Mind</option>
-                <option value="telephely1">Telephely 1</option>
-                <option value="telephely2">Telephely 2</option>
               </select>
             </div>
             <div class="filter-group">
@@ -4000,16 +3998,15 @@
           </div>
           <!-- 2. Telephely -->
           <div class="tt-section">
-            <div class="tt-section-title"> Telephely és megközelítés</div>
-            <div style="display:grid;grid-template-columns:1fr;gap:14px;">
-              <div>
-                <label class="tt-label">Cím</label>
-                <input class="tt-input" id="tt-cim" type="text" value="1052 Budapest, Petőfi Sándor utca 12." />
-              </div>
-              <div>
-                <label class="tt-label">Megközelítési információk</label>
-                <textarea class="tt-textarea" id="tt-megkozelites" placeholder="pl. 2-es metró Astoria megállótól 3 perc..."></textarea>
-              </div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <div class="tt-section-title" style="margin-bottom: 0;">Telephelyek és megközelítés</div>
+              <button class="tt-save-btn" onclick="saveAllClinics()" style="margin: 0; padding: 8px 16px; font-size: 13px;">&#128190; Mentés</button>
+            </div>
+            <div id="clinics-list" style="display: flex; flex-direction: column; gap: 8px; margin-bottom: 16px;">
+              <!-- JS tölti be -->
+            </div>
+            <div style="display: flex; align-items: center;">
+              <button class="tt-add-btn" onclick="addClinicUiRow()" style="background: transparent; border: none; color: #10b981; font-weight: 600; cursor: pointer; padding: 0;">+ Új telephely hozzáadása</button>
             </div>
           </div>
           <!-- 3. Orvosok -->
@@ -4044,7 +4041,12 @@
             </div>
             
             <input type="file" id="price-upload-input" accept=".csv, .xlsx" style="display:none;" onchange="uploadPriceList(event)">
-            <button class="tt-save-btn" onclick="document.getElementById('price-upload-input').click()" style="width: 100%; text-align: center; justify-content: center; background: #1ceee0; color: #000; font-weight: 600; border: none; padding: 12px; border-radius: 6px; cursor: pointer;">&#8673; Új árlista feltöltése</button>
+            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 16px;">
+              <button class="tt-save-btn" onclick="document.getElementById('price-upload-input').click()" style="width: 100%; text-align: center; justify-content: center; background: #1ceee0; color: #000; font-weight: 600; border: none; padding: 12px; border-radius: 6px; cursor: pointer;">&#8673; Új árlista feltöltése</button>
+              <button onclick="downloadPriceTemplate()" style="display: flex; justify-content: center; align-items: center; border: 1px solid #1ceee0; color: #1ceee0; background: transparent; padding: 12px; border-radius: 6px; cursor: pointer; font-weight: 600; font-size: 14px; transition: background 0.2s;">
+                &#128229; Minta Excel letöltése
+              </button>
+            </div>
           </div>
 
           <!-- 6. Kampányok -->
@@ -4930,6 +4932,7 @@
     async function loadStats() {
       const period = document.getElementById('stats-days').value;
       const channel = document.getElementById('filter-csatorna').value;
+      const clinic = document.getElementById('filter-telephely') ? document.getElementById('filter-telephely').value : 'mind';
       const kpiGrid = document.getElementById('kpi-grid-figma');
       kpiGrid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:20px;color:#6b7280;"><div class="spinner" style="border-color:#e5e7eb;border-top-color:#1ceee0;"></div></div>`;
 
@@ -4937,7 +4940,7 @@
       loadInsights();
 
       try {
-        const res = await authFetch(`/admin/api/stats?period=${period}&channel=${channel}`);
+        const res = await authFetch(`/admin/api/stats?period=${period}&channel=${channel}&clinic_id=${clinic}`);
         const data = await res.json();
         _analyticsData = data;
         renderStats(data);
@@ -4952,8 +4955,9 @@
     async function loadAlerts() {
       const period = document.getElementById('stats-days').value;
       const channel = document.getElementById('filter-csatorna').value;
+      const clinic = document.getElementById('filter-telephely') ? document.getElementById('filter-telephely').value : 'mind';
       try {
-        const res = await authFetch(`/admin/api/analytics/alerts?period=${period}&channel=${channel}`);
+        const res = await authFetch(`/admin/api/analytics/alerts?period=${period}&channel=${channel}&clinic_id=${clinic}`);
         const data = await res.json();
         document.getElementById('alert-urgent').textContent = data.urgent_count || 0;
         document.getElementById('alert-complaint').textContent = data.complaint_count || 0;
@@ -4971,8 +4975,9 @@
       
       const period = document.getElementById('stats-days').value;
       const channel = document.getElementById('filter-csatorna').value;
+      const clinic = document.getElementById('filter-telephely') ? document.getElementById('filter-telephely').value : 'mind';
       try {
-        const res = await authFetch(`/admin/api/analytics/funnel?period=${period}&channel=${channel}`);
+        const res = await authFetch(`/admin/api/analytics/funnel?period=${period}&channel=${channel}&clinic_id=${clinic}`);
         const data = await res.json();
         
         const total = data.osszes_relevans || 0;
@@ -5019,8 +5024,9 @@
     async function loadOutboundStats() {
       const period = document.getElementById('stats-days').value;
       const channel = document.getElementById('filter-csatorna').value;
+      const clinic = document.getElementById('filter-telephely') ? document.getElementById('filter-telephely').value : 'mind';
       try {
-        const res = await authFetch(`/admin/api/analytics/outbound/summary?period=${period}&channel=${channel}`);
+        const res = await authFetch(`/admin/api/analytics/outbound/summary?period=${period}&channel=${channel}&clinic_id=${clinic}`);
         const data = await res.json();
         
         const total = data.total_outbound || 0;
@@ -6084,6 +6090,13 @@
         const clientData = await clientRes.json();
         const clients = clientData.clients || [];
 
+        if (typeof globalClinics === 'undefined' || globalClinics.length === 0) {
+           try {
+             const clinRes = await authFetch('/admin/api/clinics');
+             globalClinics = (await clinRes.json()) || [];
+           } catch(e) {}
+        }
+
         const counts = {};
         const clientsByStatus = {};
         currentKanbanColumns.forEach(col => {
@@ -6155,9 +6168,17 @@
               return val ? `<div class="client-info"> ${esc(val)}</div>` : '';
             }).join('');
 
+            let clinicDisplay = '';
+            if (cData.clinic_id) {
+               const foundClinic = typeof globalClinics !== 'undefined' ? globalClinics.find(cl => cl.id == cData.clinic_id) : null;
+               const cName = foundClinic ? foundClinic.name_and_address.split(',')[0] : `Telephely ID: ${cData.clinic_id}`;
+               clinicDisplay = `<div class="client-info" style="color:#1ceee0; font-weight:600;">📍 ${esc(cName)}</div>`;
+            }
+
             div.innerHTML = `
               ${isSurgos ? '<div style="display:inline-block;background:#ef4444;color:white;font-size:10px;font-weight:bold;padding:2px 6px;border-radius:4px;margin-bottom:6px;box-shadow:0 1px 2px rgba(239,68,68,0.4);">🚨 SÜRGŐS</div>' : ''}
               <div class="client-name">${esc(titleVal || "Névtelen")}</div>
+              ${clinicDisplay}
               ${otherHtml}
               <div style="text-align:right"><button onclick="deleteClient(${c.id})" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:11px;">Törlés</button></div>
             `;
@@ -7185,6 +7206,26 @@
       }
     }
 
+    async function downloadPriceTemplate() {
+      try {
+        const res = await authFetch('/admin/api/prices/template/download');
+        if (!res.ok) throw new Error('Letöltési hiba');
+        
+        const blob = await res.blob();
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'arlista_minta.xlsx';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+      } catch (e) {
+        console.error(e);
+        showToast('error', "Hiba a letöltés során.");
+      }
+    }
+
     function deletePriceList() {
       if (confirm('Biztosan törölni szeretnéd a jelenlegi árlistát?')) {
         window.currentPriceList = '';
@@ -7414,6 +7455,98 @@
     });
 
     
+    // --- Telephelyek CRUD ---
+    let globalClinics = [];
+    
+    function fetchClinics() {
+      authFetch('/admin/api/clinics')
+        .then(res => res.json())
+        .then(clinics => {
+          globalClinics = clinics || [];
+          const list = document.getElementById('clinics-list');
+          if (!list) return;
+          list.innerHTML = '';
+          if (clinics && clinics.length > 0) {
+            clinics.forEach(c => list.appendChild(createClinicRow(c)));
+          } else {
+            list.innerHTML = '<div style="font-size:13px; color:#9ca3af; padding:20px; text-align:center;">Nincsenek telephelyek.</div>';
+          }
+        })
+        .catch(err => console.error("Hiba a telephelyek betöltésekor:", err));
+    }
+
+    function createClinicRow(c = { id: '', name_and_address: '', access_info: '' }) {
+      const row = document.createElement('div');
+      row.className = 'tt-dynamic-row tt-clinic-row';
+      row.style.display = 'grid';
+      row.style.gridTemplateColumns = '1fr 1fr auto';
+      row.style.gap = '16px';
+      row.style.alignItems = 'end';
+      row.style.background = '#f9fafb';
+      row.style.padding = '16px';
+      row.style.borderRadius = '8px';
+      row.dataset.id = c.id || '';
+
+      const isNew = !c.id;
+      
+      row.innerHTML = `
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 11px; font-weight: 600; color: #6b7280; margin-left: 4px;">Telephely neve és címe</label>
+          <input class="tt-input clinic-name" type="text" placeholder="pl. 1052 Budapest, Petőfi Sándor utca 12." value="${esc(c.name_and_address)}">
+        </div>
+        <div style="display: flex; flex-direction: column; gap: 4px;">
+          <label style="font-size: 11px; font-weight: 600; color: #6b7280; margin-left: 4px;">Megközelítés (opcionális)</label>
+          <input class="tt-input clinic-access" type="text" placeholder="pl. 2-es metró Astoria megállótól..." value="${esc(c.access_info || '')}">
+        </div>
+        <div style="display: flex; align-items: center; justify-content: center; height: 38px;">
+          <button class="tt-remove-btn" onclick="this.closest('.tt-clinic-row').remove();"></button>
+        </div>
+      `;
+      return row;
+    }
+
+    function addClinicUiRow() {
+      const list = document.getElementById('clinics-list');
+      if (list.querySelector('div[style*="text-align:center"]')) list.innerHTML = '';
+      const newRow = createClinicRow();
+      list.appendChild(newRow);
+      newRow.querySelector('input').focus();
+    }
+
+    async function saveAllClinics() {
+      const rows = document.querySelectorAll('#clinics-list .tt-clinic-row');
+      const clinicsToSave = [];
+      
+      for (let row of rows) {
+        const id = row.dataset.id;
+        const name = row.querySelector('.clinic-name').value.trim();
+        const access = row.querySelector('.clinic-access').value.trim();
+        
+        if (name) {
+          const cObj = { name_and_address: name, access_info: access };
+          if (id) cObj.id = parseInt(id);
+          clinicsToSave.push(cObj);
+        }
+      }
+      
+      try {
+        const res = await authFetch('/admin/api/clinics', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(clinicsToSave)
+        });
+        if (res.ok) {
+          fetchClinics();
+          showToast('success', 'Telephelyek sikeresen mentve!');
+        } else {
+          showToast('error', 'Hiba a telephelyek mentésekor!');
+        }
+      } catch (err) {
+        console.error(err);
+        showToast('error', 'Hálózati hiba!');
+      }
+    }
+
     // --- Orvosok CRUD ---
     let globalDoctors = [];
     
@@ -7431,6 +7564,7 @@
             list.innerHTML = '<tr><td colspan="3" style="font-size:13px; color:#9ca3af; padding:20px; text-align:center;">Nincsenek orvosok.</td></tr>';
           }
           fetchServices(); // Orvosok letöltése után töltsük le a szolgáltatásokat, mert kell az orvos lista!
+          fetchClinics(); // Telephelyeket is itt töltjük le
         })
         .catch(err => console.error("Hiba az orvosok betöltésekor:", err));
     }

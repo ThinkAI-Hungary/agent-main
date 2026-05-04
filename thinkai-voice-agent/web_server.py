@@ -17,7 +17,7 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, Request, status, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
+from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 import jwt as pyjwt
@@ -288,6 +288,11 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
             rules_text = "\n".join([f"- Szabály ID: {r['id']}, Helyzet: {r['situation']}, Prioritás: {r['priority']}" for r in triage_rules])
             system_prompt += f"\n\n--- TRIÁZS SZABÁLYOK ---\nKérlek értékeld a páciens problémáját az alábbi szabályok alapján. Ha egyezik valamelyikkel, állítsd be a megfelelő prioritást a 'save_client_data' funkcióban, és add meg a Szabály ID-t is. Ha nem egyezik egyikkel sem, a prioritás legyen 'Normál', az ID pedig 0.\n{rules_text}\n----------------------------------------------------"
 
+        clinics = db.get_clinics()
+        if clinics and len(clinics) > 1:
+            clinics_text = ", ".join([f"{c['name_and_address']} (ID: {c['id']})" for c in clinics])
+            system_prompt += f"\n\n--- TELEPHELYEK ---\nTöbb telephelyünk van: {clinics_text}. Ha az ügyfél időpontot foglal, KÖTELEZŐ megkérdezned, hogy melyik telephelyet választja! A választott telephely ID-ját a 'save_client_data' funkcióban (clinic_id) mentsd el.\n----------------------------------------------------"
+
         # 2. Tool definíciók a Geminihez
         from google import genai
         from google.genai import types
@@ -305,7 +310,8 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
                             "phone": types.Schema(type=types.Type.STRING, description="Az ügyfél telefonszáma."),
                             "priority": types.Schema(type=types.Type.STRING, description="A megállapított prioritás a triázs szabályok alapján (pl. 'Sürgős', 'Normál'). Alapértelmezetten 'Normál'."),
                             "problem_description": types.Schema(type=types.Type.STRING, description="Az ügyfél problémájának rövid leírása (1-2 mondat)."),
-                            "triage_rule_id": types.Schema(type=types.Type.INTEGER, description="A felismert triázs szabály ID-ja, ha van egyezés, különben 0.")
+                            "triage_rule_id": types.Schema(type=types.Type.INTEGER, description="A felismert triázs szabály ID-ja, ha van egyezés, különben 0."),
+                            "clinic_id": types.Schema(type=types.Type.INTEGER, description="A kiválasztott telephely ID-ja, ha az ügyfél megadta.")
                         }
                     )
                 )
@@ -391,6 +397,7 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
         final_text = ""
         current_response = response
         booked_meeting = False
+        chosen_clinic_id = None
 
         while current_response.function_calls:
             # Hozzáadjuk a Gemini által generált function callokat a kontextushoz
@@ -411,6 +418,10 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
                             "messenger_id": sender_id,
                             "forras_csatorna": "Messenger"
                         }
+                        if "clinic_id" in tool_args and tool_args["clinic_id"]:
+                            chosen_clinic_id = int(tool_args["clinic_id"])
+                            custom_data["clinic_id"] = chosen_clinic_id
+                        
                         # Üres értékek kiszűrése hogy ne írja felül a Kanbanban lévőt ha már van
                         custom_data = {k: v for k, v in custom_data.items() if v}
                         
@@ -555,7 +566,8 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
                 funnel_stage=f_stage,
                 alert_tags=alert_tags if isinstance(alert_tags, list) else [],
                 approval_status="pending",
-                ai_draft_response=draft_json
+                ai_draft_response=draft_json,
+                clinic_id=chosen_clinic_id
             )
             print(f"[Meta AI Process] {source_channel} piszkozat mentve jóváhagyásra.")
 
@@ -1261,6 +1273,61 @@ async def save_praxisinfo(payload: PraxisinfoSaveRequest, username: str = Depend
     PRAXISINFO_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
     return {"ok": True, "message": "Praxisinformáció elmentve."}
 
+@app.get("/admin/api/prices/template/download")
+async def download_price_template(username: str = Depends(verify_jwt)):
+    """Generate and return an Excel template for price list upload."""
+    import openpyxl
+    import io
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Árlista Minta"
+    
+    # Headers
+    headers = ["Kategória", "Szolgáltatás megnevezése", "Ár", "Pénznem", "Megjegyzés / Extra infó"]
+    ws.append(headers)
+    
+    # Premium Sample data
+    sample_data = [
+        ["Konzultáció", "Szakorvosi állapotfelmérés és kezelési terv", 15000, "HUF", "Tartalmazza a szájüregi szűrővizsgálatot."],
+        ["Diagnosztika", "Digitális Panoráma röntgen (OPG)", 12000, "HUF", "Kiadható digitális formátumban (CD / E-mail)."],
+        ["Szájhigiénia", "Ultrahangos fogkőeltávolítás (Air-Flow)", 28000, "HUF", "Mindkét állcsontra, polírozással együtt."],
+        ["Konzerváló fogászat", "Esztétikus kompozit tömés (1 felszínű)", 25000, "HUF", "Fényre kötő prémium tömőanyag."],
+        ["Szájsebészet", "Bölcsességfog műtéti eltávolítása", 45000, "HUF", "A bonyolultságtól függően az ár változhat."],
+        ["Implantológia", "Prémium implantátum beültetése", 250000, "HUF", "Az ár a felépítményt és koronát nem tartalmazza."]
+    ]
+    
+    for row in sample_data:
+        ws.append(row)
+    
+    # Styling
+    from openpyxl.styles import PatternFill, Font
+    header_fill = PatternFill(start_color="14B8A6", end_color="14B8A6", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF")
+    
+    for cell in ws[1]:
+        cell.fill = header_fill
+        cell.font = header_font
+        
+    # Freeze panes
+    ws.freeze_panes = "A2"
+    
+    # Column widths
+    ws.column_dimensions['A'].width = 25
+    ws.column_dimensions['B'].width = 45
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['E'].width = 60
+        
+    stream = io.BytesIO()
+    wb.save(stream)
+    stream.seek(0)
+    
+    return Response(
+        content=stream.getvalue(),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": 'attachment; filename="arlista_minta.xlsx"'}
+    )
+
 @app.post("/admin/api/upload_prices")
 async def upload_prices(file: UploadFile = File(...), username: str = Depends(verify_jwt)):
     content = await file.read()
@@ -1530,6 +1597,17 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
     
     if success: return {"status": "success"}
     raise HTTPException(status_code=500, detail="Sikeres küldés, de adatbázis frissítés hibás")
+
+
+@app.get("/admin/api/clinics")
+def get_clinics_api(admin: dict = Depends(verify_jwt)):
+    return db.get_clinics()
+
+@app.post("/admin/api/clinics")
+def save_clinics_api(clinics: list[dict], admin: dict = Depends(verify_jwt)):
+    success = db.save_clinics(clinics)
+    if success: return {"status": "ok"}
+    raise HTTPException(status_code=500, detail="Failed to save clinics")
 
 
 if __name__ == "__main__":
