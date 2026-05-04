@@ -53,6 +53,10 @@ async def startup_event():
     task = asyncio.create_task(email_processor.email_worker_loop())
     background_tasks.add(task)
     task.add_done_callback(background_tasks.discard)
+    
+    task2 = asyncio.create_task(email_processor.reminder_worker_loop())
+    background_tasks.add(task2)
+    task2.add_done_callback(background_tasks.discard)
     # Inbound SIP szoba monitor
     mon = asyncio.create_task(inbound_sip_room_monitor())
     background_tasks.add(mon)
@@ -1609,6 +1613,23 @@ def save_clinics_api(clinics: list[dict], admin: dict = Depends(verify_jwt)):
     if success: return {"status": "ok"}
     raise HTTPException(status_code=500, detail="Failed to save clinics")
 
+class ReminderSettingsRequest(BaseModel):
+    reminder_enabled: bool
+    reminder_hours: int
+    reminder_template: str
+
+@app.get('/admin/api/settings/reminder')
+async def get_reminder_settings_endpoint(username: str = Depends(verify_jwt)):
+    import database as db
+    return db.get_reminder_settings()
+
+@app.post('/admin/api/settings/reminder')
+async def save_reminder_settings_endpoint(payload: ReminderSettingsRequest, username: str = Depends(verify_jwt)):
+    import database as db
+    success = db.update_reminder_settings(payload.reminder_enabled, payload.reminder_hours, payload.reminder_template)
+    if success:
+        return {'ok': True, 'message': 'Emlékeztető beállítások mentve.'}
+    raise HTTPException(status_code=500, detail='Adatbázis hiba mentéskor')
 
 if __name__ == "__main__":
     import uvicorn

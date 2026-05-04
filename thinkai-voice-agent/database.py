@@ -1,5 +1,5 @@
 """
-ThinkAI Voice Agent — Supabase Database Layer
+ThinkAI Voice Agent â Supabase Database Layer
 All persistent data: calendar, emails, tasks, sessions, interactions, admin users.
 """
 
@@ -31,9 +31,9 @@ def init_db():
     else:
         logger.error("Supabase client not initialized.")
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # ADMIN USERS
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def _hash_password(password: str) -> str:
     salt = secrets.token_hex(16)
@@ -86,9 +86,9 @@ def seed_admin_from_env():
     if created:
         logger.info(f"Seeded admin user from env: {username}")
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # SESSIONS
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def create_session(session_id: str, room_name: str, participant: str = "") -> None:
     if not supabase: return
@@ -123,9 +123,9 @@ def get_sessions(limit: int = 50) -> list[dict]:
     except Exception:
         return []
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # INTERACTIONS
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def log_interaction(type: str, topic: str = "", summary: str = "", result: str = "", tool_name: str = "", session_id: str = "", funnel_stage: str = "relevant", alert_tags: list = None, handover_reason: str = None, direction: str = "inbound", approval_status: str = "pending", ai_draft_response: str = None, clinic_id: int = None) -> None:
     if not supabase: return
@@ -148,9 +148,9 @@ def log_interaction(type: str, topic: str = "", summary: str = "", result: str =
     except Exception as e:
         logger.error(f"Error logging interaction: {e}")
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # CALENDAR
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def get_calendar_events() -> list[dict]:
     if not supabase: return []
@@ -203,9 +203,9 @@ def find_calendar_event_by_title(title_fragment: str) -> dict | None:
     except Exception:
         return None
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # EMAIL LOGS
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def add_email_log(to_name, to_email, subject, message, status, error="", session_id="") -> int:
     if not supabase: return 0
@@ -231,9 +231,9 @@ def get_email_logs(limit: int = 100) -> list[dict]:
     except Exception:
         return []
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # TASKS
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def add_task(text, priority="normal", due_date="", session_id="") -> int:
     if not supabase: return 0
@@ -278,9 +278,9 @@ def delete_task(task_id: int) -> bool:
     except Exception:
         return False
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # ANALYTICS
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def get_alerts_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind") -> dict:
     if not supabase: 
@@ -340,7 +340,7 @@ def get_alert_details(alert_type: str) -> list[dict]:
                         custom = {}
                     
                     source = custom.get("forras_csatorna") or ("Messenger" if custom.get("messenger_id") else "Ismeretlen")
-                    name = custom.get("name", custom.get("név", "Névtelen"))
+                    name = custom.get("name", custom.get("nÃ©v", "NÃ©vtelen"))
                     
                     stuck_cases.append({
                         "id": c["id"],
@@ -727,7 +727,7 @@ def get_interactions(limit: int = 100, type_filter: str = "") -> list[dict]:
         return []
 
 def _build_session_summary(interactions: list[dict]) -> str:
-    if not interactions: return "Nincs rögzített interakció ebben a sessionben."
+    if not interactions: return "Nincs rÃ¶gzÃ­tett interakciÃ³ ebben a sessionben."
     type_counts = {}
     topics = []
     for i in interactions:
@@ -736,13 +736,13 @@ def _build_session_summary(interactions: list[dict]) -> str:
         topic = i.get("topic", "")
         if topic and topic not in topics: topics.append(topic)
     parts = []
-    label_map = {"email": "email küldés", "foglalás": "időpontfoglalás", "feladat": "feladat rögzítés", "kérdés": "kérdés / tudásbázis", "időjárás": "időjárás lekérdezés"}
+    label_map = {"email": "email kÃ¼ldÃ©s", "foglalÃ¡s": "idÅpontfoglalÃ¡s", "feladat": "feladat rÃ¶gzÃ­tÃ©s", "kÃ©rdÃ©s": "kÃ©rdÃ©s / tudÃ¡sbÃ¡zis", "idÅjÃ¡rÃ¡s": "idÅjÃ¡rÃ¡s lekÃ©rdezÃ©s"}
     for typ, cnt in type_counts.items():
         label = label_map.get(typ, typ)
-        parts.append(f"{cnt}× {label}")
-    summary = "A session során: " + ", ".join(parts) + "." if parts else "Általános beszélgetés."
-    specific = [t for t in topics if t not in ("Email küldés", "Időpontfoglalás", "Feladat rögzítés")][:3]
-    if specific: summary += " Témák: " + "; ".join(specific) + "."
+        parts.append(f"{cnt}Ã {label}")
+    summary = "A session sorÃ¡n: " + ", ".join(parts) + "." if parts else "ÃltalÃ¡nos beszÃ©lgetÃ©s."
+    specific = [t for t in topics if t not in ("Email kÃ¼ldÃ©s", "IdÅpontfoglalÃ¡s", "Feladat rÃ¶gzÃ­tÃ©s")][:3]
+    if specific: summary += " TÃ©mÃ¡k: " + "; ".join(specific) + "."
     return summary
 
 def get_sessions_with_summary(limit: int = 50) -> list[dict]:
@@ -754,7 +754,7 @@ def get_sessions_with_summary(limit: int = 50) -> list[dict]:
             
         session_ids = [s["session_id"] for s in sessions]
         
-        # 1 lekérdezéssel lehozzuk az összes interakciót (N+1 query javítás)
+        # 1 lekÃ©rdezÃ©ssel lehozzuk az Ã¶sszes interakciÃ³t (N+1 query javÃ­tÃ¡s)
         all_inters = supabase.table("interactions").select("*").in_("session_id", session_ids).order("created_at", desc=False).execute().data
         
         inters_by_session = {}
@@ -777,13 +777,13 @@ def get_sessions_with_summary(limit: int = 50) -> list[dict]:
 def migrate_from_json():
     pass
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # CLIENTS (KANBAN)
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def add_client(custom_data: dict, status: str = "uj") -> int:
     if not supabase: return 0
-    name = custom_data.get("name", "Névtelen").strip() or "Névtelen"
+    name = custom_data.get("name", "NÃ©vtelen").strip() or "NÃ©vtelen"
     try:
         res = supabase.table("clients").insert({
             "name": name,
@@ -866,7 +866,7 @@ def delete_client(client_id: int) -> bool:
             c = client[0]
             name = c.get("name")
             email = c.get("email")
-            if name and name not in ("Névtelen", "-"):
+            if name and name not in ("NÃ©vtelen", "-"):
                 supabase.table("calendar_events").delete().or_(f"title.ilike.%{name}%,attendee.ilike.%{name}%").execute()
             if email and email != "-":
                 supabase.table("calendar_events").delete().or_(f"title.ilike.%{email}%,attendee_email.ilike.%{email}%").execute()
@@ -877,7 +877,7 @@ def delete_client(client_id: int) -> bool:
 
 def edit_client_details(client_id: int, custom_data: dict) -> bool:
     if not supabase: return False
-    name = custom_data.get("name", "Névtelen").strip() or "Névtelen"
+    name = custom_data.get("name", "NÃ©vtelen").strip() or "NÃ©vtelen"
     try:
         supabase.table("clients").update({
             "name": name,
@@ -950,7 +950,7 @@ def delete_kanban_column(col_id: str) -> bool:
     try:
         count_res = supabase.table("clients").select("id", count="exact", head=True).eq("status", col_id).execute()
         if count_res.count and count_res.count > 0:
-            raise ValueError(f"Nem törölheted: a(z) '{col_id}' oszlopban {count_res.count} ügyfél található.")
+            raise ValueError(f"Nem tÃ¶rÃ¶lheted: a(z) '{col_id}' oszlopban {count_res.count} Ã¼gyfÃ©l talÃ¡lhatÃ³.")
         supabase.table("kanban_columns").delete().eq("id", col_id).execute()
         return True
     except ValueError as e:
@@ -958,9 +958,9 @@ def delete_kanban_column(col_id: str) -> bool:
     except Exception:
         return False
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # TRIAGE RULES
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def get_triage_rules() -> list[dict]:
     if not supabase: return []
@@ -1003,9 +1003,9 @@ def delete_triage_rule(rule_id: int) -> bool:
     except Exception:
         return False
 
-# ──────────────────────────────────────────────────────────────────────────────
+# ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # DOCTORS & SERVICES
-# ──────────────────────────────────────────────────────────────────────────────
+# ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def get_doctors() -> list[dict]:
     if not supabase: return []
@@ -1125,9 +1125,9 @@ def update_approval_status(interaction_id: int, status: str, new_draft: str = No
         logger.error(f'Error updating approval status: {e}')
         return False
 
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # CLINICS (TELEPHELYEK)
-# ═══════════════════════════════════════════════════════════════════════════════
+# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
 def get_clinics() -> list[dict]:
     if not supabase: return []
@@ -1168,4 +1168,55 @@ def save_clinics(clinics: list[dict]) -> bool:
         return True
     except Exception as e:
         logger.error(f"Save clinics error: {e}")
+        return False
+
+
+def get_reminder_settings() -> dict:
+    if not supabase: return {}
+    try:
+        res = supabase.table('reminder_settings').select('*').eq('id', 1).execute()
+        if res.data: return res.data[0]
+        return {'reminder_enabled': False, 'reminder_hours': 24, 'reminder_template': ''}
+    except Exception as e:
+        logger.error(f'Error getting reminder settings: {e}')
+        return {}
+
+def update_reminder_settings(enabled: bool, hours: int, template: str) -> bool:
+    if not supabase: return False
+    try:
+        supabase.table('reminder_settings').upsert({
+            'id': 1,
+            'reminder_enabled': enabled,
+            'reminder_hours': hours,
+            'reminder_template': template
+        }).execute()
+        return True
+    except Exception as e:
+        logger.error(f'Error updating reminder settings: {e}')
+        return False
+
+def get_upcoming_events_for_reminders(hours_offset: int):
+    if not supabase: return []
+    try:
+        from datetime import datetime, timedelta, timezone
+        now = datetime.now(timezone.utc)
+        target_start = now + timedelta(hours=hours_offset)
+        target_end = target_start + timedelta(minutes=15)
+        res = supabase.table('calendar_events').select('*').gte('start_dt', target_start.isoformat()).lt('start_dt', target_end.isoformat()).execute()
+        events = []
+        for e in res.data:
+            if not e.get('reminder_sent'):
+                events.append(e)
+        return events
+    except Exception as e:
+        logger.error(f'Error getting upcoming events: {e}')
+        return []
+
+def mark_reminder_sent(event_id: int) -> bool:
+    if not supabase: return False
+    try:
+        supabase.table('calendar_events').update({'reminder_sent': True}).eq('id', event_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f'Error marking reminder sent: {e}')
         return False
