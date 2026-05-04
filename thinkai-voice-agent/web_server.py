@@ -82,12 +82,12 @@ async def inbound_sip_room_monitor():
                     continue
                 # Van-e mar agent a szobaban?
                 parts = await lk.room.list_participants(lk_api_module.ListParticipantsRequest(room=room.name))
-                has_agent = any(p.identity.startswith("agent-") or p.identity == "thinkai-dobozos-local"
+                has_agent = any(p.identity.startswith("agent-")
                                for p in parts.participants)
                 if not has_agent:
                     await lk.agent_dispatch.create_dispatch(
                         lk_api_module.CreateAgentDispatchRequest(
-                            agent_name="thinkai-dobozos-local",
+                            agent_name="thinkai-ugyfelszolg",
                             room=room.name,
                             metadata="inbound_sip",
                         )
@@ -180,7 +180,7 @@ async def get_token():
         .with_grants(VideoGrants(room_join=True, room=room_name))
         .with_room_config(
             RoomConfiguration(
-                agents=[RoomAgentDispatch(agent_name="thinkai-dobozos-local")]
+                agents=[RoomAgentDispatch(agent_name="thinkai-ugyfelszolg")]
             )
         )
     )
@@ -1448,7 +1448,7 @@ async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_
         # 2. Agent explicit dispatch a szobába
         await lk.agent_dispatch.create_dispatch(
             lk_api_module.CreateAgentDispatchRequest(
-                agent_name="thinkai-dobozos-local",
+                agent_name="thinkai-ugyfelszolg",
                 room=room_name,
                 metadata="outbound_call",
             )

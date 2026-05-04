@@ -208,7 +208,8 @@ async def entrypoint(ctx: JobContext):
     await ctx.connect()
 
     # ── Kick phantom agents: remove any cloud-hosted agents already in the room ─
-    for p in ctx.room.remote_participants.values():
+    phantoms_removed = False
+    for p in list(ctx.room.remote_participants.values()):
         if p.identity.startswith("agent-"):
             logger.warning(f"Removing phantom agent {p.identity} from room {room_name}")
             try:
@@ -219,8 +220,12 @@ async def entrypoint(ctx: JobContext):
                 )
                 await admin.aclose()
                 logger.info(f"Phantom agent {p.identity} removed.")
+                phantoms_removed = True
             except Exception as e:
                 logger.error(f"Failed to remove phantom agent: {e}")
+
+    if phantoms_removed:
+        await asyncio.sleep(1.5)  # Let room settle after phantom removal
 
 
     # Initialize DB + log session start
