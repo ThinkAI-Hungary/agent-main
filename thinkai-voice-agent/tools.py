@@ -306,7 +306,7 @@ async def book_meeting(
                 continue
 
         # ── No conflict — book it in Calendar ───────────────────────────
-        db.add_calendar_event(
+        event_id = db.add_calendar_event(
             title=title,
             start_dt=start_dt.isoformat(),
             end_dt=end_dt.isoformat(),
@@ -314,6 +314,17 @@ async def book_meeting(
             attendee=attendee,
             attendee_email=attendee_email,
         )
+
+        # Trigger automated confirmation email in the background
+        if attendee_email:
+            asyncio.create_task(email_processor.send_booking_confirmation_email(
+                event_id=event_id,
+                title=title,
+                date=parsed_date,
+                time=parsed_time,
+                attendee=attendee,
+                attendee_email=attendee_email
+            ))
 
         # ── Add to Kanban (Clients Database) ───────────────────────────
         custom_data = {
@@ -350,7 +361,7 @@ async def book_meeting(
         if attendee:
             result += f" Résztvevő: {attendee}."
         if attendee_email:
-            result += f" Email: {attendee_email}."
+            result += f" Email: {attendee_email}. A rendszer automatikusan kiküldte a professzionális visszaigazoló emailt a páciensnek a lemondási gombbal együtt. Neked már nem kell emailt küldened!"
         return result
     except Exception as e:
         logger.error(f"Booking error: {e}")

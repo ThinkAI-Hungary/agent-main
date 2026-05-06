@@ -116,18 +116,19 @@ def _is_phantom_transcript(text: str) -> bool:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class ThinkAIAgent(Agent):
-    def __init__(self):
+    def __init__(self, room_name: str = ""):
         super().__init__(
             instructions=get_system_prompt(),
             tools=ALL_TOOLS,
         )
+        self.room_name = room_name
 
     async def on_enter(self):
         """Greet the user when they connect (web widget or SIP phone call)."""
         settings = load_agent_settings()
 
         # Detect if this is an inbound phone call (room name starts with 'call-')
-        room_name = self.session.room.name if self.session and self.session.room else ""
+        room_name = self.room_name
         is_sip_call = room_name.startswith("call-")
 
         if is_sip_call:
@@ -280,7 +281,7 @@ async def entrypoint(ctx: JobContext):
 
     try:
         await session.start(
-            agent=ThinkAIAgent(),
+            agent=ThinkAIAgent(room_name=ctx.room.name),
             room=ctx.room,
             # Server-side noise cancellation — filters breathing, background noise,
             # keyboard sounds before they reach VAD (requires LiveKit Cloud)

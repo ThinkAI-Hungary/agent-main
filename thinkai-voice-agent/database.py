@@ -203,6 +203,15 @@ def find_calendar_event_by_title(title_fragment: str) -> dict | None:
     except Exception:
         return None
 
+def get_calendar_event(event_id: int) -> dict | None:
+    if not supabase: return None
+    try:
+        res = supabase.table("calendar_events").select("*").eq("id", event_id).execute()
+        return res.data[0] if res.data else None
+    except Exception as e:
+        logger.error(f"Get calendar event error: {e}")
+        return None
+
 # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # EMAIL LOGS
 # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
@@ -613,11 +622,20 @@ def get_outbound_stats(period: str = "month", channel: str = "mind", clinic_id: 
         start_dt = today - timedelta(days=365)
 
     try:
-        all_inters = supabase.table("interactions").select("session_id, direction, funnel_stage, handover_reason, created_at, type, clinic_id").gte("created_at", start_dt.isoformat()).execute()
+        all_inters = supabase.table("interactions").select("session_id, direction, funnel_stage, handover_reason, created_at, type, clinic_id, topic").gte("created_at", start_dt.isoformat()).execute()
         
         sessions = {}
         # also count interactions without session_id that are outbound
         total_outbound = 0
+        
+        activities = {
+            'Visszahívás': 0,
+            'Emlékeztető': 0,
+            'Utánkövetés': 0,
+            'Kampány': 0,
+            'Kontroll': 0,
+            'Passzív': 0
+        }
         
         for i in all_inters.data:
             if not _matches_channel(i.get("type"), channel):
@@ -627,6 +645,20 @@ def get_outbound_stats(period: str = "month", channel: str = "mind", clinic_id: 
             d = i.get("direction", "inbound") or "inbound"
             if d == "outbound":
                 total_outbound += 1
+                
+                t_lower = str(i.get("topic", "")).lower() + " " + str(i.get("type", "")).lower()
+                if "emlékeztető" in t_lower:
+                    activities['Emlékeztető'] += 1
+                elif "visszahívás" in t_lower or ("hív" in t_lower and "sip" in t_lower):
+                    activities['Visszahívás'] += 1
+                elif "utánkövetés" in t_lower:
+                    activities['Utánkövetés'] += 1
+                elif "kampány" in t_lower:
+                    activities['Kampány'] += 1
+                elif "kontroll" in t_lower:
+                    activities['Kontroll'] += 1
+                else:
+                    activities['Passzív'] += 1
                 
             sid = i.get("session_id")
             if not sid:
@@ -674,11 +706,12 @@ def get_outbound_stats(period: str = "month", channel: str = "mind", clinic_id: 
             "negotiating_count": negotiating_count,
             "booked_count": booked_count,
             "booked_rate": booked_rate,
-            "open_followup": open_followup
+            "open_followup": open_followup,
+            "activities": activities
         }
     except Exception as e:
         logger.error(f"Outbound stats error: {e}")
-        return {"total_outbound": 0, "reached_rate": 0, "booked_count": 0, "booked_rate": 0, "open_followup": 0}
+        return {"total_outbound": 0, "reached_rate": 0, "booked_count": 0, "booked_rate": 0, "open_followup": 0, "activities": {}}
 
 def get_funnel_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind") -> dict:
     if not supabase: return {}

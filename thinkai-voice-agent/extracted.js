@@ -374,6 +374,12 @@
         const w2 = total > 0 ? Math.round((negotiating / total) * 100) : 10;
         const w3 = total > 0 ? Math.round((booked / total) * 100) : 10;
         
+        if (data && data.activities) {
+            renderOutgoingChart(data.activities);
+        } else {
+            renderOutgoingChart(null);
+        }
+
         if (funnelContainer) {
             if (total === 0) {
               funnelContainer.innerHTML = `
@@ -761,7 +767,11 @@
       }
 
       // Outgoing activity placeholder chart
-      renderOutgoingChart();
+      if (data && data.activities) {
+          renderOutgoingChart(data.activities);
+      } else {
+          renderOutgoingChart(null);
+      }
 
       setTimeout(() => {
         if (sessionsChart) sessionsChart.resize();
@@ -804,15 +814,29 @@
       });
     }
 
-    function renderOutgoingChart() {
+    function renderOutgoingChart(activities = null) {
       const ctx = document.getElementById('outgoing-activity-chart');
       if (!ctx) return;
       if (outgoingChart) { outgoingChart.destroy(); outgoingChart = null; }
+      
+      const labels = ['Visszahívás', 'Emlékeztető', 'Utánkövetés', 'Kampány', 'Kontroll', 'Passzív'];
+      let dataVals = [0, 0, 0, 0, 0, 0];
+      if (activities) {
+          dataVals = [
+              activities['Visszahívás'] || 0,
+              activities['Emlékeztető'] || 0,
+              activities['Utánkövetés'] || 0,
+              activities['Kampány'] || 0,
+              activities['Kontroll'] || 0,
+              activities['Passzív'] || 0
+          ];
+      }
+      
       outgoingChart = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: ['Visszahívás', 'Emlékeztető', 'Utánkövetés', 'Kampány', 'Kontroll', 'Passzív'],
-          datasets: [{ label: 'Aktivitás', data: [92, 78, 65, 48, 28, 15], backgroundColor: '#1ceee0', borderRadius: 6 }]
+          labels: labels,
+          datasets: [{ label: 'Aktivitás', data: dataVals, backgroundColor: '#1ceee0', borderRadius: 6 }]
         },
         options: {
           responsive: true,

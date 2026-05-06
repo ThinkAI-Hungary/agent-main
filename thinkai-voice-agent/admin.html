@@ -709,7 +709,7 @@
       background: #1a3548 !important;
     }
 
-    body.dark #page-analytics .panel-white {
+    body.dark .panel-white {
       background: #0f2d40 !important;
       border-color: #1a3548 !important;
       box-shadow: none !important;
@@ -3389,6 +3389,28 @@
       font-weight: 600;
     }
 
+    /* --- Price List Card --- */
+    .price-file-card {
+      display: none;
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 16px;
+      margin-bottom: 16px;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .price-file-card .pfc-name {
+      font-size: 13px; font-weight: 600; color: #1f2937;
+    }
+    
+    body.dark .price-file-card {
+      background: rgba(34, 197, 94, 0.1);
+      border: 1px solid rgba(34, 197, 94, 0.3);
+    }
+    body.dark .price-file-card .pfc-name {
+      color: #e8edf5;
+    }
   </style>
 </head>
 
@@ -4028,11 +4050,11 @@
             <div class="tt-section-title">Árak</div>
             <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px;">Az aktuális árlista XLSX vagy CSV formátumban tölthető fel. Az előző fájl törölhető és új fájl tölthető fel helyette.</div>
             
-            <div id="price-file-card" style="display: none; background: #f0fdf4; border: 1px solid #bbf7d0; border-radius: 8px; padding: 16px; margin-bottom: 16px; align-items: center; justify-content: space-between;">
+            <div id="price-file-card" class="price-file-card">
               <div style="display: flex; align-items: center; gap: 12px;">
                 <div style="color: #22c55e; font-size: 24px;">&#128196;</div>
                 <div style="display: flex; flex-direction: column;">
-                  <span id="price-file-name" style="font-size: 13px; font-weight: 600; color: #1f2937;"></span>
+                  <span id="price-file-name" class="pfc-name"></span>
                   <span id="price-file-date" style="font-size: 11px; color: #6b7280; margin-top: 2px;"></span>
                   <span style="font-size: 10px; color: #22c55e; font-weight: 600; margin-top: 4px;">Aktív</span>
                 </div>
@@ -4104,16 +4126,6 @@
             <div style="display: flex; align-items: center;">
               <button class="tt-add-btn" onclick="addFaq()" style="background: transparent; border: none; color: #1ceee0; font-weight: 600; cursor: pointer; padding: 0;">+ Kérdés hozzáadása</button>
             </div>
-          </div>
-
-          <!-- Action bar -->
-          <div class="tt-action-bar">
-            <div class="tt-action-meta">
-              <strong>Utolsó frissítés:</strong> 2026. április 12. 14:30
-                
-              <strong>Állapot:</strong> <span class="tt-status-badge">Aktív</span>
-            </div>
-            <button class="tt-save-btn" onclick="savePraxisinfo()"> Változtatások mentése</button>
           </div>
         </div><!-- end praxis content -->
         <!-- SZABÁLYOK TAB -->
@@ -4230,16 +4242,6 @@
               <button class="tt-add-btn" onclick="addTriageRule()" style="background: transparent; border: none; color: #10b981; font-weight: 600; cursor: pointer; padding: 0;">+ Új szabály hozzáadása</button>
               <button class="tt-save-btn" onclick="saveAllTriageRules()" style="margin: 0; padding: 8px 16px; font-size: 13px;">&#128190; Triázs szabályok mentése</button>
             </div>
-          </div>
-
-          <!-- Action bar -->
-          <div class="tt-action-bar">
-            <div class="tt-action-meta">
-              <strong>Utolsó frissítés:</strong> 2026. április 12. 14:30
-                
-              <strong>Állapot:</strong> <span class="tt-status-badge">Aktív</span>
-            </div>
-            <button class="tt-save-btn" onclick="saveSzabalyok()"> Módosítást kérek!</button>
           </div>
         </div><!-- end szabalyok content -->
       </div>
@@ -5050,7 +5052,7 @@
       const channel = document.getElementById('filter-csatorna').value;
       const clinic = document.getElementById('filter-telephely') ? document.getElementById('filter-telephely').value : 'mind';
       try {
-        const res = await authFetch(`/admin/api/analytics/outbound/summary?period=${period}&channel=${channel}&clinic_id=${clinic}`);
+        const res = await authFetch(`/admin/api/analytics/outbound/summary?period=${period}&channel=${channel}&clinic_id=${clinic}&_t=${Date.now()}`);
         const data = await res.json();
         
         const total = data.total_outbound || 0;
@@ -5083,6 +5085,12 @@
         const w2 = total > 0 ? Math.round((negotiating / total) * 100) : 10;
         const w3 = total > 0 ? Math.round((booked / total) * 100) : 10;
         
+        if (data && data.activities) {
+            renderOutgoingChart(data.activities);
+        } else {
+            renderOutgoingChart(null);
+        }
+
         if (funnelContainer) {
             if (total === 0) {
               funnelContainer.innerHTML = `
@@ -5470,7 +5478,11 @@
       }
 
       // Outgoing activity placeholder chart
-      renderOutgoingChart();
+      if (data && data.activities) {
+          renderOutgoingChart(data.activities);
+      } else {
+          renderOutgoingChart(null);
+      }
 
       setTimeout(() => {
         if (sessionsChart) sessionsChart.resize();
@@ -5513,15 +5525,29 @@
       });
     }
 
-    function renderOutgoingChart() {
+    function renderOutgoingChart(activities = null) {
       const ctx = document.getElementById('outgoing-activity-chart');
       if (!ctx) return;
       if (outgoingChart) { outgoingChart.destroy(); outgoingChart = null; }
+      
+      const labels = ['Visszahívás', 'Emlékeztető', 'Utánkövetés', 'Kampány', 'Kontroll', 'Passzív'];
+      let dataVals = [0, 0, 0, 0, 0, 0];
+      if (activities) {
+          dataVals = [
+              activities['Visszahívás'] || 0,
+              activities['Emlékeztető'] || 0,
+              activities['Utánkövetés'] || 0,
+              activities['Kampány'] || 0,
+              activities['Kontroll'] || 0,
+              activities['Passzív'] || 0
+          ];
+      }
+      
       outgoingChart = new Chart(ctx, {
         type: 'bar',
         data: {
-          labels: ['Visszahívás', 'Emlékeztető', 'Utánkövetés', 'Kampány', 'Kontroll', 'Passzív'],
-          datasets: [{ label: 'Aktivitás', data: [92, 78, 65, 48, 28, 15], backgroundColor: '#1ceee0', borderRadius: 6 }]
+          labels: labels,
+          datasets: [{ label: 'Aktivitás', data: dataVals, backgroundColor: '#1ceee0', borderRadius: 6 }]
         },
         options: {
           responsive: true,
@@ -6070,6 +6096,83 @@
     setInterval(pollUrgentCases, 15000);
     setTimeout(pollUrgentCases, 2000);
 
+    // ── LEMONDOTT ESETEK POLLING ──────────────────────────────────────────────────
+    let knownCancelledIds = new Set();
+    let viewedCancelledIds = new Set();
+    
+    async function viewCancelledAlert(clientId, name, email, phone) {
+      viewedCancelledIds.add(clientId);
+      try {
+        await authFetch('/admin/api/alerts/cancelled/' + clientId + '/view', { method: 'POST' });
+      } catch(e) { console.error('Hiba az alert megtekintésekor', e); }
+      
+      if(typeof showPage === 'function') showPage('clients'); 
+      if(typeof openClientDetails === 'function') {
+        openClientDetails({id: clientId, name: name, email: email || '', phone: phone || ''});
+      }
+    }
+
+    async function pollCancelledCases() {
+      if (!authToken) return;
+      try {
+        const res = await authFetch('/admin/api/alerts/cancelled');
+        if (!res.ok) return;
+        const data = await res.json();
+        const cancelledClients = (data.cancelled_clients || []).filter(c => !viewedCancelledIds.has(c.id));
+        
+        cancelledClients.forEach(c => {
+          if (!knownCancelledIds.has(c.id)) {
+            knownCancelledIds.add(c.id);
+            showCancelledToast(c);
+          }
+        });
+      } catch (e) {
+        console.error('Hiba a lemondott esetek lekérdezésekor:', e);
+      }
+    }
+    
+    function showCancelledToast(c) {
+      const container = document.getElementById('urgent-toast-container');
+      if (!container) return;
+      
+      const toast = document.createElement('div');
+      toast.style.cssText = 'pointer-events:auto; width:320px; background:white; border-left:4px solid #f97316; border-radius:6px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); padding:16px; transform:translateX(120%); opacity:0; transition:all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display:flex; flex-direction:column; gap:6px;';
+      
+      if (document.body.classList.contains('dark')) {
+         toast.style.background = '#1e293b';
+         toast.style.color = '#f8fafc';
+         toast.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.5)';
+      }
+      
+      toast.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:16px;">⚠️</span>
+            <span style="font-weight:700; font-size:13px; color:#f97316;">Időpont lemondva!</span>
+          </div>
+          <button style="background:none; border:none; cursor:pointer; color:#9ca3af; font-size:16px;" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+        <div style="font-size:14px; font-weight:600; margin-top:4px; color:var(--text);">${esc(c.name)} <span style="font-size:11px; font-weight:500; color:#6b7280; padding:2px 6px; background:#f3f4f6; border-radius:4px; margin-left:6px;">${esc(c.channel)}</span></div>
+        <button onclick="viewCancelledAlert(${c.id}, '${esc(c.name)}', '${esc(c.email || '')}', '${esc(c.phone || '')}'); this.parentElement.remove();" style="margin-top:8px; align-self:flex-start; font-size:12px; font-weight:600; color:#2563eb; background:none; border:none; cursor:pointer; padding:0;">Ugrás az ügyfél adatlapjára ➔</button>
+      `;
+      
+      container.appendChild(toast);
+      
+      requestAnimationFrame(() => {
+        toast.style.transform = 'translateX(0)';
+        toast.style.opacity = '1';
+      });
+      
+      setTimeout(() => {
+        toast.style.transform = 'translateX(120%)';
+        toast.style.opacity = '0';
+        setTimeout(() => toast.remove(), 400);
+      }, 10000);
+    }
+    
+    setInterval(pollCancelledCases, 15000);
+    setTimeout(pollCancelledCases, 2500);
+
 
     // ── Auto login if token exists ────────────────────────────────────────────────
     if (authToken) {
@@ -6321,15 +6424,22 @@
             if (customObj.messenger_id) csatorna = "Messenger";
             else csatorna = "Manuális";
           }
+          let dispStatus = statusMap[c.status] || c.status;
+          let badgeCls = 'badge-teal';
+          let rowStyle = '';
+          if (dispStatus.toLowerCase().includes('lemondott') || c.status === 'lemondott') {
+              badgeCls = 'badge-red';
+              rowStyle = 'opacity: 0.65; background-color: rgba(239, 68, 68, 0.03);';
+          }
           return `
-      <tr>
+      <tr style="${rowStyle}">
         <td style="text-align: center;"><input type="checkbox" class="client-checkbox" value="${c.id}" onchange="updateBulkDeleteBtn()"></td>
         <td class="td-time">${fmtDt(c.created_at)}</td>
         <td style="font-weight:600; font-size:12px; color:var(--text);">${esc(csatorna)}</td>
         ${displayFields.map((f, i) => {
             let val = customObj[f.id] != null ? customObj[f.id] : '';
             if (f.id === 'beszelgetes_naplo') {
-              const safeName = esc(customObj.nev || customObj['név'] || customObj.name || 'Ismeretlen').replace(/'/g, "\'");
+              const safeName = esc(customObj.nev || customObj['név'] || customObj.name || 'Ismeretlen').replace(/'/g, "\\'");
               const safeDate = esc(fmtDt(c.created_at));
               return `<td>${val ? `<button onclick="openLogModal('${esc(btoa(encodeURIComponent(val)))}', '${safeName}', '${esc(csatorna)}', '${safeDate}')" style="background:rgba(0,212,200,0.1);border:1px solid var(--accent);color:var(--accent);border-radius:4px;cursor:pointer;padding:4px 8px;font-size:11px;">Megtekintés</button>` : '<span style="color:var(--text-muted)">—</span>'}</td>`;
             }
@@ -6338,7 +6448,7 @@
             }
             return `<td ${i === 0 ? 'style="font-weight:500"' : ''}>${esc(val || '—')}</td>`;
           }).join('')}
-        <td><span class="badge badge-teal">${esc(statusMap[c.status] || c.status)}</span></td>
+        <td><span class="badge ${badgeCls}">${esc(dispStatus)}</span></td>
         <td>
           <button onclick="openClientModal(${c.id}, '${esc(btoa(encodeURIComponent(c.custom_data || '{}')))}')" style="background:transparent;border:none;color:var(--blue);cursor:pointer;font-size:12px;margin-right:8px;">Szerkesztés</button>
           <button onclick="deleteClient(${c.id})" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:12px;">Törlés</button>

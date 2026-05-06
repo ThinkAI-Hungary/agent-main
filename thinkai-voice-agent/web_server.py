@@ -742,9 +742,9 @@ A válaszod kizárólag egy valid JSON lista legyen (pl. ["javaslat 1", "javasla
     return {"status": "success", "insights": insights}
 
 @app.get("/admin/api/analytics/outbound/summary")
-def admin_outbound_summary(period: str = "month", username: str = Depends(verify_jwt)):
+def admin_outbound_summary(period: str = "month", channel: str = "mind", clinic_id: str = "mind", username: str = Depends(verify_jwt)):
     """Get outbound summary metrics."""
-    return db.get_outbound_stats(period)
+    return db.get_outbound_stats(period, channel, clinic_id)
 
 
 @app.get("/admin/api/interactions")
@@ -870,6 +870,66 @@ def mark_urgent_alert_viewed(client_id: int, username: str = Depends(verify_jwt)
                 custom_data = {}
             
             custom_data["urgent_viewed"] = True
+            db.edit_client_details(client_id, custom_data)
+            return {"status": "success"}
+    
+    raise HTTPException(status_code=404, detail="Client not found")
+
+@app.get("/admin/api/alerts/cancelled")
+def admin_alerts_cancelled(username: str = Depends(verify_jwt)):
+    """Fetch unhandled cancellation alerts for notification."""
+    clients = db.get_clients()
+    cancelled_clients = []
+    
+    for c in clients:
+        status = c.get("status", "uj")
+        if status != "lemondott":
+            continue
+            
+        custom_data = c.get("custom_data")
+        if isinstance(custom_data, str):
+            try:
+                import json
+                custom_data = json.loads(custom_data)
+            except:
+                custom_data = {}
+        if not isinstance(custom_data, dict):
+            custom_data = {}
+            
+        if not custom_data.get("cancelled_viewed"):
+            name = custom_data.get("nev") or custom_data.get("name") or custom_data.get("név") or c.get("name", "Ismeretlen")
+            channel = custom_data.get("forras_csatorna") or ("Messenger" if custom_data.get("messenger_id") else "Manuális")
+            email = custom_data.get("email") or c.get("email", "")
+            phone = custom_data.get("phone") or c.get("phone", "")
+            
+            cancelled_clients.append({
+                "id": c.get("id"),
+                "name": name,
+                "email": email,
+                "phone": phone,
+                "channel": channel,
+                "created_at": c.get("created_at")
+            })
+            
+    return {"cancelled_clients": cancelled_clients}
+
+@app.post("/admin/api/alerts/cancelled/{client_id}/view")
+def mark_cancelled_alert_viewed(client_id: int, username: str = Depends(verify_jwt)):
+    """Mark a cancelled alert as viewed."""
+    clients = db.get_clients()
+    for c in clients:
+        if c.get("id") == client_id:
+            custom_data = c.get("custom_data")
+            if isinstance(custom_data, str):
+                try:
+                    import json
+                    custom_data = json.loads(custom_data)
+                except:
+                    custom_data = {}
+            if not isinstance(custom_data, dict):
+                custom_data = {}
+            
+            custom_data["cancelled_viewed"] = True
             db.edit_client_details(client_id, custom_data)
             return {"status": "success"}
     
@@ -1544,6 +1604,11 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                         api_key = parsed.get("api_key", brevo_key)
                     except: pass
                 
+                html_body = f'<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">{final_text.replace(chr(10), "<br>")}</div>'
+                if draft.get("event_id"):
+                    import email_processor
+                    html_body += email_processor.get_cancellation_html(draft.get("event_id"))
+
                 resp = await http_client.post(
                     "https://api.brevo.com/v3/smtp/email",
                     headers={"api-key": api_key, "Content-Type": "application/json"},
@@ -1551,7 +1616,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                         "sender": {"name": "Bégé Design Kft.", "email": "bege@thinkai.hu"},
                         "to": [{"email": draft.get("to_email"), "name": draft.get("to_name", "")}],
                         "subject": draft.get("subject", "Re:"),
-                        "htmlContent": f'<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">{final_text.replace(chr(10), "<br>")}</div>',
+                        "htmlContent": html_body,
                     },
                     timeout=20,
                 )
@@ -1630,6 +1695,121 @@ async def save_reminder_settings_endpoint(payload: ReminderSettingsRequest, user
     if success:
         return {'ok': True, 'message': 'Emlékeztető beállítások mentve.'}
     raise HTTPException(status_code=500, detail='Adatbázis hiba mentéskor')
+
+@app.get('/api/public/cancel')
+async def public_cancel_appointment(token: str):
+    from fastapi.responses import HTMLResponse
+    import jwt as pyjwt
+    import database as db
+    try:
+        payload = pyjwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
+        event_id = payload.get("event_id")
+        if not event_id:
+            raise ValueError("No event_id in token")
+        
+        # Mark client as cancelled if found
+        event = db.get_calendar_event(event_id)
+        if event:
+            client = None
+            email = event.get("attendee_email")
+            if email and email != "-":
+                client = db.find_client_by_contact(email=email)
+            
+            # Fallback to search by name
+            if not client:
+                name = event.get("attendee")
+                if name and name != "-":
+                    res = db.supabase.table("clients").select("*").ilike("name", f"%{name}%").order("id", desc=True).limit(1).execute()
+                    if res.data:
+                        client = res.data[0]
+
+            # If still no client found, CREATE ONE to ensure Kanban and Toast work!
+            if not client:
+                name = event.get("attendee") or "Ismeretlen"
+                email = event.get("attendee_email") or ""
+                if name != "-" or email != "-":
+                    new_client_id = db.add_client({
+                        "name": name,
+                        "email": email,
+                        "phone": "",
+                        "forras_csatorna": "Rendszer (Lemondás)"
+                    }, status="lemondott")
+                    if new_client_id:
+                        client = {"id": new_client_id, "custom_data": {}}
+
+            if client:
+                custom_data = client.get("custom_data")
+                if isinstance(custom_data, str):
+                    try:
+                        custom_data = json.loads(custom_data)
+                    except:
+                        custom_data = {}
+                if not isinstance(custom_data, dict):
+                    custom_data = {}
+                
+                custom_data["cancelled_viewed"] = False
+                db.edit_client_details(client["id"], custom_data)
+                db.update_client_status(client["id"], "lemondott")
+
+        # Delete from calendar
+        success = db.delete_calendar_event(event_id)
+        
+        if success:
+            html = """
+            <html>
+            <head><title>Sikeres lemondás</title><meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body { font-family: 'Segoe UI', Arial, sans-serif; background: #f9fafb; text-align: center; padding: 50px 20px; color: #333; }
+                .box { background: white; max-width: 500px; margin: 0 auto; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+                h1 { color: #10b981; margin-bottom: 20px; }
+                p { font-size: 16px; line-height: 1.5; color: #6b7280; }
+                .icon { font-size: 48px; margin-bottom: 20px; }
+            </style>
+            </head>
+            <body>
+                <div class="box">
+                    <div class="icon">✅</div>
+                    <h1>Időpont sikeresen lemondva!</h1>
+                    <p>Köszönjük, hogy jelezte felénk. Az időpont törlésre került a naptárunkból.</p>
+                </div>
+            </body>
+            </html>
+            """
+        else:
+            html = """
+            <html>
+            <head><title>Hiba a lemondásnál</title><meta charset="utf-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1">
+            <style>
+                body { font-family: 'Segoe UI', Arial, sans-serif; background: #f9fafb; text-align: center; padding: 50px 20px; color: #333; }
+                .box { background: white; max-width: 500px; margin: 0 auto; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+                h1 { color: #ef4444; margin-bottom: 20px; }
+                p { font-size: 16px; line-height: 1.5; color: #6b7280; }
+            </style>
+            </head>
+            <body>
+                <div class="box">
+                    <h1>Sikertelen lemondás</h1>
+                    <p>Ezt az időpontot már korábban lemondták, vagy a hivatkozás érvénytelen.</p>
+                </div>
+            </body>
+            </html>
+            """
+        return HTMLResponse(content=html, status_code=200)
+    except Exception as e:
+        html = f"""
+        <html>
+        <head><title>Érvénytelen link</title><meta charset="utf-8">
+        <style>body {{ font-family: sans-serif; text-align: center; padding: 50px; color: #333; }}</style>
+        </head>
+        <body>
+            <h1>Érvénytelen vagy lejárt link</h1>
+            <p>Kérjük, vegye fel a kapcsolatot ügyfélszolgálatunkkal.</p>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=html, status_code=400)
 
 if __name__ == "__main__":
     import uvicorn

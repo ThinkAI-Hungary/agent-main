@@ -29,70 +29,70 @@ def decode_mime_words(s):
 async def process_single_email(from_email: str, from_name: str, subject: str, text_content: str):
     google_key = os.getenv("GOOGLE_API_KEY")
     if not google_key:
-        logger.error("Nincs GOOGLE_API_KEY beÃ¡llÃ­tva. E-mail feldolgozÃ¡s megszakÃ­tva.")
+        logger.error("Nincs GOOGLE_API_KEY beállítva. E-mail feldolgozás megszakítva.")
         return
 
     sys_prompt = get_system_prompt()
 
-    # UtasÃ­tÃ¡s a strukturÃ¡lt JSON outputra
+    # Utasítás a strukturált JSON outputra
     json_instruction = """
 TE FELADATOD:
-ÃrtÃ©keld a beÃ©rkezett e-mailt a TudÃ¡sbÃ¡zis Ã©s a Rendszer Prompt alapjÃ¡n.
-A kimeneted KIZÃRÃLAG egyetlen valid JSON objektum legyen, minden tovÃ¡bbi markdown formÃ¡zÃ¡s (pl. ```json) NÃLKÃL.
-A vÃ¡laszlevÃ©lt (email_reply) te fogalmazod meg, barÃ¡tsÃ¡gos, segÃ­tÅkÃ©sz hangnemben. Ha relevÃ¡ns autÃ³krÃ³l vagy projektbÅl van szÃ³, mentsd el a Kanban adatokat is.
+Ãrtékeld a beérkezett e-mailt a Tudásbázis és a Rendszer Prompt alapján.
+A kimeneted KIZÁRÃLAG egyetlen valid JSON objektum legyen, minden további markdown formázás (pl. ```json) NÃLKÃL.
+A válaszlevélt (email_reply) te fogalmazod meg, barátságos, segítÅkész hangnemben. Ha releváns autókról vagy projektbÅl van szó, mentsd el a Kanban adatokat is.
 
 JSON STRUKTÃRA:
 {
     "is_relevant": true|false,
-    "email_reply": "A pontos vÃ¡laszlevÃ©l szÃ¶vege, HTML sortÃ¶rÃ©sekkel (<br>)",
-    "beszelgetes_naplobejegyzes": "A bejÃ¶vÅ levÃ©l Ã©s a vÃ¡laszod tÃ¶mÃ¶r Ã¶sszefoglalÃ³ja 1 mondatban (kÃ©sÅbbi kontextushoz).",
+    "email_reply": "A pontos válaszlevél szövege, HTML sortörésekkel (<br>)",
+    "beszelgetes_naplobejegyzes": "A bejövÅ levél és a válaszod tömör összefoglalója 1 mondatban (késÅbbi kontextushoz).",
     "kanban_data": {
-        "name": "ÃgyfÃ©l neve (ha tudod, kÃ¼lÃ¶nben az e-mailbÅl)",
-        "email": "ÃgyfÃ©l e-mailje",
-        "phone": "TelefonszÃ¡m (ha megadta, kÃ¼lÃ¶nben Ã¼res string)",
-        "jarmu_tipusa": "autÃ³ / hajÃ³ / motor / stb. (opcionÃ¡lis)",
-        "jarmu_modell": "pontos modell (opcionÃ¡lis)"
+        "name": "Ãgyfél neve (ha tudod, különben az e-mailbÅl)",
+        "email": "Ãgyfél e-mailje",
+        "phone": "Telefonszám (ha megadta, különben üres string)",
+        "jarmu_tipusa": "autó / hajó / motor / stb. (opcionális)",
+        "jarmu_modell": "pontos modell (opcionális)"
     },
     "meeting": {
-        "title": "TalÃ¡lkozÃ³ cÃ­me (ha az email egyÃ©rtelmÅ±en idÅpontot kÃ©r/foglal)",
+        "title": "Találkozó címe (ha az email egyértelműen idÅpontot kér/foglal)",
         "date": "YYYY-MM-DD",
         "time": "HH:MM",
         "duration_minutes": 30
     },
     "action_modify_meeting": {
-        "event_title_to_modify": "A mÃ³dosÃ­tandÃ³ esemÃ©ny cÃ­me vagy rÃ©sze",
+        "event_title_to_modify": "A módosítandó esemény címe vagy része",
         "new_date": "YYYY-MM-DD",
         "new_time": "HH:MM"
     },
     "action_delete_meeting": {
-        "event_title_to_delete": "A tÃ¶rlendÅ esemÃ©ny cÃ­me vagy rÃ©sze"
+        "event_title_to_delete": "A törlendÅ esemény címe vagy része"
     },
-    "alert_tags": ["urgent", "complaint", "callback", "recurring"], // VÃ¡laszd ki, ha relevÃ¡ns, kÃ¼lÃ¶nben Ã¼res lista []
-    "handover_reason": "Az Ã¡tadÃ¡s oka, ha emberi beavatkozÃ¡s szÃ¼ksÃ©ges. VÃ¡laszd ezek kÃ¶zÃ¼l: 'Ãsszetett kÃ©rdÃ©s', 'SÃ¼rgÅs / triÃ¡zs', 'HiÃ¡nyzÃ³ info', 'FoglalÃ¡si kivÃ©tel', 'Emberi dÃ¶ntÃ©s'. Ha az AI mindent meg tudott oldani, ez legyen null."
+    "alert_tags": ["urgent", "complaint", "callback", "recurring"], // Válaszd ki, ha releváns, különben üres lista []
+    "handover_reason": "Az átadás oka, ha emberi beavatkozás szükséges. Válaszd ezek közül: 'Ãsszetett kérdés', 'SürgÅs / triázs', 'Hiányzó info', 'Foglalási kivétel', 'Emberi döntés'. Ha az AI mindent meg tudott oldani, ez legyen null."
 }
-Ha nem kÃ©rnek egyÃ©rtelmÅ±en idÅpontot, a "meeting" Ã©rtÃ©ke legyen null. 
-FIGYELEM: Ha az eset SÃ¼rgÅs vagy Kiemelt prioritÃ¡sÃº, VAGY a kÃ©rÃ©s szerepel a KivÃ©telek (Exceptions) listÃ¡jÃ¡ban, a "meeting" Ã©rtÃ©ke KÃTELEZÅEN null kell legyen (SZIGORÃAN TILOS idÅpontot foglalni!), Ã©s a "handover_reason" legyen 'SÃ¼rgÅs / triÃ¡zs' vagy 'FoglalÃ¡si kivÃ©tel'.
-Ebben az esetben a vÃ¡laszlevÃ©lben se Ã­gÃ©rj egyeztetÃ©st konkrÃ©t idÅpontokrÃ³l, kizÃ¡rÃ³lag azt jelezd, hogy az Ã¼gyÃ©t azonnal tovÃ¡bbÃ­tottad egy Ã©lÅ kollÃ©gÃ¡nak/munkatÃ¡rsnak!
+Ha nem kérnek egyértelműen idÅpontot, a "meeting" értéke legyen null. 
+FIGYELEM: Ha az eset SürgÅs vagy Kiemelt prioritású, VAGY a kérés szerepel a Kivételek (Exceptions) listájában, a "meeting" értéke KÃTELEZŐEN null kell legyen (SZIGORÃAN TILOS idÅpontot foglalni!), és a "handover_reason" legyen 'SürgÅs / triázs' vagy 'Foglalási kivétel'.
+Ebben az esetben a válaszlevélben se ígérj egyeztetést konkrét idÅpontokról, kizárólag azt jelezd, hogy az ügyét azonnal továbbítottad egy élÅ kollégának/munkatársnak!
 
-KIVÃTEL A TILTÃS ALÃL (FONTOS!):
-Ha a felhasznÃ¡lÃ³ egyÃ©rtelmÅ±en idÅpontot kÃ©r, de NEM adja meg, hogy milyen panasza/kezelÃ©se van, AKKOR IS FOGLALD LE az idÅpontot (a "meeting" objektum kitÃ¶ltÃ©sÃ©vel, pl. "KonzultÃ¡ciÃ³" vagy "ÃltalÃ¡nos vizsgÃ¡lat" cÃ­mmel)! Ne tagadd meg a foglalÃ¡st Ã©s ne kÃ©rj vissza pontosÃ­tÃ¡st csak azÃ©rt, mert nem tudod a kezelÃ©s tÃ­pusÃ¡t. Csak akkor tilos a foglalÃ¡s, ha a megadott panasz egyÃ©rtelmÅ±en SÃ¼rgÅs/Kiemelt, vagy egyÃ©rtelmÅ±en szerepel a KivÃ©telek kÃ¶zÃ¶tt. Ha nincs panasz megadva, feltÃ©telezd, hogy NormÃ¡l eset!
-A lehetsÃ©ges alert_tags Ã©rtÃ©kek:
-- "urgent": ha nagyon sÃ¼rgÅs az Ã¼gy
-- "exception": ha a kÃ©rÃ©s szerepel a KivÃ©telek listÃ¡jÃ¡ban
-- "complaint": ha a levÃ©l panaszt, elÃ©gedetlensÃ©get tartalmaz
-- "callback": ha telefonos visszahÃ­vÃ¡st kÃ©rnek
-- "recurring": ha egy gyakori ismÃ©tlÅdÅ hibÃ¡t/kÃ©rdÃ©st vetnek fel.
+KIVÃTEL A TILTÁS ALÃL (FONTOS!):
+Ha a felhasználó egyértelműen idÅpontot kér, de NEM adja meg, hogy milyen panasza/kezelése van, AKKOR IS FOGLALD LE az idÅpontot (a "meeting" objektum kitöltésével, pl. "Konzultáció" vagy "Általános vizsgálat" címmel)! Ne tagadd meg a foglalást és ne kérj vissza pontosítást csak azért, mert nem tudod a kezelés típusát. Csak akkor tilos a foglalás, ha a megadott panasz egyértelműen SürgÅs/Kiemelt, vagy egyértelműen szerepel a Kivételek között. Ha nincs panasz megadva, feltételezd, hogy Normál eset!
+A lehetséges alert_tags értékek:
+- "urgent": ha nagyon sürgÅs az ügy
+- "exception": ha a kérés szerepel a Kivételek listájában
+- "complaint": ha a levél panaszt, elégedetlenséget tartalmaz
+- "callback": ha telefonos visszahívást kérnek
+- "recurring": ha egy gyakori ismétlődő hibát/kérdést vetnek fel.
 """
     client = genai.Client(api_key=google_key)
     
-    user_content = f"--- BEJÃVÅ E-MAIL ---\nFeladÃ³: {from_name} <{from_email}>\nTÃ¡rgy: {subject}\nÃzenet:\n{text_content}\n"
+    user_content = f"--- BEJÖVŐ E-MAIL ---\nFeladó: {from_name} <{from_email}>\nTárgy: {subject}\nÜzenet:\n{text_content}\n"
         
     triage_rules = db.get_triage_rules()
     if triage_rules:
-        rules_text = "\n".join([f"- SzabÃ¡ly ID: {r['id']}, Helyzet: {r['situation']}, PrioritÃ¡s: {r['priority']}" for r in triage_rules])
-        sys_prompt += f"\n\n--- TRIÃZS SZABÃLYOK ---\nKÃ©rlek Ã©rtÃ©keld az e-mail tartalmÃ¡t az alÃ¡bbi szabÃ¡lyok alapjÃ¡n is. Ha egyezik egy 'SÃ¼rgÅs' szabÃ¡llyal, KÃTELEZÅ felvenned az 'urgent' tag-et az alert_tags listÃ¡ba!\n{rules_text}\n"
+        rules_text = "\n".join([f"- Szabály ID: {r['id']}, Helyzet: {r['situation']}, Prioritás: {r['priority']}" for r in triage_rules])
+        sys_prompt += f"\n\n--- TRIÁZS SZABÁLYOK ---\nKérlek értékeld az e-mail tartalmát az alábbi szabályok alapján is. Ha egyezik egy 'Sürgős' szabállyal, KÖTELEZŐ felvenned az 'urgent' tag-et az alert_tags listába!\n{rules_text}\n"
 
-    sys_prompt += f"\n\n--- JSON UTASÃTÃS ---\n{json_instruction}"
+    sys_prompt += f"\n\n--- JSON UTASÍTÁS ---\n{json_instruction}"
 
     logger.info(f"Gemini 2.5 Flash elemzi az e-mailt: {from_email} - {subject}")
     try:
@@ -108,11 +108,11 @@ A lehetsÃ©ges alert_tags Ã©rtÃ©kek:
         ai_text = response.text.strip()
     except Exception as e:
         logger.error(f"Gemini API hiba: {e}")
-        # Mivel a levÃ©l mÃ¡r Seen Ã¡llapotba kerÃ¼lt, de hiba volt,
-        # Ã©les rendszerben vissza lehetne Ã¡llÃ­tani Unseen-re.
+        # Mivel a levél már Seen állapotba került, de hiba volt,
+        # éles rendszerben vissza lehetne állítani Unseen-re.
         return
 
-    # EltÃ¡volÃ­tjuk a markdown json blockokat ha esetleg mÃ©gis beletennÃ©
+    # Eltávolítjuk a markdown json blockokat ha esetleg mégis beletenné
     if ai_text.startswith("```json"):
         ai_text = ai_text[7:]
     if ai_text.startswith("```"):
@@ -124,7 +124,7 @@ A lehetsÃ©ges alert_tags Ã©rtÃ©kek:
     try:
         data = json.loads(ai_text)
     except json.JSONDecodeError as e:
-        logger.error(f"HibÃ¡s JSON vÃ¡lasz az AI-tÃ³l: {e}\nNyers AI vÃ¡lasz:\n{ai_text}")
+        logger.error(f"Hibás JSON válasz az AI-tól: {e}\nNyers AI válasz:\n{ai_text}")
         return
 
     is_relevant = data.get("is_relevant", False)
@@ -135,19 +135,21 @@ A lehetsÃ©ges alert_tags Ã©rtÃ©kek:
     alert_tags = data.get("alert_tags", [])
     handover_reason = data.get("handover_reason")
     
-    # Fallback emberi dÃ¶ntÃ©s
-    if not handover_reason and email_reply and ("hÃ­v" in email_reply.lower() or "ember" in email_reply.lower() or "kollÃ©g" in email_reply.lower()):
+    # Fallback emberi döntés
+    if not handover_reason and email_reply and ("hív" in email_reply.lower() or "ember" in email_reply.lower() or "kollég" in email_reply.lower()):
         if "callback" in alert_tags or "urgent" in alert_tags:
-            handover_reason = "Emberi dÃ¶ntÃ©s"
+            handover_reason = "Emberi döntés"
     
-    log_szoveg = f"{beszelgetes}\n- BejÃ¶vÅ e-mail (TÃ¡rgy: {subject}): {text_content}"
+    log_szoveg = f"{beszelgetes}\n- Bejövő e-mail (Tárgy: {subject}): {text_content}"
 
-    # Ha relevÃ¡ns lead, felvesszÃ¼k a Kanbanba
-    if is_relevant and kanban:
-        name = kanban.get("name", from_name) or "NÃ©vtelen E-mail lead"
+    # Ha releváns lead vagy időpontot foglalt, felvesszük a Kanbanba
+    if is_relevant or meeting:
+        kanban = kanban or {}
+        name = kanban.get("name") or from_name or "Névtelen E-mail lead"
+        email = kanban.get("email") or from_email
         details = {
             "name": name,
-            "email": kanban.get("email", from_email) or from_email,
+            "email": email,
             "phone": kanban.get("phone", ""),
             "forras_csatorna": "E-mail",
         }
@@ -157,30 +159,31 @@ A lehetsÃ©ges alert_tags Ã©rtÃ©kek:
             details["jarmu_modell"] = kanban["jarmu_modell"]
             
         if isinstance(alert_tags, list) and "urgent" in alert_tags:
-            details["prioritas"] = "SÃ¼rgÅs"
+            details["prioritas"] = "SürgÅs"
             
         if beszelgetes:
             details["problem_description"] = beszelgetes
         else:
-            details["problem_description"] = f"E-mail tÃ¡rgy: {subject}"
-        
-        # MentsÃ¼k Kanban "uj" oszlopba
+            details["problem_description"] = f"E-mail tárgy: {subject}"
+            
+        # Mentsük Kanban "uj" oszlopba
         cols = db.get_kanban_columns()
         first_col = cols[0]["id"] if cols else "uj"
         db.upsert_client(custom_data=details, additional_log=log_szoveg, status=first_col)
-        logger.info(f"ÃgyfÃ©l mentve/frissÃ­tve a Kanban tÃ¡blÃ¡ban: {name}")
+        logger.info(f"Ügyfél mentve/frissítve a Kanban táblában: {name}")
         
+    created_event_id = None
     if meeting:
         try:
             date_str = meeting.get("date")
             time_str = meeting.get("time")
             dur = meeting.get("duration_minutes", 30)
-            title = meeting.get("title", f"MegbeszÃ©lÃ©s: {from_name}")
+            title = meeting.get("title", f"Megbeszélés: {from_name}")
             
             if date_str and time_str:
                 start_dt = datetime.fromisoformat(f"{date_str}T{time_str}:00")
                 end_dt = start_dt + timedelta(minutes=dur)
-                db.add_calendar_event(
+                created_event_id = db.add_calendar_event(
                     title=title,
                     start_dt=start_dt.isoformat(),
                     end_dt=end_dt.isoformat(),
@@ -188,9 +191,9 @@ A lehetsÃ©ges alert_tags Ã©rtÃ©kek:
                     attendee=from_name,
                     attendee_email=from_email
                 )
-                logger.info(f"NaptÃ¡r esemÃ©ny sikeresen lÃ©trehozva: {title} {start_dt}")
+                logger.info(f"Naptár esemény sikeresen létrehozva: {title} {start_dt}")
         except Exception as e:
-            logger.error(f"Hiba a naptÃ¡resemÃ©ny hozzÃ¡adÃ¡sakor: {e}")
+            logger.error(f"Hiba a naptáresemény hozzáadásakor: {e}")
 
     modify_action = data.get("action_modify_meeting")
     if modify_action and modify_action.get("event_title_to_modify"):
@@ -209,9 +212,9 @@ A lehetsÃ©ges alert_tags Ã©rtÃ©kek:
                     updates["end_dt"] = (new_start + timedelta(minutes=dur)).isoformat()
                 if updates:
                     db.update_calendar_event(found["id"], **updates)
-                    logger.info(f"NaptÃ¡r esemÃ©ny mÃ³dosÃ­tva (e-mailbÅl): {found['title']}")
+                    logger.info(f"Naptár esemény módosítva (e-mailből): {found['title']}")
         except Exception as e:
-            logger.error(f"Hiba a naptÃ¡resemÃ©ny mÃ³dosÃ­tÃ¡sakor: {e}")
+            logger.error(f"Hiba a naptáresemény módosításakor: {e}")
 
     delete_action = data.get("action_delete_meeting")
     if delete_action and delete_action.get("event_title_to_delete"):
@@ -219,13 +222,39 @@ A lehetsÃ©ges alert_tags Ã©rtÃ©kek:
             ev_title = delete_action["event_title_to_delete"]
             found = db.find_calendar_event_by_title(ev_title)
             if found:
+                # Mark client as cancelled
+                client = None
+                email = found.get("attendee_email")
+                if email and email != "-":
+                    client = db.find_client_by_contact(email=email)
+                
+                if not client:
+                    name = found.get("attendee")
+                    if name and name != "-":
+                        res = db.supabase.table("clients").select("*").ilike("name", f"%{name}%").order("id", desc=True).limit(1).execute()
+                        if res.data:
+                            client = res.data[0]
+                
+                if client:
+                    custom_data = client.get("custom_data")
+                    if isinstance(custom_data, str):
+                        try:
+                            custom_data = json.loads(custom_data)
+                        except:
+                            custom_data = {}
+                    if not isinstance(custom_data, dict):
+                        custom_data = {}
+                    custom_data["cancelled_viewed"] = False
+                    db.edit_client_details(client["id"], custom_data)
+                    db.update_client_status(client["id"], "lemondott")
+
                 db.delete_calendar_event(found["id"])
-                logger.info(f"NaptÃ¡r esemÃ©ny tÃ¶rÃ¶lve (e-mailbÅl): {found['title']}")
+                logger.info(f"Naptár esemény törölve (e-mailből): {found['title']}")
         except Exception as e:
-            logger.error(f"Hiba a naptÃ¡resemÃ©ny tÃ¶rlÃ©sekor: {e}")
+            logger.error(f"Hiba a naptáresemény törlésekor: {e}")
 
     if email_reply:
-        # Email "kikÃ¼ldÃ©s" helyett piszkozat mentÃ©se a JÃ³vÃ¡hagyÃ³ rendszerbe (Human-in-the-loop)
+        # Email "kiküldés" helyett piszkozat mentése a Jóváhagyó rendszerbe (Human-in-the-loop)
 
         sent_ok = False
 
@@ -241,12 +270,15 @@ A lehetsÃ©ges alert_tags Ã©rtÃ©kek:
             "body": email_reply
 
         }
+        
+        if created_event_id is not None:
+            draft_payload["event_id"] = created_event_id
 
         draft_json = json.dumps(draft_payload)
 
-        logger.info(f"E-mail piszkozat mentve jÃ³vÃ¡hagyÃ¡sra: {from_email}")
+        logger.info(f"E-mail piszkozat mentve jóváhagyásra: {from_email}")
 
-        # NaplÃ³zÃ¡s
+        # Naplózás
         session_id = f"email_{from_email}"
         db.create_session(session_id=session_id, room_name="Email Thread", participant=from_name)
         
@@ -264,9 +296,9 @@ A lehetsÃ©ges alert_tags Ã©rtÃ©kek:
             
         db.log_interaction(
             type="email",
-            topic="Email AI vÃ¡lasz",
-            summary=f"BejÃ¶vÅ e-mail {from_email} cÃ­mrÅl",
-            result="VÃ¡rakozik jÃ³vÃ¡hagyÃ¡sra",
+            topic="Email AI válasz",
+            summary=f"BejövÅ e-mail {from_email} címrÅl",
+            result="Várakozik jóváhagyásra",
             tool_name="imap_worker_ai",
             session_id=session_id,
             funnel_stage=f_stage,
@@ -289,30 +321,30 @@ A lehetsÃ©ges alert_tags Ã©rtÃ©kek:
                     to_email=email_to_send,
                     patient_name=from_name,
                     patient_contact=from_email,
-                    problem_description=f"E-mail tÃ¡rgy: {subject}\n{text_content[:200]}...",
+                    problem_description=f"E-mail tárgy: {subject}\n{text_content[:200]}...",
                     priority="Kiemelt"
                 ))
 
 
 def check_imap_sync():
-    """Szinkron IMAP lekÃ©rdezÃ©s, amit egy threadpoolban futtatunk."""
+    """Szinkron IMAP lekérdezés, amit egy threadpoolban futtatunk."""
     server = os.getenv("IMAP_SERVER")
     user = os.getenv("IMAP_USER")
     pwd = os.getenv("IMAP_PASS")
 
     if not server or not user or not pwd:
-        # Ha nincsenek meg az adatok, csendben kilÃ©p
+        # Ha nincsenek meg az adatok, csendben kilép
         return []
 
     emails_to_process = []
     
     try:
-        # Port 993 az alapÃ©rtelmezett IMAP SSL
+        # Port 993 az alapértelmezett IMAP SSL
         mail = imaplib.IMAP4_SSL(server, port=993)
         mail.login(user, pwd)
         mail.select("inbox")
 
-        # Csak az olvasatlan (UNSEEN) leveleket kÃ©rdezzÃ¼k le
+        # Csak az olvasatlan (UNSEEN) leveleket kérdezzük le
         status, messages = mail.search(None, "UNSEEN")
         if status == "OK" and messages[0]:
             msg_ids = messages[0].split()
@@ -329,7 +361,7 @@ def check_imap_sync():
                     from_email = from_header
                     if "<" in from_header and ">" in from_header:
                         parts = from_header.split("<")
-                        from_name = parts[0].strip() or "NÃ©vtelen E-mail"
+                        from_name = parts[0].strip() or "Névtelen E-mail"
                         from_email = parts[1].replace(">", "").strip()
 
                     text_content = ""
@@ -341,53 +373,53 @@ def check_imap_sync():
                                 text_content = part.get_payload(decode=True).decode("utf-8", errors="replace")
                                 break
                             elif content_type == "text/html" and "attachment" not in content_disposition:
-                                # Fallback, ha nincs text/plain, de van html (kÃ©sÅbb megtisztÃ­thatnÃ¡nk bs4-el, 
-                                # de a Claude HTML-bÅl is megÃ©rti a szÃ¶veget)
+                                # Fallback, ha nincs text/plain, de van html (késÅbb megtisztíthatnánk bs4-el, 
+                                # de a Claude HTML-bÅl is megérti a szöveget)
                                 text_content = part.get_payload(decode=True).decode("utf-8", errors="replace")
                     else:
                         text_content = msg.get_payload(decode=True).decode("utf-8", errors="replace")
 
                     emails_to_process.append((msg_id, from_email, from_name, subject, text_content))
         
-        # A feldolgozott Ã¼zeneteket megjelÃ¶ljÃ¼k egyelÅre olvasottkÃ©nt ("Seen") beolvasÃ¡skor,
-        # hogy ha kilÃ©p a program a kiexpediÃ¡lÃ¡s elÅtt, ne olvassa be mÃ©g egyszer
+        # A feldolgozott üzeneteket megjelöljük egyelÅre olvasottként ("Seen") beolvasáskor,
+        # hogy ha kilép a program a kiexpediálás elÅtt, ne olvassa be még egyszer
         for item in emails_to_process:
             mail.store(item[0], "+FLAGS", "\\Seen")
 
         mail.close()
         mail.logout()
     except Exception as e:
-        logger.error(f"IMAP csatlakozÃ¡si hiba: {e}")
+        logger.error(f"IMAP csatlakozási hiba: {e}")
         
     return emails_to_process
 
 async def email_worker_loop():
-    """HÃ¡ttÃ©rfolyamat, ami percenkÃ©nt hÃ­vja az IMAP-et Ã©s feldolgozza azt."""
+    """Háttérfolyamat, ami percenként hívja az IMAP-et és feldolgozza azt."""
     server = os.getenv("IMAP_SERVER")
     if not server:
-        logger.info("Nincs IMAP_SERVER beÃ¡llÃ­tva. Az e-mail hÃ¡ttÃ©rfolyamat nem indul el.")
+        logger.info("Nincs IMAP_SERVER beállítva. Az e-mail háttérfolyamat nem indul el.")
         return
         
-    logger.info("E-mail figyelÅ worker elindÃ­tva.")
+    logger.info("E-mail figyelÅ worker elindítva.")
     while True:
         try:
-            # Futtatjuk a blokkolÃ³ IMAP mÅ±veletet thread-ben
+            # Futtatjuk a blokkoló IMAP műveletet thread-ben
             emails = await asyncio.to_thread(check_imap_sync)
             
             for msg_id, from_email, from_name, subject, text_content in emails:
                 await process_single_email(from_email, from_name, subject, text_content)
                 
         except asyncio.CancelledError:
-            logger.info("E-mail figyelÅ worker megszakÃ­tva.")
+            logger.info("E-mail figyelÅ worker megszakítva.")
             break
         except Exception as e:
             logger.error(f"E-mail worker hiba: {e}")
             
-        # VÃ¡rakozÃ¡s a kÃ¶vetkezÅ lekÃ©rdezÃ©sig (pl. 60 mÃ¡sodperc)
+        # Várakozás a következÅ lekérdezésig (pl. 60 másodperc)
         await asyncio.sleep(60)
 
-async def send_escalation_email_to_staff(to_email: str, patient_name: str, patient_contact: str, problem_description: str, priority: str = "SÃ¼rgÅs") -> bool:
-    """EszkalÃ¡ciÃ³s e-mail kÃ¼ldÃ©se az orvosnak/szemÃ©lyzetnek sÃ¼rgÅs eseteknÃ©l."""
+async def send_escalation_email_to_staff(to_email: str, patient_name: str, patient_contact: str, problem_description: str, priority: str = "SürgÅs") -> bool:
+    """Eszkalációs e-mail küldése az orvosnak/személyzetnek sürgÅs eseteknél."""
     brevo_key = os.getenv("BREVO_API_KEY", "")
     api_key = brevo_key
     if brevo_key and not brevo_key.startswith("xkeysib-"):
@@ -400,28 +432,28 @@ async def send_escalation_email_to_staff(to_email: str, patient_name: str, patie
             pass
 
     if not api_key:
-        logger.error("Nincs beÃ¡llÃ­tva BREVO_API_KEY az eszkalÃ¡ciÃ³s e-mailhez.")
+        logger.error("Nincs beállítva BREVO_API_KEY az eszkalációs e-mailhez.")
         return False
 
     html_content = f"""
     <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; border: 1px solid #ef4444; border-radius: 8px; padding: 20px;">
-        <h2 style="color: #ef4444; margin-top: 0;">Rendszer RiasztÃ¡s: {priority} eset</h2>
-        <p>Egy Ãºj {priority.lower()} prioritÃ¡sÃº eset Ã©rkezett az AI rendszerbe.</p>
+        <h2 style="color: #ef4444; margin-top: 0;">Rendszer Riasztás: {priority} eset</h2>
+        <p>Egy új {priority.lower()} prioritású eset érkezett az AI rendszerbe.</p>
         <table style="width: 100%; border-collapse: collapse; margin-top: 15px;">
             <tr>
-                <td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold; width: 120px;">PÃ¡ciens neve:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold; width: 120px;">Páciens neve:</td>
                 <td style="padding: 8px 0; border-bottom: 1px solid #eee;">{patient_name}</td>
             </tr>
             <tr>
-                <td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold;">ElÃ©rhetÅsÃ©g:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold;">ElérhetÅség:</td>
                 <td style="padding: 8px 0; border-bottom: 1px solid #eee;">{patient_contact}</td>
             </tr>
             <tr>
-                <td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold;">ProblÃ©ma leÃ­rÃ¡sa:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold;">Probléma leírása:</td>
                 <td style="padding: 8px 0; border-bottom: 1px solid #eee;">{problem_description}</td>
             </tr>
         </table>
-        <p style="color: #666; font-size: 12px; margin-top: 20px;">Ez egy automatikusan generÃ¡lt Ã¼zenet a ThinkAI Voice Agent rendszerbÅl.</p>
+        <p style="color: #666; font-size: 12px; margin-top: 20px;">Ez egy automatikusan generált üzenet a ThinkAI Voice Agent rendszerbÅl.</p>
     </div>
     """
 
@@ -431,18 +463,18 @@ async def send_escalation_email_to_staff(to_email: str, patient_name: str, patie
                 "https://api.brevo.com/v3/smtp/email",
                 headers={"api-key": api_key, "Content-Type": "application/json"},
                 json={
-                    "sender": {"name": "ThinkAI RiasztÃ¡s", "email": "bege@thinkai.hu"},
+                    "sender": {"name": "ThinkAI Riasztás", "email": "bege@thinkai.hu"},
                     "to": [{"email": to_email}],
-                    "subject": f"[{priority}] RiasztÃ¡s: {patient_name}",
+                    "subject": f"[{priority}] Riasztás: {patient_name}",
                     "htmlContent": html_content,
                 },
                 timeout=20,
             )
             resp.raise_for_status()
-            logger.info(f"EszkalÃ¡ciÃ³s e-mail elkÃ¼ldve a kÃ¶vetkezÅ cÃ­mre: {to_email}")
+            logger.info(f"Eszkalációs e-mail elküldve a következÅ címre: {to_email}")
             return True
     except Exception as e:
-        logger.error(f"Hiba az eszkalÃ¡ciÃ³s e-mail kÃ¼ldÃ©sekor: {e}")
+        logger.error(f"Hiba az eszkalációs e-mail küldésekor: {e}")
         return False
 
 
@@ -512,9 +544,8 @@ async def reminder_worker_loop():
                     
                     szolgaltatas = ev.get('title', '')
                     telephely = ''
-                    clients = db.search_clients_by_name_or_email(ev.get('attendee_email'))
-                    if clients:
-                        client = clients[0]
+                    client = db.find_client_by_contact(email=ev.get('attendee_email'))
+                    if client:
                         clinic_id = client.get('custom_data', {}).get('clinic_id')
                         if clinic_id:
                             clinics = db.get_clinics()
@@ -534,9 +565,95 @@ async def reminder_worker_loop():
                     
                     if success:
                         db.mark_reminder_sent(ev.get('id'))
+                        session_id = f"reminder_{ev.get('id')}"
+                        db.create_session(session_id=session_id, room_name="Időpont emlékeztető", participant=nev)
+                        db.log_interaction(
+                            type="email",
+                            topic="Emlékeztető",
+                            summary=f"Emlékeztető elküldve a(z) {ev.get('attendee_email')} címre",
+                            result="Elküldve",
+                            tool_name="reminder_worker",
+                            session_id=session_id,
+                            direction="outbound",
+                            funnel_stage="relevans"
+                        )
                         
         except Exception as e:
             logger.error(f'Hiba az emlékeztető workerben: {e}')
         
         import asyncio
         await asyncio.sleep(15 * 60) # 15 perc
+
+async def send_booking_confirmation_email(event_id: int, title: str, date: str, time: str, attendee: str, attendee_email: str):
+    import jwt as pyjwt
+    import os
+    import database as db
+    from datetime import datetime, timedelta
+    
+    JWT_SECRET = os.getenv("JWT_SECRET", "thinkai-admin-secret-change-me")
+    JWT_ALGO = "HS256"
+    SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8000")
+    
+    try:
+        token = pyjwt.encode({"event_id": event_id, "exp": datetime.utcnow() + timedelta(days=90)}, JWT_SECRET, algorithm=JWT_ALGO)
+        cancel_url = f"{SERVER_URL}/api/public/cancel?token={token}"
+        
+        html_content = f"""
+        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
+            <p>Kedves {attendee}!</p>
+            <br>
+            <p>Köszönjük az adatokat! Lefoglaltuk Önnek az alábbi időpontot:</p>
+            <div style="background-color: #f9fafb; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
+                <strong>Időpont:</strong> {date} {time}<br>
+                <strong>Szolgáltatás:</strong> {title}
+            </div>
+            <p>Mellékletként csatoltuk a foglalási szabályzatunkat és egy fájlt az időpontról, melyet könnyedén hozzáadhatsz okostelefonod naptárához.</p>
+            <p style="font-size: 12px; color: #6b7280; font-style: italic;">
+                * Kérjük, vegye figyelembe, hogy időpont módosítására az időpont előtti 48 órával van lehetőség. 
+                Tájékoztatjuk, hogy 24 órán belüli lemondás esetén rendelőnk külön szabályzata lehet érvényben.
+            </p>
+            <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+            <div style="text-align: center;">
+                <p style="margin-bottom: 20px;">Üdvözlettel: <strong>A virtuális asszisztens csapata</strong></p>
+                <a href="{cancel_url}" style="background-color: #ef4444; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 16px;">Lemondom</a>
+            </div>
+            <hr style="border: 0; border-top: 1px dotted #e5e7eb; margin: 30px 0;">
+        </div>
+        """
+        
+        await send_email_via_brevo(
+            to_email=attendee_email,
+            to_name=attendee,
+            subject="Időpont visszaigazolás",
+            html_content=html_content,
+            session_id=None
+        )
+        logger.info(f"Booking confirmation email sent to {attendee_email} with cancel link.")
+    except Exception as e:
+        logger.error(f"Failed to send booking confirmation email: {e}")
+
+def get_cancellation_html(event_id: int) -> str:
+    import jwt as pyjwt
+    import os
+    from datetime import datetime, timedelta
+    
+    JWT_SECRET = os.getenv("JWT_SECRET", "thinkai-admin-secret-change-me")
+    JWT_ALGO = "HS256"
+    SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8000")
+    
+    token = pyjwt.encode({"event_id": event_id, "exp": datetime.utcnow() + timedelta(days=90)}, JWT_SECRET, algorithm=JWT_ALGO)
+    cancel_url = f"{SERVER_URL}/api/public/cancel?token={token}"
+    
+    return f"""
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; color: #333; line-height: 1.6; margin-top: 30px;">
+        <p style="font-size: 12px; color: #6b7280; font-style: italic;">
+            * Kérjük, vegye figyelembe, hogy időpont módosítására az időpont előtti 48 órával van lehetőség. 
+            Tájékoztatjuk, hogy 24 órán belüli lemondás esetén rendelőnk külön szabályzata lehet érvényben.
+        </p>
+        <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+        <div style="text-align: center;">
+            <a href="{cancel_url}" style="background-color: #ef4444; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 16px;">Lemondom</a>
+        </div>
+        <hr style="border: 0; border-top: 1px dotted #e5e7eb; margin: 30px 0;">
+    </div>
+    """
