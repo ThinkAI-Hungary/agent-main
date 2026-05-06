@@ -205,6 +205,27 @@ async def entrypoint(ctx: JobContext):
 
     await ctx.connect()
 
+    # ── Kick phantom agents: remove any cloud-hosted agents already in the room ─
+    phantoms_removed = False
+    for p in list(ctx.room.remote_participants.values()):
+        if p.identity.startswith("agent-"):
+            logger.warning(f"Removing phantom agent {p.identity} from room {room_name}")
+            try:
+                from livekit import api as lk_api
+                admin = lk_api.LiveKitAPI()
+                await admin.room.remove_participant(
+                    lk_api.RoomParticipantIdentity(room=room_name, identity=p.identity)
+                )
+                await admin.aclose()
+                logger.info(f"Phantom agent {p.identity} removed.")
+                phantoms_removed = True
+            except Exception as e:
+                logger.error(f"Failed to remove phantom agent: {e}")
+
+    if phantoms_removed:
+        await asyncio.sleep(1.5)  # Let room settle after phantom removal
+
+
     # Initialize DB + log session start
     db.init_db()
     db.create_session(session_id=session_id, room_name=room_name)
@@ -305,6 +326,6 @@ if __name__ == "__main__":
     cli.run_app(
         WorkerOptions(
             entrypoint_fnc=entrypoint,
-            agent_name="thinkai-dobozos-local",
+            agent_name="thinkai-ugyfelszolg",
         ),
     )
