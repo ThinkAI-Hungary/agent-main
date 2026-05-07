@@ -1,0 +1,69 @@
+[
+  {
+    "id": 45,
+    "status": "uj",
+    "custom_data": {
+      "name": "Sürgős Teszt 3 (Vérzés)",
+      "email": "surgos.teszt3@example.hu",
+      "phone": "+36305554433",
+      "prioritas": "Sürgős",
+      "urgent_viewed": true,
+      "forras_csatorna": "E-mail",
+      "beszelgetes_naplo": "[2026-05-07 17:19]\nTeszt email: Sürgős: Nem áll el a vérzés a foghúzás után!",
+      "problem_description": "Teszt 3: Foghúzás utáni vérzés"
+    }
+  },
+  {
+    "id": 44,
+    "status": "lemondott",
+    "custom_data": {
+      "name": "Lemondás Teszt",
+      "email": "lemondas.teszt@example.hu",
+      "phone": "+36309998877",
+      "forras_csatorna": "E-mail",
+      "cancelled_viewed": true,
+      "beszelgetes_naplo": "[2026-05-07 16:41]\nTeszt email: Időpont lemondása",
+      "problem_description": "Teszt: Lemondás"
+    }
+  },
+  {
+    "id": 43,
+    "status": "uj",
+    "custom_data": {
+      "name": "Sürgős Teszt 2",
+      "email": "surgos.teszt2@example.hu",
+      "phone": "+36301112233",
+      "prioritas": "Sürgős",
+      "urgent_viewed": true,
+      "forras_csatorna": "E-mail",
+      "beszelgetes_naplo": "[2026-05-07 16:41]\nTeszt email: Nagyon Erős fájdalom - Új SÜRGŐS TESZT!",
+      "problem_description": "Teszt 2: Erős fogfájás"
+    }
+  },
+  {
+    "id": 41,
+    "status": "lemondott",
+    "custom_data": {
+      "name": "Nagy Dániel",
+      "email": "nagyd965@gmail.com",
+      "phone": "0620123123",
+      "forras_csatorna": "E-mail",
+      "cancelled_viewed": true,
+      "beszelgetes_naplo": "[2026-05-06 01:25]\nNagy Dániel új páciens időpontot foglalt általános vizitre (konzultációra) 2026. május 6-ra 14:00 órára a Teszt Telephely 1-re.\n- Bejövő e-mail (Tárgy: vizit): Szeretnék időpontot fogalni általános vizitre, nevem Nagy Dániel ,\r\ntelefonszámom 0620123123, email címem nagyd965@gmail.com.\r\n2026.05.06-ra szeretném 14 órára.\r\nSzületési dátumom 1999.11.20 és a teszt telephely 1-re szeretnék menni.\r\n\n[2026-05-06 01:25]\nNagy Dániel új páciens általános vizitre kért időpontot 2026.05.06-ra 14:00-ra a Teszt Telephely 1-re, amit az asszisztens sikeresen lefoglalt.\n- Bejövő e-mail (Tárgy: vizit): Szeretnék időpontot fogalni általános vizitre, nevem Nagy Dániel ,\r\ntelefonszámom 0620123123, email címem nagyd965@gmail.com.\r\n2026.05.06-ra szeretném 14 órára.\r\nSzületési dátumom 1999.11.20 és a teszt telephely 1-re szeretnék menni.\n[2026-05-06 01:25]\nNagy Dániel általános vizitre kért időpontot 2026.05.06-ra 14:00-ra a Teszt Telephely 1-re, amit visszaigazoltunk.\n- Bejövő e-mail (Tárgy: vizit időpont foglalás): Szeretnék időpontot fogalni általános vizitre, nevem Nagy Dániel ,\r\ntelefonszámom 0620123123, email címem nagyd965@gmail.com.\r\n2026.05.06-ra szeretném 14 órára.\r\nSzületési dátumom 1999.11.20 és a teszt telephely 1-re szeretnék menni.",
+      "problem_description": "Nagy Dániel általános vizitre kért időpontot 2026.05.06-ra 14:00-ra a Teszt Telephely 1-re, amit visszaigazoltunk."
+    }
+  },
+  {
+    "id": 40,
+    "status": "lemondott",
+    "custom_data": {
+      "name": "Lemondás Teszt 2",
+      "email": "lemondas.teszt2@example.hu",
+      "phone": "+36301234567",
+      "forras_csatorna": "E-mail",
+      "cancelled_viewed": true,
+      "beszelgetes_naplo": "[2026-05-07 17:20]\nTeszt email: Időpont törlése betegség miatt",
+      "problem_description": "Teszt 2: Lemondás betegség miatt"
+    }
+  }
+]
