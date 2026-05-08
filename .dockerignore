@@ -1,0 +1,46 @@
+# Version control
+.git
+.gitignore
+
+# Environment (will be mounted separately)
+.env
+thinkai-voice-agent/.env
+
+# Windows binaries
+*.exe
+
+# Local databases
+*.db
+*.sqlite
+*.sqlite3
+
+# Design files
+figma/
+
+# Python cache
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.venv/
+venv/
+
+# Node
+node_modules/
+
+# Logs & debug output
+*.log
+thinkai-voice-agent/err*.txt
+thinkai-voice-agent/test_out*.txt
+thinkai-voice-agent/diff.txt
+thinkai-voice-agent/*.diff
+
+# Large images (not needed in container)
+thinkai-voice-agent/login-bg.png
+
+# Railway (no longer used)
+railway.toml
+
+# IDE
+.vscode/
+.idea/

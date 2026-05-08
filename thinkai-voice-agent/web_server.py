@@ -47,6 +47,14 @@ app = FastAPI(title="ThinkAI Voice Agent")
 
 background_tasks = set()
 
+# ── Health check (Docker / monitoring) ────────────────────────────────────────
+_start_time = datetime.utcnow()
+
+@app.get("/api/health")
+async def health_check():
+    return {"status": "ok", "uptime_seconds": int((datetime.utcnow() - _start_time).total_seconds())}
+
+
 @app.on_event("startup")
 async def startup_event():
     # Elindítjuk az email worker loopot a háttérben
