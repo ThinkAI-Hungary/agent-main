@@ -124,27 +124,12 @@ class ThinkAIAgent(Agent):
         self.room_name = room_name
 
     async def on_enter(self):
-        """Greet the user when they connect (web widget or SIP phone call)."""
-        settings = load_agent_settings()
-
-        # Detect if this is an inbound phone call (room name starts with 'call-')
+        """Called when the agent session starts — logging only.
+        Az LLM kezeli a köszöntést egyedül (nincs session.say),
+        így nem lesz dupla hang."""
         room_name = self.room_name
-        is_sip_call = room_name.startswith("call-")
-
-        if is_sip_call:
-            # Shorter, phone-appropriate greeting
-            greeting = (
-                "Jó napot! A ThinkAI ügyfélszolgálata. Miben segíthetek?"
-            )
+        if room_name.startswith("call-"):
             logger.info(f"SIP call detected in room: {room_name}")
-        else:
-            greeting = settings.get("greeting") or (
-                "Szia! A Tink-éj-áj virtuális asszisztense vagyok. "
-                "Kérdezz a szolgáltatásainkról, foglalj időpontot, "
-                "vagy akár emailt is küldhetek helyetted. Miben segíthetek?"
-            )
-
-        self.session.say(greeting)
 
     async def stt_node(self, audio, model_settings):
         """Override STT node: filter phantom transcripts from noise."""
