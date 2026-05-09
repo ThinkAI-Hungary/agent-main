@@ -72,7 +72,11 @@ async def startup_event():
     # mon.add_done_callback(background_tasks.discard)
 
 async def inbound_sip_room_monitor():
-    """Figyeli a 'call-' prefix szobakat es dispatch-eli az agentet ha meg nem csatlakozott."""
+    """Figyeli a 'call-' prefix szobakat es dispatch-eli az agentet ha meg nem csatlakozott.
+    KIKAPCSOLVA: A lk_trigger.py mar kezeli az inbound dispatch-et.
+    Ez a monitor dupla dispatch-et okozott (ket agent csatlakozott egy szobaba).
+    """
+    return  # lk_trigger.py kezeli
     lk_url    = os.getenv("LIVEKIT_URL", "").replace("wss://", "https://")
     lk_key    = os.getenv("LIVEKIT_API_KEY", "")
     lk_secret = os.getenv("LIVEKIT_API_SECRET", "")
