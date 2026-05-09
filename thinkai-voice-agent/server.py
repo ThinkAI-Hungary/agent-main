@@ -205,22 +205,27 @@ async def entrypoint(ctx: JobContext):
 
     await ctx.connect()
 
-    # ── Kick phantom agents: remove any cloud-hosted agents already in the room ─
+    # ── Kick phantom agents: remove any unexpected participants already in the room ─
     phantoms_removed = False
+    my_identity = ctx.agent.identity if hasattr(ctx, 'agent') and ctx.agent else None
     for p in list(ctx.room.remote_participants.values()):
-        if p.identity.startswith("agent-"):
-            logger.warning(f"Removing phantom agent {p.identity} from room {room_name}")
-            try:
-                from livekit import api as lk_api
-                admin = lk_api.LiveKitAPI()
-                await admin.room.remove_participant(
-                    lk_api.RoomParticipantIdentity(room=room_name, identity=p.identity)
-                )
-                await admin.aclose()
-                logger.info(f"Phantom agent {p.identity} removed.")
-                phantoms_removed = True
-            except Exception as e:
-                logger.error(f"Failed to remove phantom agent: {e}")
+        # Keep phone callers and regular users, kick everything else (other agents)
+        if p.identity.startswith("phone-") or p.identity.startswith("user-"):
+            continue
+        if my_identity and p.identity == my_identity:
+            continue
+        logger.warning(f"Removing phantom participant {p.identity} from room {room_name}")
+        try:
+            from livekit import api as lk_api
+            admin = lk_api.LiveKitAPI()
+            await admin.room.remove_participant(
+                lk_api.RoomParticipantIdentity(room=room_name, identity=p.identity)
+            )
+            await admin.aclose()
+            logger.info(f"Phantom participant {p.identity} removed.")
+            phantoms_removed = True
+        except Exception as e:
+            logger.error(f"Failed to remove phantom participant: {e}")
 
     if phantoms_removed:
         await asyncio.sleep(1.5)  # Let room settle after phantom removal
@@ -235,9 +240,9 @@ async def entrypoint(ctx: JobContext):
     is_outbound_call = room_name.startswith("call-out-")
     is_inbound_call = room_name.startswith("call-") and not is_outbound_call
     if is_outbound_call:
-        logger.info(f"📞 Outbound SIP call — room: {room_name}")
+        logger.info(f" Outbound SIP call — room: {room_name}")
     elif is_inbound_call:
-        logger.info(f"📞 Inbound SIP call — room: {room_name}")
+        logger.info(f" Inbound SIP call — room: {room_name}")
     else:
         logger.info(f"Session started: {session_id}")
 
