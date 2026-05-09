@@ -9,15 +9,15 @@ import sys, asyncio, os
 LK_URL             = "https://thinkai-ugyfelszolgalat-f05w09v7.livekit.cloud"
 LK_KEY             = "APIYS7bZkZBFZpt"
 LK_SECRET          = "ufxdDeubWjmzKMYoHTePc8vwCVhzBn36i2HCjSddgrSB"
-OUTBOUND_TRUNK_ID  = "ST_PB2SW4XszX52"
+OUTBOUND_TRUNK_ID  = "ST_PB2SW4XszX52"   # Telefonalo.hu kimeno
+CALLBACK_TRUNK_ID  = "ST_dVxQozpMuwtU"   # Asterisk callback (kozvetlen)
 AGENT_NAME         = "dobozos-ai"
-ASTERISK_IP        = "165.227.139.84"
 
 async def main(callid: str, callerid: str):
     from livekit import api as lk
 
     room_name = f"call-{callid}"
-    sip_back  = f"lkcb-{callid}@{ASTERISK_IP}"
+    sip_back  = f"lkcb-{callid}"
 
     client = lk.LiveKitAPI(url=LK_URL, api_key=LK_KEY, api_secret=LK_SECRET)
     try:
@@ -28,7 +28,7 @@ async def main(callid: str, callerid: str):
         # 2. SIP participant – LiveKit visszahiv Asteriskra
         participant = await client.sip.create_sip_participant(
             lk.CreateSIPParticipantRequest(
-                sip_trunk_id=OUTBOUND_TRUNK_ID,
+                sip_trunk_id=CALLBACK_TRUNK_ID,
                 sip_call_to=sip_back,
                 room_name=room_name,
                 participant_identity=f"phone-{callerid}",
