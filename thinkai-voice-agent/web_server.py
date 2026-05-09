@@ -65,10 +65,11 @@ async def startup_event():
     task2 = asyncio.create_task(email_processor.reminder_worker_loop())
     background_tasks.add(task2)
     task2.add_done_callback(background_tasks.discard)
-    # Inbound SIP szoba monitor
-    mon = asyncio.create_task(inbound_sip_room_monitor())
-    background_tasks.add(mon)
-    mon.add_done_callback(background_tasks.discard)
+    # Inbound SIP szoba monitor — KIKAPCSOLVA
+    # A lk_trigger.py (Asterisk) mar kezeli a dispatch-et, nem kell dupla.
+    # mon = asyncio.create_task(inbound_sip_room_monitor())
+    # background_tasks.add(mon)
+    # mon.add_done_callback(background_tasks.discard)
 
 async def inbound_sip_room_monitor():
     """Figyeli a 'call-' prefix szobakat es dispatch-eli az agentet ha meg nem csatlakozott."""
