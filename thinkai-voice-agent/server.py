@@ -127,12 +127,19 @@ class ThinkAIAgent(Agent):
         """Greet the user when they connect (web widget or SIP phone call)."""
         settings = load_agent_settings()
 
-        # Detect if this is an inbound phone call (room name starts with 'call-')
+        # Detect call type from room name prefix
         room_name = self.room_name
-        is_sip_call = room_name.startswith("call-")
+        is_outbound_call = room_name.startswith("call-out-")
+        is_inbound_call = room_name.startswith("call-") and not is_outbound_call
 
-        if is_sip_call:
-            # Shorter, phone-appropriate greeting
+        if is_outbound_call:
+            # Kimenő hívás — az agent hívja az ügyfelet
+            greeting = (
+                "Jó napot! A ThinkAI ügyfélszolgálatától hívom. Miben segíthetek?"
+            )
+            logger.info(f"SIP outbound call detected in room: {room_name}")
+        elif is_inbound_call:
+            # Bejövő hívás — ügyfél hívja az agentet
             greeting = (
                 "Jó napot! A ThinkAI ügyfélszolgálata. Miben segíthetek?"
             )
@@ -231,9 +238,12 @@ async def entrypoint(ctx: JobContext):
     db.create_session(session_id=session_id, room_name=room_name)
     set_session_id(session_id)
 
-    # Log if this is an inbound SIP phone call
-    is_sip_call = room_name.startswith("call-")
-    if is_sip_call:
+    # Log call type
+    is_outbound_call = room_name.startswith("call-out-")
+    is_inbound_call = room_name.startswith("call-") and not is_outbound_call
+    if is_outbound_call:
+        logger.info(f"📞 Outbound SIP call — room: {room_name}")
+    elif is_inbound_call:
         logger.info(f"📞 Inbound SIP call — room: {room_name}")
     else:
         logger.info(f"Session started: {session_id}")
