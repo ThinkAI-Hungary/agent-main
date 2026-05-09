@@ -13,14 +13,17 @@ cd "$SCRIPT_DIR"
 case "${1:-update}" in
 
   update)
-    echo "📥 Git pull..."
+    echo " Git pull..."
     git pull
 
-    echo "🔨 Docker build + restart..."
+    echo " Docker build + restart..."
     docker compose up -d --build
 
+    echo " Régi image-ek takarítása..."
+    docker image prune -f
+
     echo ""
-    echo "✅ Frissítés kész!"
+    echo " Frissítés kész!"
     docker compose ps
     ;;
 
@@ -29,12 +32,12 @@ case "${1:-update}" in
     ;;
 
   stop)
-    echo "🛑 Leállítás..."
+    echo " Leállítás..."
     docker compose down
     ;;
 
   restart)
-    echo "🔄 Újraindítás..."
+    echo " Újraindítás..."
     docker compose restart
     ;;
 
