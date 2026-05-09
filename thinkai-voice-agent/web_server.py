@@ -1518,16 +1518,7 @@ async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_
             )
         )
 
-        # 2. Agent explicit dispatch a szobába
-        await lk.agent_dispatch.create_dispatch(
-            lk_api_module.CreateAgentDispatchRequest(
-                agent_name="dobozos-ai",
-                room=room_name,
-                metadata="outbound_call",
-            )
-        )
-
-        # 3. Kimeno SIP hivas inditasa (blokkolo -- megvarja hogy felvegjek)
+        # 2. Először SIP hívás -- megvárjuk amíg felveszik
         participant = await lk.sip.create_sip_participant(
             lk_api_module.CreateSIPParticipantRequest(
                 sip_trunk_id=trunk_id,
@@ -1537,6 +1528,15 @@ async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_
                 participant_name=phone,
                 wait_until_answered=True,
                 krisp_enabled=True,
+            )
+        )
+
+        # 3. Csak ha felvették: agent dispatch
+        await lk.agent_dispatch.create_dispatch(
+            lk_api_module.CreateAgentDispatchRequest(
+                agent_name="dobozos-ai",
+                room=room_name,
+                metadata="outbound_call",
             )
         )
 
