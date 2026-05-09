@@ -124,12 +124,11 @@ class ThinkAIAgent(Agent):
         self.room_name = room_name
 
     async def on_enter(self):
-        """Called when the agent session starts — logging only.
-        Az LLM kezeli a köszöntést egyedül (nincs session.say),
-        így nem lesz dupla hang."""
-        room_name = self.room_name
-        if room_name.startswith("call-"):
-            logger.info(f"SIP call detected in room: {room_name}")
+        """Greet the caller with the admin-configured greeting."""
+        settings = load_agent_settings()
+        greeting = settings.get("greeting", "")
+        if greeting.strip():
+            self.session.say(greeting)
 
     async def stt_node(self, audio, model_settings):
         """Override STT node: filter phantom transcripts from noise."""
