@@ -133,15 +133,14 @@ class ThinkAIAgent(Agent):
         is_inbound_call = room_name.startswith("call-") and not is_outbound_call
 
         if is_outbound_call:
-            # Kimenő hívás — az agent hívja az ügyfelet
-            greeting = (
-                "Jó napot! A ThinkAI ügyfélszolgálatától hívom. Miben segíthetek?"
-            )
+            # Kimeno hivas — az LLM maga koszont a system prompt alapjan,
+            # nem kell kulon session.say() mert az dupla hangot okoz.
             logger.info(f"SIP outbound call detected in room: {room_name}")
+            return
         elif is_inbound_call:
-            # Bejövő hívás — ügyfél hívja az agentet
+            # Bejovo hivas
             greeting = (
-                "Jó napot! A ThinkAI ügyfélszolgálata. Miben segíthetek?"
+                "Jo napot! A ThinkAI ugyfelszolgalata. Miben segithetek?"
             )
             logger.info(f"SIP inbound call detected in room: {room_name}")
         else:
