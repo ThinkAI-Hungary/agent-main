@@ -1527,7 +1527,7 @@ async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_
             )
         )
 
-        # 3. Kimenő SIP hívás indítása (blokkoló — megvárja hogy felvegyék)
+        # 3. Kimeno SIP hivas inditasa (blokkolo -- megvarja hogy felvegjek)
         participant = await lk.sip.create_sip_participant(
             lk_api_module.CreateSIPParticipantRequest(
                 sip_trunk_id=trunk_id,
@@ -1536,6 +1536,7 @@ async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_
                 participant_identity="phone-caller",
                 participant_name=phone,
                 wait_until_answered=True,
+                krisp_enabled=True,
             )
         )
 

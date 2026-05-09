@@ -33,6 +33,7 @@ async def main(callid: str, callerid: str):
                 room_name=room_name,
                 participant_identity=f"phone-{callerid}",
                 participant_name=f"Hivó: {callerid}",
+                krisp_enabled=True,
             )
         )
         print(f"[OK] SIP participant: {participant.participant_identity}")
