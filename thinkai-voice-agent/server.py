@@ -127,22 +127,16 @@ class ThinkAIAgent(Agent):
         """Greet the user when they connect (web widget or SIP phone call)."""
         settings = load_agent_settings()
 
-        # Detect call type from room name prefix
+        # Detect if this is an inbound phone call (room name starts with 'call-')
         room_name = self.room_name
-        is_outbound_call = room_name.startswith("call-out-")
-        is_inbound_call = room_name.startswith("call-") and not is_outbound_call
+        is_sip_call = room_name.startswith("call-")
 
-        if is_outbound_call:
-            # Kimeno hivas — az LLM maga koszont a system prompt alapjan,
-            # nem kell kulon session.say() mert az dupla hangot okoz.
-            logger.info(f"SIP outbound call detected in room: {room_name}")
-            return
-        elif is_inbound_call:
-            # Bejovo hivas
+        if is_sip_call:
+            # Shorter, phone-appropriate greeting
             greeting = (
-                "Jo napot! A ThinkAI ugyfelszolgalata. Miben segithetek?"
+                "Jó napot! A ThinkAI ügyfélszolgálata. Miben segíthetek?"
             )
-            logger.info(f"SIP inbound call detected in room: {room_name}")
+            logger.info(f"SIP call detected in room: {room_name}")
         else:
             greeting = settings.get("greeting") or (
                 "Szia! A Tink-éj-áj virtuális asszisztense vagyok. "
