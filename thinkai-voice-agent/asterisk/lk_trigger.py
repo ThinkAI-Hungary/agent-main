@@ -17,7 +17,7 @@ async def main(callid: str, callerid: str):
     from livekit import api as lk
 
     room_name = f"call-{callid}"
-    sip_back  = f"sip:lkcb-{callid}@{ASTERISK_IP}:5060"
+    sip_back  = f"lkcb-{callid}@{ASTERISK_IP}"
 
     client = lk.LiveKitAPI(url=LK_URL, api_key=LK_KEY, api_secret=LK_SECRET)
     try:
