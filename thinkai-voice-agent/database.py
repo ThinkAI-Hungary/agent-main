@@ -903,6 +903,8 @@ def delete_client(client_id: int) -> bool:
                 supabase.table("calendar_events").delete().or_(f"title.ilike.%{name}%,attendee.ilike.%{name}%").execute()
             if email and email != "-":
                 supabase.table("calendar_events").delete().or_(f"title.ilike.%{email}%,attendee_email.ilike.%{email}%").execute()
+                supabase.table("interactions").delete().eq("session_id", f"email_{email}").execute()
+                supabase.table("email_logs").delete().eq("to_email", email).execute()
         supabase.table("clients").delete().eq("id", client_id).execute()
         return True
     except Exception:

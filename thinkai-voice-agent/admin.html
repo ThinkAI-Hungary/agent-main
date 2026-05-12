@@ -7649,7 +7649,7 @@
                 dStr = pt[0].replace(/-/g, '. ') + '.';
                 tStr = pt[1] ? pt[1].substring(0, 5) : '';
               }
-              const isUrgent = (r.alert_tags && r.alert_tags.includes('urgent')) || (r.type === 'voice_alert' && (r.result || '').includes('urgent'));
+              const isUrgent = (r.alert_tags && (r.alert_tags.includes('urgent') || r.alert_tags.includes('kiemelt'))) || (r.type === 'voice_alert' && (r.result || '').includes('urgent'));
               let alertBadge = isUrgent ? '<div onclick="viewFullLogForClient()" style="display:inline-block;background:#ef4444;color:white;font-size:10px;font-weight:bold;padding:2px 6px;border-radius:4px;margin-bottom:4px;box-shadow:0 1px 2px rgba(239,68,68,0.4);cursor:pointer;" title="Kattints az e-mail megtekintéséhez!">🚨 SÜRGŐS</div><br>' : '';
 
               return `
@@ -8403,6 +8403,7 @@
           // Localization map for tags and stages
           const localMap = {
              'urgent': 'Sürgős',
+             'kiemelt': 'Kiemelt',
              'complaint': 'Panasz',
              'stuck': 'Technikai hiba',
              'ajanlat': 'Árajánlat',

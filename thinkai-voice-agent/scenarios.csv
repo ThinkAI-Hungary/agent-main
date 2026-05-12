@@ -1,0 +1,175 @@
+Kategória,Azonosító,Prioritás,Cím,Mit tesztelünk?,Lépések,Elvárt eredmény,Státusz,Megjegyzés,Unnamed: 9,Unnamed: 10
+1. Bejelentkezés és hozzáférés,AUTH-01,🔴,Sikeres bejelentkezés,Az admin felhasználó be tud-e lépni érvényes adatokkal.,"1. Nyisd meg a DigiDesk admin felületet
+2. Add meg az e-mail címedet és a jelszavadat
+3. Kattints a „Bejelentkezés"" gombra","• 2 másodpercen belül megjelenik a dashboard
+• A fejlécben látható a klinika neve
+• Nem kér újra jelszót",,,,beépítve/javítva
+1. Bejelentkezés és hozzáférés,AUTH-02,🔴,Hibás jelszó — visszajelzés és zárolás,Helytelen belépési adatoknál a rendszer megvédi a fiókot.,"1. Add meg az e-mail-t, de szándékosan rossz jelszót
+2. Kattints a „Bejelentkezés"" gombra
+3. Ismételd meg háromszor egymás után","• Minden alkalommal megjelenik egy hibaüzenet (pl. „Hibás e-mail vagy jelszó"")
+• A harmadik sikertelen próbálkozás után egy rövid várakozási idő lép életbe (kb. 30 másodperc)
+• A bejelentkezés nem sikerül, a dashboard nem töltődik be",,,,
+1. Bejelentkezés és hozzáférés,AUTH-03,🔴,Más rendelő adataihoz nem lehet hozzáférni,Az egyik klinika adminisztrátor nem láthatja a másik klinika adatait.,"1. Jelentkezz be A klinika admin fiókjával
+2. Nyisd meg a fejlesztői eszköztárat (F12 → Network fül)
+3. Keress egy olyan API hívást, amelyik tartalmazza a klinika azonosítóját
+4. Próbáld meg a kérést átírni egy másik klinika azonosítójára és újra elküldeni","• A rendszer visszautasítja a kérést (403-as hibakód)
+• Semmilyen adat nem érkezik vissza B klinikától
+• Az oldal nem fagy be vagy dob le hibaoldalt",,nincs másik klinika jelenleg,,
+1. Bejelentkezés és hozzáférés,AUTH-04,🟡,Session lejárat után automatikus kijelentkezés,Hosszabb inaktivitás után a rendszer védi az adatokat.,"1. Jelentkezz be
+2. Hagyd nyitva a böngészőt legalább 24 óráig (vagy kérd meg a fejlesztőt, hogy állítson be rövid lejáratot teszteléshez)
+3. Próbálj meg rákattintani bármelyik menüpontra","• A rendszer átirányít a bejelentkezési oldalra
+• Megjelenik egy értesítés, hogy a session lejárt
+• A bejelentkezés után ugyanoda kerülsz vissza, ahol abbahagytad",,inaktivitás miatti kiléptetés beépítve,,
+1. Bejelentkezés és hozzáférés,AUTH-05,🟡,Elfelejtett jelszó,A jelszóemlékeztető folyamat működik.,"1. A bejelentkezési oldalon kattints az „Elfelejtett jelszó"" linkre
+2. Add meg az e-mail-t, amellyel regisztráltál
+3. Nyisd meg a beérkezett e-mailt
+4. Kattints a linkre, add meg az új jelszót, és mentsd el","• Az e-mail 1 percen belül megérkezik
+• A link egyszer használható — ha újra megnyitod, nem engedi be
+• Az új jelszóval sikeresen be lehet lépni",,nincs jelenleg jelszóemlékeztető folyamat beépítve ,,
+1. Bejelentkezés és hozzáférés,AUTH-06,🔵,Recepciós nem lát admin beállításokat,A nem-admin szerepkörű felhasználók nem érhetik el az érzékeny beállításokat.,"1. Jelentkezz be egy recepciós (nem admin) fiókkal
+2. Nézd meg a bal oldali menüt
+3. Próbálj meg közvetlenül a `/admin/settings` URL-re navigálni","• A „Beállítások"" vagy hasonló adminisztratív menüpont nem látható a menüben
+• Ha manuálisan próbálod megnyitni az URL-t, visszairányít vagy hibaüzenetet ad",,nincs jelenleg recepciós fiókunk csak admin,,
+2. AI chat agent,CHAT-01,🔴,Időpontfoglalás kérés — teljes folyamat,A chatbot végig tudja vinni egy páciens időpontfoglalási kérését.,"1. Nyisd meg a chat widgetet a páciensoldali felületen
+2. Írj be: „Szeretnék időpontot foglalni implantátum konzultációra januárban.""
+3. Kövesd végig a chatbot kérdéseit (név, telefonszám, időpont-preferencia)
+4. Erősítsd meg a felkínált időpontot","• A bot bekéri a szükséges adatokat lépésről lépésre
+• Konkrét szabad időpontokat ajánl fel
+• Visszaigazolást küld az elfogadás után
+• Az admin felületen az időpontok listájában megjelenik az új foglalás",,,,
+2. AI chat agent,CHAT-02,🔴,Nyitvatartás kérdés,"A chatbot a klinika saját adatait adja meg, nem találja ki.","1. Nyisd meg a chat widgetet
+2. Írj be: „Mikor van nyitva a rendelő szombaton?""","• A bot a tudásbázisban rögzített pontos nyitvatartási időt adja meg
+• Nem ad ki más (eltérő) időpontot
+• Ha nincs szombati nyitvatartás, ezt egyértelműen közli",,,,
+2. AI chat agent,CHAT-03,🔴,Orvosi tanácsot nem ad — eszkaláció,"A bot nem játszik orvost, hanem átirányít.","1. Írj a chatba: „Fogínygyulladásom van és vérzik a fogínyem, mit csináljak?""","• A bot nem ad gyógyszeres vagy kezelési tanácsot
+• Felajánlja, hogy időpontot foglal vagy átirányít egy fogászhoz
+• Udvarias, nem mechanikus a visszautasítás",,,,
+2. AI chat agent,CHAT-04,🟡,Kontextus megőrzése — több üzenet,"A bot emlékezik az előző üzenetre, nem kérdezi meg újra.","1. Írj be: „Érdeklőd a fogfehérítésről.""
+2. Várj a válaszra
+3. Írj be: „Mennyibe kerül?""","• A bot a fogfehérítés árát adja meg
+• Nem kérdez rá, hogy miről is volt szó
+• A válasz egyezik a tudásbázisban lévő árral",,"javítva, most már emlékezik a üzenetekre ",,
+2. AI chat agent,CHAT-05,🟡,Érthetetlen üzenet kezelése,"A bot nem fagy be, ha értelmetlen szöveget kap.","1. Írj be véletlenszerű karaktereket: „asdfghjkl 12345!!!""","• A bot udvariasan visszakérdez, hogy miben segíthet
+• Nem küld üres választ, nem fagy be az oldal
+• Nem generál ki értelmetlen szöveget",,,,
+2. AI chat agent,CHAT-06,🟡,Árlista kérdés,"Az ár, amit a bot mond, egyezik a beállított árlistával.","1. Kérdezd meg: „Mennyibe kerül egy fogkorona?""
+2. Ellenőrizd a tudásbázisban (admin felületen) a rögzített árat","• A bot ugyanazt az árat mondja, ami a tudásbázisban szerepel
+• Nem kerekít, nem talál ki más összeget",,"javítva, most már a bot feldolgozza a árlista adatokat és az alapján válaszol",,
+2. AI chat agent,CHAT-07,🟡,Angol üzenet kezelése,Magyar beállítású bot hogyan kezeli az angol kérdést.,"1. Írj be angolul: „I'd like to book an appointment.""","• A bot vagy magyarul válaszol
+• Vagy rákérdez a preferált nyelvre
+• Nem ad hibaüzenetet, nem fagy be",,magyarul válaszol,,
+2. AI chat agent,CHAT-08,🔵,Gyors egymás utáni üzenetek,Sok üzenetnél nem keletkeznek duplikált adatok az adatbázisban.,1. Küldj el ugyanolyan időpontfoglalási kérést 5-ször egymás után gyorsan,"• Csak egy foglalás jelenik meg az admin felületen
+• A bot jelzi, ha éppen feldolgoz valamit
+• Nem keletkezik 5 azonos rekord az adatbázisban",,,,
+3. Pácienskezelés,PAT-01,🔴,Új páciens felvitele,Az admin felületen létre lehet hozni egy új páciens rekordot.,"1. Az admin felületen navigálj a „Páciensek"" menüpontba
+2. Kattints az „Új páciens"" gombra
+3. Töltsd ki a kötelező mezőket: név, telefonszám, születési dátum
+4. Mentsd el","• Az új páciens megjelenik a listában
+• Minden bevitt adat pontosan úgy látszik, ahogy beírtad
+• A mentés dátuma és ideje automatikusan rögzül",,,,
+3. Pácienskezelés,PAT-02,🔴,Duplikált páciens felismerése,"Ha ugyanaz a személy már szerepel az adatbázisban, a rendszer jelzi.","1. Vegyél fel egy pácisenst névvel + telefonszámmal
+2. Mentsd el
+3. Próbálj meg új pácienst felvenni ugyanazzal a névvel és telefonszámmal","• A rendszer figyelmeztető üzenetet küld: ez a páciens már lehet, hogy szerepel az adatbázisban
+• Felajánlja, hogy megnyitja a meglévő rekordot
+• Ha mégis menteni akarod, azt is engedélyezi (de figyelmeztet)",,"folytatja a beszélgetést,a memóriából kiolvassa ha van már pl. adott időpontja de tud újat is foglalni ugyanazzal a névvel",,
+3. Pácienskezelés,PAT-03,🟡,Páciens adatainak szerkesztése,Egy meglévő páciens adata módosítható.,"1. Keresd meg a pácisenst a listában
+2. Kattints a szerkesztés ikonra
+3. Módosítsd az e-mail-t és a telefonszámot
+4. Mentsd el","• Az új adatok azonnal megjelennek
+• A módosítás dátuma frissül
+• A régi adat nem marad látható",,,,
+3. Pácienskezelés,PAT-04,🟡,Páciens keresés névrészletre,A keresőmező gyorsan és pontosan dolgozik.,"1. A „Páciensek"" listán kattints a keresőmezőbe
+2. Írj be egy páciens nevének első 3 betűjét (pl. „Kov"")","• Fél másodpercen belül megjelennek a találatok
+• A listában ott van a keresett páciens
+• Ha nincs találat, egy barátságos „Nincs találat"" üzenet jelenik meg",,"javítva,névre már tudunk keresni",,
+3. Pácienskezelés,PAT-05,🟡,Páciens törlése — soft delete,A törölt páciens valójában nem törlődik véglegesen az adatbázisból.,"1. Keress ki egy pácisenst
+2. Kattints a törlés gombra, és erősítsd meg
+3. Ellenőrizd, hogy eltűnt-e a listából
+4. (Fejlesztőnek:) Ellenőrizd adatbázis szinten, hogy a rekord megvan-e `deleted_at` mezővel","• A páciens eltűnik a listából
+• Admin felületen nem látható
+• Az adatbázisban a rekord megmarad törölt jelöléssel (visszaállítható)",,"jelenleg nem soft delete, hanem full delete van kérdés hogy be kell-e vezetni a soft-delete-t.",,
+3. Pácienskezelés,PAT-06,🔵,Ékezetes és összetett nevek,A rendszer helyesen kezeli a magyar ékezetes és kötőjeles neveket.,"1. Vegyél fel egy pácisenst ezzel a névvel: „Ős-Budavári Béla-Gábor""
+2. Mentsd el
+3. Keress rá a névből 3-4 betűre","• A név pontosan úgy jelenik meg, ahogy beírtad (ékezetek, kötőjelek megmaradnak)
+• A keresés is megtalálja",,,,
+4. Időpontkezelés,APT-01,🔴,Új időpont foglalása adminból,Az admin felületen létre lehet hozni egy foglalást.,"1. Navigálj az „Időpontok"" vagy „Naptár"" menüpontba
+2. Kattints egy szabad időpontra vagy az „Új időpont"" gombra
+3. Válassz pácisenst, kezelőt, dátumot/időt, és a beavatkozás típusát
+4. Mentsd el","• A foglalás megjelenik a naptárban a megfelelő helyen
+• A páciens neve és a beavatkozás típusa látható az eseményen",,"Naptárban jelenleg manuálisan nem lehet adatot felvinni Kérdés, hogy bevezessük-e hogy lehessen?",,
+4. Időpontkezelés,APT-02,🔴,Ütközés ellenőrzés,Nem lehet ugyanabba az időpontba kétszer foglalni ugyanahhoz a kezelőhöz.,"1. Foglalj időpontot 2026-06-15 10:00-ra Dr. Kovács rendelőbe
+2. Próbálj meg újabb foglalást létrehozni ugyanarra az időpontra ugyanahhoz a kezelőhöz","• A rendszer nem engedi a második foglalást
+• Hibaüzenet jelenik meg: „Ez az időpont már foglalt""
+• Opcionálisan: felajánl következő szabad időpontokat",,,,
+4. Időpontkezelés,APT-03,🔴,Időpont lemondása,Egy foglalás lemondható és az időpont felszabadul.,"1. Nyiss meg egy meglévő foglalást a naptárban
+2. Kattints a „Lemondás"" gombra
+3. Erősítsd meg","• A foglalás státusza „Lemondva""-ra változik
+• A naptárban az időpont felszabadul (szabad időpontként jelenik meg)
+• Ha van értesítési rendszer: a páciens kap visszajelzést",,,,
+4. Időpontkezelés,APT-04,🟡,Múltbeli dátumra nem lehet foglalni,"A rendszer megakadályozza, hogy véletlenül múltbeli időpontra hozzon létre valaki foglalást.",1. Próbálj meg új foglalást rögzíteni egy tegnapi vagy múlt heti dátumra,"• A rendszer nem engedi menteni a foglalást
+• Hibaüzenet jelenik meg: „Múltbeli dátumra nem lehet foglalni""",,,,
+4. Időpontkezelés,APT-05,🟡,Naptár nézet — napi és heti váltás,A naptár nézetek között gond nélkül lehet váltani.,"1. Nyisd meg a naptár oldalt
+2. Válts napi nézetről heti nézetre és vissza
+3. Navigálj előre és hátra a heteken","• A foglalások konzisztensen megjelennek minden nézetben
+• Nincs vizuális hiba, üres nézet vagy elfagyás
+• Navigáció közben betöltési jelzés látható, ha az adat betöltődik",,,,
+4. Időpontkezelés,APT-06,🔵,Emlékeztető a naptárban,Előre foglalt időpontnál a rendszer emlékeztetőt küld.,"1. Foglalj időpontot holnapra
+2. (Fejlesztőnek:) Ellenőrizd az értesítési queue-ban, hogy keletkezett-e emlékeztető rekord","• A queue-ban ott van az emlékeztető a helyes páciens adatokkal és időponttal
+• Ha az SMS/e-mail integráció él: az üzenet megérkezik",,,,
+5. Tudásbázis kezelés,KB-01,🔴,Új cikk létrehozása és chatbot frissülés,Az admin által feltöltött új adat bekerül a chatbot tudásába.,"1. Navigálj a „Tudásbázis"" menübe
+2. Hozz létre egy új cikket „Fogfehérítés árak 2026"" címmel, töltsd ki a tartalmat, és publikáld
+3. Menj a chat widgethez
+4. Kérdezd meg: „Mennyibe kerül a fogfehérítés?""","• A chatbot az imént feltöltött árakat mondja meg
+• Nem régi vagy kitalált adatokat ad",,,,
+5. Tudásbázis kezelés,KB-02,🔴,Meglévő cikk módosítása — chatbot frissülés,"Ha valami megváltozik (pl. nyitvatartás), a chatbot ezt tükrözi.","1. Nyisd meg a nyitvatartásra vonatkozó KB cikket
+2. Módosítsd a szombati nyitvatartást (pl. 9:00-ről 10:00-ra)
+3. Mentsd el
+4. Kérdezd meg a chatbotnál: „Mikor van nyitva szombaton?""","• A chatbot az új időpontot adja meg
+• A régi időpont nem szerepel a válaszban
+• Ha a frissülés nem azonnali: a rendszer dokumentálja, mennyi időbe telik (cache frissülési idő)",,,,
+5. Tudásbázis kezelés,KB-03,🟡,Cikk törlése — chatbot nem hivatkozik rá,Törölt tartalom nem kerül ki a chatbot által.,"1. Töröljél egy aktív KB cikket (pl. egy promóciós ajánlatot)
+2. Kérdezz rá a chatbotnál az abban szereplő tartalomra","• A chatbot nem hivatkozik az eltávolított ajánlatra
+• Helyette azt mondja, hogy nincs ilyen információja, vagy hogy érdeklődjél telefonon",,javítva+  kampányok mentés-módosítás is megoldva,,
+5. Tudásbázis kezelés,KB-04,🟡,Kategória szerinti szűrés,A KB listán a szűrő pontosan működik.,"1. A tudásbázis listán kattints a „Szolgáltatások"" kategóriára
+2. Böngészd át a találatokat
+3. Navigálj egy másik oldalra, majd gyere vissza","• Csak a „Szolgáltatások"" kategóriás cikkek jelennek meg
+• A szűrő visszanavigáláskor is aktív marad",,"nincs szűrő beállítva szolgáltatásokhoz kérdés, hogy kell-e?",,
+6. Dashboard és statisztikák,DASH-01,🟡,Dashboard betöltési sebesség,"A dashboard gyorsan tölt, és nem hagy magára töltés közben.","1. Jelentkezz be és figyeld, mikor jelenik meg a dashboard tartalma
+2. Navigálj el egy másik oldalra, majd gyere vissza a dashboardra","• Első betöltés 3 másodpercen belül megtörténik
+• Visszanavigáláskor 1 másodpercen belül megjelenik a tartalom
+• Amíg tölt, skeleton loader (szürke kitöltők) láthatók — nem üres oldal",,,,
+6. Dashboard és statisztikák,DASH-02,🟡,A számok helyesek,A dashboard KPI-k egyeznek a valósággal.,"1. Nézd meg a dashboard-on például a mai foglalások számát
+2. Navigálj az időpontok listájára
+3. Számold meg, hány mai foglalás van manuálisan","• A két szám egyezik
+• Nincs eltérés a statisztika és a valós adatok között",,,,
+6. Dashboard és statisztikák,DASH-03,🟡,Dátumszűrők működnek,"A „mai nap / ez a hét / ez a hónap"" szűrők pontosan dolgoznak.","1. A dashboardon kattints a „Mai nap"" szűrőre
+2. Váltogasd a „Ez a hét"" és „Ez a hónap"" szűrőkre","• A számok és grafikonok minden szűrőváltáskor frissülnek
+• Nincs elfagyás vagy örök töltési állapot",,,,
+6. Dashboard és statisztikák,DASH-04,🔵,Üres rendelő — értelmező üzenet,Egy újonnan regisztrált klinikánál a dashboard nem mutat hibát.,"1. Jelentkezz be egy teljesen új, üres adatbázisú klinika fiókkal
+2. Nézd meg a dashboardot","• Értelmes „Nincsenek még adatok"" üzenet jelenik meg
+• Nincs hibaüzenet, nullás értékeknél nem jelenik meg „NaN"" vagy „undefined""",,nincs másik klinika,,
+7. Eszkaláció és értesítések,ESC-01,🔴,Sürgős eset — recepció értesítés,"Ha egy páciens sürgős problémát jelez a chatban, a recepció értesítést kap.","1. Írj a chatba: „Nagyon fáj a fogam, sürgős segítségre van szükségem.""
+2. Nézd meg az admin felületen az értesítéseket","• Megjelenik egy értesítés az admin/recepciós felületen
+• A chatbot közli a pácienssel, hogy értesítette a recepciót
+• Az értesítés tartalmazza, mikor érkezett és mi volt az üzenet",,,,
+7. Eszkaláció és értesítések,ESC-02,🟡,Ha a bot nem tud válaszolni — graceful fallback,"Ha az AI nem elérhető, a felhasználó ne maradjon magára.","1. (Fejlesztőnek:) Szimulálj AI timeout-ot vagy kapcsolj le egy API kapcsolatot ideiglenesen
+2. Küldj üzenetet a chatban","• A bot értesíti a felhasználót: „Jelenleg nem tudok válaszolni, de kollégánk segít.""
+• Nem jelenik meg üres válasz, végtelen töltési animáció vagy hibaoldal
+• A recepció értesítést kap",,,,
+8. Biztonság,SEC-01,🔴,Nem fut le szkript a chatban (XSS),Rosszindulatú kód nem hajtható végre a chat widgeten keresztül.,"1. Írj a chatba: `<script>alert('teszt')</script>`
+2. Küldj el különböző változatokat is: `<img src=x onerror=alert(1)>`","• Nem jelenik meg semmilyen felugró ablak
+• A szöveg plain text-ként jelenik meg a chatban
+• A böngésző konzolján nincs XSS-re utaló hiba",,,,
+8. Biztonság,SEC-02,🔴,Bejelentkezés nélkül nem érhetők el az adatok,Autentikáció nélkül az API nem ad ki adatot.,"1. Jelentkezz ki a rendszerből
+2. (Fejlesztőnek:) Küldjél egy API hívást curl-lal vagy Postmannel token nélkül egy védett endpointra","• 401-es hibakód érkezik
+• Semmilyen adat nem jön vissza
+• Az endpoint nem dob 500-as szerverhibát",,,,
+8. Biztonság,SEC-03,🔴,SQL injekció nem működik a keresőben,A keresőmező nem sebezhetetlen adatbázis-manipulációra.,"1. A pácienskereső mezőbe írd be: `' OR 1=1 --`
+2. Nyomd meg Enter-t","• A keresési találatok listája üres vagy csak releváns találatokat mutat
+• Nem adja vissza az összes páciens adatát
+• Nem jelenik meg 500-as szerverhiba",,,,
+8. Biztonság,SEC-04,🟡,GDPR — páciens adatainak teljes törlése,"Ha egy páciens kéri az adatai törlését, az ténylegesen megtörténik.","1. Az admin felületen keresd meg a pácisenst
+2. Használd az „Adatok törlése (GDPR)"" funkciót
+3. (Fejlesztőnek:) Ellenőrizd adatbázis szinten, hogy minden személyes adat törlődött vagy anonimizálódott-e","• A páciens neve, elérhetőségei, egészségügyi adatai törlődnek
+• A foglalási előzmények statisztikai célból megmaradhatnak, de nem kapcsolódnak a személyhez
+• A törlés eseménye naplózódik (audit log), de csak az időbélyeg és a törlési tény, nem a személyes adat",,,,

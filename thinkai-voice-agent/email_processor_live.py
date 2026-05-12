@@ -1,5 +1,4 @@
-# -*- coding: utf-8 -*-
-import os
+﻿import os
 import email
 import imaplib
 import json
@@ -114,7 +113,7 @@ A lehetséges alert_tags értékek:
     triage_rules = db.get_triage_rules()
     if triage_rules:
         rules_text = "\n".join([f"- Szabály ID: {r['id']}, Helyzet: {r['situation']}, Prioritás: {r['priority']}" for r in triage_rules])
-        sys_prompt += f"\n\n--- TRIÁZS SZABÁLYOK ---\nKérlek értékeld az e-mail tartalmát az alábbi szabályok alapján is. Ha egyezik egy 'Sürgős' prioritású szabállyal, KÖTELEZŐ felvenned az 'urgent' tag-et az alert_tags listába. Ha egy 'Kiemelt' prioritású szabállyal egyezik, KÖTELEZŐ felvenned a 'kiemelt' tag-et!\n{rules_text}\n"
+        sys_prompt += f"\n\n--- TRIÁZS SZABÁLYOK ---\nKérlek értékeld az e-mail tartalmát az alábbi szabályok alapján is. Ha egyezik egy 'Sürgős' szabállyal, KÖTELEZŐ felvenned az 'urgent' tag-et az alert_tags listába!\n{rules_text}\n"
 
     sys_prompt += "\n\n--- VISELKEDÉSI SZABÁLYOK A VÁLASZLEVÉLHEZ ---\n"
     sys_prompt += "1. SOHA ne írd, hogy 'Jó napot!' vagy más sablonos köszönést, ha a beszélgetés már elkezdődött (lásd Előző üzenetek). Ha ez a legelső üzenet, akkor is maximum egy 'Üdvözlöm!' elegendő.\n"
@@ -194,13 +193,6 @@ A lehetséges alert_tags értékek:
         else:
             details["problem_description"] = f"E-mail tárgy: {subject}"
             
-        alert_tags_list = data.get("alert_tags", [])
-        if isinstance(alert_tags_list, list):
-            if "kiemelt" in alert_tags_list:
-                details["prioritas"] = "Kiemelt"
-            elif "urgent" in alert_tags_list:
-                details["prioritas"] = "Sürgős"
-                
         # Mentsük Kanban "uj" oszlopba
         cols = db.get_kanban_columns()
         first_col = cols[0]["id"] if cols else "uj"
@@ -343,7 +335,7 @@ A lehetséges alert_tags értékek:
             ai_draft_response=draft_json
         )
 
-        if isinstance(alert_tags, list) and "kiemelt" in alert_tags:
+        if isinstance(alert_tags, list) and "urgent" in alert_tags:
             email_to_send = None
             t_rules = db.get_triage_rules()
             for r in t_rules:
