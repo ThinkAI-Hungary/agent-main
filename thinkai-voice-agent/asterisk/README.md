@@ -64,7 +64,7 @@ tail -f /var/log/asterisk/full
 
 ## Konfig fájlok
 
-| Fájl | Leírás |
+| Fájl | Leírások |
 |------|--------|
 | `setup.sh` | Egylépéses telepítő script |
 | `pjsip.conf` | SIP trunk konfig (Telefonalo.hu + LiveKit) |
