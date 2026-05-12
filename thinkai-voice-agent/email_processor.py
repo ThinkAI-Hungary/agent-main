@@ -100,7 +100,6 @@ A lehetséges alert_tags értékek:
                 draft_str = h.get('ai_draft_response')
                 if draft_str:
                     try:
-                        import json
                         draft_obj = json.loads(draft_str)
                         history_text += f"A MI KORÁBBI VÁLASZUNK: {draft_obj.get('body', '')}\n"
                     except:
