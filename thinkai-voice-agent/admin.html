@@ -4156,7 +4156,10 @@
 
           <!-- 7. Kampányok -->
           <div class="tt-section">
-            <div class="tt-section-title"> Kampányok</div>
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+              <div class="tt-section-title" style="margin-bottom: 0;">Kampányok</div>
+              <button class="tt-save-btn" onclick="savePraxisinfo(this, 'Kampányok sikeresen elmentve')" style="margin: 0; padding: 8px 16px; font-size: 13px;">&#128190; Mentés</button>
+            </div>
             <div id="tt-kampanyok-list">
               <div class="tt-campaign-card">
                 <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px;">
@@ -4411,7 +4414,8 @@
                 <div class="page-title">Ügyfelek adatbázisa</div>
                 <div class="page-subtitle">Ügyfelek listázása és alapadatok módosítása</div>
               </div>
-              <div style="display:flex;gap:12px;">
+              <div style="display:flex;gap:12px;align-items:center;">
+                <input type="text" id="client-search-input" placeholder="Keresés ügyfelek között..." style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; width: 250px;" onkeyup="filterClientsTable()">
                 <button id="bulk-delete-btn" class="int-toolbar-btn" style="display:none; color: #ef4444; border-color: #ef4444;" onclick="bulkDeleteClients()">🗑 Kijelöltek törlése (<span id="bulk-delete-count">0</span>)</button>
                 <button class="int-toolbar-btn" onclick="openClientFieldsModal()">Ügyfél mezők beállítása</button>
                 <button class="int-toolbar-btn" onclick="loadClientsTable()">↻ Frissítés</button>
@@ -6525,6 +6529,25 @@
         }).join('');
       } catch (e) {
         tbody.innerHTML = `<tr><td colspan="${4 + displayFields.length}" style="text-align:center;color:var(--red);padding:40px;">Betöltési hiba</td></tr>`;
+      }
+    }
+
+    function filterClientsTable() {
+      const input = document.getElementById('client-search-input');
+      if (!input) return;
+      const filter = input.value.toLowerCase();
+      const tbody = document.getElementById('clients-body');
+      if (!tbody) return;
+      const trs = tbody.getElementsByTagName('tr');
+      
+      for (let i = 0; i < trs.length; i++) {
+        if (trs[i].classList.contains('loading-row') || trs[i].querySelector('.empty-state')) continue;
+        const textContent = trs[i].textContent.toLowerCase();
+        if (textContent.includes(filter)) {
+          trs[i].style.display = '';
+        } else {
+          trs[i].style.display = 'none';
+        }
       }
     }
 
