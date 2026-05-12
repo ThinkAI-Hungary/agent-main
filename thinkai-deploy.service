@@ -1,0 +1,27 @@
+[Unit]
+Description=Dobozos Deploy Webhook
+After=network.target docker.service
+Wants=docker.service
+
+[Service]
+Type=simple
+WorkingDirectory=/root/dobozos
+ExecStart=/usr/bin/python3 /root/dobozos/deploy-webhook.py
+
+# ── Webhook secret (set this!) ──
+Environment=WEBHOOK_SECRET=a422edde3ba27657425e9243bec720968105908a89d71941ddd87553042f11ed
+
+Environment=WEBHOOK_PORT=9000
+
+Restart=always
+RestartSec=5
+
+# Security hardening
+NoNewPrivileges=false
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=dobozos-deploy
+
+[Install]
+WantedBy=multi-user.target
