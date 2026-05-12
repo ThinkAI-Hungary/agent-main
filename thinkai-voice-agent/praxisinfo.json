@@ -6,10 +6,10 @@
   "szakterulet": "box, szájbaverés",
   "kulcsszavak": "box, szájbaverés",
   "megkozelites": "a nyócker legsötétt sikátora, ahova a nap soha nem sütött be.",
-  "price_list": "Fog húzás - 12000",
+  "price_list": "Konzultáció - Szakorvosi állapotfelmérés és kezelési terv - 15000 - HUF - Tartalmazza a szájüregi szűrővizsgálatot.\nDiagnosztika - Digitális Panoráma röntgen (OPG) - 12000 - HUF - Kiadható digitális formátumban (CD / E-mail).\nSzájhigiénia - Ultrahangos fogkőeltávolítás (Air-Flow) - 28000 - HUF - Mindkét állcsontra, polírozással együtt.\nKonzerváló fogászat - Esztétikus kompozit tömés (1 felszínű) - 25000 - HUF - Fényre kötő prémium tömőanyag.\nSzájsebészet - Bölcsességfog műtéti eltávolítása - 45000 - HUF - A bonyolultságtól függően az ár változhat.\nImplantológia - Prémium implantátum beültetése - 250000 - HUF - Az ár a felépítményt és koronát nem tartalmazza.",
   "price_list_file_meta": {
-    "filename": "Árlista.xlsx",
-    "uploaded_at": "2026. 04. 30."
+    "filename": "arlista_minta (3).xlsx",
+    "uploaded_at": "2026. 05. 12."
   },
   "doctors": [],
   "campaigns": [
