@@ -4855,13 +4855,18 @@
       if (e.key === 'Enter') doLogin();
     });
 
-    function doLogout() {
+    function doLogout(msg = '') {
       authToken = '';
       currentUser = '';
       localStorage.removeItem('thinkai_admin_token');
       localStorage.removeItem('thinkai_admin_user');
       document.getElementById('app').style.display = 'none';
       document.getElementById('login-screen').style.display = 'flex';
+      if (msg) {
+        showError(msg);
+      } else {
+        document.getElementById('login-error').style.display = 'none';
+      }
     }
 
     async function authFetch(url, opts = {}) {
@@ -4869,7 +4874,10 @@
         ...opts,
         headers: { 'Authorization': `Bearer ${authToken}`, ...opts.headers }
       });
-      if (res.status === 401) { doLogout(); throw new Error('Unauthorized'); }
+      if (res.status === 401) { 
+        doLogout('A munkamenet biztonsági okokból lejárt. Kérjük jelentkezzen be újra.'); 
+        throw new Error('Unauthorized'); 
+      }
       return res;
     }
 

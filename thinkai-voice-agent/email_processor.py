@@ -44,7 +44,7 @@ A válaszlevélt (email_reply) te fogalmazod meg, barátságos, segítÅkész 
 JSON STRUKTÃRA:
 {
     "is_relevant": true|false,
-    "email_reply": "A pontos válaszlevél szövege, HTML sortörésekkel (<br>)",
+    "email_reply": "A pontos válaszlevél szövege (TILOS HTML TAGEKET HASZNÁLNI! Listákhoz kötőjelet, sortöréshez \n-t használj)",
     "beszelgetes_naplobejegyzes": "A bejövÅ levél és a válaszod tömör összefoglalója 1 mondatban (késÅbbi kontextushoz).",
     "kanban_data": {
         "name": "Ãgyfél neve (ha tudod, különben az e-mailbÅl)",
@@ -83,15 +83,42 @@ A lehetséges alert_tags értékek:
 - "callback": ha telefonos visszahívást kérnek
 - "recurring": ha egy gyakori ismétlődő hibát/kérdést vetnek fel.
 """
+
     client = genai.Client(api_key=google_key)
     
-    user_content = f"--- BEJÖVŐ E-MAIL ---\nFeladó: {from_name} <{from_email}>\nTárgy: {subject}\nÜzenet:\n{text_content}\n"
+    # ELŐZMÉNYEK LEKÉRDEZÉSE
+    history_text = ""
+    try:
+        session_id = f"email_{from_email}"
+        history_res = db.supabase.table("interactions").select("summary, ai_draft_response").eq("session_id", session_id).order("created_at", desc=False).execute()
+        if history_res.data:
+            recent_history = history_res.data[-3:]
+            history_text = "--- ELŐZŐ ÜZENETEK (KONTEXTUS A BESZÉLGETÉSHEZ) ---\n"
+            for h in recent_history:
+                history_text += f"ÜGYFÉL KORÁBBI E-MAILJE: {h.get('summary', '')}\n"
+                draft_str = h.get('ai_draft_response')
+                if draft_str:
+                    try:
+                        import json
+                        draft_obj = json.loads(draft_str)
+                        history_text += f"A MI KORÁBBI VÁLASZUNK: {draft_obj.get('body', '')}\n"
+                    except:
+                        pass
+            history_text += "--------------------------------\n\n"
+    except Exception as e:
+        logger.error(f"Hiba az előzmények lekérdezésekor: {e}")
+
+    user_content = history_text + f"--- ÚJ BEJÖVŐ E-MAIL ---\nFeladó: {from_name} <{from_email}>\nTárgy: {subject}\nÜzenet:\n{text_content}\n"
         
     triage_rules = db.get_triage_rules()
     if triage_rules:
         rules_text = "\n".join([f"- Szabály ID: {r['id']}, Helyzet: {r['situation']}, Prioritás: {r['priority']}" for r in triage_rules])
         sys_prompt += f"\n\n--- TRIÁZS SZABÁLYOK ---\nKérlek értékeld az e-mail tartalmát az alábbi szabályok alapján is. Ha egyezik egy 'Sürgős' szabállyal, KÖTELEZŐ felvenned az 'urgent' tag-et az alert_tags listába!\n{rules_text}\n"
 
+    sys_prompt += "\n\n--- VISELKEDÉSI SZABÁLYOK A VÁLASZLEVÉLHEZ ---\n"
+    sys_prompt += "1. SOHA ne írd, hogy 'Jó napot!' vagy más sablonos köszönést, ha a beszélgetés már elkezdődött (lásd Előző üzenetek). Ha ez a legelső üzenet, akkor is maximum egy 'Üdvözlöm!' elegendő.\n"
+    sys_prompt += "2. SOHA ne kérdezd meg, hogy 'Miben segíthetek?', ha az ügyfél már konkrét kérdést tett fel (pl. 'érdeklődnék hogy foglalkoznak-e fogkőeltávolítással'). Válaszolj közvetlenül és felesleges udvariaskodás nélkül a kérdésére (pl. 'Igen, foglalkozunk fogkőeltávolítással, az áraink...', stb.)! Ne fárasszuk az ügyfelet felesleges kérdésekkel, ha már tudjuk mit akar.\n"
+    sys_prompt += "3. Légy célratörő, lényegretörő és emberi.\n"
     sys_prompt += f"\n\n--- JSON UTASÍTÁS ---\n{json_instruction}"
 
     logger.info(f"Gemini 2.5 Flash elemzi az e-mailt: {from_email} - {subject}")
@@ -297,7 +324,7 @@ A lehetséges alert_tags értékek:
         db.log_interaction(
             type="email",
             topic="Email AI válasz",
-            summary=f"BejövÅ e-mail {from_email} címrÅl",
+            summary=f"Bejövő e-mail {from_email} címről",
             result="Várakozik jóváhagyásra",
             tool_name="imap_worker_ai",
             session_id=session_id,
