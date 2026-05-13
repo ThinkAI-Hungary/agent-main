@@ -4874,6 +4874,7 @@
 
     async function authFetch(url, opts = {}) {
       const res = await fetch(`${API}${url}`, {
+        cache: 'no-store',
         ...opts,
         headers: { 'Authorization': `Bearer ${authToken}`, ...opts.headers }
       });
