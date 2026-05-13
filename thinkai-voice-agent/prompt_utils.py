@@ -107,14 +107,17 @@ def _format_patient_rules(pi: dict) -> str:
 
     # Új páciens szabályok
     new_req = pi.get("new_patient_required", "Születési dátum, teljes név")
-    rules.append(f"2. HA AZ ÜGYFÉL ÚJ PÁCIENS: Kötelezően kérd be a következő adatokat: '{new_req}'.")
+    rules.append(f"2. HA AZ ÜGYFÉL ÚJ PÁCIENS: Kötelezően kérd be a következő adatokat: '{new_req}'. Minden esetben kötelezően kérd be az e-mail címét is!")
     
     if pi.get("new_patient_auto_visit", True):
         rules.append("   - SZIGORÚ SZABÁLY: Mivel ő egy ÚJ páciens, az első alkalommal KIZÁRÓLAG állapotfelmérésre / általános vizitre (pl. Konzultáció) foglalhatsz neki időpontot! Semmilyen más konkrét kezelésre (pl. tömés, foghúzás) NEM adhatsz időpontot látatlanban. Mondd el neki, hogy az első alkalommal mindenképp egy állapotfelmérésre van szükség.")
 
     # Visszatérő páciens szabályok
     ret_req = pi.get("returning_patient_required", "Páciens azonosító vagy telefonszám")
-    rules.append(f"3. HA AZ ÜGYFÉL VISSZATÉRŐ PÁCIENS: Kötelezően kérd be a következő adatokat az azonosításhoz: '{ret_req}'.")
+    rules.append(f"3. HA AZ ÜGYFÉL VISSZATÉRŐ PÁCIENS: Kötelezően kérd be a következő adatokat az azonosításhoz: '{ret_req}'. Szintén kötelezően kérd be az e-mail címét is!")
+
+    # Email bekérése kötelező
+    rules.append("4. IDŐPONTFOGLALÁS ESETÉN: Szigorúan kötelező elkérned az ügyfél e-mail címét a foglalás véglegesítése előtt. Tájékoztasd őt róla, hogy erre az e-mail címre fogjuk küldeni a hivatalos visszaigazolást, ami tartalmazza a naptárfájlt és az esetleges lemondáshoz szükséges linket is!")
 
     return "\n".join(rules)
 

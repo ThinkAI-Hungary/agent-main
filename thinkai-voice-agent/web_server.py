@@ -488,7 +488,7 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             if any(ev.get("start_dt") == start_dt_val for ev in existing):
                 db.upsert_client({"messenger_id": sender_id}, additional_log="[Rendszer] Figyelmeztetés: Ebbe az időpontba már van foglalás, nem rögzítve.")
             else:
-                db.add_calendar_event(
+                created_event_id = db.add_calendar_event(
                     title=meeting.get("title", "Konzultáció"),
                     start_dt=start_dt_val,
                     end_dt=end_dt_val,
@@ -498,6 +498,19 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 )
                 db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Naptár bejegyzés létrehozva: {start_dt_val}")
                 booked_meeting = True
+                
+                attendee_email = kanban.get("email")
+                if attendee_email and created_event_id:
+                    asyncio.create_task(
+                        email_processor.send_booking_confirmation_email(
+                            event_id=created_event_id,
+                            title=meeting.get("title", "Konzultáció"),
+                            date=meeting.get("date"),
+                            time=meeting.get("time"),
+                            attendee=kanban.get("name") or meta_name or "Ismeretlen Ügyfél",
+                            attendee_email=attendee_email
+                        )
+                    )
 
         # --- ACTION: NAPTÁR MÓDOSÍTÁS ---
         if modify_action and modify_action.get("event_title_to_modify"):
