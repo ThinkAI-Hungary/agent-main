@@ -451,11 +451,23 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 except:
                     pass
                     
+            if kanban.get("priority"):
+                custom_data["prioritas"] = kanban["priority"]
+            if "urgent" in alert_tags and custom_data.get("prioritas") != "Sürgős":
+                custom_data["prioritas"] = "Sürgős"
+            elif "kiemelt" in alert_tags and custom_data.get("prioritas") != "Kiemelt":
+                custom_data["prioritas"] = "Kiemelt"
+
             custom_data = {k: v for k, v in custom_data.items() if v}
-            client_id = db.upsert_client(custom_data)
+            
+            # Fetch existing client to keep current status, or default to "uj"
+            existing_client = db.find_client_by_contact(messenger_id=sender_id)
+            current_status = existing_client.get("status", "uj") if existing_client else "uj"
+            
+            client_id = db.upsert_client(custom_data, status=current_status)
             
             # Kiemelt eszkaláció
-            priority = kanban.get("priority", "Normál")
+            priority = custom_data.get("prioritas", "Normál")
             if priority == "Kiemelt" or "kiemelt" in alert_tags:
                 email_to_send = None
                 t_rules = db.get_triage_rules()
@@ -542,7 +554,9 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
 
         # 4. Válasz rögzítése a Kanbanba
         if final_text:
-            db.upsert_client({"messenger_id": sender_id, "forras_csatorna": source_channel}, additional_log=f"AI Válasz: {final_text}")
+            existing_client = db.find_client_by_contact(messenger_id=sender_id)
+            current_status = existing_client.get("status", "uj") if existing_client else "uj"
+            db.upsert_client({"messenger_id": sender_id, "forras_csatorna": source_channel}, additional_log=f"AI Válasz: {final_text}", status=current_status)
             
             f_stage = "foglalt" if booked_meeting else "valaszolt"
             
