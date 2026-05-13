@@ -548,6 +548,19 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             found = db.find_calendar_event_by_title(ev_title)
             if found:
                 db.delete_calendar_event(found["id"])
+                # Keresés kliens után, hogy beállítsuk a lemondott státuszt és értesítést
+                client_to_cancel = db.find_client_by_contact(messenger_id=sender_id)
+                if client_to_cancel:
+                    c_data = client_to_cancel.get("custom_data", {})
+                    if isinstance(c_data, str):
+                        try: c_data = json.loads(c_data)
+                        except: c_data = {}
+                    if not isinstance(c_data, dict): c_data = {}
+                    
+                    c_data["cancelled_viewed"] = False
+                    db.edit_client_details(client_to_cancel["id"], c_data)
+                    db.update_client_status(client_to_cancel["id"], "lemondott")
+                
                 db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Naptár bejegyzés törölve: {found['title']}")
             else:
                 db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Törlés sikertelen, nem található: {ev_title}")
