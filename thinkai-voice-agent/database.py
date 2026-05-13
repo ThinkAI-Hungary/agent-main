@@ -879,7 +879,7 @@ def find_client_by_contact(email: str = "", phone: str = "", messenger_id: str =
         logger.error(f"Find client error: {e}")
         return None
 
-def upsert_client(custom_data: dict, additional_log: str = "", status: str = "uj") -> int:
+def upsert_client(custom_data: dict, additional_log: str = "", status: str | None = None) -> int:
     email = custom_data.get("email", "").strip()
     phone = custom_data.get("phone", "").strip()
     messenger_id = custom_data.get("messenger_id", "").strip()
@@ -888,7 +888,8 @@ def upsert_client(custom_data: dict, additional_log: str = "", status: str = "uj
     if existing:
         curr_data = existing.get("custom_data", {}) or {}
         for k, v in custom_data.items():
-            if v and str(v).strip(): curr_data[k] = v
+            if v is not None and str(v).strip() != "": 
+                curr_data[k] = v
         
         if additional_log:
             old_log = curr_data.get("beszelgetes_naplo", "")
@@ -897,13 +898,14 @@ def upsert_client(custom_data: dict, additional_log: str = "", status: str = "uj
             curr_data["beszelgetes_naplo"] = (old_log + "\n" + new_entry).strip()
             
         edit_client_details(existing["id"], curr_data)
-        update_client_status(existing["id"], status)
+        if status is not None:
+            update_client_status(existing["id"], status)
         return existing["id"]
     else:
         if additional_log:
             now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
             custom_data["beszelgetes_naplo"] = f"[{now_str}]\n{additional_log}"
-        return add_client(custom_data, status)
+        return add_client(custom_data, status if status is not None else "uj")
 
 def get_clients(limit: int = 500) -> list[dict]:
     if not supabase: return []
