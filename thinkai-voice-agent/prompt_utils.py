@@ -132,6 +132,30 @@ def _format_faq(faq: list) -> str:
             lines.append(f"Kérdés #{idx}: {q}\nVálasz #{idx}: {a}\n")
     return "\n".join(lines)
 
+def _format_business_hours(settings: dict) -> str:
+    bh = settings.get("business_hours")
+    if not bh:
+        return "Nincs megadva nyitvatartás."
+    
+    en_to_hu = {
+        "monday": "Hétfő", "tuesday": "Kedd", "wednesday": "Szerda",
+        "thursday": "Csütörtök", "friday": "Péntek",
+        "saturday": "Szombat", "sunday": "Vasárnap"
+    }
+    
+    lines = []
+    for en_day, hu_day in en_to_hu.items():
+        day_data = bh.get(en_day, {})
+        if day_data.get("enabled"):
+            o = day_data.get("open", "08:00")
+            c = day_data.get("close", "16:00")
+            lines.append(f"- {hu_day}: {o} - {c}")
+        else:
+            lines.append(f"- {hu_day}: Zárva")
+            
+    return "\n".join(lines)
+
+
 def get_system_prompt() -> str:
     """Load system prompt from system_prompt.md and inject runtime variables."""
     if not PROMPT_FILE.exists():
@@ -177,6 +201,7 @@ def get_system_prompt() -> str:
         "faq":            _format_faq(pi.get("faq", [])),
         "knowledge":      _format_knowledge(settings.get("knowledge_content", "")),
         "tone":           settings.get("tone", ""),
+        "business_hours": _format_business_hours(settings),
         "clinics_prompt": clinics_str,
     }
 
