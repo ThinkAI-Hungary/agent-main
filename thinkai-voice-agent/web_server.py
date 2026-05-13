@@ -491,7 +491,10 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             start_dt_val = f"{meeting['date']}T{meeting['time']}:00"
             dur = int(meeting.get("duration_minutes", 30))
             try:
-                start_dt_obj = datetime.fromisoformat(start_dt_val)
+                import zoneinfo
+                tz = zoneinfo.ZoneInfo("Europe/Budapest")
+                start_dt_obj = datetime.fromisoformat(start_dt_val).replace(tzinfo=tz)
+                start_dt_val = start_dt_obj.isoformat()
                 end_dt_val = (start_dt_obj + timedelta(minutes=dur)).isoformat()
             except:
                 end_dt_val = None
