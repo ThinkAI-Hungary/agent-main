@@ -4415,7 +4415,7 @@
                 <div class="page-subtitle">Ügyfelek listázása és alapadatok módosítása</div>
               </div>
               <div style="display:flex;gap:12px;align-items:center;">
-                <input type="text" id="client-search-input" placeholder="Keresés ügyfelek között..." style="padding: 8px 12px; border: 1px solid #e2e8f0; border-radius: 6px; font-size: 14px; width: 250px;" onkeyup="filterClientsTable()">
+                <input type="text" id="client-search-input" class="int-toolbar-input" placeholder="Keresés ügyfelek között..." style="width: 250px;" onkeyup="filterClientsTable()">
                 <button id="bulk-delete-btn" class="int-toolbar-btn" style="display:none; color: #ef4444; border-color: #ef4444;" onclick="bulkDeleteClients()">🗑 Kijelöltek törlése (<span id="bulk-delete-count">0</span>)</button>
                 <button class="int-toolbar-btn" onclick="openClientFieldsModal()">Ügyfél mezők beállítása</button>
                 <button class="int-toolbar-btn" onclick="loadClientsTable()">↻ Frissítés</button>
@@ -7443,20 +7443,20 @@
       const index = faqList.children.length + 1;
       const card = document.createElement('div');
       card.className = 'faq-card';
-      card.style.cssText = 'border: 1px solid #e5e7eb; border-radius: 8px; padding: 16px; background: #fff; position: relative;';
+      card.style.cssText = 'border: 1px solid var(--border); border-radius: 8px; padding: 16px; background: var(--card); position: relative;';
       card.innerHTML = `
         <div style="display: flex; justify-content: space-between; margin-bottom: 12px;">
-          <span class="faq-index" style="font-size: 13px; font-weight: 600; color: #4b5563;">Kérdés-válasz #${index}</span>
+          <span class="faq-index" style="font-size: 13px; font-weight: 600; color: var(--text-muted);">Kérdés-válasz #${index}</span>
           <button onclick="this.closest('.faq-card').remove(); updateFaqIndices();" style="background: transparent; border: none; color: #ef4444; font-size: 18px; cursor: pointer; padding: 0; line-height: 1;">&times;</button>
         </div>
         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
           <div>
             <label class="tt-label" style="font-size: 12px;">Kérdés</label>
-            <textarea class="tt-textarea faq-question" style="min-height: 80px; background: #f3f4f6; border: 1px solid transparent; padding: 12px;">${esc(q)}</textarea>
+            <textarea class="tt-textarea faq-question" style="min-height: 80px; background: var(--bg); border: 1px solid transparent; padding: 12px;">${esc(q)}</textarea>
           </div>
           <div>
             <label class="tt-label" style="font-size: 12px;">Válasz</label>
-            <textarea class="tt-textarea faq-answer" style="min-height: 80px; background: #f3f4f6; border: 1px solid transparent; padding: 12px;">${esc(a)}</textarea>
+            <textarea class="tt-textarea faq-answer" style="min-height: 80px; background: var(--bg); border: 1px solid transparent; padding: 12px;">${esc(a)}</textarea>
           </div>
         </div>
       `;
