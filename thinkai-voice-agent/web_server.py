@@ -471,6 +471,10 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
                 tool_name = fc.name
                 tool_args = fc.args
                 
+                # Log the tool call to the database so we can debug
+                db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] AI megpróbálta futtatni a '{tool_name}' funkciót ezekkel az adatokkal: {tool_args}")
+                
+                
                 tool_result = ""
                 try:
                     if tool_name == "save_client_data":
@@ -570,6 +574,10 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
                 except Exception as e:
                     tool_result = f"Tool hiba: {str(e)}"
                     print(f"[Meta AI Process] Tool hiba: {e}")
+                    db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Hiba a '{tool_name}' futtatása közben: {e}")
+                
+                if not tool_result.startswith("Tool hiba"):
+                    db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] '{tool_name}' sikeresen lefutott. Eredmény: {tool_result}")
 
                 tool_results_parts.append({
                     "functionResponse": {
