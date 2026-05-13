@@ -511,6 +511,16 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                     attendee=kanban.get("name") or meta_name or "Ismeretlen Ügyfél",
                     attendee_email=kanban.get("email", "-")
                 )
+                
+                # Visszaállítjuk a státuszt "uj"-ra, hogy kikerüljön a "lemondott" oszlopból
+                client_to_reset = db.find_client_by_contact(messenger_id=sender_id)
+                if client_to_reset:
+                    c_data = client_to_reset.get("custom_data", {})
+                    if "cancelled_viewed" in c_data:
+                        del c_data["cancelled_viewed"]
+                    db.edit_client_details(client_to_reset["id"], c_data)
+                    db.update_client_status(client_to_reset["id"], "uj")
+                    
                 db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Naptár bejegyzés létrehozva: {start_dt_val}")
                 booked_meeting = True
                 

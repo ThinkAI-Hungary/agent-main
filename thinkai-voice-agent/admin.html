@@ -5905,35 +5905,34 @@
               contentHeight: 'auto',
               aspectRatio: 2.1,
               allDaySlot: false,
-              eventDidMount: function(info) {
-                info.el.addEventListener('dblclick', async () => {
-                  const ev = info.event;
-                  const attendee_email = ev.extendedProps.attendee_email;
-                  const attendee_name = ev.extendedProps.attendee;
-                  if (!window.kanbanData || window.kanbanData.length === 0) {
-                    await loadKanban();
+              eventClick: async function(info) {
+                const ev = info.event;
+                const attendee_email = ev.extendedProps.attendee_email;
+                const attendee_name = ev.extendedProps.attendee;
+                if (!window.kanbanData || window.kanbanData.length === 0) {
+                  await loadKanban();
+                }
+                if (window.kanbanData && window.kanbanData.length) {
+                  let foundClient = null;
+                  if (attendee_email) {
+                    foundClient = window.kanbanData.find(c => c.custom_data && c.custom_data.email === attendee_email);
                   }
-                  if (window.kanbanData && window.kanbanData.length) {
-                    let foundClient = null;
-                    if (attendee_email) {
-                      foundClient = window.kanbanData.find(c => c.custom_data && c.custom_data.email === attendee_email);
-                    }
-                    if (!foundClient && attendee_name) {
-                      foundClient = window.kanbanData.find(c => c.name === attendee_name);
-                    }
-                    if (foundClient) {
-                      openClientModal(foundClient.id);
-                    } else {
-                      showToast('Nem található profil ehhez a foglaláshoz', 'error');
-                    }
+                  if (!foundClient && attendee_name) {
+                    foundClient = window.kanbanData.find(c => c.name === attendee_name);
                   }
-                });
+                  if (foundClient) {
+                    openClientModal(foundClient.id);
+                  } else {
+                    showToast('Nem található profil ehhez a foglaláshoz', 'error');
+                  }
+                }
               },
               headerToolbar: {
                 left: 'prev,next today',
                 center: 'title',
                 right: 'timeGridDay,timeGridWeek,dayGridMonth'
               },
+
               buttonText: {
                 today: 'Ma',
                 month: 'Hónap',
@@ -6311,6 +6310,7 @@
         const clientRes = await authFetch('/admin/api/clients');
         const clientData = await clientRes.json();
         const clients = clientData.clients || [];
+        window.kanbanData = clients;
 
         if (typeof globalClinics === 'undefined' || globalClinics.length === 0) {
            try {
