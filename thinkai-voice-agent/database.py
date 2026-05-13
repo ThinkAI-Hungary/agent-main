@@ -203,6 +203,26 @@ def find_calendar_event_by_title(title_fragment: str) -> dict | None:
     except Exception:
         return None
 
+def find_upcoming_event_by_attendee(email: str = None, name: str = None) -> dict | None:
+    if not supabase: return None
+    from datetime import datetime
+    now_iso = datetime.now().isoformat()
+    try:
+        query = supabase.table("calendar_events").select("*").gte("start_dt", now_iso).order("start_dt", desc=False)
+        if email:
+            query = query.eq("attendee_email", email)
+        elif name:
+            query = query.ilike("attendee", f"%{name}%")
+        else:
+            return None
+            
+        res = query.limit(1).execute()
+        return res.data[0] if res.data else None
+    except Exception as e:
+        logger.error(f"Find upcoming event error: {e}")
+        return None
+
+
 def get_calendar_event(event_id: int) -> dict | None:
     if not supabase: return None
     try:
