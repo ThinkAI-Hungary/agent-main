@@ -353,9 +353,17 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
             system_prompt += f"\n\n--- TRIÁZS SZABÁLYOK ---\nKérlek értékeld a páciens problémáját az alábbi szabályok alapján is. Ha egyezik egy 'Sürgős' prioritású szabállyal, KÖTELEZŐ felvenned az 'urgent' tag-et az alert_tags listába. Ha 'Kiemelt', akkor a 'kiemelt' tag-et!\n{rules_text}\n----------------------------------------------------"
 
         clinics = db.get_clinics()
-        if clinics and len(clinics) > 1:
-            clinics_text = ", ".join([f"{c['name_and_address']} (ID: {c['id']})" for c in clinics])
-            system_prompt += f"\n\n--- TELEPHELYEK ---\nTöbb telephelyünk van: {clinics_text}. Ha az ügyfél időpontot foglal, KÖTELEZŐ megkérdezned, hogy melyik telephelyet választja! A választott telephely ID-ját a JSON-ben add meg.\n----------------------------------------------------"
+        if clinics:
+            clinic_lines = []
+            for c in clinics:
+                dir_str = f" - Megközelítés: {c.get('directions', '')}" if c.get('directions') else ""
+                clinic_lines.append(f"- {c['name_and_address']}{dir_str} (Belső ID: {c['id']})")
+            clinics_text = "\n".join(clinic_lines)
+            
+            system_prompt += f"\n\n--- TELEPHELYEK ---\nElérhető telephelyeink:\n{clinics_text}\n\n"
+            if len(clinics) > 1:
+                system_prompt += "Ha az ügyfél időpontot foglal, KÖTELEZŐ megkérdezned, hogy melyik telephelyet választja! A választott telephely Belső ID-ját a JSON-ben a clinic_id mezőben add meg! "
+            system_prompt += "SZIGORÚ SZABÁLY: A válasz szövegébe (reply_text) SOHA ne írd bele az ID számokat (tehát TILOS olyat írni, hogy 'ID: 1' vagy '1-es azonosító')! Ha az ügyfél a megközelítésről kérdez, bátran használd a fenti megközelítési infókat.\n----------------------------------------------------"
 
         # JSON UTASÍTÁS
         json_instruction = f"""
