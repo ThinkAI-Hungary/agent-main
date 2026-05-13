@@ -356,7 +356,7 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
         if clinics:
             clinic_lines = []
             for c in clinics:
-                dir_str = f" - Megközelítés: {c.get('directions', '')}" if c.get('directions') else ""
+                dir_str = f" - Megközelítés: {c.get('access_info', '')}" if c.get('access_info') else ""
                 clinic_lines.append(f"- {c['name_and_address']}{dir_str} (Belső ID: {c['id']})")
             clinics_text = "\n".join(clinic_lines)
             
