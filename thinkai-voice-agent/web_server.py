@@ -329,10 +329,19 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
         client_record = db.find_client_by_contact(messenger_id=sender_id)
         if client_record:
             try:
-                import json
-                c_data = json.loads(client_record.get("custom_data") or "{}")
+                cd = client_record.get("custom_data")
+                if isinstance(cd, str):
+                    import json
+                    c_data = json.loads(cd or "{}")
+                elif isinstance(cd, dict):
+                    c_data = cd
+                else:
+                    c_data = {}
+                
                 chat_history = c_data.get("beszelgetes_naplo", "")
                 if chat_history:
+                    if len(chat_history) > 3000:
+                        chat_history = "... " + chat_history[-3000:]
                     system_prompt += f"\n\n--- Eddigi beszélgetés előzménye a felhasználóval ---\n{chat_history}\n----------------------------------------------------"
             except Exception as e:
                 print(f"[Meta AI Process] Hiba a napló beolvasásakor: {e}")
