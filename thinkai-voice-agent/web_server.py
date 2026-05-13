@@ -546,25 +546,19 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Módosítás sikertelen, nem található: {ev_title}")
 
         # --- ACTION: NAPTÁR TÖRLÉS ---
-        if delete_action and delete_action.get("event_title_to_delete"):
-            ev_title = delete_action["event_title_to_delete"]
-            found = db.find_calendar_event_by_title(ev_title)
-            
-            if not found:
-                # HA NEM TALÁLTA CÍM ALAPJÁN (pl. az AI csak "Konzultációt" írt, de a cím hosszabb volt), próbáljuk meg név/email alapján
-                client_to_cancel = db.find_client_by_contact(messenger_id=sender_id)
-                if client_to_cancel:
-                    c_email = client_to_cancel.get("custom_data", {}).get("email")
-                    c_name = client_to_cancel.get("name")
-                    if c_email and c_email != "-":
-                        found = db.find_upcoming_event_by_attendee(email=c_email)
-                    if not found and c_name and c_name != "-":
-                        found = db.find_upcoming_event_by_attendee(name=c_name)
-                        
+        if delete_action:
+            found = None
+            client_to_cancel = db.find_client_by_contact(messenger_id=sender_id)
+            if client_to_cancel:
+                c_email = client_to_cancel.get("custom_data", {}).get("email")
+                c_name = client_to_cancel.get("name")
+                if c_email and c_email != "-":
+                    found = db.find_upcoming_event_by_attendee(email=c_email)
+                if not found and c_name and c_name != "-":
+                    found = db.find_upcoming_event_by_attendee(name=c_name)
+                    
             if found:
                 db.delete_calendar_event(found["id"])
-                # Keresés kliens után, hogy beállítsuk a lemondott státuszt és értesítést
-                client_to_cancel = db.find_client_by_contact(messenger_id=sender_id)
                 if client_to_cancel:
                     c_data = client_to_cancel.get("custom_data", {})
                     if isinstance(c_data, str):
@@ -578,7 +572,7 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 
                 db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Naptár bejegyzés törölve: {found['title']}")
             else:
-                db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Törlés sikertelen, nem található: {ev_title}")
+                db.upsert_client({"messenger_id": sender_id}, additional_log="[Rendszer] Törlés sikertelen, nem található az ügyfélhez tartozó esemény a naptárban.")
 
         # 4. Válasz rögzítése a Kanbanba
         if final_text:
