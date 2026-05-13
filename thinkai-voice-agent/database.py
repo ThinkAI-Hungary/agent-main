@@ -478,8 +478,9 @@ def get_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mi
 
         tasks_res = supabase.table("tasks").select("id", count="exact", head=True).eq("completed", 0).execute()
 
-        all_inters = supabase.table("interactions").select("type, topic, handover_reason, created_at, clinic_id").gte("created_at", start_dt.isoformat()).execute()
+        all_inters = supabase.table("interactions").select("type, topic, handover_reason, created_at, clinic_id, session_id").gte("created_at", start_dt.isoformat()).execute()
         type_counts = {}
+        seen_sessions_for_type = set()
         topic_counts = {}
         handover_counts = {
             "Összetett kérdés": 0,
@@ -508,7 +509,16 @@ def get_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mi
                 t = "Messenger"
             else:
                 t = "Telefon"
-            type_counts[t] = type_counts.get(t, 0) + 1
+                
+            session_id = i.get("session_id")
+            if session_id:
+                # Csatornamegoszlásnál csak egyedi session/ügyfél számít
+                if session_id not in seen_sessions_for_type:
+                    seen_sessions_for_type.add(session_id)
+                    type_counts[t] = type_counts.get(t, 0) + 1
+            else:
+                # Ha nincs session_id, akkor minden interakció egyedi (pl. régi adatok)
+                type_counts[t] = type_counts.get(t, 0) + 1
             
             created_at = i.get("created_at")
             if created_at:
