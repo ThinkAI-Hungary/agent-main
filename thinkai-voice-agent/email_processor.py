@@ -655,13 +655,35 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
         </div>
         """
         
-        await send_email_via_brevo(
-            to_email=attendee_email,
-            to_name=attendee,
-            subject="Időpont visszaigazolás",
-            html_content=html_content,
-            session_id=None
-        )
+        brevo_key = os.getenv("BREVO_API_KEY", "")
+        api_key = brevo_key
+        if brevo_key and not brevo_key.startswith("xkeysib-"):
+            try:
+                import base64 as b64module
+                decoded = b64module.b64decode(brevo_key).decode()
+                import json
+                parsed = json.loads(decoded)
+                api_key = parsed.get("api_key", brevo_key)
+            except Exception:
+                pass
+                
+        if not api_key:
+            logger.error("Nincs beállítva BREVO_API_KEY az időpont visszaigazoló e-mailhez.")
+            return
+
+        async with httpx.AsyncClient() as http_client:
+            resp = await http_client.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={"api-key": api_key, "Content-Type": "application/json"},
+                json={
+                    "sender": {"name": "ThinkAI Virtuális Asszisztens", "email": "bege@thinkai.hu"},
+                    "to": [{"email": attendee_email, "name": attendee}],
+                    "subject": "Időpont visszaigazolás",
+                    "htmlContent": html_content,
+                },
+                timeout=20,
+            )
+            resp.raise_for_status()
         logger.info(f"Booking confirmation email sent to {attendee_email} with cancel link.")
     except Exception as e:
         logger.error(f"Failed to send booking confirmation email: {e}")
