@@ -480,6 +480,13 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
         # --- ACTION: NAPTÁR FOGLALÁS ---
         if meeting and meeting.get("title") and meeting.get("date") and meeting.get("time"):
             start_dt_val = f"{meeting['date']}T{meeting['time']}:00"
+            dur = int(meeting.get("duration_minutes", 30))
+            try:
+                start_dt_obj = datetime.fromisoformat(start_dt_val)
+                end_dt_val = (start_dt_obj + timedelta(minutes=dur)).isoformat()
+            except:
+                end_dt_val = None
+                
             existing = db.get_calendar_events()
             if any(ev.get("start_dt") == start_dt_val for ev in existing):
                 db.upsert_client({"messenger_id": sender_id}, additional_log="[Rendszer] Figyelmeztetés: Ebbe az időpontba már van foglalás, nem rögzítve.")
@@ -487,8 +494,8 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 db.add_calendar_event(
                     title=meeting.get("title", "Konzultáció"),
                     start_dt=start_dt_val,
-                    end_dt="",
-                    duration_minutes=int(meeting.get("duration_minutes", 30)),
+                    end_dt=end_dt_val,
+                    duration_minutes=dur,
                     attendee=kanban.get("name") or meta_name or "Ismeretlen Ügyfél",
                     attendee_email=kanban.get("email", "-")
                 )
