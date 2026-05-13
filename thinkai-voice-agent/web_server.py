@@ -543,10 +543,15 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             found = db.find_calendar_event_by_title(ev_title)
             if found:
                 updates = {}
-                old_dt = datetime.fromisoformat(found["start_dt"])
+                old_dt = datetime.fromisoformat(found["start_dt"].replace("Z", "+00:00"))
                 d = modify_action.get("new_date") or old_dt.strftime("%Y-%m-%d")
                 t = modify_action.get("new_time") or old_dt.strftime("%H:%M")
-                new_start = datetime.fromisoformat(f"{d}T{t}:00")
+                try:
+                    import zoneinfo
+                    tz = zoneinfo.ZoneInfo("Europe/Budapest")
+                    new_start = datetime.fromisoformat(f"{d}T{t}:00").replace(tzinfo=tz)
+                except:
+                    new_start = datetime.fromisoformat(f"{d}T{t}:00")
                 dur = found.get("duration_minutes", 30)
                 updates["start_dt"] = new_start.isoformat()
                 updates["end_dt"] = (new_start + timedelta(minutes=dur)).isoformat()
