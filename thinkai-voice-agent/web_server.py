@@ -303,35 +303,35 @@ async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Option
 async def process_meta_message(sender_id: str, message_text: str, source_channel: str = "Messenger", phone_number_id: str = None):
     """Aszinkron háttérfeladat a Meta Messenger / Instagram üzenetek feldolgozására."""
     import asyncio
+    import json
+    from datetime import datetime, timedelta
+    from google import genai
+    from google.genai import types
+    from prompt_utils import get_system_prompt
+    import database as db
+    import email_processor
+
     alert_tags_task = asyncio.create_task(analyze_alert_tags(message_text))
 
     try:
         # 1. Beolvassuk a rendszer promptot
-        from prompt_utils import get_system_prompt
         system_prompt = get_system_prompt()
-
-        from datetime import datetime
         today = datetime.now().strftime("%Y-%m-%d (%A)")
         
-        system_prompt += f"\n\nFONTOS INSTRUKCIÓ: A mai dátum: {today}. Minden dátumot ehhez a dátumhoz viszonyíts! Formázz röviden, mint egy Messenger üzenetet. Válaszolj közvetlenül az ügyfélnek. MINDEN ESETBEN KÖTELEZŐ MEGHÍVNOD a 'save_client_data' funkciót (tool-t), ha az ügyfél megadja a nevét, email címét, vagy telefonszámát!\nFIGYELEM: HA az eset Sürgős, Kiemelt, VAGY szerepel a Kivételek listájában, SZIGORÚAN TILOS a 'book_appointment' funkció hívása és időpont felajánlása! Csak normál esetben hívd meg a 'book_appointment' funkciót, ha konkrét időpontot kérnek."
-
-        # Először is elmentjük a bejövő üzenetet a Kanbanba, hogy biztosan meglegyen a naplóban!
+        # Először is elmentjük a bejövő üzenetet a Kanbanba
         client_data = {"messenger_id": sender_id, "forras_csatorna": source_channel}
-        
-        # Próbáljuk meg lekérni a nevét a Metától
         meta_name = await fetch_meta_user_profile(sender_id, source_channel)
         if meta_name:
             client_data["name"] = meta_name
-            system_prompt += f"\n\nFONTOS: Az ügyfél neve a Facebook profilja alapján: {meta_name}. Szólítsd a nevén!"
             
         db.upsert_client(client_data, additional_log=f"Ügyfél ({source_channel}): {message_text}")
 
+        # Előzmények beolvasása
         client_record = db.find_client_by_contact(messenger_id=sender_id)
         if client_record:
             try:
                 cd = client_record.get("custom_data")
                 if isinstance(cd, str):
-                    import json
                     c_data = json.loads(cd or "{}")
                 elif isinstance(cd, dict):
                     c_data = cd
@@ -346,305 +346,232 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
             except Exception as e:
                 print(f"[Meta AI Process] Hiba a napló beolvasásakor: {e}")
 
+        # Szabályok
         triage_rules = db.get_triage_rules()
         if triage_rules:
             rules_text = "\n".join([f"- Szabály ID: {r['id']}, Helyzet: {r['situation']}, Prioritás: {r['priority']}" for r in triage_rules])
-            system_prompt += f"\n\n--- TRIÁZS SZABÁLYOK ---\nKérlek értékeld a páciens problémáját az alábbi szabályok alapján. Ha egyezik valamelyikkel, állítsd be a megfelelő prioritást a 'save_client_data' funkcióban, és add meg a Szabály ID-t is. Ha nem egyezik egyikkel sem, a prioritás legyen 'Normál', az ID pedig 0.\n{rules_text}\n----------------------------------------------------"
+            system_prompt += f"\n\n--- TRIÁZS SZABÁLYOK ---\nKérlek értékeld a páciens problémáját az alábbi szabályok alapján is. Ha egyezik egy 'Sürgős' prioritású szabállyal, KÖTELEZŐ felvenned az 'urgent' tag-et az alert_tags listába. Ha 'Kiemelt', akkor a 'kiemelt' tag-et!\n{rules_text}\n----------------------------------------------------"
 
         clinics = db.get_clinics()
         if clinics and len(clinics) > 1:
             clinics_text = ", ".join([f"{c['name_and_address']} (ID: {c['id']})" for c in clinics])
-            system_prompt += f"\n\n--- TELEPHELYEK ---\nTöbb telephelyünk van: {clinics_text}. Ha az ügyfél időpontot foglal, KÖTELEZŐ megkérdezned, hogy melyik telephelyet választja! A választott telephely ID-ját a 'save_client_data' funkcióban (clinic_id) mentsd el.\n----------------------------------------------------"
+            system_prompt += f"\n\n--- TELEPHELYEK ---\nTöbb telephelyünk van: {clinics_text}. Ha az ügyfél időpontot foglal, KÖTELEZŐ megkérdezned, hogy melyik telephelyet választja! A választott telephely ID-ját a JSON-ben add meg.\n----------------------------------------------------"
 
-        # 2. Tool definíciók a Geminihez
-        from google import genai
-        from google.genai import types
-        
-        tool_save_client = types.Tool(
-            function_declarations=[
-                types.FunctionDeclaration(
-                    name="save_client_data",
-                    description="Elmenti az ügyfélről kinyert adatokat (név, email, telefon, és egyéb releváns információ pl. autó típusa, elvégzendő munka).",
-                    parameters=types.Schema(
-                        type=types.Type.OBJECT,
-                        properties={
-                            "name": types.Schema(type=types.Type.STRING, description="Az ügyfél neve, ha megadta."),
-                            "email": types.Schema(type=types.Type.STRING, description="Az ügyfél e-mail címe."),
-                            "phone": types.Schema(type=types.Type.STRING, description="Az ügyfél telefonszáma."),
-                            "priority": types.Schema(type=types.Type.STRING, description="A megállapított prioritás a triázs szabályok alapján (pl. 'Sürgős', 'Normál'). Alapértelmezetten 'Normál'."),
-                            "problem_description": types.Schema(type=types.Type.STRING, description="Az ügyfél problémájának rövid leírása (1-2 mondat)."),
-                            "triage_rule_id": types.Schema(type=types.Type.INTEGER, description="A felismert triázs szabály ID-ja, ha van egyezés, különben 0."),
-                            "clinic_id": types.Schema(type=types.Type.INTEGER, description="A kiválasztott telephely ID-ja, ha az ügyfél megadta.")
-                        }
-                    )
-                )
-            ]
-        )
-        
-        tool_book_appointment = types.Tool(
-            function_declarations=[
-                types.FunctionDeclaration(
-                    name="book_appointment",
-                    description="Naptár bejegyzést készít (időpontfoglalás). Csak véglegesített időpontnál hívd meg. NE duplikáld (ne hívd meg többször feleslegesen) ugyanarra a megbeszélésre!",
-                    parameters=types.Schema(
-                        type=types.Type.OBJECT,
-                        properties={
-                            "title": types.Schema(type=types.Type.STRING, description="Szabványosított cím: 'Téma' (pl. Olajcsere, Konzultáció, Találkozó)"),
-                            "start_dt": types.Schema(type=types.Type.STRING, description="Kezdési időpont ISO formátumban, pl. '2026-04-19T10:00:00'"),
-                            "end_dt": types.Schema(type=types.Type.STRING, description="Befejezési időpont ISO formátumban, különben üres."),
-                            "duration_minutes": types.Schema(type=types.Type.INTEGER, description="Várható időtartam percekben. Alapértelmezett: 30."),
-                            "attendee": types.Schema(type=types.Type.STRING, description="Az ügyfél neve, ami mellé kerül a címnek."),
-                            "attendee_email": types.Schema(type=types.Type.STRING, description="Az ügyfél E-mail címe")
-                        },
-                        required=["title", "start_dt", "attendee"]
-                    )
-                )
-            ]
-        )
+        # JSON UTASÍTÁS
+        json_instruction = f"""
+FONTOS INSTRUKCIÓ: A mai dátum: {today}. Minden dátumot ehhez a dátumhoz viszonyíts!
+TE FELADATOD:
+Értékeld a beérkezett üzenetet és a beszélgetés előzményeit. Formázz röviden, mint egy Messenger üzenetet. Válaszolj közvetlenül az ügyfélnek.
+A kimeneted KIZÁRÓLAG egyetlen valid JSON objektum legyen, minden további markdown formázás (pl. ```json) NÉLKÜL.
 
-        tool_modify_appointment = types.Tool(
-            function_declarations=[
-                types.FunctionDeclaration(
-                    name="modify_appointment",
-                    description="Naptári esemény módosítása.",
-                    parameters=types.Schema(
-                        type=types.Type.OBJECT,
-                        properties={
-                            "event_title": types.Schema(type=types.Type.STRING, description="A módosítandó esemény címe vagy része"),
-                            "new_title": types.Schema(type=types.Type.STRING, description="Az új cím (opcionális)"),
-                            "new_date": types.Schema(type=types.Type.STRING, description="Az új dátum YYYY-MM-DD (opcionális)"),
-                            "new_time": types.Schema(type=types.Type.STRING, description="Az új időpont HH:MM (opcionális)")
-                        },
-                        required=["event_title"]
-                    )
-                )
-            ]
-        )
-
-        tool_cancel_appointment = types.Tool(
-            function_declarations=[
-                types.FunctionDeclaration(
-                    name="cancel_appointment",
-                    description="Naptári esemény törlése/lemondása.",
-                    parameters=types.Schema(
-                        type=types.Type.OBJECT,
-                        properties={
-                            "event_title": types.Schema(type=types.Type.STRING, description="A törlendő esemény címe vagy része")
-                        },
-                        required=["event_title"]
-                    )
-                )
-            ]
-        )
-
-        tool_list = [tool_save_client, tool_book_appointment, tool_modify_appointment, tool_cancel_appointment]
+JSON STRUKTÚRA:
+{{
+    "reply_text": "A válaszüzenet szövege. Ez fog kimenni a Messengerre.",
+    "kanban_data": {{
+        "name": "Ügyfél neve (ha megadta vagy tudod)",
+        "email": "Ügyfél e-mailje (ha megadta)",
+        "phone": "Telefonszám (ha megadta)",
+        "clinic_id": 0, // A telephely ID-ja, ha kiválasztotta, különben 0
+        "priority": "Normál" // vagy 'Sürgős', 'Kiemelt' stb. a triázs alapján
+    }},
+    "meeting": {{
+        "title": "Találkozó címe (ha VÉGLEGESÍTVE időpontot foglal, különben null)",
+        "date": "YYYY-MM-DD",
+        "time": "HH:MM",
+        "duration_minutes": 30
+    }},
+    "action_modify_meeting": {{
+        "event_title_to_modify": "A módosítandó esemény címe vagy része (csak ha kéri)",
+        "new_date": "YYYY-MM-DD",
+        "new_time": "HH:MM"
+    }},
+    "action_delete_meeting": {{
+        "event_title_to_delete": "A törlendő esemény címe vagy része (csak ha lemondja)"
+    }},
+    "alert_tags": ["urgent", "callback", "kiemelt"] // Válaszd ki, ha releváns, különben üres lista []
+}}
+FIGYELEM: Ha az eset Sürgős vagy Kiemelt prioritású, VAGY a kérés szerepel a Kivételek (Exceptions) listájában, a "meeting" értéke KÖTELEZŐEN null kell legyen (SZIGORÚAN TILOS időpontot foglalni!).
+KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM adja meg a panaszát, AKKOR IS FOGLALD LE az időpontot!
+"""
+        system_prompt += f"\n\n--- JSON UTASÍTÁS ---\n{json_instruction}"
 
         # 3. Gemini hívás
         client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-        contents = [{"role": "user", "parts": [{"text": message_text}]}]
+        user_content = f"Ügyfél neve: {meta_name if meta_name else 'Ismeretlen'}\nÚj üzenet: {message_text}"
 
         try:
             response = await client.aio.models.generate_content(
                 model="gemini-2.5-flash",
-                contents=contents,
+                contents=user_content,
                 config=types.GenerateContentConfig(
                     system_instruction=system_prompt,
-                    tools=tool_list,
-                    temperature=0.7
+                    temperature=0.2,
+                    response_mime_type="application/json"
                 )
             )
+            ai_text = response.text.strip()
         except Exception as e:
             print(f"[Meta AI Process] Kritikus Gemini API Hiba: {e}")
+            db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Gemini API hiba: {e}")
             return
-            
-        final_text = ""
-        current_response = response
+
+        if ai_text.startswith("```json"): ai_text = ai_text[7:]
+        if ai_text.startswith("```"): ai_text = ai_text[3:]
+        if ai_text.endswith("```"): ai_text = ai_text[:-3]
+        ai_text = ai_text.strip()
+
+        try:
+            data = json.loads(ai_text)
+            print("AI JSON Output:", json.dumps(data, indent=2))
+        except json.JSONDecodeError as e:
+            print(f"[Meta AI Process] Hibás JSON válasz: {e}")
+            db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Hibás JSON válasz az AI-tól: {e}")
+            return
+
+        final_text = data.get("reply_text", "")
+        kanban = data.get("kanban_data") or {}
+        meeting = data.get("meeting")
+        modify_action = data.get("action_modify_meeting")
+        delete_action = data.get("action_delete_meeting")
+        alert_tags = data.get("alert_tags", [])
+        
         booked_meeting = False
         chosen_clinic_id = None
 
-        while current_response.function_calls:
-            # Hozzáadjuk a Gemini által generált function callokat a kontextushoz
-            contents.append(current_response.candidates[0].content)
-            
-            tool_results_parts = []
-            for fc in current_response.function_calls:
-                tool_name = fc.name
-                tool_args = fc.args
-                
-                # Log the tool call to the database so we can debug
-                db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] AI megpróbálta futtatni a '{tool_name}' funkciót ezekkel az adatokkal: {tool_args}")
-                
-                
-                tool_result = ""
+        # --- ACTION: KANBAN ADATOK MENTÉSE ---
+        if kanban:
+            custom_data = {
+                "messenger_id": sender_id,
+                "forras_csatorna": source_channel
+            }
+            if kanban.get("name"): custom_data["name"] = kanban["name"]
+            if kanban.get("email"): custom_data["email"] = kanban["email"]
+            if kanban.get("phone"): custom_data["phone"] = kanban["phone"]
+            if kanban.get("clinic_id"):
                 try:
-                    if tool_name == "save_client_data":
-                        custom_data = {
-                            "name": tool_args.get("name", ""),
-                            "email": tool_args.get("email", ""),
-                            "phone": tool_args.get("phone", ""),
-                            "messenger_id": sender_id,
-                            "forras_csatorna": "Messenger"
-                        }
-                        if "clinic_id" in tool_args and tool_args["clinic_id"]:
-                            chosen_clinic_id = int(tool_args["clinic_id"])
-                            custom_data["clinic_id"] = chosen_clinic_id
-                        
-                        # Üres értékek kiszűrése hogy ne írja felül a Kanbanban lévőt ha már van
-                        custom_data = {k: v for k, v in custom_data.items() if v}
-                        
-                        client_id = db.upsert_client(custom_data)
-                        tool_result = f"Sikeres mentés. ID: {client_id}"
-
-                        priority = tool_args.get("priority", "Normál")
-                        if priority == "Kiemelt":
-                            rule_id = tool_args.get("triage_rule_id", 0)
-                            problem = tool_args.get("problem_description", "Nincs megadva leírás.")
-                            email_to_send = None
-                            
-                            if rule_id:
-                                try:
-                                    rule_id_int = int(rule_id)
-                                    t_rules = db.get_triage_rules()
-                                    for r in t_rules:
-                                        if r['id'] == rule_id_int:
-                                            email_to_send = r.get("escalation_email")
-                                            break
-                                except Exception:
-                                    pass
-                                    
-                            if email_to_send:
-                                name_val = tool_args.get("name", "Ismeretlen")
-                                contact_val = f"Email: {tool_args.get('email', '-')} | Telefon: {tool_args.get('phone', '-')}"
-                                asyncio.create_task(email_processor.send_escalation_email_to_staff(
-                                    to_email=email_to_send,
-                                    patient_name=name_val,
-                                    patient_contact=contact_val,
-                                    problem_description=problem,
-                                    priority=priority
-                                ))
-
-                    elif tool_name == "book_appointment":
-                        booked_meeting = True
-                        start_dt_val = tool_args.get("start_dt", "")
-                        existing = db.get_calendar_events()
-                        # Duplikáció elkerülése, ha ugyanerre a percre már van foglalva valami
-                        if any(ev.get("start_dt") == start_dt_val for ev in existing):
-                            tool_result = "Ebben az időpontban már van rögzítve esemény! Kérlek ismertesd ezt az ügyféllel, dupla foglalást nem rögzítek."
-                        else:
-                            db.add_calendar_event(
-                                title=tool_args.get("title", "Konzultáció"),
-                                start_dt=start_dt_val,
-                                end_dt=tool_args.get("end_dt", ""),
-                                duration_minutes=int(tool_args.get("duration_minutes", 30)),
-                                attendee=tool_args.get("attendee", ""),
-                                attendee_email=tool_args.get("attendee_email", "")
-                            )
-                            tool_result = "Naptár bejegyzés létrehozva."
-
-                    elif tool_name == "modify_appointment":
-                        ev_title = tool_args.get("event_title")
-                        found = db.find_calendar_event_by_title(ev_title)
-                        if found:
-                            from datetime import datetime, timedelta
-                            updates = {}
-                            if tool_args.get("new_title"): updates["title"] = tool_args.get("new_title")
-                            if tool_args.get("new_date") or tool_args.get("new_time"):
-                                old_dt = datetime.fromisoformat(found["start_dt"])
-                                d = tool_args.get("new_date") or old_dt.strftime("%Y-%m-%d")
-                                t = tool_args.get("new_time") or old_dt.strftime("%H:%M")
-                                new_start = datetime.fromisoformat(f"{d}T{t}:00")
-                                dur = found.get("duration_minutes", 30)
-                                updates["start_dt"] = new_start.isoformat()
-                                updates["end_dt"] = (new_start + timedelta(minutes=dur)).isoformat()
-                            db.update_calendar_event(found["id"], **updates)
-                            tool_result = f"Esemény módosítva: {found['title']}"
-                        else:
-                            tool_result = f"Nem találtam ilyen eseményt: {ev_title}"
-
-                    elif tool_name == "cancel_appointment":
-                        ev_title = tool_args.get("event_title")
-                        found = db.find_calendar_event_by_title(ev_title)
-                        if found:
-                            db.delete_calendar_event(found["id"])
-                            tool_result = f"Esemény törölve: {found['title']}"
-                        else:
-                            tool_result = f"Nem találtam ilyen eseményt: {ev_title}"
-                    else:
-                        tool_result = "Ismeretlen Tool."
-                except Exception as e:
-                    tool_result = f"Tool hiba: {str(e)}"
-                    print(f"[Meta AI Process] Tool hiba: {e}")
-                    db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Hiba a '{tool_name}' futtatása közben: {e}")
-                
-                if not tool_result.startswith("Tool hiba"):
-                    db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] '{tool_name}' sikeresen lefutott. Eredmény: {tool_result}")
-
-                tool_results_parts.append({
-                    "functionResponse": {
-                        "name": tool_name,
-                        "response": {"result": tool_result}
-                    }
-                })
+                    custom_data["clinic_id"] = int(kanban["clinic_id"])
+                    chosen_clinic_id = int(kanban["clinic_id"])
+                except:
+                    pass
+                    
+            custom_data = {k: v for k, v in custom_data.items() if v}
+            client_id = db.upsert_client(custom_data)
             
-            if tool_results_parts:
-                contents.append({
-                    "role": "user", 
-                    "parts": tool_results_parts
-                })
-            
-            try:
-                current_response = await client.aio.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=contents,
-                    config=types.GenerateContentConfig(
-                        system_instruction=system_prompt,
-                        tools=tool_list,
-                        temperature=0.7
-                    )
+            # Kiemelt eszkaláció
+            priority = kanban.get("priority", "Normál")
+            if priority == "Kiemelt" or "kiemelt" in alert_tags:
+                email_to_send = None
+                t_rules = db.get_triage_rules()
+                for r in t_rules:
+                    if r.get("priority") == "Kiemelt" and r.get("escalation_email"):
+                        email_to_send = r["escalation_email"]
+                        break
+                if email_to_send:
+                    name_val = kanban.get("name") or meta_name or "Ismeretlen"
+                    contact_val = f"Email: {kanban.get('email', '-')} | Telefon: {kanban.get('phone', '-')}"
+                    asyncio.create_task(email_processor.send_escalation_email_to_staff(
+                        to_email=email_to_send,
+                        patient_name=name_val,
+                        patient_contact=contact_val,
+                        problem_description=message_text,
+                        priority="Kiemelt"
+                    ))
+
+        # --- ACTION: NAPTÁR FOGLALÁS ---
+        if meeting and meeting.get("title") and meeting.get("date") and meeting.get("time"):
+            start_dt_val = f"{meeting['date']}T{meeting['time']}:00"
+            existing = db.get_calendar_events()
+            if any(ev.get("start_dt") == start_dt_val for ev in existing):
+                db.upsert_client({"messenger_id": sender_id}, additional_log="[Rendszer] Figyelmeztetés: Ebbe az időpontba már van foglalás, nem rögzítve.")
+            else:
+                db.add_calendar_event(
+                    title=meeting.get("title", "Konzultáció"),
+                    start_dt=start_dt_val,
+                    end_dt="",
+                    duration_minutes=int(meeting.get("duration_minutes", 30)),
+                    attendee=kanban.get("name") or meta_name or "Ismeretlen Ügyfél",
+                    attendee_email=kanban.get("email", "-")
                 )
-            except Exception as e:
-                print(f"[Meta AI Process] Kritikus Gemini API Hiba (Ciklusban): {e}")
-                return
+                db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Naptár bejegyzés létrehozva: {start_dt_val}")
+                booked_meeting = True
 
-        if current_response.text:
-            final_text += current_response.text
+        # --- ACTION: NAPTÁR MÓDOSÍTÁS ---
+        if modify_action and modify_action.get("event_title_to_modify"):
+            ev_title = modify_action["event_title_to_modify"]
+            found = db.find_calendar_event_by_title(ev_title)
+            if found:
+                updates = {}
+                old_dt = datetime.fromisoformat(found["start_dt"])
+                d = modify_action.get("new_date") or old_dt.strftime("%Y-%m-%d")
+                t = modify_action.get("new_time") or old_dt.strftime("%H:%M")
+                new_start = datetime.fromisoformat(f"{d}T{t}:00")
+                dur = found.get("duration_minutes", 30)
+                updates["start_dt"] = new_start.isoformat()
+                updates["end_dt"] = (new_start + timedelta(minutes=dur)).isoformat()
+                db.update_calendar_event(found["id"], **updates)
+                db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Naptár bejegyzés módosítva: {found['title']}")
+            else:
+                db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Módosítás sikertelen, nem található: {ev_title}")
 
-        # 4. Válasz küldése Meta Graph API-val
+        # --- ACTION: NAPTÁR TÖRLÉS ---
+        if delete_action and delete_action.get("event_title_to_delete"):
+            ev_title = delete_action["event_title_to_delete"]
+            found = db.find_calendar_event_by_title(ev_title)
+            if found:
+                db.delete_calendar_event(found["id"])
+                db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Naptár bejegyzés törölve: {found['title']}")
+            else:
+                db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Törlés sikertelen, nem található: {ev_title}")
+
+        # 4. Válasz rögzítése a Kanbanba
         if final_text:
-            # Válasz rögzítése a Kanbanba
             db.upsert_client({"messenger_id": sender_id, "forras_csatorna": source_channel}, additional_log=f"AI Válasz: {final_text}")
             
             f_stage = "foglalt" if booked_meeting else "valaszolt"
-            session_id = f"{source_channel.lower()}_{sender_id}"
-            db.create_session(session_id=session_id, room_name=f"{source_channel} Chat", participant=sender_id)
-            alert_tags = await alert_tags_task if alert_tags_task else []
-            import json
+            
+            # Piszkozat készítése
             draft_payload = {
                 "channel": source_channel,
                 "sender_id": sender_id,
-                "to_name": meta_name if 'meta_name' in locals() and meta_name else sender_id,
+                "to_name": meta_name if meta_name else sender_id,
                 "phone_number_id": phone_number_id,
                 "body": final_text
             }
             draft_json = json.dumps(draft_payload)
-
+            
+            session_id = f"{source_channel.lower()}_{sender_id}"
+            db.create_session(session_id=session_id, room_name=f"{source_channel} Chat", participant=meta_name if meta_name else "Ismeretlen")
+            
+            # alert tags beolvasása az aszinkron feladatból, ha az AI nem adott
+            tags_from_ai = alert_tags if isinstance(alert_tags, list) else []
+            try:
+                tags_from_task = await alert_tags_task
+                if not tags_from_task: tags_from_task = []
+            except:
+                tags_from_task = []
+                
+            combined_tags = list(set(tags_from_ai + tags_from_task))
+            
+            # Logolás az interactions táblába + approval
             db.log_interaction(
                 type=source_channel.lower(),
                 topic=f"{source_channel} AI válasz",
                 summary=final_text[:100],
-                result="Piszkozat mentve",
+                result="Várakozik jóváhagyásra",
                 tool_name="process_meta_message",
                 session_id=session_id,
+                direction="inbound",
                 funnel_stage=f_stage,
-                alert_tags=alert_tags if isinstance(alert_tags, list) else [],
+                alert_tags=combined_tags,
+                handover_reason=None,
                 approval_status="pending",
                 ai_draft_response=draft_json,
-                clinic_id=chosen_clinic_id
+                clinic_id=str(chosen_clinic_id) if chosen_clinic_id else None
             )
-            print(f"[Meta AI Process] {source_channel} piszkozat mentve jóváhagyásra.")
 
     except Exception as e:
         print(f"[Meta AI Process] Hiba: {e}")
+
 
 @app.post("/api/webhook/meta")
 async def meta_webhook_receive(request: Request):
