@@ -6750,10 +6750,11 @@
     async function deleteClient(id) {
       if (!confirm('Biztosan törlöd ezt az ügyfelet?')) return;
       try {
-        await authFetch(`/admin/api/clients/${id}`, { method: 'DELETE' });
+        const res = await authFetch(`/admin/api/clients/${id}`, { method: 'DELETE' });
+        if (!res.ok) throw new Error('Hiba történt a törlés során');
         loadKanban();
-        const clientsPage = document.getElementById('page-clients');
-        if (clientsPage && clientsPage.classList.contains('active')) {
+        const clientsView = document.getElementById('view-clients');
+        if (clientsView && clientsView.style.display !== 'none') {
           loadClientsTable();
         }
       } catch (e) {
