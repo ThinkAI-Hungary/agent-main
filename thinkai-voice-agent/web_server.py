@@ -271,6 +271,35 @@ Csak a címkéket tartalmazó JSON listát (pl. ["urgent", "complaint"]) add vis
     except Exception:
         return []
 
+async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Optional[str]:
+    """Fetch the user's name from Meta Graph API using their PSID."""
+    if source_channel not in ("Messenger", "Instagram"):
+        return None
+        
+    token = os.getenv("META_PAGE_ACCESS_TOKEN")
+    if not token:
+        return None
+        
+    url = f"https://graph.facebook.com/v19.0/{sender_id}?fields=first_name,last_name,name&access_token={token}"
+    try:
+        import httpx
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, timeout=5.0)
+            if resp.status_code == 200:
+                data = resp.json()
+                name = data.get("name")
+                if not name:
+                    first = data.get("first_name", "")
+                    last = data.get("last_name", "")
+                    name = f"{first} {last}".strip()
+                return name if name else None
+            else:
+                print(f"[Meta API] Error fetching profile for {sender_id}: {resp.text}")
+                return None
+    except Exception as e:
+        print(f"[Meta API] Exception fetching profile: {e}")
+        return None
+
 async def process_meta_message(sender_id: str, message_text: str, source_channel: str = "Messenger", phone_number_id: str = None):
     """Aszinkron háttérfeladat a Meta Messenger / Instagram üzenetek feldolgozására."""
     import asyncio
@@ -287,7 +316,15 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
         system_prompt += f"\n\nFONTOS INSTRUKCIÓ: A mai dátum: {today}. Minden dátumot ehhez a dátumhoz viszonyíts! Formázz röviden, mint egy Messenger üzenetet. Válaszolj közvetlenül az ügyfélnek. MINDEN ESETBEN KÖTELEZŐ MEGHÍVNOD a 'save_client_data' funkciót (tool-t), ha az ügyfél megadja a nevét, email címét, vagy telefonszámát!\nFIGYELEM: HA az eset Sürgős, Kiemelt, VAGY szerepel a Kivételek listájában, SZIGORÚAN TILOS a 'book_appointment' funkció hívása és időpont felajánlása! Csak normál esetben hívd meg a 'book_appointment' funkciót, ha konkrét időpontot kérnek."
 
         # Először is elmentjük a bejövő üzenetet a Kanbanba, hogy biztosan meglegyen a naplóban!
-        db.upsert_client({"messenger_id": sender_id, "forras_csatorna": source_channel}, additional_log=f"Ügyfél ({source_channel}): {message_text}")
+        client_data = {"messenger_id": sender_id, "forras_csatorna": source_channel}
+        
+        # Próbáljuk meg lekérni a nevét a Metától
+        meta_name = await fetch_meta_user_profile(sender_id, source_channel)
+        if meta_name:
+            client_data["name"] = meta_name
+            system_prompt += f"\n\nFONTOS: Az ügyfél neve a Facebook profilja alapján: {meta_name}. Szólítsd a nevén!"
+            
+        db.upsert_client(client_data, additional_log=f"Ügyfél ({source_channel}): {message_text}")
 
         client_record = db.find_client_by_contact(messenger_id=sender_id)
         if client_record:
@@ -568,6 +605,7 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
             draft_payload = {
                 "channel": source_channel,
                 "sender_id": sender_id,
+                "to_name": meta_name if 'meta_name' in locals() and meta_name else sender_id,
                 "phone_number_id": phone_number_id,
                 "body": final_text
             }
