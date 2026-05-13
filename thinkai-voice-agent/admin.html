@@ -5905,8 +5905,18 @@
               contentHeight: 'auto',
               aspectRatio: 2.1,
               allDaySlot: false,
-              eventDidMount: function(info) {
-                info.el.addEventListener('dblclick', async () => {
+              eventClick: async function(info) {
+                // Kézi dupla kattintás érzékelés, mert a FullCalendar elnyelheti a natív dblclick-et
+                if (!info.el.dataset.clickCount) info.el.dataset.clickCount = 0;
+                info.el.dataset.clickCount++;
+                
+                if (info.el.dataset.clickCount == 1) {
+                  setTimeout(() => {
+                    info.el.dataset.clickCount = 0;
+                  }, 300);
+                } else if (info.el.dataset.clickCount == 2) {
+                  info.el.dataset.clickCount = 0;
+                  
                   const ev = info.event;
                   const attendee_email = ev.extendedProps.attendee_email;
                   const attendee_name = ev.extendedProps.attendee;
@@ -5922,12 +5932,13 @@
                       foundClient = window.kanbanData.find(c => c.name === attendee_name);
                     }
                     if (foundClient) {
+                      showPage('interactions'); // Átváltunk a megfelelő oldalra!
                       openClientDetails(foundClient);
                     } else {
                       showToast('Nem található profil ehhez a foglaláshoz', 'error');
                     }
                   }
-                });
+                }
               },
               headerToolbar: {
                 left: 'prev,next today',
@@ -6375,7 +6386,10 @@
             div.ondragend = () => div.classList.remove('dragging');
 
             // Allow double click to open client modal directly
-            div.ondblclick = () => openClientModal(c.id, btoa(encodeURIComponent(c.custom_data || '{}')));
+            div.ondblclick = () => {
+              showPage('interactions');
+              openClientDetails(c);
+            };
 
             // Build dynamic UI for card
             const cData = c.custom_data ? JSON.parse(c.custom_data) : {};
