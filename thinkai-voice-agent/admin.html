@@ -6601,7 +6601,8 @@
             if (f.id === 'beszelgetes_naplo') {
               const safeName = esc(customObj.nev || customObj['név'] || customObj.name || 'Ismeretlen').replace(/'/g, "\\'");
               const safeDate = esc(fmtDt(c.created_at));
-              return `<td>${val ? `<button onclick="openLogModal('${esc(btoa(encodeURIComponent(val)))}', '${safeName}', '${esc(csatorna)}', '${safeDate}', '${esc(btoa(encodeURIComponent(JSON.stringify(customObj))))}')" style="background:rgba(0,212,200,0.1);border:1px solid var(--accent);color:var(--accent);border-radius:4px;cursor:pointer;padding:4px 8px;font-size:11px;">Megtekintés</button>` : '<span style="color:var(--text-muted)">—</span>'}</td>`;
+              const injectedObj = Object.assign({}, customObj, { _client_status: c.status, _client_created_at: c.created_at });
+              return `<td>${val ? `<button onclick="openLogModal('${esc(btoa(encodeURIComponent(val)))}', '${safeName}', '${esc(csatorna)}', '${safeDate}', '${esc(btoa(encodeURIComponent(JSON.stringify(injectedObj))))}')" style="background:rgba(0,212,200,0.1);border:1px solid var(--accent);color:var(--accent);border-radius:4px;cursor:pointer;padding:4px 8px;font-size:11px;">Megtekintés</button>` : '<span style="color:var(--text-muted)">—</span>'}</td>`;
             }
             if (f.id === 'nev' || (f.name && f.name.toLowerCase() === 'név')) {
               return `<td><button onclick="openClientDetails({id: ${c.id}, name: '${esc(val)}', email: '${esc(customObj.email || '')}', phone: '${esc(customObj.telefonszam || customObj.phone || customObj.telefon || '')}', address: '${esc(customObj.cim || customObj.address || '')}', birthdate: '${esc(customObj.szuletesi_datum || customObj.szuletesnap || customObj.birthdate || '')}'})" style="background:rgba(0,212,200,0.1);border:1px solid var(--accent);color:var(--accent);border-radius:4px;cursor:pointer;padding:6px 10px;font-size:12px;font-weight:600;display:inline-block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="Ugrás az ügyfél adatlapjára">${esc(val || '—')}</button></td>`;
@@ -6649,6 +6650,44 @@
           try { cData = JSON.parse(decodeURIComponent(atob(encodedCustomObj))); } catch(e) {}
       }
 
+      // --- DINAMIKUS BADGE LOGIKA ---
+      let badge1 = "VISSZATÉRŐ ÜGYFÉL";
+      let badge2 = "LEZÁRT";
+
+      if (cData._client_status === 'lemondott') {
+          badge2 = "LEMONDOTT";
+      } else if (cData.booked_datetime && cData.booked_datetime !== '-') {
+          badge2 = "LEZÁRT";
+      }
+
+      if (cData._client_created_at) {
+          const createdAt = new Date(cData._client_created_at);
+          const now = new Date();
+          const diffHours = (now - createdAt) / (1000 * 60 * 60);
+          if (diffHours > 12) {
+              badge1 = "VISSZATÉRŐ ÜGYFÉL";
+          }
+      }
+      
+      const modalHeaderFlex = document.querySelector('#log-modal .bg-green-gradient > div:first-child > div:last-child');
+      if (modalHeaderFlex) {
+          const prevBadges = modalHeaderFlex.querySelectorAll('.dynamic-badge');
+          prevBadges.forEach(b => b.remove());
+
+          const b1 = document.createElement('span');
+          b1.className = 'dynamic-badge';
+          b1.style.cssText = "background:rgba(8,36,50,0.1); color:#082432; padding:4px 10px; border-radius:100px; font-size:10px; font-weight:700;";
+          b1.textContent = badge1;
+
+          const b2 = document.createElement('span');
+          b2.className = 'dynamic-badge';
+          b2.style.cssText = "background:rgba(8,36,50,0.1); color:#082432; padding:4px 10px; border-radius:100px; font-size:10px; font-weight:700;";
+          b2.textContent = badge2;
+
+          modalHeaderFlex.insertBefore(b2, modalHeaderFlex.firstChild);
+          modalHeaderFlex.insertBefore(b1, modalHeaderFlex.firstChild);
+      }
+      // --- DINAMIKUS BADGE LOGIKA VÉGE ---
       if (name) document.getElementById('log-modal-title-name').textContent = name;
       if (channel) document.getElementById('log-modal-channel').textContent = channel;
       if (date) document.getElementById('log-modal-date').textContent = date;
