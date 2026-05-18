@@ -1668,7 +1668,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                         api_key = parsed.get("api_key", brevo_key)
                     except: pass
                 
-                html_body = f'<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">{final_text.replace(chr(10), "<br>")}</div>'
+                html_body = f'<div style="font-family: Arial, sans-serif;">{final_text.replace(chr(10), "<br>")}</div>'
                 if draft.get("event_id"):
                     import email_processor
                     html_body += email_processor.get_cancellation_html(draft.get("event_id"))

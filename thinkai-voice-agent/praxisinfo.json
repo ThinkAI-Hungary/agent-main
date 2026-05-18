@@ -1,11 +1,11 @@
 {
   "practice_name": "Kiütöm a fogadat Budapest",
   "description": "",
-  "address": "1052 Budapest, Petőfi Sándor utca 12.",
+  "address": "",
   "markanev": "FogBox",
   "szakterulet": "box, szájbaverés",
   "kulcsszavak": "box, szájbaverés",
-  "megkozelites": "a nyócker legsötétt sikátora, ahova a nap soha nem sütött be.",
+  "megkozelites": "",
   "price_list": "Konzultáció - Szakorvosi állapotfelmérés és kezelési terv - 15000 - HUF - Tartalmazza a szájüregi szűrővizsgálatot.\nDiagnosztika - Digitális Panoráma röntgen (OPG) - 12000 - HUF - Kiadható digitális formátumban (CD / E-mail).\nSzájhigiénia - Ultrahangos fogkőeltávolítás (Air-Flow) - 28000 - HUF - Mindkét állcsontra, polírozással együtt.\nKonzerváló fogászat - Esztétikus kompozit tömés (1 felszínű) - 25000 - HUF - Fényre kötő prémium tömőanyag.\nSzájsebészet - Bölcsességfog műtéti eltávolítása - 45000 - HUF - A bonyolultságtól függően az ár változhat.\nImplantológia - Prémium implantátum beültetése - 250000 - HUF - Az ár a felépítményt és koronát nem tartalmazza.",
   "price_list_file_meta": {
     "filename": "arlista_minta (3).xlsx",
@@ -38,7 +38,7 @@
   "figyelmezteto_szoveg": "Tájékoztatjuk, hogy 24 órán belüli lemondás esetén rendelőnk külön szabályzata lehet érvényben.",
   "pacient_id_question": "Korábban járt már a rendelőnkben?",
   "new_patient_required": "Születési dátum, teljes név",
-  "new_patient_auto_visit": true,
+  "new_patient_auto_visit": false,
   "returning_patient_required": "Páciens azonosító vagy telefonszám",
-  "last_updated": "2026-04-30T00:24:35.622186"
+  "last_updated": "2026-05-18T15:42:36.606921"
 }

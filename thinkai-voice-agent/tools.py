@@ -260,7 +260,7 @@ async def check_calendar(
 # 3. BOOK A MEETING (local JSON store)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@function_tool(description="Találkozó/meeting foglalása a naptárba. Használd, ha a felhasználó időpontot szeretne foglalni. KÖTELEZŐ elkérni a felhasználó nevét, telefonszámát és email címét a foglalás előtt!")
+@function_tool(description="Találkozó/meeting foglalása a naptárba. Használd, ha a felhasználó időpontot szeretne foglalni. KÖTELEZŐ elkérni a felhasználó nevét, telefonszámát és email címét a foglalás előtt! A szolgáltatás és az orvos nevét is próbáld meg kideríteni!")
 async def book_meeting(
     ctx: RunContext,
     title: Annotated[str, "A meeting címe/témája"],
@@ -270,11 +270,13 @@ async def book_meeting(
     attendee_phone: Annotated[str, "A meghívott ügyfél telefonszáma (kötelező bekérni)"],
     attendee_email: Annotated[str, "A meghívott ügyfél email címe (kötelező bekérni)"],
     duration_minutes: Annotated[int, "A meeting hossza percben"] = 30,
+    service_name: Annotated[str, "A kért szolgáltatás neve (ha megadta az ügyfél, különben 'Általános')"] = "Általános",
+    doctor_name: Annotated[str, "A kért orvos neve (ha megadta az ügyfél, különben 'Bármelyik orvos')"] = "Bármelyik orvos",
     additional_info: Annotated[str, "Bármely egyéb kiegészítő adat JSON szövegként (pl. cégnév, lakcím). Hagyd üresen '{}' ha nincsen egyéb."] = "{}",
     funnel_stage: Annotated[str, "A beszélgetés állapota: 'irrelevant', 'relevant', 'valaszolt', 'ajanlat', 'foglalt'"] = "foglalt",
 ) -> str:
     """Találkozó foglalása a naptárba."""
-    logger.info(f"Booking meeting: {title} on {date} at {time}, attendee={attendee}, email={attendee_email}")
+    logger.info(f"Booking meeting: {title} on {date} at {time}, attendee={attendee}, email={attendee_email}, service={service_name}, doctor={doctor_name}")
 
     try:
         parsed_date = _parse_hungarian_date(date)
@@ -327,11 +329,16 @@ async def book_meeting(
             ))
 
         # ── Add to Kanban (Clients Database) ───────────────────────────
+        now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
         custom_data = {
             "name": attendee,
             "email": attendee_email,
             "phone": attendee_phone,
             "forras_csatorna": "Voice Agent",
+            "booked_datetime": f"{parsed_date} {parsed_time}",
+            "service": service_name,
+            "doctor": doctor_name,
+            "reminder_sent_at": now_str  # Az azonnali visszaigazoló email ideje
         }
         
         # Merge additional info safely if provided

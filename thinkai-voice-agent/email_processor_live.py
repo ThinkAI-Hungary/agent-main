@@ -1,4 +1,4 @@
-﻿import os
+import os
 import email
 import imaplib
 import json
@@ -50,8 +50,8 @@ JSON STRUKTÃRA:
         "name": "Ãgyfél neve (ha tudod, különben az e-mailbÅl)",
         "email": "Ãgyfél e-mailje",
         "phone": "Telefonszám (ha megadta, különben üres string)",
-        "jarmu_tipusa": "autó / hajó / motor / stb. (opcionális)",
-        "jarmu_modell": "pontos modell (opcionális)"
+        "service_requested": "Milyen szolgáltatást kér vagy javaslunk? (pl. ultrahangos fogkőeltávolítás, általános vizit, bölcsességfog húzás, stb.)",
+        "proposed_date": "A levélben kért vagy felajánlott időpont pontosan (pl. 2026-05-19 11:00) ha van ilyen."
     },
     "meeting": {
         "title": "Találkozó címe (ha az email egyértelműen idÅpontot kér/foglal)",
@@ -180,10 +180,13 @@ A lehetséges alert_tags értékek:
             "phone": kanban.get("phone", ""),
             "forras_csatorna": "E-mail",
         }
-        if kanban.get("jarmu_tipusa"):
-            details["jarmu_tipusa"] = kanban["jarmu_tipusa"]
-        if kanban.get("jarmu_modell"):
-            details["jarmu_modell"] = kanban["jarmu_modell"]
+        if kanban.get("service_requested"):
+            details["service"] = kanban["service_requested"]
+            # Ha orvos nincs megadva, default:
+            if "doctor" not in details:
+                details["doctor"] = "Bármelyik orvos"
+        if kanban.get("proposed_date"):
+            details["booked_datetime"] = kanban["proposed_date"]
             
         if isinstance(alert_tags, list) and "urgent" in alert_tags:
             details["prioritas"] = "SürgÅs"
@@ -219,6 +222,26 @@ A lehetséges alert_tags értékek:
                     attendee_email=from_email
                 )
                 logger.info(f"Naptár esemény sikeresen létrehozva: {title} {start_dt}")
+                
+                # Mentsük az időpontfoglalás metaadatait is a Kanban custom_data-ba
+                now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+                client_res = db.supabase.table("clients").select("*").eq("email", from_email).order("id", desc=True).limit(1).execute()
+                if client_res.data:
+                    c = client_res.data[0]
+                    c_data = c.get("custom_data")
+                    if isinstance(c_data, str):
+                        try:
+                            c_data = json.loads(c_data)
+                        except:
+                            c_data = {}
+                    if not isinstance(c_data, dict):
+                        c_data = {}
+                    
+                    c_data["booked_datetime"] = f"{date_str} {time_str}"
+                    c_data["service"] = title
+                    c_data["doctor"] = "Bármelyik orvos"
+                    c_data["reminder_sent_at"] = now_str
+                    db.edit_client_details(c["id"], c_data)
         except Exception as e:
             logger.error(f"Hiba a naptáresemény hozzáadásakor: {e}")
 
