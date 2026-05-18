@@ -27,6 +27,24 @@ def decode_mime_words(s):
         for word, encoding in decode_header(s)
     )
 
+def clean_email_body(text: str) -> str:
+    import re
+    patterns = [
+        r'\nOn\s.*?wrote:\s*\n?',
+        r'\n202\d.*?(?:időpontban|-kor|)\s*.*?ezt írta:\s*\n?',
+        r'\n.*?202\d.*?(?:ezt írta|wrote|írta):\s*\n?',
+        r'\nBégé Design Kft.*?ezt írta:\s*\n?',
+        r'\nFrom:\s.*?\nSent:\s.*?\nTo:\s.*?\nSubject:\s.*?\n'
+    ]
+    for p in patterns:
+        parts = re.split(p, text, maxsplit=1, flags=re.IGNORECASE)
+        text = parts[0]
+    
+    lines = text.split('\n')
+    while lines and lines[-1].startswith('>'):
+        lines.pop()
+    return '\n'.join(lines).strip()
+
 async def process_single_email(from_email: str, from_name: str, subject: str, text_content: str):
     google_key = os.getenv("GOOGLE_API_KEY")
     if not google_key:
@@ -168,6 +186,8 @@ A lehetséges alert_tags értékek:
             handover_reason = "Emberi döntés"
     
     log_szoveg = f"{beszelgetes}\n- Bejövő e-mail (Tárgy: {subject}): {text_content}"
+    if email_reply:
+        log_szoveg += f"\n\nAI Válasz:\n{email_reply}"
 
     # Ha releváns lead vagy időpontot foglalt, felvesszük a Kanbanba
     if is_relevant or meeting:
@@ -412,7 +432,7 @@ def check_imap_sync():
                                 text_content = part.get_payload(decode=True).decode("utf-8", errors="replace")
                     else:
                         text_content = msg.get_payload(decode=True).decode("utf-8", errors="replace")
-
+                    text_content = clean_email_body(text_content)
                     emails_to_process.append((msg_id, from_email, from_name, subject, text_content))
         
         # A feldolgozott üzeneteket megjelöljük egyelÅre olvasottként ("Seen") beolvasáskor,

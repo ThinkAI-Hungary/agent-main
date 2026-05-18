@@ -37,8 +37,8 @@
   "lemondas_24h": "figyelmeztetoSzoveggel",
   "figyelmezteto_szoveg": "Tájékoztatjuk, hogy 24 órán belüli lemondás esetén rendelőnk külön szabályzata lehet érvényben.",
   "pacient_id_question": "Korábban járt már a rendelőnkben?",
-  "new_patient_required": "Születési dátum, teljes név",
+  "new_patient_required": "Teljes név",
   "new_patient_auto_visit": false,
   "returning_patient_required": "Páciens azonosító vagy telefonszám",
-  "last_updated": "2026-05-18T15:42:36.606921"
+  "last_updated": "2026-05-18T20:12:08.904314"
 }
