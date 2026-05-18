@@ -76,7 +76,8 @@ JSON STRUKTÃRA:
         "title": "Találkozó címe (ha az email egyértelműen idÅpontot kér/foglal)",
         "date": "YYYY-MM-DD",
         "time": "HH:MM",
-        "duration_minutes": 30
+        "duration_minutes": 30,
+        "doctor": "Az orvos neve (ha releváns), pl. Dr. Szabó Júlia, különben null"
     },
     "action_modify_meeting": {
         "event_title_to_modify": "A módosítandó esemény címe vagy része",
@@ -204,6 +205,9 @@ A lehetséges alert_tags értékek:
             details["jarmu_tipusa"] = kanban["jarmu_tipusa"]
         if kanban.get("jarmu_modell"):
             details["jarmu_modell"] = kanban["jarmu_modell"]
+            
+        if meeting and meeting.get("doctor"):
+            details["doctor"] = meeting.get("doctor")
             
         if isinstance(alert_tags, list) and "urgent" in alert_tags:
             details["prioritas"] = "SürgÅs"
