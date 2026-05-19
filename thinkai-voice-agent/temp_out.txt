@@ -1,0 +1,3 @@
+4643:                 <button onclick="editClientProfile()" style="background:transparent; border:none; cursor:pointer; color:#082432; font-size:14px; font-weight:600; display:flex; align-items:center; gap:6px;">
+7872:       showToast('info', '🚧 Módosítási kérés rögzítve – hamarosan feldolgozzuk');
+8104:     function editClientProfile() {
