@@ -8132,7 +8132,8 @@
         document.getElementById('cd-name').innerText = clientData.name || 'Ismeretlen ügyfél';
         
         // Status Badge
-        const st = (clientData.status || 'Új ügyfél').toUpperCase();
+        let st = (clientData.status || 'Új ügyfél').toUpperCase();
+        if (st === 'UJ') st = 'ÚJ ÜGYFÉL';
         document.getElementById('cd-status-badge').innerText = st;
 
         const emailEl = document.getElementById('cd-email');
@@ -8327,6 +8328,16 @@
                         allBtn.style.display = 'none';
                     }
                 }
+                
+                // Dynamic status badge update based on appointments count
+                const badgeEl = document.getElementById('cd-status-badge');
+                if (badgeEl && (badgeEl.innerText === 'ÚJ ÜGYFÉL' || badgeEl.innerText === 'UJ')) {
+                  if (window.currentClientAppointments && window.currentClientAppointments.length > 1) {
+                    badgeEl.innerText = 'VISSZATÉRŐ ÜGYFÉL';
+                  } else {
+                    badgeEl.innerText = 'ÚJ ÜGYFÉL';
+                  }
+                }
               })
               .catch(err => {
                 console.error("Hiba a naptári időpontok letöltésekor:", err);
@@ -8359,6 +8370,16 @@
                     } else {
                         allBtn.style.display = 'none';
                     }
+                }
+                
+                // Dynamic status badge update based on appointments count (fallback)
+                const badgeEl = document.getElementById('cd-status-badge');
+                if (badgeEl && (badgeEl.innerText === 'ÚJ ÜGYFÉL' || badgeEl.innerText === 'UJ')) {
+                  if (window.currentClientAppointments && window.currentClientAppointments.length > 1) {
+                    badgeEl.innerText = 'VISSZATÉRŐ ÜGYFÉL';
+                  } else {
+                    badgeEl.innerText = 'ÚJ ÜGYFÉL';
+                  }
                 }
               });
             
