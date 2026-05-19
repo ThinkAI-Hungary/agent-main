@@ -4584,9 +4584,54 @@
             </div>
           </div>
           
+          <!-- Appointments Modal HTML -->
+          <div id="appointments-modal" style="display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center; padding: 20px;">
+            <div class="login-card" style="width:400px; max-width:100%; max-height:80vh; display:flex; flex-direction:column; padding:0; overflow:hidden; border-radius:16px; border:none; box-shadow: 0 24px 48px rgba(0,0,0,0.3); background:var(--card);">
+              
+              <!-- Header -->
+              <div style="background: linear-gradient(to right, #14b8ad, #1ceee0); padding: 20px 24px; flex-shrink: 0;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="font-size:10px; font-weight:700; color:rgba(8,36,50,0.7); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Időpontok előzménye</div>
+                    <h3 id="appointments-modal-client-name" style="margin:0; color:#082432; font-size:20px; font-weight:700;">Ügyfél neve</h3>
+                  </div>
+                  <button onclick="document.getElementById('appointments-modal').style.display='none'" style="background:rgba(8,36,50,0.15); border:none; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#082432; transition:background 0.2s;">✕</button>
+                </div>
+              </div>
+
+              <!-- Body -->
+              <div style="padding: 24px; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 12px;" id="appointments-modal-list">
+                <!-- Dynamically populated appointments list -->
+              </div>
+            </div>
+          </div>
+          
           <script>
             function closeLogModal() {
                 document.getElementById('log-modal').style.display='none';
+            }
+            function openAllAppointmentsModal() {
+              const clientName = document.getElementById('cd-name').innerText;
+              document.getElementById('appointments-modal-client-name').innerText = clientName;
+              
+              const listContainer = document.getElementById('appointments-modal-list');
+              listContainer.innerHTML = '';
+              
+              if (window.currentClientAppointments && window.currentClientAppointments.length) {
+                window.currentClientAppointments.forEach(aptDate => {
+                  const item = document.createElement('div');
+                  item.style.cssText = "display:flex; align-items:center; gap:12px; font-size:14px; color:var(--text); padding: 12px 16px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border);";
+                  item.innerHTML = `
+                    <svg fill="none" height="16" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24" width="16"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span style="font-weight: 500;">${aptDate}</span>
+                  `;
+                  listContainer.appendChild(item);
+                });
+              } else {
+                listContainer.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">Nincsenek korábbi időpontok.</div>';
+              }
+              
+              document.getElementById('appointments-modal').style.display = 'flex';
             }
           </script>
           <!-- CLIENT DETAILS PAGE -->
@@ -4691,7 +4736,7 @@
                     2026. 03. 04. 17:00
                   </div>
                 </div>
-                <div style="margin-top:auto; text-align:right; font-size:12px; font-weight:600; color:#6b7280; cursor:pointer;">Összes időpont</div>
+                <div id="cd-all-appointments-btn" onclick="openAllAppointmentsModal()" style="margin-top:auto; text-align:right; font-size:12px; font-weight:600; color:var(--accent); cursor:pointer; display:none; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">Összes időpont</div>
               </div>
 
               <!-- Notes -->
@@ -5749,14 +5794,22 @@
       _allInteractionRows = [];
       sessions.forEach(s => {
         const sessionDate = s.started_at || '';
-        const isEmail = s.room_name && s.room_name.toLowerCase().includes('email');
-        const channel = isEmail ? 'Email' : (s.channel || 'Telefon');
+        const sRoom = (s.room_name || '').toLowerCase();
         const clientName = s.participant || s.client_name || 'Ismeretlen';
+
+        function getRowChannel(rType) {
+          const t = (rType || '').toLowerCase();
+          if (t.includes('email') || sRoom.includes('email') || (s.session_id && s.session_id.startsWith('reminder_'))) return 'Email';
+          if (t.includes('messenger') || sRoom.includes('messenger')) return 'Messenger';
+          if (t.includes('instagram') || sRoom.includes('instagram')) return 'Instagram';
+          if (t.includes('whatsapp') || sRoom.includes('whatsapp')) return 'Whatsapp';
+          return s.channel || 'Telefon';
+        }
 
         (s.interactions || []).forEach(r => {
           _allInteractionRows.push({
             date: r.created_at || sessionDate,
-            channel: channel,
+            channel: getRowChannel(r.type),
             client: clientName,
             type: r.type || '-',
             topic: r.topic || '-',
@@ -5768,7 +5821,7 @@
         if (!s.interactions || s.interactions.length === 0) {
           _allInteractionRows.push({
             date: sessionDate,
-            channel: channel,
+            channel: getRowChannel(''),
             client: clientName,
             type: 'session',
             topic: '-',
@@ -6023,10 +6076,24 @@
                   if (window.kanbanData && window.kanbanData.length) {
                     let foundClient = null;
                     if (attendee_email) {
-                      foundClient = window.kanbanData.find(c => c.custom_data && c.custom_data.email === attendee_email);
+                      foundClient = window.kanbanData.find(c => {
+                        if (!c.custom_data) return false;
+                        let cd = {};
+                        try { cd = typeof c.custom_data === 'string' ? JSON.parse(c.custom_data) : c.custom_data; } catch (e) { return false; }
+                        return cd && (cd.email === attendee_email || c.email === attendee_email);
+                      });
                     }
                     if (!foundClient && attendee_name) {
-                      foundClient = window.kanbanData.find(c => c.name === attendee_name);
+                      foundClient = window.kanbanData.find(c => {
+                        if (c.name && c.name.toLowerCase() === attendee_name.toLowerCase()) return true;
+                        if (c.custom_data) {
+                          let cd = {};
+                          try { cd = typeof c.custom_data === 'string' ? JSON.parse(c.custom_data) : c.custom_data; } catch(e) {}
+                          let cn = cd.nev || cd.name || cd['név'] || cd['Név'] || '';
+                          if (cn && cn.toLowerCase().trim() === attendee_name.toLowerCase().trim()) return true;
+                        }
+                        return false;
+                      });
                     }
                     if (foundClient) {
                       showPage('interactions'); // Átváltunk a megfelelő oldalra!
@@ -6481,6 +6548,7 @@
             div.draggable = true;
             div.ondragstart = (e) => { draggedClientId = c.id; div.classList.add('dragging'); };
             div.ondragend = () => div.classList.remove('dragging');
+            div.setAttribute('data-client-id', c.id);
 
             // Allow double click to open client modal directly
             div.ondblclick = () => {
@@ -7934,7 +8002,115 @@
       }
     }
 
-    function openClientDetails(clientData) {
+    async function openClientDetails(clientData) {
+      const cleanStr = (str) => {
+        if (!str) return '';
+        return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
+      };
+
+      function parseBeszelgetesNaplo(naploText) {
+        if (!naploText) return [];
+        const rows = [];
+        const parts = naploText.split(/\[(\d{4}[-./]\d{2}[-./]\d{2}\s+\d{2}:\d{2}(?::\d{2})?)\]/);
+        for (let i = 1; i < parts.length; i += 2) {
+          const timestampStr = parts[i];
+          const content = parts[i + 1] ? parts[i + 1].trim() : '';
+          if (!content) continue;
+          
+          const lines = content.split('\n').map(l => l.trim()).filter(l => l.length > 0);
+          if (lines.length === 0) continue;
+          
+          const firstLine = lines[0];
+          let messageText = content;
+          
+          let direction = 'Bejövő';
+          let channel = 'WhatsApp';
+          let topic = 'Chat üzenet';
+          
+          if (firstLine.startsWith('Ügyfél')) {
+            direction = 'Bejövő';
+            const match = firstLine.match(/\(([^)]+)\)/);
+            if (match) channel = match[1];
+            messageText = content.replace(/^Ügyfél\s*\([^)]+\):\s*/, '');
+          } else if (firstLine.startsWith('AI Válasz') || firstLine.startsWith('Rendszer')) {
+            direction = 'Kimenő';
+            channel = firstLine.startsWith('AI Válasz') ? 'AI Asszisztens' : 'Rendszer';
+            topic = 'AI válasz';
+            messageText = content.replace(/^(AI Válasz|Rendszer):\s*/, '');
+          } else if (firstLine.startsWith('E-mail')) {
+            channel = 'Email';
+            direction = 'Bejövő';
+            messageText = content.replace(/^E-mail:\s*/, '');
+          }
+          
+          const dateIso = timestampStr.replace(' ', 'T') + ':00';
+          
+          rows.push({
+            date: dateIso,
+            channel: channel,
+            direction: direction,
+            type: channel.toLowerCase(),
+            topic: topic,
+            summary: messageText.length > 80 ? messageText.substring(0, 80) + '...' : messageText,
+            result: 'Lezárt',
+            alert_tags: [],
+            status: 'lezárt',
+            handover: 'Nincs teendő',
+            isFromNaplo: true
+          });
+        }
+        return rows;
+      }
+
+      if (clientData) {
+        // Ensure window.kanbanData is loaded
+        if (!window.kanbanData || window.kanbanData.length === 0) {
+          try {
+            const res = await authFetch('/admin/api/clients');
+            const data = await res.json();
+            window.kanbanData = data.clients || [];
+          } catch (e) {
+            console.error("Hiba az ügyfelek betöltésekor:", e);
+          }
+        }
+
+        // Enrich with custom_data from window.kanbanData if missing or by matching
+        if (window.kanbanData) {
+          // Robust loose match by stringified ID
+          let fullClient = window.kanbanData.find(c => c.id && clientData.id && String(c.id) === String(clientData.id));
+          if (!fullClient && clientData.name) {
+            const cleanTargetName = cleanStr(clientData.name);
+            fullClient = window.kanbanData.find(c => c.name && cleanStr(c.name) === cleanTargetName);
+          }
+          if (fullClient) {
+            clientData.id = fullClient.id;
+            clientData.custom_data = fullClient.custom_data;
+            if (fullClient.email) clientData.email = fullClient.email;
+            if (fullClient.phone) clientData.phone = fullClient.phone;
+          }
+        }
+
+        // Parse custom_data if it is a serialized string
+        if (clientData.custom_data && typeof clientData.custom_data === 'string') {
+          try {
+            clientData.custom_data = JSON.parse(clientData.custom_data);
+          } catch (e) {
+            clientData.custom_data = {};
+          }
+        }
+        
+        // Sync fields from custom_data if available (prioritizing clean database values over parsed DOM elements)
+        if (clientData.custom_data) {
+          const realName = clientData.custom_data.name || clientData.custom_data.Name || clientData.custom_data.nev || clientData.custom_data['név'] || clientData.custom_data['Név'];
+          const realEmail = clientData.custom_data.email || clientData.custom_data.Email;
+          const realPhone = clientData.custom_data.telefonszam || clientData.custom_data.phone || clientData.custom_data.telefon;
+          
+          if (realName) clientData.name = realName;
+          if (realEmail) clientData.email = realEmail;
+          if (realPhone) clientData.phone = realPhone;
+        }
+      }
+
       window.currentClientDataForLog = clientData;
 
       // Save current active view
@@ -7982,6 +8158,10 @@
         }
         document.getElementById('cd-total-interactions').innerText = 'Összes interakció: Betöltés...';
 
+        const aptContainerInit = document.getElementById('cd-appointments');
+        if (aptContainerInit) {
+            aptContainerInit.innerHTML = '<div style="font-size:13px; color:#9ca3af; font-style:italic;">Betöltés...</div>';
+        }
 
         document.getElementById('cd-history-body-current').innerHTML = `<tr><td colspan="8" style="text-align:center;padding:20px;"><div class="spinner"></div>Betöltés...</td></tr>`;
         document.getElementById('cd-history-body-past').innerHTML = `<tr><td colspan="8" style="text-align:center;padding:20px;"><div class="spinner"></div>Betöltés...</td></tr>`;
@@ -7992,15 +8172,20 @@
             const sessions = data.sessions || [];
             let clientInteractions = [];
             sessions.forEach(s => {
-              const cName = (s.participant || s.client_name || '').toLowerCase();
-              const isMatch = (clientData.name && cName === clientData.name.toLowerCase()) ||
-                (clientData.email && s.session_id.toLowerCase().includes(clientData.email.toLowerCase())) ||
+              const cleanCName = cleanStr(s.participant || s.client_name);
+              const cleanClientName = cleanStr(clientData.name);
+              const cleanClientEmail = cleanStr(clientData.email);
+              
+              const isMatch = (cleanClientName && cleanCName === cleanClientName) ||
+                (cleanClientEmail && s.session_id.toLowerCase().includes(cleanClientEmail)) ||
                 (clientData.custom_data && clientData.custom_data.messenger_id && s.session_id.includes(clientData.custom_data.messenger_id));
               if (isMatch) {
                 (s.interactions || []).forEach(r => {
                   clientInteractions.push({
                     date: r.created_at || s.started_at,
-                    channel: s.room_name && s.room_name.includes('Email') ? 'Email' : 'Telefon',
+                    channel: (r.type && r.type.toLowerCase().includes('email')) || (s.room_name && s.room_name.toLowerCase().includes('email')) || (s.session_id && s.session_id.startsWith('reminder_')) ? 'Email' :
+                             ((r.type && r.type.toLowerCase().includes('messenger')) || (s.room_name && s.room_name.toLowerCase().includes('messenger')) ? 'Messenger' :
+                              ((r.type && r.type.toLowerCase().includes('instagram')) || (s.room_name && s.room_name.toLowerCase().includes('instagram')) ? 'Instagram' : 'Telefon')),
                     direction: r.direction || 'Bejövő',
                     type: r.type || '-',
                     topic: r.topic || '-',
@@ -8014,6 +8199,20 @@
               }
             });
 
+            // If we have custom_data.beszelgetes_naplo, parse it and append to clientInteractions
+            if (clientData.custom_data && clientData.custom_data.beszelgetes_naplo) {
+              const naploInteractions = parseBeszelgetesNaplo(clientData.custom_data.beszelgetes_naplo);
+              naploInteractions.forEach(ni => {
+                const isDuplicate = clientInteractions.some(ci => {
+                  return ci.date.substring(0, 16) === ni.date.substring(0, 16) && 
+                         ci.channel.toLowerCase() === ni.channel.toLowerCase();
+                });
+                if (!isDuplicate) {
+                  clientInteractions.push(ni);
+                }
+              });
+            }
+
             clientInteractions.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
 
             document.getElementById('cd-total-interactions').innerText = `Összes interakció: ${clientInteractions.length}`;
@@ -8021,7 +8220,8 @@
             // Extract and render past appointments
             const appointmentRegex1 = /időpontot foglalt:\s*(.*?)(?:,|$)/i;
             const appointmentRegex2 = /lefoglalva:.*?,?\s*(.*?)-kor/i;
-            let appointmentsHtml = '';
+            
+            window.currentClientAppointments = [];
             
             clientInteractions.forEach(r => {
                 const t = (r.type || '').toLowerCase();
@@ -8036,22 +8236,131 @@
                         const m2 = (r.result || '').match(appointmentRegex2);
                         if (m2) aptDate = m2[1];
                     }
+                    window.currentClientAppointments.push(aptDate);
+                }
+            });
+            
+            // Deduplicate local interaction appointments
+            window.currentClientAppointments = [...new Set(window.currentClientAppointments)];
+            
+            // Query real calendar events as the source of truth for bookings
+            authFetch('/admin/api/calendar')
+              .then(res => res.json())
+              .then(calData => {
+                console.log("[Calendar Match] Start matching for", clientData.name, clientData.email);
+                const events = calData.events || [];
+                console.log("[Calendar Match] Total calendar events fetched:", events.length);
+                
+                events.forEach(ev => {
+                  try {
+                    const cleanClientEmail = cleanStr(clientData.email);
+                    const cleanClientName = cleanStr(clientData.name);
+                    const cleanEvEmail = cleanStr(ev.attendee_email);
+                    const cleanEvAttendee = cleanStr(ev.attendee);
+                    const cleanEvTitle = cleanStr(ev.title);
                     
+                    // Incredibly robust matching logic
+                    let match = false;
+                    if (cleanClientEmail) {
+                      if (cleanEvEmail && cleanClientEmail === cleanEvEmail) match = true;
+                      if (cleanEvAttendee && cleanEvAttendee.includes(cleanClientEmail)) match = true;
+                    }
+                    if (cleanClientName) {
+                      if (cleanEvAttendee && cleanEvAttendee.includes(cleanClientName)) match = true;
+                      if (cleanEvTitle && cleanEvTitle.includes(cleanClientName)) match = true;
+                    }
+                    
+                    if (match) {
+                      console.log("[Calendar Match] FOUND MATCH!", ev.title, ev.start_dt);
+                      
+                      if (ev.start_dt) {
+                        const utcIso = ev.start_dt.includes('Z') || ev.start_dt.includes('+') ? ev.start_dt : ev.start_dt + 'Z';
+                        const d = new Date(utcIso);
+                        let formatted = '';
+                        if (!isNaN(d.getTime())) {
+                          formatted = d.getFullYear() + '. ' + 
+                                      String(d.getMonth() + 1).padStart(2, '0') + '. ' + 
+                                      String(d.getDate()).padStart(2, '0') + '. ' + 
+                                      String(d.getHours()).padStart(2, '0') + ':' + 
+                                      String(d.getMinutes()).padStart(2, '0');
+                        } else {
+                          const parts = ev.start_dt.split('T');
+                          const datePart = parts[0].replace(/-/g, '. ');
+                          const timePart = parts[1] ? parts[1].substring(0, 5) : '00:00';
+                          formatted = datePart + '. ' + timePart;
+                        }
+                        window.currentClientAppointments.push(formatted);
+                      }
+                    }
+                  } catch (innerErr) {
+                    console.error("[Calendar Match] Error processing calendar event:", ev, innerErr);
+                  }
+                });
+                
+                // Deduplicate and sort descending (newest first)
+                window.currentClientAppointments = [...new Set(window.currentClientAppointments)];
+                window.currentClientAppointments.sort((a, b) => b.localeCompare(a));
+                
+                let appointmentsHtml = '';
+                const recentApts = window.currentClientAppointments.slice(0, 3);
+                recentApts.forEach(aptDate => {
                     appointmentsHtml += `<div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#4b5563;">
                       <svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
                       ${aptDate}
                     </div>`;
+                });
+                
+                const aptContainer = document.getElementById('cd-appointments');
+                if (aptContainer) {
+                    if (appointmentsHtml === '') {
+                        aptContainer.innerHTML = '<div style="font-size:13px; color:#9ca3af; font-style:italic;">Nincs korábbi foglalás.</div>';
+                    } else {
+                        aptContainer.innerHTML = appointmentsHtml;
+                    }
                 }
-            });
-            
-            const aptContainer = document.getElementById('cd-appointments');
-            if (aptContainer) {
-                if (appointmentsHtml === '') {
-                    aptContainer.innerHTML = '<div style="font-size:13px; color:#9ca3af; font-style:italic;">Nincs korábbi foglalás.</div>';
-                } else {
-                    aptContainer.innerHTML = appointmentsHtml;
+                
+                const allBtn = document.getElementById('cd-all-appointments-btn');
+                if (allBtn) {
+                    if (window.currentClientAppointments && window.currentClientAppointments.length > 0) {
+                        allBtn.style.display = 'block';
+                    } else {
+                        allBtn.style.display = 'none';
+                    }
                 }
-            }
+              })
+              .catch(err => {
+                console.error("Hiba a naptári időpontok letöltésekor:", err);
+                
+                // Fallback to text parsing
+                window.currentClientAppointments.sort((a, b) => b.localeCompare(a));
+                
+                let appointmentsHtml = '';
+                const recentApts = window.currentClientAppointments.slice(0, 3);
+                recentApts.forEach(aptDate => {
+                    appointmentsHtml += `<div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#4b5563;">
+                      <svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                      ${aptDate}
+                    </div>`;
+                });
+                
+                const aptContainer = document.getElementById('cd-appointments');
+                if (aptContainer) {
+                    if (appointmentsHtml === '') {
+                        aptContainer.innerHTML = '<div style="font-size:13px; color:#9ca3af; font-style:italic;">Nincs korábbi foglalás.</div>';
+                    } else {
+                        aptContainer.innerHTML = appointmentsHtml;
+                    }
+                }
+                
+                const allBtn = document.getElementById('cd-all-appointments-btn');
+                if (allBtn) {
+                    if (window.currentClientAppointments && window.currentClientAppointments.length > 0) {
+                        allBtn.style.display = 'block';
+                    } else {
+                        allBtn.style.display = 'none';
+                    }
+                }
+              });
             
             // Filter current vs past
             const currentInts = [];
@@ -8284,19 +8593,28 @@
       if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.card-delete')) return;
 
       if (card) {
-        let name = "Ügyfél";
-        const nameDiv = card.querySelector('.client-name');
-        if (nameDiv) name = nameDiv.innerText;
+        const clientId = card.getAttribute('data-client-id');
+        let fullClient = null;
+        if (clientId && window.kanbanData) {
+          fullClient = window.kanbanData.find(c => c.id == clientId);
+        }
+        if (fullClient) {
+          openClientDetails(fullClient);
+        } else {
+          let name = "Ügyfél";
+          const nameDiv = card.querySelector('.client-name');
+          if (nameDiv) name = nameDiv.innerText;
 
-        let email = '';
-        let phone = '';
-        const infoDivs = card.querySelectorAll('.client-info');
-        infoDivs.forEach(d => {
-          if (d.innerText.includes('@')) email = d.innerText.trim();
-          else if (d.innerText.trim().length > 0) phone = d.innerText.trim();
-        });
+          let email = '';
+          let phone = '';
+          const infoDivs = card.querySelectorAll('.client-info');
+          infoDivs.forEach(d => {
+            if (d.innerText.includes('@')) email = d.innerText.trim();
+            else if (d.innerText.trim().length > 0) phone = d.innerText.trim();
+          });
 
-        openClientDetails({ name: name, email: email, phone: phone });
+          openClientDetails({ name: name, email: email, phone: phone });
+        }
       } else if (interactionTr && !interactionTr.querySelector('th')) {
         let name = "Ügyfél";
         // In Interactions table, name is usually in the 3rd column (index 2)

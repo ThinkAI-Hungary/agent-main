@@ -116,6 +116,13 @@ def close_session(session_id: str) -> None:
     except Exception as e:
         logger.error(f"Error closing session: {e}")
 
+def update_session_participant(session_id: str, participant: str) -> None:
+    if not supabase: return
+    try:
+        supabase.table("sessions").update({"participant": participant}).eq("session_id", session_id).execute()
+    except Exception as e:
+        logger.error(f"Error updating session participant: {e}")
+
 def get_sessions(limit: int = 50) -> list[dict]:
     if not supabase: return []
     try:

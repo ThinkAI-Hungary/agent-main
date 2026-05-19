@@ -192,6 +192,9 @@ async def send_followup_email(
         funnel_stage=funnel_stage,
     )
 
+    if recipient_name and _current_session_id:
+        db.update_session_participant(_current_session_id, recipient_name)
+
     if sent_ok:
         return f"Email sikeresen elküldve {recipient_name} ({recipient_email}) részére."
     else:
@@ -352,6 +355,9 @@ async def book_meeting(
         columns = db.get_kanban_columns()
         first_col_id = columns[0]['id'] if columns else 'uj'
         db.upsert_client(custom_data, additional_log=f"Hangasszisztens időpontot foglalt: {date} {time}", status=first_col_id)
+
+        if attendee and _current_session_id:
+            db.update_session_participant(_current_session_id, attendee)
 
         # ── Log interaction ───────────────────────────────────────────
         db.log_interaction(
