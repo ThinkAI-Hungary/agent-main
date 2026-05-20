@@ -562,7 +562,7 @@
       background: #060d14;
     }
 
-    body.dark .page.active:not(#page-analytics):not(#page-interactions):not(#page-settings):not(#page-kanban) {
+    body.dark .page.active:not(#page-analytics):not(#page-interactions):not(#page-settings):not(#page-kanban):not(#page-outbound) {
       background: #0d2538;
       border: 1px solid #1a3548;
     }
@@ -1281,7 +1281,7 @@
     }
 
     /* White shell wrapper for all pages */
-    .page.active:not(#page-analytics):not(#page-interactions):not(#page-settings):not(#page-kanban) {
+    .page.active:not(#page-analytics):not(#page-interactions):not(#page-settings):not(#page-kanban):not(#page-outbound) {
       background: #fff;
       border-radius: 16px;
       padding: 32px;
@@ -3527,6 +3527,12 @@
         </svg>
         <span>Jóváhagyó rendszer</span>
       </button>
+      <button class="nav-item" id="nav-outbound" onclick="showPage('outbound')">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+          <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+        </svg>
+        <span>Kimenő kommunikáció</span>
+      </button>
       <button class="nav-item" id="nav-settings" onclick="showPage('settings')">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
           <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"></path>
@@ -3915,12 +3921,7 @@
           <textarea id="approval-draft-text" class="form-control" style="height: 350px; resize: vertical; width: 100%; font-family: inherit; font-size: 14px; line-height: 1.6; padding: 16px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);"></textarea>
         </div>
         <div style="display: flex; gap: 12px; justify-content: flex-end;">
-          <button onclick="submitApproval('reject')" id="btn-approval-reject" style="background: #ef4444; color: white; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 600; cursor: pointer; transition: 0.2s; display: flex; align-items: center; box-shadow: 0 4px 12px rgba(239, 68, 68, 0.2);" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
-            <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="width: 16px; height: 16px; margin-right: 8px;">
-              <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
-            </svg> Elutasítás
-          </button>
-          
+
           <button onclick="submitApproval('approve')" id="btn-approval-approve" style="background: linear-gradient(135deg, #1ceee0, #0bbdb1); color: #082432; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; display: flex; align-items: center; box-shadow: 0 4px 16px rgba(28,238,224,0.3);" onmouseover="this.style.filter='brightness(1.05)'" onmouseout="this.style.filter='brightness(1)'">
             <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 16px; height: 16px; margin-right: 8px;">
               <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
@@ -3930,6 +3931,202 @@
       </div>
     </div>
   </div>
+
+      <!-- OUTBOUND CAMPAIGNS PAGE -->
+      <div class="page" id="page-outbound">
+        <div class="page-header" style="margin-bottom:24px;">
+          <div style="display:flex; align-items:center;">
+            <div style="width:48px; height:48px; background:linear-gradient(135deg, rgba(28,238,224,0.15), rgba(59,130,246,0.15)); border-radius:14px; display:flex; align-items:center; justify-content:center; margin-right:16px;">
+              <svg fill="none" stroke="#1ceee0" stroke-width="2" viewBox="0 0 24 24" style="width:24px; height:24px;">
+                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="page-title" style="margin:0;">Kimenő kommunikáció</div>
+              <div class="page-subtitle" style="margin:0;">Kampányok kezelése és kimenő üzenetek irányítása</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Felső kártyák -->
+        <div style="display:grid; grid-template-columns:1fr 1fr; gap:20px; margin-bottom:28px;">
+          <!-- Eseményvezérelt akciók -->
+          <div style="background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px;">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:20px;">
+              <div style="width:36px; height:36px; border-radius:10px; background:rgba(34,197,94,0.12); display:flex; align-items:center; justify-content:center;">
+                <svg fill="none" stroke="#22c55e" stroke-width="2" viewBox="0 0 24 24" style="width:18px; height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+              </div>
+              <div style="font-size:15px; font-weight:700; color:var(--text);">Eseményvezérelt akciók</div>
+            </div>
+            <div style="display:flex; flex-direction:column; gap:12px;">
+              <!-- Időpont emlékeztető -->
+              <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:14px 16px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                  <div style="width:32px; height:32px; border-radius:8px; background:rgba(28,238,224,0.1); display:flex; align-items:center; justify-content:center;">
+                    <svg fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                  </div>
+                  <div>
+                    <div style="font-size:13px; font-weight:600; color:var(--text);">Időpont emlékeztető</div>
+                    <div style="font-size:11px; color:var(--text-muted);">Automatikus e-mail emlékeztetők</div>
+                  </div>
+                </div>
+                <div id="outbound-reminder-status" style="display:flex; align-items:center; gap:6px;">
+                  <div style="width:8px; height:8px; border-radius:50%; background:var(--text-muted);"></div>
+                  <span style="font-size:11px; font-weight:600; color:var(--text-muted);">Betöltés...</span>
+                </div>
+              </div>
+              <!-- Lemondási értesítő -->
+              <div style="display:flex; align-items:center; justify-content:space-between; background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:14px 16px;">
+                <div style="display:flex; align-items:center; gap:12px;">
+                  <div style="width:32px; height:32px; border-radius:8px; background:rgba(239,68,68,0.1); display:flex; align-items:center; justify-content:center;">
+                    <svg fill="none" stroke="#ef4444" stroke-width="2" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                  </div>
+                  <div>
+                    <div style="font-size:13px; font-weight:600; color:var(--text);">Lemondási értesítő</div>
+                    <div style="font-size:11px; color:var(--text-muted);">Automatikus értesítés lemondáskor</div>
+                  </div>
+                </div>
+                <div style="display:flex; align-items:center; gap:6px;">
+                  <div style="width:8px; height:8px; border-radius:50%; background:#22c55e;"></div>
+                  <span style="font-size:11px; font-weight:600; color:#22c55e;">Aktív</span>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Kampányalapú akciók -->
+          <div style="background:var(--card); border:1px solid var(--border); border-radius:16px; padding:24px;">
+            <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+              <div style="display:flex; align-items:center; gap:10px;">
+                <div style="width:36px; height:36px; border-radius:10px; background:rgba(28,238,224,0.12); display:flex; align-items:center; justify-content:center;">
+                  <svg fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24" style="width:18px; height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
+                </div>
+                <div style="font-size:15px; font-weight:700; color:var(--text);">Kampányalapú akciók</div>
+              </div>
+              <button onclick="openCampaignModal()" style="background:linear-gradient(135deg, #1ceee0, #0bbdb1); color:#082432; border:none; padding:10px 18px; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(28,238,224,0.25); transition:all 0.2s;" onmouseover="this.style.transform='translateY(-1px)';this.style.boxShadow='0 6px 16px rgba(28,238,224,0.35)'" onmouseout="this.style.transform='translateY(0)';this.style.boxShadow='0 4px 12px rgba(28,238,224,0.25)'">
+                <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="width:14px; height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+                Új kampány indítása
+              </button>
+            </div>
+            <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:20px; text-align:center;">
+              <div id="campaign-summary-stats" style="display:grid; grid-template-columns:1fr 1fr 1fr; gap:16px;">
+                <div>
+                  <div style="font-size:24px; font-weight:800; color:var(--accent);" id="campaign-stat-total">0</div>
+                  <div style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Összes kampány</div>
+                </div>
+                <div>
+                  <div style="font-size:24px; font-weight:800; color:#22c55e;" id="campaign-stat-active">0</div>
+                  <div style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Aktív</div>
+                </div>
+                <div>
+                  <div style="font-size:24px; font-weight:800; color:var(--text);" id="campaign-stat-clients">0</div>
+                  <div style="font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase;">Célzott ügyfél</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kampányok táblázat -->
+        <div style="background:var(--card); border:1px solid var(--border); border-radius:16px; overflow:hidden;">
+          <div style="padding:20px 24px; border-bottom:1px solid var(--border); display:flex; align-items:center; justify-content:space-between;">
+            <div style="font-size:15px; font-weight:700; color:var(--text);">Kampányok</div>
+            <button onclick="loadCampaigns()" class="btn-refresh" style="background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:8px; cursor:pointer; display:flex; align-items:center;">
+              <svg fill="none" stroke="var(--text-muted)" stroke-width="2" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path></svg>
+            </button>
+          </div>
+          <div style="overflow-x:auto;">
+            <table class="data-table" style="margin:0;">
+              <thead>
+                <tr>
+                  <th>Kampány neve</th>
+                  <th>Státusz</th>
+                  <th>Célcsoport</th>
+                  <th>Csatorna</th>
+                  <th>Létrehozva</th>
+                  <th>Műveletek</th>
+                </tr>
+              </thead>
+              <tbody id="campaigns-tbody">
+                <tr><td colspan="6"><div style="text-align:center; padding:40px; color:var(--text-muted);">Még nincsenek kampányok. Kattints a "+ Új kampány indítása" gombra!</div></td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div><!-- end page-outbound -->
+
+      <!-- CAMPAIGN CREATE MODAL -->
+      <div id="campaign-modal" style="display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
+        <div class="login-card" style="width:520px; max-width:90vw; padding:0; overflow:hidden; border-radius:16px; border:none; box-shadow:0 24px 48px rgba(0,0,0,0.3);">
+          <!-- Header -->
+          <div style="background:linear-gradient(135deg, rgba(28,238,224,0.08), rgba(59,130,246,0.08)); padding:24px 28px; border-bottom:1px solid var(--border);">
+            <div style="display:flex; justify-content:space-between; align-items:center;">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <div style="width:40px; height:40px; border-radius:12px; background:linear-gradient(135deg, #1ceee0, #0bbdb1); display:flex; align-items:center; justify-content:center;">
+                  <svg fill="none" stroke="#082432" stroke-width="2.5" viewBox="0 0 24 24" style="width:20px; height:20px;"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+                </div>
+                <div>
+                  <h3 style="margin:0; font-size:18px; font-weight:700; color:var(--text);">Új kampány létrehozása</h3>
+                  <div id="campaign-modal-subtitle" style="font-size:12px; color:var(--text-muted); margin-top:2px;">Személyre szabott AI üzenetek generálása</div>
+                </div>
+              </div>
+              <button onclick="closeCampaignModal()" style="background:var(--bg); border:1px solid var(--border); border-radius:10px; width:36px; height:36px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-muted); transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)'" onmouseout="this.style.borderColor='var(--border)'">✕</button>
+            </div>
+          </div>
+          <!-- Body -->
+          <div style="padding:24px 28px; display:flex; flex-direction:column; gap:18px;">
+            <!-- Kampány neve -->
+            <div>
+              <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Kampány neve</label>
+              <input type="text" id="campaign-name" placeholder="pl. Tavaszi akciós ajánlat" style="width:100%; padding:12px 16px; background:var(--bg); color:var(--text); border:1.5px solid var(--border); border-radius:10px; font-size:14px; font-family:inherit; outline:none; box-sizing:border-box; transition:border 0.2s;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+            </div>
+            <!-- Csatorna -->
+            <div>
+              <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Csatorna</label>
+              <div style="display:grid; grid-template-columns:1fr 1fr; gap:8px;" id="campaign-channel-grid">
+                <button type="button" onclick="selectCampaignChannel(this, 'email')" class="campaign-channel-btn campaign-channel-active" style="display:flex; align-items:center; gap:8px; padding:12px 14px; background:rgba(28,238,224,0.08); border:1.5px solid var(--accent); border-radius:10px; color:var(--text); font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s;">
+                  <span>📧</span> Email
+                </button>
+                <button type="button" onclick="selectCampaignChannel(this, 'whatsapp')" class="campaign-channel-btn" style="display:flex; align-items:center; gap:8px; padding:12px 14px; background:var(--bg); border:1.5px solid var(--border); border-radius:10px; color:var(--text); font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s;">
+                  <span>💬</span> WhatsApp
+                </button>
+                <button type="button" onclick="selectCampaignChannel(this, 'messenger')" class="campaign-channel-btn" style="display:flex; align-items:center; gap:8px; padding:12px 14px; background:var(--bg); border:1.5px solid var(--border); border-radius:10px; color:var(--text); font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s;">
+                  <span>💜</span> Messenger
+                </button>
+                <button type="button" onclick="selectCampaignChannel(this, 'instagram')" class="campaign-channel-btn" style="display:flex; align-items:center; gap:8px; padding:12px 14px; background:var(--bg); border:1.5px solid var(--border); border-radius:10px; color:var(--text); font-size:13px; font-weight:600; cursor:pointer; transition:all 0.2s;">
+                  <span>📸</span> Instagram
+                </button>
+              </div>
+            </div>
+            <!-- Célcsoport -->
+            <div>
+              <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">Célcsoport</label>
+              <div id="campaign-target-info" style="background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:14px 16px; display:flex; align-items:center; gap:10px;">
+                <div style="width:32px; height:32px; border-radius:8px; background:rgba(28,238,224,0.1); display:flex; align-items:center; justify-content:center;">
+                  <svg fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
+                </div>
+                <div>
+                  <div style="font-size:14px; font-weight:600; color:var(--text);" id="campaign-client-count">0 ügyfél kiválasztva</div>
+                  <div style="font-size:11px; color:var(--text-muted);" id="campaign-client-hint">Jelölj ki ügyfeleket az Ügyfelek adatbázisából</div>
+                </div>
+              </div>
+            </div>
+            <!-- AI utasítások -->
+            <div>
+              <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">AI utasítások</label>
+              <textarea id="campaign-instructions" placeholder="Írd le, mit kommunikáljon az AI az ügyfeleknek...&#10;&#10;Pl. Ajánld fel a 20%-os kedvezményt a következő hónapra, hivatkozz a korábbi szolgáltatásra." style="width:100%; height:120px; padding:14px 16px; background:var(--bg); color:var(--text); border:1.5px solid var(--border); border-radius:10px; font-size:13px; font-family:inherit; outline:none; resize:none; box-sizing:border-box; line-height:1.5; transition:border 0.2s;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+            </div>
+          </div>
+          <!-- Footer -->
+          <div style="padding:16px 28px 24px; display:flex; gap:12px; justify-content:flex-end; border-top:1px solid var(--border);">
+            <button onclick="closeCampaignModal()" style="background:var(--bg); color:var(--text-muted); border:1px solid var(--border); padding:10px 20px; border-radius:10px; font-size:13px; font-weight:600; cursor:pointer;">Mégsem</button>
+            <button onclick="createCampaign()" style="background:linear-gradient(135deg, #1ceee0, #0bbdb1); color:#082432; border:none; padding:10px 24px; border-radius:10px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:6px; box-shadow:0 4px 12px rgba(28,238,224,0.25);">
+              <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="width:14px; height:14px;"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path></svg>
+              Kampány létrehozása
+            </button>
+          </div>
+        </div>
+      </div>
 
       <!-- SETTINGS PAGE -->
       <div class="page" id="page-settings">
@@ -4326,6 +4523,10 @@
                 <div class="page-subtitle">Összes beérkező és kimenő interakció</div>
               </div>
               <div style="display:flex;gap:10px;align-items:center;">
+                <button class="int-toolbar-btn" id="int-delete-selected-btn" onclick="deleteSelectedInteractions()" style="display:none;background:#fee2e2;color:#b91c1c;border-color:#fca5a5;gap:6px;align-items:center;font-weight:600;">
+                  <svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>
+                  <span id="int-delete-count">0</span> kijelölt törlése
+                </button>
                 <input class="int-toolbar-input" id="interaction-search" oninput="filterInteractionsTable()"
                   placeholder=" Keresés..." type="text" />
                 <select class="int-toolbar-select" id="interaction-type-filter" onchange="filterInteractionsTable()"
@@ -4372,18 +4573,20 @@
               <table class="data-table" id="interactions-flat-table">
                 <thead class="int-thead">
                   <tr>
-                    <th>Dátum / Idő</th>
-                    <th>Csatorna</th>
+                    <th style="width:40px;text-align:center;"><input type="checkbox" id="int-select-all" onchange="toggleAllInteractionCheckboxes(this.checked)" style="cursor:pointer;width:16px;height:16px;accent-color:#1ceee0;"/></th>
+                    <th>Interakció időpontja</th>
                     <th>Ügyfél</th>
-                    <th>Típus</th>
-                    <th>Téma</th>
-                    <th>Összefoglaló</th>
+                    <th>Csatorna</th>
+                    <th>Interakció iránya</th>
+                    <th>Ügytípus</th>
                     <th>Eredmény</th>
+                    <th>Státusz</th>
+                    <th>Teendő</th>
                   </tr>
                 </thead>
                 <tbody id="interactions-flat-body">
                   <tr>
-                    <td colspan="7" style="text-align:center;padding:40px;color:#6b7280;">
+                    <td colspan="9" style="text-align:center;padding:40px;color:#6b7280;">
                       <div class="spinner" style="border-color:#e5e7eb;border-top-color:#1ceee0;margin:0 auto 10px;">
                       </div>Adatok betöltése...
                     </td>
@@ -4417,6 +4620,7 @@
               <div style="display:flex;gap:12px;align-items:center;">
                 <input type="text" id="client-search-input" class="int-toolbar-input" placeholder="Keresés ügyfelek között..." style="width: 250px;" onkeyup="filterClientsTable()">
                 <button id="bulk-delete-btn" class="int-toolbar-btn" style="display:none; color: #ef4444; border-color: #ef4444;" onclick="bulkDeleteClients()">🗑 Kijelöltek törlése (<span id="bulk-delete-count">0</span>)</button>
+                <button id="bulk-campaign-btn" class="int-toolbar-btn" style="display:none; color: #1ceee0; border-color: #1ceee0; font-weight:700;" onclick="exportToCampaign()">⚡ Kampányba exportálás (<span id="bulk-campaign-count">0</span>)</button>
                 <button class="int-toolbar-btn" onclick="openClientFieldsModal()">Ügyfél mezők beállítása</button>
                 <button class="int-toolbar-btn" onclick="loadClientsTable()">↻ Frissítés</button>
                 <button class="int-toolbar-btn" onclick="openClientModal()" style="width:auto; margin:0;">+ Új
@@ -4574,7 +4778,7 @@
 
               <!-- Footer -->
               <div style="padding: 16px 24px; background:var(--bg3); border-top: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink: 0;">
-                <button class="btn-primary" onclick="closeLogModal()" style="background:transparent; color:var(--text-muted); border:1px solid var(--border); width:auto; padding: 10px 16px; margin:0;">
+                <button class="btn-primary" onclick="goToClientProfileFromLogModal()" style="background:transparent; color:var(--text-muted); border:1px solid var(--border); width:auto; padding: 10px 16px; margin:0;">
                     Ugrás ügyfélprofilra
                 </button>
                 <button id="log-modal-toggle-btn" class="btn-primary" onclick="toggleChat()" style="background:linear-gradient(135deg, var(--accent), var(--accent2)); color:#082432; border:none; width:auto; padding: 10px 16px; margin:0;">
@@ -4609,6 +4813,13 @@
           <script>
             function closeLogModal() {
                 document.getElementById('log-modal').style.display='none';
+            }
+            function goToClientProfileFromLogModal() {
+                closeLogModal();
+                if (window.currentLogModalClientData) {
+                    if (typeof showPage === 'function') showPage('clients');
+                    if (typeof openClientDetails === 'function') openClientDetails(window.currentLogModalClientData);
+                }
             }
             function openAllAppointmentsModal() {
               const clientName = document.getElementById('cd-name').innerText;
@@ -5039,6 +5250,7 @@
     // ── Page navigation ───────────────────────────────────────────────────────────
     function showPage(page) {
       if (page === 'approvals') loadApprovals();
+      if (page === 'outbound') loadCampaigns();
       const parentMap = {
         'sessions': 'interactions',
         'kanban': 'interactions',
@@ -5779,76 +5991,274 @@
 
     async function loadInteractions() {
       const tbody = document.getElementById('interactions-flat-body');
-      if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;padding:40px;color:#6b7280;"><div class="spinner" style="border-color:#e5e7eb;border-top-color:#1ceee0;margin:0 auto 10px;"></div>Adatok betöltése...</td></tr>';
+      if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;padding:40px;color:#6b7280;"><div class="spinner" style="border-color:#e5e7eb;border-top-color:#1ceee0;margin:0 auto 10px;"></div>Adatok betöltése...</td></tr>';
+      
+      // Load clients data for name resolution
+      let clientsMap = {};
+      try {
+        const cres = await authFetch('/admin/api/clients');
+        const cdata = await cres.json();
+        (cdata.clients || []).forEach(c => {
+          clientsMap[c.id] = c;
+        });
+        window.kanbanData = cdata.clients || [];
+      } catch(e) {}
+      
       try {
         const res = await authFetch('/admin/api/sessions/summary?limit=100');
         const data = await res.json();
-        buildFlatInteractionRows(data.sessions || []);
+        buildFlatInteractionRows(data.sessions || [], clientsMap);
       } catch (e) {
-        if (tbody) tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#ef4444;padding:40px;">Betöltési hiba</td></tr>';
+        if (tbody) tbody.innerHTML = '<tr><td colspan="8" style="text-align:center;color:#ef4444;padding:40px;">Betöltési hiba</td></tr>';
       }
     }
 
-    function buildFlatInteractionRows(sessions) {
-      // Flatten all interactions from all sessions into one list
+    function buildFlatInteractionRows(sessions, clientsMap) {
       _allInteractionRows = [];
+      clientsMap = clientsMap || {};
+      
       sessions.forEach(s => {
         const sessionDate = s.started_at || '';
         const sRoom = (s.room_name || '').toLowerCase();
-        const clientName = s.participant || s.client_name || 'Ismeretlen';
+        const sessionClientName = s.participant || s.client_name || 'Ismeretlen';
 
         function getRowChannel(rType) {
           const t = (rType || '').toLowerCase();
           if (t.includes('email') || sRoom.includes('email') || (s.session_id && s.session_id.startsWith('reminder_'))) return 'Email';
           if (t.includes('messenger') || sRoom.includes('messenger')) return 'Messenger';
           if (t.includes('instagram') || sRoom.includes('instagram')) return 'Instagram';
-          if (t.includes('whatsapp') || sRoom.includes('whatsapp')) return 'Whatsapp';
+          if (t.includes('whatsapp') || sRoom.includes('whatsapp')) return 'WhatsApp';
           return s.channel || 'Telefon';
         }
 
+        function detectUgyTipus(r) {
+          const topic = ((r.topic || '') + ' ' + (r.summary || '') + ' ' + (r.type || '')).toLowerCase();
+          if (topic.includes('panasz') || topic.includes('reklamáció') || topic.includes('complaint')) return 'PANASZ';
+          if (topic.includes('időpont') || topic.includes('foglal') || topic.includes('booking') || topic.includes('lemondás') || topic.includes('módosít') || topic.includes('emlékeztet')) return 'IDŐPONT';
+          if (topic.includes('kérés') || topic.includes('keres') || topic.includes('igény') || topic.includes('request')) return 'KÉRÉS';
+          if (topic.includes('kérdés') || topic.includes('question') || topic.includes('információ') || topic.includes('érdeklőd')) return 'KÉRDÉS';
+          return 'EGYÉB';
+        }
+
+        function detectEredmeny(r) {
+          const fs = (r.funnel_stage || '').toLowerCase();
+          const topic = ((r.topic || '') + ' ' + (r.summary || '')).toLowerCase();
+          if (fs === 'booked' || topic.includes('új időpont') || topic.includes('lefoglal')) return 'Új időpont';
+          if (topic.includes('módosít')) return 'Időpont módosítva';
+          if (topic.includes('lemond') || fs === 'cancelled') return 'Időpont lemondva';
+          if (topic.includes('előkészít') || fs === 'negotiating') return 'Időpont előkészítve';
+          if (topic.includes('megválaszol') || topic.includes('megoldva')) return 'Kérdés megválaszolva';
+          if (topic.includes('rögzít') && topic.includes('kérdés')) return 'Kérdés rögzítve';
+          if (topic.includes('rögzít') && topic.includes('igény')) return 'Igény rögzítve';
+          if (topic.includes('rögzít') && topic.includes('panasz')) return 'Panasz rögzítve';
+          if (topic.includes('elküld') || topic.includes('kiküld')) return 'Elküldve';
+          if (r.result) return r.result;
+          if (fs === 'reached') return 'Elérve';
+          return 'Rögzítve';
+        }
+
+        function detectStatusz(r) {
+          const hr = (r.handover_reason || '').toLowerCase();
+          const as = (r.approval_status || '').toLowerCase();
+          if (hr.includes('sürgős') || hr.includes('urgent') || hr.includes('panasz')) return 'SÜRGŐS';
+          if (as === 'approved' || as === 'lezárt' || as === 'rejected') return 'LEZÁRT';
+          if (as === 'pending' || hr.includes('nyitott') || hr.includes('várakoz')) return 'NYITOTT';
+          // Default: if old and no explicit status, assume lezárt
+          return 'LEZÁRT';
+        }
+
+        function detectTeendo(r) {
+          const hr = (r.handover_reason || '').toLowerCase();
+          const as = (r.approval_status || '').toLowerCase();
+          if (hr.includes('sürgős') || hr.includes('panasz')) return 'Azonnali beavatkozás szükséges';
+          if (as === 'pending') return 'Jóváhagyásra vár';
+          if (hr.includes('visszahív')) return 'Visszahívás szükséges';
+          if (hr.includes('válasz')) return 'Válasz szükséges';
+          if (hr.includes('intézked') || hr.includes('véglegesít')) return 'Intézkedés szükséges';
+          if (hr.includes('végleges')) return 'Véglegesítés szükséges';
+          return 'Nincs további teendő';
+        }
+
+        function resolveClientName(r) {
+          // Try to find client by client_id first
+          if (r.client_id && clientsMap[r.client_id]) {
+            const c = clientsMap[r.client_id];
+            let cd = c.custom_data;
+            if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
+            return { name: cd?.nev || cd?.name || cd?.['név'] || c.name || sessionClientName, id: c.id, status: c.status, created_at: c.created_at };
+          }
+
+          // Build a list of search values to try
+          const searchValues = [];
+          if (sessionClientName && sessionClientName !== 'Ismeretlen') {
+            searchValues.push(sessionClientName.toLowerCase().trim());
+          }
+          // Extract email from session_id (e.g. "email_aronberes9@gmail.com" → "aronberes9@gmail.com")
+          const sid = s.session_id || '';
+          if (sid.startsWith('email_')) {
+            const emailFromSid = sid.substring(6).toLowerCase().trim();
+            if (emailFromSid && !searchValues.includes(emailFromSid)) searchValues.push(emailFromSid);
+          }
+          // Extract messenger id from session_id (e.g. "messenger_26629190113363954")
+          if (sid.startsWith('messenger_')) {
+            const midFromSid = sid.substring(10).trim();
+            if (midFromSid && !searchValues.includes(midFromSid)) searchValues.push(midFromSid);
+          }
+
+          // Try all search values against all clients
+          for (const searchVal of searchValues) {
+            const match = window.kanbanData?.find(c => {
+              let cd = c.custom_data;
+              if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
+              // Match by name
+              const cn = (cd?.nev || cd?.name || cd?.['név'] || c.name || '').toLowerCase().trim();
+              if (cn && cn === searchVal) return true;
+              // Match by messenger_id
+              const mid = (cd?.messenger_id || cd?.messenger_psid || '').toString().trim().toLowerCase();
+              if (mid && mid === searchVal) return true;
+              // Match by email (check both fields and custom_data)
+              const em = (cd?.email || c.email || '').toLowerCase().trim();
+              if (em && em === searchVal) return true;
+              // Also check if searchVal contains email partially
+              if (em && searchVal.includes('@') && em === searchVal) return true;
+              // Match by phone
+              const ph = (cd?.phone || cd?.telefon || c.phone || '').replace(/\s/g, '');
+              if (ph && ph === searchVal.replace(/\s/g, '')) return true;
+              return false;
+            });
+            if (match) {
+              let cd = match.custom_data;
+              if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
+              const resolvedName = cd?.nev || cd?.name || cd?.['név'] || match.name || sessionClientName;
+              return { name: resolvedName, id: match.id, status: match.status, created_at: match.created_at };
+            }
+          }
+          
+          // No DB match found - return best available name from session
+          let bestName = sessionClientName;
+          // If participant is a raw ID or 'Ismeretlen', try to get a better name from session_id
+          if (bestName === 'Ismeretlen' || /^\d{10,}$/.test(bestName)) {
+            if (sid.startsWith('email_')) {
+              bestName = sid.substring(6); // show email address
+            } else if (sid.startsWith('phone_')) {
+              bestName = sid.substring(6); // show phone
+            }
+          }
+          return { name: bestName, id: null, status: null, created_at: null };
+        }
+
         (s.interactions || []).forEach(r => {
+          const clientInfo = resolveClientName(r);
           _allInteractionRows.push({
             date: r.created_at || sessionDate,
             channel: getRowChannel(r.type),
-            client: clientName,
+            client: clientInfo.name,
+            clientId: clientInfo.id,
+            clientStatus: clientInfo.status,
+            clientCreatedAt: clientInfo.created_at,
+            direction: (r.direction || 'inbound').toLowerCase() === 'outbound' ? 'Kimenő' : 'Bejövő',
+            ugyTipus: detectUgyTipus(r),
+            eredmeny: detectEredmeny(r),
+            statusz: detectStatusz(r),
+            teendo: detectTeendo(r),
+            // Keep raw data for backward compat
             type: r.type || '-',
             topic: r.topic || '-',
             summary: r.summary || '-',
             result: r.result || '',
+            interactionId: r.id || null,
+            sessionId: s.session_id || null,
+            ai_draft_response: r.ai_draft_response || null,
+            approval_status: r.approval_status || null,
           });
         });
-        // If session has no sub-interactions but has a summary, show it as one row
+
         if (!s.interactions || s.interactions.length === 0) {
+          const clientInfo = resolveClientName({});
           _allInteractionRows.push({
             date: sessionDate,
             channel: getRowChannel(''),
-            client: clientName,
+            client: clientInfo.name,
+            clientId: clientInfo.id,
+            clientStatus: clientInfo.status,
+            clientCreatedAt: clientInfo.created_at,
+            direction: 'Bejövő',
+            ugyTipus: 'EGYÉB',
+            eredmeny: 'Rögzítve',
+            statusz: 'LEZÁRT',
+            teendo: 'Nincs további teendő',
             type: 'session',
             topic: '-',
             summary: s.summary || '-',
             result: '',
+            interactionId: null,
+            sessionId: s.session_id || null,
           });
         }
       });
 
-      // Sort newest first
       _allInteractionRows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-
       filterInteractionsTable();
     }
 
     const RESULT_COLORS = {
       'Lezárt': { bg: '#dcfce7', color: '#15803d' },
-      'Foglalás történt': { bg: '#dcfce7', color: '#166534' }, // changed to green-100/green-800 per brief
+      'Foglalás történt': { bg: '#dcfce7', color: '#166534' },
       'Siker': { bg: '#dcfce7', color: '#166534' },
       'Foglalt': { bg: '#dcfce7', color: '#166534' },
       'Átadva': { bg: '#ffedd5', color: '#c2410c' },
-      'Visszahívás szükséges': { bg: '#ffedd5', color: '#9a3412' }, // orange-100/orange-800
+      'Visszahívás szükséges': { bg: '#ffedd5', color: '#9a3412' },
       'Sürgős': { bg: '#ffedd5', color: '#9a3412' },
       'Nyitott ügy': { bg: '#fee2e2', color: '#b91c1c' },
-      'Kimenő': { bg: '#f3e8ff', color: '#6b21a8' }, // purple-100/purple-800
-      'Bejövő': { bg: '#dbeafe', color: '#1e40af' }, // blue-100/blue-800
+      'Kimenő': { bg: '#f3e8ff', color: '#6b21a8' },
+      'Bejövő': { bg: '#dbeafe', color: '#1e40af' },
     };
+
+    const EREDMENY_COLORS = {
+      'Új időpont': { bg: '#dcfce7', color: '#166534' },
+      'Időpont módosítva': { bg: '#fef9c3', color: '#854d0e' },
+      'Időpont lemondva': { bg: '#fee2e2', color: '#b91c1c' },
+      'Időpont előkészítve': { bg: '#dbeafe', color: '#1e40af' },
+      'Kérdés megválaszolva': { bg: '#dcfce7', color: '#166534' },
+      'Kérdés rögzítve': { bg: '#dbeafe', color: '#1e40af' },
+      'Igény rögzítve': { bg: '#dbeafe', color: '#1e40af' },
+      'Panasz rögzítve': { bg: '#fee2e2', color: '#b91c1c' },
+      'Elküldve': { bg: '#f3e8ff', color: '#6b21a8' },
+      'Elérve': { bg: '#dcfce7', color: '#166534' },
+      'Rögzítve': { bg: '#f3f4f6', color: '#374151' },
+    };
+
+    const STATUSZ_COLORS = {
+      'LEZÁRT': { bg: '#dcfce7', color: '#166534' },
+      'NYITOTT': { bg: '#fef9c3', color: '#854d0e' },
+      'SÜRGŐS': { bg: '#fee2e2', color: '#b91c1c' },
+    };
+
+    const UGYTIPUS_COLORS = {
+      'IDŐPONT': { bg: '#dbeafe', color: '#1e40af' },
+      'KÉRDÉS': { bg: '#ccfbf1', color: '#0f766e' },
+      'KÉRÉS': { bg: '#fef9c3', color: '#854d0e' },
+      'PANASZ': { bg: '#fee2e2', color: '#b91c1c' },
+      'EGYÉB': { bg: '#f3f4f6', color: '#374151' },
+    };
+
+    function eredmenyBadge(val) {
+      if (!val) return '—';
+      const c = EREDMENY_COLORS[val] || { bg: '#f3f4f6', color: '#374151' };
+      return `<span style="display:inline-block;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:600;background:${c.bg};color:${c.color};">${esc(val)}</span>`;
+    }
+
+    function statuszBadge(val) {
+      if (!val) return '—';
+      const c = STATUSZ_COLORS[val] || { bg: '#f3f4f6', color: '#374151' };
+      return `<span style="display:inline-block;padding:3px 10px;border-radius:6px;font-size:11px;font-weight:700;background:${c.bg};color:${c.color};letter-spacing:0.5px;">${esc(val)}</span>`;
+    }
+
+    function ugyTipusBadge(val) {
+      if (!val) return '—';
+      const c = UGYTIPUS_COLORS[val] || { bg: '#f3f4f6', color: '#374151' };
+      return `<span style="display:inline-block;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:600;background:${c.bg};color:${c.color};">${esc(val)}</span>`;
+    }
 
     function resultBadge(result) {
       if (!result) return '—';
@@ -5873,61 +6283,47 @@
       const r = window._filteredInteractionRows[idx];
       if (!r) return;
 
-      document.getElementById('ism-client').textContent = r.client || 'Ismeretlen';
-      document.getElementById('ism-channel').textContent = r.channel || 'Telefon';
-      document.getElementById('ism-date').textContent = r.date ? fmtDt(r.date) : '';
-      document.getElementById('ism-summary').textContent = r.summary || 'Nincs összefoglaló';
-      document.getElementById('ism-result-badge').innerHTML = resultBadge(r.result);
-
-      // Clear dynamic fields
-      const grid = document.getElementById('ism-result-grid');
-      grid.innerHTML = '';
-
-      document.getElementById('ism-transcript-section').style.display = 'none';
-      document.getElementById('ism-modal').style.display = 'flex';
-
-      // Fetch client to get structured result and transcript
-      try {
-        const res = await authFetch('/admin/api/clients');
-        const data = await res.json();
-        const clients = data.clients || [];
-        const client = clients.find(c => {
-          if (!c.custom_data) return false;
-          let cd = {};
-          try { cd = typeof c.custom_data === 'string' ? JSON.parse(c.custom_data) : c.custom_data; } catch (e) { }
-          let cn = (cd.nev || cd.name || cd['név'] || cd['Név'] || '').toLowerCase().trim();
-          let rn = (r.client || '').toLowerCase().trim();
-          if (cn && rn && cn === rn) return true;
-          let em = (cd.email || '').toLowerCase().trim();
-          if (em && rn && rn.includes(em)) return true;
-          return false;
-        });
-
-        if (client && client.custom_data) {
-          let cd = {};
-          try { cd = typeof client.custom_data === 'string' ? JSON.parse(client.custom_data) : client.custom_data; } catch (e) { }
-          const fieldsToShow = [
-            { id: 'idopont', label: 'Befoglalt időpont' },
-            { id: 'szolgaltatas', label: 'Szolgáltatás' },
-            { id: 'orvos', label: 'Orvos' },
-            { id: 'prioritas', label: 'Prioritás' }
-          ];
-
-          fieldsToShow.forEach(f => {
-            let val = cd[f.id] || cd[f.label] || cd[f.id.toLowerCase()] || cd[f.label.toLowerCase()];
-            if (val) {
-              grid.innerHTML += `<div><div class="ism-result-label">${f.label}</div><div class="ism-result-val">${esc(val)}</div></div>`;
-            }
-          });
-
-          if (cd.beszelgetes_naplo) {
-            document.getElementById('ism-transcript').value = cd.beszelgetes_naplo;
-            document.getElementById('ism-transcript-section').style.display = 'block';
-          }
-        }
-      } catch (e) {
-        console.error('Error fetching client details for modal:', e);
+      // Find matching client from kanbanData
+      const clients = window.kanbanData || [];
+      let client = null;
+      if (r.clientId) {
+        client = clients.find(c => c.id === r.clientId);
       }
+      if (!client) {
+        const rn = (r.client || '').toLowerCase().trim();
+        client = clients.find(c => {
+          let cd = c.custom_data;
+          if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
+          const cn = (cd?.nev || cd?.name || cd?.['név'] || c.name || '').toLowerCase().trim();
+          return cn && cn === rn;
+        });
+      }
+
+      // Build custom data object for openLogModal
+      let cData = {};
+      if (client && client.custom_data) {
+        try { cData = typeof client.custom_data === 'string' ? JSON.parse(client.custom_data) : client.custom_data; } catch(e) {}
+      }
+      // Add client metadata
+      cData.id = client ? client.id : null;
+      cData._client_status = client ? client.status : null;
+      cData._client_created_at = client ? client.created_at : null;
+
+      // Get the beszelgetes_naplo (conversation log) text
+      const logText = cData.beszelgetes_naplo || r.summary || 'Nincs elérhető beszélgetés napló.';
+
+      // Encode parameters for openLogModal (same format as client database uses)
+      const encodedText = btoa(encodeURIComponent(logText));
+      const encodedCustomObj = btoa(encodeURIComponent(JSON.stringify(cData)));
+
+      // Delegate to the existing openLogModal which handles everything
+      openLogModal(
+        encodedText,
+        r.client || 'Ismeretlen',
+        r.channel || 'Telefon',
+        r.date ? fmtDt(r.date) : '',
+        encodedCustomObj
+      );
     }
 
     function filterInteractionsTable() {
@@ -5941,7 +6337,7 @@
       const sortVal = (document.getElementById('interaction-sort')?.value || 'date_desc');
       window._filteredInteractionRows = _allInteractionRows.filter(r => {
         const matchType = !typeF || r.type.toLowerCase().includes(typeF);
-        const matchQ = !q || [r.channel, r.client, r.type, r.topic, r.summary, r.result].join(' ').toLowerCase().includes(q);
+        const matchQ = !q || [r.channel, r.client, r.direction, r.ugyTipus, r.eredmeny, r.statusz, r.teendo, r.summary].join(' ').toLowerCase().includes(q);
         return matchType && matchQ;
       });
 
@@ -5949,17 +6345,22 @@
         if (sortVal === 'date_desc') return (b.date || '').localeCompare(a.date || '');
         if (sortVal === 'date_asc') return (a.date || '').localeCompare(b.date || '');
         if (sortVal === 'client_asc') return (a.client || '').localeCompare(b.client || '');
-        if (sortVal === 'topic_asc') return (a.topic || '').localeCompare(b.topic || '');
+        if (sortVal === 'topic_asc') return (a.ugyTipus || '').localeCompare(b.ugyTipus || '');
         return 0;
       });
 
       if (!window._filteredInteractionRows.length) {
-        tbody.innerHTML = '<tr><td colspan="7" style="text-align:center;color:#6b7280;padding:40px;">Nincs találat</td></tr>';
+        tbody.innerHTML = '<tr><td colspan="9" style="text-align:center;color:#6b7280;padding:40px;">Nincs találat</td></tr>';
         if (countEl) countEl.textContent = '';
         return;
       }
 
       const isDark = document.body.classList.contains('dark');
+      const dirColors = {
+        'Bejövő': { bg: '#dbeafe', color: '#1e40af' },
+        'Kimenő': { bg: '#f3e8ff', color: '#6b21a8' },
+      };
+
       tbody.innerHTML = window._filteredInteractionRows.map((r, i) => {
         const bg = isDark ? (i % 2 === 0 ? '#0d2538' : '#0f2d40') : (i % 2 === 0 ? '#fff' : '#fafafa');
         const hover = isDark ? 'rgba(28,238,224,0.05)' : '#f0fffe';
@@ -5967,18 +6368,29 @@
         const txtH = isDark ? '#e8edf5' : '#0a1f2e';
         const txtM = isDark ? '#6b8b99' : '#6b7280';
         const bdr = isDark ? '#1a3548' : '#f3f4f6';
-        return `<tr style="background:${bg};border-bottom:1px solid ${bdr};transition:background 0.15s;" onmouseover="this.style.background='${hover}'" onmouseout="this.style.background='${bg}'">
-      <td style="padding:12px 16px;font-size:13px;color:${txt};white-space:nowrap;">
+        const dc = dirColors[r.direction] || dirColors['Bejövő'];
+
+        let clientCell;
+        if (r.clientId) {
+          clientCell = `<button onclick="openClientDetails({id: ${r.clientId}, name: '${esc(r.client).replace(/'/g, "\\'")}'})" style="background:rgba(0,212,200,0.1);border:1px solid var(--accent,#1ceee0);color:var(--accent,#1ceee0);border-radius:6px;cursor:pointer;padding:5px 10px;font-size:12px;font-weight:600;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block;" title="Ugrás az ügyfél adatlapjára">${esc(r.client)}</button>`;
+        } else {
+          clientCell = `<span style="font-weight:500;color:${txtH};">${esc(r.client || 'Ismeretlen')}</span>`;
+        }
+
+        return `<tr style="background:${bg};border-bottom:1px solid ${bdr};transition:background 0.15s;cursor:pointer;" onmouseover="this.style.background='${hover}'" onmouseout="this.style.background='${bg}'" onclick="if(event.target.tagName!=='BUTTON' && event.target.tagName!=='INPUT') openInteractionSummaryModal(${i})">
+      <td style="padding:12px 16px;text-align:center;" onclick="event.stopPropagation()">
+        <input type="checkbox" class="int-row-checkbox" data-idx="${i}" onchange="updateIntDeleteBtn()" style="cursor:pointer;width:16px;height:16px;accent-color:#1ceee0;"/>
+      </td>
+      <td style="padding:12px 16px;font-size:13px;white-space:nowrap;">
         <div style="font-weight:500;color:${txtH};">${fmtDt(r.date)}</div>
       </td>
+      <td style="padding:12px 16px;font-size:13px;">${clientCell}</td>
       <td style="padding:12px 16px;font-size:13px;color:${txt};">${esc(r.channel)}</td>
-      <td style="padding:12px 16px;font-size:13px;font-weight:500;color:${txtH};">${esc(r.client || 'Ismeretlen')}</td>
-      <td style="padding:12px 16px;">${typeChip(r.type)}</td>
-      <td style="padding:12px 16px;font-size:13px;font-weight:500;color:${txtH};">${esc(r.topic)}</td>
-      <td style="padding:12px 16px;font-size:13px;color:${txtM};max-width:340px;">
-          <div onclick="openInteractionSummaryModal(${i})" class="summary-link" style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="Összefoglaló és beszélgetés napló megtekintése">${esc(r.summary)}</div>
-        </td>
-      <td style="padding:12px 16px;">${resultBadge(r.result)}</td>
+      <td style="padding:12px 16px;"><span style="display:inline-block;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:600;background:${dc.bg};color:${dc.color};">${esc(r.direction)}</span></td>
+      <td style="padding:12px 16px;">${ugyTipusBadge(r.ugyTipus)}</td>
+      <td style="padding:12px 16px;">${eredmenyBadge(r.eredmeny)}</td>
+      <td style="padding:12px 16px;">${statuszBadge(r.statusz)}</td>
+      <td style="padding:12px 16px;font-size:12px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(r.teendo)}" onclick="event.stopPropagation()">${r.teendo === 'J\u00f3v\u00e1hagy\u00e1sra v\u00e1r' && r.ai_draft_response ? `<button onclick="openApprovalFromInteraction(${i})" style=\"background:rgba(251,191,36,0.12);color:#d97706;border:1px solid rgba(251,191,36,0.3);border-radius:6px;padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;\">\u26a0 J\u00f3v\u00e1hagy\u00e1sra v\u00e1r</button>` : `<span style=\"color:${txtM}\">${esc(r.teendo)}</span>`}</td>
     </tr>`;
       }).join('');
 
@@ -5991,6 +6403,86 @@
 
     let activeFilter = '';
     function filterInteractions(type) { /* compat */ }
+
+    function toggleAllInteractionCheckboxes(checked) {
+      document.querySelectorAll('.int-row-checkbox').forEach(cb => cb.checked = checked);
+      updateIntDeleteBtn();
+    }
+
+    function updateIntDeleteBtn() {
+      const checked = document.querySelectorAll('.int-row-checkbox:checked');
+      const btn = document.getElementById('int-delete-selected-btn');
+      const countEl = document.getElementById('int-delete-count');
+      if (btn) {
+        btn.style.display = checked.length > 0 ? 'flex' : 'none';
+      }
+      if (countEl) countEl.textContent = checked.length;
+      // Update "select all" checkbox state
+      const all = document.querySelectorAll('.int-row-checkbox');
+      const selectAll = document.getElementById('int-select-all');
+      if (selectAll) {
+        selectAll.checked = all.length > 0 && checked.length === all.length;
+        selectAll.indeterminate = checked.length > 0 && checked.length < all.length;
+      }
+    }
+
+    async function deleteSelectedInteractions() {
+      const checked = document.querySelectorAll('.int-row-checkbox:checked');
+      if (!checked.length) return;
+      const count = checked.length;
+      if (!confirm(`Biztosan törölni szeretnéd a kijelölt ${count} interakciót? Ez a művelet nem vonható vissza!`)) return;
+
+      // Collect interaction IDs and session IDs
+      const interactionIds = new Set();
+      const sessionIds = new Set();
+      checked.forEach(cb => {
+        const idx = parseInt(cb.dataset.idx);
+        const row = window._filteredInteractionRows[idx];
+        if (row) {
+          if (row.interactionId) interactionIds.add(row.interactionId);
+          if (row.sessionId) sessionIds.add(row.sessionId);
+        }
+      });
+
+      // For session-only rows (no interactionId), we need to delete the whole session
+      // For rows with interactionId, we delete those specific interactions
+      // If ALL interactions in a session are selected, also delete the session
+      try {
+        const res = await authFetch('/admin/api/interactions/delete', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            interaction_ids: [...interactionIds],
+            session_ids: [...sessionIds]
+          })
+        });
+        if (res.ok) {
+          const data = await res.json();
+          alert(`Sikeresen törölve: ${data.deleted_interactions || 0} interakció, ${data.deleted_sessions || 0} session.`);
+          loadInteractions(); // Reload
+        } else {
+          alert('Hiba történt a törlés során!');
+        }
+      } catch (e) {
+        console.error('Delete error:', e);
+        alert('Hiba történt a törlés során!');
+      }
+    }
+
+    function openApprovalFromInteraction(idx) {
+      const r = window._filteredInteractionRows[idx];
+      if (!r) return;
+      // Build a compatible object for openApprovalModal
+      const approvalObj = {
+        id: r.interactionId,
+        topic: r.topic || '',
+        summary: r.summary || '',
+        ai_draft_response: r.ai_draft_response || '{}',
+        approval_status: r.approval_status || 'pending'
+      };
+      // Use the existing approval modal
+      openApprovalModal(approvalObj);
+    }
 
 
     // ── CALENDAR ──────────────────────────────────────────────────────────────────
@@ -6888,7 +7380,7 @@
             if (f.id === 'beszelgetes_naplo') {
               const safeName = esc(customObj.nev || customObj['név'] || customObj.name || 'Ismeretlen').replace(/'/g, "\\'");
               const safeDate = esc(fmtDt(c.created_at));
-              const injectedObj = Object.assign({}, customObj, { _client_status: c.status, _client_created_at: c.created_at });
+              const injectedObj = Object.assign({}, customObj, { id: c.id, _client_status: c.status, _client_created_at: c.created_at });
               return `<td>${val ? `<button onclick="openLogModal('${esc(btoa(encodeURIComponent(val)))}', '${safeName}', '${esc(csatorna)}', '${safeDate}', '${esc(btoa(encodeURIComponent(JSON.stringify(injectedObj))))}')" style="background:rgba(0,212,200,0.1);border:1px solid var(--accent);color:var(--accent);border-radius:4px;cursor:pointer;padding:4px 8px;font-size:11px;">Megtekintés</button>` : '<span style="color:var(--text-muted)">—</span>'}</td>`;
             }
             if (f.id === 'nev' || (f.name && f.name.toLowerCase() === 'név')) {
@@ -6936,6 +7428,13 @@
       if (encodedCustomObj) {
           try { cData = JSON.parse(decodeURIComponent(atob(encodedCustomObj))); } catch(e) {}
       }
+
+      window.currentLogModalClientData = {
+          id: cData.id || (window.currentClientDataForLog ? window.currentClientDataForLog.id : null),
+          name: name || cData.nev || cData.name || cData['név'] || (window.currentClientDataForLog ? window.currentClientDataForLog.name : ''),
+          email: cData.email || (window.currentClientDataForLog ? window.currentClientDataForLog.email : ''),
+          phone: cData.telefonszam || cData.phone || cData.telefon || (window.currentClientDataForLog ? window.currentClientDataForLog.phone : '')
+      };
 
       // --- DINAMIKUS BADGE LOGIKA ---
       let badge1 = "VISSZATÉRŐ ÜGYFÉL";
@@ -7182,6 +7681,8 @@
       const checkedCount = document.querySelectorAll('.client-checkbox:checked').length;
       const btn = document.getElementById('bulk-delete-btn');
       const countSpan = document.getElementById('bulk-delete-count');
+      const campaignBtn = document.getElementById('bulk-campaign-btn');
+      const campaignCount = document.getElementById('bulk-campaign-count');
       const selectAll = document.getElementById('selectAllClients');
       
       const totalCheckboxes = document.querySelectorAll('.client-checkbox').length;
@@ -7192,9 +7693,17 @@
       if (checkedCount > 0) {
         btn.style.display = 'inline-flex';
         countSpan.textContent = checkedCount;
+        if (campaignBtn) {
+          campaignBtn.style.display = 'inline-flex';
+          campaignCount.textContent = checkedCount;
+        }
       } else {
         btn.style.display = 'none';
         countSpan.textContent = '0';
+        if (campaignBtn) {
+          campaignBtn.style.display = 'none';
+          campaignCount.textContent = '0';
+        }
       }
     }
 
@@ -8365,7 +8874,12 @@
                     result: r.result || '',
                     alert_tags: r.alert_tags || [],
                     status: (r.approval_status || 'lezárt'),
-                    handover: r.handover_reason || 'Nincs teendő'
+                    handover: r.handover_reason || 'Nincs teendő',
+                    ai_draft_response: r.ai_draft_response || null,
+                    approval_status: r.approval_status || null,
+                    interactionId: r.id || null,
+                    topic_raw: r.topic || '',
+                    summary_raw: r.summary || ''
                   });
                 });
               }
@@ -8611,7 +9125,7 @@
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px; color:var(--text);">${esc(r.channel)}</td>
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px; color:${dirColor}; font-weight:600;">${dirText}</td>
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px;"><span class="badge" style="background:#f3f4f6;color:#4b5563;font-weight:600;text-transform:uppercase;">${esc(r.topic)}</span></td>
-                  <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px;"><span style="color:#b45309; background:#fef3c7; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:600;">${esc(r.result || 'Válasz előkészítve')}</span></td>
+                  <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px;">${((r.result || 'Válasz előkészítve').toLowerCase().includes('jóváhagyás') || (r.result || '').toLowerCase().includes('várakozik')) && r.ai_draft_response ? `<button onclick="openApprovalModal({id: ${r.interactionId || 0}, topic: '${esc(r.topic_raw || r.topic || '').replace(/'/g, "\\'") }', summary: '${esc(r.summary_raw || r.summary || '').replace(/'/g, "\\'") }', ai_draft_response: '${esc((r.ai_draft_response || '{}').replace(/'/g, "\\'"))  }', approval_status: '${r.approval_status || 'pending'}'})" style="background:rgba(251,191,36,0.12);color:#d97706;border:1px solid rgba(251,191,36,0.3);border-radius:6px;padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">⚠ ${esc(r.result || 'Várakozik jóváhagyásra')}</button>` : `<span style="color:#b45309; background:#fef3c7; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:600;">${esc(r.result || 'Válasz előkészítve')}</span>`}</td>
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px;"><span style="background:${stBg}; color:${stColor}; font-weight:bold; padding:4px 8px; border-radius:4px; font-size:11px;">${stText}</span></td>
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px; color:var(--text);">${esc(r.handover)}</td>
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px; text-align:center;">${actionContent}</td>
@@ -9572,7 +10086,6 @@
       
       const isHistory = currentApprovalTab === 'history';
       document.getElementById('btn-approval-approve').style.display = isHistory ? 'none' : 'block';
-      document.getElementById('btn-approval-reject').style.display = isHistory ? 'none' : 'block';
       document.getElementById('approval-draft-text').disabled = isHistory;
       
       document.getElementById('approval-modal').style.display = 'flex';
@@ -9586,7 +10099,7 @@
     async function submitApproval(action) {
       if (!currentApprovalId) return;
       const text = document.getElementById('approval-draft-text').value;
-      const btn = action === 'approve' ? document.getElementById('btn-approval-approve') : document.getElementById('btn-approval-reject');
+      const btn = document.getElementById('btn-approval-approve');
       const originalText = btn.innerHTML;
       btn.innerHTML = '<i class="fa-solid fa-spinner fa-spin"></i> Kis türelmet...';
       btn.disabled = true;
@@ -9722,6 +10235,192 @@ window.forceOpenProfile = function() {
         alert("Kritikus hiba az ablak megnyitásakor: " + e.message);
     }
 };
+</script>
+
+<script>
+// ══════════════════════════════════════════════════════════════════════════════
+// KIMENŐ KOMMUNIKÁCIÓ – KAMPÁNYOK
+// ══════════════════════════════════════════════════════════════════════════════
+
+window._campaigns = JSON.parse(localStorage.getItem('digidesk_campaigns') || '[]');
+window._selectedCampaignChannel = 'email';
+window._campaignTargetClientIds = [];
+
+function loadCampaigns() {
+  const campaigns = window._campaigns;
+  const tbody = document.getElementById('campaigns-tbody');
+  if (!tbody) return;
+
+  // Update summary stats
+  const totalEl = document.getElementById('campaign-stat-total');
+  const activeEl = document.getElementById('campaign-stat-active');
+  const clientsEl = document.getElementById('campaign-stat-clients');
+  if (totalEl) totalEl.textContent = campaigns.length;
+  if (activeEl) activeEl.textContent = campaigns.filter(c => c.status === 'Aktív').length;
+  if (clientsEl) clientsEl.textContent = campaigns.reduce((sum, c) => sum + (c.client_ids ? c.client_ids.length : 0), 0);
+
+  // Update reminder status
+  try {
+    authFetch('/admin/api/settings/reminder').then(r => r.json()).then(data => {
+      const el = document.getElementById('outbound-reminder-status');
+      if (el && data) {
+        const enabled = data.reminder_enabled;
+        el.innerHTML = `
+          <div style="width:8px; height:8px; border-radius:50%; background:${enabled ? '#22c55e' : 'var(--text-muted)'};"></div>
+          <span style="font-size:11px; font-weight:600; color:${enabled ? '#22c55e' : 'var(--text-muted)'};">${enabled ? 'Aktív' : 'Kikapcsolva'}</span>
+        `;
+      }
+    }).catch(() => {});
+  } catch(e) {}
+
+  if (!campaigns.length) {
+    tbody.innerHTML = '<tr><td colspan="6"><div style="text-align:center; padding:40px; color:var(--text-muted);">Még nincsenek kampányok. Kattints a "+ Új kampány indítása" gombra!</div></td></tr>';
+    return;
+  }
+
+  const channelIcons = { email: '📧', whatsapp: '💬', messenger: '💜', instagram: '📸' };
+  const channelNames = { email: 'Email', whatsapp: 'WhatsApp', messenger: 'Messenger', instagram: 'Instagram' };
+
+  tbody.innerHTML = campaigns.map(c => {
+    const statusColors = {
+      'Vázlat': { bg: 'rgba(107,139,153,0.1)', color: 'var(--text-muted)', dot: 'var(--text-muted)' },
+      'Aktív': { bg: 'rgba(34,197,94,0.1)', color: '#22c55e', dot: '#22c55e' },
+      'Befejezett': { bg: 'rgba(28,238,224,0.1)', color: 'var(--accent)', dot: 'var(--accent)' },
+      'Megállítva': { bg: 'rgba(245,158,11,0.1)', color: '#f59e0b', dot: '#f59e0b' }
+    };
+    const st = statusColors[c.status] || statusColors['Vázlat'];
+    const clientCount = c.client_ids ? c.client_ids.length : 0;
+    const createdDate = c.created_at ? new Date(c.created_at).toLocaleDateString('hu-HU') : '-';
+    const ch = c.channel || 'email';
+
+    let actions = '';
+    if (c.status === 'Vázlat' || c.status === 'Megállítva') {
+      actions += `<button onclick="startCampaign('${c.id}')" style="background:rgba(34,197,94,0.1); border:1px solid #22c55e; color:#22c55e; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; margin-right:6px;">▶ Indítás</button>`;
+    }
+    if (c.status === 'Aktív') {
+      actions += `<button onclick="stopCampaign('${c.id}')" style="background:rgba(245,158,11,0.1); border:1px solid #f59e0b; color:#f59e0b; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; margin-right:6px;">⏸ Megállítás</button>`;
+    }
+    actions += `<button onclick="deleteCampaign('${c.id}')" style="background:rgba(239,68,68,0.06); border:1px solid rgba(239,68,68,0.3); color:#ef4444; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer;">🗑 Törlés</button>`;
+
+    return `<tr>
+      <td style="font-weight:600;">${esc(c.name)}</td>
+      <td><span style="display:inline-flex; align-items:center; gap:6px; background:${st.bg}; color:${st.color}; padding:4px 10px; border-radius:6px; font-size:11px; font-weight:700;"><span style="width:6px;height:6px;border-radius:50%;background:${st.dot};"></span>${c.status}</span></td>
+      <td style="font-weight:600;">${clientCount} ügyfél</td>
+      <td>${channelIcons[ch] || ''} ${channelNames[ch] || ch}</td>
+      <td class="td-time">${createdDate}</td>
+      <td>${actions}</td>
+    </tr>`;
+  }).join('');
+}
+
+function openCampaignModal(clientIds) {
+  window._campaignTargetClientIds = clientIds || [];
+  document.getElementById('campaign-name').value = '';
+  document.getElementById('campaign-instructions').value = '';
+  
+  // Reset channel selection to email
+  window._selectedCampaignChannel = 'email';
+  document.querySelectorAll('.campaign-channel-btn').forEach((btn, i) => {
+    if (i === 0) {
+      btn.style.background = 'rgba(28,238,224,0.08)';
+      btn.style.borderColor = 'var(--accent)';
+    } else {
+      btn.style.background = 'var(--bg)';
+      btn.style.borderColor = 'var(--border)';
+    }
+  });
+
+  const countEl = document.getElementById('campaign-client-count');
+  const hintEl = document.getElementById('campaign-client-hint');
+  if (window._campaignTargetClientIds.length > 0) {
+    countEl.textContent = `${window._campaignTargetClientIds.length} ügyfél kiválasztva`;
+    hintEl.textContent = 'Az Ügyfelek adatbázisából kijelölt ügyfelek';
+  } else {
+    countEl.textContent = '0 ügyfél kiválasztva';
+    hintEl.textContent = 'Jelölj ki ügyfeleket az Ügyfelek adatbázisából';
+  }
+
+  document.getElementById('campaign-modal').style.display = 'flex';
+}
+
+function closeCampaignModal() {
+  document.getElementById('campaign-modal').style.display = 'none';
+}
+
+function selectCampaignChannel(btn, channel) {
+  window._selectedCampaignChannel = channel;
+  document.querySelectorAll('.campaign-channel-btn').forEach(b => {
+    b.style.background = 'var(--bg)';
+    b.style.borderColor = 'var(--border)';
+  });
+  btn.style.background = 'rgba(28,238,224,0.08)';
+  btn.style.borderColor = 'var(--accent)';
+}
+
+function createCampaign() {
+  const name = document.getElementById('campaign-name').value.trim();
+  if (!name) return alert('Kérlek add meg a kampány nevét!');
+  if (window._campaignTargetClientIds.length === 0) return alert('Nincs kiválasztva ügyfél! Jelölj ki ügyfeleket az Ügyfelek adatbázisában.');
+
+  const campaign = {
+    id: 'camp_' + Date.now(),
+    name: name,
+    channel: window._selectedCampaignChannel,
+    status: 'Vázlat',
+    client_ids: [...window._campaignTargetClientIds],
+    ai_instructions: document.getElementById('campaign-instructions').value.trim(),
+    created_at: new Date().toISOString()
+  };
+
+  window._campaigns.push(campaign);
+  localStorage.setItem('digidesk_campaigns', JSON.stringify(window._campaigns));
+  closeCampaignModal();
+  loadCampaigns();
+  
+  // Success toast
+  const toast = document.createElement('div');
+  toast.style.cssText = 'position:fixed; bottom:24px; right:24px; background:#082432; border:1px solid var(--accent); color:var(--text); padding:16px 24px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.3); z-index:9999; display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600; animation:slideIn 0.3s ease;';
+  toast.innerHTML = `<span style="color:var(--accent);">✓</span> Kampány "${esc(name)}" sikeresen létrehozva! (${campaign.client_ids.length} ügyfél)`;
+  document.body.appendChild(toast);
+  setTimeout(() => toast.remove(), 4000);
+}
+
+function exportToCampaign() {
+  const checkedBoxes = document.querySelectorAll('.client-checkbox:checked');
+  const clientIds = Array.from(checkedBoxes).map(cb => parseInt(cb.value));
+  if (clientIds.length === 0) return alert('Nincs kijelölt ügyfél!');
+  openCampaignModal(clientIds);
+}
+
+async function startCampaign(campaignId) {
+  const campaign = window._campaigns.find(c => c.id === campaignId);
+  if (!campaign) return;
+  
+  if (!confirm(`Biztosan elindítod a "${campaign.name}" kampányt?\n\nEz ${campaign.client_ids.length} ügyfélnek fog AI-generált üzenetet készíteni, amik a Jóváhagyó rendszerben fognak megjelenni.`)) return;
+
+  campaign.status = 'Aktív';
+  localStorage.setItem('digidesk_campaigns', JSON.stringify(window._campaigns));
+  loadCampaigns();
+
+  // TODO: Backend hívás, ami elindítja az AI piszkozat generálást
+  // await authFetch(`/admin/api/campaigns/${campaignId}/start`, { method: 'POST' });
+  alert(`A "${campaign.name}" kampány elindítva!\n\nHa a backend is be lesz kötve, az AI piszkozatok automatikusan megjelennek a Jóváhagyó rendszerben.`);
+}
+
+function stopCampaign(campaignId) {
+  const campaign = window._campaigns.find(c => c.id === campaignId);
+  if (!campaign) return;
+  campaign.status = 'Megállítva';
+  localStorage.setItem('digidesk_campaigns', JSON.stringify(window._campaigns));
+  loadCampaigns();
+}
+
+function deleteCampaign(campaignId) {
+  if (!confirm('Biztosan törlöd ezt a kampányt?')) return;
+  window._campaigns = window._campaigns.filter(c => c.id !== campaignId);
+  localStorage.setItem('digidesk_campaigns', JSON.stringify(window._campaigns));
+  loadCampaigns();
+}
 </script>
 
 </body>

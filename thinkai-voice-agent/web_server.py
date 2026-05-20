@@ -869,6 +869,30 @@ def admin_sessions_summary(limit: int = 50, username: str = Depends(verify_jwt))
     return {"sessions": db.get_sessions_with_summary(limit=limit)}
 
 
+class BulkDeleteInteractionsRequest(BaseModel):
+    interaction_ids: list[int] = []
+    session_ids: list[str] = []
+
+@app.post("/admin/api/interactions/delete")
+def admin_delete_interactions(req: BulkDeleteInteractionsRequest, username: str = Depends(verify_jwt)):
+    """Delete interactions and/or sessions by ID."""
+    deleted_interactions = 0
+    deleted_sessions = 0
+    try:
+        if req.interaction_ids and db.supabase:
+            db.supabase.table("interactions").delete().in_("id", req.interaction_ids).execute()
+            deleted_interactions = len(req.interaction_ids)
+        if req.session_ids and db.supabase:
+            # Also delete interactions belonging to these sessions
+            db.supabase.table("interactions").delete().in_("session_id", req.session_ids).execute()
+            db.supabase.table("sessions").delete().in_("session_id", req.session_ids).execute()
+            deleted_sessions = len(req.session_ids)
+    except Exception as e:
+        logger.error(f"Delete interactions error: {e}")
+        raise HTTPException(status_code=500, detail=str(e))
+    return {"deleted_interactions": deleted_interactions, "deleted_sessions": deleted_sessions}
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # CLIENTS (KANBAN) API
 # ═══════════════════════════════════════════════════════════════════════════════
