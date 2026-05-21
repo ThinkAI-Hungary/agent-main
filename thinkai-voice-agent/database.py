@@ -1294,3 +1294,72 @@ def mark_reminder_sent(event_id: int) -> bool:
     except Exception as e:
         logger.error(f'Error marking reminder sent: {e}')
         return False
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# CAMPAIGNS (KIMENŐ KOMMUNIKÁCIÓ)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def create_campaign(name: str, channels: list, client_ids: list, ai_instructions: str = "") -> int:
+    if not supabase: return 0
+    try:
+        res = supabase.table("campaigns").insert({
+            "name": name,
+            "channels": channels,
+            "status": "Vázlat",
+            "client_ids": client_ids,
+            "ai_instructions": ai_instructions,
+            "total_count": len(client_ids),
+            "processed_count": 0
+        }).execute()
+        return res.data[0]["id"] if res.data else 0
+    except Exception as e:
+        logger.error(f"Error creating campaign: {e}")
+        return 0
+
+def get_campaigns() -> list[dict]:
+    if not supabase: return []
+    try:
+        res = supabase.table("campaigns").select("*").order("created_at", desc=True).execute()
+        return res.data
+    except Exception as e:
+        logger.error(f"Error fetching campaigns: {e}")
+        return []
+
+def get_campaign(campaign_id: int) -> dict | None:
+    if not supabase: return None
+    try:
+        res = supabase.table("campaigns").select("*").eq("id", campaign_id).execute()
+        return res.data[0] if res.data else None
+    except Exception as e:
+        logger.error(f"Error fetching campaign: {e}")
+        return None
+
+def update_campaign_status(campaign_id: int, status: str, processed_count: int = None) -> bool:
+    if not supabase: return False
+    try:
+        updates = {"status": status}
+        if processed_count is not None:
+            updates["processed_count"] = processed_count
+        supabase.table("campaigns").update(updates).eq("id", campaign_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Error updating campaign status: {e}")
+        return False
+
+def delete_campaign(campaign_id: int) -> bool:
+    if not supabase: return False
+    try:
+        supabase.table("campaigns").delete().eq("id", campaign_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting campaign: {e}")
+        return False
+
+def get_clients_by_ids(client_ids: list[int]) -> list[dict]:
+    if not supabase or not client_ids: return []
+    try:
+        res = supabase.table("clients").select("*").in_("id", client_ids).execute()
+        return res.data
+    except Exception as e:
+        logger.error(f"Error fetching clients by IDs: {e}")
+        return []

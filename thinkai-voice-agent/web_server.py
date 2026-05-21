@@ -203,10 +203,6 @@ async def get_token():
         "room": room_name,
     })
 
-@app.get("/api/health")
-async def health():
-    return {"status": "ok", "agent": "thinkai-voice-agent"}
-
 
 @app.post("/api/session/end")
 async def session_end(request: Request):
@@ -1680,68 +1676,84 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
     channel = draft.get("channel", "").lower()
     final_text = req.modified_draft
     
+    # Multi-channel kampány piszkozat kezelése
+    drafts_to_send = []
+    if draft.get("multi_channel") and draft.get("drafts"):
+        for sub_draft in draft["drafts"]:
+            drafts_to_send.append(sub_draft)
+    else:
+        drafts_to_send.append(draft)
+    
     try:
         async with httpx.AsyncClient() as http_client:
-            if channel == "email":
-                brevo_key = os.getenv("BREVO_API_KEY", "")
-                api_key = brevo_key
-                if brevo_key and not brevo_key.startswith("xkeysib-"):
-                    try:
-                        decoded = b64module.b64decode(brevo_key).decode()
-                        parsed = json.loads(decoded)
-                        api_key = parsed.get("api_key", brevo_key)
-                    except: pass
-                
-                html_body = f'<div style="font-family: Arial, sans-serif;">{final_text.replace(chr(10), "<br>")}</div>'
-                if draft.get("event_id"):
-                    import email_processor
-                    html_body += email_processor.get_cancellation_html(draft.get("event_id"))
+            for send_draft in drafts_to_send:
+                ch = send_draft.get("channel", "").lower()
+                # A szöveget a fő draft-ból vesszük (amit az admin szerkesztett), de
+                # multi_channel esetén minden csatornának a saját szövegét használjuk
+                send_text = send_draft.get("body", final_text) if draft.get("multi_channel") else final_text
 
-                resp = await http_client.post(
-                    "https://api.brevo.com/v3/smtp/email",
-                    headers={"api-key": api_key, "Content-Type": "application/json"},
-                    json={
-                        "sender": {"name": "Bégé Design Kft.", "email": "bege@thinkai.hu"},
-                        "to": [{"email": draft.get("to_email"), "name": draft.get("to_name", "")}],
-                        "subject": draft.get("subject", "Re:"),
-                        "htmlContent": html_body,
-                    },
-                    timeout=20,
-                )
-                resp.raise_for_status()
-                
-            elif channel == "whatsapp":
-                wa_token = os.getenv("WHATSAPP_TOKEN", os.getenv("META_PAGE_ACCESS_TOKEN", ""))
-                wa_phone_id = draft.get("phone_number_id") or os.getenv("WHATSAPP_PHONE_ID", "")
-                if not wa_token or not wa_phone_id:
-                    raise Exception("Hiányzó WhatsApp token vagy Phone ID")
-                
-                resp = await http_client.post(
-                    f"https://graph.facebook.com/v25.0/{wa_phone_id}/messages",
-                    headers={"Authorization": f"Bearer {wa_token}"},
-                    json={
-                        "messaging_product": "whatsapp",
-                        "to": draft.get("sender_id"),
-                        "type": "text",
-                        "text": {"body": final_text}
-                    }
-                )
-                resp.raise_for_status()
-                
-            elif channel in ["messenger", "instagram"]:
-                page_access_token = os.getenv("META_PAGE_ACCESS_TOKEN", "")
-                if not page_access_token:
-                    raise Exception("Hiányzó Meta oldal token")
+                if ch == "email":
+                    brevo_key = os.getenv("BREVO_API_KEY", "")
+                    api_key = brevo_key
+                    if brevo_key and not brevo_key.startswith("xkeysib-"):
+                        try:
+                            decoded = b64module.b64decode(brevo_key).decode()
+                            parsed = json.loads(decoded)
+                            api_key = parsed.get("api_key", brevo_key)
+                        except: pass
                     
-                resp = await http_client.post(
-                    "https://graph.facebook.com/v25.0/me/messages",
-                    headers={"Authorization": f"Bearer {page_access_token}"},
-                    json={
-                        "recipient": {"id": draft.get("sender_id")},
-                        "message": {"text": final_text}
-                    }
-                )
-                resp.raise_for_status()
+                    html_body = f'<div style="font-family: Arial, sans-serif;">{send_text.replace(chr(10), "<br>")}</div>'
+                    if send_draft.get("event_id"):
+                        import email_processor
+                        html_body += email_processor.get_cancellation_html(send_draft.get("event_id"))
+
+                    resp = await http_client.post(
+                        "https://api.brevo.com/v3/smtp/email",
+                        headers={"api-key": api_key, "Content-Type": "application/json"},
+                        json={
+                            "sender": {"name": "Bégé Design Kft.", "email": "bege@thinkai.hu"},
+                            "to": [{"email": send_draft.get("to_email"), "name": send_draft.get("to_name", "")}],
+                            "subject": send_draft.get("subject", "Re:"),
+                            "htmlContent": html_body,
+                        },
+                        timeout=20,
+                    )
+                    resp.raise_for_status()
+                    print(f"[Approval] Email elküldve: {send_draft.get('to_email')}")
+                    
+                elif ch == "whatsapp":
+                    wa_token = os.getenv("WHATSAPP_TOKEN", os.getenv("META_PAGE_ACCESS_TOKEN", ""))
+                    wa_phone_id = send_draft.get("phone_number_id") or os.getenv("WHATSAPP_PHONE_ID", "")
+                    if not wa_token or not wa_phone_id:
+                        raise Exception("Hiányzó WhatsApp token vagy Phone ID")
+                    
+                    resp = await http_client.post(
+                        f"https://graph.facebook.com/v25.0/{wa_phone_id}/messages",
+                        headers={"Authorization": f"Bearer {wa_token}"},
+                        json={
+                            "messaging_product": "whatsapp",
+                            "to": send_draft.get("sender_id"),
+                            "type": "text",
+                            "text": {"body": send_text}
+                        }
+                    )
+                    resp.raise_for_status()
+                    
+                elif ch in ["messenger", "instagram"]:
+                    page_access_token = os.getenv("META_PAGE_ACCESS_TOKEN", "")
+                    if not page_access_token:
+                        raise Exception("Hiányzó Meta oldal token")
+                        
+                    resp = await http_client.post(
+                        "https://graph.facebook.com/v25.0/me/messages",
+                        headers={"Authorization": f"Bearer {page_access_token}"},
+                        json={
+                            "recipient": {"id": send_draft.get("sender_id")},
+                            "message": {"text": send_text}
+                        }
+                    )
+                    resp.raise_for_status()
+                    print(f"[Approval] Messenger elküldve: {send_draft.get('sender_id', '')[:10]}...")
                 
     except Exception as e:
         print(f"[Approval Error] Hiba a kiküldéskor: {e}")
@@ -1783,6 +1795,268 @@ async def save_reminder_settings_endpoint(payload: ReminderSettingsRequest, user
     if success:
         return {'ok': True, 'message': 'Emlékeztető beállítások mentve.'}
     raise HTTPException(status_code=500, detail='Adatbázis hiba mentéskor')
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# KIMENŐ KOMMUNIKÁCIÓ – KAMPÁNY API
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class CampaignCreateRequest(BaseModel):
+    name: str
+    channels: list[str] = ["email"]
+    client_ids: list[int]
+    ai_instructions: str = ""
+
+@app.get("/admin/api/campaigns")
+def get_campaigns_api(username: str = Depends(verify_jwt)):
+    campaigns = db.get_campaigns()
+    return {"campaigns": campaigns}
+
+@app.post("/admin/api/campaigns")
+def create_campaign_api(req: CampaignCreateRequest, username: str = Depends(verify_jwt)):
+    campaign_id = db.create_campaign(
+        name=req.name,
+        channels=req.channels,
+        client_ids=req.client_ids,
+        ai_instructions=req.ai_instructions
+    )
+    if campaign_id:
+        return {"status": "success", "id": campaign_id}
+    raise HTTPException(status_code=500, detail="Kampány létrehozása sikertelen")
+
+@app.post("/admin/api/campaigns/{campaign_id}/start")
+async def start_campaign_api(campaign_id: int, username: str = Depends(verify_jwt)):
+    campaign = db.get_campaign(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Kampány nem található")
+    channels = campaign.get("channels", [campaign.get("channel", "email")])
+    supported = {"email", "messenger"}
+    active_channels = [ch for ch in channels if ch in supported]
+    if not active_channels:
+        raise HTTPException(status_code=400, detail="Jelenleg csak email és messenger kampányok támogatottak")
+
+    db.update_campaign_status(campaign_id, "Aktív")
+
+    task = asyncio.create_task(_run_campaign(campaign, active_channels))
+    background_tasks.add(task)
+    task.add_done_callback(background_tasks.discard)
+
+    channel_names = {"email": "Email", "messenger": "Messenger"}
+    ch_str = ", ".join(channel_names.get(c, c) for c in active_channels)
+    return {"status": "success", "message": f"Kampány elindítva ({ch_str}), a piszkozatok hamarosan megjelennek a Jóváhagyó rendszerben."}
+
+@app.post("/admin/api/campaigns/{campaign_id}/stop")
+def stop_campaign_api(campaign_id: int, username: str = Depends(verify_jwt)):
+    campaign = db.get_campaign(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Kampány nem található")
+    db.update_campaign_status(campaign_id, "Megállítva")
+    return {"status": "success"}
+
+@app.delete("/admin/api/campaigns/{campaign_id}")
+def delete_campaign_api(campaign_id: int, username: str = Depends(verify_jwt)):
+    success = db.delete_campaign(campaign_id)
+    if success:
+        return {"status": "success"}
+    raise HTTPException(status_code=500, detail="Törlés sikertelen")
+
+@app.get("/admin/api/campaigns/{campaign_id}/clients")
+def get_campaign_clients_api(campaign_id: int, username: str = Depends(verify_jwt)):
+    campaign = db.get_campaign(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Kampány nem található")
+    client_ids = campaign.get("client_ids", [])
+    clients = db.get_clients_by_ids(client_ids)
+    result = []
+    for c in clients:
+        custom = c.get("custom_data", {})
+        if isinstance(custom, str):
+            try:
+                custom = json.loads(custom)
+            except:
+                custom = {}
+        result.append({
+            "id": c.get("id"),
+            "name": custom.get("name") or c.get("name", "Névtelen"),
+            "email": custom.get("email") or c.get("email", "-"),
+            "phone": custom.get("phone") or c.get("phone", "-"),
+            "status": c.get("status", "-")
+        })
+    return {"clients": result, "campaign_name": campaign.get("name", "")}
+
+
+async def _run_campaign(campaign: dict, active_channels: list[str]):
+    """Háttérfolyamat: végigmegy a kampány ügyfelein, AI-val generál piszkozatokat az aktív csatornákra."""
+    from google import genai
+    from google.genai import types
+    from prompt_utils import get_system_prompt
+
+    campaign_id = campaign["id"]
+    campaign_name = campaign["name"]
+    ai_instructions = campaign.get("ai_instructions", "")
+    client_ids = campaign.get("client_ids", [])
+
+    google_key = os.getenv("GOOGLE_API_KEY")
+    if not google_key:
+        print(f"[Campaign] GOOGLE_API_KEY hiányzik, kampány megszakítva: {campaign_name}")
+        db.update_campaign_status(campaign_id, "Megállítva")
+        return
+
+    clients = db.get_clients_by_ids(client_ids)
+    if not clients:
+        print(f"[Campaign] Nem találhatók ügyfelek, kampány lezárva: {campaign_name}")
+        db.update_campaign_status(campaign_id, "Befejezett", processed_count=0)
+        return
+
+    base_system_prompt = get_system_prompt()
+    gemini_client = genai.Client(api_key=google_key)
+    processed = 0
+
+    for client in clients:
+        current = db.get_campaign(campaign_id)
+        if not current or current.get("status") == "Megállítva":
+            print(f"[Campaign] Kampány megállítva: {campaign_name}")
+            return
+
+        custom_data = client.get("custom_data", {})
+        if isinstance(custom_data, str):
+            try:
+                custom_data = json.loads(custom_data)
+            except:
+                custom_data = {}
+
+        client_email = custom_data.get("email") or client.get("email", "")
+        client_name = custom_data.get("name") or client.get("name", "Névtelen")
+        client_messenger_id = custom_data.get("messenger_id", "")
+        client_phone = custom_data.get("phone", "")
+
+        interaction_log = client.get("interaction_log", "")
+        if not interaction_log:
+            interaction_log = custom_data.get("beszelgetes_naplo", "")
+
+        user_context = f"Ügyfél neve: {client_name}\n"
+        if client_email and client_email != "-":
+            user_context += f"Ügyfél email: {client_email}\n"
+        if client_phone:
+            user_context += f"Telefon: {client_phone}\n"
+        if interaction_log:
+            log_snippet = interaction_log[-1500:] if len(interaction_log) > 1500 else interaction_log
+            user_context += f"\nKorábbi előzmények:\n{log_snippet}\n"
+
+        # === Piszkozatok generálása minden aktív csatornára ===
+        drafts = []
+
+        if "email" in active_channels and client_email and client_email != "-":
+            email_prompt = f"""{base_system_prompt}
+
+--- KIMENŐ KAMPÁNY UTASÍTÁS (EMAIL) ---
+Te most egy kimenő email kampány részeként írsz személyre szabott üzenetet.
+A kampány neve: {campaign_name}
+
+Az admin utasítása:
+{ai_instructions if ai_instructions else "Nincs külön utasítás – írj egy kedves, releváns megkeresést."}
+
+FELADATOD:
+Írj egy rövid, személyre szabott email üzenetet az ügyfélnek.
+- Kedves, de célratörő megszólítás
+- Ha van korábbi előzmény, hivatkozz rá
+- NE használj HTML tag-eket
+- A válaszod KIZÁRÓLAG az email szövege legyen
+"""
+            try:
+                response = await gemini_client.aio.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=user_context,
+                    config=types.GenerateContentConfig(system_instruction=email_prompt, temperature=0.4)
+                )
+                drafts.append({
+                    "channel": "Email",
+                    "to_email": client_email,
+                    "to_name": client_name,
+                    "subject": campaign_name,
+                    "body": response.text.strip()
+                })
+                print(f"[Campaign] Email piszkozat generálva: {client_name} <{client_email}>")
+            except Exception as e:
+                print(f"[Campaign] Gemini email hiba ({client_name}): {e}")
+
+        if "messenger" in active_channels and client_messenger_id:
+            messenger_prompt = f"""{base_system_prompt}
+
+--- KIMENŐ KAMPÁNY UTASÍTÁS (MESSENGER) ---
+Te most egy kimenő Messenger kampány részeként írsz személyre szabott üzenetet.
+A kampány neve: {campaign_name}
+
+Az admin utasítása:
+{ai_instructions if ai_instructions else "Nincs külön utasítás – írj egy kedves, releváns megkeresést."}
+
+FELADATOD:
+Írj egy rövid, személyre szabott Messenger üzenetet az ügyfélnek.
+- Legyen rövid és közvetlen (max 3-4 mondat)
+- Messenger stílusú: barátságos, informális
+- NE használj semmilyen formázást, csak sima szöveg
+- A válaszod KIZÁRÓLAG az üzenet szövege legyen
+"""
+            try:
+                response = await gemini_client.aio.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=user_context,
+                    config=types.GenerateContentConfig(system_instruction=messenger_prompt, temperature=0.5)
+                )
+                drafts.append({
+                    "channel": "Messenger",
+                    "sender_id": client_messenger_id,
+                    "to_name": client_name,
+                    "body": response.text.strip()
+                })
+                print(f"[Campaign] Messenger piszkozat generálva: {client_name}")
+            except Exception as e:
+                print(f"[Campaign] Gemini messenger hiba ({client_name}): {e}")
+
+        if not drafts:
+            continue
+
+        # Egy összevont piszkozat az összes csatornával
+        if len(drafts) == 1:
+            combined_payload = drafts[0]
+            combined_payload["campaign_name"] = campaign_name
+        else:
+            combined_payload = {
+                "multi_channel": True,
+                "campaign_name": campaign_name,
+                "to_name": client_name,
+                "body": drafts[0].get("body", ""),
+                "drafts": drafts
+            }
+
+        channel_names_list = [d["channel"] for d in drafts]
+        ch_display = " + ".join(channel_names_list)
+        session_id = f"campaign_{campaign_id}_{client['id']}"
+        db.create_session(session_id=session_id, room_name=f"Kampány: {campaign_name}", participant=client_name)
+        db.log_interaction(
+            type=ch_display,
+            topic=f"Kampány: {campaign_name}",
+            summary=f"Kimenő kampány ({ch_display}) – {client_name}",
+            result="Várakozik jóváhagyásra",
+            tool_name="campaign_worker",
+            session_id=session_id,
+            direction="outbound",
+            funnel_stage="relevans",
+            alert_tags=[],
+            handover_reason=None,
+            approval_status="pending",
+            ai_draft_response=json.dumps(combined_payload)
+        )
+
+        processed += 1
+        db.update_campaign_status(campaign_id, "Aktív", processed_count=processed)
+        print(f"[Campaign] Piszkozat kész ({processed}/{len(clients)}): {client_name} [{ch_display}]")
+        await asyncio.sleep(1)
+
+    db.update_campaign_status(campaign_id, "Befejezett", processed_count=processed)
+    ch_str = ", ".join(active_channels)
+    print(f"[Campaign] Kampány befejezve: {campaign_name} ({ch_str}) – {processed} piszkozat generálva")
+
 
 @app.get('/api/public/cancel')
 async def public_cancel_appointment(token: str):
