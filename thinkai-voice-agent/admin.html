@@ -465,6 +465,19 @@
       flex-shrink: 0;
     }
 
+    .nav-group {}
+    .nav-group-toggle { display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:8px;cursor:pointer;font-size:14px;font-weight:500;color:var(--text-muted);transition:all 0.15s;margin-bottom:4px;border:none;background:none;width:100%;text-align:left; }
+    .nav-group-toggle:hover { background:rgba(255,255,255,0.06);color:var(--text); }
+    .nav-group-toggle.active { color:var(--accent); }
+    .nav-group-toggle svg { width:18px;height:18px;flex-shrink:0; }
+    .nav-group-toggle .nav-chevron { margin-left:auto;width:14px;height:14px;transition:transform 0.2s; }
+    .nav-group-toggle.open .nav-chevron { transform:rotate(180deg); }
+    .nav-submenu { max-height:0;overflow:hidden;transition:max-height 0.25s ease; }
+    .nav-submenu.open { max-height:200px; }
+    .nav-sub-item { display:flex;align-items:center;gap:8px;padding:8px 12px 8px 42px;border-radius:8px;cursor:pointer;font-size:13px;font-weight:500;color:var(--text-muted);transition:all 0.15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left; }
+    .nav-sub-item:hover { background:rgba(255,255,255,0.06);color:var(--text); }
+    .nav-sub-item.active { background:rgba(28,238,224,0.12);color:var(--accent); }
+
     .nav-section-title {
       font-size: 10px;
       font-weight: 600;
@@ -3500,12 +3513,20 @@
         </svg>
         <span>Analitika</span>
       </button>
-      <button class="nav-item" id="nav-interactions" onclick="showPage('interactions')">
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
-          <path d="M8 12h8M8 8h4m-4 8h6M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"></path>
-        </svg>
-        <span>Ügyfélközpont</span>
-      </button>
+      <div class="nav-group">
+        <button class="nav-group-toggle open" id="nav-interactions-group" onclick="toggleNavGroup(this)">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+            <path d="M8 12h8M8 8h4m-4 8h6M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"></path>
+          </svg>
+          <span>Ügyfélközpont</span>
+          <svg class="nav-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>
+        </button>
+        <div class="nav-submenu open" id="nav-submenu-interactions">
+          <button class="nav-sub-item" id="nav-sub-interactions" onclick="showPage('interactions')">Interakciós lista</button>
+          <button class="nav-sub-item" id="nav-sub-clients" onclick="showPage('clients')">Ügyféllista</button>
+          <button class="nav-sub-item" id="nav-sub-kanban" onclick="showPage('kanban')">Érdeklődőkezelés</button>
+        </div>
+      </div>
       <button class="nav-item" id="nav-calendar" onclick="showPage('calendar')">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
           <rect height="18" rx="2" width="18" x="3" y="4"></rect>
@@ -4513,9 +4534,9 @@
       <div class="page" id="page-interactions">
         <div class="analytics-shell">
           <!-- View Switcher -->
-          <div class="view-switcher-container"><button class="view-btn active"
+          <div class="view-switcher-container" style="display:none;"><button class="view-btn active"
               onclick="switchCustomerView('clients', this)">Ügyfelek adatbázisa</button><button class="view-btn"
-              onclick="switchCustomerView('kanban', this)">Kanban</button><button class="view-btn"
+              onclick="switchCustomerView('kanban', this)">Érdeklődőkezelés</button><button class="view-btn"
               onclick="switchCustomerView('interactions', this)">Interakciós lista</button><button class="view-btn"
               onclick="switchCustomerView('emails', this)">E-mailek</button><button class="view-btn"
               onclick="switchCustomerView('sessions', this)">Sessionok</button></div>
@@ -4604,8 +4625,8 @@
           <div class="customer-view" id="view-kanban" style="display:none;">
             <div class="page-header" style="margin-bottom:18px;">
               <div>
-                <div class="page-title">Kanban</div>
-                <div class="page-subtitle">Érdeklődők feladatainak nyomon követése</div>
+                <div class="page-title">Érdeklődőkezelés</div>
+                <div class="page-subtitle">Konverziós tölcsér és érdeklődők nyomon követése</div>
               </div>
               <button class="int-toolbar-btn" onclick="promptAddKanbanColumn()" style="width:auto; margin:0;">+ Oszlop
                 hozzáadása</button>
@@ -4618,7 +4639,7 @@
           <div class="customer-view" id="view-clients" style="display:block;">
             <div class="page-header">
               <div>
-                <div class="page-title">Ügyfelek adatbázisa</div>
+                <div class="page-title">Ügyféllista</div>
                 <div class="page-subtitle">Ügyfelek listázása és alapadatok módosítása</div>
               </div>
               <div style="display:flex;gap:12px;align-items:center;">
@@ -5252,30 +5273,39 @@
     }
 
     // ── Page navigation ───────────────────────────────────────────────────────────
+    function toggleNavGroup(btn) {
+      btn.classList.toggle('open');
+      const submenu = btn.nextElementSibling;
+      if (submenu) submenu.classList.toggle('open');
+    }
+
     function showPage(page) {
       if (page === 'approvals') loadApprovals();
       if (page === 'outbound') loadCampaigns();
-      const parentMap = {
-        'sessions': 'interactions',
-        'kanban': 'interactions',
-        'clients': 'interactions',
-        'emails': 'interactions'
-      };
-      const actualPage = parentMap[page] || page;
+      const customerViews = ['kanban', 'clients', 'interactions', 'sessions', 'emails'];
+      const isCustomerView = customerViews.includes(page);
+      const actualPage = isCustomerView ? 'interactions' : page;
 
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+      document.querySelectorAll('.nav-sub-item').forEach(n => n.classList.remove('active'));
       
       const pg = document.getElementById(`page-${actualPage}`);
       if (pg) pg.classList.add('active');
       
-      const nav = document.getElementById(`nav-${actualPage}`);
-      if (nav) nav.classList.add('active');
-
-      if (parentMap[page]) {
+      if (isCustomerView) {
+        const subNav = document.getElementById(`nav-sub-${page}`);
+        if (subNav) subNav.classList.add('active');
+        const groupToggle = document.getElementById('nav-interactions-group');
+        const submenu = document.getElementById('nav-submenu-interactions');
+        if (groupToggle && !groupToggle.classList.contains('open')) groupToggle.classList.add('open');
+        if (submenu && !submenu.classList.contains('open')) submenu.classList.add('open');
+        if (groupToggle) groupToggle.classList.add('active');
         const btn = document.querySelector(`[onclick*="switchCustomerView('${page}'"]`);
         if (typeof switchCustomerView === 'function') switchCustomerView(page, btn);
       } else {
+        const nav = document.getElementById(`nav-${actualPage}`);
+        if (nav) nav.classList.add('active');
         if (page === 'calendar') loadCalendar();
         if (page === 'settings') { loadSettings(); loadPraxisinfo(); if (typeof fetchTriageRules === 'function') fetchTriageRules();
       fetchDoctors(); }
@@ -6381,7 +6411,7 @@
           clientCell = `<span style="font-weight:500;color:${txtH};">${esc(r.client || 'Ismeretlen')}</span>`;
         }
 
-        return `<tr style="background:${bg};border-bottom:1px solid ${bdr};transition:background 0.15s;cursor:pointer;" onmouseover="this.style.background='${hover}'" onmouseout="this.style.background='${bg}'" onclick="if(event.target.tagName!=='BUTTON' && event.target.tagName!=='INPUT') openInteractionSummaryModal(${i})">
+        return `<tr style="background:${bg};border-bottom:1px solid ${bdr};transition:background 0.15s;" onmouseover="this.style.background='${hover}'" onmouseout="this.style.background='${bg}'">
       <td style="padding:12px 16px;text-align:center;" onclick="event.stopPropagation()">
         <input type="checkbox" class="int-row-checkbox" data-idx="${i}" onchange="updateIntDeleteBtn()" style="cursor:pointer;width:16px;height:16px;accent-color:#1ceee0;"/>
       </td>
@@ -7325,33 +7355,36 @@
       const tbody = document.getElementById('clients-body');
       if (!tbody || !thead) return;
 
-      const displayFields = currentClientFields.slice(0, 4);
       thead.innerHTML = `
     <tr>
-      <th style="width: 40px; text-align: center;"><input type="checkbox" id="selectAllClients" onchange="toggleAllClients(this)"></th>
-      <th>Regisztrálva</th>
-      <th>Csatorna</th>
-      ${displayFields.map(f => `<th>${esc(f.name)}</th>`).join('')}
+      <th style="width:40px;text-align:center;"><input type="checkbox" id="selectAllClients" onchange="toggleAllClients(this)"></th>
+      <th>Ügyfél</th>
+      <th>Új / Visszatérő</th>
+      <th>Címkék</th>
+      <th>Telefonszám</th>
+      <th>Email</th>
+      <th>Felelős</th>
+      <th>Utolsó interakció</th>
       <th>Kanban Státusz</th>
       <th>Műveletek</th>
     </tr>
   `;
 
-      tbody.innerHTML = `<tr class="loading-row"><td colspan="${5 + displayFields.length}"><div class="spinner"></div></td></tr>`;
-      
-      // Hide bulk delete button on reload
+      tbody.innerHTML = '<tr class="loading-row"><td colspan="10"><div class="spinner"></div></td></tr>';
       document.getElementById('bulk-delete-btn').style.display = 'none';
       document.getElementById('bulk-delete-count').textContent = '0';
+
+      const mockFelelosok = ['Kovács Marcell', 'Nagy Anna', 'Szabó Péter', 'Tóth Réka'];
+
       try {
         const res = await authFetch('/admin/api/clients');
         const data = await res.json();
         const clients = data.clients || [];
         if (!clients.length) {
-          tbody.innerHTML = `<tr><td colspan="${5 + displayFields.length}"><div class="empty-state"><div class="empty-state-text">Nincs rögzített ügyfél</div></div></td></tr>`;
+          tbody.innerHTML = '<tr><td colspan="10"><div class="empty-state"><div class="empty-state-text">Nincs rögzített ügyfél</div></div></td></tr>';
           return;
         }
 
-        // Auto-load kanban cols to map status
         if (currentKanbanColumns.length === 0) {
           const creq = await authFetch('/admin/api/kanban_columns');
           const cdat = await creq.json();
@@ -7360,49 +7393,158 @@
         const statusMap = {};
         currentKanbanColumns.forEach(c => { statusMap[c.id] = c.name; });
 
+        // Fetch calendar events for appointment-based Új/Visszatérő detection
+        // Uses EXACT same matching logic as openClientDetails (lines 9074-9118)
+        let calendarEvents = [];
+        let latestInteractions = {};
+        try {
+          const calRes = await authFetch('/admin/api/calendar');
+          const calData = await calRes.json();
+          calendarEvents = calData.events || [];
+        } catch(e) {}
+
+        // Build per-client appointment count using same logic as detail view
+        function countClientAppointments(clientName, clientEmail, customData) {
+          const cleanName = (clientName || '').toLowerCase().replace(/\s+/g, ' ').trim();
+          const cleanEmail = (clientEmail || '').toLowerCase().trim();
+          const messengerId = customData?.messenger_id || '';
+          let count = 0;
+          calendarEvents.forEach(ev => {
+            const cleanEvEmail = (ev.attendee_email || '').toLowerCase().trim();
+            const cleanEvAttendee = (ev.attendee || '').toLowerCase().trim();
+            const cleanEvTitle = (ev.title || '').toLowerCase().trim();
+            let match = false;
+            if (cleanEmail) {
+              if (cleanEvEmail && cleanEmail === cleanEvEmail) match = true;
+              if (cleanEvAttendee && cleanEvAttendee.includes(cleanEmail)) match = true;
+            }
+            if (cleanName) {
+              if (cleanEvAttendee && cleanEvAttendee.includes(cleanName)) match = true;
+              if (cleanEvTitle && cleanEvTitle.includes(cleanName)) match = true;
+            }
+            if (match) count++;
+          });
+          return count;
+        }
+
+        // Fetch sessions for "utolsó interakció" - use same matching as detail view
+        // The detail view matches sessions by participant name, session_id email, messenger_id
+        let latestSessionByClient = {}; // keyed by client id
+        try {
+          const sessRes = await authFetch('/admin/api/sessions/summary?limit=500');
+          const sessData = await sessRes.json();
+          const allSessions = sessData.sessions || [];
+          
+          // For each client, find matching sessions
+          clients.forEach(cl => {
+            let co = cl.custom_data ? JSON.parse(cl.custom_data) : {};
+            const cName = (co.nev || co.name || cl.name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+            const cEmail = (co.email || cl.email || '').toLowerCase().trim();
+            const cMsgId = (co.messenger_id || '').toString().trim();
+            
+            allSessions.forEach(s => {
+              const participant = (s.participant || s.client_name || '').toLowerCase().replace(/\s+/g, ' ').trim();
+              const sid = (s.session_id || '').toLowerCase();
+              
+              let isMatch = false;
+              if (cName && participant && cName === participant) isMatch = true;
+              if (cEmail && sid.includes(cEmail)) isMatch = true;
+              if (cMsgId && sid.includes(cMsgId)) isMatch = true;
+              
+              if (isMatch) {
+                // Use session started_at or last interaction date
+                const sessionDate = s.started_at || s.created_at || '';
+                let latestDate = sessionDate;
+                (s.interactions || []).forEach(inter => {
+                  if (inter.created_at && (!latestDate || new Date(inter.created_at) > new Date(latestDate))) {
+                    latestDate = inter.created_at;
+                  }
+                });
+                if (latestDate && (!latestSessionByClient[cl.id] || new Date(latestDate) > new Date(latestSessionByClient[cl.id]))) {
+                  latestSessionByClient[cl.id] = latestDate;
+                }
+              }
+            });
+          });
+        } catch(e) {}
+
+        const tagColors = {
+          'árkérdés': {bg:'#fce4ec',color:'#c62828'}, 'kampány lead': {bg:'#e8f5e9',color:'#2e7d32'},
+          'ajánlatkérés': {bg:'#fff3e0',color:'#e65100'}, 'törölt időpont': {bg:'#fce4ec',color:'#c62828'},
+          'no-show': {bg:'#fff8e1',color:'#f57f17'}, 'VIP': {bg:'#ede7f6',color:'#4527a0'},
+        };
+
         tbody.innerHTML = clients.map(c => {
           let customObj = c.custom_data ? JSON.parse(c.custom_data) : {};
-          let csatorna = customObj.forras_csatorna || '';
-          if (!csatorna) {
-            if (customObj.messenger_id) csatorna = "Messenger";
-            else csatorna = "Manuális";
-          }
           let dispStatus = statusMap[c.status] || c.status;
           let badgeCls = 'badge-teal';
           let rowStyle = '';
           if (dispStatus.toLowerCase().includes('lemondott') || c.status === 'lemondott') {
               badgeCls = 'badge-red';
-              rowStyle = 'opacity: 0.65; background-color: rgba(239, 68, 68, 0.03);';
+              rowStyle = 'opacity:0.65;background-color:rgba(239,68,68,0.03);';
           }
-          return `
-      <tr style="${rowStyle}">
-        <td style="text-align: center;"><input type="checkbox" class="client-checkbox" value="${c.id}" onchange="updateBulkDeleteBtn()"></td>
-        <td class="td-time">${fmtDt(c.created_at)}</td>
-        <td style="font-weight:600; font-size:12px; color:var(--text);">${esc(csatorna)}</td>
-        ${displayFields.map((f, i) => {
-            let val = customObj[f.id] != null ? customObj[f.id] : '';
-            if (f.id === 'beszelgetes_naplo') {
-              const safeName = esc(customObj.nev || customObj['név'] || customObj.name || 'Ismeretlen').replace(/'/g, "\\'");
-              const safeDate = esc(fmtDt(c.created_at));
-              const injectedObj = Object.assign({}, customObj, { id: c.id, _client_status: c.status, _client_created_at: c.created_at });
-              return `<td>${val ? `<button onclick="openLogModal('${esc(btoa(encodeURIComponent(val)))}', '${safeName}', '${esc(csatorna)}', '${safeDate}', '${esc(btoa(encodeURIComponent(JSON.stringify(injectedObj))))}')" style="background:rgba(0,212,200,0.1);border:1px solid var(--accent);color:var(--accent);border-radius:4px;cursor:pointer;padding:4px 8px;font-size:11px;">Megtekintés</button>` : '<span style="color:var(--text-muted)">—</span>'}</td>`;
-            }
-            if (f.id === 'nev' || (f.name && f.name.toLowerCase() === 'név')) {
-              return `<td><button onclick="openClientDetails({id: ${c.id}, name: '${esc(val)}', email: '${esc(customObj.email || '')}', phone: '${esc(customObj.telefonszam || customObj.phone || customObj.telefon || '')}', address: '${esc(customObj.cim || customObj.address || '')}', birthdate: '${esc(customObj.szuletesi_datum || customObj.szuletesnap || customObj.birthdate || '')}'})" style="background:rgba(0,212,200,0.1);border:1px solid var(--accent);color:var(--accent);border-radius:4px;cursor:pointer;padding:6px 10px;font-size:12px;font-weight:600;display:inline-block;max-width:100%;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="Ugrás az ügyfél adatlapjára">${esc(val || '—')}</button></td>`;
-            }
-            return `<td ${i === 0 ? 'style="font-weight:500"' : ''}>${esc(val || '—')}</td>`;
-          }).join('')}
-        <td><span class="badge ${badgeCls}">${esc(dispStatus)}</span></td>
-        <td>
-          <button onclick="openClientModal(${c.id}, '${esc(btoa(encodeURIComponent(c.custom_data || '{}')))}')" style="background:transparent;border:none;color:var(--blue);cursor:pointer;font-size:12px;margin-right:8px;">Szerkesztés</button>
-          <button onclick="deleteClient(${c.id})" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:12px;">Törlés</button>
-        </td>
-      </tr>
-      `;
+
+          const clientName = customObj.nev || customObj.name || c.name || 'Ismeretlen';
+          const ddId = 'DD-' + c.id;
+          const safeName = esc(clientName).replace(/'/g, "\\'");
+
+          // Match client detail view: ÚJ unless multiple appointments (same matching logic)
+          const clientEmail = customObj.email || c.email || '';
+          let isNew = true;
+          const cNameLower = clientName.toLowerCase().trim();
+          const aptCount = countClientAppointments(clientName, clientEmail, customObj);
+          if (aptCount > 1) isNew = false;
+          const stLabel = isNew ? 'ÚJ ÜGYFÉL' : 'VISSZATÉRŐ';
+          const stBg = isNew ? '#e0f2fe' : '#f0fdf4';
+          const stClr = isNew ? '#0369a1' : '#15803d';
+
+          const tags = customObj.tags || [];
+          const tagsHtml = tags.length > 0
+            ? tags.map(t => { const tc = tagColors[t] || {bg:'#f3f4f6',color:'#374151'}; return '<span style="background:'+tc.bg+';color:'+tc.color+';font-size:11px;padding:3px 8px;border-radius:12px;font-weight:600;white-space:nowrap;">'+esc(t)+'</span>'; }).join(' ')
+            : '<span style="color:var(--text-muted);font-size:12px;">—</span>';
+
+          const phone = customObj.telefonszam || customObj.phone || customObj.telefon || c.phone || '';
+          const email = customObj.email || c.email || '';
+
+          const currentFelelos = customObj.felelos || '';
+          const felelosOpts = mockFelelosok.map(f => '<option value="'+esc(f)+'" '+(f===currentFelelos?'selected':'')+'>'+esc(f)+'</option>').join('');
+
+          // Utolsó interakció: from sessions matching
+          const lastInt = latestSessionByClient[c.id] || '';
+          const lastIntDisp = lastInt ? fmtDt(lastInt) : '<span style="color:var(--text-muted);">—</span>';
+
+          return '<tr style="'+rowStyle+'">' +
+            '<td style="text-align:center;"><input type="checkbox" class="client-checkbox" value="'+c.id+'" onchange="updateBulkDeleteBtn()"></td>' +
+            '<td style="min-width:160px;"><button onclick="openClientDetails({id:'+c.id+',name:\''+safeName+'\',email:\''+esc(email).replace(/'/g,"\\'")+'\',phone:\''+esc(phone).replace(/'/g,"\\'")+'\'})" style="background:none;border:none;cursor:pointer;text-align:left;padding:0;"><div style="font-weight:600;font-size:13px;color:var(--text);line-height:1.3;">'+esc(clientName)+'</div><div style="font-size:11px;color:var(--text-muted);font-weight:500;">'+ddId+'</div></button></td>' +
+            '<td><span style="display:inline-block;padding:4px 10px;border-radius:6px;font-size:11px;font-weight:700;background:'+stBg+';color:'+stClr+';letter-spacing:0.3px;">'+stLabel+'</span></td>' +
+            '<td style="min-width:120px;"><div style="display:flex;flex-wrap:wrap;gap:4px;">'+tagsHtml+'</div></td>' +
+            '<td style="font-size:13px;white-space:nowrap;">'+(phone ? esc(phone) : '<span style="color:var(--text-muted);">—</span>')+'</td>' +
+            '<td style="font-size:13px;">'+(email ? '<a href="mailto:'+esc(email)+'" style="color:#2563eb;text-decoration:none;font-weight:500;">'+esc(email)+'</a>' : '<span style="color:var(--text-muted);">—</span>')+'</td>' +
+            '<td><select onchange="assignFelelos('+c.id+',this.value)" style="background:var(--bg2);border:1px solid var(--border);border-radius:6px;padding:5px 8px;font-size:12px;color:var(--text);font-family:inherit;cursor:pointer;min-width:130px;"><option value="">Nincs hozzárendelve</option>'+felelosOpts+'</select></td>' +
+            '<td style="font-size:13px;white-space:nowrap;">'+lastIntDisp+'</td>' +
+            '<td><span class="badge '+badgeCls+'">'+esc(dispStatus)+'</span></td>' +
+            '<td><button onclick="openClientModal('+c.id+',\''+esc(btoa(encodeURIComponent(c.custom_data || '{}')))+'\')" style="background:transparent;border:none;color:var(--blue);cursor:pointer;font-size:12px;margin-right:8px;">Szerkesztés</button><button onclick="deleteClient('+c.id+')" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:12px;">Törlés</button></td>' +
+            '</tr>';
         }).join('');
       } catch (e) {
-        tbody.innerHTML = `<tr><td colspan="${4 + displayFields.length}" style="text-align:center;color:var(--red);padding:40px;">Betöltési hiba</td></tr>`;
+        tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--red);padding:40px;">Betöltési hiba</td></tr>';
       }
+    }
+
+    async function assignFelelos(clientId, felelos) {
+      try {
+        const res = await authFetch('/admin/api/clients');
+        const data = await res.json();
+        const client = (data.clients || []).find(c => c.id === clientId);
+        if (!client) return;
+        let customObj = client.custom_data ? JSON.parse(client.custom_data) : {};
+        customObj.felelos = felelos;
+        await authFetch('/admin/api/clients/' + clientId, {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ custom_data: customObj })
+        });
+      } catch(e) { console.error('Felelos error:', e); }
     }
 
     function filterClientsTable() {
@@ -8650,15 +8792,21 @@
 
     function switchCustomerView(viewId, btn) {
       document.querySelectorAll('.customer-view').forEach(el => el.style.display = 'none');
-      document.querySelectorAll('.view-btn').forEach(el => {
+      document.querySelectorAll('#page-interactions .view-btn').forEach(el => {
         el.classList.remove('active');
       });
 
-      document.getElementById('view-' + viewId).style.display = 'block';
+      const viewEl = document.getElementById('view-' + viewId);
+      if (viewEl) viewEl.style.display = 'block';
 
       if (btn) {
         btn.classList.add('active');
       }
+
+      // Update sidebar sub-item highlighting
+      document.querySelectorAll('.nav-sub-item').forEach(n => n.classList.remove('active'));
+      const subNav = document.getElementById('nav-sub-' + viewId);
+      if (subNav) subNav.classList.add('active');
 
       // Load data dynamically
       if (viewId === 'kanban') loadKanban();

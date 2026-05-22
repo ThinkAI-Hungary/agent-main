@@ -1,0 +1,605 @@
+DIGIDESK FEJLESZTŐI BRIEF(-szerűség) 
+ 
+I.​
+Product overview 
+II.​
+Rendszerstruktúra / drótváz logika 
+III.​
+Fő objektumok 
+IV.​
+Bejövő interakciókezelés 
+V.​
+Bejövő interakció megjelenítése frontenden 
+VI.​
+Kimenő kommunikáció  
+VII.​
+Érdeklődőkezelés / CRM funkciók 
+ 
+ 
+I.​ Product overview 
+A DigiDesk egy többcsatornás ügyfélkommunikációs és ügykezelési rendszer, amely bejövő 
+és kimenő interakciókat kezel, strukturál, priorizál, és ahol lehet, önállóan lezár, ahol nem, 
+ott emberi teendőt generál. 
+Fő felhasználási terület: 
+Olyan szolgáltató cégek, ahol: 
+●​ van recepció / front office 
+●​ az ügyfélkommunikáció közvetlenül hat az ügyfélszerzésre 
+●​ az érdeklődésből időpont, vásárlás vagy egyéb üzleti konverzió lesz 
+ 
+II.​ Rendszerstruktúra / drótváz-logika 
+ 
+A DigiDesk frontendje moduláris felépítésű. A rendszer elsődleges célja, hogy a bejövő és 
+kimenő kommunikáció, az ügyfélkezelés, a szabályrendszer és az alap analitika egymással 
+összekapcsolt, de jól elkülönülő munkafelületeken jelenjen meg. 
+ 
+ 
+ 
+ 
+
+ 
+ 
+ 
+1.​ A főmenü logikája 
+A DigiDesk frontendje 5 fő menüpontra tagolódik: 
+●​ Analitika 
+●​ Ügyfélközpont 
+●​ Naptár 
+●​ Kimenő kommunikáció 
+●​ Tudástár 
+1.2. Ügyfélközpont 
+Az Ügyfélközpont a rendszer központi operatív modulja, amely három külön nézetre bomlik: 
+1.​ Interakciós lista​
+Interakció-alapú master nézet, ahol minden sor egy önálló interakciót reprezentál. 
+2.​ Ügyféllista​
+Ügyfél-alapú master nézet, ahol minden sor egy ügyfelet reprezentál. A nézet 
+operatív ügyfélkezelésre és kampányexport előkészítésére szolgál. 
+3.​ Érdeklődőkezelés​
+Kanban alapú konverziós munkafelület, amely az ügyfeleket címkék és konverziós 
+állapot alapján szakaszokba rendezi. 
+1.3. Tudástár 
+A Tudástár a működés adminisztratív és szabályalapú konfigurációs felülete, amely három 
+részre oszlik: 
+1.​ Alapbeállítások 
+2.​ Céginformáció 
+3.​ Szabályok 
+ 
+
+1.4. Fő nézettípusok 
+A rendszer frontendje az alábbi alap nézettípusokkal dolgozik: 
+●​ Master list view: lista alapú áttekintő nézet 
+●​ Detail view: egyedi rekord részletes oldala 
+●​ Popup view: gyors részletező nézet  
+●​ Board view: kanban alapú munkafelület 
+1.5. Fő navigációs kapcsolatok 
+●​ Interakciós listából interakciós összefoglaló nyitható 
+●​ Interakciós listából és interakciós összefoglalóból ügyfélprofil nyitható 
+●​ Ügyféllistából ügyfélprofil nyitható 
+●​ Ügyféllistából bulk művelettel kampány export indítható 
+●​ Az exportált kampány a Kimenő kommunikáció modulban jelenik meg 
+●​ Az Érdeklődőkezelés a címkézett ügyfélhalmaz kanban alapú nézete 
+ 
+III. Fő objektumok 
+1.​ Ügyfél 
+1.1. Kötelező mezők: 
+●​ DigiDesk azonosító 
+●​ név 
+●​ telefonszám 
+●​ e-mail 
+1.2. Opcionális mezők (cég adhassa hozzá) 
+●​ cím 
+●​ születési idő 
+●​ nemzetiség 
+●​ egyéb azonosítók, stb.  
+ 
+2.​ Címkék 
+ 
+1.1. Elsődleges címke 
+A rendszernek elsődleges címkeként kell kezelni: 
+●​ új ügyfél (először lép kapcsolatba a céggel) 
+●​ visszatérő ügyfél 
+●​ inaktív (a cég által megadott időn belül nem történt foglalása) 
+ 
+
+1.2. Másodlagos címkék: 
+IDŐPONTTAL KAPCSOLATOS: 
+●​ törölt időpont (lemondás történt és nem foglalt új időpontot) 
+●​ no-show (időponton nem jelent meg) 
+KÉRDÉSSEL KAPCSOLATOS: 
+●​ árkérdés  
+●​ kampány lead 
+●​ ajánlatkérés 
+Szabály: Egy ügyfélhez több interakció, egy interakcióhoz több címke tartozhat.  
+3. Csatorna 
+Lehetséges értékek: 
+●​ Telefon 
+●​ Email 
+●​ Messenger 
+●​ Instagram 
+●​ WhatsApp 
+4. Ügytípus 
+Fő ügytípusok: 
+●​ Időpont 
+●​ Kérdés 
+●​ Kérés 
+●​ Panasz 
+●​ Egyéb 
+5. Eredmény 
+Mi történt az interakció végén. 
+Példák: 
+●​ Új időpont (=naptárban rögzített időpont) 
+●​ Időpont módosítva (=naptárban rögzített módosított időpont) 
+●​ Időpont törölve (=naptárból törölt időpont) 
+●​ Időpont előkészítve (= időpontfoglalási igény rögzítve, továbbadva élő operátornak) 
+●​ Megválaszolt kérdés 
+●​ Válasz előkészítve (=DigiDesk piszkozatot élő ügyintéző hagy jóvá és küld ki) 
+●​ Kérdés rögzítve (=továbbadott, nem megválaszolt kérdés) 
+●​ Igény rögzítve (=továbbadott, nem teljesített kérés) 
+●​ Panasz rögzítve  
+ 
+
+6. Státusz 
+Az ügy állapota. 
+Értékek: 
+●​ Lezárt 
+●​ Nyitott 
+●​ Sürgős  
+7. Teendő 
+Mi a következő lépés. 
+Példák: 
+●​ Nincs további teendő 
+●​ Időpont véglegesítése szükséges 
+●​ Válasz szükséges 
+●​ Válasz jóváhagyása szükséges 
+●​ Intézkedés szükséges 
+●​ Azonnali beavatkozás szükséges 
+ 
+IV. Bejövő interakciókezelés 
+1.​ Modul célja 
+A DigiDesk a különböző csatornákon érkező megkereséseket egységes logika szerint 
+kezelje, és a rendelkezésre álló információtól függően: lezárja vagy átadja embernek.  
+2.​ A bejövő interakció feldolgozásának fő lépései 
+Minden bejövő interakció egységes belső adatmodell szerint kerül feldolgozásra, függetlenül 
+a csatornától. 
+1.​ Csatorna rögzítése 
+2.​ Interakció irányának rögzítése (itt: bejövő) 
+3.​ Ügyfél azonosítása név + email cím alapján  
+a.) talál egyezést 
+b.) ha nem talál egyezést, új ügyfél rekordot hoz létre: DigiDesk azonosítót és  ÚJ 
+ÜGYFÉL címkét rendel hozzá 
+4.​ Ügytípus meghatározás:  
+Fő ügytípusok: 
+ 
+
+-​
+IDŐPONT: Foglalás, módosítás vagy törlés a naptárban.  
+-​
+KÉRDÉS: Az ügyfél elsődleges célja információkérés. 
+-​
+KÉRÉS: Interakció, amely konkrét emberi vagy adminisztratív 
+intézkedést igényel. 
+-​
+PANASZ: Az ügyfél elégedetlenséget, problémát vagy konfliktusos 
+helyzetet jelez. A panasz típusú ügyek magasabb prioritással 
+kezelendők; lsd később: Sürgős státusz. 
+-​
+EGYÉB 
+A rendszernek képesnek kell lennie a ügytípus pontosítására az interakció kontextusából 
+(lsd később: Címkék):   
+-​
+IDŐPONT - foglalás / módosítás / törlés  
+-​
+KÉRDÉS - általános (pl. lokáció, nyitvatartás, stb) / vásárlási 
+potenciál (pl. árral, kedvezménnyel, stb kapcsolatos kérdés, 
+ajánlatkérés) / irreleváns (nem szolgáltatási portfolioval kapcsolatos)  
+-​
+KÉRÉS - adminisztratív (dokumentum elküldését kéri az ügyfél) / 
+akciót igénylő (fizikai inputot kíván, pl. nem hagytam ott a 
+kabátomat?) 
+-​
+PANASZ  
+-​
+IRRELEVÁNS  
+ 
+5.​ Kezelhetőség vizsgálata - eredmény, státusz és teendő 
+Döntés, hogy az adott interakció önállóan, emberi beavatkozás nélkül lezárható-e, vagy 
+szükséges átadni embernek - ez fogja meghatározni az interakció kimenetelét (eredmény), 
+az ügy státuszát és a további teendőt.   
+Az olyan interakciókat, amelyet a DigiDesk nem tud / vagy nincs jogosultsága lezárni, 
+átadásra előkészíti és NYITOTT-ként jelöli a státuszt.  
+A STÁTUSZ értékei tehát:  
+-​
+ha önállóan le tudja zárni, akkor a státusz LEZÁRT  
+-​
+ha emberi beavatkozás szükséges a lezáráshoz, akkor:  
+a.) Interakciós összefoglalóban “előkészíti” az ügyet, átadja - NYITOTT státusz  
+b.) Ha sürgős az ügy, vagy az ügytípus panasz: a státusz SÜRGŐS 
+Az eredménynek és a státusznak megfelelően a DigiDesk rövid teendőt is rendel az 
+interakciókhoz:  
+-​
+Nincs további teendő (lezárt) 
+-​
+Időpont véglegesítése szükséges (nyitott)  
+-​
+Válasz szükséges (nyitott)  
+-​
+Válasz jóváhagyása szükséges (nyitott)  
+-​
+Intézkedés szükséges (nyitott)  
+ 
+
+-​
+Azonnali beavatkozás szükséges (sürgős) 
+ 
+3. Átadási okok 
+ 
+ 
+
+ 
+ 
+ 
+ 
+ 
+ 
+ÁTADÁS OKA 
+EREDMÉNY 
+ 
+STÁTUSZ   
+1 
+Élő munkatárs kérése 
+ 
+Az ügyfél kifejezetten élő munkatárssal szeretne 
+beszélni. 
+“Emberrel szeretne beszélni” 
+NYITOTT 
+2 
+Tiltott művelet 
+ 
+Bizonyos szolgáltatásokra le van tiltva az 
+időpontfoglalás, vagy kérdés megválaszolása 
+“Időpont előkészítve”  
+“Kérdés továbbadva” 
+NYITOTT 
+3 
+Infohiány  
+A DigiDesk nem rendelkezik elegendő vagy 
+megbízható információval ahhoz, hogy önállóan 
+válaszoljon vagy intézkedjen. 
+“Kérdés továbbadva” 
+NYITOTT  
+4 
+Küldés előtti emberi jóváhagyás 
+A felhasználó opcionális kérheti az írásos 
+kommunikáció küldés előtti ellenőrzését.  
+“Válasz előkészítve” 
+NYITOTT 
+5 
+Adminisztratív ügyintézés, akcióigényes 
+kérés 
+Ilyenek például az olyan kérések, amelyeket 
+csak a cég belső rendszeréhez való 
+hozzáféréssel lehet végrehajtani, agy fizikai 
+akciót igényelnek.  
+“Igény rögzítve” 
+NYITOTT 
+ 
+6 
+Konfliktus / érzékeny helyzet 
+Konfliktusos, feszült vagy panaszjellegű 
+kommunikáció alakul ki, vagy a helyzet 
+érzékeny, reputációs vagy eszkalációs 
+kockázatot hordoz.  
+“Panasz rögzítve” 
+SÜRGŐS 
+
+V. Bejövő interakciókezelés megjelenése a 
+frontenden 
+A bejövő interakciókezelés elsődleges frontend megjelenési formája az Interakciós lista nevű 
+master nézet. Ez a nézet a rendszer központi operatív listája, ahol minden bejövő interakció 
+külön sorban, strukturált formában jelenik meg. 
+A nézet célja, hogy a felhasználó gyorsan átlássa: 
+●​ milyen interakciók érkeztek, 
+●​ mely ügyfelekhez kapcsolódnak, 
+●​ milyen csatornán jöttek, 
+●​ mi lett az interakció eredménye, 
+●​ lezárult-e az ügy, 
+●​ és van-e további teendő. 
+1. Nézet funkciója 
+Az Interakciós lista egy passzív, naplószerű master nézet, amely:  
+-​
+teljes áttekintést ad az összes bejövő interakcióról, 
+-​
+támogatja a napi operatív munkát, 
+-​
+belépési pontként szolgál az interakció részletes megnyitásához, 
+-​
+és navigációs pontként működik az ügyfél egyedi profilnézetéhez. 
+A lista nem szerkesztőfelület, hanem elsődlegesen: 
+●​ ellenőrző, 
+●​ szűrhető, 
+●​ visszakereshető, 
+●​ navigációs funkciót lát el 
+2. Egy sor = egy interakció 
+Az Interakciós listában minden sor egy önálló interakciót reprezentál: a rendszer nem 
+ügyfeleket, hanem eseményeket listáz. 
+3. A lista oszlopai 
+A master nézetben az alábbi oszlopok jelennek meg: 
+1. Interakció időpontja 
+2. Ügyfél (Az ügyfél neve és belső azonosítója.)  
+3. Csatorna 
+4. Interakció iránya (Bejövő / Kimenő) 
+ 
+
+5. Ügytípus 
+6. Eredmény  
+7. Státusz 
+8. Teendő 
+ 
+4. Rendezés és listaelv 
+Az Interakciós lista alapértelmezett rendezési elve: legfrissebb interakció legfelül. Ez 
+biztosítja, hogy a napi operatív munkában mindig a legaktuálisabb ügyek legyenek szem 
+előtt. 
+ 
+5. Listaelemekhez kapcsolódó műveletek 
+A nézetből két fő irányú továbblépés lehetséges: 
+A. Interakciós összefoglaló megnyitása 
+Az adott sorra kattintva megnyílik az Interakciós összefoglaló nézet, amely az adott 
+interakció részleteit mutatja. 
+B. Ügyfélprofil megnyitása 
+Az ügyfél nevére kattintva a rendszer az adott ügyfél profilnézetére navigál. 
+ 
+6. Interakciós összefoglaló nézet 
+Az Interakciós listából megnyitott Interakciós összefoglaló egy részletes kártyanézet / popup 
+/, amely az adott interakció strukturált összegzését tartalmazza. 
+Tartalma: ügyfél neve, Új / meglévő ügyfélcímke, csatorna, ügytípus, interakció időpontja, 
+összefoglaló szöveg, eredmény, státusz, teendő, kapcsolódó operatív akciók 
+A megjelenés igazodik az interakció típusához. 
+Példák: 
+●​ időpontos interakciónál a foglalás részletei jelennek meg 
+●​ kérdés típusú interakciónál a válasz vagy a válaszelőkészítés jelenik meg 
+ 
+
+●​ panasz esetén a rögzített probléma és a sürgősségi jelölés látható 
+ 
+Az Interakciós összefoglaló panel alján két elsődleges műveleti gomb jelenjen meg: 
+a.) Interakció megtekintése (bal oldal) 
+Ez egy lenyíló / kinyitható nézetet nyit meg ugyanazon panelen belül, amelyben a teljes 
+beszélgetés vagy interakciós szál látható. 
+b. Ugrás ügyfélprofilra (jobb oldal) 
+Ez a gomb az adott ügyfél egyedi profilnézetére navigál. 
+ 
+7. Speciális interakciós állapotok megjelenítése 
+A frontendben az interakciók vizuálisan is jól elkülönülnek az eredmény és a státusz alapján. 
+Példa logika: 
+zöld badge: sikeresen lezárt ügy 
+sárga badge: nyitott vagy előkészített ügy 
+piros badge: sürgős vagy panaszjellegű ügy 
+ 
+8. Ügyfélprofil kapcsolódás 
+ 
+
+Az Interakciós listában az ügyfél nevére kattintva az egyedi profilnézet érhető el. Ez 
+tartalmazza: az ügyfél alapadatait, címkéit, korábbi időpontjait, megjegyzéseit, aktuális 
+ügyeit, korábbi időpontjait. 
+A profilnézet célja, hogy az operátor vagy admin az interakciókat ügyfélkontextusban is 
+lássa. 
+ 
+9. Szűrés és keresés 
+Az Interakciós lista támogatja az operatív használathoz szükséges listaeszközöket. 
+Elvárt funkciók:  
+●​ összetett szűrés 
+●​ oszloprendezés 
+●​ keresés a táblázatban 
+A nézet célja, hogy nagy mennyiségű interakció esetén is gyorsan lehessen: 
+●​ adott ügyfelet, 
+●​ adott csatornát, 
+●​ adott státuszt, 
+●​ adott ügytípust​
+ visszakeresni. 
+10. Megkötések 
+Az Interakciós lista nem szerkeszthető lista. 
+Ez azt jelenti: 
+ 
+
+●​ sorok nem törölhetők 
+●​ interakciók nem szerkeszthetők közvetlenül a listában 
+●​ a lista elsődlegesen napló- és áttekintő szerepet tölt be 
+A további műveletek az interakciós összefoglalóban vagy az ügyfélprofil nézetben történnek. 
+ 
+VI. Kimenő interakciókezelési logika   
+A DigiDesk a bejövő kommunikáció kezelése mellett támogatja a kimenő 
+ügyfélkommunikáció strukturált indítását és menedzselését is. A kimenő kommunikáció 
+célja lehet: 
+●​ időponthoz kapcsolódó automatikus emlékeztetés vagy visszaigazolás, 
+●​ ügyfélkapcsolat fenntartása, 
+●​ utánkövetés, 
+●​ kampánykommunikáció, 
+●​ ajánlatkövetés, 
+●​ vagy lemorzsolódott ügyfelek reaktiválása. 
+A kimenő kommunikációs logika két fő csoportra bontható: 
+1.​ eseményvezérelt kommunikációk 
+2.​ kampányalapú kommunikációk 
+1.1. Eseményvezérelt kimenő kommunikációk 
+Az eseményvezérelt kommunikációkat valamilyen konkrét ügyfélhez, időponthoz, státuszhoz 
+vagy rendszereseményhez kapcsolódó trigger indítja el. 
+Ezek a kommunikációk nem manuális célcsoport-kijelöléssel indulnak, hanem azért, mert 
+egy adott ügyfélnél vagy ügyhelyzetben a rendszer szerint további kimenő kommunikáció 
+szükséges. 
+A jelenlegi logika alapján eseményvezérelt kommunikációk például: 
+A. Időponthoz kapcsolódó automatikus kommunikációk 
+Már meglévő foglaláshoz kapcsolódó, automatizált kimenő kommunikációk. 
+Tipikus esetek: 
+●​ időpont-visszaigazolás 
+●​ időpont-emlékeztető 
+●​ időpontmódosítás visszaigazolása 
+●​ időponttörlés visszaigazolása 
+●​ no-show utáni kommunikáció 
+B. Adminisztratív értesítések 
+ 
+
+Olyan kimenő tájékoztató kommunikációk, amelyek működési vagy szolgáltatási 
+változásokról szólnak. 
+Tipikus esetek: 
+●​ nyitvatartás változása 
+●​ telephelyváltozás 
+●​ személyi változás 
+●​ szolgáltatási folyamat változása 
+C. Utánkövetés 
+Már lezajlott ügylethez vagy interakcióhoz kapcsolódó follow-up kommunikáció. 
+Tipikus esetek: 
+●​ elégedettségkérés 
+●​ visszajelzéskérés 
+●​ szolgáltatás utáni állapotellenőrzés 
+●​ korábbi egyeztetés utókövetése 
+D. Ajánlatkövetés 
+Olyan kimenő kommunikáció, amelyet egy korábbi érdeklődés, árkérdés vagy ajánlatkérés 
+triggerel. 
+Tipikus esetek: 
+●​ árkérdés után nincs további reakció 
+●​ ajánlatkérés történt, de nincs döntés 
+●​ kampányra reagált az ügyfél, de nem konvertált 
+E. Reaktiválás 
+Olyan kommunikáció, amelyet egy korábbi aktív, de megszakadt ügyfélút indít. 
+Tipikus esetek: 
+●​ törölt időpont, újrafoglalás nélkül 
+●​ huzamosabb ideje inaktív ügyfél 
+●​ korábbi érdeklődő, aki nem konvertált 
+1.2. Kampányalapú kimenő kommunikációk 
+A kampányalapú kommunikációk nem egyedi triggerből indulnak, hanem egy előre 
+meghatározott ügyfélszegmensre, üzleti vagy értékesítési célból. 
+A kampányok célja lehet: 
+●​ érdeklődésfelkeltés, 
+ 
+
+●​ aktiválás, 
+●​ új szolgáltatás vagy akció kommunikálása, 
+●​ konverzió ösztönzése, 
+●​ vagy bizonyos ügyfélcsoportok újramegszólítása. 
+Tipikus kampánytípusok: 
+●​ promóciós ajánlat 
+●​ szezonális akció 
+●​ új szolgáltatás bevezetése 
+●​ célzott kedvezménykommunikáció 
+●​ speciális korosztályra vagy csatornára optimalizált kampány 
+2. Az eseményvezérelt kimenő kommunikációk automatizáltak 
+Az eseményvezérelt kommunikációkat a rendszer automatikusan kezeli, a beállított 
+szabályok és triggerpontok alapján. 
+Ezek paraméterezése a Tudástárban történik. 
+A Tudástárban beállítható: 
+●​ milyen esemény milyen kimenő kommunikációt indítson, 
+●​ milyen csatornán menjen ki a kommunikáció, 
+●​ milyen késleltetéssel vagy időzítéssel induljon, 
+●​ milyen szövegsablont használjon a rendszer, 
+●​ milyen kivételek vagy tiltások legyenek érvényben. 
+A rendszerben sablonok kezelhetők 
+A kimenő eseményvezérelt kommunikációk sablonalapúan működnek.​
+ A Tudástárban előre definiálható sablonok például: 
+●​ időpont-visszaigazolás 
+●​ időpont-emlékeztető 
+●​ időpontmódosítás visszaigazolása 
+●​ időponttörlés visszaigazolása 
+●​ no-show utáni üzenet 
+3. A kampányok alapjául az Ügyféllista szolgál 
+A kampányalapú kommunikációk kiindulópontja az Ügyféllista.​
+ Ez a rendszer ügyfélszintű master nézete, ahol az ügyfelek: 
+●​ szűrhetők, 
+●​ címkézhetők, 
+●​ kijelölhetők, 
+●​ és kampányba exportálhatók. 
+A kampányok szegmentálhatóságának kulcsa az ügyfelekhez rendelt címkerendszer. 
+ 
+
+4. Manuális címkézés lehetőségei 
+Az ügyfélprofilban lehetőség van további címkék manuális hozzáadására is.​
+ Ezek lehetnek: 
+●​ előre definiált címkék, 
+●​ vagy szabad szavas címkék (pl. „nehéz ügyfél”) 
+Ez azért fontos, mert az operátor vagy értékesítő olyan információkat is szeretne rögzíteni, 
+amelyeket a rendszer önmagában nem tud megbízhatóan felismerni. 
+5. Automatikus címkézési szabályok paraméterezése a Tudástárban 
+A Tudástárban megadható, hogy a DigiDesk milyen rendelkezésre álló információk alapján 
+címkézzen automatikusan. 
+Példák: 
+●​ ha az ügyfél születési dátuma ismert → korcsoport-címke 
+●​ ha az ügyfél preferált csatornán kommunikál → csatornapreferencia-címke 
+●​ ha az interakció árkérdés típusú → árkérdés címke 
+●​ ha kampányra reagált → kampány lead címke 
+●​ ha időpontot törölt és nem foglalt újra → törölt időpont címke 
+Ez a logika lehetővé teszi, hogy az Ügyféllistában a felhasználó nagyon pontos 
+célcsoportokat képezzen. 
+Példa targetálásra: 
+●​ inaktív ügyfél 
+●​ 20–30 év közötti 
+●​ preferált csatornája: Instagram 
+Ebből létrehozható egy speciális, Instagram-csatornára optimalizált kampány. 
+6. Kampányok indítása az Ügyféllistából 
+A kampányok indítása az Ügyféllistában történik, bulk kijelöléssel. 
+Működési logika 
+1.​ A felhasználó szűri az ügyféllistát a kívánt paraméterek alapján. 
+2.​ Checkboxokkal kijelöli a releváns ügyfeleket. 
+3.​ Kiválasztja az Export kampányba bulk műveletet. 
+4.​ Egy felugró modal jelenik meg. 
+5.​ A modalban létrehozható az új kampány. 
+A modal fő mezői 
+●​ Kampány neve  
+ 
+
+●​ Csatorna (legördülő) 
+●​ Belső megjegyzés 
+●​ Read-only: kiválasztott ügyfelek száma 
+Fontos logika 
+Az export során a rendszer menti: 
+●​ a kampány nevét, 
+●​ a kiválasztott csatornát, 
+●​ a belső megjegyzést, 
+●​ valamint a kampány forrásszegmensét, vagyis azt, hogy milyen szűrés alapján jött 
+létre. 
+Példa:​
+ Forrás szegmens: inaktív + 20–30 + Instagram preferencia 
+Ez később az analitikában is felhasználható. 
+7. AI támogatás a kampányüzenet létrehozásához 
+A kampány létrehozási folyamat részeként a rendszer támogatást nyújthat az üzenet 
+megírásához egy beépített AI varázslóval. 
+Az AI varázsló szerepe: 
+●​ kampánybrief alapján üzenetjavaslat készítése, 
+●​ többféle stílus vagy hangnem ajánlása, 
+●​ csatornára optimalizált szövegváltozat készítése, 
+●​ rövid és hosszabb verzió generálása. 
+Ez a funkció különösen hasznos: 
+●​ telefonos script 
+●​ e-mail szöveg 
+●​ WhatsApp vagy közösségi üzenet​
+ előkészítéséhez. 
+8. A létrehozott kampányok megjelenése a Kimenő kommunikáció menüpontban 
+Az Ügyféllistából létrehozott kampányok nem az Ügyféllista nézetben maradnak, hanem a 
+Kimenő kommunikáció menüpont alatt jelennek meg önálló kampányként. 
+Ott a kampány: 
+●​ listázható, 
+●​ megnyitható, 
+●​ szerkeszthető, 
+●​ indítható, 
+ 
+
+●​ és követhető. 
+A Kimenő kommunikáció modul tehát a kampányok és kimenő kommunikációs folyamatok 
+központi kezelőfelülete. 
+ 
+VII. Érdeklődőkezelés 
+Cél 
+Kanban alapú konverziós munkafelület 
+Oszlopok 
+●​ Új lehetőség 
+●​ Kapcsolatfelvétel 
+●​ Egyeztetés / ajánlat 
+●​ Döntés 
+●​ Időpont 
+●​ Elveszett 
+Fontos logika 
+●​ DigiDesk címkék alapján induló oszlopba helyez 
+●​ felhasználó manuálisan továbbhúzza 
+●​ címkék manuálisan is adhatók 
+ 
+ 
+ 
+ 
+ 
+ 
