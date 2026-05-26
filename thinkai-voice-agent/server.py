@@ -5,6 +5,7 @@ Hungarian-only with ThinkAI brand pronunciation handling
 """
 
 import asyncio
+import inspect
 import json
 import os
 import re
@@ -34,7 +35,7 @@ from livekit.agents import (
 from livekit.agents.voice.agent_session import SessionConnectOptions
 from livekit.agents.types import DEFAULT_API_CONNECT_OPTIONS, APIConnectOptions
 
-from livekit.plugins import cartesia, elevenlabs, google, noise_cancellation, silero
+from livekit.plugins import cartesia, elevenlabs, google, noise_cancellation, silero, soniox
 
 # ── Import tools ──────────────────────────────────────────────────────────────
 sys.path.insert(0, str(THIS_DIR))
@@ -85,8 +86,79 @@ _TTS_REPLACEMENTS = {
 }
 
 
+# ── Hungarian phonetic spelling for emails and phone numbers ──────────────────
+_HU_LETTER_NAMES = {
+    'a': 'á', 'á': 'á', 'b': 'bé', 'c': 'cé', 'd': 'dé',
+    'e': 'e', 'é': 'é', 'f': 'ef', 'g': 'gé', 'h': 'há',
+    'i': 'í', 'í': 'í', 'j': 'jé', 'k': 'ká', 'l': 'el',
+    'm': 'em', 'n': 'en', 'o': 'ó', 'ó': 'ó', 'ö': 'ö',
+    'ő': 'ő', 'p': 'pé', 'q': 'kú', 'r': 'er', 's': 'es',
+    't': 'té', 'u': 'ú', 'ú': 'ú', 'ü': 'ü', 'ű': 'ű',
+    'v': 'vé', 'w': 'dupla-vé', 'x': 'iksz', 'y': 'ipszilon',
+    'z': 'zé',
+    '0': 'nulla', '1': 'egy', '2': 'kettő', '3': 'három',
+    '4': 'négy', '5': 'öt', '6': 'hat', '7': 'hét',
+    '8': 'nyolc', '9': 'kilenc',
+    '@': 'kukac', '.': 'pont', '-': 'kötőjel', '_': 'aláhúzás',
+    '+': 'plusz',
+}
+
+_KNOWN_DOMAINS = {
+    'gmail.com': 'dzsé-mél pont kom',
+    'thinkai.hu': 'tink-éj-áj pont há ú',
+    'outlook.com': 'autluk pont kom',
+    'hotmail.com': 'hotmél pont kom',
+    'yahoo.com': 'jahú pont kom',
+    'freemail.hu': 'frímél pont há ú',
+    'citromail.hu': 'citromél pont há ú',
+}
+
+_EMAIL_PATTERN = re.compile(r'[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}')
+_PHONE_PATTERN = re.compile(r'(?:\+36|06)[\s\-]?\d{1,2}[\s\-]?\d{3}[\s\-]?\d{3,4}')
+
+
+def _spell_hungarian(text: str) -> str:
+    """Convert a string to Hungarian letter-by-letter pronunciation."""
+    parts = []
+    for c in text:
+        name = _HU_LETTER_NAMES.get(c.lower())
+        if name:
+            parts.append(name)
+        else:
+            parts.append(c)
+    return ', '.join(parts)
+
+
+def _email_to_hungarian_phonetic(email: str) -> str:
+    """Convert an email address to natural Hungarian pronunciation for TTS."""
+    local_part, domain = email.split('@', 1)
+    domain_lower = domain.lower()
+    if domain_lower in _KNOWN_DOMAINS:
+        spoken_domain = _KNOWN_DOMAINS[domain_lower]
+    else:
+        spoken_domain = domain.replace('.', ' pont ')
+    return f"{local_part} kukac {spoken_domain}"
+
+
+def _phone_to_hungarian(phone: str) -> str:
+    """Convert a phone number to Hungarian digit-by-digit pronunciation."""
+    parts = []
+    for c in phone:
+        if c.isdigit():
+            parts.append(_HU_LETTER_NAMES.get(c, c))
+        elif c == '+':
+            parts.append('plusz')
+    return ', '.join(parts)
+
+
 def _apply_tts_replacements(text: str) -> str:
-    """Replace brand/tech terms with phonetic Hungarian spellings for TTS."""
+    """Replace brand/tech terms, spell emails and phones with Hungarian phonetics for TTS."""
+    text = _EMAIL_PATTERN.sub(
+        lambda m: _email_to_hungarian_phonetic(m.group(0)), text
+    )
+    text = _PHONE_PATTERN.sub(
+        lambda m: _phone_to_hungarian(m.group(0)), text
+    )
     for original, phonetic in _TTS_REPLACEMENTS.items():
         text = text.replace(original, phonetic)
     return text
@@ -108,6 +180,67 @@ def _is_phantom_transcript(text: str) -> bool:
         return True
     if _NOISE_PATTERN.match(cleaned):
         return True
+    return False
+
+
+# ── STT post-processing corrections ──────────────────────────────────────────
+# Soniox/ElevenLabs sometimes garbles Hungarian words, especially brand names
+# and digraphs (cs, sz, gy, ny, zs, ly) at word boundaries. This map corrects
+# known misrecognitions before the text reaches the LLM.
+_STT_CORRECTIONS = {
+    "tinkéjáj": "ThinkAI",
+    "tink éj áj": "ThinkAI",
+    "think áj": "ThinkAI",
+    "tinkáj": "ThinkAI",
+}
+
+# Known email domains — when STT converts "kukac" to ".", we detect
+# patterns like "word.gmail.com" and fix to "word@gmail.com"
+_KNOWN_EMAIL_DOMAINS = [
+    "gmail.com", "yahoo.com", "outlook.com", "hotmail.com",
+    "freemail.hu", "citromail.hu", "thinkai.hu",
+    "gmail.hu", "protonmail.com", "icloud.com", "live.com",
+]
+
+def _fix_email_at_sign(text: str) -> str:
+    """Fix STT converting 'kukac' (@) to dot in email addresses."""
+    for domain in _KNOWN_EMAIL_DOMAINS:
+        pattern = re.compile(
+            r'(\b\w+)\.' + re.escape(domain) + r'\b',
+            re.IGNORECASE
+        )
+        text = pattern.sub(r'\1@' + domain, text)
+    text = re.sub(r'\s+kukac\s+', '@', text, flags=re.IGNORECASE)
+    return text
+
+def _apply_stt_corrections(text: str) -> str:
+    """Fix known STT misrecognitions in user transcripts."""
+    text = _fix_email_at_sign(text)
+    for wrong, correct in _STT_CORRECTIONS.items():
+        text = re.sub(r'\b' + re.escape(wrong) + r'\b', correct, text, flags=re.IGNORECASE)
+    return text
+
+
+# ── Gemini thinking-token filter ──────────────────────────────────────────────
+# Gemini 2.5 Flash can leak internal chain-of-thought reasoning as regular text.
+# These must be stripped before reaching TTS or the user hears "thinking out loud".
+_THINKING_PATTERNS = [
+    re.compile(r'(?i)^\s*silently[,.]?\s'),
+    re.compile(r"(?i)^\s*I'm thinking\b"),
+    re.compile(r'(?i)^\s*I need to\b'),
+    re.compile(r'(?i)^\s*Therefore,? my response\b'),
+    re.compile(r'(?i)^\s*My response will be\b'),
+    re.compile(r'(?i)^\s*Let me think\b'),
+    re.compile(r'(?i)^\s*I should\b'),
+    re.compile(r'(?i)^\s*The user\b'),
+    re.compile(r"(?i)^\s*I\'ll\b"),
+]
+
+def _is_thinking_token(text: str) -> bool:
+    """Return True if text looks like leaked Gemini reasoning."""
+    for pat in _THINKING_PATTERNS:
+        if pat.search(text):
+            return True
     return False
 
 
@@ -141,13 +274,22 @@ class ThinkAIAgent(Agent):
                     continue
             yield event
 
+    async def on_user_turn_completed(self, turn_ctx, new_message):
+        """Apply STT corrections to user message before it reaches the LLM."""
+        text = new_message.text_content if isinstance(new_message.text_content, str) else str(new_message.content)
+        if text:
+            corrected = _apply_stt_corrections(text)
+            if corrected != text:
+                logger.info(f"STT correction: '{text}' → '{corrected}'")
+                new_message.content = corrected
+
     async def llm_node(self, chat_ctx, tools, model_settings):
         """Override LLM node: context window + error fallback."""
         chat_ctx.truncate(max_items=20)
 
         try:
             stream = Agent.default.llm_node(self, chat_ctx, tools, model_settings)
-            if asyncio.iscoroutine(stream):
+            if inspect.isawaitable(stream):
                 stream = await stream
             return stream
         except Exception as e:
@@ -158,7 +300,7 @@ class ThinkAIAgent(Agent):
         """Override toolcall node: catch unhandled exceptions so the agent never goes silent."""
         try:
             result = Agent.default.toolcall_node(self, tool_call, chat_ctx, model_settings)
-            if asyncio.iscoroutine(result):
+            if inspect.isawaitable(result):
                 result = await result
             return result
         except Exception as e:
@@ -166,12 +308,44 @@ class ThinkAIAgent(Agent):
             return f"Sajnos hiba történt a művelet során: {str(e)}. Kérlek, próbáld újra!"
 
     async def tts_node(self, text, model_settings):
-        """Override TTS node: apply brand pronunciation replacements."""
+        """Override TTS node: filter thinking tokens + apply brand pronunciation."""
+        _buffer = ""
+        _suppressing = False
+
         async def _cleaned_text():
+            nonlocal _buffer, _suppressing
             async for chunk in text:
-                if chunk:
-                    chunk = _apply_tts_replacements(chunk)
-                    yield chunk
+                if not chunk:
+                    continue
+
+                # Buffer the first ~80 chars to detect thinking patterns
+                if len(_buffer) < 80:
+                    _buffer += chunk
+                    if len(_buffer) >= 80 or any(c in _buffer for c in '.!?\n'):
+                        if _is_thinking_token(_buffer):
+                            logger.warning(f"Filtered thinking token: '{_buffer[:60]}...'")
+                            _suppressing = True
+                            _buffer = ""
+                            continue
+                        else:
+                            out = _apply_tts_replacements(_buffer)
+                            _buffer = ""
+                            yield out
+                    continue
+
+                if _suppressing:
+                    # Keep suppressing until we hit what looks like actual speech
+                    if chunk.strip().startswith('"') or (len(chunk.strip()) > 2 and chunk.strip()[0].isupper() and not _is_thinking_token(chunk)):
+                        _suppressing = False
+                        yield _apply_tts_replacements(chunk)
+                    continue
+
+                chunk = _apply_tts_replacements(chunk)
+                yield chunk
+
+            # Flush remaining buffer if not suppressed
+            if _buffer and not _suppressing:
+                yield _apply_tts_replacements(_buffer)
 
         async for frame in Agent.default.tts_node(self, _cleaned_text(), model_settings):
             yield frame
@@ -234,6 +408,32 @@ async def entrypoint(ctx: JobContext):
     # The scribe_v2_realtime model ignores keyterms in the WebSocket streaming path.
     # Hungarian name/brand recognition relies on Scribe v2's native 3.1% WER accuracy.
 
+    # ── Soniox STT with Hungarian context terms ──────────────────────────
+    # Load brand/doctor names for STT vocabulary boosting
+    _soniox_terms = ["ThinkAI"]
+    try:
+        _doctors = db.get_doctors() if hasattr(db, 'get_doctors') else []
+        _soniox_terms.extend([d.get("name", "") for d in _doctors if d.get("name")])
+    except Exception:
+        pass
+    try:
+        import json as _json
+        _pi_file = THIS_DIR / "praxisinfo.json"
+        if _pi_file.exists():
+            _pi = _json.loads(_pi_file.read_text(encoding="utf-8"))
+            if _pi.get("practice_name"): _soniox_terms.append(_pi["practice_name"])
+            if _pi.get("markanev"): _soniox_terms.append(_pi["markanev"])
+    except Exception:
+        pass
+    _soniox_terms = [t for t in _soniox_terms if t]  # filter empty
+
+    soniox_context = soniox.stt.ContextObject(terms=_soniox_terms)
+    soniox_opts = soniox.stt.STTOptions(
+        model="stt-rt-v4",
+        language_hints=["hu"],
+        context=soniox_context,
+    )
+
     # ── Connection options for resilient API calls ────────────────────────
     conn_options = SessionConnectOptions(
         stt_conn_options=APIConnectOptions(max_retry=3, timeout=10),
@@ -243,10 +443,9 @@ async def entrypoint(ctx: JobContext):
     )
 
     session = AgentSession(
-        stt=elevenlabs.STT(
-            model_id="scribe_v2_realtime",
-            language_code="hu",
-            api_key=os.getenv("ELEVEN_API_KEY") or os.getenv("ELEVENLABS_API_KEY"),
+        stt=soniox.STT(
+            api_key=os.getenv("SONIOX_API_KEY"),
+            params=soniox_opts,
         ),
         llm=google.LLM(
             model="gemini-2.5-flash",
@@ -263,12 +462,12 @@ async def entrypoint(ctx: JobContext):
         vad=silero.VAD.load(
             activation_threshold=0.85,
             min_speech_duration=0.4,
-            min_silence_duration=0.65,
+            min_silence_duration=0.5,
         ),
-        # ── Production tuning ─────────────────────────────────────────────
-        min_endpointing_delay=0.8,
-        max_endpointing_delay=5.0,
-        min_interruption_duration=0.7,
+        # ── Production tuning (snappy endpointing) ───────────────────────
+        min_endpointing_delay=0.5,
+        max_endpointing_delay=3.0,
+        min_interruption_duration=0.5,
         min_interruption_words=1,
         max_tool_steps=5,
         user_away_timeout=20.0,
@@ -277,7 +476,7 @@ async def entrypoint(ctx: JobContext):
     )
 
     logger.info(
-        f"Session configured: STT=ElevenLabs scribe_v2_realtime, "
+        f"Session configured: STT=Soniox stt-rt-v4 (hu), "
         f"LLM=gemini-2.5-flash, TTS=cartesia sonic-3, "
         f"VAD threshold=0.85, preemptive={True}"
     )
