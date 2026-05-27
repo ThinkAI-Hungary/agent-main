@@ -272,9 +272,10 @@ async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Option
     if source_channel not in ("Messenger", "Instagram"):
         return None
         
-    token = os.getenv("META_PAGE_ACCESS_TOKEN")
-    if not token:
-        return None
+    if source_channel == "Instagram":
+        token = os.getenv("META_INSTAGRAM_TOKEN", os.getenv("META_PAGE_ACCESS_TOKEN"))
+    else:
+        token = os.getenv("META_PAGE_ACCESS_TOKEN")
         
     url = f"https://graph.facebook.com/v19.0/{sender_id}?fields=first_name,last_name,name&access_token={token}"
     try:
@@ -1740,7 +1741,10 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                     resp.raise_for_status()
                     
                 elif ch in ["messenger", "instagram"]:
-                    page_access_token = os.getenv("META_PAGE_ACCESS_TOKEN", "")
+                    if ch == "instagram":
+                        page_access_token = os.getenv("META_INSTAGRAM_TOKEN", os.getenv("META_PAGE_ACCESS_TOKEN", ""))
+                    else:
+                        page_access_token = os.getenv("META_PAGE_ACCESS_TOKEN", "")
                     if not page_access_token:
                         raise Exception("Hiányzó Meta oldal token")
                         
@@ -1753,7 +1757,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                         }
                     )
                     resp.raise_for_status()
-                    print(f"[Approval] Messenger elküldve: {send_draft.get('sender_id', '')[:10]}...")
+                    print(f"[Approval] {ch.capitalize()} elküldve: {send_draft.get('sender_id', '')[:10]}...")
                 
     except Exception as e:
         print(f"[Approval Error] Hiba a kiküldéskor: {e}")
