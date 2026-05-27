@@ -268,16 +268,22 @@ Csak a címkéket tartalmazó JSON listát (pl. ["urgent", "complaint"]) add vis
         return []
 
 async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Optional[str]:
-    """Fetch the user's name from Meta Graph API using their PSID."""
+    """Fetch the user's name from Meta Graph API using their PSID/IGSID."""
     if source_channel not in ("Messenger", "Instagram"):
         return None
         
+    # Instagram DM uses Page Access Token (Messenger platform), not IG API token
+    token = os.getenv("META_PAGE_ACCESS_TOKEN")
+    if not token:
+        return None
+    
+    # Instagram supports 'name' and 'profile_pic'; Messenger supports first_name, last_name, name
     if source_channel == "Instagram":
-        token = os.getenv("META_INSTAGRAM_TOKEN", os.getenv("META_PAGE_ACCESS_TOKEN"))
+        fields = "name,profile_pic"
     else:
-        token = os.getenv("META_PAGE_ACCESS_TOKEN")
+        fields = "first_name,last_name,name"
         
-    url = f"https://graph.facebook.com/v19.0/{sender_id}?fields=first_name,last_name,name&access_token={token}"
+    url = f"https://graph.facebook.com/v25.0/{sender_id}?fields={fields}&access_token={token}"
     try:
         import httpx
         async with httpx.AsyncClient() as client:
@@ -291,7 +297,7 @@ async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Option
                     name = f"{first} {last}".strip()
                 return name if name else None
             else:
-                print(f"[Meta API] Error fetching profile for {sender_id}: {resp.text}")
+                print(f"[Meta API] Error fetching profile for {sender_id} ({source_channel}): {resp.text}")
                 return None
     except Exception as e:
         print(f"[Meta API] Exception fetching profile: {e}")
