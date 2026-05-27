@@ -1741,10 +1741,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                     resp.raise_for_status()
                     
                 elif ch in ["messenger", "instagram"]:
-                    if ch == "instagram":
-                        page_access_token = os.getenv("META_INSTAGRAM_TOKEN", os.getenv("META_PAGE_ACCESS_TOKEN", ""))
-                    else:
-                        page_access_token = os.getenv("META_PAGE_ACCESS_TOKEN", "")
+                    page_access_token = os.getenv("META_PAGE_ACCESS_TOKEN", "")
                     if not page_access_token:
                         raise Exception("Hiányzó Meta oldal token")
                         
