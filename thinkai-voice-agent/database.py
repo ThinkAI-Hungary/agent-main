@@ -31,9 +31,9 @@ def init_db():
     else:
         logger.error("Supabase client not initialized.")
 
-# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# ═══════════════════════════════════════════════════════════════════════════════
 # ADMIN USERS
-# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# ═══════════════════════════════════════════════════════════════════════════════
 
 def _hash_password(password: str) -> str:
     salt = secrets.token_hex(16)
@@ -47,7 +47,8 @@ def _verify_password(password: str, stored_hash: str) -> bool:
     except Exception:
         return False
 
-def create_admin_user(username: str, password: str, email: str = "") -> bool:
+def create_admin_user(username: str, password: str, email: str = "", role: str = "admin", created_by: str = "", full_name: str = "") -> bool:
+    """Create a new admin user with role (admin/member)."""
     if not supabase: return False
     try:
         res = supabase.table("admin_users").select("*").eq("username", username).execute()
@@ -58,22 +59,39 @@ def create_admin_user(username: str, password: str, email: str = "") -> bool:
         supabase.table("admin_users").insert({
             "username": username,
             "email": email,
-            "password_hash": _hash_password(password)
+            "password_hash": _hash_password(password),
+            "role": role,
+            "created_by": created_by,
+            "full_name": full_name
         }).execute()
-        logger.info(f"Admin user created: {username}")
+        logger.info(f"Admin user created: {username} (role={role})")
         return True
     except Exception as e:
         logger.error(f"Error creating admin user: {e}")
         return False
 
 def verify_admin_user(username: str, password: str) -> dict | None:
+    """Verify admin credentials and return user info including role."""
     if not supabase: return None
     try:
         res = supabase.table("admin_users").select("*").eq("username", username).execute()
         if res.data:
             user = res.data[0]
             if _verify_password(password, user["password_hash"]):
-                return {"id": user["id"], "username": user["username"], "email": user["email"]}
+                # Update last login timestamp
+                try:
+                    supabase.table("admin_users").update({
+                        "last_login": datetime.now(timezone.utc).isoformat()
+                    }).eq("id", user["id"]).execute()
+                except Exception:
+                    pass
+                return {
+                    "id": user["id"],
+                    "username": user["username"],
+                    "email": user.get("email", ""),
+                    "role": user.get("role", "admin"),
+                    "full_name": user.get("full_name", "")
+                }
     except Exception as e:
         logger.error(f"Error verifying admin: {e}")
     return None
@@ -82,9 +100,68 @@ def seed_admin_from_env():
     username = os.getenv("ADMIN_USERNAME", "admin")
     password = os.getenv("ADMIN_PASSWORD", "thinkai2026")
     email = os.getenv("ADMIN_EMAIL", "")
-    created = create_admin_user(username, password, email)
+    created = create_admin_user(username, password, email, role="admin", created_by="system")
     if created:
         logger.info(f"Seeded admin user from env: {username}")
+
+def get_admin_users() -> list[dict]:
+    """List all admin users (without password hashes)."""
+    if not supabase: return []
+    try:
+        res = supabase.table("admin_users").select(
+            "id, username, email, role, full_name, created_at, last_login, created_by"
+        ).order("created_at", desc=False).execute()
+        return res.data or []
+    except Exception as e:
+        logger.error(f"Error listing admin users: {e}")
+        return []
+
+def get_admin_user_by_username(username: str) -> dict | None:
+    """Get a single admin user by username (without password hash)."""
+    if not supabase: return None
+    try:
+        res = supabase.table("admin_users").select(
+            "id, username, email, role, full_name"
+        ).eq("username", username).execute()
+        return res.data[0] if res.data else None
+    except Exception as e:
+        logger.error(f"Error getting admin user: {e}")
+        return None
+
+def update_admin_role(user_id: int, role: str) -> bool:
+    """Update admin user role (admin/member)."""
+    if not supabase or role not in ("admin", "member"): return False
+    try:
+        supabase.table("admin_users").update({"role": role}).eq("id", user_id).execute()
+        logger.info(f"Updated admin user {user_id} role to {role}")
+        return True
+    except Exception as e:
+        logger.error(f"Error updating admin role: {e}")
+        return False
+
+def delete_admin_user(user_id: int) -> bool:
+    """Delete an admin user."""
+    if not supabase: return False
+    try:
+        supabase.table("admin_users").delete().eq("id", user_id).execute()
+        logger.info(f"Deleted admin user {user_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting admin user: {e}")
+        return False
+
+def update_admin_password(user_id: int, new_password: str) -> bool:
+    """Update admin user password."""
+    if not supabase: return False
+    try:
+        supabase.table("admin_users").update({
+            "password_hash": _hash_password(new_password)
+        }).eq("id", user_id).execute()
+        logger.info(f"Updated password for admin user {user_id}")
+        return True
+    except Exception as e:
+        logger.error(f"Error updating admin password: {e}")
+        return False
 
 # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # SESSIONS

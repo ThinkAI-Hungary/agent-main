@@ -710,7 +710,7 @@ class LoginRequest(BaseModel):
 
 @app.post("/admin/login")
 def admin_login(req: LoginRequest):
-    """Admin login — returns JWT token."""
+    """Admin login — returns JWT token + role."""
     user = db.verify_admin_user(req.username, req.password)
     if not user:
         raise HTTPException(
@@ -718,12 +718,117 @@ def admin_login(req: LoginRequest):
             detail="Hibás felhasználónév vagy jelszó"
         )
     token = create_jwt(user["username"])
-    return {"token": token, "username": user["username"]}
+    return {"token": token, "username": user["username"], "role": user.get("role", "admin"), "full_name": user.get("full_name", "")}
+
+
+def require_admin(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+    """Dependency: only admin role can access."""
+    if not credentials:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Nincs token")
+    try:
+        payload = pyjwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGO])
+        username = payload["sub"]
+    except pyjwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token lejárt")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Érvénytelen token")
+    
+    user = db.get_admin_user_by_username(username)
+    if not user or user.get("role") != "admin":
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Csak admin jogosultsággal elérhető")
+    return user
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ADMIN USER MANAGEMENT — admin role required
+# ═══════════════════════════════════════════════════════════════════════════════
+
+class CreateUserRequest(BaseModel):
+    username: str
+    password: str
+    email: str = ""
+    role: str = "member"
+    full_name: str = ""
+
+class RoleUpdateRequest(BaseModel):
+    role: str
+
+class ChangePasswordRequest(BaseModel):
+    current_password: str = ""
+    new_password: str
+    user_id: Optional[int] = None
+
+@app.get("/admin/api/users")
+def api_get_users(admin: dict = Depends(require_admin)):
+    """List all admin users (admin only)."""
+    return {"status": "success", "data": db.get_admin_users()}
+
+@app.post("/admin/api/users")
+def api_create_user(req: CreateUserRequest, admin: dict = Depends(require_admin)):
+    """Create a new admin user (admin only)."""
+    if req.role not in ("admin", "member"):
+        raise HTTPException(400, "Érvénytelen szerepkör. Lehetséges: admin, member")
+    success = db.create_admin_user(req.username, req.password, req.email, req.role, admin["username"], req.full_name)
+    if not success:
+        raise HTTPException(400, "A felhasználónév már foglalt")
+    return {"status": "success", "message": f"Felhasználó létrehozva: {req.username}"}
+
+@app.put("/admin/api/users/{user_id}/role")
+def api_update_user_role(user_id: int, req: RoleUpdateRequest, admin: dict = Depends(require_admin)):
+    """Update user role (admin only). Cannot demote self."""
+    if admin["id"] == user_id and req.role != "admin":
+        raise HTTPException(400, "Nem módosíthatod a saját szerepkörödet")
+    success = db.update_admin_role(user_id, req.role)
+    if not success:
+        raise HTTPException(400, "Szerepkör módosítása sikertelen")
+    return {"status": "success"}
+
+@app.delete("/admin/api/users/{user_id}")
+def api_delete_user(user_id: int, admin: dict = Depends(require_admin)):
+    """Delete an admin user (admin only). Cannot delete self."""
+    if admin["id"] == user_id:
+        raise HTTPException(400, "Nem törölheted saját magadat")
+    success = db.delete_admin_user(user_id)
+    if not success:
+        raise HTTPException(400, "Törlés sikertelen")
+    return {"status": "success"}
+
+@app.post("/admin/api/users/change-password")
+def api_change_password(req: ChangePasswordRequest, username: str = Depends(verify_jwt)):
+    """Change password. Admins can change any user's password; members only their own."""
+    caller = db.get_admin_user_by_username(username)
+    if not caller:
+        raise HTTPException(401, "Felhasználó nem található")
+    
+    if req.user_id and req.user_id != caller["id"]:
+        # Changing someone else's password — admin only
+        if caller.get("role") != "admin":
+            raise HTTPException(403, "Csak admin módosíthat más felhasználó jelszavát")
+        success = db.update_admin_password(req.user_id, req.new_password)
+    else:
+        # Changing own password — verify current password
+        user = db.verify_admin_user(username, req.current_password)
+        if not user:
+            raise HTTPException(400, "A jelenlegi jelszó helytelen")
+        success = db.update_admin_password(caller["id"], req.new_password)
+    
+    if not success:
+        raise HTTPException(400, "Jelszó módosítása sikertelen")
+    return {"status": "success", "message": "Jelszó sikeresen módosítva"}
+
+
+@app.get("/admin/api/members")
+def api_get_members(username: str = Depends(verify_jwt)):
+    """List all member users (for Felelős dropdown). Any logged-in user can access."""
+    users = db.get_admin_users()
+    members = [{"id": u["id"], "username": u["username"], "full_name": u.get("full_name", "")} for u in users if u.get("role") == "member"]
+    return {"status": "success", "data": members}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ADMIN API — protected routes
 # ═══════════════════════════════════════════════════════════════════════════════
+
 
 @app.get("/admin/api/stats")
 def admin_stats(period: str = "month", channel: str = "mind", username: str = Depends(verify_jwt)):
@@ -827,6 +932,72 @@ def admin_interactions(
 def admin_calendar(username: str = Depends(verify_jwt)):
     """Calendar events, sorted by start time."""
     return {"events": db.get_calendar_events()}
+
+
+class ManualEventRequest(BaseModel):
+    title: str
+    attendee: str
+    attendee_email: str = ""
+    attendee_phone: str = ""
+    start_dt: str  # ISO format datetime
+    duration_minutes: int = 30
+
+@app.post("/admin/api/calendar")
+def admin_create_event(req: ManualEventRequest, username: str = Depends(verify_jwt)):
+    """Create a manual calendar event and auto-create client if needed."""
+    from datetime import datetime, timedelta
+    try:
+        start = datetime.fromisoformat(req.start_dt.replace("Z", "+00:00"))
+    except Exception:
+        raise HTTPException(400, "Érvénytelen dátum formátum")
+    
+    end = start + timedelta(minutes=req.duration_minutes)
+    
+    event_id = db.add_calendar_event(
+        title=req.title,
+        start_dt=start.isoformat(),
+        end_dt=end.isoformat(),
+        duration_minutes=req.duration_minutes,
+        attendee=req.attendee,
+        attendee_email=req.attendee_email
+    )
+    
+    # Auto-create client if not exists
+    if req.attendee:
+        existing = db.get_clients()
+        found = False
+        for c in existing:
+            cd = c.get("custom_data")
+            if isinstance(cd, str):
+                try:
+                    import json
+                    cd = json.loads(cd)
+                except:
+                    cd = {}
+            elif cd is None:
+                cd = {}
+            c_name = (cd.get("nev") or cd.get("name") or c.get("name") or "").lower().strip()
+            c_email = (cd.get("email") or c.get("email") or "").lower().strip()
+            if (req.attendee.lower().strip() == c_name) or (req.attendee_email and req.attendee_email.lower().strip() == c_email):
+                found = True
+                break
+        
+        if not found:
+            # Get user's full_name for felelos
+            user_info = db.get_admin_user_by_username(username)
+            felelos = (user_info or {}).get("full_name", "") or username
+            
+            custom_data = {
+                "name": req.attendee,
+                "nev": req.attendee,
+                "email": req.attendee_email,
+                "phone": req.attendee_phone,
+                "telefonszam": req.attendee_phone,
+                "felelos": felelos
+            }
+            db.add_client(custom_data, "uj")
+    
+    return {"status": "success", "event_id": event_id, "message": "Időpont sikeresen létrehozva"}
 
 
 @app.get("/admin/api/emails")
