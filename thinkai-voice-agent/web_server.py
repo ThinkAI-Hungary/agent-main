@@ -65,6 +65,11 @@ async def startup_event():
     task2 = asyncio.create_task(email_processor.reminder_worker_loop())
     background_tasks.add(task2)
     task2.add_done_callback(background_tasks.discard)
+    
+    # Eseményvezérelt automatizációk worker
+    task3 = asyncio.create_task(email_processor.automation_worker_loop())
+    background_tasks.add(task3)
+    task3.add_done_callback(background_tasks.discard)
     # Inbound SIP szoba monitor — KIKAPCSOLVA
     # A lk_trigger.py (Asterisk) mar kezeli a dispatch-et, nem kell dupla.
     # mon = asyncio.create_task(inbound_sip_room_monitor())
@@ -326,6 +331,20 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
         meta_name = await fetch_meta_user_profile(sender_id, source_channel)
         if meta_name:
             client_data["name"] = meta_name
+        else:
+            # Fallback: keressük az adatbázisban a nevet
+            print(f"[Meta API] Név feloldás sikertelen ({source_channel} {sender_id}), DB fallback...")
+            existing = db.find_client_by_contact(messenger_id=sender_id)
+            if existing:
+                cd_fb = existing.get("custom_data")
+                if isinstance(cd_fb, str):
+                    try: cd_fb = json.loads(cd_fb)
+                    except: cd_fb = {}
+                if isinstance(cd_fb, dict):
+                    db_name = cd_fb.get("nev") or cd_fb.get("name") or existing.get("name")
+                    if db_name and db_name not in ("Névtelen", "-", ""):
+                        meta_name = db_name
+                        print(f"[Meta API] DB fallback név: {meta_name}")
             
         db.upsert_client(client_data, additional_log=f"Ügyfél ({source_channel}): {message_text}")
 
@@ -560,6 +579,18 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 updates["end_dt"] = (new_start + timedelta(minutes=dur)).isoformat()
                 db.update_calendar_event(found["id"], **updates)
                 db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Naptár bejegyzés módosítva: {found['title']}")
+                # Módosítás visszaigazolás email küldése
+                attendee_email = found.get("attendee_email")
+                if attendee_email and attendee_email != "-":
+                    asyncio.create_task(
+                        email_processor.send_modification_confirmation_email(
+                            attendee=found.get("attendee", "Ügyfél"),
+                            attendee_email=attendee_email,
+                            title=found.get("title", "Konzultáció"),
+                            old_datetime=found["start_dt"],
+                            new_datetime=updates.get("start_dt", found["start_dt"])
+                        )
+                    )
             else:
                 db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Módosítás sikertelen, nem található: {ev_title}")
 
@@ -585,6 +616,11 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                     if not isinstance(c_data, dict): c_data = {}
                     
                     c_data["cancelled_viewed"] = False
+                    # Automatikus 'törölt időpont' tag hozzáadása
+                    existing_tags = c_data.get("tags", [])
+                    if "törölt időpont" not in existing_tags:
+                        existing_tags.append("törölt időpont")
+                        c_data["tags"] = existing_tags
                     db.edit_client_details(client_to_cancel["id"], c_data)
                     db.update_client_status(client_to_cancel["id"], "lemondott")
                 
@@ -595,6 +631,18 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
         # 4. Válasz rögzítése a Kanbanba
         if final_text:
             existing_client = db.find_client_by_contact(messenger_id=sender_id)
+            # Név feloldás: meta API → DB → sender_id
+            display_name = meta_name
+            if not display_name and existing_client:
+                cd_for_name = existing_client.get("custom_data")
+                if isinstance(cd_for_name, str):
+                    try: cd_for_name = json.loads(cd_for_name)
+                    except: cd_for_name = {}
+                if isinstance(cd_for_name, dict):
+                    display_name = cd_for_name.get("nev") or cd_for_name.get("name") or existing_client.get("name")
+            if not display_name or display_name in ("Névtelen", "-", ""):
+                display_name = None
+
             current_status = existing_client.get("status", "uj") if existing_client else "uj"
             db.upsert_client({"messenger_id": sender_id, "forras_csatorna": source_channel}, additional_log=f"AI Válasz: {final_text}", status=current_status)
             
@@ -604,14 +652,14 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             draft_payload = {
                 "channel": source_channel,
                 "sender_id": sender_id,
-                "to_name": meta_name if meta_name else sender_id,
+                "to_name": display_name if display_name else sender_id,
                 "phone_number_id": phone_number_id,
                 "body": final_text
             }
             draft_json = json.dumps(draft_payload)
             
             session_id = f"{source_channel.lower()}_{sender_id}"
-            db.create_session(session_id=session_id, room_name=f"{source_channel} Chat", participant=meta_name if meta_name else "Ismeretlen")
+            db.create_session(session_id=session_id, room_name=f"{source_channel} Chat", participant=display_name if display_name else "Ismeretlen")
             
             # alert tags beolvasása az aszinkron feladatból, ha az AI nem adott
             tags_from_ai = alert_tags if isinstance(alert_tags, list) else []
@@ -1736,11 +1784,13 @@ async def cartesia_voices(username: str = Depends(verify_jwt)):
 
 class SipCallRequest(BaseModel):
     phone_number: str   # E.164 format pl. +36301234567
-    note: str = ""      # Megjegyzés (nem kerül mentésre egyelőre)
+    note: str = ""      # Megjegyzés
+    script: str = ""    # Szöveg amit az AI-nak el kell mondania a hívás során
+    client_name: str = ""  # Ügyfél neve (személyre szabáshoz)
 
 @app.post("/admin/api/sip/call")
 async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_jwt)):
-    """Kimenő SIP hívás indítása az AI agenttel."""
+    """Kimenő SIP hívás indítása az AI agenttel — opcionális scripttel."""
     from livekit import api as lk_api_module
 
     lk_url    = os.getenv("LIVEKIT_URL")
@@ -1755,14 +1805,25 @@ async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_
     # Egyedi szoba a híváshoz
     room_name = f"call-out-{uuid.uuid4().hex[:8]}"
 
+    # Ha van script, metadata-ba tesszük hogy az agent megkapja
+    call_metadata = None
+    if req.script and req.script.strip():
+        call_metadata = json.dumps({
+            "type": "outbound_script_call",
+            "script": req.script.strip(),
+            "client_name": req.client_name.strip() if req.client_name else "",
+            "call_note": req.note.strip() if req.note else ""
+        })
+
     try:
         lk = lk_api_module.LiveKitAPI(url=lk_url, api_key=lk_key, api_secret=lk_secret)
 
-        # 1. Szoba létrehozása
+        # 1. Szoba létrehozása (metadata-val ha van script)
         await lk.room.create_room(
             lk_api_module.CreateRoomRequest(
                 name=room_name,
                 empty_timeout=120,
+                metadata=call_metadata or "",
             )
         )
 
@@ -1779,12 +1840,12 @@ async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_
             )
         )
 
-        # 3. Csak ha felvették: agent dispatch
+        # 3. Csak ha felvették: agent dispatch (metadata-val ha van script)
         await lk.agent_dispatch.create_dispatch(
             lk_api_module.CreateAgentDispatchRequest(
                 agent_name="dobozos-ai",
                 room=room_name,
-                metadata="outbound_call",
+                metadata=call_metadata or "outbound_call",
             )
         )
 
@@ -1932,6 +1993,59 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                     )
                     resp.raise_for_status()
                     print(f"[Approval] {ch.capitalize()} elküldve: {send_draft.get('sender_id', '')[:10]}...")
+
+                elif ch == "telefon":
+                    # Telefonhívás indítása a jóváhagyott szöveggel mint AI script
+                    from livekit import api as lk_api_module
+
+                    lk_url    = os.getenv("LIVEKIT_URL")
+                    lk_key    = os.getenv("LIVEKIT_API_KEY")
+                    lk_secret = os.getenv("LIVEKIT_API_SECRET")
+                    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_2wJZqGsWZBC3")
+
+                    call_phone = send_draft.get("phone_number", "")
+                    if not call_phone:
+                        raise Exception("Hiányzó telefonszám a piszkozatban")
+                    if not call_phone.startswith("+"):
+                        call_phone = "+" + call_phone
+
+                    call_room = f"call-out-{uuid.uuid4().hex[:8]}"
+                    client_name = send_draft.get("to_name", "")
+                    call_metadata = json.dumps({
+                        "type": "outbound_script_call",
+                        "script": send_text,
+                        "client_name": client_name,
+                        "call_note": send_draft.get("campaign_name", "Jóváhagyott kimenő hívás")
+                    })
+
+                    lk = lk_api_module.LiveKitAPI(url=lk_url, api_key=lk_key, api_secret=lk_secret)
+                    await lk.room.create_room(
+                        lk_api_module.CreateRoomRequest(
+                            name=call_room,
+                            empty_timeout=120,
+                            metadata=call_metadata,
+                        )
+                    )
+                    await lk.sip.create_sip_participant(
+                        lk_api_module.CreateSIPParticipantRequest(
+                            sip_trunk_id=trunk_id,
+                            sip_call_to=call_phone,
+                            room_name=call_room,
+                            participant_identity="phone-caller",
+                            participant_name=call_phone,
+                            wait_until_answered=True,
+                            krisp_enabled=True,
+                        )
+                    )
+                    await lk.agent_dispatch.create_dispatch(
+                        lk_api_module.CreateAgentDispatchRequest(
+                            agent_name="dobozos-ai",
+                            room=call_room,
+                            metadata=call_metadata,
+                        )
+                    )
+                    await lk.aclose()
+                    print(f"[Approval] Telefon hívás indítva: {call_phone} (script: {send_text[:50]}...)")
                 
     except Exception as e:
         print(f"[Approval Error] Hiba a kiküldéskor: {e}")
@@ -1976,6 +2090,25 @@ async def save_reminder_settings_endpoint(payload: ReminderSettingsRequest, user
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# ESEMÉNYVEZÉRELT AUTOMATIZÁCIÓK API
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get('/admin/api/outbound_automations')
+async def get_outbound_automations_endpoint(username: str = Depends(verify_jwt)):
+    import database as db
+    return db.get_outbound_automations()
+
+@app.put('/admin/api/outbound_automations/{automation_id}')
+async def update_outbound_automation_endpoint(automation_id: int, request: Request, username: str = Depends(verify_jwt)):
+    import database as db
+    data = await request.json()
+    success = db.update_outbound_automation(automation_id, data)
+    if success:
+        return {'ok': True, 'message': 'Automatizáció frissítve.'}
+    raise HTTPException(status_code=500, detail='Hiba az automatizáció mentésekor.')
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # KIMENŐ KOMMUNIKÁCIÓ – KAMPÁNY API
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -2008,20 +2141,34 @@ async def start_campaign_api(campaign_id: int, username: str = Depends(verify_jw
     if not campaign:
         raise HTTPException(status_code=404, detail="Kampány nem található")
     channels = campaign.get("channels", [campaign.get("channel", "email")])
-    supported = {"email", "messenger"}
+    supported = {"email", "messenger", "telefon"}
     active_channels = [ch for ch in channels if ch in supported]
     if not active_channels:
-        raise HTTPException(status_code=400, detail="Jelenleg csak email és messenger kampányok támogatottak")
+        raise HTTPException(status_code=400, detail="Jelenleg csak email, messenger és telefon kampányok támogatottak")
 
     db.update_campaign_status(campaign_id, "Aktív")
 
-    task = asyncio.create_task(_run_campaign(campaign, active_channels))
-    background_tasks.add(task)
-    task.add_done_callback(background_tasks.discard)
+    # Text-based channels (email, messenger) → draft generation
+    text_channels = [ch for ch in active_channels if ch in {"email", "messenger"}]
+    if text_channels:
+        task = asyncio.create_task(_run_campaign(campaign, text_channels))
+        background_tasks.add(task)
+        task.add_done_callback(background_tasks.discard)
 
-    channel_names = {"email": "Email", "messenger": "Messenger"}
+    # Phone channel → outbound SIP calls with campaign script
+    if "telefon" in active_channels:
+        phone_task = asyncio.create_task(_run_phone_campaign(campaign))
+        background_tasks.add(phone_task)
+        phone_task.add_done_callback(background_tasks.discard)
+
+    channel_names = {"email": "Email", "messenger": "Messenger", "telefon": "Telefon (AI hívás)"}
     ch_str = ", ".join(channel_names.get(c, c) for c in active_channels)
-    return {"status": "success", "message": f"Kampány elindítva ({ch_str}), a piszkozatok hamarosan megjelennek a Jóváhagyó rendszerben."}
+    msg_parts = []
+    if text_channels:
+        msg_parts.append("piszkozatok hamarosan megjelennek a Jóváhagyó rendszerben")
+    if "telefon" in active_channels:
+        msg_parts.append("AI telefonhívások indulnak")
+    return {"status": "success", "message": f"Kampány elindítva ({ch_str}) — {', '.join(msg_parts)}."}
 
 @app.post("/admin/api/campaigns/{campaign_id}/stop")
 def stop_campaign_api(campaign_id: int, username: str = Depends(verify_jwt)):
@@ -2037,6 +2184,85 @@ def delete_campaign_api(campaign_id: int, username: str = Depends(verify_jwt)):
     if success:
         return {"status": "success"}
     raise HTTPException(status_code=500, detail="Törlés sikertelen")
+
+@app.post("/admin/api/campaigns/generate_message")
+async def generate_campaign_message(request: Request, username: str = Depends(verify_jwt)):
+    """AI kampány varázsló — üzenet generálás Gemini-vel."""
+    data = await request.json()
+    brief = data.get("brief", "")
+    style = data.get("style", "barátságos")
+    channel = data.get("channel", "email")
+    
+    if not brief:
+        raise HTTPException(status_code=400, detail="A kampány brief megadása kötelező.")
+    
+    max_lengths = {"email": "1500 karakter", "whatsapp": "500 karakter", "sms": "160 karakter", "instagram": "300 karakter", "telefon": "500 karakter (beszélt szöveg)"}
+    max_len = max_lengths.get(channel, "1000 karakter")
+    
+    style_instructions = {
+        "hivatalos": "Hivatalos, professzionális hangvétel. Magázódás, formális stílus.",
+        "barátságos": "Barátságos, közvetlen hangvétel. Tegezés, meleg tónus.",
+        "akciós": "Figyelemfelkeltő, akciós hangvétel. Sürgős, limitált ajánlat érzés. Emojik használata.",
+        "személyes": "Személyes, intim hangvétel. Mintha egy barát írna. Közvetlen, egyedi."
+    }
+    style_desc = style_instructions.get(style, style_instructions["barátságos"])
+    
+    google_key = os.getenv("GOOGLE_API_KEY")
+    if not google_key:
+        raise HTTPException(status_code=500, detail="Nincs GOOGLE_API_KEY beállítva.")
+    
+    try:
+        from google import genai
+        from google.genai import types
+        client = genai.Client(api_key=google_key)
+        
+        if channel == "telefon":
+            prompt = f"""Írj egy telefonos hívás scriptet az alábbi paraméterek alapján:
+
+KAMPÁNY BRIEF: {brief}
+
+STÍLUS: {style_desc}
+
+SZABÁLYOK:
+- Ez egy AI telefonhívás scriptje — az AI agent ezt fogja ELMONDANI az ügyfélnek
+- Természetes, beszélgetős stílusú legyen (NE legyen olvasott szöveg érzése)
+- Kezdd köszönéssel és bemutatkozással
+- Mondd el az ajánlatot/üzenetet röviden és érthetően (max 2-3 mondat egyszerre)
+- Legyen benne reakció lehetőség (pl. "Mit gondol erről?" / "Érdekli?")
+- Ha az ügyfél nem érdeklődik, udvariasan búcsúzz el
+- Maximum {max_len}
+- Magyarul
+
+Csak a kész scriptet add vissza, semmi mást."""
+        else:
+            prompt = f"""Írj egy kampány üzenetet az alábbi paraméterek alapján:
+
+KAMPÁNY BRIEF: {brief}
+
+STÍLUS: {style_desc}
+
+CSATORNA: {channel} (maximum {max_len})
+
+SZABÁLYOK:
+- Az üzenet legyen célratörő és hatásos
+- NE használj HTML tageket, csak sima szöveget
+- Listákhoz kötőjelet használj
+- Az üzenet végén legyen egy call-to-action
+- Ha {channel} == "sms", nagyon rövid legyen (max 160 karakter)
+- Nem kell aláírás sor
+
+Csak a kész üzenet szöveget add vissza, semmi mást."""
+
+        response = await client.aio.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=types.GenerateContentConfig(temperature=0.7)
+        )
+        generated = response.text.strip()
+        return {"message": generated, "style": style, "channel": channel}
+    except Exception as e:
+        logger.error(f"Campaign message generation error: {e}")
+        raise HTTPException(status_code=500, detail=f"AI generálási hiba: {str(e)}")
 
 @app.get("/admin/api/campaigns/{campaign_id}/clients")
 def get_campaign_clients_api(campaign_id: int, username: str = Depends(verify_jwt)):
@@ -2234,6 +2460,139 @@ FELADATOD:
     db.update_campaign_status(campaign_id, "Befejezett", processed_count=processed)
     ch_str = ", ".join(active_channels)
     print(f"[Campaign] Kampány befejezve: {campaign_name} ({ch_str}) – {processed} piszkozat generálva")
+
+
+async def _run_phone_campaign(campaign: dict):
+    """Háttérfolyamat: végigmegy a kampány ügyfelein és AI telefonhívást indít mindegyiknek."""
+    from livekit import api as lk_api_module
+
+    campaign_id = campaign["id"]
+    campaign_name = campaign["name"]
+    ai_instructions = campaign.get("ai_instructions", "")
+    client_ids = campaign.get("client_ids", [])
+
+    lk_url    = os.getenv("LIVEKIT_URL")
+    lk_key    = os.getenv("LIVEKIT_API_KEY")
+    lk_secret = os.getenv("LIVEKIT_API_SECRET")
+    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_2wJZqGsWZBC3")
+
+    if not all([lk_url, lk_key, lk_secret]):
+        print(f"[PhoneCampaign] LiveKit credentials hiányzik, kampány megszakítva: {campaign_name}")
+        db.update_campaign_status(campaign_id, "Megállítva")
+        return
+
+    clients = db.get_clients_by_ids(client_ids)
+    if not clients:
+        print(f"[PhoneCampaign] Nem találhatók ügyfelek, kampány lezárva: {campaign_name}")
+        db.update_campaign_status(campaign_id, "Befejezett", processed_count=0)
+        return
+
+    processed = 0
+    failed = 0
+
+    for client in clients:
+        # Check if campaign was stopped
+        current = db.get_campaign(campaign_id)
+        if not current or current.get("status") == "Megállítva":
+            print(f"[PhoneCampaign] Kampány megállítva: {campaign_name}")
+            return
+
+        custom_data = client.get("custom_data", {})
+        if isinstance(custom_data, str):
+            try:
+                custom_data = json.loads(custom_data)
+            except:
+                custom_data = {}
+
+        client_name = custom_data.get("name") or client.get("name", "Névtelen")
+        client_phone = custom_data.get("phone") or client.get("phone", "")
+
+        if not client_phone or client_phone == "-":
+            print(f"[PhoneCampaign] Nincs telefonszám: {client_name}, kihagyva")
+            continue
+
+        # Normalize phone number
+        phone = client_phone.strip()
+        if not phone.startswith("+"):
+            phone = "+" + phone
+
+        # Build campaign metadata for the agent
+        campaign_metadata = json.dumps({
+            "type": "campaign_call",
+            "campaign_id": campaign_id,
+            "campaign_name": campaign_name,
+            "client_name": client_name,
+            "script": ai_instructions
+        })
+
+        room_name = f"call-out-camp-{campaign_id}-{uuid.uuid4().hex[:6]}"
+
+        try:
+            lk = lk_api_module.LiveKitAPI(url=lk_url, api_key=lk_key, api_secret=lk_secret)
+
+            # 1. Create room with campaign metadata
+            await lk.room.create_room(
+                lk_api_module.CreateRoomRequest(
+                    name=room_name,
+                    empty_timeout=120,
+                    metadata=campaign_metadata,
+                )
+            )
+
+            # 2. SIP call — wait for answer
+            participant = await lk.sip.create_sip_participant(
+                lk_api_module.CreateSIPParticipantRequest(
+                    sip_trunk_id=trunk_id,
+                    sip_call_to=phone,
+                    room_name=room_name,
+                    participant_identity="phone-caller",
+                    participant_name=phone,
+                    wait_until_answered=True,
+                    krisp_enabled=True,
+                )
+            )
+
+            # 3. Dispatch agent with campaign metadata
+            await lk.agent_dispatch.create_dispatch(
+                lk_api_module.CreateAgentDispatchRequest(
+                    agent_name="dobozos-ai",
+                    room=room_name,
+                    metadata=campaign_metadata,
+                )
+            )
+
+            await lk.aclose()
+
+            # Log the interaction
+            session_id = f"campaign_phone_{campaign_id}_{client['id']}"
+            db.create_session(session_id=session_id, room_name=f"Kampány hívás: {campaign_name}", participant=client_name)
+            db.log_interaction(
+                type="Telefon",
+                topic=f"Kampány: {campaign_name}",
+                summary=f"Kimenő AI telefonhívás – {client_name} ({phone})",
+                result="Hívás indítva",
+                tool_name="phone_campaign_worker",
+                session_id=session_id,
+                direction="outbound",
+                funnel_stage="relevans",
+                alert_tags=[],
+                handover_reason=None,
+            )
+
+            processed += 1
+            db.update_campaign_status(campaign_id, "Aktív", processed_count=processed)
+            print(f"[PhoneCampaign] Hivas inditva ({processed}/{len(clients)}): {client_name} -> {phone}")
+
+            # Wait between calls (15 sec) to avoid overwhelming + let calls finish
+            await asyncio.sleep(15)
+
+        except Exception as e:
+            failed += 1
+            print(f"[PhoneCampaign] Hivas sikertelen ({client_name} -> {phone}): {e}")
+            await asyncio.sleep(3)
+
+    db.update_campaign_status(campaign_id, "Befejezett", processed_count=processed)
+    print(f"[PhoneCampaign] Kampany befejezve: {campaign_name} - {processed} hivas, {failed} sikertelen")
 
 
 @app.get('/api/public/cancel')

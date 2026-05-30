@@ -85,23 +85,31 @@ JSON STRUKTÃRA:
         "new_time": "HH:MM"
     },
     "action_delete_meeting": {
-        "event_title_to_delete": "A törlendÅ esemény címe vagy része"
+        "event_title_to_delete": "A törlendő esemény címe vagy része"
     },
     "alert_tags": ["urgent", "complaint", "callback", "recurring"], // Válaszd ki, ha releváns, különben üres lista []
-    "handover_reason": "Az átadás oka, ha emberi beavatkozás szükséges. Válaszd ezek közül: 'Ãsszetett kérdés', 'SürgÅs / triázs', 'Hiányzó info', 'Foglalási kivétel', 'Emberi döntés'. Ha az AI mindent meg tudott oldani, ez legyen null."
+    "secondary_tags": [],
+    "handover_reason": "Az átadás oka, ha emberi beavatkozás szükséges. Válaszd ezek közül: 'Összetett kérdés', 'Sürgős / triázs', 'Hiányzó info', 'Foglalási kivétel', 'Emberi döntés'. Ha az AI mindent meg tudott oldani, ez legyen null."
 }
-Ha nem kérnek egyértelműen idÅpontot, a "meeting" értéke legyen null. 
-FIGYELEM: Ha az eset SürgÅs vagy Kiemelt prioritású, VAGY a kérés szerepel a Kivételek (Exceptions) listájában, a "meeting" értéke KÃTELEZŐEN null kell legyen (SZIGORÃAN TILOS idÅpontot foglalni!), és a "handover_reason" legyen 'SürgÅs / triázs' vagy 'Foglalási kivétel'.
-Ebben az esetben a válaszlevélben se ígérj egyeztetést konkrét idÅpontokról, kizárólag azt jelezd, hogy az ügyét azonnal továbbítottad egy élÅ kollégának/munkatársnak!
+Ha nem kérnek egyértelműen időpontot, a "meeting" értéke legyen null. 
+FIGYELEM: Ha az eset Sürgős vagy Kiemelt prioritású, VAGY a kérés szerepel a Kivételek (Exceptions) listájában, a "meeting" értéke KÖTELEZŐEN null kell legyen (SZIGORÚAN TILOS időpontot foglalni!), és a "handover_reason" legyen 'Sürgős / triázs' vagy 'Foglalási kivétel'.
+Ebben az esetben a válaszlevélben se ígérj egyeztetést konkrét időpontokról, kizárólag azt jelezd, hogy az ügyét azonnal továbbítottad egy élő kollégának/munkatársnak!
 
-KIVÃTEL A TILTÁS ALÃL (FONTOS!):
-Ha a felhasználó egyértelműen idÅpontot kér, de NEM adja meg, hogy milyen panasza/kezelése van, AKKOR IS FOGLALD LE az idÅpontot (a "meeting" objektum kitöltésével, pl. "Konzultáció" vagy "Általános vizsgálat" címmel)! Ne tagadd meg a foglalást és ne kérj vissza pontosítást csak azért, mert nem tudod a kezelés típusát. Csak akkor tilos a foglalás, ha a megadott panasz egyértelműen SürgÅs/Kiemelt, vagy egyértelműen szerepel a Kivételek között. Ha nincs panasz megadva, feltételezd, hogy Normál eset!
+KIVÉTEL A TILTÁS ALÓL (FONTOS!):
+Ha a felhasználó egyértelműen időpontot kér, de NEM adja meg, hogy milyen panasza/kezelése van, AKKOR IS FOGLALD LE az időpontot (a "meeting" objektum kitöltésével, pl. "Konzultáció" vagy "Általános vizsgálat" címmel)! Ne tagadd meg a foglalást és ne kérj vissza pontosítást csak azért, mert nem tudod a kezelés típusát. Csak akkor tilos a foglalás, ha a megadott panasz egyértelműen Sürgős/Kiemelt, vagy egyértelműen szerepel a Kivételek között. Ha nincs panasz megadva, feltételezd, hogy Normál eset!
 A lehetséges alert_tags értékek:
-- "urgent": ha nagyon sürgÅs az ügy
+- "urgent": ha nagyon sürgős az ügy
 - "exception": ha a kérés szerepel a Kivételek listájában
 - "complaint": ha a levél panaszt, elégedetlenséget tartalmaz
 - "callback": ha telefonos visszahívást kérnek
 - "recurring": ha egy gyakori ismétlődő hibát/kérdést vetnek fel.
+
+A "secondary_tags" mező: válaszd ki azokat a másodlagos címkéket, amelyek relevánsak az interakcióra.
+Lehetséges értékek:
+- "árkérdés": ha az ügyfél árról, díjakról, kedvezményekről érdeklődik
+- "ajánlatkérés": ha az ügyfél konkrét ajánlatot kér
+- "kampány lead": ha az ügyfél egy kampányra/akcióra reagált
+Ha egyik sem releváns, legyen üres lista [].
 """
 
     client = genai.Client(api_key=google_key)
@@ -180,6 +188,7 @@ A lehetséges alert_tags értékek:
     meeting = data.get("meeting")
     alert_tags = data.get("alert_tags", [])
     handover_reason = data.get("handover_reason")
+    secondary_tags = data.get("secondary_tags", [])
     
     # Fallback emberi döntés
     if not handover_reason and email_reply and ("hív" in email_reply.lower() or "ember" in email_reply.lower() or "kollég" in email_reply.lower()):
@@ -223,6 +232,15 @@ A lehetséges alert_tags értékek:
                 details["prioritas"] = "Kiemelt"
             elif "urgent" in alert_tags_list:
                 details["prioritas"] = "Sürgős"
+                
+        # AI-alapú másodlagos címkék hozzáadása
+        if isinstance(secondary_tags, list) and secondary_tags:
+            existing_tags = details.get("tags", [])
+            if not isinstance(existing_tags, list): existing_tags = []
+            for st in secondary_tags:
+                if st and st not in existing_tags:
+                    existing_tags.append(st)
+            details["tags"] = existing_tags
                 
         # Mentsük Kanban "uj" oszlopba
         cols = db.get_kanban_columns()
@@ -271,6 +289,20 @@ A lehetséges alert_tags értékek:
                 if updates:
                     db.update_calendar_event(found["id"], **updates)
                     logger.info(f"Naptár esemény módosítva (e-mailből): {found['title']}")
+                    # Módosítás visszaigazolás email küldése
+                    attendee_email = found.get("attendee_email")
+                    if attendee_email and attendee_email != "-":
+                        old_dt_str = found["start_dt"]
+                        new_dt_str = updates.get("start_dt", old_dt_str)
+                        asyncio.create_task(
+                            send_modification_confirmation_email(
+                                attendee=found.get("attendee", "Ügyfél"),
+                                attendee_email=attendee_email,
+                                title=found.get("title", "Konzultáció"),
+                                old_datetime=old_dt_str,
+                                new_datetime=new_dt_str
+                            )
+                        )
         except Exception as e:
             logger.error(f"Hiba a naptáresemény módosításakor: {e}")
 
@@ -737,3 +769,206 @@ def get_cancellation_html(event_id: int) -> str:
         <hr style="border: 0; border-top: 1px dotted #e5e7eb; margin: 30px 0;">
     </div>
     """
+
+
+async def send_modification_confirmation_email(attendee: str, attendee_email: str, title: str, old_datetime: str, new_datetime: str):
+    """Időpont módosítás visszaigazolás email küldése."""
+    import os, json
+    from datetime import datetime as dt
+
+    # Format datetimes
+    try:
+        old_dt = dt.fromisoformat(old_datetime.replace('Z', '+00:00'))
+        old_formatted = old_dt.strftime('%Y.%m.%d %H:%M')
+    except:
+        old_formatted = old_datetime
+    try:
+        new_dt = dt.fromisoformat(new_datetime.replace('Z', '+00:00'))
+        new_formatted = new_dt.strftime('%Y.%m.%d %H:%M')
+    except:
+        new_formatted = new_datetime
+
+    html_content = f"""
+    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
+        <p>Kedves {attendee}!</p>
+        <br>
+        <p>Időpontja sikeresen módosításra került. Az új időpont részletei:</p>
+        <div style="background-color: #f9fafb; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
+            <strong>Szolgáltatás:</strong> {title}<br>
+            <del style="color: #9ca3af;">Eredeti időpont: {old_formatted}</del><br>
+            <strong style="color: #059669;">Új időpont: {new_formatted}</strong>
+        </div>
+        <p style="font-size: 12px; color: #6b7280; font-style: italic;">
+            * Kérjük, vegye figyelembe, hogy további módosításra az időpont előtti 48 órával van lehetőség.
+        </p>
+        <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0;">
+        <p style="text-align: center;">Üdvözlettel: <strong>A virtuális asszisztens csapata</strong></p>
+    </div>
+    """
+
+    brevo_key = os.getenv("BREVO_API_KEY", "")
+    api_key = brevo_key
+    if brevo_key and not brevo_key.startswith("xkeysib-"):
+        try:
+            import base64 as b64module
+            decoded = b64module.b64decode(brevo_key).decode()
+            parsed = json.loads(decoded)
+            api_key = parsed.get("api_key", brevo_key)
+        except Exception:
+            pass
+
+    if not api_key:
+        logger.error("Nincs beállítva BREVO_API_KEY a módosítás visszaigazoló e-mailhez.")
+        return
+
+    try:
+        async with httpx.AsyncClient() as http_client:
+            resp = await http_client.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={"api-key": api_key, "Content-Type": "application/json"},
+                json={
+                    "sender": {"name": "ThinkAI Virtuális Asszisztens", "email": "bege@thinkai.hu"},
+                    "to": [{"email": attendee_email, "name": attendee}],
+                    "subject": f"Időpont módosítás visszaigazolás - {title}",
+                    "htmlContent": html_content,
+                },
+                timeout=20,
+            )
+            resp.raise_for_status()
+        logger.info(f"Modification confirmation email sent to {attendee_email}.")
+    except Exception as e:
+        logger.error(f"Failed to send modification confirmation email: {e}")
+
+
+async def automation_worker_loop():
+    """Háttérfolyamat: eseményvezérelt kimenő automatizációk futtatása."""
+    logger.info("Eseményvezérelt automatizáció worker elindítva.")
+    while True:
+        try:
+            import database as db
+            from datetime import datetime, timedelta, timezone
+            
+            automations = db.get_outbound_automations()
+            if not automations:
+                await asyncio.sleep(30 * 60)
+                continue
+            
+            active = [a for a in automations if a.get("enabled")]
+            if not active:
+                await asyncio.sleep(30 * 60)
+                continue
+            
+            clients = db.get_clients(limit=1000)
+            now = datetime.now(timezone.utc)
+            
+            for auto in active:
+                trigger = auto.get("trigger_type", "")
+                template = auto.get("message_template", "")
+                delay_hours = auto.get("delay_hours", 24)
+                
+                for client in clients:
+                    cd = client.get("custom_data", {})
+                    if isinstance(cd, str):
+                        try: cd = json.loads(cd)
+                        except: cd = {}
+                    if not isinstance(cd, dict): cd = {}
+                    
+                    tags = cd.get("tags", [])
+                    email = cd.get("email") or client.get("email", "")
+                    if not email or email == "-":
+                        continue
+                    
+                    # Dupla küldés elkerülése
+                    if db.check_automation_sent(client["id"], auto["id"]):
+                        continue
+                    
+                    should_send = False
+                    nev = cd.get("nev") or cd.get("name") or client.get("name", "Ügyfél")
+                    szolgaltatas = ""
+                    idopont = ""
+                    
+                    if trigger == "no_show" and "no-show" in tags:
+                        should_send = True
+                        szolgaltatas = "korábbi időpont"
+                        
+                    elif trigger == "inactive_client":
+                        # Check last interaction
+                        last_log = cd.get("beszelgetes_naplo", "")
+                        if last_log:
+                            # Simple heuristic: check if last entry is > 60 days old
+                            created = client.get("created_at", "")
+                            if created:
+                                try:
+                                    created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                                    if (now - created_dt).days > 60:
+                                        should_send = True
+                                except: pass
+                    
+                    elif trigger == "cancelled_no_rebook" and "törölt időpont" in tags:
+                        # Check if they have a future appointment
+                        has_future = False
+                        events = db.supabase.table("calendar_events").select("id").eq("attendee_email", email).gte("start_dt", now.isoformat()).limit(1).execute()
+                        if events.data:
+                            has_future = True
+                        if not has_future:
+                            should_send = True
+                            szolgaltatas = "lemondott időpont"
+                    
+                    elif trigger == "follow_up":
+                        # Check if there's a past completed appointment (within delay_hours window)
+                        try:
+                            past_events = db.supabase.table("calendar_events").select("start_dt, title").eq("attendee_email", email).lt("start_dt", now.isoformat()).order("start_dt", desc=True).limit(1).execute()
+                            if past_events.data:
+                                ev = past_events.data[0]
+                                ev_dt = datetime.fromisoformat(ev["start_dt"].replace("Z", "+00:00"))
+                                hours_since = (now - ev_dt).total_seconds() / 3600
+                                if delay_hours <= hours_since <= delay_hours + 24:
+                                    should_send = True
+                                    szolgaltatas = ev.get("title", "")
+                                    idopont = ev_dt.strftime("%Y.%m.%d %H:%M")
+                        except: pass
+                    
+                    elif trigger == "price_inquiry_follow" and "árkérdés" in tags:
+                        # Only if no booking exists
+                        has_booking = False
+                        try:
+                            events = db.supabase.table("calendar_events").select("id").eq("attendee_email", email).gte("start_dt", now.isoformat()).limit(1).execute()
+                            if events.data: has_booking = True
+                        except: pass
+                        if not has_booking:
+                            should_send = True
+                    
+                    if should_send:
+                        # Fill template
+                        msg = template.replace("{nev}", nev).replace("{szolgaltatas}", szolgaltatas).replace("{idopont}", idopont).replace("{telephely}", "")
+                        html_msg = msg.replace("\n", "<br>")
+                        
+                        success = await send_reminder_email(
+                            to_email=email,
+                            subject=f"{auto['name']} - {nev}",
+                            html_content=f'<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">{html_msg}</div>'
+                        )
+                        
+                        if success:
+                            db.mark_automation_sent(client["id"], auto["id"])
+                            session_id = f"automation_{auto['id']}_{client['id']}"
+                            db.create_session(session_id=session_id, room_name=auto["name"], participant=nev)
+                            db.log_interaction(
+                                type="email",
+                                topic=auto["name"],
+                                summary=f"{auto['name']} elküldve: {email}",
+                                result="Elküldve",
+                                tool_name="automation_worker",
+                                session_id=session_id,
+                                direction="outbound",
+                                funnel_stage="relevans"
+                            )
+                            logger.info(f"Automation '{auto['name']}' sent to {email}")
+                        
+        except asyncio.CancelledError:
+            logger.info("Automatizáció worker megszakítva.")
+            break
+        except Exception as e:
+            logger.error(f"Automation worker error: {e}")
+        
+        await asyncio.sleep(30 * 60)  # 30 perc

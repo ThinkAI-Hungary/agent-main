@@ -1440,3 +1440,50 @@ def get_clients_by_ids(client_ids: list[int]) -> list[dict]:
     except Exception as e:
         logger.error(f"Error fetching clients by IDs: {e}")
         return []
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# OUTBOUND AUTOMATIONS (ESEMÉNYVEZÉRELT KOMMUNIKÁCIÓ)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_outbound_automations() -> list[dict]:
+    if not supabase: return []
+    try:
+        res = supabase.table("outbound_automations").select("*").order("id", desc=False).execute()
+        return res.data
+    except Exception as e:
+        logger.error(f"Error fetching outbound automations: {e}")
+        return []
+
+def update_outbound_automation(automation_id: int, data: dict) -> bool:
+    if not supabase: return False
+    try:
+        allowed_keys = {"name", "enabled", "delay_hours", "channel", "message_template", "target_tag"}
+        updates = {k: v for k, v in data.items() if k in allowed_keys}
+        supabase.table("outbound_automations").update(updates).eq("id", automation_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Error updating outbound automation: {e}")
+        return False
+
+def check_automation_sent(client_id: int, automation_id: int) -> bool:
+    """Check if an automation was already sent to a client."""
+    if not supabase: return False
+    try:
+        res = supabase.table("automation_sent_log").select("id").eq("client_id", client_id).eq("automation_id", automation_id).execute()
+        return len(res.data) > 0
+    except Exception:
+        return False
+
+def mark_automation_sent(client_id: int, automation_id: int) -> bool:
+    """Mark that an automation was sent to prevent duplicates."""
+    if not supabase: return False
+    try:
+        supabase.table("automation_sent_log").upsert({
+            "client_id": client_id,
+            "automation_id": automation_id
+        }).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Error marking automation sent: {e}")
+        return False
+

@@ -249,19 +249,93 @@ def _is_thinking_token(text: str) -> bool:
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class ThinkAIAgent(Agent):
-    def __init__(self, room_name: str = ""):
-        super().__init__(
-            instructions=get_system_prompt(),
-            tools=ALL_TOOLS,
-        )
+    def __init__(self, room_name: str = "", campaign_data: dict = None):
+        # Campaign calls and scripted outbound calls get a specialized system prompt
+        if campaign_data and campaign_data.get("script"):
+            call_type = campaign_data.get("type", "campaign_call")
+            client_name = campaign_data.get("client_name", "")
+            campaign_name = campaign_data.get("campaign_name", "")
+            script = campaign_data["script"]
+            
+            if call_type == "outbound_script_call":
+                # Sima kimenő hívás egyedi scripttel (nem kampány)
+                call_note = campaign_data.get("call_note", "")
+                campaign_instructions = f"""Te egy kimenő telefonhívás AI asszisztense vagy.
+{f"Megjegyzés: {call_note}" if call_note else ""}
+Az ügyfél neve: {client_name if client_name else "Ismeretlen"}
+
+A FELADATOD:
+Telefonon hívtad fel az ügyfelet. A következő üzenetet/információt kell elmondanod:
+
+---
+{script}
+---
+
+SZABÁLYOK:
+- Köszönj és mutatkozz be röviden (a rendelő/cég asszisztense vagy)
+- Mondd el az üzenetet természetesen, beszélgetős stílusban — NE olvasd fel szó szerint!
+- Ha ismered az ügyfél nevét, használd ({client_name})
+- Ha az ügyfél kérdez, válaszolj a hívás kontextusában
+- Ha az ügyfél nem érdeklődik, köszönd meg az idejét és búcsúzz el udvariasan
+- Legyél kedves, természetes és rövid (max 2-3 mondat egyszerre)
+- Magyarul beszélj"""
+            else:
+                # Kampány hívás (eredeti logika)
+                campaign_instructions = f"""Te egy kimenő telefonos kampány AI asszisztense vagy.
+Kampány neve: {campaign_name}
+Az ügyfél neve: {client_name}
+
+A FELADATOD:
+Telefonon hívtad fel az ügyfelet egy kampány keretében. A következő üzenetet/ajánlatot kell elmondanod:
+
+---
+{script}
+---
+
+SZABÁLYOK:
+- Köszönj és mutatkozz be röviden (a cég asszisztense vagy)
+- Mondd el az ajánlatot/üzenetet természetesen, beszélgetős stílusban — NE olvasd fel szó szerint!
+- Személyre szabd: használd az ügyfél nevét ({client_name})
+- Ha az ügyfél kérdez, válaszolj a kampány kontextusában
+- Ha az ügyfél nem érdeklődik, köszönd meg az idejét és búcsúzz el udvariasan
+- Legyél kedves, természetes és rövid (max 2-3 mondat egyszerre)
+- Magyarul beszélj"""
+
+            super().__init__(
+                instructions=campaign_instructions,
+                tools=ALL_TOOLS,
+            )
+        else:
+            super().__init__(
+                instructions=get_system_prompt(),
+                tools=ALL_TOOLS,
+            )
         self.room_name = room_name
+        self.campaign_data = campaign_data
 
     async def on_enter(self):
-        """Greet the caller with the admin-configured greeting."""
-        settings = load_agent_settings()
-        greeting = settings.get("greeting", "")
-        if greeting.strip():
-            self.session.say(greeting)
+        """Greet the caller — scripted calls get the script intro, others get normal greeting."""
+        if self.campaign_data and self.campaign_data.get("script"):
+            call_type = self.campaign_data.get("type", "campaign_call")
+            client_name = self.campaign_data.get("client_name", "")
+            
+            if call_type == "outbound_script_call":
+                # Sima kimenő hívás — egyszerűbb bemutatkozás
+                if client_name:
+                    self.session.say(f"Szia {client_name}! Itt a rendelő virtuális asszisztense. Van egy pillanatod?")
+                else:
+                    self.session.say("Szia! Itt a rendelő virtuális asszisztense. Van egy pillanatod?")
+            else:
+                # Kampány hívás — kampány specifikus bemutatkozás
+                if client_name:
+                    self.session.say(f"Szia {client_name}! Itt a rendelő virtuális asszisztense. Van egy pillanatod? Szeretnék mesélni egy aktuális ajánlatunkról.")
+                else:
+                    self.session.say("Szia! Itt a rendelő virtuális asszisztense. Van egy pillanatod? Szeretnék mesélni egy aktuális ajánlatunkról.")
+        else:
+            settings = load_agent_settings()
+            greeting = settings.get("greeting", "")
+            if greeting.strip():
+                self.session.say(greeting)
 
     async def stt_node(self, audio, model_settings):
         """Override STT node: filter phantom transcripts from noise."""
@@ -394,10 +468,44 @@ async def entrypoint(ctx: JobContext):
     db.create_session(session_id=session_id, room_name=room_name)
     set_session_id(session_id)
 
-    # Log call type
+    # Log call type + detect campaign calls
     is_outbound_call = room_name.startswith("call-out-")
+    is_campaign_call = room_name.startswith("call-out-camp-")
     is_inbound_call = room_name.startswith("call-") and not is_outbound_call
+
+    # Parse script/campaign data from room metadata OR dispatch metadata
+    # This covers both campaign calls (call-out-camp-) and scripted outbound calls (call-out-)
+    campaign_data = None
     if is_outbound_call:
+        # 1. Try room metadata first
+        raw_metadata = ctx.room.metadata or ""
+        
+        # 2. Fallback: try dispatch metadata (agent_dispatch passes metadata separately)
+        if not raw_metadata:
+            try:
+                if hasattr(ctx, 'agent') and ctx.agent and hasattr(ctx.agent, 'dispatch'):
+                    dispatch = ctx.agent.dispatch
+                    if dispatch and hasattr(dispatch, 'metadata') and dispatch.metadata:
+                        raw_metadata = dispatch.metadata
+                        logger.info(f"Using dispatch metadata (room metadata was empty)")
+            except Exception as e:
+                logger.warning(f"Failed to read dispatch metadata: {e}")
+        
+        if raw_metadata:
+            try:
+                parsed = json.loads(raw_metadata)
+                call_type = parsed.get("type", "")
+                if call_type in ("campaign_call", "outbound_script_call"):
+                    campaign_data = parsed
+                    logger.info(f"📢 Outbound call with script detected ({call_type}): "
+                                f"{campaign_data.get('campaign_name', campaign_data.get('call_note', '?'))} "
+                                f"→ {campaign_data.get('client_name', '?')}")
+            except (json.JSONDecodeError, Exception) as e:
+                logger.warning(f"Failed to parse room/dispatch metadata: {e}")
+
+    if is_campaign_call:
+        logger.info(f" Campaign outbound SIP call — room: {room_name}")
+    elif is_outbound_call:
         logger.info(f" Outbound SIP call — room: {room_name}")
     elif is_inbound_call:
         logger.info(f" Inbound SIP call — room: {room_name}")
@@ -493,7 +601,7 @@ async def entrypoint(ctx: JobContext):
 
     try:
         await session.start(
-            agent=ThinkAIAgent(room_name=ctx.room.name),
+            agent=ThinkAIAgent(room_name=ctx.room.name, campaign_data=campaign_data),
             room=ctx.room,
             # Server-side noise cancellation — filters breathing, background noise,
             # keyboard sounds before they reach VAD (requires LiveKit Cloud)
