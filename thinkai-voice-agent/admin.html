@@ -2483,6 +2483,20 @@
       }
     }
 
+    @keyframes chipFadeIn {
+      from { opacity: 0; transform: scale(0.9); }
+      to { opacity: 1; transform: scale(1); }
+    }
+
+    /* Campaign client picker scrollbar */
+    #campaign-client-list::-webkit-scrollbar { width: 5px; }
+    #campaign-client-list::-webkit-scrollbar-track { background: transparent; }
+    #campaign-client-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+    #campaign-client-list::-webkit-scrollbar-thumb:hover { background: var(--text-muted); }
+    #campaign-chips-container::-webkit-scrollbar { width: 4px; }
+    #campaign-chips-container::-webkit-scrollbar-track { background: transparent; }
+    #campaign-chips-container::-webkit-scrollbar-thumb { background: var(--border); border-radius: 10px; }
+
     .loading-row td {
       text-align: center;
       padding: 40px;
@@ -6303,17 +6317,57 @@
             </div>
             <!-- STEP 2: Célcsoport -->
             <div id="camp-step-2" style="display:none;">
+              <!-- Kattintható ügyfélválasztó kártya -->
               <div style="margin-bottom:20px;">
-                <div id="campaign-target-info" style="background:var(--bg); border:1.5px solid var(--border); border-radius:12px; padding:18px; display:flex; align-items:center; gap:14px;">
+                <div id="campaign-target-info" onclick="toggleCampaignClientPicker()" style="background:var(--bg); border:1.5px solid var(--border); border-radius:12px; padding:18px; display:flex; align-items:center; gap:14px; cursor:pointer; transition:all 0.25s ease;" onmouseover="this.style.borderColor='var(--accent)';this.style.boxShadow='0 0 0 3px rgba(28,238,224,0.08)'" onmouseout="if(!document.getElementById('campaign-client-picker').classList.contains('open')){this.style.borderColor='var(--border)';this.style.boxShadow='none'}">
                   <div style="width:40px; height:40px; border-radius:10px; background:rgba(28,238,224,0.1); display:flex; align-items:center; justify-content:center; flex-shrink:0;">
                     <svg fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24" style="width:20px; height:20px;"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z"></path></svg>
                   </div>
-                  <div>
+                  <div style="flex:1; min-width:0;">
                     <div style="font-size:16px; font-weight:700; color:var(--text);" id="campaign-client-count">0 ügyfél kiválasztva</div>
-                    <div style="font-size:12px; color:var(--text-muted); margin-top:3px;" id="campaign-client-hint">Jelölj ki ügyfeleket az Ügyfelek adatbázisából, vagy szűrj címkékkel</div>
+                    <div style="font-size:12px; color:var(--text-muted); margin-top:3px;" id="campaign-client-hint">Kattints ide az ügyfelek kiválasztásához</div>
+                  </div>
+                  <div id="campaign-picker-chevron" style="flex-shrink:0; transition:transform 0.3s ease;">
+                    <svg fill="none" stroke="var(--text-muted)" stroke-width="2" viewBox="0 0 24 24" width="18" height="18"><path d="M6 9l6 6 6-6"/></svg>
+                  </div>
+                </div>
+
+                <!-- Ügyfélválasztó panel (lenyíló) -->
+                <div id="campaign-client-picker" style="max-height:0; overflow:hidden; transition:max-height 0.35s cubic-bezier(0.4,0,0.2,1); border:0px solid var(--border); border-top:none; border-radius:0 0 12px 12px; background:var(--card);">
+                  <div style="padding:16px 16px 12px;">
+                    <!-- Kereső -->
+                    <div style="position:relative; margin-bottom:12px;">
+                      <svg fill="none" stroke="var(--text-muted)" stroke-width="2" viewBox="0 0 24 24" width="15" height="15" style="position:absolute; left:12px; top:50%; transform:translateY(-50%); pointer-events:none;"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+                      <input type="text" id="campaign-client-search" placeholder="Ügyfél keresése név, email vagy telefon alapján..." oninput="filterCampaignClients()" style="width:100%; padding:10px 14px 10px 36px; background:var(--bg); color:var(--text); border:1.5px solid var(--border); border-radius:10px; font-size:13px; font-family:inherit; outline:none; box-sizing:border-box; transition:border 0.2s;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'">
+                    </div>
+                    <!-- Akciógombok -->
+                    <div style="display:flex; align-items:center; gap:8px; margin-bottom:12px;">
+                      <button onclick="selectAllCampaignClients()" style="background:rgba(28,238,224,0.06); color:var(--accent); border:1px solid rgba(28,238,224,0.2); padding:6px 12px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; transition:all 0.2s;" onmouseover="this.style.background='rgba(28,238,224,0.12)'" onmouseout="this.style.background='rgba(28,238,224,0.06)'">
+                        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="12" height="12" style="vertical-align:-1px;margin-right:3px;"><path d="M9 11l3 3L22 4"/><path d="M21 12v7a2 2 0 01-2 2H5a2 2 0 01-2-2V5a2 2 0 012-2h11"/></svg>
+                        Összes kijelölése
+                      </button>
+                      <button onclick="deselectAllCampaignClients()" style="background:var(--bg); color:var(--text-muted); border:1px solid var(--border); padding:6px 12px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; font-family:inherit; transition:all 0.2s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='var(--bg)'">
+                        Összes törlése
+                      </button>
+                      <div style="margin-left:auto; font-size:11px; color:var(--text-muted);" id="campaign-picker-summary">0 / 0 kijelölve</div>
+                    </div>
+                    <!-- Ügyféllista -->
+                    <div id="campaign-client-list" style="max-height:220px; overflow-y:auto; border:1px solid var(--border); border-radius:10px; background:var(--bg);">
+                      <div style="padding:30px; text-align:center; color:var(--text-muted); font-size:13px;">
+                        <div class="spinner" style="margin:0 auto 10px;"></div>
+                        Ügyfelek betöltése...
+                      </div>
+                    </div>
                   </div>
                 </div>
               </div>
+
+              <!-- Kiválasztott ügyfelek chips -->
+              <div id="campaign-selected-chips" style="display:none; margin-bottom:16px;">
+                <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">👤 Kiválasztott ügyfelek</label>
+                <div id="campaign-chips-container" style="display:flex; flex-wrap:wrap; gap:6px; max-height:80px; overflow-y:auto; padding:2px;"></div>
+              </div>
+
               <div>
                 <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:10px;">🏷️ Szűrés címkék alapján</label>
                 <div style="background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:16px;">
@@ -15353,6 +15407,7 @@ async function loadCampaigns() {
 
 function openCampaignModal(clientIds) {
   window._campaignTargetClientIds = clientIds || [];
+  window._campaignPickerClientIds = new Set(clientIds || []);
   document.getElementById('campaign-name').value = '';
   document.getElementById('campaign-instructions').value = '';
   
@@ -15369,15 +15424,15 @@ function openCampaignModal(clientIds) {
     }
   });
 
-  const countEl = document.getElementById('campaign-client-count');
-  const hintEl = document.getElementById('campaign-client-hint');
-  if (window._campaignTargetClientIds.length > 0) {
-    countEl.textContent = `${window._campaignTargetClientIds.length} ügyfél kiválasztva`;
-    hintEl.textContent = 'Az Ügyfelek adatbázisából kijelölt ügyfelek';
-  } else {
-    countEl.textContent = '0 ügyfél kiválasztva';
-    hintEl.textContent = 'Jelölj ki ügyfeleket az Ügyfelek adatbázisából';
-  }
+  // Reset picker panel
+  const picker = document.getElementById('campaign-client-picker');
+  if (picker) { picker.style.maxHeight = '0'; picker.style.border = '0px solid var(--border)'; picker.classList.remove('open'); }
+  const chevron = document.getElementById('campaign-picker-chevron');
+  if (chevron) chevron.style.transform = 'rotate(0deg)';
+  const targetInfo = document.getElementById('campaign-target-info');
+  if (targetInfo) { targetInfo.style.borderColor = 'var(--border)'; targetInfo.style.boxShadow = 'none'; targetInfo.style.borderRadius = '12px'; }
+
+  updateCampaignClientCount();
 
   document.getElementById('campaign-modal').style.display = 'flex';
   campGoToStep(1);
@@ -15439,17 +15494,265 @@ async function applyCampaignTagFilter() {
     return selectedTags.every(t => tags.includes(t));
   });
   
-  window._campaignTargetClientIds = matching.map(c => c.id);
+  // Sync with picker Set
+  window._campaignPickerClientIds = new Set(matching.map(c => c.id));
+  window._campaignTargetClientIds = [...window._campaignPickerClientIds];
   
-  const countEl = document.getElementById('campaign-client-count');
-  const hintEl = document.getElementById('campaign-client-hint');
-  if (countEl) countEl.textContent = `${matching.length} ügyfél kiválasztva`;
-  if (hintEl) hintEl.textContent = `Címkék alapján szűrve: ${selectedTags.join(', ')}`;
+  updateCampaignClientCount();
+  renderCampaignClientList();
+  renderCampaignSelectedChips();
 }
 
 function closeCampaignModal() {
   document.getElementById('campaign-modal').style.display = 'none';
   _campStep = 1;
+}
+
+// ── Campaign Client Picker Logic ──
+window._campaignPickerClientIds = new Set();
+window._campaignAllClients = [];
+
+function updateCampaignClientCount() {
+  const count = window._campaignPickerClientIds ? window._campaignPickerClientIds.size : 0;
+  const countEl = document.getElementById('campaign-client-count');
+  const hintEl = document.getElementById('campaign-client-hint');
+  if (countEl) {
+    countEl.textContent = `${count} ügyfél kiválasztva`;
+    countEl.style.color = count > 0 ? 'var(--accent)' : 'var(--text)';
+  }
+  if (hintEl) {
+    hintEl.textContent = count > 0
+      ? `Kattints ide a kiválasztás módosításához`
+      : 'Kattints ide az ügyfelek kiválasztásához';
+  }
+  // Sync target IDs
+  window._campaignTargetClientIds = [...(window._campaignPickerClientIds || [])];
+}
+
+async function toggleCampaignClientPicker() {
+  const picker = document.getElementById('campaign-client-picker');
+  const chevron = document.getElementById('campaign-picker-chevron');
+  const targetInfo = document.getElementById('campaign-target-info');
+  if (!picker) return;
+
+  const isOpen = picker.classList.contains('open');
+  if (isOpen) {
+    // Bezárás
+    picker.style.maxHeight = '0';
+    picker.style.border = '0px solid var(--border)';
+    picker.classList.remove('open');
+    if (chevron) chevron.style.transform = 'rotate(0deg)';
+    if (targetInfo) { targetInfo.style.borderRadius = '12px'; }
+  } else {
+    // Kinyitás
+    await loadCampaignClientsForPicker();
+    picker.classList.add('open');
+    picker.style.border = '1.5px solid var(--border)';
+    picker.style.maxHeight = '420px';
+    if (chevron) chevron.style.transform = 'rotate(180deg)';
+    if (targetInfo) { targetInfo.style.borderRadius = '12px 12px 0 0'; targetInfo.style.borderColor = 'var(--accent)'; targetInfo.style.boxShadow = '0 0 0 3px rgba(28,238,224,0.08)'; }
+    // Focus search
+    setTimeout(() => {
+      const search = document.getElementById('campaign-client-search');
+      if (search) search.focus();
+    }, 200);
+  }
+}
+
+async function loadCampaignClientsForPicker() {
+  // Betöltés ha szükséges
+  if (!window.kanbanData || window.kanbanData.length === 0) {
+    try {
+      const res = await authFetch('/admin/api/clients');
+      const data = await res.json();
+      window.kanbanData = data.clients || [];
+    } catch(e) {
+      window.kanbanData = [];
+    }
+  }
+  window._campaignAllClients = (window.kanbanData || []).map(c => {
+    let cd = c.custom_data;
+    if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
+    if (!cd || typeof cd !== 'object') cd = {};
+    return {
+      id: c.id,
+      name: cd.nev || cd.name || c.name || 'Névtelen',
+      email: cd.email || c.email || '',
+      phone: cd.phone || cd.telefon || '',
+      tags: cd.tags || [],
+      channel: cd.forras_csatorna || '',
+      status: c.status || 'uj'
+    };
+  });
+  renderCampaignClientList();
+}
+
+function getClientInitials(name) {
+  if (!name || name === 'Névtelen') return '?';
+  const parts = name.trim().split(/\s+/);
+  if (parts.length >= 2) return (parts[0][0] + parts[parts.length-1][0]).toUpperCase();
+  return name.substring(0, 2).toUpperCase();
+}
+
+function getClientAvatarColor(name) {
+  const colors = ['#1ceee0','#6366f1','#f59e0b','#ec4899','#10b981','#8b5cf6','#ef4444','#06b6d4','#f97316','#14b8a6'];
+  let hash = 0;
+  for (let i = 0; i < (name || '').length; i++) hash = name.charCodeAt(i) + ((hash << 5) - hash);
+  return colors[Math.abs(hash) % colors.length];
+}
+
+function renderCampaignClientList() {
+  const container = document.getElementById('campaign-client-list');
+  if (!container) return;
+  const searchVal = (document.getElementById('campaign-client-search')?.value || '').toLowerCase().trim();
+  
+  let clients = window._campaignAllClients || [];
+  if (searchVal) {
+    clients = clients.filter(c => 
+      (c.name || '').toLowerCase().includes(searchVal) ||
+      (c.email || '').toLowerCase().includes(searchVal) ||
+      (c.phone || '').toLowerCase().includes(searchVal)
+    );
+  }
+
+  if (clients.length === 0) {
+    container.innerHTML = `<div style="padding:30px; text-align:center; color:var(--text-muted); font-size:13px;">
+      <svg fill="none" stroke="var(--text-muted)" stroke-width="1.5" viewBox="0 0 24 24" width="28" height="28" style="margin-bottom:8px; opacity:0.5;"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+      <div>${searchVal ? 'Nincs találat a keresésre' : 'Nincsenek ügyfelek'}</div>
+    </div>`;
+    updatePickerSummary(0, 0);
+    return;
+  }
+
+  // Kijelöltek felülre
+  clients.sort((a, b) => {
+    const aS = window._campaignPickerClientIds.has(a.id) ? 0 : 1;
+    const bS = window._campaignPickerClientIds.has(b.id) ? 0 : 1;
+    if (aS !== bS) return aS - bS;
+    return (a.name || '').localeCompare(b.name || '');
+  });
+
+  container.innerHTML = clients.map(c => {
+    const checked = window._campaignPickerClientIds.has(c.id);
+    const initials = getClientInitials(c.name);
+    const avatarColor = getClientAvatarColor(c.name);
+    const channelIcon = c.channel === 'Messenger' ? '💬' : c.channel === 'Instagram' ? '📸' : c.channel === 'WhatsApp' ? '📱' : c.email ? '📧' : '';
+    const subInfo = c.email || c.phone || c.channel || '';
+    
+    return `<div onclick="toggleCampaignClient(${c.id})" style="
+      display:flex; align-items:center; gap:12px; padding:10px 14px;
+      border-bottom:1px solid var(--border); cursor:pointer;
+      background:${checked ? 'rgba(28,238,224,0.04)' : 'transparent'};
+      transition:background 0.15s ease;
+    " onmouseover="if(!this.style.background.includes('0.04'))this.style.background='var(--bg3)'" onmouseout="this.style.background='${checked ? 'rgba(28,238,224,0.04)' : 'transparent'}'">
+      <div style="
+        width:18px; height:18px; border-radius:5px; flex-shrink:0;
+        border:2px solid ${checked ? 'var(--accent)' : 'var(--border)'};
+        background:${checked ? 'var(--accent)' : 'transparent'};
+        display:flex; align-items:center; justify-content:center;
+        transition:all 0.2s ease;
+      ">
+        ${checked ? '<svg fill="none" stroke="#082432" stroke-width="3" viewBox="0 0 24 24" width="11" height="11"><path d="M20 6L9 17l-5-5"/></svg>' : ''}
+      </div>
+      <div style="
+        width:32px; height:32px; border-radius:8px; flex-shrink:0;
+        background:${avatarColor}18; color:${avatarColor};
+        display:flex; align-items:center; justify-content:center;
+        font-size:11px; font-weight:700;
+      ">${initials}</div>
+      <div style="flex:1; min-width:0;">
+        <div style="font-size:13px; font-weight:600; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${esc(c.name)}</div>
+        <div style="font-size:11px; color:var(--text-muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis;">${channelIcon ? channelIcon + ' ' : ''}${esc(subInfo)}</div>
+      </div>
+      ${c.tags && c.tags.length > 0 ? `<div style="display:flex; gap:3px; flex-shrink:0;">${c.tags.slice(0, 2).map(t => {
+        const tc = typeof getTagColor === 'function' ? getTagColor(t) : {bg:'#f3f4f6',color:'#374151'};
+        return `<span style="font-size:9px; padding:2px 6px; border-radius:8px; background:${tc.bg}; color:${tc.color}; font-weight:600; white-space:nowrap;">${esc(t)}</span>`;
+      }).join('')}${c.tags.length > 2 ? `<span style="font-size:9px; padding:2px 4px; color:var(--text-muted);">+${c.tags.length - 2}</span>` : ''}</div>` : ''}
+    </div>`;
+  }).join('');
+
+  updatePickerSummary(clients.length, window._campaignAllClients.length);
+}
+
+function updatePickerSummary(shown, total) {
+  const el = document.getElementById('campaign-picker-summary');
+  if (el) {
+    const selected = window._campaignPickerClientIds ? window._campaignPickerClientIds.size : 0;
+    el.textContent = `${selected} / ${total || shown} kijelölve`;
+  }
+}
+
+function toggleCampaignClient(clientId) {
+  if (!window._campaignPickerClientIds) window._campaignPickerClientIds = new Set();
+  if (window._campaignPickerClientIds.has(clientId)) {
+    window._campaignPickerClientIds.delete(clientId);
+  } else {
+    window._campaignPickerClientIds.add(clientId);
+  }
+  updateCampaignClientCount();
+  renderCampaignClientList();
+  renderCampaignSelectedChips();
+}
+
+function selectAllCampaignClients() {
+  const searchVal = (document.getElementById('campaign-client-search')?.value || '').toLowerCase().trim();
+  let clients = window._campaignAllClients || [];
+  if (searchVal) {
+    clients = clients.filter(c => 
+      (c.name || '').toLowerCase().includes(searchVal) ||
+      (c.email || '').toLowerCase().includes(searchVal) ||
+      (c.phone || '').toLowerCase().includes(searchVal)
+    );
+  }
+  if (!window._campaignPickerClientIds) window._campaignPickerClientIds = new Set();
+  clients.forEach(c => window._campaignPickerClientIds.add(c.id));
+  updateCampaignClientCount();
+  renderCampaignClientList();
+  renderCampaignSelectedChips();
+}
+
+function deselectAllCampaignClients() {
+  window._campaignPickerClientIds = new Set();
+  updateCampaignClientCount();
+  renderCampaignClientList();
+  renderCampaignSelectedChips();
+}
+
+function filterCampaignClients() {
+  renderCampaignClientList();
+}
+
+function renderCampaignSelectedChips() {
+  const container = document.getElementById('campaign-chips-container');
+  const wrapper = document.getElementById('campaign-selected-chips');
+  if (!container || !wrapper) return;
+
+  const selectedIds = [...(window._campaignPickerClientIds || [])];
+  if (selectedIds.length === 0) {
+    wrapper.style.display = 'none';
+    return;
+  }
+  wrapper.style.display = 'block';
+
+  const allClients = window._campaignAllClients || [];
+  const chips = selectedIds.map(id => {
+    const c = allClients.find(cl => cl.id === id);
+    if (!c) return '';
+    const avatarColor = getClientAvatarColor(c.name);
+    return `<div style="
+      display:inline-flex; align-items:center; gap:6px;
+      background:var(--bg); border:1px solid var(--border);
+      border-radius:20px; padding:4px 10px 4px 4px;
+      font-size:11px; font-weight:600; color:var(--text);
+      transition:all 0.2s; animation:chipFadeIn 0.2s ease;
+    " onmouseover="this.style.borderColor='#ef4444';this.style.background='rgba(239,68,68,0.04)'" onmouseout="this.style.borderColor='var(--border)';this.style.background='var(--bg)'">
+      <div style="width:20px; height:20px; border-radius:50%; background:${avatarColor}18; color:${avatarColor}; display:flex; align-items:center; justify-content:center; font-size:8px; font-weight:800;">${getClientInitials(c.name)}</div>
+      <span style="max-width:100px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;">${esc(c.name)}</span>
+      <span onclick="event.stopPropagation();toggleCampaignClient(${c.id})" style="cursor:pointer; color:var(--text-muted); font-size:13px; line-height:1; margin-left:2px; transition:color 0.15s;" onmouseover="this.style.color='#ef4444'" onmouseout="this.style.color='var(--text-muted)'">&times;</span>
+    </div>`;
+  }).filter(Boolean);
+
+  container.innerHTML = chips.join('');
 }
 
 // ── Campaign Wizard Step Navigation ──
