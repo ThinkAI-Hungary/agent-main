@@ -5586,7 +5586,7 @@
     <main class="main">
     <!-- Greeting bar -->
     <div id="greeting-bar" style="padding:0 32px 6px 32px;">
-      <div id="greeting-text" style="font-size:14px; color:var(--text);">Szia, <strong>Admin</strong>! 👋</div>
+      <div id="greeting-text" style="font-size:14px; color:var(--text);">Szia, <strong>Admin</strong>!</div>
       <div id="greeting-date" style="font-size:12px; color:var(--text-muted); margin-top:1px;"></div>
     </div>
     <!-- ÉRTESÍTÉSI HARANG ÉS TOAST KONTÉNER (SÜRGŐS ESETEK) -->
@@ -8335,7 +8335,7 @@
       // Greeting bar
       const fullName = currentUserFullName || currentUser || 'Admin';
       const firstName = fullName.split(' ').pop() || fullName;
-      document.getElementById('greeting-text').innerHTML = `Szia, <strong>${firstName}</strong>! 👋`;
+      document.getElementById('greeting-text').innerHTML = `Szia, <strong>${firstName}</strong>!`;
       const now = new Date();
       const days = ['vasárnap','hétfő','kedd','szerda','csütörtök','péntek','szombat'];
       const months = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
@@ -8692,7 +8692,7 @@
       const avatarEl = document.getElementById('member-avatar');
       if (avatarEl) avatarEl.textContent = initials;
       const greetNameEl = document.getElementById('member-greeting-name');
-      if (greetNameEl) greetNameEl.innerHTML = `Szia, <strong>${firstName}</strong>! 👋`;
+      if (greetNameEl) greetNameEl.innerHTML = `Szia, <strong>${firstName}</strong>!`;
       const greetDateEl = document.getElementById('member-greeting-date');
       if (greetDateEl) {
         const _now = new Date();
