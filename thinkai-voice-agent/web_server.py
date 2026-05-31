@@ -282,11 +282,13 @@ async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Option
     if not token:
         return None
     
-    # Instagram supports 'name' and 'profile_pic'; Messenger supports first_name, last_name, name
+    # Instagram IGSID supports 'name' field directly.
+    # Messenger PSID only supports 'first_name', 'last_name', 'profile_pic' — NOT 'name'.
+    # Requesting 'name' on a PSID causes a 400 error, breaking the entire request.
     if source_channel == "Instagram":
         fields = "name,profile_pic"
     else:
-        fields = "first_name,last_name,name"
+        fields = "first_name,last_name,profile_pic"
         
     url = f"https://graph.facebook.com/v25.0/{sender_id}?fields={fields}&access_token={token}"
     try:
@@ -463,7 +465,12 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 "messenger_id": sender_id,
                 "forras_csatorna": source_channel
             }
-            if kanban.get("name"): custom_data["name"] = kanban["name"]
+            kanban_name = kanban.get("name", "").strip()
+            # Don't accept placeholder names from AI — prefer the real name from Meta API
+            if kanban_name and kanban_name not in ("Ismeretlen", "Névtelen", "-", "ismeretlen", "névtelen"):
+                custom_data["name"] = kanban_name
+            elif meta_name:
+                custom_data["name"] = meta_name
             if kanban.get("email"): custom_data["email"] = kanban["email"]
             if kanban.get("phone"): custom_data["phone"] = kanban["phone"]
             if kanban.get("clinic_id"):
@@ -640,7 +647,7 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                     except: cd_for_name = {}
                 if isinstance(cd_for_name, dict):
                     display_name = cd_for_name.get("nev") or cd_for_name.get("name") or existing_client.get("name")
-            if not display_name or display_name in ("Névtelen", "-", ""):
+            if not display_name or display_name in ("Névtelen", "Ismeretlen", "-", ""):
                 display_name = None
 
             current_status = existing_client.get("status", "uj") if existing_client else "uj"
