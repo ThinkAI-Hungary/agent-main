@@ -5025,6 +5025,410 @@
     .sidebar {
       transition: none; /* sidebar stays dark always */
     }
+
+    /* ══════════════════════════════════════════════════════════════════
+       MEMBER DASHBOARD — Premium UX Redesign
+       ══════════════════════════════════════════════════════════════════ */
+
+    /* KPI Cards */
+    .m-kpi-grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 16px;
+      margin-bottom: 24px;
+    }
+    .m-kpi-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 22px 24px;
+      position: relative;
+      overflow: hidden;
+      transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .m-kpi-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: linear-gradient(90deg, var(--accent), var(--accent2));
+      opacity: 0;
+      transition: opacity 0.3s;
+    }
+    .m-kpi-card:hover {
+      border-color: var(--accent);
+      box-shadow: 0 8px 32px rgba(28, 238, 224, 0.1);
+      transform: translateY(-2px);
+    }
+    .m-kpi-card:hover::before { opacity: 1; }
+    .m-kpi-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 12px;
+    }
+    .m-kpi-label {
+      font-size: 11px;
+      text-transform: uppercase;
+      font-weight: 700;
+      color: var(--text-muted);
+      letter-spacing: 0.8px;
+    }
+    .m-kpi-icon {
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .m-kpi-icon svg { width: 20px; height: 20px; }
+    .m-kpi-value {
+      font-size: 36px;
+      font-weight: 800;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .m-kpi-sub {
+      font-size: 12px;
+      color: var(--text-muted);
+    }
+
+    /* Section cards */
+    .m-section-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 18px;
+      margin-bottom: 18px;
+    }
+    .m-card {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      padding: 24px;
+      transition: border-color 0.2s;
+    }
+    .m-card:hover {
+      border-color: rgba(28, 238, 224, 0.3);
+    }
+    .m-card-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .m-card-title-icon {
+      width: 32px; height: 32px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .m-card-title-icon svg { width: 16px; height: 16px; }
+
+    /* Timeline */
+    .m-timeline {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+      position: relative;
+    }
+    .m-timeline::before {
+      content: '';
+      position: absolute;
+      left: 15px;
+      top: 8px;
+      bottom: 8px;
+      width: 2px;
+      background: linear-gradient(180deg, var(--accent), var(--border));
+      border-radius: 2px;
+    }
+    .m-timeline-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 16px;
+      padding: 10px 0;
+      position: relative;
+    }
+    .m-timeline-dot {
+      width: 12px; height: 12px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      margin-top: 4px;
+      margin-left: 10px;
+      z-index: 1;
+      box-shadow: 0 0 0 4px var(--card);
+    }
+    .m-timeline-dot.upcoming { background: var(--accent); box-shadow: 0 0 0 4px var(--card), 0 0 12px rgba(28, 238, 224, 0.4); }
+    .m-timeline-dot.past { background: var(--text-dim); }
+    .m-timeline-dot.now { background: var(--green); animation: m-pulse 1.5s infinite; }
+    @keyframes m-pulse {
+      0%, 100% { box-shadow: 0 0 0 4px var(--card), 0 0 0 6px rgba(34,197,94,0.3); }
+      50% { box-shadow: 0 0 0 4px var(--card), 0 0 0 10px rgba(34,197,94,0.1); }
+    }
+    .m-timeline-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .m-timeline-time {
+      font-size: 13px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .m-timeline-name {
+      font-size: 13px;
+      color: var(--text-muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .m-timeline-empty {
+      text-align: center;
+      padding: 32px 16px;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    .m-timeline-empty svg {
+      display: block;
+      margin: 0 auto 12px;
+      color: var(--accent);
+      opacity: 0.5;
+    }
+
+    /* Kanban mini bars */
+    .m-kanban-row {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 0;
+      border-bottom: 1px solid var(--border);
+    }
+    .m-kanban-row:last-child { border-bottom: none; }
+    .m-kanban-label {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      width: 110px;
+      flex-shrink: 0;
+    }
+    .m-kanban-bar-track {
+      flex: 1;
+      height: 8px;
+      border-radius: 4px;
+      background: var(--bg3);
+      overflow: hidden;
+    }
+    .m-kanban-bar-fill {
+      height: 100%;
+      border-radius: 4px;
+      transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .m-kanban-count {
+      font-size: 14px;
+      font-weight: 800;
+      color: var(--text);
+      width: 30px;
+      text-align: right;
+    }
+
+    /* Quick actions */
+    .m-actions-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+    .m-action-btn {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 16px 18px;
+      border: 1px solid var(--border);
+      border-radius: 14px;
+      background: var(--bg);
+      cursor: pointer;
+      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      position: relative;
+      overflow: hidden;
+    }
+    .m-action-btn::before {
+      content: '';
+      position: absolute;
+      inset: 0;
+      background: linear-gradient(135deg, rgba(28,238,224,0.08), rgba(59,130,246,0.04));
+      opacity: 0;
+      transition: opacity 0.25s;
+    }
+    .m-action-btn:hover {
+      border-color: var(--accent);
+      box-shadow: 0 4px 20px rgba(28, 238, 224, 0.12);
+      transform: translateY(-1px);
+    }
+    .m-action-btn:hover::before { opacity: 1; }
+    .m-action-btn:active { transform: translateY(0); }
+    .m-action-icon {
+      width: 40px; height: 40px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      position: relative;
+      z-index: 1;
+    }
+    .m-action-icon svg { width: 18px; height: 18px; }
+    .m-action-text {
+      position: relative;
+      z-index: 1;
+    }
+    .m-action-label {
+      font-size: 14px;
+      font-weight: 700;
+      color: var(--text);
+    }
+    .m-action-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .m-action-badge {
+      position: absolute;
+      top: 12px; right: 12px;
+      background: var(--red);
+      color: white;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 2px 8px;
+      border-radius: 10px;
+      z-index: 1;
+    }
+
+    /* Notifications */
+    .m-notif-item {
+      display: flex;
+      align-items: flex-start;
+      gap: 12px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .m-notif-item:last-child { border-bottom: none; }
+    .m-notif-item:hover { background: rgba(28, 238, 224, 0.03); margin: 0 -12px; padding: 12px; border-radius: 8px; }
+    .m-notif-icon {
+      width: 36px; height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .m-notif-icon svg { width: 16px; height: 16px; }
+    .m-notif-content { flex: 1; min-width: 0; }
+    .m-notif-text {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+      line-height: 1.4;
+    }
+    .m-notif-time {
+      font-size: 11px;
+      color: var(--text-dim);
+      margin-top: 3px;
+    }
+
+    /* Monthly performance */
+    .m-perf-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 14px;
+    }
+    .m-perf-stat {
+      background: var(--bg);
+      border-radius: 12px;
+      padding: 16px;
+      text-align: center;
+    }
+    .m-perf-value {
+      font-size: 28px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1;
+    }
+    .m-perf-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      margin-top: 8px;
+    }
+    .m-perf-trend {
+      font-size: 11px;
+      font-weight: 700;
+      margin-top: 4px;
+      display: inline-flex;
+      align-items: center;
+      gap: 3px;
+      padding: 2px 8px;
+      border-radius: 6px;
+    }
+    .m-perf-trend.up { color: var(--green); background: rgba(34,197,94,0.1); }
+    .m-perf-trend.down { color: var(--red); background: rgba(239,68,68,0.1); }
+    .m-perf-trend.neutral { color: var(--text-muted); background: var(--bg3); }
+
+    /* Dark mode overrides for member dashboard */
+    body.dark .m-kpi-card {
+      background: #0d2538;
+      border-color: #1a3548;
+    }
+    body.dark .m-kpi-card:hover {
+      border-color: #1ceee0;
+      box-shadow: 0 8px 32px rgba(28, 238, 224, 0.08), 0 2px 8px rgba(0,0,0,0.3);
+    }
+    body.dark .m-card {
+      background: #0d2538;
+      border-color: #1a3548;
+    }
+    body.dark .m-card:hover {
+      border-color: rgba(28, 238, 224, 0.25);
+    }
+    body.dark .m-action-btn {
+      background: #0a1f2e;
+      border-color: #1a3548;
+    }
+    body.dark .m-action-btn:hover {
+      border-color: #1ceee0;
+      box-shadow: 0 4px 20px rgba(28, 238, 224, 0.08);
+    }
+    body.dark .m-kanban-bar-track {
+      background: #0a1f2e;
+    }
+    body.dark .m-notif-item:hover {
+      background: rgba(28, 238, 224, 0.03);
+    }
+    body.dark .m-perf-stat {
+      background: #0a1f2e;
+    }
+    body.dark .m-timeline-dot.upcoming {
+      box-shadow: 0 0 0 4px #0d2538, 0 0 12px rgba(28, 238, 224, 0.4);
+    }
+    body.dark .m-timeline-dot.past {
+      box-shadow: 0 0 0 4px #0d2538;
+    }
+    body.dark .m-timeline-dot.now {
+      box-shadow: 0 0 0 4px #0d2538, 0 0 0 6px rgba(34,197,94,0.3);
+    }
+    @keyframes m-pulse {
+      0%, 100% { box-shadow: 0 0 0 4px var(--card), 0 0 0 6px rgba(34,197,94,0.3); }
+      50% { box-shadow: 0 0 0 4px var(--card), 0 0 0 10px rgba(34,197,94,0.1); }
+    }
+
+    /* ═══ END member dashboard styles ═══ */
   </style>
 </head>
 
@@ -5382,41 +5786,179 @@
           </div>
         </div><!-- end analytics-shell -->
 
-        <!-- Member analytics overlay -->
+        <!-- Member analytics overlay — Redesigned -->
         <div id="member-analytics-shell" style="display:none;">
-          <div style="margin-bottom:24px;">
-            <h2 style="font-size:22px; font-weight:700; color:var(--text); margin:0 0 4px;">Saját ügyfél analitika</h2>
-            <p style="color:var(--text-muted); font-size:14px; margin:0;">A hozzád rendelt ügyfelek áttekintése</p>
-          </div>
-
-          <!-- Member KPI cards -->
-          <div style="display:grid; grid-template-columns: repeat(4, 1fr); gap:16px; margin-bottom:32px;">
-            <div class="stat-card" style="background:var(--bg2); border-radius:12px; padding:20px; border:1px solid var(--border);">
-              <div class="stat-label" style="font-size:11px; text-transform:uppercase; font-weight:600; color:var(--text-muted); letter-spacing:0.5px;">HOZZÁM RENDELT ÜGYFELEK</div>
-              <div class="stat-value" id="member-client-count" style="font-size:32px; font-weight:800; color:var(--accent); margin-top:6px;">0</div>
-              <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">aktív ügyfél</div>
-            </div>
-            <div class="stat-card" style="background:var(--bg2); border-radius:12px; padding:20px; border:1px solid var(--border);">
-              <div class="stat-label" style="font-size:11px; text-transform:uppercase; font-weight:600; color:var(--text-muted); letter-spacing:0.5px;">INTERAKCIÓK SZÁMA</div>
-              <div class="stat-value" id="member-interaction-count" style="font-size:32px; font-weight:800; color:var(--text); margin-top:6px;">0</div>
-              <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">rögzített interakció</div>
-            </div>
-            <div class="stat-card" style="background:var(--bg2); border-radius:12px; padding:20px; border:1px solid var(--border);">
-              <div class="stat-label" style="font-size:11px; text-transform:uppercase; font-weight:600; color:var(--text-muted); letter-spacing:0.5px;">KÖVETKEZŐ IDŐPONT</div>
-              <div class="stat-value" id="member-next-appointment" style="font-size:18px; font-weight:700; color:var(--text); margin-top:6px;">—</div>
-              <div style="font-size:12px; color:var(--text-muted); margin-top:4px;">naptárban</div>
-            </div>
-            <div class="stat-card" style="background:var(--bg2); border-radius:12px; padding:20px; border:1px solid var(--border);">
-              <div class="stat-label" style="font-size:11px; text-transform:uppercase; font-weight:600; color:var(--text-muted); letter-spacing:0.5px;">KANBAN STÁTUSZ</div>
-              <div id="member-kanban-summary" style="margin-top:6px; font-size:13px; color:var(--text);">—</div>
+          <div style="margin-bottom:28px;">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:6px;">
+              <div id="member-avatar" style="width:44px; height:44px; border-radius:14px; background:linear-gradient(135deg, #1ceee0, #3b82f6); display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:800; color:#082432; flex-shrink:0;"></div>
+              <div>
+                <h2 id="member-greeting-name" style="font-size:20px; font-weight:700; color:var(--text); margin:0; line-height:1.3;"></h2>
+                <p id="member-greeting-date" style="color:var(--text-muted); font-size:13px; margin:0;"></p>
+              </div>
             </div>
           </div>
 
-          <!-- Recent interactions for member -->
-          <div style="background:var(--bg2); border-radius:12px; padding:20px; border:1px solid var(--border);">
-            <h3 style="font-size:16px; font-weight:700; color:var(--text); margin:0 0 16px;">Legutóbbi interakciók</h3>
-            <div id="member-recent-interactions" style="color:var(--text-muted); font-size:14px;">Betöltés...</div>
+          <!-- ── 1. KPI CARDS ────────────────────────── -->
+          <div class="m-kpi-grid">
+            <div class="m-kpi-card">
+              <div class="m-kpi-header">
+                <div class="m-kpi-label">Hozzám rendelt ügyfelek</div>
+                <div class="m-kpi-icon" style="background:rgba(28,238,224,0.1);">
+                  <svg fill="none" stroke="#1ceee0" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                </div>
+              </div>
+              <div class="m-kpi-value" style="color:var(--accent);" id="member-client-count">0</div>
+              <div class="m-kpi-sub">aktív ügyfél</div>
+            </div>
+            <div class="m-kpi-card">
+              <div class="m-kpi-header">
+                <div class="m-kpi-label">Mai teendők</div>
+                <div class="m-kpi-icon" style="background:rgba(251,191,36,0.1);">
+                  <svg fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                </div>
+              </div>
+              <div class="m-kpi-value" id="member-todo-count">0</div>
+              <div class="m-kpi-sub" id="member-todo-sub">jóváhagyás + időpont</div>
+            </div>
+            <div class="m-kpi-card">
+              <div class="m-kpi-header">
+                <div class="m-kpi-label">Következő időpont</div>
+                <div class="m-kpi-icon" style="background:rgba(139,92,246,0.1);">
+                  <svg fill="none" stroke="#8b5cf6" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
+              </div>
+              <div class="m-kpi-value" style="font-size:22px;" id="member-next-appointment">—</div>
+              <div class="m-kpi-sub" id="member-next-appointment-sub">naptárban</div>
+            </div>
           </div>
+
+          <!-- ── 2. MAI NAPOM + ÜGYFELEIM ÁLLAPOTA ─── -->
+          <div class="m-section-grid">
+            <!-- Mai napom timeline -->
+            <div class="m-card">
+              <div class="m-card-title">
+                <div class="m-card-title-icon" style="background:rgba(34,197,94,0.1);">
+                  <svg fill="none" stroke="#22c55e" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                </div>
+                Mai napom
+              </div>
+              <div id="member-timeline" class="m-timeline">
+                <div class="m-timeline-empty">
+                  <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                  Betöltés...
+                </div>
+              </div>
+            </div>
+            <!-- Ügyfeleim állapota -->
+            <div class="m-card">
+              <div class="m-card-title">
+                <div class="m-card-title-icon" style="background:rgba(59,130,246,0.1);">
+                  <svg fill="none" stroke="#3b82f6" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+                </div>
+                Ügyfeleim állapota
+              </div>
+              <div id="member-kanban-summary">
+                <div style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">Betöltés...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── 3. HAVI TELJESÍTMÉNY + FIGYELEMRE MÉLTÓ ──── -->
+          <div class="m-section-grid">
+            <!-- Havi teljesítmény -->
+            <div class="m-card">
+              <div class="m-card-title">
+                <div class="m-card-title-icon" style="background:rgba(249,115,22,0.1);">
+                  <svg fill="none" stroke="#f97316" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
+                </div>
+                Havi teljesítmény
+              </div>
+              <div id="member-performance" class="m-perf-grid">
+                <div class="m-perf-stat">
+                  <div class="m-perf-value" id="member-perf-interactions">—</div>
+                  <div class="m-perf-label">Interakció</div>
+                  <div class="m-perf-trend neutral" id="member-perf-interactions-trend">—</div>
+                </div>
+                <div class="m-perf-stat">
+                  <div class="m-perf-value" id="member-perf-appointments">—</div>
+                  <div class="m-perf-label">Időpont</div>
+                  <div class="m-perf-trend neutral" id="member-perf-appointments-trend">—</div>
+                </div>
+                <div class="m-perf-stat">
+                  <div class="m-perf-value" id="member-perf-approvals">—</div>
+                  <div class="m-perf-label">Jóváhagyás</div>
+                  <div class="m-perf-trend neutral" id="member-perf-approvals-trend">—</div>
+                </div>
+                <div class="m-perf-stat">
+                  <div class="m-perf-value" id="member-perf-new-clients">—</div>
+                  <div class="m-perf-label">Új ügyfél</div>
+                  <div class="m-perf-trend neutral" id="member-perf-new-clients-trend">—</div>
+                </div>
+              </div>
+            </div>
+            <!-- Figyelemre méltó -->
+            <div class="m-card">
+              <div class="m-card-title">
+                <div class="m-card-title-icon" style="background:rgba(239,68,68,0.1);">
+                  <svg fill="none" stroke="#ef4444" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
+                </div>
+                Figyelemre méltó
+              </div>
+              <div id="member-notifications">
+                <div style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">Betöltés...</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── 4. GYORS MŰVELETEK ──────────────── -->
+          <div class="m-card" style="margin-bottom:18px;">
+            <div class="m-card-title">
+              <div class="m-card-title-icon" style="background:rgba(28,238,224,0.1);">
+                <svg fill="none" stroke="#1ceee0" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+              </div>
+              Gyors műveletek
+            </div>
+            <div class="m-actions-grid">
+              <button class="m-action-btn" onclick="showPage('approvals')">
+                <div class="m-action-icon" style="background:rgba(28,238,224,0.1);">
+                  <svg fill="none" stroke="#1ceee0" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
+                </div>
+                <div class="m-action-text">
+                  <div class="m-action-label">Jóváhagyások</div>
+                  <div class="m-action-sub">Várakozó piszkozatok</div>
+                </div>
+                <span class="m-action-badge" id="member-approval-badge" style="display:none;">0</span>
+              </button>
+              <button class="m-action-btn" onclick="showPage('calendar')">
+                <div class="m-action-icon" style="background:rgba(139,92,246,0.1);">
+                  <svg fill="none" stroke="#8b5cf6" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
+                <div class="m-action-text">
+                  <div class="m-action-label">Naptár</div>
+                  <div class="m-action-sub">Időpontok kezelése</div>
+                </div>
+              </button>
+              <button class="m-action-btn" onclick="showPage('clients')">
+                <div class="m-action-icon" style="background:rgba(34,197,94,0.1);">
+                  <svg fill="none" stroke="#22c55e" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                </div>
+                <div class="m-action-text">
+                  <div class="m-action-label">Ügyféllista</div>
+                  <div class="m-action-sub">Ügyfelek áttekintése</div>
+                </div>
+              </button>
+              <button class="m-action-btn" onclick="showPage('interactions')">
+                <div class="m-action-icon" style="background:rgba(251,191,36,0.1);">
+                  <svg fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
+                </div>
+                <div class="m-action-text">
+                  <div class="m-action-label">Interakciók</div>
+                  <div class="m-action-sub">Teljes előzmények</div>
+                </div>
+              </button>
+            </div>
+          </div>
+
         </div><!-- end member-analytics-shell -->
       </div><!-- end page-analytics -->
 
@@ -7887,6 +8429,47 @@
       return false;
     }
 
+    function isApprovalAssignedToMe(c) {
+      if (currentUserRole === 'admin') return true;
+      if (!_myAssignedClientNames || _myAssignedClientNames.size === 0) return false;
+      let draftData = {};
+      try { draftData = JSON.parse(c.ai_draft_response || '{}'); } catch(e) {}
+      // 1. Campaigns → always show
+      if (draftData.campaign_name || (c.topic && c.topic.startsWith('Kampány:'))) return true;
+      // 2. to_name match
+      const toName = (draftData.to_name || '').toLowerCase().trim();
+      if (toName && _myAssignedClientNames.has(toName)) return true;
+      // 3. to_email match
+      const toEmail = (draftData.to_email || '').toLowerCase().trim();
+      if (toEmail && _myAssignedClientEmails && _myAssignedClientEmails.has(toEmail)) return true;
+      // 4. session_id email pattern
+      const sid = (c.session_id || '').toLowerCase();
+      if (sid && _myAssignedClientEmails) {
+        for (const email of _myAssignedClientEmails) {
+          if (email && sid.includes(email)) return true;
+        }
+      }
+      // 5. sender_id → kanban resolve
+      const senderId = draftData.sender_id || '';
+      if (senderId && window.kanbanData) {
+        const matched = window.kanbanData.find(cl => {
+          let cd = cl.custom_data;
+          if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
+          const mid = (cd?.messenger_id || '').toString().trim();
+          return mid && mid === senderId;
+        });
+        if (matched && isClientAssignedToMe(matched)) return true;
+      }
+      // 6. topic name match
+      const topic = (c.topic || '').toLowerCase();
+      if (topic) {
+        for (const name of _myAssignedClientNames) {
+          if (name && topic.includes(name)) return true;
+        }
+      }
+      return false;
+    }
+
     // ── Page navigation ───────────────────────────────────────────────────────────
     function toggleNavGroup(btn) {
       btn.classList.toggle('open');
@@ -7909,9 +8492,9 @@
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       document.querySelectorAll('.nav-sub-item').forEach(n => n.classList.remove('active'));
       
-      // Greeting bar only on analytics
+      // Greeting bar only on analytics, and only for admin (members have it integrated in dashboard)
       const greetBar = document.getElementById('greeting-bar');
-      if (greetBar) greetBar.style.display = (page === 'analytics') ? '' : 'none';
+      if (greetBar) greetBar.style.display = (page === 'analytics' && currentUserRole === 'admin') ? '' : 'none';
 
       const pg = document.getElementById(`page-${actualPage}`);
       if (pg) pg.classList.add('active');
@@ -8102,87 +8685,241 @@
       // Load assigned clients for this member
       await loadMyAssignedClients();
       
+      // Populate integrated greeting header
+      const fullName = currentUserFullName || currentUser || 'User';
+      const firstName = fullName.split(' ').pop() || fullName;
+      const initials = fullName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2);
+      const avatarEl = document.getElementById('member-avatar');
+      if (avatarEl) avatarEl.textContent = initials;
+      const greetNameEl = document.getElementById('member-greeting-name');
+      if (greetNameEl) greetNameEl.innerHTML = `Szia, <strong>${firstName}</strong>! 👋`;
+      const greetDateEl = document.getElementById('member-greeting-date');
+      if (greetDateEl) {
+        const _now = new Date();
+        const _days = ['vasárnap','hétfő','kedd','szerda','csütörtök','péntek','szombat'];
+        const _months = ['január','február','március','április','május','június','július','augusztus','szeptember','október','november','december'];
+        greetDateEl.textContent = `${_now.getFullYear()}. ${_months[_now.getMonth()]} ${_now.getDate()}., ${_days[_now.getDay()]}`;
+      }
+      // Hide original greeting bar for members (greeting is now in the dashboard header)
+      const origGreet = document.getElementById('greeting-bar');
+      if (origGreet) origGreet.style.display = 'none';
+      
       try {
-        // 1. Get my clients
-        const cRes = await authFetch('/admin/api/clients');
-        const cData = await cRes.json();
+        const now = new Date();
+        const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const todayEnd = new Date(now.getFullYear(), now.getMonth(), now.getDate(), 23, 59, 59);
+        const monthStart = new Date(now.getFullYear(), now.getMonth(), 1);
+        const prevMonthStart = new Date(now.getFullYear(), now.getMonth() - 1, 1);
+        const prevMonthEnd = new Date(now.getFullYear(), now.getMonth(), 0, 23, 59, 59);
+
+        // ── Fetch all data in parallel ──
+        const [cRes, sRes, calRes, apRes, apApprovedRes, colRes] = await Promise.all([
+          authFetch('/admin/api/clients'),
+          authFetch('/admin/api/sessions/summary?limit=1000'),
+          authFetch('/admin/api/calendar'),
+          authFetch('/admin/api/approvals'),
+          authFetch('/admin/api/approvals?status=approved').catch(() => ({ json: () => ({ approvals: [] }) })),
+          authFetch('/admin/api/kanban_columns').catch(() => ({ json: () => ({ columns: [] }) }))
+        ]);
+        const [cData, sData, calData, apData, apApprovedData, colData] = await Promise.all([
+          cRes.json(), sRes.json(), calRes.json(), apRes.json(), apApprovedRes.json(), colRes.json()
+        ]);
+
         const allClients = cData.clients || [];
         const myClients = allClients.filter(c => isClientAssignedToMe(c));
-        document.getElementById('member-client-count').textContent = myClients.length;
-
-        // 2. Get my interactions count
-        const sRes = await authFetch('/admin/api/sessions/summary?limit=500');
-        const sData = await sRes.json();
         const allSessions = sData.sessions || [];
         const mySessions = allSessions.filter(s => isSessionAssignedToMe(s));
-        document.getElementById('member-interaction-count').textContent = mySessions.length;
-
-        // 3. Get next appointment
-        const calRes = await authFetch('/admin/api/calendar');
-        const calData = await calRes.json();
         const allEvents = calData.events || [];
         const myEvents = allEvents.filter(ev => isCalendarEventAssignedToMe(ev));
-        const now = new Date();
+        const rawApprovals = [...(apData.approvals || []), ...(apApprovedData.approvals || [])];
+        const allApprovals = rawApprovals.filter(a => isApprovalAssignedToMe(a));
+        const pendingApprovals = allApprovals.filter(a => a.approval_status === 'pending');
+
+        // ── 1. KPI CARDS ──
+        document.getElementById('member-client-count').textContent = myClients.length;
+
+        // Today's tasks = pending approvals + today's events
+        const todayEvents = myEvents.filter(ev => {
+          const d = new Date(ev.start_dt);
+          return d >= todayStart && d <= todayEnd;
+        });
+        const todoCount = pendingApprovals.length + todayEvents.length;
+        document.getElementById('member-todo-count').textContent = todoCount;
+        const todoParts = [];
+        if (pendingApprovals.length > 0) todoParts.push(`${pendingApprovals.length} jóváhagyás`);
+        if (todayEvents.length > 0) todoParts.push(`${todayEvents.length} időpont`);
+        document.getElementById('member-todo-sub').textContent = todoParts.length > 0 ? todoParts.join(' + ') : 'Nincs teendő';
+
+        // Next appointment
         const futureEvents = myEvents
           .filter(ev => new Date(ev.start_dt) > now)
           .sort((a, b) => new Date(a.start_dt) - new Date(b.start_dt));
-        
         const nextEl = document.getElementById('member-next-appointment');
+        const nextSubEl = document.getElementById('member-next-appointment-sub');
         if (futureEvents.length > 0) {
           const next = futureEvents[0];
-          nextEl.textContent = new Date(next.start_dt).toLocaleString('hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+          const nextDt = new Date(next.start_dt);
+          nextEl.textContent = nextDt.toLocaleString('hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+          nextSubEl.textContent = next.attendee || next.title || 'naptárban';
         } else {
           nextEl.textContent = 'Nincs közelgő';
+          nextSubEl.textContent = 'naptárban';
         }
 
-        // 4. Kanban summary
+        // ── 2. DAILY TIMELINE ──
+        const timelineEl = document.getElementById('member-timeline');
+        const todayEvSorted = todayEvents.sort((a, b) => new Date(a.start_dt) - new Date(b.start_dt));
+        if (todayEvSorted.length > 0) {
+          timelineEl.innerHTML = todayEvSorted.map(ev => {
+            const evDt = new Date(ev.start_dt);
+            const endDt = ev.end_dt ? new Date(ev.end_dt) : null;
+            let dotClass = 'upcoming';
+            if (evDt < now && endDt && endDt < now) dotClass = 'past';
+            else if (evDt <= now && (!endDt || endDt >= now)) dotClass = 'now';
+            const timeStr = evDt.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
+            const name = ev.attendee || ev.title || 'Esemény';
+            return `<div class="m-timeline-item">
+              <div class="m-timeline-dot ${dotClass}"></div>
+              <div class="m-timeline-content">
+                <div class="m-timeline-time">${timeStr}</div>
+                <div class="m-timeline-name">${esc(name)} — ${esc(ev.title || '')}</div>
+              </div>
+            </div>`;
+          }).join('');
+        } else {
+          timelineEl.innerHTML = `<div class="m-timeline-empty">
+            <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Szabad napod van! Nincsenek mai időpontok.
+          </div>`;
+        }
+
+        // ── 3. KANBAN STATUS BARS ──
         const kanbanEl = document.getElementById('member-kanban-summary');
+        let colNames = {};
+        const colColors = { 'uj': '#3b82f6', 'folyamatban': '#f59e0b', 'foglalt': '#22c55e', 'lezart': '#8b5cf6', 'valaszolt': '#1ceee0', 'lemondott': '#ef4444' };
+        try {
+          (colData.columns || []).forEach(col => { colNames[col.id] = col.name; });
+        } catch(e) {}
         if (myClients.length > 0) {
           const statusCounts = {};
           myClients.forEach(c => {
             const st = c.status || 'uj';
             statusCounts[st] = (statusCounts[st] || 0) + 1;
           });
-          // Try to get column names
-          let colNames = {};
-          try {
-            const colRes = await authFetch('/admin/api/kanban_columns');
-            const colData = await colRes.json();
-            (colData.columns || []).forEach(col => { colNames[col.id] = col.name; });
-          } catch(e) {}
+          const total = myClients.length;
           kanbanEl.innerHTML = Object.entries(statusCounts).map(([st, cnt]) => {
             const name = colNames[st] || st;
-            return `<div style="display:flex; justify-content:space-between; padding:3px 0; border-bottom:1px solid var(--border);"><span>${esc(name)}</span><strong>${cnt}</strong></div>`;
+            const pct = Math.round((cnt / total) * 100);
+            const color = colColors[st] || '#64748b';
+            return `<div class="m-kanban-row">
+              <div class="m-kanban-label">${esc(name)}</div>
+              <div class="m-kanban-bar-track">
+                <div class="m-kanban-bar-fill" style="width:${pct}%; background:${color};"></div>
+              </div>
+              <div class="m-kanban-count">${cnt}</div>
+            </div>`;
           }).join('');
         } else {
-          kanbanEl.textContent = 'Nincs ügyfél';
+          kanbanEl.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-muted); font-size:13px;">Nincs hozzárendelt ügyfél</div>';
         }
 
-        // 5. Recent interactions
-        const recentEl = document.getElementById('member-recent-interactions');
-        if (mySessions.length > 0) {
-          const recent = mySessions
-            .sort((a, b) => new Date(b.started_at || 0) - new Date(a.started_at || 0))
-            .slice(0, 10);
-          recentEl.innerHTML = `<table style="width:100%; border-collapse:collapse;">
-            <thead><tr style="border-bottom:2px solid var(--border);">
-              <th style="text-align:left; padding:8px; font-size:12px; color:var(--text-muted); text-transform:uppercase;">Ügyfél</th>
-              <th style="text-align:left; padding:8px; font-size:12px; color:var(--text-muted); text-transform:uppercase;">Időpont</th>
-              <th style="text-align:left; padding:8px; font-size:12px; color:var(--text-muted); text-transform:uppercase;">Csatorna</th>
-            </tr></thead>
-            <tbody>${recent.map(s => {
-              const name = s.participant || s.client_name || 'Ismeretlen';
-              const dt = s.started_at ? new Date(s.started_at).toLocaleString('hu-HU') : '—';
-              const ch = s.channel || 'Telefon';
-              return `<tr style="border-bottom:1px solid var(--border);">
-                <td style="padding:10px 8px; font-weight:600; font-size:13px;">${esc(name)}</td>
-                <td style="padding:10px 8px; font-size:13px; color:var(--text-muted);">${dt}</td>
-                <td style="padding:10px 8px;"><span style="background:rgba(28,238,224,0.1); color:var(--accent); padding:3px 8px; border-radius:6px; font-size:11px; font-weight:600;">${esc(ch)}</span></td>
-              </tr>`;
-            }).join('')}</tbody></table>`;
-        } else {
-          recentEl.innerHTML = '<div style="text-align:center; padding:30px; color:var(--text-muted);">Nincs rögzített interakció a hozzád rendelt ügyfelekhez.</div>';
+        // ── 4. MONTHLY PERFORMANCE ──
+        const thisMonthSessions = mySessions.filter(s => s.started_at && new Date(s.started_at) >= monthStart);
+        const prevMonthSessions = mySessions.filter(s => s.started_at && new Date(s.started_at) >= prevMonthStart && new Date(s.started_at) <= prevMonthEnd);
+        const thisMonthEvents = myEvents.filter(ev => new Date(ev.start_dt) >= monthStart && new Date(ev.start_dt) <= now);
+        const prevMonthEvents = myEvents.filter(ev => new Date(ev.start_dt) >= prevMonthStart && new Date(ev.start_dt) <= prevMonthEnd);
+        const thisMonthApprovals = allApprovals.filter(a => a.created_at && new Date(a.created_at) >= monthStart && a.approval_status !== 'pending');
+        const prevMonthApprovals = allApprovals.filter(a => a.created_at && new Date(a.created_at) >= prevMonthStart && new Date(a.created_at) <= prevMonthEnd && a.approval_status !== 'pending');
+        const thisMonthNewClients = myClients.filter(c => c.created_at && new Date(c.created_at) >= monthStart);
+        const prevMonthNewClients = myClients.filter(c => c.created_at && new Date(c.created_at) >= prevMonthStart && new Date(c.created_at) <= prevMonthEnd);
+
+        function setPerf(id, current, previous) {
+          document.getElementById(id).textContent = current;
+          const trendEl = document.getElementById(id + '-trend');
+          if (previous === 0 && current === 0) {
+            trendEl.className = 'm-perf-trend neutral';
+            trendEl.textContent = '— változatlan';
+          } else if (current >= previous) {
+            const pct = previous > 0 ? Math.round(((current - previous) / previous) * 100) : 100;
+            trendEl.className = 'm-perf-trend up';
+            trendEl.innerHTML = `▲ +${pct}%`;
+          } else {
+            const pct = previous > 0 ? Math.round(((previous - current) / previous) * 100) : 0;
+            trendEl.className = 'm-perf-trend down';
+            trendEl.innerHTML = `▼ -${pct}%`;
+          }
         }
+        setPerf('member-perf-interactions', thisMonthSessions.length, prevMonthSessions.length);
+        setPerf('member-perf-appointments', thisMonthEvents.length, prevMonthEvents.length);
+        setPerf('member-perf-approvals', thisMonthApprovals.length, prevMonthApprovals.length);
+        setPerf('member-perf-new-clients', thisMonthNewClients.length, prevMonthNewClients.length);
+
+        // ── 5. APPROVAL BADGE ──
+        const badge = document.getElementById('member-approval-badge');
+        if (pendingApprovals.length > 0) {
+          badge.textContent = pendingApprovals.length;
+          badge.style.display = '';
+        } else {
+          badge.style.display = 'none';
+        }
+
+        // ── 6. NOTIFICATIONS ──
+        const notifEl = document.getElementById('member-notifications');
+        const notifs = [];
+
+        if (pendingApprovals.length > 0) {
+          notifs.push({
+            icon: `<div class="m-notif-icon" style="background:rgba(28,238,224,0.1);"><svg fill="none" stroke="#1ceee0" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></div>`,
+            text: `${pendingApprovals.length} jóváhagyásra váró piszkozat`,
+            time: 'Azonnali teendő',
+            page: 'approvals'
+          });
+        }
+
+        // Upcoming events in next 2 hours
+        const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
+        const soonEvents = futureEvents.filter(ev => new Date(ev.start_dt) <= twoHoursLater);
+        soonEvents.forEach(ev => {
+          const evDt = new Date(ev.start_dt);
+          const mins = Math.round((evDt - now) / 60000);
+          notifs.push({
+            icon: `<div class="m-notif-icon" style="background:rgba(139,92,246,0.1);"><svg fill="none" stroke="#8b5cf6" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg></div>`,
+            text: `${esc(ev.attendee || ev.title)} — ${mins} perc múlva`,
+            time: evDt.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' }),
+            page: 'calendar'
+          });
+        });
+
+        // Urgent clients
+        const urgentClients = myClients.filter(c => {
+          let cd = c.custom_data || {};
+          if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
+          return (cd.prioritas || '').toLowerCase().includes('sürgős');
+        });
+        if (urgentClients.length > 0) {
+          notifs.push({
+            icon: `<div class="m-notif-icon" style="background:rgba(239,68,68,0.1);"><svg fill="none" stroke="#ef4444" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"/></svg></div>`,
+            text: `${urgentClients.length} sürgős ügyfél igényel figyelmet`,
+            time: 'Kiemelt prioritás',
+            page: 'clients'
+          });
+        }
+
+        if (notifs.length === 0) {
+          notifEl.innerHTML = `<div style="text-align:center; padding:24px; color:var(--text-muted); font-size:13px;">
+            <svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="display:block; margin:0 auto 10px; opacity:0.4;"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+            Minden rendben! Nincs figyelmet igénylő elem.
+          </div>`;
+        } else {
+          notifEl.innerHTML = notifs.map(n => `<div class="m-notif-item" onclick="showPage('${n.page}')">
+            ${n.icon}
+            <div class="m-notif-content">
+              <div class="m-notif-text">${n.text}</div>
+              <div class="m-notif-time">${n.time}</div>
+            </div>
+          </div>`).join('');
+        }
+
       } catch(e) {
         console.error('Member analytics error', e);
       }
@@ -10370,6 +11107,9 @@
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ status })
         });
+        // Refresh member analytics dashboard (KPI counts, kanban bars, etc.)
+        _myAssignedClientNames = null; // invalidate cache since client status changed
+        if (currentUserRole !== 'admin') loadMemberAnalytics();
       } catch (err) {
         // On error, revert by reloading
         alert('Hiba a mozgatás során!');
@@ -14136,6 +14876,8 @@
         document.getElementById('approval-select-all').checked = false;
         updateApprovalBulkActions();
         loadApprovals();
+        // Refresh member analytics dashboard
+        if (currentUserRole !== 'admin') loadMemberAnalytics();
       } catch (err) {
         alert(err.message);
       }
@@ -14159,7 +14901,13 @@
         const res = await authFetch('/admin/api/approvals?status=' + currentApprovalTab);
         if (!res.ok) { const text = await res.text(); throw new Error('Hiba a jóváhagyások betöltésekor: ' + text); }
         const data = await res.json();
-        const items = data.approvals || [];
+        let items = data.approvals || [];
+        
+        // ── Member filtering: only show approvals for assigned clients + own campaigns ──
+        if (currentUserRole !== 'admin') {
+          await loadMyAssignedClients();
+          items = items.filter(c => isApprovalAssignedToMe(c));
+        }
         
         const filterCat = document.getElementById('approval-category-filter') ? document.getElementById('approval-category-filter').value : 'all';
         
@@ -14351,6 +15099,8 @@
         
         closeApprovalModal();
         loadApprovals(); // Frissíti a listát
+        // Refresh member analytics dashboard
+        if (currentUserRole !== 'admin') loadMemberAnalytics();
         showToast('Sikeres művelet!', 'success');
       } catch (e) {
         alert(e.message);
