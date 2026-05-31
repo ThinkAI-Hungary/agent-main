@@ -19,6 +19,11 @@ case "${1:-update}" in
     echo " Docker build + restart..."
     docker compose up -d --build
 
+    if [ -d "../ugyfelszolg" ]; then
+      echo " Rebuilding ugyfelszolg dobozos-agent..."
+      (cd ../ugyfelszolg && docker compose up -d --build dobozos-agent)
+    fi
+
     echo " Régi image-ek takarítása..."
     docker image prune -f
 
