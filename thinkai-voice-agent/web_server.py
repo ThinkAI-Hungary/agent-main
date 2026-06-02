@@ -128,6 +128,9 @@ async def startup_event():
     # background_tasks.add(mon)
     # mon.add_done_callback(background_tasks.discard)
 
+    # Inbound SIP dispatch: Telnyx → LiveKit dispatch rule (SDR_KjoiKH4icXeX)
+    # automatikusan kezeli, nem kell külön monitor vagy trigger.
+
 async def inbound_sip_room_monitor():
     """Figyeli a 'call-' prefix szobakat es dispatch-eli az agentet ha meg nem csatlakozott.
     KIKAPCSOLVA: A lk_trigger.py mar kezeli az inbound dispatch-et.
@@ -2489,7 +2492,7 @@ async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_
     lk_url    = os.getenv("LIVEKIT_URL")
     lk_key    = os.getenv("LIVEKIT_API_KEY")
     lk_secret = os.getenv("LIVEKIT_API_SECRET")
-    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_2wJZqGsWZBC3")
+    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_jgPctgJYZcAf")  # Telnyx HD Voice outbound
 
     phone = req.phone_number.strip()
     if not phone.startswith("+"):
@@ -2694,7 +2697,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                     lk_url    = os.getenv("LIVEKIT_URL")
                     lk_key    = os.getenv("LIVEKIT_API_KEY")
                     lk_secret = os.getenv("LIVEKIT_API_SECRET")
-                    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_2wJZqGsWZBC3")
+                    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_jgPctgJYZcAf")  # Telnyx HD Voice outbound
 
                     call_phone = send_draft.get("phone_number", "")
                     if not call_phone:
@@ -3167,7 +3170,7 @@ async def _run_phone_campaign(campaign: dict):
     lk_url    = os.getenv("LIVEKIT_URL")
     lk_key    = os.getenv("LIVEKIT_API_KEY")
     lk_secret = os.getenv("LIVEKIT_API_SECRET")
-    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_2wJZqGsWZBC3")
+    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_jgPctgJYZcAf")  # Telnyx HD Voice outbound
 
     if not all([lk_url, lk_key, lk_secret]):
         print(f"[PhoneCampaign] LiveKit credentials hiányzik, kampány megszakítva: {campaign_name}")
