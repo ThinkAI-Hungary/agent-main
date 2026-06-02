@@ -441,8 +441,8 @@ async def entrypoint(ctx: JobContext):
     phantoms_removed = False
     my_identity = ctx.agent.identity if hasattr(ctx, 'agent') and ctx.agent else None
     for p in list(ctx.room.remote_participants.values()):
-        # Keep phone callers and regular users, kick everything else (other agents)
-        if p.identity.startswith("phone-") or p.identity.startswith("user-"):
+        # Keep phone callers, regular users, and SIP participants, kick everything else (other agents)
+        if p.identity.startswith("phone-") or p.identity.startswith("user-") or p.identity.startswith("sip_"):
             continue
         if my_identity and p.identity == my_identity:
             continue
