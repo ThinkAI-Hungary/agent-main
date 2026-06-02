@@ -2,7 +2,7 @@ import database as db
 
 replacements = {
     'Ã¡': 'á',
-    'Ã©': 'é',
+    'é': 'é',
     'Ã\xad': 'í',  
     'Ã³': 'ó',
     'Ã¶': 'ö',

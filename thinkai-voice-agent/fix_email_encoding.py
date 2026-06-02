@@ -5,7 +5,7 @@ with codecs.open('email_processor.py', 'r', encoding='utf-8') as f:
 
 replacements = {
     'Ã¡': 'á',
-    'Ã©': 'é',
+    'é': 'é',
     'Ã\xad': 'í',  
     'Ã³': 'ó',
     'Ã¶': 'ö',
@@ -38,7 +38,7 @@ for bad, good in replacements.items():
     content = content.replace(bad, good)
 
 # Fix some remaining specific ones
-content = content.replace('segÃ­tÅ‘kÃ©sz', 'segítőkész')
+content = content.replace('segÃ­tÅ‘kész', 'segítőkész')
 content = content.replace('cÃ­mrÅ‘l', 'címről')
 content = content.replace('cÃ­me', 'címe')
 content = content.replace('cÃ­m', 'cím')

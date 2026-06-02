@@ -453,7 +453,7 @@ def get_alert_details(alert_type: str) -> list[dict]:
                         custom = {}
                     
                     source = custom.get("forras_csatorna") or ("Messenger" if custom.get("messenger_id") else "Ismeretlen")
-                    name = custom.get("name", custom.get("nÃ©v", "NÃ©vtelen"))
+                    name = custom.get("name", custom.get("név", "Névtelen"))
                     
                     stuck_cases.append({
                         "id": c["id"],
@@ -874,7 +874,7 @@ def get_interactions(limit: int = 100, type_filter: str = "") -> list[dict]:
         return []
 
 def _build_session_summary(interactions: list[dict]) -> str:
-    if not interactions: return "Nincs rÃ¶gzÃ­tett interakciÃ³ ebben a sessionben."
+    if not interactions: return "Nincs rögzített interakció ebben a sessionben."
     type_counts = {}
     topics = []
     for i in interactions:
@@ -883,13 +883,13 @@ def _build_session_summary(interactions: list[dict]) -> str:
         topic = i.get("topic", "")
         if topic and topic not in topics: topics.append(topic)
     parts = []
-    label_map = {"email": "email kÃ¼ldÃ©s", "foglalÃ¡s": "idÅpontfoglalÃ¡s", "feladat": "feladat rÃ¶gzÃ­tÃ©s", "kÃ©rdÃ©s": "kÃ©rdÃ©s / tudÃ¡sbÃ¡zis", "idÅjÃ¡rÃ¡s": "idÅjÃ¡rÃ¡s lekÃ©rdezÃ©s"}
+    label_map = {"email": "email küldés", "foglalás": "időpontfoglalás", "feladat": "feladat rögzítés", "kérdés": "kérdés / tudásbázis", "időjárás": "időjárás lekérdezés"}
     for typ, cnt in type_counts.items():
         label = label_map.get(typ, typ)
         parts.append(f"{cnt}Ã {label}")
-    summary = "A session sorÃ¡n: " + ", ".join(parts) + "." if parts else "ÃltalÃ¡nos beszÃ©lgetÃ©s."
-    specific = [t for t in topics if t not in ("Email kÃ¼ldÃ©s", "IdÅpontfoglalÃ¡s", "Feladat rÃ¶gzÃ­tÃ©s")][:3]
-    if specific: summary += " TÃ©mÃ¡k: " + "; ".join(specific) + "."
+    summary = "A session során: " + ", ".join(parts) + "." if parts else "Ãltalános beszélgetés."
+    specific = [t for t in topics if t not in ("Email küldés", "Időpontfoglalás", "Feladat rögzítés")][:3]
+    if specific: summary += " Témák: " + "; ".join(specific) + "."
     return summary
 
 def get_sessions_with_summary(limit: int = 50) -> list[dict]:
@@ -901,7 +901,7 @@ def get_sessions_with_summary(limit: int = 50) -> list[dict]:
             
         session_ids = [s["session_id"] for s in sessions]
         
-        # 1 lekÃ©rdezÃ©ssel lehozzuk az Ã¶sszes interakciÃ³t (N+1 query javÃ­tÃ¡s)
+        # 1 lekérdezéssel lehozzuk az összes interakciót (N+1 query javítás)
         all_inters = supabase.table("interactions").select("*").in_("session_id", session_ids).order("created_at", desc=False).execute().data
         
         inters_by_session = {}
@@ -930,7 +930,7 @@ def migrate_from_json():
 
 def add_client(custom_data: dict, status: str = "uj") -> int:
     if not supabase: return 0
-    name = custom_data.get("name", "NÃ©vtelen").strip() or "NÃ©vtelen"
+    name = custom_data.get("name", "Névtelen").strip() or "Névtelen"
     try:
         res = supabase.table("clients").insert({
             "name": name,
@@ -1015,7 +1015,7 @@ def delete_client(client_id: int) -> bool:
             c = client[0]
             name = c.get("name")
             email = c.get("email")
-            if name and name not in ("NÃ©vtelen", "-"):
+            if name and name not in ("Névtelen", "-"):
                 supabase.table("calendar_events").delete().or_(f"title.ilike.%{name}%,attendee.ilike.%{name}%").execute()
             if email and email != "-":
                 supabase.table("calendar_events").delete().or_(f"title.ilike.%{email}%,attendee_email.ilike.%{email}%").execute()
@@ -1028,7 +1028,7 @@ def delete_client(client_id: int) -> bool:
 
 def edit_client_details(client_id: int, custom_data: dict) -> bool:
     if not supabase: return False
-    name = custom_data.get("name", "NÃ©vtelen").strip() or "NÃ©vtelen"
+    name = custom_data.get("name", "Névtelen").strip() or "Névtelen"
     try:
         supabase.table("clients").update({
             "name": name,
@@ -1101,7 +1101,7 @@ def delete_kanban_column(col_id: str) -> bool:
     try:
         count_res = supabase.table("clients").select("id", count="exact", head=True).eq("status", col_id).execute()
         if count_res.count and count_res.count > 0:
-            raise ValueError(f"Nem tÃ¶rÃ¶lheted: a(z) '{col_id}' oszlopban {count_res.count} Ã¼gyfÃ©l talÃ¡lhatÃ³.")
+            raise ValueError(f"Nem törölheted: a(z) '{col_id}' oszlopban {count_res.count} ügyfél található.")
         supabase.table("kanban_columns").delete().eq("id", col_id).execute()
         return True
     except ValueError as e:
@@ -1487,3 +1487,283 @@ def mark_automation_sent(client_id: int, automation_id: int) -> bool:
         logger.error(f"Error marking automation sent: {e}")
         return False
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EMAIL CAMPAIGNS (EAISY Marketing)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_email_campaigns(limit: int = 50) -> list[dict]:
+    """Kampányok listázása, legújabb elöl."""
+    if not supabase: return []
+    try:
+        res = supabase.table("email_campaigns").select("*").order("created_at", desc=True).limit(limit).execute()
+        return res.data or []
+    except Exception as e:
+        logger.error(f"Error listing email campaigns: {e}")
+        return []
+
+
+def get_email_campaign(campaign_id: str) -> dict | None:
+    """Egy kampány lekérése ID alapján."""
+    if not supabase: return None
+    try:
+        res = supabase.table("email_campaigns").select("*").eq("id", campaign_id).execute()
+        return res.data[0] if res.data else None
+    except Exception as e:
+        logger.error(f"Error getting email campaign: {e}")
+        return None
+
+
+def create_email_campaign(data: dict) -> dict | None:
+    """Új kampány létrehozása. Visszaadja a létrehozott kampányt."""
+    if not supabase: return None
+    try:
+        allowed = {"name", "type", "subject_line", "subject_line_b", "template_html",
+                    "segment_name", "status", "scheduled_at", "created_by"}
+        insert_data = {k: v for k, v in data.items() if k in allowed and v is not None}
+        res = supabase.table("email_campaigns").insert(insert_data).execute()
+        return res.data[0] if res.data else None
+    except Exception as e:
+        logger.error(f"Error creating email campaign: {e}")
+        return None
+
+
+def update_email_campaign(campaign_id: str, data: dict) -> bool:
+    """Kampány frissítése."""
+    if not supabase: return False
+    try:
+        allowed = {"name", "type", "subject_line", "subject_line_b", "template_html",
+                    "segment_name", "status", "scheduled_at", "sent_at",
+                    "brevo_campaign_id", "stats", "recipients_count", "updated_at"}
+        updates = {k: v for k, v in data.items() if k in allowed}
+        if not updates: return False
+        updates["updated_at"] = datetime.now(timezone.utc).isoformat()
+        supabase.table("email_campaigns").update(updates).eq("id", campaign_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Error updating email campaign: {e}")
+        return False
+
+
+def delete_email_campaign(campaign_id: str) -> bool:
+    """Kampány törlése."""
+    if not supabase: return False
+    try:
+        supabase.table("email_campaigns").delete().eq("id", campaign_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting email campaign: {e}")
+        return False
+
+
+def get_email_campaign_stats_summary() -> dict:
+    """Kampány KPI összesítés (dashboard-hoz)."""
+    if not supabase: return {"total": 0, "sent": 0, "draft": 0, "active": 0}
+    try:
+        res = supabase.table("email_campaigns").select("status, stats").execute()
+        total = len(res.data) if res.data else 0
+        sent = sum(1 for c in (res.data or []) if c.get("status") == "sent")
+        draft = sum(1 for c in (res.data or []) if c.get("status") == "draft")
+        active = sum(1 for c in (res.data or []) if c.get("status") in ("sending", "scheduled"))
+
+        # Aggregate stats
+        total_opens = 0
+        total_clicks = 0
+        total_delivered = 0
+        total_unsubscribes = 0
+        for c in (res.data or []):
+            s = c.get("stats") or {}
+            total_opens += s.get("opens", 0)
+            total_clicks += s.get("clicks", 0)
+            total_delivered += s.get("delivered", 0)
+            total_unsubscribes += s.get("unsubscribes", 0)
+
+        open_rate = round((total_opens / total_delivered * 100), 1) if total_delivered > 0 else 0
+        ctr = round((total_clicks / total_delivered * 100), 1) if total_delivered > 0 else 0
+        unsub_rate = round((total_unsubscribes / total_delivered * 100), 2) if total_delivered > 0 else 0
+
+        return {
+            "total": total, "sent": sent, "draft": draft, "active": active,
+            "open_rate": open_rate, "ctr": ctr, "unsub_rate": unsub_rate
+        }
+    except Exception as e:
+        logger.error(f"Error getting campaign stats: {e}")
+        return {"total": 0, "sent": 0, "draft": 0, "active": 0, "open_rate": 0, "ctr": 0, "unsub_rate": 0}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# EMAIL SUBSCRIBERS (EAISY Marketing)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_email_subscribers(limit: int = 200) -> list[dict]:
+    """Feliratkozók listázása."""
+    if not supabase: return []
+    try:
+        res = supabase.table("email_subscribers").select("*").order("created_at", desc=True).limit(limit).execute()
+        return res.data or []
+    except Exception as e:
+        logger.error(f"Error listing email subscribers: {e}")
+        return []
+
+
+def add_email_subscriber(email: str, name: str = "", tags: list = None, consent_source: str = "manual") -> dict | None:
+    """Új feliratkozó hozzáadása (upsert: ha létezik, frissíti a nevet/tageket)."""
+    if not supabase: return None
+    try:
+        res = supabase.table("email_subscribers").upsert({
+            "email": email,
+            "name": name,
+            "tags": tags or [],
+            "consent_source": consent_source,
+            "status": "active"
+        }, on_conflict="email").execute()
+        return res.data[0] if res.data else None
+    except Exception as e:
+        logger.error(f"Error adding email subscriber: {e}")
+        return None
+
+
+def get_subscriber_count() -> int:
+    """Összes aktív feliratkozó száma."""
+    if not supabase: return 0
+    try:
+        res = supabase.table("email_subscribers").select("id", count="exact", head=True).eq("status", "active").execute()
+        return res.count or 0
+    except Exception as e:
+        logger.error(f"Error counting subscribers: {e}")
+        return 0
+
+
+def update_subscriber_status(email: str, status: str) -> bool:
+    """Feliratkozó státusz frissítés (unsubscribed, bounced, complained)."""
+    if not supabase: return False
+    try:
+        supabase.table("email_subscribers").update({"status": status}).eq("email", email).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Error updating subscriber status: {e}")
+        return False
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AI CONTENT ITEMS (EAISY Marketing — Social Média)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def get_content_items(status_filter: str = None, limit: int = 50) -> list[dict]:
+    """AI tartalmak listázása, opcionálisan szűrve státusz szerint."""
+    if not supabase: return []
+    try:
+        q = supabase.table("content_items").select("*").order("created_at", desc=True).limit(limit)
+        if status_filter and status_filter != "all":
+            if status_filter == "pending":
+                q = q.in_("status", ["requested", "ai_draft", "editing"])
+            else:
+                q = q.eq("status", status_filter)
+        res = q.execute()
+        return res.data or []
+    except Exception as e:
+        logger.error(f"Error listing content items: {e}")
+        return []
+
+
+def create_content_item(data: dict) -> dict | None:
+    """Új AI tartalom létrehozása."""
+    if not supabase: return None
+    try:
+        row = {
+            "title": data.get("title", "Új tartalom"),
+            "type": data.get("type", "social_post"),
+            "body": data.get("body", ""),
+            "hashtags": data.get("hashtags", []),
+            "image_url": data.get("image_url", ""),
+            "image_description": data.get("image_description", ""),
+            "keywords": data.get("keywords", []),
+            "status": data.get("status", "requested"),
+            "ai_prompt": data.get("ai_prompt", ""),
+            "ai_model": data.get("ai_model", "gemini-2.0-flash"),
+            "target_platforms": data.get("target_platforms", ["instagram"]),
+            "image_prompt": data.get("image_prompt", ""),
+            "created_by": data.get("created_by", "admin"),
+        }
+        if data.get("scheduled_at"):
+            row["scheduled_at"] = data["scheduled_at"]
+        res = supabase.table("content_items").insert(row).execute()
+        return res.data[0] if res.data else None
+    except Exception as e:
+        logger.error(f"Error creating content item: {e}")
+        return None
+
+
+def update_content_item(item_id: str, data: dict) -> dict | None:
+    """AI tartalom frissítése (szöveg, státusz, stb.)."""
+    if not supabase: return None
+    try:
+        allowed = ["title", "body", "hashtags", "image_url", "image_description",
+                    "keywords", "status", "target_platforms", "published_at",
+                    "published_platforms", "ig_media_id", "fb_post_id",
+                    "engagement_stats", "scheduled_at", "image_prompt"]
+        update = {k: v for k, v in data.items() if k in allowed}
+        update["updated_at"] = "now()"
+        res = supabase.table("content_items").update(update).eq("id", item_id).execute()
+        return res.data[0] if res.data else None
+    except Exception as e:
+        logger.error(f"Error updating content item: {e}")
+        return None
+
+
+def delete_content_item(item_id: str) -> bool:
+    """AI tartalom törlése."""
+    if not supabase: return False
+    try:
+        supabase.table("content_items").delete().eq("id", item_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Error deleting content item: {e}")
+        return False
+
+
+def get_content_stats() -> dict:
+    """AI tartalom statisztikák összesítés."""
+    if not supabase: return {"total": 0, "pending": 0, "approved": 0, "published": 0, "scheduled": 0}
+    try:
+        res = supabase.table("content_items").select("status").execute()
+        items = res.data or []
+        pending_statuses = ["requested", "ai_draft", "editing"]
+        return {
+            "total": len(items),
+            "pending": sum(1 for i in items if i.get("status") in pending_statuses),
+            "approved": sum(1 for i in items if i.get("status") == "approved"),
+            "scheduled": sum(1 for i in items if i.get("status") == "scheduled"),
+            "published": sum(1 for i in items if i.get("status") == "published"),
+        }
+    except Exception as e:
+        logger.error(f"Error getting content stats: {e}")
+        return {"total": 0, "pending": 0, "approved": 0, "published": 0, "scheduled": 0}
+
+
+def get_scheduled_content() -> list[dict]:
+    """Esedékes ütemezett tartalmak (scheduled_at <= now)."""
+    if not supabase: return []
+    try:
+        from datetime import datetime, timezone
+        now = datetime.now(timezone.utc).isoformat()
+        res = (supabase.table("content_items")
+               .select("*")
+               .eq("status", "scheduled")
+               .lte("scheduled_at", now)
+               .execute())
+        return res.data or []
+    except Exception as e:
+        logger.error(f"Error getting scheduled content: {e}")
+        return []
+
+
+def get_content_item(item_id: str) -> dict | None:
+    """Egyetlen content item lekérése ID alapján."""
+    if not supabase: return None
+    try:
+        res = supabase.table("content_items").select("*").eq("id", item_id).execute()
+        return res.data[0] if res.data else None
+    except Exception as e:
+        logger.error(f"Error getting content item: {e}")
+        return None

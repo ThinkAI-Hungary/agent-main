@@ -4,7 +4,7 @@ interactions = db.get_interactions(limit=1000)
 
 replacements = {
     'Ã¡': 'á',
-    'Ã©': 'é',
+    'é': 'é',
     'Ã\xad': 'í',  
     'Ã³': 'ó',
     'Ã¶': 'ö',

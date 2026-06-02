@@ -1,0 +1,3 @@
+﻿IG Account: {"id":"26530155976686869","username":"we_are_thinkai","account_type":"MEDIA_CREATOR","media_count":61}
+Publishing limit: 200 {"data":[{"config":{"quota_total":100,"quota_duration":86400},"quota_usage":0}]}
+IG Business via Page: 400 {"error":{"message":"(#100) Object does not exist, cannot be loaded due to missing permission or reviewable feature, or does not support this operation. This endpoint requires the 'pages_read_engagement' permission or the 'Page Public Content Access' feature or the 'Page Public Metadata Access' feat

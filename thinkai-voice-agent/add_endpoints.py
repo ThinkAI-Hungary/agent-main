@@ -59,7 +59,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                     "https://api.brevo.com/v3/smtp/email",
                     headers={"api-key": api_key, "Content-Type": "application/json"},
                     json={
-                        "sender": {"name": "Bégé Design Kft.", "email": "bege@thinkai.hu"},
+                        "sender": {"name": "EAISY Marketing", "email": "hello@thinkai.hu"},
                         "to": [{"email": draft.get("to_email"), "name": draft.get("to_name", "")}],
                         "subject": draft.get("subject", "Re:"),
                         "htmlContent": f'<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">{final_text}</div>',

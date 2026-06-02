@@ -1,0 +1,14 @@
+﻿Token length: 198
+Token starts: EAAnmpXo5v2ABRv...
+
+Debug Status: 200
+Debug Response: {"data":{"app_id":"2786873184993120","type":"PAGE","application":"ThinkAgent","data_access_expires_at":1787672079,"expires_at":0,"is_valid":true,"issued_at":1780086652,"profile_id":"260528583811764","scopes":["pages_show_list","pages_messaging","instagram_basic","whatsapp_business_management","instagram_manage_messages","pages_manage_metadata","whatsapp_business_messaging","public_profile"],"granular_scopes":[{"scope":"pages_show_list","target_ids":["260528583811764"]},{"scope":"pages_messaging"
+
+v18 Status: 400
+v18 Response: {"error":{"message":"(#100) Object does not exist, cannot be loaded due to missing permission or reviewable feature, or does not support this operation. This endpoint requires the 'pages_read_engagement' permission or the 'Page Public Content Access' feature or the 'Page Public Metadata Access' feat
+
+IG Token length: 183
+IG Token starts: IGAAT0ZC9wOiNFB...
+
+IG Graph Status: 200
+IG Graph Response: {"id":"26530155976686869","username":"we_are_thinkai"}

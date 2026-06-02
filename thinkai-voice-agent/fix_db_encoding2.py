@@ -6,7 +6,7 @@ def fix_db():
         s = row['summary']
         # brute force replacements for known mojibake
         # 'Å‘' is usually \xc5\x91
-        new_s = s.replace('Å‘', 'ő').replace('Ã©', 'é').replace('Ã¡', 'á').replace('Ã³', 'ó').replace('Ã¶', 'ö').replace('Ã¼', 'ü').replace('Ã-', 'Í').replace('Ã', 'í')
+        new_s = s.replace('Å‘', 'ő').replace('é', 'é').replace('Ã¡', 'á').replace('Ã³', 'ó').replace('Ã¶', 'ö').replace('Ã¼', 'ü').replace('Ã-', 'Í').replace('Ã', 'í')
         
         # In case the exact char isn't caught, let's try to fix it by encoding/decoding
         try:

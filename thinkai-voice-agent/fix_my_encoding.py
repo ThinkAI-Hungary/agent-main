@@ -6,7 +6,7 @@ with codecs.open('email_processor.py', 'r', encoding='utf-8') as f:
 
 replacements = {
     'Ã¡': 'á',
-    'Ã©': 'é',
+    'é': 'é',
     'Ã\xad': 'í',  # ad is í in cp1252 but actually the utf8 is c3 ad
     'Ã³': 'ó',
     'Ã¶': 'ö',

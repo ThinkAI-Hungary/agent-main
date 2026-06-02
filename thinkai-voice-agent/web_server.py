@@ -6,6 +6,7 @@ and provides a JWT-protected admin API with analytics.
 """
 
 import json
+import logging
 import os
 import uuid
 import csv
@@ -32,6 +33,7 @@ from anthropic import AsyncAnthropic
 
 THIS_DIR = Path(__file__).resolve().parent
 load_dotenv(THIS_DIR / ".env")
+logger = logging.getLogger(__name__)
 
 # ── JWT config ────────────────────────────────────────────────────────────────
 JWT_SECRET  = os.getenv("JWT_SECRET", "thinkai-admin-secret-change-me")
@@ -55,6 +57,51 @@ async def health_check():
     return {"status": "ok", "uptime_seconds": int((datetime.utcnow() - _start_time).total_seconds())}
 
 
+# ── Social Publisher Worker ─────────────────────────────────────────────────────
+async def social_publisher_worker():
+    """Háttér worker: percenként ellenőrzi az ütemezett tartalmakat és publikálja."""
+    logger.info("Social publisher worker elindítva.")
+    while True:
+        try:
+            await asyncio.sleep(60)  # 60 másodpercenként
+            scheduled = db.get_scheduled_content()
+            for item in scheduled:
+                content_id = item.get("id")
+                caption = item.get("body", "")
+                image_url = item.get("image_url", "")
+                platforms = item.get("target_platforms", ["instagram"])
+                published_platforms = []
+
+                logger.info(f"Ütemezett poszt publikálás: {content_id} -> {platforms}")
+
+                for platform in platforms:
+                    try:
+                        if platform == "instagram" and image_url:
+                            result = await social_media.publish_instagram_post(image_url, caption)
+                            if result.get("success"):
+                                published_platforms.append("instagram")
+                                db.update_content_item(content_id, {"ig_media_id": result.get("media_id", "")})
+                        elif platform == "facebook":
+                            result = await social_media.publish_facebook_post(caption, image_url or None)
+                            if result.get("success"):
+                                published_platforms.append("facebook")
+                                db.update_content_item(content_id, {"fb_post_id": result.get("post_id", "")})
+                    except Exception as pub_err:
+                        logger.error(f"Publish error for {content_id} on {platform}: {pub_err}")
+
+                if published_platforms:
+                    db.update_content_item(content_id, {
+                        "status": "published",
+                        "published_at": datetime.utcnow().isoformat() + "Z",
+                        "published_platforms": published_platforms,
+                    })
+                    logger.info(f"Ütemezett poszt sikeresen publikálva: {content_id} -> {published_platforms}")
+                else:
+                    logger.warning(f"Ütemezett poszt nem sikerült: {content_id}")
+        except Exception as e:
+            logger.error(f"Social publisher worker error: {e}")
+
+
 @app.on_event("startup")
 async def startup_event():
     # Elindítjuk az email worker loopot a háttérben
@@ -70,6 +117,11 @@ async def startup_event():
     task3 = asyncio.create_task(email_processor.automation_worker_loop())
     background_tasks.add(task3)
     task3.add_done_callback(background_tasks.discard)
+
+    # Social média ütemezett posztolás worker
+    task4 = asyncio.create_task(social_publisher_worker())
+    background_tasks.add(task4)
+    task4.add_done_callback(background_tasks.discard)
     # Inbound SIP szoba monitor — KIKAPCSOLVA
     # A lk_trigger.py (Asterisk) mar kezeli a dispatch-et, nem kell dupla.
     # mon = asyncio.create_task(inbound_sip_room_monitor())
@@ -171,6 +223,640 @@ async def widget():
 @app.get("/admin")
 def admin_page():
     return FileResponse(THIS_DIR / "admin.html")
+
+@app.get("/marketing")
+def marketing_page():
+    return FileResponse(THIS_DIR / "marketing.html")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# MARKETING API — Email Campaigns & Subscribers
+# ═══════════════════════════════════════════════════════════════════════════════
+
+import brevo_campaigns
+
+@app.get("/marketing/api/campaigns")
+async def marketing_get_campaigns():
+    """Kampányok listázása."""
+    return db.get_email_campaigns()
+
+@app.post("/marketing/api/campaigns")
+async def marketing_create_campaign(req: Request):
+    """Új kampány létrehozása."""
+    data = await req.json()
+    campaign = db.create_email_campaign(data)
+    if not campaign:
+        return JSONResponse({"error": "Kampány létrehozása sikertelen"}, status_code=500)
+    return campaign
+
+@app.get("/marketing/api/campaigns/stats")
+async def marketing_campaigns_stats():
+    """Kampány KPI összesítés."""
+    return db.get_email_campaign_stats_summary()
+
+@app.get("/marketing/api/campaigns/{campaign_id}")
+async def marketing_get_campaign(campaign_id: str):
+    """Egy kampány részletei."""
+    campaign = db.get_email_campaign(campaign_id)
+    if not campaign:
+        return JSONResponse({"error": "Kampány nem található"}, status_code=404)
+    return campaign
+
+@app.put("/marketing/api/campaigns/{campaign_id}")
+async def marketing_update_campaign(campaign_id: str, req: Request):
+    """Kampány szerkesztése."""
+    data = await req.json()
+    ok = db.update_email_campaign(campaign_id, data)
+    if not ok:
+        return JSONResponse({"error": "Frissítés sikertelen"}, status_code=500)
+    return {"ok": True}
+
+@app.delete("/marketing/api/campaigns/{campaign_id}")
+async def marketing_delete_campaign(campaign_id: str):
+    """Kampány törlése."""
+    ok = db.delete_email_campaign(campaign_id)
+    if not ok:
+        return JSONResponse({"error": "Törlés sikertelen"}, status_code=500)
+    return {"ok": True}
+
+@app.post("/marketing/api/campaigns/{campaign_id}/send")
+async def marketing_send_campaign(campaign_id: str):
+    """Kampány küldése Brevo-n keresztül.
+
+    Lépések:
+    1. Kampány lekérése DB-ből
+    2. Brevo lista biztosítása (auto-create)
+    3. Feliratkozók szinkronizálása a listára
+    4. Brevo kampány létrehozása
+    5. Azonnali küldés
+    6. DB frissítése (brevo_campaign_id, status, sent_at)
+    """
+    campaign = db.get_email_campaign(campaign_id)
+    if not campaign:
+        return JSONResponse({"error": "Kampány nem található"}, status_code=404)
+
+    if campaign.get("status") == "sent":
+        return JSONResponse({"error": "Ez a kampány már el lett küldve"}, status_code=400)
+
+    # 1. Ensure Brevo marketing list exists
+    list_id = await brevo_campaigns.ensure_marketing_list()
+    if not list_id:
+        return JSONResponse({"error": "Brevo lista létrehozása sikertelen"}, status_code=500)
+
+    # 2. Sync subscribers to Brevo list
+    subscribers = db.get_email_subscribers()
+    active_subs = [s for s in subscribers if s.get("status") == "active"]
+    if not active_subs:
+        return JSONResponse({"error": "Nincsenek aktív feliratkozók"}, status_code=400)
+
+    synced = await brevo_campaigns.sync_contacts_batch(active_subs, list_id)
+    logger.info(f"Synced {synced} contacts to Brevo list {list_id}")
+
+    # 3. Create campaign in Brevo
+    html = campaign.get("template_html") or f"""
+    <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+        <h2>{campaign.get('subject_line', 'Hírlevél')}</h2>
+        <p>Tartalom hamarosan...</p>
+    </div>
+    """
+    brevo_id = await brevo_campaigns.create_campaign(
+        name=campaign.get("name", "Névtelen kampány"),
+        subject=campaign.get("subject_line", "Hírlevél"),
+        html_content=html,
+        list_id=list_id,
+        subject_b=campaign.get("subject_line_b")
+    )
+    if not brevo_id:
+        return JSONResponse({"error": "Brevo kampány létrehozása sikertelen"}, status_code=500)
+
+    # 4. Send now
+    from datetime import datetime, timezone
+    sent = await brevo_campaigns.send_campaign_now(brevo_id)
+    if not sent:
+        return JSONResponse({"error": "Brevo kampány küldése sikertelen"}, status_code=500)
+
+    # 5. Update DB
+    db.update_email_campaign(campaign_id, {
+        "brevo_campaign_id": brevo_id,
+        "status": "sent",
+        "sent_at": datetime.now(timezone.utc).isoformat(),
+        "recipients_count": len(active_subs)
+    })
+
+    return {"ok": True, "brevo_campaign_id": brevo_id, "recipients": len(active_subs)}
+
+@app.post("/marketing/api/campaigns/{campaign_id}/schedule")
+async def marketing_schedule_campaign(campaign_id: str, request: Request):
+    """Kampány ütemezése jövőbeli időpontra.
+
+    Body: { "scheduled_at": "2026-06-03T10:00:00" }  (ISO 8601, lokális vagy UTC)
+    """
+    body = await request.json()
+    scheduled_at = body.get("scheduled_at")
+    if not scheduled_at:
+        return JSONResponse({"error": "Hiányzó scheduled_at mező"}, status_code=400)
+
+    campaign = db.get_email_campaign(campaign_id)
+    if not campaign:
+        return JSONResponse({"error": "Kampány nem található"}, status_code=404)
+
+    if campaign.get("status") == "sent":
+        return JSONResponse({"error": "Ez a kampány már el lett küldve"}, status_code=400)
+
+    # 1. Ensure Brevo marketing list
+    list_id = await brevo_campaigns.ensure_marketing_list()
+    if not list_id:
+        return JSONResponse({"error": "Brevo lista létrehozása sikertelen"}, status_code=500)
+
+    # 2. Sync subscribers
+    subscribers = db.get_email_subscribers()
+    active_subs = [s for s in subscribers if s.get("status") == "active"]
+    if not active_subs:
+        return JSONResponse({"error": "Nincsenek aktív feliratkozók"}, status_code=400)
+
+    await brevo_campaigns.sync_contacts_batch(active_subs, list_id)
+
+    # 3. Create campaign in Brevo (if not already created)
+    brevo_id = campaign.get("brevo_campaign_id")
+    if not brevo_id:
+        html = campaign.get("template_html") or f"""
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; padding: 20px;">
+            <h2>{campaign.get('subject_line', 'Hírlevél')}</h2>
+            <p>Tartalom hamarosan...</p>
+        </div>
+        """
+        brevo_id = await brevo_campaigns.create_campaign(
+            name=campaign.get("name", "Névtelen kampány"),
+            subject=campaign.get("subject_line", "Hírlevél"),
+            html_content=html,
+            list_id=list_id,
+            subject_b=campaign.get("subject_line_b")
+        )
+        if not brevo_id:
+            return JSONResponse({"error": "Brevo kampány létrehozása sikertelen"}, status_code=500)
+
+    # 4. Schedule in Brevo
+    # Ensure UTC ISO format
+    from datetime import datetime, timezone
+    try:
+        dt = datetime.fromisoformat(scheduled_at.replace("Z", "+00:00"))
+        if dt.tzinfo is None:
+            # Assume local time, convert to UTC (CET = UTC+2)
+            import zoneinfo
+            local_tz = zoneinfo.ZoneInfo("Europe/Budapest")
+            dt = dt.replace(tzinfo=local_tz).astimezone(timezone.utc)
+        utc_iso = dt.strftime("%Y-%m-%dT%H:%M:%S.000Z")
+    except Exception:
+        utc_iso = scheduled_at
+
+    scheduled = await brevo_campaigns.schedule_campaign(brevo_id, utc_iso)
+    if not scheduled:
+        return JSONResponse({"error": "Brevo ütemezés sikertelen"}, status_code=500)
+
+    # 5. Update DB
+    db.update_email_campaign(campaign_id, {
+        "brevo_campaign_id": brevo_id,
+        "status": "scheduled",
+        "scheduled_at": scheduled_at,
+        "recipients_count": len(active_subs)
+    })
+
+    return {"ok": True, "brevo_campaign_id": brevo_id, "scheduled_at": scheduled_at, "recipients": len(active_subs)}
+
+@app.post("/marketing/api/campaigns/{campaign_id}/refresh-stats")
+async def marketing_refresh_stats(campaign_id: str):
+    """Kampány statisztikák frissítése Brevo-ból."""
+    campaign = db.get_email_campaign(campaign_id)
+    if not campaign or not campaign.get("brevo_campaign_id"):
+        return JSONResponse({"error": "Nincs Brevo kampány ID"}, status_code=400)
+
+    stats = await brevo_campaigns.get_campaign_stats(campaign.get("brevo_campaign_id"))
+    db.update_email_campaign(campaign_id, {"stats": stats})
+    return stats
+
+@app.post("/marketing/api/campaigns/refresh-all-stats")
+async def marketing_refresh_all_stats():
+    """Összes elküldött kampány statisztikáinak frissítése Brevo-ból."""
+    campaigns = db.get_email_campaigns()
+    sent_campaigns = [c for c in campaigns if c.get("status") == "sent" and c.get("brevo_campaign_id")]
+    refreshed = 0
+    for c in sent_campaigns:
+        try:
+            stats = await brevo_campaigns.get_campaign_stats(c["brevo_campaign_id"])
+            db.update_email_campaign(c["id"], {"stats": stats})
+            refreshed += 1
+        except Exception as e:
+            logger.error(f"Stats refresh error for campaign {c['id']}: {e}")
+    return {"ok": True, "refreshed": refreshed, "total_sent": len(sent_campaigns)}
+
+# ── Subscribers ──
+
+@app.get("/marketing/api/subscribers")
+async def marketing_get_subscribers():
+    """Feliratkozók listázása."""
+    return db.get_email_subscribers()
+
+@app.get("/marketing/api/subscribers/count")
+async def marketing_subscriber_count():
+    """Feliratkozók száma."""
+    return {"count": db.get_subscriber_count()}
+
+@app.post("/marketing/api/subscribers")
+async def marketing_add_subscriber(req: Request):
+    """Új feliratkozó hozzáadása."""
+    data = await req.json()
+    email = data.get("email", "").strip()
+    if not email:
+        return JSONResponse({"error": "Email cím szükséges"}, status_code=400)
+    sub = db.add_email_subscriber(
+        email=email,
+        name=data.get("name", ""),
+        tags=data.get("tags", []),
+        consent_source=data.get("consent_source", "manual")
+    )
+    if not sub:
+        return JSONResponse({"error": "Feliratkozó hozzáadása sikertelen"}, status_code=500)
+    return sub
+
+# ── AI Campaign Generation ──
+
+@app.post("/marketing/api/ai/generate-campaign")
+async def marketing_ai_generate(req: Request):
+    """AI kampány tartalom generálás Gemini 2.5 Flash-sel.
+    Input: { "instruction": "...", "campaign_type": "newsletter", "tone": "professional" }
+    Output: { "subject": "...", "body": "..." }
+    """
+    from google import genai
+    from google.genai import types
+
+    google_key = os.getenv("GOOGLE_API_KEY")
+    if not google_key:
+        return JSONResponse({"error": "GOOGLE_API_KEY nincs beállítva"}, status_code=500)
+
+    data = await req.json()
+    instruction = data.get("instruction", "").strip()
+    if not instruction:
+        return JSONResponse({"error": "Add meg az utasítást az AI-nak"}, status_code=400)
+
+    campaign_type = data.get("campaign_type", "newsletter")
+    tone = data.get("tone", "professzionális")
+
+    type_labels = {
+        "newsletter": "hírlevél",
+        "promotion": "promóciós/akciós e-mail",
+        "drip": "automatizált sorozat e-mail",
+        "transactional": "tranzakciós e-mail"
+    }
+
+    system_prompt = f"""Te egy professzionális e-mail marketing copywriter vagy.
+A feladatod: a felhasználó utasítása alapján írj egy {type_labels.get(campaign_type, 'hírlevél')} szöveget.
+
+SZABÁLYOK:
+- A hangnem legyen: {tone}
+- Magyar nyelven írj
+- A válaszod KIZÁRÓLAG egyetlen valid JSON objektum legyen, minden egyéb szöveg nélkül
+- Ne használj HTML tageket a body-ban, csak sima szöveget sortörésekkel
+- A tárgysor legyen figyelemfelkeltő, rövid (max 60 karakter)
+- A szöveg legyen célratörő, emberi hangú, ne legyen sablonos
+- Ha akcióról/kedvezményről van szó, emeld ki a számokat
+- Feladó cég: EAISY Marketing
+
+JSON STRUKTÚRA:
+{{
+    "subject": "Az e-mail tárgysora",
+    "body": "Az e-mail teljes szövege\\n\\nTöbb bekezdéssel\\n\\nSortörésekkel elválasztva"
+}}"""
+
+    try:
+        client = genai.Client(api_key=google_key)
+        response = await client.aio.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=f"UTASÍTÁS: {instruction}",
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.7,
+                response_mime_type="application/json"
+            )
+        )
+        ai_text = response.text.strip()
+
+        # Clean markdown blocks
+        if ai_text.startswith("```json"):
+            ai_text = ai_text[7:]
+        if ai_text.startswith("```"):
+            ai_text = ai_text[3:]
+        if ai_text.endswith("```"):
+            ai_text = ai_text[:-3]
+        ai_text = ai_text.strip()
+
+        import json
+        result = json.loads(ai_text)
+        return {"subject": result.get("subject", ""), "body": result.get("body", "")}
+    except Exception as e:
+        logger.error(f"AI campaign generation error: {e}")
+        return JSONResponse({"error": f"AI generálási hiba: {str(e)}"}, status_code=500)
+
+# ── AI Content & Social Media ──
+
+import social_media
+
+@app.get("/marketing/api/content")
+async def marketing_get_content(status: str = None):
+    """AI tartalmak listázása."""
+    return db.get_content_items(status_filter=status)
+
+@app.get("/marketing/api/content/stats")
+async def marketing_content_stats():
+    """AI tartalom statisztikák."""
+    return db.get_content_stats()
+
+@app.post("/marketing/api/content")
+async def marketing_create_content(req: Request):
+    """Új AI tartalom létrehozás."""
+    data = await req.json()
+    item = db.create_content_item(data)
+    if not item:
+        return JSONResponse({"error": "Tartalom létrehozása sikertelen"}, status_code=500)
+    return item
+
+@app.put("/marketing/api/content/{item_id}")
+async def marketing_update_content(item_id: str, req: Request):
+    """AI tartalom frissítés."""
+    data = await req.json()
+    item = db.update_content_item(item_id, data)
+    if not item:
+        return JSONResponse({"error": "Frissítés sikertelen"}, status_code=500)
+    return item
+
+@app.delete("/marketing/api/content/{item_id}")
+async def marketing_delete_content(item_id: str):
+    """AI tartalom törlés."""
+    ok = db.delete_content_item(item_id)
+    if not ok:
+        return JSONResponse({"error": "Törlés sikertelen"}, status_code=500)
+    return {"success": True}
+
+@app.post("/marketing/api/ai/generate-social")
+async def marketing_ai_generate_social(req: Request):
+    """AI social media poszt generálás Gemini 2.5 Flash-sel.
+    Input: { "instruction": "...", "platform": "instagram", "tone": "professional" }
+    Output: { "title": "...", "caption": "...", "hashtags": [...], "image_description": "..." }
+    """
+    from google import genai
+    from google.genai import types
+
+    google_key = os.getenv("GOOGLE_API_KEY")
+    if not google_key:
+        return JSONResponse({"error": "GOOGLE_API_KEY nincs beállítva"}, status_code=500)
+
+    data = await req.json()
+    instruction = data.get("instruction", "").strip()
+    if not instruction:
+        return JSONResponse({"error": "Add meg az utasítást az AI-nak"}, status_code=400)
+
+    platform = data.get("platform", "instagram")
+    tone = data.get("tone", "professzionális")
+
+    system_prompt = f"""Te egy profi social media marketing szakértő vagy.
+A feladatod: a felhasználó utasítása alapján írj egy {platform} posztot.
+
+SZABÁLYOK:
+- Magyar nyelven írj
+- A válaszod KIZÁRÓLAG egyetlen valid JSON objektum legyen
+- A caption legyen figyelemfelkeltő, emberi, emoji-kkal
+- Instagram-ra max 2200 karakter caption
+- Adj releváns hashtag javaslatokat (5-15 db)
+- Adj kép leírást (milyen képet kellene hozzá használni)
+- A hangnem legyen: {tone}
+- Feladó: EAISY / ThinkAI brand
+
+JSON STRUKTÚRA:
+{{
+    "title": "Rövid belső cím a tartalomnak (max 40 kar)",
+    "caption": "A teljes poszt szövege emoji-kkal\\n\\nTöbb bekezdéssel",
+    "hashtags": ["hashtag1", "hashtag2", "hashtag3"],
+    "image_description": "Milyen képet kellene használni ehhez a poszthoz",
+    "image_prompt": "Angol nyelvű, részletes képgenerálási prompt DALL-E/Midjourney számára, ami illeszkedik a poszt témájához. Legyen vizuálisan vonzó, modern, professzionális."
+}}"""
+
+    try:
+        client = genai.Client(api_key=google_key)
+        response = await client.aio.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=f"UTASÍTÁS: {instruction}",
+            config=types.GenerateContentConfig(
+                system_instruction=system_prompt,
+                temperature=0.7,
+                response_mime_type="application/json"
+            )
+        )
+        ai_text = response.text.strip()
+        if ai_text.startswith("```json"): ai_text = ai_text[7:]
+        if ai_text.startswith("```"): ai_text = ai_text[3:]
+        if ai_text.endswith("```"): ai_text = ai_text[:-3]
+        ai_text = ai_text.strip()
+
+        import json
+        result = json.loads(ai_text)
+        return {
+            "title": result.get("title", ""),
+            "caption": result.get("caption", ""),
+            "hashtags": result.get("hashtags", []),
+            "image_description": result.get("image_description", ""),
+            "image_prompt": result.get("image_prompt", "")
+        }
+    except Exception as e:
+        logger.error(f"AI social generation error: {e}")
+        return JSONResponse({"error": f"AI generálási hiba: {str(e)}"}, status_code=500)
+
+# ── AI Image Generation ──
+
+GENERATED_IMAGES_DIR = THIS_DIR / "generated_images"
+GENERATED_IMAGES_DIR.mkdir(exist_ok=True)
+
+@app.post("/marketing/api/ai/generate-image")
+async def marketing_ai_generate_image(req: Request):
+    """AI képgenerálás Gemini-vel.
+    Input: { "prompt": "English image generation prompt..." }
+    Output: { "image_url": "/generated-images/abc123.png" }
+    """
+    from google import genai
+    from google.genai import types
+
+    google_key = os.getenv("GOOGLE_API_KEY")
+    if not google_key:
+        return JSONResponse({"error": "GOOGLE_API_KEY nincs beállítva"}, status_code=500)
+
+    data = await req.json()
+    prompt = data.get("prompt", "").strip()
+    if not prompt:
+        return JSONResponse({"error": "Adj meg egy kép promptot!"}, status_code=400)
+
+    try:
+        client = genai.Client(api_key=google_key)
+        response = await client.aio.models.generate_images(
+            model='imagen-4.0-generate-001',
+            prompt=prompt,
+            config=types.GenerateImagesConfig(
+                number_of_images=1,
+            ),
+        )
+
+        # Extract image from response
+        if not response.generated_images or len(response.generated_images) == 0:
+            return JSONResponse({"error": "Az AI nem tudott képet generálni ehhez a prompthoz. Próbálj más megfogalmazást!"}, status_code=422)
+
+        image_obj = response.generated_images[0].image
+
+        # Save to file
+        filename = f"{uuid.uuid4().hex[:12]}.png"
+        filepath = GENERATED_IMAGES_DIR / filename
+        image_obj.save(str(filepath))
+
+        image_url = f"/generated-images/{filename}"
+        logger.info(f"AI image generated: {filename}")
+        return {"image_url": image_url, "filename": filename}
+
+    except Exception as e:
+        logger.error(f"AI image generation error: {e}")
+        return JSONResponse({"error": f"Képgenerálási hiba: {str(e)}"}, status_code=500)
+
+@app.get("/generated-images/{filename}")
+async def serve_generated_image(filename: str):
+    """Generált képek kiszolgálása."""
+    import re
+    if not re.match(r'^[a-zA-Z0-9_\-]+\.(png|jpg|jpeg|webp)$', filename):
+        raise HTTPException(status_code=400, detail="Érvénytelen fájlnév")
+    filepath = GENERATED_IMAGES_DIR / filename
+    if not filepath.exists():
+        raise HTTPException(status_code=404, detail="Kép nem található")
+    return FileResponse(filepath)
+
+@app.post("/marketing/api/social/publish")
+async def marketing_social_publish(req: Request):
+    """Social média poszt publikálása (Instagram / Facebook).
+    Input: { "content_id": "uuid", "image_url": "https://...", "caption": "...", "platform": "instagram"|"facebook" }
+    """
+    data = await req.json()
+    content_id = data.get("content_id")
+    image_url = data.get("image_url", "").strip()
+    caption = data.get("caption", "").strip()
+    platform = data.get("platform", "instagram")
+
+    if not caption:
+        return JSONResponse({"error": "Caption megadása kötelező"}, status_code=400)
+
+    if platform == "instagram":
+        if not image_url:
+            return JSONResponse({"error": "Kép URL megadása kötelező az Instagramhoz"}, status_code=400)
+        result = await social_media.publish_instagram_post(image_url, caption)
+        if result.get("success"):
+            if content_id:
+                from datetime import datetime, timezone
+                db.update_content_item(content_id, {
+                    "status": "published",
+                    "published_at": datetime.now(timezone.utc).isoformat(),
+                    "published_platforms": ["instagram"],
+                    "ig_media_id": result.get("media_id", ""),
+                })
+            return result
+        else:
+            return JSONResponse({"error": result.get("error", "Ismeretlen hiba")}, status_code=500)
+
+    elif platform == "facebook":
+        result = await social_media.publish_facebook_post(caption, image_url or None)
+        if result.get("success"):
+            if content_id:
+                from datetime import datetime, timezone
+                existing = db.get_content_item(content_id)
+                platforms = ["facebook"]
+                if existing and existing.get("published_platforms"):
+                    platforms = list(set(existing["published_platforms"] + ["facebook"]))
+                db.update_content_item(content_id, {
+                    "status": "published",
+                    "published_at": datetime.now(timezone.utc).isoformat(),
+                    "published_platforms": platforms,
+                    "fb_post_id": result.get("post_id", ""),
+                })
+            return result
+        else:
+            return JSONResponse({"error": result.get("error", "Ismeretlen hiba")}, status_code=500)
+
+    elif platform == "all":
+        # Multi-platform: IG + FB egyszerre
+        from datetime import datetime, timezone
+        results = {"success": True, "platforms": {}}
+        all_platforms = []
+        # Instagram
+        if image_url:
+            ig_result = await social_media.publish_instagram_post(image_url, caption)
+            results["platforms"]["instagram"] = ig_result
+            if ig_result.get("success"):
+                all_platforms.append("instagram")
+                if content_id:
+                    db.update_content_item(content_id, {"ig_media_id": ig_result.get("media_id", "")})
+        # Facebook
+        fb_result = await social_media.publish_facebook_post(caption, image_url or None)
+        results["platforms"]["facebook"] = fb_result
+        if fb_result.get("success"):
+            all_platforms.append("facebook")
+            if content_id:
+                db.update_content_item(content_id, {"fb_post_id": fb_result.get("post_id", "")})
+        # Update content item
+        if content_id and all_platforms:
+            existing = db.get_content_item(content_id)
+            existing_platforms = existing.get("published_platforms", []) if existing else []
+            merged = list(set(existing_platforms + all_platforms))
+            db.update_content_item(content_id, {
+                "status": "published",
+                "published_at": datetime.now(timezone.utc).isoformat(),
+                "published_platforms": merged,
+            })
+        if not all_platforms:
+            results["success"] = False
+        return results
+
+    else:
+        return JSONResponse({"error": f"Platform '{platform}' nem támogatott"}, status_code=400)
+
+@app.get("/marketing/api/social/instagram/media")
+async def marketing_ig_media():
+    """Instagram legutóbbi posztok."""
+    return await social_media.get_instagram_media(limit=12)
+
+@app.get("/marketing/api/social/instagram/quota")
+async def marketing_ig_quota():
+    """Instagram publikálási kvóta."""
+    return await social_media.get_publishing_limit()
+
+@app.get("/marketing/api/social/facebook/posts")
+async def marketing_fb_posts():
+    """Facebook legutóbbi posztok."""
+    return await social_media.get_facebook_posts(limit=12)
+
+@app.post("/marketing/api/content/{item_id}/schedule")
+async def marketing_schedule_content(item_id: str, req: Request):
+    """Tartalom ütemezése adott időpontra.
+    Input: { "scheduled_at": "2026-06-03T09:00:00Z", "platforms": ["instagram", "facebook"] }
+    """
+    data = await req.json()
+    scheduled_at = data.get("scheduled_at")
+    platforms = data.get("platforms", ["instagram"])
+    if not scheduled_at:
+        return JSONResponse({"error": "scheduled_at megadása kötelező"}, status_code=400)
+    item = db.update_content_item(item_id, {
+        "status": "scheduled",
+        "scheduled_at": scheduled_at,
+        "target_platforms": platforms,
+    })
+    if not item:
+        return JSONResponse({"error": "Ütemezés sikertelen"}, status_code=500)
+    return {"success": True, "scheduled_at": scheduled_at, "platforms": platforms}
+
+@app.get("/marketing/api/social/analytics")
+async def marketing_social_analytics():
+    """Social média összesített analytics."""
+    return await social_media.get_social_overview()
 
 @app.get("/thinkai-logo.png")
 async def logo():
@@ -1957,7 +2643,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                         "https://api.brevo.com/v3/smtp/email",
                         headers={"api-key": api_key, "Content-Type": "application/json"},
                         json={
-                            "sender": {"name": "Bégé Design Kft.", "email": "bege@thinkai.hu"},
+                            "sender": {"name": "EAISY Marketing", "email": "hello@thinkai.hu"},
                             "to": [{"email": send_draft.get("to_email"), "name": send_draft.get("to_name", "")}],
                             "subject": send_draft.get("subject", "Re:"),
                             "htmlContent": html_body,

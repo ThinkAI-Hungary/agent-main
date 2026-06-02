@@ -154,7 +154,7 @@ async def send_followup_email(
                 "https://api.brevo.com/v3/smtp/email",
                 headers={"api-key": api_key, "Content-Type": "application/json"},
                 json={
-                    "sender": {"name": "Bégé Design Kft.", "email": "bege@thinkai.hu"},
+                    "sender": {"name": "EAISY Marketing", "email": "hello@thinkai.hu"},
                     "to": [{"email": recipient_email, "name": recipient_name}],
                     "subject": subject,
                     "htmlContent": f"""

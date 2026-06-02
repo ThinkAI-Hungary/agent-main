@@ -34,6 +34,7 @@ def clean_email_body(text: str) -> str:
         r'\n202\d.*?(?:időpontban|-kor|)\s*.*?ezt írta:\s*\n?',
         r'\n.*?202\d.*?(?:ezt írta|wrote|írta):\s*\n?',
         r'\nBégé Design Kft.*?ezt írta:\s*\n?',
+        r'\nEAISY Marketing.*?ezt írta:\s*\n?',
         r'\nFrom:\s.*?\nSent:\s.*?\nTo:\s.*?\nSubject:\s.*?\n'
     ]
     for p in patterns:
@@ -58,22 +59,22 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
 TE FELADATOD:
 Ãrtékeld a beérkezett e-mailt a Tudásbázis és a Rendszer Prompt alapján.
 A kimeneted KIZÁRÃLAG egyetlen valid JSON objektum legyen, minden további markdown formázás (pl. ```json) NÃLKÃL.
-A válaszlevélt (email_reply) te fogalmazod meg, barátságos, segítÅkész hangnemben. Ha releváns autókról vagy projektbÅl van szó, mentsd el a Kanban adatokat is.
+A válaszlevélt (email_reply) te fogalmazod meg, barátságos, segítőkész hangnemben. Ha releváns autókról vagy projektből van szó, mentsd el a Kanban adatokat is.
 
 JSON STRUKTÃRA:
 {
     "is_relevant": true|false,
     "email_reply": "A pontos válaszlevél szövege (TILOS HTML TAGEKET HASZNÁLNI! Listákhoz kötőjelet, sortöréshez \n-t használj)",
-    "beszelgetes_naplobejegyzes": "A bejövÅ levél és a válaszod tömör összefoglalója 1 mondatban (késÅbbi kontextushoz).",
+    "beszelgetes_naplobejegyzes": "A bejövő levél és a válaszod tömör összefoglalója 1 mondatban (későbbi kontextushoz).",
     "kanban_data": {
-        "name": "Ãgyfél neve (ha tudod, különben az e-mailbÅl)",
+        "name": "Ãgyfél neve (ha tudod, különben az e-mailből)",
         "email": "Ãgyfél e-mailje",
         "phone": "Telefonszám (ha megadta, különben üres string)",
         "jarmu_tipusa": "autó / hajó / motor / stb. (opcionális)",
         "jarmu_modell": "pontos modell (opcionális)"
     },
     "meeting": {
-        "title": "Találkozó címe (ha az email egyértelműen idÅpontot kér/foglal)",
+        "title": "Találkozó címe (ha az email egyértelműen időpontot kér/foglal)",
         "date": "YYYY-MM-DD",
         "time": "HH:MM",
         "duration_minutes": 30,
@@ -219,7 +220,7 @@ Ha egyik sem releváns, legyen üres lista [].
             details["doctor"] = meeting.get("doctor")
             
         if isinstance(alert_tags, list) and "urgent" in alert_tags:
-            details["prioritas"] = "SürgÅs"
+            details["prioritas"] = "Sürgős"
             
         if beszelgetes:
             details["problem_description"] = beszelgetes
@@ -463,16 +464,16 @@ def check_imap_sync():
                                 text_content = part.get_payload(decode=True).decode("utf-8", errors="replace")
                                 break
                             elif content_type == "text/html" and "attachment" not in content_disposition:
-                                # Fallback, ha nincs text/plain, de van html (késÅbb megtisztíthatnánk bs4-el, 
-                                # de a Claude HTML-bÅl is megérti a szöveget)
+                                # Fallback, ha nincs text/plain, de van html (később megtisztíthatnánk bs4-el, 
+                                # de a Claude HTML-ből is megérti a szöveget)
                                 text_content = part.get_payload(decode=True).decode("utf-8", errors="replace")
                     else:
                         text_content = msg.get_payload(decode=True).decode("utf-8", errors="replace")
                     text_content = clean_email_body(text_content)
                     emails_to_process.append((msg_id, from_email, from_name, subject, text_content))
         
-        # A feldolgozott üzeneteket megjelöljük egyelÅre olvasottként ("Seen") beolvasáskor,
-        # hogy ha kilép a program a kiexpediálás elÅtt, ne olvassa be még egyszer
+        # A feldolgozott üzeneteket megjelöljük egyelőre olvasottként ("Seen") beolvasáskor,
+        # hogy ha kilép a program a kiexpediálás előtt, ne olvassa be még egyszer
         for item in emails_to_process:
             mail.store(item[0], "+FLAGS", "\\Seen")
 
@@ -490,7 +491,7 @@ async def email_worker_loop():
         logger.info("Nincs IMAP_SERVER beállítva. Az e-mail háttérfolyamat nem indul el.")
         return
         
-    logger.info("E-mail figyelÅ worker elindítva.")
+    logger.info("E-mail figyelő worker elindítva.")
     while True:
         try:
             # Futtatjuk a blokkoló IMAP műveletet thread-ben
@@ -500,16 +501,16 @@ async def email_worker_loop():
                 await process_single_email(from_email, from_name, subject, text_content)
                 
         except asyncio.CancelledError:
-            logger.info("E-mail figyelÅ worker megszakítva.")
+            logger.info("E-mail figyelő worker megszakítva.")
             break
         except Exception as e:
             logger.error(f"E-mail worker hiba: {e}")
             
-        # Várakozás a következÅ lekérdezésig (pl. 60 másodperc)
+        # Várakozás a következő lekérdezésig (pl. 60 másodperc)
         await asyncio.sleep(60)
 
-async def send_escalation_email_to_staff(to_email: str, patient_name: str, patient_contact: str, problem_description: str, priority: str = "SürgÅs") -> bool:
-    """Eszkalációs e-mail küldése az orvosnak/személyzetnek sürgÅs eseteknél."""
+async def send_escalation_email_to_staff(to_email: str, patient_name: str, patient_contact: str, problem_description: str, priority: str = "Sürgős") -> bool:
+    """Eszkalációs e-mail küldése az orvosnak/személyzetnek sürgős eseteknél."""
     brevo_key = os.getenv("BREVO_API_KEY", "")
     api_key = brevo_key
     if brevo_key and not brevo_key.startswith("xkeysib-"):
@@ -535,7 +536,7 @@ async def send_escalation_email_to_staff(to_email: str, patient_name: str, patie
                 <td style="padding: 8px 0; border-bottom: 1px solid #eee;">{patient_name}</td>
             </tr>
             <tr>
-                <td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold;">ElérhetÅség:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold;">Elérhetőség:</td>
                 <td style="padding: 8px 0; border-bottom: 1px solid #eee;">{patient_contact}</td>
             </tr>
             <tr>
@@ -543,7 +544,7 @@ async def send_escalation_email_to_staff(to_email: str, patient_name: str, patie
                 <td style="padding: 8px 0; border-bottom: 1px solid #eee;">{problem_description}</td>
             </tr>
         </table>
-        <p style="color: #666; font-size: 12px; margin-top: 20px;">Ez egy automatikusan generált üzenet a ThinkAI Voice Agent rendszerbÅl.</p>
+        <p style="color: #666; font-size: 12px; margin-top: 20px;">Ez egy automatikusan generált üzenet a ThinkAI Voice Agent rendszerből.</p>
     </div>
     """
 
@@ -553,7 +554,7 @@ async def send_escalation_email_to_staff(to_email: str, patient_name: str, patie
                 "https://api.brevo.com/v3/smtp/email",
                 headers={"api-key": api_key, "Content-Type": "application/json"},
                 json={
-                    "sender": {"name": "ThinkAI Riasztás", "email": "bege@thinkai.hu"},
+                    "sender": {"name": "ThinkAI Riasztás", "email": "hello@thinkai.hu"},
                     "to": [{"email": to_email}],
                     "subject": f"[{priority}] Riasztás: {patient_name}",
                     "htmlContent": html_content,
@@ -561,7 +562,7 @@ async def send_escalation_email_to_staff(to_email: str, patient_name: str, patie
                 timeout=20,
             )
             resp.raise_for_status()
-            logger.info(f"Eszkalációs e-mail elküldve a következÅ címre: {to_email}")
+            logger.info(f"Eszkalációs e-mail elküldve a következő címre: {to_email}")
             return True
     except Exception as e:
         logger.error(f"Hiba az eszkalációs e-mail küldésekor: {e}")
@@ -590,7 +591,7 @@ async def send_reminder_email(to_email: str, subject: str, html_content: str) ->
                 'https://api.brevo.com/v3/smtp/email',
                 headers={'api-key': api_key, 'Content-Type': 'application/json'},
                 json={
-                    'sender': {'name': 'Időpont Emlékeztető', 'email': 'bege@thinkai.hu'},
+                    'sender': {'name': 'Időpont Emlékeztető', 'email': 'hello@thinkai.hu'},
                     'to': [{'email': to_email}],
                     'subject': subject,
                     'htmlContent': html_content
@@ -732,7 +733,7 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
                 "https://api.brevo.com/v3/smtp/email",
                 headers={"api-key": api_key, "Content-Type": "application/json"},
                 json={
-                    "sender": {"name": "ThinkAI Virtuális Asszisztens", "email": "bege@thinkai.hu"},
+                    "sender": {"name": "ThinkAI Virtuális Asszisztens", "email": "hello@thinkai.hu"},
                     "to": [{"email": attendee_email, "name": attendee}],
                     "subject": "Időpont visszaigazolás",
                     "htmlContent": html_content,
@@ -827,7 +828,7 @@ async def send_modification_confirmation_email(attendee: str, attendee_email: st
                 "https://api.brevo.com/v3/smtp/email",
                 headers={"api-key": api_key, "Content-Type": "application/json"},
                 json={
-                    "sender": {"name": "ThinkAI Virtuális Asszisztens", "email": "bege@thinkai.hu"},
+                    "sender": {"name": "ThinkAI Virtuális Asszisztens", "email": "hello@thinkai.hu"},
                     "to": [{"email": attendee_email, "name": attendee}],
                     "subject": f"Időpont módosítás visszaigazolás - {title}",
                     "htmlContent": html_content,

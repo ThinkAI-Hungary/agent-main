@@ -1,0 +1,668 @@
+﻿EAISY ERP Platform
+EAISY MARKETING Modul
+R├ęszletes funkcion├ílis specifik├íci├│ ├ęs ├íraz├ís
+E-mail marketing | SEO/SEM | AI tartalomgener├íl├ís | Versenyt├írs ├írfigyel┼Ĺ | H┼▒s├ęgprogramok
+Think AI Kft. | 2026. m├íjus | v1.0
+Tartalomjegyz├ęk
+Tartalomjegyz├ęk2
+1. Modul ├íttekint├ęs3
+2.1 E-mail marketing ├ęs kamp├ínykezel├ęs4
+Kamp├ínyt├şpusok4
+Funkcion├ílis k├Âvetelm├ęnyek4
+Ellen┼Ĺrz├ęsi pont (p├íly├ízat)4
+2.2 SEO ├ęs SEM eszk├Âz├Âk6
+SEO funkci├│k6
+SEM funkci├│k6
+Ellen┼Ĺrz├ęsi pont6
+2.3 H┼▒s├ęgprogramok kezel├ęse6
+Ellen┼Ĺrz├ęsi pont7
+2.4 ├ťgyf├ęladatb├ízis ├ęs szem├ęlyre szab├ís8
+Szegment├íci├│ ├ęs c├ęlcsoportkezel├ęs8
+Ellen┼Ĺrz├ęsi pont8
+2.5 AI tartalomgener├íl├ís ├ęs social m├ędia10
+AI tartalomgener├íl├ís (n8n + Claude)10
+Social m├ędia automatiz├íci├│10
+Ellen┼Ĺrz├ęsi pont10
+2.6 Versenyt├írs ├írfigyel┼Ĺ rendszer12
+M┼▒k├Âd├ęsi folyamat (n8n workflow)12
+Ellen┼Ĺrz├ęsi pont12
+2.7 T├Âbbcsatorn├ís kommunik├íci├│14
+Ellen┼Ĺrz├ęsi pont14
+3. K├Âlts├ęgvet├ęs15
+4. Fizet├ęsi ├╝temez├ęs16
+5. ├ťtemterv16
+1. Modul ├íttekint├ęs
+Az EAISY MARKETING modul az online marketing tev├ękenys├ęgek automatiz├íl├ís├ít, az ├╝gyf├ęlkapcsolat-├ęp├şt├ęst, a tartaloml├ętrehoz├íst ├ęs a versenyt├írs-figyel├ęst biztos├ştja. A modul 7 k├Âtelez┼Ĺ p├íly├ízati k├Âvetelm├ęnyt ├ęs 3 kiemelt AI automatizmust tartalmaz.
+Kiemelt AI automatizmusok ÔÇö EAISY MARKETING
+ÔÜí Blogcikkek ├ęs online tartalom automatikus l├ętrehoz├ísa (Claude AI)
+ÔÜí Social m├ędia posztok automatikus elhelyez├ęse (Facebook, Instagram, LinkedIn)
+ÔÜí Versenyt├írs ├írfigyel┼Ĺ rendszer ├ęs automatikus eszkal├íci├│
+2.1 E-mail marketing ├ęs kamp├ínykezel├ęs
+Az e-mail marketing funkci├│ automatiz├ílt kamp├ínyok, h├şrlevelek ├ęs tranzakci├│s e-mailek tervez├ęs├ęt, szegment├ílt kik├╝ld├ęs├ęt ├ęs eredm├ęnyeinek m├ęr├ęs├ęt biztos├ştja. Technol├│gia: Brevo (kor├íbban Sendinblue) API integr├íci├│.
+Kamp├ínyt├şpusok
+H├şrlev├ęl ÔÇö rendszeres, ├╝temezett kik├╝ld├ęs (heti, havi), sablon-alap├║
+Prom├│ci├│ ÔÇö akci├│s aj├ínlatok, szezon├ílis kamp├ínyok, kuponk├│dok
+Automatiz├ílt sorozat ÔÇö trigger-alap├║ (regisztr├íci├│ ut├ín ├╝dv├Âzl┼Ĺ, kos├írelhagy├ís eml├ękeztet┼Ĺ, inaktivit├ís ut├ín aktiv├íl├│)
+Tranzakci├│s ÔÇö rendel├ęs visszaigazol├ís, sz├íll├şt├ísi ├ęrtes├şt├ęs, sz├ímla
+Funkcion├ílis k├Âvetelm├ęnyek
+Szegment├ílt kik├╝ld├ęs: c├ęlcsoport sz┼▒r├ęs f├Âldrajzi, demogr├ífiai, viselked├ęsi adatok alapj├ín
+Vizu├ílis sablonszerkeszt┼Ĺ: drag & drop e-mail szerkeszt┼Ĺ (Brevo be├ęp├ştett)
+├ťtemez├ęs: kik├╝ld├ęsi id┼Ĺpont ├ęs gyakoris├íg be├íll├şt├ísa, id┼Ĺz├│na-kezel├ęs
+Eredm├ęnym├ęr├ęs: megnyit├ísi ar├íny, kattint├ísi ar├íny (CTR), konverzi├│, leiratkoz├ís, bounce
+A/B tesztel├ęs: t├írgysor, tartalom, k├╝ld├ęsi id┼Ĺpont v├íltozatok ├Âsszehasonl├şt├ísa
+GDPR megfelel├ęs: feliratkoz├ís/leiratkoz├ís kezel├ęse, hozz├íj├írul├ís nyilv├íntart├ísa, adathordozhat├│s├íg
+CRM szinkroniz├íci├│: a szegmensek a CRM modulb├│l szinkroniz├íl├│dnak, kamp├íny-visszajelz├ęsek az ├╝gyf├ęlkartonra
+Ellen┼Ĺrz├ęsi pont (p├íly├ízat)
+H├şrlevelek ├ęs prom├│ci├│k megtekint├ęse a rendszerben. A/B tesztel├ęsi funkci├│k el├ęrhet┼Ĺs├ęg├ęnek ellen┼Ĺrz├ęse.
+email_campaigns (kamp├ínyok)
+Mez┼Ĺ
+T├şpus
+K├Ât.
+Le├şr├ís
+id
+uuid PK
+Igen
+tenant_id
+uuid FK
+Igen
+Multi-tenant
+name
+text
+Igen
+Kamp├íny neve
+type
+enum
+Igen
+newsletter / promotion / drip / transactional
+subject_line
+text
+Igen
+E-mail t├írgysor
+subject_line_b
+text
+A/B teszt B v├íltozat t├írgysor
+template_html
+text
+Igen
+E-mail sablon HTML
+segment_id
+uuid FK
+C├ęlcsoport szegmens
+status
+enum
+Igen
+draft / scheduled / sending / sent / paused
+scheduled_at
+timestamptz
+├ťtemezett k├╝ld├ęs ideje
+sent_at
+timestamptz
+T├ęnyleges k├╝ld├ęs ideje
+brevo_campaign_id
+text
+Brevo kamp├íny ID
+stats
+jsonb
+{opens, clicks, bounces, unsubscribes, conversions}
+created_by
+uuid FK
+Igen
+Ki hozta l├ętre
+email_subscribers (feliratkoz├│k)
+Mez┼Ĺ
+T├şpus
+K├Ât.
+Le├şr├ís
+id
+uuid PK
+Igen
+tenant_id
+uuid FK
+Igen
+email
+text UNIQUE
+Igen
+E-mail c├şm
+customer_id
+uuid FK
+CRM ├╝gyf├ęl (ha van)
+status
+enum
+Igen
+active / unsubscribed / bounced / complained
+consent_date
+timestamptz
+Igen
+GDPR hozz├íj├írul├ís d├ítuma
+consent_source
+text
+Honnan iratkozott fel
+tags
+text[]
+C├şmk├ęk, szegmensek
+brevo_contact_id
+text
+Brevo kontakt ID
+2.2 SEO ├ęs SEM eszk├Âz├Âk
+A modul t├ímogatja a keres┼Ĺoptimaliz├íl├ísi (SEO) be├íll├şt├ísok kezel├ęs├ęt ├ęs a fizetett keres┼Ĺhirdet├ęsi (SEM) kamp├ínyok nyomon k├Âvet├ęs├ęt.
+SEO funkci├│k
+Kulcssz├│-nyilv├íntart├ís: a v├íllalkoz├ís sz├ím├íra relev├íns kulcsszavak list├íja, poz├şci├│-k├Âvet├ęssel
+On-page SEO javaslatok: az AI ├íltal gener├ílt tartalmak automatikusan SEO-optimaliz├íltak (meta title, description, heading strukt├║ra, kulcssz├│-s┼▒r┼▒s├ęg)
+Tartalomstrat├ęgia t├ímogat├ís: kulcssz├│-alap├║ tartalomjavaslatok a blogcikkekhez
+SEM funkci├│k
+Google Ads kamp├íny nyomon k├Âvet├ęs: megjelen├ęsek, kattint├ísok, konverzi├│k, CPC, ROI
+K├Âlts├ęgkeret figyel├ęs: napi ├ęs havi b├╝dzs├ę, automatikus figyelmeztet├ęs t├║ll├ęp├ęsn├ęl
+Kamp├íny-eredm├ęny integr├íci├│: a SEM adatok a kontrolling dashboardon is megjelennek
+Ellen┼Ĺrz├ęsi pont
+Keres┼Ĺoptimaliz├íl├ísi be├íll├şt├ísok ├ęs kamp├ínyok megtekint├ęse a rendszerben.
+seo_keywords (kulcsszavak)
+Mez┼Ĺ
+T├şpus
+K├Ât.
+Le├şr├ís
+id
+uuid PK
+Igen
+tenant_id
+uuid FK
+Igen
+keyword
+text
+Igen
+Kulcssz├│
+search_volume
+integer
+Havi keres├ęsi volumen (becs├╝lt)
+current_position
+integer
+Jelenlegi poz├şci├│ (Google)
+target_position
+integer
+C├ęlpoz├şci├│
+content_ids
+uuid[]
+Kapcsol├│d├│ tartalmak
+last_checked
+timestamptz
+Utols├│ poz├şci├│-ellen┼Ĺrz├ęs
+2.3 H┼▒s├ęgprogramok kezel├ęse
+A modul t├ímogatja t├Ârzsv├ís├írl├│i programok kialak├şt├ís├ít ├ęs m┼▒k├Âdtet├ęs├ęt.
+Pontgy┼▒jt├ęs: v├ís├írl├ís ut├ín automatikusan j├│v├í├şrt h┼▒s├ęgpontok (konfigur├ílhat├│ ar├íny: pl. 1 pont / 100 Ft)
+Szintek: t├Ârzsv├ís├írl├│i szintek (pl. Bronz, Ez├╝st, Arany) elt├ęr┼Ĺ kedvezm├ęnyekkel ├ęs jutalmakkal
+Jutalmak: a pontok bev├ílthat├│k kedvezm├ęnyekre, aj├índ├ękokra, szolg├íltat├ísokra
+Automatikus ├ęrtes├şt├ęs: pontegyenleg, szintl├ęp├ęs, lej├ír├│ pontok e-mailben
+Riportok: r├ęszv├ęteli ar├íny, bev├ílt├ísi r├íta, visszat├ęr┼Ĺ v├ís├írl├│k ar├ínya
+Ellen┼Ĺrz├ęsi pont
+H┼▒s├ęgprogramok el├ęrhet┼Ĺs├ęg├ęnek ellen┼Ĺrz├ęse a rendszerben.
+loyalty_programs (h┼▒s├ęgprogramok)
+Mez┼Ĺ
+T├şpus
+K├Ât.
+Le├şr├ís
+id
+uuid PK
+Igen
+tenant_id
+uuid FK
+Igen
+name
+text
+Igen
+Program neve
+points_per_currency
+numeric(5,2)
+Igen
+Pont / Ft ar├íny (pl. 0.01 = 1pt/100Ft)
+is_active
+boolean
+Igen
+Akt├şv-e
+loyalty_tiers (szintek)
+Mez┼Ĺ
+T├şpus
+K├Ât.
+Le├şr├ís
+id
+uuid PK
+Igen
+program_id
+uuid FK
+Igen
+name
+text
+Igen
+Szint neve (Bronz, Ez├╝st, Arany)
+min_points
+integer
+Igen
+Minimum pont a szinthez
+discount_pct
+numeric(5,2)
+Alapkedvezm├ęny %
+benefits
+jsonb
+Egy├ęb jutalmak JSON
+loyalty_accounts (├╝gyf├ęl pontsz├íml├ík)
+Mez┼Ĺ
+T├şpus
+K├Ât.
+Le├şr├ís
+id
+uuid PK
+Igen
+program_id
+uuid FK
+Igen
+customer_id
+uuid FK
+Igen
+CRM ├╝gyf├ęl
+current_points
+integer
+Igen
+Jelenlegi pontegyenleg
+lifetime_points
+integer
+Igen
+├ľsszegy┼▒jt├Âtt pontok (├Âsszes id┼Ĺ)
+tier_id
+uuid FK
+Jelenlegi szint
+points_expiry_date
+date
+Pontok lej├írati d├ítuma
+2.4 ├ťgyf├ęladatb├ízis ├ęs szem├ęlyre szab├ís
+A marketing modul k├Âzvetlen├╝l a CRM modulra ├ęp├╝l, amely egys├ęges ├╝gyf├ęladatb├ízist biztos├şt. A marketing kieg├ęsz├şti ezt viselked├ęsi adatokkal ├ęs szegment├íci├│val.
+Szegment├íci├│ ├ęs c├ęlcsoportkezel├ęs
+Statikus szegmensek: k├ęzi l├ętrehoz├ís, fix tags├íg (pl. VIP ├╝gyfelek)
+Dinamikus szegmensek: automatikus felt├ętel-alap├║ (pl. 'akt├şv v├ís├írl├│k, akik 3 h├│napja nem rendeltek')
+Viselked├ęsi adatok: e-mail megnyit├ísok, kattint├ísok, weboldal-l├ítogat├ísok, v├ís├írl├ísi gyakoris├íg
+Szem├ęlyre szabott aj├ínlatok: szegmens-alap├║ tartalom, egyedi kuponk├│dok gener├íl├ísa
+Ellen┼Ĺrz├ęsi pont
+├ťgyf├ęladatb├ízis, v├ís├írl├ísi el┼Ĺzm├ęnyek megtekint├ęse. Egyedi aj├ínlat megtekint├ęse.
+marketing_segments (szegmensek)
+Mez┼Ĺ
+T├şpus
+K├Ât.
+Le├şr├ís
+id
+uuid PK
+Igen
+tenant_id
+uuid FK
+Igen
+name
+text
+Igen
+Szegmens neve
+type
+enum
+Igen
+static / dynamic
+filter_definition
+jsonb
+Dinamikus szegmens felt├ętelei
+member_count
+integer
+Tagok sz├íma (cached)
+last_refreshed
+timestamptz
+Utols├│ friss├şt├ęs
+created_by
+uuid FK
+Igen
+coupon_codes (kuponk├│dok)
+Mez┼Ĺ
+T├şpus
+K├Ât.
+Le├şr├ís
+id
+uuid PK
+Igen
+tenant_id
+uuid FK
+Igen
+code
+text UNIQUE
+Igen
+Kuponk├│d (pl. NYAR2026)
+discount_type
+enum
+Igen
+percentage / fixed_amount / free_shipping
+discount_value
+numeric(10,2)
+Igen
+Kedvezm├ęny ├ęrt├ęke
+valid_from
+date
+Igen
+├ërv├ęnyess├ęg kezdete
+valid_to
+date
+Igen
+├ërv├ęnyess├ęg v├ęge
+max_uses
+integer
+Maxim├ílis felhaszn├íl├ís
+used_count
+integer
+Igen
+Eddigi felhaszn├íl├ís
+segment_id
+uuid FK
+Melyik szegmensre ├ęrv├ęnyes
+campaign_id
+uuid FK
+Melyik kamp├ínyb├│l sz├írmazik
+2.5 AI tartalomgener├íl├ís ├ęs social m├ędia
+A modul AI automatizmusokkal t├ímogatja a tartaloml├ętrehoz├íst ├ęs a social m├ędia posztok kezel├ęs├ęt.
+AI tartalomgener├íl├ís (n8n + Claude)
+1. A marketing csapat a rendszerben r├Âgz├şti a tartalom-k├ęrelmet: t├ęma, c├ęlcsoport, kulcsszavak, t├şpus (blogcikk / h├şrlev├ęl / social poszt / term├ękle├şr├ís)
+2. n8n workflow ind├şt egy Claude API h├şv├íst, amely a v├íllalkoz├ís profilj├íhoz ├ęs a megadott param├ęterekhez igaz├ştva gener├ílja a tartalmat
+3. A gener├ílt tartalom draft st├ítuszban jelenik meg a rendszerben, a marketing csapat j├│v├íhagyja, szerkeszti
+4. J├│v├íhagy├ís ut├ín a tartalom publik├ílhat├│ a kiv├ílasztott csatorn├ín (blog, h├şrlev├ęl, social m├ędia)
+Social m├ędia automatiz├íci├│
+├ťtemezett posztol├ís: a posztok el┼Ĺre be├╝temezhet┼Ĺk napokra, hetekre
+Multi-platform: egy tartalom egyszerre t├Âbb platformra is publik├ílhat├│ (Facebook, Instagram, LinkedIn)
+K├ęp javaslatok: az AI a poszt sz├Âveg├ęhez ill┼Ĺ k├ęple├şr├íst gener├íl
+Elemz├ęs: posztok el├ęr├ęse, interakci├│k, konverzi├│k nyomon k├Âvet├ęse
+Meta API / LinkedIn API integr├íci├│ az automatikus posztol├íshoz
+Ellen┼Ĺrz├ęsi pont
+AI ├íltal gener├ílt blogcikk megtekint├ęse. Automatikusan publik├ílt poszt megtekint├ęse.
+content_items (tartalmak)
+Mez┼Ĺ
+T├şpus
+K├Ât.
+Le├şr├ís
+id
+uuid PK
+Igen
+tenant_id
+uuid FK
+Igen
+title
+text
+Igen
+Tartalom c├şme
+type
+enum
+Igen
+blog_post / newsletter / social_post / product_desc
+body
+text
+Tartalom sz├Âvege (Markdown/HTML)
+keywords
+text[]
+Kapcsol├│d├│ kulcsszavak
+target_segment_id
+uuid FK
+C├ęlcsoport szegmens
+status
+enum
+Igen
+requested / ai_draft / editing / approved / published
+ai_prompt
+text
+Az AI-nak k├╝ld├Âtt prompt
+ai_model
+text
+Haszn├ílt modell (claude-sonnet-4)
+published_at
+timestamptz
+Publik├íl├ís ideje
+published_platforms
+text[]
+{facebook, instagram, linkedin, blog}
+engagement_stats
+jsonb
+{views, likes, shares, comments, clicks}
+created_by
+uuid FK
+Igen
+social_accounts (social m├ędia fi├│kok)
+Mez┼Ĺ
+T├şpus
+K├Ât.
+Le├şr├ís
+id
+uuid PK
+Igen
+tenant_id
+uuid FK
+Igen
+platform
+enum
+Igen
+facebook / instagram / linkedin
+account_name
+text
+Igen
+Fi├│k megnevez├ęse
+access_token
+text
+Igen
+API hozz├íf├ęr├ęsi token (titkos├ştva)
+page_id
+text
+Facebook/Instagram Page ID
+is_active
+boolean
+Igen
+2.6 Versenyt├írs ├írfigyel┼Ĺ rendszer
+Az AI ├írfigyel┼Ĺ rendszer automatikusan monitorozza a versenyt├írsak nyilv├ínosan el├ęrhet┼Ĺ ├írait, ├ęs ├írv├íltoz├ís eset├ęn eszkal├íci├│t ind├şt.
+M┼▒k├Âd├ęsi folyamat (n8n workflow)
+1. A rendszerben r├Âgz├şthet┼Ĺk a figyelend┼Ĺ versenyt├írsak (n├ęv, weboldal) ├ęs term├ękeik (term├ękoldal URL)
+2. ├ťtemezett n8n workflow (napi/heti): web scraping + Claude AI kinyeri az aktu├ílis ├írat a versenyt├írs weboldal├ír├│l
+3. Az ├║j ├írat ├Âsszehasonl├ştja az el┼Ĺz┼Ĺ ismert ├írral
+4. Ha v├íltoz├ís t├Ârt├ęnt: automatikus riportot gener├íl (melyik versenyt├írs, melyik term├ęk, milyen ir├íny├║ ├ęs m├ęrt├ęk┼▒ v├íltoz├ís)
+5. Eszkal├íci├│: ├ęrtes├şt├ęs az ├ęrt├ękes├şt├ęsi/marketing vezet┼Ĺnek e-mailben, javaslattal az ├írkorrekci├│kra
+6. T├Ârt├ęneti elemz├ęs: az ├írak v├íltoz├ís├ínak trendjei id┼Ĺben visszakereshet┼Ĺk
+Ellen┼Ĺrz├ęsi pont
+├ürfigyel┼Ĺ riport ├ęs eszkal├íci├│ megtekint├ęse a rendszerben.
+competitors (versenyt├írsak)
+Mez┼Ĺ
+T├şpus
+K├Ât.
+Le├şr├ís
+id
+uuid PK
+Igen
+tenant_id
+uuid FK
+Igen
+name
+text
+Igen
+Versenyt├írs neve
+website
+text
+Weboldal URL
+notes
+text
+Megjegyz├ęsek
+is_active
+boolean
+Igen
+competitor_products (figyelt term├ękek)
+Mez┼Ĺ
+T├şpus
+K├Ât.
+Le├şr├ís
+id
+uuid PK
+Igen
+competitor_id
+uuid FK
+Igen
+product_name
+text
+Igen
+Term├ęk neve
+product_url
+text
+Igen
+Term├ękoldal URL (scraping forr├ís)
+our_product_id
+uuid FK
+A mi term├ęk├╝nk (├Âsszehasonl├şt├íshoz)
+check_frequency
+enum
+Igen
+daily / weekly
+is_active
+boolean
+Igen
+price_history (├írt├Ârt├ęnet)
+Mez┼Ĺ
+T├şpus
+K├Ât.
+Le├şr├ís
+id
+uuid PK
+Igen
+competitor_product_id
+uuid FK
+Igen
+price
+numeric(14,2)
+Igen
+├ëszlelt ├ír
+currency
+text
+Igen
+P├ęnznem
+checked_at
+timestamptz
+Igen
+Ellen┼Ĺrz├ęs id┼Ĺpontja
+price_change
+numeric(10,2)
+V├íltoz├ís az el┼Ĺz┼Ĺh├Âz k├ępest
+change_pct
+numeric(5,2)
+V├íltoz├ís %
+alert_sent
+boolean
+K├╝ldt├╝nk-e eszkal├íci├│t
+raw_data
+jsonb
+AI ├íltal kinyert nyers adat
+2.7 T├Âbbcsatorn├ís kommunik├íci├│
+A modul t├ímogatja, hogy az ├╝gyf├ęlkommunik├íci├│ t├Âbb csatorn├ín, de egys├ęgesen ├ęs nyomon k├Âvethet┼Ĺen t├Ârt├ęnjen:
+Csatorna
+Le├şr├ís
+E-mail
+Automatiz├ílt kamp├ínyok, h├şrlevelek, tranzakci├│s e-mailek (Brevo). Az ├╝gyf├ęllel folytatott levelez├ęs az ├╝gyf├ęl CRM kartonj├ín is megjelenik.
+Chat / Chatbot
+├ël┼Ĺ chat ├ęs AI chatbot az ├╝gyf├ęlport├ílon. A chatbot automatikus v├ílaszokat ad a gyakori k├ęrd├ęsekre a tud├ísb├ízis alapj├ín.
+Telefon (AI)
+Az EAISY CRM AI telefonos asszisztense a marketing kamp├ínyokhoz is haszn├ílhat├│: ├ęrdekl┼Ĺd┼Ĺk felh├şv├ísa, el├ęgedetts├ęgi felm├ęr├ęs.
+Social m├ędia
+Facebook, Instagram, LinkedIn ├╝zenetek figyel├ęse ├ęs v├ílaszad├ís. Automatikus posztol├ís ├ęs interakci├│-k├Âvet├ęs.
+Ellen┼Ĺrz├ęsi pont
+Email, chat ├╝zenet k├╝ld├ęse, telefonsz├ím felh├şv├ísa a rendszerb┼Ĺl.
+3. K├Âlts├ęgvet├ęs
+Munkaszakasz
+├ôrasz├ím
+├ôrad├şj
+Nett├│
+Megjegyz├ęs
+1. Tervez├ęs ├ęs audit
+12 ├│ra
+30 000 Ft
+360 000 Ft
+UX, kamp├íny-strukt├║ra, API kutat├ís
+2/A. E-mail marketing (Brevo)
+30 ├│ra
+18 000 Ft
+540 000 Ft
+Brevo integr├íci├│, sablonok, A/B
+2/B. SEO/SEM + H┼▒s├ęgprogram
+25 ├│ra
+18 000 Ft
+450 000 Ft
+Kulcssz├│-kezel├ęs, pontrendszer
+2/C. ├ťgyf├ęl szegment├íci├│ + kuponok
+20 ├│ra
+18 000 Ft
+360 000 Ft
+Dinamikus szegmensek, kuponk├│dok
+2/D. AI tartalom + Social m├ędia
+30 ├│ra
+22 000 Ft
+660 000 Ft
+Claude pipeline, Meta/LinkedIn API
+2/E. Versenyt├írs ├írfigyel┼Ĺ
+20 ├│ra
+22 000 Ft
+440 000 Ft
+Web scraping, AI kinyer├ęs, riport
+2/F. T├Âbbcsatorn├ís kommunik├íci├│
+15 ├│ra
+18 000 Ft
+270 000 Ft
+Chat, chatbot, CRM integr├íci├│
+3. Tesztel├ęs + stabiliz├íl├ís
+10 ├│ra
+15 000 Ft
+150 000 Ft
+Funkc. teszt + p├íly├ízati audit
+├ľSSZESEN
+162 ├│ra
+3 230 000 Ft
++ ├üFA
+Becs├╝lt fejleszt├ęsi id┼Ĺ: 8-10 h├ęt (1 senior + 1 medior fejleszt┼Ĺ)
+4. Fizet├ęsi ├╝temez├ęs
+Szakasz
+Nett├│ ├Âsszeg
+Esed├ękess├ęg
+1. Tervez├ęs + E-mail marketing
+900 000 Ft
+Indul├ís el┼Ĺtt
+2. SEO/SEM + Szegment├íci├│ + Kuponok
+810 000 Ft
+2. szakasz indul├ísa el┼Ĺtt
+3. AI tartalom + Social + ├ürfigyel┼Ĺ
+1 370 000 Ft
+3. szakasz indul├ísa el┼Ĺtt
+4. Tesztel├ęs + stabiliz├íl├ís
+150 000 Ft
+Tesztel├ęs indul├ísa el┼Ĺtt
+5. ├ťtemterv
+H├ęt
+Feladat
+R├ęszletek
+Csapat
+Milestone
+1-2
+Tervez├ęs, UX, Brevo setup
+Kamp├íny-strukt├║ra, sablonok, API kulcsok
+2 f┼Ĺ
+Spec k├ęsz
+3-4
+E-mail marketing + SEO/SEM
+Brevo integr├íci├│, A/B teszt, kulcssz├│-kezel├ęs
+2 f┼Ĺ
+E-mail live
+5-6
+H┼▒s├ęgprogram + Szegment├íci├│
+Pontrendszer, szintek, dinamikus szegmensek, kuponok
+2 f┼Ĺ
+Szegmensek
+7-8
+AI tartalom + Social m├ędia
+Claude pipeline, Meta/LinkedIn API, ├╝temez├ęs
+2 f┼Ĺ
+AI pipeline
+9
+Versenyt├írs ├írfigyel┼Ĺ
+Web scraping, ├ír-├Âsszehasonl├şt├ís, eszkal├íci├│
+1 f┼Ĺ
+├ürfigyel┼Ĺ
+10
+Tesztel├ęs, bugfix, p├íly├ízati audit
+Funkcion├ílis teszt, UX teszt, dokument├íci├│
+2 f┼Ĺ
+├ëLES├ŹT├ëS
+Jelen specifik├íci├│ a kiad├ís napj├ít├│l sz├ím├ştva 30 napig ├ęrv├ęnyes. Az ├írak nett├│ ├Âsszegek, az ├üFA k├╝l├Ân felsz├ím├şt├ísra ker├╝l.

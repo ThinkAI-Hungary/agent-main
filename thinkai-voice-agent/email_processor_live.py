@@ -39,22 +39,22 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
 TE FELADATOD:
 Ãrtékeld a beérkezett e-mailt a Tudásbázis és a Rendszer Prompt alapján.
 A kimeneted KIZÁRÃLAG egyetlen valid JSON objektum legyen, minden további markdown formázás (pl. ```json) NÃLKÃL.
-A válaszlevélt (email_reply) te fogalmazod meg, barátságos, segítÅkész hangnemben. Ha releváns autókról vagy projektbÅl van szó, mentsd el a Kanban adatokat is.
+A válaszlevélt (email_reply) te fogalmazod meg, barátságos, segítőkész hangnemben. Ha releváns autókról vagy projektből van szó, mentsd el a Kanban adatokat is.
 
 JSON STRUKTÃRA:
 {
     "is_relevant": true|false,
     "email_reply": "A pontos válaszlevél szövege (TILOS HTML TAGEKET HASZNÁLNI! Listákhoz kötőjelet, sortöréshez \n-t használj)",
-    "beszelgetes_naplobejegyzes": "A bejövÅ levél és a válaszod tömör összefoglalója 1 mondatban (késÅbbi kontextushoz).",
+    "beszelgetes_naplobejegyzes": "A bejövő levél és a válaszod tömör összefoglalója 1 mondatban (későbbi kontextushoz).",
     "kanban_data": {
-        "name": "Ãgyfél neve (ha tudod, különben az e-mailbÅl)",
+        "name": "Ãgyfél neve (ha tudod, különben az e-mailből)",
         "email": "Ãgyfél e-mailje",
         "phone": "Telefonszám (ha megadta, különben üres string)",
         "service_requested": "Milyen szolgáltatást kér vagy javaslunk? (pl. ultrahangos fogkőeltávolítás, általános vizit, bölcsességfog húzás, stb.)",
         "proposed_date": "A levélben kért vagy felajánlott időpont pontosan (pl. 2026-05-19 11:00) ha van ilyen."
     },
     "meeting": {
-        "title": "Találkozó címe (ha az email egyértelműen idÅpontot kér/foglal)",
+        "title": "Találkozó címe (ha az email egyértelműen időpontot kér/foglal)",
         "date": "YYYY-MM-DD",
         "time": "HH:MM",
         "duration_minutes": 30
@@ -65,19 +65,19 @@ JSON STRUKTÃRA:
         "new_time": "HH:MM"
     },
     "action_delete_meeting": {
-        "event_title_to_delete": "A törlendÅ esemény címe vagy része"
+        "event_title_to_delete": "A törlendő esemény címe vagy része"
     },
     "alert_tags": ["urgent", "complaint", "callback", "recurring"], // Válaszd ki, ha releváns, különben üres lista []
-    "handover_reason": "Az átadás oka, ha emberi beavatkozás szükséges. Válaszd ezek közül: 'Ãsszetett kérdés', 'SürgÅs / triázs', 'Hiányzó info', 'Foglalási kivétel', 'Emberi döntés'. Ha az AI mindent meg tudott oldani, ez legyen null."
+    "handover_reason": "Az átadás oka, ha emberi beavatkozás szükséges. Válaszd ezek közül: 'Ãsszetett kérdés', 'Sürgős / triázs', 'Hiányzó info', 'Foglalási kivétel', 'Emberi döntés'. Ha az AI mindent meg tudott oldani, ez legyen null."
 }
-Ha nem kérnek egyértelműen idÅpontot, a "meeting" értéke legyen null. 
-FIGYELEM: Ha az eset SürgÅs vagy Kiemelt prioritású, VAGY a kérés szerepel a Kivételek (Exceptions) listájában, a "meeting" értéke KÃTELEZŐEN null kell legyen (SZIGORÃAN TILOS idÅpontot foglalni!), és a "handover_reason" legyen 'SürgÅs / triázs' vagy 'Foglalási kivétel'.
-Ebben az esetben a válaszlevélben se ígérj egyeztetést konkrét idÅpontokról, kizárólag azt jelezd, hogy az ügyét azonnal továbbítottad egy élÅ kollégának/munkatársnak!
+Ha nem kérnek egyértelműen időpontot, a "meeting" értéke legyen null. 
+FIGYELEM: Ha az eset Sürgős vagy Kiemelt prioritású, VAGY a kérés szerepel a Kivételek (Exceptions) listájában, a "meeting" értéke KÃTELEZŐEN null kell legyen (SZIGORÃAN TILOS időpontot foglalni!), és a "handover_reason" legyen 'Sürgős / triázs' vagy 'Foglalási kivétel'.
+Ebben az esetben a válaszlevélben se ígérj egyeztetést konkrét időpontokról, kizárólag azt jelezd, hogy az ügyét azonnal továbbítottad egy élő kollégának/munkatársnak!
 
 KIVÃTEL A TILTÁS ALÃL (FONTOS!):
-Ha a felhasználó egyértelműen idÅpontot kér, de NEM adja meg, hogy milyen panasza/kezelése van, AKKOR IS FOGLALD LE az idÅpontot (a "meeting" objektum kitöltésével, pl. "Konzultáció" vagy "Általános vizsgálat" címmel)! Ne tagadd meg a foglalást és ne kérj vissza pontosítást csak azért, mert nem tudod a kezelés típusát. Csak akkor tilos a foglalás, ha a megadott panasz egyértelműen SürgÅs/Kiemelt, vagy egyértelműen szerepel a Kivételek között. Ha nincs panasz megadva, feltételezd, hogy Normál eset!
+Ha a felhasználó egyértelműen időpontot kér, de NEM adja meg, hogy milyen panasza/kezelése van, AKKOR IS FOGLALD LE az időpontot (a "meeting" objektum kitöltésével, pl. "Konzultáció" vagy "Általános vizsgálat" címmel)! Ne tagadd meg a foglalást és ne kérj vissza pontosítást csak azért, mert nem tudod a kezelés típusát. Csak akkor tilos a foglalás, ha a megadott panasz egyértelműen Sürgős/Kiemelt, vagy egyértelműen szerepel a Kivételek között. Ha nincs panasz megadva, feltételezd, hogy Normál eset!
 A lehetséges alert_tags értékek:
-- "urgent": ha nagyon sürgÅs az ügy
+- "urgent": ha nagyon sürgős az ügy
 - "exception": ha a kérés szerepel a Kivételek listájában
 - "complaint": ha a levél panaszt, elégedetlenséget tartalmaz
 - "callback": ha telefonos visszahívást kérnek
@@ -189,7 +189,7 @@ A lehetséges alert_tags értékek:
             details["booked_datetime"] = kanban["proposed_date"]
             
         if isinstance(alert_tags, list) and "urgent" in alert_tags:
-            details["prioritas"] = "SürgÅs"
+            details["prioritas"] = "Sürgős"
             
         if beszelgetes:
             details["problem_description"] = beszelgetes
@@ -423,16 +423,16 @@ def check_imap_sync():
                                 text_content = part.get_payload(decode=True).decode("utf-8", errors="replace")
                                 break
                             elif content_type == "text/html" and "attachment" not in content_disposition:
-                                # Fallback, ha nincs text/plain, de van html (késÅbb megtisztíthatnánk bs4-el, 
-                                # de a Claude HTML-bÅl is megérti a szöveget)
+                                # Fallback, ha nincs text/plain, de van html (később megtisztíthatnánk bs4-el, 
+                                # de a Claude HTML-ből is megérti a szöveget)
                                 text_content = part.get_payload(decode=True).decode("utf-8", errors="replace")
                     else:
                         text_content = msg.get_payload(decode=True).decode("utf-8", errors="replace")
 
                     emails_to_process.append((msg_id, from_email, from_name, subject, text_content))
         
-        # A feldolgozott üzeneteket megjelöljük egyelÅre olvasottként ("Seen") beolvasáskor,
-        # hogy ha kilép a program a kiexpediálás elÅtt, ne olvassa be még egyszer
+        # A feldolgozott üzeneteket megjelöljük egyelőre olvasottként ("Seen") beolvasáskor,
+        # hogy ha kilép a program a kiexpediálás előtt, ne olvassa be még egyszer
         for item in emails_to_process:
             mail.store(item[0], "+FLAGS", "\\Seen")
 
@@ -450,7 +450,7 @@ async def email_worker_loop():
         logger.info("Nincs IMAP_SERVER beállítva. Az e-mail háttérfolyamat nem indul el.")
         return
         
-    logger.info("E-mail figyelÅ worker elindítva.")
+    logger.info("E-mail figyelő worker elindítva.")
     while True:
         try:
             # Futtatjuk a blokkoló IMAP műveletet thread-ben
@@ -460,16 +460,16 @@ async def email_worker_loop():
                 await process_single_email(from_email, from_name, subject, text_content)
                 
         except asyncio.CancelledError:
-            logger.info("E-mail figyelÅ worker megszakítva.")
+            logger.info("E-mail figyelő worker megszakítva.")
             break
         except Exception as e:
             logger.error(f"E-mail worker hiba: {e}")
             
-        # Várakozás a következÅ lekérdezésig (pl. 60 másodperc)
+        # Várakozás a következő lekérdezésig (pl. 60 másodperc)
         await asyncio.sleep(60)
 
-async def send_escalation_email_to_staff(to_email: str, patient_name: str, patient_contact: str, problem_description: str, priority: str = "SürgÅs") -> bool:
-    """Eszkalációs e-mail küldése az orvosnak/személyzetnek sürgÅs eseteknél."""
+async def send_escalation_email_to_staff(to_email: str, patient_name: str, patient_contact: str, problem_description: str, priority: str = "Sürgős") -> bool:
+    """Eszkalációs e-mail küldése az orvosnak/személyzetnek sürgős eseteknél."""
     brevo_key = os.getenv("BREVO_API_KEY", "")
     api_key = brevo_key
     if brevo_key and not brevo_key.startswith("xkeysib-"):
@@ -495,7 +495,7 @@ async def send_escalation_email_to_staff(to_email: str, patient_name: str, patie
                 <td style="padding: 8px 0; border-bottom: 1px solid #eee;">{patient_name}</td>
             </tr>
             <tr>
-                <td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold;">ElérhetÅség:</td>
+                <td style="padding: 8px 0; border-bottom: 1px solid #eee; font-weight: bold;">Elérhetőség:</td>
                 <td style="padding: 8px 0; border-bottom: 1px solid #eee;">{patient_contact}</td>
             </tr>
             <tr>
@@ -503,7 +503,7 @@ async def send_escalation_email_to_staff(to_email: str, patient_name: str, patie
                 <td style="padding: 8px 0; border-bottom: 1px solid #eee;">{problem_description}</td>
             </tr>
         </table>
-        <p style="color: #666; font-size: 12px; margin-top: 20px;">Ez egy automatikusan generált üzenet a ThinkAI Voice Agent rendszerbÅl.</p>
+        <p style="color: #666; font-size: 12px; margin-top: 20px;">Ez egy automatikusan generált üzenet a ThinkAI Voice Agent rendszerből.</p>
     </div>
     """
 
@@ -521,7 +521,7 @@ async def send_escalation_email_to_staff(to_email: str, patient_name: str, patie
                 timeout=20,
             )
             resp.raise_for_status()
-            logger.info(f"Eszkalációs e-mail elküldve a következÅ címre: {to_email}")
+            logger.info(f"Eszkalációs e-mail elküldve a következő címre: {to_email}")
             return True
     except Exception as e:
         logger.error(f"Hiba az eszkalációs e-mail küldésekor: {e}")

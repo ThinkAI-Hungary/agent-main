@@ -1,5 +1,5 @@
 {
-  "practice_name": "Kiütöm a fogadat Budapest",
+  "practice_name": "Kiütöm a fogadat",
   "description": "",
   "address": "",
   "markanev": "FogBox",
@@ -40,5 +40,5 @@
   "new_patient_required": "Teljes név",
   "new_patient_auto_visit": false,
   "returning_patient_required": "Páciens azonosító vagy telefonszám",
-  "last_updated": "2026-05-31T14:00:40.028079"
+  "last_updated": "2026-06-01T18:25:32.726285"
 }

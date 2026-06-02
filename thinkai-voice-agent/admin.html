@@ -5443,6 +5443,19 @@
     }
 
     /* ═══ END member dashboard styles ═══ */
+
+    /* ═══ Logo App Switcher (DigiDesk ↔ Marketing) ═══ */
+    .sidebar-logo.has-switch{cursor:pointer;position:relative;transition:background 0.2s;border-radius:10px;margin:-4px -8px;padding:8px 8px 8px 16px;}
+    .sidebar-logo.has-switch:hover{background:rgba(255,255,255,0.05);}
+    .logo-switch-dd{max-height:0;overflow:hidden;transition:max-height 0.25s ease,opacity 0.2s;opacity:0;margin:0 8px;}
+    .logo-switch-dd.open{max-height:80px;opacity:1;margin-bottom:8px;}
+    .logo-switch-link{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);text-decoration:none;transition:all 0.2s;margin-top:6px;}
+    .logo-switch-link:hover{background:rgba(28,238,224,0.1);border-color:rgba(28,238,224,0.25);}
+    .logo-switch-icon{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+    .logo-switch-name{font-size:12px;font-weight:600;color:#8ea9c0;}
+    .logo-switch-link:hover .logo-switch-name{color:#1ceee0;}
+    .logo-switch-desc{font-size:10px;color:#4a6f85;margin-top:1px;}
+    .sidebar.collapsed .logo-switch-dd{display:none!important;}
   </style>
 </head>
 
@@ -5477,9 +5490,15 @@
       <button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Ctrl+B">
         <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
       </button>
-      <div class="sidebar-logo">
+      <div class="sidebar-logo has-switch" onclick="document.getElementById('logo-switch-dd').classList.toggle('open')">
         <div class="sidebar-logo-icon">T</div>
         <span class="sidebar-logo-text">DigiDesk</span>
+      </div>
+      <div class="logo-switch-dd" id="logo-switch-dd">
+        <a class="logo-switch-link" href="/marketing">
+          <div class="logo-switch-icon" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;">M</div>
+          <div><div class="logo-switch-name">EAISY Marketing</div><div class="logo-switch-desc">Marketing automatizáció</div></div>
+        </a>
       </div>
       <div class="nav-section-title">Főmenü</div>
       <button class="nav-item active" id="nav-analytics" onclick="showPage('analytics')" data-tooltip="Analitika">
@@ -6378,35 +6397,61 @@
             </div>
             <!-- STEP 3: Üzenet -->
             <div id="camp-step-3" style="display:none;">
-              <div style="margin-bottom:20px;">
-                <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">AI utasítások / Kampány brief</label>
-                <textarea id="campaign-instructions" placeholder="Írd le, mit kommunikáljon az AI az ügyfeleknek...&#10;&#10;Pl. Ajánld fel a 20%-os kedvezményt a következő hónapra." style="width:100%; height:100px; padding:14px 16px; background:var(--bg); color:var(--text); border:1.5px solid var(--border); border-radius:10px; font-size:13px; font-family:inherit; outline:none; resize:none; box-sizing:border-box; line-height:1.5; transition:border 0.2s;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+
+              <!-- Mode Toggle -->
+              <div style="display:flex;gap:4px;background:var(--bg);border-radius:12px;padding:4px;margin-bottom:20px;border:1px solid var(--border);">
+                <button id="dd-camp-mode-manual" onclick="setDDCampaignMode('manual')" style="flex:1;padding:10px 0;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.25s;background:linear-gradient(135deg, #1ceee0, #0bbdb1);color:#082432;font-family:inherit;">✏️ Szabadkéz</button>
+                <button id="dd-camp-mode-ai" onclick="setDDCampaignMode('ai')" style="flex:1;padding:10px 0;border:none;border-radius:10px;font-size:13px;font-weight:700;cursor:pointer;transition:all 0.25s;background:transparent;color:var(--text-muted);font-family:inherit;">🤖 AI Varázsló</button>
               </div>
-              <!-- AI Varázsló beépítve -->
-              <div style="background:linear-gradient(135deg, rgba(28,238,224,0.04), rgba(59,130,246,0.04)); border:1.5px solid var(--border); border-radius:12px; padding:18px;">
-                <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
-                  <span style="font-size:16px;">✨</span>
-                  <span style="font-size:13px; font-weight:700; color:var(--text);">AI Kampány Varázsló</span>
-                  <span style="margin-left:auto; font-size:10px; color:var(--text-muted); background:var(--bg); padding:3px 8px; border-radius:6px; border:1px solid var(--border);">Gemini AI</span>
+
+              <!-- Manual Mode Panel -->
+              <div id="dd-camp-panel-manual">
+                <div style="margin-bottom:16px;">
+                  <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">✉️ Kampány üzenet</label>
+                  <textarea id="campaign-manual-body" placeholder="Írd ide a kampány üzeneted szövegét...&#10;&#10;A szöveget a rendszer professzionális formátumba csomagolja." style="width:100%; height:160px; padding:14px 16px; background:var(--bg); color:var(--text); border:1.5px solid var(--border); border-radius:10px; font-size:13px; font-family:inherit; outline:none; resize:none; box-sizing:border-box; line-height:1.6; transition:border 0.2s;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"></textarea>
                 </div>
-                <div style="margin-bottom:14px;">
-                  <div style="font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:8px;">Stílus / Hangnem</div>
-                  <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6px;" id="ai-wizard-styles">
-                    <button onclick="selectWizardStyle(this,'hivatalos')" class="wizard-style-btn" style="padding:8px 4px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--text); transition:all 0.2s; text-align:center;">📋 Hivatalos</button>
-                    <button onclick="selectWizardStyle(this,'barátságos')" class="wizard-style-btn active" style="padding:8px 4px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; border:1px solid var(--accent); background:rgba(28,238,224,0.1); color:var(--accent); transition:all 0.2s; text-align:center;">😊 Barátságos</button>
-                    <button onclick="selectWizardStyle(this,'akciós')" class="wizard-style-btn" style="padding:8px 4px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--text); transition:all 0.2s; text-align:center;">🔥 Akciós</button>
-                    <button onclick="selectWizardStyle(this,'személyes')" class="wizard-style-btn" style="padding:8px 4px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--text); transition:all 0.2s; text-align:center;">💌 Személyes</button>
+                <div style="display:flex;align-items:center;gap:8px;padding:10px 14px;background:rgba(28,238,224,0.04);border:1px solid rgba(28,238,224,0.15);border-radius:10px;">
+                  <svg fill="none" stroke="var(--accent)" stroke-width="1.5" viewBox="0 0 24 24" style="width:16px;height:16px;flex-shrink:0;"><path d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <span style="font-size:11px;color:var(--text-muted);line-height:1.4;">Szabadkézzel írt szöveg — egyedi, személyes kommunikáció. A rendszer kiválasztott csatornának megfelelő formátumba csomagolja.</span>
+                </div>
+              </div>
+
+              <!-- AI Mode Panel -->
+              <div id="dd-camp-panel-ai" style="display:none;">
+                <div style="margin-bottom:16px;">
+                  <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">🎯 AI utasítások / Kampány brief</label>
+                  <textarea id="campaign-instructions" placeholder="Írd le, mit kommunikáljon az AI az ügyfeleknek...&#10;&#10;Pl. Ajánld fel a 20%-os kedvezményt a következő hónapra.&#10;Említsd meg a szabad időpontokat és a VIP előnyöket." style="width:100%; height:100px; padding:14px 16px; background:var(--bg); color:var(--text); border:1.5px solid var(--border); border-radius:10px; font-size:13px; font-family:inherit; outline:none; resize:none; box-sizing:border-box; line-height:1.5; transition:border 0.2s;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"></textarea>
+                </div>
+
+                <!-- AI Wizard Card -->
+                <div style="background:linear-gradient(135deg, rgba(28,238,224,0.04), rgba(59,130,246,0.04)); border:1.5px solid var(--border); border-radius:12px; padding:18px;">
+                  <div style="display:flex; align-items:center; gap:8px; margin-bottom:14px;">
+                    <span style="font-size:16px;">✨</span>
+                    <span style="font-size:13px; font-weight:700; color:var(--text);">AI Kampány Varázsló</span>
+                    <span style="margin-left:auto; font-size:10px; color:var(--text-muted); background:var(--bg); padding:3px 8px; border-radius:6px; border:1px solid var(--border);">Gemini AI</span>
                   </div>
-                </div>
-                <div id="ai-wizard-preview" style="display:none; margin-bottom:14px;">
-                  <div style="font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:6px;">Generált üzenet előnézet</div>
-                  <div id="ai-wizard-result" style="background:var(--bg); border:1px solid var(--border); border-radius:10px; padding:14px; font-size:13px; color:var(--text); line-height:1.6; white-space:pre-wrap; max-height:160px; overflow-y:auto;"></div>
-                </div>
-                <div style="display:flex; gap:8px; align-items:center;">
-                  <button onclick="generateWizardMessage()" id="ai-wizard-generate-btn" style="background:linear-gradient(135deg, #1ceee0, #0bbdb1); color:#082432; border:none; padding:9px 18px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;">✨ Generálás</button>
-                  <button onclick="generateWizardMessage()" id="ai-wizard-regen-btn" style="display:none; background:var(--bg); color:var(--text); border:1px solid var(--border); padding:9px 14px; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;">🔄 Új változat</button>
-                  <button onclick="acceptWizardMessage()" id="ai-wizard-accept-btn" style="display:none; background:rgba(16,185,129,0.1); color:#10b981; border:1px solid #10b981; padding:9px 14px; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;">✓ Elfogadás</button>
-                  <span id="ai-wizard-loading" style="display:none; font-size:12px; color:var(--text-muted);">⏳ Generálás...</span>
+                  <div style="margin-bottom:14px;">
+                    <div style="font-size:11px; font-weight:600; color:var(--text-muted); margin-bottom:8px;">Stílus / Hangnem</div>
+                    <div style="display:grid; grid-template-columns:1fr 1fr 1fr 1fr; gap:6px;" id="ai-wizard-styles">
+                      <button onclick="selectWizardStyle(this,'hivatalos')" class="wizard-style-btn" style="padding:8px 4px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--text); transition:all 0.2s; text-align:center; font-family:inherit;">📋 Hivatalos</button>
+                      <button onclick="selectWizardStyle(this,'barátságos')" class="wizard-style-btn active" style="padding:8px 4px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; border:1px solid var(--accent); background:rgba(28,238,224,0.1); color:var(--accent); transition:all 0.2s; text-align:center; font-family:inherit;">😊 Barátságos</button>
+                      <button onclick="selectWizardStyle(this,'akciós')" class="wizard-style-btn" style="padding:8px 4px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--text); transition:all 0.2s; text-align:center; font-family:inherit;">🔥 Akciós</button>
+                      <button onclick="selectWizardStyle(this,'személyes')" class="wizard-style-btn" style="padding:8px 4px; border-radius:8px; font-size:11px; font-weight:600; cursor:pointer; border:1px solid var(--border); background:var(--bg); color:var(--text); transition:all 0.2s; text-align:center; font-family:inherit;">💌 Személyes</button>
+                    </div>
+                  </div>
+                  <div id="ai-wizard-preview" style="display:none; margin-bottom:14px;">
+                    <div style="display:flex;align-items:center;gap:6px;margin-bottom:6px;">
+                      <div style="font-size:11px; font-weight:600; color:var(--text-muted);">Generált üzenet</div>
+                      <span style="font-size:10px; color:var(--accent); background:rgba(28,238,224,0.08); padding:2px 8px; border-radius:6px;">szerkeszthető</span>
+                    </div>
+                    <textarea id="ai-wizard-result" style="width:100%; height:140px; background:var(--bg); border:1.5px solid rgba(28,238,224,0.3); border-radius:10px; padding:14px; font-size:13px; color:var(--text); line-height:1.6; font-family:inherit; resize:none; outline:none; box-sizing:border-box;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='rgba(28,238,224,0.3)'"></textarea>
+                  </div>
+                  <div style="display:flex; gap:8px; align-items:center;">
+                    <button onclick="generateWizardMessage()" id="ai-wizard-generate-btn" style="background:linear-gradient(135deg, #1ceee0, #0bbdb1); color:#082432; border:none; padding:9px 18px; border-radius:8px; font-size:12px; font-weight:700; cursor:pointer; font-family:inherit;">✨ Generálás</button>
+                    <button onclick="generateWizardMessage()" id="ai-wizard-regen-btn" style="display:none; background:var(--bg); color:var(--text); border:1px solid var(--border); padding:9px 14px; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;">🔄 Új változat</button>
+                    <button onclick="acceptWizardMessage()" id="ai-wizard-accept-btn" style="display:none; background:rgba(16,185,129,0.1); color:#10b981; border:1px solid #10b981; padding:9px 14px; border-radius:8px; font-size:12px; font-weight:600; cursor:pointer; font-family:inherit;">✓ Elfogadás</button>
+                    <span id="ai-wizard-loading" style="display:none; font-size:12px; color:var(--text-muted);">⏳ Generálás...</span>
+                  </div>
                 </div>
               </div>
             </div>
@@ -6440,7 +6485,7 @@
             </button>
             <button class="settings-tab" onclick="switchSettingsView('praxis', this)">
               <svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
-              Praxisinformáció
+              Céginformációk
             </button>
             <button class="settings-tab" onclick="switchSettingsView('szabalyok', this)">
               <svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
@@ -6750,10 +6795,10 @@
 ..." style="min-height:280px;font-family:'Courier New',monospace;font-size:12px;"></textarea>
           </div>
         </div><!-- end settings-view-agent -->
-        <!-- PRAXISINFORMÁCIÓ TAB -->
+        <!-- CÉGINFORMÁCIÓK TAB -->
         <div id="settings-view-praxis" class="settings-subview" style="display:none;">
           <div style="margin-bottom: 8px;">
-            <div style="font-size:18px; font-weight:700; color:#111827; font-family:'Inter',Arial,sans-serif;">Praxisinformáció</div>
+            <div style="font-size:18px; font-weight:700; color:#111827; font-family:'Inter',Arial,sans-serif;">Céginformációk</div>
             <div style="font-size:13px; color:#6b7280; margin-top:4px; font-family:'Inter',Arial,sans-serif;">Intézmény, telephelyek, orvosok és szolgáltatások</div>
           </div>
           <div style="border-top:1px solid #e5e7eb; margin-top:16px; padding-top:8px;">
@@ -11815,10 +11860,10 @@
                   if (currentBlock.length > 0) blocks.push({ sender: currentSender, content: currentBlock.join('\n') });
                   currentSender = 'user';
                   currentBlock = [line.replace(/^Ügyfél.*?:\s*/, '').replace(/^- Bejövő e-mail.*?\):\s*/i, '').trim()];
-              } else if (line.match(/^Bégé Design Kft.*?ezt írta/i) || line.startsWith('AI Válasz')) {
+              } else if (line.match(/^Bégé Design Kft.*?ezt írta/i) || line.match(/^EAISY Marketing.*?ezt írta/i) || line.startsWith('AI Válasz')) {
                   if (currentBlock.length > 0) blocks.push({ sender: currentSender, content: currentBlock.join('\n') });
                   currentSender = 'ai';
-                  let cleanLine = line.replace(/^AI Válasz.*?:\s*/, '').replace(/^Bégé Design Kft.*?:\s*/i, '').replace(/ezt írta.*?:\s*$/i, '');
+                  let cleanLine = line.replace(/^AI Válasz.*?:\s*/, '').replace(/^Bégé Design Kft.*?:\s*/i, '').replace(/^EAISY Marketing.*?:\s*/i, '').replace(/ezt írta.*?:\s*$/i, '');
                   if (cleanLine.trim() !== '') currentBlock = [cleanLine.trim()];
                   else currentBlock = [];
               } else {
@@ -12979,7 +13024,7 @@
         if (successMsg) {
           showFancySuccess(successMsg);
         } else {
-          showToast('success', '✅ Praxisinformáció elmentve!');
+          showToast('success', '✅ Céginformációk elmentve!');
         }
         const metaEl = document.querySelector('#settings-view-praxis .tt-action-meta');
         if (metaEl) {
@@ -15812,6 +15857,22 @@ async function campStepPrev() {
 
 // ── AI Kampány Varázsló ──
 let _wizardStyle = 'barátságos';
+let _ddCampaignMode = 'manual';
+
+function setDDCampaignMode(mode) {
+  _ddCampaignMode = mode;
+  document.getElementById('dd-camp-panel-manual').style.display = mode === 'manual' ? 'block' : 'none';
+  document.getElementById('dd-camp-panel-ai').style.display = mode === 'ai' ? 'block' : 'none';
+  const manualBtn = document.getElementById('dd-camp-mode-manual');
+  const aiBtn = document.getElementById('dd-camp-mode-ai');
+  if (mode === 'manual') {
+    manualBtn.style.background = 'linear-gradient(135deg, #1ceee0, #0bbdb1)'; manualBtn.style.color = '#082432';
+    aiBtn.style.background = 'transparent'; aiBtn.style.color = 'var(--text-muted)';
+  } else {
+    aiBtn.style.background = 'linear-gradient(135deg, #8b5cf6, #6d28d9)'; aiBtn.style.color = '#fff';
+    manualBtn.style.background = 'transparent'; manualBtn.style.color = 'var(--text-muted)';
+  }
+}
 
 async function toggleAIWizard() {
   const panel = document.getElementById('ai-wizard-panel');
@@ -15822,7 +15883,7 @@ async function selectWizardStyle(btn, style) {
   _wizardStyle = style;
   document.querySelectorAll('#ai-wizard-styles .wizard-style-btn').forEach(b => {
     b.style.border = '1px solid var(--border)';
-    b.style.background = 'var(--bg2)';
+    b.style.background = 'var(--bg)';
     b.style.color = 'var(--text)';
   });
   btn.style.border = '1px solid var(--accent)';
@@ -15856,11 +15917,11 @@ async function generateWizardMessage() {
     if (data.message) {
       const preview = document.getElementById('ai-wizard-preview');
       const result = document.getElementById('ai-wizard-result');
-      if (result) result.textContent = data.message;
+      if (result) result.value = data.message;
       if (preview) preview.style.display = 'block';
       if (regenBtn) regenBtn.style.display = 'inline-flex';
       if (acceptBtn) acceptBtn.style.display = 'inline-flex';
-      showToast('success', 'Üzenet generálva ✨');
+      showToast('success', 'Üzenet generálva ✨ — Szerkeszd ha kell, majd kattints Elfogadás!');
     } else {
       showToast('error', data.detail || 'Generálási hiba');
     }
@@ -15869,17 +15930,15 @@ async function generateWizardMessage() {
   }
   
   if (loading) loading.style.display = 'none';
+  if (genBtn) genBtn.style.display = 'inline-flex';
 }
 
 async function acceptWizardMessage() {
   const result = document.getElementById('ai-wizard-result');
   const instructions = document.getElementById('campaign-instructions');
   if (result && instructions) {
-    instructions.value = result.textContent;
-    showToast('success', 'Generált üzenet átvéve az AI utasításokba ✓');
-    // Close wizard
-    const panel = document.getElementById('ai-wizard-panel');
-    if (panel) panel.style.display = 'none';
+    instructions.value = result.value || result.textContent;
+    showToast('success', 'Generált üzenet átvéve ✓');
   }
 }
 
@@ -15905,6 +15964,17 @@ async function createCampaign() {
   if (!name) return alert('Kérlek add meg a kampány nevét!');
   if (window._campaignTargetClientIds.length === 0) return alert('Nincs kiválasztva ügyfél! Jelölj ki ügyfeleket az Ügyfelek adatbázisában.');
 
+  let aiInstructions = '';
+  if (_ddCampaignMode === 'manual') {
+    const manualBody = document.getElementById('campaign-manual-body');
+    aiInstructions = manualBody ? manualBody.value.trim() : '';
+    if (!aiInstructions) return alert('Kérlek írd meg a kampány üzenetet!');
+  } else {
+    const instructionsEl = document.getElementById('campaign-instructions');
+    aiInstructions = instructionsEl ? instructionsEl.value.trim() : '';
+    if (!aiInstructions) return alert('Kérlek add meg az AI utasításokat, vagy generáld le az üzenetet!');
+  }
+
   try {
     const resp = await authFetch('/admin/api/campaigns', {
       method: 'POST',
@@ -15913,7 +15983,8 @@ async function createCampaign() {
         name: name,
         channels: [...window._selectedCampaignChannels],
         client_ids: [...window._campaignTargetClientIds],
-        ai_instructions: document.getElementById('campaign-instructions').value.trim()
+        ai_instructions: aiInstructions,
+        mode: _ddCampaignMode
       })
     });
     const result = await resp.json();
