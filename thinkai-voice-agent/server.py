@@ -224,11 +224,13 @@ SZABÁLYOK:
     # ── Gemini Multimodal Live API ──
     logger.info("Initializing Gemini Multimodal Live API pipeline...")
     
-    gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or "AIzaSyAQfRx1NGtiDYby2Wkj8JrE3SQFNNbb4kc"
+    gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    if not gemini_api_key:
+        raise RuntimeError("GEMINI_API_KEY or GOOGLE_API_KEY must be set in .env")
     from google.genai import types as genai_types
 
     live_model = realtime.RealtimeModel(
-        model="models/gemini-3.1-flash-live-preview",
+        model="gemini-3.1-flash-live-preview",
         api_key=gemini_api_key,
         voice="Puck",
         language="hu",
@@ -322,6 +324,6 @@ if __name__ == "__main__":
     cli.run_app(
         WorkerOptions(
             entrypoint_fnc=entrypoint,
-            agent_name="dobozos-ai-dev",
+            agent_name="dobozos-ai",
         ),
     )
