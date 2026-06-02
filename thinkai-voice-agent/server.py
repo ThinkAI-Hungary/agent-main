@@ -560,7 +560,7 @@ async def entrypoint(ctx: JobContext):
         ),
         tts=cartesia.TTS(
             api_key=os.getenv("CARTESIA_API_KEY"),
-            voice=load_agent_settings().get("voice_id") or os.getenv("CARTESIA_VOICE_ID", "93896c4f-aa00-4c17-a360-fec55579d7fa"),
+            voice=load_agent_settings().get("voice_id") or os.getenv("CARTESIA_VOICE_ID", "36e0c00b-1bfd-4ad7-a0e8-928d4cadca00"),
             model="sonic-3",
             speed=1.0,
             language="hu",
@@ -568,12 +568,12 @@ async def entrypoint(ctx: JobContext):
             emotion=["positivity:high", "curiosity"],
         ),
         vad=silero.VAD.load(
-            activation_threshold=0.85,
-            min_speech_duration=0.4,
-            min_silence_duration=0.5,
+            activation_threshold=0.6,
+            min_speech_duration=0.25,
+            min_silence_duration=0.3,
         ),
         # ── Production tuning (snappy endpointing) ───────────────────────
-        min_endpointing_delay=0.5,
+        min_endpointing_delay=0.3,
         max_endpointing_delay=3.0,
         min_interruption_duration=0.5,
         min_interruption_words=1,
@@ -586,7 +586,7 @@ async def entrypoint(ctx: JobContext):
     logger.info(
         f"Session configured: STT=Soniox stt-rt-v4 (hu), "
         f"LLM=gemini-2.5-flash, TTS=cartesia sonic-3, "
-        f"VAD threshold=0.85, preemptive={True}"
+        f"VAD threshold=0.6, preemptive={True}"
     )
 
     # ── Wait for actual room disconnect before closing session ───────────────

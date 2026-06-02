@@ -1,9 +1,9 @@
 {
-  "voice_id": "93896c4f-aa00-4c17-a360-fec55579d7fa",
+  "voice_id": "36e0c00b-1bfd-4ad7-a0e8-928d4cadca00",
   "tone": "professional_friendly",
   "tone_custom": "",
   "knowledge_format": "json",
-  "greeting": "Szia! A A Tink-éj-áj virtuális asszisztense vagyok \nKérdezz a szolgáltatásainkról, foglalj időpontot, \nvagy akár emailt is küldhetek helyetted. Miben segíthetek?",
+  "greeting": "Szia! A FogBox virtuális asszisztense vagyok. Kérdezz a szolgáltatásainkról, foglalj időpontot, vagy akár emailt is küldhetek helyetted. Miben segíthetek?",
   "business_hours": {
     "monday": {
       "open": "01:58",
