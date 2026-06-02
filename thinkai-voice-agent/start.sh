@@ -25,11 +25,11 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 # Start the agent worker in the background
-NO_COLOR=1 python server.py "$MODE" &
+NO_COLOR=1 python3 server.py "$MODE" &
 AGENT_PID=$!
 
 # Start the web server in the background
-python web_server.py &
+python3 web_server.py &
 WEB_PID=$!
 
 echo "✅ Both processes started (agent=$AGENT_PID, web=$WEB_PID)"

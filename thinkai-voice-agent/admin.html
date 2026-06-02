@@ -12804,6 +12804,7 @@
         document.getElementById('setting-tone-custom').value = data.tone_custom || '';
         onToneChange();
 
+
         const sp = await spRes.json();
         document.getElementById('setting-system-prompt').value = sp.content || '';
 
