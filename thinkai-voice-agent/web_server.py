@@ -70,51 +70,8 @@ async def startup_event():
     task3 = asyncio.create_task(email_processor.automation_worker_loop())
     background_tasks.add(task3)
     task3.add_done_callback(background_tasks.discard)
-    # Inbound SIP szoba monitor — KIKAPCSOLVA
-    # A lk_trigger.py (Asterisk) mar kezeli a dispatch-et, nem kell dupla.
-    # mon = asyncio.create_task(inbound_sip_room_monitor())
-    # background_tasks.add(mon)
-    # mon.add_done_callback(background_tasks.discard)
-
-async def inbound_sip_room_monitor():
-    """Figyeli a 'call-' prefix szobakat es dispatch-eli az agentet ha meg nem csatlakozott.
-    KIKAPCSOLVA: A lk_trigger.py mar kezeli az inbound dispatch-et.
-    Ez a monitor dupla dispatch-et okozott (ket agent csatlakozott egy szobaba).
-    """
-    return  # lk_trigger.py kezeli
-    lk_url    = os.getenv("LIVEKIT_URL", "").replace("wss://", "https://")
-    lk_key    = os.getenv("LIVEKIT_API_KEY", "")
-    lk_secret = os.getenv("LIVEKIT_API_SECRET", "")
-    dispatched = set()  # mar dispatch-elt szobak
-    while True:
-        try:
-            await asyncio.sleep(3)
-            if not lk_key or not lk_secret:
-                continue
-            lk = lk_api_module.LiveKitAPI(url=lk_url, api_key=lk_key, api_secret=lk_secret)
-            rooms = await lk.room.list_rooms(lk_api_module.ListRoomsRequest())
-            for room in rooms.rooms:
-                if not room.name.startswith("call-"):
-                    continue
-                if room.name in dispatched:
-                    continue
-                # Van-e mar agent a szobaban?
-                parts = await lk.room.list_participants(lk_api_module.ListParticipantsRequest(room=room.name))
-                has_agent = any(p.identity.startswith("agent-")
-                               for p in parts.participants)
-                if not has_agent:
-                    await lk.agent_dispatch.create_dispatch(
-                        lk_api_module.CreateAgentDispatchRequest(
-                            agent_name="dobozos-ai",
-                            room=room.name,
-                            metadata="inbound_sip",
-                        )
-                    )
-                    dispatched.add(room.name)
-                    print(f"[SIP Monitor] Agent dispatch -> {room.name}", flush=True)
-            await lk.aclose()
-        except Exception as e:
-            pass  # csendben folytatjuk
+    # Inbound SIP dispatch: Telnyx → LiveKit dispatch rule (SDR_KjoiKH4icXeX)
+    # automatikusan kezeli, nem kell külön monitor vagy trigger.
 
 # ── CORS ──────────────────────────────────────────────────────────────────────
 app.add_middleware(
@@ -1803,7 +1760,7 @@ async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_
     lk_url    = os.getenv("LIVEKIT_URL")
     lk_key    = os.getenv("LIVEKIT_API_KEY")
     lk_secret = os.getenv("LIVEKIT_API_SECRET")
-    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_2wJZqGsWZBC3")
+    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_8r89G8rStSNp")  # Telnyx HD Voice outbound
 
     phone = req.phone_number.strip()
     if not phone.startswith("+"):
@@ -2008,7 +1965,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                     lk_url    = os.getenv("LIVEKIT_URL")
                     lk_key    = os.getenv("LIVEKIT_API_KEY")
                     lk_secret = os.getenv("LIVEKIT_API_SECRET")
-                    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_2wJZqGsWZBC3")
+                    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_8r89G8rStSNp")  # Telnyx HD Voice outbound
 
                     call_phone = send_draft.get("phone_number", "")
                     if not call_phone:
@@ -2481,7 +2438,7 @@ async def _run_phone_campaign(campaign: dict):
     lk_url    = os.getenv("LIVEKIT_URL")
     lk_key    = os.getenv("LIVEKIT_API_KEY")
     lk_secret = os.getenv("LIVEKIT_API_SECRET")
-    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_2wJZqGsWZBC3")
+    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_8r89G8rStSNp")  # Telnyx HD Voice outbound
 
     if not all([lk_url, lk_key, lk_secret]):
         print(f"[PhoneCampaign] LiveKit credentials hiányzik, kampány megszakítva: {campaign_name}")
