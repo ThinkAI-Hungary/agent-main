@@ -1760,7 +1760,7 @@ async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_
     lk_url    = os.getenv("LIVEKIT_URL")
     lk_key    = os.getenv("LIVEKIT_API_KEY")
     lk_secret = os.getenv("LIVEKIT_API_SECRET")
-    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_8r89G8rStSNp")  # Telnyx HD Voice outbound
+    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_jgPctgJYZcAf")  # Telnyx HD Voice outbound
 
     phone = req.phone_number.strip()
     if not phone.startswith("+"):
@@ -1965,7 +1965,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                     lk_url    = os.getenv("LIVEKIT_URL")
                     lk_key    = os.getenv("LIVEKIT_API_KEY")
                     lk_secret = os.getenv("LIVEKIT_API_SECRET")
-                    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_8r89G8rStSNp")  # Telnyx HD Voice outbound
+                    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_jgPctgJYZcAf")  # Telnyx HD Voice outbound
 
                     call_phone = send_draft.get("phone_number", "")
                     if not call_phone:
@@ -2438,7 +2438,7 @@ async def _run_phone_campaign(campaign: dict):
     lk_url    = os.getenv("LIVEKIT_URL")
     lk_key    = os.getenv("LIVEKIT_API_KEY")
     lk_secret = os.getenv("LIVEKIT_API_SECRET")
-    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_8r89G8rStSNp")  # Telnyx HD Voice outbound
+    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_jgPctgJYZcAf")  # Telnyx HD Voice outbound
 
     if not all([lk_url, lk_key, lk_secret]):
         print(f"[PhoneCampaign] LiveKit credentials hiányzik, kampány megszakítva: {campaign_name}")

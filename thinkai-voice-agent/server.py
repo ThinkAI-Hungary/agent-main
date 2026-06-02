@@ -600,14 +600,22 @@ async def entrypoint(ctx: JobContext):
         room_disconnected.set()
 
     try:
+        # Determine the best noise cancellation option based on call type
+        # Inbound SIP trunk has Krisp enabled at the gateway level, so we don't need room-level BVC (avoids double processing distortion).
+        # Outbound SIP calls use telephony-tuned BVCTelephony.
+        # Web widget calls use default BVC.
+        nc_option = noise_cancellation.BVC()
+        if is_inbound_call:
+            nc_option = None
+        elif is_outbound_call:
+            nc_option = noise_cancellation.BVCTelephony()
+
+        room_input_opts = RoomInputOptions(noise_cancellation=nc_option) if nc_option else None
+
         await session.start(
             agent=ThinkAIAgent(room_name=ctx.room.name, campaign_data=campaign_data),
             room=ctx.room,
-            # Server-side noise cancellation — filters breathing, background noise,
-            # keyboard sounds before they reach VAD (requires LiveKit Cloud)
-            room_input_options=RoomInputOptions(
-                noise_cancellation=noise_cancellation.BVC(),
-            ),
+            room_input_options=room_input_opts,
         )
         # Block here until the room disconnects
         await room_disconnected.wait()
