@@ -612,6 +612,7 @@
       margin-top: auto;
       padding-top: 16px;
       border-top: 1px solid rgba(255,255,255,0.06);
+      position: relative;
     }
 
     .user-info {
@@ -696,6 +697,199 @@
     /* Legacy classes hidden - replaced by action bar */
     .btn-logout { display: none; }
     .btn-theme-toggle { display: none; }
+
+    /* ── Admin Flyout Popover ──────────────────────────────────────── */
+    .admin-flyout-trigger {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      border-radius: 12px;
+      transition: all 0.2s ease;
+      position: relative;
+      user-select: none;
+    }
+    .admin-flyout-trigger:hover {
+      background: rgba(28, 238, 224, 0.06);
+    }
+    .admin-flyout-trigger.open {
+      background: rgba(28, 238, 224, 0.10);
+    }
+    .admin-flyout-trigger .flyout-chevron {
+      margin-left: auto;
+      width: 16px;
+      height: 16px;
+      color: rgba(255,255,255,0.3);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s;
+      flex-shrink: 0;
+    }
+    .admin-flyout-trigger:hover .flyout-chevron,
+    .admin-flyout-trigger.open .flyout-chevron {
+      color: var(--accent);
+    }
+    .admin-flyout-trigger.open .flyout-chevron {
+      transform: rotate(180deg);
+    }
+
+    .admin-flyout-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 149;
+      display: none;
+    }
+    .admin-flyout-backdrop.show { display: block; }
+
+    .admin-flyout {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 12px;
+      right: 12px;
+      background: #0a2a3c;
+      border: 1px solid rgba(28, 238, 224, 0.15);
+      border-radius: 16px;
+      padding: 8px;
+      z-index: 150;
+      box-shadow:
+        0 -4px 32px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(28, 238, 224, 0.05),
+        inset 0 1px 0 rgba(255,255,255,0.04);
+      opacity: 0;
+      transform: translateY(8px) scale(0.97);
+      pointer-events: none;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .admin-flyout.show {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .flyout-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: #4a7080;
+      padding: 10px 12px 6px;
+    }
+
+    .flyout-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: #c8d6e5;
+      transition: all 0.15s ease;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: 'Inter', Arial, sans-serif;
+    }
+    .flyout-item:hover {
+      background: rgba(28, 238, 224, 0.08);
+      color: #e8edf5;
+    }
+    .flyout-item svg {
+      width: 17px;
+      height: 17px;
+      flex-shrink: 0;
+      opacity: 0.7;
+    }
+    .flyout-item:hover svg {
+      opacity: 1;
+    }
+    .flyout-item .flyout-item-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .flyout-item .flyout-item-icon.accent {
+      background: rgba(28, 238, 224, 0.10);
+      color: #1ceee0;
+    }
+    .flyout-item .flyout-item-icon.orange {
+      background: rgba(249, 115, 22, 0.10);
+      color: #f97316;
+    }
+    .flyout-item .flyout-item-icon.purple {
+      background: rgba(139, 92, 246, 0.10);
+      color: #8b5cf6;
+    }
+    .flyout-item .flyout-item-icon.blue {
+      background: rgba(59, 130, 246, 0.10);
+      color: #3b82f6;
+    }
+    .flyout-item-text {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+    }
+    .flyout-item-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e8edf5;
+      line-height: 1.2;
+    }
+    .flyout-item-desc {
+      font-size: 11px;
+      color: #4a7080;
+      line-height: 1.2;
+    }
+    .flyout-item:hover .flyout-item-title {
+      color: #fff;
+    }
+    .flyout-item:hover .flyout-item-desc {
+      color: #6b8b99;
+    }
+    .flyout-item:hover .flyout-item-icon {
+      filter: brightness(1.2);
+    }
+
+    .flyout-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.06);
+      margin: 4px 8px;
+    }
+
+    .flyout-item.danger:hover {
+      background: rgba(239, 68, 68, 0.08);
+    }
+    .flyout-item.danger:hover .flyout-item-title {
+      color: #f87171;
+    }
+    .flyout-item.danger:hover .flyout-item-icon {
+      background: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+    }
+
+    /* Hide action bar - replaced by flyout */
+    .sidebar-action-bar { display: none !important; }
+
+    /* Collapsed sidebar: hide flyout trigger text */
+    .sidebar.collapsed .admin-flyout-trigger .flyout-chevron,
+    .sidebar.collapsed .admin-flyout-trigger > div:not(.user-avatar) {
+      display: none !important;
+    }
+    .sidebar.collapsed .admin-flyout-trigger {
+      justify-content: center;
+      padding: 8px;
+    }
+    .sidebar.collapsed .admin-flyout {
+      left: 8px;
+      right: auto;
+      width: 240px;
+    }
 
 
     /* ── Sidebar Collapsed State (Ctrl+B toggle) ─────────────────── */
@@ -1276,64 +1470,24 @@
       font-family: 'Inter', Arial, sans-serif;
     }
     .settings-layout {
-      display: flex;
-      gap: 32px;
-      align-items: flex-start;
+      display: block;
     }
+    /* Internal settings sidebar hidden — navigation moved to main sidebar */
     .settings-sidebar-nav {
-      width: 210px;
-      flex-shrink: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 2px;
-      position: sticky;
-      top: 24px;
+      display: none !important;
     }
     .settings-tab {
-      display: flex;
-      align-items: center;
-      gap: 10px;
-      padding: 11px 16px;
-      border: none;
-      border-radius: 10px;
-      background: transparent;
-      color: #6b7280;
-      font-size: 13.5px;
-      font-weight: 500;
-      cursor: pointer;
-      transition: all 0.2s ease;
-      text-align: left;
-      font-family: 'Inter', Arial, sans-serif;
-      white-space: nowrap;
-    }
-    .settings-tab:hover {
-      background: rgba(28, 238, 224, 0.06);
-      color: #374151;
-    }
-    .settings-tab.active {
-      background: linear-gradient(135deg, rgba(28, 238, 224, 0.12), rgba(13, 188, 180, 0.08));
-      color: #0a9e96;
-      font-weight: 600;
-    }
-    .settings-tab svg {
-      width: 18px;
-      height: 18px;
-      flex-shrink: 0;
-      opacity: 0.7;
-    }
-    .settings-tab.active svg {
-      opacity: 1;
+      display: none;
     }
     .settings-content-area {
-      flex: 1;
-      min-width: 0;
+      width: 100%;
     }
     .settings-content-area .settings-subview {
       background: #ffffff;
       border: 1px solid #e5e7eb;
-      border-radius: 16px;
-      padding: 32px 36px;
-      box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 12px rgba(0,0,0,0.02);
+      border-radius: 18px;
+      padding: 36px 40px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03);
     }
 
     /* Override existing view-switcher inside settings – it's now hidden */
@@ -5551,15 +5705,23 @@
         </svg>
         <span>Kimenő kommunikáció</span>
       </button>
-      <button class="nav-item" id="nav-settings" onclick="showPage('settings')" data-tooltip="Beállítások">
-        <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
-          <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"></path>
-          <path
-            d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z">
-          </path>
-        </svg>
-        <span>Beállítások</span>
-      </button>
+      <div class="nav-group">
+        <button class="nav-group-toggle" id="nav-settings" onclick="toggleSettingsNav(this)" data-tooltip="Beállítások">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+            <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"></path>
+            <path
+              d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z">
+            </path>
+          </svg>
+          <span>Beállítások</span>
+          <svg class="nav-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>
+        </button>
+        <div class="nav-submenu" id="nav-submenu-settings">
+          <button class="nav-sub-item" id="nav-sub-settings-agent" onclick="showSettingsSubPage('agent')">Agent</button>
+          <button class="nav-sub-item" id="nav-sub-settings-praxis" onclick="showSettingsSubPage('praxis')">Céginformációk</button>
+          <button class="nav-sub-item" id="nav-sub-settings-szabalyok" onclick="showSettingsSubPage('szabalyok')">Szabályok</button>
+        </div>
+      </div>
       <button class="nav-item" id="nav-help" onclick="showPage('help')" data-tooltip="Segítség">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <circle cx="12" cy="12" r="10"></circle>
@@ -5569,29 +5731,68 @@
         <span>Segítség</span>
       </button>
       <div class="sidebar-bottom">
-        <div class="user-info">
+        <!-- Admin Flyout Popover -->
+        <div class="admin-flyout" id="admin-flyout">
+          <div class="flyout-section-label">Adminisztráció</div>
+          <button class="flyout-item" onclick="flyoutNavigate('csapat')">
+            <div class="flyout-item-icon accent">
+              <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            </div>
+            <div class="flyout-item-text">
+              <div class="flyout-item-title">Csapat</div>
+              <div class="flyout-item-desc">Felhasználók és jogosultságok</div>
+            </div>
+          </button>
+          <button class="flyout-item" onclick="flyoutNavigate('biztonsag')">
+            <div class="flyout-item-icon orange">
+              <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            </div>
+            <div class="flyout-item-text">
+              <div class="flyout-item-title">Biztonság</div>
+              <div class="flyout-item-desc">Jelszó és adatvédelem</div>
+            </div>
+          </button>
+          <div class="flyout-divider"></div>
+          <div class="flyout-section-label">Preferenciák</div>
+          <button class="flyout-item" id="flyout-theme-btn" onclick="toggleDarkMode(); closeAdminFlyout();">
+            <div class="flyout-item-icon purple">
+              <svg id="flyout-theme-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:16px;height:16px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            </div>
+            <div class="flyout-item-text">
+              <div class="flyout-item-title" id="flyout-theme-label">Sötét mód</div>
+              <div class="flyout-item-desc">Megjelenítés váltása</div>
+            </div>
+          </button>
+          <div class="flyout-divider"></div>
+          <button class="flyout-item danger" onclick="doLogout()">
+            <div class="flyout-item-icon" style="background:rgba(239,68,68,0.08);color:#ef4444;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+            </div>
+            <div class="flyout-item-text">
+              <div class="flyout-item-title">Kijelentkezés</div>
+              <div class="flyout-item-desc">Munkamenet befejezése</div>
+            </div>
+          </button>
+        </div>
+        <div class="admin-flyout-backdrop" id="admin-flyout-backdrop" onclick="closeAdminFlyout()"></div>
+
+        <!-- Admin profile trigger -->
+        <div class="admin-flyout-trigger" id="admin-flyout-trigger" onclick="toggleAdminFlyout()">
           <div class="user-avatar" id="user-avatar-char">A</div>
           <div style="min-width:0; flex:1;">
             <div class="user-name" id="sidebar-username">admin</div>
             <div class="user-role" id="sidebar-userrole">Adminisztrátor</div>
           </div>
-          <!-- Theme toggle icon (inline, next to name) -->
-          <button id="theme-toggle-btn" onclick="toggleDarkMode()" title="Téma váltás" style="background:none; border:none; cursor:pointer; color:rgba(255,255,255,0.45); padding:4px; flex-shrink:0; display:flex; align-items:center; transition:color 0.2s;" onmouseover="this.style.color='var(--accent)'" onmouseout="this.style.color='rgba(255,255,255,0.45)'">
-            <svg id="theme-icon-svg" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:18px;height:18px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-          </button>
+          <svg class="flyout-chevron" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
         </div>
-        <!-- Action bar: Settings | Logout -->
-        <div class="sidebar-action-bar">
-          <button class="sidebar-action-btn" id="sidebar-pw-btn" onclick="openSidebarPasswordModal()" title="Beállítások">
-            <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z"/><circle cx="12" cy="12" r="3"/></svg>
-          </button>
-          <button class="sidebar-action-btn btn-logout-action" onclick="doLogout()" title="Kijelentkezés">
-            <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-          </button>
-        </div>
+
         <!-- Hidden legacy elements for compatibility -->
         <span id="theme-icon" style="display:none;"></span>
         <span id="theme-label" style="display:none;"></span>
+        <button id="theme-toggle-btn" onclick="toggleDarkMode()" style="display:none;"></button>
+        <svg id="theme-icon-svg" style="display:none;"></svg>
+        <!-- Hidden password button for members -->
+        <button id="sidebar-pw-btn" onclick="openSidebarPasswordModal()" style="display:none;"></button>
       </div>
 
       <!-- Sidebar Password Change Modal -->
@@ -6491,14 +6692,7 @@
               <svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
               Szabályok
             </button>
-            <button class="settings-tab" onclick="switchSettingsView('csapat', this)">
-              <svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-              Csapat
-            </button>
-            <button class="settings-tab" onclick="switchSettingsView('biztonsag', this)">
-              <svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-              Biztonság
-            </button>
+            <!-- Csapat and Biztonság tabs moved to admin flyout popover -->
           </div>
 
           <!-- Settings tab switcher (standalone script) -->
@@ -6510,6 +6704,10 @@
             var target = document.getElementById('settings-view-' + viewId);
             if (target) target.style.display = 'block';
             if (btn) btn.classList.add('active');
+            // Sync sidebar sub-item active states
+            document.querySelectorAll('#nav-submenu-settings .nav-sub-item').forEach(function(n) { n.classList.remove('active'); });
+            var sidebarSub = document.getElementById('nav-sub-settings-' + viewId);
+            if (sidebarSub) sidebarSub.classList.add('active');
             if (viewId === 'praxis' && typeof loadPraxisinfo === 'function') loadPraxisinfo();
             if (viewId === 'csapat' && typeof loadUsersTable === 'function') loadUsersTable();
           }
@@ -8279,10 +8477,66 @@
           svgIcon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
         }
       }
+      // Update flyout theme icon + label
+      const flyoutIcon = document.getElementById('flyout-theme-icon');
+      if (flyoutIcon) {
+        if (isDark) {
+          flyoutIcon.innerHTML = '<path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/>';
+        } else {
+          flyoutIcon.innerHTML = '<circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>';
+        }
+      }
+      const flyoutLabel = document.getElementById('flyout-theme-label');
+      if (flyoutLabel) {
+        flyoutLabel.textContent = isDark ? 'Világos mód' : 'Sötét mód';
+      }
       if (!icon) return;
       icon.textContent = isDark ? '️' : '';
       label.textContent = isDark ? 'Világos mód' : 'Sötét mód';
     }
+
+    // ── Admin Flyout Popover Logic ─────────────────────────────────────────────
+    function toggleAdminFlyout() {
+      const flyout = document.getElementById('admin-flyout');
+      const trigger = document.getElementById('admin-flyout-trigger');
+      const backdrop = document.getElementById('admin-flyout-backdrop');
+      if (!flyout) return;
+      const isOpen = flyout.classList.contains('show');
+      if (isOpen) {
+        closeAdminFlyout();
+      } else {
+        flyout.classList.add('show');
+        trigger.classList.add('open');
+        backdrop.classList.add('show');
+      }
+    }
+
+    function closeAdminFlyout() {
+      const flyout = document.getElementById('admin-flyout');
+      const trigger = document.getElementById('admin-flyout-trigger');
+      const backdrop = document.getElementById('admin-flyout-backdrop');
+      if (flyout) flyout.classList.remove('show');
+      if (trigger) trigger.classList.remove('open');
+      if (backdrop) backdrop.classList.remove('show');
+    }
+
+    function flyoutNavigate(viewId) {
+      closeAdminFlyout();
+      // Use showSettingsSubPage for consistent navigation
+      if (typeof showSettingsSubPage === 'function') {
+        showSettingsSubPage(viewId);
+      } else {
+        if (typeof showPage === 'function') showPage('settings');
+        setTimeout(function() {
+          if (typeof switchSettingsView === 'function') switchSettingsView(viewId, null);
+        }, 50);
+      }
+    }
+
+    // Close flyout on Escape key
+    document.addEventListener('keydown', function(e) {
+      if (e.key === 'Escape') closeAdminFlyout();
+    });
 
     // Apply button state on load
     _updateThemeBtn(document.body.classList.contains('dark'));
@@ -8459,6 +8713,22 @@
           btn.style.display = isAdmin ? '' : 'none';
         }
       });
+      // Flyout: hide admin-only items (Csapat, Biztonság) for members
+      document.querySelectorAll('#admin-flyout .flyout-item').forEach(btn => {
+        const title = btn.querySelector('.flyout-item-title');
+        if (title && (title.textContent === 'Csapat' || title.textContent === 'Biztonság')) {
+          btn.style.display = isAdmin ? '' : 'none';
+        }
+      });
+      // Hide "Adminisztráció" section label if not admin
+      document.querySelectorAll('#admin-flyout .flyout-section-label').forEach(lbl => {
+        if (lbl.textContent.trim() === 'Adminisztráció') {
+          lbl.style.display = isAdmin ? '' : 'none';
+        }
+      });
+      // Also hide first divider for members
+      const dividers = document.querySelectorAll('#admin-flyout .flyout-divider');
+      if (dividers.length > 0) dividers[0].style.display = isAdmin ? '' : 'none';
       // Sidebar password button: show for members (since they can't access Settings > Csapat)
       const pwBtn = document.getElementById('sidebar-pw-btn');
       if (pwBtn) pwBtn.style.display = isAdmin ? 'none' : '';
@@ -8590,6 +8860,7 @@
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
       document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
       document.querySelectorAll('.nav-sub-item').forEach(n => n.classList.remove('active'));
+      document.querySelectorAll('.nav-group-toggle').forEach(n => n.classList.remove('active'));
       
       // Greeting bar only on analytics, and only for admin (members have it integrated in dashboard)
       const greetBar = document.getElementById('greeting-bar');
@@ -8608,17 +8879,54 @@
         if (groupToggle) groupToggle.classList.add('active');
         const btn = document.querySelector(`[onclick*="switchCustomerView('${page}'"]`);
         if (typeof switchCustomerView === 'function') switchCustomerView(page, btn);
+      } else if (page === 'settings') {
+        // Highlight the settings nav-group toggle
+        const settingsToggle = document.getElementById('nav-settings');
+        if (settingsToggle) settingsToggle.classList.add('active');
+        // Open settings submenu
+        const settingsSubmenu = document.getElementById('nav-submenu-settings');
+        if (settingsToggle && !settingsToggle.classList.contains('open')) settingsToggle.classList.add('open');
+        if (settingsSubmenu && !settingsSubmenu.classList.contains('open')) settingsSubmenu.classList.add('open');
+        loadSettings(); loadPraxisinfo(); if (typeof fetchTriageRules === 'function') fetchTriageRules();
+        fetchDoctors();
       } else {
         const nav = document.getElementById(`nav-${actualPage}`);
         if (nav) nav.classList.add('active');
         if (page === 'calendar') loadCalendar();
-        if (page === 'settings') { loadSettings(); loadPraxisinfo(); if (typeof fetchTriageRules === 'function') fetchTriageRules();
-      fetchDoctors(); }
         if (page === 'kanban') loadKanban();
         if (page === 'clients') loadClientsTable();
         if (page === 'tudastar') initTudastar();
         if (page === 'help') initHelp();
       }
+    }
+
+    // ── Settings sub-page navigation (from sidebar sub-items) ─────────────────
+    function toggleSettingsNav(btn) {
+      const submenu = document.getElementById('nav-submenu-settings');
+      const isOpen = btn.classList.contains('open');
+      if (isOpen) {
+        // Just collapse the submenu
+        btn.classList.remove('open');
+        if (submenu) submenu.classList.remove('open');
+      } else {
+        // Open submenu and navigate to settings
+        btn.classList.add('open');
+        if (submenu) submenu.classList.add('open');
+        showPage('settings');
+      }
+    }
+
+    function showSettingsSubPage(viewId) {
+      // Navigate to settings page
+      showPage('settings');
+      // Clear settings sub-item active states & activate correct one
+      document.querySelectorAll('#nav-submenu-settings .nav-sub-item').forEach(n => n.classList.remove('active'));
+      const subItem = document.getElementById('nav-sub-settings-' + viewId);
+      if (subItem) subItem.classList.add('active');
+      // Switch to the correct settings tab
+      setTimeout(function() {
+        if (typeof switchSettingsView === 'function') switchSettingsView(viewId, null);
+      }, 30);
     }
 
     // ── Help page FAQ ────────────────────────────────────────────────────────────
