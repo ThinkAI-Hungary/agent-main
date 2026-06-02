@@ -561,7 +561,7 @@ async def entrypoint(ctx: JobContext):
         tts=cartesia.TTS(
             api_key=os.getenv("CARTESIA_API_KEY"),
             voice=load_agent_settings().get("voice_id") or os.getenv("CARTESIA_VOICE_ID", "36e0c00b-1bfd-4ad7-a0e8-928d4cadca00"),
-            model="sonic-3",
+            model="sonic-3.5",
             speed=1.0,
             language="hu",
             word_timestamps=False,
@@ -585,7 +585,7 @@ async def entrypoint(ctx: JobContext):
 
     logger.info(
         f"Session configured: STT=Soniox stt-rt-v4 (hu), "
-        f"LLM=gemini-2.5-flash, TTS=cartesia sonic-3, "
+        f"LLM=gemini-2.5-flash, TTS=cartesia sonic-3.5, "
         f"VAD threshold=0.6, preemptive={True}"
     )
 
