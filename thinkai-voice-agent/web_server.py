@@ -1020,6 +1020,7 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
         # Először is elmentjük a bejövő üzenetet a Kanbanba
         client_data = {"messenger_id": sender_id, "forras_csatorna": source_channel}
         meta_name = await fetch_meta_user_profile(sender_id, source_channel)
+        print(f"[Meta Name Debug] fetch_meta_user_profile result: '{meta_name}' for {source_channel}/{sender_id}")
         if meta_name:
             client_data["name"] = meta_name
         else:
@@ -1035,8 +1036,10 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
                     db_name = cd_fb.get("nev") or cd_fb.get("name") or existing.get("name")
                     if db_name and db_name not in ("Névtelen", "-", ""):
                         meta_name = db_name
+                        client_data["name"] = meta_name
                         print(f"[Meta API] DB fallback név: {meta_name}")
             
+        print(f"[Meta Name Debug] client_data before upsert: {client_data}")
         db.upsert_client(client_data, additional_log=f"Ügyfél ({source_channel}): {message_text}")
 
         # Előzmények beolvasása
