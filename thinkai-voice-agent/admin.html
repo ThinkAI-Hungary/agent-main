@@ -10023,19 +10023,72 @@
 
         function detectEredmeny(r) {
           const fs = (r.funnel_stage || '').toLowerCase();
-          const topic = ((r.topic || '') + ' ' + (r.summary || '')).toLowerCase();
-          if (fs === 'booked' || topic.includes('új időpont') || topic.includes('lefoglal')) return 'Új időpont';
-          if (topic.includes('módosít')) return 'Időpont módosítva';
-          if (topic.includes('lemond') || fs === 'cancelled') return 'Időpont lemondva';
-          if (topic.includes('előkészít') || fs === 'negotiating') return 'Időpont előkészítve';
-          if (topic.includes('megválaszol') || topic.includes('megoldva')) return 'Kérdés megválaszolva';
-          if (topic.includes('rögzít') && topic.includes('kérdés')) return 'Kérdés rögzítve';
-          if (topic.includes('rögzít') && topic.includes('igény')) return 'Igény rögzítve';
-          if (topic.includes('rögzít') && topic.includes('panasz')) return 'Panasz rögzítve';
-          if (topic.includes('elküld') || topic.includes('kiküld')) return 'Elküldve';
-          if (r.result) return r.result;
-          if (fs === 'reached') return 'Elérve';
-          return 'Rögzítve';
+          const tp = (r.topic || '').toLowerCase();
+          const sm = (r.summary || '').toLowerCase();
+          const rs = (r.result || '').toLowerCase();
+          const ty = (r.type || '').toLowerCase();
+          const as = (r.approval_status || '').toLowerCase();
+          const combined = tp + ' ' + sm + ' ' + rs;
+
+          // ── PANASZ (legmagasabb prioritás) ──
+          if (combined.includes('panasz') || combined.includes('reklamáció') || combined.includes('complaint')) return 'Panasz rögzítve';
+
+          // ── IDŐPONT kategóriák ──
+          // Új időpont: foglalás történt
+          if (fs === 'booked' || fs === 'foglalt' || ty === 'foglalás' || tp.includes('időpontfoglal') || tp.includes('foglal')
+              || combined.includes('lefoglal') || combined.includes('új időpont') || rs.includes('lefoglalva')) return 'Új időpont';
+          // Időpont módosítva
+          if (combined.includes('módosít') || combined.includes('áthelyez') || combined.includes('változtat')
+              || tp.includes('módosítás')) return 'Időpont módosítva';
+          // Időpont törölve/lemondva
+          if (combined.includes('lemond') || combined.includes('töröl') || combined.includes('cancel')
+              || fs === 'cancelled') return 'Időpont törölve';
+          // Időpont előkészítve: ajánlat fázisban, vagy előkészítés
+          if (combined.includes('előkészít') || fs === 'negotiating' || fs === 'ajanlat'
+              || fs === 'foglalas_alatt') return 'Időpont előkészítve';
+
+          // ── KÉRDÉS kategóriák ──
+          // Megválaszolt kérdés: kérdés típus + válasz kész (approved)
+          if ((ty === 'kérdés' || tp.includes('kérdés') || tp.includes('tudásbázis') || tp.includes('információ'))
+              && (as === 'approved' || as === 'lezárt' || rs.includes('megválaszol') || rs.includes('megoldva'))) return 'Megválaszolt kérdés';
+          // Válasz előkészítve: pending jóváhagyásra
+          if (as === 'pending' && (ty === 'email' || ty === 'kérdés' || ty === 'messenger' || ty === 'instagram')
+              && (rs.includes('jóváhagyás') || rs.includes('várakozik') || rs.includes('pending')
+              || combined.includes('piszkozat') || combined.includes('draft'))) return 'Válasz előkészítve';
+          // Kérdés rögzítve: kérdés típus de nem jóváhagyott
+          if (ty === 'kérdés' || tp.includes('tudásbázis') || tp.includes('kérdés')
+              || (combined.includes('érdeklőd') && !combined.includes('időpont'))) return 'Kérdés rögzítve';
+
+          // ── IGÉNY rögzítve ──
+          if (combined.includes('igény') || combined.includes('kérés') || ty === 'feladat'
+              || tp.includes('feladat')) return 'Igény rögzítve';
+
+          // ── EMAIL: Válasz előkészítve vs Elküldve ──
+          if (ty === 'email') {
+            if (as === 'pending' || rs.includes('jóváhagyás') || rs.includes('várakozik')) return 'Válasz előkészítve';
+            if (as === 'approved' || rs.includes('elküld') || rs.includes('kiküld') || rs.includes('sikeres')) return 'Megválaszolt kérdés';
+            if (tp.includes('emlékeztet') || tp.includes('reminder')) return 'Időpont előkészítve';
+            return 'Válasz előkészítve';
+          }
+
+          // ── Messenger/Instagram/Meta: hasonló logika ──
+          if (ty === 'messenger' || ty === 'instagram' || ty === 'meta' || ty === 'whatsapp') {
+            if (as === 'pending') return 'Válasz előkészítve';
+            if (as === 'approved') return 'Megválaszolt kérdés';
+            return 'Kérdés rögzítve';
+          }
+
+          // ── Emlékeztető ──
+          if (tp.includes('emlékeztet') || tp.includes('reminder')) return 'Időpont előkészítve';
+
+          // ── Riasztás ──
+          if (ty === 'voice_alert' || tp.includes('riasztás')) return 'Panasz rögzítve';
+
+          // ── Funnel stage fallback ──
+          if (fs === 'reached') return 'Kérdés rögzítve';
+          if (fs === 'valaszolt') return 'Megválaszolt kérdés';
+
+          return 'Kérdés rögzítve';
         }
 
         function detectStatusz(r) {
@@ -10061,35 +10114,56 @@
         }
 
         function resolveClientName(r) {
-          // Try to find client by client_id first
-          if (r.client_id && clientsMap[r.client_id]) {
-            const c = clientsMap[r.client_id];
+          // Helper: check if a string looks like a raw numeric ID (not a name)
+          function isRawId(val) { return val && /^\d{8,}$/.test(val); }
+          // Helper: extract the best name from a client record
+          function bestClientName(c) {
             let cd = c.custom_data;
             if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
-            return { name: cd?.nev || cd?.name || cd?.['név'] || c.name || sessionClientName, id: c.id, status: c.status, created_at: c.created_at };
+            const n = cd?.nev || cd?.name || cd?.['név'] || c.name;
+            return (n && n !== 'Névtelen' && n !== '-' && !isRawId(n)) ? n : null;
           }
 
-          // Build a list of search values to try
+          // 1. Try to find client by client_id first
+          if (r.client_id && clientsMap[r.client_id]) {
+            const c = clientsMap[r.client_id];
+            const n = bestClientName(c);
+            return { name: n || sessionClientName, id: c.id, status: c.status, created_at: c.created_at };
+          }
+
+          // 2. DIRECT messenger/instagram/whatsapp ID lookup from session_id
+          //    This is the most reliable method for social channels
+          const sid = s.session_id || '';
+          let directId = null;
+          if (sid.startsWith('messenger_')) directId = sid.substring(10).trim();
+          else if (sid.startsWith('instagram_')) directId = sid.substring(10).trim();
+          else if (sid.startsWith('whatsapp_')) directId = sid.substring(9).trim();
+
+          if (directId) {
+            const directMatch = window.kanbanData?.find(c => {
+              let cd = c.custom_data;
+              if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
+              const mid = (cd?.messenger_id || cd?.messenger_psid || '').toString().trim();
+              return mid && mid === directId;
+            });
+            if (directMatch) {
+              const n = bestClientName(directMatch);
+              if (n) return { name: n, id: directMatch.id, status: directMatch.status, created_at: directMatch.created_at };
+            }
+          }
+
+          // 3. Build a list of search values to try (name, email, phone)
           const searchValues = [];
-          if (sessionClientName && sessionClientName !== 'Ismeretlen') {
+          if (sessionClientName && sessionClientName !== 'Ismeretlen' && !isRawId(sessionClientName)) {
             searchValues.push(sessionClientName.toLowerCase().trim());
           }
-          // Extract email from session_id (e.g. "email_aronberes9@gmail.com" → "aronberes9@gmail.com")
-          const sid = s.session_id || '';
+          // Extract email from session_id
           if (sid.startsWith('email_')) {
             const emailFromSid = sid.substring(6).toLowerCase().trim();
             if (emailFromSid && !searchValues.includes(emailFromSid)) searchValues.push(emailFromSid);
           }
-          // Extract messenger id from session_id (e.g. "messenger_26629190113363954")
-          if (sid.startsWith('messenger_')) {
-            const midFromSid = sid.substring(10).trim();
-            if (midFromSid && !searchValues.includes(midFromSid)) searchValues.push(midFromSid);
-          }
-          // Extract instagram id from session_id (e.g. "instagram_1706910873655270")
-          if (sid.startsWith('instagram_')) {
-            const igFromSid = sid.substring(10).trim();
-            if (igFromSid && !searchValues.includes(igFromSid)) searchValues.push(igFromSid);
-          }
+          // Also add the directId for fallback matching
+          if (directId && !searchValues.includes(directId)) searchValues.push(directId);
 
           // Try all search values against all clients
           for (const searchVal of searchValues) {
@@ -10102,28 +10176,24 @@
               // Match by messenger_id
               const mid = (cd?.messenger_id || cd?.messenger_psid || '').toString().trim().toLowerCase();
               if (mid && mid === searchVal) return true;
-              // Match by email (check both fields and custom_data)
+              // Match by email
               const em = (cd?.email || c.email || '').toLowerCase().trim();
               if (em && em === searchVal) return true;
-              // Also check if searchVal contains email partially
-              if (em && searchVal.includes('@') && em === searchVal) return true;
               // Match by phone
               const ph = (cd?.phone || cd?.telefon || c.phone || '').replace(/\s/g, '');
               if (ph && ph === searchVal.replace(/\s/g, '')) return true;
               return false;
             });
             if (match) {
-              let cd = match.custom_data;
-              if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
-              const resolvedName = cd?.nev || cd?.name || cd?.['név'] || match.name || sessionClientName;
-              return { name: resolvedName, id: match.id, status: match.status, created_at: match.created_at };
+              const n = bestClientName(match);
+              return { name: n || sessionClientName, id: match.id, status: match.status, created_at: match.created_at };
             }
           }
           
           // No DB match found - return best available name from session
           let bestName = sessionClientName;
           // If participant is a raw ID or 'Ismeretlen', try to get a better name from session_id
-          if (bestName === 'Ismeretlen' || /^\d{10,}$/.test(bestName)) {
+          if (bestName === 'Ismeretlen' || isRawId(bestName)) {
             if (sid.startsWith('email_')) {
               bestName = sid.substring(6); // show email address
             } else if (sid.startsWith('phone_')) {
@@ -10210,16 +10280,14 @@
 
     const EREDMENY_COLORS = {
       'Új időpont': { bg: '#dcfce7', color: '#166534' },
-      'Időpont módosítva': { bg: '#fef9c3', color: '#854d0e' },
-      'Időpont lemondva': { bg: '#fee2e2', color: '#b91c1c' },
-      'Időpont előkészítve': { bg: '#dbeafe', color: '#1e40af' },
-      'Kérdés megválaszolva': { bg: '#dcfce7', color: '#166534' },
+      'Időpont módosítva': { bg: '#dbeafe', color: '#1e40af' },
+      'Időpont törölve': { bg: '#f3f4f6', color: '#6b7280' },
+      'Időpont előkészítve': { bg: '#fef9c3', color: '#854d0e' },
+      'Megválaszolt kérdés': { bg: '#dcfce7', color: '#166534' },
+      'Válasz előkészítve': { bg: '#fef9c3', color: '#854d0e' },
       'Kérdés rögzítve': { bg: '#dbeafe', color: '#1e40af' },
-      'Igény rögzítve': { bg: '#dbeafe', color: '#1e40af' },
+      'Igény rögzítve': { bg: '#fef9c3', color: '#854d0e' },
       'Panasz rögzítve': { bg: '#fee2e2', color: '#b91c1c' },
-      'Elküldve': { bg: '#f3e8ff', color: '#6b21a8' },
-      'Elérve': { bg: '#dcfce7', color: '#166534' },
-      'Rögzítve': { bg: '#f3f4f6', color: '#374151' },
     };
 
     const STATUSZ_COLORS = {

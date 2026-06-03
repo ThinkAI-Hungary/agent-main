@@ -1356,6 +1356,9 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             
             session_id = f"{source_channel.lower()}_{sender_id}"
             db.create_session(session_id=session_id, room_name=f"{source_channel} Chat", participant=display_name if display_name else "Ismeretlen")
+            # Always update participant in case the session already exists with a stale name (e.g. raw PSID)
+            if display_name:
+                db.update_session_participant(session_id, display_name)
             
             # alert tags beolvasása az aszinkron feladatból, ha az AI nem adott
             tags_from_ai = alert_tags if isinstance(alert_tags, list) else []
