@@ -2593,7 +2593,7 @@ async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @app.get("/admin/api/approvals")
-def get_approvals_api(status: str = "pending", username: str = Depends(verify_jwt)):
+async def get_approvals_api(status: str = "pending", username: str = Depends(verify_jwt)):
     approvals = db.get_approvals(status)
     
     # Server-side name resolution: replace raw PSID in to_name with actual client name
@@ -2606,17 +2606,42 @@ def get_approvals_api(status: str = "pending", username: str = Depends(verify_jw
             draft = _json.loads(appr.get("ai_draft_response") or "{}")
             to_name = draft.get("to_name", "")
             sender_id = draft.get("sender_id", "")
+            channel = draft.get("channel", "Messenger")
             
-            # If to_name is a raw PSID or empty, try to resolve from clients DB
+            # If to_name is a raw PSID or empty, try to resolve
             if _is_raw_id(to_name) or not to_name or to_name in ("Ismeretlen", "Névtelen"):
                 mid = sender_id or to_name
+                resolved_name = None
+                
+                # 1. Try clients DB first
                 if mid:
                     client = db.find_client_by_contact(messenger_id=str(mid))
                     if client:
                         cname = client.get("name", "")
                         if cname and cname not in ("Névtelen", "-", ""):
-                            draft["to_name"] = cname
-                            appr["ai_draft_response"] = _json.dumps(draft, ensure_ascii=False)
+                            resolved_name = cname
+                
+                # 2. If DB has no good name, call Meta API directly
+                if not resolved_name and mid:
+                    try:
+                        meta_name = await fetch_meta_user_profile(str(mid), channel)
+                        if meta_name:
+                            resolved_name = meta_name
+                            # Also update the client record so next time DB has the name
+                            if client:
+                                cd = client.get("custom_data") or {}
+                                if isinstance(cd, str):
+                                    try: cd = _json.loads(cd)
+                                    except: cd = {}
+                                cd["name"] = meta_name
+                                db.edit_client_details(client["id"], cd)
+                                print(f"[Approvals API] Kliens #{client['id']} név frissítve Meta API-ból: {meta_name}")
+                    except Exception as e:
+                        print(f"[Approvals API] Meta API hiba: {e}")
+                
+                if resolved_name:
+                    draft["to_name"] = resolved_name
+                    appr["ai_draft_response"] = _json.dumps(draft, ensure_ascii=False)
         except Exception:
             pass
     
