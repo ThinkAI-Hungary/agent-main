@@ -2982,13 +2982,13 @@
     }
 
     .bh-time {
-      width: 72px;
+      width: 110px;
       background: var(--bg3);
       border: 1px solid var(--border);
       border-radius: 6px;
       color: var(--text);
-      padding: 4px 6px;
-      font-size: 12px;
+      padding: 6px 10px;
+      font-size: 13px;
       font-family: 'Inter', Arial, sans-serif;
     }
 
@@ -6066,8 +6066,8 @@
             </div>
           </div>
 
-          <!-- ── 2. MAI NAPOM + ÜGYFELEIM ÁLLAPOTA ─── -->
-          <div class="m-section-grid">
+          <!-- ── 2. MAI NAPOM + ÜGYFELEIM ÁLLAPOTA + FIGYELEMRE MÉLTÓ ─── -->
+          <div class="m-section-grid" style="grid-template-rows: auto auto;">
             <!-- Mai napom timeline -->
             <div class="m-card">
               <div class="m-card-title">
@@ -6083,51 +6083,16 @@
                 </div>
               </div>
             </div>
-            <!-- Ügyfeleim állapota -->
-            <div class="m-card">
+            <!-- Ügyfeleim állapota (spans 2 rows to align bottom with Figyelemre méltó) -->
+            <div class="m-card" style="grid-row: span 2;">
               <div class="m-card-title">
                 <div class="m-card-title-icon" style="background:rgba(59,130,246,0.1);">
                   <svg fill="none" stroke="#3b82f6" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
                 </div>
                 Ügyfeleim állapota
               </div>
-              <div id="member-kanban-summary">
+              <div id="member-kanban-summary" style="flex:1;">
                 <div style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">Betöltés...</div>
-              </div>
-            </div>
-          </div>
-
-          <!-- ── 3. HAVI TELJESÍTMÉNY + FIGYELEMRE MÉLTÓ ──── -->
-          <div class="m-section-grid">
-            <!-- Havi teljesítmény -->
-            <div class="m-card">
-              <div class="m-card-title">
-                <div class="m-card-title-icon" style="background:rgba(249,115,22,0.1);">
-                  <svg fill="none" stroke="#f97316" stroke-width="2" viewBox="0 0 24 24"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>
-                </div>
-                Havi teljesítmény
-              </div>
-              <div id="member-performance" class="m-perf-grid">
-                <div class="m-perf-stat">
-                  <div class="m-perf-value" id="member-perf-interactions">—</div>
-                  <div class="m-perf-label">Interakció</div>
-                  <div class="m-perf-trend neutral" id="member-perf-interactions-trend">—</div>
-                </div>
-                <div class="m-perf-stat">
-                  <div class="m-perf-value" id="member-perf-appointments">—</div>
-                  <div class="m-perf-label">Időpont</div>
-                  <div class="m-perf-trend neutral" id="member-perf-appointments-trend">—</div>
-                </div>
-                <div class="m-perf-stat">
-                  <div class="m-perf-value" id="member-perf-approvals">—</div>
-                  <div class="m-perf-label">Jóváhagyás</div>
-                  <div class="m-perf-trend neutral" id="member-perf-approvals-trend">—</div>
-                </div>
-                <div class="m-perf-stat">
-                  <div class="m-perf-value" id="member-perf-new-clients">—</div>
-                  <div class="m-perf-label">Új ügyfél</div>
-                  <div class="m-perf-trend neutral" id="member-perf-new-clients-trend">—</div>
-                </div>
               </div>
             </div>
             <!-- Figyelemre méltó -->
@@ -6925,8 +6890,8 @@
               <thead>
                 <tr>
                   <th>Nap</th>
-                  <th>Nyit</th>
-                  <th>Zár</th>
+                  <th>Nyitás</th>
+                  <th>Zárás</th>
                   <th>Nyitva?</th>
                 </tr>
               </thead>
@@ -7547,10 +7512,9 @@
                     <label class="col-toggle-item" data-col="3" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(3,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Csatorna</label>
                     <label class="col-toggle-item" data-col="4" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(4,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Irány</label>
                     <label class="col-toggle-item" data-col="5" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(5,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Ügytípus</label>
-                    <label class="col-toggle-item" data-col="6" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(6,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Címkék</label>
-                    <label class="col-toggle-item" data-col="7" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(7,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Eredmény</label>
-                    <label class="col-toggle-item" data-col="8" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(8,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Státusz</label>
-                    <label class="col-toggle-item" data-col="9" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(9,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Teendő</label>
+                    <label class="col-toggle-item" data-col="6" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(6,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Eredmény</label>
+                    <label class="col-toggle-item" data-col="7" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(7,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Státusz</label>
+                    <label class="col-toggle-item" data-col="8" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(8,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Teendő</label>
                   </div>
                 </div>
                 <button class="int-toolbar-btn" onclick="loadInteractions()" style="margin-left:8px;">
@@ -7568,7 +7532,7 @@
                     <th>Csatorna</th>
                     <th>Interakció iránya</th>
                     <th>Ügytípus</th>
-                    <th>Címkék</th>
+
                     <th>Eredmény</th>
                     <th>Státusz</th>
                     <th>Teendő</th>
@@ -8674,7 +8638,7 @@
       if (pwBtn) pwBtn.style.display = '';
       // Update analytics nav label for members
       const analyticsLabel = document.getElementById('nav-analytics-label');
-      if (analyticsLabel) analyticsLabel.textContent = currentUserRole === 'admin' ? 'Analitika' : 'Saját analitika';
+      if (analyticsLabel) analyticsLabel.textContent = currentUserRole === 'admin' ? 'Analitika' : 'Nyitóoldal';
       // Show/hide analytics shells based on role
       const adminShell = document.querySelector('#page-analytics .analytics-shell');
       const memberShell = document.getElementById('member-analytics-shell');
@@ -10466,7 +10430,7 @@
       <td style="padding:12px 16px;font-size:13px;color:${txt};">${esc(r.channel)}</td>
       <td style="padding:12px 16px;"><span style="display:inline-block;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:600;background:${dc.bg};color:${dc.color};">${esc(r.direction)}</span></td>
       <td style="padding:12px 16px;">${ugyTipusBadge(r.ugyTipus)}</td>
-      <td style="padding:12px 16px;"><div style="display:flex;flex-wrap:wrap;gap:3px;">${(r.tags||[]).map(t => { const _tc = (typeof getTagColor === 'function') ? getTagColor(t) : {bg:'#f3f4f6',color:'#374151'}; return '<span style="background:'+_tc.bg+';color:'+_tc.color+';font-size:10px;padding:2px 6px;border-radius:8px;font-weight:600;white-space:nowrap;">'+esc(t)+'</span>'; }).join('')}</div></td>
+
       <td style="padding:12px 16px;">${eredmenyBadge(r.eredmeny)}</td>
       <td style="padding:12px 16px;">${statuszBadge(r.statusz)}</td>
       <td style="padding:12px 16px;font-size:12px;max-width:200px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;" title="${esc(r.teendo)}" onclick="event.stopPropagation()">${r.teendo === 'J\u00f3v\u00e1hagy\u00e1sra v\u00e1r' && r.ai_draft_response ? `<button onclick="openApprovalFromInteraction(${i})" style=\"background:rgba(251,191,36,0.12);color:#d97706;border:1px solid rgba(251,191,36,0.3);border-radius:6px;padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;\">\u26a0 J\u00f3v\u00e1hagy\u00e1sra v\u00e1r</button>` : `<span style=\"color:${txtM}\">${esc(r.teendo)}</span>`}</td>
@@ -15365,14 +15329,20 @@
       grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted);"><div style="display:inline-block; animation: callPulse 1.5s infinite; font-size: 24px;">⌛</div><br><br>Betöltés...</div>';
       
       try {
-        // Load clients data for name resolution (if not already loaded)
-        if (!window.kanbanData || !window.kanbanData.length) {
-          try {
-            const cres = await authFetch('/admin/api/clients');
-            const cdata = await cres.json();
-            window.kanbanData = cdata.clients || [];
-          } catch(e) {}
-        }
+        // Always reload clients for accurate name resolution
+        try {
+          const cres = await authFetch('/admin/api/clients');
+          const cdata = await cres.json();
+          window.kanbanData = cdata.clients || [];
+        } catch(e) {}
+        
+        // Also load sessions for participant name resolution
+        let sessionsMap = {};
+        try {
+          const sres = await authFetch('/admin/api/sessions/summary?limit=500');
+          const sdata = await sres.json();
+          (sdata.sessions || []).forEach(s => { sessionsMap[s.session_id] = s; });
+        } catch(e) {}
         
         const res = await authFetch('/admin/api/approvals?status=' + currentApprovalTab);
         if (!res.ok) { const text = await res.text(); throw new Error('Hiba a jóváhagyások betöltésekor: ' + text); }
@@ -15437,25 +15407,63 @@
           const chColors = { 'Email': '#eab308', 'email': '#eab308', 'E-mail': '#eab308', 'Messenger': '#3b82f6', 'messenger': '#3b82f6', 'WhatsApp': '#22c55e', 'whatsapp': '#22c55e' };
           const channelDisplay = channelParts.map(ch => `<span style="color:${chColors[ch]||'var(--text-muted)'}">${chIcons[ch]||'📨'} ${ch}</span>`).join(' <span style="color:var(--text-muted)">+</span> ');
           
-          let senderName = draftData.to_name || '';
-          // If no to_name, try to resolve from client database using sender_id
-          if (!senderName && draftData.sender_id) {
-            const sid = draftData.sender_id;
-            const matchedClient = (window.kanbanData || []).find(cl => {
+          let senderName = '';
+          // Helper: detect raw numeric PSID (not a real name)
+          const _isRawId = (v) => v && /^\d{8,}$/.test(v);
+          
+          // 1. Start with to_name if it's a real name (not a raw PSID)
+          const rawToName = draftData.to_name || '';
+          if (rawToName && !_isRawId(rawToName)) senderName = rawToName;
+          
+          // 2. If we don't have a name yet, resolve from clients DB
+          if (!senderName) {
+            // Collect all messenger IDs to try matching
+            const _lookupIds = new Set();
+            if (draftData.sender_id) _lookupIds.add(String(draftData.sender_id).trim());
+            // Extract from to_name if it's a raw ID
+            if (_isRawId(rawToName)) _lookupIds.add(rawToName.trim());
+            // Extract from session_id (e.g. "messenger_26629190113363954")
+            const _sid = c.session_id || '';
+            const _prefixMatch = _sid.match(/^(?:messenger|instagram|whatsapp)_(\d+)/);
+            if (_prefixMatch) _lookupIds.add(_prefixMatch[1]);
+            
+            // Search through ALL clients
+            const allClients = window.kanbanData || [];
+            for (const cl of allClients) {
               let cd = cl.custom_data;
-              if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
-              const mid = (cd?.messenger_id || '').toString().trim();
-              return mid && mid === sid;
-            });
-            if (matchedClient) {
-              let cd = matchedClient.custom_data;
-              if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
-              senderName = cd?.nev || cd?.name || matchedClient.name || sid;
-            } else {
-              senderName = sid;
+              if (typeof cd === 'string') { try { cd = JSON.parse(cd); } catch(e) { cd = {}; } }
+              if (!cd || typeof cd !== 'object') cd = {};
+              
+              // Get this client's messenger ID
+              const clMid = String(cd.messenger_id || cd.messenger_psid || '').trim();
+              if (!clMid) continue;
+              
+              // Check if any of our lookup IDs match
+              if (_lookupIds.has(clMid)) {
+                // Found the client! Extract name
+                const n = cd.nev || cd.name || cd['név'] || cl.name;
+                if (n && n !== 'Névtelen' && n !== '-' && !_isRawId(n)) {
+                  senderName = n;
+                }
+                break;
+              }
             }
           }
-          if (!senderName) senderName = c.session_id || 'Ismeretlen';
+          
+          // 3. If still no name, check session participant
+          if (!senderName) {
+            const _sid = c.session_id || '';
+            const sessionData = sessionsMap[_sid];
+            if (sessionData && sessionData.participant) {
+              const pName = sessionData.participant;
+              if (pName && pName !== 'Ismeretlen' && !_isRawId(pName)) {
+                senderName = pName;
+              }
+            }
+          }
+          
+          // 4. Final fallback
+          if (!senderName) senderName = 'Ismeretlen';
           const senderEmail = (isMulti && draftData.drafts) ? (draftData.drafts.find(d => d.to_email) || {}).to_email || '' : (draftData.to_email || '');
           
           let tagHtml = '';

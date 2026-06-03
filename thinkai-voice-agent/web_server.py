@@ -1340,7 +1340,10 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 display_name = None
 
             current_status = existing_client.get("status", "uj") if existing_client else "uj"
-            db.upsert_client({"messenger_id": sender_id, "forras_csatorna": source_channel}, additional_log=f"AI Válasz: {final_text}", status=current_status)
+            upsert_data = {"messenger_id": sender_id, "forras_csatorna": source_channel}
+            if display_name:
+                upsert_data["name"] = display_name
+            db.upsert_client(upsert_data, additional_log=f"AI Válasz: {final_text}", status=current_status)
             
             f_stage = "foglalt" if booked_meeting else "valaszolt"
             
