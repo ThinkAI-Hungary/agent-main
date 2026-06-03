@@ -977,10 +977,13 @@ async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Option
     field_sets = ["first_name,last_name", "name"]
     
     for fields in field_sets:
-        url = f"https://graph.facebook.com/v25.0/{sender_id}?fields={fields}&access_token={token}"
+        url = f"https://graph.facebook.com/v25.0/{sender_id}?fields={fields}&access_token={token[:10]}..."
+        print(f"[Meta API DEBUG] Kérés: fields={fields}, sender={sender_id}, channel={source_channel}")
         try:
+            real_url = f"https://graph.facebook.com/v25.0/{sender_id}?fields={fields}&access_token={token}"
             async with httpx.AsyncClient() as client:
-                resp = await client.get(url, timeout=10.0)
+                resp = await client.get(real_url, timeout=10.0)
+                print(f"[Meta API DEBUG] Válasz status={resp.status_code}, body={resp.text[:500]}")
                 if resp.status_code == 200:
                     data = resp.json()
                     # Try full name first
@@ -989,6 +992,7 @@ async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Option
                         first = data.get("first_name", "").strip()
                         last = data.get("last_name", "").strip()
                         name = f"{first} {last}".strip()
+                    print(f"[Meta API DEBUG] Parsed name='{name}', raw data keys={list(data.keys())}")
                     if name:
                         print(f"[Meta API] Név feloldva: '{name}' ({source_channel}/{sender_id}, fields={fields})")
                         return name
@@ -997,10 +1001,10 @@ async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Option
                     continue
                 elif resp.status_code == 400:
                     # This field set is not supported for this ID type, try next
-                    print(f"[Meta API] 400 fields={fields}, következő próba...")
+                    print(f"[Meta API] 400 fields={fields}, következő próba... response={resp.text[:300]}")
                     continue
                 else:
-                    print(f"[Meta API] Hiba status={resp.status_code} for {sender_id}: {resp.text[:200]}")
+                    print(f"[Meta API] Hiba status={resp.status_code} for {sender_id}: {resp.text[:300]}")
                     return None
         except Exception as e:
             print(f"[Meta API] Exception fields={fields}: {type(e).__name__}: {e}")
@@ -1414,6 +1418,11 @@ async def meta_webhook_receive(request: Request):
         body = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON")
+    
+    import json as _wh_json
+    print(f"[Meta Webhook DEBUG] === TELJES PAYLOAD ===")
+    print(f"[Meta Webhook DEBUG] {_wh_json.dumps(body, indent=2, ensure_ascii=False)[:2000]}")
+    print(f"[Meta Webhook DEBUG] === PAYLOAD VÉGE ===")
     
     obj_type = body.get("object")
     
