@@ -966,38 +966,48 @@ async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Option
     if source_channel not in ("Messenger", "Instagram"):
         return None
         
-    # Instagram DM uses Page Access Token (Messenger platform), not IG API token
     token = os.getenv("META_PAGE_ACCESS_TOKEN")
     if not token:
+        print(f"[Meta API] HIBA: META_PAGE_ACCESS_TOKEN nincs beállítva!")
         return None
     
-    # Instagram IGSID supports 'name' field directly.
-    # Messenger PSID only supports 'first_name', 'last_name', 'profile_pic' — NOT 'name'.
-    # Requesting 'name' on a PSID causes a 400 error, breaking the entire request.
-    if source_channel == "Instagram":
-        fields = "name,profile_pic"
-    else:
-        fields = "first_name,last_name,profile_pic"
-        
-    url = f"https://graph.facebook.com/v25.0/{sender_id}?fields={fields}&access_token={token}"
-    try:
-        import httpx
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, timeout=5.0)
-            if resp.status_code == 200:
-                data = resp.json()
-                name = data.get("name")
-                if not name:
-                    first = data.get("first_name", "")
-                    last = data.get("last_name", "")
-                    name = f"{first} {last}".strip()
-                return name if name else None
-            else:
-                print(f"[Meta API] Error fetching profile for {sender_id} ({source_channel}): {resp.text}")
-                return None
-    except Exception as e:
-        print(f"[Meta API] Exception fetching profile: {e}")
-        return None
+    import httpx
+    
+    # Strategy: try multiple field combinations until we get a name
+    field_sets = ["first_name,last_name", "name"]
+    
+    for fields in field_sets:
+        url = f"https://graph.facebook.com/v25.0/{sender_id}?fields={fields}&access_token={token}"
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(url, timeout=10.0)
+                if resp.status_code == 200:
+                    data = resp.json()
+                    # Try full name first
+                    name = data.get("name", "").strip()
+                    if not name:
+                        first = data.get("first_name", "").strip()
+                        last = data.get("last_name", "").strip()
+                        name = f"{first} {last}".strip()
+                    if name:
+                        print(f"[Meta API] Név feloldva: '{name}' ({source_channel}/{sender_id}, fields={fields})")
+                        return name
+                    # Empty name from this field set, try next
+                    print(f"[Meta API] Üres név fields={fields}, következő próba...")
+                    continue
+                elif resp.status_code == 400:
+                    # This field set is not supported for this ID type, try next
+                    print(f"[Meta API] 400 fields={fields}, következő próba...")
+                    continue
+                else:
+                    print(f"[Meta API] Hiba status={resp.status_code} for {sender_id}: {resp.text[:200]}")
+                    return None
+        except Exception as e:
+            print(f"[Meta API] Exception fields={fields}: {type(e).__name__}: {e}")
+            continue
+    
+    print(f"[Meta API] Nem sikerült nevet feloldani: {sender_id} ({source_channel})")
+    return None
 
 async def process_meta_message(sender_id: str, message_text: str, source_channel: str = "Messenger", phone_number_id: str = None):
     """Aszinkron háttérfeladat a Meta Messenger / Instagram üzenetek feldolgozására."""
@@ -2576,6 +2586,31 @@ async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_
 @app.get("/admin/api/approvals")
 def get_approvals_api(status: str = "pending", username: str = Depends(verify_jwt)):
     approvals = db.get_approvals(status)
+    
+    # Server-side name resolution: replace raw PSID in to_name with actual client name
+    import json as _json
+    import re
+    _is_raw_id = lambda v: bool(v and re.match(r'^\d{8,}$', str(v)))
+    
+    for appr in approvals:
+        try:
+            draft = _json.loads(appr.get("ai_draft_response") or "{}")
+            to_name = draft.get("to_name", "")
+            sender_id = draft.get("sender_id", "")
+            
+            # If to_name is a raw PSID or empty, try to resolve from clients DB
+            if _is_raw_id(to_name) or not to_name or to_name in ("Ismeretlen", "Névtelen"):
+                mid = sender_id or to_name
+                if mid:
+                    client = db.find_client_by_contact(messenger_id=str(mid))
+                    if client:
+                        cname = client.get("name", "")
+                        if cname and cname not in ("Névtelen", "-", ""):
+                            draft["to_name"] = cname
+                            appr["ai_draft_response"] = _json.dumps(draft, ensure_ascii=False)
+        except Exception:
+            pass
+    
     return {"approvals": approvals}
 
 @app.post("/admin/api/approvals/{id}/reject")
