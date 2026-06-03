@@ -32,7 +32,7 @@ import email_processor
 from anthropic import AsyncAnthropic
 
 THIS_DIR = Path(__file__).resolve().parent
-load_dotenv(THIS_DIR / ".env")
+load_dotenv(THIS_DIR / ".env", override=True)
 logger = logging.getLogger(__name__)
 
 # ── JWT config ────────────────────────────────────────────────────────────────
