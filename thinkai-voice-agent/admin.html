@@ -15390,6 +15390,9 @@
           let draftData = {};
           try { draftData = JSON.parse(c.ai_draft_response || '{}'); } catch(e){}
 
+          // === DEBUG LOG ===
+          console.log(`[Approval DEBUG] id=${c.id} session=${c.session_id} to_name="${draftData.to_name}" sender_id="${draftData.sender_id}" channel="${draftData.channel}"`);
+
           // Detect campaign
           const isCampaign = !!(draftData.campaign_name || (c.topic && c.topic.startsWith('Kampány:')));
           const campaignName = draftData.campaign_name || '';
@@ -15414,6 +15417,7 @@
           // 1. Start with to_name if it's a real name (not a raw PSID)
           const rawToName = draftData.to_name || '';
           if (rawToName && !_isRawId(rawToName)) senderName = rawToName;
+          console.log(`[Approval DEBUG]   1. to_name check: rawToName="${rawToName}" isRawId=${_isRawId(rawToName)} => senderName="${senderName}"`);
           
           // 2. If we don't have a name yet, resolve from clients DB
           if (!senderName) {
@@ -15426,6 +15430,8 @@
             const _sid = c.session_id || '';
             const _prefixMatch = _sid.match(/^(?:messenger|instagram|whatsapp)_(\d+)/);
             if (_prefixMatch) _lookupIds.add(_prefixMatch[1]);
+            
+            console.log(`[Approval DEBUG]   2. Client DB lookup IDs:`, [..._lookupIds]);
             
             // Search through ALL clients
             const allClients = window.kanbanData || [];
@@ -15442,6 +15448,7 @@
               if (_lookupIds.has(clMid)) {
                 // Found the client! Extract name
                 const n = cd.nev || cd.name || cd['név'] || cl.name;
+                console.log(`[Approval DEBUG]   2. Found client #${cl.id}: cl.name="${cl.name}" cd.name="${cd.name}" cd.nev="${cd.nev}" => n="${n}"`);
                 if (n && n !== 'Névtelen' && n !== '-' && !_isRawId(n)) {
                   senderName = n;
                 }
@@ -15456,6 +15463,7 @@
             const sessionData = sessionsMap[_sid];
             if (sessionData && sessionData.participant) {
               const pName = sessionData.participant;
+              console.log(`[Approval DEBUG]   3. Session participant: "${pName}"`);
               if (pName && pName !== 'Ismeretlen' && !_isRawId(pName)) {
                 senderName = pName;
               }
@@ -15464,6 +15472,7 @@
           
           // 4. Final fallback
           if (!senderName) senderName = 'Ismeretlen';
+          console.log(`[Approval DEBUG]   FINAL senderName="${senderName}"`);
           const senderEmail = (isMulti && draftData.drafts) ? (draftData.drafts.find(d => d.to_email) || {}).to_email || '' : (draftData.to_email || '');
           
           let tagHtml = '';
