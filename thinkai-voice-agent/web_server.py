@@ -2589,6 +2589,71 @@ async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# DIAGNOSZTIKA
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/admin/api/debug/meta-api")
+async def debug_meta_api(username: str = Depends(verify_jwt)):
+    """Diagnosztikai endpoint: teszteli a Meta Graph API-t a live szerveren."""
+    import httpx
+    results = {}
+    
+    token = os.getenv("META_PAGE_ACCESS_TOKEN")
+    results["token_exists"] = bool(token)
+    results["token_first_20"] = token[:20] + "..." if token else "NINCS"
+    
+    # Get latest messenger client
+    clients = db.get_clients(limit=50)
+    messenger_id = None
+    for c in clients:
+        cd = c.get("custom_data") or {}
+        if isinstance(cd, str):
+            try:
+                import json as _j
+                cd = _j.loads(cd)
+            except: cd = {}
+        mid = cd.get("messenger_id", "")
+        if mid:
+            messenger_id = mid
+            results["test_client_id"] = c["id"]
+            results["test_client_name"] = c["name"]
+            break
+    
+    if not messenger_id:
+        results["error"] = "Nincs messenger kliens a DB-ben"
+        return results
+    
+    results["messenger_psid"] = messenger_id
+    
+    if not token:
+        results["error"] = "META_PAGE_ACCESS_TOKEN nincs beállítva!"
+        return results
+    
+    # Test 1: first_name,last_name
+    try:
+        url = f"https://graph.facebook.com/v25.0/{messenger_id}?fields=first_name,last_name&access_token={token}"
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, timeout=15.0)
+            results["test1_fields"] = "first_name,last_name"
+            results["test1_status"] = resp.status_code
+            results["test1_response"] = resp.text[:500]
+    except Exception as e:
+        results["test1_error"] = f"{type(e).__name__}: {e}"
+    
+    # Test 2: name
+    try:
+        url2 = f"https://graph.facebook.com/v25.0/{messenger_id}?fields=name&access_token={token}"
+        async with httpx.AsyncClient() as client:
+            resp2 = await client.get(url2, timeout=15.0)
+            results["test2_fields"] = "name"
+            results["test2_status"] = resp2.status_code
+            results["test2_response"] = resp2.text[:500]
+    except Exception as e:
+        results["test2_error"] = f"{type(e).__name__}: {e}"
+    
+    return results
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # JÓVÁHAGYÓ RENDSZER (HUMAN-IN-THE-LOOP) API
 # ═══════════════════════════════════════════════════════════════════════════════
 
