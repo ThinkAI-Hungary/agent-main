@@ -21,9 +21,9 @@
       "enabled": true
     },
     "thursday": {
-      "open": null,
-      "close": null,
-      "enabled": false
+      "open": "09:00",
+      "close": "18:00",
+      "enabled": true
     },
     "friday": {
       "open": null,
