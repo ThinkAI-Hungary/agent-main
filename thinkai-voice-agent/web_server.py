@@ -8,6 +8,7 @@ and provides a JWT-protected admin API with analytics.
 import json
 import logging
 import os
+import sys
 import uuid
 import csv
 import io
@@ -2209,8 +2210,103 @@ async def save_workflow(payload: TextFileRequest, username: str = Depends(verify
     return {"ok": True, "message": "Workflow elmentve."}
 
 
+# ── Agent Server Restart ───────────────────────────────────────────────────────
+import subprocess
+import signal
+
+AGENT_PID_FILE = THIS_DIR / ".agent_server.pid"
+_agent_process = None
+
+
+def _kill_agent_process():
+    """Kill the tracked agent server process (if any)."""
+    global _agent_process
+    if _agent_process is not None:
+        try:
+            if _agent_process.poll() is None:
+                _agent_process.terminate()
+                try:
+                    _agent_process.wait(timeout=5)
+                except subprocess.TimeoutExpired:
+                    _agent_process.kill()
+            logger.info(f"Agent process (pid={_agent_process.pid}) leallitva.")
+        except Exception as e:
+            logger.warning(f"Agent process leallitas hiba: {e}")
+        _agent_process = None
+    if AGENT_PID_FILE.exists():
+        try:
+            pid = int(AGENT_PID_FILE.read_text().strip())
+            try:
+                if os.name == "nt":
+                    subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True, timeout=5)
+                else:
+                    os.kill(pid, signal.SIGTERM)
+            except (ProcessLookupError, PermissionError):
+                pass
+            logger.info(f"Agent process (pid={pid}) PID-fajlbol leallitva.")
+        except Exception as e:
+            logger.warning(f"PID-fajl alapu leallitas hiba: {e}")
+        AGENT_PID_FILE.unlink(missing_ok=True)
+
+
+def _start_agent_process():
+    """Start server.py as a background subprocess and track its PID."""
+    global _agent_process
+    server_script = THIS_DIR / "server.py"
+    if not server_script.exists():
+        raise FileNotFoundError(f"server.py nem talalhato: {server_script}")
+    _agent_process = subprocess.Popen(
+        [sys.executable, str(server_script), "dev"],
+        cwd=str(THIS_DIR),
+        stdout=subprocess.DEVNULL,
+        stderr=subprocess.DEVNULL,
+    )
+    AGENT_PID_FILE.write_text(str(_agent_process.pid))
+    logger.info(f"Agent server elindult, pid={_agent_process.pid}")
+    return _agent_process.pid
+
+
+@app.post("/admin/api/agent/restart")
+async def restart_agent_server(username: str = Depends(verify_jwt)):
+    """Leallitja es ujraindija a server.py agent processzt."""
+    try:
+        loop = asyncio.get_event_loop()
+        await loop.run_in_executor(None, _kill_agent_process)
+        await asyncio.sleep(1.0)
+        pid = await loop.run_in_executor(None, _start_agent_process)
+        return {"ok": True, "message": f"Agent server ujraindult (pid={pid})."}
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        logger.error(f"Agent restart hiba: {e}")
+        raise HTTPException(status_code=500, detail=f"Ujrainditasi hiba: {e}")
+
+
+@app.get("/admin/api/agent/status")
+async def agent_server_status(username: str = Depends(verify_jwt)):
+    """Visszaadja az agent server futasi allapotat."""
+    global _agent_process
+    running = False
+    pid = None
+    if _agent_process is not None and _agent_process.poll() is None:
+        running = True
+        pid = _agent_process.pid
+    elif AGENT_PID_FILE.exists():
+        try:
+            pid = int(AGENT_PID_FILE.read_text().strip())
+            if os.name == "nt":
+                result = subprocess.run(["tasklist", "/FI", f"PID eq {pid}"], capture_output=True, text=True)
+                running = str(pid) in result.stdout
+            else:
+                os.kill(pid, 0)
+                running = True
+        except (ProcessLookupError, ValueError, PermissionError):
+            running = False
+    return {"running": running, "pid": pid}
+
 
 # ── Praxisinfó ────────────────────────────────────────────────────────────────
+
 PRAXISINFO_FILE = THIS_DIR / "praxisinfo.json"
 
 _HU_TO_EN = {
