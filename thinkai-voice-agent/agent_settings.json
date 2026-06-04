@@ -3,7 +3,7 @@
   "tone": "professional_friendly",
   "tone_custom": "",
   "knowledge_format": "json",
-  "greeting": "Szia! A FogBox virtuális asszisztense vagyok. Kérdezz a szolgáltatásainkról, foglalj időpontot, vagy akár emailt is küldhetek helyetted. Miben segíthetek neked?",
+  "greeting": "Szia! A FogBox virtuális asszisztense vagyok. Kérdezz a szolgáltatásainkról, foglalj időpontot, vagy akár emailt is küldhetek helyetted. Miben segíthetek neked a mai nap során?",
   "business_hours": {
     "monday": {
       "open": "01:58",
@@ -22,7 +22,7 @@
     },
     "thursday": {
       "open": "09:00",
-      "close": "18:00",
+      "close": "19:00",
       "enabled": true
     },
     "friday": {

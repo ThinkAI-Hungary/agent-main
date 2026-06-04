@@ -6821,8 +6821,8 @@
           </div>
           <div style="border-top:1px solid #e5e7eb; margin-top:16px; padding-top:8px;">
           </div>
-          <!-- Restart banner -->
-          <div class="restart-banner" id="restart-banner">
+          <!-- Restart banner — hidden: restart is now automatic on save -->
+          <div class="restart-banner" id="restart-banner" style="display:none !important;">
             <div style="display:flex;align-items:center;gap:12px;flex-wrap:wrap;width:100%;">
               <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:18px;height:18px;flex-shrink:0;"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"/></svg>
               <span style="flex:1;font-size:13px;font-weight:500;">Az agent szerver újraindítása szükséges a változtatások érvényesítéséhez.</span>
@@ -10424,19 +10424,19 @@
 
         let clientCell;
         if (r.clientId) {
-          clientCell = `<button onclick="openClientDetails({id: ${r.clientId}, name: '${esc(r.client).replace(/'/g, "\\'")}'})" style="background:rgba(0,212,200,0.1);border:1px solid var(--accent,#1ceee0);color:var(--accent,#1ceee0);border-radius:6px;cursor:pointer;padding:5px 10px;font-size:12px;font-weight:600;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block;" title="Ugrás az ügyfél adatlapjára">${esc(r.client)}</button>`;
+          clientCell = `<button onclick="event.stopPropagation(); openClientDetails({id: ${r.clientId}, name: '${esc(r.client).replace(/'/g, "\\'")}'})" style="background:rgba(0,212,200,0.1);border:1px solid var(--accent,#1ceee0);color:var(--accent,#1ceee0);border-radius:6px;cursor:pointer;padding:5px 10px;font-size:12px;font-weight:600;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block;" title="Ugrás az ügyfél adatlapjára">${esc(r.client)}</button>`;
         } else {
           clientCell = `<span style="font-weight:500;color:${txtH};">${esc(r.client || 'Ismeretlen')}</span>`;
         }
 
-        return `<tr style="background:${bg};border-bottom:1px solid ${bdr};transition:background 0.15s;" onmouseover="this.style.background='${hover}'" onmouseout="this.style.background='${bg}'">
+        return `<tr style="background:${bg};border-bottom:1px solid ${bdr};transition:background 0.15s;cursor:pointer;" onclick="openInteractionSummaryModal(${i})" onmouseover="this.style.background='${hover}'" onmouseout="this.style.background='${bg}'">
       <td style="padding:12px 16px;text-align:center;" onclick="event.stopPropagation()">
         <input type="checkbox" class="int-row-checkbox" data-idx="${i}" onchange="updateIntDeleteBtn()" style="cursor:pointer;width:16px;height:16px;accent-color:#1ceee0;"/>
       </td>
       <td style="padding:12px 16px;font-size:13px;white-space:nowrap;">
         <div style="font-weight:500;color:${txtH};">${fmtDt(r.date)}</div>
       </td>
-      <td style="padding:12px 16px;font-size:13px;">${clientCell}</td>
+      <td style="padding:12px 16px;font-size:13px;" onclick="event.stopPropagation()">${clientCell}</td>
       <td style="padding:12px 16px;font-size:13px;color:${txt};">${esc(r.channel)}</td>
       <td style="padding:12px 16px;"><span style="display:inline-block;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:600;background:${dc.bg};color:${dc.color};">${esc(r.direction)}</span></td>
       <td style="padding:12px 16px;">${ugyTipusBadge(r.ugyTipus)}</td>
@@ -13064,7 +13064,7 @@
     async function saveSettings() {
       const btn = document.getElementById('save-settings-btn');
       btn.disabled = true;
-      btn.textContent = 'Mentés...';
+      btn.innerHTML = '<svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" width="15" height="15" style="animation:spin 0.8s linear infinite;"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg> Mentés...';
       try {
         const settingsPayload = {
           voice_id: document.getElementById('setting-voice').value,
@@ -13100,18 +13100,32 @@
         if (!spRes.ok) { const d = await spRes.json(); throw new Error(d.detail || 'System prompt hiba'); }
         if (!wfRes.ok) { const d = await wfRes.json(); throw new Error(d.detail || 'Workflow hiba'); }
 
-        // Csak akkor jelenik meg az újraindítás banner, ha agent-releváns mező változott
+        // Háttérben újraindítjuk az agent szervert, ha agent-releváns mező változott
         const _newSnapshot = _captureAgentSnapshot();
-        if (!window._agentSettingsSnapshot || window._agentSettingsSnapshot !== _newSnapshot) {
-          document.getElementById('restart-banner').classList.add('visible');
-        }
+        const needsRestart = !window._agentSettingsSnapshot || window._agentSettingsSnapshot !== _newSnapshot;
         window._agentSettingsSnapshot = _newSnapshot;
-        btn.textContent = ' Minden elmentve';
-        setTimeout(() => { btn.disabled = false; btn.innerHTML = '&#128190; Mentés'; }, 2500);
+
+        if (needsRestart) {
+          btn.innerHTML = '<svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" width="15" height="15" style="animation:spin 0.8s linear infinite;"><path d="M23 4v6h-6"/><path d="M20.49 15a9 9 0 11-2.12-9.36L23 10"/></svg> Alkalmazás...';
+          // Csendben újraindítjuk az agent szervert — a user nem lát semmit
+          try {
+            await authFetch('/admin/api/agent/restart', { method: 'POST' });
+          } catch(_) { /* silently ignore restart errors */ }
+        }
+
+        btn.innerHTML = '<svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" width="15" height="15"><polyline points="20 6 9 17 4 12"/></svg> Minden alkalmazva';
+        btn.style.background = '#10b981';
+        btn.style.borderColor = '#10b981';
+        setTimeout(() => {
+          btn.disabled = false;
+          btn.innerHTML = '<svg fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" width="15" height="15"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Mentés';
+          btn.style.background = '';
+          btn.style.borderColor = '';
+        }, 2500);
       } catch (e) {
         alert('Hiba a mentés során: ' + e.message);
         btn.disabled = false;
-        btn.innerHTML = '&#128190; Mentés';
+        btn.innerHTML = '<svg fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" width="15" height="15"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z"/><polyline points="17 21 17 13 7 13 7 21"/><polyline points="7 3 7 8 15 8"/></svg> Mentés';
       }
     }
 

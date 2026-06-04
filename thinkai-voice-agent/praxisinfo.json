@@ -1,5 +1,5 @@
 {
-  "practice_name": "Kiütöm a szádat",
+  "practice_name": "Kiütöm a fogad",
   "description": "",
   "address": "",
   "markanev": "FogBox",
@@ -40,5 +40,5 @@
   "new_patient_required": "Teljes név",
   "new_patient_auto_visit": false,
   "returning_patient_required": "Páciens azonosító vagy telefonszám",
-  "last_updated": "2026-06-04T17:16:01.778299"
+  "last_updated": "2026-06-04T19:31:53.997339"
 }
