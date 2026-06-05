@@ -262,7 +262,7 @@ def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", a
 
 def update_calendar_event(event_id: int, **fields) -> bool:
     if not supabase: return False
-    allowed = {"title", "start_dt", "end_dt", "duration_minutes", "attendee", "attendee_email"}
+    allowed = {"title", "start_dt", "end_dt", "duration_minutes", "attendee", "attendee_email", "completed"}
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates: return False
     try:

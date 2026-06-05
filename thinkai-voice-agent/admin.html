@@ -5,8 +5,8 @@
 <head>
   <meta charset="utf-8" />
   <meta content="width=device-width, initial-scale=1.0" name="viewport" />
-  <title>DigiDesk - Admin Dashboard</title>
-  <meta content="DigiDesk voice agent admin felület - analitika, interakciós lista, feladatok." name="description" />
+  <title>eaisydesk - Admin Dashboard</title>
+  <meta content="eaisydesk admin felület - analitika, interakciós lista, feladatok." name="description" />
   <link href="https://fonts.googleapis.com" rel="preconnect" />
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&amp;display=swap"
     rel="stylesheet" />
@@ -1388,6 +1388,17 @@
       letter-spacing: .05em;
       padding: 12px 16px;
       border-bottom: 1px solid #e5e7eb;
+    }
+
+    /* Member felhasználóknál elrejtjük a kijelölés oszlopot [visszaállítható: role-member class eltávolítás] */
+    body.role-member .int-checkbox-col {
+      display: none !important;
+    }
+    body.role-member #bulk-delete-btn {
+      display: none !important;
+    }
+    body.role-member .kanban-admin-only {
+      display: none !important;
     }
 
     .int-count {
@@ -5405,6 +5416,214 @@
       text-align: right;
     }
 
+    /* ── Todo Table (MiniCRM style) ────────────────── */
+    .todo-section {
+      margin-bottom: 18px;
+    }
+    .todo-section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-bottom: 16px;
+    }
+    .todo-section-title {
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--text);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .todo-section-count {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--text-muted);
+      background: var(--bg3);
+      padding: 3px 10px;
+      border-radius: 8px;
+    }
+    .todo-table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+    }
+    .todo-table thead th {
+      font-size: 11px;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      padding: 10px 16px;
+      border-bottom: 1px solid var(--border);
+      text-align: left;
+      white-space: nowrap;
+    }
+    .todo-table thead th:first-child {
+      width: 40px;
+      text-align: center;
+    }
+    .todo-row {
+      transition: all 0.2s ease;
+      cursor: pointer;
+    }
+    .todo-row:hover {
+      background: rgba(28, 238, 224, 0.03);
+    }
+    .todo-row.completed {
+      opacity: 0.45;
+    }
+    .todo-row.completed .todo-desc {
+      text-decoration: line-through;
+    }
+    .todo-row td {
+      padding: 14px 16px;
+      border-bottom: 1px solid var(--border);
+      font-size: 13px;
+      vertical-align: middle;
+    }
+    .todo-row:last-child td {
+      border-bottom: none;
+    }
+    .todo-checkbox {
+      width: 18px;
+      height: 18px;
+      accent-color: #1ceee0;
+      cursor: pointer;
+    }
+    .todo-desc {
+      font-weight: 600;
+      color: var(--text);
+      max-width: 320px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .todo-desc-sub {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 2px;
+    }
+    .todo-badge {
+      display: inline-block;
+      padding: 4px 12px;
+      border-radius: 20px;
+      font-size: 11px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .todo-badge.idopont { background: rgba(139,92,246,0.12); color: #8b5cf6; }
+    .todo-badge.visszahivas { background: rgba(34,197,94,0.12); color: #22c55e; }
+    .todo-badge.jovahagyas { background: rgba(28,238,224,0.12); color: #1ceee0; }
+    .todo-badge.intezked { background: rgba(251,191,36,0.12); color: #f59e0b; }
+    .todo-badge.surgos { background: rgba(239,68,68,0.12); color: #ef4444; }
+    .todo-badge.valasz { background: rgba(59,130,246,0.12); color: #3b82f6; }
+    .todo-badge.egyeb { background: rgba(100,116,139,0.12); color: #94a3b8; }
+    .todo-client-btn {
+      background: rgba(0,212,200,0.08);
+      border: 1px solid rgba(28,238,224,0.25);
+      color: var(--accent);
+      border-radius: 6px;
+      padding: 4px 10px;
+      font-size: 12px;
+      font-weight: 600;
+      cursor: pointer;
+      white-space: nowrap;
+      max-width: 140px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      display: inline-block;
+      transition: all 0.2s;
+    }
+    .todo-client-btn:hover {
+      background: rgba(0,212,200,0.16);
+      border-color: var(--accent);
+    }
+    .todo-deadline {
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .todo-deadline.today { color: #f59e0b; }
+    .todo-deadline.overdue { color: #ef4444; }
+    .todo-deadline.future { color: var(--text-muted); }
+    .todo-empty {
+      text-align: center;
+      padding: 40px 16px;
+      color: var(--text-muted);
+      font-size: 14px;
+    }
+    .todo-empty svg {
+      display: block;
+      margin: 0 auto 12px;
+      opacity: 0.4;
+    }
+
+    /* ── Activity Feed ────────────────── */
+    .activity-feed {
+      display: flex;
+      flex-direction: column;
+      gap: 0;
+    }
+    .activity-item {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      padding: 12px 0;
+      border-bottom: 1px solid var(--border);
+      transition: all 0.2s;
+      cursor: pointer;
+    }
+    .activity-item:last-child { border-bottom: none; }
+    .activity-item:hover {
+      background: rgba(28,238,224,0.03);
+      margin: 0 -12px;
+      padding: 12px;
+      border-radius: 10px;
+    }
+    .activity-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+    }
+    .activity-dot.email { background: #3b82f6; }
+    .activity-dot.phone { background: #22c55e; }
+    .activity-dot.messenger { background: #8b5cf6; }
+    .activity-dot.chat { background: #f59e0b; }
+    .activity-time {
+      font-size: 12px;
+      font-weight: 600;
+      color: var(--text-muted);
+      width: 50px;
+      flex-shrink: 0;
+    }
+    .activity-content {
+      flex: 1;
+      min-width: 0;
+    }
+    .activity-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: var(--text);
+    }
+    .activity-detail {
+      font-size: 11px;
+      color: var(--text-muted);
+      margin-top: 1px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .activity-channel-icon {
+      width: 28px;
+      height: 28px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .activity-channel-icon svg { width: 14px; height: 14px; }
+
     /* Quick actions */
     .m-actions-grid {
       display: grid;
@@ -5646,8 +5865,7 @@
         <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
       </button>
       <div class="sidebar-logo has-switch" onclick="document.getElementById('logo-switch-dd').classList.toggle('open')">
-        <div class="sidebar-logo-icon">T</div>
-        <span class="sidebar-logo-text">DigiDesk</span>
+        <img src="/eaisydesk_logo.png" alt="eaisydesk" class="sidebar-logo-img" style="height:28px; width:auto; object-fit:contain; transition: all 0.3s ease;">
       </div>
       <div class="logo-switch-dd" id="logo-switch-dd">
         <a class="logo-switch-link" href="/marketing">
@@ -6036,7 +6254,7 @@
           </div>
 
           <!-- ── 1. KPI CARDS ────────────────────────── -->
-          <div class="m-kpi-grid">
+          <div class="m-kpi-grid" style="grid-template-columns: 1fr 1fr;">
             <div class="m-kpi-card">
               <div class="m-kpi-header">
                 <div class="m-kpi-label">Hozzám rendelt ügyfelek</div>
@@ -6046,16 +6264,6 @@
               </div>
               <div class="m-kpi-value" style="color:var(--accent);" id="member-client-count">0</div>
               <div class="m-kpi-sub">aktív ügyfél</div>
-            </div>
-            <div class="m-kpi-card">
-              <div class="m-kpi-header">
-                <div class="m-kpi-label">Mai teendők</div>
-                <div class="m-kpi-icon" style="background:rgba(251,191,36,0.1);">
-                  <svg fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
-                </div>
-              </div>
-              <div class="m-kpi-value" id="member-todo-count">0</div>
-              <div class="m-kpi-sub" id="member-todo-sub">jóváhagyás + időpont</div>
             </div>
             <div class="m-kpi-card">
               <div class="m-kpi-header">
@@ -6069,97 +6277,78 @@
             </div>
           </div>
 
-          <!-- ── 2. MAI NAPOM + ÜGYFELEIM ÁLLAPOTA + FIGYELEMRE MÉLTÓ ─── -->
-          <div class="m-section-grid" style="grid-template-rows: auto auto;">
-            <!-- Mai napom timeline -->
-            <div class="m-card">
-              <div class="m-card-title">
-                <div class="m-card-title-icon" style="background:rgba(34,197,94,0.1);">
-                  <svg fill="none" stroke="#22c55e" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+          <!-- ── 2. TEENDŐK LISTA (MiniCRM stílus) ─── -->
+          <div class="m-card todo-section">
+            <div class="todo-section-header">
+              <div class="todo-section-title">
+                <div class="m-card-title-icon" style="background:rgba(251,191,36,0.1);">
+                  <svg fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
                 </div>
-                Mai napom
+                Teendők
+                <span class="todo-section-count" id="todo-count-badge">0</span>
               </div>
-              <div id="member-timeline" class="m-timeline">
-                <div class="m-timeline-empty">
-                  <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-                  Betöltés...
-                </div>
+              <div style="display:flex;gap:8px;">
+                <select id="todo-filter" onchange="renderMemberTodos()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-weight:600;">
+                  <option value="all">Minden teendő</option>
+                  <option value="today">Mai teendők</option>
+                  <option value="overdue">Lejárt</option>
+                  <option value="upcoming">Közelgő</option>
+                  <option value="completed">Lezárt</option>
+                </select>
               </div>
             </div>
-            <!-- Ügyfeleim állapota (spans 2 rows to align bottom with Figyelemre méltó) -->
-            <div class="m-card" style="grid-row: span 2;">
-              <div class="m-card-title">
-                <div class="m-card-title-icon" style="background:rgba(59,130,246,0.1);">
-                  <svg fill="none" stroke="#3b82f6" stroke-width="2" viewBox="0 0 24 24"><path d="M12 20V10M18 20V4M6 20v-4"/></svg>
+
+            <!-- Teendők összesítő kártyák (MiniCRM stílus) -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;" id="todo-summary-cards">
+              <div style="padding:16px 18px;border-radius:12px;border:1px solid #dbeafe;background:#eff6ff;cursor:pointer;" onclick="document.getElementById('todo-filter').value='today';renderMemberTodos();">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                  <span style="font-size:14px;">📋</span>
+                  <span style="font-size:12px;font-weight:600;color:#1e40af;">Mai teendők</span>
                 </div>
-                Ügyfeleim állapota
+                <div style="font-size:28px;font-weight:800;color:#1e40af;" id="todo-card-today">0</div>
               </div>
-              <div id="member-kanban-summary" style="flex:1;">
-                <div style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">Betöltés...</div>
+              <div style="padding:16px 18px;border-radius:12px;border:1px solid #fee2e2;background:#fef2f2;cursor:pointer;" onclick="document.getElementById('todo-filter').value='overdue';renderMemberTodos();">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                  <span style="font-size:14px;">🔴</span>
+                  <span style="font-size:12px;font-weight:600;color:#b91c1c;">Lejárt teendők</span>
+                </div>
+                <div style="font-size:28px;font-weight:800;color:#b91c1c;" id="todo-card-overdue">0</div>
+              </div>
+              <div style="padding:16px 18px;border-radius:12px;border:1px solid #dcfce7;background:#f0fdf4;cursor:pointer;" onclick="document.getElementById('todo-filter').value='completed';renderMemberTodos();">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                  <span style="font-size:14px;">✅</span>
+                  <span style="font-size:12px;font-weight:600;color:#15803d;">Lezárt teendők</span>
+                </div>
+                <div style="font-size:28px;font-weight:800;color:#15803d;" id="todo-card-completed">0</div>
+              </div>
+              <div style="padding:16px 18px;border-radius:12px;border:1px solid var(--border);background:var(--card);cursor:pointer;" onclick="document.getElementById('todo-filter').value='all';renderMemberTodos();">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                  <span style="font-size:14px;">📊</span>
+                  <span style="font-size:12px;font-weight:600;color:var(--text);">Összes teendő</span>
+                </div>
+                <div style="font-size:28px;font-weight:800;color:var(--text);" id="todo-card-all">0</div>
               </div>
             </div>
-            <!-- Figyelemre méltó -->
-            <div class="m-card">
-              <div class="m-card-title">
-                <div class="m-card-title-icon" style="background:rgba(239,68,68,0.1);">
-                  <svg fill="none" stroke="#ef4444" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0"/></svg>
-                </div>
-                Figyelemre méltó
-              </div>
-              <div id="member-notifications">
-                <div style="text-align:center; padding:20px; color:var(--text-muted); font-size:13px;">Betöltés...</div>
-              </div>
+
+            <div class="int-table-wrapper" style="max-height:400px;overflow-y:auto;">
+              <table class="todo-table" id="member-todo-table">
+                <thead>
+                  <tr>
+                    <th>✓</th>
+                    <th>Teendő leírása</th>
+                    <th>Típus</th>
+                    <th>Ügyfél</th>
+                    <th>Határidő</th>
+                  </tr>
+                </thead>
+                <tbody id="member-todo-tbody">
+                  <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">Betöltés...</td></tr>
+                </tbody>
+              </table>
             </div>
           </div>
 
-          <!-- ── 4. GYORS MŰVELETEK ──────────────── -->
-          <div class="m-card" style="margin-bottom:18px;">
-            <div class="m-card-title">
-              <div class="m-card-title-icon" style="background:rgba(28,238,224,0.1);">
-                <svg fill="none" stroke="#1ceee0" stroke-width="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
-              </div>
-              Gyors műveletek
-            </div>
-            <div class="m-actions-grid">
-              <button class="m-action-btn" onclick="showPage('approvals')">
-                <div class="m-action-icon" style="background:rgba(28,238,224,0.1);">
-                  <svg fill="none" stroke="#1ceee0" stroke-width="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg>
-                </div>
-                <div class="m-action-text">
-                  <div class="m-action-label">Jóváhagyások</div>
-                  <div class="m-action-sub">Várakozó piszkozatok</div>
-                </div>
-                <span class="m-action-badge" id="member-approval-badge" style="display:none;">0</span>
-              </button>
-              <button class="m-action-btn" onclick="showPage('calendar')">
-                <div class="m-action-icon" style="background:rgba(139,92,246,0.1);">
-                  <svg fill="none" stroke="#8b5cf6" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
-                </div>
-                <div class="m-action-text">
-                  <div class="m-action-label">Naptár</div>
-                  <div class="m-action-sub">Időpontok kezelése</div>
-                </div>
-              </button>
-              <button class="m-action-btn" onclick="showPage('clients')">
-                <div class="m-action-icon" style="background:rgba(34,197,94,0.1);">
-                  <svg fill="none" stroke="#22c55e" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                </div>
-                <div class="m-action-text">
-                  <div class="m-action-label">Ügyféllista</div>
-                  <div class="m-action-sub">Ügyfelek áttekintése</div>
-                </div>
-              </button>
-              <button class="m-action-btn" onclick="showPage('interactions')">
-                <div class="m-action-icon" style="background:rgba(251,191,36,0.1);">
-                  <svg fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z"/></svg>
-                </div>
-                <div class="m-action-text">
-                  <div class="m-action-label">Interakciók</div>
-                  <div class="m-action-sub">Teljes előzmények</div>
-                </div>
-              </button>
-            </div>
-          </div>
+
 
         </div><!-- end member-analytics-shell -->
       </div><!-- end page-analytics -->
@@ -6588,7 +6777,7 @@
               <!-- AI Mode Panel -->
               <div id="dd-camp-panel-ai" style="display:none;">
                 <div style="margin-bottom:16px;">
-                  <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">🎯 AI utasítások / Kampány brief</label>
+                  <label style="display:block; font-size:12px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-bottom:8px;">✏️ Kampány tartalma</label>
                   <textarea id="campaign-instructions" placeholder="Írd le, mit kommunikáljon az AI az ügyfeleknek...&#10;&#10;Pl. Ajánld fel a 20%-os kedvezményt a következő hónapra.&#10;Említsd meg a szabad időpontokat és a VIP előnyöket." style="width:100%; height:100px; padding:14px 16px; background:var(--bg); color:var(--text); border:1.5px solid var(--border); border-radius:10px; font-size:13px; font-family:inherit; outline:none; resize:none; box-sizing:border-box; line-height:1.5; transition:border 0.2s;" onfocus="this.style.borderColor='var(--accent)'" onblur="this.style.borderColor='var(--border)'"></textarea>
                 </div>
 
@@ -7536,7 +7725,7 @@
               <table class="data-table" id="interactions-flat-table">
                 <thead class="int-thead">
                   <tr>
-                    <th style="width:40px;text-align:center;"><input type="checkbox" id="int-select-all" onchange="toggleAllInteractionCheckboxes(this.checked)" style="cursor:pointer;width:16px;height:16px;accent-color:#1ceee0;"/></th>
+                    <th class="int-checkbox-col" style="width:40px;text-align:center;"><input type="checkbox" id="int-select-all" onchange="toggleAllInteractionCheckboxes(this.checked)" style="cursor:pointer;width:16px;height:16px;accent-color:#1ceee0;"/></th>
                     <th>Interakció időpontja</th>
                     <th>Ügyfél</th>
                     <th>Csatorna</th>
@@ -7567,7 +7756,7 @@
                 <div class="page-title">Érdeklődőkezelés</div>
                 <div class="page-subtitle">Konverziós tölcsér és érdeklődők nyomon követése</div>
               </div>
-              <button onclick="promptAddKanbanColumn()" style="display:flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;font-weight:600;white-space:nowrap;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">
+              <button class="kanban-admin-only" onclick="promptAddKanbanColumn()" style="display:flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;font-weight:600;white-space:nowrap;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">
                 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="15" height="15"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
                 Oszlop hozzáadása
               </button>
@@ -8648,7 +8837,7 @@
       if (pwBtn) pwBtn.style.display = '';
       // Update analytics nav label for members
       const analyticsLabel = document.getElementById('nav-analytics-label');
-      if (analyticsLabel) analyticsLabel.textContent = currentUserRole === 'admin' ? 'Analitika' : 'Nyitóoldal';
+      if (analyticsLabel) analyticsLabel.textContent = currentUserRole === 'admin' ? 'Analitika' : 'Irányítópult';
       // Show/hide analytics shells based on role
       const adminShell = document.querySelector('#page-analytics .analytics-shell');
       const memberShell = document.getElementById('member-analytics-shell');
@@ -8706,6 +8895,22 @@
       // Sidebar password button: show for members (since they can't access Settings > Csapat)
       const pwBtn = document.getElementById('sidebar-pw-btn');
       if (pwBtn) pwBtn.style.display = isAdmin ? 'none' : '';
+
+      // Interakciós lista: kijelölés/törlés csak adminnak [HIDDEN for members — visszaállítható]
+      const intSelectAllTh = document.querySelector('#interactions-flat-table thead th:first-child');
+      if (intSelectAllTh) intSelectAllTh.style.display = isAdmin ? '' : 'none';
+      const intDeleteBtn = document.getElementById('int-delete-selected-btn');
+      if (intDeleteBtn && !isAdmin) intDeleteBtn.style.display = 'none';
+      // CSS class a body-ra, hogy a dinamikusan renderelt checkbox td-k is elrejtődjenek
+      if (!isAdmin) {
+        document.body.classList.add('role-member');
+      } else {
+        document.body.classList.remove('role-member');
+      }
+
+      // Ügyféllista: "Kijelöltek törlése" gomb elrejtése member-eknek [HIDDEN — visszaállítható]
+      const bulkDeleteBtn = document.getElementById('bulk-delete-btn');
+      if (bulkDeleteBtn && !isAdmin) bulkDeleteBtn.style.display = 'none !important';
     }
 
     // ── Member data filtering ─────────────────────────────────────────────────
@@ -9119,17 +9324,7 @@
         // ── 1. KPI CARDS ──
         document.getElementById('member-client-count').textContent = myClients.length;
 
-        // Today's tasks = pending approvals + today's events
-        const todayEvents = myEvents.filter(ev => {
-          const d = new Date(ev.start_dt);
-          return d >= todayStart && d <= todayEnd;
-        });
-        const todoCount = pendingApprovals.length + todayEvents.length;
-        document.getElementById('member-todo-count').textContent = todoCount;
-        const todoParts = [];
-        if (pendingApprovals.length > 0) todoParts.push(`${pendingApprovals.length} jóváhagyás`);
-        if (todayEvents.length > 0) todoParts.push(`${todayEvents.length} időpont`);
-        document.getElementById('member-todo-sub').textContent = todoParts.length > 0 ? todoParts.join(' + ') : 'Nincs teendő';
+
 
         // Next appointment
         const futureEvents = myEvents
@@ -9147,162 +9342,339 @@
           nextSubEl.textContent = 'naptárban';
         }
 
-        // ── 2. DAILY TIMELINE ──
-        const timelineEl = document.getElementById('member-timeline');
-        const todayEvSorted = todayEvents.sort((a, b) => new Date(a.start_dt) - new Date(b.start_dt));
-        if (todayEvSorted.length > 0) {
-          timelineEl.innerHTML = todayEvSorted.map(ev => {
-            const evDt = new Date(ev.start_dt);
-            const endDt = ev.end_dt ? new Date(ev.end_dt) : null;
-            let dotClass = 'upcoming';
-            if (evDt < now && endDt && endDt < now) dotClass = 'past';
-            else if (evDt <= now && (!endDt || endDt >= now)) dotClass = 'now';
-            const timeStr = evDt.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
-            const name = ev.attendee || ev.title || 'Esemény';
-            return `<div class="m-timeline-item">
-              <div class="m-timeline-dot ${dotClass}"></div>
-              <div class="m-timeline-content">
-                <div class="m-timeline-time">${timeStr}</div>
-                <div class="m-timeline-name">${esc(name)} — ${esc(ev.title || '')}</div>
-              </div>
-            </div>`;
-          }).join('');
-        } else {
-          timelineEl.innerHTML = `<div class="m-timeline-empty">
-            <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            Szabad napod van! Nincsenek mai időpontok.
-          </div>`;
-        }
+        // ── 2. TEENDŐK LISTA (naptári események + interakciós teendők) ──
+        // Store todos globally for filter/render
+        window._memberTodos = [];
+        const todos = [];
 
-        // ── 3. KANBAN STATUS BARS ──
-        const kanbanEl = document.getElementById('member-kanban-summary');
-        let colNames = {};
-        const colColors = { 'uj': '#3b82f6', 'folyamatban': '#f59e0b', 'foglalt': '#22c55e', 'lezart': '#8b5cf6', 'valaszolt': '#1ceee0', 'lemondott': '#ef4444' };
-        try {
-          (colData.columns || []).forEach(col => { colNames[col.id] = col.name; });
-        } catch(e) {}
-        if (myClients.length > 0) {
-          const statusCounts = {};
-          myClients.forEach(c => {
-            const st = c.status || 'uj';
-            statusCounts[st] = (statusCounts[st] || 0) + 1;
-          });
-          const total = myClients.length;
-          kanbanEl.innerHTML = Object.entries(statusCounts).map(([st, cnt]) => {
-            const name = colNames[st] || st;
-            const pct = Math.round((cnt / total) * 100);
-            const color = colColors[st] || '#64748b';
-            return `<div class="m-kanban-row">
-              <div class="m-kanban-label">${esc(name)}</div>
-              <div class="m-kanban-bar-track">
-                <div class="m-kanban-bar-fill" style="width:${pct}%; background:${color};"></div>
-              </div>
-              <div class="m-kanban-count">${cnt}</div>
-            </div>`;
-          }).join('');
-        } else {
-          kanbanEl.innerHTML = '<div style="text-align:center; padding:24px; color:var(--text-muted); font-size:13px;">Nincs hozzárendelt ügyfél</div>';
-        }
-
-        // ── 4. MONTHLY PERFORMANCE ──
-        const thisMonthSessions = mySessions.filter(s => s.started_at && new Date(s.started_at) >= monthStart);
-        const prevMonthSessions = mySessions.filter(s => s.started_at && new Date(s.started_at) >= prevMonthStart && new Date(s.started_at) <= prevMonthEnd);
-        const thisMonthEvents = myEvents.filter(ev => new Date(ev.start_dt) >= monthStart && new Date(ev.start_dt) <= now);
-        const prevMonthEvents = myEvents.filter(ev => new Date(ev.start_dt) >= prevMonthStart && new Date(ev.start_dt) <= prevMonthEnd);
-        const thisMonthApprovals = allApprovals.filter(a => a.created_at && new Date(a.created_at) >= monthStart && a.approval_status !== 'pending');
-        const prevMonthApprovals = allApprovals.filter(a => a.created_at && new Date(a.created_at) >= prevMonthStart && new Date(a.created_at) <= prevMonthEnd && a.approval_status !== 'pending');
-        const thisMonthNewClients = myClients.filter(c => c.created_at && new Date(c.created_at) >= monthStart);
-        const prevMonthNewClients = myClients.filter(c => c.created_at && new Date(c.created_at) >= prevMonthStart && new Date(c.created_at) <= prevMonthEnd);
-
-        function setPerf(id, current, previous) {
-          document.getElementById(id).textContent = current;
-          const trendEl = document.getElementById(id + '-trend');
-          if (previous === 0 && current === 0) {
-            trendEl.className = 'm-perf-trend neutral';
-            trendEl.textContent = '— változatlan';
-          } else if (current >= previous) {
-            const pct = previous > 0 ? Math.round(((current - previous) / previous) * 100) : 100;
-            trendEl.className = 'm-perf-trend up';
-            trendEl.innerHTML = `▲ +${pct}%`;
-          } else {
-            const pct = previous > 0 ? Math.round(((previous - current) / previous) * 100) : 0;
-            trendEl.className = 'm-perf-trend down';
-            trendEl.innerHTML = `▼ -${pct}%`;
-          }
-        }
-        setPerf('member-perf-interactions', thisMonthSessions.length, prevMonthSessions.length);
-        setPerf('member-perf-appointments', thisMonthEvents.length, prevMonthEvents.length);
-        setPerf('member-perf-approvals', thisMonthApprovals.length, prevMonthApprovals.length);
-        setPerf('member-perf-new-clients', thisMonthNewClients.length, prevMonthNewClients.length);
-
-        // ── 5. APPROVAL BADGE ──
-        const badge = document.getElementById('member-approval-badge');
-        if (pendingApprovals.length > 0) {
-          badge.textContent = pendingApprovals.length;
-          badge.style.display = '';
-        } else {
-          badge.style.display = 'none';
-        }
-
-        // ── 6. NOTIFICATIONS ──
-        const notifEl = document.getElementById('member-notifications');
-        const notifs = [];
-
-        if (pendingApprovals.length > 0) {
-          notifs.push({
-            icon: `<div class="m-notif-icon" style="background:rgba(28,238,224,0.1);"><svg fill="none" stroke="#1ceee0" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"/></svg></div>`,
-            text: `${pendingApprovals.length} jóváhagyásra váró piszkozat`,
-            time: 'Azonnali teendő',
-            page: 'approvals'
-          });
-        }
-
-        // Upcoming events in next 2 hours
-        const twoHoursLater = new Date(now.getTime() + 2 * 60 * 60 * 1000);
-        const soonEvents = futureEvents.filter(ev => new Date(ev.start_dt) <= twoHoursLater);
-        soonEvents.forEach(ev => {
+        // a) Naptári események → teendők
+        myEvents.forEach(ev => {
           const evDt = new Date(ev.start_dt);
-          const mins = Math.round((evDt - now) / 60000);
-          notifs.push({
-            icon: `<div class="m-notif-icon" style="background:rgba(139,92,246,0.1);"><svg fill="none" stroke="#8b5cf6" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/></svg></div>`,
-            text: `${esc(ev.attendee || ev.title)} — ${mins} perc múlva`,
-            time: evDt.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' }),
-            page: 'calendar'
+          const isCompleted = ev.completed === true;
+          todos.push({
+            id: ev.id,
+            type: 'calendar',
+            desc: ev.title || 'Időpont',
+            sub: ev.attendee || '',
+            client: ev.attendee || '',
+            clientId: null,
+            badge: 'idopont',
+            badgeLabel: 'Időpont',
+            date: evDt,
+            completed: isCompleted
           });
         });
 
-        // Urgent clients
-        const urgentClients = myClients.filter(c => {
-          let cd = c.custom_data || {};
-          if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
-          return (cd.prioritas || '').toLowerCase().includes('sürgős');
-        });
-        if (urgentClients.length > 0) {
-          notifs.push({
-            icon: `<div class="m-notif-icon" style="background:rgba(239,68,68,0.1);"><svg fill="none" stroke="#ef4444" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01"/></svg></div>`,
-            text: `${urgentClients.length} sürgős ügyfél igényel figyelmet`,
-            time: 'Kiemelt prioritás',
-            page: 'clients'
-          });
-        }
+        // b) Jóváhagyásra váró AI válaszok → teendők
+        pendingApprovals.forEach(ap => {
+          const apDt = ap.created_at ? new Date(ap.created_at) : new Date();
+          // Deadline: 2 órán belül kell jóváhagyni
+          const deadlineDt = new Date(apDt.getTime() + 2 * 60 * 60 * 1000);
+          
+          // Parse client name from draft
+          let clientName = 'Ismeretlen';
+          let channel = '';
+          try {
+            const draft = JSON.parse(ap.ai_draft_response || '{}');
+            clientName = draft.to_name || draft.sender_id || 'Ismeretlen';
+            channel = draft.channel || ap.channel || '';
+          } catch(e) {}
 
-        if (notifs.length === 0) {
-          notifEl.innerHTML = `<div style="text-align:center; padding:24px; color:var(--text-muted); font-size:13px;">
-            <svg width="36" height="36" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24" style="display:block; margin:0 auto 10px; opacity:0.4;"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-            Minden rendben! Nincs figyelmet igénylő elem.
-          </div>`;
-        } else {
-          notifEl.innerHTML = notifs.map(n => `<div class="m-notif-item" onclick="showPage('${n.page}')">
-            ${n.icon}
-            <div class="m-notif-content">
-              <div class="m-notif-text">${n.text}</div>
-              <div class="m-notif-time">${n.time}</div>
-            </div>
-          </div>`).join('');
-        }
+          // Resolve name from allClients if it's a raw ID
+          const isRawId = (val) => val && /^\d{8,}$/.test(val);
+          if (isRawId(clientName)) {
+            const match = allClients.find(c => {
+              let cd = c.custom_data;
+              if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
+              const mid = (cd?.messenger_id || cd?.messenger_psid || '').toString().trim();
+              return mid && mid === clientName;
+            });
+            if (match) {
+              let cd = match.custom_data;
+              if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
+              clientName = cd?.nev || cd?.name || cd?.['név'] || match.name || clientName;
+            }
+          }
+
+          todos.push({
+            id: 'approval-' + (ap.id || Math.random()),
+            type: 'approval',
+            desc: 'Válasz jóváhagyása szükséges' + (channel ? ` — ${channel}` : ''),
+            sub: clientName !== 'Ismeretlen' ? clientName : '',
+            client: clientName,
+            clientId: ap.client_id || null,
+            badge: 'jovahagyas',
+            badgeLabel: 'Jóváhagyás',
+            date: deadlineDt,
+            completed: false,
+            approvalId: ap.id,
+            approvalData: ap  // Store full approval object for modal
+          });
+        });
+
+        // c) Interakciós teendők (sessions with pending handover)
+        const recentSessions = mySessions
+          .filter(s => s.handover_reason && s.handover_reason.trim() !== '')
+          .slice(0, 30);
+        recentSessions.forEach(s => {
+          const hr = (s.handover_reason || '').toLowerCase();
+          const as = (s.approval_status || '').toLowerCase();
+          let badge = 'egyeb', badgeLabel = 'Teendő';
+          if (hr.includes('sürgős') || hr.includes('panasz')) { badge = 'surgos'; badgeLabel = 'Sürgős'; }
+          else if (as === 'pending') return; // Skip: already handled as approval todo in section (b)
+          else if (hr.includes('visszahív')) { badge = 'visszahivas'; badgeLabel = 'Visszahívás'; }
+          else if (hr.includes('válasz')) { badge = 'valasz'; badgeLabel = 'Válasz'; }
+          else if (hr.includes('intézked') || hr.includes('véglegesít')) { badge = 'intezked'; badgeLabel = 'Intézkedés'; }
+          if (as === 'approved' || as === 'rejected') return; // skip closed ones
+
+          const sDt = s.started_at ? new Date(s.started_at) : new Date();
+          // Smart deadline: based on urgency, not the raw session start time
+          let deadlineDt = new Date(sDt);
+          if (badge === 'surgos') {
+            // Sürgős: azonnal, tehát a session start idő (már lejárt = piros)
+            deadlineDt = new Date(sDt);
+          } else if (badge === 'jovahagyas') {
+            // Jóváhagyás: max 2 órán belül válaszolni kell
+            deadlineDt = new Date(sDt.getTime() + 2 * 60 * 60 * 1000);
+          } else if (badge === 'visszahivas' || badge === 'valasz') {
+            // Visszahívás/Válasz: 4 órán belül
+            deadlineDt = new Date(sDt.getTime() + 4 * 60 * 60 * 1000);
+          } else {
+            // Egyéb: 24 órán belül
+            deadlineDt = new Date(sDt.getTime() + 24 * 60 * 60 * 1000);
+          }
+          const clientName = (() => {
+            const sid = s.session_id || '';
+            const participant = s.participant || s.client_name || '';
+            const isRawId = (val) => val && /^\d{8,}$/.test(val);
+            if (s.client_id) {
+              const c = allClients.find(cl => cl.id == s.client_id);
+              if (c) {
+                let cd = c.custom_data;
+                if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
+                const n = cd?.nev || cd?.name || cd?.['név'] || c.name;
+                if (n && n !== 'Névtelen' && n !== '-' && !isRawId(n)) return n;
+              }
+            }
+            let directId = null;
+            if (sid.startsWith('messenger_')) directId = sid.substring(10).trim();
+            else if (sid.startsWith('instagram_')) directId = sid.substring(10).trim();
+            else if (sid.startsWith('whatsapp_')) directId = sid.substring(9).trim();
+            if (directId) {
+              const match = allClients.find(c => {
+                let cd = c.custom_data;
+                if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
+                const mid = (cd?.messenger_id || cd?.messenger_psid || '').toString().trim();
+                return mid && mid === directId;
+              });
+              if (match) {
+                let cd = match.custom_data;
+                if (typeof cd === 'string') try { cd = JSON.parse(cd); } catch(e) { cd = {}; }
+                const n = cd?.nev || cd?.name || cd?.['név'] || match.name;
+                if (n && n !== 'Névtelen' && n !== '-' && !isRawId(n)) return n;
+              }
+            }
+            if (participant && participant !== 'Ismeretlen' && !isRawId(participant)) return participant;
+            if (sid.startsWith('email_')) return sid.substring(6);
+            if (sid.startsWith('phone_')) return sid.substring(6);
+            return participant || 'Ismeretlen';
+          })();
+          todos.push({
+            id: 'session-' + (s.id || s.session_id || Math.random()),
+            type: 'interaction',
+            desc: s.handover_reason || 'Interakciós teendő',
+            sub: s.channel || '',
+            client: clientName,
+            clientId: s.client_id || null,
+            badge: badge,
+            badgeLabel: badgeLabel,
+            date: deadlineDt,
+            completed: false
+          });
+        });
+
+        // Restore completed state from localStorage (daily key)
+        const todayKey = 'completedTodos_' + new Date().toISOString().slice(0, 10);
+        let completedIds = [];
+        try { completedIds = JSON.parse(localStorage.getItem(todayKey) || '[]'); } catch(e) {}
+        todos.forEach(t => {
+          if (completedIds.includes(String(t.id))) t.completed = true;
+        });
+
+        // Sort: not completed first, then by date desc
+        todos.sort((a, b) => {
+          if (a.completed !== b.completed) return a.completed ? 1 : -1;
+          return b.date - a.date;
+        });
+        window._memberTodos = todos;
+        renderMemberTodos();
+
 
       } catch(e) {
         console.error('Member analytics error', e);
+      }
+    }
+
+    function renderMemberTodos() {
+      const todos = window._memberTodos || [];
+      const filter = document.getElementById('todo-filter')?.value || 'all';
+      const now = new Date();
+      const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+      const todayEnd = new Date(todayStart.getTime() + 86400000);
+
+      // Calculate summary counts (always from ALL todos, not filtered)
+      const todayCount = todos.filter(t => !t.completed && t.date >= todayStart && t.date < todayEnd).length;
+      const overdueCount = todos.filter(t => !t.completed && t.date < todayStart).length;
+      const completedCount = todos.filter(t => t.completed).length;
+      const allCount = todos.filter(t => !t.completed).length;
+
+      // Update summary cards
+      const cardToday = document.getElementById('todo-card-today');
+      if (cardToday) cardToday.textContent = todayCount;
+      const cardOverdue = document.getElementById('todo-card-overdue');
+      if (cardOverdue) cardOverdue.textContent = overdueCount;
+      const cardCompleted = document.getElementById('todo-card-completed');
+      if (cardCompleted) cardCompleted.textContent = completedCount;
+      const cardAll = document.getElementById('todo-card-all');
+      if (cardAll) cardAll.textContent = allCount;
+
+      let filtered = todos;
+      if (filter === 'today') {
+        filtered = todos.filter(t => !t.completed && t.date >= todayStart && t.date < todayEnd);
+      } else if (filter === 'overdue') {
+        filtered = todos.filter(t => t.date < todayStart && !t.completed);
+      } else if (filter === 'upcoming') {
+        filtered = todos.filter(t => t.date >= todayEnd && !t.completed);
+      } else if (filter === 'completed') {
+        filtered = todos.filter(t => t.completed);
+      }
+
+      const countBadge = document.getElementById('todo-count-badge');
+      const notCompletedCount = todos.filter(t => !t.completed).length;
+      if (countBadge) countBadge.textContent = notCompletedCount;
+
+      const tbody = document.getElementById('member-todo-tbody');
+      if (!tbody) return;
+
+      if (filtered.length === 0) {
+        tbody.innerHTML = `<tr><td colspan="5" class="todo-empty">
+          <svg width="40" height="40" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+          ${filter === 'all' ? 'Nincs teendő — szuper!' : 'Nincs ilyen teendő.'}
+        </td></tr>`;
+        return;
+      }
+
+      tbody.innerHTML = filtered.map((t, i) => {
+        // Deadline formatting
+        const d = t.date;
+        let deadlineText = '', deadlineClass = 'future';
+        const diffMs = d - now;
+        const diffDays = Math.floor(diffMs / 86400000);
+        if (d < todayStart && !t.completed) {
+          const daysAgo = Math.abs(diffDays);
+          deadlineText = daysAgo === 0 ? 'Ma' : `${daysAgo} napja lejárt`;
+          deadlineClass = 'overdue';
+        } else if (d >= todayStart && d < todayEnd) {
+          deadlineText = 'Ma, ' + d.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
+          deadlineClass = 'today';
+        } else if (diffDays === 1) {
+          deadlineText = 'Holnap, ' + d.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
+          deadlineClass = 'future';
+        } else {
+          deadlineText = d.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
+          if (d.getHours() > 0 || d.getMinutes() > 0) {
+            deadlineText += ' ' + d.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
+          }
+        }
+
+        const completedClass = t.completed ? ' completed' : '';
+        const checked = t.completed ? ' checked' : '';
+        const clientNameEsc = esc(t.client).replace(/'/g, "\\'");
+        const clientBtn = t.client ? `<button class="todo-client-btn" onclick="event.stopPropagation(); showPage('clients'); openClientDetails({id: ${t.clientId || 'null'}, name: '${clientNameEsc}'})" title="${esc(t.client)}">${esc(t.client)}</button>` : '<span style="color:var(--text-muted);font-size:12px;">—</span>';
+        const typeIcon = t.type === 'calendar' ? '📅' : t.type === 'approval' ? '✉️' : '💬';
+
+        // Approval rows open the approval modal on click
+        const rowClick = t.type === 'approval' ? `onclick="openTodoApproval(${i})" style="cursor:pointer;"` : '';
+
+        return `<tr class="todo-row${completedClass}" data-todo-idx="${i}" ${rowClick}>
+          <td style="text-align:center;" onclick="event.stopPropagation()">
+            <input type="checkbox" class="todo-checkbox"${checked} onchange="toggleTodoCompleted('${t.id}', '${t.type}', this.checked, ${i})" />
+          </td>
+          <td>
+            <div class="todo-desc" title="${esc(t.desc)}">${typeIcon} ${esc(t.desc)}</div>
+            ${t.sub ? `<div class="todo-desc-sub">${esc(t.sub)}</div>` : ''}
+          </td>
+          <td><span class="todo-badge ${t.badge}">${t.badgeLabel}</span></td>
+          <td>${clientBtn}</td>
+          <td><span class="todo-deadline ${deadlineClass}">${deadlineText}</span></td>
+        </tr>`;
+      }).join('');
+    }
+
+    // Open approval modal from todo row click
+    function openTodoApproval(idx) {
+      const todos = window._memberTodos || [];
+      const t = todos[idx];
+      if (!t || !t.approvalData) return;
+      // Use the existing openApprovalModal which is designed for the Jóváhagyások page
+      // We ensure the approval tab context is 'pending' so buttons show
+      window.currentApprovalTab = 'pending';
+      openApprovalModal(t.approvalData);
+    }
+
+    async function toggleTodoCompleted(todoId, todoType, completed, idx) {
+      // Update UI immediately
+      const row = document.querySelector(`tr[data-todo-idx="${idx}"]`);
+      if (row) {
+        if (completed) row.classList.add('completed');
+        else row.classList.remove('completed');
+      }
+
+      // Update global data
+      if (window._memberTodos && window._memberTodos[idx]) {
+        window._memberTodos[idx].completed = completed;
+      }
+
+      // Persist completed state to localStorage (daily key — clears next day)
+      const todayKey = 'completedTodos_' + new Date().toISOString().slice(0, 10);
+      let completedIds = [];
+      try { completedIds = JSON.parse(localStorage.getItem(todayKey) || '[]'); } catch(e) {}
+      const todoIdStr = String(todoId);
+      if (completed && !completedIds.includes(todoIdStr)) {
+        completedIds.push(todoIdStr);
+      } else if (!completed) {
+        completedIds = completedIds.filter(id => id !== todoIdStr);
+      }
+      localStorage.setItem(todayKey, JSON.stringify(completedIds));
+      // Clean up old daily keys
+      try {
+        for (let i = 0; i < localStorage.length; i++) {
+          const k = localStorage.key(i);
+          if (k && k.startsWith('completedTodos_') && k !== todayKey) localStorage.removeItem(k);
+        }
+      } catch(e) {}
+
+      // Update count badge
+      const countBadge = document.getElementById('todo-count-badge');
+      if (countBadge) {
+        const notCompleted = (window._memberTodos || []).filter(t => !t.completed).length;
+        countBadge.textContent = notCompleted;
+      }
+
+      // Refresh summary cards
+      renderMemberTodos();
+
+      // Persist to DB for calendar events
+      if (todoType === 'calendar' && !String(todoId).startsWith('session-')) {
+        try {
+          await authFetch(`/admin/api/calendar/${todoId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ completed: completed })
+          });
+        } catch(e) {
+          console.error('Todo toggle error:', e);
+        }
       }
     }
 
@@ -9972,26 +10344,10 @@
 
         function detectUgyTipus(r) {
           const topic = ((r.topic || '') + ' ' + (r.summary || '') + ' ' + (r.type || '')).toLowerCase();
-          // PANASZ — nincs alkategória
           if (topic.includes('panasz') || topic.includes('reklamáció') || topic.includes('complaint')) return 'PANASZ';
-          // IDŐPONT alkategóriák
-          if (topic.includes('időpont') || topic.includes('foglal') || topic.includes('booking') || topic.includes('lemondás') || topic.includes('módosít') || topic.includes('emlékeztet')) {
-            if (topic.includes('lemond') || topic.includes('töröl') || topic.includes('cancel')) return 'IDŐPONT > Lemondás';
-            if (topic.includes('módosít') || topic.includes('áthelyez') || topic.includes('változtat')) return 'IDŐPONT > Módosítás';
-            if (topic.includes('emlékeztet') || topic.includes('reminder')) return 'IDŐPONT > Emlékeztető';
-            return 'IDŐPONT > Foglalás';
-          }
-          // KÉRÉS alkategóriák
-          if (topic.includes('kérés') || topic.includes('keres') || topic.includes('igény') || topic.includes('request')) {
-            if (topic.includes('dokumentum') || topic.includes('igazolás') || topic.includes('számla')) return 'KÉRÉS > Adminisztratív';
-            return 'KÉRÉS > Akciót igénylő';
-          }
-          // KÉRDÉS alkategóriák
-          if (topic.includes('kérdés') || topic.includes('question') || topic.includes('információ') || topic.includes('érdeklőd')) {
-            if (topic.includes('ár') || topic.includes('kedvezmény') || topic.includes('mennyibe') || topic.includes('díj')) return 'KÉRDÉS > Árkérdés';
-            if (topic.includes('ajánlat') || topic.includes('árajánlat')) return 'KÉRDÉS > Ajánlatkérés';
-            return 'KÉRDÉS > Általános';
-          }
+          if (topic.includes('időpont') || topic.includes('foglal') || topic.includes('booking') || topic.includes('lemondás') || topic.includes('módosít') || topic.includes('emlékeztet')) return 'IDŐPONT';
+          if (topic.includes('kérés') || topic.includes('keres') || topic.includes('igény') || topic.includes('request')) return 'KÉRÉS';
+          if (topic.includes('kérdés') || topic.includes('question') || topic.includes('információ') || topic.includes('érdeklőd')) return 'KÉRDÉS';
           return 'EGYÉB';
         }
 
@@ -10351,31 +10707,192 @@
         });
       }
 
-      // Build custom data object for openLogModal
+      // Build custom data
       let cData = {};
       if (client && client.custom_data) {
         try { cData = typeof client.custom_data === 'string' ? JSON.parse(client.custom_data) : client.custom_data; } catch(e) {}
       }
-      // Add client metadata
       cData.id = client ? client.id : null;
       cData._client_status = client ? client.status : null;
       cData._client_created_at = client ? client.created_at : null;
 
-      // Get the beszelgetes_naplo (conversation log) text
       const logText = cData.beszelgetes_naplo || r.summary || 'Nincs elérhető beszélgetés napló.';
 
-      // Encode parameters for openLogModal (same format as client database uses)
-      const encodedText = btoa(encodeURIComponent(logText));
-      const encodedCustomObj = btoa(encodeURIComponent(JSON.stringify(cData)));
+      // Store client data for "Ugrás ügyfélprofilra" button
+      window.currentLogModalClientData = {
+        id: cData.id,
+        name: r.client || cData.nev || cData.name || '',
+        email: cData.email || '',
+        phone: cData.telefonszam || cData.phone || ''
+      };
 
-      // Delegate to the existing openLogModal which handles everything
-      openLogModal(
-        encodedText,
-        r.client || 'Ismeretlen',
-        r.channel || 'Telefon',
-        r.date ? fmtDt(r.date) : '',
-        encodedCustomObj
-      );
+      // ── Directly populate the log-modal (NO navigation, NO openLogModal) ──
+
+      // Header
+      const nameEl = document.getElementById('log-modal-title-name');
+      if (nameEl) nameEl.textContent = r.client || 'Ismeretlen';
+      const channelEl = document.getElementById('log-modal-channel');
+      if (channelEl) channelEl.textContent = r.channel || 'Telefon';
+      const dateEl = document.getElementById('log-modal-date');
+      if (dateEl) dateEl.textContent = r.date ? fmtDt(r.date) : '';
+      const topicEl = document.getElementById('log-modal-topic');
+      if (topicEl) topicEl.textContent = 'Interakciós összefoglaló';
+
+      // Summary
+      const summaryBox = document.getElementById('log-modal-summary');
+      if (summaryBox) summaryBox.textContent = cData.problem_description || 'Az asszisztens a beszélgetés során rögzítette a felhasználó igényeit és lefoglalt egy időpontot.';
+
+      // ── Result box: Fetch calendar events for this client ──
+      let finalDate = '-';
+      let finalService = '-';
+      let finalDoctor = '-';
+      let finalReminder = '-';
+
+      // Try to find calendar event for this client
+      try {
+        const calRes = await authFetch('/admin/api/calendar');
+        const calData = await calRes.json();
+        const events = calData.events || [];
+        const clientName = (r.client || '').toLowerCase().trim();
+        const clientEmail = (cData.email || '').toLowerCase().trim();
+        
+        // Find matching event (most recent first)
+        const matchedEvent = events
+          .filter(ev => {
+            const evAttendee = (ev.attendee || '').toLowerCase().trim();
+            const evEmail = (ev.attendee_email || '').toLowerCase().trim();
+            return (clientName && evAttendee.includes(clientName)) ||
+                   (clientName && clientName.includes(evAttendee) && evAttendee.length > 2) ||
+                   (clientEmail && evEmail === clientEmail);
+          })
+          .sort((a, b) => (b.start_dt || '').localeCompare(a.start_dt || ''))[0];
+
+        if (matchedEvent) {
+          // Service from event title
+          if (matchedEvent.title && matchedEvent.title !== '-') {
+            finalService = matchedEvent.title;
+          }
+          // Date from event
+          if (matchedEvent.start_dt) {
+            const dt = new Date(matchedEvent.start_dt);
+            const y = dt.getFullYear();
+            const m = String(dt.getMonth() + 1).padStart(2, '0');
+            const d = String(dt.getDate()).padStart(2, '0');
+            const h = String(dt.getHours()).padStart(2, '0');
+            const mi = String(dt.getMinutes()).padStart(2, '0');
+            finalDate = `${y}. ${m}. ${d}. ${h}:${mi}`;
+          }
+          // Doctor from event (if stored)
+          if (matchedEvent.doctor) {
+            finalDoctor = matchedEvent.doctor;
+          }
+          // Reminder status
+          finalReminder = matchedEvent.reminder_sent ? 'Kiküldve ✓' : '-';
+        }
+      } catch(e) { console.warn('Calendar fetch for modal failed:', e); }
+
+      // Fallback: parse from custom_data if calendar didn't provide
+      if (finalDate === '-' && cData.booked_datetime) {
+        const dt = new Date(cData.booked_datetime);
+        if (!isNaN(dt.getTime())) {
+          const y = dt.getFullYear();
+          const m = String(dt.getMonth() + 1).padStart(2, '0');
+          const d = String(dt.getDate()).padStart(2, '0');
+          const h = String(dt.getHours()).padStart(2, '0');
+          const mi = String(dt.getMinutes()).padStart(2, '0');
+          finalDate = `${y}. ${m}. ${d}. ${h}:${mi}`;
+        } else {
+          finalDate = cData.booked_datetime;
+        }
+      }
+
+      // Fallback: parse from beszelgetes_naplo text
+      if (finalDate === '-') {
+        const naploDateMatch = logText.match(/Naptár bejegyzés létrehozva:\s*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/i);
+        if (naploDateMatch) {
+          const dt = new Date(naploDateMatch[1]);
+          if (!isNaN(dt.getTime())) {
+            const y = dt.getFullYear();
+            const m = String(dt.getMonth() + 1).padStart(2, '0');
+            const d = String(dt.getDate()).padStart(2, '0');
+            const h = String(dt.getHours()).padStart(2, '0');
+            const mi = String(dt.getMinutes()).padStart(2, '0');
+            finalDate = `${y}. ${m}. ${d}. ${h}:${mi}`;
+          }
+        }
+      }
+
+      // Fallback service from log text
+      if (finalService === '-') {
+        const servicePatterns = [
+          /szolgáltatás:\s*([^\n,]+)/i,
+          /(fogászati vizsgálat|ultrahangos fogkőeltávolítás|fogkőeltávolítás|általános vizit|általános konzultáció|konzultáció|fogászat|fogpótlás|implantátum|tömés|gyökérkezelés|fogfehérítés|szájsebészet|fogszabályozás|paradontológia|fogtisztítás|kontroll vizsgálat|vizit|vizsgálat|kezelés)/i
+        ];
+        for (const pat of servicePatterns) {
+          const m = logText.match(pat);
+          if (m) {
+            finalService = (m[1] || m[0]).trim();
+            finalService = finalService.charAt(0).toUpperCase() + finalService.slice(1);
+            break;
+          }
+        }
+      }
+
+      // Fallback doctor from log text
+      if (finalDoctor === '-') {
+        const docMatch = logText.match(/(?:orvos|doktor|dr\.):\s*([^\n,]+)/i);
+        if (docMatch) finalDoctor = docMatch[1].trim();
+      }
+
+      const resDate = document.getElementById('lm-res-date');
+      if (resDate) resDate.textContent = finalDate;
+      const resService = document.getElementById('lm-res-service');
+      if (resService) resService.textContent = finalService;
+      const resDoctor = document.getElementById('lm-res-doctor');
+      if (resDoctor) resDoctor.textContent = finalDoctor;
+      const resReminder = document.getElementById('lm-res-reminder');
+      if (resReminder) resReminder.textContent = finalReminder;
+
+      // Chat bubbles
+      const chatContainer = document.getElementById('log-modal-chat');
+      if (chatContainer) {
+        chatContainer.innerHTML = '';
+        const lines = logText.split('\n');
+        let blocks = [];
+        let currentSender = 'system';
+        let currentBlock = [];
+        for (let line of lines) {
+          line = line.trim();
+          if (!line && currentSender !== 'ai') continue;
+          let sender = currentSender;
+          if (line.startsWith('Felhasználó:') || line.startsWith('User:')) { sender = 'user'; line = line.replace(/^(Felhasználó|User):\s*/, ''); }
+          else if (line.startsWith('AI:') || line.startsWith('Asszisztens:') || line.startsWith('Bot:')) { sender = 'ai'; line = line.replace(/^(AI|Asszisztens|Bot):\s*/, ''); }
+          else if (line.startsWith('[')) { sender = 'system'; }
+          if (sender !== currentSender && currentBlock.length > 0) {
+            blocks.push({ sender: currentSender, text: currentBlock.join('\n') });
+            currentBlock = [];
+          }
+          currentSender = sender;
+          if (line) currentBlock.push(line);
+        }
+        if (currentBlock.length > 0) blocks.push({ sender: currentSender, text: currentBlock.join('\n') });
+        blocks.forEach(b => {
+          if (b.sender === 'system') {
+            chatContainer.appendChild(createSystemBubble(b.text));
+          } else {
+            chatContainer.appendChild(createChatBubble(b.sender, b.text));
+          }
+        });
+      }
+
+      // Reset chat container and toggle button
+      const chatContainerWrapper = document.getElementById('log-modal-chat-container');
+      if (chatContainerWrapper) chatContainerWrapper.style.display = 'none';
+      const toggleBtn = document.getElementById('log-modal-toggle-btn');
+      if (toggleBtn) toggleBtn.innerHTML = `<span style="margin-right:6px;">↓</span> Interakció megtekintése`;
+
+      // Show the modal — stays on current page, no navigation!
+      document.getElementById('log-modal').style.display = 'flex';
     }
 
     function filterInteractionsTable() {
@@ -10430,7 +10947,7 @@
         }
 
         return `<tr style="background:${bg};border-bottom:1px solid ${bdr};transition:background 0.15s;cursor:pointer;" onclick="openInteractionSummaryModal(${i})" onmouseover="this.style.background='${hover}'" onmouseout="this.style.background='${bg}'">
-      <td style="padding:12px 16px;text-align:center;" onclick="event.stopPropagation()">
+      <td class="int-checkbox-col" style="padding:12px 16px;text-align:center;" onclick="event.stopPropagation()">
         <input type="checkbox" class="int-row-checkbox" data-idx="${i}" onchange="updateIntDeleteBtn()" style="cursor:pointer;width:16px;height:16px;accent-color:#1ceee0;"/>
       </td>
       <td style="padding:12px 16px;font-size:13px;white-space:nowrap;">
@@ -11197,7 +11714,7 @@
             <span id="col-name-label-${col.id}" style="cursor:pointer;" ondblclick="editKanbanColumn('${col.id}', '${esc(col.name)}')" title="Kattints duplán az átnevezéshez">${esc(col.name)}</span>
             <span class="kanban-col-count" id="count-${col.id}">${counts[col.id]}</span>
           </div>
-          <div id="col-actions-${col.id}" style="display:flex; gap:6px;">
+          <div id="col-actions-${col.id}" class="kanban-admin-only" style="display:flex; gap:6px;">
             <button onclick="editKanbanColumn('${col.id}', '${esc(col.name)}')" style="background:none;border:none;color:var(--text-muted);cursor:pointer;padding:2px;display:flex;align-items:center;opacity:0.6;transition:opacity 0.2s;" onmouseover="this.style.opacity=1" onmouseout="this.style.opacity=0.6" title="Átnevezés">
               <svg fill="none" height="13" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="2" viewBox="0 0 24 24" width="13" style="vertical-align: middle;"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z"></path></svg>
             </button>
@@ -11278,7 +11795,7 @@
               ${kanbanTagsHtml}
               ${clinicDisplay}
               ${otherHtml}
-              <div style="text-align:right"><button onclick="deleteClient(${c.id})" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:11px;">Törlés</button></div>
+              <div class="kanban-admin-only" style="text-align:right"><button onclick="deleteClient(${c.id})" style="background:transparent;border:none;color:var(--red);cursor:pointer;font-size:11px;">Törlés</button></div>
             `;
             container.appendChild(div);
           });
@@ -12085,7 +12602,7 @@
       }
     }
 
-    function openLogModal(encodedText, name, channel, date, encodedCustomObj) {
+    async function openLogModal(encodedText, name, channel, date, encodedCustomObj) {
       let t = '';
       try { t = decodeURIComponent(atob(encodedText)); } catch (e) { }
       
@@ -12153,39 +12670,81 @@
       // Valós Eredmény adatok megjelenítése
       const resContainer = document.getElementById('log-modal-result-box');
       if (resContainer) {
-          let finalDate = cData.booked_datetime || '-';
-          let finalService = cData.service || '-';
-          let finalDoctor = cData.doctor || '-';
-          
-          let cleanText = t.replace(/\[\d{4}-\d{2}-\d{2}\s*\d{2}:\d{2}\]/g, '');
+          let finalDate = '-';
+          let finalService = '-';
+          let finalDoctor = '-';
+          let finalReminder = '-';
 
-          if (finalDate === '-' || !finalDate) {
-              let dMatch = cleanText.match(/202\d[\s\S]{1,45}?(?:\d{1,2}:\d{2}|\d{1,2}\s*óra)/i);
-              if (dMatch) {
-                  finalDate = dMatch[0].replace(/>\s*/g, '').replace(/\n/g, ' ').trim();
+          // Try to find calendar event for this client
+          try {
+            const calRes = await authFetch('/admin/api/calendar');
+            const calData = await calRes.json();
+            const events = calData.events || [];
+            const clientName = (name || '').toLowerCase().trim();
+            const clientEmail = (cData.email || '').toLowerCase().trim();
+            
+            const matchedEvent = events
+              .filter(ev => {
+                const evAttendee = (ev.attendee || '').toLowerCase().trim();
+                const evEmail = (ev.attendee_email || '').toLowerCase().trim();
+                return (clientName && evAttendee.includes(clientName)) ||
+                       (clientName && clientName.includes(evAttendee) && evAttendee.length > 2) ||
+                       (clientEmail && evEmail === clientEmail);
+              })
+              .sort((a, b) => (b.start_dt || '').localeCompare(a.start_dt || ''))[0];
+
+            if (matchedEvent) {
+              if (matchedEvent.title && matchedEvent.title !== '-') finalService = matchedEvent.title;
+              if (matchedEvent.start_dt) {
+                const dt = new Date(matchedEvent.start_dt);
+                finalDate = `${dt.getFullYear()}. ${String(dt.getMonth()+1).padStart(2,'0')}. ${String(dt.getDate()).padStart(2,'0')}. ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
               }
-          }
-          
-          if (finalService === '-' || !finalService) {
-              let sMatch = cleanText.match(/(ultrahangos fogkőeltávolítás|fogkőeltávolítás|általános vizit|általános konzultáció|konzultáció|fogászat|vizit|vizsgálat|kezelés)/i);
-              if (sMatch) {
-                  finalService = sMatch[0].charAt(0).toUpperCase() + sMatch[0].slice(1);
-              }
+              if (matchedEvent.doctor) finalDoctor = matchedEvent.doctor;
+              finalReminder = matchedEvent.reminder_sent ? 'Kiküldve ✓' : '-';
+            }
+          } catch(e) { console.warn('Calendar fetch for modal failed:', e); }
+
+          // Fallback: parse from custom_data
+          if (finalDate === '-' && cData.booked_datetime) {
+            const dt = new Date(cData.booked_datetime);
+            if (!isNaN(dt.getTime())) {
+              finalDate = `${dt.getFullYear()}. ${String(dt.getMonth()+1).padStart(2,'0')}. ${String(dt.getDate()).padStart(2,'0')}. ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+            }
           }
 
-          
-          // Tisztítjuk a dátumot, hogy ne legyenek benne kötőszavak (pl. -re, -ra, órára)
-          if (finalDate !== '-') {
-              finalDate = finalDate.replace(/-r[ea]\b/gi, '')
-                                   .replace(/órára/gi, '')
-                                   .replace(/óra/gi, '')
-                                   .replace(/\s+/g, ' ')
-                                   .trim();
+          // Fallback: parse from log text
+          if (finalDate === '-') {
+            const naploDateMatch = t.match(/Naptár bejegyzés létrehozva:\s*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/i);
+            if (naploDateMatch) {
+              const dt = new Date(naploDateMatch[1]);
+              if (!isNaN(dt.getTime())) {
+                finalDate = `${dt.getFullYear()}. ${String(dt.getMonth()+1).padStart(2,'0')}. ${String(dt.getDate()).padStart(2,'0')}. ${String(dt.getHours()).padStart(2,'0')}:${String(dt.getMinutes()).padStart(2,'0')}`;
+              }
+            }
           }
+
+          // Fallback service from log text
+          if (finalService === '-') {
+            const sPatterns = [
+              /szolgáltatás:\s*([^\n,]+)/i,
+              /(fogászati vizsgálat|ultrahangos fogkőeltávolítás|fogkőeltávolítás|általános vizit|általános konzultáció|konzultáció|fogászat|fogpótlás|implantátum|tömés|gyökérkezelés|fogfehérítés|szájsebészet|fogszabályozás|paradontológia|fogtisztítás|kontroll vizsgálat|vizit|vizsgálat|kezelés)/i
+            ];
+            for (const pat of sPatterns) {
+              const m = t.match(pat);
+              if (m) { finalService = (m[1] || m[0]).trim(); finalService = finalService.charAt(0).toUpperCase() + finalService.slice(1); break; }
+            }
+          }
+
+          // Fallback doctor
+          if (finalDoctor === '-') {
+            const docMatch = t.match(/(?:orvos|doktor|dr\.):\s*([^\n,]+)/i);
+            if (docMatch) finalDoctor = docMatch[1].trim();
+          }
+
           document.getElementById('lm-res-date').textContent = finalDate;
           document.getElementById('lm-res-service').textContent = finalService;
           document.getElementById('lm-res-doctor').textContent = finalDoctor;
-          document.getElementById('lm-res-reminder').textContent = cData.reminder_sent_at || '-';
+          document.getElementById('lm-res-reminder').textContent = finalReminder;
       }
 
       // Chat buborékok generálása
@@ -14756,8 +15315,6 @@
     document.addEventListener('click', function (e) {
       // Kanban card click
       const card = e.target.closest('.kanban-card');
-      // Interactions flat body click
-      const interactionTr = e.target.closest('#interactions-flat-body tr');
 
       // Skip if we clicked a button/link inside the card or row
       if (e.target.closest('button') || e.target.closest('a') || e.target.closest('.card-delete')) return;
@@ -14785,12 +15342,9 @@
 
           openClientDetails({ name: name, email: email, phone: phone });
         }
-      } else if (interactionTr && !interactionTr.querySelector('th')) {
-        let name = "Ügyfél";
-        // In Interactions table, name is usually in the 3rd column (index 2)
-        if (interactionTr.cells && interactionTr.cells[2]) name = interactionTr.cells[2].innerText;
-        openClientDetails({ name: name, email: '', phone: '' });
       }
+      // NOTE: Interaction rows (#interactions-flat-body tr) are handled by their own
+      // onclick="openInteractionSummaryModal(idx)" — no need for delegation here.
     });
 
     
@@ -15477,8 +16031,9 @@
         if (countLabel) {
            countLabel.innerText = `${filteredItems.length} megjelenítve`;
         }
-        document.getElementById('approval-select-all').checked = false;
-        updateApprovalBulkActions();
+        const selectAll = document.getElementById('approval-select-all');
+        if (selectAll) selectAll.checked = false;
+        if (typeof updateApprovalBulkActions === 'function') updateApprovalBulkActions();
         
         if (filteredItems.length === 0) {
           grid.innerHTML = '<div style="grid-column: 1/-1; text-align: center; padding: 60px; color: var(--text-muted);"><svg fill="none" stroke="var(--success)" stroke-width="2" viewBox="0 0 24 24" style="width:48px;height:48px;margin-bottom:16px;display:inline-block;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg><br><br>Nincs megjeleníthető elem a kiválasztott szűrők alapján!</div>';
@@ -15689,11 +16244,28 @@
            throw new Error(d.detail || 'Hiba történt a mentés során');
         }
         
+        const approvedId = currentApprovalId; // Save before close nullifies it
         closeApprovalModal();
-        loadApprovals(); // Frissíti a listát
-        // Refresh member analytics dashboard
-        if (currentUserRole !== 'admin') loadMemberAnalytics();
-        showToast('Sikeres művelet!', 'success');
+        loadApprovals(); // Frissíti a jóváhagyások listát (ha az oldalon van)
+        
+        // Mark the todo as completed locally (strikethrough) instead of removing it
+        if (currentUserRole !== 'admin' && window._memberTodos) {
+          const todo = window._memberTodos.find(t => t.type === 'approval' && t.approvalId === approvedId);
+          if (todo) {
+            todo.completed = true;
+            todo.desc = todo.desc.replace('szükséges', 'elküldve ✓');
+            // Persist to localStorage (daily key)
+            const todayKey = 'completedTodos_' + new Date().toISOString().slice(0, 10);
+            let cIds = [];
+            try { cIds = JSON.parse(localStorage.getItem(todayKey) || '[]'); } catch(e) {}
+            if (!cIds.includes(String(todo.id))) cIds.push(String(todo.id));
+            localStorage.setItem(todayKey, JSON.stringify(cIds));
+            renderMemberTodos();
+          } else {
+            loadMemberAnalytics();
+          }
+        }
+        showToast('Válasz jóváhagyva és elküldve!', 'success');
       } catch (e) {
         alert(e.message);
       } finally {
@@ -16388,7 +16960,7 @@ async function selectWizardStyle(btn, style) {
 
 async function generateWizardMessage() {
   const brief = document.getElementById('campaign-instructions').value.trim();
-  if (!brief) { showToast('error', 'Írd le először az AI utasításokat / kampány brief-et!'); return; }
+  if (!brief) { showToast('error', 'Írd le először a kampány tartalmát!'); return; }
   
   const channels = window._selectedCampaignChannels || ['email'];
   const channel = channels[0] || 'email';
@@ -16467,7 +17039,7 @@ async function createCampaign() {
   } else {
     const instructionsEl = document.getElementById('campaign-instructions');
     aiInstructions = instructionsEl ? instructionsEl.value.trim() : '';
-    if (!aiInstructions) return alert('Kérlek add meg az AI utasításokat, vagy generáld le az üzenetet!');
+    if (!aiInstructions) return alert('Kérlek add meg a kampány tartalmát, vagy generáld le az üzenetet!');
   }
 
   try {
@@ -16671,7 +17243,7 @@ async function previewCampaign(campaignId) {
     <div style="margin-top:20px;">
       <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
         <svg fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24' style='width:14px;height:14px;color:var(--accent);'><path stroke-linecap='round' stroke-linejoin='round' d='M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z'/></svg>
-        AI Utasítás
+        Kampány tartalma
       </div>
       <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px 18px;font-size:13px;color:var(--text);line-height:1.7;white-space:pre-wrap;max-height:200px;overflow-y:auto;font-family:'Inter',Arial,sans-serif;">${esc(aiInstr)}</div>
     </div>

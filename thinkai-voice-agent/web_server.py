@@ -869,6 +869,10 @@ async def marketing_social_analytics():
 async def logo():
     return FileResponse(THIS_DIR / "thinkai-logo.png", media_type="image/png")
 
+@app.get("/eaisydesk_logo.png")
+async def eaisydesk_logo():
+    return FileResponse(THIS_DIR / "eaisydesk_logo.png", media_type="image/png")
+
 @app.get("/login-bg.jpg")
 async def bg():
     return FileResponse(THIS_DIR / "login-bg.jpg", media_type="image/jpeg")
@@ -1775,6 +1779,18 @@ def admin_create_event(req: ManualEventRequest, username: str = Depends(verify_j
     
     return {"status": "success", "event_id": event_id, "message": "Időpont sikeresen létrehozva"}
 
+@app.patch("/admin/api/calendar/{event_id}")
+async def update_calendar_event_api(event_id: int, request: Request, username: str = Depends(verify_jwt)):
+    """Update a calendar event (e.g. mark as completed)."""
+    body = await request.json()
+    allowed_fields = {"completed", "title", "start_dt", "end_dt"}
+    updates = {k: v for k, v in body.items() if k in allowed_fields}
+    if not updates:
+        raise HTTPException(status_code=400, detail="Nincs frissítendő mező")
+    success = db.update_calendar_event(event_id, **updates)
+    if not success:
+        raise HTTPException(status_code=500, detail="Frissítés sikertelen")
+    return {"status": "success"}
 
 @app.get("/admin/api/emails")
 def admin_emails(limit: int = 100, username: str = Depends(verify_jwt)):
