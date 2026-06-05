@@ -5694,7 +5694,8 @@
       -->
 
 
-      <button class="nav-item" id="nav-approvals" onclick="showPage('approvals')" data-tooltip="Jóváhagyó rendszer">
+      <!-- Jóváhagyó rendszer sidebar [HIDDEN — display:none eltávolításával visszahozható] -->
+      <button class="nav-item" id="nav-approvals" onclick="showPage('approvals')" data-tooltip="Jóváhagyó rendszer" style="display:none;">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
           <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
         </svg>
@@ -5707,18 +5708,17 @@
         <span>Kimenő kommunikáció</span>
       </button>
       <div class="nav-group">
-        <button class="nav-group-toggle" id="nav-settings" onclick="toggleSettingsNav(this)" data-tooltip="Beállítások">
-          <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
-            <path d="M12 15a3 3 0 100-6 3 3 0 000 6z"></path>
-            <path
-              d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z">
-            </path>
+        <button class="nav-group-toggle" id="nav-settings" onclick="toggleSettingsNav(this)" data-tooltip="Tudástár">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 016.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"></path>
+            <path d="M8 7h8M8 11h6"></path>
           </svg>
-          <span>Beállítások</span>
+          <span>Tudástár</span>
           <svg class="nav-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>
         </button>
         <div class="nav-submenu" id="nav-submenu-settings">
-          <button class="nav-sub-item" id="nav-sub-settings-agent" onclick="showSettingsSubPage('agent')">Agent</button>
+          <button class="nav-sub-item" id="nav-sub-settings-agent" onclick="showSettingsSubPage('agent')">Telefon</button>
           <button class="nav-sub-item" id="nav-sub-settings-praxis" onclick="showSettingsSubPage('praxis')">Céginformációk</button>
           <button class="nav-sub-item" id="nav-sub-settings-szabalyok" onclick="showSettingsSubPage('szabalyok')">Szabályok</button>
         </div>
@@ -6640,8 +6640,8 @@
 
         <!-- Accounty-style header -->
         <div class="settings-page-header">
-          <h1>Beállítások</h1>
-          <p>Rendszer beállítások és preferenciák</p>
+          <h1>Tudástár</h1>
+          <p>Tudásbázis, beállítások és preferenciák</p>
         </div>
 
         <!-- Accounty-style layout: sidebar + content -->
@@ -6649,8 +6649,8 @@
           <!-- Sidebar navigation -->
           <div class="settings-sidebar-nav">
             <button class="settings-tab active" onclick="switchSettingsView('agent', this)">
-              <svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/><circle cx="12" cy="16" r="1"/></svg>
-              Agent
+              <svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.07 1.18 2 2 0 012.07 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"/></svg>
+              Telefon
             </button>
             <button class="settings-tab" onclick="switchSettingsView('praxis', this)">
               <svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z"/><polyline points="9 22 9 12 15 12 15 22"/></svg>
@@ -6811,7 +6811,7 @@
         <div id="settings-view-agent" class="settings-subview" style="display:block;">
           <div style="margin-bottom: 8px; display:flex; justify-content:space-between; align-items:flex-start;">
             <div>
-              <div style="font-size:18px; font-weight:700; color:#111827; font-family:'Inter',Arial,sans-serif;">Agent beállítások</div>
+              <div style="font-size:18px; font-weight:700; color:#111827; font-family:'Inter',Arial,sans-serif;">Telefon beállítások</div>
               <div style="font-size:13px; color:#6b7280; margin-top:4px; font-family:'Inter',Arial,sans-serif;">Hang, nyitvatartás, tudásbázis, rendszerutasítás és workflow</div>
             </div>
             <button class="btn-settings-save" id="save-settings-btn" onclick="saveSettings()">
@@ -6910,8 +6910,8 @@
               </tbody>
             </table>
           </div>
-          <!-- 3. Knowledge base - Q&A párok -->
-          <div class="settings-section">
+          <!-- 3. Knowledge base - Q&A párok  [HIDDEN — display:none eltávolításával visszahozható] -->
+          <div class="settings-section" style="display:none;" id="section-knowledge-qa">
             <div class="settings-section-title" style="justify-content:space-between;">
               <span style="display:flex;align-items:center;gap:10px;">
                     <span style="width:28px;height:28px;border-radius:8px;background:rgba(28,238,224,0.1);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -6931,8 +6931,8 @@
             </div>
           </div>
 
-          <!-- System Prompt -->
-          <div class="settings-section">
+          <!-- System Prompt  [HIDDEN — display:none eltávolításával visszahozható] -->
+          <div class="settings-section" style="display:none;" id="section-system-prompt">
             <div class="settings-section-title">
               <span style="display:flex;align-items:center;gap:10px;">
                     <span style="width:28px;height:28px;border-radius:8px;background:rgba(28,238,224,0.1);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -6949,8 +6949,8 @@
               placeholder="Te Balázs vagy, a DigiDesk digitális asszisztense..."
               style="min-height:420px;font-family:'Courier New',monospace;font-size:12px;"></textarea>
           </div>
-          <!-- Workflow -->
-          <div class="settings-section">
+          <!-- Workflow  [HIDDEN — display:none eltávolításával visszahozható] -->
+          <div class="settings-section" style="display:none;" id="section-workflow">
             <div class="settings-section-title">
               <span style="display:flex;align-items:center;gap:10px;">
                     <span style="width:28px;height:28px;border-radius:8px;background:rgba(28,238,224,0.1);display:inline-flex;align-items:center;justify-content:center;flex-shrink:0;">
@@ -8279,14 +8279,14 @@
                 <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Email kampányok létrehozása, automatizációk beállítása, esemény alapú küldések</div>
               </div>
             </div>
-            <!-- Beállítások -->
+            <!-- Tudástár -->
             <div style="display:flex;align-items:center;gap:14px;padding:14px 0;">
               <div style="width:38px;height:38px;border-radius:10px;background:rgba(28,238,224,0.08);display:flex;align-items:center;justify-content:center;flex-shrink:0;">
-                <svg fill="none" stroke="#1ceee0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" width="18" height="18"><path d="M12 15a3 3 0 100-6 3 3 0 000 6z"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-4 0v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 010-4h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 012.83-2.83l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 014 0v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 010 4h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+                <svg fill="none" stroke="#1ceee0" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" width="18" height="18"><path d="M4 19.5A2.5 2.5 0 016.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"/><path d="M8 7h8M8 11h6"/></svg>
               </div>
               <div style="flex:1;min-width:0;">
-                <div style="font-weight:600;font-size:14px;color:var(--text);">Beállítások</div>
-                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">AI asszisztens testreszabás, csapatkezelés, biztonsági beállítások, foglalási szabályok</div>
+                <div style="font-weight:600;font-size:14px;color:var(--text);">Tudástár</div>
+                <div style="font-size:12px;color:var(--text-muted);margin-top:2px;">Tudásbázis, AI asszisztens testreszabás, csapatkezelés, foglalási szabályok</div>
               </div>
             </div>
           </div>
@@ -15924,6 +15924,8 @@ async function loadCampaigns() {
     const channelDisplay = channels.map(ch => `${channelIcons[ch] || ''} ${channelNames[ch] || ch}`).join(', ');
 
     let actions = '';
+    // Előnézet gomb — mindig látható
+    actions += `<button onclick="previewCampaign(${c.id})" style="background:rgba(139,92,246,0.08); border:1px solid rgba(139,92,246,0.35); color:#8b5cf6; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; margin-right:6px; transition:all 0.2s;" onmouseover="this.style.background='rgba(139,92,246,0.18)';this.style.borderColor='#8b5cf6'" onmouseout="this.style.background='rgba(139,92,246,0.08)';this.style.borderColor='rgba(139,92,246,0.35)'"><svg fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24' style='width:12px;height:12px;vertical-align:-1px;margin-right:4px;'><path stroke-linecap='round' stroke-linejoin='round' d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/></svg>Előnézet</button>`;
     if (c.status === 'Vázlat' || c.status === 'Megállítva') {
       actions += `<button onclick="startCampaign(${c.id})" style="background:rgba(34,197,94,0.1); border:1px solid #22c55e; color:#22c55e; padding:6px 12px; border-radius:6px; font-size:11px; font-weight:600; cursor:pointer; margin-right:6px;">▶ Indítás</button>`;
     }
@@ -16510,18 +16512,6 @@ async function startCampaign(campaignId) {
   if (!campaign) return;
   
   const clientCount = campaign.client_ids ? campaign.client_ids.length : 0;
-  const channels = campaign.channels || [campaign.channel || 'email'];
-  const hasPhone = channels.includes('telefon');
-  const hasText = channels.some(ch => ['email','messenger'].includes(ch));
-  let confirmMsg = `Biztosan elindítod a "${campaign.name}" kampányt?\n\n`;
-  if (hasPhone && hasText) {
-    confirmMsg += `Ez ${clientCount} ügyfélnek fog:\n• AI telefonhívást indítani\n• AI-generált üzenet piszkozatot készíteni a Jóváhagyó rendszerbe`;
-  } else if (hasPhone) {
-    confirmMsg += `Ez ${clientCount} ügyfelet fog felhívni az AI agent a kampány szöveggel.\n\n⚠️ A hívások azonnal indulnak, 15 másodperces szünettel egymás után!`;
-  } else {
-    confirmMsg += `Ez ${clientCount} ügyfélnek fog AI-generált email piszkozatot készíteni, amik a Jóváhagyó rendszerben fognak megjelenni.`;
-  }
-  if (!confirm(confirmMsg)) return;
 
   try {
     const resp = await authFetch(`/admin/api/campaigns/${campaignId}/start`, { method: 'POST' });
@@ -16531,7 +16521,7 @@ async function startCampaign(campaignId) {
     // Success toast
     const toast = document.createElement('div');
     toast.style.cssText = 'position:fixed; bottom:24px; right:24px; background:var(--card); border:1px solid #22c55e; color:var(--text); padding:16px 24px; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.15); z-index:9999; display:flex; align-items:center; gap:10px; font-size:14px; font-weight:600; animation:slideIn 0.3s ease;';
-    toast.innerHTML = `<span style="color:#22c55e;">▶</span> Kampány elindítva! A piszkozatok hamarosan megjelennek a Jóváhagyó rendszerben.`;
+    toast.innerHTML = `<span style="color:#22c55e;">▶</span> Kampány elindítva!`;
     document.body.appendChild(toast);
     setTimeout(() => toast.remove(), 5000);
   } catch(e) {
@@ -16633,6 +16623,133 @@ async function showCampaignClients(campaignId) {
   } catch(e) {
     document.getElementById('campaign-clients-body').innerHTML = `<div style="text-align:center; padding:30px; color:#ef4444;">Hiba: ${e.message}</div>`;
   }
+}
+
+/* ═══ Campaign Preview Modal ═══ */
+async function previewCampaign(campaignId) {
+  const old = document.getElementById('campaign-preview-modal');
+  if (old) old.remove();
+
+  // Find campaign in cached data
+  const campaign = (window._campaigns || []).find(c => c.id === campaignId);
+  if (!campaign) { alert('Kampány nem található'); return; }
+
+  const channelIcons = { email: '📧', whatsapp: '💬', telefon: '📞', messenger: '💬', instagram: '📸' };
+  const channelNames = { email: 'Email', whatsapp: 'WhatsApp', telefon: 'Telefon', messenger: 'Messenger', instagram: 'Instagram' };
+  const statusConfig = {
+    'Vázlat': { bg: 'rgba(107,139,153,0.12)', color: '#6b8b99', dot: '#6b8b99', label: 'Vázlat' },
+    'Aktív': { bg: 'rgba(34,197,94,0.12)', color: '#22c55e', dot: '#22c55e', label: 'Aktív' },
+    'Befejezett': { bg: 'rgba(28,238,224,0.12)', color: '#1ceee0', dot: '#1ceee0', label: 'Befejezett' },
+    'Megállítva': { bg: 'rgba(245,158,11,0.12)', color: '#f59e0b', dot: '#f59e0b', label: 'Megállítva' }
+  };
+  const st = statusConfig[campaign.status] || statusConfig['Vázlat'];
+  const channels = campaign.channels || (campaign.channel ? [campaign.channel] : ['email']);
+  const clientCount = campaign.client_ids ? campaign.client_ids.length : 0;
+  const createdDate = campaign.created_at ? new Date(campaign.created_at).toLocaleDateString('hu-HU', { year:'numeric', month:'long', day:'numeric', hour:'2-digit', minute:'2-digit' }) : '—';
+  const progress = campaign.status === 'Aktív' ? `${campaign.processed_count || 0} / ${campaign.total_count || clientCount}` : `${clientCount}`;
+
+  const modal = document.createElement('div');
+  modal.id = 'campaign-preview-modal';
+  modal.style.cssText = 'position:fixed;top:0;left:0;right:0;bottom:0;background:rgba(0,0,0,0.55);backdrop-filter:blur(4px);z-index:1001;display:flex;align-items:center;justify-content:center;animation:cpFadeIn 0.25s ease;';
+
+  // Build channels HTML
+  const channelsHtml = channels.map(ch => `
+    <div style="display:flex;align-items:center;gap:8px;background:var(--bg);padding:10px 16px;border-radius:10px;border:1px solid var(--border);">
+      <span style="font-size:18px;">${channelIcons[ch] || '📤'}</span>
+      <span style="font-size:13px;font-weight:600;color:var(--text);">${channelNames[ch] || ch}</span>
+    </div>
+  `).join('');
+
+  // Build AI instructions preview
+  let aiInstr = campaign.ai_instructions || campaign.instructions || '';
+  // Strip MODE: prefix if present
+  if (aiInstr.startsWith('MODE:')) {
+    const colonIdx = aiInstr.indexOf(':', 5);
+    aiInstr = colonIdx >= 0 ? aiInstr.substring(colonIdx + 1) : aiInstr;
+  }
+  const aiSection = aiInstr ? `
+    <div style="margin-top:20px;">
+      <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+        <svg fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24' style='width:14px;height:14px;color:var(--accent);'><path stroke-linecap='round' stroke-linejoin='round' d='M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z'/></svg>
+        AI Utasítás
+      </div>
+      <div style="background:var(--bg);border:1px solid var(--border);border-radius:12px;padding:16px 18px;font-size:13px;color:var(--text);line-height:1.7;white-space:pre-wrap;max-height:200px;overflow-y:auto;font-family:'Inter',Arial,sans-serif;">${esc(aiInstr)}</div>
+    </div>
+  ` : '';
+
+  modal.innerHTML = `
+    <style>
+      @keyframes cpFadeIn { from { opacity:0; } to { opacity:1; } }
+      @keyframes cpSlideUp { from { opacity:0; transform:translateY(24px) scale(0.97); } to { opacity:1; transform:translateY(0) scale(1); } }
+      .cp-card { animation: cpSlideUp 0.3s cubic-bezier(0.16,1,0.3,1); }
+      .cp-stat-card { background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:16px 20px; text-align:center; transition:all 0.2s; }
+      .cp-stat-card:hover { border-color:rgba(28,238,224,0.3); box-shadow:0 4px 16px rgba(28,238,224,0.06); transform:translateY(-1px); }
+      .cp-stat-value { font-size:24px; font-weight:800; color:var(--text); line-height:1; }
+      .cp-stat-label { font-size:11px; font-weight:600; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px; margin-top:6px; }
+      .cp-divider { height:1px; background:var(--border); margin:20px 0; }
+    </style>
+    <div class="cp-card" style="background:var(--card);border:1px solid var(--border);border-radius:20px;width:640px;max-width:92vw;max-height:88vh;overflow:hidden;box-shadow:0 32px 64px rgba(0,0,0,0.35),0 0 0 1px rgba(255,255,255,0.05);display:flex;flex-direction:column;">
+      <!-- Header -->
+      <div style="padding:24px 28px 20px;display:flex;align-items:flex-start;justify-content:space-between;flex-shrink:0;">
+        <div style="display:flex;align-items:center;gap:14px;">
+          <div style="width:44px;height:44px;border-radius:14px;background:linear-gradient(135deg,rgba(139,92,246,0.15),rgba(59,130,246,0.1));display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+            <svg fill='none' stroke='#8b5cf6' stroke-width='2' viewBox='0 0 24 24' style='width:22px;height:22px;'><path stroke-linecap='round' stroke-linejoin='round' d='M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z'/><circle cx='12' cy='12' r='3'/></svg>
+          </div>
+          <div>
+            <div style="font-size:18px;font-weight:800;color:var(--text);font-family:'Inter',Arial,sans-serif;line-height:1.3;">${esc(campaign.name)}</div>
+            <div style="font-size:12px;color:var(--text-muted);margin-top:3px;">Kampány előnézet</div>
+          </div>
+        </div>
+        <button onclick="document.getElementById('campaign-preview-modal').remove()" style="background:var(--bg);border:1px solid var(--border);border-radius:10px;width:36px;height:36px;display:flex;align-items:center;justify-content:center;cursor:pointer;color:var(--text-muted);font-size:18px;transition:all 0.2s;flex-shrink:0;" onmouseover="this.style.borderColor='#8b5cf6';this.style.color='#8b5cf6'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text-muted)'">✕</button>
+      </div>
+
+      <!-- Body -->
+      <div style="padding:0 28px 28px;overflow-y:auto;flex:1;">
+        <!-- Stats row -->
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:12px;margin-bottom:20px;">
+          <div class="cp-stat-card">
+            <div style="display:flex;align-items:center;justify-content:center;gap:6px;">
+              <span style="display:inline-flex;align-items:center;gap:6px;background:${st.bg};color:${st.color};padding:5px 12px;border-radius:8px;font-size:12px;font-weight:700;"><span style="width:7px;height:7px;border-radius:50%;background:${st.dot};"></span>${st.label}</span>
+            </div>
+            <div class="cp-stat-label" style="margin-top:8px;">Státusz</div>
+          </div>
+          <div class="cp-stat-card">
+            <div class="cp-stat-value" style="color:var(--accent);">${progress}</div>
+            <div class="cp-stat-label">Célcsoport</div>
+          </div>
+          <div class="cp-stat-card">
+            <div class="cp-stat-value" style="font-size:18px;">${createdDate.split(',')[0] || '—'}</div>
+            <div class="cp-stat-label">Létrehozva</div>
+          </div>
+        </div>
+
+        <!-- Channels -->
+        <div class="cp-divider"></div>
+        <div style="font-size:11px;font-weight:700;color:var(--text-muted);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:10px;display:flex;align-items:center;gap:8px;">
+          <svg fill='none' stroke='currentColor' stroke-width='2' viewBox='0 0 24 24' style='width:14px;height:14px;color:var(--accent);'><path stroke-linecap='round' stroke-linejoin='round' d='M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z'/></svg>
+          Csatornák
+        </div>
+        <div style="display:flex;flex-wrap:wrap;gap:8px;">
+          ${channelsHtml}
+        </div>
+
+        ${aiSection}
+
+        <!-- Client list button -->
+        <div class="cp-divider"></div>
+        <button onclick="document.getElementById('campaign-preview-modal').remove(); showCampaignClients(${campaign.id})" style="width:100%;display:flex;align-items:center;justify-content:center;gap:10px;padding:14px;border:1px solid var(--border);border-radius:12px;background:var(--bg);cursor:pointer;transition:all 0.2s;color:var(--text);font-size:13px;font-weight:600;font-family:'Inter',Arial,sans-serif;" onmouseover="this.style.borderColor='var(--accent)';this.style.boxShadow='0 4px 16px rgba(28,238,224,0.08)'" onmouseout="this.style.borderColor='var(--border)';this.style.boxShadow='none'">
+          <svg fill='none' stroke='var(--accent)' stroke-width='2' viewBox='0 0 24 24' style='width:16px;height:16px;'><path stroke-linecap='round' stroke-linejoin='round' d='M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z'/></svg>
+          Célcsoport megtekintése (${clientCount} ügyfél)
+        </button>
+      </div>
+    </div>
+  `;
+
+  document.body.appendChild(modal);
+  modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+  // ESC to close
+  const escHandler = (e) => { if (e.key === 'Escape') { modal.remove(); document.removeEventListener('keydown', escHandler); } };
+  document.addEventListener('keydown', escHandler);
 }
 </script>
 

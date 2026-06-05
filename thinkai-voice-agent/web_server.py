@@ -226,7 +226,10 @@ async def widget():
 
 @app.get("/admin")
 def admin_page():
-    return FileResponse(THIS_DIR / "admin.html")
+    return FileResponse(
+        THIS_DIR / "admin.html",
+        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+    )
 
 @app.get("/marketing")
 def marketing_page():
@@ -3052,6 +3055,7 @@ class CampaignCreateRequest(BaseModel):
     channels: list[str] = ["email"]
     client_ids: list[int]
     ai_instructions: str = ""
+    mode: str = "ai"  # "manual" = szabadkéz (közvetlen küldés), "ai" = AI varázsló (generálás)
 
 @app.get("/admin/api/campaigns")
 def get_campaigns_api(username: str = Depends(verify_jwt)):
@@ -3064,7 +3068,8 @@ def create_campaign_api(req: CampaignCreateRequest, username: str = Depends(veri
         name=req.name,
         channels=req.channels,
         client_ids=req.client_ids,
-        ai_instructions=req.ai_instructions
+        ai_instructions=req.ai_instructions,
+        mode=req.mode
     )
     if campaign_id:
         return {"status": "success", "id": campaign_id}
@@ -3100,7 +3105,7 @@ async def start_campaign_api(campaign_id: int, username: str = Depends(verify_jw
     ch_str = ", ".join(channel_names.get(c, c) for c in active_channels)
     msg_parts = []
     if text_channels:
-        msg_parts.append("piszkozatok hamarosan megjelennek a Jóváhagyó rendszerben")
+        msg_parts.append("üzenetek generálása és közvetlen kiküldése folyamatban")
     if "telefon" in active_channels:
         msg_parts.append("AI telefonhívások indulnak")
     return {"status": "success", "message": f"Kampány elindítva ({ch_str}) — {', '.join(msg_parts)}."}
@@ -3225,18 +3230,29 @@ def get_campaign_clients_api(campaign_id: int, username: str = Depends(verify_jw
 
 
 async def _run_campaign(campaign: dict, active_channels: list[str]):
-    """Háttérfolyamat: végigmegy a kampány ügyfelein, AI-val generál piszkozatokat az aktív csatornákra."""
+    """Háttérfolyamat: végigmegy a kampány ügyfelein, AI-val generál üzeneteket és AZONNAL ELKÜLDI."""
     from google import genai
     from google.genai import types
     from prompt_utils import get_system_prompt
+    import httpx
+    import base64 as b64module
 
     campaign_id = campaign["id"]
     campaign_name = campaign["name"]
-    ai_instructions = campaign.get("ai_instructions", "")
+    raw_instructions = campaign.get("ai_instructions", "")
+    # Mode kiolvasása az ai_instructions elejéből (MODE:manual:... vagy MODE:ai:...)
+    if raw_instructions.startswith("MODE:"):
+        parts = raw_instructions.split(":", 2)
+        campaign_mode = parts[1] if len(parts) >= 2 else "ai"
+        ai_instructions = parts[2] if len(parts) >= 3 else ""
+    else:
+        campaign_mode = campaign.get("mode", "ai")
+        ai_instructions = raw_instructions
     client_ids = campaign.get("client_ids", [])
 
     google_key = os.getenv("GOOGLE_API_KEY")
-    if not google_key:
+    # AI mode-nál kell Google key, manual mode-nál nem
+    if campaign_mode == "ai" and not google_key:
         print(f"[Campaign] GOOGLE_API_KEY hiányzik, kampány megszakítva: {campaign_name}")
         db.update_campaign_status(campaign_id, "Megállítva")
         return
@@ -3248,8 +3264,16 @@ async def _run_campaign(campaign: dict, active_channels: list[str]):
         return
 
     base_system_prompt = get_system_prompt()
-    gemini_client = genai.Client(api_key=google_key)
+    gemini_client = None
+    if campaign_mode == "ai":
+        gemini_client = genai.Client(api_key=google_key)
     processed = 0
+    sent_ok = 0
+    sent_fail = 0
+
+    is_manual = campaign_mode == "manual"
+    if is_manual:
+        print(f"[Campaign] MANUÁLIS mód — a szabad kézzel írt szöveg kerül kiküldésre: {campaign_name}")
 
     for client in clients:
         current = db.get_campaign(campaign_id)
@@ -3282,11 +3306,17 @@ async def _run_campaign(campaign: dict, active_channels: list[str]):
             log_snippet = interaction_log[-1500:] if len(interaction_log) > 1500 else interaction_log
             user_context += f"\nKorábbi előzmények:\n{log_snippet}\n"
 
-        # === Piszkozatok generálása minden aktív csatornára ===
+        # === Üzenetek generálása és AZONNALI KÜLDÉS minden aktív csatornára ===
         drafts = []
+        client_sent_channels = []
 
         if "email" in active_channels and client_email and client_email != "-":
-            email_prompt = f"""{base_system_prompt}
+            if is_manual:
+                # SZABADKÉZ mód: a felhasználó által beírt szöveg megy ki változatlanul
+                email_body = ai_instructions
+            else:
+                # AI VARÁZSLÓ mód: Gemini generálja a személyre szabott szöveget
+                email_prompt = f"""{base_system_prompt}
 
 --- KIMENŐ KAMPÁNY UTASÍTÁS (EMAIL) ---
 Te most egy kimenő email kampány részeként írsz személyre szabott üzenetet.
@@ -3302,25 +3332,63 @@ FELADATOD:
 - NE használj HTML tag-eket
 - A válaszod KIZÁRÓLAG az email szövege legyen
 """
+                try:
+                    response = await gemini_client.aio.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=user_context,
+                        config=types.GenerateContentConfig(system_instruction=email_prompt, temperature=0.4)
+                    )
+                    email_body = response.text.strip()
+                except Exception as e:
+                    print(f"[Campaign] Gemini email hiba ({client_name}): {e}")
+                    continue
+            drafts.append({
+                "channel": "Email",
+                "to_email": client_email,
+                "to_name": client_name,
+                "subject": campaign_name,
+                "body": email_body
+            })
+
+            # --- AZONNALI KÜLDÉS: Email via Brevo ---
             try:
-                response = await gemini_client.aio.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=user_context,
-                    config=types.GenerateContentConfig(system_instruction=email_prompt, temperature=0.4)
-                )
-                drafts.append({
-                    "channel": "Email",
-                    "to_email": client_email,
-                    "to_name": client_name,
-                    "subject": campaign_name,
-                    "body": response.text.strip()
-                })
-                print(f"[Campaign] Email piszkozat generálva: {client_name} <{client_email}>")
-            except Exception as e:
-                print(f"[Campaign] Gemini email hiba ({client_name}): {e}")
+                brevo_key = os.getenv("BREVO_API_KEY", "")
+                api_key = brevo_key
+                if brevo_key and not brevo_key.startswith("xkeysib-"):
+                    try:
+                        decoded = b64module.b64decode(brevo_key).decode()
+                        parsed = json.loads(decoded)
+                        api_key = parsed.get("api_key", brevo_key)
+                    except: pass
+
+                html_body = f'<div style="font-family: Arial, sans-serif;">{email_body.replace(chr(10), "<br>")}</div>'
+                async with httpx.AsyncClient() as http_client:
+                    resp = await http_client.post(
+                        "https://api.brevo.com/v3/smtp/email",
+                        headers={"api-key": api_key, "Content-Type": "application/json"},
+                        json={
+                            "sender": {"name": "EAISY Marketing", "email": "hello@thinkai.hu"},
+                            "to": [{"email": client_email, "name": client_name}],
+                            "subject": campaign_name,
+                            "htmlContent": html_body,
+                        },
+                        timeout=20,
+                    )
+                    resp.raise_for_status()
+                client_sent_channels.append("Email")
+                mode_label = "MANUÁLIS" if is_manual else "AI"
+                print(f"[Campaign] Email ELKÜLDVE ({mode_label}): {client_name} <{client_email}>")
+            except Exception as send_err:
+                print(f"[Campaign] Email küldési hiba ({client_name}): {send_err}")
+                sent_fail += 1
 
         if "messenger" in active_channels and client_messenger_id:
-            messenger_prompt = f"""{base_system_prompt}
+            if is_manual:
+                # SZABADKÉZ mód: a felhasználó által beírt szöveg megy ki
+                msg_body = ai_instructions
+            else:
+                # AI VARÁZSLÓ mód
+                messenger_prompt = f"""{base_system_prompt}
 
 --- KIMENŐ KAMPÁNY UTASÍTÁS (MESSENGER) ---
 Te most egy kimenő Messenger kampány részeként írsz személyre szabott üzenetet.
@@ -3336,26 +3404,48 @@ FELADATOD:
 - NE használj semmilyen formázást, csak sima szöveg
 - A válaszod KIZÁRÓLAG az üzenet szövege legyen
 """
+                try:
+                    response = await gemini_client.aio.models.generate_content(
+                        model="gemini-2.5-flash",
+                        contents=user_context,
+                        config=types.GenerateContentConfig(system_instruction=messenger_prompt, temperature=0.5)
+                    )
+                    msg_body = response.text.strip()
+                except Exception as e:
+                    print(f"[Campaign] Gemini messenger hiba ({client_name}): {e}")
+                    continue
+            drafts.append({
+                "channel": "Messenger",
+                "sender_id": client_messenger_id,
+                "to_name": client_name,
+                "body": msg_body
+            })
+
+            # --- AZONNALI KÜLDÉS: Messenger via Meta API ---
             try:
-                response = await gemini_client.aio.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=user_context,
-                    config=types.GenerateContentConfig(system_instruction=messenger_prompt, temperature=0.5)
-                )
-                drafts.append({
-                    "channel": "Messenger",
-                    "sender_id": client_messenger_id,
-                    "to_name": client_name,
-                    "body": response.text.strip()
-                })
-                print(f"[Campaign] Messenger piszkozat generálva: {client_name}")
-            except Exception as e:
-                print(f"[Campaign] Gemini messenger hiba ({client_name}): {e}")
+                page_access_token = os.getenv("META_PAGE_ACCESS_TOKEN", "")
+                if not page_access_token:
+                    raise Exception("Hiányzó Meta oldal token")
+                async with httpx.AsyncClient() as http_client:
+                    resp = await http_client.post(
+                        "https://graph.facebook.com/v25.0/me/messages",
+                        headers={"Authorization": f"Bearer {page_access_token}"},
+                        json={
+                            "recipient": {"id": client_messenger_id},
+                            "message": {"text": msg_body}
+                        }
+                    )
+                    resp.raise_for_status()
+                client_sent_channels.append("Messenger")
+                print(f"[Campaign] Messenger ELKÜLDVE: {client_name}")
+            except Exception as send_err:
+                print(f"[Campaign] Messenger küldési hiba ({client_name}): {send_err}")
+                sent_fail += 1
 
         if not drafts:
             continue
 
-        # Egy összevont piszkozat az összes csatornával
+        # Logolás az interactions táblába (elküldve státusszal, NEM jóváhagyásra várva)
         if len(drafts) == 1:
             combined_payload = drafts[0]
             combined_payload["campaign_name"] = campaign_name
@@ -3370,31 +3460,34 @@ FELADATOD:
 
         channel_names_list = [d["channel"] for d in drafts]
         ch_display = " + ".join(channel_names_list)
+        sent_status = "Elküldve" if client_sent_channels else "Küldési hiba"
         session_id = f"campaign_{campaign_id}_{client['id']}"
         db.create_session(session_id=session_id, room_name=f"Kampány: {campaign_name}", participant=client_name)
         db.log_interaction(
             type=ch_display,
             topic=f"Kampány: {campaign_name}",
-            summary=f"Kimenő kampány ({ch_display}) – {client_name}",
-            result="Várakozik jóváhagyásra",
+            summary=f"Kimenő kampány ({ch_display}) – {client_name} – {sent_status}",
+            result=sent_status,
             tool_name="campaign_worker",
             session_id=session_id,
             direction="outbound",
             funnel_stage="relevans",
             alert_tags=[],
             handover_reason=None,
-            approval_status="pending",
+            approval_status="approved",
             ai_draft_response=json.dumps(combined_payload)
         )
 
         processed += 1
+        if client_sent_channels:
+            sent_ok += 1
         db.update_campaign_status(campaign_id, "Aktív", processed_count=processed)
-        print(f"[Campaign] Piszkozat kész ({processed}/{len(clients)}): {client_name} [{ch_display}]")
+        print(f"[Campaign] Kész ({processed}/{len(clients)}): {client_name} [{ch_display}] — {sent_status}")
         await asyncio.sleep(1)
 
     db.update_campaign_status(campaign_id, "Befejezett", processed_count=processed)
     ch_str = ", ".join(active_channels)
-    print(f"[Campaign] Kampány befejezve: {campaign_name} ({ch_str}) – {processed} piszkozat generálva")
+    print(f"[Campaign] Kampány befejezve: {campaign_name} ({ch_str}) – {sent_ok} elküldve, {sent_fail} hibás")
 
 
 async def _run_phone_campaign(campaign: dict):

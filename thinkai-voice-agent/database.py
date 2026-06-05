@@ -1376,15 +1376,17 @@ def mark_reminder_sent(event_id: int) -> bool:
 # CAMPAIGNS (KIMENŐ KOMMUNIKÁCIÓ)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-def create_campaign(name: str, channels: list, client_ids: list, ai_instructions: str = "") -> int:
+def create_campaign(name: str, channels: list, client_ids: list, ai_instructions: str = "", mode: str = "ai") -> int:
     if not supabase: return 0
     try:
+        # A mode-ot az ai_instructions elejébe kódoljuk, hogy ne kelljen DB séma módosítás
+        instructions_with_mode = f"MODE:{mode}:{ai_instructions}"
         res = supabase.table("campaigns").insert({
             "name": name,
             "channels": channels,
             "status": "Vázlat",
             "client_ids": client_ids,
-            "ai_instructions": ai_instructions,
+            "ai_instructions": instructions_with_mode,
             "total_count": len(client_ids),
             "processed_count": 0
         }).execute()
