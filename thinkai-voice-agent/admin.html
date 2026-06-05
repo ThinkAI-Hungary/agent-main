@@ -1405,7 +1405,7 @@
       font-size: 12px;
       color: #9ca3af;
       margin-top: 10px;
-      text-align: right;
+      text-align: left;
     }
 
     /* ── Interactions page dark ─────────────────────────────────────── */
@@ -5873,7 +5873,7 @@
           <div><div class="logo-switch-name">EAISY Marketing</div><div class="logo-switch-desc">Marketing automatizáció</div></div>
         </a>
       </div>
-      <div class="nav-section-title">Főmenü</div>
+      <div style="margin-bottom:18px;"></div>
       <button class="nav-item active" id="nav-analytics" onclick="showPage('analytics')" data-tooltip="Analitika">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
           <path d="M3 12h2l3-9 4 18 3-9h6"></path>
@@ -6046,12 +6046,12 @@
     </div>
     <!-- ÉRTESÍTÉSI HARANG ÉS TOAST KONTÉNER (SÜRGŐS ESETEK) -->
     <div id="urgent-bell-wrapper" style="position:fixed; top:24px; right:32px; z-index:100; display:flex; flex-direction:column; align-items:flex-end;">
-      <div id="urgent-bell-container" title="Sürgős esetek" onclick="toggleUrgentDropdown()" style="position:relative; cursor:pointer; background:var(--bg3); border:1px solid var(--border); border-radius:50%; width:44px; height:44px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); transition:all 0.2s;">
+      <div id="urgent-bell-container" title="Értesítési központ" onclick="toggleUrgentDropdown()" style="position:relative; cursor:pointer; background:var(--bg3); border:1px solid var(--border); border-radius:50%; width:44px; height:44px; display:flex; align-items:center; justify-content:center; box-shadow:0 4px 6px -1px rgba(0,0,0,0.1); transition:all 0.2s;">
       <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="20" height="20" style="color:var(--text);"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"></path><path d="M13.73 21a2 2 0 0 1-3.46 0"></path></svg>
       <span id="urgent-badge" style="display:none; position:absolute; top:-4px; right:-4px; background:#ef4444; color:white; border-radius:50%; width:20px; height:20px; font-size:11px; font-weight:bold; align-items:center; justify-content:center; box-shadow:0 2px 4px rgba(239,68,68,0.3);">0</span>
       </div>
-      <div id="urgent-dropdown" style="display:none; position:absolute; top:54px; right:0; width:300px; background:var(--bg3); border:1px solid var(--border); border-radius:8px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1); max-height:400px; overflow-y:auto; flex-direction:column;">
-        <div style="padding:12px 16px; border-bottom:1px solid var(--border); font-weight:600; font-size:14px; color:var(--text);">Sürgős riasztások</div>
+      <div id="urgent-dropdown" style="display:none; position:absolute; top:54px; right:0; width:360px; background:var(--bg3); border:1px solid var(--border); border-radius:12px; box-shadow:0 12px 30px -3px rgba(0,0,0,0.12); max-height:480px; overflow-y:auto; flex-direction:column;">
+        <div style="padding:12px 16px; border-bottom:1px solid var(--border); font-weight:600; font-size:14px; color:var(--text);">Értesítési központ</div>
         <div id="urgent-dropdown-list" style="display:flex; flex-direction:column;">
           <!-- List items will be injected here -->
         </div>
@@ -7674,13 +7674,94 @@
                   style="display:none;">
                   <option value="">Minden típus</option>
                 </select>
-                <div style="position:relative; display:inline-block;">
-                  <button class="int-toolbar-btn" style="gap:6px; display:flex; align-items:center;" title="Szűrés">
+                <div style="position:relative; display:inline-block;" id="int-filter-container">
+                  <button class="int-toolbar-btn" id="int-filter-toggle-btn" style="gap:6px; display:flex; align-items:center;" title="Szűrés" onclick="toggleIntFilterPanel()">
                     <svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14">
                       <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
                     </svg>
                     Szűrés
+                    <span id="int-filter-badge" style="display:none;background:#1ceee0;color:#0a1628;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:9px;display:none;align-items:center;justify-content:center;padding:0 5px;margin-left:2px;"></span>
                   </button>
+                  <!-- Filter Panel -->
+                  <div id="int-filter-panel" style="display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:999; width:340px; background:var(--card,#fff); border:1px solid var(--border,#e5e7eb); border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,0.12); padding:0; overflow:hidden; animation:fadein 0.2s ease;">
+                    <!-- Header -->
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border,#e5e7eb);">
+                      <span style="font-size:16px;font-weight:700;color:var(--text,#111);">Szűrő</span>
+                      <button onclick="toggleIntFilterPanel()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:background 0.15s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='none'">✕</button>
+                    </div>
+                    <!-- Sections -->
+                    <div style="padding:8px 0; max-height:420px; overflow-y:auto;">
+                      <!-- Dátum -->
+                      <div class="int-filter-section" style="padding:0 20px;">
+                        <button onclick="toggleFilterSection(this)" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 0;border:none;background:none;cursor:pointer;color:var(--text,#111);font-size:14px;font-weight:600;">
+                          <span>Dátum</span>
+                          <svg class="filter-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="filter-section-body" style="display:none;padding-bottom:12px;">
+                          <div style="display:flex;gap:8px;">
+                            <input type="date" id="int-filter-date-from" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--bg,#fff);color:var(--text);font-family:inherit;" placeholder="Ettől"/>
+                            <input type="date" id="int-filter-date-to" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--bg,#fff);color:var(--text);font-family:inherit;" placeholder="Eddig"/>
+                          </div>
+                        </div>
+                      </div>
+                      <!-- Ügytípus -->
+                      <div class="int-filter-section" style="padding:0 20px;border-top:1px solid var(--border,#f3f4f6);">
+                        <button onclick="toggleFilterSection(this)" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 0;border:none;background:none;cursor:pointer;color:var(--text,#111);font-size:14px;font-weight:600;">
+                          <span>Ügytípus</span>
+                          <svg class="filter-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="filter-section-body" style="display:none;padding-bottom:12px;">
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-ugytipus" value="IDŐPONT" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Időpont</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-ugytipus" value="KÉRDÉS" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Kérdés</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-ugytipus" value="KÉRÉS" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Kérés</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-ugytipus" value="PANASZ" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Panasz</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-ugytipus" value="EGYÉB" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Egyéb</label>
+                        </div>
+                      </div>
+                      <!-- Csatorna -->
+                      <div class="int-filter-section" style="padding:0 20px;border-top:1px solid var(--border,#f3f4f6);">
+                        <button onclick="toggleFilterSection(this)" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 0;border:none;background:none;cursor:pointer;color:var(--text,#111);font-size:14px;font-weight:600;">
+                          <span>Csatorna</span>
+                          <svg class="filter-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="filter-section-body" style="display:none;padding-bottom:12px;">
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-csatorna" value="Messenger" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Messenger</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-csatorna" value="Telefon" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Telefon</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-csatorna" value="Email" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Email</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-csatorna" value="Instagram" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Instagram</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-csatorna" value="WhatsApp" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> WhatsApp</label>
+                        </div>
+                      </div>
+                      <!-- Irány -->
+                      <div class="int-filter-section" style="padding:0 20px;border-top:1px solid var(--border,#f3f4f6);">
+                        <button onclick="toggleFilterSection(this)" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 0;border:none;background:none;cursor:pointer;color:var(--text,#111);font-size:14px;font-weight:600;">
+                          <span>Irány</span>
+                          <svg class="filter-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="filter-section-body" style="display:none;padding-bottom:12px;">
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-irany" value="Bejövő" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Bejövő</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-irany" value="Kimenő" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Kimenő</label>
+                        </div>
+                      </div>
+                      <!-- Státusz -->
+                      <div class="int-filter-section" style="padding:0 20px;border-top:1px solid var(--border,#f3f4f6);">
+                        <button onclick="toggleFilterSection(this)" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 0;border:none;background:none;cursor:pointer;color:var(--text,#111);font-size:14px;font-weight:600;">
+                          <span>Státusz</span>
+                          <svg class="filter-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="filter-section-body" style="display:none;padding-bottom:12px;">
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-statusz" value="LEZÁRT" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Lezárt</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-statusz" value="FOLYAMATBAN" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Folyamatban</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-statusz" value="VÁRAKOZIK" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Várakozik</label>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Footer -->
+                    <div style="display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--border,#e5e7eb);">
+                      <button onclick="resetIntFilters()" style="flex:1;padding:10px;border:1px solid var(--border,#e5e7eb);border-radius:8px;background:none;color:var(--text,#111);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='none'">Visszaállítás</button>
+                      <button onclick="applyIntFilters()" style="flex:1;padding:10px;border:none;border-radius:8px;background:#1ceee0;color:#0a1628;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s;box-shadow:0 2px 8px rgba(28,238,224,0.25);" onmouseover="this.style.background='#17d4c8'" onmouseout="this.style.background='#1ceee0'">Alkalmaz</button>
+                    </div>
+                  </div>
                 </div>
                 <div style="position:relative; display:inline-block;">
                   <select 0="" 14\"="" 24="" 24\"="" class="int-toolbar-btn" fill='\"none\"' height='\"14\"'
@@ -7716,9 +7797,13 @@
                     <label class="col-toggle-item" data-col="8" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(8,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Teendő</label>
                   </div>
                 </div>
-                <button class="int-toolbar-btn" onclick="loadInteractions()" style="margin-left:8px;">
-                  Frissítés</button>
               </div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div class="int-count" id="interactions-count" style="font-size:13px;font-weight:600;color:var(--text-muted);"></div>
+              <button id="int-refresh-icon" onclick="this.querySelector('svg').style.animation='spin 0.6s ease'; loadInteractions(); setTimeout(()=>this.querySelector('svg').style.animation='',700)" title="Frissítés" style="background:none; border:none; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-muted); transition:all 0.2s; border-radius:6px;" onmouseover="this.style.color='var(--accent,#1ceee0)';this.style.background='var(--bg3)'" onmouseout="this.style.color='var(--text-muted)';this.style.background='none'">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 20v-5h-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M20.49 9A9 9 0 005.64 5.64L4 9m16 6l-1.64 3.36A9 9 0 013.51 15"/></svg>
+              </button>
             </div>
             <!-- Flat table -->
             <div class="int-table-wrapper">
@@ -7747,8 +7832,6 @@
                 </tbody>
               </table>
             </div>
-            <!-- Row count -->
-            <div class="int-count" id="interactions-count"></div>
           </div><!-- end view-interactions -->
           <div class="customer-view" id="view-kanban" style="display:none;">
             <div class="page-header" style="margin-bottom:18px;">
@@ -7773,13 +7856,9 @@
                 <div class="page-subtitle">Ügyfelek listázása és alapadatok módosítása</div>
               </div>
               <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
-                <div class="view-toggle" id="clients-view-toggle">
-                  <button class="view-toggle-btn active" id="vt-table" onclick="switchClientsView('table')">
-                    <svg style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 10h18M3 14h18M3 6h18M3 18h18"/></svg>Táblázat
-                  </button>
-                  <button class="view-toggle-btn" id="vt-cards" onclick="switchClientsView('cards')">
-                    <svg style="width:14px;height:14px;vertical-align:-2px;margin-right:4px;" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>Kártyák
-                  </button>
+                <div class="view-toggle" id="clients-view-toggle" style="display:none;">
+                  <button class="view-toggle-btn active" id="vt-table" onclick="switchClientsView('table')">Táblázat</button>
+                  <button class="view-toggle-btn" id="vt-cards" onclick="switchClientsView('cards')">Kártyák</button>
                 </div>
                 <button class="cc-select-all-btn" id="cc-select-all" onclick="selectAllCards()" style="display:none;">
                   <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
@@ -7788,13 +7867,33 @@
                 <input type="text" id="client-search-input" class="int-toolbar-input" placeholder="Keresés ügyfelek között..." style="width: 250px;" onkeyup="filterClientsView()">
                 <button id="bulk-delete-btn" class="int-toolbar-btn" style="display:none; color: #ef4444; border-color: #ef4444;" onclick="bulkDeleteClients()">🗑 Kijelöltek törlése (<span id="bulk-delete-count">0</span>)</button>
                 <button id="bulk-campaign-btn" class="int-toolbar-btn" style="display:none; color: #1ceee0; border-color: #1ceee0; font-weight:700;" onclick="exportToCampaign()">⚡ Kampányba exportálás (<span id="bulk-campaign-count">0</span>)</button>
-                <button class="int-toolbar-btn" onclick="openClientFieldsModal()">Ügyfél mezők beállítása</button>
-                <button class="int-toolbar-btn" onclick="loadClientsTable()">↻ Frissítés</button>
-                <button class="int-toolbar-btn" onclick="openClientModal()" style="width:auto; margin:0;">+ Új
-                  Ügyfél</button>
+                <div style="position:relative; display:inline-block;">
+                  <button class="int-toolbar-btn" style="gap:6px; display:flex; align-items:center;" title="Oszlopok" onclick="toggleClientColumnDropdown()">
+                    <svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><rect height="18" rx="2" ry="2" width="18" x="3" y="3"></rect><line x1="9" x2="9" y1="3" y2="21"></line></svg>
+                    Oszlopok
+                  </button>
+                  <div id="client-col-toggle-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:6px; background:var(--card); border:1px solid var(--border); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.12); padding:10px 0; min-width:200px; z-index:50;">
+                    <div style="padding:4px 14px 8px; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Látható oszlopok</div>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(1,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Ügyfél</label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(2,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Új / Visszatérő</label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(3,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Címkék</label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(4,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Telefonszám</label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(5,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Email</label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(6,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Felelős</label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(7,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Utolsó interakció</label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(8,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Értékesítési státusz</label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(9,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Műveletek</label>
+                  </div>
+                </div>
+                <button onclick="openClientModal()" style="width:auto; margin:0; padding:8px 18px; background:#1ceee0; color:#0a1628; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; transition:all 0.2s; box-shadow:0 2px 8px rgba(28,238,224,0.25);" onmouseover="this.style.background='#17d4c8';this.style.boxShadow='0 4px 12px rgba(28,238,224,0.35)'" onmouseout="this.style.background='#1ceee0';this.style.boxShadow='0 2px 8px rgba(28,238,224,0.25)'">+ Új Ügyfél</button>
               </div>
             </div>
-            <div id="tag-filter-bar" style="margin-bottom:14px;"></div>
+            <div id="tag-filter-bar" style="display:none;"></div>
+            <div style="display:flex;justify-content:flex-end;margin-bottom:6px;">
+              <button id="client-refresh-icon" onclick="this.querySelector('svg').style.animation='spin 0.6s ease'; loadClientsTable(); setTimeout(()=>this.querySelector('svg').style.animation='',700)" title="Frissítés" style="background:none; border:none; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-muted); transition:all 0.2s; border-radius:6px;" onmouseover="this.style.color='var(--accent,#1ceee0)';this.style.background='var(--bg3)'" onmouseout="this.style.color='var(--text-muted)';this.style.background='none'">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 20v-5h-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M20.49 9A9 9 0 005.64 5.64L4 9m16 6l-1.64 3.36A9 9 0 013.51 15"/></svg>
+              </button>
+            </div>
             <div id="clients-table-wrapper" class="table-card" style="overflow-x:auto;">
               <table class="data-table">
                 <thead id="clients-thead">
@@ -8020,9 +8119,9 @@
           <div class="customer-view" id="view-client-details"
             style="display:none; width: 100%; animation: fadein 0.3s ease;">
             <!-- Back button -->
-            <button class="int-toolbar-btn" onclick="closeClientDetails()"
+            <button id="cd-back-btn" class="int-toolbar-btn" onclick="closeClientDetails()"
               style="margin-bottom: 20px; border:none; background:transparent; font-weight:600; font-size:14px; cursor:pointer;">
-              <span style="margin-right:6px;">←</span> Vissza az interakciós listához
+              <span style="margin-right:6px;">←</span> <span id="cd-back-text">Vissza az ügyféllistához</span>
             </button>
             
             <!-- Top Card (Mint gradient) -->
@@ -8042,7 +8141,7 @@
                     <h2 id="cd-name" style="margin:0; font-size:24px; font-weight:bold; color:#082432;">Ügyfél Neve</h2>
                     <span id="cd-status-badge" style="background:#082432; color:white; font-size:11px; font-weight:bold; padding:4px 8px; border-radius:6px; letter-spacing:0.5px;">ÚJ ÜGYFÉL</span>
                   </div>
-                  <div id="cd-id" style="color:rgba(8,36,50,0.8); font-size:14px; margin-bottom: 16px;">DigiDesk azonosító: PAC-001234</div>
+                  <div id="cd-id" style="color:rgba(8,36,50,0.8); font-size:14px; margin-bottom: 16px;">Eaisydesk azonosító: PAC-001234</div>
                   
                   <div style="display:flex; gap:32px; font-size:14px; color:#082432;">
                     <div style="display:flex; align-items:center; gap:8px;">
@@ -10657,15 +10756,7 @@
 
     function ugyTipusBadge(val) {
       if (!val) return '—';
-      // Ha van alkategória (FŐ > Sub formátum)
-      if (val.includes(' > ')) {
-        const [main, sub] = val.split(' > ');
-        const mc = UGYTIPUS_COLORS[main] || { bg: '#f3f4f6', color: '#374151' };
-        const sc = UGYTIPUS_COLORS[val] || mc;
-        return `<span style="display:inline-flex;align-items:center;gap:0;font-size:11px;font-weight:600;"><span style="padding:3px 6px 3px 10px;border-radius:9999px 0 0 9999px;background:${mc.bg};color:${mc.color};">${esc(main)}</span><span style="padding:3px 10px 3px 6px;border-radius:0 9999px 9999px 0;background:${sc.bg};color:${sc.color};border-left:1px solid ${sc.color}20;">${esc(sub)}</span></span>`;
-      }
-      const c = UGYTIPUS_COLORS[val] || { bg: '#f3f4f6', color: '#374151' };
-      return `<span style="display:inline-block;padding:3px 10px;border-radius:9999px;font-size:11px;font-weight:600;background:${c.bg};color:${c.color};">${esc(val)}</span>`;
+      return `<span style="font-size:12px;color:var(--text);">${esc(val)}</span>`;
     }
 
     function resultBadge(result) {
@@ -10903,11 +10994,29 @@
       const q = (document.getElementById('interaction-search')?.value || '').toLowerCase();
       const typeF = (document.getElementById('interaction-type-filter')?.value || '').toLowerCase();
 
+      // Panel filters
+      const checkedUgyTipus = [...document.querySelectorAll('.int-filter-ugytipus:checked')].map(c => c.value);
+      const checkedCsatorna = [...document.querySelectorAll('.int-filter-csatorna:checked')].map(c => c.value);
+      const checkedIrany = [...document.querySelectorAll('.int-filter-irany:checked')].map(c => c.value);
+      const checkedStatusz = [...document.querySelectorAll('.int-filter-statusz:checked')].map(c => c.value);
+      const dateFrom = document.getElementById('int-filter-date-from')?.value || '';
+      const dateTo = document.getElementById('int-filter-date-to')?.value || '';
+
       const sortVal = (document.getElementById('interaction-sort')?.value || 'date_desc');
       window._filteredInteractionRows = _allInteractionRows.filter(r => {
         const matchType = !typeF || r.type.toLowerCase().includes(typeF);
         const matchQ = !q || [r.channel, r.client, r.direction, r.ugyTipus, r.eredmeny, r.statusz, r.teendo, r.summary].join(' ').toLowerCase().includes(q);
-        return matchType && matchQ;
+        const matchUgy = !checkedUgyTipus.length || checkedUgyTipus.includes(r.ugyTipus);
+        const matchCh = !checkedCsatorna.length || checkedCsatorna.includes(r.channel);
+        const matchDir = !checkedIrany.length || checkedIrany.includes(r.direction);
+        const matchSt = !checkedStatusz.length || checkedStatusz.includes(r.statusz);
+        let matchDate = true;
+        if (dateFrom || dateTo) {
+          const rd = (r.date || '').slice(0,10).replace(/\./g,'-');
+          if (dateFrom && rd < dateFrom) matchDate = false;
+          if (dateTo && rd > dateTo) matchDate = false;
+        }
+        return matchType && matchQ && matchUgy && matchCh && matchDir && matchSt && matchDate;
       });
 
       window._filteredInteractionRows.sort((a, b) => {
@@ -10941,7 +11050,7 @@
 
         let clientCell;
         if (r.clientId) {
-          clientCell = `<button onclick="event.stopPropagation(); openClientDetails({id: ${r.clientId}, name: '${esc(r.client).replace(/'/g, "\\'")}'})" style="background:rgba(0,212,200,0.1);border:1px solid var(--accent,#1ceee0);color:var(--accent,#1ceee0);border-radius:6px;cursor:pointer;padding:5px 10px;font-size:12px;font-weight:600;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block;" title="Ugrás az ügyfél adatlapjára">${esc(r.client)}</button>`;
+          clientCell = `<button onclick="event.stopPropagation(); openClientDetails({id: ${r.clientId}, name: '${esc(r.client).replace(/'/g, "\\'")}'}, 'interactions')" style="background:rgba(0,212,200,0.1);border:1px solid var(--accent,#1ceee0);color:var(--accent,#1ceee0);border-radius:6px;cursor:pointer;padding:5px 10px;font-size:12px;font-weight:600;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;display:inline-block;" title="Ugrás az ügyfél adatlapjára">${esc(r.client)}</button>`;
         } else {
           clientCell = `<span style="font-weight:500;color:${txtH};">${esc(r.client || 'Ismeretlen')}</span>`;
         }
@@ -10967,6 +11076,63 @@
       if (countEl) countEl.textContent = `${window._filteredInteractionRows.length} interakció`;
       restoreIntColumnVisibility();
     }
+
+    // ── Filter Panel Logic ──
+    function toggleIntFilterPanel() {
+      const panel = document.getElementById('int-filter-panel');
+      if (!panel) return;
+      panel.style.display = panel.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function toggleFilterSection(btn) {
+      const section = btn.closest('.int-filter-section');
+      if (!section) return;
+      const body = section.querySelector('.filter-section-body');
+      const chevron = btn.querySelector('.filter-chevron');
+      if (!body) return;
+      const isOpen = body.style.display !== 'none';
+      body.style.display = isOpen ? 'none' : 'block';
+      if (chevron) chevron.style.transform = isOpen ? 'rotate(0deg)' : 'rotate(180deg)';
+    }
+
+    function applyIntFilters() {
+      filterInteractionsTable();
+      updateIntFilterBadge();
+      toggleIntFilterPanel();
+    }
+
+    function resetIntFilters() {
+      document.querySelectorAll('.int-filter-ugytipus, .int-filter-csatorna, .int-filter-irany, .int-filter-statusz').forEach(c => c.checked = false);
+      const df = document.getElementById('int-filter-date-from');
+      const dt = document.getElementById('int-filter-date-to');
+      if (df) df.value = '';
+      if (dt) dt.value = '';
+      filterInteractionsTable();
+      updateIntFilterBadge();
+    }
+
+    function updateIntFilterBadge() {
+      const badge = document.getElementById('int-filter-badge');
+      if (!badge) return;
+      let count = 0;
+      count += document.querySelectorAll('.int-filter-ugytipus:checked').length;
+      count += document.querySelectorAll('.int-filter-csatorna:checked').length;
+      count += document.querySelectorAll('.int-filter-irany:checked').length;
+      count += document.querySelectorAll('.int-filter-statusz:checked').length;
+      if (document.getElementById('int-filter-date-from')?.value) count++;
+      if (document.getElementById('int-filter-date-to')?.value) count++;
+      badge.style.display = count > 0 ? 'inline-flex' : 'none';
+      badge.textContent = count;
+    }
+
+    // Close filter panel on outside click
+    document.addEventListener('click', function(e) {
+      const container = document.getElementById('int-filter-container');
+      const panel = document.getElementById('int-filter-panel');
+      if (container && panel && panel.style.display !== 'none' && !container.contains(e.target)) {
+        panel.style.display = 'none';
+      }
+    });
 
     // kept for backward compat
     function renderSessionCards(sessions) { buildFlatInteractionRows(sessions); }
@@ -11413,7 +11579,7 @@
         // DB stores UTC without 'Z' suffix — append it so JS converts to local time
         const utcIso = iso.includes('Z') || iso.includes('+') ? iso : iso + 'Z';
         const d = new Date(utcIso);
-        return d.toLocaleString('hu-HU', { month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+        return d.toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
       } catch { return iso; }
     }
 
@@ -11422,11 +11588,295 @@
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    // ── SÜRGŐS ESETEK (URGENT ALERTS) POLLING ──────────────────────────────────────
+    // ══ ÉRTESÍTÉSI KÖZPONT (UNIFIED NOTIFICATION CENTER) ══════════════════════════
+    const _notifications = [];        // All notifications array
+    let _notifIdCounter = 0;
     let knownUrgentIds = new Set();
     let viewedUrgentIds = new Set();
-    const urgentAudio = new Audio('data:audio/mp3;base64,//NExAAAAANIAAAAAExBTUUzLjEwMKqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq'); // Fallback placeholder ha nincs natív, de inkább egy diszkrét ding:
-    urgentAudio.src = "https://actions.google.com/sounds/v1/alarms/beep_short.ogg"; // Rövid csilingelés
+    let knownCancelledIds = new Set();
+    let viewedCancelledIds = new Set();
+    let _lastInteractionPollTime = null;
+    const urgentAudio = new Audio();
+    urgentAudio.src = "https://actions.google.com/sounds/v1/alarms/beep_short.ogg";
+
+    // ── Type config ──
+    const _notifTypeConfig = {
+      urgent:      { label: 'Sürgős',            color: '#ef4444', bg: 'rgba(239,68,68,0.08)', icon: '🔴', borderColor: '#ef4444' },
+      interaction: { label: 'Új interakció',      color: '#1ceee0', bg: 'rgba(28,238,224,0.08)', icon: '💬', borderColor: '#1ceee0' },
+      cancelled:   { label: 'Időpont lemondva',   color: '#f97316', bg: 'rgba(249,115,22,0.08)', icon: '⚠️', borderColor: '#f97316' }
+    };
+
+    function addNotification(type, data) {
+      const id = ++_notifIdCounter;
+      _notifications.unshift({ id, type, data, time: new Date(), read: false });
+      // Keep max 50
+      if (_notifications.length > 50) _notifications.length = 50;
+      renderNotificationDropdown();
+      updateNotificationBadge();
+      // Toast only for urgent alerts
+      if (type === 'urgent') showNotificationToast(type, data);
+    }
+
+    function renderNotificationDropdown() {
+      const listDiv = document.getElementById('urgent-dropdown-list');
+      if (!listDiv) return;
+
+      if (_notifications.length === 0) {
+        listDiv.innerHTML = '<div style="padding:24px; text-align:center; color:var(--text-muted); font-size:13px;">Nincs új értesítés.</div>';
+        return;
+      }
+
+      const items = _notifications.slice(0, 30);
+      listDiv.innerHTML = items.map(n => {
+        const cfg = _notifTypeConfig[n.type] || _notifTypeConfig.interaction;
+        const timeStr = n.time.toLocaleString('hu-HU', { month:'2-digit', day:'2-digit', hour:'2-digit', minute:'2-digit' });
+        const name = esc(n.data.name || n.data.client || 'Ismeretlen');
+        const detail = esc(n.data.problem || n.data.summary || '');
+        const channelBadge = n.data.channel ? `<span style="font-size:10px;font-weight:500;color:${cfg.color};background:${cfg.bg};padding:2px 6px;border-radius:4px;">${esc(n.data.channel)}</span>` : '';
+
+        return `<div onclick="handleNotificationClick(${n.id})" style="padding:12px 16px; border-bottom:1px solid var(--border); cursor:pointer; display:flex; gap:10px; align-items:flex-start; transition:background 0.15s; background:${cfg.bg};" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='${cfg.bg}'">
+          <div style="flex-shrink:0;width:8px;height:8px;border-radius:50%;margin-top:6px;background:${cfg.color};"></div>
+          <div style="flex:1;min-width:0;">
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:3px;">
+              <span style="font-size:11px;font-weight:700;color:${cfg.color};text-transform:uppercase;letter-spacing:0.3px;">${cfg.icon} ${cfg.label}</span>
+              <span style="font-size:10px;color:var(--text-muted);white-space:nowrap;">${timeStr}</span>
+            </div>
+            <div style="display:flex;justify-content:space-between;align-items:center;">
+              <span style="font-weight:600;font-size:13px;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">${name}</span>
+              ${channelBadge}
+            </div>
+            ${detail ? `<div style="font-size:11px;color:var(--text-muted);margin-top:2px;line-height:1.4;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${detail}</div>` : ''}
+          </div>
+        </div>`;
+      }).join('');
+    }
+
+    function updateNotificationBadge() {
+      const badge = document.getElementById('urgent-badge');
+      if (!badge) return;
+      const count = _notifications.length;
+      if (count > 0) {
+        badge.textContent = count > 99 ? '99+' : count;
+        badge.style.display = 'flex';
+      } else {
+        badge.style.display = 'none';
+      }
+    }
+
+    function handleNotificationClick(notifId) {
+      const idx = _notifications.findIndex(x => x.id === notifId);
+      if (idx === -1) return;
+      const n = _notifications[idx];
+      _notifications.splice(idx, 1);
+      document.getElementById('urgent-dropdown').style.display = 'none';
+      updateNotificationBadge();
+      renderNotificationDropdown();
+
+      if (n.type === 'urgent') {
+        viewedUrgentIds.add(n.data.clientId || n.data.id);
+        if (n.data.clientId || n.data.id) {
+          try { authFetch('/admin/api/alerts/urgent/' + (n.data.clientId || n.data.id) + '/view', { method: 'POST' }); } catch(e) {}
+        }
+        if(typeof showPage === 'function') showPage('clients');
+        if(typeof openClientDetails === 'function') openClientDetails({id: n.data.clientId || n.data.id, name: n.data.name, email: n.data.email || '', phone: n.data.phone || ''});
+      } else if (n.type === 'cancelled') {
+        viewedCancelledIds.add(n.data.clientId || n.data.id);
+        if (n.data.clientId || n.data.id) {
+          try { authFetch('/admin/api/alerts/cancelled/' + (n.data.clientId || n.data.id) + '/view', { method: 'POST' }); } catch(e) {}
+        }
+        if(typeof showPage === 'function') showPage('clients');
+        if(typeof openClientDetails === 'function') openClientDetails({id: n.data.clientId || n.data.id, name: n.data.name, email: n.data.email || '', phone: n.data.phone || ''});
+      } else if (n.type === 'interaction') {
+        if(typeof showPage === 'function') showPage('interactions');
+      }
+    }
+
+    // ── Toast Notification (for all types) ──
+    function showNotificationToast(type, data) {
+      const container = document.getElementById('urgent-toast-container');
+      if (!container) return;
+      const cfg = _notifTypeConfig[type] || _notifTypeConfig.interaction;
+      const toast = document.createElement('div');
+      toast.style.cssText = `pointer-events:auto; width:340px; background:white; border-left:4px solid ${cfg.borderColor}; border-radius:8px; box-shadow:0 10px 25px -3px rgba(0,0,0,0.12), 0 4px 8px -2px rgba(0,0,0,0.06); padding:14px 16px; transform:translateX(120%); opacity:0; transition:all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display:flex; flex-direction:column; gap:4px;`;
+
+      if (document.body.classList.contains('dark')) {
+         toast.style.background = '#1e293b';
+         toast.style.color = '#f8fafc';
+         toast.style.boxShadow = '0 10px 25px -3px rgba(0,0,0,0.5)';
+      }
+
+      const name = esc(data.name || data.client || 'Ismeretlen');
+      const detail = esc(data.problem || data.summary || '');
+      const channel = esc(data.channel || '');
+
+      toast.innerHTML = `
+        <div style="display:flex; justify-content:space-between; align-items:center;">
+          <div style="display:flex; align-items:center; gap:6px;">
+            <span style="font-size:14px;">${cfg.icon}</span>
+            <span style="font-weight:700; font-size:12px; color:${cfg.color};">${cfg.label}</span>
+          </div>
+          <button style="background:none; border:none; cursor:pointer; color:#9ca3af; font-size:16px; line-height:1;" onclick="this.parentElement.parentElement.remove()">×</button>
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:2px;">
+          <span style="font-size:13px; font-weight:600; color:var(--text);">${name}</span>
+          ${channel ? `<span style="font-size:10px;font-weight:500;color:#6b7280;padding:2px 6px;background:#f3f4f6;border-radius:4px;">${channel}</span>` : ''}
+        </div>
+        ${detail ? `<div style="font-size:12px;color:var(--text-muted);line-height:1.4;margin-top:2px;display:-webkit-box;-webkit-line-clamp:2;-webkit-box-orient:vertical;overflow:hidden;">${detail}</div>` : ''}
+      `;
+
+      container.appendChild(toast);
+      requestAnimationFrame(() => { toast.style.transform = 'translateX(0)'; toast.style.opacity = '1'; });
+      setTimeout(() => { toast.style.transform = 'translateX(120%)'; toast.style.opacity = '0'; setTimeout(() => toast.remove(), 400); }, 8000);
+    }
+
+    // ── POLL: Sürgős esetek ──
+    async function pollUrgentCases() {
+      if (!authToken) return;
+      try {
+        const res = await authFetch('/admin/api/alerts/urgent');
+        if (!res.ok) return;
+        const data = await res.json();
+        const urgentClients = (data.urgent_clients || []).filter(c => !viewedUrgentIds.has(c.id));
+
+        let newCount = 0;
+        urgentClients.forEach(c => {
+          if (!knownUrgentIds.has(c.id)) {
+            knownUrgentIds.add(c.id);
+            newCount++;
+            addNotification('urgent', { clientId: c.id, name: c.name, email: c.email, phone: c.phone, channel: c.channel, problem: c.problem });
+          }
+        });
+
+        if (newCount > 0) {
+          urgentAudio.play().catch(e => console.log('Audio autoplay prevented'));
+        }
+      } catch (e) {
+        console.error('Hiba a sürgős esetek lekérdezésekor:', e);
+      }
+    }
+
+    // ── POLL: Lemondott időpontok ──
+    async function pollCancelledCases() {
+      if (!authToken) return;
+      try {
+        const res = await authFetch('/admin/api/alerts/cancelled');
+        if (!res.ok) return;
+        const data = await res.json();
+        const cancelledClients = (data.cancelled_clients || []).filter(c => !viewedCancelledIds.has(c.id));
+
+        cancelledClients.forEach(c => {
+          if (!knownCancelledIds.has(c.id)) {
+            knownCancelledIds.add(c.id);
+            addNotification('cancelled', { clientId: c.id, name: c.name, email: c.email, phone: c.phone, channel: c.channel, summary: 'Időpont lemondva' });
+          }
+        });
+      } catch (e) {
+        console.error('Hiba a lemondott esetek lekérdezésekor:', e);
+      }
+    }
+
+    // ── POLL: Új interakciók ──
+    // Smart summary builder for notifications
+    function _buildFriendlyInteractionSummary(session, channel) {
+      // Collect all meaningful text from the session
+      const parts = [];
+      if (session.interactions && session.interactions.length > 0) {
+        const latest = session.interactions[session.interactions.length - 1];
+        if (latest.topic) parts.push(latest.topic);
+        if (latest.summary) parts.push(latest.summary);
+        if (latest.type) parts.push(latest.type);
+      }
+      if (session.summary) parts.push(session.summary);
+      if (session.topic) parts.push(session.topic);
+      
+      const combined = parts.join(' ').toLowerCase();
+      
+      // Match to friendly categories
+      if (combined.includes('időpont') || combined.includes('foglal') || combined.includes('booking') || combined.includes('lemondás'))
+        return 'Időpontfoglalással kapcsolatos megkeresés';
+      if (combined.includes('panasz') || combined.includes('reklamáció') || combined.includes('complaint'))
+        return 'Panasz érkezett';
+      if (combined.includes('kérdés') || combined.includes('question') || combined.includes('információ') || combined.includes('érdeklőd'))
+        return 'Kérdés érkezett';
+      if (combined.includes('kérés') || combined.includes('request') || combined.includes('igény'))
+        return 'Új kérés érkezett';
+      if (combined.includes('ár') || combined.includes('árajánlat') || combined.includes('költség'))
+        return 'Árajánlat kérés érkezett';
+      if (combined.includes('email') || combined.includes('e-mail'))
+        return 'Email üzenet érkezett';
+      
+      // Fallback: channel-based friendly text
+      const channelMap = {
+        'Messenger': 'Új Messenger üzenet érkezett',
+        'Instagram': 'Új Instagram üzenet érkezett',
+        'WhatsApp': 'Új WhatsApp üzenet érkezett',
+        'Email': 'Új email érkezett',
+        'Telefon': 'Új telefonos megkeresés'
+      };
+      return channelMap[channel] || 'Új üzenet érkezett';
+    }
+
+    // Track seen interaction IDs (from the interactions table directly)
+    let _seenInteractionIds = new Set();
+
+    async function pollNewInteractions() {
+      if (!authToken) return;
+      try {
+        const res = await authFetch('/admin/api/interactions?limit=30');
+        if (!res.ok) return;
+        const data = await res.json();
+        const interactions = data.interactions || [];
+
+        if (_lastInteractionPollTime === null) {
+          // First run — register all existing interaction IDs silently
+          interactions.forEach(i => _seenInteractionIds.add(i.id));
+          _lastInteractionPollTime = Date.now();
+          return;
+        }
+
+        // Check for new interactions (ones we haven't seen before)
+        interactions.forEach(i => {
+          if (!_seenInteractionIds.has(i.id)) {
+            _seenInteractionIds.add(i.id);
+
+            // Detect channel from type field
+            const t = (i.type || '').toLowerCase();
+            let channel = 'Telefon';
+            if (t.includes('messenger')) channel = 'Messenger';
+            else if (t.includes('email')) channel = 'Email';
+            else if (t.includes('instagram')) channel = 'Instagram';
+            else if (t.includes('whatsapp')) channel = 'WhatsApp';
+
+            // Get client name from session or interaction
+            const clientName = i.participant || i.client_name || 'Ismeretlen';
+
+            // Check if this is an urgent interaction
+            const tags = i.alert_tags || [];
+            const isUrgent = tags.includes('urgent');
+
+            if (isUrgent) {
+              // Fire urgent notification (with toast + sound)
+              addNotification('urgent', { name: clientName, channel: channel, problem: 'Sürgős megkeresés beérkezett.' });
+              urgentAudio.play().catch(e => console.log('Audio autoplay prevented'));
+            } else {
+              // Regular interaction notification
+              const summary = _buildFriendlyInteractionSummary({ interactions: [i], summary: i.summary || '' }, channel);
+              addNotification('interaction', { client: clientName, channel: channel, summary: summary });
+            }
+          }
+        });
+      } catch (e) {
+        console.error('Hiba az új interakciók lekérdezésekor:', e);
+      }
+    }
+
+    // ── Start polling ──
+    setInterval(pollUrgentCases, 15000);
+    setTimeout(pollUrgentCases, 2000);
+    setInterval(pollCancelledCases, 15000);
+    setTimeout(pollCancelledCases, 2500);
+    setInterval(pollNewInteractions, 15000);
+    setTimeout(pollNewInteractions, 3000);
     
     function toggleUrgentDropdown() {
       const dropdown = document.getElementById('urgent-dropdown');
@@ -11436,206 +11886,6 @@
         dropdown.style.display = 'none';
       }
     }
-
-        async function viewUrgentAlert(clientId, name, email, phone) {
-      document.getElementById('urgent-dropdown').style.display = 'none';
-      
-      viewedUrgentIds.add(clientId);
-
-      // Update UI manually immediately
-      const badge = document.getElementById('urgent-badge');
-      const currentCount = parseInt(badge.textContent || '0');
-      if (currentCount > 0) {
-        badge.textContent = currentCount - 1;
-        if (currentCount - 1 === 0) badge.style.display = 'none';
-      }
-
-      pollUrgentCases(); // This will re-render without it once backend catches up
-
-      try {
-        await authFetch('/admin/api/alerts/urgent/' + clientId + '/view', { method: 'POST' });
-        // DO NOT delete from knownUrgentIds to prevent the toast from showing again!
-        pollUrgentCases(); // Final sync with backend
-      } catch(e) { console.error('Hiba az alert megtekintésekor', e); }
-      
-      if(typeof showPage === 'function') showPage('clients'); 
-      if(typeof openClientDetails === 'function') {
-        openClientDetails({id: clientId, name: name, email: email || '', phone: phone || ''});
-      }
-    }
-
-    async function pollUrgentCases() {
-      if (!authToken) return;
-      try {
-        const res = await authFetch('/admin/api/alerts/urgent');
-        if (!res.ok) return;
-        const data = await res.json();
-        const urgentClients = (data.urgent_clients || []).filter(c => !viewedUrgentIds.has(c.id));
-        
-        let newCount = 0;
-        urgentClients.forEach(c => {
-          if (!knownUrgentIds.has(c.id)) {
-            knownUrgentIds.add(c.id);
-            newCount++;
-            showUrgentToast(c);
-          }
-        });
-        
-        const badge = document.getElementById('urgent-badge');
-        const listDiv = document.getElementById('urgent-dropdown-list');
-        
-        if (urgentClients.length > 0) {
-          badge.textContent = urgentClients.length;
-          badge.style.display = 'flex';
-          if (newCount > 0) {
-            urgentAudio.play().catch(e => console.log('Audio autoplay prevented'));
-          }
-          
-          if (listDiv) {
-            listDiv.innerHTML = urgentClients.map(c => `
-              <div onclick="viewUrgentAlert(${c.id}, '${esc(c.name)}', '${esc(c.email || '')}', '${esc(c.phone || '')}')" style="padding:12px 16px; border-bottom:1px solid var(--border); cursor:pointer; display:flex; flex-direction:column; gap:4px; transition:background 0.2s;" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='transparent'">
-                <div style="display:flex; justify-content:space-between; align-items:center;">
-                  <span style="font-weight:600; font-size:13px; color:var(--text);">${esc(c.name)}</span>
-                  <span style="font-size:10px; font-weight:500; color:#ef4444; background:rgba(239,68,68,0.1); padding:2px 6px; border-radius:4px;">${esc(c.channel)}</span>
-                </div>
-                <div style="font-size:12px; color:var(--text-muted); line-height:1.4; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;">${esc(c.problem)}</div>
-              </div>
-            `).join('');
-          }
-        } else {
-          badge.style.display = 'none';
-          if (listDiv) {
-            listDiv.innerHTML = '<div style="padding:16px; text-align:center; color:var(--text-muted); font-size:13px;">Nincs új sürgős riasztás.</div>';
-          }
-        }
-      } catch (e) {
-        console.error('Hiba a sürgős esetek lekérdezésekor:', e);
-      }
-    }
-    
-    function showUrgentToast(c) {
-      const container = document.getElementById('urgent-toast-container');
-      if (!container) return;
-      
-      const toast = document.createElement('div');
-      // Tailwind stílusú felugró ablak
-      toast.style.cssText = 'pointer-events:auto; width:320px; background:white; border-left:4px solid #ef4444; border-radius:6px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); padding:16px; transform:translateX(120%); opacity:0; transition:all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display:flex; flex-direction:column; gap:6px;';
-      
-      if (document.body.classList.contains('dark')) {
-         toast.style.background = '#1e293b';
-         toast.style.color = '#f8fafc';
-         toast.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.5)';
-      }
-      
-      toast.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div style="display:flex; align-items:center; gap:6px;">
-            <span style="font-size:16px;">🚨</span>
-            <span style="font-weight:700; font-size:13px; color:#ef4444;">Sürgős eset beérkezett!</span>
-          </div>
-          <button style="background:none; border:none; cursor:pointer; color:#9ca3af; font-size:16px;" onclick="this.parentElement.parentElement.remove()">×</button>
-        </div>
-        <div style="font-size:14px; font-weight:600; margin-top:4px; color:var(--text);">${esc(c.name)} <span style="font-size:11px; font-weight:500; color:#6b7280; padding:2px 6px; background:#f3f4f6; border-radius:4px; margin-left:6px;">${esc(c.channel)}</span></div>
-        <div style="font-size:12px; color:var(--text-muted); line-height:1.4;">${esc(c.problem)}</div>
-        <button onclick="if(typeof showPage === 'function') showPage('clients'); if(typeof openClientDetails === 'function') openClientDetails({name: '${esc(c.name)}', email: '${esc(c.email || '')}', phone: '${esc(c.phone || '')}'}); this.parentElement.remove();" style="margin-top:8px; align-self:flex-start; font-size:12px; font-weight:600; color:#2563eb; background:none; border:none; cursor:pointer; padding:0;">Ugrás az ügyfél adatlapjára ➔</button>
-      `;
-      
-      container.appendChild(toast);
-      
-      // Animáció be
-      requestAnimationFrame(() => {
-        toast.style.transform = 'translateX(0)';
-        toast.style.opacity = '1';
-      });
-      
-      // 10 másodperc után eltűnik
-      setTimeout(() => {
-        toast.style.transform = 'translateX(120%)';
-        toast.style.opacity = '0';
-        setTimeout(() => toast.remove(), 400);
-      }, 10000);
-    }
-    
-    // Indítás
-    setInterval(pollUrgentCases, 15000);
-    setTimeout(pollUrgentCases, 2000);
-
-    // ── LEMONDOTT ESETEK POLLING ──────────────────────────────────────────────────
-    let knownCancelledIds = new Set();
-    let viewedCancelledIds = new Set();
-    
-    async function viewCancelledAlert(clientId, name, email, phone) {
-      viewedCancelledIds.add(clientId);
-      try {
-        await authFetch('/admin/api/alerts/cancelled/' + clientId + '/view', { method: 'POST' });
-      } catch(e) { console.error('Hiba az alert megtekintésekor', e); }
-      
-      if(typeof showPage === 'function') showPage('clients'); 
-      if(typeof openClientDetails === 'function') {
-        openClientDetails({id: clientId, name: name, email: email || '', phone: phone || ''});
-      }
-    }
-
-    async function pollCancelledCases() {
-      if (!authToken) return;
-      try {
-        const res = await authFetch('/admin/api/alerts/cancelled');
-        if (!res.ok) return;
-        const data = await res.json();
-        const cancelledClients = (data.cancelled_clients || []).filter(c => !viewedCancelledIds.has(c.id));
-        
-        cancelledClients.forEach(c => {
-          if (!knownCancelledIds.has(c.id)) {
-            knownCancelledIds.add(c.id);
-            showCancelledToast(c);
-          }
-        });
-      } catch (e) {
-        console.error('Hiba a lemondott esetek lekérdezésekor:', e);
-      }
-    }
-    
-    function showCancelledToast(c) {
-      const container = document.getElementById('urgent-toast-container');
-      if (!container) return;
-      
-      const toast = document.createElement('div');
-      toast.style.cssText = 'pointer-events:auto; width:320px; background:white; border-left:4px solid #f97316; border-radius:6px; box-shadow:0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05); padding:16px; transform:translateX(120%); opacity:0; transition:all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275); display:flex; flex-direction:column; gap:6px;';
-      
-      if (document.body.classList.contains('dark')) {
-         toast.style.background = '#1e293b';
-         toast.style.color = '#f8fafc';
-         toast.style.boxShadow = '0 10px 15px -3px rgba(0,0,0,0.5)';
-      }
-      
-      toast.innerHTML = `
-        <div style="display:flex; justify-content:space-between; align-items:center;">
-          <div style="display:flex; align-items:center; gap:6px;">
-            <span style="font-size:16px;">⚠️</span>
-            <span style="font-weight:700; font-size:13px; color:#f97316;">Időpont lemondva!</span>
-          </div>
-          <button style="background:none; border:none; cursor:pointer; color:#9ca3af; font-size:16px;" onclick="this.parentElement.parentElement.remove()">×</button>
-        </div>
-        <div style="font-size:14px; font-weight:600; margin-top:4px; color:var(--text);">${esc(c.name)} <span style="font-size:11px; font-weight:500; color:#6b7280; padding:2px 6px; background:#f3f4f6; border-radius:4px; margin-left:6px;">${esc(c.channel)}</span></div>
-        <button onclick="viewCancelledAlert(${c.id}, '${esc(c.name)}', '${esc(c.email || '')}', '${esc(c.phone || '')}'); this.parentElement.remove();" style="margin-top:8px; align-self:flex-start; font-size:12px; font-weight:600; color:#2563eb; background:none; border:none; cursor:pointer; padding:0;">Ugrás az ügyfél adatlapjára ➔</button>
-      `;
-      
-      container.appendChild(toast);
-      
-      requestAnimationFrame(() => {
-        toast.style.transform = 'translateX(0)';
-        toast.style.opacity = '1';
-      });
-      
-      setTimeout(() => {
-        toast.style.transform = 'translateX(120%)';
-        toast.style.opacity = '0';
-        setTimeout(() => toast.remove(), 400);
-      }, 10000);
-    }
-    
-    setInterval(pollCancelledCases, 15000);
-    setTimeout(pollCancelledCases, 2500);
 
 
     // ── Auto login if token exists ────────────────────────────────────────────────
@@ -12101,7 +12351,7 @@
       <th>Email</th>
       ${isAdmin ? '<th>Felelős</th>' : ''}
       <th>Utolsó interakció</th>
-      <th>Kanban Státusz</th>
+      <th>Értékesítési státusz</th>
       <th>Műveletek</th>
     </tr>
   `;
@@ -12260,7 +12510,7 @@
           }
 
           const clientName = customObj.nev || customObj.name || c.name || 'Ismeretlen';
-          const ddId = 'DD-' + c.id;
+          const ddId = 'ED-' + c.id;
           const safeName = esc(clientName).replace(/'/g, "\\'");
 
           // Match client detail view: ÚJ / VISSZATÉRŐ / INAKTÍV
@@ -12323,6 +12573,7 @@
       } catch (e) {
         tbody.innerHTML = '<tr><td colspan="10" style="text-align:center;color:var(--red);padding:40px;">Betöltési hiba</td></tr>';
       }
+      restoreClientColumnVisibility();
     }
 
     // ── Card View State ──────────────────────────────────────
@@ -12479,7 +12730,7 @@
         let co = {};
         try { co = c.custom_data ? JSON.parse(c.custom_data) : {}; } catch(e) {}
         const clientName = co.nev || co.name || c.name || 'Ismeretlen';
-        const ddId = 'DD-' + c.id;
+        const ddId = 'ED-' + c.id;
         const initials = _getInitials(clientName);
         const avatarBg = _avatarColors[c.id % _avatarColors.length];
 
@@ -14422,7 +14673,14 @@
       }
     }
 
-    async function openClientDetails(clientData) {
+    let _clientDetailSource = 'clients'; // 'clients' or 'interactions'
+
+    async function openClientDetails(clientData, source) {
+      _clientDetailSource = source || 'clients';
+      const backText = document.getElementById('cd-back-text');
+      if (backText) {
+        backText.textContent = _clientDetailSource === 'interactions' ? 'Vissza az interakciós listához' : 'Vissza az ügyféllistához';
+      }
       const cleanStr = (str) => {
         if (!str) return '';
         return String(str).normalize("NFD").replace(/[\u0300-\u036f]/g, "").toLowerCase().trim();
@@ -14565,7 +14823,7 @@
         const phoneEl = document.getElementById('cd-phone');
         phoneEl.innerText = clientData.phone || 'Nincs megadva';
 
-        document.getElementById('cd-id').innerText = clientData.id ? `DigiDesk azonosító: ${clientData.id}` : `DigiDesk azonosító: PAC-${Math.floor(100000 + Math.random() * 900000)}`;
+        document.getElementById('cd-id').innerText = clientData.id ? `Eaisydesk azonosító: ${clientData.id}` : `Eaisydesk azonosító: PAC-${Math.floor(100000 + Math.random() * 900000)}`;
 
         let createdDateStr = 'N/A';
         if (clientData.created_at) {
@@ -15304,12 +15562,16 @@
     function closeClientDetails() {
       document.getElementById('view-client-details').style.display = 'none';
 
-      // Show view switcher
-      const switcher = document.querySelector('.view-switcher-container');
-      if (switcher) switcher.style.display = 'flex';
-
-      // Restore last active view
-      switchCustomerView(lastActiveCustomerView);
+      if (_clientDetailSource === 'interactions') {
+        showPage('interactions');
+      } else {
+        // Show view switcher
+        const switcher = document.querySelector('.view-switcher-container');
+        if (switcher) switcher.style.display = 'flex';
+        // Restore last active view
+        switchCustomerView(lastActiveCustomerView);
+      }
+      _clientDetailSource = 'clients';
     }
 
     document.addEventListener('click', function (e) {
@@ -16313,6 +16575,48 @@
     // Close dropdown on click outside
     document.addEventListener('click', function(e) {
       const dd = document.getElementById('col-toggle-dropdown');
+      if (!dd || dd.style.display === 'none') return;
+      const wrapper = dd.parentElement;
+      if (!wrapper.contains(e.target)) dd.style.display = 'none';
+    });
+
+    // ── Client table column toggle ──
+    function toggleClientColumnDropdown() {
+      const dd = document.getElementById('client-col-toggle-dropdown');
+      dd.style.display = dd.style.display === 'none' ? 'block' : 'none';
+    }
+
+    function toggleClientCol(colIdx, visible) {
+      const table = document.querySelector('#clients-table-wrapper table');
+      if (!table) return;
+      table.querySelectorAll('tr').forEach(row => {
+        const cells = row.querySelectorAll('th, td');
+        if (cells[colIdx]) {
+          cells[colIdx].style.display = visible ? '' : 'none';
+        }
+      });
+      let state = JSON.parse(localStorage.getItem('client_col_visibility') || '{}');
+      state[colIdx] = visible;
+      localStorage.setItem('client_col_visibility', JSON.stringify(state));
+    }
+
+    function restoreClientColumnVisibility() {
+      const state = JSON.parse(localStorage.getItem('client_col_visibility') || '{}');
+      Object.entries(state).forEach(([col, visible]) => {
+        const colIdx = parseInt(col);
+        if (!visible) {
+          toggleClientCol(colIdx, false);
+          const labels = document.querySelectorAll('#client-col-toggle-dropdown label');
+          if (labels[colIdx - 1]) {
+            const inp = labels[colIdx - 1].querySelector('input');
+            if (inp) inp.checked = false;
+          }
+        }
+      });
+    }
+
+    document.addEventListener('click', function(e) {
+      const dd = document.getElementById('client-col-toggle-dropdown');
       if (!dd || dd.style.display === 'none') return;
       const wrapper = dd.parentElement;
       if (!wrapper.contains(e.target)) dd.style.display = 'none';

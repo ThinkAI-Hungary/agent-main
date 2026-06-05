@@ -1401,7 +1401,7 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             # Logolás az interactions táblába + approval
             db.log_interaction(
                 type=source_channel.lower(),
-                topic=f"{source_channel} AI válasz",
+                topic=f"Bejövő {source_channel} üzenet",
                 summary=final_text[:100],
                 result="Várakozik jóváhagyásra",
                 tool_name="process_meta_message",

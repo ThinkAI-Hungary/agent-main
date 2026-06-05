@@ -869,7 +869,19 @@ def get_interactions(limit: int = 100, type_filter: str = "") -> list[dict]:
         if type_filter:
             query = query.eq("type", type_filter)
         res = query.execute()
-        return res.data
+        interactions = res.data
+        
+        # Enrich with session participant names
+        session_ids = list(set(i.get("session_id") for i in interactions if i.get("session_id")))
+        if session_ids:
+            sess_res = supabase.table("sessions").select("session_id, participant").in_("session_id", session_ids).execute()
+            sess_map = {s["session_id"]: s.get("participant", "") for s in (sess_res.data or [])}
+            for i in interactions:
+                sid = i.get("session_id")
+                if sid and sid in sess_map:
+                    i["participant"] = sess_map[sid]
+        
+        return interactions
     except Exception:
         return []
 
