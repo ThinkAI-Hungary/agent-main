@@ -191,9 +191,10 @@ app.add_middleware(
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def create_jwt(username: str) -> str:
+def create_jwt(username: str, role: str = "admin") -> str:
     payload = {
         "sub": username,
+        "role": role,
         "exp": datetime.utcnow() + timedelta(seconds=JWT_EXPIRES),
         "iat": datetime.utcnow(),
     }
@@ -1497,12 +1498,54 @@ def admin_login(req: LoginRequest):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Hibás felhasználónév vagy jelszó"
         )
-    token = create_jwt(user["username"])
+    token = create_jwt(user["username"], user.get("role", "admin"))
     return {"token": token, "username": user["username"], "role": user.get("role", "admin"), "full_name": user.get("full_name", "")}
 
 
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    email: str = ""
+    full_name: str = ""
+
+
+@app.post("/admin/register")
+def admin_register(req: RegisterRequest):
+    """Nyilvános regisztráció member jogosultsággal."""
+    if not req.username or not req.password:
+        raise HTTPException(400, "Felhasználónév és jelszó kötelező")
+    if len(req.password) < 4:
+        raise HTTPException(400, "A jelszónak legalább 4 karakter hosszúnak kell lennie")
+    success = db.create_admin_user(
+        req.username, req.password, req.email,
+        role="member", created_by="self-register", full_name=req.full_name
+    )
+    if not success:
+        raise HTTPException(400, "A felhasználónév már foglalt")
+    token = create_jwt(req.username, "member")
+    return {"token": token, "username": req.username, "role": "member", "full_name": req.full_name}
+
+
 def require_admin(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
-    """Dependency: only admin role can access."""
+    """Dependency: admin OR manager role can access."""
+    if not credentials:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Nincs token")
+    try:
+        payload = pyjwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGO])
+        username = payload["sub"]
+    except pyjwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token lejárt")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Érvénytelen token")
+    
+    user = db.get_admin_user_by_username(username)
+    if not user or user.get("role") not in ("admin", "manager"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Csak admin vagy manager jogosultsággal elérhető")
+    return user
+
+
+def require_admin_only(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+    """Dependency: strictly admin role only (user management)."""
     if not credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Nincs token")
     try:
@@ -1539,22 +1582,22 @@ class ChangePasswordRequest(BaseModel):
     user_id: Optional[int] = None
 
 @app.get("/admin/api/users")
-def api_get_users(admin: dict = Depends(require_admin)):
+def api_get_users(admin: dict = Depends(require_admin_only)):
     """List all admin users (admin only)."""
     return {"status": "success", "data": db.get_admin_users()}
 
 @app.post("/admin/api/users")
-def api_create_user(req: CreateUserRequest, admin: dict = Depends(require_admin)):
+def api_create_user(req: CreateUserRequest, admin: dict = Depends(require_admin_only)):
     """Create a new admin user (admin only)."""
-    if req.role not in ("admin", "member"):
-        raise HTTPException(400, "Érvénytelen szerepkör. Lehetséges: admin, member")
+    if req.role not in ("admin", "manager", "member"):
+        raise HTTPException(400, "Érvénytelen szerepkör. Lehetséges: admin, manager, member")
     success = db.create_admin_user(req.username, req.password, req.email, req.role, admin["username"], req.full_name)
     if not success:
         raise HTTPException(400, "A felhasználónév már foglalt")
     return {"status": "success", "message": f"Felhasználó létrehozva: {req.username}"}
 
 @app.put("/admin/api/users/{user_id}/role")
-def api_update_user_role(user_id: int, req: RoleUpdateRequest, admin: dict = Depends(require_admin)):
+def api_update_user_role(user_id: int, req: RoleUpdateRequest, admin: dict = Depends(require_admin_only)):
     """Update user role (admin only). Cannot demote self."""
     if admin["id"] == user_id and req.role != "admin":
         raise HTTPException(400, "Nem módosíthatod a saját szerepkörödet")
@@ -1564,7 +1607,7 @@ def api_update_user_role(user_id: int, req: RoleUpdateRequest, admin: dict = Dep
     return {"status": "success"}
 
 @app.delete("/admin/api/users/{user_id}")
-def api_delete_user(user_id: int, admin: dict = Depends(require_admin)):
+def api_delete_user(user_id: int, admin: dict = Depends(require_admin_only)):
     """Delete an admin user (admin only). Cannot delete self."""
     if admin["id"] == user_id:
         raise HTTPException(400, "Nem törölheted saját magadat")

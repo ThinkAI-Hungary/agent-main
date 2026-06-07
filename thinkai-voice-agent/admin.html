@@ -873,22 +873,316 @@
       color: #ef4444;
     }
 
-    /* Hide action bar - replaced by flyout */
+    /* ── Beállítások page (Visibill-style) ──────────────────── */
+    .beallitasok-tabbar {
+      display: flex;
+      align-items: center;
+      gap: 0;
+      background: #f1f5f9;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 4px;
+      margin-bottom: 28px;
+      width: 100%;
+    }
+    body.dark .beallitasok-tabbar {
+      background: rgba(255,255,255,0.04);
+      border-color: rgba(255,255,255,0.08);
+    }
+    .beallitasok-tab {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex: 1;
+      padding: 11px 16px;
+      border-radius: 8px;
+      border: none;
+      background: transparent;
+      color: #64748b;
+      font-size: 13.5px;
+      font-weight: 500;
+      font-family: 'Inter', Arial, sans-serif;
+      cursor: pointer;
+      transition: all 0.2s;
+      white-space: nowrap;
+    }
+    .beallitasok-tab svg {
+      width: 16px;
+      height: 16px;
+      flex-shrink: 0;
+    }
+    .beallitasok-tab:hover {
+      color: #334155;
+      background: rgba(0,0,0,0.03);
+    }
+    body.dark .beallitasok-tab {
+      color: rgba(255,255,255,0.45);
+    }
+    body.dark .beallitasok-tab:hover {
+      color: rgba(255,255,255,0.7);
+      background: rgba(255,255,255,0.04);
+    }
+    .beallitasok-tab.active {
+      background: #fff;
+      color: #1e293b;
+      font-weight: 600;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    }
+    body.dark .beallitasok-tab.active {
+      background: rgba(28, 238, 224, 0.10);
+      color: #1ceee0;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.2);
+    }
+    .beallitasok-card {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 16px;
+      padding: 36px 40px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.02);
+    }
+    body.dark .beallitasok-card {
+      background: rgba(255,255,255,0.03);
+      border-color: rgba(255,255,255,0.08);
+    }
+    .beallitasok-label {
+      display: block;
+      font-size: 13px;
+      font-weight: 700;
+      color: #1e293b;
+      margin-bottom: 8px;
+      font-family: 'Inter', Arial, sans-serif;
+    }
+    body.dark .beallitasok-label {
+      color: #e2e8f0;
+    }
+    .beallitasok-input {
+      width: 100%;
+      padding: 12px 16px;
+      border-radius: 10px;
+      border: 1px solid transparent;
+      background: #f1f5f9;
+      color: #1e293b;
+      font-size: 14px;
+      font-family: 'Inter', Arial, sans-serif;
+      transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+      outline: none;
+      box-sizing: border-box;
+    }
+    body.dark .beallitasok-input {
+      background: rgba(255,255,255,0.06);
+      color: #e2e8f0;
+      border-color: rgba(255,255,255,0.08);
+    }
+    .beallitasok-input:focus {
+      border-color: #0dbcb4;
+      background: #fff;
+      box-shadow: 0 0 0 3px rgba(13, 188, 180, 0.10);
+    }
+    body.dark .beallitasok-input:focus {
+      background: rgba(255,255,255,0.08);
+    }
+    .beallitasok-save-btn {
+      padding: 11px 30px;
+      border-radius: 10px;
+      border: none;
+      background: linear-gradient(135deg, #0dbcb4, #0a9e97);
+      color: #fff;
+      font-size: 14px;
+      font-weight: 600;
+      font-family: 'Inter', Arial, sans-serif;
+      cursor: pointer;
+      transition: all 0.2s;
+      box-shadow: 0 2px 8px rgba(13, 188, 180, 0.25);
+    }
+    .beallitasok-save-btn:hover {
+      background: linear-gradient(135deg, #0a9e97, #088f89);
+      box-shadow: 0 4px 12px rgba(13, 188, 180, 0.35);
+      transform: translateY(-1px);
+    }
+
+    /* Hide action bar - replaced by new Visibill-style bottom */
     .sidebar-action-bar { display: none !important; }
 
-    /* Collapsed sidebar: hide flyout trigger text */
-    .sidebar.collapsed .admin-flyout-trigger .flyout-chevron,
-    .sidebar.collapsed .admin-flyout-trigger > div:not(.user-avatar) {
+    /* Hide old flyout popover entirely */
+    .admin-flyout { display: none !important; }
+    .admin-flyout-backdrop { display: none !important; }
+    .admin-flyout-trigger { display: none !important; }
+
+    /* Hide old circle collapse button */
+    .sidebar-collapse-btn { display: none !important; }
+
+    /* ── Visibill-style sidebar bottom ────────────────────────── */
+    .sidebar-user-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 12px 14px;
+    }
+    .sidebar-user-row .user-avatar {
+      width: 34px;
+      height: 34px;
+      font-size: 12px;
+    }
+    .sidebar-user-row .user-text {
+      flex: 1;
+      min-width: 0;
+    }
+    .sidebar-user-row .user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e8edf5;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sidebar-user-row .user-role {
+      font-size: 11px;
+      color: #6b8b99;
+      margin-top: 1px;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .sidebar-theme-toggle {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      border: 1px solid rgba(255,255,255,0.08);
+      background: rgba(255,255,255,0.04);
+      color: #8ea9c0;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.2s;
+      flex-shrink: 0;
+      padding: 0;
+    }
+    .sidebar-theme-toggle:hover {
+      background: rgba(28, 238, 224, 0.10);
+      color: #1ceee0;
+      border-color: rgba(28, 238, 224, 0.25);
+    }
+    .sidebar-theme-toggle svg {
+      width: 16px;
+      height: 16px;
+      transition: transform 0.3s ease;
+    }
+    .sidebar-theme-toggle .icon-sun { display: block; }
+    .sidebar-theme-toggle .icon-moon { display: none; }
+    body.dark .sidebar-theme-toggle .icon-sun { display: none; }
+    body.dark .sidebar-theme-toggle .icon-moon { display: block; }
+
+    .sidebar-btn-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 6px;
+      padding: 6px 14px 10px;
+    }
+    .sidebar-icon-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      color: #8ea9c0;
+      cursor: pointer;
+      transition: all 0.2s;
+      font-family: 'Inter', Arial, sans-serif;
+      font-size: 0;
+    }
+    .sidebar-icon-btn svg {
+      width: 18px;
+      height: 18px;
+    }
+    .sidebar-icon-btn:hover {
+      background: rgba(28, 238, 224, 0.10);
+      color: #1ceee0;
+      border-color: rgba(28, 238, 224, 0.25);
+    }
+    .sidebar-icon-btn.btn-logout-new:hover {
+      background: rgba(239, 68, 68, 0.08);
+      color: #ef4444;
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+
+    .sidebar-collapse-bar {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 8px 14px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      cursor: pointer;
+      color: #6b8b99;
+      transition: all 0.2s;
+      width: 100%;
+      background: none;
+      border-left: none;
+      border-right: none;
+      border-bottom: none;
+      font-family: 'Inter', Arial, sans-serif;
+    }
+    .sidebar-collapse-bar:hover {
+      background: rgba(28, 238, 224, 0.06);
+      color: #1ceee0;
+    }
+    .sidebar-collapse-bar svg {
+      width: 16px;
+      height: 16px;
+      transition: transform 0.25s;
+    }
+    .sidebar.collapsed .sidebar-collapse-bar svg {
+      /* PanelLeft icon stays the same in both states */
+    }
+
+    /* ── Collapsed state for new bottom elements ─────────── */
+    .sidebar.collapsed .sidebar-user-row .user-text,
+    .sidebar.collapsed .sidebar-user-row .sidebar-theme-toggle {
       display: none !important;
     }
-    .sidebar.collapsed .admin-flyout-trigger {
+    .sidebar.collapsed .sidebar-user-row {
       justify-content: center;
       padding: 8px;
     }
-    .sidebar.collapsed .admin-flyout {
-      left: 8px;
-      right: auto;
-      width: 240px;
+    .sidebar.collapsed .sidebar-btn-row {
+      grid-template-columns: 1fr;
+      padding: 4px 8px 6px;
+      gap: 4px;
+    }
+    .sidebar.collapsed .sidebar-icon-btn {
+      padding: 8px;
+    }
+    /* Tooltip for collapsed icon buttons */
+    .sidebar.collapsed .sidebar-icon-btn {
+      position: relative;
+    }
+    .sidebar.collapsed .sidebar-icon-btn::after {
+      content: attr(data-tooltip);
+      position: absolute;
+      left: 100%;
+      top: 50%;
+      transform: translateY(-50%);
+      margin-left: 12px;
+      background: #0a2a3c;
+      color: #e8edf5;
+      padding: 6px 12px;
+      border-radius: 8px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.15s;
+      z-index: 200;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.3);
+    }
+    .sidebar.collapsed .sidebar-icon-btn:hover::after {
+      opacity: 1;
     }
 
 
@@ -1865,6 +2159,7 @@
     body.dark .team-name { color: #e8edf5; }
     body.dark .team-meta { color: #6b8b99; }
     body.dark .team-role-badge.admin { background: rgba(28,238,224,0.12); color: #1ceee0; }
+    body.dark .team-role-badge.manager { background: rgba(139,92,246,0.12); color: #a78bfa; }
     body.dark .team-role-badge.member { background: rgba(107,114,128,0.12); color: #6b8b99; }
     body.dark .team-actions select { background: #0d2538; border-color: #1a3548; color: #c8d6e5; }
     body.dark .team-delete-btn { color: #3a5568; }
@@ -5939,6 +6234,7 @@
           <button class="nav-sub-item" id="nav-sub-settings-agent" onclick="showSettingsSubPage('agent')">Telefon</button>
           <button class="nav-sub-item" id="nav-sub-settings-praxis" onclick="showSettingsSubPage('praxis')">Céginformációk</button>
           <button class="nav-sub-item" id="nav-sub-settings-szabalyok" onclick="showSettingsSubPage('szabalyok')">Szabályok</button>
+
         </div>
       </div>
       <button class="nav-item" id="nav-help" onclick="showPage('help')" data-tooltip="Segítség">
@@ -5952,66 +6248,43 @@
         <span>Segítség</span>
       </button>
       <div class="sidebar-bottom">
-        <!-- Admin Flyout Popover -->
-        <div class="admin-flyout" id="admin-flyout">
-          <div class="flyout-section-label">Adminisztráció</div>
-          <button class="flyout-item" onclick="flyoutNavigate('csapat')">
-            <div class="flyout-item-icon accent">
-              <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
-            </div>
-            <div class="flyout-item-text">
-              <div class="flyout-item-title">Csapat</div>
-              <div class="flyout-item-desc">Felhasználók és jogosultságok</div>
-            </div>
-          </button>
-          <button class="flyout-item" onclick="flyoutNavigate('biztonsag')">
-            <div class="flyout-item-icon orange">
-              <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
-            </div>
-            <div class="flyout-item-text">
-              <div class="flyout-item-title">Biztonság</div>
-              <div class="flyout-item-desc">Jelszó és adatvédelem</div>
-            </div>
-          </button>
-          <div class="flyout-divider"></div>
-          <div class="flyout-section-label">Preferenciák</div>
-          <button class="flyout-item" id="flyout-theme-btn" onclick="toggleDarkMode(); closeAdminFlyout();">
-            <div class="flyout-item-icon purple">
-              <svg id="flyout-theme-icon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:16px;height:16px;"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
-            </div>
-            <div class="flyout-item-text">
-              <div class="flyout-item-title" id="flyout-theme-label">Sötét mód</div>
-              <div class="flyout-item-desc">Megjelenítés váltása</div>
-            </div>
-          </button>
-          <div class="flyout-divider"></div>
-          <button class="flyout-item danger" onclick="doLogout()">
-            <div class="flyout-item-icon" style="background:rgba(239,68,68,0.08);color:#ef4444;">
-              <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:16px;height:16px;"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
-            </div>
-            <div class="flyout-item-text">
-              <div class="flyout-item-title">Kijelentkezés</div>
-              <div class="flyout-item-desc">Munkamenet befejezése</div>
-            </div>
-          </button>
-        </div>
-        <div class="admin-flyout-backdrop" id="admin-flyout-backdrop" onclick="closeAdminFlyout()"></div>
-
-        <!-- Admin profile trigger -->
-        <div class="admin-flyout-trigger" id="admin-flyout-trigger" onclick="toggleAdminFlyout()">
+        <!-- Visibill-style user section -->
+        <div class="sidebar-user-row">
           <div class="user-avatar" id="user-avatar-char">A</div>
-          <div style="min-width:0; flex:1;">
+          <div class="user-text">
             <div class="user-name" id="sidebar-username">admin</div>
             <div class="user-role" id="sidebar-userrole">Adminisztrátor</div>
           </div>
-          <svg class="flyout-chevron" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><polyline points="6 9 12 15 18 9"/></svg>
+          <button class="sidebar-theme-toggle" onclick="toggleDarkMode()" title="Sötét/Világos mód">
+            <!-- Sun icon (light mode) -->
+            <svg class="icon-sun" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            <!-- Moon icon (dark mode) -->
+            <svg class="icon-moon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          </button>
         </div>
+
+        <!-- Settings + Logout icon buttons -->
+        <div class="sidebar-btn-row">
+          <button class="sidebar-icon-btn" onclick="showPage('beallitasok')" data-tooltip="Beállítások" title="Beállítások">
+            <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          </button>
+          <button class="sidebar-icon-btn btn-logout-new" onclick="doLogout()" data-tooltip="Kijelentkezés" title="Kijelentkezés">
+            <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>
+
+        <!-- Sidebar collapse/expand toggle -->
+        <button class="sidebar-collapse-bar" onclick="toggleSidebarCollapse()" title="Sidebar becsukás (Ctrl+B)">
+          <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg>
+        </button>
 
         <!-- Hidden legacy elements for compatibility -->
         <span id="theme-icon" style="display:none;"></span>
         <span id="theme-label" style="display:none;"></span>
         <button id="theme-toggle-btn" onclick="toggleDarkMode()" style="display:none;"></button>
         <svg id="theme-icon-svg" style="display:none;"></svg>
+        <span id="flyout-theme-label" style="display:none;"></span>
+        <svg id="flyout-theme-icon" style="display:none;"></svg>
         <!-- Hidden password button for members -->
         <button id="sidebar-pw-btn" onclick="openSidebarPasswordModal()" style="display:none;"></button>
       </div>
@@ -6849,7 +7122,6 @@
               <svg fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/><polyline points="10 9 9 9 8 9"/></svg>
               Szabályok
             </button>
-            <!-- Csapat and Biztonság tabs moved to admin flyout popover -->
           </div>
 
           <!-- Settings tab switcher (standalone script) -->
@@ -7492,76 +7764,13 @@
           </div>
         </div><!-- end szabalyok content -->
 
-        <!-- CSAPAT TAB -->
-        <div id="settings-view-csapat" class="settings-subview" style="display:none;">
-          <div style="margin-bottom: 8px;">
-            <div style="font-size:18px; font-weight:700; color:#111827; font-family:'Inter',Arial,sans-serif;">Csapat</div>
-            <div style="font-size:13px; color:#6b7280; margin-top:4px; font-family:'Inter',Arial,sans-serif;">Felhasználók és hozzáférések kezelése</div>
-          </div>
-          <div style="border-top:1px solid #e5e7eb; margin-top:16px; padding-top:8px;">
-            <!-- Team members list – populated by JS -->
-            <div id="team-members-list">
-              <div style="padding:32px; text-align:center; color:#6b7280; font-size:13px;">Betöltés...</div>
-            </div>
+        <!-- CSAPAT TAB (moved to Beállítások page, hidden here for data source) -->
+        <div id="settings-view-csapat" class="settings-subview" style="display:none !important;">
+          <div id="team-members-list"></div>
+        </div>
 
-            <!-- Add new user button -->
-            <button class="team-add-btn" onclick="openCreateUserModal()">
-              <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
-              Új felhasználó hozzáadása
-            </button>
-          </div>
-        </div><!-- end csapat content -->
-
-        <!-- BIZTONSÁG TAB -->
-        <div id="settings-view-biztonsag" class="settings-subview" style="display:none;">
-          <div style="margin-bottom: 8px;">
-            <div style="font-size:18px; font-weight:700; color:#111827; font-family:'Inter',Arial,sans-serif;">Biztonság</div>
-            <div style="font-size:13px; color:#6b7280; margin-top:4px; font-family:'Inter',Arial,sans-serif;">Jelszó, munkamenet és adatvédelem</div>
-          </div>
-          <div style="border-top:1px solid #e5e7eb; margin-top:16px; padding-top:8px;">
-
-            <!-- Jelszó módosítás -->
-            <div class="security-row">
-              <div class="security-icon lock">
-                <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:20px;height:20px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
-              </div>
-              <div class="security-info">
-                <div class="security-title">Jelszó módosítás</div>
-                <div class="security-desc" id="security-pw-last">Utolsó módosítás: ismeretlen</div>
-              </div>
-              <div class="security-action">
-                <button class="btn-security-modify" onclick="openSecurityPasswordModal()"><span>Módosítás</span></button>
-              </div>
-            </div>
-
-            <!-- Munkamenet időtúllépés -->
-            <div class="security-row">
-              <div class="security-icon clock">
-                <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:20px;height:20px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
-              </div>
-              <div class="security-info">
-                <div class="security-title">Munkamenet időtúllépés</div>
-                <div class="security-desc">15 perc inaktivitás után automatikus kijelentkezés</div>
-              </div>
-              <div class="security-action">
-                <span class="security-value">15 perc</span>
-              </div>
-            </div>
-
-            <!-- GDPR megfelelőség -->
-            <div class="security-row">
-              <div class="security-icon shield">
-                <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:20px;height:20px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
-              </div>
-              <div class="security-info">
-                <div class="security-title">GDPR megfelelőség</div>
-                <div class="security-desc">Adatkezelési nyilatkozat és hozzájárulás kezelés</div>
-              </div>
-              <div class="security-action">
-                <span class="security-badge green">MEGFELELŐ</span>
-              </div>
-            </div>
-          </div>
+        <!-- BIZTONSÁG TAB (moved to Beállítások page) -->
+        <div id="settings-view-biztonsag" class="settings-subview" style="display:none !important;">
         </div><!-- end biztonsag content -->
 
         <!-- Security Password Change Modal -->
@@ -7597,11 +7806,13 @@
           </div>
         </div>
 
-          </div><!-- end settings-content-area -->
+        </div><!-- end settings-content-area -->
         </div><!-- end settings-layout -->
 
-        <!-- Create User Modal (Accounty style) -->
-        <div class="security-modal-overlay" id="create-user-modal">
+      </div><!-- end page-settings -->
+
+      <!-- Create User Modal (Accounty style) – GLOBAL so it works from both Tudástár and Beállítások -->
+      <div class="security-modal-overlay" id="create-user-modal">
           <div class="security-modal" style="width:460px;">
             <div class="security-modal-header">
               <div class="modal-icon">
@@ -7633,6 +7844,7 @@
                 <label>Szerepkör</label>
                 <select id="new-user-role" style="width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'Inter',Arial,sans-serif;outline:none;box-sizing:border-box;transition:border-color 0.2s;background:#fafafa;color:#374151;cursor:pointer;">
                   <option value="member">Member – operatív hozzáférés, beállítások nélkül</option>
+                  <option value="manager">Manager – teljes hozzáférés, felhasználókezelés nélkül</option>
                   <option value="admin">Admin – teljes hozzáférés + felhasználókezelés</option>
                 </select>
               </div>
@@ -7643,8 +7855,6 @@
             </div>
           </div>
         </div>
-
-      </div><!-- end page-settings -->
 
       <!-- KANBAN PAGE -->
       <div class="page" id="page-interactions">
@@ -8461,6 +8671,135 @@
 
 
 
+      <!-- ═══ BEÁLLÍTÁSOK PAGE (Visibill-style) ══════════════════════════ -->
+      <div class="page" id="page-beallitasok">
+
+        <!-- Header -->
+        <div style="margin-bottom:24px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+            <h1 style="font-size:26px;font-weight:800;color:var(--text);font-family:'Inter',sans-serif;margin:0;">Beállítások</h1>
+            <svg fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:20px;height:20px;opacity:0.5;"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><circle cx="12" cy="17" r="1.5" fill="currentColor" stroke="none"/></svg>
+          </div>
+          <p style="font-size:14px;color:var(--text-muted);margin:0;font-family:'Inter',sans-serif;">Rendszer és üzleti beállítások kezelése</p>
+        </div>
+
+        <!-- Visibill-style horizontal tab bar -->
+        <div class="beallitasok-tabbar" id="beallitasok-tabbar">
+          <button class="beallitasok-tab active" onclick="switchBeallitasokTab('profil', this)">
+            <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Profil
+          </button>
+          <button class="beallitasok-tab" id="beallitasok-tab-csapat" onclick="switchBeallitasokTab('csapat', this)">
+            <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            Csapat
+          </button>
+          <button class="beallitasok-tab" onclick="switchBeallitasokTab('biztonsag', this)">
+            <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Biztonság
+          </button>
+        </div>
+
+        <!-- Tab contents -->
+        <div class="beallitasok-content">
+
+          <!-- PROFIL TAB -->
+          <div id="beallitasok-view-profil" class="beallitasok-view" style="display:block;">
+            <div class="beallitasok-card">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+                <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:20px;height:20px;color:#1e293b;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <div style="font-size:16px;font-weight:700;color:#1e293b;font-family:'Inter',sans-serif;">Felhasználói profil</div>
+              </div>
+              <div style="font-size:13px;color:#94a3b8;margin-bottom:32px;font-family:'Inter',sans-serif;">Személyes információk és avatar kezelése</div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+                <div>
+                  <label class="beallitasok-label">Teljes név</label>
+                  <input type="text" id="profil-fullname" class="beallitasok-input" placeholder="Teljes név" />
+                </div>
+                <div>
+                  <label class="beallitasok-label">Pozíció</label>
+                  <input type="text" id="profil-position" class="beallitasok-input" placeholder="Pozíció" />
+                </div>
+              </div>
+              <div style="margin-bottom:32px;">
+                <label class="beallitasok-label">Cég neve</label>
+                <input type="text" id="profil-company" class="beallitasok-input" placeholder="Cég neve" />
+              </div>
+
+              <button class="beallitasok-save-btn" onclick="saveProfile()">Profil mentése</button>
+            </div>
+          </div>
+
+          <!-- CSAPAT TAB (moved from Tudástár) -->
+          <div id="beallitasok-view-csapat" class="beallitasok-view" style="display:none;">
+            <div class="beallitasok-card">
+              <div style="margin-bottom: 8px;">
+                <div style="font-size:17px; font-weight:700; color:var(--text); font-family:'Inter',Arial,sans-serif;">Csapat</div>
+                <div style="font-size:13px; color:var(--text-muted); margin-top:4px; font-family:'Inter',Arial,sans-serif;">Felhasználók és hozzáférések kezelése</div>
+              </div>
+              <div style="border-top:1px solid var(--border); margin-top:16px; padding-top:8px;">
+                <div id="beallitasok-team-members-list">
+                  <div style="padding:32px; text-align:center; color:var(--text-muted); font-size:13px;">Betöltés...</div>
+                </div>
+                <button class="team-add-btn" onclick="openCreateUserModal()">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                  Új felhasználó hozzáadása
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- BIZTONSÁG TAB (moved from Tudástár) -->
+          <div id="beallitasok-view-biztonsag" class="beallitasok-view" style="display:none;">
+            <div class="beallitasok-card">
+              <div style="margin-bottom: 8px;">
+                <div style="font-size:17px; font-weight:700; color:var(--text); font-family:'Inter',Arial,sans-serif;">Biztonság</div>
+                <div style="font-size:13px; color:var(--text-muted); margin-top:4px; font-family:'Inter',Arial,sans-serif;">Jelszó, munkamenet és adatvédelem</div>
+              </div>
+              <div style="border-top:1px solid var(--border); margin-top:16px; padding-top:8px;">
+                <div class="security-row">
+                  <div class="security-icon lock">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:20px;height:20px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                  </div>
+                  <div class="security-info">
+                    <div class="security-title">Jelszó módosítás</div>
+                    <div class="security-desc" id="beallitasok-security-pw-last">Utolsó módosítás: ismeretlen</div>
+                  </div>
+                  <div class="security-action">
+                    <button class="btn-security-modify" onclick="openSecurityPasswordModal()"><span>Módosítás</span></button>
+                  </div>
+                </div>
+                <div class="security-row">
+                  <div class="security-icon clock">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:20px;height:20px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
+                  <div class="security-info">
+                    <div class="security-title">Munkamenet időtúllépés</div>
+                    <div class="security-desc">15 perc inaktivitás után automatikus kijelentkezés</div>
+                  </div>
+                  <div class="security-action">
+                    <span class="security-value">15 perc</span>
+                  </div>
+                </div>
+                <div class="security-row">
+                  <div class="security-icon shield">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:20px;height:20px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                  </div>
+                  <div class="security-info">
+                    <div class="security-title">GDPR megfelelőség</div>
+                    <div class="security-desc">Adatkezelési nyilatkozat és hozzájárulás kezelés</div>
+                  </div>
+                  <div class="security-action">
+                    <span class="security-badge green">MEGFELELŐ</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- end beallitasok-content -->
+      </div><!-- end page-beallitasok -->
+
       <!-- ═══ HELP PAGE ═══════════════════════════════════════════════ -->
       <div class="page" id="page-help">
 
@@ -8784,8 +9123,14 @@
 
     function flyoutNavigate(viewId) {
       closeAdminFlyout();
-      // Use showSettingsSubPage for consistent navigation
-      if (typeof showSettingsSubPage === 'function') {
+      // Route csapat/biztonsag to beallitasok page
+      if (viewId === 'csapat' || viewId === 'biztonsag') {
+        showPage('beallitasok');
+        setTimeout(function() {
+          var tabBtn = document.querySelector('#beallitasok-tabbar .beallitasok-tab[onclick*="' + viewId + '"]');
+          switchBeallitasokTab(viewId, tabBtn);
+        }, 50);
+      } else if (typeof showSettingsSubPage === 'function') {
         showSettingsSubPage(viewId);
       } else {
         if (typeof showPage === 'function') showPage('settings');
@@ -8823,6 +9168,95 @@
     if (localStorage.getItem('digidesk_sidebar_collapsed') === '1') {
       const sidebar = document.querySelector('.sidebar');
       if (sidebar) sidebar.classList.add('collapsed');
+    }
+
+    // ── Beállítások page tab switching ──────────────────────────────────────
+    function switchBeallitasokTab(viewId, btn) {
+      // Hide all views
+      document.querySelectorAll('.beallitasok-view').forEach(function(el) { el.style.display = 'none'; });
+      // Deactivate all tabs
+      document.querySelectorAll('.beallitasok-tab').forEach(function(el) { el.classList.remove('active'); });
+      // Show target view
+      var target = document.getElementById('beallitasok-view-' + viewId);
+      if (target) target.style.display = 'block';
+      // Activate tab
+      if (btn) btn.classList.add('active');
+      // Load data for specific tabs
+      if (viewId === 'csapat' && typeof loadTeamMembersForBeallitasok === 'function') {
+        loadTeamMembersForBeallitasok();
+      }
+    }
+
+    function loadTeamMembersForBeallitasok() {
+      // loadUsersTable now renders into both team-members-list AND beallitasok-team-members-list
+      if (typeof loadUsersTable === 'function') loadUsersTable();
+    }
+
+    function loadProfileData() {
+      // Load profile from stored data
+      var token = localStorage.getItem('digidesk_token');
+      if (!token) return;
+      fetch('/api/profile', {
+        headers: { 'Authorization': 'Bearer ' + token }
+      })
+      .then(r => r.json())
+      .then(data => {
+        if (data.fullname) document.getElementById('profil-fullname').value = data.fullname;
+        if (data.position) document.getElementById('profil-position').value = data.position;
+        if (data.company) document.getElementById('profil-company').value = data.company;
+      })
+      .catch(() => {
+        // Fallback: use sidebar username
+        var un = document.getElementById('sidebar-username');
+        if (un) document.getElementById('profil-fullname').value = un.textContent;
+      });
+    }
+
+    function saveProfile() {
+      var token = localStorage.getItem('digidesk_token');
+      var btn = event.target;
+      var origText = btn.textContent;
+      btn.textContent = 'Mentés...';
+      btn.disabled = true;
+
+      var data = {
+        fullname: document.getElementById('profil-fullname').value,
+        position: document.getElementById('profil-position').value,
+        company: document.getElementById('profil-company').value
+      };
+
+      fetch('/api/profile', {
+        method: 'POST',
+        headers: {
+          'Authorization': 'Bearer ' + token,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify(data)
+      })
+      .then(r => r.json())
+      .then(res => {
+        btn.textContent = '✓ Mentve!';
+        btn.style.background = 'linear-gradient(135deg, #22c55e, #16a34a)';
+        setTimeout(() => {
+          btn.textContent = origText;
+          btn.disabled = false;
+          btn.style.background = '';
+        }, 2000);
+        // Update sidebar username if changed
+        if (data.fullname) {
+          var sidebarName = document.getElementById('sidebar-username');
+          if (sidebarName) sidebarName.textContent = data.fullname;
+        }
+      })
+      .catch(() => {
+        btn.textContent = '✗ Hiba!';
+        btn.style.background = 'linear-gradient(135deg, #ef4444, #dc2626)';
+        setTimeout(() => {
+          btn.textContent = origText;
+          btn.disabled = false;
+          btn.style.background = '';
+        }, 2000);
+      });
     }
 
     // ── Auth ──────────────────────────────────────────────────────────────────────
@@ -8887,8 +9321,11 @@
       localStorage.removeItem('thinkai_admin_fullname');
       document.getElementById('app').style.display = 'none';
       document.getElementById('login-screen').style.display = 'flex';
-      // Show all nav items again on logout
-      document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => el.style.display = '');
+      // Show all nav items again on logout (except permanently hidden ones like approvals, calls)
+      document.querySelectorAll('.nav-item, .nav-sub-item').forEach(el => {
+        if (el.id === 'nav-approvals' || el.id === 'nav-calls') return;
+        el.style.display = '';
+      });
       if (msg) {
         showError(msg);
       } else {
@@ -8929,18 +9366,18 @@
       if (roleEl) {
         // Show email if available, otherwise role
         const userEmail = localStorage.getItem('thinkai_admin_email') || currentUser || '';
-        roleEl.textContent = userEmail.includes('@') ? userEmail : (currentUserRole === 'admin' ? 'Adminisztrátor' : 'Member');
+        roleEl.textContent = userEmail.includes('@') ? userEmail : (currentUserRole === 'admin' ? 'Adminisztrátor' : (currentUserRole === 'manager' ? 'Manager' : 'Member'));
       }
       // Show settings button (always visible now)
       const pwBtn = document.getElementById('sidebar-pw-btn');
       if (pwBtn) pwBtn.style.display = '';
       // Update analytics nav label for members
       const analyticsLabel = document.getElementById('nav-analytics-label');
-      if (analyticsLabel) analyticsLabel.textContent = currentUserRole === 'admin' ? 'Analitika' : 'Irányítópult';
+      if (analyticsLabel) analyticsLabel.textContent = (currentUserRole === 'admin' || currentUserRole === 'manager') ? 'Analitika' : 'Irányítópult';
       // Show/hide analytics shells based on role
       const adminShell = document.querySelector('#page-analytics .analytics-shell');
       const memberShell = document.getElementById('member-analytics-shell');
-      if (currentUserRole === 'admin') {
+      if (currentUserRole === 'admin' || currentUserRole === 'manager') {
         if (adminShell) adminShell.style.display = '';
         if (memberShell) memberShell.style.display = 'none';
       } else {
@@ -8961,7 +9398,11 @@
     }
 
     function applyRoleRestrictions(role) {
-      const isAdmin = role === 'admin';
+      const isAdmin = role === 'admin' || role === 'manager';
+      const isAdminOnly = role === 'admin';
+      // Always hide approvals nav (disabled feature)
+      const approvalsNav = document.getElementById('nav-approvals');
+      if (approvalsNav) approvalsNav.style.display = 'none';
       // Settings nav
       const settingsNav = document.getElementById('nav-settings');
       if (settingsNav) settingsNav.style.display = isAdmin ? '' : 'none';
@@ -8975,22 +9416,22 @@
           btn.style.display = isAdmin ? '' : 'none';
         }
       });
-      // Flyout: hide admin-only items (Csapat, Biztonság) for members
+      // Flyout: hide admin-only items (Csapat, Biztonság) for non-admin
       document.querySelectorAll('#admin-flyout .flyout-item').forEach(btn => {
         const title = btn.querySelector('.flyout-item-title');
         if (title && (title.textContent === 'Csapat' || title.textContent === 'Biztonság')) {
-          btn.style.display = isAdmin ? '' : 'none';
+          btn.style.display = isAdminOnly ? '' : 'none';
         }
       });
       // Hide "Adminisztráció" section label if not admin
       document.querySelectorAll('#admin-flyout .flyout-section-label').forEach(lbl => {
         if (lbl.textContent.trim() === 'Adminisztráció') {
-          lbl.style.display = isAdmin ? '' : 'none';
+          lbl.style.display = isAdminOnly ? '' : 'none';
         }
       });
-      // Also hide first divider for members
+      // Also hide first divider for non-admin
       const dividers = document.querySelectorAll('#admin-flyout .flyout-divider');
-      if (dividers.length > 0) dividers[0].style.display = isAdmin ? '' : 'none';
+      if (dividers.length > 0) dividers[0].style.display = isAdminOnly ? '' : 'none';
       // Sidebar password button: show for members (since they can't access Settings > Csapat)
       const pwBtn = document.getElementById('sidebar-pw-btn');
       if (pwBtn) pwBtn.style.display = isAdmin ? 'none' : '';
@@ -9018,7 +9459,7 @@
     let _myAssignedClientEmails = null; // Set of lowercase emails
 
     async function loadMyAssignedClients() {
-      if (currentUserRole === 'admin') { _myAssignedClientNames = null; return; }
+      if (currentUserRole === 'admin' || currentUserRole === 'manager') { _myAssignedClientNames = null; return; }
       if (_myAssignedClientNames !== null) return; // already loaded
       try {
         const res = await authFetch('/admin/api/clients');
@@ -9043,7 +9484,7 @@
     }
 
     function isClientAssignedToMe(clientObj) {
-      if (currentUserRole === 'admin') return true;
+      if (currentUserRole === 'admin' || currentUserRole === 'manager') return true;
       let cd = {};
       try { cd = clientObj.custom_data ? (typeof clientObj.custom_data === 'string' ? JSON.parse(clientObj.custom_data) : clientObj.custom_data) : {}; } catch(e) {}
       const felelos = cd.felelos || '';
@@ -9051,7 +9492,7 @@
     }
 
     function isSessionAssignedToMe(session) {
-      if (currentUserRole === 'admin') return true;
+      if (currentUserRole === 'admin' || currentUserRole === 'manager') return true;
       if (!_myAssignedClientNames || _myAssignedClientNames.size === 0) return false;
       const participant = (session.participant || session.client_name || '').toLowerCase().trim();
       const sid = (session.session_id || '').toLowerCase();
@@ -9063,7 +9504,7 @@
     }
 
     function isCalendarEventAssignedToMe(ev) {
-      if (currentUserRole === 'admin') return true;
+      if (currentUserRole === 'admin' || currentUserRole === 'manager') return true;
       if (!_myAssignedClientNames || _myAssignedClientNames.size === 0) return false;
       const attendee = (ev.attendee || '').toLowerCase().trim();
       const attendeeEmail = (ev.attendee_email || '').toLowerCase().trim();
@@ -9077,7 +9518,7 @@
     }
 
     function isApprovalAssignedToMe(c) {
-      if (currentUserRole === 'admin') return true;
+      if (currentUserRole === 'admin' || currentUserRole === 'manager') return true;
       if (!_myAssignedClientNames || _myAssignedClientNames.size === 0) return false;
       let draftData = {};
       try { draftData = JSON.parse(c.ai_draft_response || '{}'); } catch(e) {}
@@ -9125,8 +9566,8 @@
     }
 
     function showPage(page) {
-      // Role restriction: members cannot access settings
-      if (page === 'settings' && currentUserRole !== 'admin') {
+      // Role restriction: members cannot access settings (Tudástár)
+      if (page === 'settings' && currentUserRole !== 'admin' && currentUserRole !== 'manager') {
         return;
       }
       if (page === 'approvals') loadApprovals();
@@ -9142,7 +9583,7 @@
       
       // Greeting bar only on analytics, and only for admin (members have it integrated in dashboard)
       const greetBar = document.getElementById('greeting-bar');
-      if (greetBar) greetBar.style.display = (page === 'analytics' && currentUserRole === 'admin') ? '' : 'none';
+      if (greetBar) greetBar.style.display = (page === 'analytics' && (currentUserRole === 'admin' || currentUserRole === 'manager')) ? '' : 'none';
 
       const pg = document.getElementById(`page-${actualPage}`);
       if (pg) pg.classList.add('active');
@@ -9167,6 +9608,14 @@
         if (settingsSubmenu && !settingsSubmenu.classList.contains('open')) settingsSubmenu.classList.add('open');
         loadSettings(); loadPraxisinfo(); if (typeof fetchTriageRules === 'function') fetchTriageRules();
         fetchDoctors();
+      } else if (page === 'beallitasok') {
+        // Hide Csapat tab for non-admin users
+        var csapatTab = document.getElementById('beallitasok-tab-csapat');
+        if (csapatTab) csapatTab.style.display = (currentUserRole === 'admin') ? '' : 'none';
+        // Load team members only for admins (not managers — they can't manage users)
+        if (currentUserRole === 'admin' && typeof loadTeamMembersForBeallitasok === 'function') loadTeamMembersForBeallitasok();
+        // Load profile data
+        if (typeof loadProfileData === 'function') loadProfileData();
       } else {
         const nav = document.getElementById(`nav-${actualPage}`);
         if (nav) nav.classList.add('active');
@@ -9779,7 +10228,7 @@
 
     async function loadStats() {
       // Member: show personalized analytics instead
-      if (currentUserRole !== 'admin') {
+      if (currentUserRole !== 'admin' && currentUserRole !== 'manager') {
         loadMemberAnalytics();
         return;
       }
@@ -10414,7 +10863,7 @@
         const data = await res.json();
         let sessions = data.sessions || [];
         // Member filter: only show interactions for assigned clients
-        if (currentUserRole !== 'admin') {
+        if (currentUserRole !== 'admin' && currentUserRole !== 'manager') {
           sessions = sessions.filter(s => isSessionAssignedToMe(s));
         }
         buildFlatInteractionRows(sessions, clientsMap);
@@ -11345,7 +11794,7 @@
       // Hide "Összes" tab for non-admin users
       const scopeTabs = document.getElementById('cal-scope-tabs');
       const allTab = document.getElementById('cal-scope-all');
-      if (currentUserRole !== 'admin') {
+      if (currentUserRole !== 'admin' && currentUserRole !== 'manager') {
         if (allTab) allTab.style.display = 'none';
         calendarClientScope = 'own'; // force own
       } else {
@@ -11368,7 +11817,7 @@
         
         // Apply scope filter
         let events;
-        if (currentUserRole !== 'admin' || calendarClientScope === 'own') {
+        if ((currentUserRole !== 'admin' && currentUserRole !== 'manager') || calendarClientScope === 'own') {
           events = ownEvents;
         } else {
           events = allEvents;
@@ -11931,7 +12380,7 @@
         const clientData = await clientRes.json();
         let clients = clientData.clients || [];
         // Member filter: only show assigned clients in kanban
-        if (currentUserRole !== 'admin') {
+        if (currentUserRole !== 'admin' && currentUserRole !== 'manager') {
           clients = clients.filter(c => isClientAssignedToMe(c));
         }
         window.kanbanData = clients;
@@ -12325,7 +12774,7 @@
         });
         // Refresh member analytics dashboard (KPI counts, kanban bars, etc.)
         _myAssignedClientNames = null; // invalidate cache since client status changed
-        if (currentUserRole !== 'admin') loadMemberAnalytics();
+        if (currentUserRole !== 'admin' && currentUserRole !== 'manager') loadMemberAnalytics();
       } catch (err) {
         // On error, revert by reloading
         alert('Hiba a mozgatás során!');
@@ -12340,7 +12789,7 @@
       const tbody = document.getElementById('clients-body');
       if (!tbody || !thead) return;
 
-      const isAdmin = currentUserRole === 'admin';
+      const isAdmin = currentUserRole === 'admin' || currentUserRole === 'manager';
       thead.innerHTML = `
     <tr>
       <th style="width:40px;text-align:center;"><input type="checkbox" id="selectAllClients" onchange="toggleAllClients(this)"></th>
@@ -12778,7 +13227,7 @@
         const safeEmail = esc(email).replace(/'/g, "\\'");
         const safePhone = esc(phone).replace(/'/g, "\\'");
 
-        const isAdmin = currentUserRole === 'admin';
+        const isAdmin = currentUserRole === 'admin' || currentUserRole === 'manager';
 
         return `<div class="client-card" style="${rowOpacity}" onclick="openClientDetails({id:${c.id},name:'${safeName}',email:'${safeEmail}',phone:'${safePhone}'})" data-client-id="${c.id}">
           <div class="cc-top-strip">
@@ -14565,12 +15014,13 @@
             const isSelf = u.username === currentUser;
             const lastLogin = u.last_login ? new Date(u.last_login).toLocaleString('hu-HU') : null;
             const meta = u.email ? u.email : (lastLogin ? 'Utolsó belépés: ' + lastLogin : u.username);
-            const roleBadgeClass = u.role === 'admin' ? 'admin' : 'member';
-            const roleBadgeText = u.role === 'admin' ? 'ADMIN' : 'MEMBER';
+            const roleBadgeClass = u.role === 'admin' ? 'admin' : (u.role === 'manager' ? 'manager' : 'member');
+            const roleBadgeText = u.role === 'admin' ? 'ADMIN' : (u.role === 'manager' ? 'MANAGER' : 'MEMBER');
             const actions = !isSelf ? `
               <div class="team-actions">
                 <select onchange="changeUserRole(${u.id}, this.value)">
                   <option value="member" ${u.role==='member'?'selected':''}>Member</option>
+                  <option value="manager" ${u.role==='manager'?'selected':''}>Manager</option>
                   <option value="admin" ${u.role==='admin'?'selected':''}>Admin</option>
                 </select>
                 <button class="team-delete-btn" onclick="deleteUser(${u.id}, '${u.username}')" title="Törlés">
@@ -14588,6 +15038,9 @@
               <svg class="team-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;"><polyline points="9 18 15 12 9 6"/></svg>
             </div>`;
           }).join('');
+          // Also sync to beallitasok page team list
+          var beallitasokList = document.getElementById('beallitasok-team-members-list');
+          if (beallitasokList) beallitasokList.innerHTML = container.innerHTML;
         }
 
       } catch(e) {
@@ -16232,7 +16685,7 @@
         updateApprovalBulkActions();
         loadApprovals();
         // Refresh member analytics dashboard
-        if (currentUserRole !== 'admin') loadMemberAnalytics();
+        if (currentUserRole !== 'admin' && currentUserRole !== 'manager') loadMemberAnalytics();
       } catch (err) {
         alert(err.message);
       }
@@ -16265,7 +16718,7 @@
         let items = data.approvals || [];
         
         // ── Member filtering: only show approvals for assigned clients + own campaigns ──
-        if (currentUserRole !== 'admin') {
+        if (currentUserRole !== 'admin' && currentUserRole !== 'manager') {
           await loadMyAssignedClients();
           items = items.filter(c => isApprovalAssignedToMe(c));
         }
@@ -16511,7 +16964,7 @@
         loadApprovals(); // Frissíti a jóváhagyások listát (ha az oldalon van)
         
         // Mark the todo as completed locally (strikethrough) instead of removing it
-        if (currentUserRole !== 'admin' && window._memberTodos) {
+        if (currentUserRole !== 'admin' && currentUserRole !== 'manager' && window._memberTodos) {
           const todo = window._memberTodos.find(t => t.type === 'approval' && t.approvalId === approvedId);
           if (todo) {
             todo.completed = true;

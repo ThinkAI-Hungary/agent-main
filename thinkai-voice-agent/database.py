@@ -48,7 +48,7 @@ def _verify_password(password: str, stored_hash: str) -> bool:
         return False
 
 def create_admin_user(username: str, password: str, email: str = "", role: str = "admin", created_by: str = "", full_name: str = "") -> bool:
-    """Create a new admin user with role (admin/member)."""
+    """Create a new admin user with role (admin/manager/member)."""
     if not supabase: return False
     try:
         res = supabase.table("admin_users").select("*").eq("username", username).execute()
@@ -129,8 +129,8 @@ def get_admin_user_by_username(username: str) -> dict | None:
         return None
 
 def update_admin_role(user_id: int, role: str) -> bool:
-    """Update admin user role (admin/member)."""
-    if not supabase or role not in ("admin", "member"): return False
+    """Update admin user role (admin/manager/member)."""
+    if not supabase or role not in ("admin", "manager", "member"): return False
     try:
         supabase.table("admin_users").update({"role": role}).eq("id", user_id).execute()
         logger.info(f"Updated admin user {user_id} role to {role}")
