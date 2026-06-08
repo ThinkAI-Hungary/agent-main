@@ -15577,7 +15577,10 @@
                 }
             });
 
-            const renderRow = (r, isCurrent) => {
+            window.currentClientInts = currentInts;
+            window.pastClientInts = pastInts;
+
+            const renderRow = (r, isCurrent, idx) => {
               let dStr = '-';
               let tStr = '-';
               if (r.date) {
@@ -15605,7 +15608,7 @@
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px; color:var(--text);">${esc(r.channel)}</td>
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px; color:${dirColor}; font-weight:600;">${dirText}</td>
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px;"><span class="badge" style="background:#f3f4f6;color:#4b5563;font-weight:600;text-transform:uppercase;">${esc(r.topic)}</span></td>
-                  <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px;">${((r.result || 'Válasz előkészítve').toLowerCase().includes('jóváhagyás') || (r.result || '').toLowerCase().includes('várakozik')) && r.ai_draft_response ? `<button onclick="openApprovalModal({id: ${r.interactionId || 0}, topic: '${esc(r.topic_raw || r.topic || '').replace(/'/g, "\\'") }', summary: '${esc(r.summary_raw || r.summary || '').replace(/'/g, "\\'") }', ai_draft_response: '${esc((r.ai_draft_response || '{}').replace(/'/g, "\\'"))  }', approval_status: '${r.approval_status || 'pending'}'})" style="background:rgba(251,191,36,0.12);color:#d97706;border:1px solid rgba(251,191,36,0.3);border-radius:6px;padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">⚠ ${esc(r.result || 'Várakozik jóváhagyásra')}</button>` : `<span style="color:#b45309; background:#fef3c7; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:600;">${esc(r.result || 'Válasz előkészítve')}</span>`}</td>
+                  <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px;">${((r.result || 'Válasz előkészítve').toLowerCase().includes('jóváhagyás') || (r.result || '').toLowerCase().includes('várakozik')) && r.ai_draft_response ? `<button onclick="openApprovalFromClientHistory('${isCurrent ? 'current' : 'past'}', ${idx})" style="background:rgba(251,191,36,0.12);color:#d97706;border:1px solid rgba(251,191,36,0.3);border-radius:6px;padding:4px 12px;font-size:11px;font-weight:600;cursor:pointer;white-space:nowrap;">⚠ ${esc(r.result || 'Várakozik jóváhagyásra')}</button>` : `<span style="color:#b45309; background:#fef3c7; padding:4px 8px; border-radius:12px; font-size:11px; font-weight:600;">${esc(r.result || 'Válasz előkészítve')}</span>`}</td>
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px;"><span style="background:${stBg}; color:${stColor}; font-weight:bold; padding:4px 8px; border-radius:4px; font-size:11px;">${stText}</span></td>
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px; color:var(--text);">${esc(r.handover)}</td>
                   <td style="padding:16px; border-bottom:1px solid var(--border); font-size:13px; text-align:center;">${actionContent}</td>
@@ -15616,13 +15619,13 @@
             if (currentInts.length === 0) {
               document.getElementById('cd-history-body-current').innerHTML = `<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text-muted);">Nincsenek aktuális ügyek</td></tr>`;
             } else {
-              document.getElementById('cd-history-body-current').innerHTML = currentInts.map(r => renderRow(r, true)).join('');
+              document.getElementById('cd-history-body-current').innerHTML = currentInts.map((r, idx) => renderRow(r, true, idx)).join('');
             }
             
             if (pastInts.length === 0) {
               document.getElementById('cd-history-body-past').innerHTML = `<tr><td colspan="8" style="text-align:center;padding:20px;color:var(--text-muted);">Nincsenek korábbi interakciók</td></tr>`;
             } else {
-              document.getElementById('cd-history-body-past').innerHTML = pastInts.map(r => renderRow(r, false)).join('');
+              document.getElementById('cd-history-body-past').innerHTML = pastInts.map((r, idx) => renderRow(r, false, idx)).join('');
             }
           })
           .catch(err => {
@@ -16903,6 +16906,20 @@
         grid.innerHTML = `<div style="grid-column: 1/-1; text-align: center; padding: 40px; color: #ef4444;">${e.message}</div>`;
       }
     }
+
+    window.openApprovalFromClientHistory = function(type, idx) {
+      const arr = type === 'current' ? window.currentClientInts : window.pastClientInts;
+      const r = arr ? arr[idx] : null;
+      if (!r) return;
+      const approvalObj = {
+        id: r.interactionId,
+        topic: r.topic || '',
+        summary: r.summary || '',
+        ai_draft_response: r.ai_draft_response || '{}',
+        approval_status: r.approval_status || 'pending'
+      };
+      openApprovalModal(approvalObj);
+    };
 
     function openApprovalModal(c) {
       currentApprovalId = c.id;

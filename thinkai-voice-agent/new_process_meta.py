@@ -253,7 +253,7 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             db.log_interaction(
                 type=source_channel.lower(),
                 topic=f"{source_channel} AI válasz",
-                summary=final_text[:100],
+                summary=message_text,
                 result="Várakozik jóváhagyásra",
                 tool_name="process_meta_message",
                 session_id=session_id,
