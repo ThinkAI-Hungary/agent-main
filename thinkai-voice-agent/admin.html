@@ -16,6 +16,12 @@
   <script src="https://cdn.jsdelivr.net/npm/quill@2.0.3/dist/quill.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.11/index.global.min.js"></script>
   <style>
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: variables.css]  START                                      ║
+       ║  CSS Custom Properties – light + dark tokens                           ║
+       ║  DEPENDS ON: nothing (must load first)                                 ║
+       ║  USED BY: every other CSS file                                         ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
     :root {
       /* ── Accounty-inspired light palette ────────────── */
       --figma-dark: #082432;
@@ -69,7 +75,17 @@
       --fc-today-bg-color: rgba(28, 238, 224, 0.06);
       --fc-event-text-color: #0f172a;
     }
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: variables.css]  END (light tokens)                         ║
+       ║  NOTE: Dark mode tokens are at body.dark (~line 338)                   ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
 
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: calendar.css]  START                                       ║
+       ║  FullCalendar overrides + calendar page classes + dark mode            ║
+       ║  DEPENDS ON: variables.css                                             ║
+       ║  USED BY: #page-calendar HTML section                                 ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
     .fc {
       font-family: 'Inter', Arial, sans-serif;
     }
@@ -325,8 +341,15 @@
       --fc-border-color: #1a3548;
       --fc-today-bg-color: rgba(28, 238, 224, 0.05);
     }
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: calendar.css]  END                                         ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
 
-
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: base.css]  START                                           ║
+       ║  Global reset, body base styles                                        ║
+       ║  DEPENDS ON: variables.css                                             ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
     *,
     *::before,
     *::after {
@@ -335,6 +358,10 @@
       padding: 0;
     }
 
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: variables.css]  CONTINUATION – Dark mode token overrides   ║
+       ║  NOTE: These override :root tokens when body has .dark class           ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
     /* ── Dark Mode token overrides ── */
     body.dark {
       --bg: #060d14;
@@ -352,6 +379,7 @@
       --shell-muted: #6b8b99;
     }
 
+    /* [base.css] body defaults */
     body {
       font-family: 'Inter', Arial, sans-serif;
       background: var(--bg);
@@ -359,7 +387,16 @@
       min-height: 100vh;
       overflow-x: hidden;
     }
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: base.css]  END                                             ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
 
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: login.css]  START                                          ║
+       ║  Login screen – card, form, error, button                             ║
+       ║  DEPENDS ON: variables.css, base.css                                   ║
+       ║  USED BY: #login-screen HTML section                                  ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
     /* ── Login Screen ──────────────────────────────────────────────── */
     #login-screen {
       display: flex;
@@ -502,12 +539,34 @@
       transform: none;
     }
 
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: login.css]  END                                            ║
+       ║  NOTE: .btn-primary is shared (also used in modals) -- keep in login   ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
+
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: layout.css]  START                                         ║
+       ║  App shell wrapper (#app)                                              ║
+       ║  DEPENDS ON: variables.css                                             ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
     /* ── App Shell ─────────────────────────────────────────────────── */
     #app {
       display: none;
       min-height: 100vh;
     }
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: layout.css]  (partial -- rest at .main section ~line 2636) ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
 
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: sidebar.css]  START                                        ║
+       ║  Sidebar navigation, nav items, groups, submenus, user info,           ║
+       ║  flyout popover (legacy/hidden), Visibill-style bottom,               ║
+       ║  collapse state, tooltips, logo app switcher                           ║
+       ║  DEPENDS ON: variables.css                                             ║
+       ║  USED BY: <aside class="sidebar"> HTML section                        ║
+       ║  PROPERTIES: width:240px (expanded), width:64px (collapsed)            ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
     /* ── Sidebar ───────────────────────────────────────────────────── */
     .sidebar {
       position: fixed;
@@ -876,6 +935,13 @@
       color: #ef4444;
     }
 
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: settings.css]  START                                       ║
+       ║  Beállítások page (Visibill-style tabbar, cards, inputs)               ║
+       ║  + Security section, Team members, Password modal                      ║
+       ║  DEPENDS ON: variables.css                                             ║
+       ║  USED BY: #page-beallitasok, #page-settings HTML sections             ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
     /* ── Beállítások page (Visibill-style) ──────────────────── */
     .beallitasok-tabbar {
       display: flex;
@@ -1333,6 +1399,18 @@
       transform: rotate(180deg);
     }
 
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: sidebar.css]  END                                          ║
+       ║  (includes collapse state, tooltips, logo switcher at EOF)             ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
+
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: dark-mode.css]  START                                      ║
+       ║  General dark mode overrides (non-page-specific)                       ║
+       ║  Covers: .main, tables, data-table, kanban, KPI, badges, etc.         ║
+       ║  DEPENDS ON: variables.css, all component CSS files                    ║
+       ║  NOTE: Page-specific dark modes are inline with their page CSS         ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
     /* ── Dark Mode overrides ───────────────────────────────────────── */
     body.dark .main {
       background: var(--bg);
@@ -1475,6 +1553,14 @@
       color: #8ea9c0 !important;
     }
 
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: dark-mode.css]  END (general overrides)                    ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
+
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: analytics.css]  START                                      ║
+       ║  Analytics page layout, dark mode overrides                            ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
     /* ── Analytics page dark ─────────────────────────────────────── */
     body.dark #page-analytics .analytics-shell {
       background: var(--bg) !important;
@@ -2645,6 +2731,16 @@
       font-weight: 400;
     }
 
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: layout.css]  END                                           ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
+
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: components.css]  START                                     ║
+       ║  Stats grid, chart cards, data table, badges, spinner, empty state     ║
+       ║  DEPENDS ON: variables.css                                             ║
+       ║  USED BY: Multiple pages (analytics, interactions, settings)           ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
     /* ── Stats grid ────────────────────────────────────────────────── */
     .stats-grid {
       display: grid;
@@ -2987,6 +3083,16 @@
       display: none;
     }
 
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: components.css]  END                                       ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
+
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: kanban.css]  START                                         ║
+       ║  Kanban board, columns, cards, drag-and-drop, Todo table              ║
+       ║  DEPENDS ON: variables.css                                             ║
+       ║  USED BY: #page-kanban (via showPage('kanban'))                        ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
     /* ── Kanban ────────────────────────────────────────────────────── */
     .kanban-board {
       display: flex;
@@ -3110,6 +3216,9 @@
       100% { transform: scale(1) translateY(0); opacity: 1; }
     }
 
+    /* ╔═══ [CSS-FILE: kanban.css] END ══════════════════════════════════════════════╝ */
+
+    /* ╔═══ [CSS-FILE: responsive.css] START ─ Media queries ════════════════════════════════╝ */
     /* ── Responsive ────────────────────────────────────────────────── */
     @media (max-width: 1400px) {
 
@@ -3147,6 +3256,13 @@
       }
     }
 
+    /* ╔═══ [CSS-FILE: responsive.css] END ══════════════════════════════════════════╝ */
+
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: settings.css]  CONTINUATION                                ║
+       ║  Settings page form elements (inputs, selects, textarea, toggles,      ║
+       ║  business hours table, save button)                                    ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
     /* ── Settings page ──────────────────────────────────────────── */
     .settings-section {
       background: #ffffff;
@@ -3456,6 +3572,13 @@
       background: #4cf2e6;
     }
 
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: analytics.css]  START                                      ║
+       ║  Analytics shell, filter row, KPI cards, panels, chart toggle,         ║
+       ║  progress bars, topics, funnel, severity, suggestions, outgoing KPI    ║
+       ║  DEPENDS ON: variables.css, components.css                             ║
+       ║  USED BY: #page-analytics HTML section                                ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
     /* ── DigiDesk Analytics — Accounty-inspired styles ─────────── */
     .analytics-shell {
       background: var(--bg);
@@ -4469,6 +4592,14 @@
     }
 
 
+    /* ╔═══ [CSS-FILE: tudastar.css] END ════════════════════════════════════════════╝ */
+
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [CSS-FILE: clients.css]  START                                        ║
+       ║  View switcher, client details, client card view, activity feed        ║
+       ║  DEPENDS ON: variables.css, components.css                             ║
+       ║  USED BY: #page-interactions (client details panel)                    ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ */
     /* ── Ügyfélközpont View Switcher Styles ── */
     .view-switcher-container {
       display: flex;
@@ -6891,9 +7022,11 @@
       50% { box-shadow: 0 0 0 4px var(--card), 0 0 0 10px rgba(34,197,94,0.1); }
     }
 
-    /* ═══ END member dashboard styles ═══ */
+    /* ╔═══ [CSS-FILE: outbound.css] END ═══════════════════════════════════════════╝ */
+    /* NOTE: kanban.css also includes Todo Table + member dashboard styles above */
 
-    /* ═══ Logo App Switcher (DigiDesk ↔ Marketing) ═══ */
+    /* [CSS-FILE: sidebar.css] ADDENDUM – Logo App Switcher */
+    /* ── Logo App Switcher (DigiDesk ↔ Marketing) ── */
     .sidebar-logo.has-switch{cursor:pointer;position:relative;transition:background 0.2s;border-radius:10px;margin:-4px -8px;padding:8px 8px 8px 16px;}
     .sidebar-logo.has-switch:hover{background:rgba(255,255,255,0.05);}
     .logo-switch-dd{max-height:0;overflow:hidden;transition:max-height 0.25s ease,opacity 0.2s;opacity:0;margin:0 8px;}
@@ -6909,6 +7042,11 @@
 </head>
 
 <body>
+  <!-- ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [HTML-SECTION: login]  LOGIN SCREEN                                  ║
+       ║  Self-contained login card with form                                   ║
+       ║  JS DEPS: doLogin() from admin-core.js                                ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ -->
   <!-- ═══════════════════════  LOGIN  ═══════════════════════ -->
   <div id="login-screen">
     <div class="login-card">
@@ -6931,8 +7069,11 @@
       <button class="btn-primary" id="login-btn" onclick="doLogin()">BELÉPÉS</button>
     </div>
   </div>
-  <!-- ═══════════════════════  APP  ═══════════════════════════ -->
+  <!-- [HTML-SECTION: app] APP SHELL -- sidebar + main content, hidden until login -->
+  <!-- APP -->
   <div id="app">
+    <!-- [HTML-SECTION: sidebar] START -- logo, nav, user info, theme toggle, collapse, password modal
+         CSS: sidebar.css | JS: toggleSidebarCollapse(), toggleDarkMode(), showPage(), doLogout() -->
     <!-- Sidebar -->
     <aside class="sidebar">
       <!-- Collapse toggle button -->
@@ -7090,6 +7231,9 @@
         </div>
       </div>
     </aside>
+    <!-- [HTML-SECTION: sidebar] END -->
+
+    <!-- [HTML-SECTION: main] START -- Main content area with all pages -->
     <!-- Main content -->
     <main class="main">
     <!-- Greeting bar -->
@@ -7112,6 +7256,8 @@
     </div>
     <div id="urgent-toast-container" style="position:fixed; bottom:24px; right:24px; z-index:9999; display:flex; flex-direction:column; gap:12px; pointer-events:none;"></div>
 
+      <!-- [HTML-SECTION: page-analytics] START -- KPI cards, charts, topics, funnel, severity
+           JS: loadAnalytics(), renderAnalytics() | CSS: analytics.css -->
       <!-- ANALYTICS PAGE -->
       <div class="page active" id="page-analytics">
         <div class="analytics-shell">
@@ -7405,7 +7551,10 @@
 
         </div><!-- end member-analytics-shell -->
       </div><!-- end page-analytics -->
+      <!-- [HTML-SECTION: page-analytics] END -->
 
+      <!-- [HTML-SECTION: page-calls] START -- Phone dialer, AI call
+           JS: startCall(), onCallPhoneInput() | CSS: components.css -->
       <!-- CALLS PAGE -->
       <div class="page" id="page-calls">
         <div class="page-header" style="margin-bottom:24px;">
@@ -7472,7 +7621,10 @@
           </div>
         </div>
       </div><!-- end page-calls -->
+      <!-- [HTML-SECTION: page-calls] END -->
 
+      <!-- [HTML-SECTION: page-approvals] START -- Approval grid/list, modal
+           JS: loadApprovals(), submitApproval() | CSS: components.css -->
       <!-- APPROVALS PAGE -->
       <div class="page" id="page-approvals">
         <div class="page-header" style="margin-bottom:18px; display: flex; align-items: center;">
@@ -7574,6 +7726,10 @@
     </div>
   </div>
 
+      <!-- [HTML-SECTION: page-approvals] END -->
+
+      <!-- [HTML-SECTION: page-outbound] START -- Campaigns, schedule, analytics panel
+           JS: loadCampaigns(), openCampaignModal() | CSS: outbound.css -->
       <!-- OUTBOUND CAMPAIGNS PAGE -->
       <div class="page" id="page-outbound">
         <div class="page-header" style="margin-bottom:24px;">
@@ -7781,6 +7937,11 @@
           </div>
         </div>
       </div><!-- end page-outbound -->
+      <!-- [HTML-SECTION: page-outbound] END -->
+
+      <!-- [HTML-SECTION: page-settings] START -- Tudastar: Agent/Praxis/Szabalyok subviews
+           Contains inline <script> for tab switching + auto-save
+           JS: loadAgentSettings(), loadPraxisinfo(), savePraxisinfo() | CSS: settings.css, tudastar.css -->
 
       <!-- CAMPAIGN CREATE MODAL -->
       <div id="campaign-modal" style="display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
@@ -8857,6 +9018,7 @@
         </div><!-- end settings-layout -->
 
       </div><!-- end page-settings -->
+      <!-- [HTML-SECTION: page-settings] END -->
 
       <!-- Create User Modal (Accounty style) – GLOBAL so it works from both Tudástár and Beállítások -->
       <div class="security-modal-overlay" id="create-user-modal">
@@ -8904,6 +9066,8 @@
         </div>
 
       <!-- KANBAN PAGE -->
+      <!-- [HTML-SECTION: page-interactions] START -- Interactions list, Log modal, Client details
+           JS: loadInteractions(), openClientDetails() | CSS: interactions.css, clients.css -->
       <div class="page" id="page-interactions">
         <div class="analytics-shell">
           <!-- View Switcher -->
@@ -9608,6 +9772,10 @@
         </div><!-- end analytics-shell -->
       </div>
       <!-- CALENDAR PAGE -->
+      <!-- [HTML-SECTION: page-interactions] END -->
+
+      <!-- [HTML-SECTION: page-calendar] START -- FullCalendar wrapper
+           JS: initCalendar(), loadCalendarEvents() | CSS: calendar.css -->
       <div class="page" id="page-calendar">
         <!-- Accounty-style client scope tabs -->
         <div id="cal-scope-tabs" style="display:flex; border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:10px;">
@@ -9719,6 +9887,10 @@
 
 
       <!-- ═══ BEÁLLÍTÁSOK PAGE (Visibill-style) ══════════════════════════ -->
+      <!-- [HTML-SECTION: page-calendar] END -->
+
+      <!-- [HTML-SECTION: page-beallitasok] START -- System settings: General, Security, Team
+           JS: loadUsersTable(), submitSecurityPasswordChange() | CSS: settings.css -->
       <div class="page" id="page-beallitasok">
 
         <!-- Header -->
@@ -9846,8 +10018,10 @@
 
         </div><!-- end beallitasok-content -->
       </div><!-- end page-beallitasok -->
+      <!-- [HTML-SECTION: page-beallitasok] END -->
 
       <!-- ═══ HELP PAGE ═══════════════════════════════════════════════ -->
+      <!-- [HTML-SECTION: page-help] START -- FAQ accordion, contact info -->
       <div class="page" id="page-help">
 
         <!-- Accounty-style Header -->
@@ -10080,6 +10254,16 @@
       <span id="autosave-toast-msg">Sikeresen mentve!</span>
     </div>
 
+  <!-- ===================================================================
+       [JS-FILE: admin-core.js] MAIN SCRIPT BLOCK START (line ~10257)
+       Contains ALL core JS: globals, auth, dark mode, sidebar, navigation,
+       analytics, interactions, kanban, calendar, urgent cases, greeting,
+       settings/tudastar, praxis info, upload, szabalyok.
+       SPLIT TARGET: admin-core.js, admin-analytics.js, admin-interactions.js,
+       admin-kanban.js, admin-calendar.js, admin-settings.js, admin-urgent.js
+       GLOBALS EXPOSED: API, authToken, currentUser, authFetch(), showToast(),
+       showPage(), toggleDarkMode(), etc.
+       =================================================================== -->
   <script>
     const API = '';  // same origin
     let authToken = localStorage.getItem('thinkai_admin_token') || '';
@@ -10092,6 +10276,7 @@
     let _analyticsData = null;
     let _chartView = 'daily';
 
+    // [JS-FILE: admin-core.js] -- Dark mode, flyout, sidebar, auth, navigation, greeting
     // ── Dark Mode (localStorage) ──────────────────────────────────────────────────
     (function applyThemeEarly() {
       if (localStorage.getItem('thinkai_theme') === 'dark') {
@@ -10860,6 +11045,7 @@
       }
     }
 
+    // [JS-FILE: admin-analytics.js] START -- Analytics loading, rendering, charts
     // ── ANALYTICS ─────────────────────────────────────────────────────────────────
 
     async function loadMemberAnalytics() {
@@ -11884,6 +12070,7 @@
       });
     }
 
+    // [JS-FILE: admin-interactions.js] START -- Interactions flat table, log modal, filters
     // ── INTERACTIONS FLAT TABLE ───────────────────────────────────────────────────
     let _allInteractionRows = [];
 
@@ -12718,6 +12905,7 @@
     }
 
 
+    // [JS-FILE: admin-calendar.js] START -- Calendar init, events, manual creation, scope
     // ── CALENDAR ──────────────────────────────────────────────────────────────────
     let fcInstance = null;
     let currentCalendarView = 'grid';
@@ -13084,6 +13272,7 @@
       return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
+    // [JS-FILE: admin-urgent.js] START -- Notification center, polling, toasts
     // ══ ÉRTESÍTÉSI KÖZPONT (UNIFIED NOTIFICATION CENTER) ══════════════════════════
     const _notifications = [];        // All notifications array
     let _notifIdCounter = 0;
@@ -13395,6 +13584,7 @@
     }
 
 
+    // [JS-FILE: admin-kanban.js] START -- Kanban board, drag-drop, card rendering
     // ── KANBAN ──────────────────────────────────────────────────────────────────
     let draggedClientId = null;
     let currentKanbanColumns = [];
@@ -14913,6 +15103,7 @@
       }
     }
 
+    // [JS-FILE: admin-settings.js] START -- Settings, Knowledge Q&A, agent config, praxis, szabalyok
     // ── SETTINGS ───────────────────────────────────────────────────────────────
     const BH_DAYS = [
       { key: 'monday', label: 'Hétfő' },
@@ -15437,6 +15628,7 @@
 
 
 
+    // [SHARED: admin-core.js] -- showToast() used everywhere
     // ── TOAST ──────────────────────────────────────────────────────────────────
     function showToast(type, message) {
       let container = document.getElementById('toast-container');
@@ -15454,6 +15646,7 @@
       setTimeout(() => { toast.style.opacity = '0'; toast.style.transition = 'opacity 0.3s'; setTimeout(() => toast.remove(), 350); }, 3500);
     }
 
+    // [JS-FILE: admin-settings.js] CONTINUATION -- Tudastar load/save
     // ── TUDÁSTÁR ───────────────────────────────────────────────────────────────
     function initTudastar() {
       // Load knowledge base data if available
@@ -15572,6 +15765,7 @@
       list.appendChild(card);
     }
 
+    // [JS-FILE: admin-settings.js] CONTINUATION -- Praxisinfo load & save
     // ── PRAXISINFÓ LOAD & SAVE ───────────────────────────────────────────────────
     const _PI_DAYS = ['hetfo', 'kedd', 'szerda', 'csutortok', 'pentek', 'szombat', 'vasarnap'];
 
@@ -15890,6 +16084,17 @@
     }
 
   </script>
+  <!-- [JS-FILE: admin-core.js through admin-settings.js] END -->
+
+  <!-- ===================================================================
+       [JS-FILE: admin-customers.js] SCRIPT BLOCK START (line ~16067)
+       Customer Center JS: security modal, create user, sidebar password,
+       client list, customer view switcher, conversation log parser,
+       client details, tag system, clinics/doctors/services/triage CRUD,
+       approvals, column visibility, DOMContentLoaded init
+       GLOBALS EXPOSED: openSecurityPasswordModal(), loadClients(),
+       openClientDetails(), loadApprovals(), switchApprovalTab(), etc.
+       =================================================================== -->
   <script>
 
     // Customer Center JS
@@ -18140,6 +18345,7 @@
     });
 
   </script>
+  <!-- [JS-FILE: admin-customers.js] END -->
 
   <!-- Alert Details Modal HTML -->
   <div id="alert-details-modal"
@@ -18183,6 +18389,11 @@
           
 
 
+<!-- ===================================================================
+     [JS-FILE: admin-customers.js] ADDENDUM -- forceOpenProfile
+     window.forceOpenProfile() -- dynamically creates edit profile modal
+     DEPENDS ON: window.currentClientDataForLog, window.saveClientProfile
+     =================================================================== -->
 <script>
 window.forceOpenProfile = function() {
     try {
@@ -18247,7 +18458,16 @@ window.forceOpenProfile = function() {
     }
 };
 </script>
+<!-- [JS-FILE: admin-customers.js] ADDENDUM END -->
 
+<!-- ===================================================================
+     [JS-FILE: admin-outbound.js] SCRIPT BLOCK START (line ~18425)
+     Outbound campaigns: CRUD, wizard, client picker, schedule,
+     analytics charts, rich text editors, campaign preview
+     GLOBALS EXPOSED: loadCampaigns(), saveCampaign(), deleteCampaign(),
+     openCampaignModal(), goToClientListForCampaign(), etc.
+     DEPENDS ON: authFetch(), showToast(), showPage() from admin-core.js
+     =================================================================== -->
 <script>
 // ══════════════════════════════════════════════════════════════════════════════
 // KIMENŐ KOMMUNIKÁCIÓ – KAMPÁNYOK (Backend API)
@@ -20152,8 +20372,9 @@ async function refreshCampaignPreviewStats(campaignId) {
   }
 }
 </script>
+<!-- [JS-FILE: admin-outbound.js] END -->
 
-<!-- Floating campaign client picker bar -->
+<!-- [HTML-SECTION: floating-elements] -- Floating campaign client picker bar (outbound.css) -->
 <div class="camp-float-bar" id="camp-float-bar">
   <div class="camp-float-info">
     <div class="camp-float-icon">
