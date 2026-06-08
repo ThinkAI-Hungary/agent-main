@@ -1,0 +1,27 @@
+  <!-- ╔══════════════════════════════════════════════════════════════════════════╗
+       ║  [HTML-SECTION: login]  LOGIN SCREEN                                  ║
+       ║  Self-contained login card with form                                   ║
+       ║  JS DEPS: doLogin() from admin-core.js                                ║
+       ╚══════════════════════════════════════════════════════════════════════════╝ -->
+  <!-- ═══════════════════════  LOGIN  ═══════════════════════ -->
+  <div id="login-screen">
+    <div class="login-card">
+      <div class="login-logo">
+        <div class="login-logo-icon">T</div>
+        <span>DigiDesk Admin</span>
+      </div>
+      <div class="login-tagline">Üdv újra!<br />Kérem, jelentkezz be.</div>
+      <div class="login-sub">Hangügynök vezérlőpult — analitika és interakciók</div>
+      <div class="login-error" id="login-error"></div>
+      <div class="form-group">
+        <label class="form-label" for="login-username">Felhasználónév</label>
+        <input autocomplete="username" class="form-input" id="login-username" placeholder="admin" type="text" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="login-password">Jelszó</label>
+        <input autocomplete="current-password" class="form-input" id="login-password" placeholder="••••••••"
+          type="password" />
+      </div>
+      <button class="btn-primary" id="login-btn" onclick="doLogin()">BELÉPÉS</button>
+    </div>
+  </div>

@@ -1,0 +1,709 @@
+      <!-- KANBAN PAGE -->
+      <!-- [HTML-SECTION: page-interactions] START -- Interactions list, Log modal, Client details
+           JS: loadInteractions(), openClientDetails() | CSS: interactions.css, clients.css -->
+      <div class="page" id="page-interactions">
+        <div class="analytics-shell">
+          <!-- View Switcher -->
+          <div class="view-switcher-container" style="display:none;"><button class="view-btn active"
+              onclick="switchCustomerView('clients', this)">Ügyfelek adatbázisa</button><button class="view-btn"
+              onclick="switchCustomerView('kanban', this)">Érdeklődőkezelés</button><button class="view-btn"
+              onclick="switchCustomerView('interactions', this)">Interakciós lista</button><button class="view-btn"
+              onclick="switchCustomerView('emails', this)">E-mailek</button><button class="view-btn"
+              onclick="switchCustomerView('sessions', this)">Sessionok</button></div>
+          <div class="customer-view" id="view-interactions" style="display:none;">
+            <!-- Toolbar -->
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px;">
+              <div>
+                <div class="page-title">Interakciós lista</div>
+                <div class="page-subtitle">Összes beérkező és kimenő interakció</div>
+              </div>
+              <div style="display:flex;gap:10px;align-items:center;">
+                <button class="int-toolbar-btn" id="int-delete-selected-btn" onclick="deleteSelectedInteractions()" style="display:none;background:#fee2e2;color:#b91c1c;border-color:#fca5a5;gap:6px;align-items:center;font-weight:600;">
+                  <svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="14"><polyline points="3 6 5 6 21 6"></polyline><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"></path><path d="M10 11v6"></path><path d="M14 11v6"></path></svg>
+                  <span id="int-delete-count">0</span> kijelölt törlése
+                </button>
+                <input class="int-toolbar-input" id="interaction-search" oninput="filterInteractionsTable()"
+                  placeholder=" Keresés..." type="text" />
+                <select class="int-toolbar-select" id="interaction-type-filter" onchange="filterInteractionsTable()"
+                  style="display:none;">
+                  <option value="">Minden típus</option>
+                </select>
+                <div style="position:relative; display:inline-block;" id="int-filter-container">
+                  <button class="int-toolbar-btn" id="int-filter-toggle-btn" style="gap:6px; display:flex; align-items:center;" title="Szűrés" onclick="toggleIntFilterPanel()">
+                    <svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14">
+                      <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+                    </svg>
+                    Szűrés
+                    <span id="int-filter-badge" style="display:none;background:#1ceee0;color:#0a1628;font-size:10px;font-weight:800;min-width:18px;height:18px;border-radius:9px;display:none;align-items:center;justify-content:center;padding:0 5px;margin-left:2px;"></span>
+                  </button>
+                  <!-- Filter Panel -->
+                  <div id="int-filter-panel" style="display:none; position:absolute; top:calc(100% + 8px); right:0; z-index:999; width:340px; background:var(--card,#fff); border:1px solid var(--border,#e5e7eb); border-radius:14px; box-shadow:0 12px 40px rgba(0,0,0,0.12); padding:0; overflow:hidden; animation:fadein 0.2s ease;">
+                    <!-- Header -->
+                    <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 20px 12px;border-bottom:1px solid var(--border,#e5e7eb);">
+                      <span style="font-size:16px;font-weight:700;color:var(--text,#111);">Szűrő</span>
+                      <button onclick="toggleIntFilterPanel()" style="background:none;border:none;cursor:pointer;color:var(--text-muted);font-size:18px;width:28px;height:28px;display:flex;align-items:center;justify-content:center;border-radius:6px;transition:background 0.15s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='none'">✕</button>
+                    </div>
+                    <!-- Sections -->
+                    <div style="padding:8px 0; max-height:420px; overflow-y:auto;">
+                      <!-- Dátum -->
+                      <div class="int-filter-section" style="padding:0 20px;">
+                        <button onclick="toggleFilterSection(this)" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 0;border:none;background:none;cursor:pointer;color:var(--text,#111);font-size:14px;font-weight:600;">
+                          <span>Dátum</span>
+                          <svg class="filter-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="filter-section-body" style="display:none;padding-bottom:12px;">
+                          <div style="display:flex;gap:8px;">
+                            <input type="date" id="int-filter-date-from" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--bg,#fff);color:var(--text);font-family:inherit;" placeholder="Ettől"/>
+                            <input type="date" id="int-filter-date-to" style="flex:1;padding:8px 10px;border:1px solid var(--border);border-radius:8px;font-size:12px;background:var(--bg,#fff);color:var(--text);font-family:inherit;" placeholder="Eddig"/>
+                          </div>
+                        </div>
+                      </div>
+                      <!-- Ügytípus -->
+                      <div class="int-filter-section" style="padding:0 20px;border-top:1px solid var(--border,#f3f4f6);">
+                        <button onclick="toggleFilterSection(this)" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 0;border:none;background:none;cursor:pointer;color:var(--text,#111);font-size:14px;font-weight:600;">
+                          <span>Ügytípus</span>
+                          <svg class="filter-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="filter-section-body" style="display:none;padding-bottom:12px;">
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-ugytipus" value="IDŐPONT" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Időpont</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-ugytipus" value="KÉRDÉS" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Kérdés</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-ugytipus" value="KÉRÉS" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Kérés</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-ugytipus" value="PANASZ" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Panasz</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-ugytipus" value="EGYÉB" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Egyéb</label>
+                        </div>
+                      </div>
+                      <!-- Csatorna -->
+                      <div class="int-filter-section" style="padding:0 20px;border-top:1px solid var(--border,#f3f4f6);">
+                        <button onclick="toggleFilterSection(this)" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 0;border:none;background:none;cursor:pointer;color:var(--text,#111);font-size:14px;font-weight:600;">
+                          <span>Csatorna</span>
+                          <svg class="filter-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="filter-section-body" style="display:none;padding-bottom:12px;">
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-csatorna" value="Messenger" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Messenger</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-csatorna" value="Telefon" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Telefon</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-csatorna" value="Email" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Email</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-csatorna" value="Instagram" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Instagram</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-csatorna" value="WhatsApp" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> WhatsApp</label>
+                        </div>
+                      </div>
+                      <!-- Irány -->
+                      <div class="int-filter-section" style="padding:0 20px;border-top:1px solid var(--border,#f3f4f6);">
+                        <button onclick="toggleFilterSection(this)" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 0;border:none;background:none;cursor:pointer;color:var(--text,#111);font-size:14px;font-weight:600;">
+                          <span>Irány</span>
+                          <svg class="filter-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="filter-section-body" style="display:none;padding-bottom:12px;">
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-irany" value="Bejövő" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Bejövő</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-irany" value="Kimenő" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Kimenő</label>
+                        </div>
+                      </div>
+                      <!-- Státusz -->
+                      <div class="int-filter-section" style="padding:0 20px;border-top:1px solid var(--border,#f3f4f6);">
+                        <button onclick="toggleFilterSection(this)" style="width:100%;display:flex;align-items:center;justify-content:space-between;padding:10px 0;border:none;background:none;cursor:pointer;color:var(--text,#111);font-size:14px;font-weight:600;">
+                          <span>Státusz</span>
+                          <svg class="filter-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:16px;height:16px;transition:transform 0.2s;"><polyline points="6 9 12 15 18 9"/></svg>
+                        </button>
+                        <div class="filter-section-body" style="display:none;padding-bottom:12px;">
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-statusz" value="LEZÁRT" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Lezárt</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-statusz" value="FOLYAMATBAN" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Folyamatban</label>
+                          <label style="display:flex;align-items:center;gap:8px;padding:5px 0;cursor:pointer;font-size:13px;color:var(--text);"><input type="checkbox" class="int-filter-statusz" value="VÁRAKOZIK" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;"/> Várakozik</label>
+                        </div>
+                      </div>
+                    </div>
+                    <!-- Footer -->
+                    <div style="display:flex;gap:10px;padding:14px 20px;border-top:1px solid var(--border,#e5e7eb);">
+                      <button onclick="resetIntFilters()" style="flex:1;padding:10px;border:1px solid var(--border,#e5e7eb);border-radius:8px;background:none;color:var(--text,#111);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;transition:all 0.15s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='none'">Visszaállítás</button>
+                      <button onclick="applyIntFilters()" style="flex:1;padding:10px;border:none;border-radius:8px;background:#1ceee0;color:#0a1628;font-size:13px;font-weight:700;cursor:pointer;font-family:inherit;transition:all 0.15s;box-shadow:0 2px 8px rgba(28,238,224,0.25);" onmouseover="this.style.background='#17d4c8'" onmouseout="this.style.background='#1ceee0'">Alkalmaz</button>
+                    </div>
+                  </div>
+                </div>
+                <div style="position:relative; display:inline-block;">
+                  <select 0="" 14\"="" 24="" 24\"="" class="int-toolbar-btn" fill='\"none\"' height='\"14\"'
+                    id="interaction-sort" onchange="filterInteractionsTable()" stroke='\"%236b7280\"'
+                    stroke-width='\"2\"'
+                    style="gap:6px; display:flex; align-items:center; appearance:none; padding-right:32px; background-image: url('data:image/svg+xml;utf8,&lt;svg width=\"
+                    viewbox='\"0'>
+                    <polyline 12="" 15="" 18="" 9="" 9\"="" points='\"6'></polyline>'); background-repeat:no-repeat;
+                    background-position:right 8px center; cursor:pointer;"&gt;
+                    <option value="date_desc">⬇ Legújabb elöl</option>
+                    <option value="date_asc">⬆ Legrégebbi elöl</option>
+                    <option value="client_asc">A-Z Ügyfél név szerint</option>
+                    <option value="topic_asc">A-Z Téma szerint</option>
+                  </select>
+                </div>
+                <div style="position:relative; display:inline-block;">
+                  <button class="int-toolbar-btn" style="gap:6px; display:flex; align-items:center;" title="Oszlopok" onclick="toggleColumnDropdown()">
+                    <svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14">
+                      <rect height="18" rx="2" ry="2" width="18" x="3" y="3"></rect>
+                      <line x1="9" x2="9" y1="3" y2="21"></line>
+                    </svg>
+                    Oszlopok
+                  </button>
+                  <div id="col-toggle-dropdown" style="display:none; position:absolute; top:100%; left:0; margin-top:6px; background:var(--card); border:1px solid var(--border); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.12); padding:10px 0; min-width:200px; z-index:50;">
+                    <div style="padding:4px 14px 8px; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Látható oszlopok</div>
+                    <label class="col-toggle-item" data-col="1" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(1,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Időpont</label>
+                    <label class="col-toggle-item" data-col="2" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(2,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Ügyfél</label>
+                    <label class="col-toggle-item" data-col="3" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(3,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Csatorna</label>
+                    <label class="col-toggle-item" data-col="4" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(4,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Irány</label>
+                    <label class="col-toggle-item" data-col="5" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(5,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Ügytípus</label>
+                    <label class="col-toggle-item" data-col="6" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(6,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Eredmény</label>
+                    <label class="col-toggle-item" data-col="7" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(7,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Státusz</label>
+                    <label class="col-toggle-item" data-col="8" style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);transition:background 0.1s;" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleIntColumn(8,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Teendő</label>
+                  </div>
+                </div>
+              </div>
+            </div>
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px;">
+              <div class="int-count" id="interactions-count" style="font-size:13px;font-weight:600;color:var(--text-muted);"></div>
+              <button id="int-refresh-icon" onclick="this.querySelector('svg').style.animation='spin 0.6s ease'; loadInteractions(); setTimeout(()=>this.querySelector('svg').style.animation='',700)" title="Frissítés" style="background:none; border:none; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-muted); transition:all 0.2s; border-radius:6px;" onmouseover="this.style.color='var(--accent,#1ceee0)';this.style.background='var(--bg3)'" onmouseout="this.style.color='var(--text-muted)';this.style.background='none'">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 20v-5h-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M20.49 9A9 9 0 005.64 5.64L4 9m16 6l-1.64 3.36A9 9 0 013.51 15"/></svg>
+              </button>
+            </div>
+            <!-- Flat table -->
+            <div class="int-table-wrapper">
+              <table class="data-table" id="interactions-flat-table">
+                <thead class="int-thead">
+                  <tr>
+                    <th class="int-checkbox-col" style="width:40px;text-align:center;"><input type="checkbox" id="int-select-all" onchange="toggleAllInteractionCheckboxes(this.checked)" style="cursor:pointer;width:16px;height:16px;accent-color:#1ceee0;"/></th>
+                    <th>Interakció időpontja</th>
+                    <th>Ügyfél</th>
+                    <th>Csatorna</th>
+                    <th>Interakció iránya</th>
+                    <th>Ügytípus</th>
+
+                    <th>Eredmény</th>
+                    <th>Státusz</th>
+                    <th>Teendő</th>
+                  </tr>
+                </thead>
+                <tbody id="interactions-flat-body">
+                  <tr>
+                    <td colspan="9" style="text-align:center;padding:40px;color:#6b7280;">
+                      <div class="spinner" style="border-color:#e5e7eb;border-top-color:#1ceee0;margin:0 auto 10px;">
+                      </div>Adatok betöltése...
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div><!-- end view-interactions -->
+          <div class="customer-view" id="view-kanban" style="display:none;">
+            <div class="page-header" style="margin-bottom:18px;">
+              <div>
+                <div class="page-title">Érdeklődőkezelés</div>
+                <div class="page-subtitle">Konverziós tölcsér és érdeklődők nyomon követése</div>
+              </div>
+              <button class="kanban-admin-only" onclick="promptAddKanbanColumn()" style="display:flex;align-items:center;gap:6px;padding:8px 16px;font-size:13px;font-weight:600;white-space:nowrap;border-radius:10px;border:1px solid var(--border);background:var(--card);color:var(--text);cursor:pointer;transition:all 0.2s;" onmouseover="this.style.borderColor='var(--accent)';this.style.color='var(--accent)'" onmouseout="this.style.borderColor='var(--border)';this.style.color='var(--text)'">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" width="15" height="15"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"/></svg>
+                Oszlop hozzáadása
+              </button>
+            </div>
+            <div class="kanban-board" id="kanban-board">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+          <!-- CLIENTS PAGE -->
+          <div class="customer-view" id="view-clients" style="display:block;">
+            <div class="page-header">
+              <div>
+                <div class="page-title">Ügyféllista</div>
+                <div class="page-subtitle">Ügyfelek listázása és alapadatok módosítása</div>
+              </div>
+              <div style="display:flex;gap:12px;align-items:center;flex-wrap:wrap;">
+                <div class="view-toggle" id="clients-view-toggle" style="display:none;">
+                  <button class="view-toggle-btn active" id="vt-table" onclick="switchClientsView('table')">Táblázat</button>
+                  <button class="view-toggle-btn" id="vt-cards" onclick="switchClientsView('cards')">Kártyák</button>
+                </div>
+                <button class="cc-select-all-btn" id="cc-select-all" onclick="selectAllCards()" style="display:none;">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
+                  <span>Összes kijelölése</span>
+                </button>
+                <input type="text" id="client-search-input" class="int-toolbar-input" placeholder="Keresés ügyfelek között..." style="width: 250px;" onkeyup="filterClientsView()">
+                <button id="bulk-delete-btn" class="int-toolbar-btn" style="display:none; color: #ef4444; border-color: #ef4444;" onclick="bulkDeleteClients()">🗑 Kijelöltek törlése (<span id="bulk-delete-count">0</span>)</button>
+                <button id="bulk-campaign-btn" class="int-toolbar-btn" style="display:none; color: #1ceee0; border-color: #1ceee0; font-weight:700;" onclick="exportToCampaign()">⚡ Kampányba exportálás (<span id="bulk-campaign-count">0</span>)</button>
+                <div style="position:relative; display:inline-block;">
+                  <button class="int-toolbar-btn" style="gap:6px; display:flex; align-items:center;" title="Oszlopok" onclick="toggleClientColumnDropdown()">
+                    <svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><rect height="18" rx="2" ry="2" width="18" x="3" y="3"></rect><line x1="9" x2="9" y1="3" y2="21"></line></svg>
+                    Oszlopok
+                  </button>
+                  <div id="client-col-toggle-dropdown" style="display:none; position:absolute; top:100%; right:0; margin-top:6px; background:var(--card); border:1px solid var(--border); border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.12); padding:10px 0; min-width:200px; z-index:50;">
+                    <div style="padding:4px 14px 8px; font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:0.5px;">Látható oszlopok</div>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(1,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Ügyfél</label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(2,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Új / Visszatérő</label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(3,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Címkék</label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(4,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Telefonszám</label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(5,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Email</label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(6,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Felelős</label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(7,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Utolsó interakció</label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(8,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Értékesítési státusz</label>
+                    <label style="display:flex;align-items:center;gap:8px;padding:6px 14px;cursor:pointer;font-size:13px;color:var(--text);" onmouseover="this.style.background='var(--bg3)'" onmouseout="this.style.background='transparent'"><input type="checkbox" checked onchange="toggleClientCol(9,this.checked)" style="accent-color:#1ceee0;width:15px;height:15px;cursor:pointer;">Műveletek</label>
+                  </div>
+                </div>
+                <button onclick="openClientModal()" style="width:auto; margin:0; padding:8px 18px; background:#1ceee0; color:#0a1628; border:none; border-radius:8px; font-size:13px; font-weight:700; cursor:pointer; display:flex; align-items:center; gap:4px; transition:all 0.2s; box-shadow:0 2px 8px rgba(28,238,224,0.25);" onmouseover="this.style.background='#17d4c8';this.style.boxShadow='0 4px 12px rgba(28,238,224,0.35)'" onmouseout="this.style.background='#1ceee0';this.style.boxShadow='0 2px 8px rgba(28,238,224,0.25)'">+ Új Ügyfél</button>
+              </div>
+            </div>
+            <div id="tag-filter-bar" style="display:none;"></div>
+            <div style="display:flex;justify-content:flex-end;margin-bottom:6px;">
+              <button id="client-refresh-icon" onclick="this.querySelector('svg').style.animation='spin 0.6s ease'; loadClientsTable(); setTimeout(()=>this.querySelector('svg').style.animation='',700)" title="Frissítés" style="background:none; border:none; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:var(--text-muted); transition:all 0.2s; border-radius:6px;" onmouseover="this.style.color='var(--accent,#1ceee0)';this.style.background='var(--bg3)'" onmouseout="this.style.color='var(--text-muted)';this.style.background='none'">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:15px;height:15px;"><path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h5"/><path stroke-linecap="round" stroke-linejoin="round" d="M20 20v-5h-5"/><path stroke-linecap="round" stroke-linejoin="round" d="M20.49 9A9 9 0 005.64 5.64L4 9m16 6l-1.64 3.36A9 9 0 013.51 15"/></svg>
+              </button>
+            </div>
+            <div id="clients-table-wrapper" class="table-card" style="overflow-x:auto;">
+              <table class="data-table">
+                <thead id="clients-thead">
+                  <!-- Rendered by JS -->
+                </thead>
+                <tbody id="clients-body">
+                  <tr class="loading-row">
+                    <td colspan="7">
+                      <div class="spinner"></div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+            <div id="clients-cards-wrapper" class="clients-card-grid" style="display:none;">
+              <!-- Rendered by JS -->
+            </div>
+          </div>
+          <!-- Client Fields Setup Modal -->
+          <div id="fields-modal"
+            style="display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.6); z-index:999; align-items:center; justify-content:center;">
+            <div class="login-card" style="width:480px; max-height:80vh; overflow-y:auto;">
+              <h3 style="margin-bottom:16px;">Ügyfél mezők beállítása</h3>
+              <div id="fields-list" style="margin-bottom:20px;"></div>
+              <button class="btn-primary" onclick="promptAddClientField()" style="width:100%; margin-bottom:10px;">+ Új
+                Mező hozzáadása</button>
+              <button class="btn-primary" onclick="closeClientFieldsModal()"
+                style="background:var(--bg3);color:var(--text);width:100%;">Bezárás</button>
+            </div>
+          </div>
+          <!-- Client Modal HTML -->
+          <div id="client-modal"
+            style="display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.6); z-index:999; align-items:center; justify-content:center;">
+            <div class="login-card" style="width:380px;">
+              <h3 id="client-modal-title" style="margin-bottom:16px;">Új ügyfél</h3>
+              <input id="nc-id" type="hidden" />
+              <div id="client-modal-dynamic-fields">
+                <!-- Dynamic inputs rendered here by JS -->
+              </div>
+              <div style="display:flex;gap:10px;margin-top:20px;">
+                <button class="btn-primary" onclick="closeClientModal()"
+                  style="background:var(--bg3);color:var(--text)">Mégse</button>
+                <button class="btn-primary" onclick="submitClient()">Mentés</button>
+              </div>
+            </div>
+          </div>
+
+          <!-- INTERACTION SUMMARY MODAL -->
+          <div id="ism-modal" class="ism-modal">
+            <div class="ism-content">
+              <div class="ism-header">
+                <button onclick="document.getElementById('ism-modal').style.display='none'"
+                  class="ism-close">&times;</button>
+                <h2 class="ism-title">Interakciós összefoglaló</h2>
+                <div class="ism-meta">
+                  <span id="ism-client"></span> • <span id="ism-channel"></span> • <span id="ism-date"></span>
+                </div>
+              </div>
+              <div class="ism-body">
+                <div style="margin-bottom:24px;">
+                  <h3 class="ism-section-title">Összefoglaló</h3>
+                  <p id="ism-summary" class="ism-summary-text"></p>
+                </div>
+                <div class="ism-result-box">
+                  <h3 class="ism-result-title">Eredmény</h3>
+                  <div id="ism-result-grid" class="ism-result-grid"></div>
+                  <div style="margin-top:20px; display:flex; align-items:center; gap:8px;">
+                    <span class="ism-result-label" style="margin:0;">Státusz:</span>
+                    <span id="ism-result-badge"></span>
+                  </div>
+                </div>
+                <div id="ism-transcript-section" style="margin-top:24px; display:none;">
+                  <h3 class="ism-section-title">Beszélgetés napló</h3>
+                  <textarea id="ism-transcript" class="ism-textarea" readonly></textarea>
+                </div>
+              </div>
+            </div>
+          </div>
+
+
+          <!-- Log Modal HTML -->
+          <div id="log-modal" style="display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center; padding: 20px;">
+            <div class="login-card" style="width:700px; max-width:100%; max-height:90vh; display:flex; flex-direction:column; padding:0; overflow:hidden; border-radius:16px; border:none; box-shadow: 0 24px 48px rgba(0,0,0,0.3); background:var(--card);">
+              
+              <!-- Header -->
+              <div style="background: linear-gradient(to right, #14b8ad, #1ceee0); padding: 20px 24px; flex-shrink: 0;">
+                <div style="display:flex; justify-content:space-between; align-items:flex-start;">
+                  <div>
+                    <div style="font-size:10px; font-weight:700; color:rgba(8,36,50,0.7); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;" id="log-modal-topic">Interakciós összefoglaló</div>
+                    <h3 id="log-modal-title-name" style="margin:0 0 6px 0; color:#082432; font-size:20px; font-weight:700;">Ügyfél neve</h3>
+                    <div style="display:flex; gap:12px; font-size:13px; color:rgba(8,36,50,0.8); font-weight:500;">
+                      <span id="log-modal-channel">Telefon</span>
+                      <span>•</span>
+                      <span id="log-modal-date">Dátum</span>
+                    </div>
+                  </div>
+                  <div style="display:flex; gap:8px;">
+                    
+                    <button onclick="document.getElementById('log-modal').style.display='none'" style="background:rgba(8,36,50,0.15); border:none; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#082432; transition:background 0.2s; margin-left: 8px;">✕</button>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Content Scrollable Area -->
+              <div style="padding: 24px; overflow-y:auto; flex-grow: 1;">
+                
+                <!-- Összefoglaló & Eredmény Side-by-side -->
+                <div style="display:grid; grid-template-columns: 1fr 1fr; gap:20px; margin-bottom: 24px;">
+                    
+                    <!-- Összefoglaló (Left) -->
+                    <div>
+                        <h4 style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin:0 0 12px 0;">Összefoglaló</h4>
+                        <div id="log-modal-summary" style="font-size:13px; line-height:1.6; color:var(--text);">
+                            Az asszisztens a beszélgetés során rögzítette a felhasználó igényeit és lefoglalt egy időpontot.
+                        </div>
+                    </div>
+
+                    <!-- Eredmény (Right) -->
+                    <div id="log-modal-result-box" style="background:var(--bg); border:1px solid var(--border); border-radius:12px; padding:16px;">
+                        <h4 style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin:0 0 16px 0;">Eredmény</h4>
+                        
+                        <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:13px;">
+                            <span style="color:var(--text-muted);">Befoglalt időpont:</span>
+                            <span style="font-weight:600; color:var(--text);" id="lm-res-date">-</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:13px;">
+                            <span style="color:var(--text-muted);">Szolgáltatás:</span>
+                            <span style="font-weight:600; color:var(--text);" id="lm-res-service">-</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; margin-bottom:12px; font-size:13px;">
+                            <span style="color:var(--text-muted);">Orvos:</span>
+                            <span style="font-weight:600; color:var(--text);" id="lm-res-doctor">-</span>
+                        </div>
+                        <div style="display:flex; justify-content:space-between; font-size:13px;">
+                            <span style="color:var(--text-muted);">Emlékeztető kiküldve:</span>
+                            <span style="font-weight:600; color:var(--text);" id="lm-res-reminder">-</span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Chat Toggle & Container -->
+                <div style="margin-top: 8px;">
+                    <div id="log-modal-chat-container" style="display:none; margin-top: 16px; border-top: 1px solid var(--border); padding-top: 20px;">
+                        <h4 style="font-size:11px; font-weight:700; color:var(--text-muted); text-transform:uppercase; letter-spacing:1px; margin:0 0 16px 0;">Teljes beszélgetés</h4>
+                        <div id="log-modal-chat" style="display:flex; flex-direction:column;">
+                            <!-- Chat Bubbles will be generated here -->
+                        </div>
+                    </div>
+                </div>
+
+              </div>
+
+              <!-- Footer -->
+              <div style="padding: 16px 24px; background:var(--bg3); border-top: 1px solid var(--border); display:flex; justify-content:space-between; align-items:center; flex-shrink: 0;">
+                <button class="btn-primary" onclick="goToClientProfileFromLogModal()" style="background:transparent; color:var(--text-muted); border:1px solid var(--border); width:auto; padding: 10px 16px; margin:0;">
+                    Ugrás ügyfélprofilra
+                </button>
+                <button id="log-modal-toggle-btn" class="btn-primary" onclick="toggleChat()" style="background:linear-gradient(135deg, var(--accent), var(--accent2)); color:#082432; border:none; width:auto; padding: 10px 16px; margin:0;">
+                    <span style="margin-right:6px;">↓</span> Interakció megtekintése
+                </button>
+              </div>
+            </div>
+          </div>
+          
+          <!-- Appointments Modal HTML -->
+          <div id="appointments-modal" style="display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.6); z-index:9999; align-items:center; justify-content:center; padding: 20px;">
+            <div class="login-card" style="width:400px; max-width:100%; max-height:80vh; display:flex; flex-direction:column; padding:0; overflow:hidden; border-radius:16px; border:none; box-shadow: 0 24px 48px rgba(0,0,0,0.3); background:var(--card);">
+              
+              <!-- Header -->
+              <div style="background: linear-gradient(to right, #14b8ad, #1ceee0); padding: 20px 24px; flex-shrink: 0;">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <div>
+                    <div style="font-size:10px; font-weight:700; color:rgba(8,36,50,0.7); text-transform:uppercase; letter-spacing:1px; margin-bottom:4px;">Időpontok előzménye</div>
+                    <h3 id="appointments-modal-client-name" style="margin:0; color:#082432; font-size:20px; font-weight:700;">Ügyfél neve</h3>
+                  </div>
+                  <button onclick="document.getElementById('appointments-modal').style.display='none'" style="background:rgba(8,36,50,0.15); border:none; border-radius:50%; width:28px; height:28px; display:flex; align-items:center; justify-content:center; cursor:pointer; color:#082432; transition:background 0.2s;">✕</button>
+                </div>
+              </div>
+
+              <!-- Body -->
+              <div style="padding: 24px; overflow-y: auto; flex-grow: 1; display: flex; flex-direction: column; gap: 12px;" id="appointments-modal-list">
+                <!-- Dynamically populated appointments list -->
+              </div>
+            </div>
+          </div>
+          
+          <script>
+            function closeLogModal() {
+                document.getElementById('log-modal').style.display='none';
+            }
+            function goToClientProfileFromLogModal() {
+                closeLogModal();
+                if (window.currentLogModalClientData) {
+                    if (typeof showPage === 'function') showPage('clients');
+                    if (typeof openClientDetails === 'function') openClientDetails(window.currentLogModalClientData);
+                }
+            }
+            function openAllAppointmentsModal() {
+              const clientName = document.getElementById('cd-name').innerText;
+              document.getElementById('appointments-modal-client-name').innerText = clientName;
+              
+              const listContainer = document.getElementById('appointments-modal-list');
+              listContainer.innerHTML = '';
+              
+              if (window.currentClientAppointments && window.currentClientAppointments.length) {
+                window.currentClientAppointments.forEach(aptDate => {
+                  const item = document.createElement('div');
+                  item.style.cssText = "display:flex; align-items:center; gap:12px; font-size:14px; color:var(--text); padding: 12px 16px; background: var(--bg); border-radius: 8px; border: 1px solid var(--border);";
+                  item.innerHTML = `
+                    <svg fill="none" height="16" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24" width="16"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    <span style="font-weight: 500;">${aptDate}</span>
+                  `;
+                  listContainer.appendChild(item);
+                });
+              } else {
+                listContainer.innerHTML = '<div style="text-align:center; color:var(--text-muted); padding:20px;">Nincsenek korábbi időpontok.</div>';
+              }
+              
+              document.getElementById('appointments-modal').style.display = 'flex';
+            }
+          </script>
+          <!-- CLIENT DETAILS PAGE -->
+          <div class="customer-view" id="view-client-details"
+            style="display:none; width: 100%; animation: fadein 0.3s ease;">
+            <!-- Back button -->
+            <button id="cd-back-btn" class="int-toolbar-btn" onclick="closeClientDetails()"
+              style="margin-bottom: 20px; border:none; background:transparent; font-weight:600; font-size:14px; cursor:pointer;">
+              <span style="margin-right:6px;">←</span> <span id="cd-back-text">Vissza az ügyféllistához</span>
+            </button>
+            
+            <!-- Top Card (Mint gradient) -->
+            <div class="cd-top-card" style="display: flex; justify-content: space-between; align-items: stretch; background: linear-gradient(90deg, #c4f2e8 0%, #b8eae0 100%); padding: 24px 32px; border-radius: 12px; margin-bottom: 24px; position: relative;">
+              
+              <!-- Left: Avatar & Info -->
+              <div onclick="forceOpenProfile()" style="display:flex; align-items:flex-start; gap:20px; cursor:pointer; padding:8px; margin:-8px; border-radius:12px; transition:background 0.2s;" onmouseover="this.style.background='rgba(255,255,255,0.3)'" onmouseout="this.style.background='transparent'" title="Kattints az adatok szerkesztéséhez">
+                <div class="cd-avatar" style="width: 56px; height: 56px; border-radius: 50%; background: white; display: flex; align-items: center; justify-content: center; flex-shrink: 0;">
+                  <svg fill="none" height="28" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round"
+                    stroke-width="2" style="color:var(--accent);" viewbox="0 0 24 24" width="28">
+                    <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"></path>
+                    <circle cx="12" cy="7" r="4"></circle>
+                  </svg>
+                </div>
+                <div>
+                  <div style="display:flex; align-items:center; gap:12px; margin-bottom: 4px;">
+                    <h2 id="cd-name" style="margin:0; font-size:24px; font-weight:bold; color:#082432;">Ügyfél Neve</h2>
+                    <span id="cd-status-badge" style="background:#082432; color:white; font-size:11px; font-weight:bold; padding:4px 8px; border-radius:6px; letter-spacing:0.5px;">ÚJ ÜGYFÉL</span>
+                  </div>
+                  <div id="cd-id" style="color:rgba(8,36,50,0.8); font-size:14px; margin-bottom: 16px;">Eaisydesk azonosító: PAC-001234</div>
+                  
+                  <div style="display:flex; gap:32px; font-size:14px; color:#082432;">
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <svg class="cd-contact-icon" fill="none" height="16" stroke="currentColor" stroke-width="2"
+                        viewbox="0 0 24 24" width="16" style="opacity:0.7;">
+                        <path
+                          d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z">
+                        </path>
+                      </svg>
+                      <span id="cd-phone" style="font-weight:500;">+36 30 123 4567</span>
+                    </div>
+                    <div style="display:flex; align-items:center; gap:8px;">
+                      <svg class="cd-contact-icon" fill="none" height="16" stroke="currentColor" stroke-width="2"
+                        viewbox="0 0 24 24" width="16" style="opacity:0.7;">
+                        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                        <polyline points="22,6 12,13 2,6"></polyline>
+                      </svg>
+                      <span id="cd-email" style="font-weight:500;">email@example.com</span>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              
+              <!-- Right: Profile Edit & Registration Date -->
+              <div style="display:flex; flex-direction:column; justify-content:space-between; align-items:flex-end;">
+                <button onclick="forceOpenProfile()" style="background:transparent; border:none; cursor:pointer; color:#082432; font-size:14px; font-weight:600; display:flex; align-items:center; gap:6px; position:relative; z-index:99; pointer-events:auto;">
+                  <svg fill="none" height="16" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewbox="0 0 24 24" width="16">
+                    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+                    <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+                  </svg>
+                  Profil módosítása
+                </button>
+                
+                <div style="background:white; padding:12px 20px; border-radius:12px; display:flex; flex-direction:column; align-items:center; min-width:120px; box-shadow:0 2px 8px rgba(0,0,0,0.05);">
+                  <div style="font-size:11px; color:rgba(8,36,50,0.6); display:flex; align-items:center; gap:4px; font-weight:600; text-transform:uppercase;">
+                    <svg fill="none" height="12" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="12">
+                      <circle cx="12" cy="12" r="10"></circle>
+                      <polyline points="12 6 12 12 16 14"></polyline>
+                    </svg>
+                    Regisztrálva:
+                  </div>
+                  <div id="cd-reg-date" style="font-size:16px; font-weight:bold; color:#082432; margin-top:4px;">N/A</div>
+                </div>
+              </div>
+            </div>
+
+            <!-- Middle Cards: Tags, Appointments, Notes -->
+            <div style="display:grid; grid-template-columns: 1fr 1fr 1.5fr; gap:20px; margin-bottom:24px;">
+              <!-- Tags -->
+              <div style="background:#f3f4f6; border-radius:12px; padding:20px; display:flex; flex-direction:column; position:relative;">
+                <h3 style="font-size:12px; font-weight:bold; color:#6b7280; text-transform:uppercase; margin-top:0; margin-bottom:16px;">Címkék</h3>
+                <div id="cd-tags" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+                <div style="position:relative; margin-top:16px;">
+                  <button id="cd-tag-add-btn" onclick="toggleTagPicker()" style="background:transparent; border:none; color:#6b7280; font-size:12px; font-weight:600; text-align:left; cursor:pointer; padding:0;">+ Címke hozzáadása</button>
+                  <div id="cd-tag-picker" style="display:none; position:absolute; left:0; bottom:32px; background:white; border:1px solid #e5e7eb; border-radius:12px; box-shadow:0 8px 24px rgba(0,0,0,0.15); padding:12px; z-index:999; min-width:220px;">
+                    <div style="font-size:11px; font-weight:700; color:#6b7280; text-transform:uppercase; margin-bottom:8px;">Előre definiált címkék</div>
+                    <div id="cd-tag-picker-predefined" style="display:flex; flex-direction:column; gap:4px;"></div>
+                    <div style="border-top:1px solid #e5e7eb; margin:10px 0;"></div>
+                    <div style="display:flex; gap:6px;">
+                      <input id="cd-tag-custom-input" type="text" placeholder="Egyéni címke..." style="flex:1; border:1px solid #d1d5db; border-radius:6px; padding:6px 8px; font-size:12px; outline:none;" onkeydown="if(event.key==='Enter'){event.preventDefault();addCustomTag();}">
+                      <button onclick="addCustomTag()" style="background:#1ceee0; color:#000; border:none; border-radius:6px; padding:6px 10px; font-size:11px; font-weight:700; cursor:pointer;">Hozzáadás</button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <!-- Previous Appointments -->
+              <div style="background:#f3f4f6; border-radius:12px; padding:20px; display:flex; flex-direction:column; position:relative;">
+                <h3 style="font-size:12px; font-weight:bold; color:#6b7280; text-transform:uppercase; margin-top:0; margin-bottom:16px;">Korábbi időpontok</h3>
+                <div id="cd-appointments" style="display:flex; flex-direction:column; gap:8px;">
+                  <!-- Mock Data initially -->
+                  <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#4b5563;">
+                    <svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    2026. 05. 01. 13:00
+                  </div>
+                  <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#4b5563;">
+                    <svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    2026. 04. 11. 16:00
+                  </div>
+                  <div style="display:flex; align-items:center; gap:8px; font-size:13px; color:#4b5563;">
+                    <svg fill="none" height="14" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24" width="14"><circle cx="12" cy="12" r="10"></circle><polyline points="12 6 12 12 16 14"></polyline></svg>
+                    2026. 03. 04. 17:00
+                  </div>
+                </div>
+                <div id="cd-all-appointments-btn" onclick="openAllAppointmentsModal()" style="margin-top:auto; text-align:right; font-size:12px; font-weight:600; color:var(--accent); cursor:pointer; display:none; transition: opacity 0.2s;" onmouseover="this.style.opacity='0.8'" onmouseout="this.style.opacity='1'">Összes időpont</div>
+              </div>
+
+              <!-- Notes -->
+              <div style="background:white; border:1px solid var(--accent); border-radius:12px; padding:20px; display:flex; flex-direction:column;">
+                <textarea id="cd-main-notes" placeholder="Megjegyzés" style="width:100%; height:100%; border:none; resize:none; font-family:inherit; font-size:14px; color:#082432; outline:none;" onchange="quickSaveNotes(this.value)"></textarea>
+              </div>
+            </div>
+
+            <!-- Total Interactions -->
+            <div id="cd-total-interactions" style="font-size:14px; font-weight:600; color:#4b5563; margin-bottom:16px;">
+              Összes interakció: 0
+            </div>
+
+            <!-- Current Matters (Aktuális ügyek) Table -->
+            <div style="margin-bottom: 32px;">
+              <h3 style="font-size:14px; font-weight:bold; margin-bottom:16px; color:#4b5563; text-transform:uppercase;">Aktuális ügyek</h3>
+              <div class="int-table-wrapper" style="border-radius:12px; border:1px solid var(--border); overflow:hidden;">
+                <table style="width:100%; border-collapse:collapse; text-align:left; background:white;">
+                  <thead class="int-thead" style="background:#f9fafb;">
+                    <tr>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border); text-transform:uppercase;">Interakció időpontja</th>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border); text-transform:uppercase;">Csatorna</th>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border); text-transform:uppercase;">Interakció iránya</th>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border); text-transform:uppercase;">Ügytípus</th>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border); text-transform:uppercase;">Eredmény</th>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border); text-transform:uppercase;">Státusz</th>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border); text-transform:uppercase;">Teendő</th>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border); text-transform:uppercase; text-align:center;">Elvégezve</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cd-history-body-current">
+                    <tr><td colspan="8" style="padding:32px; text-align:center; color:var(--text-muted); font-size:14px;">Még nincsenek adatok...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+
+            <!-- Past Interactions (Korábbi interakciók) Table -->
+            <div style="margin-bottom: 32px;">
+              <h3 style="font-size:14px; font-weight:bold; margin-bottom:16px; color:#4b5563; text-transform:uppercase;">Korábbi interakciók</h3>
+              <div class="int-table-wrapper" style="border-radius:12px; border:1px solid var(--border); overflow:hidden; opacity:0.8;">
+                <table style="width:100%; border-collapse:collapse; text-align:left; background:white;">
+                  <thead class="int-thead" style="background:#f9fafb;">
+                    <tr>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border); text-transform:uppercase;">Interakció időpontja</th>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border); text-transform:uppercase;">Csatorna</th>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border); text-transform:uppercase;">Interakció iránya</th>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border); text-transform:uppercase;">Ügytípus</th>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border); text-transform:uppercase;">Eredmény</th>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border); text-transform:uppercase;">Státusz</th>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border); text-transform:uppercase;">Teendő</th>
+                      <th style="padding:16px; font-size:11px; font-weight:600; color:#6b8b99; border-bottom:1px solid var(--border); text-transform:uppercase; text-align:center;">Napló</th>
+                    </tr>
+                  </thead>
+                  <tbody id="cd-history-body-past">
+                    <tr><td colspan="8" style="padding:32px; text-align:center; color:var(--text-muted); font-size:14px;">Még nincsenek adatok...</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+          <div class="customer-view" id="view-emails" style="display:none;">
+            <div class="page-header">
+              <div>
+                <div class="page-title">Emailek</div>
+              </div>
+              <button onclick="loadEmails()"
+                style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);padding:8px 14px;font-size:13px;cursor:pointer;font-family: 'Inter', Arial, sans-serif;">↻
+                Frissítés</button>
+            </div>
+            <div class="table-card">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Küldve</th>
+                    <th>Címzett</th>
+                    <th>Tárgy</th>
+                    <th>Állapot</th>
+                  </tr>
+                </thead>
+                <tbody id="emails-body">
+                  <tr class="loading-row">
+                    <td colspan="4">
+                      <div class="spinner"></div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+          <div class="customer-view" id="view-sessions" style="display:none;">
+            <div class="page-header">
+              <div>
+                <div class="page-title">Sessionök</div>
+                <div class="page-subtitle">Minden hangügynök kapcsolat</div>
+              </div>
+              <button onclick="loadSessions()"
+                style="background:var(--bg3);border:1px solid var(--border);border-radius:8px;color:var(--text-muted);padding:8px 14px;font-size:13px;cursor:pointer;font-family: 'Inter', Arial, sans-serif;">↻
+                Frissítés</button>
+            </div>
+            <div class="table-card">
+              <table class="data-table">
+                <thead>
+                  <tr>
+                    <th>Időpont</th>
+                    <th>Session ID</th>
+                    <th>Szoba</th>
+                    <th>Időtartam</th>
+                    <th>Állapot</th>
+                  </tr>
+                </thead>
+                <tbody id="sessions-body">
+                  <tr class="loading-row">
+                    <td colspan="5">
+                      <div class="spinner"></div>
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div><!-- end analytics-shell -->
+      </div>
+      <!-- CALENDAR PAGE -->
+      <!-- [HTML-SECTION: page-interactions] END -->
+

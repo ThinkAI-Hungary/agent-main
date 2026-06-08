@@ -17,10 +17,10 @@ THIS_DIR = Path(__file__).resolve().parent
 load_dotenv(THIS_DIR / ".env")
 
 SUPABASE_URL = os.getenv("SUPABASE_URL")
-SUPABASE_KEY = os.getenv("SUPABASE_KEY")
+SUPABASE_KEY = os.getenv("SUPABASE_SERVICE_ROLE_KEY") or os.getenv("SUPABASE_KEY")
 
 if not SUPABASE_URL or not SUPABASE_KEY:
-    logger.warning("SUPABASE_URL or SUPABASE_KEY missing from .env!")
+    logger.warning("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing from .env!")
     supabase: Client = None
 else:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)

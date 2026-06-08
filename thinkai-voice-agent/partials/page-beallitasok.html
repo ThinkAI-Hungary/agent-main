@@ -1,0 +1,131 @@
+      <!-- [HTML-SECTION: page-beallitasok] START -- System settings: General, Security, Team
+           JS: loadUsersTable(), submitSecurityPasswordChange() | CSS: settings.css -->
+      <div class="page" id="page-beallitasok">
+
+        <!-- Header -->
+        <div style="margin-bottom:24px;">
+          <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+            <h1 style="font-size:26px;font-weight:800;color:var(--text);font-family:'Inter',sans-serif;margin:0;">Beállítások</h1>
+            <svg fill="none" stroke="var(--text-muted)" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:20px;height:20px;opacity:0.5;"><circle cx="12" cy="12" r="10"/><path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/><circle cx="12" cy="17" r="1.5" fill="currentColor" stroke="none"/></svg>
+          </div>
+          <p style="font-size:14px;color:var(--text-muted);margin:0;font-family:'Inter',sans-serif;">Rendszer és üzleti beállítások kezelése</p>
+        </div>
+
+        <!-- Visibill-style horizontal tab bar -->
+        <div class="beallitasok-tabbar" id="beallitasok-tabbar">
+          <button class="beallitasok-tab active" onclick="switchBeallitasokTab('profil', this)">
+            <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+            Profil
+          </button>
+          <button class="beallitasok-tab" id="beallitasok-tab-csapat" onclick="switchBeallitasokTab('csapat', this)">
+            <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87"/><path d="M16 3.13a4 4 0 010 7.75"/></svg>
+            Csapat
+          </button>
+          <button class="beallitasok-tab" onclick="switchBeallitasokTab('biztonsag', this)">
+            <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+            Biztonság
+          </button>
+        </div>
+
+        <!-- Tab contents -->
+        <div class="beallitasok-content">
+
+          <!-- PROFIL TAB -->
+          <div id="beallitasok-view-profil" class="beallitasok-view" style="display:block;">
+            <div class="beallitasok-card">
+              <div style="display:flex;align-items:center;gap:10px;margin-bottom:4px;">
+                <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:20px;height:20px;color:#1e293b;"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                <div style="font-size:16px;font-weight:700;color:#1e293b;font-family:'Inter',sans-serif;">Felhasználói profil</div>
+              </div>
+              <div style="font-size:13px;color:#94a3b8;margin-bottom:32px;font-family:'Inter',sans-serif;">Személyes információk és avatar kezelése</div>
+
+              <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;margin-bottom:24px;">
+                <div>
+                  <label class="beallitasok-label">Teljes név</label>
+                  <input type="text" id="profil-fullname" class="beallitasok-input" placeholder="Teljes név" />
+                </div>
+                <div>
+                  <label class="beallitasok-label">Pozíció</label>
+                  <input type="text" id="profil-position" class="beallitasok-input" placeholder="Pozíció" />
+                </div>
+              </div>
+              <div style="margin-bottom:32px;">
+                <label class="beallitasok-label">Cég neve</label>
+                <input type="text" id="profil-company" class="beallitasok-input" placeholder="Cég neve" />
+              </div>
+
+              <button class="beallitasok-save-btn" onclick="saveProfile()">Profil mentése</button>
+            </div>
+          </div>
+
+          <!-- CSAPAT TAB (moved from Tudástár) -->
+          <div id="beallitasok-view-csapat" class="beallitasok-view" style="display:none;">
+            <div class="beallitasok-card">
+              <div style="margin-bottom: 8px;">
+                <div style="font-size:17px; font-weight:700; color:var(--text); font-family:'Inter',Arial,sans-serif;">Csapat</div>
+                <div style="font-size:13px; color:var(--text-muted); margin-top:4px; font-family:'Inter',Arial,sans-serif;">Felhasználók és hozzáférések kezelése</div>
+              </div>
+              <div style="border-top:1px solid var(--border); margin-top:16px; padding-top:8px;">
+                <div id="beallitasok-team-members-list">
+                  <div style="padding:32px; text-align:center; color:var(--text-muted); font-size:13px;">Betöltés...</div>
+                </div>
+                <button class="team-add-btn" onclick="openCreateUserModal()">
+                  <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+                  Új felhasználó hozzáadása
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <!-- BIZTONSÁG TAB (moved from Tudástár) -->
+          <div id="beallitasok-view-biztonsag" class="beallitasok-view" style="display:none;">
+            <div class="beallitasok-card">
+              <div style="margin-bottom: 8px;">
+                <div style="font-size:17px; font-weight:700; color:var(--text); font-family:'Inter',Arial,sans-serif;">Biztonság</div>
+                <div style="font-size:13px; color:var(--text-muted); margin-top:4px; font-family:'Inter',Arial,sans-serif;">Jelszó, munkamenet és adatvédelem</div>
+              </div>
+              <div style="border-top:1px solid var(--border); margin-top:16px; padding-top:8px;">
+                <div class="security-row">
+                  <div class="security-icon lock">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:20px;height:20px;"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0110 0v4"/></svg>
+                  </div>
+                  <div class="security-info">
+                    <div class="security-title">Jelszó módosítás</div>
+                    <div class="security-desc" id="beallitasok-security-pw-last">Utolsó módosítás: ismeretlen</div>
+                  </div>
+                  <div class="security-action">
+                    <button class="btn-security-modify" onclick="openSecurityPasswordModal()"><span>Módosítás</span></button>
+                  </div>
+                </div>
+                <div class="security-row">
+                  <div class="security-icon clock">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:20px;height:20px;"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+                  </div>
+                  <div class="security-info">
+                    <div class="security-title">Munkamenet időtúllépés</div>
+                    <div class="security-desc">15 perc inaktivitás után automatikus kijelentkezés</div>
+                  </div>
+                  <div class="security-action">
+                    <span class="security-value">15 perc</span>
+                  </div>
+                </div>
+                <div class="security-row">
+                  <div class="security-icon shield">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:20px;height:20px;"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><polyline points="9 12 11 14 15 10"/></svg>
+                  </div>
+                  <div class="security-info">
+                    <div class="security-title">GDPR megfelelőség</div>
+                    <div class="security-desc">Adatkezelési nyilatkozat és hozzájárulás kezelés</div>
+                  </div>
+                  <div class="security-action">
+                    <span class="security-badge green">MEGFELELŐ</span>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div><!-- end beallitasok-content -->
+      </div><!-- end page-beallitasok -->
+      <!-- [HTML-SECTION: page-beallitasok] END -->
+

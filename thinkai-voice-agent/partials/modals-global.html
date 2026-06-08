@@ -1,0 +1,45 @@
+      <!-- Create User Modal (Accounty style) – GLOBAL so it works from both Tudástár and Beállítások -->
+      <div class="security-modal-overlay" id="create-user-modal">
+          <div class="security-modal" style="width:460px;">
+            <div class="security-modal-header">
+              <div class="modal-icon">
+                <svg fill="none" stroke="#0dbcb4" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24" style="width:22px;height:22px;"><path d="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="8.5" cy="7" r="4"/><line x1="20" y1="8" x2="20" y2="14"/><line x1="23" y1="11" x2="17" y2="11"/></svg>
+              </div>
+              <div>
+                <h3>Új felhasználó létrehozása</h3>
+                <p>Adja meg az új felhasználó adatait</p>
+              </div>
+            </div>
+            <div class="security-modal-body">
+              <div>
+                <label>Teljes név *</label>
+                <input type="text" id="new-user-fullname" placeholder="pl. Kovács Anna">
+              </div>
+              <div>
+                <label>Felhasználónév *</label>
+                <input type="text" id="new-user-username" placeholder="pl. kovacs.anna">
+              </div>
+              <div>
+                <label>Email</label>
+                <input type="email" id="new-user-email" placeholder="anna@example.com">
+              </div>
+              <div>
+                <label>Jelszó *</label>
+                <input type="password" id="new-user-password" placeholder="Min. 4 karakter">
+              </div>
+              <div>
+                <label>Szerepkör</label>
+                <select id="new-user-role" style="width:100%;padding:11px 14px;border:1.5px solid #e5e7eb;border-radius:10px;font-size:14px;font-family:'Inter',Arial,sans-serif;outline:none;box-sizing:border-box;transition:border-color 0.2s;background:#fafafa;color:#374151;cursor:pointer;">
+                  <option value="member">Member – operatív hozzáférés, beállítások nélkül</option>
+                  <option value="manager">Manager – teljes hozzáférés, felhasználókezelés nélkül</option>
+                  <option value="admin">Admin – teljes hozzáférés + felhasználókezelés</option>
+                </select>
+              </div>
+            </div>
+            <div class="security-modal-footer">
+              <button class="btn-cancel" onclick="closeCreateUserModal()">Mégse</button>
+              <button class="btn-save" onclick="submitCreateUser()">Létrehozás</button>
+            </div>
+          </div>
+        </div>
+

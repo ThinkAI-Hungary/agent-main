@@ -1,0 +1,211 @@
+      <!-- [HTML-SECTION: page-outbound] START -- Campaigns, schedule, analytics panel
+           JS: loadCampaigns(), openCampaignModal() | CSS: outbound.css -->
+      <!-- OUTBOUND CAMPAIGNS PAGE -->
+      <div class="page" id="page-outbound">
+        <div class="page-header" style="margin-bottom:24px;">
+          <div style="display:flex; align-items:center;">
+            <div style="width:48px; height:48px; background:linear-gradient(135deg, rgba(28,238,224,0.15), rgba(59,130,246,0.15)); border-radius:14px; display:flex; align-items:center; justify-content:center; margin-right:16px;">
+              <svg fill="none" stroke="#1ceee0" stroke-width="2" viewBox="0 0 24 24" style="width:24px; height:24px;">
+                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+              </svg>
+            </div>
+            <div>
+              <div class="page-title" style="margin:0;">Kimenő kommunikáció</div>
+              <div class="page-subtitle" style="margin:0;">Kampányok kezelése és kimenő üzenetek irányítása</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Eseményvezérelt akciók -->
+        <div class="out-section">
+          <div class="out-section-title">
+            <div class="out-section-icon" style="background:rgba(34,197,94,0.12);">
+              <svg fill="none" stroke="#22c55e" stroke-width="2" viewBox="0 0 24 24" style="width:18px; height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+            </div>
+            Eseményvezérelt akciók
+          </div>
+          <div>
+            <!-- Időpont emlékeztető -->
+            <div class="out-notif-item">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <div style="width:32px; height:32px; border-radius:8px; background:rgba(28,238,224,0.1); display:flex; align-items:center; justify-content:center;">
+                  <svg fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"></path></svg>
+                </div>
+                <div>
+                  <div style="font-size:13px; font-weight:600; color:var(--text);">Időpont emlékeztető</div>
+                  <div style="font-size:11px; color:var(--text-muted);">Automatikus e-mail emlékeztetők</div>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:8px;">
+                <label class="tt-toggle" style="transform:scale(0.8);"><input type="checkbox" id="outbound-reminder-toggle" onchange="toggleOutboundReminder(this.checked)" /><span class="tt-toggle-slider"></span></label>
+                <span id="outbound-reminder-label" style="font-size:11px; font-weight:600; color:var(--text-muted);">Betöltés...</span>
+              </div>
+            </div>
+            <!-- Lemondási értesítő -->
+            <div class="out-notif-item">
+              <div style="display:flex; align-items:center; gap:12px;">
+                <div style="width:32px; height:32px; border-radius:8px; background:rgba(239,68,68,0.1); display:flex; align-items:center; justify-content:center;">
+                  <svg fill="none" stroke="#ef4444" stroke-width="2" viewBox="0 0 24 24" style="width:16px; height:16px;"><path stroke-linecap="round" stroke-linejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636"></path></svg>
+                </div>
+                <div>
+                  <div style="font-size:13px; font-weight:600; color:var(--text);">Lemondási értesítő</div>
+                  <div style="font-size:11px; color:var(--text-muted);">Automatikus értesítés lemondáskor</div>
+                </div>
+              </div>
+              <div style="display:flex; align-items:center; gap:6px;">
+                <div style="width:8px; height:8px; border-radius:50%; background:#22c55e;"></div>
+                <span style="font-size:11px; font-weight:600; color:#22c55e;">Aktív</span>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Kampányok Section -->
+        <div class="out-section">
+          <div style="display:flex; align-items:center; justify-content:space-between; margin-bottom:20px;">
+            <div class="out-section-title" style="margin-bottom:0;">
+              <div class="out-section-icon" style="background:rgba(28,238,224,0.12);">
+                <svg fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24" style="width:18px; height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z"></path></svg>
+              </div>
+              Kampányok
+            </div>
+            <button onclick="openCampaignModal()" class="out-new-campaign-btn">
+              <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="width:14px; height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M12 4v16m8-8H4"></path></svg>
+              + ÚJ KAMPÁNY
+            </button>
+          </div>
+
+          <!-- KPI Overview -->
+          <div style="margin-bottom:24px;">
+            <div style="font-size:13px; font-weight:600; color:var(--text); margin-bottom:14px;">Kampányok áttekintése</div>
+            <div class="out-kpi-grid">
+              <div class="out-kpi-stat">
+                <div class="out-kpi-value" id="out-stat-total">0</div>
+                <div class="out-kpi-label">Összes kampány</div>
+              </div>
+              <div class="out-kpi-stat">
+                <div class="out-kpi-value" id="out-stat-running" style="color:#22c55e;">0</div>
+                <div class="out-kpi-label">Futó kampány</div>
+              </div>
+              <div class="out-kpi-stat">
+                <div class="out-kpi-value" id="out-stat-closed">0</div>
+                <div class="out-kpi-label">Lezárt kampány</div>
+              </div>
+              <div class="out-kpi-stat">
+                <div class="out-kpi-value" id="out-stat-targeted">0</div>
+                <div class="out-kpi-label">Összes célzott ügyfél</div>
+              </div>
+              <div class="out-kpi-stat">
+                <div class="out-kpi-value" id="out-stat-reactions">0</div>
+                <div class="out-kpi-label">Ügyfélreakció</div>
+              </div>
+              <div class="out-kpi-stat" style="border-color:rgba(34,197,94,0.3);">
+                <div class="out-kpi-value" id="out-stat-conversion" style="color:#22c55e;">0</div>
+                <div class="out-kpi-label">Konverzió</div>
+              </div>
+            </div>
+            <div style="display:flex; align-items:center; justify-content:flex-end; gap:10px;">
+              <button onclick="toggleOutboundAnalytics()" class="out-analytics-btn" id="out-analytics-toggle-btn">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px; height:14px; vertical-align:-2px; margin-right:4px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                Analitika megtekintése
+              </button>
+            </div>
+
+            <!-- Analytics Panel (slide-down) -->
+            <div class="out-analytics-panel" id="out-analytics-panel">
+              <div class="out-analytics-inner">
+                <div class="out-analytics-header">
+                  <div class="out-analytics-title">
+                    <div class="out-analytics-title-icon">
+                      <svg fill="none" stroke="var(--accent)" stroke-width="2" viewBox="0 0 24 24" style="width:18px; height:18px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"></path></svg>
+                    </div>
+                    Kampány Analitika
+                  </div>
+                  <button onclick="toggleOutboundAnalytics()" class="out-analytics-close">
+                    <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width:14px; height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path></svg>
+                    Bezárás
+                  </button>
+                </div>
+
+                <!-- Charts Grid -->
+                <div class="out-analytics-grid">
+                  <!-- Chart 1: Status distribution -->
+                  <div class="out-chart-card">
+                    <div class="out-chart-title">
+                      <span style="font-size:16px;">&#x1F4CA;</span> Státusz eloszlás
+                    </div>
+                    <div class="out-chart-subtitle">Kampányok állapota</div>
+                    <div class="out-chart-wrap"><canvas id="out-chart-status"></canvas></div>
+                  </div>
+
+                  <!-- Chart 2: Channel usage -->
+                  <div class="out-chart-card">
+                    <div class="out-chart-title">
+                      <span style="font-size:16px;">&#x1F4E2;</span> Csatorna használat
+                    </div>
+                    <div class="out-chart-subtitle">Melyik csatornán hány kampány fut</div>
+                    <div class="out-chart-wrap"><canvas id="out-chart-channels"></canvas></div>
+                  </div>
+
+                  <!-- Chart 3: Clients per campaign -->
+                  <div class="out-chart-card">
+                    <div class="out-chart-title">
+                      <span style="font-size:16px;">&#x1F465;</span> Célzott ügyfelek
+                    </div>
+                    <div class="out-chart-subtitle">Ügyfélszám kampányonként</div>
+                    <div class="out-chart-wrap"><canvas id="out-chart-clients"></canvas></div>
+                  </div>
+
+                  <!-- Chart 4: Timeline -->
+                  <div class="out-chart-card">
+                    <div class="out-chart-title">
+                      <span style="font-size:16px;">&#x1F4C5;</span> Idővonal
+                    </div>
+                    <div class="out-chart-subtitle">Kampány létrehozások időrendben</div>
+                    <div class="out-chart-wrap"><canvas id="out-chart-timeline"></canvas></div>
+                  </div>
+                </div>
+
+                <!-- Summary Row -->
+                <div class="out-analytics-summary">
+                  <div class="out-summary-item">
+                    <div class="out-summary-value" id="out-sum-avg-clients">0</div>
+                    <div class="out-summary-label">Átl. ügyfél/kampány</div>
+                  </div>
+                  <div class="out-summary-item">
+                    <div class="out-summary-value" id="out-sum-top-channel">-</div>
+                    <div class="out-summary-label">Leggyakoribb csatorna</div>
+                  </div>
+                  <div class="out-summary-item">
+                    <div class="out-summary-value" id="out-sum-success-rate">0%</div>
+                    <div class="out-summary-label">Befejezési arány</div>
+                  </div>
+                  <div class="out-summary-item">
+                    <div class="out-summary-value" id="out-sum-last-campaign">-</div>
+                    <div class="out-summary-label">Utolsó kampány</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Filter Tabs -->
+          <div class="out-view-switcher">
+            <button class="out-view-btn active" onclick="filterOutboundView('Összes')">Összes</button>
+            <button class="out-view-btn" onclick="filterOutboundView('Tervezet')">Tervezet</button>
+            <button class="out-view-btn" onclick="filterOutboundView('Aktív')">Aktív</button>
+            <button class="out-view-btn" onclick="filterOutboundView('Elküldött')">Elküldött</button>
+            <button class="out-view-btn" onclick="filterOutboundView('Ütemezett')">Ütemezett</button>
+          </div>
+
+          <!-- Campaign Cards Grid -->
+          <div id="out-campaigns-grid" class="out-campaign-grid">
+            <div style="grid-column:1/-1; text-align:center; padding:60px 20px; color:var(--text-muted);">
+              <div class="spinner" style="margin:0 auto 12px;"></div>
+              Kampányok betöltése...
+            </div>
+          </div>
+        </div>
+      </div><!-- end page-outbound -->
+      <!-- [HTML-SECTION: page-outbound] END -->
+

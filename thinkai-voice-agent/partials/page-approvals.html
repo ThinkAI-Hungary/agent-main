@@ -1,0 +1,105 @@
+      <!-- [HTML-SECTION: page-approvals] START -- Approval grid/list, modal
+           JS: loadApprovals(), submitApproval() | CSS: components.css -->
+      <!-- APPROVALS PAGE -->
+      <div class="page" id="page-approvals">
+        <div class="page-header" style="margin-bottom:18px; display: flex; align-items: center;">
+          <div style="display: flex; align-items: center;">
+            <div style="width: 48px; height: 48px; background: #f1f5f9; border-radius: 14px; display: flex; align-items: center; justify-content: center; margin-right: 16px;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 24px; height: 24px; color: #1e293b;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+              </svg>
+            </div>
+            <div class="page-title" style="margin:0;">Jóváhagyó rendszer</div>
+          </div>
+          
+          <div class="view-switcher-container" style="margin-left: 32px; display: flex; gap: 8px;">
+            <button class="view-btn active" id="btn-tab-pending" onclick="switchApprovalTab('pending')" style="display: flex; align-items: center;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px; margin-right: 8px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4"></path>
+              </svg> Várakozó
+            </button>
+            <button class="view-btn" id="btn-tab-history" onclick="switchApprovalTab('history')" style="display: flex; align-items: center;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px; margin-right: 8px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path>
+              </svg> Előzmények
+            </button>
+            <div style="width: 1px; background: var(--border); margin: 0 4px;"></div>
+            <button class="view-btn active" id="btn-layout-grid" onclick="setApprovalView('grid')" title="Kanban Nézet" style="display: flex; align-items: center; padding: 8px;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2V6zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2V6zM4 16a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2H6a2 2 0 01-2-2v-2zm10 0a2 2 0 012-2h2a2 2 0 012 2v2a2 2 0 01-2 2h-2a2 2 0 01-2-2v-2z"></path>
+              </svg>
+            </button>
+            <button class="view-btn" id="btn-layout-list" onclick="setApprovalView('list')" title="Lista Nézet" style="display: flex; align-items: center; padding: 8px;">
+              <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 18px; height: 18px;">
+                <path stroke-linecap="round" stroke-linejoin="round" d="M4 6h16M4 12h16M4 18h16"></path>
+              </svg>
+            </button>
+          </div>
+
+          <div style="margin-left: auto; display: flex; align-items: center; gap: 12px;">
+            <div id="approval-bulk-actions" style="display: none; align-items: center; gap: 8px; margin-right: 8px; border-right: 1px solid var(--border); padding-right: 12px;">
+              <span id="approval-selected-count" style="color: var(--text-muted); font-size: 13px; font-weight: 600;">0 kijelölve</span>
+              <button onclick="deleteSelectedApprovals()" style="background: #ef4444; color: white; border: none; padding: 8px 14px; border-radius: 8px; font-weight: 600; font-size: 13px; cursor: pointer; transition: 0.2s; display: flex; align-items: center;" onmouseover="this.style.background='#dc2626'" onmouseout="this.style.background='#ef4444'">
+                <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 14px; height: 14px; margin-right: 6px;"><path stroke-linecap="round" stroke-linejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"></path></svg> Törlés
+              </button>
+            </div>
+            
+            <label style="display: flex; align-items: center; cursor: pointer; color: var(--text-muted); font-size: 13px; font-weight: 600;">
+              <input type="checkbox" id="approval-select-all" onclick="toggleAllApprovals(this)" style="margin-right: 6px; cursor: pointer; width: 16px; height: 16px;"> Mind
+            </label>
+            <select id="approval-category-filter" onchange="loadApprovals()" style="background: var(--bg2); color: var(--text); border: 1.5px solid var(--border); border-radius: 10px; padding: 10px 16px; font-weight: 600; outline: none; cursor: pointer;">
+              <option value="all">Összes kategória</option>
+              <option value="urgent">Sürgős</option>
+              <option value="complaint">Panasz</option>
+              <option value="stuck">Technikai hiba</option>
+              <option value="ajanlat">Árajánlat</option>
+              <option value="foglalt">Időpontfoglalás</option>
+              <option value="irrelevant">Spam / Irreleváns</option>
+              <option value="other">Egyéb</option>
+            </select>
+            <button class="btn-refresh" onclick="loadApprovals()"><svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 16px; height: 16px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"></path>
+            </svg></button>
+          </div>
+        </div>
+
+        <div id="approval-count-label" style="text-align: right; margin-bottom: 12px; font-size: 13px; color: var(--text-muted); font-weight: 600;">0 megjelenítve</div>
+        <div class="approvals-grid" id="approvals-grid">
+          <!-- Cards will be injected here -->
+        </div>
+      </div>
+      
+  <!-- APPROVAL MODAL -->
+  <div id="approval-modal" style="display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
+    <div class="login-card" style="width:800px; max-width:90vw; padding:24px;">
+      <div class="modal-header" style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px; padding-bottom: 16px; border-bottom: 1px solid var(--border);">
+        <h3 class="modal-title" style="font-size: 22px; font-weight: 700; margin: 0; display: flex; align-items: center; color: #0f172a;">Üzenet jóváhagyása</h3>
+        <button onclick="closeApprovalModal()" style="background: transparent; border: none; cursor: pointer; color: var(--text-muted); padding: 8px; border-radius: 8px; display: flex; align-items: center; justify-content: center; transition: background 0.2s;" onmouseover="this.style.background='var(--bg)'" onmouseout="this.style.background='transparent'">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 24px; height: 24px;">
+            <path stroke-linecap="round" stroke-linejoin="round" d="M6 18L18 6M6 6l12 12"></path>
+          </svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div style="margin-bottom: 16px; background: var(--bg); padding: 16px; border-radius: 8px; border: 1px solid var(--border);">
+          <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; font-weight: 700;">Eredeti üzenet / Kontextus:</div>
+          <div id="approval-original-topic" style="font-weight: 500; font-size: 15px; line-height: 1.5;"></div>
+        </div>
+        <div style="margin-bottom: 24px;">
+          <div style="font-size: 13px; color: var(--text-muted); margin-bottom: 8px; text-transform: uppercase; font-weight: 700;">AI által generált válasz piszkozata:</div>
+          <textarea id="approval-draft-text" class="form-control" style="height: 350px; resize: vertical; width: 100%; font-family: inherit; font-size: 14px; line-height: 1.6; padding: 16px; background: var(--bg); color: var(--text); border: 1px solid var(--border); border-radius: 8px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.05);"></textarea>
+        </div>
+        <div style="display: flex; gap: 12px; justify-content: flex-end;">
+
+          <button onclick="submitApproval('approve')" id="btn-approval-approve" style="background: linear-gradient(135deg, #1ceee0, #0bbdb1); color: #082432; border: none; padding: 10px 24px; border-radius: 8px; font-weight: 700; cursor: pointer; transition: 0.2s; display: flex; align-items: center; box-shadow: 0 4px 16px rgba(28,238,224,0.3);" onmouseover="this.style.filter='brightness(1.05)'" onmouseout="this.style.filter='brightness(1)'">
+            <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" style="width: 16px; height: 16px; margin-right: 8px;">
+              <path stroke-linecap="round" stroke-linejoin="round" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path>
+            </svg> Jóváhagyás és Küldés
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+      <!-- [HTML-SECTION: page-approvals] END -->
+

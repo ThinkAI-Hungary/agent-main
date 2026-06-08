@@ -20,6 +20,7 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, Request, status, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
+from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 import jwt as pyjwt
@@ -47,6 +48,12 @@ db.seed_admin_from_env()
 db.migrate_from_json()   # one-time migration from legacy JSON files
 
 app = FastAPI(title="ThinkAI Voice Agent")
+
+# ── Static file mounts (modularized CSS/JS) ───────────────────────────────────
+if (THIS_DIR / "css").is_dir():
+    app.mount("/css", StaticFiles(directory=THIS_DIR / "css"), name="css")
+if (THIS_DIR / "js").is_dir():
+    app.mount("/js", StaticFiles(directory=THIS_DIR / "js"), name="js")
 
 background_tasks = set()
 
@@ -225,12 +232,45 @@ async def index():
 async def widget():
     return FileResponse(THIS_DIR / "voice-widget.html")
 
+PARTIALS_DIR = THIS_DIR / "partials"
+PARTIAL_ORDER = [
+    "head.html",
+    "login.html",
+    "sidebar.html",
+    "main-header.html",
+    "page-analytics.html",
+    "page-calls.html",
+    "page-approvals.html",
+    "page-outbound.html",
+    "page-settings.html",
+    "modals-global.html",
+    "page-interactions.html",
+    "page-calendar.html",
+    "page-beallitasok.html",
+    "page-help.html",
+    "footer.html",
+]
+
+def _assemble_admin_html() -> str:
+    """Assemble admin page from partial HTML files."""
+    parts = []
+    for name in PARTIAL_ORDER:
+        path = PARTIALS_DIR / name
+        parts.append(path.read_text(encoding="utf-8"))
+    return "".join(parts)
+
+_ADMIN_CACHE_HEADERS = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
+
 @app.get("/admin")
 def admin_page():
-    return FileResponse(
-        THIS_DIR / "admin.html",
-        headers={"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
-    )
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content=_assemble_admin_html(), headers=_ADMIN_CACHE_HEADERS)
+
+@app.get("/admin/{page}")
+def admin_subpage(page: str):
+    """Serve the same SPA for sub-routes like /admin/analytics, /admin/calendar, etc."""
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content=_assemble_admin_html(), headers=_ADMIN_CACHE_HEADERS)
 
 @app.get("/marketing")
 def marketing_page():

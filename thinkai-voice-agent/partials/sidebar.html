@@ -1,0 +1,164 @@
+  <!-- [HTML-SECTION: app] APP SHELL -- sidebar + main content, hidden until login -->
+  <!-- APP -->
+  <div id="app">
+    <!-- [HTML-SECTION: sidebar] START -- logo, nav, user info, theme toggle, collapse, password modal
+         CSS: sidebar.css | JS: toggleSidebarCollapse(), toggleDarkMode(), showPage(), doLogout() -->
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <!-- Collapse toggle button -->
+      <button class="sidebar-collapse-btn" onclick="toggleSidebarCollapse()" title="Ctrl+B">
+        <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" width="12" height="12"><path stroke-linecap="round" stroke-linejoin="round" d="M15 19l-7-7 7-7"/></svg>
+      </button>
+      <div class="sidebar-logo has-switch" onclick="document.getElementById('logo-switch-dd').classList.toggle('open')">
+        <img src="/eaisydesk_logo.png" alt="eaisydesk" class="sidebar-logo-img" style="height:28px; width:auto; object-fit:contain; transition: all 0.3s ease;">
+      </div>
+      <div class="logo-switch-dd" id="logo-switch-dd">
+        <a class="logo-switch-link" href="/marketing">
+          <div class="logo-switch-icon" style="background:linear-gradient(135deg,#8b5cf6,#6d28d9);color:#fff;">M</div>
+          <div><div class="logo-switch-name">EAISY Marketing</div><div class="logo-switch-desc">Marketing automatizáció</div></div>
+        </a>
+      </div>
+      <div style="margin-bottom:18px;"></div>
+      <button class="nav-item active" id="nav-analytics" onclick="showPage('analytics')" data-tooltip="Analitika">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+          <path d="M3 12h2l3-9 4 18 3-9h6"></path>
+        </svg>
+        <span id="nav-analytics-label">Analitika</span>
+      </button>
+      <div class="nav-group">
+        <button class="nav-group-toggle open" id="nav-interactions-group" onclick="toggleNavGroup(this)" data-tooltip="Ügyfélközpont">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+            <path d="M8 12h8M8 8h4m-4 8h6M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z"></path>
+          </svg>
+          <span>Ügyfélközpont</span>
+          <svg class="nav-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>
+        </button>
+        <div class="nav-submenu open" id="nav-submenu-interactions">
+          <button class="nav-sub-item" id="nav-sub-interactions" onclick="showPage('interactions')">Interakciós lista</button>
+          <button class="nav-sub-item" id="nav-sub-clients" onclick="showPage('clients')">Ügyféllista</button>
+          <button class="nav-sub-item" id="nav-sub-kanban" onclick="showPage('kanban')">Érdeklődőkezelés</button>
+        </div>
+      </div>
+      <button class="nav-item" id="nav-calendar" onclick="showPage('calendar')" data-tooltip="Naptár">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+          <rect height="18" rx="2" width="18" x="3" y="4"></rect>
+          <path d="M16 2v4M8 2v4M3 10h18"></path>
+        </svg>
+        <span>Naptár</span>
+      </button>
+      <!-- HIDDEN: Hívások menu item (kept for future use) -->
+      <!--
+      <button class="nav-item" id="nav-calls" onclick="showPage('calls')" style="display:none;">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+          <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.07 1.18 2 2 0 012.07 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z"></path>
+        </svg>
+        <span>Hívások</span>
+      </button>
+      -->
+
+
+      <!-- Jóváhagyó rendszer sidebar [HIDDEN — display:none eltávolításával visszahozható] -->
+      <button class="nav-item" id="nav-approvals" onclick="showPage('approvals')" data-tooltip="Jóváhagyó rendszer" style="display:none;">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24">
+          <path stroke-linecap="round" stroke-linejoin="round" d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z"></path>
+        </svg>
+        <span>Jóváhagyó rendszer</span>
+      </button>
+      <button class="nav-item" id="nav-outbound" onclick="showPage('outbound')" data-tooltip="Kimenő kommunikáció">
+        <svg fill="none" stroke="currentColor" stroke-width="2" viewbox="0 0 24 24">
+          <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z"></path>
+        </svg>
+        <span>Kimenő kommunikáció</span>
+      </button>
+      <div class="nav-group">
+        <button class="nav-group-toggle" id="nav-settings" onclick="toggleSettingsNav(this)" data-tooltip="Tudástár">
+          <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M4 19.5A2.5 2.5 0 016.5 17H20"></path>
+            <path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z"></path>
+            <path d="M8 7h8M8 11h6"></path>
+          </svg>
+          <span>Tudástár</span>
+          <svg class="nav-chevron" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>
+        </button>
+        <div class="nav-submenu" id="nav-submenu-settings">
+          <button class="nav-sub-item" id="nav-sub-settings-agent" onclick="showSettingsSubPage('agent')">Telefon</button>
+          <button class="nav-sub-item" id="nav-sub-settings-praxis" onclick="showSettingsSubPage('praxis')">Céginformációk</button>
+          <button class="nav-sub-item" id="nav-sub-settings-szabalyok" onclick="showSettingsSubPage('szabalyok')">Szabályok</button>
+
+        </div>
+      </div>
+      <button class="nav-item" id="nav-help" onclick="showPage('help')" data-tooltip="Segítség">
+        <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <circle cx="12" cy="17" r="1.5" fill="currentColor" stroke="none"/>
+
+        </svg>
+
+        <span>Segítség</span>
+      </button>
+      <div class="sidebar-bottom">
+        <!-- Visibill-style user section -->
+        <div class="sidebar-user-row">
+          <div class="user-avatar" id="user-avatar-char">A</div>
+          <div class="user-text">
+            <div class="user-name" id="sidebar-username">admin</div>
+            <div class="user-role" id="sidebar-userrole">Adminisztrátor</div>
+          </div>
+          <button class="sidebar-theme-toggle" onclick="toggleDarkMode()" title="Sötét/Világos mód">
+            <!-- Sun icon (light mode) -->
+            <svg class="icon-sun" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="5"/><line x1="12" y1="1" x2="12" y2="3"/><line x1="12" y1="21" x2="12" y2="23"/><line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/><line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/><line x1="1" y1="12" x2="3" y2="12"/><line x1="21" y1="12" x2="23" y2="12"/><line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/><line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/></svg>
+            <!-- Moon icon (dark mode) -->
+            <svg class="icon-moon" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z"/></svg>
+          </button>
+        </div>
+
+        <!-- Settings + Logout icon buttons -->
+        <div class="sidebar-btn-row">
+          <button class="sidebar-icon-btn" onclick="showPage('beallitasok')" data-tooltip="Beállítások" title="Beállítások">
+            <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 00.33 1.82l.06.06a2 2 0 010 2.83 2 2 0 01-2.83 0l-.06-.06a1.65 1.65 0 00-1.82-.33 1.65 1.65 0 00-1 1.51V21a2 2 0 01-2 2 2 2 0 01-2-2v-.09A1.65 1.65 0 009 19.4a1.65 1.65 0 00-1.82.33l-.06.06a2 2 0 01-2.83 0 2 2 0 010-2.83l.06-.06A1.65 1.65 0 004.68 15a1.65 1.65 0 00-1.51-1H3a2 2 0 01-2-2 2 2 0 012-2h.09A1.65 1.65 0 004.6 9a1.65 1.65 0 00-.33-1.82l-.06-.06a2 2 0 010-2.83 2 2 0 012.83 0l.06.06A1.65 1.65 0 009 4.68a1.65 1.65 0 001-1.51V3a2 2 0 012-2 2 2 0 012 2v.09a1.65 1.65 0 001 1.51 1.65 1.65 0 001.82-.33l.06-.06a2 2 0 012.83 0 2 2 0 010 2.83l-.06.06A1.65 1.65 0 0019.4 9a1.65 1.65 0 001.51 1H21a2 2 0 012 2 2 2 0 01-2 2h-.09a1.65 1.65 0 00-1.51 1z"/></svg>
+          </button>
+          <button class="sidebar-icon-btn btn-logout-new" onclick="doLogout()" data-tooltip="Kijelentkezés" title="Kijelentkezés">
+            <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+          </button>
+        </div>
+
+        <!-- Sidebar collapse/expand toggle -->
+        <button class="sidebar-collapse-bar" onclick="toggleSidebarCollapse()" title="Sidebar becsukás (Ctrl+B)">
+          <svg fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" viewBox="0 0 24 24"><rect width="18" height="18" x="3" y="3" rx="2"/><path d="M9 3v18"/></svg>
+        </button>
+
+        <!-- Hidden legacy elements for compatibility -->
+        <span id="theme-icon" style="display:none;"></span>
+        <span id="theme-label" style="display:none;"></span>
+        <button id="theme-toggle-btn" onclick="toggleDarkMode()" style="display:none;"></button>
+        <svg id="theme-icon-svg" style="display:none;"></svg>
+        <span id="flyout-theme-label" style="display:none;"></span>
+        <svg id="flyout-theme-icon" style="display:none;"></svg>
+        <!-- Hidden password button for members -->
+        <button id="sidebar-pw-btn" onclick="openSidebarPasswordModal()" style="display:none;"></button>
+      </div>
+
+      <!-- Sidebar Password Change Modal -->
+      <div id="sidebar-pw-modal" style="display:none; position:fixed; top:0;left:0;right:0;bottom:0; background:rgba(0,0,0,0.6); z-index:1000; align-items:center; justify-content:center;">
+        <div class="login-card" style="width:380px; max-width:90vw;">
+          <h3 style="margin-bottom:20px; font-size:18px; font-weight:700;">🔒 Jelszó módosítása</h3>
+          <div style="display:flex; flex-direction:column; gap:14px;">
+            <div>
+              <label class="tt-label">Jelenlegi jelszó</label>
+              <input type="password" id="sidebar-pw-current" class="tt-input" placeholder="Jelenlegi jelszó">
+            </div>
+            <div>
+              <label class="tt-label">Új jelszó</label>
+              <input type="password" id="sidebar-pw-new" class="tt-input" placeholder="Új jelszó (min. 4 karakter)">
+            </div>
+          </div>
+          <div style="display:flex; gap:10px; margin-top:24px;">
+            <button class="btn-primary" onclick="closeSidebarPasswordModal()" style="background:var(--bg3);color:var(--text);flex:1;">Mégse</button>
+            <button class="btn-primary" onclick="submitSidebarPasswordChange()" style="flex:1;">Módosítás</button>
+          </div>
+        </div>
+      </div>
+    </aside>
+    <!-- [HTML-SECTION: sidebar] END -->
+

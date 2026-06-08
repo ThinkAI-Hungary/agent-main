@@ -1,0 +1,258 @@
+    .fc {
+      font-family: 'Inter', Arial, sans-serif;
+    }
+
+    .fc-event {
+      border-radius: 4px;
+      border: none;
+      padding: 2px 4px;
+      font-size: 11px;
+      cursor: pointer;
+    }
+
+    .fc-toolbar-title {
+      font-size: 16px !important;
+      font-weight: 600 !important;
+      color: #0a1f2e !important;
+    }
+
+    .fc-col-header-cell-cushion,
+    .fc-daygrid-day-number {
+      color: #374151 !important;
+      text-decoration: none !important;
+    }
+
+    .fc-daygrid-day.fc-day-today {
+      background: rgba(28, 238, 224, 0.06) !important;
+    }
+
+    .fc-button {
+      font-size: 13px !important;
+      font-family: 'Inter', sans-serif !important;
+    }
+
+    /* ── Calendar page classes ─────────────────────────────────── */
+    .calendar-grid-wrapper {
+      display: block;
+      background: var(--bg2, #fff);
+      padding: 20px;
+      border-radius: 16px;
+      border: 1px solid var(--border, #e5e7eb);
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.04);
+      /* Fixed height so calendar fits on screen without page scroll */
+      height: calc(100vh - 240px);
+      min-height: 400px;
+      overflow: hidden;
+    }
+
+    .cal-refresh-btn {
+      background: var(--bg2, #fff);
+      border: 1px solid var(--border, #e5e7eb);
+      border-radius: 8px;
+      color: var(--text-muted, #6b8b99);
+      padding: 8px 14px;
+      font-size: 13px;
+      cursor: pointer;
+      font-family: 'Inter', Arial, sans-serif;
+      transition: all 0.2s;
+      font-weight: 500;
+    }
+
+    .cal-refresh-btn:hover {
+      border-color: var(--accent, #1ceee0);
+      color: var(--accent, #1ceee0);
+      background: rgba(28, 238, 224, 0.06);
+    }
+
+    /* ── FullCalendar Premium Overrides ─────────────────────── */
+    .fc {
+      font-family: 'Inter', Arial, sans-serif !important;
+    }
+    .fc .fc-toolbar-title {
+      font-size: 18px !important;
+      font-weight: 700 !important;
+      color: var(--text, #082432) !important;
+    }
+    .fc .fc-button {
+      background: var(--bg2, #fff) !important;
+      border: 1px solid var(--border, #e5e7eb) !important;
+      color: var(--text-muted, #6b8b99) !important;
+      border-radius: 8px !important;
+      font-size: 12px !important;
+      font-weight: 600 !important;
+      padding: 6px 12px !important;
+      text-transform: none !important;
+      transition: all 0.2s !important;
+      box-shadow: none !important;
+    }
+    .fc .fc-button:hover {
+      border-color: var(--accent, #1ceee0) !important;
+      color: var(--accent, #1ceee0) !important;
+      background: rgba(28, 238, 224, 0.06) !important;
+    }
+    .fc .fc-button-active {
+      background: rgba(28, 238, 224, 0.12) !important;
+      border-color: var(--accent, #1ceee0) !important;
+      color: var(--accent, #1ceee0) !important;
+    }
+    .fc .fc-button-primary:not(:disabled).fc-button-active {
+      background: rgba(28, 238, 224, 0.12) !important;
+      border-color: var(--accent, #1ceee0) !important;
+      color: var(--accent, #1ceee0) !important;
+    }
+    .fc .fc-toolbar {
+      margin-bottom: 20px !important;
+    }
+    .fc .fc-col-header-cell {
+      background: var(--bg3, #f0f2f5) !important;
+      border-color: var(--border, #e5e7eb) !important;
+      padding: 10px 0 !important;
+    }
+    .fc .fc-col-header-cell-cushion {
+      color: var(--text-muted, #6b8b99) !important;
+      font-size: 12px !important;
+      font-weight: 600 !important;
+      text-transform: uppercase !important;
+      letter-spacing: 0.5px !important;
+      text-decoration: none !important;
+    }
+    .fc .fc-timegrid-slot {
+      height: 2.5em !important;
+      border-color: var(--border, #e5e7eb) !important;
+    }
+    .fc .fc-timegrid-slot-label-cushion {
+      font-size: 11px !important;
+      font-weight: 500 !important;
+      color: var(--text-muted, #6b8b99) !important;
+    }
+    .fc .fc-scrollgrid {
+      border-color: var(--border, #e5e7eb) !important;
+      border-radius: 12px !important;
+      overflow: hidden !important;
+    }
+    .fc .fc-scrollgrid td,
+    .fc .fc-scrollgrid th {
+      border-color: var(--border, #e5e7eb) !important;
+    }
+    .fc .fc-timegrid-col.fc-day-today {
+      background: rgba(28, 238, 224, 0.03) !important;
+    }
+    .fc .fc-daygrid-day.fc-day-today {
+      background: rgba(28, 238, 224, 0.05) !important;
+    }
+    .fc .fc-daygrid-day-number {
+      font-size: 13px !important;
+      font-weight: 600 !important;
+      color: var(--text, #082432) !important;
+      padding: 8px !important;
+    }
+    .fc .fc-timegrid-now-indicator-line {
+      border-color: #ef4444 !important;
+      border-width: 2px !important;
+    }
+    .fc .fc-timegrid-now-indicator-arrow {
+      border-color: #ef4444 !important;
+    }
+
+    /* Event styling */
+    .fc .fc-event {
+      border: none !important;
+      border-radius: 8px !important;
+      padding: 4px 8px !important;
+      font-size: 12px !important;
+      font-weight: 600 !important;
+      cursor: pointer !important;
+      transition: transform 0.15s, box-shadow 0.15s !important;
+      background: linear-gradient(135deg, #1ceee0 0%, #0dbcb4 100%) !important;
+      color: #0a1f2e !important;
+      box-shadow: 0 2px 8px rgba(28, 238, 224, 0.25) !important;
+    }
+    .fc .fc-event:hover {
+      transform: translateY(-1px) !important;
+      box-shadow: 0 4px 16px rgba(28, 238, 224, 0.35) !important;
+    }
+    .fc .fc-event .fc-event-time {
+      font-weight: 700 !important;
+      font-size: 11px !important;
+      opacity: 0.85 !important;
+    }
+    .fc .fc-event .fc-event-title {
+      font-weight: 600 !important;
+      font-size: 12px !important;
+    }
+    .fc .fc-timegrid-event {
+      border-left: 3px solid rgba(10, 31, 46, 0.3) !important;
+    }
+
+    /* ── Calendar dark mode ────────────────────────────────────── */
+    body.dark .calendar-grid-wrapper {
+      background: var(--bg2) !important;
+      border-color: var(--border) !important;
+      box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2) !important;
+    }
+
+    body.dark .cal-refresh-btn {
+      background: var(--bg3) !important;
+      border-color: var(--border) !important;
+      color: var(--text-muted) !important;
+    }
+
+    body.dark .fc .fc-toolbar-title {
+      color: #e8edf5 !important;
+    }
+
+    body.dark .fc .fc-col-header-cell {
+      background: #0f2d40 !important;
+    }
+    body.dark .fc .fc-col-header-cell-cushion,
+    body.dark .fc .fc-daygrid-day-number {
+      color: #c8d6e5 !important;
+    }
+    body.dark .fc .fc-scrollgrid,
+    body.dark .fc .fc-scrollgrid td,
+    body.dark .fc .fc-scrollgrid th {
+      border-color: #1a3548 !important;
+    }
+    body.dark .fc .fc-timegrid-slot-label-cushion {
+      color: #4a7080 !important;
+    }
+    body.dark .fc .fc-button {
+      background: #0f2d40 !important;
+      border-color: #1a3548 !important;
+      color: #6b8b99 !important;
+    }
+    body.dark .fc .fc-button:hover {
+      border-color: #1ceee0 !important;
+      color: #1ceee0 !important;
+      background: rgba(28, 238, 224, 0.08) !important;
+    }
+    body.dark .fc .fc-button-active,
+    body.dark .fc .fc-button-primary:not(:disabled).fc-button-active {
+      background: rgba(28, 238, 224, 0.12) !important;
+      border-color: #1ceee0 !important;
+      color: #1ceee0 !important;
+    }
+    body.dark .fc .fc-event {
+      background: linear-gradient(135deg, #1ceee0 0%, #0dbcb4 100%) !important;
+      color: #0a1f2e !important;
+      box-shadow: 0 2px 10px rgba(28, 238, 224, 0.2) !important;
+    }
+    body.dark .fc .fc-list-event:hover td {
+      background: rgba(28, 238, 224, 0.05) !important;
+    }
+    body.dark .fc .fc-list-day-cushion {
+      background: #0f2d40 !important;
+      color: #6b8b99 !important;
+    }
+
+    body.dark #page-calendar {
+      --fc-page-bg-color: transparent;
+      --fc-neutral-bg-color: #0f2d40;
+      --fc-list-event-hover-bg-color: rgba(28, 238, 224, 0.05);
+      --fc-theme-standard-border-color: #1a3548;
+      --fc-border-color: #1a3548;
+      --fc-today-bg-color: rgba(28, 238, 224, 0.05);
+    }
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+
+    /* ╔══════════════════════════════════════════════════════════════════════════╗

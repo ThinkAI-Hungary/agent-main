@@ -1,0 +1,38 @@
+<!-- [HTML-SECTION: floating-elements] -- Floating campaign client picker bar (outbound.css) -->
+<div class="camp-float-bar" id="camp-float-bar">
+  <div class="camp-float-info">
+    <div class="camp-float-icon">
+      <svg fill="none" stroke="#1ceee0" stroke-width="2" viewBox="0 0 24 24" style="width:20px; height:20px;"><path stroke-linecap="round" stroke-linejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"></path></svg>
+    </div>
+    <div>
+      <div class="camp-float-title">Ügyfelek kiválasztása kampányhoz</div>
+      <div class="camp-float-subtitle">Jelöld ki az ügyfeleket, majd kattints a "Vissza" gombra</div>
+    </div>
+  </div>
+  <div class="camp-float-actions">
+    <div style="display:flex; align-items:center; gap:8px;">
+      <span style="font-size:12px; color:rgba(255,255,255,0.5);">Kijelölve:</span>
+      <span class="camp-float-count" id="camp-float-count">0</span>
+    </div>
+    <button class="camp-float-cancel" onclick="cancelCampClientPick()">Mégsem</button>
+    <button class="camp-float-confirm" onclick="confirmCampClientPick()">
+      <svg fill="none" stroke="currentColor" stroke-width="2.5" viewBox="0 0 24 24" style="width:14px; height:14px;"><path stroke-linecap="round" stroke-linejoin="round" d="M9 12l2 2 4-4"></path></svg>
+      Vissza a kampányhoz
+    </button>
+  </div>
+</div>
+
+  <!-- JS Modules (extracted from inline scripts) -->
+  <script src="js/admin-core.js"></script>
+  <script src="js/admin-analytics.js"></script>
+  <script src="js/admin-interactions.js"></script>
+  <script src="js/admin-calendar.js"></script>
+  <script src="js/admin-kanban.js"></script>
+  <script src="js/admin-urgent.js"></script>
+  <script src="js/admin-settings.js"></script>
+  <script src="js/admin-customers.js"></script>
+  <script src="js/admin-outbound.js"></script>
+
+</body>
+
+</html>

@@ -1,0 +1,383 @@
+    /* ── Sidebar ───────────────────────────────────────────────────── */
+    .sidebar {
+      position: fixed;
+      left: 0;
+      top: 0;
+      bottom: 0;
+      width: 240px;
+      background: #082432;
+      border-right: 1px solid #1a3548;
+      display: flex;
+      flex-direction: column;
+      padding: 24px 16px;
+      z-index: 100;
+    }
+
+    .sidebar-logo {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 4px 8px 24px;
+      border-bottom: 1px solid #1a3548;
+      margin-bottom: 20px;
+    }
+
+    .sidebar-logo-icon {
+      width: 32px;
+      height: 32px;
+      background: linear-gradient(135deg, var(--accent), var(--accent2));
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 14px;
+      font-weight: 700;
+      color: #0a1f2e;
+      flex-shrink: 0;
+    }
+
+    .sidebar-logo-text {
+      font-size: 16px;
+      font-weight: 700;
+      background: linear-gradient(90deg, #e8edf5 60%, var(--accent));
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+
+    .nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 11px 14px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13.5px;
+      font-weight: 500;
+      color: #8ea9c0;
+      transition: all 0.2s ease;
+      margin-bottom: 3px;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      letter-spacing: 0.01em;
+    }
+
+    .nav-item:hover {
+      background: rgba(28, 238, 224, 0.08);
+      color: #e0f2f1;
+    }
+
+    .nav-item.active {
+      background: rgba(28, 238, 224, 0.15);
+      color: #1ceee0;
+    }
+
+    .nav-item svg {
+      width: 18px;
+      height: 18px;
+      flex-shrink: 0;
+    }
+
+    .nav-group {}
+    .nav-group-toggle { display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;cursor:pointer;font-size:13.5px;font-weight:500;color:#8ea9c0;transition:all 0.2s ease;margin-bottom:3px;border:none;background:none;width:100%;text-align:left;letter-spacing:0.01em; }
+    .nav-group-toggle:hover { background:rgba(28,238,224,0.08);color:#e0f2f1; }
+    .nav-group-toggle.active { color:#1ceee0; }
+    .nav-group-toggle svg { width:18px;height:18px;flex-shrink:0; }
+    .nav-group-toggle .nav-chevron { margin-left:auto;width:14px;height:14px;transition:transform 0.2s; }
+    .nav-group-toggle.open .nav-chevron { transform:rotate(180deg); }
+    .nav-submenu { max-height:0;overflow:hidden;transition:max-height 0.25s ease; }
+    .nav-submenu.open { max-height:200px; }
+    .nav-sub-item { display:flex;align-items:center;gap:8px;padding:9px 14px 9px 44px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;color:#8ea9c0;transition:all 0.2s ease;margin-bottom:2px;border:none;background:none;width:100%;text-align:left; }
+    .nav-sub-item:hover { background:rgba(28,238,224,0.08);color:#e0f2f1; }
+    .nav-sub-item.active { background:rgba(28,238,224,0.15);color:#1ceee0;font-weight:600; }
+
+    .nav-section-title {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: #4a6f85;
+      padding: 18px 14px 8px;
+    }
+
+    .sidebar-bottom {
+      margin-top: auto;
+      padding-top: 16px;
+      border-top: 1px solid rgba(255,255,255,0.06);
+      position: relative;
+    }
+
+    .user-info {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 14px 14px 12px;
+    }
+
+    .user-avatar {
+      width: 38px;
+      height: 38px;
+      background: rgba(255, 255, 255, 0.08);
+      border: 1.5px solid rgba(255, 255, 255, 0.12);
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(255, 255, 255, 0.7);
+      flex-shrink: 0;
+      letter-spacing: 0.5px;
+    }
+
+    .user-name {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e8edf5;
+      line-height: 1.2;
+    }
+
+    .user-role {
+      font-size: 11px;
+      color: #6b8b99;
+      margin-top: 2px;
+      line-height: 1.2;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      max-width: 140px;
+    }
+
+    .sidebar-action-bar {
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      padding: 0 14px 14px;
+    }
+
+    .sidebar-action-btn {
+      flex: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 10px;
+      border-radius: 10px;
+      background: rgba(255, 255, 255, 0.04);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.5);
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .sidebar-action-btn:hover {
+      background: rgba(255, 255, 255, 0.08);
+      color: rgba(255, 255, 255, 0.8);
+      border-color: rgba(255, 255, 255, 0.15);
+    }
+
+    .sidebar-action-btn.btn-logout-action:hover {
+      background: rgba(239, 68, 68, 0.08);
+      color: #ef4444;
+      border-color: rgba(239, 68, 68, 0.2);
+    }
+
+    .sidebar-action-btn svg {
+      width: 16px;
+      height: 16px;
+    }
+
+    /* Legacy classes hidden - replaced by action bar */
+    .btn-logout { display: none; }
+    .btn-theme-toggle { display: none; }
+
+    /* ── Admin Flyout Popover ──────────────────────────────────────── */
+    .admin-flyout-trigger {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 12px 14px;
+      cursor: pointer;
+      border-radius: 12px;
+      transition: all 0.2s ease;
+      position: relative;
+      user-select: none;
+    }
+    .admin-flyout-trigger:hover {
+      background: rgba(28, 238, 224, 0.06);
+    }
+    .admin-flyout-trigger.open {
+      background: rgba(28, 238, 224, 0.10);
+    }
+    .admin-flyout-trigger .flyout-chevron {
+      margin-left: auto;
+      width: 16px;
+      height: 16px;
+      color: rgba(255,255,255,0.3);
+      transition: transform 0.3s cubic-bezier(0.4, 0, 0.2, 1), color 0.2s;
+      flex-shrink: 0;
+    }
+    .admin-flyout-trigger:hover .flyout-chevron,
+    .admin-flyout-trigger.open .flyout-chevron {
+      color: var(--accent);
+    }
+    .admin-flyout-trigger.open .flyout-chevron {
+      transform: rotate(180deg);
+    }
+
+    .admin-flyout-backdrop {
+      position: fixed;
+      inset: 0;
+      z-index: 149;
+      display: none;
+    }
+    .admin-flyout-backdrop.show { display: block; }
+
+    .admin-flyout {
+      position: absolute;
+      bottom: calc(100% + 8px);
+      left: 12px;
+      right: 12px;
+      background: #0a2a3c;
+      border: 1px solid rgba(28, 238, 224, 0.15);
+      border-radius: 16px;
+      padding: 8px;
+      z-index: 150;
+      box-shadow:
+        0 -4px 32px rgba(0, 0, 0, 0.4),
+        0 0 0 1px rgba(28, 238, 224, 0.05),
+        inset 0 1px 0 rgba(255,255,255,0.04);
+      opacity: 0;
+      transform: translateY(8px) scale(0.97);
+      pointer-events: none;
+      transition: all 0.25s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .admin-flyout.show {
+      opacity: 1;
+      transform: translateY(0) scale(1);
+      pointer-events: auto;
+    }
+
+    .flyout-section-label {
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1.2px;
+      color: #4a7080;
+      padding: 10px 12px 6px;
+    }
+
+    .flyout-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      border-radius: 10px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 500;
+      color: #c8d6e5;
+      transition: all 0.15s ease;
+      border: none;
+      background: none;
+      width: 100%;
+      text-align: left;
+      font-family: 'Inter', Arial, sans-serif;
+    }
+    .flyout-item:hover {
+      background: rgba(28, 238, 224, 0.08);
+      color: #e8edf5;
+    }
+    .flyout-item svg {
+      width: 17px;
+      height: 17px;
+      flex-shrink: 0;
+      opacity: 0.7;
+    }
+    .flyout-item:hover svg {
+      opacity: 1;
+    }
+    .flyout-item .flyout-item-icon {
+      width: 32px;
+      height: 32px;
+      border-radius: 8px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .flyout-item .flyout-item-icon.accent {
+      background: rgba(28, 238, 224, 0.10);
+      color: #1ceee0;
+    }
+    .flyout-item .flyout-item-icon.orange {
+      background: rgba(249, 115, 22, 0.10);
+      color: #f97316;
+    }
+    .flyout-item .flyout-item-icon.purple {
+      background: rgba(139, 92, 246, 0.10);
+      color: #8b5cf6;
+    }
+    .flyout-item .flyout-item-icon.blue {
+      background: rgba(59, 130, 246, 0.10);
+      color: #3b82f6;
+    }
+    .flyout-item-text {
+      display: flex;
+      flex-direction: column;
+      gap: 1px;
+      min-width: 0;
+    }
+    .flyout-item-title {
+      font-size: 13px;
+      font-weight: 600;
+      color: #e8edf5;
+      line-height: 1.2;
+    }
+    .flyout-item-desc {
+      font-size: 11px;
+      color: #4a7080;
+      line-height: 1.2;
+    }
+    .flyout-item:hover .flyout-item-title {
+      color: #fff;
+    }
+    .flyout-item:hover .flyout-item-desc {
+      color: #6b8b99;
+    }
+    .flyout-item:hover .flyout-item-icon {
+      filter: brightness(1.2);
+    }
+
+    .flyout-divider {
+      height: 1px;
+      background: rgba(255,255,255,0.06);
+      margin: 4px 8px;
+    }
+
+    .flyout-item.danger:hover {
+      background: rgba(239, 68, 68, 0.08);
+    }
+    .flyout-item.danger:hover .flyout-item-title {
+      color: #f87171;
+    }
+    .flyout-item.danger:hover .flyout-item-icon {
+      background: rgba(239, 68, 68, 0.15);
+      color: #ef4444;
+    }
+
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+
+    /* ╔══════════════════════════════════════════════════════════════════════════╗
+    /* ── Logo App Switcher (DigiDesk ↔ Marketing) ── */
+    .sidebar-logo.has-switch{cursor:pointer;position:relative;transition:background 0.2s;border-radius:10px;margin:-4px -8px;padding:8px 8px 8px 16px;}
+    .sidebar-logo.has-switch:hover{background:rgba(255,255,255,0.05);}
+    .logo-switch-dd{max-height:0;overflow:hidden;transition:max-height 0.25s ease,opacity 0.2s;opacity:0;margin:0 8px;}
+    .logo-switch-dd.open{max-height:80px;opacity:1;margin-bottom:8px;}
+    .logo-switch-link{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);text-decoration:none;transition:all 0.2s;margin-top:6px;}
+    .logo-switch-link:hover{background:rgba(28,238,224,0.1);border-color:rgba(28,238,224,0.25);}
+    .logo-switch-icon{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
+    .logo-switch-name{font-size:12px;font-weight:600;color:#8ea9c0;}
+    .logo-switch-link:hover .logo-switch-name{color:#1ceee0;}
+    .logo-switch-desc{font-size:10px;color:#4a6f85;margin-top:1px;}
+    .sidebar.collapsed .logo-switch-dd{display:none!important;}

@@ -1,0 +1,297 @@
+      <!-- [HTML-SECTION: page-analytics] START -- KPI cards, charts, topics, funnel, severity
+           JS: loadAnalytics(), renderAnalytics() | CSS: analytics.css -->
+      <!-- ANALYTICS PAGE -->
+      <div class="page active" id="page-analytics">
+        <div class="analytics-shell">
+          <!-- Filter row -->
+          <div class="filter-row-figma">
+            <div class="filter-group">
+              <label>Telephely</label>
+              <select class="filter-select-figma" id="filter-telephely" onchange="loadStats()">
+                <option value="mind">Mind</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Csatorna</label>
+              <select class="filter-select-figma" id="filter-csatorna" onchange="loadStats()">
+                <option value="mind">Mind</option>
+                <option value="telefon">Telefon</option>
+                <option value="email">E-mail</option>
+                <option value="whatsapp">WhatsApp</option>
+                <option value="facebook">Facebook</option>
+                <option value="instagram">Instagram</option>
+              </select>
+            </div>
+            <div class="filter-group">
+              <label>Időszak</label>
+              <select class="filter-select-figma" id="stats-days" onchange="loadStats()">
+                <option value="week">Jelenlegi hét</option>
+                <option selected="" value="month">Jelen hónap</option>
+                <option value="year">Éves nézet</option>
+              </select>
+            </div>
+            <button class="btn-filter-apply" onclick="loadStats()">Szűrés alkalmazása</button>
+          </div>
+          <!-- KPI grid -->
+          <div class="kpi-grid-figma" id="kpi-grid-figma">
+            <div style="grid-column:1/-1;text-align:center;padding:20px;color:#6b7280;">
+              <div class="spinner" style="border-color:#e5e7eb;border-top-color:#1ceee0;"></div>  Adatok betöltése...
+            </div>
+          </div>
+          <!-- 1. Blokk: Grafikonok -->
+          <div class="section-divider"></div>
+          <h2 class="section-header-figma">Működési áttekintés</h2>
+          <div class="charts-row" style="margin-bottom:36px;">
+            <div class="chart-card" style="height:350px;">
+              <div style="display:flex; justify-content:space-between; align-items:center;">
+                <div class="chart-title" style="margin-bottom:0; color:var(--text); font-weight:700;">Megkeresések időbeli alakulása <i class="fa-regular fa-circle-question" style="color:#6b8b99; margin-left:6px; cursor:help;"></i></div>
+                <div style="display:flex; gap:4px; background:var(--bg3); padding:4px; border-radius:8px;">
+                  <button id="btn-chart-napi" class="toggle-btn active" style="background:var(--primary); color:#0a192f; border:none; border-radius:6px; font-size:12px; font-weight:600; padding:4px 12px; cursor:pointer; transition:0.2s;">Napi</button>
+                  <button id="btn-chart-oras" class="toggle-btn" style="background:transparent; color:#6b8b99; border:none; border-radius:6px; font-size:12px; padding:4px 12px; cursor:pointer; transition:0.2s;">Órás</button>
+                </div>
+              </div>
+              <div style="margin-top:10px;">
+                <label style="display:flex; align-items:center; font-size:12px; color:#6b8b99; cursor:pointer; width:fit-content;">
+                  <input type="checkbox" id="chk-channel-breakdown" style="margin-right:8px; accent-color:#1ceee0;"> Csatorna szerinti bontás
+                </label>
+              </div>
+              <div style="position:relative;height:calc(100% - 70px); margin-top:10px;">
+                <canvas class="chart-canvas" id="sessions-chart"></canvas>
+              </div>
+            </div>
+            <div class="chart-card" style="height:350px;">
+              <div class="chart-title" style="color:var(--text); font-weight:700;">Csatornamegoszlás <i class="fa-regular fa-circle-question" style="color:#6b8b99; margin-left:6px; cursor:help;" title="Melyik platformról érkezett a legtöbb megkeresés"></i></div>
+              <div style="position:relative;height:160px; display:flex; justify-content:center; align-items:center; margin-top:10px;">
+                <canvas class="chart-canvas" id="types-chart"></canvas>
+              </div>
+              <div id="types-chart-legend" style="display:grid; grid-template-columns: 1fr 1fr 1fr; gap:12px 16px; margin-top:20px; padding:0 10px;"></div>
+            </div>
+          </div>
+          <!-- 2. Blokk: Minőség és teljesítmény -->
+          <div class="section-divider"></div>
+          <h2 class="section-header-figma">Minőség és teljesítmény</h2>
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:18px;margin-bottom:36px;">
+            <!-- Top témák -->
+            <div class="panel-white">
+              <div class="panel-title">Top kérdéstípusok / témák</div>
+              <div id="top-topics-list">
+                <div style="color:#6b7280;font-size:13px;text-align:center;padding:20px;">
+                  <div class="spinner" style="border-color:#e5e7eb;border-top-color:#1ceee0;margin:0 auto 8px;"></div>
+                  Betöltés...
+                </div>
+              </div>
+            </div>
+            <!-- Átadási okok 🚧 -->
+            <div class="panel-white">
+              <div class="panel-title">Átadási okok</div>
+              <div style="position:relative;height:240px;">
+                <canvas id="handoff-chart"></canvas>
+              </div>
+            </div>
+            <!-- Foglalási tölcsér -->
+            <div class="panel-white">
+              <div class="panel-title">Foglalási tölcsér</div>
+              <div id="funnel-container">
+                <div style="text-align:center;padding:20px;color:#6b7280;"><div class="spinner"></div>Betöltés...</div>
+              </div>
+            </div>
+          </div>
+          <!-- 3. Blokk: Operatív figyelmeztetések -->
+          <div class="section-divider"></div>
+          <h2 class="section-header-figma">Operatív figyelmeztetések és teendők</h2>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:18px;margin-bottom:36px;">
+            <!-- Kritikus ügyek -->
+            <div class="panel-white">
+              <div class="panel-title"> Kritikus ügyek</div>
+              <div class="severity-card high" onclick="openAlertDetails('urgent')">
+                <span class="severity-label">Sürgős megkeresés</span>
+                <span><span class="severity-count" id="alert-urgent">0</span><span class="severity-unit">eset</span></span>
+              </div>
+              <div class="severity-card high" onclick="openAlertDetails('complaint')">
+                <span class="severity-label">Panasz</span>
+                <span><span class="severity-count" id="alert-complaint">0</span><span class="severity-unit">eset</span></span>
+              </div>
+              <div class="severity-card medium" onclick="openAlertDetails('stuck')">
+                <span class="severity-label">Nem kezelt / elakadt ügy</span>
+                <span><span class="severity-count" id="alert-stuck">0</span><span class="severity-unit">eset</span></span>
+              </div>
+              <div class="severity-card medium" onclick="openAlertDetails('callback')">
+                <span class="severity-label">Visszahívást igénylő lead</span>
+                <span><span class="severity-count" id="alert-callback">0</span><span class="severity-unit">eset</span></span>
+              </div>
+              <div class="severity-card low" onclick="openAlertDetails('recurring')">
+                <span class="severity-label">Többször visszatérő kérdés</span>
+                <span><span class="severity-count" id="alert-recurring">0</span><span class="severity-unit">eset</span></span>
+              </div>
+            </div>
+            <!-- AI javaslatok -->
+            <div class="panel-white">
+              <div class="panel-title" style="display:flex; justify-content:space-between; align-items:center;">
+                <span>Finomhangolási javaslatok</span>
+                <button id="btn-refresh-insights" onclick="generateInsights()" style="background:transparent; border:none; cursor:pointer; color:var(--text-muted); font-size:14px; display:flex; align-items:center; gap:4px; padding:4px 8px; border-radius:4px; transition:all 0.2s;">
+                  <span id="insights-refresh-icon">🔄</span> Frissítés
+                </button>
+              </div>
+              <div id="insights-container">
+                <div style="text-align:center; padding:20px;"><div class="spinner"></div></div>
+              </div>
+            </div>
+          </div>
+          <!-- 4. Blokk: Kimenő kommunikáció -->
+          <div class="section-divider"></div>
+          <h2 class="section-header-figma">Kimenő kommunikáció</h2>
+          <div style="display:grid;grid-template-columns:220px 1fr 1fr;gap:18px;margin-bottom:20px;">
+            <!-- Mini KPI-k -->
+            <div>
+              <div class="out-kpi-card">
+                <div class="out-kpi-label">Összes kimenő</div>
+                <div class="out-kpi-value" id="outbound-total">0</div>
+                <div class="out-kpi-trend">
+                </div>
+              </div>
+              <div class="out-kpi-card">
+                <div class="out-kpi-label">Elért páciensek</div>
+                <div class="out-kpi-value" id="outbound-reached">0%</div>
+                <div class="out-kpi-sub">az összes indított kapcsolatfelvételből</div>
+              </div>
+              <div class="out-kpi-card">
+                <div class="out-kpi-label">Foglalássá vált</div>
+                <div class="out-kpi-value" id="outbound-booked">0</div>
+                <div class="out-kpi-trend" id="outbound-booked-rate">0% konverziós arány</div>
+              </div>
+              <div class="out-kpi-card">
+                <div class="out-kpi-label">Nyitott utánkövetés</div>
+                <div class="out-kpi-value" id="outbound-open">0</div>
+                <div class="out-kpi-sub">emberi lépést igényel</div>
+              </div>
+            </div>
+            <!-- Aktivitástípusok -->
+            <div class="panel-white">
+              <div class="panel-title">Aktivitás típusok</div>
+              <div style="position:relative;height:300px;">
+                <canvas id="outgoing-activity-chart"></canvas>
+              </div>
+            </div>
+            <!-- Konverziós funnel zöld -->
+            <div class="panel-white">
+              <div class="panel-title">Eredményesség és konverzió</div>
+              <div id="outbound-funnel-container">
+                <div style="text-align:center;padding:20px;color:#6b7280;"><div class="spinner"></div>Betöltés...</div>
+              </div>
+            </div>
+          </div>
+        </div><!-- end analytics-shell -->
+
+        <!-- Member analytics overlay — Redesigned -->
+        <div id="member-analytics-shell" style="display:none;">
+          <div style="margin-bottom:28px;">
+            <div style="display:flex; align-items:center; gap:12px; margin-bottom:6px;">
+              <div id="member-avatar" style="width:44px; height:44px; border-radius:14px; background:linear-gradient(135deg, #1ceee0, #3b82f6); display:flex; align-items:center; justify-content:center; font-size:18px; font-weight:800; color:#082432; flex-shrink:0;"></div>
+              <div>
+                <h2 id="member-greeting-name" style="font-size:20px; font-weight:700; color:var(--text); margin:0; line-height:1.3;"></h2>
+                <p id="member-greeting-date" style="color:var(--text-muted); font-size:13px; margin:0;"></p>
+              </div>
+            </div>
+          </div>
+
+          <!-- ── 1. KPI CARDS ────────────────────────── -->
+          <div class="m-kpi-grid" style="grid-template-columns: 1fr 1fr;">
+            <div class="m-kpi-card">
+              <div class="m-kpi-header">
+                <div class="m-kpi-label">Hozzám rendelt ügyfelek</div>
+                <div class="m-kpi-icon" style="background:rgba(28,238,224,0.1);">
+                  <svg fill="none" stroke="#1ceee0" stroke-width="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+                </div>
+              </div>
+              <div class="m-kpi-value" style="color:var(--accent);" id="member-client-count">0</div>
+              <div class="m-kpi-sub">aktív ügyfél</div>
+            </div>
+            <div class="m-kpi-card">
+              <div class="m-kpi-header">
+                <div class="m-kpi-label">Következő időpont</div>
+                <div class="m-kpi-icon" style="background:rgba(139,92,246,0.1);">
+                  <svg fill="none" stroke="#8b5cf6" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg>
+                </div>
+              </div>
+              <div class="m-kpi-value" style="font-size:22px;" id="member-next-appointment">—</div>
+              <div class="m-kpi-sub" id="member-next-appointment-sub">naptárban</div>
+            </div>
+          </div>
+
+          <!-- ── 2. TEENDŐK LISTA (MiniCRM stílus) ─── -->
+          <div class="m-card todo-section">
+            <div class="todo-section-header">
+              <div class="todo-section-title">
+                <div class="m-card-title-icon" style="background:rgba(251,191,36,0.1);">
+                  <svg fill="none" stroke="#f59e0b" stroke-width="2" viewBox="0 0 24 24"><path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4"/></svg>
+                </div>
+                Teendők
+                <span class="todo-section-count" id="todo-count-badge">0</span>
+              </div>
+              <div style="display:flex;gap:8px;">
+                <select id="todo-filter" onchange="renderMemberTodos()" style="padding:6px 12px;border-radius:8px;border:1px solid var(--border);background:var(--card);color:var(--text);font-size:12px;font-weight:600;">
+                  <option value="all">Minden teendő</option>
+                  <option value="today">Mai teendők</option>
+                  <option value="overdue">Lejárt</option>
+                  <option value="upcoming">Közelgő</option>
+                  <option value="completed">Lezárt</option>
+                </select>
+              </div>
+            </div>
+
+            <!-- Teendők összesítő kártyák (MiniCRM stílus) -->
+            <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:18px;" id="todo-summary-cards">
+              <div style="padding:16px 18px;border-radius:12px;border:1px solid #dbeafe;background:#eff6ff;cursor:pointer;" onclick="document.getElementById('todo-filter').value='today';renderMemberTodos();">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                  <span style="font-size:14px;">📋</span>
+                  <span style="font-size:12px;font-weight:600;color:#1e40af;">Mai teendők</span>
+                </div>
+                <div style="font-size:28px;font-weight:800;color:#1e40af;" id="todo-card-today">0</div>
+              </div>
+              <div style="padding:16px 18px;border-radius:12px;border:1px solid #fee2e2;background:#fef2f2;cursor:pointer;" onclick="document.getElementById('todo-filter').value='overdue';renderMemberTodos();">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                  <span style="font-size:14px;">🔴</span>
+                  <span style="font-size:12px;font-weight:600;color:#b91c1c;">Lejárt teendők</span>
+                </div>
+                <div style="font-size:28px;font-weight:800;color:#b91c1c;" id="todo-card-overdue">0</div>
+              </div>
+              <div style="padding:16px 18px;border-radius:12px;border:1px solid #dcfce7;background:#f0fdf4;cursor:pointer;" onclick="document.getElementById('todo-filter').value='completed';renderMemberTodos();">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                  <span style="font-size:14px;">✅</span>
+                  <span style="font-size:12px;font-weight:600;color:#15803d;">Lezárt teendők</span>
+                </div>
+                <div style="font-size:28px;font-weight:800;color:#15803d;" id="todo-card-completed">0</div>
+              </div>
+              <div style="padding:16px 18px;border-radius:12px;border:1px solid var(--border);background:var(--card);cursor:pointer;" onclick="document.getElementById('todo-filter').value='all';renderMemberTodos();">
+                <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px;">
+                  <span style="font-size:14px;">📊</span>
+                  <span style="font-size:12px;font-weight:600;color:var(--text);">Összes teendő</span>
+                </div>
+                <div style="font-size:28px;font-weight:800;color:var(--text);" id="todo-card-all">0</div>
+              </div>
+            </div>
+
+            <div class="int-table-wrapper" style="max-height:400px;overflow-y:auto;">
+              <table class="todo-table" id="member-todo-table">
+                <thead>
+                  <tr>
+                    <th>✓</th>
+                    <th>Teendő leírása</th>
+                    <th>Típus</th>
+                    <th>Ügyfél</th>
+                    <th>Határidő</th>
+                  </tr>
+                </thead>
+                <tbody id="member-todo-tbody">
+                  <tr><td colspan="5" style="text-align:center;padding:32px;color:var(--text-muted);font-size:13px;">Betöltés...</td></tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+
+
+        </div><!-- end member-analytics-shell -->
+      </div><!-- end page-analytics -->
+      <!-- [HTML-SECTION: page-analytics] END -->
+
