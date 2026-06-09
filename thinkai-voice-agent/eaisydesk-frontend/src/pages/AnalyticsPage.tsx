@@ -25,6 +25,23 @@ function esc(s: string): string {
   return d.innerHTML;
 }
 
+function fmtDt(iso: string | null | undefined): string {
+  if (!iso) return '\u2014';
+  try {
+    const utcIso = iso.includes('Z') || iso.includes('+') ? iso : iso + 'Z';
+    const d = new Date(utcIso);
+    return d.toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' });
+  } catch { return iso; }
+}
+
+const ALERT_TYPE_NAMES: Record<string, string> = {
+  urgent: 'Sürgős megkeresések',
+  complaint: 'Panaszok',
+  stuck: 'Nem kezelt / elakadt ügyek',
+  callback: 'Visszahívást igénylők',
+  recurring: 'Többször visszatérő kérdések',
+};
+
 // ── Types ─────────────────────────────────────────────────────────────────────
 interface StatsData {
   total_interactions: number;
@@ -128,8 +145,18 @@ function FunnelBlock({ data }: { data: FunnelData | null }) {
   );
 }
 
+interface AlertDetailItem {
+  created_at: string;
+  channel: string;
+  topic?: string;
+  name?: string;
+  summary?: string;
+  status?: string;
+  is_stuck?: boolean;
+}
+
 // ── Alert Cards ──────────────────────────────────────────────────────────────
-function AlertCards({ alerts }: { alerts: AlertData | null }) {
+function AlertCards({ alerts, onOpenAlert }: { alerts: AlertData | null; onOpenAlert: (type: string) => void }) {
   if (!alerts) return null;
   const items = [
     { label: 'Sürgős megkeresés', count: alerts.urgent_count, severity: 'high', type: 'urgent' },
@@ -141,7 +168,7 @@ function AlertCards({ alerts }: { alerts: AlertData | null }) {
   return (
     <>
       {items.map(a => (
-        <div key={a.type} className={`severity-card ${a.severity}`}>
+        <div key={a.type} className={`severity-card ${a.severity}`} onClick={() => onOpenAlert(a.type)}>
           <span className="severity-label">{a.label}</span>
           <span><span className="severity-count">{a.count}</span><span className="severity-unit">eset</span></span>
         </div>
@@ -167,6 +194,7 @@ export default function AnalyticsPage() {
   const [chartView, setChartView] = useState<'napi' | 'oras'>('napi');
   const [channelBreakdown, setChannelBreakdown] = useState(false);
   const [loading, setLoading] = useState(true);
+  const [alertModal, setAlertModal] = useState<{ type: string; title: string; rows: AlertDetailItem[]; loading: boolean } | null>(null);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
@@ -203,6 +231,22 @@ export default function AnalyticsPage() {
       if (data.status === 'success' && data.insights) setInsights(data.insights);
     } catch (e) { console.error(e); }
     finally { setInsightsLoading(false); }
+  }
+
+  async function openAlertDetails(type: string) {
+    const title = ALERT_TYPE_NAMES[type] || type;
+    setAlertModal({ type, title, rows: [], loading: true });
+    try {
+      const res = await authFetch(`/admin/api/analytics/alerts/details?type=${type}`);
+      const data = await res.json();
+      if (data.status === 'success' && data.data && data.data.length > 0) {
+        setAlertModal(prev => prev ? { ...prev, rows: data.data, loading: false } : null);
+      } else {
+        setAlertModal(prev => prev ? { ...prev, rows: [], loading: false } : null);
+      }
+    } catch {
+      setAlertModal(prev => prev ? { ...prev, rows: [], loading: false } : null);
+    }
   }
 
   // ── Chart data ──────────────────────────────────────────────────────────────
@@ -469,7 +513,7 @@ export default function AnalyticsPage() {
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 36 }}>
           <div className="panel-white">
             <div className="panel-title">Kritikus ügyek</div>
-            <AlertCards alerts={alerts} />
+            <AlertCards alerts={alerts} onOpenAlert={openAlertDetails} />
           </div>
 
           {/* AI insights */}
@@ -579,6 +623,72 @@ export default function AnalyticsPage() {
           </div>
         </div>
       </div>
+
+      {/* Alert Details Modal */}
+      {alertModal && (
+        <div id="alert-details-modal"
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.6)', zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}
+          onClick={e => { if (e.target === e.currentTarget) setAlertModal(null); }}
+        >
+          <div className="login-card" style={{
+            width: 800, maxWidth: '95vw', maxHeight: '85vh', padding: 0, overflow: 'hidden',
+            borderRadius: 16, border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+            display: 'flex', flexDirection: 'column',
+          }}>
+            {/* Header */}
+            <div style={{
+              background: 'linear-gradient(to right, #fef2f2, #fee2e2)',
+              padding: '20px 24px', borderBottom: '1px solid rgba(0,0,0,0.05)',
+            }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <h3 style={{ margin: 0, color: '#b91c1c', fontSize: 18, fontWeight: 700 }}>
+                  Részletek: {alertModal.title}
+                </h3>
+                <button onClick={() => setAlertModal(null)} style={{
+                  background: 'transparent', border: 'none', color: 'rgba(0,0,0,0.4)',
+                  fontSize: 24, cursor: 'pointer', lineHeight: 1,
+                }}>&times;</button>
+              </div>
+            </div>
+            {/* Content */}
+            <div style={{ padding: 24, overflowY: 'auto', flex: 1, background: 'var(--bg2, #f9fafb)' }}>
+              <div className="table-card" style={{ margin: 0, boxShadow: 'none', border: '1px solid rgba(0,0,0,0.05)' }}>
+                <table className="data-table" style={{ margin: 0 }}>
+                  <thead>
+                    <tr>
+                      <th>Dátum</th>
+                      <th>Csatorna</th>
+                      <th>Név / Téma</th>
+                      <th>Részlet / Státusz</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {alertModal.loading ? (
+                      <tr><td colSpan={4} style={{ textAlign: 'center' }}><div className="spinner" /></td></tr>
+                    ) : alertModal.rows.length === 0 ? (
+                      <tr><td colSpan={4} style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)' }}>Nincs megjeleníthető adat.</td></tr>
+                    ) : alertModal.rows.map((item, i) => (
+                      <tr key={i}>
+                        <td className="td-time">{fmtDt(item.created_at)}</td>
+                        <td style={{ fontWeight: 600, color: 'var(--text)' }}>{item.channel}</td>
+                        <td><strong style={{ color: 'var(--text)' }}>{item.is_stuck ? item.name : item.topic}</strong></td>
+                        <td>{item.is_stuck
+                          ? <span className="status-badge" style={{ background: 'var(--bg3)', color: 'var(--text)', padding: '4px 8px', borderRadius: 4, fontSize: 12 }}>{item.status}</span>
+                          : <span style={{ color: 'rgba(8,36,50,0.8)' }}>{item.summary}</span>
+                        }</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
