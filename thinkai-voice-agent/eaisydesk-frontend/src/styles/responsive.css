@@ -1,0 +1,36 @@
+﻿    /* ── Responsive ────────────────────────────────────────────────── */
+    @media (max-width: 1400px) {
+
+      .stats-grid {
+        grid-template-columns: repeat(3, 1fr);
+      }
+    }
+
+    @media (max-width: 1100px) {
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+      }
+
+      .charts-row {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    @media (max-width: 768px) {
+      .sidebar {
+        width: 60px;
+        padding: 16px 8px;
+      }
+
+      .sidebar-logo-text,
+      .nav-item span,
+      .user-name,
+      .user-role {
+        display: none;
+      }
+
+      .main {
+        margin-left: 60px;
+        padding: 20px 16px;
+      }
+    }

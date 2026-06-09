@@ -914,9 +914,9 @@ async def logo():
 async def eaisydesk_logo():
     return FileResponse(THIS_DIR / "eaisydesk_logo.png", media_type="image/png")
 
-@app.get("/login-bg.jpg")
+@app.get("/login-bg.png")
 async def bg():
-    return FileResponse(THIS_DIR / "login-bg.jpg", media_type="image/jpeg")
+    return FileResponse(THIS_DIR / "login-bg.png", media_type="image/png")
 
 @app.get("/api/token")
 async def get_token():

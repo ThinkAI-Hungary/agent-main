@@ -1,0 +1,19 @@
+    /* ── App Shell ─────────────────────────────────────────────────── */
+    #app {
+      display: flex;
+      min-height: 100vh;
+    }
+
+    .main-content {
+      flex: 1;
+      margin-left: 240px;
+      padding: 28px 32px;
+      min-height: 100vh;
+      background: var(--bg);
+      transition: margin-left 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    /* When sidebar is collapsed, also handled via body class */
+    body.sidebar-collapsed .main-content {
+      margin-left: 64px;
+    }
