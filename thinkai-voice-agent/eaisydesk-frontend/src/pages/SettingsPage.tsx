@@ -1,109 +1,219 @@
 /**
- * SettingsPage (Tudástár) – 1:1 port of legacy settings page
- * Tab-based: Telefon (agent settings), Céginformációk (praxis), Szabályok (rules)
- * Each tab loads/saves from API: /admin/api/settings, /admin/api/praxisinfo, etc.
+ * SettingsPage (Tudástár) – Full 1:1 port of legacy page-settings.html
+ * 3 tabs: Telefon (agent), Céginformációk (praxis), Szabályok (rules)
+ * All reads/writes directly to Supabase.
  */
 import { useState, useEffect, useCallback } from 'react';
+import { useLocation } from 'react-router-dom';
 import { authFetch } from '../api/client';
 import { supabase } from '../lib/supabase';
 import { showToast } from '../components/ui/Toast';
 import Spinner from '../components/ui/Spinner';
 
-// Tab definitions
+// ── Tab definitions ──
 const TABS = [
-  { id: 'agent', label: 'Telefon', icon: '📞' },
-  { id: 'praxis', label: 'Céginformációk', icon: '🏢' },
-  { id: 'szabalyok', label: 'Szabályok', icon: '📋' },
+  { id: 'agent', label: 'Telefon', icon: 'M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.07 1.18 2 2 0 012.07 0h3a2 2 0 012 1.72c.12.8.3 1.6.56 2.37a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.77.25 1.57.44 2.37.56A2 2 0 0122 14.92z' },
+  { id: 'praxis', label: 'Céginformációk', icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2zM9 22V12h6v10' },
+  { id: 'szabalyok', label: 'Szabályok', icon: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8' },
 ] as const;
 
+const DAYS = ['Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat', 'Vasárnap'];
+const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'];
+
+// ── Types ──
 interface AgentSettings {
-  voice: string;
+  voice_id: string;
   tone: string;
   tone_custom: string;
   greeting: string;
-  system_prompt: string;
-  workflow: string;
   business_hours: Record<string, { open: string; close: string; enabled: boolean }>;
 }
 
 interface PraxisInfo {
-  nev: string;
+  practice_name: string;
   markanev: string;
   szakterulet: string;
   kulcsszavak: string;
+  faq: { question: string; answer: string }[];
+  campaigns: { active: boolean; text: string }[];
+  exceptions: string[];
+  modositas_eng: string;
+  lemondas_24h: string;
+  figyelmezteto_szoveg: string;
+  pacient_id_question: string;
+  new_patient_required: string;
+  new_patient_auto_visit: boolean;
+  returning_patient_required: string;
   [key: string]: unknown;
 }
 
+interface CartesiaVoice { id: string; name: string; language?: string; }
+interface Clinic { id?: number; name_and_address: string; access_info: string; }
+interface Doctor { id?: number; name: string; specialty: string; related_services: string; }
+interface Service { id?: number; service_name: string; duration_minutes: number; doctor_id?: number | null; note: string; }
+interface TriageRule { id?: number; situation: string; priority: string; escalation_email: string; }
+interface ReminderSettings { id?: number; reminder_enabled: boolean; reminder_hours: number; reminder_template: string; }
+interface OutboundAutomation { id: number; name: string; trigger_type: string; enabled: boolean; delay_hours: number; message_template: string; }
+
+const TRIGGER_LABELS: Record<string, { label: string; desc: string }> = {
+  'no_show': { label: 'No-show utáni üzenet', desc: 'Automatikus email küldése no-show címke esetén' },
+  'inactive_client': { label: 'Inaktív ügyfél reaktiválás', desc: 'Email inaktívvá vált ügyfeleknek' },
+  'follow_up': { label: 'Utánkövetés (elégedettség)', desc: 'Email küldése sikeres időpont után' },
+  'price_inquiry_follow': { label: 'Ajánlatkövetés', desc: 'Follow-up árkérdés címkéjű ügyfeleknek' },
+  'cancelled_no_rebook': { label: 'Lemondás utáni újrafoglalás', desc: 'Email, ha lemondtak és nem foglaltak újat' },
+};
+const DELAY_OPTIONS = [
+  { value: 0, label: 'Azonnal' }, { value: 24, label: '24 óra' }, { value: 48, label: '48 óra' },
+  { value: 72, label: '72 óra' }, { value: 168, label: '7 nap' }, { value: 720, label: '30 nap' },
+];
+
+// ── Default states ──
+const defaultAgent: AgentSettings = {
+  voice_id: '', tone: 'professional_friendly', tone_custom: '', greeting: '',
+  business_hours: Object.fromEntries(DAY_KEYS.map(d => [d, { open: '08:00', close: '17:00', enabled: d !== 'saturday' && d !== 'sunday' }])),
+};
+
+const defaultPraxis: PraxisInfo = {
+  practice_name: '', markanev: '', szakterulet: '', kulcsszavak: '',
+  faq: [], campaigns: [], exceptions: [],
+  modositas_eng: 'igen', lemondas_24h: 'figyelmeztetoSzoveggel',
+  figyelmezteto_szoveg: 'Tájékoztatjuk, hogy 24 órán belüli lemondás esetén rendelőnk külön szabályzata lehet érvényben.',
+  pacient_id_question: 'Korábban járt már a rendelőnkben?',
+  new_patient_required: 'Születési dátum, teljes név',
+  new_patient_auto_visit: true,
+  returning_patient_required: 'Páciens azonosító vagy telefonszám',
+};
+
+const defaultReminder: ReminderSettings = {
+  reminder_enabled: false, reminder_hours: 24,
+  reminder_template: 'Tisztelt {nev}! Emlékeztetjük, hogy {idopont} időpontban várjuk {szolgaltatas} kezelésre a {telephely} címen.',
+};
+
 export default function SettingsPage() {
-  const [activeTab, setActiveTab] = useState('agent');
+  const location = useLocation();
+  const validTabs = ['agent', 'praxis', 'szabalyok'];
+  const tabFromUrl = location.pathname.split('/').pop() || '';
+  const activeTab = validTabs.includes(tabFromUrl) ? tabFromUrl : 'agent';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
-  // Agent settings
-  const [settings, setSettings] = useState<AgentSettings>({
-    voice: '', tone: 'professional_friendly', tone_custom: '', greeting: '', system_prompt: '', workflow: '',
-    business_hours: {},
-  });
+  // Data states
+  const [agent, setAgent] = useState<AgentSettings>(defaultAgent);
+  const [praxis, setPraxis] = useState<PraxisInfo>(defaultPraxis);
+  const [clinics, setClinics] = useState<Clinic[]>([]);
+  const [doctors, setDoctors] = useState<Doctor[]>([]);
+  const [services, setServices] = useState<Service[]>([]);
+  const [triageRules, setTriageRules] = useState<TriageRule[]>([]);
+  const [reminder, setReminder] = useState<ReminderSettings>(defaultReminder);
+  const [voices, setVoices] = useState<CartesiaVoice[]>([]);
+  const [voicesLoading, setVoicesLoading] = useState(false);
+  const [automations, setAutomations] = useState<OutboundAutomation[]>([]);
+  const [inactivityDays, setInactivityDays] = useState(60);
 
-  // Praxis info
-  const [praxis, setPraxis] = useState<PraxisInfo>({ nev: '', markanev: '', szakterulet: '', kulcsszavak: '' });
-
-  // Load settings on mount
+  // ── Load Cartesia voices from FastAPI ──
   useEffect(() => {
-    loadSettings();
+    (async () => {
+      setVoicesLoading(true);
+      try {
+        const res = await authFetch('/admin/api/cartesia/voices');
+        if (res.ok) {
+          const data: CartesiaVoice[] = await res.json();
+          data.sort((a, b) => {
+            const aHu = (a.language || '').startsWith('hu');
+            const bHu = (b.language || '').startsWith('hu');
+            if (aHu && !bHu) return -1;
+            if (!aHu && bHu) return 1;
+            return (a.name || '').localeCompare(b.name || '', 'hu');
+          });
+          setVoices(data);
+        }
+      } catch { /* voices not available */ }
+      setVoicesLoading(false);
+    })();
   }, []);
 
-  const loadSettings = useCallback(async () => {
+  // ── Load all data ──
+  const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [settingsResult, praxisResult] = await Promise.all([
+      const [settingsRes, praxisRes, clinicsRes, doctorsRes, servicesRes, triageRes, reminderRes] = await Promise.all([
         supabase.from('app_settings').select('value').eq('key', 'agent_settings').single(),
         supabase.from('app_settings').select('value').eq('key', 'praxisinfo').single(),
+        supabase.from('clinics').select('*').order('id'),
+        supabase.from('doctors').select('*').order('id'),
+        supabase.from('services').select('*').order('id'),
+        supabase.from('triage_rules').select('*').order('id'),
+        supabase.from('reminder_settings').select('*').limit(1).single(),
       ]);
 
-      const settingsData = settingsResult.data?.value;
-      const praxisData = praxisResult.data?.value;
-
-      if (settingsData) {
-        setSettings(prev => ({
+      if (settingsRes.data?.value) {
+        const v = settingsRes.data.value;
+        setAgent(prev => ({
           ...prev,
-          voice: settingsData.voice || '',
-          tone: settingsData.tone || 'professional_friendly',
-          tone_custom: settingsData.tone_custom || '',
-          greeting: settingsData.greeting || '',
-          system_prompt: settingsData.system_prompt || '',
-          workflow: settingsData.workflow || '',
-          business_hours: settingsData.business_hours || {},
+          voice_id: v.voice_id || v.voice || '',
+          tone: v.tone || 'professional_friendly',
+          tone_custom: v.tone_custom || '',
+          greeting: v.greeting || '',
+          business_hours: v.business_hours || prev.business_hours,
         }));
       }
-      if (praxisData) {
-        setPraxis({
-          nev: praxisData.nev || '',
-          markanev: praxisData.markanev || '',
-          szakterulet: praxisData.szakterulet || '',
-          kulcsszavak: praxisData.kulcsszavak || '',
-        });
+      if (praxisRes.data?.value) {
+        const p = praxisRes.data.value;
+        setPraxis(prev => ({
+          ...prev,
+          practice_name: p.practice_name || p.nev || '',
+          markanev: p.markanev || '',
+          szakterulet: p.szakterulet || '',
+          kulcsszavak: p.kulcsszavak || '',
+          faq: Array.isArray(p.faq) ? p.faq : [],
+          campaigns: Array.isArray(p.campaigns) ? p.campaigns : [],
+          exceptions: Array.isArray(p.exceptions) ? p.exceptions : [],
+          modositas_eng: p.modositas_eng || 'igen',
+          lemondas_24h: p.lemondas_24h || 'figyelmeztetoSzoveggel',
+          figyelmezteto_szoveg: p.figyelmezteto_szoveg || prev.figyelmezteto_szoveg,
+          pacient_id_question: p.pacient_id_question || prev.pacient_id_question,
+          new_patient_required: p.new_patient_required || prev.new_patient_required,
+          new_patient_auto_visit: p.new_patient_auto_visit ?? true,
+          returning_patient_required: p.returning_patient_required || prev.returning_patient_required,
+        }));
       }
-    } catch {
-      // OK – new deployment
-    } finally {
-      setLoading(false);
-    }
+      if (clinicsRes.data) setClinics(clinicsRes.data);
+      if (doctorsRes.data) setDoctors(doctorsRes.data);
+      if (servicesRes.data) setServices(servicesRes.data);
+      if (triageRes.data) setTriageRules(triageRes.data);
+      if (reminderRes.data) setReminder(reminderRes.data as ReminderSettings);
+
+      // Automations
+      const autoRes = await supabase.from('outbound_automations').select('*').order('id');
+      if (autoRes.data) setAutomations(autoRes.data);
+
+      // Inactivity days from localStorage
+      const savedDays = localStorage.getItem('thinkai_inactivity_days');
+      if (savedDays) setInactivityDays(parseInt(savedDays) || 60);
+    } catch { /* first load */ }
+    setLoading(false);
   }, []);
 
-  const saveAgentSettings = useCallback(async () => {
+  useEffect(() => { loadAll(); }, [loadAll]);
+
+  // ── Save handlers ──
+  const saveAgent = useCallback(async () => {
     setSaving(true);
     try {
       const res = await authFetch('/admin/api/settings', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(settings),
+        body: JSON.stringify(agent),
       });
-      if (res.ok) showToast('Beállítások mentve!');
-      else showToast('Hiba a mentéskor', 'error');
-    } catch { showToast('Hiba', 'error'); }
-    finally { setSaving(false); }
-  }, [settings]);
+      if (res.ok) {
+        await supabase.from('app_settings').upsert({ key: 'agent_settings', value: agent });
+        showToast('Beállítások mentve!', 'success');
+      } else {
+        showToast('Hiba a mentésnél', 'error');
+      }
+    } catch { showToast('Hiba a mentésnél', 'error'); }
+    setSaving(false);
+  }, [agent]);
 
   const savePraxis = useCallback(async () => {
     setSaving(true);
@@ -113,55 +223,115 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(praxis),
       });
-      if (res.ok) showToast('Céginformációk mentve!');
-      else showToast('Hiba', 'error');
-    } catch { showToast('Hiba', 'error'); }
-    finally { setSaving(false); }
+      if (res.ok) {
+        await supabase.from('app_settings').upsert({ key: 'praxisinfo', value: praxis });
+        showToast('Céginformációk mentve!', 'success');
+      } else {
+        showToast('Hiba a mentésnél', 'error');
+      }
+    } catch { showToast('Hiba a mentésnél', 'error'); }
+    setSaving(false);
   }, [praxis]);
 
+  // ── CRUD for sub-tables ──
+  const saveClinic = useCallback(async (clinic: Clinic, idx: number) => {
+    if (clinic.id) {
+      await supabase.from('clinics').update({ name_and_address: clinic.name_and_address, access_info: clinic.access_info }).eq('id', clinic.id);
+    } else {
+      const { data } = await supabase.from('clinics').insert({ name_and_address: clinic.name_and_address, access_info: clinic.access_info }).select().single();
+      if (data) setClinics(prev => prev.map((c, i) => i === idx ? data : c));
+    }
+    showToast('Telephely mentve');
+  }, []);
+
+  const deleteClinic = useCallback(async (id: number | undefined, idx: number) => {
+    if (id) await supabase.from('clinics').delete().eq('id', id);
+    setClinics(prev => prev.filter((_, i) => i !== idx));
+    showToast('Telephely törölve');
+  }, []);
+
+  const saveDoctor = useCallback(async (doc: Doctor, idx: number) => {
+    if (doc.id) {
+      await supabase.from('doctors').update({ name: doc.name, specialty: doc.specialty, related_services: doc.related_services }).eq('id', doc.id);
+    } else {
+      const { data } = await supabase.from('doctors').insert({ name: doc.name, specialty: doc.specialty, related_services: doc.related_services }).select().single();
+      if (data) setDoctors(prev => prev.map((d, i) => i === idx ? data : d));
+    }
+    showToast('Orvos mentve');
+  }, []);
+
+  const deleteDoctor = useCallback(async (id: number | undefined, idx: number) => {
+    if (id) await supabase.from('doctors').delete().eq('id', id);
+    setDoctors(prev => prev.filter((_, i) => i !== idx));
+    showToast('Orvos törölve');
+  }, []);
+
+  const saveService = useCallback(async (svc: Service, idx: number) => {
+    if (svc.id) {
+      await supabase.from('services').update({ service_name: svc.service_name, duration_minutes: svc.duration_minutes, doctor_id: svc.doctor_id, note: svc.note }).eq('id', svc.id);
+    } else {
+      const { data } = await supabase.from('services').insert({ service_name: svc.service_name, duration_minutes: svc.duration_minutes, doctor_id: svc.doctor_id, note: svc.note }).select().single();
+      if (data) setServices(prev => prev.map((s, i) => i === idx ? data : s));
+    }
+    showToast('Szolgáltatás mentve');
+  }, []);
+
+  const deleteService = useCallback(async (id: number | undefined, idx: number) => {
+    if (id) await supabase.from('services').delete().eq('id', id);
+    setServices(prev => prev.filter((_, i) => i !== idx));
+    showToast('Szolgáltatás törölve');
+  }, []);
+
+  const saveTriageRule = useCallback(async (rule: TriageRule, idx: number) => {
+    if (rule.id) {
+      await supabase.from('triage_rules').update({ situation: rule.situation, priority: rule.priority, escalation_email: rule.escalation_email }).eq('id', rule.id);
+    } else {
+      const { data } = await supabase.from('triage_rules').insert({ situation: rule.situation, priority: rule.priority, escalation_email: rule.escalation_email }).select().single();
+      if (data) setTriageRules(prev => prev.map((r, i) => i === idx ? data : r));
+    }
+    showToast('Triázs szabály mentve');
+  }, []);
+
+  const deleteTriageRule = useCallback(async (id: number | undefined, idx: number) => {
+    if (id) await supabase.from('triage_rules').delete().eq('id', id);
+    setTriageRules(prev => prev.filter((_, i) => i !== idx));
+    showToast('Szabály törölve');
+  }, []);
+
+  const saveReminder = useCallback(async () => {
+    setSaving(true);
+    try {
+      if (reminder.id) {
+        await supabase.from('reminder_settings').update({ reminder_enabled: reminder.reminder_enabled, reminder_hours: reminder.reminder_hours, reminder_template: reminder.reminder_template }).eq('id', reminder.id);
+      } else {
+        const { data } = await supabase.from('reminder_settings').insert({ reminder_enabled: reminder.reminder_enabled, reminder_hours: reminder.reminder_hours, reminder_template: reminder.reminder_template }).select().single();
+        if (data) setReminder(data as ReminderSettings);
+      }
+      showToast('Emlékeztető mentve');
+    } catch { showToast('Hiba', 'error'); }
+    setSaving(false);
+  }, [reminder]);
+
   const handleSave = useCallback(() => {
-    if (activeTab === 'agent') saveAgentSettings();
+    if (activeTab === 'agent') saveAgent();
     else if (activeTab === 'praxis') savePraxis();
-    else saveAgentSettings(); // szabályok are part of settings
-  }, [activeTab, saveAgentSettings, savePraxis]);
+    else savePraxis(); // szabályok are stored in praxisinfo
+  }, [activeTab, saveAgent, savePraxis]);
 
   if (loading) {
     return <div className="analytics-shell" style={{ textAlign: 'center', padding: 40 }}><Spinner /></div>;
   }
 
   return (
-    <div className="analytics-shell">
-      {/* Header */}
-      <div className="settings-page-header">
-        <h1>Tudástár</h1>
-        <p>Tudásbázis, beállítások és preferenciák</p>
-      </div>
+    <div className="page active" id="page-settings">
 
-      {/* Tab layout */}
-      <div className="settings-layout">
-        {/* Sidebar nav */}
-        <div className="settings-sidebar-nav">
-          {TABS.map((tab) => (
-            <button
-              key={tab.id}
-              className={`settings-tab ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
-              <span style={{ fontSize: 16 }}>{tab.icon}</span>
-              {tab.label}
-            </button>
-          ))}
-        </div>
-
-        {/* Content */}
-        <div className="settings-content-area">
-          {/* Agent tab */}
+          {/* ═══════════ TELEFON TAB ═══════════ */}
           {activeTab === 'agent' && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
                 <div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>Telefon beállítások</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Hang, kommunikációs stílus, bemutatkozás és nyitvatartás</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Hang, nyitvatartás, kommunikációs stílus és bemutatkozás</div>
                 </div>
                 <SaveButton saving={saving} onClick={handleSave} />
               </div>
@@ -169,19 +339,30 @@ export default function SettingsPage() {
               {/* Voice + Tone */}
               <div className="settings-section">
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
-                  <SettingsField label="Hang" icon="🔊">
-                    <input type="text" className="settings-select" value={settings.voice} onChange={(e) => setSettings({ ...settings, voice: e.target.value })} placeholder="Hang azonosító" />
+                  <SettingsField label="Hang" svgPath="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07">
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <select className="settings-select" value={agent.voice_id} onChange={(e) => setAgent({ ...agent, voice_id: e.target.value })}>
+                        {voicesLoading && <option value="">Betöltés...</option>}
+                        {!voicesLoading && voices.length === 0 && <option value="">Nem sikerült betölteni</option>}
+                        {voices.map(v => (
+                          <option key={v.id} value={v.id}>{v.name}{v.language ? ` [${v.language}]` : ''}</option>
+                        ))}
+                      </select>
+                      <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                        {voicesLoading ? '' : voices.length > 0 ? `${voices.length} hang betöltve` : ''}
+                      </span>
+                    </div>
                   </SettingsField>
-                  <SettingsField label="Kommunikációs stílus" icon="💬">
-                    <select className="settings-select" value={settings.tone} onChange={(e) => setSettings({ ...settings, tone: e.target.value })}>
+                  <SettingsField label="Kommunikációs stílus" svgPath="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z">
+                    <select className="settings-select" value={agent.tone} onChange={(e) => setAgent({ ...agent, tone: e.target.value })}>
                       <option value="professional_friendly">Professzionális, barátságos</option>
                       <option value="formal">Formális, tárgyszerű</option>
                       <option value="informal">Informális, közvetlen</option>
                       <option value="empathetic">Empatikus, támogató</option>
                       <option value="custom">Egyedi leírás...</option>
                     </select>
-                    {settings.tone === 'custom' && (
-                      <textarea className="settings-textarea" value={settings.tone_custom} onChange={(e) => setSettings({ ...settings, tone_custom: e.target.value })} placeholder="Leírd a kívánt kommunikációs stílust..." style={{ marginTop: 8, minHeight: 70 }} />
+                    {agent.tone === 'custom' && (
+                      <textarea className="settings-textarea" value={agent.tone_custom} onChange={(e) => setAgent({ ...agent, tone_custom: e.target.value })} placeholder="Leírd a kívánt kommunikációs stílust..." style={{ marginTop: 8, minHeight: 70 }} />
                     )}
                   </SettingsField>
                 </div>
@@ -189,53 +370,216 @@ export default function SettingsPage() {
 
               {/* Greeting */}
               <div className="settings-section">
-                <SettingsField label="Bemutatkozás" icon="👤">
+                <SettingsField label="Bemutatkozás" svgPath="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z">
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 8 }}>Az agent ezt mondja el minden hívás elején.</div>
-                  <textarea className="settings-textarea" value={settings.greeting} onChange={(e) => setSettings({ ...settings, greeting: e.target.value })} placeholder="Szia! A DigiDesk virtuális asszisztense vagyok..." style={{ minHeight: 80 }} />
+                  <textarea className="settings-textarea" value={agent.greeting} onChange={(e) => setAgent({ ...agent, greeting: e.target.value })} placeholder="Szia! A DigiDesk virtuális asszisztense vagyok..." style={{ minHeight: 80 }} />
+                </SettingsField>
+              </div>
+
+              {/* Business Hours */}
+              <div className="settings-section">
+                <SettingsField label="Nyitvatartás" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM12 6v6l4 2">
+                  <table className="bh-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+                    <thead>
+                      <tr>
+                        <th style={thStyle}>Nap</th>
+                        <th style={thStyle}>Nyitás</th>
+                        <th style={thStyle}>Zárás</th>
+                        <th style={{ ...thStyle, textAlign: 'center' }}>Nyitva?</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {DAY_KEYS.map((key, i) => {
+                        const bh = agent.business_hours[key] || { open: '08:00', close: '17:00', enabled: true };
+                        return (
+                          <tr key={key}>
+                            <td style={tdStyle}>{DAYS[i]}</td>
+                            <td style={tdStyle}>
+                              <input type="time" value={bh.open} onChange={(e) => setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: { ...bh, open: e.target.value } } })} style={timeInput} disabled={!bh.enabled} />
+                            </td>
+                            <td style={tdStyle}>
+                              <input type="time" value={bh.close} onChange={(e) => setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: { ...bh, close: e.target.value } } })} style={timeInput} disabled={!bh.enabled} />
+                            </td>
+                            <td style={{ ...tdStyle, textAlign: 'center' }}>
+                              <label className="tt-toggle" style={{ display: 'inline-flex' }}>
+                                <input type="checkbox" checked={bh.enabled} onChange={(e) => setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: { ...bh, enabled: e.target.checked } } })} />
+                                <span className="tt-toggle-slider" />
+                              </label>
+                            </td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </SettingsField>
               </div>
             </div>
           )}
 
-          {/* Praxis tab */}
+          {/* ═══════════ CÉGINFORMÁCIÓK TAB ═══════════ */}
           {activeTab === 'praxis' && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
                 <div>
                   <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>Céginformációk</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Intézmény, telephelyek és szolgáltatások</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Intézmény, telephelyek, orvosok, emlékeztetők és GYIK</div>
                 </div>
                 <SaveButton saving={saving} onClick={handleSave} />
               </div>
 
-              <div className="tt-section">
-                <div className="tt-section-title">
-                  <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>🏢</div>
-                  Intézményi adatok
-                </div>
+              {/* 1. Intézményi adatok */}
+              <SectionCard title="Intézményi adatok" svgPath="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2zM9 22V12h6v10">
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
-                  <div>
-                    <label className="tt-label">Intézmény neve</label>
-                    <input className="tt-input" type="text" value={praxis.nev} onChange={(e) => setPraxis({ ...praxis, nev: e.target.value })} />
-                  </div>
-                  <div>
-                    <label className="tt-label">Márkanév</label>
-                    <input className="tt-input" type="text" value={praxis.markanev} onChange={(e) => setPraxis({ ...praxis, markanev: e.target.value })} placeholder="pl. Dental Clinic" />
-                  </div>
-                  <div>
-                    <label className="tt-label">Szakterület</label>
-                    <input className="tt-input" type="text" value={praxis.szakterulet} onChange={(e) => setPraxis({ ...praxis, szakterulet: e.target.value })} placeholder="pl. Fogászat, szájsebészet" />
-                  </div>
-                  <div>
-                    <label className="tt-label">Pozicionáló kulcsszavak</label>
-                    <input className="tt-input" type="text" value={praxis.kulcsszavak} onChange={(e) => setPraxis({ ...praxis, kulcsszavak: e.target.value })} placeholder="pl. fogorvos, implantáció" />
-                  </div>
+                  <LabelInput label="Intézmény neve" value={praxis.practice_name} onChange={v => setPraxis({ ...praxis, practice_name: v })} />
+                  <LabelInput label="Márkanév" value={praxis.markanev} onChange={v => setPraxis({ ...praxis, markanev: v })} placeholder="pl. Dental Clinic" />
+                  <LabelInput label="Szakterület" value={praxis.szakterulet} onChange={v => setPraxis({ ...praxis, szakterulet: v })} placeholder="pl. Fogászat, szájsebészet" />
+                  <LabelInput label="Pozicionáló kulcsszavak" value={praxis.kulcsszavak} onChange={v => setPraxis({ ...praxis, kulcsszavak: v })} placeholder="pl. fogorvos, implantáció" />
                 </div>
-              </div>
+              </SectionCard>
+
+              {/* 2. Telephelyek */}
+              <SectionCard title="Telephelyek és megközelítés" svgPath="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0zM12 7a3 3 0 100 6 3 3 0 000-6z">
+                {clinics.map((c, i) => (
+                  <div key={c.id || i} style={listItemStyle}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, flex: 1 }}>
+                      <input className="tt-input" value={c.name_and_address} onChange={e => setClinics(prev => prev.map((x, j) => j === i ? { ...x, name_and_address: e.target.value } : x))} placeholder="Név és cím" onBlur={() => saveClinic(c, i)} />
+                      <input className="tt-input" value={c.access_info || ''} onChange={e => setClinics(prev => prev.map((x, j) => j === i ? { ...x, access_info: e.target.value } : x))} placeholder="Megközelítés" onBlur={() => saveClinic(c, i)} />
+                    </div>
+                    <DeleteBtn onClick={() => deleteClinic(c.id, i)} />
+                  </div>
+                ))}
+                <AddBtn label="Új telephely hozzáadása" onClick={() => setClinics(prev => [...prev, { name_and_address: '', access_info: '' }])} />
+              </SectionCard>
+
+              {/* 3. Orvosok */}
+              <SectionCard title="Orvosok -- szolgáltatások" svgPath="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M8.5 3a4 4 0 100 8 4 4 0 000-8zM20 8v6M23 11h-6">
+                {doctors.map((d, i) => (
+                  <div key={d.id || i} style={listItemStyle}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, flex: 1 }}>
+                      <input className="tt-input" value={d.name} onChange={e => setDoctors(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Név" onBlur={() => saveDoctor(d, i)} />
+                      <input className="tt-input" value={d.specialty || ''} onChange={e => setDoctors(prev => prev.map((x, j) => j === i ? { ...x, specialty: e.target.value } : x))} placeholder="Szakterület" onBlur={() => saveDoctor(d, i)} />
+                      <input className="tt-input" value={d.related_services || ''} onChange={e => setDoctors(prev => prev.map((x, j) => j === i ? { ...x, related_services: e.target.value } : x))} placeholder="Szolgáltatások" onBlur={() => saveDoctor(d, i)} />
+                    </div>
+                    <DeleteBtn onClick={() => deleteDoctor(d.id, i)} />
+                  </div>
+                ))}
+                <AddBtn label="Orvos hozzáadása" onClick={() => setDoctors(prev => [...prev, { name: '', specialty: '', related_services: '' }])} />
+              </SectionCard>
+
+              {/* 4. Időpont emlékeztetők */}
+              <SectionCard title="Időpont emlékeztetők" svgPath="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0">
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}>
+                  <label className="tt-toggle">
+                    <input type="checkbox" checked={reminder.reminder_enabled} onChange={e => setReminder({ ...reminder, reminder_enabled: e.target.checked })} />
+                    <span className="tt-toggle-slider" />
+                  </label>
+                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Automatikus emlékeztetők aktiválása</span>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label className="tt-label">Emlékeztető küldése (órával az időpont előtt)</label>
+                  <input type="number" className="tt-input" value={reminder.reminder_hours} min={1} max={168} onChange={e => setReminder({ ...reminder, reminder_hours: Number(e.target.value) })} style={{ maxWidth: 120 }} />
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <label className="tt-label">Üzenet sablon</label>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8, display: 'block' }}>Támogatott változók: {'{nev}'}, {'{idopont}'}, {'{szolgaltatas}'}, {'{telephely}'}</span>
+                  <textarea className="tt-textarea" rows={4} value={reminder.reminder_template} onChange={e => setReminder({ ...reminder, reminder_template: e.target.value })} />
+                </div>
+                <button className="btn-settings-save" onClick={saveReminder} disabled={saving} style={{ fontFamily: 'inherit', fontSize: 12 }}>Emlékeztető mentése</button>
+              </SectionCard>
+
+              {/* 5. Árlista */}
+              <SectionCard title="Árak" svgPath="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6">
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>Az aktuális árlista XLSX vagy CSV formátumban tölthető fel. A feltöltés a FastAPI-n keresztül történik.</div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <button className="btn-settings-save" onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv,.xlsx'; input.onchange = async (e: any) => { const file = e.target.files?.[0]; if (!file) return; const formData = new FormData(); formData.append('file', file); try { const res = await authFetch('/admin/api/praxisinfo/pricelist', { method: 'POST', body: formData }); if (res.ok) showToast('Árlista feltöltve!'); else showToast('Feltöltési hiba', 'error'); } catch { showToast('Feltöltési hiba', 'error'); } }; input.click(); }} style={{ fontFamily: 'inherit', textAlign: 'center', justifyContent: 'center' }}>
+                    Új árlista feltöltése
+                  </button>
+                  <button onClick={() => { window.open('/admin/api/praxisinfo/pricelist/template', '_blank'); }} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--accent)', color: 'var(--accent)', background: 'transparent', padding: '12px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 14, fontFamily: 'inherit' }}>
+                    Minta Excel letöltése
+                  </button>
+                </div>
+              </SectionCard>
+
+              {/* 6. Címkerendszer */}
+              <SectionCard title="Címkerendszer beállítások" svgPath="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82zM7 7h.01">
+                <div style={{ marginBottom: 12 }}>
+                  <label className="tt-label">Inaktivitási küszöb (napok)</label>
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 8, display: 'block' }}>Ha az ügyfél ennyi napja nem lépett kapcsolatba, automatikusan "INAKTÍV" címkét kap</span>
+                  <input type="number" className="tt-input" value={inactivityDays} min={7} max={365} style={{ maxWidth: 120 }} onChange={e => setInactivityDays(Number(e.target.value))} />
+                </div>
+                <button className="btn-settings-save" onClick={() => { localStorage.setItem('thinkai_inactivity_days', String(inactivityDays)); showToast(`Inaktivitási küszöb: ${inactivityDays} nap`); }} disabled={saving} style={{ fontFamily: 'inherit', fontSize: 12 }}>Küszöb mentése</button>
+              </SectionCard>
+
+              {/* 7. Eseményvezérelt automatizációk */}
+              <SectionCard title="Eseményvezérelt kommunikációk" svgPath="M13 2L3 14h9l-1 8 10-12h-9l1-8">
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 16, display: 'block' }}>Automatikus kimenő üzenetek küldése meghatározott események bekövetkezésekor.</span>
+                {automations.length === 0 && (
+                  <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: 13 }}>Nincs beállított automatizáció.</div>
+                )}
+                {automations.map((a, i) => {
+                  const meta = TRIGGER_LABELS[a.trigger_type] || { label: a.name, desc: '' };
+                  return (
+                    <div key={a.id} className="tt-section" style={{ padding: 14, marginBottom: 12 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 10 }}>
+                        <label className="tt-toggle">
+                          <input type="checkbox" checked={a.enabled} onChange={e => { const updated = { ...a, enabled: e.target.checked }; setAutomations(prev => prev.map((x, j) => j === i ? updated : x)); supabase.from('outbound_automations').update({ enabled: e.target.checked }).eq('id', a.id).then(() => showToast('Automatizáció mentve')); }} />
+                          <span className="tt-toggle-slider" />
+                        </label>
+                        <div style={{ flex: 1 }}>
+                          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{meta.label}</div>
+                          <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{meta.desc}</div>
+                        </div>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>Késleltetés:</span>
+                          <select className="tt-input" value={a.delay_hours} onChange={e => { const updated = { ...a, delay_hours: Number(e.target.value) }; setAutomations(prev => prev.map((x, j) => j === i ? updated : x)); supabase.from('outbound_automations').update({ delay_hours: Number(e.target.value) }).eq('id', a.id); }} style={{ width: 'auto', minWidth: 90, padding: '4px 8px', fontSize: 12 }}>
+                            {DELAY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                          </select>
+                        </div>
+                      </div>
+                      <div style={{ marginTop: 8 }}>
+                        <textarea className="tt-textarea" value={a.message_template || ''} onChange={e => setAutomations(prev => prev.map((x, j) => j === i ? { ...x, message_template: e.target.value } : x))} onBlur={() => supabase.from('outbound_automations').update({ message_template: a.message_template }).eq('id', a.id).then(() => showToast('Sablon mentve'))} style={{ minHeight: 60, fontSize: 12 }} placeholder="Üzenet sablon..." />
+                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 4 }}>Változók: {'{nev}'}, {'{szolgaltatas}'}, {'{idopont}'}, {'{telephely}'}</div>
+                      </div>
+                    </div>
+                  );
+                })}
+              </SectionCard>
+
+              {/* 8. Kampányok */}
+              <SectionCard title="Kampányok" svgPath="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z">
+                {(praxis.campaigns || []).map((camp, i) => (
+                  <div key={i} className="tt-section" style={{ padding: 14, marginBottom: 8 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 10 }}>
+                      <label className="tt-toggle">
+                        <input type="checkbox" checked={camp.active} onChange={e => { const campaigns = [...(praxis.campaigns || [])]; campaigns[i] = { ...campaigns[i], active: e.target.checked }; setPraxis({ ...praxis, campaigns }); }} />
+                        <span className="tt-toggle-slider" />
+                      </label>
+                      <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Kampány aktív</span>
+                      <div style={{ marginLeft: 'auto' }}><DeleteBtn onClick={() => { const campaigns = (praxis.campaigns || []).filter((_, j) => j !== i); setPraxis({ ...praxis, campaigns }); }} /></div>
+                    </div>
+                    <textarea className="tt-textarea" value={camp.text || ''} onChange={e => { const campaigns = [...(praxis.campaigns || [])]; campaigns[i] = { ...campaigns[i], text: e.target.value }; setPraxis({ ...praxis, campaigns }); }} style={{ minHeight: 60 }} placeholder="Kampány leírása..." />
+                  </div>
+                ))}
+                <AddBtn label="Kampány hozzáadása" onClick={() => setPraxis({ ...praxis, campaigns: [...(praxis.campaigns || []), { active: true, text: '' }] })} />
+              </SectionCard>
+
+              {/* 9. GYIK */}
+              <SectionCard title="GYIK" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01">
+                {(praxis.faq || []).map((f, i) => (
+                  <div key={i} style={{ ...listItemStyle, flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
+                      <input className="tt-input" value={f.question} onChange={e => { const faq = [...(praxis.faq || [])]; faq[i] = { ...faq[i], question: e.target.value }; setPraxis({ ...praxis, faq }); }} placeholder="Kérdés" style={{ flex: 1 }} />
+                      <DeleteBtn onClick={() => { const faq = (praxis.faq || []).filter((_, j) => j !== i); setPraxis({ ...praxis, faq }); }} />
+                    </div>
+                    <textarea className="tt-textarea" value={f.answer} onChange={e => { const faq = [...(praxis.faq || [])]; faq[i] = { ...faq[i], answer: e.target.value }; setPraxis({ ...praxis, faq }); }} placeholder="Válasz" style={{ minHeight: 60 }} />
+                  </div>
+                ))}
+                <AddBtn label="Kérdés hozzáadása" onClick={() => setPraxis({ ...praxis, faq: [...(praxis.faq || []), { question: '', answer: '' }] })} />
+              </SectionCard>
             </div>
           )}
 
-          {/* Rules tab */}
+          {/* ═══════════ SZABÁLYOK TAB ═══════════ */}
           {activeTab === 'szabalyok' && (
             <div>
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
@@ -246,31 +590,161 @@ export default function SettingsPage() {
                 <SaveButton saving={saving} onClick={handleSave} />
               </div>
 
-              <div className="tt-section">
-                <div className="tt-section-title">
-                  <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>📋</div>
-                  Szabályok és workflow konfigurálása hamarosan...
+              {/* 1. Új/visszatérő páciens */}
+              <SectionCard title="Új és visszatérő páciensek kezelése" svgPath="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75">
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                  <LabelInput label="Páciens beazonosítását szolgáló kérdés" value={praxis.pacient_id_question} onChange={v => setPraxis({ ...praxis, pacient_id_question: v })} />
+                  <LabelInput label="Új páciens -- kötelezően bekérendő adat" value={praxis.new_patient_required} onChange={v => setPraxis({ ...praxis, new_patient_required: v })} />
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                    <label className="tt-label" style={{ margin: 0, whiteSpace: 'nowrap' }}>Új páciensnek automatikus első vizit</label>
+                    <label className="tt-toggle">
+                      <input type="checkbox" checked={praxis.new_patient_auto_visit} onChange={e => setPraxis({ ...praxis, new_patient_auto_visit: e.target.checked })} />
+                      <span className="tt-toggle-slider" />
+                    </label>
+                  </div>
+                  <LabelInput label="Visszatérő páciens -- kötelező szabály" value={praxis.returning_patient_required} onChange={v => setPraxis({ ...praxis, returning_patient_required: v })} />
                 </div>
-                <div style={{ fontSize: 13, color: 'var(--text-muted)', padding: 20, textAlign: 'center' }}>
-                  A részletes szabálykezelő a Tudástár bővítésekor kerül majd ide. Jelenleg a beállítások az eddigi felületen érhetők el.
-                </div>
+              </SectionCard>
+
+              {/* 2. Szolgáltatások */}
+              <SectionCard title="Szolgáltatások és időtartamok" svgPath="M2 7h20v14a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16">
+                {services.map((s, i) => (
+                  <div key={s.id || i} style={listItemStyle}>
+                    <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 2fr', gap: 12, flex: 1 }}>
+                      <input className="tt-input" value={s.service_name} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, service_name: e.target.value } : x))} placeholder="Szolgáltatás neve" onBlur={() => saveService(s, i)} />
+                      <input className="tt-input" type="number" value={s.duration_minutes} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, duration_minutes: Number(e.target.value) } : x))} placeholder="Perc" onBlur={() => saveService(s, i)} />
+                      <input className="tt-input" value={s.note || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, note: e.target.value } : x))} placeholder="Megjegyzés" onBlur={() => saveService(s, i)} />
+                    </div>
+                    <DeleteBtn onClick={() => deleteService(s.id, i)} />
+                  </div>
+                ))}
+                <AddBtn label="Szolgáltatás hozzáadása" onClick={() => setServices(prev => [...prev, { service_name: '', duration_minutes: 30, note: '' }])} />
+              </SectionCard>
+
+              {/* 3. Kivételek + Lemondás */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+                {/* Kivételek */}
+                <SectionCard title="Kivételek kezelése" svgPath="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01">
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>Helyzetek, amikor a DigiDesk nem foglalhat automatikusan.</p>
+                  {(praxis.exceptions || []).map((ex, i) => (
+                    <div key={i} style={{ ...listItemStyle, marginBottom: 6 }}>
+                      <input className="tt-input" value={ex} onChange={e => { const exceptions = [...(praxis.exceptions || [])]; exceptions[i] = e.target.value; setPraxis({ ...praxis, exceptions }); }} style={{ flex: 1 }} />
+                      <DeleteBtn onClick={() => { const exceptions = (praxis.exceptions || []).filter((_, j) => j !== i); setPraxis({ ...praxis, exceptions }); }} />
+                    </div>
+                  ))}
+                  <AddBtn label="Kivétel hozzáadása" onClick={() => setPraxis({ ...praxis, exceptions: [...(praxis.exceptions || []), ''] })} />
+                </SectionCard>
+
+                {/* Lemondás */}
+                <SectionCard title="Lemondás és módosítás" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM15 9l-6 6M9 9l6 6">
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                    <div>
+                      <label className="tt-label">Időpont módosításának engedélyezése</label>
+                      <select className="tt-select" value={praxis.modositas_eng} onChange={e => setPraxis({ ...praxis, modositas_eng: e.target.value })}>
+                        <option value="igen">Igen</option>
+                        <option value="nem">Nem</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="tt-label">24 órán belüli lemondás kezelése</label>
+                      <select className="tt-select" value={praxis.lemondas_24h} onChange={e => setPraxis({ ...praxis, lemondas_24h: e.target.value })}>
+                        <option value="elfogadhato">Elfogadható</option>
+                        <option value="figyelmeztetoSzoveggel">Elfogadható figyelmeztető szöveggel</option>
+                        <option value="eloAtadas">Élő átadás szükséges</option>
+                      </select>
+                    </div>
+                    {praxis.lemondas_24h === 'figyelmeztetoSzoveggel' && (
+                      <textarea className="tt-textarea" value={praxis.figyelmezteto_szoveg} onChange={e => setPraxis({ ...praxis, figyelmezteto_szoveg: e.target.value })} />
+                    )}
+                  </div>
+                </SectionCard>
               </div>
+
+              {/* 4. Triázs */}
+              <SectionCard title="Triázs szabályok" svgPath="M22 12h-4l-3 9-6-18-3 9H2">
+                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                  <thead>
+                    <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                      <th style={{ ...thStyle, width: '30%' }}>Helyzet</th>
+                      <th style={{ ...thStyle, width: '25%' }}>Prioritás</th>
+                      <th style={{ ...thStyle, width: '30%' }}>Eszkalációs e-mail</th>
+                      <th style={{ ...thStyle, width: '15%' }}></th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {triageRules.map((r, i) => (
+                      <tr key={r.id || i}>
+                        <td style={tdStyle}>
+                          <input className="tt-input" value={r.situation} onChange={e => setTriageRules(prev => prev.map((x, j) => j === i ? { ...x, situation: e.target.value } : x))} onBlur={() => saveTriageRule(r, i)} />
+                        </td>
+                        <td style={tdStyle}>
+                          <select className="tt-select" value={r.priority} onChange={e => { const updated = { ...r, priority: e.target.value }; setTriageRules(prev => prev.map((x, j) => j === i ? updated : x)); saveTriageRule(updated, i); }}>
+                            <option value="alacsony">Alacsony</option>
+                            <option value="kozepes">Közepes</option>
+                            <option value="magas">Magas</option>
+                            <option value="surgos">Sürgős</option>
+                          </select>
+                        </td>
+                        <td style={tdStyle}>
+                          <input className="tt-input" value={r.escalation_email || ''} onChange={e => setTriageRules(prev => prev.map((x, j) => j === i ? { ...x, escalation_email: e.target.value } : x))} placeholder="email@example.com" onBlur={() => saveTriageRule(r, i)} />
+                        </td>
+                        <td style={{ ...tdStyle, textAlign: 'center' }}>
+                          <DeleteBtn onClick={() => deleteTriageRule(r.id, i)} />
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+                <div style={{ marginTop: 14 }}>
+                  <AddBtn label="Új szabály hozzáadása" onClick={() => setTriageRules(prev => [...prev, { situation: '', priority: 'kozepes', escalation_email: '' }])} />
+                </div>
+              </SectionCard>
             </div>
           )}
-        </div>
-      </div>
     </div>
   );
 }
 
-function SettingsField({ label, icon, children }: { label: string; icon: string; children: React.ReactNode }) {
+// ── Shared styles ──
+const thStyle: React.CSSProperties = { padding: '12px 16px', fontWeight: 600, textAlign: 'left', color: 'var(--text-muted)', fontSize: 12 };
+const tdStyle: React.CSSProperties = { padding: '8px 12px', borderBottom: '1px solid var(--border)' };
+const timeInput: React.CSSProperties = { padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, background: 'var(--bg)', color: 'var(--text)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' };
+const listItemStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 };
+
+// ── Sub-components ──
+function SettingsField({ label, svgPath, children }: { label: string; svgPath: string; children: React.ReactNode }) {
   return (
     <div>
       <div className="settings-section-title" style={{ marginBottom: 10 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: 14 }}>{icon}</div>
+        <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><path d={svgPath} /></svg>
+        </div>
         {label}
       </div>
       {children}
+    </div>
+  );
+}
+
+function SectionCard({ title, svgPath, children }: { title: string; svgPath: string; children: React.ReactNode }) {
+  return (
+    <div className="tt-section">
+      <div className="tt-section-title" style={{ marginBottom: 16 }}>
+        <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><path d={svgPath} /></svg>
+        </div>
+        {title}
+      </div>
+      {children}
+    </div>
+  );
+}
+
+function LabelInput({ label, value, onChange, placeholder }: { label: string; value: string; onChange: (v: string) => void; placeholder?: string }) {
+  return (
+    <div>
+      <label className="tt-label">{label}</label>
+      <input className="tt-input" type="text" value={value || ''} onChange={e => onChange(e.target.value)} placeholder={placeholder} />
     </div>
   );
 }
@@ -284,6 +758,22 @@ function SaveButton({ saving, onClick }: { saving: boolean; onClick: () => void 
         <polyline points="7 3 7 8 15 8" />
       </svg>
       {saving ? 'Mentés...' : 'Mentés'}
+    </button>
+  );
+}
+
+function AddBtn({ label, onClick }: { label: string; onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={{ background: 'transparent', border: 'none', color: '#10b981', fontWeight: 600, cursor: 'pointer', padding: 0, fontSize: 13, fontFamily: 'inherit' }}>
+      + {label}
+    </button>
+  );
+}
+
+function DeleteBtn({ onClick }: { onClick: () => void }) {
+  return (
+    <button onClick={onClick} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: 16, cursor: 'pointer', padding: '4px 6px', borderRadius: 4, flexShrink: 0 }} title="Törlés">
+      <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
     </button>
   );
 }

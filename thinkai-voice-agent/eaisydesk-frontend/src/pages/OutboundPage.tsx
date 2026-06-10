@@ -10,6 +10,21 @@ import { fmtDt } from '../helpers/formatters';
 import Spinner from '../components/ui/Spinner';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  BarElement,
+  ArcElement,
+  Filler,
+  Tooltip,
+  Legend,
+} from 'chart.js';
+import { Line, Doughnut, Bar } from 'react-chartjs-2';
+
+ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Filler, Tooltip, Legend);
 
 interface Campaign {
   id: number;
@@ -53,6 +68,7 @@ export default function OutboundPage() {
   const [newCampaignName, setNewCampaignName] = useState('');
   const [newCampaignChannels, setNewCampaignChannels] = useState<string[]>(['email']);
   const [newCampaignContent, setNewCampaignContent] = useState('');
+  const [showAnalytics, setShowAnalytics] = useState(false);
   const { confirm, ConfirmDialog } = useConfirm();
 
   // ── Load campaigns ──
@@ -88,6 +104,238 @@ export default function OutboundPage() {
     closed: campaigns.filter(c => c.status === 'Befejezett').length,
     targeted: campaigns.reduce((sum, c) => sum + (c.client_ids?.length || 0), 0),
   }), [campaigns]);
+
+  // ── Analytics computations ──
+  const analytics = useMemo(() => {
+    const statusCounts: Record<string, number> = {};
+    const channelCounts: Record<string, number> = {};
+    campaigns.forEach(c => {
+      statusCounts[c.status] = (statusCounts[c.status] || 0) + 1;
+      const chs = c.channels || (c.channel ? [c.channel] : ['email']);
+      chs.forEach(ch => { channelCounts[ch] = (channelCounts[ch] || 0) + 1; });
+    });
+    const avgClients = campaigns.length > 0 ? Math.round(kpis.targeted / campaigns.length) : 0;
+    const topChannel = Object.entries(channelCounts).sort((a, b) => b[1] - a[1])[0];
+    const successRate = campaigns.length > 0 ? Math.round((kpis.closed / campaigns.length) * 100) : 0;
+    const lastCampaign = campaigns.length > 0 ? campaigns[0] : null;
+    return { statusCounts, channelCounts, avgClients, topChannel, successRate, lastCampaign };
+  }, [campaigns, kpis]);
+
+  // ── Chart.js Datas & Options ──
+  const statusChartData = useMemo(() => {
+    const rawCounts = {
+      'Tervezet': campaigns.filter(c => c.status === 'Vázlat').length,
+      'Aktív': campaigns.filter(c => c.status === 'Aktív').length,
+      'Elküldött': campaigns.filter(c => c.status === 'Befejezett').length,
+      'Megállítva': campaigns.filter(c => c.status === 'Megállítva').length,
+      'Ütemezett': campaigns.filter(c => c.status === 'Ütemezett').length,
+    };
+    return {
+      labels: Object.keys(rawCounts),
+      datasets: [{
+        data: Object.values(rawCounts),
+        backgroundColor: [
+          'rgba(107,139,153,0.6)',
+          'rgba(34,197,94,0.8)',
+          'rgba(28,238,224,0.8)',
+          'rgba(245,158,11,0.8)',
+          'rgba(139,92,246,0.8)',
+        ],
+        borderColor: 'rgba(13, 37, 56, 0.2)',
+        borderWidth: 2,
+        hoverOffset: 8,
+      }]
+    };
+  }, [campaigns]);
+
+  const statusChartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    cutout: '62%',
+    plugins: {
+      legend: {
+        position: 'bottom' as const,
+        labels: {
+          padding: 16,
+          usePointStyle: true,
+          pointStyleWidth: 10,
+          font: { size: 11, weight: '600' as const },
+          color: '#8ea9c0',
+        }
+      },
+      tooltip: {
+        backgroundColor: '#0d2538',
+        titleFont: { weight: '700' as const },
+        bodyFont: { size: 12 },
+        padding: 12,
+        cornerRadius: 10,
+        displayColors: true,
+        callbacks: {
+          label: function(ctx: any) {
+            const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0);
+            const pct = total > 0 ? Math.round((ctx.raw / total) * 100) : 0;
+            return ` ${ctx.label}: ${ctx.raw} (${pct}%)`;
+          }
+        }
+      }
+    }
+  }), []);
+
+  const channelChartData = useMemo(() => {
+    const channelCounts: Record<string, number> = {};
+    campaigns.forEach(c => {
+      const chs = c.channels || (c.channel ? [c.channel] : ['email']);
+      chs.forEach(ch => {
+        channelCounts[ch] = (channelCounts[ch] || 0) + 1;
+      });
+    });
+    const keys = Object.keys(channelCounts);
+    const labels = keys.map(k => CHANNEL_NAMES[k] || k);
+    const bgColors = keys.map(k => {
+      const map: Record<string, string> = {
+        email: 'rgba(59,130,246,0.8)',
+        messenger: 'rgba(139,92,246,0.8)',
+        telefon: 'rgba(34,197,94,0.8)',
+        whatsapp: 'rgba(37,211,102,0.8)',
+        instagram: 'rgba(225,48,108,0.8)'
+      };
+      return map[k] || 'rgba(28,238,224,0.8)';
+    });
+    return {
+      labels,
+      datasets: [{
+        label: 'Kampányok',
+        data: Object.values(channelCounts),
+        backgroundColor: bgColors,
+        borderRadius: 8,
+        borderSkipped: false as const,
+        barThickness: 30,
+        maxBarThickness: 40,
+      }]
+    };
+  }, [campaigns]);
+
+  const channelChartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0d2538',
+        padding: 12,
+        cornerRadius: 10,
+        titleFont: { weight: '700' as const },
+        callbacks: { label: function(ctx: any) { return ` ${ctx.raw} kampány`; } }
+      }
+    },
+    scales: {
+      y: { beginAtZero: true, ticks: { stepSize: 1, font: { weight: '600' as const }, color: '#8ea9c0' }, grid: { color: 'rgba(107,139,153,0.15)' } },
+      x: { grid: { display: false }, ticks: { font: { weight: '600' as const }, color: '#8ea9c0' } }
+    }
+  }), []);
+
+  const clientsChartData = useMemo(() => {
+    const sorted = [...campaigns].sort((a, b) => (b.client_ids?.length || 0) - (a.client_ids?.length || 0)).slice(0, 6);
+    return {
+      labels: sorted.map(c => c.name.length > 18 ? c.name.substring(0, 18) + '...' : c.name),
+      datasets: [{
+        label: 'Ügyfelek',
+        data: sorted.map(c => c.client_ids?.length || 0),
+        backgroundColor: 'rgba(28,238,224,0.8)',
+        borderRadius: 6,
+        borderSkipped: false as const,
+        barThickness: 16,
+      }]
+    };
+  }, [campaigns]);
+
+  const clientsChartOptions = useMemo(() => ({
+    indexAxis: 'y' as const,
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        backgroundColor: '#0d2538',
+        padding: 12,
+        cornerRadius: 10,
+        callbacks: { label: function(ctx: any) { return ` ${ctx.raw} ügyfél célozva`; } }
+      }
+    },
+    scales: {
+      x: { beginAtZero: true, ticks: { stepSize: 1, font: { weight: '600' as const }, color: '#8ea9c0' }, grid: { color: 'rgba(107,139,153,0.15)' } },
+      y: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' as const }, color: '#8ea9c0' } }
+    }
+  }), []);
+
+  const timelineChartData = useMemo(() => {
+    const monthMap: Record<string, { label: string; count: number; clients: number }> = {};
+    const monthNames = ['Jan', 'Feb', 'Már', 'Ápr', 'Máj', 'Jún', 'Júl', 'Aug', 'Szep', 'Okt', 'Nov', 'Dec'];
+    campaigns.forEach(c => {
+      if (c.created_at) {
+        const d = new Date(c.created_at);
+        const key = d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+        const label = monthNames[d.getMonth()] + ' ' + d.getFullYear();
+        if (!monthMap[key]) monthMap[key] = { label, count: 0, clients: 0 };
+        monthMap[key].count++;
+        monthMap[key].clients += (c.client_ids?.length || 0);
+      }
+    });
+    const sortedMonths = Object.keys(monthMap).sort();
+    return {
+      labels: sortedMonths.map(k => monthMap[k].label),
+      datasets: [
+        {
+          label: 'Kampányok',
+          data: sortedMonths.map(k => monthMap[k].count),
+          borderColor: '#1ceee0',
+          backgroundColor: 'rgba(28,238,224,0.1)',
+          fill: true,
+          tension: 0.4,
+          borderWidth: 3,
+          pointBackgroundColor: '#1ceee0',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2,
+          pointRadius: 5,
+          pointHoverRadius: 8
+        },
+        {
+          label: 'Célzott ügyfelek',
+          data: sortedMonths.map(k => monthMap[k].clients),
+          borderColor: '#8b5cf6',
+          backgroundColor: 'rgba(139,92,246,0.08)',
+          fill: true,
+          tension: 0.4,
+          borderWidth: 2,
+          borderDash: [5, 5],
+          pointBackgroundColor: '#8b5cf6',
+          pointBorderColor: '#ffffff',
+          pointBorderWidth: 2,
+          pointRadius: 4,
+          pointHoverRadius: 7
+        }
+      ]
+    };
+  }, [campaigns]);
+
+  const timelineChartOptions = useMemo(() => ({
+    responsive: true,
+    maintainAspectRatio: false,
+    interaction: { mode: 'index' as const, intersect: false },
+    plugins: {
+      legend: { position: 'bottom' as const, labels: { padding: 16, usePointStyle: true, font: { size: 11, weight: '600' as const }, color: '#8ea9c0' } },
+      tooltip: {
+        backgroundColor: '#0d2538',
+        padding: 12,
+        cornerRadius: 10,
+        titleFont: { weight: '700' as const }
+      }
+    },
+    scales: {
+      y: { beginAtZero: true, ticks: { stepSize: 1, font: { weight: '600' as const }, color: '#8ea9c0' }, grid: { color: 'rgba(107,139,153,0.15)' } },
+      x: { grid: { display: false }, ticks: { font: { weight: '600' as const }, color: '#8ea9c0' } }
+    }
+  }), []);
 
   // ── Filtered campaigns ──
   const filteredCampaigns = useMemo(() => {
@@ -164,7 +412,7 @@ export default function OutboundPage() {
   }, []);
 
   return (
-    <div className="analytics-shell">
+    <div className="page active" id="page-outbound">
       <ConfirmDialog />
 
       {/* Header */}
@@ -214,6 +462,24 @@ export default function OutboundPage() {
             </span>
           </div>
         </div>
+        {/* Lemondási értesítő */}
+        <div className="out-notif-item">
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(239,68,68,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <svg fill="none" stroke="#ef4444" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 16, height: 16 }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
+              </svg>
+            </div>
+            <div>
+              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Lemondási értesítő</div>
+              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Automatikus értesítés lemondáskor</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
+            <span style={{ fontSize: 11, fontWeight: 600, color: '#22c55e' }}>Aktív</span>
+          </div>
+        </div>
       </div>
 
       {/* Campaigns section */}
@@ -236,31 +502,150 @@ export default function OutboundPage() {
         </div>
 
         {/* KPI overview */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(140px, 1fr))', gap: 12, marginBottom: 24 }}>
-          <KpiCard label="Összes kampány" value={kpis.total} icon="📊" />
-          <KpiCard label="Futó" value={kpis.running} icon="▶" color="#22c55e" />
-          <KpiCard label="Befejezett" value={kpis.closed} icon="✓" color="var(--accent)" />
-          <KpiCard label="Célzott ügyfelek" value={kpis.targeted} icon="👥" />
-        </div>
+        <div style={{ marginBottom: 24 }}>
+          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 14 }}>Kampányok áttekintése</div>
+          <div className="out-kpi-grid">
+            <div className="out-kpi-stat">
+              <div className="out-kpi-value">{kpis.total}</div>
+              <div className="out-kpi-label">Összes kampány</div>
+            </div>
+            <div className="out-kpi-stat">
+              <div className="out-kpi-value" style={{ color: '#22c55e' }}>{kpis.running}</div>
+              <div className="out-kpi-label">Futó kampány</div>
+            </div>
+            <div className="out-kpi-stat">
+              <div className="out-kpi-value">{kpis.closed}</div>
+              <div className="out-kpi-label">Lezárt kampány</div>
+            </div>
+            <div className="out-kpi-stat">
+              <div className="out-kpi-value">{kpis.targeted}</div>
+              <div className="out-kpi-label">Összes célzott ügyfél</div>
+            </div>
+            <div className="out-kpi-stat">
+              <div className="out-kpi-value">0</div>
+              <div className="out-kpi-label">Ügyfélreakció</div>
+            </div>
+            <div className="out-kpi-stat" style={{ borderColor: 'rgba(34,197,94,0.3)' }}>
+              <div className="out-kpi-value" style={{ color: '#22c55e' }}>0</div>
+              <div className="out-kpi-label">Konverzió</div>
+            </div>
+          </div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'flex-end', gap: 10 }}>
+            <button className="out-analytics-btn" onClick={() => setShowAnalytics(!showAnalytics)}>
+              <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 14, height: 14, verticalAlign: -2, marginRight: 4 }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+              </svg>
+              Analitika megtekintése
+            </button>
+          </div>
+          </div>
+
+          {/* Analytics Panel (slide-down) */}
+          {showAnalytics && (
+            <div className="out-analytics-panel open">
+              <div className="out-analytics-inner">
+                <div className="out-analytics-header">
+                  <div className="out-analytics-title">
+                    <div className="out-analytics-title-icon">
+                      <svg fill="none" stroke="var(--accent)" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
+                      </svg>
+                    </div>
+                    Kampány Analitika
+                  </div>
+                  <button onClick={() => setShowAnalytics(false)} className="out-analytics-close">
+                    <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 14, height: 14 }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                    Bezárás
+                  </button>
+                </div>
+
+                {/* Charts Grid */}
+                <div className="out-analytics-grid">
+                  {/* Státusz eloszlás */}
+                  <div className="out-chart-card">
+                    <div className="out-chart-title">Státusz eloszlás</div>
+                    <div className="out-chart-subtitle">Kampányok állapota</div>
+                    <div className="out-chart-wrap">
+                      {campaigns.length > 0 ? (
+                        <Doughnut data={statusChartData} options={statusChartOptions} />
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)', fontSize: 12 }}>Nincs adat</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Csatorna használat */}
+                  <div className="out-chart-card">
+                    <div className="out-chart-title">Csatorna használat</div>
+                    <div className="out-chart-subtitle">Melyik csatornán hány kampány fut</div>
+                    <div className="out-chart-wrap">
+                      {campaigns.length > 0 ? (
+                        <Bar data={channelChartData} options={channelChartOptions} />
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)', fontSize: 12 }}>Nincs adat</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Célzott ügyfelek */}
+                  <div className="out-chart-card">
+                    <div className="out-chart-title">Célzott ügyfelek</div>
+                    <div className="out-chart-subtitle">Ügyfélszám kampányonként</div>
+                    <div className="out-chart-wrap">
+                      {campaigns.length > 0 ? (
+                        <Bar data={clientsChartData} options={clientsChartOptions} />
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)', fontSize: 12 }}>Nincs adat</div>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Idővonal */}
+                  <div className="out-chart-card">
+                    <div className="out-chart-title">Idővonal</div>
+                    <div className="out-chart-subtitle">Kampány létrehozások időrendben</div>
+                    <div className="out-chart-wrap">
+                      {campaigns.length > 0 ? (
+                        <Line data={timelineChartData} options={timelineChartOptions} />
+                      ) : (
+                        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)', fontSize: 12 }}>Nincs adat</div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Summary Row */}
+                <div className="out-analytics-summary">
+                  <div className="out-summary-item">
+                    <div className="out-summary-value">{analytics.avgClients}</div>
+                    <div className="out-summary-label">Átl. ügyfél/kampány</div>
+                  </div>
+                  <div className="out-summary-item">
+                    <div className="out-summary-value">{analytics.topChannel ? (CHANNEL_NAMES[analytics.topChannel[0]] || analytics.topChannel[0]) : '-'}</div>
+                    <div className="out-summary-label">Leggyakoribb csatorna</div>
+                  </div>
+                  <div className="out-summary-item">
+                    <div className="out-summary-value">{analytics.successRate}%</div>
+                    <div className="out-summary-label">Befejezési arány</div>
+                  </div>
+                  <div className="out-summary-item">
+                    <div className="out-summary-value">{analytics.lastCampaign ? new Date(analytics.lastCampaign.created_at).toLocaleDateString('hu-HU') : '-'}</div>
+                    <div className="out-summary-label">Utolsó kampány</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
 
         {/* Status filter tabs */}
-        <div style={{ display: 'flex', gap: 8, marginBottom: 20, flexWrap: 'wrap' }}>
+        <div className="out-view-switcher">
           {STATUS_FILTERS.map((tab) => (
             <button
               key={tab}
               className={`out-view-btn ${activeFilter === tab ? 'active' : ''}`}
               onClick={() => setActiveFilter(tab)}
-              style={{
-                padding: '6px 16px',
-                borderRadius: 8,
-                border: '1px solid var(--border)',
-                background: activeFilter === tab ? 'rgba(28,238,224,0.1)' : 'var(--card)',
-                color: activeFilter === tab ? 'var(--accent)' : 'var(--text-muted)',
-                fontSize: 12,
-                fontWeight: 600,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-              }}
             >
               {tab}
             </button>
@@ -280,7 +665,7 @@ export default function OutboundPage() {
             </p>
           </div>
         ) : (
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))', gap: 16 }}>
+          <div className="out-campaign-grid">
             {filteredCampaigns.map((c) => {
               const st = STATUS_COLORS[c.status] || STATUS_COLORS['Vázlat'];
               const channels = c.channels || (c.channel ? [c.channel] : ['email']);
@@ -390,15 +775,6 @@ export default function OutboundPage() {
   );
 }
 
-function KpiCard({ label, value, icon, color }: { label: string; value: number; icon: string; color?: string }) {
-  return (
-    <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, padding: '16px 14px', textAlign: 'center' }}>
-      <div style={{ fontSize: 20, marginBottom: 4 }}>{icon}</div>
-      <div style={{ fontSize: 22, fontWeight: 800, color: color || 'var(--text)', fontFamily: 'Inter, sans-serif' }}>{value}</div>
-      <div style={{ fontSize: 11, color: 'var(--text-muted)', fontWeight: 600 }}>{label}</div>
-    </div>
-  );
-}
 
 function ActionBtn({ label, color, onClick }: { label: string; color: string; onClick: () => void }) {
   return (

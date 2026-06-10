@@ -3,31 +3,26 @@
   "tone": "professional_friendly",
   "tone_custom": "",
   "knowledge_format": "json",
-  "greeting": "Szia! A FogBox virtuális asszisztense vagyok. Kérdezz a szolgáltatásainkról, foglalj időpontot, vagy akár emailt is küldhetek helyetted. Miben segíthetek neked a mai nap során??",
+  "greeting": "Szia! A Fogmed virtuális asszisztense vagyok, Kérdezz a szolgáltatásainkról vagy foglalj időpontot. Miben segíthetek?",
   "business_hours": {
+    "friday": {
+      "open": null,
+      "close": null,
+      "enabled": false
+    },
     "monday": {
       "open": "01:58",
       "close": "03:58",
       "enabled": true
     },
+    "sunday": {
+      "open": null,
+      "close": null,
+      "enabled": false
+    },
     "tuesday": {
       "open": "10:58",
       "close": "12:58",
-      "enabled": true
-    },
-    "wednesday": {
-      "open": null,
-      "close": null,
-      "enabled": true
-    },
-    "thursday": {
-      "open": "09:00",
-      "close": "19:00",
-      "enabled": true
-    },
-    "friday": {
-      "open": "09:00",
-      "close": "19:00",
       "enabled": true
     },
     "saturday": {
@@ -35,10 +30,15 @@
       "close": null,
       "enabled": false
     },
-    "sunday": {
+    "thursday": {
       "open": null,
       "close": null,
       "enabled": false
+    },
+    "wednesday": {
+      "open": "00:32",
+      "close": "02:32",
+      "enabled": true
     }
   }
 }

@@ -2159,6 +2159,7 @@ class TextFileRequest(BaseModel):
 async def save_settings(payload: SettingsSaveRequest, username: str = Depends(verify_jwt)):
     """Save agent settings and knowledge base to disk."""
     # Save settings (without knowledge content)
+    print(f"[DEBUG] save_settings received payload: {payload.dict()}", flush=True)
     settings = {
         "voice_id":        payload.voice_id,
         "tone":            payload.tone,
@@ -2167,17 +2168,23 @@ async def save_settings(payload: SettingsSaveRequest, username: str = Depends(ve
         "greeting":        payload.greeting,
         "business_hours":  payload.business_hours,
     }
-    SETTINGS_FILE.write_text(json.dumps(settings, ensure_ascii=False, indent=2), encoding="utf-8")
+    try:
+        SETTINGS_FILE.write_text(json.dumps(settings, ensure_ascii=False, indent=2), encoding="utf-8")
+    except Exception as ex:
+        print(f"[DEBUG] Error writing settings file: {ex}", flush=True)
+        raise HTTPException(status_code=500, detail=f"Fájl írási hiba: {ex}")
 
-    # Save knowledge to appropriate file
-    if payload.knowledge_format == "md":
-        KNOWLEDGE_MD.write_text(payload.knowledge_content, encoding="utf-8")
-    else:
-        try:
-            parsed = json.loads(payload.knowledge_content)
-            KNOWLEDGE_JSON.write_text(json.dumps(parsed, ensure_ascii=False, indent=2), encoding="utf-8")
-        except json.JSONDecodeError as e:
-            raise HTTPException(status_code=400, detail=f"Hibás JSON formátum: {e}")
+    # Save knowledge to appropriate file if provided
+    if payload.knowledge_content:
+        if payload.knowledge_format == "md":
+            KNOWLEDGE_MD.write_text(payload.knowledge_content, encoding="utf-8")
+        else:
+            try:
+                parsed = json.loads(payload.knowledge_content)
+                KNOWLEDGE_JSON.write_text(json.dumps(parsed, ensure_ascii=False, indent=2), encoding="utf-8")
+            except json.JSONDecodeError as e:
+                print(f"[DEBUG] JSON decode error: {e} | Content: {payload.knowledge_content}", flush=True)
+                raise HTTPException(status_code=400, detail=f"Hibás JSON formátum: {e}")
 
     return {"ok": True, "message": "Beállítások elmentve. Az agent újraindítása szükséges a változtatások érvényesítéséhez."}
 
