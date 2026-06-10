@@ -1,0 +1,608 @@
+{
+  "status": "success",
+  "url": "https://sardiablak.vercel.app/",
+  "scraper_json": "{\n  \"metadata\": {\n    \"title\": \"Sárdi Ablak - Műanyag és Fa Nyílászárók Beépítése Somogy Megyében\",\n    \"description\": \"Sárdi Ablak Somogy megyében - Műanyag és fa ablakok, bejárati és beltéri ajtók, valamint árnyékolástechnikai rendszerek szakszerű beépítése és cseréje. Kérjen ingyenes felmérést!\",\n    \"keywords\": null,\n    \"viewport\": \"width=device-width, initial-scale=1.0\",\n    \"canonical\": \"https://sardiablak.hu\",\n    \"lang\": null,\n    \"is_https\": true\n  },\n  \"headings\": {\n    \"h1\": [\n      \"SÁRDI ABLAK\"\n    ],\n    \"h2\": [\n      \"Több mint 10 év tapasztalat az ablakbeépítésben\",\n      \"Munkáink\",\n      \"Lépjen Velünk Kapcsolatba\"\n    ],\n    \"h3\": [\n      \"Telefon\",\n      \"Email\",\n      \"Helyszín\"\n    ]\n  },\n  \"images\": [\n    {\n      \"src\": \"https://sardiablak.vercel.app/media/Termekink/logo.jpg\",\n      \"alt\": \"Sárdi Ablak\"\n    },\n    {\n      \"src\": \"https://sardiablak.vercel.app/media/WEBP/IMG_2352.webp\",\n      \"alt\": \"Ablakbeépítés és precíz nyílászáró csere szakember által Somogy megyében\"\n    },\n    {\n      \"src\": \"https://sardiablak.vercel.app/media/WEBP/IMG_2353.webp\",\n      \"alt\": \"Modern műanyag ablak beépítés és ablakcsere Somogy megyében\"\n    },\n    {\n      \"src\": \"https://sardiablak.vercel.app/media/WEBP/IMG_3402.webp\",\n      \"alt\": \"Kétszárnyú hőszigetelt erkélyajtó beépítés családi házban\"\n    },\n    {\n      \"src\": \"https://sardiablak.vercel.app/media/WEBP/garazs.webp\",\n      \"alt\": \"Szekcionált motoros lakossági garázskapu beépítése\"\n    },\n    {\n      \"src\": \"https://sardiablak.vercel.app/media/WEBP/ajto.webp\",\n      \"alt\": \"Elegáns beltéri ajtók beépítése lakásban\"\n    },\n    {\n      \"src\": \"https://sardiablak.vercel.app/media/WEBP/zsaluzia.webp\",\n      \"alt\": \"Modern kültéri motoros alumínium zsaluzia szerelés\"\n    },\n    {\n      \"src\": \"https://sardiablak.vercel.app/media/WEBP/arnyekolo.webp\",\n      \"alt\": \"Kültéri terasz árnyékoló rendszer és textil napellenző\"\n    }\n  },\n  \"links\": [\n    {\n      \"href\": \"https://sardiablak.vercel.app/#kezdolap\",\n      \"text\": \"Sárdi Ablak\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://sardiablak.vercel.app/#kezdolap\",\n      \"text\": \"Kezdőlap\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://sardiablak.vercel.app/#rolunk\",\n      \"text\": \"Rólunk\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://sardiablak.vercel.app/referencia.html\",\n      \"text\": \"Referencia\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://sardiablak.vercel.app/termekeink.html\",\n      \"text\": \"Termékeink\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://sardiablak.vercel.app/#kontakt\",\n      \"text\": \"Kapcsolat\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://sardiablak.vercel.app/#kontakt\",\n      \"text\": \"Keress minket bizalommal\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://sardiablak.vercel.app/#kontakt\",\n      \"text\": \"Ingyenes árajánlatot kérek\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://sardiablak.vercel.app/referencia.html\",\n      \"text\": \"Tovább a Galériához\",\n      \"is_external\": false\n    }\n  },\n  \"sections\": [\n    {\n      \"id\": \"header\",\n      \"title\": \"Fejléc\",\n      \"type\": \"Navigation\"\n    },\n    {\n      \"id\": \"section-1\",\n      \"title\": \"Kezdőlap (Hero)\",\n      \"type\": \"Hero\"\n    },\n    {\n      \"id\": \"section-2\",\n      \"title\": \"Rólunk\",\n      \"type\": \"Articles\"\n    },\n    {\n      \"id\": \"section-3\",\n      \"title\": \"Munkáink\",\n      \"type\": \"Articles\"\n    },\n    {\n      \"id\": \"section-4\",\n      \"title\": \"Kapcsolat\",\n      \"type\": \"Contact\"\n    },\n    {\n      \"id\": \"footer\",\n      \"title\": \"Lábléc\",\n      \"type\": \"Footer\"\n    }\n  ],\n  \"products\": [\n    {\n      \"name\": \"Műanyag ablakok\",\n      \"price\": \"N/A\",\n      \"brand\": \"N/A\",\n      \"description\": \"Szakértő beépítés és csere Somogy megyében.\",\n      \"page_url\": \"https://sardiablak.vercel.app/\"\n    },\n    {\n      \"name\": \"Fa ablakok\",\n      \"price\": \"N/A\",\n      \"brand\": \"N/A\",\n      \"description\": \"Szakértő beépítés és csere Somogy megyében.\",\n      \"page_url\": \"https://sardiablak.vercel.app/\"\n    },\n    {\n      \"name\": \"Bejárati ajtók\",\n      \"price\": \"N/A\",\n      \"brand\": \"N/A\",\n      \"description\": \"Szakértő beépítés és csere Somogy megyében.\",\n      \"page_url\": \"https://sardiablak.vercel.app/\"\n    },\n    {\n      \"name\": \"Beltéri ajtók\",\n      \"price\": \"N/A\",\n      \"brand\": \"N/A\",\n      \"description\": \"Elegáns beltéri ajtók beépítése lakásban.\",\n      \"page_url\": \"https://sardiablak.vercel.app/\"\n    },\n    {\n      \"name\": \"Árnyékolástechnikai rendszerek\",\n      \"price\": \"N/A\",\n      \"brand\": \"N/A\",\n      \"description\": \"Kültéri terasz árnyékoló rendszer és textil napellenző, valamint zsaluzia szerelés.\",\n      \"page_url\": \"https://sardiablak.vercel.app/\"\n    },\n    {\n      \"name\": \"Erkélyajtó beépítés\",\n      \"price\": \"N/A\",\n      \"brand\": \"N/A\",\n      \"description\": \"Kétszárnyú hőszigetelt erkélyajtó beépítés családi házban.\",\n      \"page_url\": \"https://sardiablak.vercel.app/\"\n    },\n    {\n      \"name\": \"Garázs Ajtók\",\n      \"price\": \"N/A\",\n      \"brand\": \"N/A\",\n      \"description\": \"Szekcionált motoros lakossági garázskapu beépítése.\",\n      \"page_url\": \"https://sardiablak.vercel.app/\"\n    },\n    {\n      \"name\": \"Zsaluzia\",\n      \"price\": \"N/A\",\n      \"brand\": \"N/A\",\n      \"description\": \"Modern kültéri motoros alumínium zsaluzia szerelés.\",\n      \"page_url\": \"https://sardiablak.vercel.app/\"\n    }\n  ]\n}",
+  "products": [
+    {
+      "name": "Műanyag Ablakok",
+      "price": "N/A",
+      "brand": "N/A",
+      "description": "Professional installation and replacement of high-quality plastic windows, ensuring comfort and energy efficiency for your home.",
+      "page_url": "https://sardiablak.vercel.app/"
+    },
+    {
+      "name": "Fa Ablakok",
+      "price": "N/A",
+      "brand": "N/A",
+      "description": "Professional installation and replacement of durable wooden windows, enhancing the aesthetic and energy performance of any home.",
+      "page_url": "https://sardiablak.vercel.app/"
+    },
+    {
+      "name": "Bejárati Ajtók",
+      "price": "N/A",
+      "brand": "N/A",
+      "description": "Professional installation and replacement of secure and aesthetically pleasing entrance doors, providing safety and style for your home.",
+      "page_url": "https://sardiablak.vercel.app/"
+    },
+    {
+      "name": "Beltéri Ajtók",
+      "price": "N/A",
+      "brand": "N/A",
+      "description": "Professional installation of elegant interior doors, designed to complement your home's design and functionality.",
+      "page_url": "https://sardiablak.vercel.app/"
+    },
+    {
+      "name": "Erkélyajtó beépítés",
+      "price": "N/A",
+      "brand": "N/A",
+      "description": "Expert installation of balcony doors, ensuring seamless integration and optimal insulation for your living space.",
+      "page_url": "https://sardiablak.vercel.app/"
+    },
+    {
+      "name": "Garázs Ajtók",
+      "price": "N/A",
+      "brand": "N/A",
+      "description": "Installation of various types of garage doors, including sectional motor-operated residential garage doors, providing security and convenience.",
+      "page_url": "https://sardiablak.vercel.app/"
+    },
+    {
+      "name": "Zsaluzia",
+      "price": "N/A",
+      "brand": "N/A",
+      "description": "Installation of modern outdoor motorized aluminum blinds (zsaluzia), offering effective sun protection and privacy.",
+      "page_url": "https://sardiablak.vercel.app/"
+    },
+    {
+      "name": "Árnyékolás Technika",
+      "price": "N/A",
+      "brand": "N/A",
+      "description": "Professional installation of various shading technology systems, including outdoor terrace shading and textile awnings, for comfort and energy saving.",
+      "page_url": "https://sardiablak.vercel.app/"
+    }
+  ],
+  "contacts": {
+    "emails": [
+      "sardiablak@gmail.com"
+    ],
+    "phone_numbers": [
+      "+36 30 207 0827"
+    ],
+    "addresses": [
+      "Somogy megye"
+    ],
+    "company_name": "Sardiablak Kft.",
+    "tax_number": null,
+    "registration_number": null,
+    "facebook": null,
+    "instagram": null,
+    "linkedin": null,
+    "youtube": null,
+    "tiktok": null,
+    "twitter": null,
+    "x": null,
+    "pinterest": null,
+    "snapchat": null,
+    "reddit": null,
+    "tumblr": null,
+    "flickr": null,
+    "vimeo": null,
+    "twitch": null,
+    "discord": null,
+    "telegram": null,
+    "whatsapp": null,
+    "messenger": null,
+    "skype": null,
+    "threads": null,
+    "medium": null,
+    "github": null,
+    "behance": null,
+    "dribbble": null,
+    "viber": null,
+    "line": null,
+    "wechat": null,
+    "weibo": null,
+    "quora": null,
+    "patreon": null,
+    "soundcloud": null
+  },
+  "seo": {
+    "score": 90,
+    "title": "Sárdi Ablak - Műanyag és Fa Nyílászárók Beépítése Somogy Megyében",
+    "description": "Sárdi Ablak Somogy megyében - Műanyag és fa ablakok, bejárati és beltéri ajtók, valamint árnyékolástechnikai rendszerek szakszerű beépítése és cseréje. Kérjen ingyenes felmérést!",
+    "h1_count": 1,
+    "h2_count": 3,
+    "h3_count": 3,
+    "total_images": 8,
+    "missing_alt": 0,
+    "total_links": 9,
+    "internal_links": 9,
+    "external_links": 0,
+    "has_viewport": true,
+    "is_https": true,
+    "has_schema": false,
+    "has_robots": true,
+    "has_sitemap": true,
+    "has_lang": true,
+    "lang_val": "hu",
+    "deductions": [
+      "A szöveg mennyisége alacsony (109 szó).",
+      "Hiányzik az JSON-LD strukturált adat/séma jelölés ('JSON-LD Structured Data / Schema Markup Present: False')."
+    ],
+    "deductions_detail": [
+      {
+        "criterion": "Meta Cím hossza",
+        "status": "good",
+        "points": 15,
+        "reason": "A title tag hossza megfelelő (70 karakter): 'Sárdi Ablak - Műanyag és Fa Nyílászárók Beépítése Somogy Megyében'.",
+        "recommendation": "Nem szükséges beavatkozás."
+      },
+      {
+        "criterion": "Meta Leírás hossza",
+        "status": "good",
+        "points": 15,
+        "reason": "A meta leírás hossza optimális (160 karakter): 'Sárdi Ablak Somogy megyében - Műanyag és fa ablakok, bejárati és beltéri ajtók, valamint árnyékolástechnikai rendszerek szakszerű beépítése és cseréje. Kérjen ingyenes felmérést!'.",
+        "recommendation": "Nem szükséges beavatkozás."
+      },
+      {
+        "criterion": "H1 Fejlécek száma",
+        "status": "good",
+        "points": 15,
+        "reason": "Pontosan egy H1 fejléc található a lapon: 'SÁRDI ABLAK'.",
+        "recommendation": "Nem szükséges beavatkozás."
+      },
+      {
+        "criterion": "Címsor hierarchia (H2-H3)",
+        "status": "good",
+        "points": 10,
+        "reason": "A címsorok hierarchiája logikus, H2 ('Több mint 10 év tapasztalat az ablakbeépítésben', 'Munkáink', 'Lépjen Velünk Kapcsolatba') és H3 ('Telefon', 'Email', 'Helyszín') tagok egyaránt jelen vannak és logikus szerkezetet alkotnak.",
+        "recommendation": "Nem szükséges beavatkozás."
+      },
+      {
+        "criterion": "HTTPS Biztonság",
+        "status": "good",
+        "points": 15,
+        "reason": "Az oldal biztonságos HTTPS kapcsolaton keresztül érhető el.",
+        "recommendation": "Nem szükséges beavatkozás."
+      },
+      {
+        "criterion": "Mobilbarát nézet (Viewport)",
+        "status": "good",
+        "points": 15,
+        "reason": "A viewport tag megfelelően konfigurálva van: 'width=device-width, initial-scale=1.0'.",
+        "recommendation": "Nem szükséges beavatkozás."
+      },
+      {
+        "criterion": "Kanonikus Link",
+        "status": "good",
+        "points": 5,
+        "reason": "A kanonikus link tag jelen van: 'https://sardiablak.hu'.",
+        "recommendation": "Nem szükséges beavatkozás."
+      },
+      {
+        "criterion": "Tartalom szómennyiség",
+        "status": "bad",
+        "points": -10,
+        "reason": "A szöveg mennyisége alacsony (109 szó).",
+        "recommendation": "Bővítse a tartalom mennyiségét legalább 300-600 szóra, hogy átfogóbb és értékesebb információkat nyújtson a felhasználóknak és a keresőmotoroknak."
+      },
+      {
+        "criterion": "Kép Alt attribútumok",
+        "status": "good",
+        "points": 10,
+        "reason": "Minden kép rendelkezik helyettesítő (alt) szöveggel (összesen 8 kép, 0 hiányzó alt szöveg).",
+        "recommendation": "Nem szükséges beavatkozás."
+      },
+      {
+        "criterion": "Szerver válaszidő (TTFB)",
+        "status": "good",
+        "points": 5,
+        "reason": "A szerver válaszideje (TTFB) elfogadható (313ms).",
+        "recommendation": "Optimalizálja a szerver beállításait és a weboldal kódját a TTFB további csökkentése érdekében, cél a 300ms alatti érték."
+      },
+      {
+        "criterion": "Robots.txt és Sitemap.xml",
+        "status": "good",
+        "points": 5,
+        "reason": "Mind a robots.txt ('Robots.txt Present: True'), mind a sitemap.xml ('Sitemap.xml Present: True') fájlok megtalálhatók a domainen.",
+        "recommendation": "Nem szükséges beavatkozás."
+      },
+      {
+        "criterion": "Strukturált Adatok / Schema Markup",
+        "status": "bad",
+        "points": -5,
+        "reason": "Hiányzik az JSON-LD strukturált adat/séma jelölés ('JSON-LD Structured Data / Schema Markup Present: False').",
+        "recommendation": "Implementáljon strukturált adatokat (JSON-LD) a szolgáltatások, a kapcsolati adatok vagy a cégre vonatkozó információk jelölésére, hogy segítse a keresőmotorokat a tartalom jobb megértésében és gazdagabb találatok megjelenítésében."
+      },
+      {
+        "criterion": "Nyelv deklaráció",
+        "status": "good",
+        "points": 5,
+        "reason": "A 'lang' attribútum megfelelően deklarálva van a <html> tagben: 'hu'.",
+        "recommendation": "Nem szükséges beavatkozás."
+      }
+    ]
+  },
+  "visuals": {
+    "top_colors": [
+      "#3b82f6",
+      "#10b981",
+      "#ef4444",
+      "#f59e0b",
+      "#6b7280"
+    ],
+    "top_colors_detail": [
+      {
+        "hex": "#3b82f6",
+        "pct": 20.0
+      },
+      {
+        "hex": "#10b981",
+        "pct": 20.0
+      },
+      {
+        "hex": "#ef4444",
+        "pct": 20.0
+      },
+      {
+        "hex": "#f59e0b",
+        "pct": 20.0
+      },
+      {
+        "hex": "#6b7280",
+        "pct": 20.0
+      }
+    ],
+    "image_colors": [
+      "#d7c28c",
+      "#4b4c49",
+      "#4f5943",
+      "#e2cc86",
+      "#3f3e37",
+      "#ffffff",
+      "#fdfdfd",
+      "#2c3e4f",
+      "#d4d4ce"
+    ],
+    "warm_pct": 40.0,
+    "cool_pct": 40.0,
+    "neutral_pct": 20.0,
+    "visual_tone": "Kiegyensúlyozott / Neutrális",
+    "visual_style_description": "A weboldal vizuális stílusa letisztult, modern és funkcionális. A tiszta elrendezés és a jó minőségű képek a nyílászárókról és árnyékolástechnikai rendszerekről profi és megbízható benyomást keltenek. A márkahangulat a szakértelemre és a minőségre épül."
+  },
+  "content": {
+    "word_count": 109,
+    "business_category": "Nyílászárók és Árnyékolástechnika",
+    "tone": "Professzionális, Tájékoztató",
+    "summary": "A Sárdi Ablak egy Somogy megyei vállalkozás, amely műanyag és fa nyílászárók, bejárati és beltéri ajtók, valamint árnyékolástechnikai rendszerek szakszerű beépítésével és cseréjével foglalkozik. A weboldal bemutatja szolgáltatásaikat, referenciáikat és elérhetőségeiket.",
+    "seo_advice": "A weboldal kulcsszavas optimalizálása és tartalomfejlesztése szempontjából kulcsfontosságú lenne a jelenleg vékony tartalom bővítése. Jelenleg a \"Sárdi Ablak\", \"nyílászárók\", \"ablakok\", \"ajtók\", \"árnyékolástechnika\", \"Somogy megye\" kulcsszavak jól illeszkednek a meta adatokba és a H1-be. Azonban a bővebb szöveges tartalom hiánya miatt a keresőmotorok nehezebben tudják relevánsabbá tenni az oldalt szélesebb körű lekérdezésekre. Javasolt a szolgáltatások (műanyag ablak, fa ablak, beltéri ajtó, árnyékolástechnika) részletesebb bemutatása külön aloldalakon, ahol minden egyes termékcsoportról legalább 300-500 szóban írnának. Ezen felül érdemes lenne blogbejegyzéseket indítani a nyílászáró választásról, karbantartásról, energiahatékonyságról, ami további releváns kulcsszavakat vonzana, mint pl. \"ablakcsere tippek\", \"energiatakarékos ablak\", \"redőny típusok\". A kapcsolódó települések neveit is érdemes megemlíteni a szövegben, ha releváns (pl. \"Kaposvár ablakbeépítés\", \"Nagyatád nyílászáró\").",
+    "global_improvements": [
+      "**Tartalom bővítése:** Növelje a szöveges tartalom mennyiségét a szolgáltatások részletesebb bemutatásával és szakmai cikkek írásával, hogy a felhasználók és a keresőmotorok számára is értékesebb legyen az oldal.",
+      "**Strukturált adatok implementálása:** Adjon hozzá JSON-LD séma jelöléseket a vállalkozás típusának (Organization, LocalBusiness), szolgáltatásainak (Service) és elérhetőségeinek megadásához, ezzel javítva a keresőmotorok megértését és a megjelenést a találati listán (rich snippets).",
+      "**Oldalsebesség optimalizálás:** Bár a TTFB elfogadható, a teljes oldalbetöltési idő további elemzése és optimalizálása javasolt (képek tömörítése, böngésző gyorsítótárazás, CSS/JS minimalizálás) a felhasználói élmény és a SEO javítása érdekében."
+    ],
+    "word_style_analysis": "A szöveg stílusa professzionális és tájékoztató jellegű, a szakértelem és a megbízhatóság hangsúlyozásával. A nyelvezet egyértelmű és direkt, a szolgáltatások bemutatására fókuszál.",
+    "detected_posts": [
+      {
+        "title": "Műanyag ablakok",
+        "placement": "Termékeink / Szolgáltatásaink",
+        "inferred_popularity": "Magas",
+        "words": [
+          "műanyag ablakok",
+          "ablakcsere",
+          "ablakbeépítés"
+        ],
+        "style": "Professzionális",
+        "category": "Nyílászárók"
+      },
+      {
+        "title": "Fa ablakok",
+        "placement": "Termékeink / Szolgáltatásaink",
+        "inferred_popularity": "Átlagos",
+        "words": [
+          "fa ablakok",
+          "egyedi ablakok",
+          "hagyományos"
+        ],
+        "style": "Professzionális",
+        "category": "Nyílászárók"
+      },
+      {
+        "title": "Árnyékolástechnikai rendszerek",
+        "placement": "Termékeink / Szolgáltatásaink",
+        "inferred_popularity": "Magas",
+        "words": [
+          "árnyékolás",
+          "redőny",
+          "zsaluzia",
+          "napellenző"
+        ],
+        "style": "Professzionális",
+        "category": "Árnyékolástechnika"
+      },
+      {
+        "title": "Több mint 10 év tapasztalat az ablakbeépítésben",
+        "placement": "Rólunk szekció",
+        "inferred_popularity": "Kiemelkedő",
+        "words": [
+          "tapasztalat",
+          "ablakbeépítés",
+          "szakértelem"
+        ],
+        "style": "Bizalomépítő",
+        "category": "Cégismertető"
+      }
+    ],
+    "images_analysis": [
+      {
+        "src": "https://sardiablak.vercel.app/media/WEBP/IMG_2352.webp",
+        "alt": "Ablakbeépítés és precíz nyílászáró csere szakember által Somogy megyében",
+        "description": "Ez a kép egy sárga falú, sötét tetős, több boltíves és tetőtéri ablakkal rendelkező épületet ábrázol, melynek stílusa inkább klasszikus, egy fotó formájában.",
+        "dominant_colors": [
+          "#D7C28C",
+          "#4B4C49",
+          "#4F5943"
+        ],
+        "status": "success"
+      },
+      {
+        "src": "https://sardiablak.vercel.app/media/WEBP/IMG_2353.webp",
+        "alt": "Modern műanyag ablak beépítés és ablakcsere Somogy megyében",
+        "description": "A képen egy sárga homlokzatú, sötét tetős épület látható íves és téglalap alakú ablakokkal, egy valósághű fotó stílusában.",
+        "dominant_colors": [
+          "#e2cc86",
+          "#3f3e37",
+          "#ffffff"
+        ],
+        "status": "success"
+      },
+      {
+        "src": "https://sardiablak.vercel.app/media/WEBP/IMG_3402.webp",
+        "alt": "Kétszárnyú hőszigetelt erkélyajtó beépítés családi házban",
+        "description": "A képen egy modern, fehér keretezésű, több üvegpanellel ellátott bejárati ajtó látható, melynek stílusa realista fotó.",
+        "dominant_colors": [
+          "#FDFDFD",
+          "#2C3E4F",
+          "#D4D4CE"
+        ],
+        "status": "success"
+      }
+    ]
+  },
+  "marketing_audit": {
+    "marketing_score": 35,
+    "value_proposition_evaluation": "A fő címsor (H1) csupán a cégnév, azaz „SÁRDI ABLAK”, ami nem egyértelmű értékajánlat és nem ragadja meg azonnal a látogató figyelmét. Bár a meta description („Sárdi Ablak Somogy megyében - Műanyag és fa ablakok, bejárati és beltéri ajtók, valamint árnyékolástechnikai rendszerek szakszerű beépítése és cseréje. Kérjen ingyenes felmérést!”) már tartalmazza a „szakszerű beépítés és csere” előnyét és egy CTA-t, az oldalon lévő fő hook (horog) gyenge. Az „Több mint 10 év tapasztalat az ablakbeépítésben” (H2) egy kiváló bizalmi elem, de nem közvetlenül az elsődleges értékajánlat.",
+    "frameworks_analysis": {
+      "pas_alignment": "A szövegben nem azonosítható be egyértelműen a PAS (Probléma, Agitáció, Megoldás) keretrendszer. Nem kerül bemutatásra explicit probléma, amivel az ügyfél szembesülhet, és nem fokozza a problémát, mielőtt a Sárdi Ablak szolgáltatásait kínálná megoldásként. A szöveg inkább leíró jellegű a szolgáltatásokra vonatkozóan.",
+      "aida_alignment": "Az AIDA (Figyelem, Érdeklődés, Vágy, Cselekvés) elemei felbukkannak, de nem követnek egy tudatosan felépített struktúrát. A figyelemfelkeltés gyenge a H1 („SÁRDI ABLAK”) miatt. Az érdeklődés felkeltését szolgálja az „Több mint 10 év tapasztalat az ablakbeépítésben” (H2) és a terméklisták. A vágyat egyes termékleírások („Elegáns beltéri ajtók beépítése lakásban”, „Modern kültéri motoros alumínium zsaluzia szerelés”) és az „szakértő beépítés” ígérete keltheti fel. A cselekvésre ösztönző elemek (CTA-k) jelen vannak, de az AIDA folyamata nem szervesen épül fel a tartalom egésze során."
+    },
+    "cta_evaluation": "Az oldalon található CTA-k általánosságban jók, specifikusak és cselekvésre ösztönzőek. Kiemelkedőek az olyan feliratok, mint az „Ingyenes árajánlatot kérek” és a meta descriptionben is szereplő „Kérjen ingyenes felmérést!”, amelyek konkrét előnyt ígérnek. A „Keress minket bizalommal” barátságos és invitáló, a „Tovább a Galériához” pedig egyértelműen navigál. A „Lépjen Velünk Kapcsolatba” (H2) szintén egyértelműen irányítja a látogatót. Azonban az elhelyezésükről nem kaptunk teljes képet, így feltételezve, hogy megfelelően integráltak, a szövegezésük erős.",
+    "credibility_evaluation": "Az oldal erős hitelességi jeleket tartalmaz. Az „Több mint 10 év tapasztalat az ablakbeépítésben” (H2) kulcsfontosságú bizalmi tényező. Az „Munkáink” (H2) szakasz, amely a „Referencia” oldalra mutat, tovább erősíti a hitelességet, lehetővé téve a korábbi munkák megtekintését. Bár konkrét ügyfélvélemények vagy partnerek logói nem szerepelnek a kapott adatokban, az alt szövegek, mint például az „Ablakbeépítés és precíz nyílászáró csere szakember által Somogy megyében”, szintén az szakértelemre utalnak.",
+    "copy_recommendations": [
+      "A fő címsor (H1) jelenleg csak a cég nevét („SÁRDI ABLAK”) tartalmazza. Javasolt egy markáns, előnyalapú H1-et használni, ami azonnal megragadja a látogató figyelmét és bemutatja a fő előnyt (pl. 'Minőségi Nyílászárók és Ablakbeépítés 10 Év Tapasztalattal Somogy Megyében').",
+      "A szövegben nincsenek kifejezetten beazonosítható PAS vagy AIDA keretek. Javasolt a bevezető szakaszokban egy ügyfélproblémával kezdeni (pl. régi, rosszul szigetelő ablakok okozta magas fűtésszámla), ezt fokozni, majd megoldásként bemutatni a Sárdi Ablak szolgáltatásait.",
+      "Bár az '10 év tapasztalat' és a 'Referencia' szakasz hitelesít, hiányoznak a közvetlen ügyfélvélemények vagy esettanulmányok. Javasolt konkrét ügyfél-referenciákat, idézeteket vagy rövid esettanulmányokat (akár képpel) elhelyezni a releváns szakaszokban, például a 'Rólunk' vagy a 'Munkáink' alatt.",
+      "A 'Kérjen ingyenes árajánlatot' és 'Ingyenes felmérés' CTA-k kiválóak, de javasolt ezeket proaktívan, több helyen, stratégiailag elhelyezni az oldalon, különösen a termék- és szolgáltatásleírások közelében, nem csak a láblécben vagy a kapcsolati szekcióban, hogy maximalizálja az átkattintási arányt.",
+      "A termékleírások jelenleg rövidek és csak a 'szakértő beépítést' hangsúlyozzák. Javasolt kibővíteni ezeket a termékek konkrét előnyeivel az ügyfél számára (pl. 'műanyag ablakok: kiváló hőszigetelés a rezsi csökkentéséért, zajvédelem a nyugodt otthonért, hosszú élettartam minimális karbantartással')."
+    ]
+  },
+  "brand_personality": {
+    "brand_archetype": "Sage (Bölcs)",
+    "brand_archetype_reasoning": "A weboldal erősen hangsúlyozza a 'Több mint 10 év tapasztalat' és a 'szakértő beépítés' kulcsszavakat, amelyek a tudásra, a megbízhatóságra és az elhivatottságra utalnak. A termékleírások a minőségi, tartós és energiahatékony megoldásokra fókuszálnak, a problémamegoldó, tájékozott szolgáltató szerepét öltve magára. Ez a megközelítés tökéletesen illeszkedik a Bölcs archetípushoz, amely a bölcsességet, a tudást és a megbízhatóságot képviseli.",
+    "brand_voice": [
+      "szakértő",
+      "megbízható",
+      "precíz",
+      "professzionális"
+    ],
+    "alignment_score": 80,
+    "alignment_reasoning": "A vizuális elemek (tiszta, professzionális fotók klasszikus és modern épületekről, igényes nyílászáró beépítések) konzisztensek a szövegben megfogalmazott szakértelemmel, minőséggel és megbízhatósággal. A visszafogott, de kiegyensúlyozott színpaletta sem ütközik, hanem alátámasztja a márka professzionális és stabil imázsát. Nincs erős érzelmi vagy különleges stílusbeli üzenet, de ami van, az összhangban áll.",
+    "target_audience": "Otthonteremtők és felújítók elsősorban Somogy megyében, akik minőségi, tartós és energiahatékony nyílászárókat, bejárati ajtókat vagy árnyékolástechnikai rendszereket keresnek. Olyan ügyfelek, akik nagyra értékelik a megbízható szakértelmet, a professzionális beépítést és a hosszú távú megoldásokat, és hajlandóak befektetni az otthonuk komfortjába és értékébe.",
+    "personality_summary": "A Sárdi Ablak egy megbízható és tapasztalt szakemberként pozícionálja magát a nyílászáró beépítés és árnyékolástechnika területén. A márka a professzionalizmust, a minőséget és a több mint egy évtizedes szakértelmet hangsúlyozza, célja az ügyfelek bizalmának elnyerése tartós és energiahatékony otthoni megoldásokkal. Kommunikációja közvetlen, tényeken alapuló és a szolgáltatásnyújtásra, valamint a technikai kompetenciára fókuszál. A vizuális elemek letisztult, valósághű ábrázolásokkal támasztják alá ezt a megbízható imázst.",
+    "brand_coordinates": {
+      "tone": {
+        "formal_vs_casual": 25,
+        "rational_vs_emotional": 20,
+        "modern_vs_traditional": 45,
+        "simple_vs_technical": 60,
+        "authority_vs_peer": 15
+      },
+      "business": {
+        "price_segment_score": 60,
+        "price_segment_label": "Értékalapú",
+        "b2b_vs_b2c": 95,
+        "product_vs_service": 80
+      },
+      "visual": {
+        "minimalist_vs_decorative": 20,
+        "warmth_vs_coolness": 50,
+        "vibrancy": 55,
+        "visual_style_tags": [
+          "realistic photography",
+          "architectural focus",
+          "clean",
+          "functional",
+          "home improvement"
+        ]
+      },
+      "content": {
+        "primary_industry": "Nyílászáró beépítés és árnyékolástechnika",
+        "key_content_themes": [
+          "ablakcsere",
+          "ajtóbeépítés",
+          "energiahatékonyság",
+          "szakértelem",
+          "ingyenes felmérés"
+        ],
+        "humor_level": 0,
+        "storytelling_level": 10,
+        "educational_level": 65,
+        "promotional_level": 75
+      },
+      "engagement": {
+        "cta_aggressiveness": 65,
+        "emoji_usage": 0,
+        "hashtag_density": 0,
+        "post_length_preference": 30,
+        "interaction_asking": 5
+      }
+    },
+    "addressing": {
+      "mode": "ön",
+      "confidence": 100,
+      "evidence": [
+        "Kérjen ingyenes felmérést!",
+        "Lépjen Velünk Kapcsolatba",
+        "Kérjen ingyenes árajánlatot!"
+      ]
+    },
+    "cta_library": {
+      "primary_ctas": [
+        "Ingyenes árajánlatot kérek",
+        "Kérjen ingyenes felmérést!",
+        "Lépjen Velünk Kapcsolatba"
+      ],
+      "secondary_ctas": [
+        "Keress minket bizalommal",
+        "Tovább a Galériához"
+      ],
+      "slogans": [
+        "Több mint 10 év tapasztalat az ablakbeépítésben",
+        "Minőségi nyílászárók és árnyékolástechnika, otthona kényelméért."
+      ],
+      "tagline": "Szakértelem és minőség otthona értékéért."
+    },
+    "brand_dont": {
+      "tone_restrictions": [
+        "Ne használjon szlenget vagy túlzottan informális kifejezéseket.",
+        "Ne legyen humoros vagy ironikus.",
+        "Ne legyen túlzottan érzelgős vagy szentimentális.",
+        "Ne legyen lekezelő vagy fölényes.",
+        "Ne alkalmazzon hanyag, pontatlan nyelvezetet."
+      ],
+      "content_restrictions": [
+        "Ne tegyen közzé irreleváns, az iparágon kívüli tartalmat.",
+        "Ne használjon más nyelvet, csak magyarul.",
+        "Ne adjon téves vagy pontatlan információkat.",
+        "Ne terjesszen versenytársakra vonatkozó negatív üzeneteket.",
+        "Ne tegyen hamis ígéreteket az energiahatékonysággal kapcsolatban."
+      ],
+      "visual_restrictions": [
+        "Ne használjon túlzottan dekoratív vagy zsúfolt képeket.",
+        "Ne használjon alacsony felbontású vagy amatőr fényképeket.",
+        "Ne alkalmazzon eltúlzottan stilizált vagy rajzfilmszerű grafikákat.",
+        "Ne használjon olyan képeket, amelyek nem kapcsolódnak közvetlenül az otthonhoz vagy az építészethez."
+      ]
+    },
+    "hashtag_strategy": {
+      "brand_hashtags": [
+        "#SardiAblak",
+        "#SardiNyílászáró",
+        "#SárdiAblakok",
+        "#SardiOtthon"
+      ],
+      "industry_hashtags": [
+        "#Nyílászáró",
+        "#Ablakcsere",
+        "#BejáratiAjtó",
+        "#Redőny",
+        "#Árnyékolástechnika",
+        "#EnergiahatékonyOtthon",
+        "#Lakásfelújítás",
+        "#SomogyMegye",
+        "#Otthonteremtés",
+        "#MinőségiAblak"
+      ],
+      "campaign_hashtags": [],
+      "max_per_platform": {
+        "instagram": 15,
+        "facebook": 5,
+        "linkedin": 3
+      }
+    },
+    "content_pillars": [
+      {
+        "name": "Termék és Szolgáltatás Bemutatás",
+        "ratio": 40,
+        "description": "A márka főbb termékeinek (műanyag ablakok, fa ablakok, bejárati ajtók) és szolgáltatásainak (beépítés, árnyékolástechnika) részletes, professzionális bemutatása, kiemelve azok előnyeit és műszaki jellemzőit.",
+        "example_title": "Korszerű műanyag ablakok: tartósság és energiahatékonyság otthonába"
+      },
+      {
+        "name": "Szakértelem és Bizalomépítés",
+        "ratio": 30,
+        "description": "A cég tapasztalatának, szakértelmének és megbízhatóságának hangsúlyozása esettanulmányok, beépítési folyamatok bemutatása, vagy a \"Rólunk\" szekcióból származó üzenetek (pl. 10+ év tapasztalat) révén.",
+        "example_title": "Több mint egy évtizedes tapasztalat: Miért bízza ránk ablakcseréjét?"
+      },
+      {
+        "name": "Tájékoztatás és Tanácsadás",
+        "ratio": 20,
+        "description": "Értékes, informatív tartalmak nyújtása a célközönség számára nyílászáró-választással, energiahatékonysággal, karbantartással és az árnyékolástechnikai megoldásokkal kapcsolatban, segítve őket a megalapozott döntéshozatalban.",
+        "example_title": "Milyen szempontok alapján válasszon bejárati ajtót?"
+      },
+      {
+        "name": "Helyi Fókusz és Közösség",
+        "ratio": 10,
+        "description": "Somogy megyei relevanciájú tartalmak, mint például helyi referenciák, beépítési projektek bemutatása a régióban, vagy a helyi ügyfelek visszajelzései.",
+        "example_title": "Sárdi Ablak Somogy megyében: Megvalósult projektek"
+      }
+    ],
+    "platform_rules": {
+      "instagram": {
+        "active": false,
+        "tone_modifier": "Kiemelheti a vizuális vonzerőt, miközben megőrzi a szakértői hangnemet.",
+        "emoji_allowed": true,
+        "max_hashtags": 15,
+        "preferred_format": "carousel",
+        "optimal_post_length": "150-300 karakter"
+      },
+      "facebook": {
+        "active": false,
+        "tone_modifier": "Lehetővé teszi a részletesebb tájékoztatást és a közösségi interakciót, megőrizve a professzionalizmust.",
+        "emoji_allowed": true,
+        "max_hashtags": 5,
+        "preferred_format": "image_with_text",
+        "optimal_post_length": "200-500 karakter"
+      },
+      "tiktok": {
+        "active": false,
+        "tone_modifier": "",
+        "emoji_allowed": true,
+        "max_hashtags": 5,
+        "preferred_format": "short_video_script",
+        "optimal_post_length": "50-150 karakter"
+      },
+      "youtube": {
+        "active": false,
+        "tone_modifier": "",
+        "emoji_allowed": false,
+        "max_hashtags": 3,
+        "preferred_format": "tutorial_description",
+        "optimal_post_length": "500-1500 karakter"
+      },
+      "linkedin": {
+        "active": false,
+        "tone_modifier": "",
+        "emoji_allowed": false,
+        "max_hashtags": 3,
+        "preferred_format": "text_post",
+        "optimal_post_length": "300-800 karakter"
+      }
+    },
+    "visual_recipe": {
+      "color_palette": {
+        "primary": "#2C3E4F",
+        "secondary": "#FDFDFD",
+        "accent": "#D4D4CE",
+        "background": "#FDFDFD",
+        "text_color": "#3f3e37"
+      },
+      "photography_style": "environmental",
+      "lighting": "bright_even",
+      "composition": "centered_clean",
+      "background_type": "contextual",
+      "mood": "clean professional functional",
+      "image_prompt_prefix": "Professional realistic environmental photography, architectural focus on clean, modern elements, bright even natural lighting, centered composition, high-quality product display.",
+      "image_prompt_suffix": "neutral color palette, realistic, sharp focus, 8k professional photo.",
+      "negative_prompt": "text, watermark, logo, blurry, oversaturated, cartoon, illustration, distorted, artifacts, noise, amateur, low quality, bad composition, dark, gloomy, exaggerated, messy, cluttered, poor lighting, people, unrealistic"
+    }
+  }
+}
