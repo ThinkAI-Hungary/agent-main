@@ -1,0 +1,323 @@
+/**
+ * InteractionSummaryModal – 1:1 port of legacy log-modal + openInteractionSummaryModal()
+ */
+import { useState, useEffect, useCallback } from 'react';
+import { fmtDt } from '../../helpers/formatters';
+import { parseCustomData, type ClientRecord } from '../../helpers/clientResolvers';
+import { authFetch } from '../../api/client';
+import type { InteractionRow } from '../../pages/InteractionsPage';
+
+interface Props {
+  row: InteractionRow;
+  onClose: () => void;
+  clients: ClientRecord[];
+  clientsMap: Record<string, ClientRecord>;
+}
+
+interface ResultData {
+  date: string;
+  service: string;
+  doctor: string;
+  reminder: string;
+}
+
+interface ChatBlock {
+  sender: 'user' | 'ai' | 'system';
+  text: string;
+}
+
+export default function InteractionSummaryModal({ row, onClose, clients, clientsMap }: Props) {
+  const [showChat, setShowChat] = useState(false);
+  const [resultData, setResultData] = useState<ResultData>({ date: '-', service: '-', doctor: '-', reminder: '-' });
+  const [chatBlocks, setChatBlocks] = useState<ChatBlock[]>([]);
+  const [summary, setSummary] = useState('');
+
+  // Build result data + chat blocks
+  useEffect(() => {
+    let cancelled = false;
+
+    async function load() {
+      // Find client custom_data
+      let cData: Record<string, unknown> = {};
+      if (row.clientId && clientsMap[String(row.clientId)]) {
+        cData = parseCustomData(clientsMap[String(row.clientId)].custom_data);
+      } else {
+        const rn = (row.client || '').toLowerCase().trim();
+        const match = clients.find((c) => {
+          const cd = parseCustomData(c.custom_data);
+          const cn = ((cd?.nev as string) || (cd?.name as string) || c.name || '').toLowerCase().trim();
+          return cn && cn === rn;
+        });
+        if (match) cData = parseCustomData(match.custom_data);
+      }
+
+      const logText = (cData.beszelgetes_naplo as string) || row.summary || 'Nincs elérhető beszélgetés napló.';
+      setSummary((cData.problem_description as string) || row.summary || '');
+
+      // ── Result data: fetch calendar for matching ──
+      let finalDate = '-';
+      let finalService = '-';
+      let finalDoctor = '-';
+      let finalReminder = '-';
+
+      try {
+        const calRes = await authFetch('/admin/api/calendar');
+        const calData = await calRes.json();
+        const events = calData.events || [];
+        const clientName = (row.client || '').toLowerCase().trim();
+        const clientEmail = ((cData.email as string) || '').toLowerCase().trim();
+
+        const matchedEvent = events
+          .filter((ev: { attendee?: string; attendee_email?: string }) => {
+            const evAttendee = (ev.attendee || '').toLowerCase().trim();
+            const evEmail = (ev.attendee_email || '').toLowerCase().trim();
+            return (
+              (clientName && evAttendee.includes(clientName)) ||
+              (clientName && clientName.includes(evAttendee) && evAttendee.length > 2) ||
+              (clientEmail && evEmail === clientEmail)
+            );
+          })
+          .sort((a: { start_dt?: string }, b: { start_dt?: string }) => (b.start_dt || '').localeCompare(a.start_dt || ''))[0];
+
+        if (matchedEvent) {
+          if (matchedEvent.title && matchedEvent.title !== '-') finalService = matchedEvent.title;
+          if (matchedEvent.start_dt) finalDate = fmtDt(matchedEvent.start_dt);
+          if (matchedEvent.doctor) finalDoctor = matchedEvent.doctor;
+          finalReminder = matchedEvent.reminder_sent ? 'Kiküldve ✓' : '-';
+        }
+      } catch {
+        /* calendar fetch optional */
+      }
+
+      // Fallback from custom_data
+      if (finalDate === '-' && cData.booked_datetime) {
+        finalDate = fmtDt(cData.booked_datetime as string);
+      }
+
+      // Fallback from log text
+      if (finalDate === '-') {
+        const naploDateMatch = logText.match(/Naptár bejegyzés létrehozva:\s*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/i);
+        if (naploDateMatch) finalDate = fmtDt(naploDateMatch[1]);
+      }
+
+      if (finalService === '-') {
+        const servicePatterns = [
+          /szolgáltatás:\s*([^\n,]+)/i,
+          /(fogászati vizsgálat|ultrahangos fogkőeltávolítás|fogkőeltávolítás|általános vizit|általános konzultáció|konzultáció|fogászat|fogpótlás|implantátum|tömés|gyökérkezelés|fogfehérítés|szájsebészet|fogszabályozás|paradontológia|fogtisztítás|kontroll vizsgálat|vizit|vizsgálat|kezelés)/i,
+        ];
+        for (const pat of servicePatterns) {
+          const m = logText.match(pat);
+          if (m) {
+            const s = (m[1] || m[0]).trim();
+            finalService = s.charAt(0).toUpperCase() + s.slice(1);
+            break;
+          }
+        }
+      }
+
+      if (finalDoctor === '-') {
+        const docMatch = logText.match(/(?:orvos|doktor|dr\.):\s*([^\n,]+)/i);
+        if (docMatch) finalDoctor = docMatch[1].trim();
+      }
+
+      // ── Parse chat blocks ──
+      const lines = logText.split('\n');
+      const blocks: ChatBlock[] = [];
+      let currentSender: 'user' | 'ai' | 'system' = 'system';
+      let currentBlock: string[] = [];
+
+      for (let line of lines) {
+        line = line.trim();
+        if (!line && currentSender !== 'ai') continue;
+
+        let sender = currentSender;
+        if (line.startsWith('Felhasználó:') || line.startsWith('User:')) {
+          sender = 'user';
+          line = line.replace(/^(Felhasználó|User):\s*/, '');
+        } else if (line.startsWith('AI:') || line.startsWith('Asszisztens:') || line.startsWith('Bot:')) {
+          sender = 'ai';
+          line = line.replace(/^(AI|Asszisztens|Bot):\s*/, '');
+        } else if (line.startsWith('[')) {
+          sender = 'system';
+        }
+
+        if (sender !== currentSender && currentBlock.length > 0) {
+          blocks.push({ sender: currentSender, text: currentBlock.join('\n') });
+          currentBlock = [];
+        }
+        currentSender = sender;
+        if (line) currentBlock.push(line);
+      }
+      if (currentBlock.length > 0) {
+        blocks.push({ sender: currentSender, text: currentBlock.join('\n') });
+      }
+
+      if (!cancelled) {
+        setResultData({ date: finalDate, service: finalService, doctor: finalDoctor, reminder: finalReminder });
+        setChatBlocks(blocks);
+      }
+    }
+
+    load();
+    return () => { cancelled = true; };
+  }, [row, clients, clientsMap]);
+
+  return (
+    <div
+      style={{
+        display: 'flex',
+        position: 'fixed',
+        top: 0,
+        left: 0,
+        right: 0,
+        bottom: 0,
+        background: 'rgba(0,0,0,0.6)',
+        zIndex: 9999,
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: 20,
+      }}
+      onClick={onClose}
+    >
+      <div
+        className="login-card"
+        style={{
+          width: 700,
+          maxWidth: '100%',
+          maxHeight: '90vh',
+          display: 'flex',
+          flexDirection: 'column',
+          padding: 0,
+          overflow: 'hidden',
+          borderRadius: 16,
+          border: 'none',
+          boxShadow: '0 24px 48px rgba(0,0,0,0.3)',
+          background: 'var(--card)',
+        }}
+        onClick={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div style={{ background: 'linear-gradient(to right, #14b8ad, #1ceee0)', padding: '20px 24px', flexShrink: 0 }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div>
+              <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(8,36,50,0.7)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+                Interakciós összefoglaló
+              </div>
+              <h3 style={{ margin: '0 0 6px 0', color: '#082432', fontSize: 20, fontWeight: 700 }}>
+                {row.client || 'Ismeretlen'}
+              </h3>
+              <div style={{ display: 'flex', gap: 12, fontSize: 13, color: 'rgba(8,36,50,0.8)', fontWeight: 500 }}>
+                <span>{row.channel || 'Telefon'}</span>
+                <span>•</span>
+                <span>{row.date ? fmtDt(row.date) : ''}</span>
+              </div>
+            </div>
+            <button
+              onClick={onClose}
+              style={{ background: 'rgba(8,36,50,0.15)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#082432', marginLeft: 8 }}
+            >
+              ✕
+            </button>
+          </div>
+        </div>
+
+        {/* Content */}
+        <div style={{ padding: 24, overflowY: 'auto', flexGrow: 1 }}>
+          {/* Summary + Result side by side */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
+            {/* Summary */}
+            <div>
+              <h4 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 12px 0' }}>
+                Összefoglaló
+              </h4>
+              <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text)' }}>
+                {summary || 'Az asszisztens a beszélgetés során rögzítette a felhasználó igényeit.'}
+              </div>
+            </div>
+
+            {/* Result */}
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
+              <h4 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 16px 0' }}>
+                Eredmény
+              </h4>
+              <ResultLine label="Befoglalt időpont:" value={resultData.date} />
+              <ResultLine label="Szolgáltatás:" value={resultData.service} />
+              <ResultLine label="Orvos:" value={resultData.doctor} />
+              <ResultLine label="Emlékeztető kiküldve:" value={resultData.reminder} last />
+            </div>
+          </div>
+
+          {/* Chat */}
+          {showChat && (
+            <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
+              <h4 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 16px 0' }}>
+                Teljes beszélgetés
+              </h4>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                {chatBlocks.map((b, i) =>
+                  b.sender === 'system' ? (
+                    <div key={i} style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', padding: '4px 0', fontStyle: 'italic' }}>
+                      {b.text}
+                    </div>
+                  ) : (
+                    <div key={i} style={{ display: 'flex', justifyContent: b.sender === 'user' ? 'flex-end' : 'flex-start' }}>
+                      <div
+                        style={{
+                          maxWidth: '75%',
+                          padding: '10px 14px',
+                          borderRadius: 12,
+                          fontSize: 13,
+                          lineHeight: 1.5,
+                          whiteSpace: 'pre-wrap',
+                          background: b.sender === 'user' ? 'linear-gradient(135deg, #1ceee0, #0bbdb1)' : 'var(--bg3, #f3f4f6)',
+                          color: b.sender === 'user' ? '#082432' : 'var(--text)',
+                        }}
+                      >
+                        {b.text}
+                      </div>
+                    </div>
+                  )
+                )}
+              </div>
+            </div>
+          )}
+        </div>
+
+        {/* Footer */}
+        <div style={{ padding: '16px 24px', background: 'var(--bg3)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+          <button
+            className="btn-primary"
+            style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)', width: 'auto', padding: '10px 16px', margin: 0, fontFamily: 'inherit' }}
+          >
+            Ugrás ügyfélprofilra
+          </button>
+          <button
+            className="btn-primary"
+            onClick={() => setShowChat(!showChat)}
+            style={{
+              background: 'linear-gradient(135deg, var(--accent), var(--accent2))',
+              color: '#082432',
+              border: 'none',
+              width: 'auto',
+              padding: '10px 16px',
+              margin: 0,
+              fontFamily: 'inherit',
+            }}
+          >
+            <span style={{ marginRight: 6 }}>{showChat ? '↑' : '↓'}</span>
+            {showChat ? 'Beszélgetés elrejtése' : 'Interakció megtekintése'}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ResultLine({ label, value, last }: { label: string; value: string; last?: boolean }) {
+  return (
+    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: last ? 0 : 12, fontSize: 13 }}>
+      <span style={{ color: 'var(--text-muted)' }}>{label}</span>
+      <span style={{ fontWeight: 600, color: 'var(--text)' }}>{value}</span>
+    </div>
+  );
+}

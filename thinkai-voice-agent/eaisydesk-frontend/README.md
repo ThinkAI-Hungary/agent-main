@@ -1,7 +1,7 @@
-# eaisydesk-frontend -- React + Vite Migration
+# eaisydesk-frontend — React + Vite Migration
 
-> **Status**: Folyamatban. A legacy vanilla JS admin feluletet fajlonkent migraljuk React + Vite + TypeScript-re.  
-> Ez a dokumentum arra szolgal, hogy barki (ember vagy agent) aki hozzanyul a projekthez, gyorsan megertse a jelenlegi allapotot, az architekturalisi donteseeket, es a konvenciokat.
+> **Status**: ✅ **Migráció befejezve** (2026-06-10). Minden oldal migrálva React + Vite + TypeScript-re.  
+> Ez a dokumentum arra szolgál, hogy bárki (ember vagy agent) aki hozzányúl a projekthez, gyorsan megértse a jelenlegi állapotot, az architekturális döntéseket, és a konvenciókat.
 
 ---
 
@@ -22,15 +22,17 @@
 
 ## Technologiai verem
 
-| Reteg         | Technologia                              |
+| Réteg         | Technológia                              |
 | ------------- | ---------------------------------------- |
 | Framework     | React 19 + TypeScript 6                  |
 | Build tool    | Vite 8                                   |
 | Routing       | react-router-dom 7 (BrowserRouter)       |
 | Charting      | chart.js 4 + react-chartjs-2 5           |
-| Styling       | Vanilla CSS (legacy CSS fajlok atemelesevel) |
+| Naptár        | @fullcalendar/react 6 (daygrid, timegrid, interaction, list) |
+| Drag & Drop   | @dnd-kit/core + @dnd-kit/sortable + @dnd-kit/utilities |
+| Styling       | Vanilla CSS (legacy CSS fájlok átemelésével) |
 | API kliens    | Custom `authFetch()` wrapper (`src/api/client.ts`) |
-| State mgmt    | React Context (Auth, Theme)              |
+| State mgmt    | React Context (Auth, Theme, Approval)    |
 | Backend       | Python FastAPI (`web_server.py`, port 8000) |
 
 ---
@@ -39,37 +41,58 @@
 
 ```
 eaisydesk-frontend/
-├── public/                     # Static assets (Vite kiszolgalja)
+├── public/                     # Static assets (Vite kiszolgálja)
 ├── src/
 │   ├── api/
 │   │   └── client.ts           # authFetch(), loginApi(), token/user localStorage
 │   ├── components/
 │   │   ├── layout/
 │   │   │   ├── AppLayout.tsx   # Outlet wrapper: <Sidebar> + <MainHeader> + <Outlet>
-│   │   │   ├── MainHeader.tsx  # Felso header sav (cim, user info)
-│   │   │   └── Sidebar.tsx     # Navigacio, dark mode toggle, collapse (Ctrl+B)
-│   │   └── ui/                 # Ujrahasznalhato UI komponensek (meg ures)
+│   │   │   ├── MainHeader.tsx  # Felső header sáv (cím, user info)
+│   │   │   └── Sidebar.tsx     # Navigáció, dark mode toggle, collapse (Ctrl+B)
+│   │   ├── kanban/
+│   │   │   ├── KanbanColumn.tsx # Droppable oszlop (átnevezés, törlés)
+│   │   │   └── KanbanCard.tsx  # Draggable kártya (sürgős kiemelés, tagek)
+│   │   └── ui/
+│   │       ├── Badge.tsx        # Újrahasználható badge komponens
+│   │       ├── Spinner.tsx      # Loading spinner
+│   │       ├── Toast.tsx        # Toast értesítések
+│   │       └── ConfirmDialog.tsx# Megerősítő dialógus (useConfirm hook)
 │   ├── context/
 │   │   ├── AuthContext.tsx     # Login/logout, isAdmin, user state, 401 handler
-│   │   └── ThemeContext.tsx    # Dark/light mode, body.dark class toggle
-│   ├── hooks/                  # Custom hookse (meg ures)
+│   │   ├── ThemeContext.tsx    # Dark/light mode, body.dark class toggle
+│   │   └── ApprovalContext.tsx # Jóváhagyás workflow context
+│   ├── helpers/
+│   │   ├── formatters.ts       # fmtDt(), fmtDuration(), egyéb formázók
+│   │   ├── clientResolvers.ts  # Ügyfél keresés/beazonosítás segédfüggvények
+│   │   └── interactionClassifiers.ts # Interakció típus/szándék osztályozók
+│   ├── hooks/
+│   │   ├── useClients.ts       # Ügyfelek CRUD + keresés
+│   │   ├── useSessions.ts      # Session lista
+│   │   ├── useCalendarEvents.ts# Naptári események CRUD
+│   │   ├── useKanbanColumns.ts # Kanban oszlopok CRUD
+│   │   └── useUsers.ts         # Felhasználó lista (admin)
 │   ├── pages/
-│   │   ├── AnalyticsPage.tsx   # KESZ - Teljes analytics: KPI, chartek, funnel, alerts, insights
-│   │   ├── HelpPage.tsx        # KESZ - Segitseg: FAQ accordion, modulok, billentyuparancsok
-│   │   ├── LoginPage.tsx       # KESZ - Bejelentkezes
-│   │   └── PlaceholderPage.tsx # Ideiglenes placeholder meg nem migralt oldalakhoz
-│   ├── styles/                 # Legacy CSS fajlok 1:1 atemelve
+│   │   ├── AnalyticsPage.tsx   # ✅ KPI, chartek, funnel, alerts, AI insights
+│   │   ├── InteractionsPage.tsx# ✅ Interakciók tábla, szűrők, összefoglaló modal
+│   │   ├── ClientsPage.tsx     # ✅ Ügyfél lista, keresés, részletes profil overlay
+│   │   ├── KanbanPage.tsx      # ✅ Kanban board, @dnd-kit DnD, oszlop CRUD
+│   │   ├── CalendarPage.tsx    # ✅ Naptár: lista + FullCalendar grid, új időpont
+│   │   ├── OutboundPage.tsx    # ✅ Kampány kezelés, KPI, szűrés, CRUD
+│   │   ├── SettingsPage.tsx    # ✅ Tudástár: Telefon / Céginformációk / Szabályok tab
+│   │   ├── BeallitasokPage.tsx # ✅ Profil, jelszó, csapatkezelés (admin)
+│   │   ├── HelpPage.tsx        # ✅ FAQ accordion, modulok, billentyűparancsok
+│   │   ├── LoginPage.tsx       # ✅ Bejelentkezés
+│   │   └── PlaceholderPage.tsx # [nem használt – minden route migrálva]
+│   ├── styles/                 # Legacy CSS fájlok 1:1 átemelve
 │   │   ├── variables.css       # CSS custom properties (--text, --bg, --accent, stb.)
-│   │   ├── base.css            # Alap body/html reset
-│   │   ├── layout.css          # #app flex layout
-│   │   ├── sidebar.css         # .sidebar, .nav-item, collapse animacio
-│   │   ├── login.css           # .login-* osztalyok
-│   │   ├── components.css      # .panel-white, .chart-card, .filter-row-figma, stb.
-│   │   ├── analytics.css       # .severity-card, .funnel-*, .kpi-card, stb.
-│   │   ├── dark-mode.css       # body.dark feluliro szabalyok
-│   │   ├── responsive.css      # Sidebar-collapsed layout
-│   │   └── [tobbi].css         # calendar, kanban, clients, settings, outbound, tudastar
-│   ├── App.tsx                 # BrowserRouter + AuthGate + Routes
+│   │   ├── base.css, layout.css, sidebar.css, login.css
+│   │   ├── components.css, analytics.css, calendar.css
+│   │   ├── clients.css, kanban.css, outbound.css
+│   │   ├── settings.css, tudastar.css
+│   │   ├── dark-mode.css       # body.dark felülíró szabályok
+│   │   └── responsive.css      # Sidebar-collapsed layout
+│   ├── App.tsx                 # BrowserRouter + AuthGate + Routes (10 page)
 │   └── main.tsx                # React DOM createRoot
 ├── vite.config.ts              # Vite: base=/admin/, API proxy -> localhost:8000
 ├── tsconfig.json
@@ -109,11 +132,17 @@ main.tsx -> App.tsx -> BrowserRouter (basename="/admin")
                            -> AuthGate
                               ├─ !authenticated -> LoginPage
                               └─ authenticated  -> Routes
-                                                   └─ AppLayout (Sidebar + MainHeader + Outlet)
-                                                      ├─ /analytics -> AnalyticsPage
-                                                      ├─ /help      -> HelpPage
-                                                      ├─ /interactions, /clients, ... -> PlaceholderPage
-                                                      └─ /*         -> Navigate to /analytics
+                                                    └─ AppLayout (Sidebar + MainHeader + Outlet)
+                                                       ├─ /analytics     -> AnalyticsPage
+                                                       ├─ /interactions  -> InteractionsPage
+                                                       ├─ /clients       -> ClientsPage
+                                                       ├─ /kanban        -> KanbanPage
+                                                       ├─ /calendar      -> CalendarPage
+                                                       ├─ /outbound      -> OutboundPage
+                                                       ├─ /settings/*    -> SettingsPage
+                                                       ├─ /beallitasok   -> BeallitasokPage
+                                                       ├─ /help          -> HelpPage
+                                                       └─ /*             -> Navigate to /analytics
 ```
 
 ### API kommunikacio
@@ -150,32 +179,25 @@ Ez azt jelenti:
 
 ---
 
-## Migraciótérkép
+## Migrációtérkép
 
-### KÉSZ (migralva React-ra)
+### ✅ Minden oldal migrálva (2026-06-10)
 
-| Oldal | React fajl | Legacy forras (HTML + JS) | Megjegyzes |
+| Oldal | React fájl | Legacy forrás | Főbb funkciók |
 | --- | --- | --- | --- |
-| Login | `LoginPage.tsx` | `partials/login.html` | Teljes |
-| Analitika | `AnalyticsPage.tsx` | `partials/page-analytics.html` + `js/admin-analytics.js` + `js/admin-core.js` (alerts, insights) | Teljes: KPI-k, Line/Doughnut/Bar chartok, funnel, handoff, outbound, severity modal, AI insights |
-| Segitseg | `HelpPage.tsx` | `partials/page-help.html` + `js/admin-core.js` (initHelp, toggleFaq) | Teljes: FAQ accordion, modulok, shortcuts, kontakt, verzio |
-| Sidebar | `Sidebar.tsx` | `partials/sidebar.html` + `js/admin-core.js` (sidebar toggle, nav) | Teljes |
-| Header | `MainHeader.tsx` | `partials/main-header.html` | Teljes |
-| Layout | `AppLayout.tsx` | - | Outlet wrapper |
-
-### MEG NEM MIGRALT (PlaceholderPage-en)
-
-| Oldal | Route | Legacy forras | Komplexitas |
-| --- | --- | --- | --- |
-| **Interakcio lista** | `/interactions` | `page-interactions.html` + `admin-interactions.js` (41KB) | **Nagy** - tabla, szurok, reszletes modal |
-| **Ugyfel lista** | `/clients` | `page-interactions.html` (kozos) + `admin-customers.js` (112KB) | **Nagyon nagy** - CRUD, profil, tagging |
-| **Kanban** | `/kanban` | `page-interactions.html` (kozos) + `admin-kanban.js` (75KB) | **Nagyon nagy** - drag-n-drop, oszlopok, kartyak |
-| **Naptar** | `/calendar` | `page-calendar.html` + `admin-calendar.js` (18KB) | **Kozep** - FullCalendar integr., esemenyek |
-| **Kimeno kommunikacio** | `/outbound` | `page-outbound.html` + `admin-outbound.js` (87KB) | **Nagyon nagy** - kampanyok, wizard, sablon szerk. |
-| **Tudastar** | `/settings/*` | `page-settings.html` (89KB) + `admin-settings.js` (47KB) | **Nagyon nagy** - agent, praxis, szabalyok, csapat |
-| **Jovahagyo** | (nincs meg route) | `page-approvals.html` + `admin-customers.js` (reszben) | **Kozep** - email jovahagyas/elutasitas |
-| **Beallitasok** | `/beallitasok` | `page-beallitasok.html` | **Kicsi** - user profil beallitasok |
-| **Hivasok** | (nincs meg route) | `page-calls.html` + `admin-core.js` (startCall) | **Kicsi** - SIP hivas inditasa |
+| Login | `LoginPage.tsx` | `partials/login.html` | Bejelentkezés |
+| Analitika | `AnalyticsPage.tsx` | `page-analytics.html` + `admin-analytics.js` | KPI-k, Line/Doughnut/Bar chartok, funnel, severity modal, AI insights |
+| Interakciók | `InteractionsPage.tsx` | `page-interactions.html` + `admin-interactions.js` | Tábla, szűrők, összefoglaló modal (`InteractionSummaryModal`) |
+| Ügyfelek | `ClientsPage.tsx` | `page-interactions.html` + `admin-customers.js` | Keresés, tábla, részletes profil overlay (`ClientDetailView`) |
+| Kanban | `KanbanPage.tsx` | `admin-kanban.js` | @dnd-kit DnD, oszlop CRUD, sürgős kiemelés, tag-ek |
+| Naptár | `CalendarPage.tsx` | `page-calendar.html` + `admin-calendar.js` | Lista + FullCalendar grid nézet, új időpont modal, no-show jelölés |
+| Kimenő komm. | `OutboundPage.tsx` | `page-outbound.html` + `admin-outbound.js` | Kampány CRUD, KPI kártyák, szűrő tab-ok, emlékeztető toggle |
+| Tudástár | `SettingsPage.tsx` | `page-settings.html` + `admin-settings.js` | 3 tab: Telefon / Céginformációk / Szabályok, API save |
+| Beállítások | `BeallitasokPage.tsx` | `page-beallitasok.html` | Profil kártya, jelszó módosítás, csapatkezelés (admin) |
+| Segítség | `HelpPage.tsx` | `page-help.html` | FAQ accordion, modulok, billentyűparancsok |
+| Sidebar | `Sidebar.tsx` | `partials/sidebar.html` | Navigáció, dark mode, collapse |
+| Header | `MainHeader.tsx` | `partials/main-header.html` | Felső sáv, user info |
+| Layout | `AppLayout.tsx` | — | Outlet wrapper |
 
 ---
 
