@@ -662,7 +662,7 @@
         </a>
       </div>
       <div class="nav-section-title">Marketing</div>
-      <button class="nav-item active" id="nav-dashboard" onclick="showPage('dashboard')" data-tooltip="Áttekintés">
+      <button class="nav-item" id="nav-dashboard" onclick="showPage('dashboard')" data-tooltip="Áttekintés">
         <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12h2l3-9 4 18 3-9h6"/></svg>
         <span>Áttekintés</span>
       </button>
@@ -691,7 +691,7 @@
         <span>Árfigyelő</span>
       </button>
 
-<button class="nav-item" id="nav-zombo" onclick="showPage('zombo')" data-tooltip="Zombo Audit">
+<button class="nav-item active" id="nav-zombo" onclick="showPage('zombo')" data-tooltip="Zombo Audit">
 <svg fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/><path d="M2 12h20"/></svg>
 <span>Zombo Audit</span>
 </button>
@@ -723,7 +723,7 @@
       </div>
 
       <!-- ═══ DASHBOARD ═══ -->
-      <div class="page active" id="page-dashboard">
+      <div class="page" id="page-dashboard">
         <div class="page-header">
           <div class="page-header-icon" style="background:linear-gradient(135deg, rgba(139,92,246,0.15), rgba(59,130,246,0.15));">
             <svg fill="none" stroke="#8b5cf6" stroke-width="2" viewBox="0 0 24 24"><path d="M3 12h2l3-9 4 18 3-9h6"/></svg>
@@ -961,7 +961,7 @@
       </div>
 
 <!-- ═══ ZOMBO PAGE ═══════════════════════════════════════════════ -->
-<div class="page" id="page-zombo">
+<div class="page active" id="page-zombo">
   <div class="page-header">
     <div class="page-header-icon" style="background:linear-gradient(135deg, rgba(139,92,246,0.15), rgba(109,40,217,0.15));">
       <svg fill="none" stroke="var(--marketing-accent)" stroke-width="2" viewBox="0 0 24 24" width="24" height="24">
@@ -1340,6 +1340,190 @@
             <div class="dna-bar-wrap"><div class="dna-bar-labels"><span>Nem edukáló</span><span class="dna-bar-value" data-key="educational_level">50</span><span>Oktató</span></div><div class="dna-bar-track"><div class="dna-bar-fill" data-key="educational_level" style="width:50%"></div></div></div>
             <div class="dna-bar-wrap"><div class="dna-bar-labels"><span>Nem értékesítő</span><span class="dna-bar-value" data-key="promotional_level">50</span><span>Promóciós</span></div><div class="dna-bar-track"><div class="dna-bar-fill" data-key="promotional_level" style="width:50%"></div></div></div>
           </div>
+        </div>
+
+        <!-- Engagement -->
+        <div style="background:var(--bg3);padding:16px 18px;border-radius:12px;border:1px solid var(--border);">
+          <div style="font-size:12px;font-weight:700;text-transform:uppercase;color:var(--marketing-accent);margin-bottom:14px;letter-spacing:0.5px;">📣 Elköteleződés</div>
+          <div id="zombo-dna-engagement" style="display:flex;flex-direction:column;gap:12px;">
+            <div class="dna-bar-wrap"><div class="dna-bar-labels"><span>Nincs CTA</span><span class="dna-bar-value" data-key="cta_aggressiveness">50</span><span>Agresszív CTA</span></div><div class="dna-bar-track"><div class="dna-bar-fill" data-key="cta_aggressiveness" style="width:50%"></div></div></div>
+            <div class="dna-bar-wrap"><div class="dna-bar-labels"><span>Nincs emoji</span><span class="dna-bar-value" data-key="emoji_usage">20</span><span>Sok emoji</span></div><div class="dna-bar-track"><div class="dna-bar-fill" data-key="emoji_usage" style="width:20%"></div></div></div>
+            <div class="dna-bar-wrap"><div class="dna-bar-labels"><span>Nincs hashtag</span><span class="dna-bar-value" data-key="hashtag_density">30</span><span>Sok hashtag</span></div><div class="dna-bar-track"><div class="dna-bar-fill" data-key="hashtag_density" style="width:30%"></div></div></div>
+            <div class="dna-bar-wrap"><div class="dna-bar-labels"><span>Rövid</span><span class="dna-bar-value" data-key="post_length_preference">50</span><span>Hosszú</span></div><div class="dna-bar-track"><div class="dna-bar-fill" data-key="post_length_preference" style="width:50%"></div></div></div>
+            <div class="dna-bar-wrap"><div class="dna-bar-labels"><span>Nem kérdez</span><span class="dna-bar-value" data-key="interaction_asking">30</span><span>Mindig kérdez</span></div><div class="dna-bar-track"><div class="dna-bar-fill" data-key="interaction_asking" style="width:30%"></div></div></div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Addressing + CTA Library -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px;margin-bottom:20px;">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;">
+        <h3 style="font-size:15px;font-weight:700;color:var(--text);margin:0 0 16px;">🤝 Megszólítás & CTA Könyvtár</h3>
+        <div style="margin-bottom:16px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Megszólítás módja</div>
+          <div style="display:flex;align-items:center;gap:12px;">
+            <span id="zombo-addressing-mode" style="font-size:18px;font-weight:800;color:var(--marketing-accent);padding:4px 16px;background:rgba(139,92,246,0.1);border-radius:8px;">vegyes</span>
+            <span style="font-size:11px;color:var(--text-muted);">Bizonyosság: <strong id="zombo-addressing-confidence" style="color:var(--text);">0%</strong></span>
+          </div>
+          <div id="zombo-addressing-evidence" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;"></div>
+        </div>
+        <div style="border-top:1px solid var(--border);padding-top:14px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Elsődleges CTA-k</div>
+          <div id="zombo-cta-primary" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"><span style="color:var(--text-muted);font-style:italic;font-size:11px;">--</span></div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Másodlagos CTA-k</div>
+          <div id="zombo-cta-secondary" style="display:flex;flex-wrap:wrap;gap:6px;margin-bottom:12px;"><span style="color:var(--text-muted);font-style:italic;font-size:11px;">--</span></div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Szlogenek</div>
+          <div id="zombo-cta-slogans" style="display:flex;flex-direction:column;gap:4px;margin-bottom:8px;"><span style="color:var(--text-muted);font-style:italic;font-size:11px;">--</span></div>
+          <div style="font-size:12px;color:var(--text);">Tagline: <strong id="zombo-cta-tagline" style="color:var(--marketing-accent);">--</strong></div>
+        </div>
+      </div>
+
+      <!-- Brand Don't -->
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;">
+        <h3 style="font-size:15px;font-weight:700;color:var(--text);margin:0 0 16px;">🚫 Tiltólista (Brand Don't)</h3>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Hangvételi tiltások</div>
+          <ul id="zombo-dont-tone" style="padding-left:16px;margin:0;font-size:12px;color:var(--text);display:flex;flex-direction:column;gap:4px;list-style:disc;"><li style="color:var(--text-muted);font-style:italic;">--</li></ul>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Tartalmi tiltások</div>
+          <ul id="zombo-dont-content" style="padding-left:16px;margin:0;font-size:12px;color:var(--text);display:flex;flex-direction:column;gap:4px;list-style:disc;"><li style="color:var(--text-muted);font-style:italic;">--</li></ul>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Vizuális tiltások</div>
+          <ul id="zombo-dont-visual" style="padding-left:16px;margin:0;font-size:12px;color:var(--text);display:flex;flex-direction:column;gap:4px;list-style:disc;"><li style="color:var(--text-muted);font-style:italic;">--</li></ul>
+        </div>
+      </div>
+    </div>
+
+    <!-- Hashtag Strategy + Content Pillars -->
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(340px,1fr));gap:20px;margin-bottom:20px;">
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;">
+        <h3 style="font-size:15px;font-weight:700;color:var(--text);margin:0 0 16px;">#️⃣ Hashtag Stratégia</h3>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Márka hashtagek</div>
+          <div id="zombo-hashtag-brand" style="display:flex;flex-wrap:wrap;gap:6px;"><span style="color:var(--text-muted);font-style:italic;font-size:11px;">--</span></div>
+        </div>
+        <div style="margin-bottom:14px;">
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Iparági hashtagek</div>
+          <div id="zombo-hashtag-industry" style="display:flex;flex-wrap:wrap;gap:6px;"><span style="color:var(--text-muted);font-style:italic;font-size:11px;">--</span></div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:8px;">Kampány hashtagek</div>
+          <div id="zombo-hashtag-campaign" style="display:flex;flex-wrap:wrap;gap:6px;"><span style="color:var(--text-muted);font-style:italic;font-size:11px;">--</span></div>
+        </div>
+      </div>
+
+      <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;">
+        <h3 style="font-size:15px;font-weight:700;color:var(--text);margin:0 0 16px;">📊 Content Pillérek</h3>
+        <div id="zombo-content-pillars" style="display:flex;flex-direction:column;gap:12px;">
+          <span style="color:var(--text-muted);font-style:italic;font-size:12px;">Nincs adat.</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Platform Rules -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px;">
+      <h3 style="font-size:15px;font-weight:700;color:var(--text);margin:0 0 16px;">🌐 Platform Szabályok</h3>
+      <div id="zombo-platform-rules" style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:14px;">
+        <span style="color:var(--text-muted);font-style:italic;font-size:12px;">Nincs adat.</span>
+      </div>
+    </div>
+
+    <!-- Visual Recipe -->
+    <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:24px;margin-bottom:20px;">
+      <h3 style="font-size:15px;font-weight:700;color:var(--text);margin:0 0 16px;">🎨 Vizuális Recept (Képgenerálás)</h3>
+      <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:20px;">
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px;">Színpaletta</div>
+          <div id="zombo-visual-palette" style="display:flex;gap:8px;margin-bottom:16px;">
+            <div style="text-align:center;"><div class="color-swatch" id="zombo-vr-primary" style="width:48px;height:48px;border-radius:10px;background:#808080;border:2px solid var(--border);"></div><div style="font-size:9px;color:var(--text-muted);margin-top:3px;">Primary</div></div>
+            <div style="text-align:center;"><div class="color-swatch" id="zombo-vr-secondary" style="width:48px;height:48px;border-radius:10px;background:#606060;border:2px solid var(--border);"></div><div style="font-size:9px;color:var(--text-muted);margin-top:3px;">Secondary</div></div>
+            <div style="text-align:center;"><div class="color-swatch" id="zombo-vr-accent" style="width:48px;height:48px;border-radius:10px;background:#a0a0a0;border:2px solid var(--border);"></div><div style="font-size:9px;color:var(--text-muted);margin-top:3px;">Accent</div></div>
+            <div style="text-align:center;"><div class="color-swatch" id="zombo-vr-bg" style="width:48px;height:48px;border-radius:10px;background:#ffffff;border:2px solid var(--border);"></div><div style="font-size:9px;color:var(--text-muted);margin-top:3px;">Background</div></div>
+            <div style="text-align:center;"><div class="color-swatch" id="zombo-vr-text" style="width:48px;height:48px;border-radius:10px;background:#000000;border:2px solid var(--border);"></div><div style="font-size:9px;color:var(--text-muted);margin-top:3px;">Text</div></div>
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;font-size:12px;">
+            <div>Fotó stílus: <strong id="zombo-vr-photo-style" style="color:var(--marketing-accent);">--</strong></div>
+            <div>Világítás: <strong id="zombo-vr-lighting" style="color:var(--marketing-accent);">--</strong></div>
+            <div>Kompozíció: <strong id="zombo-vr-composition" style="color:var(--marketing-accent);">--</strong></div>
+            <div>Háttér: <strong id="zombo-vr-background" style="color:var(--marketing-accent);">--</strong></div>
+            <div>Hangulat: <strong id="zombo-vr-mood" style="color:var(--marketing-accent);">--</strong></div>
+          </div>
+        </div>
+        <div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px;">Imagen Prompt Prefix</div>
+          <div id="zombo-vr-prompt-prefix" style="font-size:11px;color:var(--text);background:var(--bg3);padding:10px 14px;border-radius:8px;border:1px solid var(--border);font-family:monospace;margin-bottom:12px;word-break:break-word;">--</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px;">Imagen Prompt Suffix</div>
+          <div id="zombo-vr-prompt-suffix" style="font-size:11px;color:var(--text);background:var(--bg3);padding:10px 14px;border-radius:8px;border:1px solid var(--border);font-family:monospace;margin-bottom:12px;word-break:break-word;">--</div>
+          <div style="font-size:12px;font-weight:700;color:var(--text-muted);text-transform:uppercase;margin-bottom:10px;">Negatív Prompt</div>
+          <div id="zombo-vr-negative" style="font-size:11px;color:#ef4444;background:rgba(239,68,68,0.05);padding:10px 14px;border-radius:8px;border:1px solid rgba(239,68,68,0.15);font-family:monospace;word-break:break-word;">--</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ GENERATION SECTION ═══ -->
+    <div style="background:linear-gradient(135deg, rgba(139,92,246,0.05), rgba(236,72,153,0.05));border:2px solid rgba(139,92,246,0.2);border-radius:16px;padding:28px;margin-bottom:20px;">
+      <h3 style="font-size:17px;font-weight:800;color:var(--text);margin:0 0 6px;display:flex;align-items:center;gap:10px;">
+        <div style="width:32px;height:32px;border-radius:10px;background:linear-gradient(135deg, rgba(139,92,246,0.2), rgba(236,72,153,0.2));display:flex;align-items:center;justify-content:center;font-size:18px;">✨</div>
+        AI Generálás (Brand DNA alapján)
+      </h3>
+      <p style="font-size:12px;color:var(--text-muted);margin:0 0 24px;">Szöveg és kép generálása a kinyert márkaprofil koordináták alapján.</p>
+
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;">
+        <!-- Text Generation -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">📝 Szöveg Generálás</div>
+          <div style="margin-bottom:10px;">
+            <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:4px;">Platform</label>
+            <select id="zombo-gen-platform" style="width:100%;padding:8px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;outline:none;">
+              <option value="instagram">📸 Instagram</option>
+              <option value="facebook">👥 Facebook</option>
+              <option value="tiktok">🎵 TikTok</option>
+              <option value="youtube">▶️ YouTube</option>
+              <option value="linkedin">💼 LinkedIn</option>
+            </select>
+          </div>
+          <div style="margin-bottom:10px;">
+            <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:4px;">Milyen posztot szeretnél?</label>
+            <textarea id="zombo-gen-text-prompt" placeholder="Pl: Nyári akció a kerti fűnyírókra, hangsúlyozd a gyors szállítást" style="width:100%;height:80px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;resize:vertical;outline:none;font-family:inherit;box-sizing:border-box;"></textarea>
+          </div>
+          <button id="zombo-gen-text-btn" onclick="zomboGeneratePost()" style="width:100%;padding:10px;border-radius:8px;border:none;background:linear-gradient(135deg,#8b5cf6,#a855f7);color:#fff;font-weight:700;font-size:13px;cursor:pointer;transition:all 0.2s;">
+            ✨ Poszt Generálás
+          </button>
+          <div id="zombo-gen-text-result" style="margin-top:12px;display:none;">
+            <div style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;margin-bottom:6px;">Generált poszt:</div>
+            <div id="zombo-gen-text-output" style="font-size:13px;color:var(--text);background:var(--bg3);padding:14px;border-radius:10px;border:1px solid var(--border);white-space:pre-wrap;line-height:1.6;"></div>
+            <button onclick="navigator.clipboard.writeText(document.getElementById('zombo-gen-text-output').textContent)" style="margin-top:8px;padding:6px 14px;border-radius:6px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:11px;cursor:pointer;">📋 Másolás</button>
+          </div>
+          <div id="zombo-gen-text-loading" style="display:none;text-align:center;padding:20px;">
+            <div style="display:inline-block;width:20px;height:20px;border:3px solid rgba(139,92,246,0.2);border-top-color:#8b5cf6;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Poszt generálása folyamatban...</div>
+          </div>
+          <div id="zombo-gen-text-error" style="display:none;margin-top:10px;font-size:12px;color:#ef4444;background:rgba(239,68,68,0.05);padding:10px;border-radius:8px;border:1px solid rgba(239,68,68,0.15);"></div>
+        </div>
+
+        <!-- Image Generation -->
+        <div style="background:var(--card);border:1px solid var(--border);border-radius:14px;padding:20px;">
+          <div style="font-size:14px;font-weight:700;color:var(--text);margin-bottom:14px;">🎨 Kép Generálás (Imagen)</div>
+          <div style="margin-bottom:10px;">
+            <label style="font-size:11px;font-weight:600;color:var(--text-muted);text-transform:uppercase;display:block;margin-bottom:4px;">Mit szeretnél a képen?</label>
+            <textarea id="zombo-gen-image-prompt" placeholder="Pl: green paint can with brush, garden tools arrangement" style="width:100%;height:80px;padding:10px 12px;border-radius:8px;border:1px solid var(--border);background:var(--bg);color:var(--text);font-size:12px;resize:vertical;outline:none;font-family:inherit;box-sizing:border-box;"></textarea>
+            <div style="font-size:10px;color:var(--text-muted);margin-top:4px;">A Visual Recipe prefix/suffix automatikusan hozzáadódik.</div>
+          </div>
+          <button id="zombo-gen-image-btn" onclick="zomboGenerateImage()" style="width:100%;padding:10px;border-radius:8px;border:none;background:linear-gradient(135deg,#ec4899,#f472b6);color:#fff;font-weight:700;font-size:13px;cursor:pointer;transition:all 0.2s;">
+            🎨 Kép Generálás
+          </button>
+          <div id="zombo-gen-image-result" style="margin-top:12px;display:none;">
+            <img id="zombo-gen-image-output" src="" style="width:100%;border-radius:10px;border:1px solid var(--border);" />
+            <div id="zombo-gen-image-prompt-used" style="font-size:10px;color:var(--text-muted);margin-top:6px;font-family:monospace;word-break:break-word;"></div>
+          </div>
+          <div id="zombo-gen-image-loading" style="display:none;text-align:center;padding:40px 20px;">
+            <div style="display:inline-block;width:24px;height:24px;border:3px solid rgba(236,72,153,0.2);border-top-color:#ec4899;border-radius:50%;animation:spin 0.8s linear infinite;"></div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:8px;">Kép generálása Imagen-nel... (10-20 mp)</div>
+          </div>
+          <div id="zombo-gen-image-error" style="display:none;margin-top:10px;font-size:12px;color:#ef4444;background:rgba(239,68,68,0.05);padding:10px;border-radius:8px;border:1px solid rgba(239,68,68,0.15);"></div>
         </div>
       </div>
     </div>
@@ -1933,8 +2117,8 @@
 
     // ── Page Navigation ──
     function showPage(id) {
-      if (id === 'zombo') {
-        window.location.href = '/marketing/elemzes';
+      if (id !== 'zombo') {
+        window.location.href = '/marketing#' + id;
         return;
       }
       document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
@@ -1945,13 +2129,13 @@
       if (nav) nav.classList.add('active');
       // Greeting bar only on dashboard
       const gb = document.getElementById('greeting-bar');
-      if (gb) gb.style.display = (id === 'dashboard') ? '' : 'none';
+      if (gb) gb.style.display = 'none';
     }
 
     window.addEventListener('DOMContentLoaded', () => {
       const hash = window.location.hash.substring(1);
-      if (hash && ['dashboard', 'email', 'segments', 'ai-content', 'seo', 'loyalty', 'competitor'].includes(hash)) {
-        showPage(hash);
+      if (hash && hash !== 'zombo' && ['dashboard', 'email', 'segments', 'ai-content', 'seo', 'loyalty', 'competitor'].includes(hash)) {
+        window.location.href = '/marketing#' + hash;
       }
     });
 
@@ -4273,6 +4457,118 @@ ${bodyHtml || '<p style="color:#666;font-size:15px;">Tartalom hamarosan...</p>'}
                     if (coords.content[k] !== undefined) _setDnaBar(k, coords.content[k]);
                   });
                 }
+                // Engagement
+                if (coords.engagement) {
+                  ['cta_aggressiveness','emoji_usage','hashtag_density','post_length_preference','interaction_asking'].forEach(k => {
+                    if (coords.engagement[k] !== undefined) _setDnaBar(k, coords.engagement[k]);
+                  });
+                }
+
+                // ── Render Addressing ──
+                const addr = bPersonality.addressing || {};
+                if (addr.mode) {
+                  const modeEl = document.getElementById('zombo-addressing-mode');
+                  if (modeEl) modeEl.textContent = addr.mode;
+                  const confEl = document.getElementById('zombo-addressing-confidence');
+                  if (confEl) confEl.textContent = (addr.confidence || 0) + '%';
+                  const evidEl = document.getElementById('zombo-addressing-evidence');
+                  if (evidEl && addr.evidence && addr.evidence.length > 0) {
+                    evidEl.innerHTML = addr.evidence.map(e => `<span style="font-size:11px;padding:3px 8px;background:var(--bg3);color:var(--text);border-radius:6px;border:1px solid var(--border);font-style:italic;">"${e}"</span>`).join('');
+                  }
+                }
+
+                // ── Render CTA Library ──
+                const cta = bPersonality.cta_library || {};
+                const _renderChips = (id, arr, cls) => {
+                  const el = document.getElementById(id);
+                  if (el && arr && arr.length > 0) {
+                    el.innerHTML = arr.map(v => `<span class="${cls}">${v}</span>`).join('');
+                  }
+                };
+                _renderChips('zombo-cta-primary', cta.primary_ctas, 'dna-tag');
+                _renderChips('zombo-cta-secondary', cta.secondary_ctas, 'dna-theme-tag');
+                if (cta.slogans && cta.slogans.length > 0) {
+                  const slEl = document.getElementById('zombo-cta-slogans');
+                  if (slEl) slEl.innerHTML = cta.slogans.map(s => `<div style="font-size:12px;color:var(--text);font-style:italic;">"${s}"</div>`).join('');
+                }
+                const tagEl = document.getElementById('zombo-cta-tagline');
+                if (tagEl && cta.tagline) tagEl.textContent = cta.tagline;
+
+                // ── Render Brand Don't ──
+                const dont = bPersonality.brand_dont || {};
+                const _renderList = (id, arr) => {
+                  const el = document.getElementById(id);
+                  if (el && arr && arr.length > 0) {
+                    el.innerHTML = arr.map(v => `<li>${v}</li>`).join('');
+                  }
+                };
+                _renderList('zombo-dont-tone', dont.tone_restrictions);
+                _renderList('zombo-dont-content', dont.content_restrictions);
+                _renderList('zombo-dont-visual', dont.visual_restrictions);
+
+                // ── Render Hashtag Strategy ──
+                const ht = bPersonality.hashtag_strategy || {};
+                _renderChips('zombo-hashtag-brand', ht.brand_hashtags, 'dna-tag');
+                _renderChips('zombo-hashtag-industry', ht.industry_hashtags, 'dna-theme-tag');
+                _renderChips('zombo-hashtag-campaign', ht.campaign_hashtags, 'dna-tag');
+
+                // ── Render Content Pillars ──
+                const pillars = bPersonality.content_pillars || [];
+                const pillarsEl = document.getElementById('zombo-content-pillars');
+                if (pillarsEl && pillars.length > 0) {
+                  pillarsEl.innerHTML = pillars.map(p => `
+                    <div style="background:var(--bg3);padding:12px 14px;border-radius:10px;border:1px solid var(--border);">
+                      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+                        <strong style="font-size:13px;color:var(--text);">${p.name || ''}</strong>
+                        <span class="dna-bar-value" style="font-size:11px;">${p.ratio || 0}%</span>
+                      </div>
+                      <div class="dna-bar-track" style="margin-bottom:6px;"><div class="dna-bar-fill" style="width:${p.ratio || 0}%"></div></div>
+                      <div style="font-size:11px;color:var(--text-muted);">${p.description || ''}</div>
+                      ${p.example_title ? `<div style="font-size:10.5px;color:var(--marketing-accent);margin-top:4px;font-style:italic;">Pl: "${p.example_title}"</div>` : ''}
+                    </div>
+                  `).join('');
+                }
+
+                // ── Render Platform Rules ──
+                const plat = bPersonality.platform_rules || {};
+                const platEl = document.getElementById('zombo-platform-rules');
+                const _platIcons = {instagram:'📸',facebook:'👥',tiktok:'🎵',youtube:'▶️',linkedin:'💼'};
+                const _platNames = {instagram:'Instagram',facebook:'Facebook',tiktok:'TikTok',youtube:'YouTube',linkedin:'LinkedIn'};
+                if (platEl) {
+                  const platHtml = Object.entries(plat).filter(([,v]) => v && v.active).map(([k, v]) => `
+                    <div style="background:var(--bg3);padding:14px;border-radius:10px;border:1px solid var(--border);">
+                      <div style="font-size:13px;font-weight:700;color:var(--text);margin-bottom:8px;">${_platIcons[k]||''} ${_platNames[k]||k}</div>
+                      <div style="font-size:11px;color:var(--text-muted);margin-bottom:6px;">${v.tone_modifier || ''}</div>
+                      <div style="display:flex;flex-wrap:wrap;gap:6px;font-size:10.5px;">
+                        <span class="dna-tag">${v.preferred_format || ''}</span>
+                        <span class="dna-tag">Max #: ${v.max_hashtags || 0}</span>
+                        <span class="dna-tag">${v.emoji_allowed ? '😀 Emoji OK' : '🚫 No emoji'}</span>
+                      </div>
+                      <div style="font-size:10.5px;color:var(--text-muted);margin-top:6px;">${v.optimal_post_length || ''}</div>
+                    </div>
+                  `).join('');
+                  if (platHtml) platEl.innerHTML = platHtml;
+                }
+
+                // ── Render Visual Recipe ──
+                const vr = bPersonality.visual_recipe || {};
+                if (vr.color_palette) {
+                  const _setColor = (id, hex) => { const el = document.getElementById(id); if (el && hex) el.style.background = hex; };
+                  _setColor('zombo-vr-primary', vr.color_palette.primary);
+                  _setColor('zombo-vr-secondary', vr.color_palette.secondary);
+                  _setColor('zombo-vr-accent', vr.color_palette.accent);
+                  _setColor('zombo-vr-bg', vr.color_palette.background);
+                  _setColor('zombo-vr-text', vr.color_palette.text_color);
+                }
+                const _setVr = (id, val) => { const el = document.getElementById(id); if (el && val) el.textContent = val; };
+                _setVr('zombo-vr-photo-style', vr.photography_style);
+                _setVr('zombo-vr-lighting', vr.lighting);
+                _setVr('zombo-vr-composition', vr.composition);
+                _setVr('zombo-vr-background', vr.background_type);
+                _setVr('zombo-vr-mood', vr.mood);
+                _setVr('zombo-vr-prompt-prefix', vr.image_prompt_prefix);
+                _setVr('zombo-vr-prompt-suffix', vr.image_prompt_suffix);
+                _setVr('zombo-vr-negative', vr.negative_prompt);
 
                 const aiWordStyle = document.getElementById('zombo-ai-word-style');
                 if (aiWordStyle) {
@@ -4544,6 +4840,90 @@ ${bodyHtml || '<p style="color:#666;font-size:15px;">Tartalom hamarosan...</p>'}
       if (elem) {
         navigator.clipboard.writeText(elem.textContent);
         showToast('Scraper JSON másolva a vágólapra!', 'success');
+      }
+    }
+
+    // ─── Brand DNA Generation Functions ───
+    async function zomboGeneratePost() {
+      const prompt = document.getElementById('zombo-gen-text-prompt').value.trim();
+      const platform = document.getElementById('zombo-gen-platform').value;
+      if (!prompt) { showToast('Kérlek adj meg egy prompt-ot!', 'error'); return; }
+
+      const btn = document.getElementById('zombo-gen-text-btn');
+      const loading = document.getElementById('zombo-gen-text-loading');
+      const result = document.getElementById('zombo-gen-text-result');
+      const output = document.getElementById('zombo-gen-text-output');
+      const errorEl = document.getElementById('zombo-gen-text-error');
+
+      btn.disabled = true; btn.style.opacity = '0.5';
+      loading.style.display = 'block';
+      result.style.display = 'none';
+      errorEl.style.display = 'none';
+
+      try {
+        const token = localStorage.getItem('jwt_token');
+        const resp = await fetch('/marketing/api/zombo/generate-post', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ prompt, platform })
+        });
+        const data = await resp.json();
+        if (data.error) {
+          errorEl.textContent = data.error;
+          errorEl.style.display = 'block';
+        } else {
+          output.textContent = data.post;
+          result.style.display = 'block';
+          showToast('Poszt sikeresen generálva!', 'success');
+        }
+      } catch (e) {
+        errorEl.textContent = 'Hálózati hiba: ' + e.message;
+        errorEl.style.display = 'block';
+      } finally {
+        btn.disabled = false; btn.style.opacity = '1';
+        loading.style.display = 'none';
+      }
+    }
+
+    async function zomboGenerateImage() {
+      const prompt = document.getElementById('zombo-gen-image-prompt').value.trim();
+      if (!prompt) { showToast('Kérlek adj meg egy prompt-ot!', 'error'); return; }
+
+      const btn = document.getElementById('zombo-gen-image-btn');
+      const loading = document.getElementById('zombo-gen-image-loading');
+      const result = document.getElementById('zombo-gen-image-result');
+      const output = document.getElementById('zombo-gen-image-output');
+      const promptUsed = document.getElementById('zombo-gen-image-prompt-used');
+      const errorEl = document.getElementById('zombo-gen-image-error');
+
+      btn.disabled = true; btn.style.opacity = '0.5';
+      loading.style.display = 'block';
+      result.style.display = 'none';
+      errorEl.style.display = 'none';
+
+      try {
+        const token = localStorage.getItem('jwt_token');
+        const resp = await fetch('/marketing/api/zombo/generate-image', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: JSON.stringify({ prompt })
+        });
+        const data = await resp.json();
+        if (data.error) {
+          errorEl.textContent = data.error;
+          errorEl.style.display = 'block';
+        } else {
+          output.src = 'data:image/png;base64,' + data.image_base64;
+          promptUsed.textContent = 'Prompt: ' + data.prompt_used;
+          result.style.display = 'block';
+          showToast('Kép sikeresen generálva!', 'success');
+        }
+      } catch (e) {
+        errorEl.textContent = 'Hálózati hiba: ' + e.message;
+        errorEl.style.display = 'block';
+      } finally {
+        btn.disabled = false; btn.style.opacity = '1';
+        loading.style.display = 'none';
       }
     }
 </script>

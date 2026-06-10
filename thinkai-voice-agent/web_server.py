@@ -8,7 +8,6 @@ and provides a JWT-protected admin API with analytics.
 import json
 import logging
 import os
-import sys
 import uuid
 import csv
 import io
@@ -20,7 +19,6 @@ from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, Request, status, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
-from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
 import jwt as pyjwt
@@ -34,7 +32,7 @@ import email_processor
 from anthropic import AsyncAnthropic
 
 THIS_DIR = Path(__file__).resolve().parent
-load_dotenv(THIS_DIR / ".env", override=True)
+load_dotenv(THIS_DIR / ".env")
 logger = logging.getLogger(__name__)
 
 # ── JWT config ────────────────────────────────────────────────────────────────
@@ -48,12 +46,6 @@ db.seed_admin_from_env()
 db.migrate_from_json()   # one-time migration from legacy JSON files
 
 app = FastAPI(title="ThinkAI Voice Agent")
-
-# ── Static file mounts (modularized CSS/JS) ───────────────────────────────────
-if (THIS_DIR / "css").is_dir():
-    app.mount("/css", StaticFiles(directory=THIS_DIR / "css"), name="css")
-if (THIS_DIR / "js").is_dir():
-    app.mount("/js", StaticFiles(directory=THIS_DIR / "js"), name="js")
 
 background_tasks = set()
 
@@ -198,10 +190,9 @@ app.add_middleware(
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def create_jwt(username: str, role: str = "admin") -> str:
+def create_jwt(username: str) -> str:
     payload = {
         "sub": username,
-        "role": role,
         "exp": datetime.utcnow() + timedelta(seconds=JWT_EXPIRES),
         "iat": datetime.utcnow(),
     }
@@ -232,49 +223,18 @@ async def index():
 async def widget():
     return FileResponse(THIS_DIR / "voice-widget.html")
 
-PARTIALS_DIR = THIS_DIR / "partials"
-PARTIAL_ORDER = [
-    "head.html",
-    "login.html",
-    "sidebar.html",
-    "main-header.html",
-    "page-analytics.html",
-    "page-calls.html",
-    "page-approvals.html",
-    "page-outbound.html",
-    "page-settings.html",
-    "modals-global.html",
-    "page-interactions.html",
-    "page-calendar.html",
-    "page-beallitasok.html",
-    "page-help.html",
-    "footer.html",
-]
-
-def _assemble_admin_html() -> str:
-    """Assemble admin page from partial HTML files."""
-    parts = []
-    for name in PARTIAL_ORDER:
-        path = PARTIALS_DIR / name
-        parts.append(path.read_text(encoding="utf-8"))
-    return "".join(parts)
-
-_ADMIN_CACHE_HEADERS = {"Cache-Control": "no-cache, no-store, must-revalidate", "Pragma": "no-cache", "Expires": "0"}
-
 @app.get("/admin")
 def admin_page():
-    from fastapi.responses import HTMLResponse
-    return HTMLResponse(content=_assemble_admin_html(), headers=_ADMIN_CACHE_HEADERS)
-
-@app.get("/admin/{page}")
-def admin_subpage(page: str):
-    """Serve the same SPA for sub-routes like /admin/analytics, /admin/calendar, etc."""
-    from fastapi.responses import HTMLResponse
-    return HTMLResponse(content=_assemble_admin_html(), headers=_ADMIN_CACHE_HEADERS)
+    return FileResponse(THIS_DIR / "admin.html")
 
 @app.get("/marketing")
 def marketing_page():
     return FileResponse(THIS_DIR / "marketing.html")
+
+@app.get("/marketing/elemzes")
+def marketing_elemzes():
+    return FileResponse(THIS_DIR / "elemzes.html")
+
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -525,6 +485,34 @@ async def marketing_add_subscriber(req: Request):
     if not sub:
         return JSONResponse({"error": "Feliratkozó hozzáadása sikertelen"}, status_code=500)
     return sub
+# ── CRM Sync Import ──
+
+@app.post("/marketing/api/subscribers/import-crm")
+async def marketing_import_crm_subscribers():
+    """DigiDesk ügyféladatbázisból importálja az email címmel rendelkező ügyfeleket feliratkozóként."""
+    try:
+        clients = db.get_clients(limit=1000)
+        imported = 0
+        for client in clients:
+            email = client.get("email", "").strip()
+            if not email or email == "-" or "@" not in email:
+                continue
+            name = client.get("name", "").strip()
+            if name in ("Névtelen", "-", ""):
+                name = email.split("@")[0]
+            sub = db.add_email_subscriber(
+                email=email,
+                name=name,
+                tags=["crm-import"],
+                consent_source="import"
+            )
+            if sub:
+                imported += 1
+        logger.info(f"CRM import: {imported} subscribers imported from {len(clients)} clients")
+        return {"ok": True, "imported": imported, "total_clients": len(clients)}
+    except Exception as e:
+        logger.error(f"CRM import error: {e}")
+        return JSONResponse({"error": str(e)}, status_code=500)
 
 # ── AI Campaign Generation ──
 
@@ -910,13 +898,9 @@ async def marketing_social_analytics():
 async def logo():
     return FileResponse(THIS_DIR / "thinkai-logo.png", media_type="image/png")
 
-@app.get("/eaisydesk_logo.png")
-async def eaisydesk_logo():
-    return FileResponse(THIS_DIR / "eaisydesk_logo.png", media_type="image/png")
-
-@app.get("/login-bg.png")
+@app.get("/login-bg.jpg")
 async def bg():
-    return FileResponse(THIS_DIR / "login-bg.png", media_type="image/png")
+    return FileResponse(THIS_DIR / "login-bg.jpg", media_type="image/jpeg")
 
 @app.get("/api/token")
 async def get_token():
@@ -1015,52 +999,38 @@ async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Option
     if source_channel not in ("Messenger", "Instagram"):
         return None
         
+    # Instagram DM uses Page Access Token (Messenger platform), not IG API token
     token = os.getenv("META_PAGE_ACCESS_TOKEN")
     if not token:
-        print(f"[Meta API] HIBA: META_PAGE_ACCESS_TOKEN nincs beállítva!")
         return None
     
-    import httpx
-    
-    # Strategy: try multiple field combinations until we get a name
-    field_sets = ["first_name,last_name", "name"]
-    
-    for fields in field_sets:
-        url = f"https://graph.facebook.com/v25.0/{sender_id}?fields={fields}&access_token={token[:10]}..."
-        print(f"[Meta API DEBUG] Kérés: fields={fields}, sender={sender_id}, channel={source_channel}")
-        try:
-            real_url = f"https://graph.facebook.com/v25.0/{sender_id}?fields={fields}&access_token={token}"
-            async with httpx.AsyncClient() as client:
-                resp = await client.get(real_url, timeout=10.0)
-                print(f"[Meta API DEBUG] Válasz status={resp.status_code}, body={resp.text[:500]}")
-                if resp.status_code == 200:
-                    data = resp.json()
-                    # Try full name first
-                    name = data.get("name", "").strip()
-                    if not name:
-                        first = data.get("first_name", "").strip()
-                        last = data.get("last_name", "").strip()
-                        name = f"{first} {last}".strip()
-                    print(f"[Meta API DEBUG] Parsed name='{name}', raw data keys={list(data.keys())}")
-                    if name:
-                        print(f"[Meta API] Név feloldva: '{name}' ({source_channel}/{sender_id}, fields={fields})")
-                        return name
-                    # Empty name from this field set, try next
-                    print(f"[Meta API] Üres név fields={fields}, következő próba...")
-                    continue
-                elif resp.status_code == 400:
-                    # This field set is not supported for this ID type, try next
-                    print(f"[Meta API] 400 fields={fields}, következő próba... response={resp.text[:300]}")
-                    continue
-                else:
-                    print(f"[Meta API] Hiba status={resp.status_code} for {sender_id}: {resp.text[:300]}")
-                    return None
-        except Exception as e:
-            print(f"[Meta API] Exception fields={fields}: {type(e).__name__}: {e}")
-            continue
-    
-    print(f"[Meta API] Nem sikerült nevet feloldani: {sender_id} ({source_channel})")
-    return None
+    # Instagram IGSID supports 'name' field directly.
+    # Messenger PSID only supports 'first_name', 'last_name', 'profile_pic' — NOT 'name'.
+    # Requesting 'name' on a PSID causes a 400 error, breaking the entire request.
+    if source_channel == "Instagram":
+        fields = "name,profile_pic"
+    else:
+        fields = "first_name,last_name,profile_pic"
+        
+    url = f"https://graph.facebook.com/v25.0/{sender_id}?fields={fields}&access_token={token}"
+    try:
+        import httpx
+        async with httpx.AsyncClient() as client:
+            resp = await client.get(url, timeout=5.0)
+            if resp.status_code == 200:
+                data = resp.json()
+                name = data.get("name")
+                if not name:
+                    first = data.get("first_name", "")
+                    last = data.get("last_name", "")
+                    name = f"{first} {last}".strip()
+                return name if name else None
+            else:
+                print(f"[Meta API] Error fetching profile for {sender_id} ({source_channel}): {resp.text}")
+                return None
+    except Exception as e:
+        print(f"[Meta API] Exception fetching profile: {e}")
+        return None
 
 async def process_meta_message(sender_id: str, message_text: str, source_channel: str = "Messenger", phone_number_id: str = None):
     """Aszinkron háttérfeladat a Meta Messenger / Instagram üzenetek feldolgozására."""
@@ -1083,7 +1053,6 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
         # Először is elmentjük a bejövő üzenetet a Kanbanba
         client_data = {"messenger_id": sender_id, "forras_csatorna": source_channel}
         meta_name = await fetch_meta_user_profile(sender_id, source_channel)
-        print(f"[Meta Name Debug] fetch_meta_user_profile result: '{meta_name}' for {source_channel}/{sender_id}")
         if meta_name:
             client_data["name"] = meta_name
         else:
@@ -1099,10 +1068,8 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
                     db_name = cd_fb.get("nev") or cd_fb.get("name") or existing.get("name")
                     if db_name and db_name not in ("Névtelen", "-", ""):
                         meta_name = db_name
-                        client_data["name"] = meta_name
                         print(f"[Meta API] DB fallback név: {meta_name}")
             
-        print(f"[Meta Name Debug] client_data before upsert: {client_data}")
         db.upsert_client(client_data, additional_log=f"Ügyfél ({source_channel}): {message_text}")
 
         # Előzmények beolvasása
@@ -1406,10 +1373,7 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 display_name = None
 
             current_status = existing_client.get("status", "uj") if existing_client else "uj"
-            upsert_data = {"messenger_id": sender_id, "forras_csatorna": source_channel}
-            if display_name:
-                upsert_data["name"] = display_name
-            db.upsert_client(upsert_data, additional_log=f"AI Válasz: {final_text}", status=current_status)
+            db.upsert_client({"messenger_id": sender_id, "forras_csatorna": source_channel}, additional_log=f"AI Válasz: {final_text}", status=current_status)
             
             f_stage = "foglalt" if booked_meeting else "valaszolt"
             
@@ -1425,9 +1389,6 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             
             session_id = f"{source_channel.lower()}_{sender_id}"
             db.create_session(session_id=session_id, room_name=f"{source_channel} Chat", participant=display_name if display_name else "Ismeretlen")
-            # Always update participant in case the session already exists with a stale name (e.g. raw PSID)
-            if display_name:
-                db.update_session_participant(session_id, display_name)
             
             # alert tags beolvasása az aszinkron feladatból, ha az AI nem adott
             tags_from_ai = alert_tags if isinstance(alert_tags, list) else []
@@ -1442,8 +1403,8 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             # Logolás az interactions táblába + approval
             db.log_interaction(
                 type=source_channel.lower(),
-                topic=f"Bejövő {source_channel} üzenet",
-                summary=message_text,
+                topic=f"{source_channel} AI válasz",
+                summary=final_text[:100],
                 result="Várakozik jóváhagyásra",
                 tool_name="process_meta_message",
                 session_id=session_id,
@@ -1467,11 +1428,6 @@ async def meta_webhook_receive(request: Request):
         body = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON")
-    
-    import json as _wh_json
-    print(f"[Meta Webhook DEBUG] === TELJES PAYLOAD ===")
-    print(f"[Meta Webhook DEBUG] {_wh_json.dumps(body, indent=2, ensure_ascii=False)[:2000]}")
-    print(f"[Meta Webhook DEBUG] === PAYLOAD VÉGE ===")
     
     obj_type = body.get("object")
     
@@ -1538,54 +1494,12 @@ def admin_login(req: LoginRequest):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Hibás felhasználónév vagy jelszó"
         )
-    token = create_jwt(user["username"], user.get("role", "admin"))
+    token = create_jwt(user["username"])
     return {"token": token, "username": user["username"], "role": user.get("role", "admin"), "full_name": user.get("full_name", "")}
 
 
-class RegisterRequest(BaseModel):
-    username: str
-    password: str
-    email: str = ""
-    full_name: str = ""
-
-
-@app.post("/admin/register")
-def admin_register(req: RegisterRequest):
-    """Nyilvános regisztráció member jogosultsággal."""
-    if not req.username or not req.password:
-        raise HTTPException(400, "Felhasználónév és jelszó kötelező")
-    if len(req.password) < 4:
-        raise HTTPException(400, "A jelszónak legalább 4 karakter hosszúnak kell lennie")
-    success = db.create_admin_user(
-        req.username, req.password, req.email,
-        role="member", created_by="self-register", full_name=req.full_name
-    )
-    if not success:
-        raise HTTPException(400, "A felhasználónév már foglalt")
-    token = create_jwt(req.username, "member")
-    return {"token": token, "username": req.username, "role": "member", "full_name": req.full_name}
-
-
 def require_admin(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
-    """Dependency: admin OR manager role can access."""
-    if not credentials:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Nincs token")
-    try:
-        payload = pyjwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGO])
-        username = payload["sub"]
-    except pyjwt.ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token lejárt")
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Érvénytelen token")
-    
-    user = db.get_admin_user_by_username(username)
-    if not user or user.get("role") not in ("admin", "manager"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Csak admin vagy manager jogosultsággal elérhető")
-    return user
-
-
-def require_admin_only(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
-    """Dependency: strictly admin role only (user management)."""
+    """Dependency: only admin role can access."""
     if not credentials:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Nincs token")
     try:
@@ -1622,22 +1536,22 @@ class ChangePasswordRequest(BaseModel):
     user_id: Optional[int] = None
 
 @app.get("/admin/api/users")
-def api_get_users(admin: dict = Depends(require_admin_only)):
+def api_get_users(admin: dict = Depends(require_admin)):
     """List all admin users (admin only)."""
     return {"status": "success", "data": db.get_admin_users()}
 
 @app.post("/admin/api/users")
-def api_create_user(req: CreateUserRequest, admin: dict = Depends(require_admin_only)):
+def api_create_user(req: CreateUserRequest, admin: dict = Depends(require_admin)):
     """Create a new admin user (admin only)."""
-    if req.role not in ("admin", "manager", "member"):
-        raise HTTPException(400, "Érvénytelen szerepkör. Lehetséges: admin, manager, member")
+    if req.role not in ("admin", "member"):
+        raise HTTPException(400, "Érvénytelen szerepkör. Lehetséges: admin, member")
     success = db.create_admin_user(req.username, req.password, req.email, req.role, admin["username"], req.full_name)
     if not success:
         raise HTTPException(400, "A felhasználónév már foglalt")
     return {"status": "success", "message": f"Felhasználó létrehozva: {req.username}"}
 
 @app.put("/admin/api/users/{user_id}/role")
-def api_update_user_role(user_id: int, req: RoleUpdateRequest, admin: dict = Depends(require_admin_only)):
+def api_update_user_role(user_id: int, req: RoleUpdateRequest, admin: dict = Depends(require_admin)):
     """Update user role (admin only). Cannot demote self."""
     if admin["id"] == user_id and req.role != "admin":
         raise HTTPException(400, "Nem módosíthatod a saját szerepkörödet")
@@ -1647,7 +1561,7 @@ def api_update_user_role(user_id: int, req: RoleUpdateRequest, admin: dict = Dep
     return {"status": "success"}
 
 @app.delete("/admin/api/users/{user_id}")
-def api_delete_user(user_id: int, admin: dict = Depends(require_admin_only)):
+def api_delete_user(user_id: int, admin: dict = Depends(require_admin)):
     """Delete an admin user (admin only). Cannot delete self."""
     if admin["id"] == user_id:
         raise HTTPException(400, "Nem törölheted saját magadat")
@@ -1862,18 +1776,6 @@ def admin_create_event(req: ManualEventRequest, username: str = Depends(verify_j
     
     return {"status": "success", "event_id": event_id, "message": "Időpont sikeresen létrehozva"}
 
-@app.patch("/admin/api/calendar/{event_id}")
-async def update_calendar_event_api(event_id: int, request: Request, username: str = Depends(verify_jwt)):
-    """Update a calendar event (e.g. mark as completed)."""
-    body = await request.json()
-    allowed_fields = {"completed", "title", "start_dt", "end_dt"}
-    updates = {k: v for k, v in body.items() if k in allowed_fields}
-    if not updates:
-        raise HTTPException(status_code=400, detail="Nincs frissítendő mező")
-    success = db.update_calendar_event(event_id, **updates)
-    if not success:
-        raise HTTPException(status_code=500, detail="Frissítés sikertelen")
-    return {"status": "success"}
 
 @app.get("/admin/api/emails")
 def admin_emails(limit: int = 100, username: str = Depends(verify_jwt)):
@@ -2312,103 +2214,8 @@ async def save_workflow(payload: TextFileRequest, username: str = Depends(verify
     return {"ok": True, "message": "Workflow elmentve."}
 
 
-# ── Agent Server Restart ───────────────────────────────────────────────────────
-import subprocess
-import signal
-
-AGENT_PID_FILE = THIS_DIR / ".agent_server.pid"
-_agent_process = None
-
-
-def _kill_agent_process():
-    """Kill the tracked agent server process (if any)."""
-    global _agent_process
-    if _agent_process is not None:
-        try:
-            if _agent_process.poll() is None:
-                _agent_process.terminate()
-                try:
-                    _agent_process.wait(timeout=5)
-                except subprocess.TimeoutExpired:
-                    _agent_process.kill()
-            logger.info(f"Agent process (pid={_agent_process.pid}) leallitva.")
-        except Exception as e:
-            logger.warning(f"Agent process leallitas hiba: {e}")
-        _agent_process = None
-    if AGENT_PID_FILE.exists():
-        try:
-            pid = int(AGENT_PID_FILE.read_text().strip())
-            try:
-                if os.name == "nt":
-                    subprocess.run(["taskkill", "/F", "/PID", str(pid)], capture_output=True, timeout=5)
-                else:
-                    os.kill(pid, signal.SIGTERM)
-            except (ProcessLookupError, PermissionError):
-                pass
-            logger.info(f"Agent process (pid={pid}) PID-fajlbol leallitva.")
-        except Exception as e:
-            logger.warning(f"PID-fajl alapu leallitas hiba: {e}")
-        AGENT_PID_FILE.unlink(missing_ok=True)
-
-
-def _start_agent_process():
-    """Start server.py as a background subprocess and track its PID."""
-    global _agent_process
-    server_script = THIS_DIR / "server.py"
-    if not server_script.exists():
-        raise FileNotFoundError(f"server.py nem talalhato: {server_script}")
-    _agent_process = subprocess.Popen(
-        [sys.executable, str(server_script), "dev"],
-        cwd=str(THIS_DIR),
-        stdout=subprocess.DEVNULL,
-        stderr=subprocess.DEVNULL,
-    )
-    AGENT_PID_FILE.write_text(str(_agent_process.pid))
-    logger.info(f"Agent server elindult, pid={_agent_process.pid}")
-    return _agent_process.pid
-
-
-@app.post("/admin/api/agent/restart")
-async def restart_agent_server(username: str = Depends(verify_jwt)):
-    """Leallitja es ujraindija a server.py agent processzt."""
-    try:
-        loop = asyncio.get_event_loop()
-        await loop.run_in_executor(None, _kill_agent_process)
-        await asyncio.sleep(1.0)
-        pid = await loop.run_in_executor(None, _start_agent_process)
-        return {"ok": True, "message": f"Agent server ujraindult (pid={pid})."}
-    except FileNotFoundError as e:
-        raise HTTPException(status_code=404, detail=str(e))
-    except Exception as e:
-        logger.error(f"Agent restart hiba: {e}")
-        raise HTTPException(status_code=500, detail=f"Ujrainditasi hiba: {e}")
-
-
-@app.get("/admin/api/agent/status")
-async def agent_server_status(username: str = Depends(verify_jwt)):
-    """Visszaadja az agent server futasi allapotat."""
-    global _agent_process
-    running = False
-    pid = None
-    if _agent_process is not None and _agent_process.poll() is None:
-        running = True
-        pid = _agent_process.pid
-    elif AGENT_PID_FILE.exists():
-        try:
-            pid = int(AGENT_PID_FILE.read_text().strip())
-            if os.name == "nt":
-                result = subprocess.run(["tasklist", "/FI", f"PID eq {pid}"], capture_output=True, text=True)
-                running = str(pid) in result.stdout
-            else:
-                os.kill(pid, 0)
-                running = True
-        except (ProcessLookupError, ValueError, PermissionError):
-            running = False
-    return {"running": running, "pid": pid}
-
 
 # ── Praxisinfó ────────────────────────────────────────────────────────────────
-
 PRAXISINFO_FILE = THIS_DIR / "praxisinfo.json"
 
 _HU_TO_EN = {
@@ -2787,127 +2594,12 @@ async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# DIAGNOSZTIKA
-# ═══════════════════════════════════════════════════════════════════════════════
-
-@app.get("/admin/api/debug/meta-api")
-async def debug_meta_api(username: str = Depends(verify_jwt)):
-    """Diagnosztikai endpoint: teszteli a Meta Graph API-t a live szerveren."""
-    import httpx
-    results = {}
-    
-    token = os.getenv("META_PAGE_ACCESS_TOKEN")
-    results["token_exists"] = bool(token)
-    results["token_first_20"] = token[:20] + "..." if token else "NINCS"
-    
-    # Get latest messenger client
-    clients = db.get_clients(limit=50)
-    messenger_id = None
-    for c in clients:
-        cd = c.get("custom_data") or {}
-        if isinstance(cd, str):
-            try:
-                import json as _j
-                cd = _j.loads(cd)
-            except: cd = {}
-        mid = cd.get("messenger_id", "")
-        if mid:
-            messenger_id = mid
-            results["test_client_id"] = c["id"]
-            results["test_client_name"] = c["name"]
-            break
-    
-    if not messenger_id:
-        results["error"] = "Nincs messenger kliens a DB-ben"
-        return results
-    
-    results["messenger_psid"] = messenger_id
-    
-    if not token:
-        results["error"] = "META_PAGE_ACCESS_TOKEN nincs beállítva!"
-        return results
-    
-    # Test 1: first_name,last_name
-    try:
-        url = f"https://graph.facebook.com/v25.0/{messenger_id}?fields=first_name,last_name&access_token={token}"
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, timeout=15.0)
-            results["test1_fields"] = "first_name,last_name"
-            results["test1_status"] = resp.status_code
-            results["test1_response"] = resp.text[:500]
-    except Exception as e:
-        results["test1_error"] = f"{type(e).__name__}: {e}"
-    
-    # Test 2: name
-    try:
-        url2 = f"https://graph.facebook.com/v25.0/{messenger_id}?fields=name&access_token={token}"
-        async with httpx.AsyncClient() as client:
-            resp2 = await client.get(url2, timeout=15.0)
-            results["test2_fields"] = "name"
-            results["test2_status"] = resp2.status_code
-            results["test2_response"] = resp2.text[:500]
-    except Exception as e:
-        results["test2_error"] = f"{type(e).__name__}: {e}"
-    
-    return results
-
-# ═══════════════════════════════════════════════════════════════════════════════
 # JÓVÁHAGYÓ RENDSZER (HUMAN-IN-THE-LOOP) API
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @app.get("/admin/api/approvals")
-async def get_approvals_api(status: str = "pending", username: str = Depends(verify_jwt)):
+def get_approvals_api(status: str = "pending", username: str = Depends(verify_jwt)):
     approvals = db.get_approvals(status)
-    
-    # Server-side name resolution: replace raw PSID in to_name with actual client name
-    import json as _json
-    import re
-    _is_raw_id = lambda v: bool(v and re.match(r'^\d{8,}$', str(v)))
-    
-    for appr in approvals:
-        try:
-            draft = _json.loads(appr.get("ai_draft_response") or "{}")
-            to_name = draft.get("to_name", "")
-            sender_id = draft.get("sender_id", "")
-            channel = draft.get("channel", "Messenger")
-            
-            # If to_name is a raw PSID or empty, try to resolve
-            if _is_raw_id(to_name) or not to_name or to_name in ("Ismeretlen", "Névtelen"):
-                mid = sender_id or to_name
-                resolved_name = None
-                
-                # 1. Try clients DB first
-                if mid:
-                    client = db.find_client_by_contact(messenger_id=str(mid))
-                    if client:
-                        cname = client.get("name", "")
-                        if cname and cname not in ("Névtelen", "-", ""):
-                            resolved_name = cname
-                
-                # 2. If DB has no good name, call Meta API directly
-                if not resolved_name and mid:
-                    try:
-                        meta_name = await fetch_meta_user_profile(str(mid), channel)
-                        if meta_name:
-                            resolved_name = meta_name
-                            # Also update the client record so next time DB has the name
-                            if client:
-                                cd = client.get("custom_data") or {}
-                                if isinstance(cd, str):
-                                    try: cd = _json.loads(cd)
-                                    except: cd = {}
-                                cd["name"] = meta_name
-                                db.edit_client_details(client["id"], cd)
-                                print(f"[Approvals API] Kliens #{client['id']} név frissítve Meta API-ból: {meta_name}")
-                    except Exception as e:
-                        print(f"[Approvals API] Meta API hiba: {e}")
-                
-                if resolved_name:
-                    draft["to_name"] = resolved_name
-                    appr["ai_draft_response"] = _json.dumps(draft, ensure_ascii=False)
-        except Exception:
-            pass
-    
     return {"approvals": approvals}
 
 @app.post("/admin/api/approvals/{id}/reject")
@@ -3154,7 +2846,6 @@ class CampaignCreateRequest(BaseModel):
     channels: list[str] = ["email"]
     client_ids: list[int]
     ai_instructions: str = ""
-    mode: str = "ai"  # "manual" = szabadkéz (közvetlen küldés), "ai" = AI varázsló (generálás)
 
 @app.get("/admin/api/campaigns")
 def get_campaigns_api(username: str = Depends(verify_jwt)):
@@ -3167,8 +2858,7 @@ def create_campaign_api(req: CampaignCreateRequest, username: str = Depends(veri
         name=req.name,
         channels=req.channels,
         client_ids=req.client_ids,
-        ai_instructions=req.ai_instructions,
-        mode=req.mode
+        ai_instructions=req.ai_instructions
     )
     if campaign_id:
         return {"status": "success", "id": campaign_id}
@@ -3204,7 +2894,7 @@ async def start_campaign_api(campaign_id: int, username: str = Depends(verify_jw
     ch_str = ", ".join(channel_names.get(c, c) for c in active_channels)
     msg_parts = []
     if text_channels:
-        msg_parts.append("üzenetek generálása és közvetlen kiküldése folyamatban")
+        msg_parts.append("piszkozatok hamarosan megjelennek a Jóváhagyó rendszerben")
     if "telefon" in active_channels:
         msg_parts.append("AI telefonhívások indulnak")
     return {"status": "success", "message": f"Kampány elindítva ({ch_str}) — {', '.join(msg_parts)}."}
@@ -3329,29 +3019,18 @@ def get_campaign_clients_api(campaign_id: int, username: str = Depends(verify_jw
 
 
 async def _run_campaign(campaign: dict, active_channels: list[str]):
-    """Háttérfolyamat: végigmegy a kampány ügyfelein, AI-val generál üzeneteket és AZONNAL ELKÜLDI."""
+    """Háttérfolyamat: végigmegy a kampány ügyfelein, AI-val generál piszkozatokat az aktív csatornákra."""
     from google import genai
     from google.genai import types
     from prompt_utils import get_system_prompt
-    import httpx
-    import base64 as b64module
 
     campaign_id = campaign["id"]
     campaign_name = campaign["name"]
-    raw_instructions = campaign.get("ai_instructions", "")
-    # Mode kiolvasása az ai_instructions elejéből (MODE:manual:... vagy MODE:ai:...)
-    if raw_instructions.startswith("MODE:"):
-        parts = raw_instructions.split(":", 2)
-        campaign_mode = parts[1] if len(parts) >= 2 else "ai"
-        ai_instructions = parts[2] if len(parts) >= 3 else ""
-    else:
-        campaign_mode = campaign.get("mode", "ai")
-        ai_instructions = raw_instructions
+    ai_instructions = campaign.get("ai_instructions", "")
     client_ids = campaign.get("client_ids", [])
 
     google_key = os.getenv("GOOGLE_API_KEY")
-    # AI mode-nál kell Google key, manual mode-nál nem
-    if campaign_mode == "ai" and not google_key:
+    if not google_key:
         print(f"[Campaign] GOOGLE_API_KEY hiányzik, kampány megszakítva: {campaign_name}")
         db.update_campaign_status(campaign_id, "Megállítva")
         return
@@ -3363,16 +3042,8 @@ async def _run_campaign(campaign: dict, active_channels: list[str]):
         return
 
     base_system_prompt = get_system_prompt()
-    gemini_client = None
-    if campaign_mode == "ai":
-        gemini_client = genai.Client(api_key=google_key)
+    gemini_client = genai.Client(api_key=google_key)
     processed = 0
-    sent_ok = 0
-    sent_fail = 0
-
-    is_manual = campaign_mode == "manual"
-    if is_manual:
-        print(f"[Campaign] MANUÁLIS mód — a szabad kézzel írt szöveg kerül kiküldésre: {campaign_name}")
 
     for client in clients:
         current = db.get_campaign(campaign_id)
@@ -3405,17 +3076,11 @@ async def _run_campaign(campaign: dict, active_channels: list[str]):
             log_snippet = interaction_log[-1500:] if len(interaction_log) > 1500 else interaction_log
             user_context += f"\nKorábbi előzmények:\n{log_snippet}\n"
 
-        # === Üzenetek generálása és AZONNALI KÜLDÉS minden aktív csatornára ===
+        # === Piszkozatok generálása minden aktív csatornára ===
         drafts = []
-        client_sent_channels = []
 
         if "email" in active_channels and client_email and client_email != "-":
-            if is_manual:
-                # SZABADKÉZ mód: a felhasználó által beírt szöveg megy ki változatlanul
-                email_body = ai_instructions
-            else:
-                # AI VARÁZSLÓ mód: Gemini generálja a személyre szabott szöveget
-                email_prompt = f"""{base_system_prompt}
+            email_prompt = f"""{base_system_prompt}
 
 --- KIMENŐ KAMPÁNY UTASÍTÁS (EMAIL) ---
 Te most egy kimenő email kampány részeként írsz személyre szabott üzenetet.
@@ -3431,63 +3096,25 @@ FELADATOD:
 - NE használj HTML tag-eket
 - A válaszod KIZÁRÓLAG az email szövege legyen
 """
-                try:
-                    response = await gemini_client.aio.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=user_context,
-                        config=types.GenerateContentConfig(system_instruction=email_prompt, temperature=0.4)
-                    )
-                    email_body = response.text.strip()
-                except Exception as e:
-                    print(f"[Campaign] Gemini email hiba ({client_name}): {e}")
-                    continue
-            drafts.append({
-                "channel": "Email",
-                "to_email": client_email,
-                "to_name": client_name,
-                "subject": campaign_name,
-                "body": email_body
-            })
-
-            # --- AZONNALI KÜLDÉS: Email via Brevo ---
             try:
-                brevo_key = os.getenv("BREVO_API_KEY", "")
-                api_key = brevo_key
-                if brevo_key and not brevo_key.startswith("xkeysib-"):
-                    try:
-                        decoded = b64module.b64decode(brevo_key).decode()
-                        parsed = json.loads(decoded)
-                        api_key = parsed.get("api_key", brevo_key)
-                    except: pass
-
-                html_body = f'<div style="font-family: Arial, sans-serif;">{email_body.replace(chr(10), "<br>")}</div>'
-                async with httpx.AsyncClient() as http_client:
-                    resp = await http_client.post(
-                        "https://api.brevo.com/v3/smtp/email",
-                        headers={"api-key": api_key, "Content-Type": "application/json"},
-                        json={
-                            "sender": {"name": "EAISY Marketing", "email": "hello@thinkai.hu"},
-                            "to": [{"email": client_email, "name": client_name}],
-                            "subject": campaign_name,
-                            "htmlContent": html_body,
-                        },
-                        timeout=20,
-                    )
-                    resp.raise_for_status()
-                client_sent_channels.append("Email")
-                mode_label = "MANUÁLIS" if is_manual else "AI"
-                print(f"[Campaign] Email ELKÜLDVE ({mode_label}): {client_name} <{client_email}>")
-            except Exception as send_err:
-                print(f"[Campaign] Email küldési hiba ({client_name}): {send_err}")
-                sent_fail += 1
+                response = await gemini_client.aio.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=user_context,
+                    config=types.GenerateContentConfig(system_instruction=email_prompt, temperature=0.4)
+                )
+                drafts.append({
+                    "channel": "Email",
+                    "to_email": client_email,
+                    "to_name": client_name,
+                    "subject": campaign_name,
+                    "body": response.text.strip()
+                })
+                print(f"[Campaign] Email piszkozat generálva: {client_name} <{client_email}>")
+            except Exception as e:
+                print(f"[Campaign] Gemini email hiba ({client_name}): {e}")
 
         if "messenger" in active_channels and client_messenger_id:
-            if is_manual:
-                # SZABADKÉZ mód: a felhasználó által beírt szöveg megy ki
-                msg_body = ai_instructions
-            else:
-                # AI VARÁZSLÓ mód
-                messenger_prompt = f"""{base_system_prompt}
+            messenger_prompt = f"""{base_system_prompt}
 
 --- KIMENŐ KAMPÁNY UTASÍTÁS (MESSENGER) ---
 Te most egy kimenő Messenger kampány részeként írsz személyre szabott üzenetet.
@@ -3503,48 +3130,26 @@ FELADATOD:
 - NE használj semmilyen formázást, csak sima szöveg
 - A válaszod KIZÁRÓLAG az üzenet szövege legyen
 """
-                try:
-                    response = await gemini_client.aio.models.generate_content(
-                        model="gemini-2.5-flash",
-                        contents=user_context,
-                        config=types.GenerateContentConfig(system_instruction=messenger_prompt, temperature=0.5)
-                    )
-                    msg_body = response.text.strip()
-                except Exception as e:
-                    print(f"[Campaign] Gemini messenger hiba ({client_name}): {e}")
-                    continue
-            drafts.append({
-                "channel": "Messenger",
-                "sender_id": client_messenger_id,
-                "to_name": client_name,
-                "body": msg_body
-            })
-
-            # --- AZONNALI KÜLDÉS: Messenger via Meta API ---
             try:
-                page_access_token = os.getenv("META_PAGE_ACCESS_TOKEN", "")
-                if not page_access_token:
-                    raise Exception("Hiányzó Meta oldal token")
-                async with httpx.AsyncClient() as http_client:
-                    resp = await http_client.post(
-                        "https://graph.facebook.com/v25.0/me/messages",
-                        headers={"Authorization": f"Bearer {page_access_token}"},
-                        json={
-                            "recipient": {"id": client_messenger_id},
-                            "message": {"text": msg_body}
-                        }
-                    )
-                    resp.raise_for_status()
-                client_sent_channels.append("Messenger")
-                print(f"[Campaign] Messenger ELKÜLDVE: {client_name}")
-            except Exception as send_err:
-                print(f"[Campaign] Messenger küldési hiba ({client_name}): {send_err}")
-                sent_fail += 1
+                response = await gemini_client.aio.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=user_context,
+                    config=types.GenerateContentConfig(system_instruction=messenger_prompt, temperature=0.5)
+                )
+                drafts.append({
+                    "channel": "Messenger",
+                    "sender_id": client_messenger_id,
+                    "to_name": client_name,
+                    "body": response.text.strip()
+                })
+                print(f"[Campaign] Messenger piszkozat generálva: {client_name}")
+            except Exception as e:
+                print(f"[Campaign] Gemini messenger hiba ({client_name}): {e}")
 
         if not drafts:
             continue
 
-        # Logolás az interactions táblába (elküldve státusszal, NEM jóváhagyásra várva)
+        # Egy összevont piszkozat az összes csatornával
         if len(drafts) == 1:
             combined_payload = drafts[0]
             combined_payload["campaign_name"] = campaign_name
@@ -3559,34 +3164,31 @@ FELADATOD:
 
         channel_names_list = [d["channel"] for d in drafts]
         ch_display = " + ".join(channel_names_list)
-        sent_status = "Elküldve" if client_sent_channels else "Küldési hiba"
         session_id = f"campaign_{campaign_id}_{client['id']}"
         db.create_session(session_id=session_id, room_name=f"Kampány: {campaign_name}", participant=client_name)
         db.log_interaction(
             type=ch_display,
             topic=f"Kampány: {campaign_name}",
-            summary=f"Kimenő kampány ({ch_display}) – {client_name} – {sent_status}",
-            result=sent_status,
+            summary=f"Kimenő kampány ({ch_display}) – {client_name}",
+            result="Várakozik jóváhagyásra",
             tool_name="campaign_worker",
             session_id=session_id,
             direction="outbound",
             funnel_stage="relevans",
             alert_tags=[],
             handover_reason=None,
-            approval_status="approved",
+            approval_status="pending",
             ai_draft_response=json.dumps(combined_payload)
         )
 
         processed += 1
-        if client_sent_channels:
-            sent_ok += 1
         db.update_campaign_status(campaign_id, "Aktív", processed_count=processed)
-        print(f"[Campaign] Kész ({processed}/{len(clients)}): {client_name} [{ch_display}] — {sent_status}")
+        print(f"[Campaign] Piszkozat kész ({processed}/{len(clients)}): {client_name} [{ch_display}]")
         await asyncio.sleep(1)
 
     db.update_campaign_status(campaign_id, "Befejezett", processed_count=processed)
     ch_str = ", ".join(active_channels)
-    print(f"[Campaign] Kampány befejezve: {campaign_name} ({ch_str}) – {sent_ok} elküldve, {sent_fail} hibás")
+    print(f"[Campaign] Kampány befejezve: {campaign_name} ({ch_str}) – {processed} piszkozat generálva")
 
 
 async def _run_phone_campaign(campaign: dict):
@@ -3836,6 +3438,1772 @@ async def public_cancel_appointment(token: str):
         </html>
         """
         return HTMLResponse(content=html, status_code=400)
+
+
+def find_emails_in_html(html_text):
+    import re
+    email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'
+    found = re.findall(email_pattern, html_text)
+    cleaned = []
+    for email in found:
+        email_lower = email.lower()
+        if any(email_lower.endswith(ext) for ext in ['.png', '.jpg', '.jpeg', '.gif', '.webp', '.svg', '.css', '.js']):
+            continue
+        if email not in cleaned:
+            cleaned.append(email)
+    return cleaned
+
+
+SOCIAL_PLATFORMS_30 = [
+    'facebook.com', 'fb.com', 'instagram.com', 'linkedin.com', 'youtube.com', 'youtu.be',
+    'tiktok.com', 'twitter.com', 'x.com', 'pinterest.com', 'pinterest.hu', 'snapchat.com',
+    'reddit.com', 'tumblr.com', 'flickr.com', 'vimeo.com', 'twitch.tv', 'discord.gg',
+    'discord.com', 'telegram.org', 't.me', 'whatsapp.com', 'wa.me', 'messenger.com',
+    'skype.com', 'threads.net', 'medium.com', 'github.com', 'behance.net', 'dribbble.com',
+    'viber.com', 'line.me', 'wechat.com', 'weibo.com', 'quora.com', 'patreon.com',
+    'soundcloud.com'
+]
+
+
+def extract_social_links(html_content, base_url):
+    from bs4 import BeautifulSoup
+    from urllib.parse import urljoin, urlparse
+    soup = BeautifulSoup(html_content, "lxml")
+    socials = {}
+    
+    for a in soup.find_all('a', href=True):
+        href = a['href'].strip()
+        if not href or href.startswith('#') or href.startswith('javascript:') or href.startswith('mailto:') or href.startswith('tel:'):
+            continue
+        full_url = urljoin(base_url, href)
+        parsed_url = urlparse(full_url)
+        domain = parsed_url.netloc.lower()
+        
+        for platform in SOCIAL_PLATFORMS_30:
+            if platform in domain:
+                key = platform.split('.')[0]
+                if key == 'youtu':
+                    key = 'youtube'
+                elif key == 'fb':
+                    key = 'facebook'
+                elif key == 't':
+                    key = 'telegram'
+                elif key == 'wa':
+                    key = 'whatsapp'
+                
+                if key not in socials:
+                    socials[key] = full_url
+                break
+    return socials
+
+
+def find_contact_links(base_url, html_content):
+    from bs4 import BeautifulSoup
+    from urllib.parse import urljoin, urlparse
+    
+    soup = BeautifulSoup(html_content, "lxml")
+    contact_links = []
+    seen_urls = set()
+    
+    keywords = [
+        # Hungarian
+        'kapcsolat', 'elerhetoseg', 'elerhetosegek', 'impresszum', 'ceginfo', 'céginfó', 'cegadatok', 
+        'cégadatok', 'rolunk', 'rólunk', 'cegunk', 'cégünk', 'bemutatkozas', 'bemutatkozás', 'adatok', 
+        'szervezet', 'kapcsolati', 'elerhetosegi', 'terkep', 'térkép', 'ugyfelszolgalat', 'ügyfélszolgálat',
+        # English
+        'contact', 'contacts', 'about', 'about-us', 'aboutus', 'company', 'info', 'support', 'legal', 
+        'terms', 'privacy', 'imprint',
+        # German
+        'kontakt', 'impressum', 'uber-uns', 'ueber-uns', 'firma', 'unternehmen',
+        # Romanian
+        'despre', 'despre-noi', 'companie', 'date-firma',
+        # Slovak / Czech
+        'o-nas', 'o-nás', 'firma', 'informacie', 'informace',
+        # Polish
+        'o-firmie',
+        # French
+        'a-propos', 'apropos', 'societe', 'société', 'entreprise', 'mentions-legales',
+        # Spanish
+        'contacto', 'contactenos', 'contáctenos', 'sobre-nosotros', 'quienes-somos', 'quiénes-somos', 'empresa', 'aviso-legal',
+        # Italian
+        'contatti', 'chi-siamo', 'azienda', 'societa', 'società', 'note-legali'
+    ]
+    
+    parsed_base = urlparse(base_url)
+    base_domain = parsed_base.netloc.lower()
+    
+    for a in soup.find_all('a', href=True):
+        href = a['href'].strip()
+        text = a.get_text(strip=True).lower()
+        
+        if not href or href.startswith('#') or href.startswith('javascript:'):
+            continue
+            
+        full_url = urljoin(base_url, href)
+        parsed_full = urlparse(full_url)
+        
+        if parsed_full.netloc.lower() != base_domain:
+            continue
+            
+        url_lower = full_url.lower()
+        matches = False
+        for kw in keywords:
+            if kw in url_lower or kw in text:
+                matches = True
+                break
+                
+        if matches and full_url not in seen_urls and full_url != base_url:
+            seen_urls.add(full_url)
+            contact_links.append(full_url)
+            
+    return contact_links[:5]
+
+
+class ZomboScrapeRequest(BaseModel):
+    url: str
+    limit: int = 10
+
+@app.post("/admin/api/zombo/scrape")
+@app.post("/marketing/api/zombo/scrape")
+async def api_zombo_scrape(req: ZomboScrapeRequest, username: str = Depends(verify_jwt)):
+    """Streaming NDJSON endpoint for website SEO audit and visual tone analysis using multi-agent pipeline."""
+    from fastapi.responses import StreamingResponse
+    import httpx
+    from bs4 import BeautifulSoup
+    import re
+    import colorsys
+    from collections import Counter
+    import json as _json
+    import os
+    import asyncio
+
+    target_url = req.url.strip()
+    if not target_url.startswith('http://') and not target_url.startswith('https://'):
+        target_url = 'https://' + target_url
+
+    # Strip query parameters and fragments to get the clean audit URL
+    from urllib.parse import urlparse, urlunparse
+    try:
+        parsed = urlparse(target_url)
+        target_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', '', ''))
+    except Exception as parse_err:
+        print(f"[Zombo Scrape] Error parsing/cleaning URL: {parse_err}")
+
+    async def generate():
+        try:
+            # ── Step 1: Fetch URL ──
+            firecrawl_key = os.getenv("FIRECRAWL_API_KEY")
+            crawled_pages = []
+            combined_content = ""
+            page_limit = getattr(req, "limit", 10)
+            if page_limit < 1 or page_limit > 10:
+                page_limit = 10 # clamp to 1-10
+            
+            html = ""
+            ttfb_ms = 0.0
+            
+            if firecrawl_key:
+                yield _json.dumps({"step": "progress", "message": f"Firecrawl: Honlap feltérképezése elindítva (limit: {page_limit} oldal)..."}) + "\n"
+                headers = {
+                    "Authorization": f"Bearer {firecrawl_key}",
+                    "Content-Type": "application/json"
+                }
+                crawl_payload = {
+                    "url": target_url,
+                    "excludePaths": [
+                        "/kosar", "/kosár", "/pénztár", "/penztar", "/checkout", "/cart",
+                        "/tag/*", "/category/*", "*/feed*", "*/wp-json*", "*/search*"
+                    ],
+                    "maxDepth": 2,
+                    "limit": page_limit,
+                    "allowBackwardLinks": False,
+                    "scrapeOptions": {
+                        "formats": ["markdown", "html"]
+                    }
+                }
+                
+                try:
+                    start_time = asyncio.get_event_loop().time()
+                    async with httpx.AsyncClient(timeout=30.0) as crawl_client:
+                        resp = await crawl_client.post("https://api.firecrawl.dev/v1/crawl", headers=headers, json=crawl_payload)
+                        if resp.status_code == 200:
+                            crawl_data = resp.json()
+                            job_id = crawl_data.get("id")
+                            if job_id:
+                                # Polling loop
+                                poll_url = f"https://api.firecrawl.dev/v1/crawl/{job_id}"
+                                # Max poll time: 120s (24 iterations * 5 seconds)
+                                for attempt in range(24):
+                                    await asyncio.sleep(5.0)
+                                    poll_resp = await crawl_client.get(poll_url, headers=headers)
+                                    if poll_resp.status_code == 200:
+                                        poll_data = poll_resp.json()
+                                        status = poll_data.get("status")
+                                        completed_count = poll_data.get("completed", 0)
+                                        
+                                        yield _json.dumps({"step": "progress", "message": f"Feltérképezés folyamatban: {completed_count} oldal beolvasva..."}) + "\n"
+                                        
+                                        if status == "completed":
+                                            crawled_pages = poll_data.get("data", [])
+                                            break
+                                        elif status == "failed":
+                                            print(f"[Firecrawl] Crawl job failed: {poll_data.get('error')}")
+                                            break
+                                    else:
+                                        print(f"[Firecrawl] Polling error: {poll_resp.status_code}")
+                                        break
+                        else:
+                            print(f"[Firecrawl] Crawl request failed status: {resp.status_code}")
+                except Exception as ex:
+                    print(f"[Firecrawl] Crawl exception: {ex}")
+            
+            # Extract HTML and calculate ttfb from crawled pages or fallback
+            if crawled_pages:
+                main_page = crawled_pages[0]
+                html = main_page.get("html") or ""
+                ttfb_ms = 150.0  # mock excellent ttfb from cache
+                
+                # Combine crawled pages markdown
+                for p in crawled_pages:
+                    p_url = p.get("metadata", {}).get("sourceURL") or p.get("url") or "Aloldal"
+                    markdown = p.get("markdown") or ""
+                    if len(markdown) > 6000:
+                        markdown = markdown[:6000] + "\n[Tartalom csonkolva...]"
+                    combined_content += f"\n\n--- PAGE: {p_url} ---\n{markdown}\n"
+            
+            if not html:
+                # Fallback to standard fetch
+                yield _json.dumps({"step": "progress", "message": "Kapcsolódás közvetlen letöltéssel (Firecrawl fallback)..."}) + "\n"
+                headers = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                }
+                start_time = asyncio.get_event_loop().time()
+                async with httpx.AsyncClient(timeout=15.0, follow_redirects=True) as client:
+                    resp = await client.get(target_url, headers=headers)
+                    resp.raise_for_status()
+                    html = resp.text
+                ttfb_ms = (asyncio.get_event_loop().time() - start_time) * 1000
+            # If combined_content was empty, initialize it with homepage html
+            allowed_tags = {'meta', 'title', 'link', 'a', 'img', 'h1', 'h2', 'h3', 'p', 'section', 'article', 'nav', 'header', 'footer', 'main', 'body', 'html', 'head'}
+            if not combined_content:
+                scraper_soup = BeautifulSoup(html, "lxml")
+                for tag in scraper_soup(["script", "style", "svg", "noscript", "iframe", "form", "button", "input", "select", "option", "textarea"]):
+                    tag.decompose()
+                for tag in list(scraper_soup.find_all(True)):
+                    if tag.name not in allowed_tags:
+                        tag.unwrap()
+                    else:
+                        tag.attrs = {k: v for k, v in tag.attrs.items() if k in {'href', 'src', 'alt', 'name', 'content'}}
+                for tag in list(scraper_soup.find_all(['p', 'a', 'section', 'article', 'nav'])):
+                    if not tag.get_text(strip=True) and not tag.find_all(True) and not tag.get('href') and not tag.get('src'):
+                        tag.decompose()
+                combined_content = f"--- HOMEPAGE: {target_url} ---\n{str(scraper_soup)[:15000]}\n"
+
+            # Search and fetch contact subpages separately
+            contact_urls = []
+            accumulated_socials = {}
+            homepage_emails = []
+            
+            try:
+                contact_urls = find_contact_links(target_url, html)
+                accumulated_socials.update(extract_social_links(html, target_url))
+                homepage_emails = find_emails_in_html(html)
+            except Exception as e_find:
+                print(f"[Zombo Scrape] Error scanning homepage contact/social details: {e_find}")
+
+            if contact_urls:
+                yield _json.dumps({"step": "progress", "message": f"Elérhetőségek aloldalainak letöltése ({len(contact_urls)} oldal)..."}) + "\n"
+                headers_fetch = {
+                    "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                }
+                
+                email_subpages_content = []
+                normal_subpages_content = []
+                
+                async with httpx.AsyncClient(timeout=10.0, follow_redirects=True) as client:
+                    for c_url in contact_urls:
+                        try:
+                            c_resp = await client.get(c_url, headers=headers_fetch)
+                            if c_resp.status_code == 200:
+                                c_html_raw = c_resp.text
+                                c_emails = find_emails_in_html(c_html_raw)
+                                
+                                try:
+                                    sub_socials = extract_social_links(c_html_raw, c_url)
+                                    for k, v in sub_socials.items():
+                                        if k not in accumulated_socials:
+                                            accumulated_socials[k] = v
+                                except Exception:
+                                    pass
+                                    
+                                c_soup = BeautifulSoup(c_html_raw, "lxml")
+                                for tag in c_soup(["script", "style", "svg", "noscript", "iframe", "form", "button", "input", "select", "option", "textarea"]):
+                                    tag.decompose()
+                                for tag in list(c_soup.find_all(True)):
+                                    if tag.name not in allowed_tags:
+                                        tag.unwrap()
+                                    else:
+                                        tag.attrs = {k: v for k, v in tag.attrs.items() if k in {'href', 'src', 'alt', 'name', 'content'}}
+                                for tag in list(c_soup.find_all(['p', 'a', 'section', 'article', 'nav'])):
+                                    if not tag.get_text(strip=True) and not tag.find_all(True) and not tag.get('href') and not tag.get('src'):
+                                        tag.decompose()
+                                c_html = str(c_soup)[:12000]
+                                
+                                if c_emails:
+                                    email_subpages_content.append(f"--- CONTACT/COMPANY SUBPAGE (CONTAINS EMAILS: {', '.join(c_emails)}): {c_url} ---\n{c_html}\n")
+                                else:
+                                    normal_subpages_content.append(f"--- CONTACT/COMPANY SUBPAGE: {c_url} ---\n{c_html}\n")
+                        except Exception as e_c:
+                            print(f"[Zombo Scrape] Error fetching contact subpage {c_url}: {e_c}")
+                
+                subpages_combined = "\n\n".join(email_subpages_content + normal_subpages_content)
+                if subpages_combined:
+                    combined_content = f"{subpages_combined}\n\n" + combined_content
+
+            # ── Step 2: Parse raw metrics & colors in Python ──
+            yield _json.dumps({"step": "progress", "message": "HTML struktúra elemzése..."}) + "\n"
+            soup = BeautifulSoup(html, "lxml")
+            
+            # Simple python counting
+            images = soup.find_all('img')
+            total_images = len(images)
+            missing_alt = sum(1 for img in images if not img.get('alt'))
+
+            links = soup.find_all('a', href=True)
+            total_links = len(links)
+            internal_links = 0
+            external_links = 0
+            for link in links:
+                href = link['href']
+                if href.startswith('http://') or href.startswith('https://'):
+                    external_links += 1
+                else:
+                    internal_links += 1
+
+            # Schema markup detection
+            has_schema = bool(soup.find_all('script', type='application/ld+json'))
+
+            # Language detection
+            html_tag = soup.find('html')
+            lang_val = html_tag.get('lang') if html_tag else None
+            has_lang = bool(lang_val)
+
+            # Robots.txt and sitemap.xml detection
+            from urllib.parse import urlparse
+            has_robots = False
+            has_sitemap = False
+            try:
+                parsed_target = urlparse(target_url)
+                root_url = f"{parsed_target.scheme}://{parsed_target.netloc}"
+                async with httpx.AsyncClient(timeout=5.0) as check_client:
+                    robots_resp = await check_client.get(f"{root_url}/robots.txt")
+                    if robots_resp.status_code == 200:
+                        has_robots = True
+                        if "sitemap" in robots_resp.text.lower():
+                            has_sitemap = True
+            except Exception:
+                pass
+
+            if not has_sitemap:
+                try:
+                    parsed_target = urlparse(target_url)
+                    root_url = f"{parsed_target.scheme}://{parsed_target.netloc}"
+                    async with httpx.AsyncClient(timeout=5.0) as check_client:
+                        sitemap_resp = await check_client.get(f"{root_url}/sitemap.xml")
+                        if sitemap_resp.status_code == 200:
+                            has_sitemap = True
+                except Exception:
+                    pass
+
+            # Word count
+            text_soup = BeautifulSoup(html, "lxml")
+            for tag in text_soup(["script", "style", "nav", "footer", "header"]):
+                tag.decompose()
+            clean_text = text_soup.get_text(separator=" ")
+            clean_text = re.sub(r'\s+', ' ', clean_text).strip()
+            word_count = len(clean_text.split())
+
+            # Color analysis
+            styles_text = []
+            for tag in soup.find_all(style=True):
+                styles_text.append(tag['style'])
+            for tag in soup.find_all('style'):
+                styles_text.append(tag.string or '')
+            full_style_content = " ".join(styles_text)
+
+            def hex_to_rgb(hex_str):
+                hex_str = hex_str.lstrip('#')
+                if len(hex_str) == 3:
+                    hex_str = ''.join([c*2 for c in hex_str])
+                if len(hex_str) == 6:
+                    try:
+                        return int(hex_str[0:2], 16), int(hex_str[2:4], 16), int(hex_str[4:6], 16)
+                    except ValueError:
+                        return None
+                return None
+
+            def parse_rgb(rgb_str):
+                nums = re.findall(r'\d+', rgb_str)
+                if len(nums) >= 3:
+                    return int(nums[0]), int(nums[1]), int(nums[2])
+                return None
+
+            def get_hue_and_warmth(r, g, b):
+                h, l, s = colorsys.rgb_to_hls(r/255.0, g/255.0, b/255.0)
+                hue_deg = h * 360.0
+                if s < 0.1 or l < 0.1 or l > 0.9:
+                    return hue_deg, 'neutral'
+                elif (0 <= hue_deg <= 60) or (300 <= hue_deg <= 360):
+                    return hue_deg, 'warm'
+                elif (120 <= hue_deg <= 240):
+                    return hue_deg, 'cool'
+                else:
+                    return hue_deg, 'neutral'
+
+            standardized_colors = []
+            for h in re.findall(r'#(?:[0-9a-fA-F]{3}){1,2}\b', full_style_content):
+                h = h.lower()
+                if len(h) == 4:
+                    h = '#' + ''.join([c*2 for c in h[1:]])
+                standardized_colors.append(h)
+
+            for rgb in re.findall(r'rgba?\(\s*\d+\s*,\s*\d+\s*,\s*\d+\s*(?:,\s*[\d\.]+)?\s*\)', full_style_content):
+                rgb_val = parse_rgb(rgb)
+                if rgb_val:
+                    r, g, b = rgb_val
+                    hex_val = f"#{r:02x}{g:02x}{b:02x}"
+                    standardized_colors.append(hex_val)
+
+            color_counts = Counter(standardized_colors)
+            total_cols = len(standardized_colors)
+            top_colors = [item[0] for item in color_counts.most_common(5)]
+            if not top_colors:
+                top_colors = ["#3b82f6", "#10b981", "#ef4444", "#f59e0b", "#6b7280"]
+
+            top_colors_detail = []
+            if total_cols > 0:
+                for col, count in color_counts.most_common(5):
+                    top_colors_detail.append({
+                        "hex": col,
+                        "pct": round((count / total_cols) * 100, 1)
+                    })
+            else:
+                for col in top_colors:
+                    top_colors_detail.append({
+                        "hex": col,
+                        "pct": 20.0
+                    })
+
+            warm_count = 0
+            cool_count = 0
+            neutral_count = 0
+            for col in standardized_colors:
+                rgb = hex_to_rgb(col)
+                if rgb:
+                    _, warmth = get_hue_and_warmth(*rgb)
+                    if warmth == 'warm':
+                        warm_count += 1
+                    elif warmth == 'cool':
+                        cool_count += 1
+                    else:
+                        neutral_count += 1
+
+            warm_pct = round((warm_count / total_cols) * 100, 1) if total_cols > 0 else 40.0
+            cool_pct = round((cool_count / total_cols) * 100, 1) if total_cols > 0 else 40.0
+            neutral_pct = round((neutral_count / total_cols) * 100, 1) if total_cols > 0 else 20.0
+
+            if warm_pct > cool_pct + 10:
+                visual_tone = "Meleg és Barátságos"
+            elif cool_pct > warm_pct + 10:
+                visual_tone = "Hideg és Professzionális"
+            else:
+                visual_tone = "Kiegyensúlyozott / Neutrális"
+
+            # ── Init Gemini Client ──
+            google_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+            gemini_client = None
+            if google_key:
+                from google import genai
+                from google.genai import types
+                gemini_client = genai.Client(api_key=google_key)
+
+            # Default fallback analysis values
+            ai_analysis = {
+                "score": 60,
+                "deductions_detail": [],
+                "business_category": "Általános",
+                "tone": "Informatív",
+                "summary": "Nem sikerült részletes leírást generálni a tartalomról.",
+                "seo_advice": "Javasoljuk kulcsszó-kutatás végzését és a címsorok optimalizálását.",
+                "global_improvements": ["Optimalizáld a képek alt leíróit.", "Ügyelj a címsorok hierarchiájára."],
+                "detected_posts": [],
+                "word_style_analysis": "Nem áll rendelkezésre részletes szövegezési stíluselemzés.",
+                "visual_style_description": "Nem áll rendelkezésre részletes vizuális elemzés."
+            }
+            scraped_data_json_str = "{}"
+
+            # ── Agent 1: Scraper Agent ──
+            if gemini_client:
+                yield _json.dumps({"step": "progress", "message": "Scraper Agent: Tartalom kinyerése..."}) + "\n"
+                
+                # Clean HTML to save tokens and keep only semantic tags
+                scraper_soup = BeautifulSoup(html, "lxml")
+                for tag in scraper_soup(["script", "style", "svg", "noscript", "iframe", "form", "button", "input", "select", "option", "textarea"]):
+                    tag.decompose()
+                allowed_tags = {'meta', 'title', 'link', 'a', 'img', 'h1', 'h2', 'h3', 'p', 'section', 'article', 'nav', 'header', 'footer', 'main', 'body', 'html', 'head'}
+                for tag in list(scraper_soup.find_all(True)):
+                    if tag.name not in allowed_tags:
+                        tag.unwrap()
+                essential_attrs = {'href', 'src', 'alt', 'name', 'content'}
+                for tag in scraper_soup.find_all(True):
+                    tag.attrs = {k: v for k, v in tag.attrs.items() if k in essential_attrs}
+                for tag in list(scraper_soup.find_all(['p', 'a', 'section', 'article', 'nav'])):
+                    if not tag.get_text(strip=True) and not tag.find_all(True) and not tag.get('href') and not tag.get('src'):
+                        tag.decompose()
+                clean_html_for_scraper = str(scraper_soup)[:15000]
+
+                scraper_prompt = f"""
+                You are the Page Scraper Agent. Your task is to analyze the following webpage content (HTML or markdown of crawled pages) and extract structured details into a JSON object.
+                Limit the number of extracted images and links to a maximum of 20 elements each (focusing on the most prominent ones like header, hero, navigation, or main articles).
+                
+                Also search through all content to identify products or services offered and contact information.
+
+                The output JSON MUST follow exactly this format:
+                {{
+                  "metadata": {{
+                    "title": "Page title tag value or empty string",
+                    "description": "Meta description content or empty string",
+                    "keywords": "Meta keywords content if any, or null",
+                    "viewport": "Viewport meta tag value if any, or null",
+                    "canonical": "Canonical link href value if any, or null",
+                    "lang": "Html lang attribute value if any, or null",
+                    "is_https": true/false
+                  }},
+                  "headings": {{
+                    "h1": ["H1 text 1", "H1 text 2"],
+                    "h2": ["H2 text 1", ...],
+                    "h3": ["H3 text 1", ...]
+                  }},
+                  "images": [
+                    {{"src": "resolved absolute image URL", "alt": "image alt text if any, or empty string"}}
+                  ],
+                  "links": [
+                    {{"href": "resolved absolute link URL", "text": "link text label", "is_external": true/false}}
+                  ],
+                  "sections": [
+                    {{"id": "section-id-or-selector", "title": "Logical section title", "type": "Hero | Navigation | Articles | Sidebar | Footer | Contact | Services"}}
+                  ],
+                  "products": [
+                    {{
+                      "name": "Product or service name",
+                      "price": "Price with currency if found (e.g. '15 000 Ft' or '$99'), or 'N/A'",
+                      "brand": "Brand or manufacturer if found, or 'N/A'",
+                      "description": "Short description of product/service",
+                      "page_url": "Absolute URL of the page containing this product/service"
+                    }}
+                  ]
+                }}
+                Ensure all relative URLs in images, links, and products are made absolute using the base URL: {target_url}
+                
+                Here is the webpage content:
+                {combined_content if combined_content else clean_html_for_scraper}
+                """
+                try:
+                    ai_resp = await gemini_client.aio.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=scraper_prompt,
+                        config=types.GenerateContentConfig(response_mime_type="application/json")
+                    )
+                    if ai_resp and ai_resp.text:
+                        scraped_data_json_str = ai_resp.text.strip()
+                except Exception as e:
+                    print(f"[Zombo Scrape] Scraper Agent error: {e}")
+
+            # ── Phase 2: Parallel Specialist Evaluations (SEO, Marketing, Images) ──
+            marketing_analysis = {
+                "marketing_score": 60,
+                "value_proposition_evaluation": "Nem sikerült kiértékelni az értékajánlatot.",
+                "frameworks_analysis": {
+                    "pas_alignment": "Nem áll rendelkezésre PAS elemzés.",
+                    "aida_alignment": "Nem áll rendelkezésre AIDA elemzés."
+                },
+                "cta_evaluation": "Nem sikerült kiértékelni a CTA-kat.",
+                "credibility_evaluation": "Nem sikerült kiértékelni a hitelességet.",
+                "copy_recommendations": ["Frissítse a főcímet előny-orientáltra.", "Használjon egyértelmű CTA gombokat."]
+            }
+            images_analysis = []
+            product_analysis = []
+            contact_analysis = {
+                "emails": [],
+                "phone_numbers": [],
+                "addresses": [],
+                "company_name": None,
+                "tax_number": None,
+                "registration_number": None
+            }
+            for platform in SOCIAL_PLATFORMS_30:
+                key = platform.split('.')[0]
+                if key == 'youtu': key = 'youtube'
+                elif key == 'fb': key = 'facebook'
+                elif key == 't': key = 'telegram'
+                elif key == 'wa': key = 'whatsapp'
+                contact_analysis[key] = None
+
+            if gemini_client and scraped_data_json_str != "{}":
+                yield _json.dumps({"step": "progress", "message": "Specialista ágensek indítása párhuzamosan..."}) + "\n"
+
+                # 1. SEO Agent Task
+                async def run_seo_agent():
+                    seo_prompt = f"""
+                    You are the SEO Specialist Agent, an expert search engine optimization auditor.
+                    Your task is to analyze the following webpage metadata JSON extracted by the Scraper Agent.
+                    Perform a comprehensive SEO audit based on the scraped elements: Title tag, Description tag, H1-H3 headings count and hierarchy, images alt attributes, links (broken/external/internal), viewport configuration, and HTTPS security.
+                    
+                    Calculate the final SEO audit score by starting from 0 points and adding/subtracting points for each criterion below:
+                    1. Meta Title (Max +15 points):
+                       - Good: +15 points if title length is 40-70 characters and matches the content.
+                       - Bad: -5 points if title length is non-optimal (too short/long), or -20 points if missing entirely.
+                    2. Meta Description (Max +15 points):
+                       - Good: +15 points if description is 110-160 characters.
+                       - Bad: -5 points if description length is non-optimal, or -15 points if missing entirely.
+                    3. H1 Headings (Max +15 points):
+                       - Good: +15 points if there is exactly 1 H1 heading.
+                       - Bad: -15 points if missing H1, or -10 points if there are multiple H1s.
+                    4. Heading Hierarchy H2-H3 (Max +10 points):
+                       - Good: +10 points if headings have a logical structure with H2 and H3 tags present.
+                       - Bad: -5 points if hierarchy is broken (e.g. H3 before H2, or missing H2/H3 entirely).
+                    5. HTTPS Security (Max +15 points):
+                       - Good: +15 points if connection is HTTPS.
+                       - Bad: -15 points if connection is HTTP.
+                    6. Mobile Friendly Viewport (Max +15 points):
+                       - Good: +15 points if viewport tag is configured.
+                       - Bad: -15 points if viewport tag is missing.
+                    7. Canonical Link (Max +5 points):
+                       - Good: +5 points if canonical tag is present.
+                       - Bad: -5 points if canonical tag is missing.
+                    8. Content Word Count (Max +10 points):
+                       - Good: +10 points if word count >= 600 words, or +5 points if word count >= 300 words.
+                       - Bad: -10 points if word count < 300 words (thin content).
+                    9. Image Alt Attributes (Max +10 points):
+                       - Good: +10 points if all images have alt attributes.
+                       - Bad: -5 to -15 points (proportionally based on missing alt ratio) if images are missing alt attributes.
+                    10. Server Response Time / TTFB (Max +10 points):
+                        - Good: +10 points if TTFB < 300ms, or +5 points if TTFB < 600ms.
+                        - Bad: -10 points if TTFB > 600ms, or -15 points if TTFB > 1000ms.
+                    11. Robots.txt and Sitemap.xml (Max +5 points):
+                        - Good: +5 points if both robots.txt and sitemap.xml are present on the domain.
+                        - Bad: -5 points if either is missing.
+                    12. Structured Data / Schema Markup (Max +5 points):
+                        - Good: +5 points if JSON-LD structured data/schema markup is found on the page.
+                        - Bad: -5 points if missing.
+                    13. Language Declaration (Max +5 points):
+                        - Good: +5 points if the <html> tag has a valid 'lang' attribute.
+                        - Bad: -5 points if missing or empty.
+                    
+                    The final score should be exactly: sum(points of all evaluated criteria). Minimum score is 0.
+                    
+                    IMPORTANT: For each item in "deductions_detail", the "reason" field MUST explicitly cite the exact text value being evaluated in quotes (e.g. the actual meta title text, the actual meta description text, the actual H1 text content, the actual sitemap status, or sitemap/robots URLs, etc.) so that the user can immediately see the raw data that was processed.
+                    Example: "A meta cím hossza nem optimális (19 karakter): 'Apple (Magyarország)'."
+                    
+                    Provide your response strictly as a JSON response in Hungarian using exactly the keys in the example:
+                    {{
+                      "score": 55,
+                      "deductions_detail": [
+                        {{
+                          "criterion": "Meta Cím hossza",
+                          "status": "good",
+                          "points": 15,
+                          "reason": "A title tag hossza megfelelő (55 karakter).",
+                          "recommendation": "Nem szükséges beavatkozás."
+                        }},
+                        {{
+                          "criterion": "Helyettesítő szöveg (alt)",
+                          "status": "bad",
+                          "points": -10,
+                          "reason": "90 képnél hiányzik a helyettesítő (alt) szöveg.",
+                          "recommendation": "Adjon meg rövid, kifejező alt attribútumot minden képnél az akadálymentesség javításához."
+                        }}
+                      ],
+                      "business_category": "A 1-3 word business category/profile (e.g., Online Hírportál, Webáruház)",
+                      "tone": "A 1-3 word tone description (e.g., Kritikus, Tényfeltáró, Professzionális)",
+                      "summary": "A 2-3 sentence summary of what the business/page is about.",
+                      "seo_advice": "A detailed paragraph of advice specifically for keyword optimization and content improvement based on the text.",
+                      "global_improvements": [
+                        "Összefoglaló tanács 1 a weboldal keresőoptimalizálásának globális javításához",
+                        "Összefoglaló tanács 2...",
+                        "Összefoglaló tanács 3..."
+                      ],
+                      "detected_posts": [
+                        {{
+                          "title": "Title of the post or service section found",
+                          "placement": "Where it is located (e.g., Főhír, Oldalsáv, Kiemelt)",
+                          "inferred_popularity": "Estimated popularity level (e.g., Kiemelkedő, Magas, Átlagos)",
+                          "words": ["keyword1", "keyword2"],
+                          "style": "Tone of this headline (e.g., Kritikus, Szenzációs, Elemző)",
+                          "category": "Topic (e.g., Belföld, Politika, Gazdaság)"
+                        }}
+                      ],
+                      "word_style_analysis": "A 1-2 sentence analysis of what tone and writing style is inferred from the overall word usage of this page.",
+                      "visual_style_description": "A 1-2 sentence analysis of the overall visual style, layout, and brand mood."
+                    }}
+                    
+                    Here is the Scraper Agent's JSON:
+                    {scraped_data_json_str}
+                    
+                    Additional Raw Metrics for your context:
+                    - Total Raw Images found: {total_images}
+                    - Images Missing Alt text: {missing_alt}
+                    - Total Links: {total_links} (Internal: {internal_links}, External: {external_links})
+                    - Server Response Time (TTFB): {int(ttfb_ms)}ms
+                    - Word Count: {word_count}
+                    - JSON-LD Structured Data / Schema Markup Present: {has_schema}
+                    - Robots.txt Present: {has_robots}
+                    - Sitemap.xml Present: {has_sitemap}
+                    - Language Attribute Declared: {has_lang} (Value: {lang_val if lang_val else 'None'})
+                    """
+                    try:
+                        ai_resp = await gemini_client.aio.models.generate_content(
+                            model='gemini-2.5-flash',
+                            contents=seo_prompt,
+                            config=types.GenerateContentConfig(response_mime_type="application/json")
+                        )
+                        if ai_resp and ai_resp.text:
+                            parsed = _json.loads(ai_resp.text)
+                            for k in ai_analysis.keys():
+                                if k in parsed:
+                                    ai_analysis[k] = parsed[k]
+                    except Exception as e:
+                        print(f"[Zombo Scrape] SEO Specialist Agent error: {e}")
+
+                # 2. Copywriting & Marketing Agent Task
+                async def run_marketing_agent():
+                    marketing_prompt = f"""
+                    You are the Copywriting & Marketing Specialist Agent, an expert in web copywriting, brand messaging, and conversion rate optimization (CRO).
+                    Your task is to analyze the following webpage metadata JSON extracted by the Scraper Agent.
+                    Perform a comprehensive copywriting and marketing audit based on the content, headings, products/services descriptions, and overall structure.
+                    
+                    Calculate the final Marketing/Copy score by starting from 0 points and adding/subtracting points for each criterion below:
+                    1. Value Proposition & Hook (Max 20 points):
+                       - Good: +20 points if the main heading (H1) and introductory paragraphs present a clear, unique, and benefit-driven value proposition.
+                       - Bad: -10 points if the value proposition is missing, generic (e.g. 'Üdvözöljük a honlapunkon'), or confusing.
+                    2. Copywriting Frameworks - PAS & AIDA (Max 25 points):
+                       - Good: +25 points if the page copy is clearly structured around AIDA (Attention, Interest, Desire, Action) or PAS (Problem, Agitate, Solve) frameworks.
+                       - Bad: -10 points if the copy lacks structure, is purely descriptive without addressing customer pain points or benefits.
+                    3. Call to Action - CTA (Max 20 points):
+                       - Good: +20 points if buttons and links use persuasive, action-oriented, and specific text (e.g. 'Kérem az ingyenes konzultációt') instead of passive text (e.g. 'Küldés', 'Kattintson ide').
+                       - Bad: -10 points if CTAs are weak, missing, or badly placed.
+                    4. Social Proof & Credibility (Max 20 points):
+                       - Good: +20 points if the page prominently features trust indicators such as client reviews, testimonials, case studies, partner logos, certifications, or satisfaction guarantees.
+                       - Bad: -10 points if no trust factors or credibility signals are found.
+                    5. Readability & Tone Consistency (Max 15 points):
+                       - Good: +15 points if the text is easy to read, uses paragraphs, has appropriate length, and maintains a consistent professional/friendly tone suited to the target audience.
+                       - Bad: -5 points if it is flooded with expert jargon, or has wall-of-text paragraphs.
+                    
+                    The final score should be exactly: sum(points of all evaluated criteria). Minimum score is 0.
+                    
+                    IMPORTANT: In your evaluations ("value_proposition_evaluation", "frameworks_analysis", "cta_evaluation", "credibility_evaluation"), you MUST always quote the exact texts, headlines, or button labels you analyzed (e.g. the actual H1 text or the exact CTA button text like "Bővebben", "Vásárlás") so the user can verify the raw copy being audited.
+                    
+                    Provide your response strictly as a JSON response in Hungarian using exactly this format:
+                    {{
+                      "marketing_score": 75,
+                      "value_proposition_evaluation": "Rövid, 1-2 mondatos szöveges értékelés a fő értékajánlatról és a hook hatásosságáról.",
+                      "frameworks_analysis": {{
+                        "pas_alignment": "Hogyan érvényesül vagy miért hiányzik a PAS (Probléma, fokozás, megoldás) szerkezet a szövegben.",
+                        "aida_alignment": "Hogyan érvényesül vagy miért hiányzik az AIDA (Figyelem, érdeklődés, vágy, cselekvés) folyamat."
+                      }},
+                      "cta_evaluation": "Értékelés a cselekvésre ösztönző gombok és linkek meggyőző erejéről és elhelyezéséről.",
+                      "credibility_evaluation": "Értékelés az oldalon lévő társadalmi bizonyítékokról (vélemények, partnerek, garanciák) és hitelességről.",
+                      "copy_recommendations": [
+                        "Konkrét, gyakorlati javaslat 1 a szöveg meggyőző erejének növelésére",
+                        "Konkrét, gyakorlati javaslat 2 a CTA-k javítására",
+                        "Konkrét, gyakorlati javaslat 3..."
+                      ]
+                    }}
+                    
+                    Here is the Scraper Agent's JSON:
+                    {scraped_data_json_str}
+                    """
+                    try:
+                        ai_resp = await gemini_client.aio.models.generate_content(
+                            model='gemini-2.5-flash',
+                            contents=marketing_prompt,
+                            config=types.GenerateContentConfig(response_mime_type="application/json")
+                        )
+                        if ai_resp and ai_resp.text:
+                            parsed = _json.loads(ai_resp.text)
+                            for k in marketing_analysis.keys():
+                                if k in parsed:
+                                    marketing_analysis[k] = parsed[k]
+                    except Exception as e:
+                        print(f"[Zombo Scrape] Copywriting & Marketing Agent error: {e}")
+
+                # 3. Image Analysis Task
+                async def run_images_analysis():
+                    nonlocal images_analysis
+                    img_tags = soup.find_all('img')
+                    from urllib.parse import urljoin
+                    img_urls = []
+                    for img in img_tags:
+                        src = img.get('src')
+                        if src and not src.startswith('data:') and len(src) > 5:
+                            abs_url = urljoin(target_url, src)
+                            img_urls.append((abs_url, img.get('alt', '').strip()))
+
+                    seen = set()
+                    valid_images = []
+                    for url, alt in img_urls:
+                        lower_url = url.lower()
+                        if any(p in lower_url for p in ['logo', 'icon', 'sprite', 'avatar', 'loader', 'spacer', 'pixel', 'facebook', 'instagram', 'twitter', 'linkedin', 'youtube', 'tiktok']):
+                            continue
+                        if url not in seen:
+                            seen.add(url)
+                            valid_images.append((url, alt))
+                            if len(valid_images) == 3:
+                                break
+                    if len(valid_images) < 3:
+                        for url, alt in img_urls:
+                            if url not in seen:
+                                seen.add(url)
+                                valid_images.append((url, alt))
+                                if len(valid_images) == 3:
+                                    break
+
+                    if valid_images:
+                        from PIL import Image
+                        import io
+
+                        async def analyze_single_image(client, url, alt):
+                            try:
+                                async with httpx.AsyncClient(timeout=3.0) as img_client:
+                                    resp = await img_client.get(url)
+                                    if resp.status_code == 200:
+                                        img_bytes = resp.content
+                                        img_pil = Image.open(io.BytesIO(img_bytes))
+                                        img_pil.thumbnail((512, 512))
+                                        
+                                        prompt = """
+                                        Írd le 1 mondatban magyarul, hogy mi látható ezen a képen és milyen a stílusa (pl. fotó, grafika, modern, minimalista).
+                                        Valamint határozd meg a képen leginkább domináló 3 színt és add vissza őket hex kód formájában (pl. '#ff0000').
+                                        
+                                        A választ JSON formátumban add meg a következő kulcsokkal:
+                                        {
+                                          "description": "A kép leírása magyarul",
+                                          "dominant_colors": ["#hex1", "#hex2", "#hex3"]
+                                        }
+                                        """
+                                        ai_resp = await client.aio.models.generate_content(
+                                            model='gemini-2.5-flash',
+                                            contents=[img_pil, prompt],
+                                            config=types.GenerateContentConfig(response_mime_type="application/json")
+                                        )
+                                        desc_text = ai_resp.text.strip() if ai_resp and ai_resp.text else ""
+                                        if desc_text:
+                                            try:
+                                                img_data = _json.loads(desc_text)
+                                                return {
+                                                    "src": url,
+                                                    "alt": alt,
+                                                    "description": img_data.get("description", ""),
+                                                    "dominant_colors": img_data.get("dominant_colors", []),
+                                                    "status": "success"
+                                                }
+                                            except Exception as pe:
+                                                print(f"[Zombo Scrape] JSON parse error for image: {pe}")
+                                                # If it wasn't JSON but returned text, use it as description
+                                                return {
+                                                    "src": url,
+                                                    "alt": alt,
+                                                    "description": desc_text,
+                                                    "dominant_colors": [],
+                                                    "status": "success"
+                                                }
+                            except Exception as e:
+                                print(f"[Zombo Scrape] Multimodal analysis error for {url}: {e}")
+
+                            # Fallback descriptive analysis using Gemini metadata prompt
+                            desc = f"A(z) '{url.split('/')[-1]}' fájlnevű kép."
+                            if alt:
+                                desc += f" Helyettesítő leírása: '{alt}'."
+                            try:
+                                prompt = f"Következtess a kép tartalmára az URL és az alt szöveg alapján. Írd le 1 mondatban magyarul, hogy valószínűleg mit ábrázol és mi a szerepe a weboldalon. URL: {url}, ALT: {alt}"
+                                ai_resp = await client.aio.models.generate_content(
+                                    model='gemini-2.5-flash',
+                                    contents=prompt
+                                )
+                                if ai_resp and ai_resp.text:
+                                    desc = ai_resp.text.strip()
+                            except Exception:
+                                pass
+                            return {
+                                "src": url,
+                                "alt": alt,
+                                "description": desc,
+                                "dominant_colors": [],
+                                "status": "fallback"
+                            }
+
+                        tasks = [analyze_single_image(gemini_client, url, alt) for url, alt in valid_images]
+                        images_analysis = await asyncio.gather(*tasks)
+
+                # 4. Contact & Company Specialist Agent Task
+                async def run_contact_agent():
+                    nonlocal contact_analysis
+                    contact_prompt = f"""
+                    You are the Contact & Company Specialist Agent.
+                    Your sole task is to analyze the crawled content of the website (homepage and contact/company subpages) and extract ALL contact and corporate identifier details.
+                    
+                    Identify:
+                    1. Email addresses (e.g. info@domain.hu, sales@domain.hu).
+                    2. Phone numbers (e.g. +36 20 123 4567, 06-1-1234567).
+                    3. Postal / physical addresses (e.g. 1051 Budapest, Fő utca 1.).
+                    4. Hungarian corporate details:
+                       - Company Name (Hivatalos Cégnév, e.g. Bégé Design Kft., Teszt Bt.)
+                       - Tax Number (Adószám, e.g. 12345678-1-12)
+                       - Company Registration Number (Cégjegyzékszám, e.g. 01-09-123456)
+                    5. Social Media links:
+                       Extract any links pointing to social, video-sharing, messaging, or community platforms (e.g. Facebook, Instagram, LinkedIn, YouTube, TikTok, Twitter/X, Pinterest, Threads, WhatsApp, Telegram, Viber, GitHub, Twitch, Vimeo, etc.).
+                    
+                    Here are the social media links programmatically extracted from the HTML links as hints:
+                    {_json.dumps(accumulated_socials, ensure_ascii=False)}
+                    
+                    Be extremely thorough. Look in the headers, footers, about sections, and contact sections of the provided HTML.
+                    If a field is not found, return null or an empty list.
+                    
+                    Provide your response strictly as a JSON response in Hungarian using this format:
+                    {{
+                      "emails": ["email1", "email2"],
+                      "phone_numbers": ["phone1", "phone2"],
+                      "addresses": ["address1", "address2"],
+                      "company_name": "Official company name or null",
+                      "tax_number": "Tax number or null",
+                      "registration_number": "Registration number or null",
+                      "facebook": "Facebook link or null",
+                      "instagram": "Instagram link or null",
+                      "linkedin": "LinkedIn link or null",
+                      "youtube": "YouTube link or null",
+                      "tiktok": "TikTok link or null",
+                      "pinterest": "Pinterest link or null",
+                      "twitter": "Twitter/X link or null",
+                      "github": "GitHub link or null",
+                      "viber": "Viber link or null",
+                      "whatsapp": "WhatsApp link or null",
+                      "telegram": "Telegram link or null"
+                      // ... you can add any other of the 30 social keys as needed
+                    }}
+                    
+                    Here is the compiled webpage content (homepage and contact subpages):
+                    {combined_content}
+                    """
+                    try:
+                        ai_resp = await gemini_client.aio.models.generate_content(
+                            model='gemini-2.5-flash',
+                            contents=contact_prompt,
+                            config=types.GenerateContentConfig(response_mime_type="application/json")
+                        )
+                        if ai_resp and ai_resp.text:
+                            parsed = _json.loads(ai_resp.text)
+                            for k in contact_analysis.keys():
+                                if k in parsed:
+                                    contact_analysis[k] = parsed[k]
+                            
+                            # Merge programmatically extracted socials as fallback
+                            for k, v in accumulated_socials.items():
+                                if k in contact_analysis and not contact_analysis[k]:
+                                    contact_analysis[k] = v
+                    except Exception as e:
+                        print(f"[Zombo Scrape] Contact & Company Specialist Agent error: {e}")
+
+                # 5. Product Specialist Agent Task
+                async def run_product_agent():
+                    nonlocal product_analysis
+                    product_prompt = f"""
+                    You are the Product & Service Specialist Agent.
+                    Your sole task is to analyze the crawled content of the website (homepage and subpages) and extract a list of products or services offered.
+                    
+                    Extract up to a maximum of 10 products or services. Do not exceed 10.
+                    For each product/service, extract:
+                    1. name: Product or service name
+                    2. price: Price with currency if found (e.g. '15 000 Ft' or '$99'), or 'N/A'
+                    3. brand: Brand or manufacturer if found, or 'N/A'
+                    4. description: Short description of product/service (max 2 sentences)
+                    5. page_url: Absolute URL of the page containing this product/service
+                    
+                    Provide your response strictly as a JSON array of objects using this format:
+                    [
+                      {{
+                        "name": "Product or service name",
+                        "price": "Price with currency or 'N/A'",
+                        "brand": "Brand or manufacturer or 'N/A'",
+                        "description": "Short description of product/service",
+                        "page_url": "Page URL"
+                      }}
+                    ]
+                    
+                    Here is the compiled webpage content:
+                    {combined_content if combined_content else clean_html_for_scraper}
+                    """
+                    try:
+                        ai_resp = await gemini_client.aio.models.generate_content(
+                            model='gemini-2.5-flash',
+                            contents=product_prompt,
+                            config=types.GenerateContentConfig(response_mime_type="application/json")
+                        )
+                        if ai_resp and ai_resp.text:
+                            parsed = _json.loads(ai_resp.text)
+                            if isinstance(parsed, list):
+                                product_analysis = parsed[:10]
+                    except Exception as e:
+                        print(f"[Zombo Scrape] Product Specialist Agent error: {e}")
+
+                # Execute parallel specialist evaluations
+                await asyncio.gather(
+                    run_seo_agent(),
+                    run_marketing_agent(),
+                    run_images_analysis(),
+                    run_contact_agent(),
+                    run_product_agent()
+                )
+
+            # Extract final SEO scores from Agent
+            score = ai_analysis["score"]
+            deductions_detail = ai_analysis["deductions_detail"]
+            deductions = [d["reason"] for d in deductions_detail if d.get("status") == "bad"]
+
+            title_text = soup.title.string.strip() if soup.title and soup.title.string else ""
+            desc_meta = soup.find('meta', attrs={'name': 'description'})
+            if not desc_meta:
+                desc_meta = soup.find('meta', attrs={'property': 'og:description'})
+            desc_text = desc_meta['content'].strip() if desc_meta and desc_meta.get('content') else ""
+            h1_count = len(soup.find_all('h1'))
+            h2_count = len(soup.find_all('h2'))
+            h3_count = len(soup.find_all('h3'))
+            has_viewport = bool(soup.find('meta', attrs={'name': 'viewport'}))
+            is_https = target_url.startswith('https://')
+
+            # ── Phase 3: Sequential Brand DNA Synthesis (3 calls) ──
+
+            # --- Default Brand DNA structure ---
+            brand_personality = {
+                "brand_archetype": "Általános",
+                "brand_archetype_reasoning": "Nem áll rendelkezésre részletes elemzés.",
+                "brand_voice": ["Informatív", "Egyszerű"],
+                "alignment_score": 70,
+                "alignment_reasoning": "Nem áll rendelkezésre részletes elemzés.",
+                "target_audience": "Általános közönség",
+                "personality_summary": "Nem áll rendelkezésre márkaszemélyiség összefoglaló.",
+                "brand_coordinates": {
+                    "tone": {
+                        "formal_vs_casual": 50,
+                        "rational_vs_emotional": 50,
+                        "modern_vs_traditional": 50,
+                        "simple_vs_technical": 50,
+                        "authority_vs_peer": 50
+                    },
+                    "business": {
+                        "price_segment_score": 50,
+                        "price_segment_label": "Közepes",
+                        "b2b_vs_b2c": 50,
+                        "product_vs_service": 50
+                    },
+                    "visual": {
+                        "minimalist_vs_decorative": 50,
+                        "warmth_vs_coolness": 50,
+                        "vibrancy": 50,
+                        "visual_style_tags": []
+                    },
+                    "content": {
+                        "primary_industry": "Általános",
+                        "key_content_themes": [],
+                        "humor_level": 0,
+                        "storytelling_level": 0,
+                        "educational_level": 50,
+                        "promotional_level": 50
+                    },
+                    "engagement": {
+                        "cta_aggressiveness": 50,
+                        "emoji_usage": 20,
+                        "hashtag_density": 30,
+                        "post_length_preference": 50,
+                        "interaction_asking": 30
+                    }
+                },
+                "addressing": {
+                    "mode": "vegyes",
+                    "confidence": 0,
+                    "evidence": []
+                },
+                "cta_library": {
+                    "primary_ctas": [],
+                    "secondary_ctas": [],
+                    "slogans": [],
+                    "tagline": ""
+                },
+                "brand_dont": {
+                    "tone_restrictions": [],
+                    "content_restrictions": [],
+                    "visual_restrictions": []
+                },
+                "hashtag_strategy": {
+                    "brand_hashtags": [],
+                    "industry_hashtags": [],
+                    "campaign_hashtags": [],
+                    "max_per_platform": {"instagram": 15, "facebook": 5, "linkedin": 3}
+                },
+                "content_pillars": [],
+                "platform_rules": {
+                    "instagram": {"active": False, "tone_modifier": "", "emoji_allowed": True, "max_hashtags": 15, "preferred_format": "image_with_text", "optimal_post_length": "150-300 karakter"},
+                    "facebook": {"active": False, "tone_modifier": "", "emoji_allowed": True, "max_hashtags": 5, "preferred_format": "image_with_text", "optimal_post_length": "200-500 karakter"},
+                    "tiktok": {"active": False, "tone_modifier": "", "emoji_allowed": True, "max_hashtags": 5, "preferred_format": "short_video_script", "optimal_post_length": "50-150 karakter"},
+                    "youtube": {"active": False, "tone_modifier": "", "emoji_allowed": False, "max_hashtags": 3, "preferred_format": "tutorial_description", "optimal_post_length": "500-1500 karakter"},
+                    "linkedin": {"active": False, "tone_modifier": "", "emoji_allowed": False, "max_hashtags": 3, "preferred_format": "text_post", "optimal_post_length": "300-800 karakter"}
+                },
+                "visual_recipe": {
+                    "color_palette": {"primary": "#808080", "secondary": "#606060", "accent": "#a0a0a0", "background": "#ffffff", "text_color": "#000000"},
+                    "photography_style": "product_studio",
+                    "lighting": "bright_even",
+                    "composition": "centered_clean",
+                    "background_type": "solid_white",
+                    "mood": "clean_professional",
+                    "image_prompt_prefix": "",
+                    "image_prompt_suffix": "",
+                    "negative_prompt": "text, watermark, logo, blurry, low quality, distorted"
+                }
+            }
+
+            if gemini_client and scraped_data_json_str != "{}":
+                # Prepare product summary for brand analysis
+                _products_for_brand = []
+                if 'product_analysis' in locals() and product_analysis:
+                    _products_for_brand = product_analysis[:10]
+                elif scraped_data_json_str and scraped_data_json_str != "{}":
+                    try:
+                        _ps = _json.loads(scraped_data_json_str)
+                        if isinstance(_ps, dict) and "products" in _ps:
+                            _products_for_brand = _ps["products"][:10]
+                        elif isinstance(_ps, list):
+                            for _pg in _ps:
+                                if isinstance(_pg, dict) and "products" in _pg:
+                                    _products_for_brand.extend(_pg["products"])
+                            _products_for_brand = _products_for_brand[:10]
+                    except Exception:
+                        pass
+                _products_summary = _json.dumps(_products_for_brand, ensure_ascii=False) if _products_for_brand else "Nem találtunk termékeket."
+
+                # Detect active social platforms from contact_analysis
+                _active_platforms = []
+                _social_keys_map = {"facebook": "facebook", "instagram": "instagram", "tiktok": "tiktok", "youtube": "youtube", "linkedin": "linkedin"}
+                for plat_key, plat_name in _social_keys_map.items():
+                    if contact_analysis.get(plat_key):
+                        _active_platforms.append(plat_name)
+                        brand_personality["platform_rules"][plat_name]["active"] = True
+
+                # ╔══════════════════════════════════════════════╗
+                # ║  CALL 1: Brand Personality + Coordinates     ║
+                # ╚══════════════════════════════════════════════╝
+                yield _json.dumps({"step": "progress", "message": "Brand DNA Agent (1/3): Márkaszemélyiség és koordináták..."}) + "\n"
+
+                brand_personality_prompt = f"""
+                You are the Brand Personality & Visual Sync Agent, an expert brand strategist and brand DNA mapper.
+                Your task is to synthesize the technical SEO layout, copywriting analysis, visual elements, and product catalog of this website to construct a unified Brand Personality profile AND a precise Brand DNA coordinate map.
+                
+                Here are your inputs:
+                1. SEO Specialist Audit:
+                   - Score: {ai_analysis['score']}/135
+                   - Deductions: {_json.dumps(ai_analysis['deductions_detail'], ensure_ascii=False)}
+                2. Copywriting & Marketing Specialist Audit:
+                   - Marketing Score: {marketing_analysis['marketing_score']}/100
+                   - Value Proposition: {marketing_analysis['value_proposition_evaluation']}
+                   - Copywriting Frameworks: {_json.dumps(marketing_analysis['frameworks_analysis'], ensure_ascii=False)}
+                   - Copy Recommendations: {_json.dumps(marketing_analysis['copy_recommendations'], ensure_ascii=False)}
+                3. Visual & Color details:
+                   - Color Palette Balance: Warm: {warm_pct}%, Cool: {cool_pct}%, Neutral: {neutral_pct}%
+                   - Color Details: {_json.dumps(top_colors_detail, ensure_ascii=False)}
+                   - Images Visual Analysis: {_json.dumps(images_analysis, ensure_ascii=False)}
+                4. Product Catalog (up to 10 products):
+                   {_products_summary}
+                
+                PART A — Evaluate the Brand Personality:
+                1. Dominant Brand Archetype (e.g., Creator (Alkotó), Sage (Bölcs), Hero (Hős), Rebel (Lázadó), Lover (Szerető), Jester (Mókamester), Everyman (Átlagember), Caregiver (Gondoskodó), Ruler (Uralkodó), Magician (Varázsló), Innocent (Ártatlan), Explorer (Felfedező)). Explain why.
+                2. Brand Voice Adjectives (3-5 words in Hungarian, e.g. ['közvetlen', 'szakmai', 'modern']).
+                3. Visual-Textual Alignment Score (0-100 points): How well do the visual design/images/colors match the copywriting's marketing message and tone? Explain why.
+                4. Target Audience Profile: Who is the ideal customer persona target?
+                5. Brand Personality Summary (1 paragraph in Hungarian): Summarize the overall character, mood, and style of the brand/page.
+                
+                PART B — Brand DNA Coordinates (all numeric values are integers 0-100):
+
+                Tone:
+                - formal_vs_casual: 0=very formal/corporate, 100=very casual/friendly
+                - rational_vs_emotional: 0=purely data-driven/rational, 100=purely emotional/feeling-based
+                - modern_vs_traditional: 0=cutting-edge/trendy, 100=classic/traditional
+                - simple_vs_technical: 0=extremely simple/everyday language, 100=highly technical/jargon-heavy
+                - authority_vs_peer: 0=authoritative expert voice, 100=peer-to-peer friendly voice
+
+                Business:
+                - price_segment_score: 0=budget/discount, 50=mid-range, 100=luxury/premium
+                - price_segment_label: One of "Budget", "Értékalapú", "Közepes", "Prémium", "Luxus"
+                - b2b_vs_b2c: 0=purely B2B, 100=purely B2C
+                - product_vs_service: 0=purely product-based, 100=purely service-based
+
+                Visual:
+                - minimalist_vs_decorative: 0=extremely minimalist, 100=very decorative/ornate
+                - warmth_vs_coolness: 0=very warm tones, 100=very cool tones
+                - vibrancy: 0=muted/desaturated, 100=vivid/saturated
+                - visual_style_tags: Array of 3-6 short English tags for AI image generation prompts
+
+                Content:
+                - primary_industry: The main industry/niche in Hungarian
+                - key_content_themes: Array of 3-5 main content themes in Hungarian
+                - humor_level, storytelling_level, educational_level, promotional_level (0-100 each)
+
+                Engagement:
+                - cta_aggressiveness: 0=no CTAs, 100=every sentence is a CTA
+                - emoji_usage: 0=never, 100=heavy emoji use
+                - hashtag_density: 0=no hashtags, 100=10+ hashtags typical
+                - post_length_preference: 0=ultra-short 1 sentence, 100=long essay
+                - interaction_asking: 0=never asks questions, 100=always asks audience questions
+
+                PART C — Addressing Mode:
+                Analyze the website's text to determine how they address the visitor:
+                - mode: "te" (informal you/tegezés), "ön" (formal you/magázás), "vegyes" (mixed), "személytelen" (impersonal)
+                - confidence: 0-100 how sure you are
+                - evidence: Array of 3-5 quoted phrases from the website proving the addressing mode
+
+                Respond strictly in JSON in Hungarian:
+                {{
+                  "brand_archetype": "...",
+                  "brand_archetype_reasoning": "...",
+                  "brand_voice": ["..."],
+                  "alignment_score": 85,
+                  "alignment_reasoning": "...",
+                  "target_audience": "...",
+                  "personality_summary": "...",
+                  "brand_coordinates": {{
+                    "tone": {{"formal_vs_casual": 40, "rational_vs_emotional": 30, "modern_vs_traditional": 35, "simple_vs_technical": 55, "authority_vs_peer": 60}},
+                    "business": {{"price_segment_score": 45, "price_segment_label": "Közepes", "b2b_vs_b2c": 80, "product_vs_service": 20}},
+                    "visual": {{"minimalist_vs_decorative": 30, "warmth_vs_coolness": 55, "vibrancy": 40, "visual_style_tags": ["clean", "product-focused", "bright-lighting"]}},
+                    "content": {{"primary_industry": "...", "key_content_themes": ["..."], "humor_level": 10, "storytelling_level": 20, "educational_level": 60, "promotional_level": 70}},
+                    "engagement": {{"cta_aggressiveness": 70, "emoji_usage": 20, "hashtag_density": 30, "post_length_preference": 50, "interaction_asking": 30}}
+                  }},
+                  "addressing": {{"mode": "te", "confidence": 90, "evidence": ["Rendelj festéket", "Adj új színt"]}}
+                }}
+                """
+                try:
+                    ai_resp = await gemini_client.aio.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=brand_personality_prompt,
+                        config=types.GenerateContentConfig(response_mime_type="application/json")
+                    )
+                    if ai_resp and ai_resp.text:
+                        parsed = _json.loads(ai_resp.text)
+                        for k in list(brand_personality.keys()):
+                            if k in parsed:
+                                if isinstance(brand_personality[k], dict) and isinstance(parsed[k], dict):
+                                    brand_personality[k].update(parsed[k])
+                                else:
+                                    brand_personality[k] = parsed[k]
+                except Exception as e:
+                    print(f"[Zombo Scrape] Brand Personality Agent (Call 1) error: {e}")
+
+                # ╔══════════════════════════════════════════════╗
+                # ║  CALL 2: Brand DNA Extractor Agent           ║
+                # ╚══════════════════════════════════════════════╝
+                yield _json.dumps({"step": "progress", "message": "Brand DNA Agent (2/3): CTA-k, tiltólista, hashtagek, content pillérek..."}) + "\n"
+
+                _active_platforms_str = ", ".join(_active_platforms) if _active_platforms else "Nem találtunk közösségi média jelenlétét."
+                _cta_eval_str = marketing_analysis.get('cta_evaluation', 'Nem áll rendelkezésre.')
+                _detected_posts_str = _json.dumps(ai_analysis.get('detected_posts', []), ensure_ascii=False)
+                _addressing_mode = brand_personality["addressing"]["mode"]
+
+                brand_dna_extractor_prompt = f"""
+                You are the Brand DNA Extractor Agent, an expert in brand strategy, social media marketing, and content planning.
+                
+                Your task is to extract detailed, actionable brand DNA data from a website analysis. This data will be directly used by AI to generate social media posts, images, and marketing content.
+                
+                Inputs:
+                1. Brand Archetype: {brand_personality['brand_archetype']}
+                2. Brand Voice: {_json.dumps(brand_personality['brand_voice'], ensure_ascii=False)}
+                3. Target Audience: {brand_personality['target_audience']}
+                4. Content Tone: {ai_analysis.get('tone', 'Nem ismert')}
+                5. Business Category: {ai_analysis.get('business_category', 'Nem ismert')}
+                6. CTA Evaluation from Marketing Audit: {_cta_eval_str}
+                7. Detected Content/Posts: {_detected_posts_str}
+                8. Active Social Platforms: {_active_platforms_str}
+                9. Addressing Mode: {_addressing_mode}
+                10. Website Language: {lang_val if 'lang_val' in dir() else 'hu'}
+                11. Website URL: {target_url}
+                12. Brand Coordinates: {_json.dumps(brand_personality['brand_coordinates'], ensure_ascii=False)}
+                
+                Extract the following:
+
+                A) cta_library: Extract CTA phrases actually used on the website.
+                   - primary_ctas: 3-5 main action CTAs (e.g. "Vásárolok", "Rendelj most!")
+                   - secondary_ctas: 2-4 softer CTAs (e.g. "Tudj meg többet", "Nézd meg")
+                   - slogans: 1-3 brand slogans or taglines found on the site
+                   - tagline: The single most representative brand tagline
+
+                B) brand_dont: Things the brand should NEVER do in generated content. Analyze what the brand avoids based on its tone, style, and industry.
+                   - tone_restrictions: 3-5 tone rules (e.g. "Ne használj szlenget")
+                   - content_restrictions: 3-5 content rules (e.g. "Ne írj más nyelven, csak magyarul")
+                   - visual_restrictions: 2-4 visual rules (e.g. "Ne használj szöveg-overlay-t a képeken")
+
+                C) hashtag_strategy:
+                   - brand_hashtags: 3-5 brand-specific hashtags (from brand name, URL)
+                   - industry_hashtags: 5-10 industry/niche hashtags in Hungarian
+                   - campaign_hashtags: 0-3 seasonal/campaign hashtags (if applicable)
+                   - max_per_platform: {{"instagram": 15, "facebook": 5, "linkedin": 3}}
+
+                D) content_pillars: 3-5 content pillars with ratios (must sum to 100).
+                   Each pillar: name, ratio (%), description, example_title
+                   Base these on the detected posts and business category.
+
+                E) platform_rules: For each active platform ({_active_platforms_str}), define:
+                   - tone_modifier: How should the tone shift for this platform? (1 sentence in Hungarian)
+                   - emoji_allowed: boolean
+                   - max_hashtags: integer
+                   - preferred_format: one of "image_with_text", "carousel", "short_video_script", "tutorial_description", "text_post", "story"
+                   - optimal_post_length: string like "150-300 karakter"
+
+                Respond strictly in JSON in Hungarian:
+                {{
+                  "cta_library": {{
+                    "primary_ctas": ["..."],
+                    "secondary_ctas": ["..."],
+                    "slogans": ["..."],
+                    "tagline": "..."
+                  }},
+                  "brand_dont": {{
+                    "tone_restrictions": ["..."],
+                    "content_restrictions": ["..."],
+                    "visual_restrictions": ["..."]
+                  }},
+                  "hashtag_strategy": {{
+                    "brand_hashtags": ["#..."],
+                    "industry_hashtags": ["#..."],
+                    "campaign_hashtags": ["#..."],
+                    "max_per_platform": {{"instagram": 15, "facebook": 5, "linkedin": 3}}
+                  }},
+                  "content_pillars": [
+                    {{"name": "...", "ratio": 40, "description": "...", "example_title": "..."}},
+                    {{"name": "...", "ratio": 30, "description": "...", "example_title": "..."}},
+                    {{"name": "...", "ratio": 20, "description": "...", "example_title": "..."}},
+                    {{"name": "...", "ratio": 10, "description": "...", "example_title": "..."}}
+                  ],
+                  "platform_rules": {{
+                    "instagram": {{"tone_modifier": "...", "emoji_allowed": true, "max_hashtags": 15, "preferred_format": "carousel", "optimal_post_length": "150-300 karakter"}},
+                    "facebook": {{"tone_modifier": "...", "emoji_allowed": true, "max_hashtags": 5, "preferred_format": "image_with_text", "optimal_post_length": "200-500 karakter"}}
+                  }}
+                }}
+                """
+                try:
+                    ai_resp2 = await gemini_client.aio.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=brand_dna_extractor_prompt,
+                        config=types.GenerateContentConfig(response_mime_type="application/json")
+                    )
+                    if ai_resp2 and ai_resp2.text:
+                        parsed2 = _json.loads(ai_resp2.text)
+                        for k in ["cta_library", "brand_dont", "hashtag_strategy", "content_pillars"]:
+                            if k in parsed2:
+                                if isinstance(brand_personality[k], dict) and isinstance(parsed2[k], dict):
+                                    brand_personality[k].update(parsed2[k])
+                                else:
+                                    brand_personality[k] = parsed2[k]
+                        # Merge platform_rules while preserving 'active' flags
+                        if "platform_rules" in parsed2 and isinstance(parsed2["platform_rules"], dict):
+                            for plat_name, plat_data in parsed2["platform_rules"].items():
+                                if plat_name in brand_personality["platform_rules"]:
+                                    was_active = brand_personality["platform_rules"][plat_name].get("active", False)
+                                    brand_personality["platform_rules"][plat_name].update(plat_data)
+                                    brand_personality["platform_rules"][plat_name]["active"] = was_active
+                                else:
+                                    brand_personality["platform_rules"][plat_name] = plat_data
+                except Exception as e:
+                    print(f"[Zombo Scrape] Brand DNA Extractor (Call 2) error: {e}")
+
+                # ╔══════════════════════════════════════════════╗
+                # ║  CALL 3: Visual Recipe Agent                 ║
+                # ╚══════════════════════════════════════════════╝
+                yield _json.dumps({"step": "progress", "message": "Brand DNA Agent (3/3): Vizuális recept és képgenerálási szabályok..."}) + "\n"
+
+                _top_colors_for_recipe = _json.dumps(top_colors_detail, ensure_ascii=False)
+                _images_for_recipe = _json.dumps(images_analysis[:5] if images_analysis else [], ensure_ascii=False)
+                _visual_coords = _json.dumps(brand_personality["brand_coordinates"].get("visual", {}), ensure_ascii=False)
+
+                visual_recipe_prompt = f"""
+                You are the Visual Recipe Agent, an expert in visual branding, photography direction, and AI image generation prompting.
+
+                Your task is to create a precise visual recipe for AI image generation (Imagen 4 / Stable Diffusion / DALL-E) based on the website's existing visual identity.
+
+                Inputs:
+                1. Top Colors (with hex codes): {_top_colors_for_recipe}
+                2. Image Analysis (up to 5 images analyzed): {_images_for_recipe}
+                3. Visual Coordinates: {_visual_coords}
+                4. Brand Archetype: {brand_personality['brand_archetype']}
+                5. Business Category: {ai_analysis.get('business_category', 'Nem ismert')}
+                6. Visual Style Description: {ai_analysis.get('visual_style_description', 'Nem ismert')}
+
+                Create:
+
+                A) color_palette: Extract the 5 most important brand colors from the website.
+                   - primary: Main brand color hex
+                   - secondary: Second brand color hex
+                   - accent: Accent/highlight color hex
+                   - background: Primary background color hex
+                   - text_color: Primary text color hex
+
+                B) Photography direction:
+                   - photography_style: One of "product_studio", "lifestyle", "flat_lay", "editorial", "abstract", "environmental", "macro_detail"
+                   - lighting: One of "bright_even", "dramatic_shadow", "natural_daylight", "moody_low_key", "soft_diffused", "high_contrast"
+                   - composition: One of "centered_clean", "rule_of_thirds", "symmetrical", "dynamic_diagonal", "overhead_flat", "close_up"
+                   - background_type: One of "solid_white", "solid_color", "gradient", "contextual", "blurred_environment", "textured"
+                   - mood: 2-3 word mood description in English (e.g. "clean professional minimalist")
+
+                C) AI Image Prompt components:
+                   - image_prompt_prefix: A reusable prompt PREFIX for image generation (in English, ~20-40 words). This should capture the photography style, lighting, composition, and mood.
+                   - image_prompt_suffix: A reusable prompt SUFFIX (in English, ~10-20 words) for color palette and finishing style.
+                   - negative_prompt: What to AVOID in generated images (in English, comma-separated). Be thorough and specific.
+
+                Respond strictly in JSON:
+                {{
+                  "color_palette": {{
+                    "primary": "#hex",
+                    "secondary": "#hex",
+                    "accent": "#hex",
+                    "background": "#hex",
+                    "text_color": "#hex"
+                  }},
+                  "photography_style": "product_studio",
+                  "lighting": "bright_even",
+                  "composition": "centered_clean",
+                  "background_type": "solid_white",
+                  "mood": "clean professional minimalist",
+                  "image_prompt_prefix": "Professional product photography, clean white background, bright even lighting, commercial quality, high detail, studio shot",
+                  "image_prompt_suffix": "neutral color palette, realistic, sharp focus, 8k quality",
+                  "negative_prompt": "text, watermark, logo, blurry, oversaturated, cartoon, illustration, people, hands, low quality, distorted, artifacts, noise"
+                }}
+                """
+                try:
+                    ai_resp3 = await gemini_client.aio.models.generate_content(
+                        model='gemini-2.5-flash',
+                        contents=visual_recipe_prompt,
+                        config=types.GenerateContentConfig(response_mime_type="application/json")
+                    )
+                    if ai_resp3 and ai_resp3.text:
+                        parsed3 = _json.loads(ai_resp3.text)
+                        if isinstance(parsed3, dict):
+                            brand_personality["visual_recipe"].update(parsed3)
+                except Exception as e:
+                    print(f"[Zombo Scrape] Visual Recipe Agent (Call 3) error: {e}")
+
+            # ── Final: Send complete result ──
+            yield _json.dumps({"step": "progress", "message": "Eredmények összeállítása..."}) + "\n"
+
+            extracted_products = []
+            extracted_contacts = contact_analysis
+            try:
+                if scraped_data_json_str and scraped_data_json_str != "{}":
+                    parsed_scraper = _json.loads(scraped_data_json_str)
+                    if isinstance(parsed_scraper, list):
+                        for page in parsed_scraper:
+                            if isinstance(page, dict) and "products" in page:
+                                for prod in page["products"]:
+                                    if prod not in extracted_products:
+                                        extracted_products.append(prod)
+                    elif isinstance(parsed_scraper, dict):
+                        extracted_products = parsed_scraper.get("products", [])
+            except Exception as pe:
+                print(f"[Zombo Scrape] Error parsing products from Scraper Agent: {pe}")
+
+            if 'product_analysis' in locals() and product_analysis:
+                for prod in product_analysis:
+                    name_exists = any(p.get("name", "").lower() == prod.get("name", "").lower() for p in extracted_products)
+                    if not name_exists:
+                        extracted_products.append(prod)
+            
+            extracted_products = extracted_products[:10]
+
+            image_colors = []
+            seen_img_cols = set()
+            if images_analysis:
+                for img in images_analysis:
+                    if img and "dominant_colors" in img:
+                        for col in img["dominant_colors"]:
+                            c_hex = col.strip().lower()
+                            if re.match(r'^#[0-9a-f]{6}$', c_hex):
+                                if c_hex not in seen_img_cols:
+                                    seen_img_cols.add(c_hex)
+                                    image_colors.append(c_hex)
+
+            result = {
+                "status": "success",
+                "url": target_url,
+                "scraper_json": scraped_data_json_str,
+                "products": extracted_products,
+                "contacts": extracted_contacts,
+                "seo": {
+                    "score": score,
+                    "title": title_text,
+                    "description": desc_text,
+                    "h1_count": h1_count,
+                    "h2_count": h2_count,
+                    "h3_count": h3_count,
+                    "total_images": total_images,
+                    "missing_alt": missing_alt,
+                    "total_links": total_links,
+                    "internal_links": internal_links,
+                    "external_links": external_links,
+                    "has_viewport": has_viewport,
+                    "is_https": is_https,
+                    "has_schema": has_schema,
+                    "has_robots": has_robots,
+                    "has_sitemap": has_sitemap,
+                    "has_lang": has_lang,
+                    "lang_val": lang_val,
+                    "deductions": deductions,
+                    "deductions_detail": deductions_detail
+                },
+                "visuals": {
+                    "top_colors": top_colors,
+                    "top_colors_detail": top_colors_detail,
+                    "image_colors": image_colors,
+                    "warm_pct": warm_pct,
+                    "cool_pct": cool_pct,
+                    "neutral_pct": neutral_pct,
+                    "visual_tone": visual_tone,
+                    "visual_style_description": ai_analysis["visual_style_description"]
+                },
+                "content": {
+                    "word_count": word_count,
+                    "business_category": ai_analysis["business_category"],
+                    "tone": ai_analysis["tone"],
+                    "summary": ai_analysis["summary"],
+                    "seo_advice": ai_analysis["seo_advice"],
+                    "global_improvements": ai_analysis["global_improvements"],
+                    "word_style_analysis": ai_analysis["word_style_analysis"],
+                    "detected_posts": ai_analysis["detected_posts"],
+                    "images_analysis": images_analysis
+                },
+                "marketing_audit": marketing_analysis,
+                "brand_personality": brand_personality
+            }
+
+            # Save latest result to local file
+            try:
+                import json as _json_save
+                with open("latest_audit_result.json", "w", encoding="utf-8") as f_save:
+                    _json_save.dump(result, f_save, indent=2, ensure_ascii=False)
+                print("[Zombo Scrape] Saved latest audit result to latest_audit_result.json")
+            except Exception as se:
+                print(f"[Zombo Scrape] Error saving latest audit result: {se}")
+
+            # Append to Zombo Audit History
+            try:
+                import json as _json_history
+                history_file = "zombo_audit_history.json"
+                history_data = []
+                if os.path.exists(history_file):
+                    try:
+                        with open(history_file, "r", encoding="utf-8") as f_hist:
+                            history_data = _json_history.load(f_hist)
+                            if not isinstance(history_data, list):
+                                history_data = []
+                    except Exception:
+                        history_data = []
+                
+                new_entry = {
+                    "timestamp": datetime.utcnow().isoformat() + "Z",
+                    "url": target_url,
+                    "crawled_subpages": contact_urls if 'contact_urls' in locals() else [],
+                    "scraper_json_str": scraped_data_json_str if 'scraped_data_json_str' in locals() else "",
+                    "agents_input_content": combined_content if 'combined_content' in locals() else "",
+                    "result": result
+                }
+                history_data.append(new_entry)
+                
+                with open(history_file, "w", encoding="utf-8") as f_hist_write:
+                    _json_history.dump(history_data, f_hist_write, indent=2, ensure_ascii=False)
+                print(f"[Zombo Scrape] Appended audit result to {history_file}")
+            except Exception as he:
+                print(f"[Zombo Scrape] Error saving history: {he}")
+
+            yield _json.dumps({"step": "complete", "data": result}) + "\n"
+
+        except Exception as e:
+            yield _json.dumps({"step": "error", "message": f"Hiba a weboldal beolvasása közben: {str(e)}"}) + "\n"
+
+    return StreamingResponse(generate(), media_type="application/x-ndjson")
+
+
+# ─── Brand DNA Content Generation Endpoints ───────────────────────────
+
+@app.post("/marketing/api/zombo/generate-post")
+async def zombo_generate_post(request: Request):
+    """Generate a social media post using Brand DNA from latest audit."""
+    import json as _json
+    from google import genai
+    from google.genai import types
+
+    body = await request.json()
+    user_prompt = body.get("prompt", "").strip()
+    platform = body.get("platform", "instagram")
+
+    if not user_prompt:
+        return JSONResponse({"error": "Kérlek adj meg egy prompt-ot."}, status_code=400)
+
+    # Load Brand DNA
+    try:
+        with open("latest_audit_result.json", "r", encoding="utf-8") as f:
+            audit = _json.load(f)
+        bp = audit.get("brand_personality", {})
+    except Exception:
+        return JSONResponse({"error": "Nincs elérhető Brand DNA. Futtass először egy elemzést."}, status_code=400)
+
+    google_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+    if not google_key:
+        return JSONResponse({"error": "GOOGLE_API_KEY hiányzik."}, status_code=500)
+
+    client = genai.Client(api_key=google_key)
+
+    # Build context from Brand DNA
+    coords = bp.get("brand_coordinates", {})
+    addressing = bp.get("addressing", {})
+    cta_lib = bp.get("cta_library", {})
+    dont = bp.get("brand_dont", {})
+    ht = bp.get("hashtag_strategy", {})
+    pillars = bp.get("content_pillars", [])
+    plat_rules = bp.get("platform_rules", {}).get(platform, {})
+
+    system_prompt = f"""Te egy márkahű social media szövegíró AI vagy. A feladatod, hogy a megadott Brand DNA koordináták alapján tökéletesen illeszkedő social media posztot írj.
+
+MÁRKA PROFIL:
+- Archetípus: {bp.get('brand_archetype', 'Általános')}
+- Hangvétel: {', '.join(bp.get('brand_voice', []))}
+- Célközönség: {bp.get('target_audience', 'Általános')}
+- Megszólítás: {addressing.get('mode', 'vegyes')} ({"tegezés" if addressing.get('mode') == 'te' else "magázás" if addressing.get('mode') == 'ön' else "vegyes"})
+
+HANGVÉTEL KOORDINÁTÁK (0-100):
+- Formális↔Közvetlen: {coords.get('tone', {}).get('formal_vs_casual', 50)}
+- Racionális↔Érzelmi: {coords.get('tone', {}).get('rational_vs_emotional', 50)}
+- Modern↔Hagyományos: {coords.get('tone', {}).get('modern_vs_traditional', 50)}
+- Egyszerű↔Szakmai: {coords.get('tone', {}).get('simple_vs_technical', 50)}
+
+PLATFORM: {platform.upper()}
+- Hangvétel módosító: {plat_rules.get('tone_modifier', 'nincs')}
+- Emoji megengedett: {'igen' if plat_rules.get('emoji_allowed', True) else 'nem'}
+- Max hashtag: {plat_rules.get('max_hashtags', 5)}
+- Optimális hossz: {plat_rules.get('optimal_post_length', '150-300 karakter')}
+
+CTA KÖNYVTÁR (használd ezeket):
+- Elsődleges: {', '.join(cta_lib.get('primary_ctas', []))}
+- Szlogenek: {', '.join(cta_lib.get('slogans', []))}
+
+HASHTAG STRATÉGIA:
+- Márka: {', '.join(ht.get('brand_hashtags', []))}
+- Iparági: {', '.join(ht.get('industry_hashtags', []))}
+
+TILTÓLISTA — ezeket SOHA ne csináld:
+{chr(10).join('- ' + r for r in dont.get('tone_restrictions', []))}
+{chr(10).join('- ' + r for r in dont.get('content_restrictions', []))}
+
+CONTENT PILLÉREK:
+{chr(10).join(f"- {p.get('name', '')}: {p.get('description', '')}" for p in pillars)}
+
+FELADAT: Írj EGY darab {platform} posztot a felhasználó kérése alapján. Csak a posztot írd meg, semmi mást. A poszt legyen {plat_rules.get('optimal_post_length', '150-300 karakter')} hosszú. Válaszd ki a megfelelő hashtageket a stratégiából (max {plat_rules.get('max_hashtags', 5)} db). Használj CTA-t a könyvtárból ha releváns.
+"""
+
+    try:
+        response = await client.aio.models.generate_content(
+            model='gemini-2.5-flash',
+            contents=f"{system_prompt}\n\nFelhasználó kérése: {user_prompt}",
+        )
+        generated_text = response.text if response and response.text else "Nem sikerült posztot generálni."
+        return JSONResponse({"post": generated_text, "platform": platform})
+    except Exception as e:
+        return JSONResponse({"error": f"Generálási hiba: {str(e)}"}, status_code=500)
+
+
+@app.post("/marketing/api/zombo/generate-image")
+async def zombo_generate_image(request: Request):
+    """Generate an image using Imagen and Brand DNA visual recipe."""
+    import json as _json
+    from google import genai
+    from google.genai import types
+    import base64
+    import hashlib
+    from pathlib import Path
+
+    body = await request.json()
+    user_prompt = body.get("prompt", "").strip()
+
+    if not user_prompt:
+        return JSONResponse({"error": "Kérlek adj meg egy prompt-ot a képgeneráláshoz."}, status_code=400)
+
+    # Load Brand DNA visual recipe
+    try:
+        with open("latest_audit_result.json", "r", encoding="utf-8") as f:
+            audit = _json.load(f)
+        bp = audit.get("brand_personality", {})
+        vr = bp.get("visual_recipe", {})
+    except Exception:
+        return JSONResponse({"error": "Nincs elérhető Brand DNA. Futtass először egy elemzést."}, status_code=400)
+
+    google_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+    if not google_key:
+        return JSONResponse({"error": "GOOGLE_API_KEY hiányzik."}, status_code=500)
+
+    client = genai.Client(api_key=google_key)
+
+    # Build full imagen prompt from visual recipe + user input
+    prefix = vr.get("image_prompt_prefix", "Professional product photography, clean background, high detail")
+    suffix = vr.get("image_prompt_suffix", "realistic, sharp focus, 8k quality")
+    negative = vr.get("negative_prompt", "text, watermark, blurry, low quality")
+
+    full_prompt = f"{prefix}, {user_prompt}, {suffix}. Avoid: {negative}"
+
+    try:
+        response = await client.aio.models.generate_images(
+            model='imagen-4.0-fast-generate-001',
+            prompt=full_prompt,
+            config=types.GenerateImagesConfig(
+                number_of_images=1,
+                aspect_ratio="1:1",
+            )
+        )
+
+        if response and response.generated_images and len(response.generated_images) > 0:
+            img_data = response.generated_images[0].image.image_bytes
+            # Save image to generated-images folder
+            img_dir = Path("generated-images")
+            img_dir.mkdir(exist_ok=True)
+            img_hash = hashlib.md5(img_data).hexdigest()[:12]
+            img_filename = f"brand_{img_hash}.png"
+            img_path = img_dir / img_filename
+            with open(img_path, "wb") as f:
+                f.write(img_data)
+
+            img_b64 = base64.b64encode(img_data).decode("utf-8")
+            return JSONResponse({
+                "image_base64": img_b64,
+                "image_url": f"/generated-images/{img_filename}",
+                "prompt_used": full_prompt,
+                "negative_prompt": negative
+            })
+        else:
+            return JSONResponse({"error": "Az Imagen nem generált képet."}, status_code=500)
+
+    except Exception as e:
+        return JSONResponse({"error": f"Képgenerálási hiba: {str(e)}"}, status_code=500)
+
+
+# Serve generated images
+@app.get("/generated-images/{filename}")
+async def serve_generated_image(filename: str):
+    from pathlib import Path
+    img_path = Path("generated-images") / filename
+    if img_path.exists():
+        return FileResponse(img_path, media_type="image/png")
+    return JSONResponse({"error": "Kép nem található."}, status_code=404)
+
 
 if __name__ == "__main__":
     import uvicorn
