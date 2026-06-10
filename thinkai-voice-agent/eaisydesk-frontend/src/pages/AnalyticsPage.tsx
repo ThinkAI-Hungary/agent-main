@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authFetch } from '../api/client';
+import { supabase } from '../lib/supabase';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -199,21 +200,18 @@ export default function AnalyticsPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [statsRes, funnelRes, alertsRes, outRes, insRes] = await Promise.all([
-        authFetch(`/admin/api/stats?period=${period}&channel=${channel}&clinic_id=${clinic}`),
-        authFetch(`/admin/api/analytics/funnel?period=${period}&channel=${channel}&clinic_id=${clinic}`),
-        authFetch(`/admin/api/analytics/alerts?period=${period}&channel=${channel}&clinic_id=${clinic}`),
-        authFetch(`/admin/api/analytics/outbound/summary?period=${period}&channel=${channel}&clinic_id=${clinic}`),
-        authFetch('/admin/api/analytics/insights'),
+      const [statsResult, funnelResult, alertsResult, outboundResult, insightsResult] = await Promise.all([
+        supabase.rpc('get_analytics_stats', { p_period: period }),
+        supabase.rpc('get_analytics_funnel', { p_period: period }),
+        supabase.rpc('get_analytics_alerts', { p_period: period }),
+        supabase.rpc('get_outbound_summary', { p_period: period }),
+        supabase.from('ai_insights').select('insights').order('created_at', { ascending: false }).limit(1).single(),
       ]);
-      const [sd, fd, ad, od, id] = await Promise.all([
-        statsRes.json(), funnelRes.json(), alertsRes.json(), outRes.json(), insRes.json(),
-      ]);
-      setStats(sd);
-      setFunnel(fd);
-      setAlerts(ad);
-      setOutbound(od);
-      if (id.status === 'success' && id.insights) setInsights(id.insights);
+      if (statsResult.data) setStats(statsResult.data);
+      if (funnelResult.data) setFunnel(funnelResult.data);
+      if (alertsResult.data) setAlerts(alertsResult.data);
+      if (outboundResult.data) setOutbound(outboundResult.data);
+      if (insightsResult.data?.insights) setInsights(insightsResult.data.insights);
     } catch (e) {
       console.error('Analytics load error', e);
     } finally {
@@ -226,6 +224,7 @@ export default function AnalyticsPage() {
   async function refreshInsights() {
     setInsightsLoading(true);
     try {
+      // Insight generation still needs FastAPI (calls LLM)
       const res = await authFetch('/admin/api/analytics/insights/generate', { method: 'POST' });
       const data = await res.json();
       if (data.status === 'success' && data.insights) setInsights(data.insights);
@@ -237,10 +236,23 @@ export default function AnalyticsPage() {
     const title = ALERT_TYPE_NAMES[type] || type;
     setAlertModal({ type, title, rows: [], loading: true });
     try {
-      const res = await authFetch(`/admin/api/analytics/alerts/details?type=${type}`);
-      const data = await res.json();
-      if (data.status === 'success' && data.data && data.data.length > 0) {
-        setAlertModal(prev => prev ? { ...prev, rows: data.data, loading: false } : null);
+      // Alert details: read directly from interaction_list view
+      const { data } = await supabase
+        .from('interaction_list')
+        .select('created_at, type, topic, participant, summary, approval_status')
+        .order('created_at', { ascending: false })
+        .limit(50);
+
+      if (data && data.length > 0) {
+        const mapped = data.map((r: Record<string, unknown>) => ({
+          created_at: r.created_at as string,
+          channel: r.type as string,
+          topic: r.topic as string,
+          name: r.participant as string,
+          summary: r.summary as string,
+          status: r.approval_status as string,
+        }));
+        setAlertModal(prev => prev ? { ...prev, rows: mapped, loading: false } : null);
       } else {
         setAlertModal(prev => prev ? { ...prev, rows: [], loading: false } : null);
       }

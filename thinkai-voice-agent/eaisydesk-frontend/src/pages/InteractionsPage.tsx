@@ -19,7 +19,7 @@ import { EredmenyBadge, StatuszBadge, DirectionBadge } from '../components/ui/Ba
 import Spinner from '../components/ui/Spinner';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
-import { authFetch } from '../api/client';
+import { supabase } from '../lib/supabase';
 import InteractionSummaryModal from '../components/interactions/InteractionSummaryModal';
 
 // ── Row type ──
@@ -283,18 +283,26 @@ export default function InteractionsPage() {
     });
 
     try {
-      const res = await authFetch('/admin/api/interactions/delete', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ interaction_ids: [...interactionIds], session_ids: [...sessionIds] }),
-      });
-      if (res.ok) {
-        const data = await res.json();
-        showToast(`Törölve: ${data.deleted_interactions || 0} interakció, ${data.deleted_sessions || 0} session`);
-        refetchSessions();
-      } else {
-        showToast('Hiba történt a törlés során!', 'error');
+      let deletedInteractions = 0;
+      let deletedSessions = 0;
+
+      if (interactionIds.size > 0) {
+        const { count } = await supabase
+          .from('interactions')
+          .delete({ count: 'exact' })
+          .in('id', [...interactionIds]);
+        deletedInteractions = count || 0;
       }
+      if (sessionIds.size > 0) {
+        const { count } = await supabase
+          .from('sessions')
+          .delete({ count: 'exact' })
+          .in('session_id', [...sessionIds]);
+        deletedSessions = count || 0;
+      }
+
+      showToast(`Törölve: ${deletedInteractions} interakció, ${deletedSessions} session`);
+      refetchSessions();
     } catch {
       showToast('Hiba történt a törlés során!', 'error');
     }

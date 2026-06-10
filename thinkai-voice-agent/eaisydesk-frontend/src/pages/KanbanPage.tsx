@@ -21,7 +21,7 @@ import { parseCustomData, bestClientName, type ClientRecord } from '../helpers/c
 import { TagBadge } from '../components/ui/Badge';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
-import { authFetch } from '../api/client';
+import { supabase } from '../lib/supabase';
 import Spinner from '../components/ui/Spinner';
 import KanbanColumn from '../components/kanban/KanbanColumn';
 import KanbanCard from '../components/kanban/KanbanCard';
@@ -150,12 +150,11 @@ export default function KanbanPage() {
 
     // Optimistic update
     try {
-      const res = await authFetch(`/admin/api/clients/${cardId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: targetColumnId }),
-      });
-      if (res.ok) {
+      const { error } = await supabase
+        .from('clients')
+        .update({ status: targetColumnId })
+        .eq('id', cardId);
+      if (!error) {
         showToast('Ügyfél áthelyezve');
         refetchClients();
       } else {
@@ -202,8 +201,8 @@ export default function KanbanPage() {
     const ok = await confirm('Biztosan törölni szeretnéd ezt az ügyfelet?', { title: 'Ügyfél törlése', danger: true });
     if (!ok) return;
     try {
-      const res = await authFetch(`/admin/api/clients/${clientId}`, { method: 'DELETE' });
-      if (res.ok) { showToast('Ügyfél törölve'); refetchClients(); }
+      const { error } = await supabase.from('clients').delete().eq('id', clientId);
+      if (!error) { showToast('Ügyfél törölve'); refetchClients(); }
       else showToast('Hiba a törlés során', 'error');
     } catch { showToast('Hiba a törlés során', 'error'); }
   }, [confirm, refetchClients]);

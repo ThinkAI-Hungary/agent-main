@@ -7,7 +7,7 @@ import { parseCustomData, type ClientRecord } from '../../helpers/clientResolver
 import { fmtDt } from '../../helpers/formatters';
 import { TagBadge } from '../ui/Badge';
 import { showToast } from '../ui/Toast';
-import { authFetch } from '../../api/client';
+import { supabase } from '../../lib/supabase';
 import type { SessionSummary } from '../../hooks/useSessions';
 import type { CalendarEvent } from '../../hooks/useCalendarEvents';
 
@@ -104,12 +104,11 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     setSaving(true);
     try {
       const updatedCd = { ...cd, notes };
-      const res = await authFetch(`/admin/api/clients/${client.id}/custom_data`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ custom_data: updatedCd }),
-      });
-      if (res.ok) {
+      const { error } = await supabase
+        .from('clients')
+        .update({ custom_data: updatedCd })
+        .eq('id', client.id);
+      if (!error) {
         showToast('Jegyzetek mentve');
         onRefresh();
       } else {

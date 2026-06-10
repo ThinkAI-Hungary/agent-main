@@ -5,6 +5,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { authFetch } from '../api/client';
+import { supabase } from '../lib/supabase';
 import { showToast } from '../components/ui/Toast';
 import Spinner from '../components/ui/Spinner';
 
@@ -55,12 +56,13 @@ export default function SettingsPage() {
   const loadSettings = useCallback(async () => {
     setLoading(true);
     try {
-      const [settingsRes, praxisRes] = await Promise.all([
-        authFetch('/admin/api/settings'),
-        authFetch('/admin/api/praxisinfo'),
+      const [settingsResult, praxisResult] = await Promise.all([
+        supabase.from('app_settings').select('value').eq('key', 'agent_settings').single(),
+        supabase.from('app_settings').select('value').eq('key', 'praxisinfo').single(),
       ]);
-      const settingsData = await settingsRes.json();
-      const praxisData = await praxisRes.json();
+
+      const settingsData = settingsResult.data?.value;
+      const praxisData = praxisResult.data?.value;
 
       if (settingsData) {
         setSettings(prev => ({

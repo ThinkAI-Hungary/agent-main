@@ -14,7 +14,7 @@ import { TagBadge } from '../components/ui/Badge';
 import Spinner from '../components/ui/Spinner';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
-import { authFetch } from '../api/client';
+import { supabase } from '../lib/supabase';
 import ClientDetailView from '../components/clients/ClientDetailView';
 
 // ── Enriched client type ──
@@ -170,8 +170,8 @@ export default function ClientsPage() {
     let deleted = 0;
     for (const id of selectedRows) {
       try {
-        const res = await authFetch(`/admin/api/clients/${id}`, { method: 'DELETE' });
-        if (res.ok) deleted++;
+        const { error } = await supabase.from('clients').delete().eq('id', id);
+        if (!error) deleted++;
       } catch { /* continue */ }
     }
     showToast(`${deleted} ügyfél törölve`);

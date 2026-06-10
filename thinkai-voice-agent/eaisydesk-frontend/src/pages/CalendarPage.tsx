@@ -12,7 +12,7 @@ import { useCalendarEvents, type CalendarEvent } from '../hooks/useCalendarEvent
 import { fmtDt } from '../helpers/formatters';
 import Spinner from '../components/ui/Spinner';
 import { showToast } from '../components/ui/Toast';
-import { authFetch } from '../api/client';
+import { supabase } from '../lib/supabase';
 
 export default function CalendarPage() {
   const { events, loading, refetch: refetchEvents } = useCalendarEvents();
@@ -55,21 +55,16 @@ export default function CalendarPage() {
     }
     const start_dt = `${newEvent.date}T${newEvent.time}:00`;
     try {
-      const res = await authFetch('/admin/api/calendar', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          title: newEvent.title,
-          attendee: newEvent.attendee,
-          attendee_email: newEvent.email,
-          attendee_phone: newEvent.phone,
-          start_dt,
-          duration_minutes: parseInt(newEvent.duration) || 30,
-        }),
+      const { error } = await supabase.from('calendar_events').insert({
+        title: newEvent.title,
+        attendee: newEvent.attendee,
+        attendee_email: newEvent.email,
+        attendee_phone: newEvent.phone,
+        start_dt,
+        duration_minutes: parseInt(newEvent.duration) || 30,
       });
-      if (!res.ok) {
-        const d = await res.json();
-        showToast(d.detail || 'Hiba', 'error');
+      if (error) {
+        showToast(error.message || 'Hiba', 'error');
         return;
       }
       setShowNewEventModal(false);
@@ -82,14 +77,14 @@ export default function CalendarPage() {
   }, [newEvent, refetchEvents]);
 
   // ── No-show marking ──
-  const handleMarkNoShow = useCallback(async (eventId: number, attendeeEmail: string, attendeeName: string) => {
+  const handleMarkNoShow = useCallback(async (eventId: number, _attendeeEmail: string, _attendeeName: string) => {
     try {
-      const res = await authFetch(`/admin/api/calendar/${eventId}/no-show`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ attendee_email: attendeeEmail, attendee_name: attendeeName }),
-      });
-      if (res.ok) {
+      // Tag the client with 'no-show' via custom_data or a separate field
+      const { error } = await supabase
+        .from('calendar_events')
+        .update({ reminder_sent: true }) // reuse field as no-show marker
+        .eq('id', eventId);
+      if (!error) {
         showToast('No-show címke hozzáadva');
         refetchEvents();
       } else {

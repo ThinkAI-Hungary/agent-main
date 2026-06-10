@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { authFetch } from '../api/client';
+import { supabase } from '../lib/supabase';
 
 export interface KanbanColumn {
   id: string;
@@ -26,15 +26,17 @@ export function useKanbanColumns(): UseKanbanColumnsReturn {
     setLoading(true);
     setError(null);
     try {
-      const res = await authFetch('/admin/api/kanban_columns');
-      const data = await res.json();
-      const cols: KanbanColumn[] = data.columns || [];
-      cols.sort((a, b) => a.order_index - b.order_index);
-      setColumns(cols);
+      const { data, error: sbError } = await supabase
+        .from('kanban_columns')
+        .select('id, name, order_index')
+        .order('order_index', { ascending: true });
+
+      if (sbError) throw sbError;
+
+      setColumns((data || []) as KanbanColumn[]);
     } catch (e) {
-      if ((e as Error).message !== 'Unauthorized') {
-        setError('Hiba az oszlopok betöltésekor');
-      }
+      setError('Hiba az oszlopok betöltésekor');
+      console.error('useKanbanColumns error:', e);
     } finally {
       setLoading(false);
     }
@@ -47,12 +49,8 @@ export function useKanbanColumns(): UseKanbanColumnsReturn {
           ? Math.max(...columns.map((c) => c.order_index)) + 1
           : 1;
       try {
-        const res = await authFetch('/admin/api/kanban_columns', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, name, order_index }),
-        });
-        if (!res.ok) return false;
+        const { error } = await supabase.from('kanban_columns').insert({ id, name, order_index });
+        if (error) return false;
         await fetchColumns();
         return true;
       } catch {
@@ -65,12 +63,8 @@ export function useKanbanColumns(): UseKanbanColumnsReturn {
   const renameColumn = useCallback(
     async (id: string, name: string): Promise<boolean> => {
       try {
-        const res = await authFetch(`/admin/api/kanban_columns/${id}`, {
-          method: 'PUT',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ name }),
-        });
-        if (!res.ok) return false;
+        const { error } = await supabase.from('kanban_columns').update({ name }).eq('id', id);
+        if (error) return false;
         await fetchColumns();
         return true;
       } catch {
@@ -83,10 +77,8 @@ export function useKanbanColumns(): UseKanbanColumnsReturn {
   const deleteColumn = useCallback(
     async (id: string): Promise<boolean> => {
       try {
-        const res = await authFetch(`/admin/api/kanban_columns/${id}`, {
-          method: 'DELETE',
-        });
-        if (!res.ok) return false;
+        const { error } = await supabase.from('kanban_columns').delete().eq('id', id);
+        if (error) return false;
         await fetchColumns();
         return true;
       } catch {
@@ -98,6 +90,17 @@ export function useKanbanColumns(): UseKanbanColumnsReturn {
 
   useEffect(() => {
     fetchColumns();
+
+    const channel = supabase
+      .channel('kanban-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'kanban_columns' }, () => {
+        fetchColumns();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchColumns]);
 
   return {

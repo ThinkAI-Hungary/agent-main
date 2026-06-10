@@ -4,21 +4,21 @@ import loginBg from '../assets/login-bg.webp';
 
 export default function LoginPage() {
   const { login, logoutMessage } = useAuth();
-  const [username, setUsername] = useState('');
+  const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
-    if (!username.trim() || !password) {
+    if (!email.trim() || !password) {
       setError('Kérlek, töltsd ki mindkét mezőt.');
       return;
     }
     setLoading(true);
     setError('');
     try {
-      await login(username.trim(), password);
+      await login(email.trim(), password);
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nem sikerült csatlakozni a szerverhez.');
     } finally {
@@ -44,13 +44,13 @@ export default function LoginPage() {
 
         <form onSubmit={handleSubmit}>
           <div className="form-group">
-            <label className="form-label">Felhasználónév</label>
+            <label className="form-label">Email cím</label>
             <input
               className="form-input"
-              type="text"
-              value={username}
-              onChange={(e) => setUsername(e.target.value)}
-              placeholder="admin"
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="admin@thinkai.com"
               autoFocus
             />
           </div>

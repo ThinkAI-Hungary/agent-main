@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { authFetch } from '../api/client';
+import { supabase } from '../lib/supabase';
 
 export interface CalendarEvent {
   id?: number | string;
@@ -32,13 +32,17 @@ export function useCalendarEvents(): UseCalendarEventsReturn {
     setLoading(true);
     setError(null);
     try {
-      const res = await authFetch('/admin/api/calendar');
-      const data = await res.json();
-      setEvents(data.events || []);
+      const { data, error: sbError } = await supabase
+        .from('calendar_events')
+        .select('id, title, attendee, attendee_email, attendee_phone, start_dt, end_dt, duration_minutes, doctor, reminder_sent')
+        .order('start_dt', { ascending: true });
+
+      if (sbError) throw sbError;
+
+      setEvents((data || []) as CalendarEvent[]);
     } catch (e) {
-      if ((e as Error).message !== 'Unauthorized') {
-        setError('Hiba a naptári események betöltésekor');
-      }
+      setError('Hiba a naptári események betöltésekor');
+      console.error('useCalendarEvents error:', e);
     } finally {
       setLoading(false);
     }
@@ -47,12 +51,9 @@ export function useCalendarEvents(): UseCalendarEventsReturn {
   const addEvent = useCallback(
     async (event: Partial<CalendarEvent>): Promise<boolean> => {
       try {
-        const res = await authFetch('/admin/api/calendar', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(event),
-        });
-        if (!res.ok) return false;
+        const { error } = await supabase.from('calendar_events').insert(event);
+        if (error) return false;
+        // Realtime will handle refresh, but also do manual for safety
         await fetchEvents();
         return true;
       } catch {
@@ -65,10 +66,8 @@ export function useCalendarEvents(): UseCalendarEventsReturn {
   const deleteEvent = useCallback(
     async (id: number | string): Promise<boolean> => {
       try {
-        const res = await authFetch(`/admin/api/calendar/${id}`, {
-          method: 'DELETE',
-        });
-        if (!res.ok) return false;
+        const { error } = await supabase.from('calendar_events').delete().eq('id', id);
+        if (error) return false;
         await fetchEvents();
         return true;
       } catch {
@@ -80,6 +79,17 @@ export function useCalendarEvents(): UseCalendarEventsReturn {
 
   useEffect(() => {
     fetchEvents();
+
+    const channel = supabase
+      .channel('calendar-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'calendar_events' }, () => {
+        fetchEvents();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchEvents]);
 
   return { events, loading, error, refetch: fetchEvents, addEvent, deleteEvent };

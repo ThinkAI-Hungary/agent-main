@@ -5,6 +5,7 @@
  */
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { authFetch } from '../api/client';
+import { supabase } from '../lib/supabase';
 import { fmtDt } from '../helpers/formatters';
 import Spinner from '../components/ui/Spinner';
 import { useConfirm } from '../components/ui/ConfirmDialog';
@@ -58,9 +59,12 @@ export default function OutboundPage() {
   const loadCampaigns = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await authFetch('/admin/api/campaigns');
-      const data = await res.json();
-      setCampaigns(data.campaigns || []);
+      const { data, error } = await supabase
+        .from('campaigns')
+        .select('*')
+        .order('created_at', { ascending: false });
+      if (error) throw error;
+      setCampaigns(data || []);
     } catch {
       setCampaigns([]);
     } finally {
@@ -71,9 +75,10 @@ export default function OutboundPage() {
   // ── Load reminder status ──
   useEffect(() => {
     loadCampaigns();
-    authFetch('/admin/api/settings/reminder').then(r => r.json()).then(data => {
-      if (data) setReminderEnabled(!!data.reminder_enabled);
-    }).catch(() => {});
+    supabase.from('reminder_settings').select('reminder_enabled').limit(1).single()
+      .then(({ data }) => {
+        if (data) setReminderEnabled(!!data.reminder_enabled);
+      });
   }, [loadCampaigns]);
 
   // ── KPIs ──

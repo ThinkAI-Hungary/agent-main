@@ -4,7 +4,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import { fmtDt } from '../../helpers/formatters';
 import { parseCustomData, type ClientRecord } from '../../helpers/clientResolvers';
-import { authFetch } from '../../api/client';
+import { supabase } from '../../lib/supabase';
 import type { InteractionRow } from '../../pages/InteractionsPage';
 
 interface Props {
@@ -61,9 +61,10 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
       let finalReminder = '-';
 
       try {
-        const calRes = await authFetch('/admin/api/calendar');
-        const calData = await calRes.json();
-        const events = calData.events || [];
+        const { data: events } = await supabase
+          .from('calendar_events')
+          .select('*')
+          .order('start_dt', { ascending: false });
         const clientName = (row.client || '').toLowerCase().trim();
         const clientEmail = ((cData.email as string) || '').toLowerCase().trim();
 

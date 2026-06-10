@@ -4,7 +4,7 @@
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { authFetch } from '../api/client';
+import { supabase } from '../lib/supabase';
 import { showToast } from '../components/ui/Toast';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import Spinner from '../components/ui/Spinner';
@@ -35,9 +35,12 @@ export default function BeallitasokPage() {
   const loadUsers = useCallback(async () => {
     setLoading(true);
     try {
-      const res = await authFetch('/admin/api/users');
-      const data = await res.json();
-      setUsers(data.data || []);
+      const { data, error } = await supabase
+        .from('admin_users')
+        .select('id, username, email, full_name, role, last_login, created_at')
+        .order('created_at', { ascending: true });
+      if (error) throw error;
+      setUsers((data || []) as User[]);
     } catch { /* ok */ }
     finally { setLoading(false); }
   }, []);
@@ -49,13 +52,8 @@ export default function BeallitasokPage() {
     if (pwNew.length < 4) { showToast('Az új jelszónak legalább 4 karakter hosszúnak kell lennie!', 'error'); return; }
     if (pwNew !== pwConfirm) { showToast('Az új jelszavak nem egyeznek!', 'error'); return; }
     try {
-      const res = await authFetch('/admin/api/users/change-password', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ current_password: pwCurrent, new_password: pwNew }),
-      });
-      const d = await res.json();
-      if (!res.ok) { showToast(d.detail || 'Hiba', 'error'); return; }
+      const { error } = await supabase.auth.updateUser({ password: pwNew });
+      if (error) { showToast(error.message || 'Hiba', 'error'); return; }
       showToast('Jelszó sikeresen módosítva!');
       setShowPasswordModal(false);
       setPwCurrent(''); setPwNew(''); setPwConfirm('');
@@ -63,15 +61,25 @@ export default function BeallitasokPage() {
   }, [pwCurrent, pwNew, pwConfirm]);
 
   const handleCreateUser = useCallback(async () => {
-    if (!newUser.full_name || !newUser.username || !newUser.password) { showToast('Teljes név, felhasználónév és jelszó kötelező!', 'error'); return; }
+    if (!newUser.full_name || !newUser.email || !newUser.password) { showToast('Teljes név, email és jelszó kötelező!', 'error'); return; }
     if (newUser.password.length < 4) { showToast('A jelszónak legalább 4 karakter hosszúnak kell lennie!', 'error'); return; }
     try {
-      const res = await authFetch('/admin/api/users', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(newUser),
+      // 1. Create Supabase Auth user
+      const { error: authError } = await supabase.auth.signUp({
+        email: newUser.email,
+        password: newUser.password,
       });
-      if (!res.ok) { const d = await res.json(); showToast(d.detail || 'Hiba', 'error'); return; }
+      if (authError) { showToast(authError.message || 'Hiba', 'error'); return; }
+
+      // 2. Insert into admin_users table
+      const { error: dbError } = await supabase.from('admin_users').insert({
+        username: newUser.username || newUser.email.split('@')[0],
+        email: newUser.email,
+        full_name: newUser.full_name,
+        role: newUser.role,
+      });
+      if (dbError) { showToast('Auth user létrehozva, de admin_users hiba: ' + dbError.message, 'error'); return; }
+
       showToast('Felhasználó létrehozva!');
       setShowCreateUserModal(false);
       setNewUser({ full_name: '', username: '', email: '', password: '', role: 'member' });
@@ -81,12 +89,11 @@ export default function BeallitasokPage() {
 
   const handleChangeRole = useCallback(async (userId: number, newRole: string) => {
     try {
-      const res = await authFetch(`/admin/api/users/${userId}/role`, {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ role: newRole }),
-      });
-      if (res.ok) loadUsers();
+      const { error } = await supabase
+        .from('admin_users')
+        .update({ role: newRole })
+        .eq('id', userId);
+      if (!error) loadUsers();
       else showToast('Hiba a szerepkör módosításakor', 'error');
     } catch { showToast('Hiba', 'error'); }
   }, [loadUsers]);
@@ -95,9 +102,24 @@ export default function BeallitasokPage() {
     const ok = await confirm(`Biztosan törlöd a(z) "${username}" felhasználót?`, { title: 'Felhasználó törlése', danger: true });
     if (!ok) return;
     try {
-      const res = await authFetch(`/admin/api/users/${userId}`, { method: 'DELETE' });
-      if (res.ok) { showToast('Felhasználó törölve'); loadUsers(); }
-      else showToast('Hiba', 'error');
+      // Get email for auth deletion
+      const { data: userData } = await supabase
+        .from('admin_users')
+        .select('email')
+        .eq('id', userId)
+        .single();
+
+      // Delete from admin_users
+      const { error } = await supabase.from('admin_users').delete().eq('id', userId);
+      if (error) { showToast('Hiba', 'error'); return; }
+
+      // Delete from auth.users via RPC
+      if (userData?.email) {
+        await supabase.rpc('delete_auth_user', { p_email: userData.email });
+      }
+
+      showToast('Felhasználó törölve');
+      loadUsers();
     } catch { showToast('Hiba', 'error'); }
   }, [confirm, loadUsers]);
 

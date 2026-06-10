@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { authFetch } from '../api/client';
+import { supabase } from '../lib/supabase';
 import type { ClientRecord } from '../helpers/clientResolvers';
 
 interface UseClientsReturn {
@@ -20,9 +20,14 @@ export function useClients(): UseClientsReturn {
     setLoading(true);
     setError(null);
     try {
-      const res = await authFetch('/admin/api/clients');
-      const data = await res.json();
-      const list: ClientRecord[] = data.clients || [];
+      const { data, error: sbError } = await supabase
+        .from('clients')
+        .select('id, name, email, phone, status, custom_data, created_at')
+        .order('created_at', { ascending: false });
+
+      if (sbError) throw sbError;
+
+      const list: ClientRecord[] = data || [];
       setClients(list);
       const map: Record<string, ClientRecord> = {};
       list.forEach((c) => {
@@ -30,9 +35,8 @@ export function useClients(): UseClientsReturn {
       });
       setClientsMap(map);
     } catch (e) {
-      if ((e as Error).message !== 'Unauthorized') {
-        setError('Hiba az ügyfelek betöltésekor');
-      }
+      setError('Hiba az ügyfelek betöltésekor');
+      console.error('useClients error:', e);
     } finally {
       setLoading(false);
     }
@@ -40,6 +44,18 @@ export function useClients(): UseClientsReturn {
 
   useEffect(() => {
     fetchClients();
+
+    // Realtime: auto-refresh on clients table changes
+    const channel = supabase
+      .channel('clients-changes')
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => {
+        fetchClients();
+      })
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
   }, [fetchClients]);
 
   return { clients, clientsMap, loading, error, refetch: fetchClients };
