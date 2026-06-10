@@ -151,7 +151,7 @@ export default function Sidebar() {
       {/* Logo */}
       <div className="sidebar-logo">
         <img
-          src="/eaisydesk_logo.png"
+          src={`${import.meta.env.BASE_URL}eaisydesk_logo.png`}
           alt="eaisydesk"
           className="sidebar-logo-img"
           style={{ height: 28, width: 'auto', objectFit: 'contain' }}
