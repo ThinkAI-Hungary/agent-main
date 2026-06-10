@@ -78,13 +78,16 @@ def verify_admin_user(username: str, password: str) -> dict | None:
         if res.data:
             user = res.data[0]
             if _verify_password(password, user["password_hash"]):
-                # Update last login timestamp
-                try:
-                    supabase.table("admin_users").update({
-                        "last_login": datetime.now(timezone.utc).isoformat()
-                    }).eq("id", user["id"]).execute()
-                except Exception:
-                    pass
+                # Update last login timestamp in background (non-blocking)
+                import threading
+                def _update_last_login(uid):
+                    try:
+                        supabase.table("admin_users").update({
+                            "last_login": datetime.now(timezone.utc).isoformat()
+                        }).eq("id", uid).execute()
+                    except Exception:
+                        pass
+                threading.Thread(target=_update_last_login, args=(user["id"],), daemon=True).start()
                 return {
                     "id": user["id"],
                     "username": user["username"],

@@ -15,18 +15,6 @@ export default defineConfig({
         target: 'http://localhost:8000',
         changeOrigin: true,
       },
-      '/login-bg.png': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      },
-      '/eaisydesk_logo.png': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      },
-      '/thinkai-logo.png': {
-        target: 'http://localhost:8000',
-        changeOrigin: true,
-      },
     },
   },
 })

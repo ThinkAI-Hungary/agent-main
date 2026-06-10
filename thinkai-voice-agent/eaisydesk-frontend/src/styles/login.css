@@ -4,9 +4,9 @@
       align-items: center;
       justify-content: center;
       min-height: 100vh;
-      background:
-        radial-gradient(ellipse 80% 60% at 50% 0%, rgba(28, 238, 224, 0.08) 0%, transparent 70%),
-        url('/login-bg.png') center/cover no-repeat;
+      background-size: cover;
+      background-position: center;
+      background-repeat: no-repeat;
       background-blend-mode: overlay;
       background-color: #f0f4f8;
     }
