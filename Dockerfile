@@ -1,3 +1,13 @@
+# ── Stage 1: React Build ──────────────────────────────────────────────────────
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /app
+COPY thinkai-voice-agent/eaisydesk-frontend/package*.json ./
+RUN npm ci
+COPY thinkai-voice-agent/eaisydesk-frontend/ ./
+RUN npx vite build
+
+# ── Stage 2: Python App ───────────────────────────────────────────────────────
 FROM python:3.12-slim
 
 # ── System dependencies ──
@@ -16,6 +26,9 @@ RUN grep -viE "^(pyreadline3|win32_setctime|sounddevice|colorama)" requirements.
 
 # ── Application code ──
 COPY thinkai-voice-agent/ ./
+
+# ── React frontend build (statikus fájlok FastAPI-n keresztül) ──
+COPY --from=frontend-build /app/dist ./frontend_dist
 
 # ── Fix Windows CRLF line endings ──
 RUN sed -i 's/\r$//' start.sh

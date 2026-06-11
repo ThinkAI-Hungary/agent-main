@@ -17,19 +17,5 @@ services:
         max-size: "10m"
         max-file: "3"
 
-  frontend:
-    build:
-      context: .
-      dockerfile: Dockerfile.frontend
-    container_name: thinkai-frontend
-    restart: unless-stopped
-    ports:
-      - "3000:80"
-    logging:
-      driver: "json-file"
-      options:
-        max-size: "10m"
-        max-file: "3"
-
 volumes:
   agent-data:
