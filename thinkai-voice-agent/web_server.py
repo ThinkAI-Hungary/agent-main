@@ -1596,9 +1596,9 @@ def api_change_password(req: ChangePasswordRequest, username: str = Depends(veri
 
 @app.get("/admin/api/members")
 def api_get_members(username: str = Depends(verify_jwt)):
-    """List all member users (for Felelős dropdown). Any logged-in user can access."""
+    """List all member+manager users (for Felelős dropdown). Any logged-in user can access."""
     users = db.get_admin_users()
-    members = [{"id": u["id"], "username": u["username"], "full_name": u.get("full_name", "")} for u in users if u.get("role") == "member"]
+    members = [{"id": u["id"], "username": u["username"], "full_name": u.get("full_name", ""), "role": u.get("role", "member")} for u in users if u.get("role") in ("member", "manager")]
     return {"status": "success", "data": members}
 
 

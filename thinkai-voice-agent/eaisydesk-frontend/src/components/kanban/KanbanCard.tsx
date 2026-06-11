@@ -1,8 +1,11 @@
 /**
  * KanbanCard – draggable card for the kanban board
+ * Click anywhere opens client detail. Drag anywhere works too.
+ * Distinction: if pointer moves <5px → click, if ≥5px → drag.
  */
 import { useDraggable } from '@dnd-kit/core';
 import { CSS } from '@dnd-kit/utilities';
+import { useRef, useCallback } from 'react';
 import type { KanbanCardData } from '../../pages/KanbanPage';
 import { TagBadge } from '../ui/Badge';
 
@@ -10,17 +13,51 @@ interface Props {
   card: KanbanCardData;
   isDragOverlay?: boolean;
   onDelete?: (clientId: string | number) => void;
+  onClick?: (card: KanbanCardData) => void;
 }
 
-export default function KanbanCard({ card, isDragOverlay, onDelete }: Props) {
+export default function KanbanCard({ card, isDragOverlay, onDelete, onClick }: Props) {
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: String(card.id),
   });
 
+  // Track pointer start position to distinguish click vs drag
+  const pointerStart = useRef<{ x: number; y: number } | null>(null);
+  const wasDragged = useRef(false);
+
+  // Merge our pointerDown tracking with dnd-kit's pointerDown handler
+  const handlePointerDown = useCallback((e: React.PointerEvent) => {
+    pointerStart.current = { x: e.clientX, y: e.clientY };
+    wasDragged.current = false;
+    // Call dnd-kit's original onPointerDown handler
+    if (listeners?.onPointerDown) {
+      (listeners.onPointerDown as (e: React.PointerEvent) => void)(e);
+    }
+  }, [listeners]);
+
+  // On pointer move – track if we've exceeded the drag threshold
+  const handlePointerMove = useCallback((e: React.PointerEvent) => {
+    if (!pointerStart.current) return;
+    const dx = Math.abs(e.clientX - pointerStart.current.x);
+    const dy = Math.abs(e.clientY - pointerStart.current.y);
+    if (dx >= 5 || dy >= 5) {
+      wasDragged.current = true;
+    }
+  }, []);
+
+  // On pointer up – if we didn't drag, treat as click
+  const handlePointerUp = useCallback(() => {
+    if (!wasDragged.current && pointerStart.current && onClick) {
+      onClick(card);
+    }
+    pointerStart.current = null;
+    wasDragged.current = false;
+  }, [onClick, card]);
+
   const style: React.CSSProperties = {
     transform: CSS.Translate.toString(transform),
     opacity: isDragging ? 0.4 : 1,
-    cursor: isDragOverlay ? 'grabbing' : 'grab',
+    cursor: isDragOverlay ? 'grabbing' : 'pointer',
     ...(card.isSurgos ? {
       border: '2px solid #ef4444',
       backgroundColor: 'var(--bg-surgos, #fef2f2)',
@@ -31,12 +68,22 @@ export default function KanbanCard({ card, isDragOverlay, onDelete }: Props) {
     } : {}),
   };
 
+  // Build merged props: use dnd-kit's attributes but override onPointerDown with our merged version
+  const mergedProps = !isDragOverlay
+    ? {
+        ...attributes,
+        onPointerDown: handlePointerDown,
+        onPointerMove: handlePointerMove,
+        onPointerUp: handlePointerUp,
+      }
+    : {};
+
   return (
     <div
       ref={!isDragOverlay ? setNodeRef : undefined}
       className="kanban-card"
       style={style}
-      {...(!isDragOverlay ? { ...attributes, ...listeners } : {})}
+      {...mergedProps}
     >
       {/* Urgent badge */}
       {card.isSurgos && (

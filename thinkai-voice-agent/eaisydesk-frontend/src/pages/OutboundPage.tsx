@@ -346,14 +346,13 @@ export default function OutboundPage() {
   const handleToggleReminder = useCallback(async (enabled: boolean) => {
     setReminderEnabled(enabled);
     try {
-      const getRes = await authFetch('/admin/api/settings/reminder');
-      const current = await getRes.json();
-      const res = await authFetch('/admin/api/settings/reminder', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ reminder_enabled: enabled, reminder_hours: current.reminder_hours || 24, reminder_template: current.reminder_template || '' }),
-      });
-      if (!res.ok) throw new Error();
+      // Read current row
+      const { data: current } = await supabase.from('reminder_settings').select('*').limit(1).single();
+      if (current?.id) {
+        await supabase.from('reminder_settings').update({ reminder_enabled: enabled }).eq('id', current.id);
+      } else {
+        await supabase.from('reminder_settings').insert({ reminder_enabled: enabled, reminder_hours: 24, reminder_template: '' });
+      }
       showToast(enabled ? 'Emlékeztető bekapcsolva!' : 'Emlékeztető kikapcsolva!');
     } catch {
       setReminderEnabled(!enabled);

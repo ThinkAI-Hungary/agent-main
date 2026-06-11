@@ -1,22 +1,25 @@
+import { lazy, Suspense } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ApprovalProvider } from './context/ApprovalContext';
-import AppLayout from './components/layout/AppLayout';
 import LoginPage from './pages/LoginPage';
-import PlaceholderPage from './pages/PlaceholderPage';
-import AnalyticsPage from './pages/AnalyticsPage';
-import MemberDashboardPage from './pages/MemberDashboardPage';
-import InteractionsPage from './pages/InteractionsPage';
-import ClientsPage from './pages/ClientsPage';
-import KanbanPage from './pages/KanbanPage';
-import CalendarPage from './pages/CalendarPage';
-import OutboundPage from './pages/OutboundPage';
-import SettingsPage from './pages/SettingsPage';
-import BeallitasokPage from './pages/BeallitasokPage';
-import HelpPage from './pages/HelpPage';
-import MarketingPage from './pages/marketing/MarketingPage';
 import ToastContainer from './components/ui/Toast';
+import Spinner from './components/ui/Spinner';
+
+// Lazy-loaded pages — only downloaded after login
+const AppLayout = lazy(() => import('./components/layout/AppLayout'));
+const AnalyticsPage = lazy(() => import('./pages/AnalyticsPage'));
+const MemberDashboardPage = lazy(() => import('./pages/MemberDashboardPage'));
+const InteractionsPage = lazy(() => import('./pages/InteractionsPage'));
+const ClientsPage = lazy(() => import('./pages/ClientsPage'));
+const KanbanPage = lazy(() => import('./pages/KanbanPage'));
+const CalendarPage = lazy(() => import('./pages/CalendarPage'));
+const OutboundPage = lazy(() => import('./pages/OutboundPage'));
+const SettingsPage = lazy(() => import('./pages/SettingsPage'));
+const BeallitasokPage = lazy(() => import('./pages/BeallitasokPage'));
+const HelpPage = lazy(() => import('./pages/HelpPage'));
+const MarketingPage = lazy(() => import('./pages/marketing/MarketingPage'));
 
 // Global styles (same CSS as the old admin)
 import './styles/variables.css';
@@ -42,6 +45,12 @@ function SmartRedirect() {
   return <Navigate to={isAdmin ? 'analytics' : 'dashboard'} replace />;
 }
 
+const PageLoader = () => (
+  <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
+    <Spinner />
+  </div>
+);
+
 function AuthGate() {
   const { isAuthenticated } = useAuth();
 
@@ -50,23 +59,25 @@ function AuthGate() {
   }
 
   return (
-    <Routes>
-      <Route element={<AppLayout />}>
-        <Route index element={<SmartRedirect />} />
-        <Route path="dashboard" element={<MemberDashboardPage />} />
-        <Route path="analytics" element={<AnalyticsPage />} />
-        <Route path="interactions" element={<InteractionsPage />} />
-        <Route path="clients" element={<ClientsPage />} />
-        <Route path="kanban" element={<KanbanPage />} />
-        <Route path="calendar" element={<CalendarPage />} />
-        <Route path="outbound" element={<OutboundPage />} />
-        <Route path="settings/*" element={<SettingsPage />} />
-        <Route path="beallitasok" element={<BeallitasokPage />} />
-        <Route path="help" element={<HelpPage />} />
-        <Route path="marketing/*" element={<MarketingPage />} />
-        <Route path="*" element={<SmartRedirect />} />
-      </Route>
-    </Routes>
+    <Suspense fallback={<PageLoader />}>
+      <Routes>
+        <Route element={<AppLayout />}>
+          <Route index element={<SmartRedirect />} />
+          <Route path="dashboard" element={<MemberDashboardPage />} />
+          <Route path="analytics" element={<AnalyticsPage />} />
+          <Route path="interactions" element={<InteractionsPage />} />
+          <Route path="clients" element={<ClientsPage />} />
+          <Route path="kanban" element={<KanbanPage />} />
+          <Route path="calendar" element={<CalendarPage />} />
+          <Route path="outbound" element={<OutboundPage />} />
+          <Route path="settings/*" element={<SettingsPage />} />
+          <Route path="beallitasok" element={<BeallitasokPage />} />
+          <Route path="help" element={<HelpPage />} />
+          <Route path="marketing/*" element={<MarketingPage />} />
+          <Route path="*" element={<SmartRedirect />} />
+        </Route>
+      </Routes>
+    </Suspense>
   );
 }
 
@@ -84,3 +95,4 @@ export default function App() {
     </BrowserRouter>
   );
 }
+

@@ -82,16 +82,32 @@ export async function loginApi(
   username: string,
   password: string
 ): Promise<{ token: string; username: string; role: string; full_name: string }> {
-  const res = await fetch(`${API_BASE}/admin/login`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ username, password }),
-  });
-
-  if (!res.ok) {
-    const data = await res.json();
-    throw new Error(data.detail || 'Hibas adatok.');
+  let res: Response;
+  try {
+    res = await fetch(`${API_BASE}/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password }),
+    });
+  } catch {
+    throw new Error('Nem sikerült csatlakozni a szerverhez.');
   }
 
-  return res.json();
+  if (!res.ok) {
+    try {
+      const data = await res.json();
+      throw new Error(data.detail || 'Hibás adatok.');
+    } catch (e) {
+      if (e instanceof Error && e.message !== 'Hibás adatok.' && !e.message.includes('detail')) {
+        throw new Error('A szerver nem elérhető vagy hibás választ adott.');
+      }
+      throw e;
+    }
+  }
+
+  try {
+    return await res.json();
+  } catch {
+    throw new Error('A szerver nem elérhető vagy hibás választ adott.');
+  }
 }

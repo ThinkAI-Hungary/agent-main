@@ -16,8 +16,11 @@ import {
   type DragEndEvent,
 } from '@dnd-kit/core';
 import { useClients } from '../hooks/useClients';
+import { useSessions } from '../hooks/useSessions';
+import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import { useKanbanColumns } from '../hooks/useKanbanColumns';
-import { parseCustomData, bestClientName, type ClientRecord } from '../helpers/clientResolvers';
+import { parseCustomData, bestClientName, isAssignedToMe, type ClientRecord } from '../helpers/clientResolvers';
+import { useAuth } from '../context/AuthContext';
 import { TagBadge } from '../components/ui/Badge';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
@@ -25,6 +28,7 @@ import { supabase } from '../lib/supabase';
 import Spinner from '../components/ui/Spinner';
 import KanbanColumn from '../components/kanban/KanbanColumn';
 import KanbanCard from '../components/kanban/KanbanCard';
+import ClientDetailView from '../components/clients/ClientDetailView';
 
 // ── Enriched kanban card data ──
 export interface KanbanCardData {
@@ -40,13 +44,17 @@ export interface KanbanCardData {
 }
 
 export default function KanbanPage() {
-  const { clients, refetch: refetchClients } = useClients();
+  const { user, isAdmin } = useAuth();
+  const { clients, clientsMap, refetch: refetchClients } = useClients();
+  const { sessions } = useSessions(500);
+  const { events } = useCalendarEvents();
   const { columns, loading, addColumn, renameColumn, deleteColumn, refetch: refetchColumns } = useKanbanColumns();
   const { confirm, ConfirmDialog } = useConfirm();
 
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
   const [showAddModal, setShowAddModal] = useState(false);
   const [newColName, setNewColName] = useState('');
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -59,6 +67,13 @@ export default function KanbanPage() {
     columns.forEach((col) => { map[col.id] = []; });
 
     clients.forEach((c) => {
+      // Member filtering: non-admins only see their assigned clients
+      if (!isAdmin) {
+        const username = user?.username || '';
+        const fullName = user?.fullName || '';
+        if (!isAssignedToMe(c, username, fullName)) return;
+      }
+
       const status = c.status || 'uj';
       if (!map[status]) map[status] = [];
 
@@ -207,12 +222,53 @@ export default function KanbanPage() {
     } catch { showToast('Hiba a törlés során', 'error'); }
   }, [confirm, refetchClients]);
 
+  const handleCardClick = useCallback((card: KanbanCardData) => {
+    setSelectedClientId(String(card.id));
+  }, []);
+
   if (loading) {
     return (
       <div className="analytics-shell" style={{ textAlign: 'center', padding: 40 }}>
         <Spinner />
       </div>
     );
+  }
+
+  // ── Client Detail overlay ──
+  if (selectedClientId) {
+    const enrichedClient = (() => {
+      const c = clients.find((cl) => String(cl.id) === selectedClientId);
+      if (!c) return null;
+      const cd = parseCustomData(c.custom_data);
+      return {
+        id: c.id,
+        name: bestClientName(c) || c.name || 'Névtelen',
+        email: (cd?.email as string) || c.email || '',
+        phone: (cd?.telefonszam as string) || (cd?.phone as string) || c.phone || '',
+        status: c.status || '',
+        created_at: c.created_at || '',
+        tags: (cd?.tags as string[]) || [],
+        assignee: (cd?.assigned_to as string) || '',
+        lastInteraction: '',
+        appointmentCount: 0,
+        isNew: true,
+        isInactive: false,
+        raw: c,
+      };
+    })();
+    if (enrichedClient) {
+      return (
+        <ClientDetailView
+          client={enrichedClient}
+          clientsMap={clientsMap}
+          sessions={sessions}
+          events={events}
+          source="clients"
+          onBack={() => setSelectedClientId(null)}
+          onRefresh={refetchClients}
+        />
+      );
+    }
   }
 
   return (
@@ -267,6 +323,7 @@ export default function KanbanPage() {
               onRename={handleRenameColumn}
               onDelete={handleDeleteColumn}
               onDeleteClient={handleDeleteClient}
+              onCardClick={handleCardClick}
             />
           ))}
         </div>

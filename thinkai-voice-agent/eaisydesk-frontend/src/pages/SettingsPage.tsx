@@ -470,7 +470,19 @@ export default function SettingsPage() {
               <SectionCard title="Időpont emlékeztetők" svgPath="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0">
                 <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 15 }}>
                   <label className="tt-toggle">
-                    <input type="checkbox" checked={reminder.reminder_enabled} onChange={e => setReminder({ ...reminder, reminder_enabled: e.target.checked })} />
+                    <input type="checkbox" checked={reminder.reminder_enabled} onChange={async e => {
+                      const enabled = e.target.checked;
+                      setReminder(prev => ({ ...prev, reminder_enabled: enabled }));
+                      try {
+                        if (reminder.id) {
+                          await supabase.from('reminder_settings').update({ reminder_enabled: enabled }).eq('id', reminder.id);
+                        } else {
+                          const { data } = await supabase.from('reminder_settings').insert({ reminder_enabled: enabled, reminder_hours: reminder.reminder_hours, reminder_template: reminder.reminder_template }).select().single();
+                          if (data) setReminder(data as ReminderSettings);
+                        }
+                        showToast(enabled ? 'Emlékeztető bekapcsolva!' : 'Emlékeztető kikapcsolva!');
+                      } catch { showToast('Hiba a mentés során!', 'error'); }
+                    }} />
                     <span className="tt-toggle-slider" />
                   </label>
                   <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Automatikus emlékeztetők aktiválása</span>

@@ -11,6 +11,7 @@ import { showToast } from '../ui/Toast';
 interface Props {
   onClose: () => void;
   onCreated: () => void;
+  initialSelectedIds?: string[];
 }
 
 const CHANNELS = [
@@ -39,14 +40,14 @@ const AI_STYLES = [
   { key: 'személyes', label: '💬 Személyes' },
 ];
 
-export default function CampaignWizardModal({ onClose, onCreated }: Props) {
+export default function CampaignWizardModal({ onClose, onCreated, initialSelectedIds }: Props) {
   const [step, setStep] = useState(1);
   const [tipVisible, setTipVisible] = useState([true, true, true]);
 
   // Step 1 state
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
   const [tagFilters, setTagFilters] = useState<Set<string>>(new Set());
-  const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set());
+  const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set(initialSelectedIds || []));
   const [pickerOpen, setPickerOpen] = useState(false);
   const [clientSearch, setClientSearch] = useState('');
 

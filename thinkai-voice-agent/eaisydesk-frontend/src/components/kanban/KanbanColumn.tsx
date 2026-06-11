@@ -13,9 +13,10 @@ interface Props {
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
   onDeleteClient: (clientId: string | number) => void;
+  onCardClick?: (card: KanbanCardData) => void;
 }
 
-export default function KanbanColumn({ column, cards, onRename, onDelete, onDeleteClient }: Props) {
+export default function KanbanColumn({ column, cards, onRename, onDelete, onDeleteClient, onCardClick }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(column.name);
@@ -113,7 +114,7 @@ export default function KanbanColumn({ column, cards, onRename, onDelete, onDele
       {/* Cards */}
       <div className="kanban-cards">
         {cards.map((card) => (
-          <KanbanCard key={String(card.id)} card={card} onDelete={onDeleteClient} />
+          <KanbanCard key={String(card.id)} card={card} onDelete={onDeleteClient} onClick={onCardClick} />
         ))}
         {isOver && (
           <div className="kanban-drag-placeholder" />

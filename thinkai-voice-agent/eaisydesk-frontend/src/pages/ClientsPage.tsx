@@ -8,14 +8,23 @@ import { useAuth } from '../context/AuthContext';
 import { useClients } from '../hooks/useClients';
 import { useSessions, type SessionSummary } from '../hooks/useSessions';
 import { useCalendarEvents, type CalendarEvent } from '../hooks/useCalendarEvents';
-import { parseCustomData, bestClientName, type ClientRecord } from '../helpers/clientResolvers';
+import { parseCustomData, bestClientName, isAssignedToMe, type ClientRecord } from '../helpers/clientResolvers';
 import { fmtDt, cleanStr } from '../helpers/formatters';
 import { TagBadge } from '../components/ui/Badge';
 import Spinner from '../components/ui/Spinner';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
 import { supabase } from '../lib/supabase';
+import { authFetch } from '../api/client';
 import ClientDetailView from '../components/clients/ClientDetailView';
+import CampaignWizardModal from '../components/outbound/CampaignWizardModal';
+
+interface MemberUser {
+  id: number;
+  username: string;
+  full_name: string;
+  role: string;
+}
 
 // ── Enriched client type ──
 interface EnrichedClient {
@@ -53,15 +62,24 @@ export default function ClientsPage() {
   const { events } = useCalendarEvents();
   const { confirm, ConfirmDialog } = useConfirm();
 
-  const [viewMode, setViewMode] = useState<'table' | 'cards'>('table');
+  const [viewMode] = useState<'table' | 'cards'>('table');
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [visibleCols, setVisibleCols] = useState<Set<string>>(new Set(CLIENT_COLUMNS.map((c) => c.key)));
   const [colDropdownOpen, setColDropdownOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [detailSource, setDetailSource] = useState<'clients' | 'interactions'>('clients');
+  const [showCampaignWizard, setShowCampaignWizard] = useState(false);
+  const [members, setMembers] = useState<MemberUser[]>([]);
 
   const colDropdownRef = useRef<HTMLDivElement>(null);
+
+  // Load member/manager users for Felelős dropdown
+  useEffect(() => {
+    authFetch('/admin/api/members').then(r => r.json()).then(data => {
+      if (data?.data) setMembers(data.data);
+    }).catch(() => {});
+  }, []);
 
   // Outside click
   useEffect(() => {
@@ -132,15 +150,23 @@ export default function ClientsPage() {
     });
   }, [clients, sessions, events]);
 
-  // ── Filter ──
+  // ── Member filtering: non-admins only see assigned clients ──
+  const myClients = useMemo(() => {
+    if (isAdmin) return enrichedClients;
+    const username = user?.username || '';
+    const fullName = user?.fullName || '';
+    return enrichedClients.filter(c => isAssignedToMe(c.raw, username, fullName));
+  }, [enrichedClients, isAdmin, user]);
+
+  // ── Search filter ──
   const filteredClients = useMemo(() => {
-    if (!searchQuery) return enrichedClients;
+    if (!searchQuery) return myClients;
     const q = cleanStr(searchQuery);
-    return enrichedClients.filter((c) => {
+    return myClients.filter((c) => {
       const searchable = [c.name, c.email, c.phone, c.tags.join(' '), c.assignee, c.status].join(' ');
       return cleanStr(searchable).includes(q);
     });
-  }, [enrichedClients, searchQuery]);
+  }, [myClients, searchQuery]);
 
   // Reset selection when data changes
   useEffect(() => setSelectedRows(new Set()), [filteredClients]);
@@ -228,6 +254,15 @@ export default function ClientsPage() {
     <div className="analytics-shell">
       <ConfirmDialog />
 
+      {/* Campaign Wizard Modal */}
+      {showCampaignWizard && (
+        <CampaignWizardModal
+          onClose={() => setShowCampaignWizard(false)}
+          onCreated={() => { setShowCampaignWizard(false); setSelectedRows(new Set()); }}
+          initialSelectedIds={Array.from(selectedRows)}
+        />
+      )}
+
       {/* Header */}
       <div className="page-header">
         <div>
@@ -235,11 +270,7 @@ export default function ClientsPage() {
           <div className="page-subtitle">Ügyfelek listázása és alapadatok módosítása</div>
         </div>
         <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-          {/* View toggle */}
-          <div className="view-toggle">
-            <button className={`view-toggle-btn ${viewMode === 'table' ? 'active' : ''}`} onClick={() => setViewMode('table')}>Táblázat</button>
-            <button className={`view-toggle-btn ${viewMode === 'cards' ? 'active' : ''}`} onClick={() => setViewMode('cards')}>Kártyák</button>
-          </div>
+
 
           {/* Search */}
           <input
@@ -255,6 +286,20 @@ export default function ClientsPage() {
           {isAdmin && selectedRows.size > 0 && (
             <button className="int-toolbar-btn" style={{ color: '#ef4444', borderColor: '#ef4444' }} onClick={handleBulkDelete}>
               🗑 Kijelöltek törlése ({selectedRows.size})
+            </button>
+          )}
+
+          {/* Campaign export */}
+          {selectedRows.size > 0 && (
+            <button
+              className="int-toolbar-btn"
+              style={{ color: '#1ceee0', borderColor: '#1ceee0', background: 'rgba(28,238,224,0.08)', fontWeight: 600 }}
+              onClick={() => setShowCampaignWizard(true)}
+            >
+              <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 14, height: 14 }}>
+                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+              </svg>
+              Kampányba exportálás ({selectedRows.size})
             </button>
           )}
 
@@ -351,7 +396,36 @@ export default function ClientsPage() {
                       <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text)' }}>{c.email || '—'}</td>
                     )}
                     {visibleCols.has('assignee') && (
-                      <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text-muted)' }}>{c.assignee || '—'}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 13 }} onClick={e => e.stopPropagation()}>
+                        {isAdmin ? (
+                          <select
+                            value={c.assignee || ''}
+                            onChange={async (e) => {
+                              const newAssignee = e.target.value;
+                              const cd = parseCustomData(c.raw.custom_data);
+                              const updatedCd = { ...cd, assigned_to: newAssignee, felelos: newAssignee };
+                              await supabase.from('clients').update({ custom_data: updatedCd }).eq('id', c.id);
+                              showToast(newAssignee ? `Felelős: ${newAssignee}` : 'Felelős eltávolítva');
+                              refetchClients();
+                            }}
+                            style={{
+                              background: 'var(--card)', border: '1px solid var(--border)',
+                              borderRadius: 6, padding: '4px 8px', fontSize: 12,
+                              color: 'var(--text)', cursor: 'pointer', fontFamily: 'inherit',
+                              minWidth: 140,
+                            }}
+                          >
+                            <option value="">Nincs hozzárendelve</option>
+                            {members.map(m => (
+                              <option key={m.id} value={m.full_name || m.username}>
+                                {m.full_name || m.username}
+                              </option>
+                            ))}
+                          </select>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>{c.assignee || '—'}</span>
+                        )}
+                      </td>
                     )}
                     {visibleCols.has('lastInteraction') && (
                       <td style={{ padding: '12px 16px', fontSize: 13, whiteSpace: 'nowrap' }}>{c.lastInteraction ? fmtDt(c.lastInteraction) : '—'}</td>
@@ -377,45 +451,6 @@ export default function ClientsPage() {
         </div>
       )}
 
-      {/* Card view */}
-      {viewMode === 'cards' && (
-        <div className="clients-card-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
-          {filteredClients.map((c) => {
-            const initials = c.name.split(/\s+/).map((w) => w[0]).join('').toUpperCase().slice(0, 2);
-            return (
-              <div
-                key={String(c.id)}
-                style={{
-                  background: 'var(--card)',
-                  borderRadius: 14,
-                  padding: 20,
-                  border: '1px solid var(--border)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s',
-                }}
-                onClick={() => openClientDetail(String(c.id))}
-              >
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 12 }}>
-                  <div style={{ width: 40, height: 40, borderRadius: '50%', background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 14, fontWeight: 700, color: '#082432' }}>
-                    {initials}
-                  </div>
-                  <div>
-                    <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{c.name}</div>
-                    <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>{c.email || c.phone || `ID: ${c.id}`}</div>
-                  </div>
-                </div>
-                <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap', marginBottom: 8 }}>
-                  {statusBadge(c)}
-                  {c.tags.slice(0, 2).map((t) => <TagBadge key={t} tag={t} />)}
-                </div>
-                {c.lastInteraction && (
-                  <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Utolsó: {fmtDt(c.lastInteraction)}</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-      )}
     </div>
   );
 }

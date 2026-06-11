@@ -6,7 +6,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApproval } from '../context/ApprovalContext';
 import { useClients } from '../hooks/useClients';
 import { useSessions, type SessionSummary, type SessionInteraction } from '../hooks/useSessions';
-import { resolveClientName, getRowChannel, parseCustomData } from '../helpers/clientResolvers';
+import { resolveClientName, getRowChannel, parseCustomData, isAssignedToMe } from '../helpers/clientResolvers';
 import {
   detectUgyTipus,
   detectEredmeny,
@@ -200,10 +200,23 @@ export default function InteractionsPage() {
     return rows;
   }, [sessions, clients, clientsMap]);
 
+  // ── Member filtering: non-admins only see assigned clients' interactions ──
+  const myRows = useMemo(() => {
+    if (isAdmin) return allRows;
+    const username = user?.username || '';
+    const fullName = user?.fullName || '';
+    return allRows.filter(r => {
+      if (!r.clientId) return false;
+      const client = clientsMap[String(r.clientId)];
+      if (!client) return false;
+      return isAssignedToMe(client, username, fullName);
+    });
+  }, [allRows, isAdmin, user, clientsMap]);
+
   // ── Filter + sort ──
   const filteredRows = useMemo(() => {
     const q = cleanStr(searchQuery);
-    let rows = allRows.filter((r) => {
+    let rows = myRows.filter((r) => {
       if (q) {
         const searchable = [r.channel, r.client, r.direction, r.ugyTipus, r.eredmeny, r.statusz, r.teendo, r.summary].join(' ');
         if (!cleanStr(searchable).includes(q)) return false;
@@ -229,7 +242,7 @@ export default function InteractionsPage() {
     });
 
     return rows;
-  }, [allRows, searchQuery, sortBy, filterUgyTipus, filterCsatorna, filterIrany, filterStatusz, filterDateFrom, filterDateTo]);
+  }, [myRows, searchQuery, sortBy, filterUgyTipus, filterCsatorna, filterIrany, filterStatusz, filterDateFrom, filterDateTo]);
 
   // Reset selection when data changes
   useEffect(() => setSelectedRows(new Set()), [filteredRows]);

@@ -218,3 +218,18 @@ export function getRowChannel(
   if (t.includes('whatsapp') || sRoom.includes('whatsapp')) return 'WhatsApp';
   return sessionChannel || 'Telefon';
 }
+
+/**
+ * Check if a client is assigned to the current user.
+ * Used for member-based filtering across all pages.
+ */
+export function isAssignedToMe(
+  client: ClientRecord,
+  username: string,
+  fullName: string
+): boolean {
+  const cd = parseCustomData(client.custom_data);
+  const assignedTo = ((cd.assigned_to || cd.felelos || '') as string).trim();
+  if (!assignedTo) return false;
+  return assignedTo === username || (!!fullName && assignedTo === fullName);
+}

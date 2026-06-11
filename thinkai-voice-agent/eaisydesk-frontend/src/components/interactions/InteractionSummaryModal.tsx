@@ -51,7 +51,150 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
         if (match) cData = parseCustomData(match.custom_data);
       }
 
-      const logText = (cData.beszelgetes_naplo as string) || row.summary || 'Nincs elérhető beszélgetés napló.';
+      const fullLog = (cData.beszelgetes_naplo as string) || '';
+
+      // ── Parse the full log into timestamped entries ──
+      // Format: [YYYY-MM-DD HH:MM] Ügyfél (Channel): text / AI Válasz: text / [Rendszer] text
+      interface LogEntry {
+        timestamp: string; // raw timestamp string
+        time: number;      // unix ms for sorting
+        sender: 'user' | 'ai' | 'system';
+        text: string;
+      }
+
+      function parseLogEntries(log: string): LogEntry[] {
+        if (!log) return [];
+        const entries: LogEntry[] = [];
+        // Match each [timestamp] ... block
+        const entryRegex = /\[(\d{4}-\d{2}-\d{2}\s*\d{2}:\d{2}(?::\d{2})?)\]\s*(.*?)(?=\[\d{4}-\d{2}-\d{2}\s*\d{2}:\d{2}|$)/gs;
+        let m;
+        while ((m = entryRegex.exec(log)) !== null) {
+          const timestamp = m[1].trim();
+          let content = m[2].trim();
+          const time = new Date(timestamp.replace(' ', 'T')).getTime() || 0;
+
+          let sender: 'user' | 'ai' | 'system' = 'system';
+          // Detect sender from content prefix
+          if (/^Ügyfél\s*\([^)]*\)\s*:/i.test(content)) {
+            sender = 'user';
+            content = content.replace(/^Ügyfél\s*\([^)]*\)\s*:\s*/i, '');
+          } else if (/^(Felhasználó|User)\s*:/i.test(content)) {
+            sender = 'user';
+            content = content.replace(/^(Felhasználó|User)\s*:\s*/i, '');
+          } else if (/^(AI\s*Válasz|AI|Asszisztens|Bot)\s*:/i.test(content)) {
+            sender = 'ai';
+            content = content.replace(/^(AI\s*Válasz|AI|Asszisztens|Bot)\s*:\s*/i, '');
+          } else if (/^\[Rendszer\]/i.test(content)) {
+            sender = 'system';
+            content = content.replace(/^\[Rendszer\]\s*/i, '');
+          }
+
+          if (content) {
+            entries.push({ timestamp, time, sender, text: content.trim() });
+          }
+        }
+        return entries;
+      }
+
+      // Also support the simpler Felhasználó: / AI: format (no timestamps)
+      function parseSimpleLog(log: string): ChatBlock[] {
+        const lines = log.split('\n');
+        const blocks: ChatBlock[] = [];
+        let currentSender: 'user' | 'ai' | 'system' = 'system';
+        let currentBlock: string[] = [];
+
+        for (let line of lines) {
+          line = line.trim();
+          if (!line && currentSender !== 'ai') continue;
+
+          let sender = currentSender;
+          if (line.startsWith('Felhasználó:') || line.startsWith('User:')) {
+            sender = 'user';
+            line = line.replace(/^(Felhasználó|User):\s*/, '');
+          } else if (line.startsWith('AI:') || line.startsWith('Asszisztens:') || line.startsWith('Bot:')) {
+            sender = 'ai';
+            line = line.replace(/^(AI|Asszisztens|Bot):\s*/, '');
+          } else if (line.startsWith('[')) {
+            sender = 'system';
+          }
+
+          if (sender !== currentSender && currentBlock.length > 0) {
+            blocks.push({ sender: currentSender, text: currentBlock.join('\n') });
+            currentBlock = [];
+          }
+          currentSender = sender;
+          if (line) currentBlock.push(line);
+        }
+        if (currentBlock.length > 0) {
+          blocks.push({ sender: currentSender, text: currentBlock.join('\n') });
+        }
+        return blocks;
+      }
+
+      // ── Group entries into conversation sessions (30 min gap = new session) ──
+      function groupIntoSessions(entries: LogEntry[]): LogEntry[][] {
+        if (entries.length === 0) return [];
+        const sorted = [...entries].sort((a, b) => a.time - b.time);
+        const sessions: LogEntry[][] = [[sorted[0]]];
+        for (let i = 1; i < sorted.length; i++) {
+          const gap = sorted[i].time - sorted[i - 1].time;
+          if (gap > 30 * 60 * 1000) { // 30 minute gap
+            sessions.push([sorted[i]]);
+          } else {
+            sessions[sessions.length - 1].push(sorted[i]);
+          }
+        }
+        return sessions;
+      }
+
+      // ── Find the session closest to the interaction's date ──
+      let logText = '';
+      let parsedBlocks: ChatBlock[] = [];
+
+      const allEntries = parseLogEntries(fullLog);
+      if (allEntries.length > 0 && row.date) {
+        const interactionTime = new Date(row.date).getTime();
+        const sessionGroups = groupIntoSessions(allEntries);
+
+        // Find the session group whose time range is closest to the interaction date
+        let bestSession = sessionGroups[0];
+        let bestDistance = Infinity;
+        for (const group of sessionGroups) {
+          const groupStart = group[0].time;
+          const groupEnd = group[group.length - 1].time;
+          // Distance = how close is interactionTime to this group's time range
+          const dist = interactionTime >= groupStart && interactionTime <= groupEnd
+            ? 0
+            : Math.min(Math.abs(interactionTime - groupStart), Math.abs(interactionTime - groupEnd));
+          if (dist < bestDistance) {
+            bestDistance = dist;
+            bestSession = group;
+          }
+        }
+
+        // Convert the best session's entries to chat blocks with timestamp headers
+        const blocks: ChatBlock[] = [];
+        let lastTimestamp = '';
+        for (const entry of bestSession) {
+          // Add timestamp header when timestamp changes
+          const ts = entry.timestamp;
+          if (ts !== lastTimestamp) {
+            blocks.push({ sender: 'system', text: `[${ts}]` });
+            lastTimestamp = ts;
+          }
+          blocks.push({ sender: entry.sender, text: entry.text });
+        }
+        parsedBlocks = blocks;
+        logText = bestSession.map((e) => `[${e.timestamp}] ${e.text}`).join('\n');
+      } else if (fullLog) {
+        // Fallback: try simple format parsing
+        parsedBlocks = parseSimpleLog(fullLog);
+        logText = fullLog;
+      } else {
+        logText = row.summary || 'Nincs elérhető beszélgetés napló.';
+        parsedBlocks = [{ sender: 'system' as const, text: logText }];
+      }
+
       setSummary((cData.problem_description as string) || row.summary || '');
 
       // ── Result data: fetch calendar for matching ──
@@ -121,41 +264,9 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
         if (docMatch) finalDoctor = docMatch[1].trim();
       }
 
-      // ── Parse chat blocks ──
-      const lines = logText.split('\n');
-      const blocks: ChatBlock[] = [];
-      let currentSender: 'user' | 'ai' | 'system' = 'system';
-      let currentBlock: string[] = [];
-
-      for (let line of lines) {
-        line = line.trim();
-        if (!line && currentSender !== 'ai') continue;
-
-        let sender = currentSender;
-        if (line.startsWith('Felhasználó:') || line.startsWith('User:')) {
-          sender = 'user';
-          line = line.replace(/^(Felhasználó|User):\s*/, '');
-        } else if (line.startsWith('AI:') || line.startsWith('Asszisztens:') || line.startsWith('Bot:')) {
-          sender = 'ai';
-          line = line.replace(/^(AI|Asszisztens|Bot):\s*/, '');
-        } else if (line.startsWith('[')) {
-          sender = 'system';
-        }
-
-        if (sender !== currentSender && currentBlock.length > 0) {
-          blocks.push({ sender: currentSender, text: currentBlock.join('\n') });
-          currentBlock = [];
-        }
-        currentSender = sender;
-        if (line) currentBlock.push(line);
-      }
-      if (currentBlock.length > 0) {
-        blocks.push({ sender: currentSender, text: currentBlock.join('\n') });
-      }
-
       if (!cancelled) {
         setResultData({ date: finalDate, service: finalService, doctor: finalDoctor, reminder: finalReminder });
-        setChatBlocks(blocks);
+        setChatBlocks(parsedBlocks);
       }
     }
 
@@ -254,26 +365,56 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
               <h4 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 16px 0' }}>
                 Teljes beszélgetés
               </h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
                 {chatBlocks.map((b, i) =>
                   b.sender === 'system' ? (
-                    <div key={i} style={{ textAlign: 'center', fontSize: 11, color: 'var(--text-muted)', padding: '4px 0', fontStyle: 'italic' }}>
+                    <div key={i} style={{
+                      textAlign: 'center',
+                      margin: '16px 0',
+                      fontSize: 11.5,
+                      color: 'var(--text-muted)',
+                      fontWeight: 500,
+                      fontStyle: 'italic',
+                      padding: '4px 16px',
+                      background: 'rgba(0,0,0,0.03)',
+                      borderRadius: 8,
+                    }}>
                       {b.text}
                     </div>
                   ) : (
-                    <div key={i} style={{ display: 'flex', justifyContent: b.sender === 'user' ? 'flex-end' : 'flex-start' }}>
-                      <div
-                        style={{
-                          maxWidth: '75%',
-                          padding: '10px 14px',
-                          borderRadius: 12,
-                          fontSize: 13,
-                          lineHeight: 1.5,
-                          whiteSpace: 'pre-wrap',
-                          background: b.sender === 'user' ? 'linear-gradient(135deg, #1ceee0, #0bbdb1)' : 'var(--bg3, #f3f4f6)',
-                          color: b.sender === 'user' ? '#082432' : 'var(--text)',
-                        }}
-                      >
+                    <div key={i} style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'flex-start' }}>
+                      {/* Avatar */}
+                      <div style={{
+                        width: 32,
+                        height: 32,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontWeight: 700,
+                        fontSize: 12,
+                        flexShrink: 0,
+                        ...(b.sender === 'user'
+                          ? { background: '#e5e7eb', color: '#374151' }
+                          : { background: 'linear-gradient(135deg, var(--accent, #1ceee0), var(--accent2, #0bbdb1))', color: '#082432' }
+                        ),
+                      }}>
+                        {b.sender === 'user' ? 'Ü' : 'AI'}
+                      </div>
+                      {/* Bubble */}
+                      <div style={{
+                        padding: '12px 16px',
+                        borderRadius: 12,
+                        fontSize: 13,
+                        lineHeight: 1.5,
+                        maxWidth: '85%',
+                        whiteSpace: 'pre-wrap',
+                        borderTopLeftRadius: 4,
+                        ...(b.sender === 'user'
+                          ? { background: '#f3f4f6', color: '#1f2937' }
+                          : { background: 'rgba(28, 238, 224, 0.1)', color: 'var(--text)', border: '1px solid rgba(28, 238, 224, 0.2)' }
+                        ),
+                      }}>
                         {b.text}
                       </div>
                     </div>

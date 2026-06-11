@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
-import loginBg from '../assets/login-bg.webp';
+import loginBg from '../assets/login-bg-optimized.webp';
 
 export default function LoginPage() {
   const { login, logoutMessage } = useAuth();
@@ -27,7 +27,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div id="login-screen" style={{ backgroundImage: `radial-gradient(ellipse 80% 60% at 50% 0%, rgba(28,238,224,0.08) 0%, transparent 70%), url(${loginBg})` }}>
+    <div id="login-screen" style={{ backgroundImage: `url(${loginBg})` }}>
       <div className="login-card">
         <div className="login-logo">
           <div className="login-logo-icon">e</div>

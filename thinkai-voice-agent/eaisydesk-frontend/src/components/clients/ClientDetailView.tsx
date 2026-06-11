@@ -16,6 +16,8 @@ import {
   detectTeendo,
 } from '../../helpers/interactionClassifiers';
 import { EredmenyBadge, StatuszBadge, DirectionBadge } from '../ui/Badge';
+import InteractionSummaryModal from '../interactions/InteractionSummaryModal';
+import type { InteractionRow } from '../../pages/InteractionsPage';
 
 interface EnrichedClient {
   id: number | string;
@@ -55,6 +57,11 @@ interface InteractionRowDetail {
   summary: string;
   status: string;
   done: boolean;
+  sessionId: string | null;
+  interactionId: number | null;
+  result: string;
+  ai_draft_response: string | null;
+  approval_status: string | null;
 }
 
 export default function ClientDetailView({ client, clientsMap, sessions, events, source, onBack, onRefresh }: Props) {
@@ -66,6 +73,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [customTag, setCustomTag] = useState('');
   const [showProfileEdit, setShowProfileEdit] = useState(false);
+  const [summaryModalRow, setSummaryModalRow] = useState<InteractionRowDetail | null>(null);
   const [editName, setEditName] = useState(client.name);
   const [editEmail, setEditEmail] = useState(client.email);
   const [editPhone, setEditPhone] = useState(client.phone);
@@ -117,6 +125,11 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             summary,
             status: r.approval_status || 'lezárt',
             done: (r.approval_status || '').toLowerCase() === 'approved' || (r.approval_status || '').toLowerCase() === 'lezárt',
+            sessionId: s.session_id || null,
+            interactionId: r.id || null,
+            result: r.result || '',
+            ai_draft_response: r.ai_draft_response || null,
+            approval_status: r.approval_status || null,
           });
         });
       } else {
@@ -133,6 +146,11 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           summary,
           status: 'lezárt',
           done: true,
+          sessionId: s.session_id || null,
+          interactionId: null,
+          result: '',
+          ai_draft_response: null,
+          approval_status: null,
         });
       }
     });
@@ -441,7 +459,10 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                   <td style={tdStyle}><StatuszBadge value={r.statusz} /></td>
                   <td style={tdStyle}>{r.teendo}</td>
                   <td style={tdStyle}>
-                    <button style={{ background: 'rgba(28,238,224,0.1)', border: '1px solid var(--accent, #1ceee0)', color: 'var(--accent, #1ceee0)', borderRadius: 6, padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}>
+                    <button
+                      onClick={(e) => { e.stopPropagation(); setSummaryModalRow(r); }}
+                      style={{ background: 'rgba(28,238,224,0.1)', border: '1px solid var(--accent, #1ceee0)', color: 'var(--accent, #1ceee0)', borderRadius: 6, padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                    >
                       Megtekintés
                     </button>
                   </td>
@@ -503,6 +524,37 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             </div>
           </div>
         </div>
+      )}
+
+      {/* ═══ Interaction Summary Modal ═══ */}
+      {summaryModalRow && (
+        <InteractionSummaryModal
+          row={{
+            date: summaryModalRow.date,
+            channel: summaryModalRow.channel,
+            client: client.name,
+            clientId: client.id,
+            clientStatus: client.status,
+            clientCreatedAt: client.created_at,
+            direction: summaryModalRow.direction,
+            ugyTipus: summaryModalRow.ugyTipus,
+            eredmeny: summaryModalRow.eredmeny,
+            statusz: summaryModalRow.statusz,
+            teendo: summaryModalRow.teendo,
+            tags: client.tags,
+            type: summaryModalRow.channel,
+            topic: summaryModalRow.topic,
+            summary: summaryModalRow.summary,
+            result: summaryModalRow.result,
+            interactionId: summaryModalRow.interactionId,
+            sessionId: summaryModalRow.sessionId,
+            ai_draft_response: summaryModalRow.ai_draft_response,
+            approval_status: summaryModalRow.approval_status,
+          }}
+          onClose={() => setSummaryModalRow(null)}
+          clients={Object.values(clientsMap)}
+          clientsMap={clientsMap}
+        />
       )}
     </div>
   );

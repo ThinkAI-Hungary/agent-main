@@ -46,8 +46,10 @@ export function useClients(): UseClientsReturn {
     fetchClients();
 
     // Realtime: auto-refresh on clients table changes
+    // Use unique channel name to avoid conflict when multiple components use this hook
+    const channelId = `clients-changes-${Math.random().toString(36).slice(2, 9)}`;
     const channel = supabase
-      .channel('clients-changes')
+      .channel(channelId)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => {
         fetchClients();
       })

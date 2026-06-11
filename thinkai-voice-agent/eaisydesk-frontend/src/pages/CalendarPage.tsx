@@ -9,15 +9,45 @@ import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
 import { useCalendarEvents, type CalendarEvent } from '../hooks/useCalendarEvents';
+import { useClients } from '../hooks/useClients';
+import { useAuth } from '../context/AuthContext';
+import { parseCustomData, isAssignedToMe } from '../helpers/clientResolvers';
 import { fmtDt } from '../helpers/formatters';
 import Spinner from '../components/ui/Spinner';
 import { showToast } from '../components/ui/Toast';
 import { supabase } from '../lib/supabase';
 
 export default function CalendarPage() {
+  const { user, isAdmin } = useAuth();
   const { events, loading, refetch: refetchEvents } = useCalendarEvents();
+  const { clients } = useClients();
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   const [showNewEventModal, setShowNewEventModal] = useState(false);
+
+  // Member filtering: build set of assigned client names/emails
+  const myEvents = useMemo(() => {
+    if (isAdmin) return events;
+    const username = user?.username || '';
+    const fullName = user?.fullName || '';
+    const assignedNames = new Set<string>();
+    const assignedEmails = new Set<string>();
+    clients.forEach(c => {
+      if (isAssignedToMe(c, username, fullName)) {
+        const cd = parseCustomData(c.custom_data);
+        const name = ((cd.nev || cd.name || c.name || '') as string).toLowerCase().trim();
+        const email = ((cd.email || c.email || '') as string).toLowerCase().trim();
+        if (name) assignedNames.add(name);
+        if (email) assignedEmails.add(email);
+      }
+    });
+    return events.filter(ev => {
+      const evName = (ev.attendee || '').toLowerCase().trim();
+      const evEmail = (ev.attendee_email || '').toLowerCase().trim();
+      if (evEmail && assignedEmails.has(evEmail)) return true;
+      if (evName && assignedNames.has(evName)) return true;
+      return false;
+    });
+  }, [events, clients, isAdmin, user]);
 
   // New event form
   const [newEvent, setNewEvent] = useState({
@@ -32,7 +62,7 @@ export default function CalendarPage() {
 
   // ── FullCalendar events ──
   const fcEvents = useMemo(() => {
-    return events.map((ev) => {
+    return myEvents.map((ev) => {
       let end: string | undefined;
       if (ev.duration_minutes && ev.start_dt) {
         end = new Date(new Date(ev.start_dt).getTime() + ev.duration_minutes * 60000).toISOString();
@@ -45,7 +75,7 @@ export default function CalendarPage() {
         extendedProps: { attendee: ev.attendee, attendee_email: ev.attendee_email },
       };
     });
-  }, [events]);
+  }, [myEvents]);
 
   // ── Submit new event ──
   const handleSubmitEvent = useCallback(async () => {
@@ -187,7 +217,7 @@ export default function CalendarPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {events.length === 0 ? (
+                  {myEvents.length === 0 ? (
                     <tr>
                       <td colSpan={6}>
                         <div className="empty-state">
@@ -197,7 +227,7 @@ export default function CalendarPage() {
                       </td>
                     </tr>
                   ) : (
-                    events.map((ev) => {
+                    myEvents.map((ev) => {
                       const isPast = new Date(ev.start_dt) < new Date();
                       return (
                         <tr key={ev.id} style={{ opacity: isPast ? 0.7 : 1 }}>
