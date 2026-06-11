@@ -183,6 +183,11 @@ export default function AnalyticsPage() {
   const { isAdmin } = useAuth();
   const navigate = useNavigate();
 
+  // Redirect members to their dashboard
+  useEffect(() => {
+    if (!isAdmin) navigate('/dashboard', { replace: true });
+  }, [isAdmin, navigate]);
+
   const [period, setPeriod] = useState('month');
   const [channel, setChannel] = useState('mind');
   const [clinic, setClinic] = useState('mind');

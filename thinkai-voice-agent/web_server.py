@@ -1543,7 +1543,7 @@ def api_get_users(admin: dict = Depends(require_admin)):
 @app.post("/admin/api/users")
 def api_create_user(req: CreateUserRequest, admin: dict = Depends(require_admin)):
     """Create a new admin user (admin only)."""
-    if req.role not in ("admin", "member"):
+    if req.role not in ("admin", "manager", "member"):
         raise HTTPException(400, "Érvénytelen szerepkör. Lehetséges: admin, member")
     success = db.create_admin_user(req.username, req.password, req.email, req.role, admin["username"], req.full_name)
     if not success:

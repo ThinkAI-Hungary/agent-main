@@ -21,6 +21,9 @@ import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
 import { supabase } from '../lib/supabase';
 import InteractionSummaryModal from '../components/interactions/InteractionSummaryModal';
+import ClientDetailView from '../components/clients/ClientDetailView';
+import { useCalendarEvents } from '../hooks/useCalendarEvents';
+import { bestClientName, type ClientRecord } from '../helpers/clientResolvers';
 
 // ── Row type ──
 export interface InteractionRow {
@@ -72,11 +75,12 @@ const SORT_OPTIONS = [
 ];
 
 export default function InteractionsPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { openApproval } = useApproval();
   const { clients, clientsMap } = useClients();
   const { sessions, loading, refetch: refetchSessions } = useSessions(100);
   const { confirm, ConfirmDialog } = useConfirm();
+  const { events } = useCalendarEvents();
 
   // State
   const [searchQuery, setSearchQuery] = useState('');
@@ -88,6 +92,7 @@ export default function InteractionsPage() {
   );
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [summaryModalRow, setSummaryModalRow] = useState<InteractionRow | null>(null);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
   // Filters
   const [filterUgyTipus, setFilterUgyTipus] = useState<Set<string>>(new Set());
@@ -343,6 +348,40 @@ export default function InteractionsPage() {
     [openApproval]
   );
 
+  // ── Client Detail overlay ──
+  if (selectedClientId) {
+    const clientRaw = clients.find((c) => String(c.id) === selectedClientId);
+    if (clientRaw) {
+      const cd = parseCustomData(clientRaw.custom_data);
+      const enriched = {
+        id: clientRaw.id,
+        name: bestClientName(clientRaw) || clientRaw.name || 'Névtelen',
+        email: (cd?.email as string) || clientRaw.email || '',
+        phone: (cd?.telefonszam as string) || (cd?.phone as string) || (cd?.telefon as string) || clientRaw.phone || '',
+        status: clientRaw.status || '',
+        created_at: clientRaw.created_at || '',
+        tags: (cd?.tags as string[]) || [],
+        assignee: (cd?.assigned_to as string) || '',
+        lastInteraction: '',
+        appointmentCount: 0,
+        isNew: true,
+        isInactive: false,
+        raw: clientRaw,
+      };
+      return (
+        <ClientDetailView
+          client={enriched}
+          clientsMap={clientsMap}
+          sessions={sessions}
+          events={events}
+          source="interactions"
+          onBack={() => setSelectedClientId(null)}
+          onRefresh={refetchSessions}
+        />
+      );
+    }
+  }
+
   // ── Render ──
   return (
     <div className="analytics-shell">
@@ -356,7 +395,7 @@ export default function InteractionsPage() {
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           {/* Delete button */}
-          {selectedRows.size > 0 && (
+          {isAdmin && selectedRows.size > 0 && (
             <button
               className="int-toolbar-btn"
               onClick={handleDeleteSelected}
@@ -585,6 +624,7 @@ export default function InteractionsPage() {
         <table className="data-table" id="interactions-flat-table">
           <thead className="int-thead">
             <tr>
+              {isAdmin && (
               <th className="int-checkbox-col" style={{ width: 40, textAlign: 'center' }}>
                 <input
                   type="checkbox"
@@ -594,6 +634,7 @@ export default function InteractionsPage() {
                   style={{ cursor: 'pointer', width: 16, height: 16, accentColor: '#1ceee0' }}
                 />
               </th>
+              )}
               {ALL_COLUMNS.map((col) =>
                 visibleCols.has(col.key) ? <th key={col.key}>{col.label === 'Időpont' ? 'Interakció időpontja' : col.label === 'Irány' ? 'Interakció iránya' : col.label}</th> : null
               )}
@@ -621,6 +662,7 @@ export default function InteractionsPage() {
                   onClick={() => setSummaryModalRow(r)}
                   style={{ cursor: 'pointer' }}
                 >
+                  {isAdmin && (
                   <td className="int-checkbox-col" style={{ padding: '12px 16px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
@@ -629,6 +671,7 @@ export default function InteractionsPage() {
                       style={{ cursor: 'pointer', width: 16, height: 16, accentColor: '#1ceee0' }}
                     />
                   </td>
+                  )}
                   {visibleCols.has('date') && (
                     <td style={{ padding: '12px 16px', fontSize: 13, whiteSpace: 'nowrap' }}>
                       <div style={{ fontWeight: 500 }}>{fmtDt(r.date)}</div>
@@ -655,6 +698,7 @@ export default function InteractionsPage() {
                             fontFamily: 'inherit',
                           }}
                           title="Ugrás az ügyfél adatlapjára"
+                          onClick={() => setSelectedClientId(String(r.clientId))}
                         >
                           {r.client}
                         </button>

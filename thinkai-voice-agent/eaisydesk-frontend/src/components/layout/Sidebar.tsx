@@ -9,16 +9,25 @@ interface NavItem {
   path: string;
   icon: string;
   adminOnly?: boolean;
+  memberOnly?: boolean;
   hidden?: boolean;
   children?: { id: string; label: string; path: string }[];
 }
 
 const NAV_ITEMS: NavItem[] = [
   {
+    id: 'dashboard',
+    label: 'Irányítópult',
+    path: '/dashboard',
+    icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z',
+    memberOnly: true,
+  },
+  {
     id: 'analytics',
     label: 'Analitika',
     path: '/analytics',
     icon: 'M3 12h2l3-9 4 18 3-9h6',
+    adminOnly: true,
   },
   {
     id: 'interactions-group',
@@ -56,6 +65,7 @@ const NAV_ITEMS: NavItem[] = [
       { id: 'settings-szabalyok', label: 'Szabályok', path: '/settings/szabalyok' },
     ],
   },
+
   {
     id: 'help',
     label: 'Segítség',
@@ -73,6 +83,7 @@ export default function Sidebar() {
     () => localStorage.getItem('digidesk_sidebar_collapsed') === '1'
   );
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set(['interactions-group']));
+  const [appSwitcherOpen, setAppSwitcherOpen] = useState(false);
 
   // Ctrl+B shortcut
   useEffect(() => {
@@ -148,8 +159,12 @@ export default function Sidebar() {
         </svg>
       </button>
 
-      {/* Logo */}
-      <div className="sidebar-logo">
+      {/* Logo with App Switcher */}
+      <div
+        className={`sidebar-logo${appSwitcherOpen ? ' has-switch-open' : ''}`}
+        onClick={() => setAppSwitcherOpen(!appSwitcherOpen)}
+        style={{ cursor: 'pointer', position: 'relative' }}
+      >
         <img
           src={`${import.meta.env.BASE_URL}eaisydesk_logo.png`}
           alt="eaisydesk"
@@ -158,11 +173,29 @@ export default function Sidebar() {
         />
       </div>
 
-      <div style={{ marginBottom: 18 }} />
+      {/* App Switcher Dropdown */}
+      <div className={`logo-switch-dd${appSwitcherOpen ? ' open' : ''}`}>
+        <button
+          className="logo-switch-link"
+          onClick={(e) => {
+            e.stopPropagation();
+            navigate('/marketing');
+            setAppSwitcherOpen(false);
+          }}
+        >
+          <div className="logo-switch-icon" style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', color: '#fff' }}>M</div>
+          <div>
+            <div className="logo-switch-name">EAISY Marketing</div>
+            <div className="logo-switch-desc">Marketing automatizáció</div>
+          </div>
+        </button>
+      </div>
+
 
       {/* Navigation items */}
       {NAV_ITEMS.map((item) => {
         if (item.adminOnly && !isAdmin) return null;
+        if (item.memberOnly && isAdmin) return null;
         if (item.hidden) return null;
 
         // Group with children

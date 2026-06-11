@@ -17,9 +17,75 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 4px 8px 24px;
+      padding: 4px 8px 10px;
       border-bottom: 1px solid #1a3548;
-      margin-bottom: 20px;
+      margin-bottom: 8px;
+      transition: background 0.2s;
+      border-radius: 10px;
+    }
+    .sidebar-logo:hover {
+      background: rgba(255,255,255,0.04);
+    }
+
+    /* ── App Switcher Dropdown ── */
+    .logo-switch-dd {
+      max-height: 0;
+      overflow: hidden;
+      transition: max-height 0.25s ease, opacity 0.2s;
+      opacity: 0;
+      margin: 0 4px;
+    }
+    .logo-switch-dd.open {
+      max-height: 80px;
+      opacity: 1;
+      margin-bottom: 8px;
+    }
+    .logo-switch-link {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 14px;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      cursor: pointer;
+      transition: all 0.2s;
+      margin-top: 6px;
+      width: 100%;
+      text-align: left;
+      font-family: inherit;
+      color: inherit;
+    }
+    .logo-switch-link:hover {
+      background: rgba(139,92,246,0.12);
+      border-color: rgba(139,92,246,0.3);
+    }
+    .logo-switch-icon {
+      width: 26px;
+      height: 26px;
+      border-radius: 7px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 12px;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+    .logo-switch-name {
+      font-size: 12px;
+      font-weight: 600;
+      color: #8ea9c0;
+    }
+    .logo-switch-link:hover .logo-switch-name {
+      color: #a78bfa;
+    }
+    .logo-switch-desc {
+      font-size: 10px;
+      color: #4a6f85;
+      margin-top: 1px;
+    }
+    .sidebar.collapsed .logo-switch-dd {
+      display: none !important;
     }
 
     .sidebar-logo-icon {

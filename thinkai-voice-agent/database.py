@@ -71,10 +71,14 @@ def create_admin_user(username: str, password: str, email: str = "", role: str =
         return False
 
 def verify_admin_user(username: str, password: str) -> dict | None:
-    """Verify admin credentials and return user info including role."""
+    """Verify admin credentials by username OR email, return user info including role."""
     if not supabase: return None
     try:
+        # Try username first
         res = supabase.table("admin_users").select("*").eq("username", username).execute()
+        # Fallback: try email
+        if not res.data:
+            res = supabase.table("admin_users").select("*").eq("email", username).execute()
         if res.data:
             user = res.data[0]
             if _verify_password(password, user["password_hash"]):

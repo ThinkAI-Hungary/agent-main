@@ -6,6 +6,7 @@ import AppLayout from './components/layout/AppLayout';
 import LoginPage from './pages/LoginPage';
 import PlaceholderPage from './pages/PlaceholderPage';
 import AnalyticsPage from './pages/AnalyticsPage';
+import MemberDashboardPage from './pages/MemberDashboardPage';
 import InteractionsPage from './pages/InteractionsPage';
 import ClientsPage from './pages/ClientsPage';
 import KanbanPage from './pages/KanbanPage';
@@ -14,6 +15,7 @@ import OutboundPage from './pages/OutboundPage';
 import SettingsPage from './pages/SettingsPage';
 import BeallitasokPage from './pages/BeallitasokPage';
 import HelpPage from './pages/HelpPage';
+import MarketingPage from './pages/marketing/MarketingPage';
 import ToastContainer from './components/ui/Toast';
 
 // Global styles (same CSS as the old admin)
@@ -30,8 +32,15 @@ import './styles/tudastar.css';
 import './styles/clients.css';
 import './styles/kanban.css';
 import './styles/outbound.css';
+import './styles/marketing.css';
 import './styles/dark-mode.css';
 import './styles/responsive.css';
+
+function SmartRedirect() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+  return <Navigate to={isAdmin ? 'analytics' : 'dashboard'} replace />;
+}
 
 function AuthGate() {
   const { isAuthenticated } = useAuth();
@@ -43,7 +52,8 @@ function AuthGate() {
   return (
     <Routes>
       <Route element={<AppLayout />}>
-        <Route index element={<Navigate to="analytics" replace />} />
+        <Route index element={<SmartRedirect />} />
+        <Route path="dashboard" element={<MemberDashboardPage />} />
         <Route path="analytics" element={<AnalyticsPage />} />
         <Route path="interactions" element={<InteractionsPage />} />
         <Route path="clients" element={<ClientsPage />} />
@@ -53,7 +63,8 @@ function AuthGate() {
         <Route path="settings/*" element={<SettingsPage />} />
         <Route path="beallitasok" element={<BeallitasokPage />} />
         <Route path="help" element={<HelpPage />} />
-        <Route path="*" element={<Navigate to="/analytics" replace />} />
+        <Route path="marketing/*" element={<MarketingPage />} />
+        <Route path="*" element={<SmartRedirect />} />
       </Route>
     </Routes>
   );

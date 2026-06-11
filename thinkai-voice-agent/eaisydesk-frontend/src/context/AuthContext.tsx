@@ -1,5 +1,5 @@
-import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
-import { supabase } from '../lib/supabase';
+import { createContext, useContext, useState, useCallback, type ReactNode } from 'react';
+import { loginApi, setToken, clearToken, setOnUnauthorized, clearStoredUser as clearLegacyUser } from '../api/client';
 
 export interface User {
   username: string;
@@ -36,6 +36,8 @@ function setStoredUser(user: User) {
 
 function clearStoredUser() {
   localStorage.removeItem(STORAGE_KEY);
+  clearToken();
+  clearLegacyUser();
 }
 
 const AuthContext = createContext<AuthContextType | null>(null);
@@ -44,71 +46,28 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(() => getStoredUser());
   const [logoutMessage, setLogoutMessage] = useState('');
 
-  // Listen to Supabase auth state changes
-  useEffect(() => {
-    const { data: { subscription } } = supabase.auth.onAuthStateChange(
-      async (event, session) => {
-        if (event === 'SIGNED_OUT' || !session) {
-          clearStoredUser();
-          setUser(null);
-        }
-      }
-    );
-    return () => subscription.unsubscribe();
-  }, []);
-
-  // Restore session on mount
-  useEffect(() => {
-    (async () => {
-      const { data: { session } } = await supabase.auth.getSession();
-      if (!session) {
-        clearStoredUser();
-        setUser(null);
-      }
-    })();
-  }, []);
-
-  const logout = useCallback(async (message = '') => {
-    await supabase.auth.signOut();
+  const logout = useCallback((message = '') => {
     clearStoredUser();
     setUser(null);
     setLogoutMessage(message);
   }, []);
 
+  // Register 401 handler so authFetch can trigger logout
+  setOnUnauthorized(() => logout('Munkamenet lejárt, kérlek lépj be újra.'));
+
   const login = useCallback(async (email: string, password: string) => {
-    // 1. Sign in with Supabase Auth
-    const { error } = await supabase.auth.signInWithPassword({
-      email,
-      password,
-    });
-    if (error) throw new Error(error.message);
+    // Use FastAPI backend /admin/login endpoint
+    // The backend accepts both username and email in the 'username' field
+    const data = await loginApi(email, password);
 
-    // 2. Fetch role/username/full_name from admin_users table
-    const { data: adminData, error: adminErr } = await supabase
-      .from('admin_users')
-      .select('username, role, full_name, email')
-      .eq('email', email)
-      .single();
-
-    if (adminErr || !adminData) {
-      // User exists in auth but not in admin_users -- still allow login with defaults
-      const fallbackUser: User = {
-        username: email.split('@')[0],
-        role: 'member',
-        fullName: '',
-        email,
-      };
-      setStoredUser(fallbackUser);
-      setUser(fallbackUser);
-      setLogoutMessage('');
-      return;
-    }
+    // Store JWT token for authFetch
+    setToken(data.token);
 
     const newUser: User = {
-      username: adminData.username,
-      role: (adminData.role || 'member') as User['role'],
-      fullName: adminData.full_name || '',
-      email: adminData.email || email,
+      username: data.username,
+      role: (data.role || 'member') as User['role'],
+      fullName: data.full_name || '',
+      email: email,
     };
     setStoredUser(newUser);
     setUser(newUser);

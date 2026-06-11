@@ -10,6 +10,7 @@ import { fmtDt } from '../helpers/formatters';
 import Spinner from '../components/ui/Spinner';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
+import CampaignWizardModal from '../components/outbound/CampaignWizardModal';
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -65,9 +66,6 @@ export default function OutboundPage() {
   const [activeFilter, setActiveFilter] = useState('Összes');
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [showNewCampaign, setShowNewCampaign] = useState(false);
-  const [newCampaignName, setNewCampaignName] = useState('');
-  const [newCampaignChannels, setNewCampaignChannels] = useState<string[]>(['email']);
-  const [newCampaignContent, setNewCampaignContent] = useState('');
   const [showAnalytics, setShowAnalytics] = useState(false);
   const { confirm, ConfirmDialog } = useConfirm();
 
@@ -389,27 +387,6 @@ export default function OutboundPage() {
     } catch { showToast('Hiba', 'error'); }
   }, [confirm, loadCampaigns]);
 
-  const handleCreateCampaign = useCallback(async () => {
-    if (!newCampaignName.trim()) { showToast('A kampány neve kötelező!', 'error'); return; }
-    try {
-      const res = await authFetch('/admin/api/campaigns', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ name: newCampaignName.trim(), channels: newCampaignChannels, content: newCampaignContent, client_ids: [] }),
-      });
-      if (res.ok) {
-        showToast('Kampány létrehozva!');
-        setShowNewCampaign(false);
-        setNewCampaignName('');
-        setNewCampaignContent('');
-        loadCampaigns();
-      } else showToast('Hiba', 'error');
-    } catch { showToast('Hiba', 'error'); }
-  }, [newCampaignName, newCampaignChannels, newCampaignContent, loadCampaigns]);
-
-  const toggleChannel = useCallback((ch: string) => {
-    setNewCampaignChannels(prev => prev.includes(ch) ? prev.filter(c => c !== ch) : [...prev, ch]);
-  }, []);
 
   return (
     <div className="page active" id="page-outbound">
@@ -712,64 +689,12 @@ export default function OutboundPage() {
         )}
       </div>
 
-      {/* New Campaign Modal */}
+      {/* New Campaign Wizard */}
       {showNewCampaign && (
-        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowNewCampaign(false)}>
-          <div style={{ background: 'var(--card, #fff)', borderRadius: 16, padding: 28, width: 480, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }} onClick={(e) => e.stopPropagation()}>
-            <h3 style={{ margin: '0 0 20px', fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>Új kampány létrehozása</h3>
-
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Kampány neve *</label>
-                <input
-                  type="text" value={newCampaignName} onChange={(e) => setNewCampaignName(e.target.value)}
-                  placeholder="Pl. Nyári akció 2025"
-                  style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, color: 'var(--text)', background: 'var(--bg)', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none' }}
-                />
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8, display: 'block' }}>Csatornák</label>
-                <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  {Object.entries(CHANNEL_NAMES).map(([key, name]) => (
-                    <button
-                      key={key}
-                      onClick={() => toggleChannel(key)}
-                      style={{
-                        padding: '8px 14px',
-                        borderRadius: 8,
-                        border: `1px solid ${newCampaignChannels.includes(key) ? 'var(--accent)' : 'var(--border)'}`,
-                        background: newCampaignChannels.includes(key) ? 'rgba(28,238,224,0.06)' : 'var(--bg)',
-                        color: newCampaignChannels.includes(key) ? 'var(--accent)' : 'var(--text-muted)',
-                        fontSize: 12,
-                        fontWeight: 600,
-                        cursor: 'pointer',
-                        fontFamily: 'inherit',
-                      }}
-                    >
-                      {CHANNEL_ICONS[key]} {name}
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Tartalom</label>
-                <textarea
-                  value={newCampaignContent} onChange={(e) => setNewCampaignContent(e.target.value)}
-                  rows={4}
-                  placeholder="Írj kampány tartalmat..."
-                  style={{ width: '100%', padding: '10px 14px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, color: 'var(--text)', background: 'var(--bg)', fontFamily: 'inherit', boxSizing: 'border-box', outline: 'none', resize: 'vertical' }}
-                />
-              </div>
-            </div>
-
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 20 }}>
-              <button onClick={() => setShowNewCampaign(false)} style={{ padding: '10px 20px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Mégse</button>
-              <button onClick={handleCreateCampaign} style={{ padding: '10px 20px', border: 'none', background: 'linear-gradient(135deg,#1ceee0,#0bbdb1)', color: '#082432', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(28,238,224,0.3)' }}>Létrehozás</button>
-            </div>
-          </div>
-        </div>
+        <CampaignWizardModal
+          onClose={() => setShowNewCampaign(false)}
+          onCreated={loadCampaigns}
+        />
       )}
     </div>
   );

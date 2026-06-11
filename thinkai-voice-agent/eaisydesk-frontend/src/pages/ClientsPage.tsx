@@ -47,7 +47,7 @@ const CLIENT_COLUMNS = [
 ] as const;
 
 export default function ClientsPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { clients, clientsMap, refetch: refetchClients } = useClients();
   const { sessions } = useSessions(500);
   const { events } = useCalendarEvents();
@@ -252,7 +252,7 @@ export default function ClientsPage() {
           />
 
           {/* Bulk delete */}
-          {selectedRows.size > 0 && (
+          {isAdmin && selectedRows.size > 0 && (
             <button className="int-toolbar-btn" style={{ color: '#ef4444', borderColor: '#ef4444' }} onClick={handleBulkDelete}>
               🗑 Kijelöltek törlése ({selectedRows.size})
             </button>
