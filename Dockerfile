@@ -1,3 +1,18 @@
+# ── Stage 1: React Build ──────────────────────────────────────────────────────
+FROM node:20-alpine AS frontend-build
+
+WORKDIR /app
+
+# VITE_ változók build-time beleégetése (anon key — publikus, biztonságos)
+ENV VITE_SUPABASE_URL=https://dsiluafthysysnstszbd.supabase.co
+ENV VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzaWx1YWZ0aHlzeXNuc3RzemJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1OTE5OTUsImV4cCI6MjA5NjE2Nzk5NX0.PjPmDTkc39V9f8mZqEq5gzFIcqyP_vXnUjGgPOtghOk
+
+COPY thinkai-voice-agent/eaisydesk-frontend/package*.json ./
+RUN npm ci
+COPY thinkai-voice-agent/eaisydesk-frontend/ ./
+RUN npx vite build
+
+# ── Stage 2: Python App ───────────────────────────────────────────────────────
 FROM python:3.12-slim
 
 # ── System dependencies ──
@@ -16,6 +31,9 @@ RUN grep -viE "^(pyreadline3|win32_setctime|sounddevice|colorama)" requirements.
 
 # ── Application code ──
 COPY thinkai-voice-agent/ ./
+
+# ── React frontend build (statikus fájlok FastAPI-n keresztül) ──
+COPY --from=frontend-build /app/dist ./frontend_dist
 
 # ── Fix Windows CRLF line endings ──
 RUN sed -i 's/\r$//' start.sh
