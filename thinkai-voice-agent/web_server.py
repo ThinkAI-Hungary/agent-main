@@ -224,7 +224,7 @@ async def index():
 async def widget():
     return FileResponse(THIS_DIR / "voice-widget.html")
 
-# ── React frontend (SPA) ─────────────────────────────────────────────────────
+# ── React frontend (SPA + statikus fájlok) ──────────────────────────────────────
 FRONTEND_DIST = THIS_DIR / "frontend_dist"
 if FRONTEND_DIST.exists():
     app.mount("/admin/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="frontend-assets")
@@ -232,6 +232,12 @@ if FRONTEND_DIST.exists():
 @app.get("/admin")
 @app.get("/admin/{path:path}")
 async def admin_spa(path: str = ""):
+    # Először nézzük meg, hogy létezik-e a fájl (logo, favicon, icons, stb.)
+    if path:
+        file_path = FRONTEND_DIST / path
+        if file_path.exists() and file_path.is_file() and ".." not in path:
+            return FileResponse(file_path)
+    # Ha nem fájl, a React SPA index.html-t küldjük (client-side routing)
     index = FRONTEND_DIST / "index.html"
     if index.exists():
         return FileResponse(index)
