@@ -2,6 +2,11 @@
 FROM node:20-alpine AS frontend-build
 
 WORKDIR /app
+
+# VITE_ változók build-time beleégetése (anon key — publikus, biztonságos)
+ENV VITE_SUPABASE_URL=https://dsiluafthysysnstszbd.supabase.co
+ENV VITE_SUPABASE_ANON_KEY=eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImRzaWx1YWZ0aHlzeXNuc3RzemJkIiwicm9sZSI6ImFub24iLCJpYXQiOjE3ODA1OTE5OTUsImV4cCI6MjA5NjE2Nzk5NX0.PjPmDTkc39V9f8mZqEq5gzFIcqyP_vXnUjGgPOtghOk
+
 COPY thinkai-voice-agent/eaisydesk-frontend/package*.json ./
 RUN npm ci
 COPY thinkai-voice-agent/eaisydesk-frontend/ ./
