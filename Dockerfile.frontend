@@ -10,7 +10,7 @@ RUN npm ci
 # Forráskód + .env (VITE_ változók build-time beleégetése)
 COPY thinkai-voice-agent/eaisydesk-frontend/ ./
 
-RUN npm run build
+RUN npx vite build
 
 # ── Stage 2: Serve ────────────────────────────────────────────────────────────
 FROM nginx:alpine
