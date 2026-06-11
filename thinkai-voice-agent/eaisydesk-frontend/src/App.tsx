@@ -5,6 +5,7 @@ import { ThemeProvider } from './context/ThemeContext';
 import { ApprovalProvider } from './context/ApprovalContext';
 import LoginPage from './pages/LoginPage';
 import ToastContainer from './components/ui/Toast';
+import ApprovalModal from './components/interactions/ApprovalModal';
 import Spinner from './components/ui/Spinner';
 
 // Lazy-loaded pages — only downloaded after login
@@ -88,6 +89,7 @@ export default function App() {
         <AuthProvider>
           <ApprovalProvider>
             <AuthGate />
+            <ApprovalModal />
             <ToastContainer />
           </ApprovalProvider>
         </AuthProvider>

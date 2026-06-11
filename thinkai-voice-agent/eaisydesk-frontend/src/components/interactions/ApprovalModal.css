@@ -1,0 +1,313 @@
+/* ══════════════════════════════════════════════════════════════
+   ApprovalModal — Üzenet jóváhagyása popup
+   Uses .apv-modal- prefix to avoid conflicts with .approval-card in clients.css
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Overlay ── */
+.apv-modal-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.55);
+  backdrop-filter: blur(4px);
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: apv-fadein 0.2s ease;
+}
+
+@keyframes apv-fadein {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* ── Card ── */
+.apv-modal-card {
+  width: 800px;
+  max-width: 92vw;
+  max-height: 90vh;
+  background: #ffffff;
+  border-radius: 20px;
+  border: none;
+  box-shadow:
+    0 24px 60px -12px rgba(0, 0, 0, 0.2),
+    0 12px 28px -8px rgba(0, 0, 0, 0.1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: apv-slidein 0.25s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+@keyframes apv-slidein {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+/* ── Header ── */
+.apv-modal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 22px 28px;
+  border-bottom: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+.apv-modal-title {
+  font-size: 20px;
+  font-weight: 700;
+  margin: 0;
+  color: #0f172a;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.apv-modal-close-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #6b7280;
+  padding: 8px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+
+.apv-modal-close-btn:hover {
+  background: #f1f5f9;
+  color: #0f172a;
+}
+
+/* ── Body ── */
+.apv-modal-body {
+  padding: 24px 28px;
+  flex: 1;
+  overflow-y: auto;
+  background: #ffffff;
+}
+
+/* ── Context box ── */
+.apv-modal-context-box {
+  background: #f8fafc;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 20px;
+}
+
+.apv-modal-context-label {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.apv-modal-channel-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: #1ceee0;
+  background: rgba(28, 238, 224, 0.1);
+  border: 1px solid rgba(28, 238, 224, 0.2);
+  padding: 2px 8px;
+  border-radius: 6px;
+  text-transform: none;
+  letter-spacing: 0;
+}
+
+.apv-modal-context-text {
+  font-weight: 500;
+  font-size: 15px;
+  line-height: 1.6;
+  color: #1e293b;
+}
+
+/* ── Draft section ── */
+.apv-modal-draft-section {
+  margin-bottom: 8px;
+}
+
+.apv-modal-draft-label {
+  font-size: 11px;
+  color: #6b7280;
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 10px;
+}
+
+.apv-modal-draft-textarea {
+  width: 100%;
+  height: 300px;
+  resize: vertical;
+  font-family: inherit;
+  font-size: 14px;
+  line-height: 1.7;
+  padding: 18px 20px;
+  background: #f8fafc;
+  color: #1e293b;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  box-sizing: border-box;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+}
+
+.apv-modal-draft-textarea:focus {
+  border-color: #1ceee0;
+  box-shadow: 0 0 0 3px rgba(28, 238, 224, 0.12);
+}
+
+.apv-modal-draft-textarea:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Footer ── */
+.apv-modal-footer {
+  display: flex;
+  gap: 12px;
+  justify-content: flex-end;
+  padding: 18px 28px;
+  border-top: 1px solid #e2e8f0;
+  background: #ffffff;
+}
+
+/* ── Send button ── */
+.apv-modal-send-btn {
+  background: linear-gradient(135deg, #1ceee0, #0bbdb1);
+  color: #082432;
+  border: none;
+  padding: 12px 28px;
+  border-radius: 12px;
+  font-weight: 700;
+  font-size: 14px;
+  cursor: pointer;
+  transition: all 0.2s;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-shadow: 0 4px 16px rgba(28, 238, 224, 0.3);
+  font-family: inherit;
+}
+
+.apv-modal-send-btn:hover:not(:disabled) {
+  filter: brightness(1.05);
+  box-shadow: 0 6px 24px rgba(28, 238, 224, 0.4);
+  transform: translateY(-1px);
+}
+
+.apv-modal-send-btn:active:not(:disabled) {
+  transform: translateY(0);
+}
+
+.apv-modal-send-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Spinner ── */
+.apv-modal-spinner {
+  display: inline-block;
+  width: 16px;
+  height: 16px;
+  border: 2px solid rgba(8, 36, 50, 0.2);
+  border-top-color: #082432;
+  border-radius: 50%;
+  animation: apv-spin 0.6s linear infinite;
+}
+
+@keyframes apv-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* ── Dark mode ── */
+body.dark .apv-modal-card {
+  background: #0d2538;
+  box-shadow:
+    0 24px 60px -12px rgba(0, 0, 0, 0.5),
+    0 12px 28px -8px rgba(0, 0, 0, 0.4);
+}
+
+body.dark .apv-modal-header {
+  background: #0d2538;
+  border-bottom-color: #1a3548;
+}
+
+body.dark .apv-modal-title {
+  color: #e8edf5;
+}
+
+body.dark .apv-modal-close-btn:hover {
+  background: rgba(255, 255, 255, 0.06);
+}
+
+body.dark .apv-modal-body {
+  background: #0d2538;
+}
+
+body.dark .apv-modal-context-box {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: #1a3548;
+}
+
+body.dark .apv-modal-context-label {
+  color: #6b8b99;
+}
+
+body.dark .apv-modal-context-text {
+  color: #e8edf5;
+}
+
+body.dark .apv-modal-draft-label {
+  color: #6b8b99;
+}
+
+body.dark .apv-modal-draft-textarea {
+  background: rgba(255, 255, 255, 0.03);
+  border-color: #1a3548;
+  color: #e8edf5;
+}
+
+body.dark .apv-modal-draft-textarea:focus {
+  border-color: #1ceee0;
+  box-shadow: 0 0 0 3px rgba(28, 238, 224, 0.08);
+}
+
+body.dark .apv-modal-footer {
+  background: #0d2538;
+  border-top-color: #1a3548;
+}
+
+/* ── Responsive ── */
+@media (max-width: 640px) {
+  .apv-modal-card {
+    max-width: 96vw;
+    max-height: 96vh;
+    border-radius: 16px;
+  }
+
+  .apv-modal-header,
+  .apv-modal-body,
+  .apv-modal-footer {
+    padding-left: 20px;
+    padding-right: 20px;
+  }
+
+  .apv-modal-draft-textarea {
+    height: 200px;
+  }
+}

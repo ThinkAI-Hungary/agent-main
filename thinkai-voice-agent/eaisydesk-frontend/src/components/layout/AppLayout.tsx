@@ -2,6 +2,7 @@ import { Outlet, useLocation } from 'react-router-dom';
 import Sidebar from './Sidebar';
 import MarketingSidebar from './MarketingSidebar';
 import MainHeader from './MainHeader';
+import NotificationCenter from './NotificationCenter';
 
 export default function AppLayout() {
   const { pathname } = useLocation();
@@ -13,6 +14,7 @@ export default function AppLayout() {
       {isMarketing ? <MarketingSidebar /> : <Sidebar />}
       <main className="main-content">
         {showGreeting && <MainHeader />}
+        <NotificationCenter />
         <Outlet />
       </main>
     </div>

@@ -3,6 +3,7 @@
  * Rendered as inline overlay within ClientsPage or InteractionsPage.
  */
 import { useState, useMemo, useCallback } from 'react';
+import { useApproval } from '../../context/ApprovalContext';
 import { parseCustomData, type ClientRecord } from '../../helpers/clientResolvers';
 import { fmtDt } from '../../helpers/formatters';
 import { showToast } from '../ui/Toast';
@@ -17,7 +18,6 @@ import {
 } from '../../helpers/interactionClassifiers';
 import { EredmenyBadge, StatuszBadge, DirectionBadge } from '../ui/Badge';
 import InteractionSummaryModal from '../interactions/InteractionSummaryModal';
-import type { InteractionRow } from '../../pages/InteractionsPage';
 
 interface EnrichedClient {
   id: number | string;
@@ -65,6 +65,7 @@ interface InteractionRowDetail {
 }
 
 export default function ClientDetailView({ client, clientsMap, sessions, events, source, onBack, onRefresh }: Props) {
+  const { openApproval } = useApproval();
   const [notes, setNotes] = useState(() => {
     const cd = parseCustomData(client.raw.custom_data);
     return (cd?.notes as string) || (cd?.megjegyzes as string) || '';
@@ -117,10 +118,10 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             date: r.created_at || s.started_at || '',
             channel,
             direction,
-            ugyTipus: detectUgyTipus(topic, summary),
-            eredmeny: detectEredmeny(topic, summary),
-            statusz: detectStatusz(r.approval_status || '', summary),
-            teendo: detectTeendo(r.approval_status || '', summary),
+            ugyTipus: detectUgyTipus(r),
+            eredmeny: detectEredmeny(r),
+            statusz: detectStatusz(r),
+            teendo: detectTeendo(r),
             topic,
             summary,
             status: r.approval_status || 'lezárt',
@@ -138,8 +139,8 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           date: s.started_at || '',
           channel: s.channel || 'Telefon',
           direction: 'Bejövő',
-          ugyTipus: detectUgyTipus('', summary),
-          eredmeny: detectEredmeny('', summary),
+          ugyTipus: detectUgyTipus({ topic: '', summary }),
+          eredmeny: detectEredmeny({ topic: '', summary }),
           statusz: 'LEZÁRT',
           teendo: 'Nincs teendő',
           topic: '',
@@ -242,10 +243,6 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           <span>←</span>
           {source === 'interactions' ? 'Vissza az interakciós listához' : 'Vissza az ügyféllistához'}
         </button>
-        {/* Notification bell */}
-        <svg fill="none" stroke="var(--text-muted)" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 20, height: 20, opacity: 0.5 }}>
-          <path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 01-3.46 0" />
-        </svg>
       </div>
 
       {/* ═══ Top Card (Mint gradient) ═══ */}
@@ -415,7 +412,42 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                   <td style={tdStyle}><span style={{ fontSize: 13, textTransform: 'uppercase', fontWeight: 600 }}>{r.ugyTipus}</span></td>
                   <td style={tdStyle}><EredmenyBadge value={r.eredmeny} /></td>
                   <td style={tdStyle}><StatuszBadge value={r.statusz} /></td>
-                  <td style={tdStyle}>{r.teendo}</td>
+                  <td style={tdStyle}>
+                    {r.teendo === 'Jóváhagyásra vár' && r.ai_draft_response ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openApproval({
+                            interactionId: r.interactionId,
+                            sessionId: r.sessionId,
+                            clientName: client.name,
+                            channel: r.channel,
+                            date: r.date,
+                            topic: r.topic,
+                            summary: r.summary,
+                            aiDraftResponse: r.ai_draft_response || undefined,
+                            approvalStatus: r.approval_status || undefined,
+                          });
+                        }}
+                        style={{
+                          background: 'rgba(251,191,36,0.12)',
+                          color: '#d97706',
+                          border: '1px solid rgba(251,191,36,0.3)',
+                          borderRadius: 6,
+                          padding: '4px 12px',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          fontFamily: 'inherit',
+                        }}
+                      >
+                        ⚠ Jóváhagyásra vár
+                      </button>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)' }}>{r.teendo}</span>
+                    )}
+                  </td>
                   <td style={{ ...tdStyle, textAlign: 'center' }}>
                     <input type="checkbox" checked={r.done} readOnly style={{ width: 16, height: 16, accentColor: '#1ceee0', cursor: 'default' }} />
                   </td>
@@ -457,7 +489,42 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                   <td style={tdStyle}><span style={{ fontSize: 13, textTransform: 'uppercase', fontWeight: 600 }}>{r.ugyTipus}</span></td>
                   <td style={tdStyle}><EredmenyBadge value={r.eredmeny} /></td>
                   <td style={tdStyle}><StatuszBadge value={r.statusz} /></td>
-                  <td style={tdStyle}>{r.teendo}</td>
+                  <td style={tdStyle}>
+                    {r.teendo === 'Jóváhagyásra vár' && r.ai_draft_response ? (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          openApproval({
+                            interactionId: r.interactionId,
+                            sessionId: r.sessionId,
+                            clientName: client.name,
+                            channel: r.channel,
+                            date: r.date,
+                            topic: r.topic,
+                            summary: r.summary,
+                            aiDraftResponse: r.ai_draft_response || undefined,
+                            approvalStatus: r.approval_status || undefined,
+                          });
+                        }}
+                        style={{
+                          background: 'rgba(251,191,36,0.12)',
+                          color: '#d97706',
+                          border: '1px solid rgba(251,191,36,0.3)',
+                          borderRadius: 6,
+                          padding: '4px 12px',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          whiteSpace: 'nowrap',
+                          fontFamily: 'inherit',
+                        }}
+                      >
+                        ⚠ Jóváhagyásra vár
+                      </button>
+                    ) : (
+                      <span style={{ color: 'var(--text-muted)' }}>{r.teendo}</span>
+                    )}
+                  </td>
                   <td style={tdStyle}>
                     <button
                       onClick={(e) => { e.stopPropagation(); setSummaryModalRow(r); }}
@@ -577,18 +644,6 @@ const tdStyle: React.CSSProperties = {
   color: 'var(--text)',
 };
 
-const inputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '10px 14px',
-  border: '1.5px solid var(--border, #e5e7eb)',
-  borderRadius: 10,
-  fontSize: 14,
-  color: 'var(--text)',
-  fontFamily: 'inherit',
-  outline: 'none',
-  background: 'var(--bg, #fff)',
-  boxSizing: 'border-box',
-};
 
 const modalInputStyle: React.CSSProperties = {
   width: '100%',

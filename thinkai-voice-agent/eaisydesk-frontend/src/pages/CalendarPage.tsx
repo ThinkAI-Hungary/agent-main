@@ -1,6 +1,7 @@
 /**
  * CalendarPage – 1:1 migration of legacy calendar view
  * Features: list view + grid (FullCalendar) view, new event creation, no-show marking
+ * Clicking an event opens the client profile.
  */
 import { useState, useMemo, useCallback } from 'react';
 import FullCalendar from '@fullcalendar/react';
@@ -8,21 +9,26 @@ import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
 import interactionPlugin from '@fullcalendar/interaction';
 import listPlugin from '@fullcalendar/list';
-import { useCalendarEvents, type CalendarEvent } from '../hooks/useCalendarEvents';
+import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import { useClients } from '../hooks/useClients';
+import { useSessions } from '../hooks/useSessions';
 import { useAuth } from '../context/AuthContext';
-import { parseCustomData, isAssignedToMe } from '../helpers/clientResolvers';
+import { parseCustomData, isAssignedToMe, bestClientName } from '../helpers/clientResolvers';
 import { fmtDt } from '../helpers/formatters';
 import Spinner from '../components/ui/Spinner';
 import { showToast } from '../components/ui/Toast';
 import { supabase } from '../lib/supabase';
+import ClientDetailView from '../components/clients/ClientDetailView';
+import type { EventClickArg } from '@fullcalendar/core';
 
 export default function CalendarPage() {
   const { user, isAdmin } = useAuth();
   const { events, loading, refetch: refetchEvents } = useCalendarEvents();
-  const { clients } = useClients();
+  const { clients, clientsMap } = useClients();
+  const { sessions } = useSessions(500);
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   const [showNewEventModal, setShowNewEventModal] = useState(false);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
   // Member filtering: build set of assigned client names/emails
   const myEvents = useMemo(() => {
@@ -77,6 +83,44 @@ export default function CalendarPage() {
     });
   }, [myEvents]);
 
+  // ── Find client by attendee name/email ──
+  const findClientByAttendee = useCallback((attendeeName: string, attendeeEmail: string): string | null => {
+    const name = (attendeeName || '').toLowerCase().trim();
+    const email = (attendeeEmail || '').toLowerCase().trim();
+
+    for (const c of clients) {
+      const cd = parseCustomData(c.custom_data);
+      const clientName = (bestClientName(c) || c.name || '').toLowerCase().trim();
+      const clientEmail = ((cd?.email as string) || c.email || '').toLowerCase().trim();
+
+      // Match by email (strongest)
+      if (email && clientEmail && email === clientEmail) {
+        return String(c.id);
+      }
+      // Match by name
+      if (name && clientName && (name === clientName || clientName.includes(name) || name.includes(clientName))) {
+        return String(c.id);
+      }
+    }
+    return null;
+  }, [clients]);
+
+  // ── Open client profile from event ──
+  const openClientFromEvent = useCallback((attendeeName: string, attendeeEmail: string) => {
+    const clientId = findClientByAttendee(attendeeName, attendeeEmail);
+    if (clientId) {
+      setSelectedClientId(clientId);
+    } else {
+      showToast('Ügyfél nem található az adatbázisban', 'error');
+    }
+  }, [findClientByAttendee]);
+
+  // ── FullCalendar eventClick handler ──
+  const handleEventClick = useCallback((info: EventClickArg) => {
+    const { attendee, attendee_email } = info.event.extendedProps;
+    openClientFromEvent(attendee || '', attendee_email || '');
+  }, [openClientFromEvent]);
+
   // ── Submit new event ──
   const handleSubmitEvent = useCallback(async () => {
     if (!newEvent.attendee || !newEvent.title || !newEvent.date || !newEvent.time) {
@@ -124,6 +168,40 @@ export default function CalendarPage() {
       showToast('Hiba', 'error');
     }
   }, [refetchEvents]);
+
+  // ── Client Detail overlay ──
+  if (selectedClientId) {
+    const clientRaw = clients.find((c) => String(c.id) === selectedClientId);
+    if (clientRaw) {
+      const cd = parseCustomData(clientRaw.custom_data);
+      const enriched = {
+        id: clientRaw.id,
+        name: bestClientName(clientRaw) || clientRaw.name || 'Névtelen',
+        email: (cd?.email as string) || clientRaw.email || '',
+        phone: (cd?.telefonszam as string) || (cd?.phone as string) || (cd?.telefon as string) || clientRaw.phone || '',
+        status: clientRaw.status || '',
+        created_at: clientRaw.created_at || '',
+        tags: (cd?.tags as string[]) || [],
+        assignee: (cd?.assigned_to as string) || '',
+        lastInteraction: '',
+        appointmentCount: 0,
+        isNew: true,
+        isInactive: false,
+        raw: clientRaw,
+      };
+      return (
+        <ClientDetailView
+          client={enriched}
+          clientsMap={clientsMap}
+          sessions={sessions}
+          events={events}
+          source="clients"
+          onBack={() => setSelectedClientId(null)}
+          onRefresh={refetchEvents}
+        />
+      );
+    }
+  }
 
   return (
     <div className="analytics-shell">
@@ -228,18 +306,26 @@ export default function CalendarPage() {
                     </tr>
                   ) : (
                     myEvents.map((ev) => {
-                      const isPast = new Date(ev.start_dt) < new Date();
+                      const isPast = new Date(ev.start_dt || '') < new Date();
                       return (
-                        <tr key={ev.id} style={{ opacity: isPast ? 0.7 : 1 }}>
-                          <td><div className="td-time">{fmtDt(ev.start_dt)}</div></td>
+                        <tr
+                          key={ev.id}
+                          style={{ opacity: isPast ? 0.7 : 1, cursor: 'pointer' }}
+                          onClick={() => openClientFromEvent(ev.attendee || '', ev.attendee_email || '')}
+                        >
+                          <td><div className="td-time">{fmtDt(ev.start_dt || '')}</div></td>
                           <td style={{ fontWeight: 500 }}>{ev.title}</td>
-                          <td>{ev.attendee || '—'}</td>
+                          <td>
+                            <span style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+                              {ev.attendee || '—'}
+                            </span>
+                          </td>
                           <td><span className="badge badge-teal">{ev.duration_minutes} perc</span></td>
                           <td className="td-summary">{ev.attendee_email || '—'}</td>
-                          <td style={{ textAlign: 'center' }}>
+                          <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                             {isPast ? (
                               <button
-                                onClick={() => handleMarkNoShow(ev.id, ev.attendee_email || '', ev.attendee || '')}
+                                onClick={() => handleMarkNoShow(ev.id as number, ev.attendee_email || '', ev.attendee || '')}
                                 style={{ background: 'rgba(245,127,23,0.1)', color: '#f57f17', border: '1px solid rgba(245,127,23,0.3)', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}
                                 title="No-show címke hozzáadása"
                               >
@@ -282,6 +368,8 @@ export default function CalendarPage() {
                 eventColor="var(--accent)"
                 events={fcEvents}
                 eventTimeFormat={{ hour: '2-digit', minute: '2-digit', meridiem: false, hour12: false }}
+                eventClick={handleEventClick}
+                eventClassNames="fc-event-clickable"
               />
             </div>
           )}
