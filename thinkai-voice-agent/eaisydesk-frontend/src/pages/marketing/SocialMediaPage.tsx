@@ -309,7 +309,7 @@ export default function SocialMediaPage() {
             <div className="mkt-form-row"><label>Cím</label><input value={newTitle} onChange={e => setNewTitle(e.target.value)} placeholder="Poszt címe" /></div>
 
             {/* AI Text Generation */}
-            <div style={{ background: 'rgba(139,92,246,0.04)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+            <div style={{ background: 'rgba(139,92,246,0.04)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: 6, padding: 16, marginBottom: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>✨ AI szöveggenerálás</div>
               <div style={{ display: 'flex', gap: 8 }}>
                 <input value={aiPrompt} onChange={e => setAiPrompt(e.target.value)} placeholder="Pl. Nyári fog fehérítés akció poszt..." style={{ flex: 1, padding: '10px 14px', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', color: 'var(--text)', background: 'var(--bg)' }} />
@@ -329,7 +329,7 @@ export default function SocialMediaPage() {
             </div>
             {generatedImg && (
               <div style={{ marginBottom: 16, textAlign: 'center' }}>
-                <img src={generatedImg} alt="Generated" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 12, border: '1px solid var(--border)' }} />
+                <img src={generatedImg} alt="Generated" style={{ maxWidth: '100%', maxHeight: 200, borderRadius: 6, border: '1px solid var(--border)' }} />
               </div>
             )}
 

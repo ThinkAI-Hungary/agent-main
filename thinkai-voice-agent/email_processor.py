@@ -52,7 +52,7 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
         logger.error("Nincs GOOGLE_API_KEY beállítva. E-mail feldolgozás megszakítva.")
         return
 
-    sys_prompt = get_system_prompt()
+    sys_prompt = get_system_prompt(channel="email")
 
     # Utasítás a strukturált JSON outputra
     json_instruction = """
@@ -387,7 +387,7 @@ Ha egyik sem releváns, legyen üres lista [].
             
         db.log_interaction(
             type="email",
-            topic="Email AI válasz",
+            topic=f"Email AI válasz - {subject}: {text_content[:200]}",
             summary=f"Bejövő e-mail {from_email} címről",
             result="Várakozik jóváhagyásra",
             tool_name="imap_worker_ai",

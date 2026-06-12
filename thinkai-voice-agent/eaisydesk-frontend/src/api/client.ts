@@ -99,7 +99,7 @@ export async function loginApi(
       throw new Error(data.detail || 'Hibás adatok.');
     } catch (e) {
       if (e instanceof Error && e.message !== 'Hibás adatok.' && !e.message.includes('detail')) {
-        throw new Error('A szerver nem elérhető vagy hibás választ adott.');
+        throw new Error('A szerver nem elérhető vagy hibás választ adott.', { cause: e });
       }
       throw e;
     }

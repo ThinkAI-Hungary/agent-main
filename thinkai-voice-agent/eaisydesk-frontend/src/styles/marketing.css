@@ -19,7 +19,7 @@
 .mkt-kpi-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 22px 24px;
   border-left: 4px solid var(--marketing-accent);
   position: relative;
@@ -62,7 +62,7 @@
 .mkt-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 24px;
   transition: border-color 0.2s;
 }
@@ -81,7 +81,7 @@
 .mkt-card-title-icon {
   width: 32px;
   height: 32px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -102,7 +102,7 @@
 .mkt-page-header-icon {
   width: 48px;
   height: 48px;
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -120,7 +120,7 @@
   background: linear-gradient(135deg, #8b5cf6, #6d28d9);
   color: #fff;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 10px 20px;
   font-size: 13px;
   font-weight: 600;
@@ -146,7 +146,7 @@
   gap: 8px;
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 10px 16px;
   font-size: 13px;
   font-weight: 600;
@@ -167,7 +167,7 @@
   gap: 4px;
   background: var(--bg3);
   padding: 4px;
-  border-radius: 12px;
+  border-radius: var(--radius);
   width: max-content;
   border: 1px solid var(--border);
   margin-bottom: 20px;
@@ -199,7 +199,7 @@
 .mkt-campaign-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 22px;
   transition: all 0.2s;
   cursor: pointer;
@@ -249,7 +249,7 @@
 .mkt-approval-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 22px;
   transition: all 0.2s;
   position: relative;
@@ -268,7 +268,7 @@
   box-shadow: 0 8px 32px rgba(139, 92, 246, 0.1);
 }
 .mkt-approval-card:hover::before { opacity: 1; }
-.mkt-approval-card.status-pending::before { background: #94a3b8; opacity: 1; }
+.mkt-approval-card.status-pending::before { background: var(--text-dim); opacity: 1; }
 .mkt-approval-card.status-ai_draft::before { background: linear-gradient(90deg, #f59e0b, #f97316); opacity: 1; }
 .mkt-approval-card.status-approved::before { background: #8b5cf6; opacity: 1; }
 .mkt-approval-card.status-scheduled::before { background: #3b82f6; opacity: 1; }
@@ -298,7 +298,7 @@
 }
 .mkt-approval-card-preview {
   background: var(--bg3);
-  border-radius: 10px;
+  border-radius: var(--radius);
   padding: 14px;
   font-size: 13px;
   line-height: 1.6;
@@ -364,7 +364,7 @@
   gap: 12px;
   padding: 16px 18px;
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   background: var(--bg);
   cursor: pointer;
   transition: all 0.25s;
@@ -389,7 +389,7 @@
 .mkt-action-btn:hover::before { opacity: 1; }
 .mkt-action-btn-icon {
   width: 40px; height: 40px;
-  border-radius: 12px;
+  border-radius: var(--radius);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   position: relative; z-index: 1;
@@ -403,7 +403,7 @@
 .mkt-chart-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 24px;
   box-shadow: 0 1px 3px rgba(0,0,0,0.04);
 }
@@ -433,12 +433,12 @@
   padding: 14px 16px;
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   margin-bottom: 10px;
 }
 .mkt-stat-mini-icon {
   width: 40px; height: 40px;
-  border-radius: 10px;
+  border-radius: var(--radius);
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
 }
@@ -450,7 +450,7 @@
 .mkt-tier-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 24px;
   text-align: center;
   position: relative;
@@ -473,7 +473,7 @@
 .mkt-competitor-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 14px;
+  border-radius: var(--radius-lg);
   padding: 18px;
   margin-bottom: 12px;
   display: flex;
@@ -484,7 +484,7 @@
 .mkt-competitor-card:hover { border-color: var(--marketing-accent); }
 .mkt-competitor-avatar {
   width: 44px; height: 44px;
-  border-radius: 12px;
+  border-radius: var(--radius);
   background: var(--bg3);
   display: flex; align-items: center; justify-content: center;
   font-size: 18px; font-weight: 800;
@@ -507,7 +507,7 @@
 .mkt-modal-card {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 28px;
   width: 560px;
   max-width: 90vw;
@@ -556,7 +556,7 @@
   width: 100%;
   padding: 10px 14px;
   border: 1.5px solid var(--border);
-  border-radius: 10px;
+  border-radius: var(--radius);
   font-size: 13px;
   font-family: inherit;
   color: var(--text);
@@ -581,7 +581,7 @@
   flex: 1;
   padding: 12px 16px;
   border: 1.5px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   font-size: 14px;
   font-family: inherit;
   color: var(--text);
@@ -594,7 +594,7 @@
 .mkt-zombo-result {
   background: var(--card);
   border: 1px solid var(--border);
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 24px;
   margin-bottom: 18px;
 }
@@ -615,7 +615,7 @@
 .mkt-zombo-section {
   background: var(--bg);
   border: 1px solid var(--border);
-  border-radius: 12px;
+  border-radius: var(--radius);
   padding: 16px;
   margin-bottom: 12px;
 }
@@ -631,7 +631,7 @@
 
 /* ── Platform Cards (Social) ── */
 .mkt-platform-card {
-  border-radius: 16px;
+  border-radius: var(--radius-lg);
   padding: 20px 22px;
   position: relative;
   overflow: hidden;
@@ -702,11 +702,11 @@
   align-items: center;
   gap: 10px;
   padding: 4px 8px 10px;
-  border-bottom: 1px solid #1a3548;
+  border-bottom: 1px solid var(--border);
   margin-bottom: 4px;
   cursor: pointer;
   transition: background 0.2s;
-  border-radius: 10px;
+  border-radius: var(--radius);
 }
 .mkt-sidebar .mkt-logo:hover {
   background: rgba(139,92,246,0.06);
@@ -737,7 +737,7 @@
 .mkt-nav-section-title {
   font-size: 10px;
   font-weight: 700;
-  color: #4a6f85;
+  color: var(--text-dim);
   text-transform: uppercase;
   letter-spacing: 1.5px;
   padding: 12px 14px 6px;

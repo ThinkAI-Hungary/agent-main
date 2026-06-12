@@ -34,14 +34,6 @@ export default function MarketingSidebar() {
     else document.body.classList.remove('sidebar-collapsed');
   }, [collapsed]);
 
-  useEffect(() => {
-    function handleKey(e: KeyboardEvent) {
-      if (e.ctrlKey && e.key === 'b') { e.preventDefault(); toggleCollapse(); }
-    }
-    document.addEventListener('keydown', handleKey);
-    return () => document.removeEventListener('keydown', handleKey);
-  }, []);
-
   const toggleCollapse = useCallback(() => {
     setCollapsed(prev => {
       const next = !prev;
@@ -49,6 +41,14 @@ export default function MarketingSidebar() {
       return next;
     });
   }, []);
+
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      if (e.ctrlKey && e.key === 'b') { e.preventDefault(); toggleCollapse(); }
+    }
+    document.addEventListener('keydown', handleKey);
+    return () => document.removeEventListener('keydown', handleKey);
+  }, [toggleCollapse]);
 
   function isActive(path: string): boolean {
     if (path === '/marketing') return location.pathname === '/marketing' || location.pathname === '/marketing/dashboard';

@@ -1,7 +1,79 @@
-﻿    *,
+    /* ══════════════════════════════════════════════════════════════════════
+       BASE — Global resets & typography foundation
+       ══════════════════════════════════════════════════════════════════════ */
+
+    *,
     *::before,
     *::after {
       box-sizing: border-box;
       margin: 0;
       padding: 0;
+    }
+
+    /* ── Text selection ─────────────────────────────────────────────────── */
+    ::selection {
+      background-color: rgba(28, 238, 224, 0.2);
+      color: var(--text);
+    }
+
+    /* ── Focus management — keyboard only ───────────────────────────────── */
+    *:focus-visible {
+      outline: 2px solid #1ceee0;
+      outline-offset: 2px;
+    }
+
+    *:focus:not(:focus-visible) {
+      outline: none !important;
+      box-shadow: none !important;
+    }
+
+    input:focus:not(:focus-visible),
+    textarea:focus:not(:focus-visible),
+    select:focus:not(:focus-visible) {
+      border-color: inherit !important;
+      box-shadow: none !important;
+    }
+
+    /* ── Tap/Touch optimisation ─────────────────────────────────────────── */
+    button, a, [role="button"], [type="button"], [type="submit"], [type="reset"] {
+      -webkit-tap-highlight-color: transparent;
+      -webkit-user-select: none;
+      user-select: none;
+      touch-action: manipulation;
+    }
+
+    /* ── Heading typography ─────────────────────────────────────────────── */
+    h1, h2, h3 {
+      font-family: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+      letter-spacing: -0.025em;
+      color: var(--text);
+    }
+
+    h1 { font-weight: 700; }
+    h2 { font-weight: 600; }
+    h3 { font-weight: 600; }
+
+    /* ── Autofill override ─────────────────────────────────────────────── */
+    input:-webkit-autofill {
+      -webkit-box-shadow: 0 0 0 1000px var(--card) inset !important;
+      -webkit-text-fill-color: var(--text) !important;
+      transition: background-color 9999s ease-in-out 0s;
+    }
+
+    body.dark input:-webkit-autofill {
+      -webkit-box-shadow: 0 0 0 1000px #141516 inset !important;
+    }
+
+    /* ── Interactive transition utility ─────────────────────────────────── */
+    .interactive {
+      transition-property: color, background-color, border-color;
+      transition-duration: 200ms;
+      transition-timing-function: ease-out;
+    }
+
+    /* ── Financial numbers ─────────────────────────────────────────────── */
+    .financial-number {
+      font-family: ui-monospace, SFMono-Regular, Consolas, monospace;
+      font-variant-numeric: tabular-nums;
+      font-feature-settings: "tnum" 1, "lnum" 1;
     }

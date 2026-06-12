@@ -6,7 +6,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { useClients } from '../hooks/useClients';
-import { useSessions, type SessionSummary } from '../hooks/useSessions';
+import { useSessions } from '../hooks/useSessions';
 import { useCalendarEvents, type CalendarEvent } from '../hooks/useCalendarEvents';
 import { parseCustomData, bestClientName, isAssignedToMe, type ClientRecord } from '../helpers/clientResolvers';
 import { fmtDt, cleanStr } from '../helpers/formatters';
@@ -318,7 +318,7 @@ export default function ClientsPage() {
               Oszlopok
             </button>
             {colDropdownOpen && (
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: '10px 0', minWidth: 200, zIndex: 50 }}>
+              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: '10px 0', minWidth: 200, zIndex: 50 }}>
                 <div style={{ padding: '4px 14px 8px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Látható oszlopok</div>
                 {CLIENT_COLUMNS.map((col) => (
                   <label key={col.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>
@@ -332,20 +332,6 @@ export default function ClientsPage() {
         </div>
       </div>
 
-      {/* Refresh */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 6 }}>
-        <button
-          onClick={() => refetchClients()}
-          title="Frissítés"
-          style={{ background: 'none', border: 'none', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)', borderRadius: 6 }}
-        >
-          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 15, height: 15 }}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M20 20v-5h-5" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M20.49 9A9 9 0 005.64 5.64L4 9m16 6l-1.64 3.36A9 9 0 013.51 15" />
-          </svg>
-        </button>
-      </div>
 
       {/* Table view */}
       {viewMode === 'table' && (

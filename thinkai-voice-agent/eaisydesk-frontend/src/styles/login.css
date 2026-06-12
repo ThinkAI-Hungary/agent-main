@@ -10,9 +10,21 @@
       background-color: #f0f4f8;
     }
 
+    /* Light mode: soft mint gradient instead of dark bg image */
+    body:not(.dark) #login-screen {
+      background:
+        radial-gradient(ellipse at 15% 50%, rgba(28, 238, 224, 0.18) 0%, transparent 55%),
+        radial-gradient(ellipse at 85% 25%, rgba(28, 238, 224, 0.15) 0%, transparent 45%),
+        radial-gradient(ellipse at 50% 80%, rgba(20, 184, 173, 0.13) 0%, transparent 50%),
+        radial-gradient(ellipse at 70% 40%, rgba(59, 130, 246, 0.07) 0%, transparent 40%),
+        radial-gradient(circle at 30% 70%, rgba(28, 238, 224, 0.12) 0%, transparent 35%),
+        radial-gradient(circle at 90% 75%, rgba(20, 184, 173, 0.10) 0%, transparent 30%),
+        linear-gradient(135deg, #d4efed 0%, #d9e5e8 20%, #cee8e4 40%, #d5e2e6 60%, #c9e3df 80%, #d2e7e5 100%);
+    }
+
     .login-card {
-      background: #ffffff;
-      border: 1px solid #e2e8f0;
+      background: var(--card);
+      border: 1px solid var(--border);
       border-radius: 20px;
       padding: 48px 44px;
       width: 420px;
@@ -30,7 +42,7 @@
       width: 38px;
       height: 38px;
       background: linear-gradient(135deg, var(--accent), var(--accent2));
-      border-radius: 10px;
+      border-radius: var(--radius);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -85,7 +97,7 @@
       padding: 12px 16px;
       font-size: 15px;
       color: var(--text);
-      font-family: 'Inter', Arial, sans-serif;
+      font-family: 'Montserrat', Arial, sans-serif;
       transition: border-color 0.2s, box-shadow 0.2s;
       outline: none;
     }
@@ -110,13 +122,13 @@
       width: 100%;
       background: linear-gradient(135deg, #1ceee0, #14b8ad);
       border: none;
-      border-radius: 10px;
+      border-radius: var(--radius);
       padding: 13px;
       font-size: 15px;
       font-weight: 600;
       color: #082432;
       cursor: pointer;
-      font-family: 'Inter', Arial, sans-serif;
+      font-family: 'Montserrat', Arial, sans-serif;
       letter-spacing: 0.3px;
       transition: all 0.2s ease;
       margin-top: 8px;

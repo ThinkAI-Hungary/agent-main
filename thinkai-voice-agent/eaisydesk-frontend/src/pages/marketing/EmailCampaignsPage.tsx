@@ -260,7 +260,7 @@ export default function EmailCampaignsPage() {
             </div>
 
             {/* AI Generation */}
-            <div style={{ background: 'rgba(139,92,246,0.04)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: 12, padding: 16, marginBottom: 16 }}>
+            <div style={{ background: 'rgba(139,92,246,0.04)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: 6, padding: 16, marginBottom: 16 }}>
               <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 8, display: 'flex', alignItems: 'center', gap: 6 }}>
                 ✨ AI tartalom generálás
               </div>

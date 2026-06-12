@@ -3,6 +3,7 @@ import Sidebar from './Sidebar';
 import MarketingSidebar from './MarketingSidebar';
 import MainHeader from './MainHeader';
 import NotificationCenter from './NotificationCenter';
+import CommandPalette from './CommandPalette';
 
 export default function AppLayout() {
   const { pathname } = useLocation();
@@ -17,6 +18,8 @@ export default function AppLayout() {
         <NotificationCenter />
         <Outlet />
       </main>
+      <CommandPalette />
     </div>
   );
 }
+

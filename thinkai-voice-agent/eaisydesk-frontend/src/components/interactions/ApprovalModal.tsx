@@ -24,12 +24,12 @@ export default function ApprovalModal() {
   useEffect(() => {
     if (!pendingApproval) return;
 
-    let initialDraft = '';
+    let parsedDraft: string;
     try {
       const draftData = JSON.parse(pendingApproval.aiDraftResponse || '{}');
 
       if (draftData.multi_channel && draftData.drafts && draftData.drafts.length > 1) {
-        initialDraft = draftData.drafts
+        parsedDraft = draftData.drafts
           .map((d: { channel: string; body?: string }) => {
             const chIcon: Record<string, string> = {
               Email: '📧',
@@ -40,14 +40,13 @@ export default function ApprovalModal() {
           })
           .join('\n\n');
       } else {
-        initialDraft = draftData.body || '';
+        parsedDraft = draftData.body || '';
       }
     } catch {
-      initialDraft = pendingApproval.aiDraftResponse || '';
+      parsedDraft = pendingApproval.aiDraftResponse || '';
     }
 
-    initialDraft = initialDraft.replace(/<br\s*\/?>/gi, '\n');
-    setDraftText(initialDraft);
+    setDraftText(parsedDraft.replace(/<br\s*\/?>/gi, '\n'));
 
     setTimeout(() => textareaRef.current?.focus(), 100);
   }, [pendingApproval]);
@@ -64,9 +63,20 @@ export default function ApprovalModal() {
 
   if (!pendingApproval) return null;
 
-  const topicText = [pendingApproval.topic, pendingApproval.summary]
-    .filter(Boolean)
-    .join(' - ');
+  // Extract original customer message from topic (strip "Channel AI válasz - " prefix)
+  const rawTopic = pendingApproval.topic || '';
+  // Check if topic contains customer message after the prefix
+  const prefixMatch = rawTopic.match(/^.+?AI válasz\s*-\s*(.+)/s);
+  let topicText = '';
+  if (prefixMatch) {
+    const extracted = prefixMatch[1];
+    // Filter out technical summaries that aren't actual customer messages
+    const isTechnicalSummary = /^Bejövő e-mail\b/i.test(extracted);
+    topicText = isTechnicalSummary ? '' : extracted;
+  } else if (!rawTopic.match(/AI válasz/i)) {
+    // Not an AI response topic — show as-is
+    topicText = rawTopic;
+  }
 
   const channelLabel = pendingApproval.channel || '';
 
@@ -89,8 +99,13 @@ export default function ApprovalModal() {
         throw new Error(d.detail || 'Hiba történt a mentés során');
       }
 
+      const result = await res.json().catch(() => ({ status: 'success' }));
       closeApproval();
-      showToast('Válasz jóváhagyva és elküldve!', 'success');
+      if (result.status === 'warning') {
+        showToast(result.message || 'Jóváhagyva, de a küldés sikertelen', 'error');
+      } else {
+        showToast('Válasz jóváhagyva és elküldve!', 'success');
+      }
     } catch (e) {
       showToast((e as Error).message || 'Hiba történt', 'error');
     } finally {
@@ -132,7 +147,7 @@ export default function ApprovalModal() {
               )}
             </div>
             <div className="apv-modal-context-text">
-              {topicText || 'Nincs kontextus'}
+              {topicText || <em style={{ color: 'var(--text-dim, #94a3b8)' }}>Az ügyfél eredeti üzenete nem elérhető (régebbi interakció)</em>}
             </div>
           </div>
 

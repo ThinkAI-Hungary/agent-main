@@ -2,7 +2,7 @@
     .out-section {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: var(--radius-lg);
       padding: 24px;
       margin-bottom: 24px;
     }
@@ -18,7 +18,7 @@
     .out-section-icon {
       width: 36px;
       height: 36px;
-      border-radius: 10px;
+      border-radius: var(--radius);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -29,7 +29,7 @@
       justify-content: space-between;
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 12px;
+      border-radius: var(--radius);
       padding: 14px 16px;
       margin-bottom: 8px;
       transition: all 0.2s;
@@ -50,7 +50,7 @@
     .out-kpi-stat {
       background: var(--bg);
       border: 1.5px solid rgba(28,238,224,0.25);
-      border-radius: 12px;
+      border-radius: var(--radius);
       padding: 18px 14px;
       text-align: center;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -81,7 +81,7 @@
       gap: 4px;
       background: var(--bg3);
       padding: 4px;
-      border-radius: 12px;
+      border-radius: var(--radius);
       width: max-content;
       border: 1px solid var(--border);
       margin-bottom: 20px;
@@ -96,7 +96,7 @@
       transition: all 0.2s ease;
       background: transparent;
       color: var(--text-muted);
-      font-family: 'Inter', Arial, sans-serif;
+      font-family: 'Montserrat', Arial, sans-serif;
     }
     .out-view-btn.active {
       background: var(--accent);
@@ -117,7 +117,7 @@
     .out-campaign-card {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: var(--radius-lg);
       padding: 22px;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
       position: relative;
@@ -145,7 +145,7 @@
       color: #082432;
       border: none;
       padding: 10px 20px;
-      border-radius: 10px;
+      border-radius: var(--radius);
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
@@ -154,7 +154,7 @@
       gap: 6px;
       box-shadow: 0 4px 12px rgba(28,238,224,0.25);
       transition: all 0.2s;
-      font-family: 'Inter', Arial, sans-serif;
+      font-family: 'Montserrat', Arial, sans-serif;
     }
     .out-new-campaign-btn:hover {
       transform: translateY(-1px);
@@ -165,13 +165,13 @@
     .out-analytics-btn {
       background: var(--bg3);
       border: 1px solid var(--border);
-      border-radius: 10px;
+      border-radius: var(--radius);
       padding: 8px 18px;
       font-size: 12px;
       font-weight: 600;
       color: var(--text);
       cursor: pointer;
-      font-family: 'Inter', Arial, sans-serif;
+      font-family: 'Montserrat', Arial, sans-serif;
       transition: all 0.2s;
     }
     .out-analytics-btn:hover {
@@ -208,7 +208,7 @@
     .out-analytics-inner {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: var(--radius-lg);
       padding: 28px;
       position: relative;
     }
@@ -218,7 +218,7 @@
       top: 0; left: 0; right: 0;
       height: 3px;
       background: linear-gradient(90deg, #1ceee0, #3b82f6, #8b5cf6);
-      border-radius: 16px 16px 0 0;
+      border-radius: var(--radius-lg) 16px 0 0;
     }
     .out-analytics-header {
       display: flex;
@@ -237,7 +237,7 @@
     .out-analytics-title-icon {
       width: 36px;
       height: 36px;
-      border-radius: 10px;
+      border-radius: var(--radius);
       background: linear-gradient(135deg, rgba(28,238,224,0.12), rgba(59,130,246,0.12));
       display: flex;
       align-items: center;
@@ -252,7 +252,7 @@
       font-weight: 600;
       color: var(--text-muted);
       cursor: pointer;
-      font-family: 'Inter', Arial, sans-serif;
+      font-family: 'Montserrat', Arial, sans-serif;
       transition: all 0.2s;
       display: flex;
       align-items: center;
@@ -276,7 +276,7 @@
     .out-chart-card {
       background: var(--bg);
       border: 1px solid var(--border);
-      border-radius: 14px;
+      border-radius: var(--radius-lg);
       padding: 20px;
       transition: all 0.25s;
     }
@@ -322,7 +322,7 @@
       text-align: center;
       padding: 14px;
       background: var(--bg3);
-      border-radius: 10px;
+      border-radius: var(--radius);
       transition: all 0.2s;
     }
     .out-summary-item:hover {
@@ -351,16 +351,16 @@
 
     /* Calls page dark */
     body.dark #page-calls .page-title {
-      color: #e8edf5;
+      color: var(--text);
     }
     body.dark #page-calls .page-subtitle {
-      color: #6b8b99;
+      color: var(--text-muted);
     }
 
     /* Campaign modal dark */
     body.dark #campaign-modal .login-card {
-      background: #0d2538;
-      border-color: #1a3548;
+      background: var(--card);
+      border-color: var(--border);
       box-shadow: 0 24px 48px rgba(0,0,0,0.5);
     }
 
@@ -374,14 +374,14 @@
       100% { opacity:0; transform:scale(0.92) translateY(8px); }
     }
     body.dark #schedule-modal .schedule-popup {
-      background: #0d2538;
-      border-color: #1a3548;
+      background: var(--card);
+      border-color: var(--border);
     }
     body.dark #schedule-modal input[type="date"],
     body.dark #schedule-modal input[type="time"] {
       background: #0a1c2d;
-      border-color: #1a3548;
-      color: #e8edf5;
+      border-color: var(--border);
+      color: var(--text);
       color-scheme: dark;
     }
     #schedule-modal input[type="date"]::-webkit-calendar-picker-indicator,
@@ -481,7 +481,7 @@
       background: var(--bg);
       color: var(--text);
       transition: all 0.2s;
-      font-family: 'Inter', Arial, sans-serif;
+      font-family: 'Montserrat', Arial, sans-serif;
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
@@ -506,14 +506,14 @@
       gap: 10px;
       padding: 16px;
       border: 1.5px solid var(--border);
-      border-radius: 12px;
+      border-radius: var(--radius);
       background: var(--bg);
       color: var(--text);
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
       transition: all 0.2s;
-      font-family: 'Inter', Arial, sans-serif;
+      font-family: 'Montserrat', Arial, sans-serif;
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
@@ -547,7 +547,7 @@
     .camp-mode-toggle {
       display: flex;
       gap: 0;
-      border-radius: 12px;
+      border-radius: var(--radius);
       overflow: hidden;
       border: 1.5px solid var(--border);
       margin-bottom: 20px;
@@ -564,7 +564,7 @@
       justify-content: center;
       gap: 6px;
       transition: all 0.25s;
-      font-family: 'Inter', Arial, sans-serif;
+      font-family: 'Montserrat', Arial, sans-serif;
       background: var(--bg);
       color: var(--text-muted);
     }
@@ -579,7 +579,7 @@
     /* Quill in campaign modal */
     .camp-quill-wrap {
       border: 1.5px solid rgba(28,238,224,0.25);
-      border-radius: 12px;
+      border-radius: var(--radius);
       overflow: hidden;
       transition: all 0.3s;
       margin-bottom: 12px;
@@ -617,7 +617,7 @@
     }
     .camp-quill-wrap .ql-toolbar .ql-picker-item { padding: 4px 8px; border-radius: 4px; }
     .camp-quill-wrap .ql-toolbar .ql-picker-item:hover { background: rgba(28,238,224,0.08); }
-    .camp-quill-wrap .ql-container.ql-snow { border: none; font-family: 'Inter', Arial, sans-serif; }
+    .camp-quill-wrap .ql-container.ql-snow { border: none; font-family: 'Montserrat', Arial, sans-serif; }
     .camp-quill-wrap .ql-editor {
       min-height: 180px; max-height: 280px; overflow-y: auto;
       padding: 16px; font-size: 13px; line-height: 1.7; color: var(--text);
@@ -646,7 +646,7 @@
     .camp-quill-hint svg { width: 12px; height: 12px; flex-shrink: 0; }
     .camp-quill-count {
       font-size: 10px; font-weight: 600; color: var(--text-muted);
-      background: var(--bg3); padding: 2px 8px; border-radius: 10px;
+      background: var(--bg3); padding: 2px 8px; border-radius: var(--radius);
     }
     /* Editor toggle button */
     .camp-editor-toggle-btn {
@@ -655,7 +655,7 @@
       border: 1.5px solid rgba(28,238,224,0.3);
       background: rgba(28,238,224,0.04);
       color: var(--accent); font-size: 11px; font-weight: 600;
-      font-family: 'Inter', Arial, sans-serif;
+      font-family: 'Montserrat', Arial, sans-serif;
       cursor: pointer; transition: all 0.25s;
       margin-top: 8px;
     }
@@ -684,7 +684,7 @@
     .camp-rich-wrap.anim-out { animation: campEditorOut 0.25s ease forwards; }
 
     body.dark .camp-tip-box { background: rgba(28,238,224,0.04); border-color: rgba(28,238,224,0.15); border-left-color: var(--accent); }
-    .camp-content-card { background:var(--card); border:1px solid var(--border); border-radius:14px; padding:24px; }
+    .camp-content-card { background:var(--card); border:1px solid var(--border); border-radius: var(--radius-lg); padding:24px; }
     body.dark .camp-content-card { background:var(--bg3); }
     body.dark .camp-status-badge { background: var(--bg3); border-color: var(--border); }
     body.dark .camp-channel-card { background: var(--bg3); border-color: var(--border); }
@@ -720,7 +720,7 @@
     }
     .camp-float-icon {
       width: 40px; height: 40px;
-      border-radius: 10px;
+      border-radius: var(--radius);
       background: rgba(28,238,224,0.15);
       display: flex; align-items: center; justify-content: center;
       flex-shrink: 0;
@@ -758,11 +758,11 @@
       border: 1px solid rgba(255,255,255,0.2);
       color: rgba(255,255,255,0.7);
       padding: 10px 20px;
-      border-radius: 10px;
+      border-radius: var(--radius);
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      font-family: 'Inter', Arial, sans-serif;
+      font-family: 'Montserrat', Arial, sans-serif;
       transition: all 0.2s;
     }
     .camp-float-cancel:hover {
@@ -774,11 +774,11 @@
       color: #082432;
       border: none;
       padding: 10px 24px;
-      border-radius: 10px;
+      border-radius: var(--radius);
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
-      font-family: 'Inter', Arial, sans-serif;
+      font-family: 'Montserrat', Arial, sans-serif;
       box-shadow: 0 4px 12px rgba(28,238,224,0.3);
       transition: all 0.2s;
       display: flex;
@@ -792,8 +792,8 @@
 
     /* Login card dark mode */
     body.dark .login-card {
-      background: #0d2538;
-      border-color: #1a3548;
+      background: var(--card);
+      border-color: var(--border);
       box-shadow: 0 24px 80px rgba(0, 0, 0, 0.4);
     }
 
@@ -807,14 +807,14 @@
     /* Form input dark mode */
     body.dark .form-input {
       background: #0a1f2e;
-      border-color: #1a3548;
-      color: #e8edf5;
+      border-color: var(--border);
+      color: var(--text);
     }
 
     /* General dark mode refinements */
     body.dark .badge-gray {
-      background: #1a3548 !important;
-      color: #8ea9c0 !important;
+      background: var(--border) !important;
+      color: var(--text-muted) !important;
     }
     body.dark .badge-teal {
       background: rgba(28, 238, 224, 0.15) !important;
@@ -823,14 +823,14 @@
 
     /* Toast dark mode */
     body.dark .toast {
-      background: #0d2538;
-      border: 1px solid #1a3548;
+      background: var(--card);
+      border: 1px solid var(--border);
       box-shadow: 0 8px 24px rgba(0, 0, 0, 0.5);
     }
 
     /* Price file card dark already exists, just ensure contrast */
     body.dark .price-file-card .pfc-name {
-      color: #e8edf5;
+      color: var(--text);
     }
 
     /* Smooth theme transitions */
@@ -857,7 +857,7 @@
     .m-kpi-card {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: var(--radius-lg);
       padding: 22px 24px;
       position: relative;
       overflow: hidden;
@@ -893,7 +893,7 @@
     }
     .m-kpi-icon {
       width: 40px; height: 40px;
-      border-radius: 12px;
+      border-radius: var(--radius);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -921,7 +921,7 @@
     .m-card {
       background: var(--card);
       border: 1px solid var(--border);
-      border-radius: 16px;
+      border-radius: var(--radius-lg);
       padding: 24px;
       transition: border-color 0.2s;
     }
@@ -939,7 +939,7 @@
     }
     .m-card-title-icon {
       width: 32px; height: 32px;
-      border-radius: 10px;
+      border-radius: var(--radius);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1154,7 +1154,7 @@
     .todo-badge.intezked { background: rgba(251,191,36,0.12); color: #f59e0b; }
     .todo-badge.surgos { background: rgba(239,68,68,0.12); color: #ef4444; }
     .todo-badge.valasz { background: rgba(59,130,246,0.12); color: #3b82f6; }
-    .todo-badge.egyeb { background: rgba(100,116,139,0.12); color: #94a3b8; }
+    .todo-badge.egyeb { background: rgba(100,116,139,0.12); color: var(--text-dim); }
     .todo-client-btn {
       background: rgba(0,212,200,0.08);
       border: 1px solid rgba(28,238,224,0.25);
@@ -1214,7 +1214,7 @@
       background: rgba(28,238,224,0.03);
       margin: 0 -12px;
       padding: 12px;
-      border-radius: 10px;
+      border-radius: var(--radius);
     }
     .activity-dot {
       width: 8px;
@@ -1273,7 +1273,7 @@
       gap: 12px;
       padding: 16px 18px;
       border: 1px solid var(--border);
-      border-radius: 14px;
+      border-radius: var(--radius-lg);
       background: var(--bg);
       cursor: pointer;
       transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
@@ -1297,7 +1297,7 @@
     .m-action-btn:active { transform: translateY(0); }
     .m-action-icon {
       width: 40px; height: 40px;
-      border-radius: 12px;
+      border-radius: var(--radius);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1328,7 +1328,7 @@
       font-size: 11px;
       font-weight: 700;
       padding: 2px 8px;
-      border-radius: 10px;
+      border-radius: var(--radius);
       z-index: 1;
     }
 
@@ -1346,7 +1346,7 @@
     .m-notif-item:hover { background: rgba(28, 238, 224, 0.03); margin: 0 -12px; padding: 12px; border-radius: 8px; }
     .m-notif-icon {
       width: 36px; height: 36px;
-      border-radius: 10px;
+      border-radius: var(--radius);
       display: flex;
       align-items: center;
       justify-content: center;
@@ -1374,7 +1374,7 @@
     }
     .m-perf-stat {
       background: var(--bg);
-      border-radius: 12px;
+      border-radius: var(--radius);
       padding: 16px;
       text-align: center;
     }
@@ -1408,23 +1408,23 @@
 
     /* Dark mode overrides for member dashboard */
     body.dark .m-kpi-card {
-      background: #0d2538;
-      border-color: #1a3548;
+      background: var(--card);
+      border-color: var(--border);
     }
     body.dark .m-kpi-card:hover {
       border-color: #1ceee0;
       box-shadow: 0 8px 32px rgba(28, 238, 224, 0.08), 0 2px 8px rgba(0,0,0,0.3);
     }
     body.dark .m-card {
-      background: #0d2538;
-      border-color: #1a3548;
+      background: var(--card);
+      border-color: var(--border);
     }
     body.dark .m-card:hover {
       border-color: rgba(28, 238, 224, 0.25);
     }
     body.dark .m-action-btn {
       background: #0a1f2e;
-      border-color: #1a3548;
+      border-color: var(--border);
     }
     body.dark .m-action-btn:hover {
       border-color: #1ceee0;
@@ -1440,13 +1440,13 @@
       background: #0a1f2e;
     }
     body.dark .m-timeline-dot.upcoming {
-      box-shadow: 0 0 0 4px #0d2538, 0 0 12px rgba(28, 238, 224, 0.4);
+      box-shadow: 0 0 0 4px var(--card), 0 0 12px rgba(28, 238, 224, 0.4);
     }
     body.dark .m-timeline-dot.past {
-      box-shadow: 0 0 0 4px #0d2538;
+      box-shadow: 0 0 0 4px var(--card);
     }
     body.dark .m-timeline-dot.now {
-      box-shadow: 0 0 0 4px #0d2538, 0 0 0 6px rgba(34,197,94,0.3);
+      box-shadow: 0 0 0 4px var(--card), 0 0 0 6px rgba(34,197,94,0.3);
     }
     @keyframes m-pulse {
       0%, 100% { box-shadow: 0 0 0 4px var(--card), 0 0 0 6px rgba(34,197,94,0.3); }

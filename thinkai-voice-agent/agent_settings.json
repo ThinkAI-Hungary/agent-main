@@ -1,9 +1,10 @@
 {
-  "voice_id": "36e0c00b-1bfd-4ad7-a0e8-928d4cadca00",
+  "voice_id": "Puck",
   "tone": "professional_friendly",
   "tone_custom": "",
   "knowledge_format": "json",
   "greeting": "Szia! A Fogmed virtuális asszisztense vagyok, Kérdezz a szolgáltatásainkról vagy foglalj időpontot. Miben segíthetek?",
+  "language": "hu",
   "business_hours": {
     "friday": {
       "open": null,

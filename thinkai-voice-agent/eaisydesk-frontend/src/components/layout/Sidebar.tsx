@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
+import { authFetch } from '../../api/client';
 
 interface NavItem {
   id: string;
@@ -11,7 +12,7 @@ interface NavItem {
   adminOnly?: boolean;
   memberOnly?: boolean;
   hidden?: boolean;
-  children?: { id: string; label: string; path: string }[];
+  children?: { id: string; label: string; path: string; adminOnly?: boolean }[];
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -24,7 +25,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     id: 'analytics',
-    label: 'Analitika',
+    label: 'Irányítópult',
     path: '/analytics',
     icon: 'M3 12h2l3-9 4 18 3-9h6',
     adminOnly: true,
@@ -47,11 +48,14 @@ const NAV_ITEMS: NavItem[] = [
     icon: 'M16 2v4M8 2v4M3 10h18',
   },
   {
-    id: 'outbound',
+    id: 'outbound-group',
     label: 'Kimenő kommunikáció',
-    path: '/outbound',
+    path: '',
     icon: 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z',
-    adminOnly: true,
+    children: [
+      { id: 'outbound', label: 'Kampányok', path: '/outbound' },
+      { id: 'automatizaciok', label: 'Automatizációk', path: '/automatizaciok', adminOnly: true },
+    ],
   },
   {
     id: 'settings-group',
@@ -60,7 +64,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: 'M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2zM8 7h8M8 11h6',
     adminOnly: true,
     children: [
-      { id: 'settings-agent', label: 'Telefon', path: '/settings/agent' },
+      { id: 'settings-agent', label: 'eaisyDesk beállítások', path: '/settings/agent' },
       { id: 'settings-praxis', label: 'Céginformációk', path: '/settings/praxis' },
       { id: 'settings-szabalyok', label: 'Szabályok', path: '/settings/szabalyok' },
     ],
@@ -84,6 +88,25 @@ export default function Sidebar() {
   );
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set(['interactions-group']));
   const [appSwitcherOpen, setAppSwitcherOpen] = useState(false);
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  // Load avatar from backend
+  useEffect(() => {
+    const username = user?.username;
+    if (!username) return;
+    authFetch(`/admin/api/users/${username}/avatar`)
+      .then(r => r.json())
+      .then(d => { if (d.avatar_url) setAvatarUrl(d.avatar_url); })
+      .catch(() => {});
+  }, [user?.username]);
+
+  const toggleCollapse = useCallback(() => {
+    setCollapsed((prev) => {
+      const next = !prev;
+      localStorage.setItem('digidesk_sidebar_collapsed', next ? '1' : '0');
+      return next;
+    });
+  }, []);
 
   // Ctrl+B shortcut
   useEffect(() => {
@@ -95,7 +118,7 @@ export default function Sidebar() {
     }
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
-  }, []);
+  }, [toggleCollapse]);
 
   // Sync collapsed state to body class for CSS layout
   useEffect(() => {
@@ -105,14 +128,6 @@ export default function Sidebar() {
       document.body.classList.remove('sidebar-collapsed');
     }
   }, [collapsed]);
-
-  const toggleCollapse = useCallback(() => {
-    setCollapsed((prev) => {
-      const next = !prev;
-      localStorage.setItem('digidesk_sidebar_collapsed', next ? '1' : '0');
-      return next;
-    });
-  }, []);
 
   function toggleGroup(groupId: string) {
     setOpenGroups((prev) => {
@@ -217,7 +232,7 @@ export default function Sidebar() {
                 </svg>
               </button>
               <div className={`nav-submenu${isOpen ? ' open' : ''}`}>
-                {item.children.map((child) => (
+                {item.children.filter(c => !c.adminOnly || isAdmin).map((child) => (
                   <button
                     key={child.id}
                     className={`nav-sub-item${isActive(child.path) ? ' active' : ''}`}
@@ -276,7 +291,11 @@ export default function Sidebar() {
       {/* Bottom section */}
       <div className="sidebar-bottom">
         <div className="sidebar-user-row">
-          <div className="user-avatar">{initials}</div>
+          <div className="user-avatar" style={avatarUrl ? { padding: 0, overflow: 'hidden' } : undefined}>
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+            ) : initials}
+          </div>
           <div className="user-text">
             <div className="user-name">{user?.fullName || user?.username || 'admin'}</div>
             <div className="user-role">{roleLabel}</div>

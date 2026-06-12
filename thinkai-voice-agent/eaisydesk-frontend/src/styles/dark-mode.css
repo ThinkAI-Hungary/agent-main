@@ -1,28 +1,28 @@
-﻿    /* ── Dark Mode overrides ───────────────────────────────────────── */
+    /* -- Dark Mode overrides ----------------------------------------- */
     body.dark .main {
       background: var(--bg);
     }
 
     body.dark .page.active:not(#page-analytics):not(#page-interactions):not(#page-settings):not(#page-kanban):not(#page-outbound) {
-      background: #0d2538;
-      border: 1px solid #1a3548;
+      background: var(--card);
+      border: 1px solid var(--border);
     }
 
     body.dark .analytics-shell,
     body.dark .table-card,
     body.dark .chart-card {
-      background: #0d2538 !important;
-      border-color: #1a3548 !important;
+      background: var(--card) !important;
+      border-color: var(--border) !important;
     }
 
     body.dark .data-table th {
-      background: #0f2d40 !important;
-      color: #6b8b99 !important;
-      border-color: #1a3548 !important;
+      background: var(--bg3) !important;
+      color: var(--text-muted) !important;
+      border-color: var(--border) !important;
     }
 
     body.dark .data-table td {
-      color: #c8d6e5 !important;
+      color: var(--text) !important;
       border-color: rgba(26, 53, 72, 0.8) !important;
     }
 
@@ -31,20 +31,20 @@
     }
 
     body.dark .page-title {
-      color: #e8edf5 !important;
+      color: var(--text) !important;
     }
 
     body.dark .page-subtitle {
-      color: #6b8b99 !important;
+      color: var(--text-muted) !important;
     }
 
     body.dark .table-title {
-      color: #e8edf5 !important;
+      color: var(--text) !important;
     }
 
     body.dark .filter-btn {
-      border-color: #1a3548 !important;
-      color: #6b8b99 !important;
+      border-color: var(--border) !important;
+      color: var(--text-muted) !important;
     }
 
     body.dark .filter-btn.active {
@@ -52,47 +52,47 @@
     }
 
     body.dark .settings-section {
-      background: #0f2d40 !important;
-      border-color: #1a3548 !important;
+      background: var(--bg3) !important;
+      border-color: var(--border) !important;
     }
 
     body.dark .settings-section-title {
-      color: #e8edf5 !important;
+      color: var(--text) !important;
     }
 
     body.dark .settings-label {
-      color: #6b8b99 !important;
+      color: var(--text-muted) !important;
     }
 
     body.dark .settings-select,
     body.dark .settings-input {
-      background: #0d2538 !important;
-      border-color: #1a3548 !important;
-      color: #e8edf5 !important;
+      background: var(--card) !important;
+      border-color: var(--border) !important;
+      color: var(--text) !important;
     }
 
     body.dark .settings-textarea {
-      background: #0d2538 !important;
-      border-color: #1a3548 !important;
-      color: #c8d6e5 !important;
+      background: var(--card) !important;
+      border-color: var(--border) !important;
+      color: var(--text) !important;
     }
 
     body.dark .toggle-slider {
-      background: #1a3548 !important;
-      border-color: #2d4a5f !important;
+      background: var(--border) !important;
+      border-color: var(--text-dim) !important;
     }
 
     body.dark .toggle-slider:before {
-      background: #6b8b99 !important;
+      background: var(--text-muted) !important;
     }
 
     body.dark .fmt-toggle {
-      border-color: #1a3548 !important;
+      border-color: var(--border) !important;
     }
 
     body.dark .fmt-btn {
-      background: #0f2d40 !important;
-      color: #6b8b99 !important;
+      background: var(--bg3) !important;
+      color: var(--text-muted) !important;
     }
 
     body.dark .fmt-btn.active {
@@ -101,41 +101,41 @@
     }
 
     body.dark .kanban-col {
-      background: #0f2d40 !important;
-      border-color: #1a3548 !important;
+      background: var(--bg3) !important;
+      border-color: var(--border) !important;
     }
 
     body.dark .kanban-col-header {
-      color: #e8edf5 !important;
-      border-color: #1a3548 !important;
+      color: var(--text) !important;
+      border-color: var(--border) !important;
     }
 
     body.dark .kanban-col-count {
-      background: #1a3548 !important;
-      color: #6b8b99 !important;
+      background: var(--border) !important;
+      color: var(--text-muted) !important;
     }
 
     body.dark .kanban-card {
-      background: #0d2538 !important;
-      border-color: #1a3548 !important;
+      background: var(--card) !important;
+      border-color: var(--border) !important;
     }
 
     body.dark .kanban-card .client-name {
-      color: #e8edf5 !important;
+      color: var(--text) !important;
     }
 
     body.dark .kanban-card .client-info {
-      color: #6b8b99 !important;
+      color: var(--text-muted) !important;
     }
 
     body.dark .kpi-card-figma {
       background: var(--card) !important;
       border-color: var(--border) !important;
       border-left-color: var(--accent) !important;
-      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.3) !important;
+      box-shadow: var(--shadow) !important;
     }
 
     body.dark .badge-gray {
-      background: #1a3548 !important;
-      color: #8ea9c0 !important;
+      background: var(--border) !important;
+      color: var(--text-muted) !important;
     }

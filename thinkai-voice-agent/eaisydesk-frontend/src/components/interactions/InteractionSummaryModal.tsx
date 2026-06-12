@@ -1,7 +1,7 @@
 /**
  * InteractionSummaryModal – 1:1 port of legacy log-modal + openInteractionSummaryModal()
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { fmtDt } from '../../helpers/formatters';
 import { parseCustomData, type ClientRecord } from '../../helpers/clientResolvers';
 import { supabase } from '../../lib/supabase';
@@ -148,8 +148,8 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
       }
 
       // ── Find the session closest to the interaction's date ──
-      let logText = '';
-      let parsedBlocks: ChatBlock[] = [];
+      let logText: string;
+      let parsedBlocks: ChatBlock[];
 
       const allEntries = parseLogEntries(fullLog);
       if (allEntries.length > 0 && row.date) {
@@ -301,7 +301,7 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
           flexDirection: 'column',
           padding: 0,
           overflow: 'hidden',
-          borderRadius: 16,
+          borderRadius: 8,
           border: 'none',
           boxShadow: '0 24px 48px rgba(0,0,0,0.3)',
           background: 'var(--card)',
@@ -348,7 +348,7 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
             </div>
 
             {/* Result */}
-            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 12, padding: 16 }}>
+            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: 16 }}>
               <h4 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 16px 0' }}>
                 Eredmény
               </h4>
@@ -404,7 +404,7 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
                       {/* Bubble */}
                       <div style={{
                         padding: '12px 16px',
-                        borderRadius: 12,
+                        borderRadius: 6,
                         fontSize: 13,
                         lineHeight: 1.5,
                         maxWidth: '85%',

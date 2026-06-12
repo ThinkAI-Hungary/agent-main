@@ -2,10 +2,11 @@
  * ClientDetailView – 1:1 port of legacy openClientDetails() / view-client-details
  * Rendered as inline overlay within ClientsPage or InteractionsPage.
  */
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useMemo, useCallback, useEffect } from 'react';
 import { useApproval } from '../../context/ApprovalContext';
 import { parseCustomData, type ClientRecord } from '../../helpers/clientResolvers';
 import { fmtDt } from '../../helpers/formatters';
+import { authFetch } from '../../api/client';
 import { showToast } from '../ui/Toast';
 import { supabase } from '../../lib/supabase';
 import type { SessionSummary } from '../../hooks/useSessions';
@@ -84,6 +85,23 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
   });
 
   const cd = useMemo(() => parseCustomData(client.raw.custom_data), [client.raw.custom_data]);
+
+  // Auto-fetch profile picture from Meta if not cached
+  const [profilePicUrl, setProfilePicUrl] = useState<string | null>((cd?.profile_pic_url as string) || null);
+  useEffect(() => {
+    if (profilePicUrl) return; // Already have it
+    if (!cd?.messenger_id) return; // No messenger ID to look up
+    let cancelled = false;
+    authFetch(`/admin/api/clients/${client.id}/profile-pic`)
+      .then(r => r.json())
+      .then(data => {
+        if (!cancelled && data.profile_pic_url) {
+          setProfilePicUrl(data.profile_pic_url);
+        }
+      })
+      .catch(() => {});
+    return () => { cancelled = true; };
+  }, [client.id, cd?.messenger_id, profilePicUrl, authFetch]);
 
   // Client appointments
   const clientAppointments = useMemo(() => {
@@ -249,11 +267,23 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'stretch',
         background: 'linear-gradient(90deg, #c4f2e8 0%, #b8eae0 100%)',
-        padding: '24px 32px', borderRadius: 12, marginBottom: 24,
+        padding: '24px 32px', borderRadius: 6, marginBottom: 24,
       }}>
         {/* Left: Avatar & Info */}
         <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}>
-          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'white', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          {profilePicUrl ? (
+            <img
+              src={profilePicUrl}
+              alt={client.name}
+              style={{
+                width: 56, height: 56, borderRadius: '50%', objectFit: 'cover',
+                border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+                flexShrink: 0,
+              }}
+              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.removeAttribute('style'); }}
+            />
+          ) : null}
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'white', display: profilePicUrl ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg fill="none" height="28" stroke="#1ceee0" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="28">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
             </svg>
@@ -296,7 +326,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             </svg>
             Profil módosítása
           </button>
-          <div style={{ background: 'white', padding: '12px 20px', borderRadius: 12, display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 120, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
+          <div style={{ background: 'white', padding: '12px 20px', borderRadius: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 120, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
             <div style={{ fontSize: 11, color: 'rgba(8,36,50,0.6)', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600, textTransform: 'uppercase' }}>
               <svg fill="none" height="12" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
               Regisztrálva:
@@ -309,7 +339,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       {/* ═══ Middle Cards: Tags, Appointments, Notes ═══ */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: 20, marginBottom: 24 }}>
         {/* Tags */}
-        <div style={{ background: '#f3f4f6', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+        <div style={{ background: '#f3f4f6', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column', position: 'relative' }}>
           <h3 style={{ fontSize: 12, fontWeight: 'bold', color: '#6b7280', textTransform: 'uppercase', marginTop: 0, marginBottom: 16 }}>Címkék</h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {client.tags.length === 0 && <span style={{ fontSize: 13, color: '#9ca3af' }}>Nincs címke</span>}
@@ -323,7 +353,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           <div style={{ position: 'relative', marginTop: 16 }}>
             <button onClick={() => setShowTagPicker(!showTagPicker)} style={{ background: 'transparent', border: 'none', color: '#6b7280', fontSize: 12, fontWeight: 600, textAlign: 'left', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>+ Címke hozzáadása</button>
             {showTagPicker && (
-              <div style={{ position: 'absolute', left: 0, bottom: 32, background: 'white', border: '1px solid #e5e7eb', borderRadius: 12, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', padding: 12, zIndex: 999, minWidth: 220 }}>
+              <div style={{ position: 'absolute', left: 0, bottom: 32, background: 'white', border: '1px solid #e5e7eb', borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', padding: 12, zIndex: 999, minWidth: 220 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', marginBottom: 8 }}>Előre definiált címkék</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {PREDEFINED_TAGS.filter(t => !client.tags.includes(t.label)).map(t => (
@@ -346,7 +376,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         </div>
 
         {/* Previous Appointments */}
-        <div style={{ background: '#f3f4f6', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ background: '#f3f4f6', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ fontSize: 12, fontWeight: 'bold', color: '#6b7280', textTransform: 'uppercase', marginTop: 0, marginBottom: 16 }}>Korábbi időpontok</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {clientAppointments.length === 0 && <span style={{ fontSize: 13, color: '#9ca3af', fontStyle: 'italic' }}>Nincs korábbi foglalás.</span>}
@@ -365,7 +395,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         </div>
 
         {/* Notes */}
-        <div style={{ background: 'white', border: '2px solid var(--accent, #1ceee0)', borderRadius: 12, padding: 20, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ background: 'white', border: '2px solid var(--accent, #1ceee0)', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column' }}>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
@@ -384,7 +414,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       {/* ═══ Aktuális Ügyek Table ═══ */}
       <div style={{ marginBottom: 32 }}>
         <h3 style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 16, color: '#4b5563', textTransform: 'uppercase' }}>Aktuális ügyek</h3>
-        <div style={{ borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden' }}>
+        <div style={{ borderRadius: 6, border: '1px solid var(--border)', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: 'white' }}>
             <thead style={{ background: '#f9fafb' }}>
               <tr>
@@ -395,12 +425,11 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                 <th style={thStyle}>Eredmény</th>
                 <th style={thStyle}>Státusz</th>
                 <th style={thStyle}>Teendő</th>
-                <th style={{ ...thStyle, textAlign: 'center' }}>Elvégezve</th>
               </tr>
             </thead>
             <tbody>
               {openInteractions.length === 0 ? (
-                <tr><td colSpan={8} style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>Nincs aktuális ügy</td></tr>
+                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>Nincs aktuális ügy</td></tr>
               ) : openInteractions.map((r, i) => (
                 <tr key={i}>
                   <td style={tdStyle}>
@@ -448,9 +477,6 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                       <span style={{ color: 'var(--text-muted)' }}>{r.teendo}</span>
                     )}
                   </td>
-                  <td style={{ ...tdStyle, textAlign: 'center' }}>
-                    <input type="checkbox" checked={r.done} readOnly style={{ width: 16, height: 16, accentColor: '#1ceee0', cursor: 'default' }} />
-                  </td>
                 </tr>
               ))}
             </tbody>
@@ -461,7 +487,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       {/* ═══ Korábbi Interakciók Table ═══ */}
       <div style={{ marginBottom: 32 }}>
         <h3 style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 16, color: '#4b5563', textTransform: 'uppercase' }}>Korábbi interakciók</h3>
-        <div style={{ borderRadius: 12, border: '1px solid var(--border)', overflow: 'hidden', opacity: 0.85 }}>
+        <div style={{ borderRadius: 6, border: '1px solid var(--border)', overflow: 'hidden', opacity: 0.85 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: 'white' }}>
             <thead style={{ background: '#f9fafb' }}>
               <tr>
@@ -546,7 +572,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       {/* ═══ Profile Edit Modal ═══ */}
       {showProfileEdit && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowProfileEdit(false)}>
-          <div style={{ background: 'white', borderRadius: 16, width: 440, maxWidth: '90vw', boxShadow: '0 24px 48px rgba(0,0,0,0.2)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: 'white', borderRadius: 8, width: 440, maxWidth: '90vw', boxShadow: '0 24px 48px rgba(0,0,0,0.2)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 28px 0' }}>
               <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#1a1a1a' }}>Profil módosítása</h3>

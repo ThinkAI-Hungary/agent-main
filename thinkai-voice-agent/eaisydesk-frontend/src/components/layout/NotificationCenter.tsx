@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { authFetch } from '../../api/client';
+import { supabase } from '../../lib/supabase';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import './NotificationCenter.css';
@@ -38,46 +38,12 @@ const TYPE_CONFIG: Record<NotifType, {
   cancelled:   { label: 'Időpont lemondva', color: '#f97316', bg: 'rgba(249,115,22,0.08)', icon: '⚠️', borderColor: '#f97316' },
 };
 
-const POLL_INTERVAL = 15_000;
-
 /* ── Helpers ────────────────────────────────────────────────── */
 
 function esc(s: string) {
   const d = document.createElement('div');
   d.textContent = s;
   return d.innerHTML;
-}
-
-function buildFriendlySummary(interaction: Record<string, unknown>, channel: string): string {
-  const parts: string[] = [];
-  const i = interaction as Record<string, string>;
-  if (i.topic) parts.push(i.topic);
-  if (i.summary) parts.push(i.summary);
-  if (i.type) parts.push(i.type);
-
-  const combined = parts.join(' ').toLowerCase();
-
-  if (/időpont|foglal|booking|lemondás/.test(combined))
-    return 'Időpontfoglalással kapcsolatos megkeresés';
-  if (/panasz|reklamáció|complaint/.test(combined))
-    return 'Panasz érkezett';
-  if (/kérdés|question|információ|érdeklőd/.test(combined))
-    return 'Kérdés érkezett';
-  if (/kérés|request|igény/.test(combined))
-    return 'Új kérés érkezett';
-  if (/ár|árajánlat|költség/.test(combined))
-    return 'Árajánlat kérés érkezett';
-  if (/email|e-mail/.test(combined))
-    return 'Email üzenet érkezett';
-
-  const channelMap: Record<string, string> = {
-    Messenger: 'Új Messenger üzenet érkezett',
-    Instagram: 'Új Instagram üzenet érkezett',
-    WhatsApp: 'Új WhatsApp üzenet érkezett',
-    Email: 'Új email érkezett',
-    Telefon: 'Új telefonos megkeresés',
-  };
-  return channelMap[channel] || 'Új üzenet érkezett';
 }
 
 function timeAgo(d: Date): string {
@@ -100,14 +66,9 @@ export default function NotificationCenter() {
   const [toasts, setToasts] = useState<Notification[]>([]);
 
   const idCounter = useRef(0);
-  const knownUrgent = useRef(new Set<string>());
-  const viewedUrgent = useRef(new Set<string>());
-  const knownCancelled = useRef(new Set<string>());
-  const viewedCancelled = useRef(new Set<string>());
-  const seenInteractions = useRef(new Set<string>());
-  const firstInteractionPoll = useRef(true);
   const dropdownRef = useRef<HTMLDivElement>(null);
   const urgentAudio = useRef<HTMLAudioElement | null>(null);
+  const initialized = useRef(false);
 
   // Init audio
   useEffect(() => {
@@ -151,142 +112,144 @@ export default function NotificationCenter() {
     return () => clearTimeout(timer);
   }, [toasts]);
 
-  /* ── Poll: Urgent cases ── */
-  const pollUrgent = useCallback(async () => {
-    if (!isAuthenticated) return;
-    try {
-      const res = await authFetch('/admin/api/alerts/urgent');
-      if (!res.ok) return;
-      const data = await res.json();
-      const clients = (data.urgent_clients || []).filter(
-        (c: { id: string }) => !viewedUrgent.current.has(c.id)
-      );
-      clients.forEach((c: { id: string; name: string; email?: string; phone?: string; channel?: string; problem?: string }) => {
-        if (!knownUrgent.current.has(c.id)) {
-          knownUrgent.current.add(c.id);
-          addNotification('urgent', {
-            clientId: c.id, name: c.name, email: c.email,
-            phone: c.phone, channel: c.channel, problem: c.problem,
-          });
-        }
-      });
-    } catch { /* silent */ }
-  }, [isAuthenticated, addNotification]);
-
-  /* ── Poll: Cancelled appointments ── */
-  const pollCancelled = useCallback(async () => {
-    if (!isAuthenticated) return;
-    try {
-      const res = await authFetch('/admin/api/alerts/cancelled');
-      if (!res.ok) return;
-      const data = await res.json();
-      const clients = (data.cancelled_clients || []).filter(
-        (c: { id: string }) => !viewedCancelled.current.has(c.id)
-      );
-      clients.forEach((c: { id: string; name: string; email?: string; phone?: string; channel?: string }) => {
-        if (!knownCancelled.current.has(c.id)) {
-          knownCancelled.current.add(c.id);
-          addNotification('cancelled', {
-            clientId: c.id, name: c.name, email: c.email,
-            phone: c.phone, channel: c.channel, summary: 'Időpont lemondva',
-          });
-        }
-      });
-    } catch { /* silent */ }
-  }, [isAuthenticated, addNotification]);
-
-  /* ── Poll: New interactions ── */
-  const pollInteractions = useCallback(async () => {
-    if (!isAuthenticated) return;
-    try {
-      const res = await authFetch('/admin/api/interactions?limit=30');
-      if (!res.ok) return;
-      const data = await res.json();
-      const interactions = data.interactions || [];
-
-      if (firstInteractionPoll.current) {
-        interactions.forEach((i: { id: string }) => seenInteractions.current.add(i.id));
-        firstInteractionPoll.current = false;
-        return;
-      }
-
-      interactions.forEach((i: { id: string; type?: string; participant?: string; client_name?: string; alert_tags?: string[]; summary?: string; topic?: string }) => {
-        if (!seenInteractions.current.has(i.id)) {
-          seenInteractions.current.add(i.id);
-
-          const t = (i.type || '').toLowerCase();
-          let channel = 'Telefon';
-          if (t.includes('messenger')) channel = 'Messenger';
-          else if (t.includes('email')) channel = 'Email';
-          else if (t.includes('instagram')) channel = 'Instagram';
-          else if (t.includes('whatsapp')) channel = 'WhatsApp';
-
-          const clientName = i.participant || i.client_name || 'Ismeretlen';
-          const tags = i.alert_tags || [];
-          const isUrgent = tags.includes('urgent');
-
-          if (isUrgent) {
-            addNotification('urgent', { name: clientName, channel, problem: 'Sürgős megkeresés beérkezett.' });
-            urgentAudio.current?.play().catch(() => {});
-          } else {
-            const summary = buildFriendlySummary(i, channel);
-            addNotification('interaction', { client: clientName, channel, summary });
-          }
-        }
-      });
-    } catch { /* silent */ }
-  }, [isAuthenticated, addNotification]);
-
-  /* ── Start polling ── */
+  /* ── Supabase Realtime: listen for new interactions ── */
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    // Initial polls with staggered delays
-    const t1 = setTimeout(pollUrgent, 2000);
-    const t2 = setTimeout(pollCancelled, 2500);
-    const t3 = setTimeout(pollInteractions, 3000);
+    // Subscribe to new rows in interactions table (interaction_list is a view — realtime only works on tables)
+    const interactionChannel = supabase
+      .channel('notif-interactions')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'interactions' },
+        async (payload) => {
+          const row = payload.new as Record<string, unknown>;
+          const channel = (row.type as string) || (row.channel as string) || 'Üzenet';
+          const summary = (row.summary as string) || (row.topic as string) || `Új ${channel} érkezett`;
+          const alertTags = (row.alert_tags as string[]) || [];
+          const isUrgent = alertTags.includes('urgent');
+          const sessionId = (row.session_id as string) || '';
 
-    const i1 = setInterval(pollUrgent, POLL_INTERVAL);
-    const i2 = setInterval(pollCancelled, POLL_INTERVAL);
-    const i3 = setInterval(pollInteractions, POLL_INTERVAL);
+          // Resolve client name: interactions table doesn't have participant field
+          // Try 1: look up session by session_id
+          let clientName = 'Ismeretlen';
+          if (sessionId) {
+            try {
+              const { data: sessionData } = await supabase
+                .from('sessions')
+                .select('participant')
+                .eq('session_id', sessionId)
+                .maybeSingle();
+              if (sessionData?.participant) {
+                clientName = sessionData.participant;
+              }
+            } catch { /* session lookup may fail */ }
+
+            // Try 2: extract messenger/platform ID from session_id and look up in clients
+            if (clientName === 'Ismeretlen') {
+              let platformId = '';
+              let idField = 'messenger_id';
+              if (sessionId.startsWith('messenger_')) { platformId = sessionId.substring(10); idField = 'messenger_id'; }
+              else if (sessionId.startsWith('instagram_')) { platformId = sessionId.substring(10); idField = 'instagram_id'; }
+              else if (sessionId.startsWith('whatsapp_')) { platformId = sessionId.substring(9); idField = 'whatsapp_id'; }
+              else if (sessionId.startsWith('email_')) clientName = sessionId.substring(6); // email address
+
+              if (platformId) {
+                try {
+                  const { data: clients } = await supabase
+                    .from('clients')
+                    .select('name, custom_data')
+                    .limit(200);
+                  const match = (clients || []).find((c: Record<string, unknown>) => {
+                    const cd = typeof c.custom_data === 'string' ? JSON.parse(c.custom_data) : (c.custom_data || {});
+                    return String(cd[idField] || cd.messenger_id || '') === platformId;
+                  });
+                  if (match) {
+                    const cd = typeof match.custom_data === 'string' ? JSON.parse(match.custom_data) : (match.custom_data || {});
+                    clientName = cd.name || cd.nev || match.name || clientName;
+                  }
+                } catch { /* client lookup may fail */ }
+              }
+            }
+          }
+
+          if (isUrgent) {
+            addNotification('urgent', {
+              name: clientName,
+              channel,
+              problem: 'Sürgős megkeresés beérkezett.',
+            });
+            urgentAudio.current?.play().catch(() => {});
+          } else {
+            addNotification('interaction', {
+              client: clientName,
+              channel,
+              summary,
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // Subscribe to cancelled appointments (calendar_events with status change)
+    const calendarChannel = supabase
+      .channel('notif-calendar')
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'calendar_events' },
+        (payload) => {
+          const row = payload.new as Record<string, unknown>;
+          const old = payload.old as Record<string, unknown>;
+          // Detect cancellation: status changed to cancelled/lemondva
+          const newStatus = ((row.status as string) || '').toLowerCase();
+          const oldStatus = ((old.status as string) || '').toLowerCase();
+          if (newStatus !== oldStatus && (newStatus.includes('cancel') || newStatus.includes('lemondva') || newStatus.includes('törölve'))) {
+            addNotification('cancelled', {
+              name: (row.title as string) || (row.patient_name as string) || 'Ismeretlen',
+              summary: 'Időpont lemondva',
+            });
+          }
+        }
+      )
+      .subscribe();
+
+    // Fetch recent interactions to preload (skip notification for existing ones)
+    if (!initialized.current) {
+      initialized.current = true;
+      supabase
+        .from('interactions')
+        .select('id, type, summary, topic, created_at')
+        .order('created_at', { ascending: false })
+        .limit(5)
+        .then(() => {
+          // Just mark as seen, don't create notifications for old ones
+        });
+    }
 
     return () => {
-      clearTimeout(t1); clearTimeout(t2); clearTimeout(t3);
-      clearInterval(i1); clearInterval(i2); clearInterval(i3);
+      supabase.removeChannel(interactionChannel);
+      supabase.removeChannel(calendarChannel);
     };
-  }, [isAuthenticated, pollUrgent, pollCancelled, pollInteractions]);
+  }, [isAuthenticated, addNotification]);
 
   /* ── Handle notification click ── */
   const handleClick = useCallback((notifId: number) => {
-    setNotifications(prev => {
-      const idx = prev.findIndex(n => n.id === notifId);
-      if (idx === -1) return prev;
-      const n = prev[idx];
+    const n = notifications.find(n => n.id === notifId);
+    if (!n) return;
 
-      if (n.type === 'urgent') {
-        const cid = n.data.clientId || n.data.id;
-        if (cid) {
-          viewedUrgent.current.add(cid);
-          authFetch(`/admin/api/alerts/urgent/${cid}/view`, { method: 'POST' }).catch(() => {});
-        }
-        navigate('/clients');
-      } else if (n.type === 'cancelled') {
-        const cid = n.data.clientId || n.data.id;
-        if (cid) {
-          viewedCancelled.current.add(cid);
-          authFetch(`/admin/api/alerts/cancelled/${cid}/view`, { method: 'POST' }).catch(() => {});
-        }
-        navigate('/clients');
-      } else if (n.type === 'interaction') {
-        navigate('/interactions');
-      }
-
-      const next = [...prev];
-      next.splice(idx, 1);
-      return next;
-    });
+    // Remove from list
+    setNotifications(prev => prev.filter(x => x.id !== notifId));
     setOpen(false);
-  }, [navigate]);
+
+    // Navigate based on type
+    if (n.type === 'urgent') {
+      navigate('/clients');
+    } else if (n.type === 'cancelled') {
+      navigate('/calendar');
+    } else if (n.type === 'interaction') {
+      navigate('/interactions');
+    }
+  }, [navigate, notifications]);
 
   /* ── Clear all notifications ── */
   const clearAll = useCallback(() => {

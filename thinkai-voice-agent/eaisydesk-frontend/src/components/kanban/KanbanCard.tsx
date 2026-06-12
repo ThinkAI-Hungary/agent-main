@@ -4,7 +4,6 @@
  * Distinction: if pointer moves <5px → click, if ≥5px → drag.
  */
 import { useDraggable } from '@dnd-kit/core';
-import { CSS } from '@dnd-kit/utilities';
 import { useRef, useCallback } from 'react';
 import type { KanbanCardData } from '../../pages/KanbanPage';
 import { TagBadge } from '../ui/Badge';
@@ -17,7 +16,7 @@ interface Props {
 }
 
 export default function KanbanCard({ card, isDragOverlay, onDelete, onClick }: Props) {
-  const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
+  const { attributes, listeners, setNodeRef, isDragging } = useDraggable({
     id: String(card.id),
   });
 
@@ -54,19 +53,26 @@ export default function KanbanCard({ card, isDragOverlay, onDelete, onClick }: P
     wasDragged.current = false;
   }, [onClick, card]);
 
-  const style: React.CSSProperties = {
-    transform: CSS.Translate.toString(transform),
-    opacity: isDragging ? 0.4 : 1,
-    cursor: isDragOverlay ? 'grabbing' : 'pointer',
-    ...(card.isSurgos ? {
-      border: '2px solid #ef4444',
-      backgroundColor: 'var(--bg-surgos, #fef2f2)',
-    } : {}),
-    ...(isDragOverlay ? {
-      boxShadow: '0 12px 32px rgba(0,0,0,0.2)',
-      transform: 'scale(1.03)',
-    } : {}),
-  };
+  const style: React.CSSProperties = isDragOverlay
+    ? {
+        cursor: 'grabbing',
+        boxShadow: '0 12px 32px rgba(0,0,0,0.2)',
+        opacity: 1,
+        ...(card.isSurgos ? {
+          border: '2px solid #ef4444',
+          backgroundColor: 'var(--bg-surgos, #fef2f2)',
+        } : {}),
+      }
+    : {
+        // Don't apply transform when dragging — DragOverlay handles the visual
+        opacity: isDragging ? 0 : 1,
+        cursor: 'pointer',
+        pointerEvents: isDragging ? 'none' : undefined,
+        ...(card.isSurgos ? {
+          border: '2px solid #ef4444',
+          backgroundColor: 'var(--bg-surgos, #fef2f2)',
+        } : {}),
+      };
 
   // Build merged props: use dnd-kit's attributes but override onPointerDown with our merged version
   const mergedProps = !isDragOverlay

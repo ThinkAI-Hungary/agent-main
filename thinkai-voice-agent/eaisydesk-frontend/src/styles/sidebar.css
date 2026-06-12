@@ -146,7 +146,7 @@
     }
 
     .nav-group {}
-    .nav-group-toggle { display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius:10px;cursor:pointer;font-size:13.5px;font-weight:500;color:#8ea9c0;transition:all 0.2s ease;margin-bottom:3px;border:none;background:none;width:100%;text-align:left;letter-spacing:0.01em; }
+    .nav-group-toggle { display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius: 10px;cursor:pointer;font-size:13.5px;font-weight:500;color: #8ea9c0;transition:all 0.2s ease;margin-bottom:3px;border:none;background:none;width:100%;text-align:left;letter-spacing:0.01em; }
     .nav-group-toggle:hover { background:rgba(28,238,224,0.08);color:#e0f2f1; }
     .nav-group-toggle.active { color:#1ceee0; }
     .nav-group-toggle svg { width:18px;height:18px;flex-shrink:0; }
@@ -154,7 +154,7 @@
     .nav-group-toggle.open .nav-chevron { transform:rotate(180deg); }
     .nav-submenu { max-height:0;overflow:hidden;transition:max-height 0.25s ease; }
     .nav-submenu.open { max-height:200px; }
-    .nav-sub-item { display:flex;align-items:center;gap:8px;padding:9px 14px 9px 44px;border-radius:10px;cursor:pointer;font-size:13px;font-weight:500;color:#8ea9c0;transition:all 0.2s ease;margin-bottom:2px;border:none;background:none;width:100%;text-align:left; }
+    .nav-sub-item { display:flex;align-items:center;gap:8px;padding:9px 14px 9px 44px;border-radius: 10px;cursor:pointer;font-size:13px;font-weight:500;color: #8ea9c0;transition:all 0.2s ease;margin-bottom:2px;border:none;background:none;width:100%;text-align:left; }
     .nav-sub-item:hover { background:rgba(28,238,224,0.08);color:#e0f2f1; }
     .nav-sub-item.active { background:rgba(28,238,224,0.15);color:#1ceee0;font-weight:600; }
 
@@ -206,7 +206,7 @@
 
     .user-role {
       font-size: 11px;
-      color: #6b8b99;
+      color: #8ea9c0;
       margin-top: 2px;
       line-height: 1.2;
       white-space: nowrap;
@@ -306,7 +306,7 @@
       right: 12px;
       background: #0a2a3c;
       border: 1px solid rgba(28, 238, 224, 0.15);
-      border-radius: 16px;
+      border-radius: 12px;
       padding: 8px;
       z-index: 150;
       box-shadow:
@@ -329,7 +329,7 @@
       font-weight: 700;
       text-transform: uppercase;
       letter-spacing: 1.2px;
-      color: #4a7080;
+      color: #4a6f85;
       padding: 10px 12px 6px;
     }
 
@@ -342,13 +342,13 @@
       cursor: pointer;
       font-size: 13px;
       font-weight: 500;
-      color: #c8d6e5;
+      color: #e8edf5;
       transition: all 0.15s ease;
       border: none;
       background: none;
       width: 100%;
       text-align: left;
-      font-family: 'Inter', Arial, sans-serif;
+      font-family: 'Montserrat', Arial, sans-serif;
     }
     .flyout-item:hover {
       background: rgba(28, 238, 224, 0.08);
@@ -402,14 +402,14 @@
     }
     .flyout-item-desc {
       font-size: 11px;
-      color: #4a7080;
+      color: #4a6f85;
       line-height: 1.2;
     }
     .flyout-item:hover .flyout-item-title {
       color: #fff;
     }
     .flyout-item:hover .flyout-item-desc {
-      color: #6b8b99;
+      color: #8ea9c0;
     }
     .flyout-item:hover .flyout-item-icon {
       filter: brightness(1.2);
@@ -436,14 +436,14 @@
 
     /* ╔══════════════════════════════════════════════════════════════════════════╗
     /* ── Logo App Switcher (DigiDesk ↔ Marketing) ── */
-    .sidebar-logo.has-switch{cursor:pointer;position:relative;transition:background 0.2s;border-radius:10px;margin:-4px -8px;padding:8px 8px 8px 16px;}
+    .sidebar-logo.has-switch{cursor:pointer;position:relative;transition:background 0.2s;border-radius: 10px;margin:-4px -8px;padding:8px 8px 8px 16px;}
     .sidebar-logo.has-switch:hover{background:rgba(255,255,255,0.05);}
     .logo-switch-dd{max-height:0;overflow:hidden;transition:max-height 0.25s ease,opacity 0.2s;opacity:0;margin:0 8px;}
     .logo-switch-dd.open{max-height:80px;opacity:1;margin-bottom:8px;}
-    .logo-switch-link{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius:10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);text-decoration:none;transition:all 0.2s;margin-top:6px;}
+    .logo-switch-link{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius: 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);text-decoration:none;transition:all 0.2s;margin-top:6px;}
     .logo-switch-link:hover{background:rgba(28,238,224,0.1);border-color:rgba(28,238,224,0.25);}
     .logo-switch-icon{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0;}
-    .logo-switch-name{font-size:12px;font-weight:600;color:#8ea9c0;}
+    .logo-switch-name{font-size:12px;font-weight:600;color: #8ea9c0;}
     .logo-switch-link:hover .logo-switch-name{color:#1ceee0;}
-    .logo-switch-desc{font-size:10px;color:#4a6f85;margin-top:1px;}
+    .logo-switch-desc{font-size:10px;color: #4a6f85;margin-top:1px;}
     .sidebar.collapsed .logo-switch-dd{display:none!important;}

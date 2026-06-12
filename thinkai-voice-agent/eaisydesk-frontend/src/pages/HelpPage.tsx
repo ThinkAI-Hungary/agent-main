@@ -2,7 +2,7 @@ import { useState, useCallback } from 'react';
 
 // ── FAQ data (same as admin-core.js initHelp) ────────────────────────────────
 const faqs = [
-  { q: 'Hogyan tekintem át az interakciókat?', a: 'Az <b>Analitika</b> oldalon KPI kártyákon látod az összesített statisztikákat: összes megkeresés, foglalási arány, átadási arány. A <b>Működési áttekintés</b> blokkban heti trendeket, csatornamegoszlást és napi bontást találsz.' },
+  { q: 'Hogyan tekintem át az interakciókat?', a: 'Az <b>Irányítópult</b> oldalon KPI kártyákon látod az összesített statisztikákat: összes megkeresés, foglalási arány, átadási arány. A <b>Működési áttekintés</b> blokkban heti trendeket, csatornamegoszlást és napi bontást találsz.' },
   { q: 'Hogyan kezelem az ügyfeleket a Kanban táblán?', a: 'Az <b>Ügyfélközpont → Érdeklődőkezelés</b> menüben drag-and-drop módszerrel húzhatod az ügyfeleket az oszlopok között. Új oszlopot a <b>+ Oszlop hozzáadása</b> gombbal tudsz létrehozni.' },
   { q: 'Mi az a Jóváhagyó rendszer?', a: 'A rendszer automatikusan feldolgozza a bejövő emaileket, és AI-alapú válasz javaslatot készít. Te csak <b>jóváhagyod</b> vagy <b>elutasítod</b> a javasolt választ, ezzel időt spórolva.' },
   { q: 'Hogyan indítok email kampányt?', a: 'A <b>Kimenő kommunikáció</b> menüben kattints az <b>Új kampány</b> gombra. Add meg a kampány nevét, válaszd ki a célcsoportot, írd meg a sablont, és ütemezd a küldést.' },
@@ -14,7 +14,7 @@ const faqs = [
 
 // ── Module list ──────────────────────────────────────────────────────────────
 const modules = [
-  { name: 'Analitika', desc: 'Interakció statisztikák, foglalási arány, csatornamegoszlás, heti trendek', icon: <path d="M18 20V10M12 20V4M6 20v-6" /> },
+  { name: 'Irányítópult', desc: 'Interakció statisztikák, foglalási arány, csatornamegoszlás, heti trendek', icon: <path d="M18 20V10M12 20V4M6 20v-6" /> },
   { name: 'Ügyfélközpont', desc: 'Interakciós lista, ügyféllista kezelés, Kanban tábla az érdeklődők nyomon követéséhez', icon: <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></> },
   { name: 'Naptár', desc: 'Foglalások és időpontok vizuális kezelése, napi/heti/havi nézet', icon: <><rect height="18" rx="2" width="18" x="3" y="4" /><path d="M16 2v4M8 2v4M3 10h18" /></> },
   { name: 'Jóváhagyó rendszer', desc: 'Bejövő emailek automatikus feldolgozása, AI válasz javaslat, jóváhagyás/elutasítás', icon: <><path d="M22 11.08V12a10 10 0 11-5.93-9.14" /><polyline points="22 4 12 14.01 9 11.01" /></> },
@@ -24,7 +24,7 @@ const modules = [
 
 // ── Quick guide steps ────────────────────────────────────────────────────────
 const quickSteps = [
-  { n: 1, title: 'Interakciók áttekintése', sub: 'Analitika → KPI kártyák → Trendek' },
+  { n: 1, title: 'Interakciók áttekintése', sub: 'Irányítópult → KPI kártyák → Trendek' },
   { n: 2, title: 'Ügyfelek kezelése', sub: 'Ügyfélközpont → Ügyféllista / Kanban' },
   { n: 3, title: 'Kampány indítása', sub: 'Kimenő kommunikáció → Új kampány' },
 ];
@@ -52,7 +52,7 @@ function Kbd({ children }: { children: string }) {
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
     <div style={{
-      background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14,
+      background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6,
       padding: '24px 28px', marginBottom: 20,
     }}>{children}</div>
   );
@@ -128,7 +128,7 @@ export default function HelpPage() {
       {/* Header */}
       <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 6 }}>
         <div style={{
-          width: 42, height: 42, borderRadius: 12,
+          width: 42, height: 42, borderRadius: 6,
           background: 'linear-gradient(135deg, rgba(28,238,224,0.15), rgba(28,238,224,0.1))',
           display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
         }}>
@@ -158,7 +158,7 @@ export default function HelpPage() {
           {quickSteps.map(s => (
             <div key={s.n} className="help-quick-step" style={{
               background: 'rgba(28,238,224,0.04)', border: '1px solid rgba(28,238,224,0.12)',
-              borderRadius: 12, padding: 20, textAlign: 'center', transition: 'all 0.2s ease',
+              borderRadius: 6, padding: 20, textAlign: 'center', transition: 'all 0.2s ease',
             }}
               onMouseEnter={e => { e.currentTarget.style.borderColor = 'rgba(28,238,224,0.3)'; e.currentTarget.style.transform = 'translateY(-2px)'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(28,238,224,0.12)'; e.currentTarget.style.transform = 'none'; }}

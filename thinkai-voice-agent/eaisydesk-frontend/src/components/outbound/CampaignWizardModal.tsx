@@ -4,6 +4,7 @@
  */
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useClients } from '../../hooks/useClients';
+import { useCalendarEvents } from '../../hooks/useCalendarEvents';
 import { parseCustomData, bestClientName } from '../../helpers/clientResolvers';
 import { authFetch } from '../../api/client';
 import { showToast } from '../ui/Toast';
@@ -67,9 +68,10 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
   // Client data
   const { clients } = useClients();
 
-  // Collect all unique tags from clients
+  // Collect all unique tags from clients + default tags
   const allTags = useMemo(() => {
-    const tags = new Set<string>();
+    const defaultTags = ['árkérdés', 'kampány lead', 'ajánlatkérés', 'törölt időpont', 'no-show', 'VIP'];
+    const tags = new Set<string>(defaultTags);
     clients.forEach(c => {
       const cd = parseCustomData(c.custom_data);
       const clientTags = (cd?.tags as string[]) || [];
@@ -79,16 +81,55 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
   }, [clients]);
 
   // Enriched clients for picker
+  // Calendar events for Új/Visszatérő/Inaktív detection (same logic as old HTML)
+  const { events: calendarEvents } = useCalendarEvents();
+
   const enrichedClients = useMemo(() => {
+    const INACTIVITY_DAYS = 60;
+    const now = Date.now();
+
+    // Pre-count appointments per client matching old HTML logic
+    function countAppointments(clientName: string, clientEmail: string): number {
+      const cN = (clientName || '').toLowerCase().replace(/\s+/g, ' ').trim();
+      const cE = (clientEmail || '').toLowerCase().trim();
+      let count = 0;
+      calendarEvents.forEach((ev) => {
+        const eE = (ev.attendee_email || '').toLowerCase().trim();
+        const eA = (ev.attendee || '').toLowerCase().trim();
+        const eT = (ev.title || '').toLowerCase().trim();
+        let match = false;
+        if (cE) { if (eE && cE === eE) match = true; if (eA && eA.includes(cE)) match = true; }
+        if (cN) { if (eA && eA.includes(cN)) match = true; if (eT && eT.includes(cN)) match = true; }
+        if (match) count++;
+      });
+      return count;
+    }
+
     return clients.map(c => {
       const cd = parseCustomData(c.custom_data);
       const name = bestClientName(c) || c.name || 'Névtelen';
       const email = (cd?.email as string) || c.email || '';
       const phone = (cd?.telefonszam as string) || (cd?.phone as string) || c.phone || '';
       const tags: string[] = (cd?.tags as string[]) || [];
-      return { id: String(c.id), name, email, phone, tags };
+      
+      // Determine client type matching old HTML logic exactly:
+      // - aptCount > 1 → VISSZATÉRŐ
+      // - daysSince > INACTIVITY_DAYS && no appointments → INAKTÍV
+      // - else → ÚJ ÜGYFÉL
+      const createdAt = c.created_at ? new Date(c.created_at).getTime() : 0;
+      const daysSinceCreated = createdAt ? (now - createdAt) / (1000 * 60 * 60 * 24) : 999;
+      const aptCount = countAppointments(name, email);
+      
+      let clientType: 'new' | 'returning' | 'inactive' = 'new';
+      if (daysSinceCreated > INACTIVITY_DAYS && aptCount === 0) {
+        clientType = 'inactive';
+      } else if (aptCount > 1) {
+        clientType = 'returning';
+      }
+      
+      return { id: String(c.id), name, email, phone, tags, clientType };
     });
-  }, [clients]);
+  }, [clients, calendarEvents]);
 
   // Filtered client list for picker
   const filteredPickerClients = useMemo(() => {
@@ -117,19 +158,41 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
     });
   }, []);
 
+  // Status label → clientType mapping
+  const STATUS_MAP: Record<string, string> = {
+    'Új ügyfél': 'new',
+    'Visszatérő': 'returning',
+    'Inaktív': 'inactive',
+  };
+
   // Auto-select based on filters
   useEffect(() => {
-    if (statusFilters.size === 0 && tagFilters.size === 0) return;
+    if (statusFilters.size === 0 && tagFilters.size === 0) {
+      setSelectedClientIds(new Set());
+      return;
+    }
     const matching = new Set<string>();
     enrichedClients.forEach(c => {
+      let matchesStatus = true;
+      let matchesTag = true;
+      
+      if (statusFilters.size > 0) {
+        matchesStatus = Array.from(statusFilters).some(sf => STATUS_MAP[sf] === c.clientType);
+      }
       if (tagFilters.size > 0) {
-        const hasTag = c.tags.some(t => tagFilters.has(t));
-        if (hasTag) matching.add(c.id);
+        matchesTag = c.tags.some(t => tagFilters.has(t));
+      }
+      
+      // If both filters active, client must match at least one
+      if (statusFilters.size > 0 && tagFilters.size > 0) {
+        if (matchesStatus || matchesTag) matching.add(c.id);
+      } else if (statusFilters.size > 0) {
+        if (matchesStatus) matching.add(c.id);
+      } else if (tagFilters.size > 0) {
+        if (matchesTag) matching.add(c.id);
       }
     });
-    if (matching.size > 0) {
-      setSelectedClientIds(prev => new Set([...prev, ...matching]));
-    }
+    setSelectedClientIds(matching);
   }, [tagFilters, statusFilters, enrichedClients]);
 
   const toggleClient = useCallback((id: string) => {
@@ -165,8 +228,9 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
   // Word count
   const wordCount = useMemo(() => {
     if (messageMode === 'manual') {
-      const text = editorRef.current?.innerText || messageContent;
-      return text.trim() ? text.trim().split(/\s+/).length : 0;
+      // Strip HTML tags to get plain text from messageContent state
+      const text = messageContent.replace(/<[^>]*>/g, ' ').trim();
+      return text ? text.split(/\s+/).length : 0;
     }
     return aiResult.trim() ? aiResult.trim().split(/\s+/).length : 0;
   }, [messageContent, aiResult, messageMode]);
@@ -243,7 +307,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
 
   // Tag colors
   const TAG_COLORS: Record<string, string> = {
-    'érdeklődés': '#ef4444', 'kampány lead': '#22c55e', 'ajánlatkérés': '#f59e0b',
+    'árkérdés': '#ef4444', 'kampány lead': '#22c55e', 'ajánlatkérés': '#f59e0b',
     'törölt időpont': '#8b5cf6', 'no-show': '#ec4899', 'VIP': '#6366f1',
   };
 
@@ -254,14 +318,14 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
     >
       <div
         className="login-card"
-        style={{ width: 640, maxWidth: '92vw', padding: 0, overflow: 'hidden', borderRadius: 16, border: 'none', boxShadow: '0 24px 48px rgba(0,0,0,0.3)' }}
+        style={{ width: 640, maxWidth: '92vw', padding: 0, overflow: 'hidden', borderRadius: 8, border: 'none', boxShadow: '0 24px 48px rgba(0,0,0,0.3)' }}
         onClick={e => e.stopPropagation()}
       >
         {/* Header with stepper */}
         <div style={{ background: 'var(--card)', padding: '24px 28px 6px 28px' }}>
           <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 40, height: 40, borderRadius: 6, background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg fill="none" stroke="#082432" strokeWidth="2.5" viewBox="0 0 24 24" style={{ width: 20, height: 20 }}><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
               </div>
               <div>
@@ -374,7 +438,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                 <div
                   onClick={() => setPickerOpen(!pickerOpen)}
                   style={{
-                    background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 12,
+                    background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 6,
                     padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12,
                     cursor: 'pointer', transition: 'all 0.25s', marginBottom: 8,
                     ...(pickerOpen ? { borderColor: 'var(--accent)' } : {}),
@@ -549,7 +613,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                   </div>
 
                   {/* AI Wizard Card */}
-                  <div style={{ background: 'linear-gradient(135deg, rgba(28,238,224,0.04), rgba(59,130,246,0.04))', border: '1.5px solid var(--border)', borderRadius: 12, padding: 18 }}>
+                  <div style={{ background: 'linear-gradient(135deg, rgba(28,238,224,0.04), rgba(59,130,246,0.04))', border: '1.5px solid var(--border)', borderRadius: 6, padding: 18 }}>
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
                       <span style={{ fontSize: 16 }}>✨</span>
                       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>AI Kampány Varázsló</span>

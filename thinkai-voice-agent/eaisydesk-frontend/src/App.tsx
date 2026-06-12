@@ -21,6 +21,7 @@ const SettingsPage = lazy(() => import('./pages/SettingsPage'));
 const BeallitasokPage = lazy(() => import('./pages/BeallitasokPage'));
 const HelpPage = lazy(() => import('./pages/HelpPage'));
 const MarketingPage = lazy(() => import('./pages/marketing/MarketingPage'));
+const AutomatizaciokPage = lazy(() => import('./pages/AutomatizaciokPage'));
 
 // Global styles (same CSS as the old admin)
 import './styles/variables.css';
@@ -39,6 +40,7 @@ import './styles/outbound.css';
 import './styles/marketing.css';
 import './styles/dark-mode.css';
 import './styles/responsive.css';
+import './styles/polish.css';
 
 function SmartRedirect() {
   const { user } = useAuth();
@@ -71,6 +73,7 @@ function AuthGate() {
           <Route path="kanban" element={<KanbanPage />} />
           <Route path="calendar" element={<CalendarPage />} />
           <Route path="outbound" element={<OutboundPage />} />
+          <Route path="automatizaciok" element={<AutomatizaciokPage />} />
           <Route path="settings/*" element={<SettingsPage />} />
           <Route path="beallitasok" element={<BeallitasokPage />} />
           <Route path="help" element={<HelpPage />} />

@@ -7,13 +7,16 @@ import { useState, useMemo, useCallback } from 'react';
 import {
   DndContext,
   DragOverlay,
-  closestCorners,
+  closestCenter,
   PointerSensor,
   TouchSensor,
   useSensor,
   useSensors,
   type DragStartEvent,
   type DragEndEvent,
+  MeasuringStrategy,
+  defaultDropAnimationSideEffects,
+  type DropAnimation,
 } from '@dnd-kit/core';
 import { useClients } from '../hooks/useClients';
 import { useSessions } from '../hooks/useSessions';
@@ -21,7 +24,7 @@ import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import { useKanbanColumns } from '../hooks/useKanbanColumns';
 import { parseCustomData, bestClientName, isAssignedToMe, type ClientRecord } from '../helpers/clientResolvers';
 import { useAuth } from '../context/AuthContext';
-import { TagBadge } from '../components/ui/Badge';
+
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
 import { supabase } from '../lib/supabase';
@@ -48,7 +51,7 @@ export default function KanbanPage() {
   const { clients, clientsMap, refetch: refetchClients } = useClients();
   const { sessions } = useSessions(500);
   const { events } = useCalendarEvents();
-  const { columns, loading, addColumn, renameColumn, deleteColumn, refetch: refetchColumns } = useKanbanColumns();
+  const { columns, loading, addColumn, renameColumn, deleteColumn, refetch: _refetchColumns } = useKanbanColumns();
   const { confirm, ConfirmDialog } = useConfirm();
 
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
@@ -60,6 +63,18 @@ export default function KanbanPage() {
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 5 } })
   );
+
+  const measuring = useMemo(() => ({
+    droppable: { strategy: MeasuringStrategy.Always },
+  }), []);
+
+  const dropAnimation: DropAnimation = useMemo(() => ({
+    duration: 200,
+    easing: 'ease',
+    sideEffects: defaultDropAnimationSideEffects({
+      styles: { active: { opacity: '0' } },
+    }),
+  }), []);
 
   // ── Build card data grouped by column ──
   const cardsByColumn = useMemo<Record<string, KanbanCardData[]>>(() => {
@@ -310,9 +325,10 @@ export default function KanbanPage() {
       {/* Kanban Board */}
       <DndContext
         sensors={sensors}
-        collisionDetection={closestCorners}
+        collisionDetection={closestCenter}
         onDragStart={handleDragStart}
         onDragEnd={handleDragEnd}
+        measuring={measuring}
       >
         <div className="kanban-board">
           {columns.map((col) => (
@@ -329,7 +345,7 @@ export default function KanbanPage() {
         </div>
 
         {/* Drag Overlay */}
-        <DragOverlay>
+        <DragOverlay dropAnimation={dropAnimation}>
           {activeCard && <KanbanCard card={activeCard} isDragOverlay />}
         </DragOverlay>
       </DndContext>
@@ -341,11 +357,11 @@ export default function KanbanPage() {
           onClick={() => setShowAddModal(false)}
         >
           <div
-            style={{ background: 'var(--card, #fff)', borderRadius: 16, padding: 28, width: 380, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}
+            style={{ background: 'var(--card, #fff)', borderRadius: 8, padding: 28, width: 380, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}
             onClick={(e) => e.stopPropagation()}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 12, background: 'rgba(28,238,224,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div style={{ width: 40, height: 40, borderRadius: 6, background: 'rgba(28,238,224,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
                 <svg fill="none" stroke="var(--accent)" strokeWidth="2" viewBox="0 0 24 24" width="20" height="20">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
                 </svg>
@@ -373,7 +389,7 @@ export default function KanbanPage() {
               </button>
               <button
                 onClick={handleAddColumn}
-                style={{ padding: '10px 20px', border: 'none', background: 'linear-gradient(135deg,#1ceee0,#0bbdb1)', color: '#082432', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(28,238,224,0.3)' }}
+                style={{ padding: '10px 20px', border: 'none', background: 'linear-gradient(135deg,#1ceee0,#0bbdb1)', color: '#082432', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: 'none' }}
               >
                 Hozzáadás
               </button>

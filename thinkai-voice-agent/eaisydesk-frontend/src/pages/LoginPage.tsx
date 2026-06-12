@@ -1,9 +1,11 @@
 import { useState, type FormEvent } from 'react';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import loginBg from '../assets/login-bg-optimized.webp';
 
 export default function LoginPage() {
   const { login, logoutMessage } = useAuth();
+  const { isDark } = useTheme();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
@@ -27,7 +29,7 @@ export default function LoginPage() {
   }
 
   return (
-    <div id="login-screen" style={{ backgroundImage: `url(${loginBg})` }}>
+    <div id="login-screen" style={isDark ? { backgroundImage: `url(${loginBg})` } : undefined}>
       <div className="login-card">
         <div className="login-logo">
           <div className="login-logo-icon">e</div>

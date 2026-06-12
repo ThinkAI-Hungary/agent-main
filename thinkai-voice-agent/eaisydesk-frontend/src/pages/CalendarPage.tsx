@@ -150,6 +150,14 @@ export default function CalendarPage() {
     }
   }, [newEvent, refetchEvents]);
 
+  // ── Today's events for agenda panel (must be above early returns to satisfy rules-of-hooks) ──
+  const todayStr = new Date().toISOString().split('T')[0];
+  const todayEvents = useMemo(() => {
+    return myEvents
+      .filter((ev) => (ev.start_dt || '').startsWith(todayStr))
+      .sort((a, b) => (a.start_dt || '').localeCompare(b.start_dt || ''));
+  }, [myEvents, todayStr]);
+
   // ── No-show marking ──
   const handleMarkNoShow = useCallback(async (eventId: number, _attendeeEmail: string, _attendeeName: string) => {
     try {
@@ -202,6 +210,10 @@ export default function CalendarPage() {
       );
     }
   }
+
+  // todayEvents and todayStr moved above early return to satisfy rules-of-hooks
+
+  const now = new Date();
 
   return (
     <div className="analytics-shell">
@@ -344,33 +356,86 @@ export default function CalendarPage() {
             </div>
           )}
 
-          {/* Grid (FullCalendar) view */}
+          {/* Grid (FullCalendar) view — two column layout */}
           {viewMode === 'grid' && (
-            <div style={{ background: 'var(--card)', borderRadius: 14, border: '1px solid var(--border)', padding: 16, minHeight: 600 }}>
-              <FullCalendar
-                plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-                initialView="timeGridWeek"
-                locale="hu"
-                firstDay={1}
-                height="auto"
-                allDaySlot={false}
-                nowIndicator
-                slotMinTime="07:00:00"
-                slotMaxTime="20:00:00"
-                slotDuration="00:30:00"
-                expandRows
-                headerToolbar={{
-                  left: 'prev,today,next',
-                  center: 'title',
-                  right: 'timeGridDay,timeGridWeek,dayGridMonth',
-                }}
-                buttonText={{ today: 'Ma', month: 'Hónap', week: 'Hét', day: 'Nap' }}
-                eventColor="var(--accent)"
-                events={fcEvents}
-                eventTimeFormat={{ hour: '2-digit', minute: '2-digit', meridiem: false, hour12: false }}
-                eventClick={handleEventClick}
-                eventClassNames="fc-event-clickable"
-              />
+            <div className="calendar-page-layout">
+              {/* Left: Calendar grid */}
+              <div className="calendar-grid-wrapper">
+                <FullCalendar
+                  plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
+                  initialView="timeGridWeek"
+                  locale="hu"
+                  firstDay={1}
+                  height="100%"
+                  allDaySlot={false}
+                  nowIndicator
+                  slotMinTime="08:00:00"
+                  slotMaxTime="19:00:00"
+                  slotDuration="00:30:00"
+                  expandRows
+                  headerToolbar={{
+                    left: 'prev,today,next',
+                    center: 'title',
+                    right: 'timeGridDay,timeGridWeek,dayGridMonth',
+                  }}
+                  buttonText={{ today: 'Ma', month: 'Hónap', week: 'Hét', day: 'Nap' }}
+                  eventColor="var(--accent)"
+                  events={fcEvents}
+                  eventTimeFormat={{ hour: '2-digit', minute: '2-digit', meridiem: false, hour12: false }}
+                  eventClick={handleEventClick}
+                  eventClassNames="fc-event-clickable"
+                />
+              </div>
+
+              {/* Right: Agenda panel */}
+              <div className="calendar-agenda-panel">
+                <div className="agenda-header">
+                  <div className="agenda-title">
+                    Mai események
+                    {todayEvents.length > 0 && (
+                      <span className="agenda-count">{todayEvents.length}</span>
+                    )}
+                  </div>
+                  <div className="agenda-date">
+                    {new Date().toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
+                  </div>
+                </div>
+
+                {todayEvents.length === 0 ? (
+                  <div className="agenda-empty">
+                    <div className="agenda-empty-icon">📅</div>
+                    <div className="agenda-empty-text">Nincs mai időpont</div>
+                  </div>
+                ) : (
+                  <div className="agenda-list">
+                    {todayEvents.map((ev) => {
+                      const evStart = new Date(ev.start_dt || '');
+                      const evEnd = new Date(evStart.getTime() + (ev.duration_minutes || 30) * 60000);
+                      const isPast = evEnd < now;
+                      const isNow = evStart <= now && now < evEnd;
+
+                      return (
+                        <div
+                          key={ev.id}
+                          className={`agenda-card${isPast ? ' is-past' : ''}${isNow ? ' is-now' : ''}`}
+                          onClick={() => openClientFromEvent(ev.attendee || '', ev.attendee_email || '')}
+                        >
+                          <div className="agenda-card-time">
+                            {evStart.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}
+                          </div>
+                          <div className="agenda-card-info">
+                            <div className="agenda-card-title">{ev.title}</div>
+                            <div className="agenda-card-attendee">{ev.attendee || '—'}</div>
+                          </div>
+                          <div className="agenda-card-duration">
+                            {ev.duration_minutes || 30} perc
+                          </div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
             </div>
           )}
         </>

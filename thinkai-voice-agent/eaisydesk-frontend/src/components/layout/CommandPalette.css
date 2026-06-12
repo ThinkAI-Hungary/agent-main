@@ -1,0 +1,237 @@
+/* ══════════════════════════════════════════════════════════════════════
+   Command Palette — Ctrl+K Spotlight search
+   ══════════════════════════════════════════════════════════════════════ */
+
+/* ── Backdrop ─────────────────────────────────────────────────────── */
+.cmd-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(8, 36, 50, 0.55);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 18vh;
+  animation: cmdBackdropIn 0.15s ease;
+}
+
+@keyframes cmdBackdropIn {
+  from { opacity: 0; }
+  to   { opacity: 1; }
+}
+
+/* ── Modal ────────────────────────────────────────────────────────── */
+.cmd-modal {
+  width: 580px;
+  max-height: 480px;
+  background: #fff;
+  border-radius: 16px;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.2),
+    0 0 0 1px rgba(28, 238, 224, 0.08);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: cmdModalIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+body.dark .cmd-modal {
+  background: #0f1f2e;
+  box-shadow:
+    0 24px 80px rgba(0, 0, 0, 0.5),
+    0 0 0 1px rgba(28, 238, 224, 0.1);
+}
+
+@keyframes cmdModalIn {
+  from { opacity: 0; transform: scale(0.96) translateY(-8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ── Search input area ────────────────────────────────────────────── */
+.cmd-input-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 16px 20px;
+  border-bottom: 1px solid rgba(0, 0, 0, 0.06);
+}
+
+body.dark .cmd-input-wrap {
+  border-bottom-color: rgba(255, 255, 255, 0.06);
+}
+
+.cmd-search-icon {
+  flex-shrink: 0;
+  width: 20px;
+  height: 20px;
+  color: #94a3b8;
+}
+
+.cmd-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  background: transparent;
+  font-size: 16px;
+  font-family: 'Inter', sans-serif;
+  font-weight: 500;
+  color: var(--text, #1a2b3c);
+  letter-spacing: -0.01em;
+}
+
+.cmd-input::placeholder {
+  color: #94a3b8;
+  font-weight: 400;
+}
+
+.cmd-kbd {
+  font-family: 'Inter', sans-serif;
+  font-size: 11px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: rgba(0, 0, 0, 0.04);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+  border-radius: 5px;
+  padding: 2px 6px;
+  line-height: 1.4;
+}
+
+body.dark .cmd-kbd {
+  background: rgba(255, 255, 255, 0.06);
+  border-color: rgba(255, 255, 255, 0.08);
+  color: #64748b;
+}
+
+/* ── Results list ─────────────────────────────────────────────────── */
+.cmd-results {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px;
+}
+
+.cmd-group-label {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #94a3b8;
+  padding: 10px 12px 6px;
+}
+
+/* ── Result item ──────────────────────────────────────────────────── */
+.cmd-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 10px;
+  cursor: pointer;
+  transition: background 0.12s ease;
+  position: relative;
+}
+
+.cmd-item:hover,
+.cmd-item.active {
+  background: rgba(28, 238, 224, 0.08);
+}
+
+.cmd-item.active {
+  box-shadow: inset 0 0 0 1px rgba(28, 238, 224, 0.15);
+}
+
+.cmd-item-icon {
+  flex-shrink: 0;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 16px;
+}
+
+.cmd-item-icon.nav     { background: rgba(28, 238, 224, 0.1);  color: #0dbcb4; }
+.cmd-item-icon.action  { background: rgba(168, 85, 247, 0.1);  color: #8b5cf6; }
+.cmd-item-icon.client  { background: rgba(59, 130, 246, 0.1);  color: #3b82f6; }
+.cmd-item-icon.search  { background: rgba(245, 158, 11, 0.1);  color: #f59e0b; }
+
+.cmd-item-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.cmd-item-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text, #1a2b3c);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmd-item-desc {
+  font-size: 12px;
+  color: #94a3b8;
+  margin-top: 1px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.cmd-item-shortcut {
+  flex-shrink: 0;
+  display: flex;
+  gap: 4px;
+}
+
+.cmd-item-shortcut .cmd-kbd {
+  font-size: 10px;
+  padding: 1px 5px;
+}
+
+/* ── Footer ───────────────────────────────────────────────────────── */
+.cmd-footer {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  padding: 10px 20px;
+  border-top: 1px solid rgba(0, 0, 0, 0.06);
+  font-size: 11px;
+  color: #94a3b8;
+}
+
+body.dark .cmd-footer {
+  border-top-color: rgba(255, 255, 255, 0.06);
+}
+
+.cmd-footer-hint {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+}
+
+/* ── Empty state ──────────────────────────────────────────────────── */
+.cmd-empty {
+  text-align: center;
+  padding: 40px 20px;
+  color: #94a3b8;
+  font-size: 13px;
+}
+
+.cmd-empty svg {
+  width: 32px;
+  height: 32px;
+  margin-bottom: 8px;
+  opacity: 0.4;
+}
+
+/* ── Highlight match ──────────────────────────────────────────────── */
+.cmd-highlight {
+  color: #0dbcb4;
+  font-weight: 700;
+  background: rgba(28, 238, 224, 0.1);
+  border-radius: 3px;
+  padding: 0 1px;
+}

@@ -6,6 +6,7 @@ and provides a JWT-protected admin API with analytics.
 """
 
 import json
+import re
 import logging
 import os
 import uuid
@@ -229,19 +230,7 @@ FRONTEND_DIST = THIS_DIR / "frontend_dist"
 if FRONTEND_DIST.exists():
     app.mount("/admin/assets", StaticFiles(directory=FRONTEND_DIST / "assets"), name="frontend-assets")
 
-@app.get("/admin")
-@app.get("/admin/{path:path}")
-async def admin_spa(path: str = ""):
-    # Először nézzük meg, hogy létezik-e a fájl (logo, favicon, icons, stb.)
-    if path:
-        file_path = FRONTEND_DIST / path
-        if file_path.exists() and file_path.is_file() and ".." not in path:
-            return FileResponse(file_path)
-    # Ha nem fájl, a React SPA index.html-t küldjük (client-side routing)
-    index = FRONTEND_DIST / "index.html"
-    if index.exists():
-        return FileResponse(index)
-    return FileResponse(THIS_DIR / "admin.html")
+# NOTE: admin SPA catch-all moved to end of file to avoid intercepting API routes
 
 @app.get("/marketing")
 def marketing_page():
@@ -1010,8 +999,8 @@ Csak a címkéket tartalmazó JSON listát (pl. ["urgent", "complaint"]) add vis
     except Exception:
         return []
 
-async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Optional[str]:
-    """Fetch the user's name from Meta Graph API using their PSID/IGSID."""
+async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Optional[dict]:
+    """Fetch the user's name and profile picture from Meta Graph API using their PSID/IGSID."""
     if source_channel not in ("Messenger", "Instagram"):
         return None
         
@@ -1040,7 +1029,8 @@ async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Option
                     first = data.get("first_name", "")
                     last = data.get("last_name", "")
                     name = f"{first} {last}".strip()
-                return name if name else None
+                profile_pic = data.get("profile_pic")
+                return {"name": name, "profile_pic": profile_pic} if name else None
             else:
                 print(f"[Meta API] Error fetching profile for {sender_id} ({source_channel}): {resp.text}")
                 return None
@@ -1063,15 +1053,22 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
 
     try:
         # 1. Beolvassuk a rendszer promptot
-        system_prompt = get_system_prompt()
+        system_prompt = get_system_prompt(channel=source_channel)
         today = datetime.now().strftime("%Y-%m-%d (%A)")
         
         # Először is elmentjük a bejövő üzenetet a Kanbanba
         client_data = {"messenger_id": sender_id, "forras_csatorna": source_channel}
-        meta_name = await fetch_meta_user_profile(sender_id, source_channel)
-        if meta_name:
-            client_data["name"] = meta_name
-        else:
+        meta_profile = await fetch_meta_user_profile(sender_id, source_channel)
+        meta_name = None
+        if meta_profile:
+            meta_name = meta_profile.get("name")
+            if meta_name:
+                client_data["name"] = meta_name
+            profile_pic = meta_profile.get("profile_pic")
+            if profile_pic:
+                client_data["profile_pic_url"] = profile_pic
+        
+        if not meta_name:
             # Fallback: keressük az adatbázisban a nevet
             print(f"[Meta API] Név feloldás sikertelen ({source_channel} {sender_id}), DB fallback...")
             existing = db.find_client_by_contact(messenger_id=sender_id)
@@ -1230,6 +1227,43 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             # Fetch existing client to keep current status, or default to "uj"
             existing_client = db.find_client_by_contact(messenger_id=sender_id)
             current_status = existing_client.get("status", "uj") if existing_client else "uj"
+            
+            # --- AUTOMATIKUS TAG HOZZÁRENDELÉS ---
+            # Az üzenet és AI válasz alapján releváns tag-eket rendelünk az ügyfélhez
+            existing_tags = []
+            if existing_client:
+                ec_data = existing_client.get("custom_data", {}) or {}
+                if isinstance(ec_data, str):
+                    try: ec_data = json.loads(ec_data)
+                    except: ec_data = {}
+                existing_tags = ec_data.get("tags", []) if isinstance(ec_data, dict) else []
+            
+            msg_lower = message_text.lower() if message_text else ""
+            reply_lower = final_text.lower() if final_text else ""
+            combined_text = msg_lower + " " + reply_lower
+            
+            new_tags = list(existing_tags)  # copy
+            
+            # Árkérdés: csak ha tényleg árakról van szó (szóhatárokkal!)
+            # "ár" túl rövid → "korábban", "járt", "már" hamis pozitív
+
+            ar_pattern = r'\b(árak|árat|árazás|árlista|mennyibe|költség|fizetés|kedvezmény|részletfizetés|bruttó|nettó|mennyi.*kerül|ár\b)'
+            if re.search(ar_pattern, combined_text):
+                if "árkérdés" not in new_tags:
+                    new_tags.append("árkérdés")
+            
+            # Ajánlatkérés: ha ajánlatot, árajánlatot kér
+            if any(kw in combined_text for kw in ["ajánlat", "árajánlat", "kérek ajánlatot", "ajánlatot kér"]):
+                if "ajánlatkérés" not in new_tags:
+                    new_tags.append("ajánlatkérés")
+            
+            # Kampány lead: ha kampányból érkezett vagy marketing tartalom
+            if any(kw in combined_text for kw in ["kampány", "promóció", "hírlevél", "newsletter"]):
+                if "kampány lead" not in new_tags:
+                    new_tags.append("kampány lead")
+            
+            if new_tags != existing_tags:
+                custom_data["tags"] = new_tags
             
             client_id = db.upsert_client(custom_data, status=current_status)
             
@@ -1419,7 +1453,7 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             # Logolás az interactions táblába + approval
             db.log_interaction(
                 type=source_channel.lower(),
-                topic=f"{source_channel} AI válasz",
+                topic=f"{source_channel} AI válasz - {message_text[:200]}",
                 summary=final_text[:100],
                 result="Várakozik jóváhagyásra",
                 tool_name="process_meta_message",
@@ -1617,6 +1651,75 @@ def api_get_members(username: str = Depends(verify_jwt)):
     members = [{"id": u["id"], "username": u["username"], "full_name": u.get("full_name", ""), "role": u.get("role", "member")} for u in users if u.get("role") in ("member", "manager")]
     return {"status": "success", "data": members}
 
+class AvatarUploadRequest(BaseModel):
+    avatar_data: str  # base64 data URL (e.g. "data:image/jpeg;base64,...")
+
+@app.post("/admin/api/users/avatar")
+async def api_upload_avatar(req: AvatarUploadRequest, username: str = Depends(verify_jwt)):
+    """Upload profile avatar to Supabase Storage."""
+    import base64 as b64mod
+    data = req.avatar_data
+    if not data.startswith("data:image/"):
+        raise HTTPException(400, "Érvénytelen képformátum")
+    if len(data) > 700_000:
+        raise HTTPException(400, "A kép túl nagy (max ~500KB)")
+    try:
+        # Parse base64 data URL
+        header, b64_content = data.split(",", 1)
+        image_bytes = b64mod.b64decode(b64_content)
+        content_type = header.split(":")[1].split(";")[0]  # e.g. "image/jpeg"
+        ext = content_type.split("/")[1]  # e.g. "jpeg"
+        file_path = f"{username}.{ext}"
+        
+        storage = db.supabase.storage.from_("avatars")
+        # Try to remove existing file first (ignore errors)
+        try:
+            storage.remove([f"{username}.jpeg", f"{username}.jpg", f"{username}.png", f"{username}.webp"])
+        except Exception:
+            pass
+        # Upload new file
+        storage.upload(file_path, image_bytes, file_options={"content-type": content_type, "upsert": "true"})
+        # Get public URL
+        public_url = storage.get_public_url(file_path)
+        # Add cache-busting parameter
+        import time
+        public_url = f"{public_url}?t={int(time.time())}"
+        return {"status": "success", "avatar_url": public_url}
+    except Exception as e:
+        print(f"[Avatar Upload Error] {e}")
+        raise HTTPException(500, f"Hiba: {e}")
+
+@app.delete("/admin/api/users/avatar")
+async def api_delete_avatar(username: str = Depends(verify_jwt)):
+    """Remove profile avatar from Supabase Storage."""
+    try:
+        storage = db.supabase.storage.from_("avatars")
+        storage.remove([f"{username}.jpeg", f"{username}.jpg", f"{username}.png", f"{username}.webp"])
+        return {"status": "success"}
+    except Exception as e:
+        raise HTTPException(500, f"Hiba: {e}")
+
+@app.get("/admin/api/users/{username_or_id}/avatar")
+async def api_get_avatar(username_or_id: str, _: str = Depends(verify_jwt)):
+    """Get avatar URL for a user from Supabase Storage."""
+    try:
+        storage = db.supabase.storage.from_("avatars")
+        # Try common extensions
+        for ext in ["jpeg", "jpg", "png", "webp"]:
+            file_path = f"{username_or_id}.{ext}"
+            try:
+                public_url = storage.get_public_url(file_path)
+                # Verify it actually exists by listing
+                files = storage.list()
+                exists = any(f.get("name", "") == file_path for f in files)
+                if exists:
+                    import time
+                    return {"avatar_url": f"{public_url}?t={int(time.time())}"}
+            except Exception:
+                continue
+        return {"avatar_url": None}
+    except Exception:
+        return {"avatar_url": None}
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # ADMIN API — protected routes
@@ -1661,7 +1764,7 @@ def admin_get_insights(username: str = Depends(verify_jwt)):
 async def admin_generate_insights(username: str = Depends(verify_jwt)):
     """Generate new AI insights based on stats."""
     stats = db.get_stats(period="month")
-    google_key = os.getenv("GEMINI_API_KEY")
+    google_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     insights = []
     
     if google_key:
@@ -2164,6 +2267,7 @@ class SettingsSaveRequest(BaseModel):
     knowledge_format: str = "json"
     knowledge_content: str = ""
     greeting: str = ""
+    language: str = "hu"
     business_hours: dict = {}
 
 
@@ -2182,6 +2286,7 @@ async def save_settings(payload: SettingsSaveRequest, username: str = Depends(ve
         "tone_custom":     payload.tone_custom,
         "knowledge_format": payload.knowledge_format,
         "greeting":        payload.greeting,
+        "language":        payload.language,
         "business_hours":  payload.business_hours,
     }
     try:
@@ -2801,7 +2906,11 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                 
     except Exception as e:
         print(f"[Approval Error] Hiba a kiküldéskor: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        # Küldés sikertelen, de az approve-ot azért mentsük el
+        draft["body"] = final_text
+        new_draft_json = json.dumps(draft)
+        db.update_approval_status(id, "approved", new_draft=new_draft_json)
+        return {"status": "warning", "message": f"Jóváhagyva, de a küldés sikertelen: {str(e)[:150]}"}
         
     # 2. Adatbázis frissítése
     draft["body"] = final_text
@@ -2821,6 +2930,48 @@ def save_clinics_api(clinics: list[dict], admin: dict = Depends(verify_jwt)):
     success = db.save_clinics(clinics)
     if success: return {"status": "ok"}
     raise HTTPException(status_code=500, detail="Failed to save clinics")
+
+@app.get("/admin/api/clients/{client_id}/profile-pic")
+async def fetch_client_profile_pic(client_id: int, username: str = Depends(verify_jwt)):
+    """Fetch and cache profile picture for a client with a messenger_id."""
+    import json
+    try:
+        res = db.supabase.table("clients").select("custom_data").eq("id", client_id).single().execute()
+        if not res.data:
+            raise HTTPException(status_code=404, detail="Ügyfél nem található")
+        
+        cd = res.data.get("custom_data")
+        if isinstance(cd, str):
+            try: cd = json.loads(cd)
+            except: cd = {}
+        if not isinstance(cd, dict):
+            cd = {}
+        
+        # Already has profile pic
+        if cd.get("profile_pic_url"):
+            return {"profile_pic_url": cd["profile_pic_url"]}
+        
+        messenger_id = cd.get("messenger_id")
+        if not messenger_id:
+            return {"profile_pic_url": None}
+        
+        # Determine channel
+        channel = cd.get("forras_csatorna", "Messenger")
+        profile = await fetch_meta_user_profile(messenger_id, channel)
+        
+        if profile and profile.get("profile_pic"):
+            pic_url = profile["profile_pic"]
+            # Save to DB
+            cd["profile_pic_url"] = pic_url
+            db.supabase.table("clients").update({"custom_data": cd}).eq("id", client_id).execute()
+            return {"profile_pic_url": pic_url}
+        
+        return {"profile_pic_url": None}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[Profile Pic] Error: {e}")
+        return {"profile_pic_url": None}
 
 class ReminderSettingsRequest(BaseModel):
     reminder_enabled: bool
@@ -3064,7 +3215,7 @@ async def _run_campaign(campaign: dict, active_channels: list[str]):
         db.update_campaign_status(campaign_id, "Befejezett", processed_count=0)
         return
 
-    base_system_prompt = get_system_prompt()
+    base_system_prompt = get_system_prompt(channel="email")
     gemini_client = genai.Client(api_key=google_key)
     processed = 0
 
@@ -5226,6 +5377,25 @@ async def serve_generated_image(filename: str):
     if img_path.exists():
         return FileResponse(img_path, media_type="image/png")
     return JSONResponse({"error": "Kép nem található."}, status_code=404)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ADMIN SPA CATCH-ALL — must be LAST to avoid intercepting /admin/api/* routes
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/admin")
+@app.get("/admin/{path:path}")
+async def admin_spa(path: str = ""):
+    # Először nézzük meg, hogy létezik-e a fájl (logo, favicon, icons, stb.)
+    if path:
+        file_path = FRONTEND_DIST / path
+        if file_path.exists() and file_path.is_file() and ".." not in path:
+            return FileResponse(file_path)
+    # Ha nem fájl, a React SPA index.html-t küldjük (client-side routing)
+    index = FRONTEND_DIST / "index.html"
+    if index.exists():
+        return FileResponse(index)
+    return FileResponse(THIS_DIR / "admin.html")
 
 
 if __name__ == "__main__":

@@ -83,6 +83,16 @@ export default function MemberDashboardPage() {
     ? fullName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
     : username.substring(0, 2).toUpperCase();
 
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!username) return;
+    authFetch(`/admin/api/users/${username}/avatar`)
+      .then(r => r.json())
+      .then(d => { if (d.avatar_url) setAvatarUrl(d.avatar_url); })
+      .catch(() => {});
+  }, [username]);
+
   // ── Load data ─────────────────────────────────────────────────────────────
 
   const loadDashboardData = useCallback(async () => {
@@ -228,7 +238,7 @@ export default function MemberDashboardPage() {
           if (as_ === 'approved' || as_ === 'rejected') return;
 
           const sDt = s.started_at ? new Date(s.started_at as string) : new Date();
-          let deadlineDt = new Date(sDt);
+          let deadlineDt: Date;
           if (badge === 'surgos') deadlineDt = new Date(sDt);
           else if (badge === 'visszahivas' || badge === 'valasz') deadlineDt = new Date(sDt.getTime() + 4 * 60 * 60 * 1000);
           else deadlineDt = new Date(sDt.getTime() + 24 * 60 * 60 * 1000);
@@ -355,13 +365,16 @@ export default function MemberDashboardPage() {
           <div
             id="member-avatar"
             style={{
-              width: 44, height: 44, borderRadius: 14,
-              background: 'linear-gradient(135deg, #1ceee0, #3b82f6)',
+              width: 44, height: 44, borderRadius: 6,
+              background: avatarUrl ? 'transparent' : 'linear-gradient(135deg, #1ceee0, #3b82f6)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 18, fontWeight: 800, color: '#082432', flexShrink: 0,
+              overflow: 'hidden',
             }}
           >
-            {initials}
+            {avatarUrl ? (
+              <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            ) : initials}
           </div>
           <div>
             <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: 0, lineHeight: 1.3 }}>
@@ -445,7 +458,7 @@ export default function MemberDashboardPage() {
         {/* Summary cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }}>
           <div
-            style={{ padding: '16px 18px', borderRadius: 12, border: '1px solid #dbeafe', background: '#eff6ff', cursor: 'pointer' }}
+            style={{ padding: '16px 18px', borderRadius: 6, border: '1px solid #dbeafe', background: '#eff6ff', cursor: 'pointer' }}
             onClick={() => setFilter('today')}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -455,7 +468,7 @@ export default function MemberDashboardPage() {
             <div style={{ fontSize: 28, fontWeight: 800, color: '#1e40af' }}>{counts.today}</div>
           </div>
           <div
-            style={{ padding: '16px 18px', borderRadius: 12, border: '1px solid #fee2e2', background: '#fef2f2', cursor: 'pointer' }}
+            style={{ padding: '16px 18px', borderRadius: 6, border: '1px solid #fee2e2', background: '#fef2f2', cursor: 'pointer' }}
             onClick={() => setFilter('overdue')}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -465,7 +478,7 @@ export default function MemberDashboardPage() {
             <div style={{ fontSize: 28, fontWeight: 800, color: '#b91c1c' }}>{counts.overdue}</div>
           </div>
           <div
-            style={{ padding: '16px 18px', borderRadius: 12, border: '1px solid #dcfce7', background: '#f0fdf4', cursor: 'pointer' }}
+            style={{ padding: '16px 18px', borderRadius: 6, border: '1px solid #dcfce7', background: '#f0fdf4', cursor: 'pointer' }}
             onClick={() => setFilter('completed')}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
@@ -475,7 +488,7 @@ export default function MemberDashboardPage() {
             <div style={{ fontSize: 28, fontWeight: 800, color: '#15803d' }}>{counts.completed}</div>
           </div>
           <div
-            style={{ padding: '16px 18px', borderRadius: 12, border: '1px solid var(--border)', background: 'var(--card)', cursor: 'pointer' }}
+            style={{ padding: '16px 18px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--card)', cursor: 'pointer' }}
             onClick={() => setFilter('all')}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>

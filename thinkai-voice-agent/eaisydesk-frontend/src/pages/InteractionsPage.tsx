@@ -12,7 +12,6 @@ import {
   detectEredmeny,
   detectStatusz,
   detectTeendo,
-  UGYTIPUS_COLORS,
 } from '../helpers/interactionClassifiers';
 import { fmtDt, cleanStr } from '../helpers/formatters';
 import { EredmenyBadge, StatuszBadge, DirectionBadge } from '../components/ui/Badge';
@@ -23,7 +22,7 @@ import { supabase } from '../lib/supabase';
 import InteractionSummaryModal from '../components/interactions/InteractionSummaryModal';
 import ClientDetailView from '../components/clients/ClientDetailView';
 import { useCalendarEvents } from '../hooks/useCalendarEvents';
-import { bestClientName, type ClientRecord } from '../helpers/clientResolvers';
+import { bestClientName } from '../helpers/clientResolvers';
 
 // ── Row type ──
 export interface InteractionRow {
@@ -125,7 +124,7 @@ export default function InteractionsPage() {
     sessions.forEach((s: SessionSummary) => {
       const sessionDate = s.started_at || '';
       const sRoom = (s.room_name || '').toLowerCase();
-      const sessionClientName = s.participant || s.client_name || 'Ismeretlen';
+      const _sessionClientName = s.participant || s.client_name || 'Ismeretlen';
 
       if (s.interactions && s.interactions.length > 0) {
         s.interactions.forEach((r: SessionInteraction) => {
@@ -216,7 +215,7 @@ export default function InteractionsPage() {
   // ── Filter + sort ──
   const filteredRows = useMemo(() => {
     const q = cleanStr(searchQuery);
-    let rows = myRows.filter((r) => {
+    const rows = myRows.filter((r) => {
       if (q) {
         const searchable = [r.channel, r.client, r.direction, r.ugyTipus, r.eredmeny, r.statusz, r.teendo, r.summary].join(' ');
         if (!cleanStr(searchable).includes(q)) return false;
@@ -478,7 +477,7 @@ export default function InteractionsPage() {
                   width: 340,
                   background: 'var(--card, #fff)',
                   border: '1px solid var(--border, #e5e7eb)',
-                  borderRadius: 14,
+                  borderRadius: 6,
                   boxShadow: '0 12px 40px rgba(0,0,0,0.12)',
                   overflow: 'hidden',
                   animation: 'fadein 0.2s ease',
@@ -584,7 +583,7 @@ export default function InteractionsPage() {
                   marginTop: 6,
                   background: 'var(--card)',
                   border: '1px solid var(--border)',
-                  borderRadius: 12,
+                  borderRadius: 6,
                   boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
                   padding: '10px 0',
                   minWidth: 200,
@@ -614,23 +613,12 @@ export default function InteractionsPage() {
         </div>
       </div>
 
-      {/* Count + refresh */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 6 }}>
-        <div className="int-count" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>
-          {filteredRows.length > 0 ? `${filteredRows.length} interakció` : ''}
+      {/* Count */}
+      {filteredRows.length > 0 && (
+        <div className="int-count" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
+          {filteredRows.length} interakció
         </div>
-        <button
-          onClick={() => refetchSessions()}
-          title="Frissítés"
-          style={{ background: 'none', border: 'none', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)', borderRadius: 6 }}
-        >
-          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 15, height: 15 }}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M20 20v-5h-5" />
-            <path strokeLinecap="round" strokeLinejoin="round" d="M20.49 9A9 9 0 005.64 5.64L4 9m16 6l-1.64 3.36A9 9 0 013.51 15" />
-          </svg>
-        </button>
-      </div>
+      )}
 
       {/* Table */}
       <div className="int-table-wrapper">

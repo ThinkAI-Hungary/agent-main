@@ -3,7 +3,7 @@
  * Pill-style tabs: Profil, Csapat, Biztonság
  * All data via backend API.
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { authFetch } from '../api/client';
 import { showToast } from '../components/ui/Toast';
@@ -195,6 +195,12 @@ export default function BeallitasokPage() {
               <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Felhasználói profil</div>
             </div>
             <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 32 }}>Személyes információk és avatar kezelése</div>
+
+            {/* ── Profile Picture Upload ── */}
+            <ProfileAvatarUpload
+              initials={getInitials(profileName || user?.username || '')}
+              username={user?.username || ''}
+            />
 
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
               <div>
@@ -390,9 +396,9 @@ export default function BeallitasokPage() {
 function Modal({ title, subtitle, children, onClose }: { title: string; subtitle?: string; children: React.ReactNode; onClose: () => void }) {
   return (
     <div className="security-modal-overlay" onClick={onClose} style={{ display: 'flex' }}>
-      <div className="security-modal" onClick={(e) => e.stopPropagation()} style={{ background: 'var(--card)', borderRadius: 16, padding: 28, width: 440, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
+      <div className="security-modal" onClick={(e) => e.stopPropagation()} style={{ background: 'var(--card)', borderRadius: 8, padding: 28, width: 440, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 24 }}>
-          <div style={{ width: 40, height: 40, borderRadius: 12, background: 'linear-gradient(135deg,#1ceee0,#0bbdb1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <div style={{ width: 40, height: 40, borderRadius: 6, background: 'linear-gradient(135deg,#1ceee0,#0bbdb1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg fill="none" stroke="#082432" strokeWidth="2.5" viewBox="0 0 24 24" style={{ width: 20, height: 20 }}><rect x="3" y="11" width="18" height="11" rx="2" ry="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></svg>
           </div>
           <div>
@@ -402,6 +408,195 @@ function Modal({ title, subtitle, children, onClose }: { title: string; subtitle
         </div>
         {children}
       </div>
+    </div>
+  );
+}
+
+function ProfileAvatarUpload({ initials, username }: { initials: string; username: string }) {
+  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
+  const [hovering, setHovering] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Load avatar on mount
+  useEffect(() => {
+    if (!username) return;
+    authFetch(`/admin/api/users/${username}/avatar`)
+      .then(r => r.json())
+      .then(d => { if (d.avatar_url) setAvatarUrl(d.avatar_url); })
+      .catch(() => {});
+  }, [username]);
+
+  const resizeAndUpload = useCallback(async (file: File) => {
+    if (!file.type.startsWith('image/')) {
+      showToast('Csak képfájl tölthető fel!', 'error');
+      return;
+    }
+    if (file.size > 5_000_000) {
+      showToast('A kép túl nagy (max 5MB)!', 'error');
+      return;
+    }
+
+    setUploading(true);
+    try {
+      // Create image and resize to 200x200
+      const img = new Image();
+      const objectUrl = URL.createObjectURL(file);
+      await new Promise<void>((resolve, reject) => {
+        img.onload = () => resolve();
+        img.onerror = () => reject(new Error('Képbetöltési hiba'));
+        img.src = objectUrl;
+      });
+
+      const canvas = document.createElement('canvas');
+      const size = 200;
+      canvas.width = size;
+      canvas.height = size;
+      const ctx = canvas.getContext('2d')!;
+
+      // Center-crop: use the smaller dimension
+      const minDim = Math.min(img.width, img.height);
+      const sx = (img.width - minDim) / 2;
+      const sy = (img.height - minDim) / 2;
+      ctx.drawImage(img, sx, sy, minDim, minDim, 0, 0, size, size);
+      URL.revokeObjectURL(objectUrl);
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+
+      const res = await authFetch('/admin/api/users/avatar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ avatar_data: dataUrl }),
+      });
+
+      if (res.ok) {
+        const data = await res.json();
+        setAvatarUrl(data.avatar_url);
+        showToast('Profilkép feltöltve!');
+      } else {
+        const err = await res.json().catch(() => ({ detail: 'Ismeretlen hiba' }));
+        showToast(err.detail || 'Feltöltési hiba', 'error');
+      }
+    } catch {
+      showToast('Képfeldolgozási hiba', 'error');
+    } finally {
+      setUploading(false);
+    }
+  }, []);
+
+  const handleDelete = useCallback(async () => {
+    try {
+      const res = await authFetch('/admin/api/users/avatar', { method: 'DELETE' });
+      if (res.ok) {
+        setAvatarUrl(null);
+        showToast('Profilkép eltávolítva');
+      }
+    } catch {
+      showToast('Hiba', 'error');
+    }
+  }, []);
+
+  const handleDrop = useCallback((e: React.DragEvent) => {
+    e.preventDefault();
+    setDragOver(false);
+    const file = e.dataTransfer.files[0];
+    if (file) resizeAndUpload(file);
+  }, [resizeAndUpload]);
+
+  return (
+    <div style={{ display: 'flex', alignItems: 'center', gap: 24, marginBottom: 32, padding: '24px 0', borderBottom: '1px solid var(--border)' }}>
+      {/* Avatar circle with hover overlay */}
+      <div
+        style={{
+          position: 'relative', width: 96, height: 96, borderRadius: '50%', cursor: 'pointer', flexShrink: 0,
+          background: dragOver ? 'rgba(28,238,224,0.15)' : 'transparent',
+          padding: 3,
+          backgroundImage: !dragOver ? 'linear-gradient(135deg, #1ceee0, #3b82f6, #8b5cf6)' : undefined,
+          transition: 'all 0.3s ease',
+        }}
+        onMouseEnter={() => setHovering(true)}
+        onMouseLeave={() => setHovering(false)}
+        onClick={() => fileInputRef.current?.click()}
+        onDragOver={e => { e.preventDefault(); setDragOver(true); }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+      >
+        <div style={{
+          width: '100%', height: '100%', borderRadius: '50%', overflow: 'hidden',
+          background: 'var(--card)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+        }}>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+          ) : (
+            <span style={{ fontSize: 32, fontWeight: 800, color: 'var(--text)', opacity: 0.5 }}>{initials}</span>
+          )}
+        </div>
+
+        {/* Hover overlay */}
+        <div style={{
+          position: 'absolute', inset: 3, borderRadius: '50%',
+          background: 'rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column',
+          alignItems: 'center', justifyContent: 'center', gap: 4,
+          opacity: hovering || dragOver ? 1 : 0,
+          transition: 'opacity 0.2s ease', pointerEvents: 'none',
+        }}>
+          {uploading ? (
+            <div className="spinner" style={{ width: 24, height: 24, borderWidth: 2, borderColor: '#fff3', borderTopColor: '#fff' }} />
+          ) : (
+            <>
+              <svg fill="none" stroke="white" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 22, height: 22 }}>
+                <path d="M23 19a2 2 0 01-2 2H3a2 2 0 01-2-2V8a2 2 0 012-2h4l2-3h6l2 3h4a2 2 0 012 2z" />
+                <circle cx="12" cy="13" r="4" />
+              </svg>
+              <span style={{ color: 'white', fontSize: 10, fontWeight: 600 }}>
+                {dragOver ? 'Ejtsd ide' : 'Módosítás'}
+              </span>
+            </>
+          )}
+        </div>
+      </div>
+
+      {/* Info & actions */}
+      <div style={{ flex: 1 }}>
+        <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 4 }}>Profilkép</div>
+        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12, lineHeight: 1.5 }}>
+          Kattints az avatarra vagy húzd rá a képet.<br />JPG, PNG — max 5MB
+        </div>
+        <div style={{ display: 'flex', gap: 8 }}>
+          <button
+            onClick={() => fileInputRef.current?.click()}
+            disabled={uploading}
+            style={{
+              padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
+              background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)', color: '#082432',
+              fontSize: 12, fontWeight: 700, transition: 'all 0.2s',
+            }}
+          >
+            {uploading ? 'Feltöltés...' : 'Kép kiválasztása'}
+          </button>
+          {avatarUrl && (
+            <button
+              onClick={handleDelete}
+              style={{
+                padding: '7px 16px', borderRadius: 8, cursor: 'pointer',
+                background: 'transparent', border: '1px solid var(--border)',
+                color: '#ef4444', fontSize: 12, fontWeight: 600, transition: 'all 0.2s',
+              }}
+            >
+              Eltávolítás
+            </button>
+          )}
+        </div>
+      </div>
+
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept="image/jpeg,image/png,image/webp"
+        style={{ display: 'none' }}
+        onChange={e => { const f = e.target.files?.[0]; if (f) resizeAndUpload(f); e.target.value = ''; }}
+      />
     </div>
   );
 }

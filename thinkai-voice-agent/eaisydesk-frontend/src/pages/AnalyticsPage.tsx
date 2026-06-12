@@ -1,7 +1,8 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authFetch } from '../api/client';
+import { useCountUp } from '../hooks/useCountUp';
 import { supabase } from '../lib/supabase';
 import {
   Chart as ChartJS,
@@ -19,12 +20,7 @@ import { Line, Doughnut, Bar } from 'react-chartjs-2';
 
 ChartJS.register(CategoryScale, LinearScale, PointElement, LineElement, BarElement, ArcElement, Filler, Tooltip, Legend);
 
-// ── Helper ────────────────────────────────────────────────────────────────────
-function esc(s: string): string {
-  const d = document.createElement('div');
-  d.textContent = s;
-  return d.innerHTML;
-}
+
 
 function fmtDt(iso: string | null | undefined): string {
   if (!iso) return '\u2014';
@@ -87,9 +83,10 @@ interface OutboundSummary {
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
-function KpiCard({ label, value, sub, prev, prevLabel, onClick }: {
-  label: string; value: number; sub: string; prev?: number; prevLabel: string; onClick?: () => void;
+function KpiCard({ label, value, sub, prev, prevLabel }: {
+  label: string; value: number; sub: string; prev?: number; prevLabel: string;
 }) {
+  const animatedValue = useCountUp(value, 900);
   let trendClass = 'kpi-trend-neutral';
   let trendText = '';
   if (prev != null && prev !== 0) {
@@ -101,15 +98,15 @@ function KpiCard({ label, value, sub, prev, prevLabel, onClick }: {
     trendText = `${arrow} ${sign}${pct}%`;
   }
   return (
-    <button className="kpi-card-figma" onClick={onClick}>
+    <div className="kpi-card-figma" style={{ cursor: 'default' }}>
       <div className="kpi-card-label">{label}</div>
-      <div className="kpi-card-value">{value}</div>
+      <div className="kpi-card-value">{animatedValue}</div>
       <div className="kpi-card-subtitle">{sub}</div>
       <div className={`kpi-card-trend ${trendClass}`}>
         <span>{trendText}</span>
         {prevLabel && <span className="kpi-trend-desc">{prevLabel} képest</span>}
       </div>
-    </button>
+    </div>
   );
 }
 
@@ -205,18 +202,19 @@ export default function AnalyticsPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [statsResult, funnelResult, alertsResult, outboundResult, insightsResult] = await Promise.all([
-        supabase.rpc('get_analytics_stats', { p_period: period }),
-        supabase.rpc('get_analytics_funnel', { p_period: period }),
-        supabase.rpc('get_analytics_alerts', { p_period: period }),
-        supabase.rpc('get_outbound_summary', { p_period: period }),
+      const params = `period=${period}&channel=${channel}`;
+      const [statsRes, funnelRes, alertsRes, outboundRes, insightsRes] = await Promise.all([
+        authFetch(`/admin/api/stats?${params}`),
+        authFetch(`/admin/api/analytics/funnel?${params}`),
+        authFetch(`/admin/api/analytics/alerts?${params}`),
+        authFetch(`/admin/api/analytics/outbound/summary?${params}`),
         supabase.from('ai_insights').select('insights').order('created_at', { ascending: false }).limit(1).single(),
       ]);
-      if (statsResult.data) setStats(statsResult.data);
-      if (funnelResult.data) setFunnel(funnelResult.data);
-      if (alertsResult.data) setAlerts(alertsResult.data);
-      if (outboundResult.data) setOutbound(outboundResult.data);
-      if (insightsResult.data?.insights) setInsights(insightsResult.data.insights);
+      if (statsRes.ok) { const d = await statsRes.json(); if (d) setStats(d); }
+      if (funnelRes.ok) { const d = await funnelRes.json(); if (d) setFunnel(d); }
+      if (alertsRes.ok) { const d = await alertsRes.json(); if (d) setAlerts(d); }
+      if (outboundRes.ok) { const d = await outboundRes.json(); if (d) setOutbound(d); }
+      if (insightsRes.data?.insights) setInsights(insightsRes.data.insights);
     } catch (e) {
       console.error('Analytics load error', e);
     } finally {
@@ -225,6 +223,19 @@ export default function AnalyticsPage() {
   }, [period, channel, clinic]);
 
   useEffect(() => { loadAll(); }, [loadAll]);
+
+  // Auto-refresh analytics when new interactions arrive
+  useEffect(() => {
+    const realtimeChan = supabase
+      .channel('analytics-realtime')
+      .on(
+        'postgres_changes',
+        { event: 'INSERT', schema: 'public', table: 'interactions' },
+        () => { loadAll(); }
+      )
+      .subscribe();
+    return () => { supabase.removeChannel(realtimeChan); };
+  }, [loadAll]);
 
   async function refreshInsights() {
     setInsightsLoading(true);
@@ -363,8 +374,22 @@ export default function AnalyticsPage() {
     return (
       <div className="page active" id="page-analytics">
         <div className="analytics-shell">
-          <div style={{ textAlign: 'center', padding: 60, color: '#6b7280' }}>
-            <div className="spinner" style={{ borderColor: '#e5e7eb', borderTopColor: '#1ceee0' }} /> Adatok betöltése...
+          {/* Skeleton filter row */}
+          <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
+            {[140, 140, 140, 160].map((w, i) => (
+              <div key={i} className="skeleton-shimmer" style={{ width: w, height: 40, borderRadius: 10 }} />
+            ))}
+          </div>
+          {/* Skeleton KPI grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 36 }}>
+            {Array.from({ length: 6 }).map((_, i) => (
+              <div key={i} className="skeleton-shimmer" style={{ height: 110, borderRadius: 6 }} />
+            ))}
+          </div>
+          {/* Skeleton chart row */}
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+            <div className="skeleton-shimmer" style={{ height: 300, borderRadius: 18 }} />
+            <div className="skeleton-shimmer" style={{ height: 300, borderRadius: 18 }} />
           </div>
         </div>
       </div>
@@ -408,8 +433,7 @@ export default function AnalyticsPage() {
         <div className="kpi-grid-figma">
           {kpiCards.map(c => (
             <KpiCard key={c.label} label={c.label} value={c.value} sub={c.sub}
-              prev={c.prev} prevLabel={prevLabel}
-              onClick={() => navigate(`/admin/${c.page}`)} />
+              prev={c.prev} prevLabel={prevLabel} />
           ))}
         </div>
 
@@ -653,7 +677,7 @@ export default function AnalyticsPage() {
         >
           <div className="login-card" style={{
             width: 800, maxWidth: '95vw', maxHeight: '85vh', padding: 0, overflow: 'hidden',
-            borderRadius: 16, border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
+            borderRadius: 8, border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
             display: 'flex', flexDirection: 'column',
           }}>
             {/* Header */}

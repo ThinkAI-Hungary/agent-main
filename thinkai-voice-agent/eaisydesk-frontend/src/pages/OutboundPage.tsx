@@ -6,7 +6,7 @@
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { authFetch } from '../api/client';
 import { supabase } from '../lib/supabase';
-import { fmtDt } from '../helpers/formatters';
+
 import Spinner from '../components/ui/Spinner';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
@@ -169,7 +169,7 @@ export default function OutboundPage() {
         cornerRadius: 10,
         displayColors: true,
         callbacks: {
-          label: function(ctx: any) {
+          label: function(ctx: { dataset: { data: number[] }; raw: number; label: string }) {
             const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0);
             const pct = total > 0 ? Math.round((ctx.raw / total) * 100) : 0;
             return ` ${ctx.label}: ${ctx.raw} (${pct}%)`;
@@ -223,7 +223,7 @@ export default function OutboundPage() {
         padding: 12,
         cornerRadius: 10,
         titleFont: { weight: '700' as const },
-        callbacks: { label: function(ctx: any) { return ` ${ctx.raw} kampány`; } }
+        callbacks: { label: function(ctx: { raw: number }) { return ` ${ctx.raw} kampány`; } }
       }
     },
     scales: {
@@ -257,7 +257,7 @@ export default function OutboundPage() {
         backgroundColor: '#0d2538',
         padding: 12,
         cornerRadius: 10,
-        callbacks: { label: function(ctx: any) { return ` ${ctx.raw} ügyfél célozva`; } }
+        callbacks: { label: function(ctx: { raw: number }) { return ` ${ctx.raw} ügyfél célozva`; } }
       }
     },
     scales: {
@@ -394,7 +394,7 @@ export default function OutboundPage() {
       {/* Header */}
       <div className="page-header" style={{ marginBottom: 24 }}>
         <div style={{ display: 'flex', alignItems: 'center' }}>
-          <div style={{ width: 48, height: 48, background: 'linear-gradient(135deg, rgba(28,238,224,0.15), rgba(59,130,246,0.15))', borderRadius: 14, display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 16 }}>
+          <div style={{ width: 48, height: 48, background: 'linear-gradient(135deg, rgba(28,238,224,0.15), rgba(59,130,246,0.15))', borderRadius: 6, display: 'flex', alignItems: 'center', justifyContent: 'center', marginRight: 16 }}>
             <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 24, height: 24 }}>
               <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
             </svg>

@@ -42,7 +42,7 @@ export default function ConfirmDialog({
       <div
         style={{
           background: 'var(--card, #fff)',
-          borderRadius: 16,
+          borderRadius: 8,
           padding: 28,
           width: 380,
           maxWidth: '90vw',

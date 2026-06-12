@@ -59,7 +59,7 @@ export default function KanbanColumn({ column, cards, onRename, onDelete, onDele
                 if (e.key === 'Escape') setEditing(false);
               }}
               style={{
-                background: '#ffffff',
+                background: 'var(--card)',
                 border: '1px solid #10b981',
                 outline: 'none',
                 borderRadius: 6,
@@ -113,6 +113,14 @@ export default function KanbanColumn({ column, cards, onRename, onDelete, onDele
 
       {/* Cards */}
       <div className="kanban-cards">
+        {cards.length === 0 && !isOver && (
+          <div className="kanban-empty-state">
+            <svg fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+              <rect x="3" y="3" width="18" height="18" rx="2" /><path d="M3 9h18" /><path d="M9 21V9" />
+            </svg>
+            <span>Üres oszlop</span>
+          </div>
+        )}
         {cards.map((card) => (
           <KanbanCard key={String(card.id)} card={card} onDelete={onDeleteClient} onClick={onCardClick} />
         ))}

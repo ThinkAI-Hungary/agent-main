@@ -156,8 +156,33 @@ def _format_business_hours(settings: dict) -> str:
     return "\n".join(lines)
 
 
-def get_system_prompt() -> str:
-    """Load system prompt from system_prompt.md and inject runtime variables."""
+LANGUAGE_NAMES = {
+    "hu": "magyar", "en": "English", "de": "Deutsch", "sk": "slovenčina",
+    "ro": "română", "sr": "srpski", "hr": "hrvatski", "fr": "français",
+    "es": "español", "it": "italiano",
+}
+
+# Strong per-language instruction written IN the target language
+LANGUAGE_INSTRUCTIONS = {
+    "en": "STRICT RULE: You MUST respond ONLY in English. All your replies — greetings, information, questions — must be in English. NEVER reply in Hungarian!",
+    "de": "STRENGE REGEL: Du MUSST ausschließlich auf Deutsch antworten. Alle deine Antworten — Begrüßungen, Informationen, Fragen — müssen auf Deutsch sein. Antworte NIEMALS auf Ungarisch!",
+    "sk": "PRÍSNE PRAVIDLO: MUSÍŠ odpovedať VÝLUČNE po slovensky. Všetky tvoje odpovede — pozdravy, informácie, otázky — musia byť po slovensky. NIKDY neodpovedaj po maďarsky!",
+    "ro": "REGULĂ STRICTĂ: TREBUIE să răspunzi DOAR în limba română. Toate răspunsurile tale — salutări, informații, întrebări — trebuie să fie în română. NU răspunde NICIODATĂ în maghiară!",
+    "sr": "СТРОГО ПРАВИЛО: МОРАШ одговарати ИСКЉУЧИВО на српском. Сви твоји одговори — поздрави, информације, питања — морају бити на српском. НИКАДА не одговарај на мађарском!",
+    "hr": "STROGO PRAVILO: MORAŠ odgovarati ISKLJUČIVO na hrvatskom. Svi tvoji odgovori — pozdravi, informacije, pitanja — moraju biti na hrvatskom. NIKADA ne odgovaraj na mađarskom!",
+    "fr": "RÈGLE STRICTE: Tu DOIS répondre UNIQUEMENT en français. Toutes tes réponses — salutations, informations, questions — doivent être en français. NE réponds JAMAIS en hongrois!",
+    "es": "REGLA ESTRICTA: DEBES responder ÚNICAMENTE en español. Todas tus respuestas — saludos, información, preguntas — deben ser en español. ¡NUNCA respondas en húngaro!",
+    "it": "REGOLA RIGIDA: DEVI rispondere ESCLUSIVAMENTE in italiano. Tutte le tue risposte — saluti, informazioni, domande — devono essere in italiano. NON rispondere MAI in ungherese!",
+}
+
+def get_system_prompt(channel: str = None) -> str:
+    """Load system prompt from system_prompt.md and inject runtime variables.
+    
+    Args:
+        channel: Optional channel name (e.g. 'email', 'messenger', 'whatsapp', 'instagram').
+                 If provided and not 'voice'/'telefon', the language setting is injected.
+                 Voice agent always stays Hungarian.
+    """
     if not PROMPT_FILE.exists():
         return "Te egy segítőkész AI vagy."
         
@@ -165,6 +190,19 @@ def get_system_prompt() -> str:
     pi       = _load_praxisinfo()
     settings = load_agent_settings()
     
+    # ── Determine language ──
+    is_text_channel = channel and channel.lower() not in ("voice", "telefon", "phone")
+    lang_code = settings.get("language", "hu") if is_text_channel else "hu"
+    if not lang_code:
+        lang_code = "hu"
+
+    # Build the language_rule for the {language_rule} template variable
+    if lang_code == "hu":
+        language_rule = "Mindig magyarul kommunikálj, udvariasan és segítőkészen."
+    else:
+        lang_name = LANGUAGE_NAMES.get(lang_code, lang_code)
+        language_rule = f"Always communicate in {lang_name}, politely and helpfully. NEVER respond in Hungarian."
+
     # Telephelyek lekérdezése
     clinics_str = ""
     try:
@@ -203,14 +241,24 @@ def get_system_prompt() -> str:
         "tone":           settings.get("tone", ""),
         "business_hours": _format_business_hours(settings),
         "clinics_prompt": clinics_str,
+        "language_rule":  language_rule,
     }
 
     try:
-        return template.format(**variables)
+        result = template.format(**variables)
     except KeyError as e:
         # Unknown variable in template — replace only the known ones to avoid crash
         logger.warning(f"Unknown variable in system prompt template: {e}")
         result = template
         for key, val in variables.items():
             result = result.replace("{" + key + "}", str(val))
-        return result
+
+    # ── Strong language prepend at TOP for non-Hungarian text channels ──
+    if is_text_channel and lang_code != "hu":
+        lang_instruction = LANGUAGE_INSTRUCTIONS.get(lang_code)
+        if not lang_instruction:
+            lang_name = LANGUAGE_NAMES.get(lang_code, lang_code)
+            lang_instruction = f"STRICT RULE: You MUST respond ONLY in {lang_name}. NEVER reply in Hungarian!"
+        result = f"[LANGUAGE OVERRIDE] {lang_instruction}\n\n{result}"
+
+    return result
