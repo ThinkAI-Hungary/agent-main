@@ -282,7 +282,11 @@ export default function SettingsPage() {
   }, []);
 
   const deleteClinic = useCallback(async (id: number | undefined, idx: number) => {
-    if (id) await supabase.from('clinics').delete().eq('id', id);
+    if (id) {
+      try {
+        await authFetch(`/admin/api/clinics/${id}`, { method: 'DELETE' });
+      } catch { /* ignore */ }
+    }
     setClinics(prev => prev.filter((_, i) => i !== idx));
     showToast('Telephely törölve');
   }, []);
@@ -298,7 +302,11 @@ export default function SettingsPage() {
   }, []);
 
   const deleteDoctor = useCallback(async (id: number | undefined, idx: number) => {
-    if (id) await supabase.from('doctors').delete().eq('id', id);
+    if (id) {
+      try {
+        await authFetch(`/admin/api/doctors/${id}`, { method: 'DELETE' });
+      } catch { /* ignore */ }
+    }
     setDoctors(prev => prev.filter((_, i) => i !== idx));
     showToast('Orvos törölve');
   }, []);
@@ -314,7 +322,11 @@ export default function SettingsPage() {
   }, []);
 
   const deleteService = useCallback(async (id: number | undefined, idx: number) => {
-    if (id) await supabase.from('services').delete().eq('id', id);
+    if (id) {
+      try {
+        await authFetch(`/admin/api/services/${id}`, { method: 'DELETE' });
+      } catch { /* ignore */ }
+    }
     setServices(prev => prev.filter((_, i) => i !== idx));
     showToast('Szolgáltatás törölve');
   }, []);
@@ -330,7 +342,11 @@ export default function SettingsPage() {
   }, []);
 
   const deleteTriageRule = useCallback(async (id: number | undefined, idx: number) => {
-    if (id) await supabase.from('triage_rules').delete().eq('id', id);
+    if (id) {
+      try {
+        await authFetch(`/admin/api/triage_rules/${id}`, { method: 'DELETE' });
+      } catch { /* ignore */ }
+    }
     setTriageRules(prev => prev.filter((_, i) => i !== idx));
     showToast('Szabály törölve');
   }, []);

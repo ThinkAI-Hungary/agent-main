@@ -1017,7 +1017,7 @@ async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Option
     else:
         fields = "first_name,last_name,profile_pic"
         
-    url = f"https://graph.facebook.com/v25.0/{sender_id}?fields={fields}&access_token={token}"
+    url = f"https://graph.facebook.com/v21.0/{sender_id}?fields={fields}&access_token={token}"
     try:
         import httpx
         async with httpx.AsyncClient() as client:
@@ -1486,11 +1486,25 @@ async def meta_webhook_receive(request: Request):
         is_instagram = (obj_type == "instagram")
         
         for entry in body.get("entry", []):
+            # Get our own page/IG ID to detect echoes
+            page_id = entry.get("id", "")
+            
             for webhook_event in entry.get("messaging", []):
                 sender_id = webhook_event.get("sender", {}).get("id")
                 
-                if "message" in webhook_event and "text" in webhook_event["message"]:
-                    message_text = webhook_event["message"]["text"]
+                # ── Echo detection: skip messages sent BY our page/bot ──
+                message_obj = webhook_event.get("message", {})
+                if message_obj.get("is_echo"):
+                    print(f"[Meta Webhook] Echo üzenet kiszűrve (sender: {sender_id})")
+                    continue
+                # Also skip if sender is our own page ID or IG business account
+                ig_user_id = "26530155976686869"
+                if sender_id and (sender_id == page_id or sender_id == ig_user_id):
+                    print(f"[Meta Webhook] Saját üzenet kiszűrve (sender: {sender_id})")
+                    continue
+                
+                if "message" in webhook_event and "text" in message_obj:
+                    message_text = message_obj["text"]
                     source_channel = "Instagram" if is_instagram else "Messenger"
                     print(f"[Meta Webhook] Új üzenet feladótól (ID: {sender_id}, Csatorna: {source_channel}): {message_text}")
                     
@@ -2824,7 +2838,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                         raise Exception("Hiányzó WhatsApp token vagy Phone ID")
                     
                     resp = await http_client.post(
-                        f"https://graph.facebook.com/v25.0/{wa_phone_id}/messages",
+                        f"https://graph.facebook.com/v21.0/{wa_phone_id}/messages",
                         headers={"Authorization": f"Bearer {wa_token}"},
                         json={
                             "messaging_product": "whatsapp",
@@ -2839,16 +2853,42 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                     page_access_token = os.getenv("META_PAGE_ACCESS_TOKEN", "")
                     if not page_access_token:
                         raise Exception("Hiányzó Meta oldal token")
-                        
-                    resp = await http_client.post(
-                        "https://graph.facebook.com/v25.0/me/messages",
-                        headers={"Authorization": f"Bearer {page_access_token}"},
-                        json={
-                            "recipient": {"id": send_draft.get("sender_id")},
-                            "message": {"text": send_text}
-                        }
-                    )
-                    resp.raise_for_status()
+                    
+                    if ch == "instagram":
+                        # Instagram DM: use META_INSTAGRAM_TOKEN + graph.instagram.com/{ig_user_id}/messages
+                        ig_token = os.getenv("META_INSTAGRAM_TOKEN", "")
+                        ig_user_id = "26530155976686869"  # IG business account ID
+                        if not ig_token:
+                            raise Exception("Hiányzó META_INSTAGRAM_TOKEN")
+                        resp = await http_client.post(
+                            f"https://graph.instagram.com/v21.0/{ig_user_id}/messages",
+                            headers={
+                                "Authorization": f"Bearer {ig_token}",
+                                "Content-Type": "application/json"
+                            },
+                            json={
+                                "recipient": {"id": send_draft.get("sender_id")},
+                                "message": {"text": send_text}
+                            }
+                        )
+                    else:
+                        # Messenger: use graph.facebook.com/me/messages
+                        resp = await http_client.post(
+                            "https://graph.facebook.com/v21.0/me/messages",
+                            headers={
+                                "Authorization": f"Bearer {page_access_token}",
+                                "Content-Type": "application/json"
+                            },
+                            json={
+                                "recipient": {"id": send_draft.get("sender_id")},
+                                "message": {"text": send_text}
+                            }
+                        )
+                    
+                    if resp.status_code != 200:
+                        error_body = resp.text
+                        print(f"[Approval] {ch.capitalize()} API hiba ({resp.status_code}): {error_body}")
+                        resp.raise_for_status()
                     print(f"[Approval] {ch.capitalize()} elküldve: {send_draft.get('sender_id', '')[:10]}...")
 
                 elif ch == "telefon":
@@ -2930,6 +2970,16 @@ def save_clinics_api(clinics: list[dict], admin: dict = Depends(verify_jwt)):
     success = db.save_clinics(clinics)
     if success: return {"status": "ok"}
     raise HTTPException(status_code=500, detail="Failed to save clinics")
+
+@app.delete("/admin/api/clinics/{clinic_id}")
+def delete_clinic_api(clinic_id: int, admin: dict = Depends(verify_jwt)):
+    """Delete a single clinic by ID."""
+    try:
+        if db.supabase:
+            db.supabase.table("clinics").delete().eq("id", clinic_id).execute()
+        return {"ok": True}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 @app.get("/admin/api/clients/{client_id}/profile-pic")
 async def fetch_client_profile_pic(client_id: int, username: str = Depends(verify_jwt)):

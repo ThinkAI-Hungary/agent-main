@@ -14,7 +14,7 @@ import { TagBadge } from '../components/ui/Badge';
 import Spinner from '../components/ui/Spinner';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
-import { supabase } from '../lib/supabase';
+
 import { authFetch } from '../api/client';
 import ClientDetailView from '../components/clients/ClientDetailView';
 import CampaignWizardModal from '../components/outbound/CampaignWizardModal';
@@ -193,14 +193,21 @@ export default function ClientsPage() {
     const ok = await confirm(`Biztosan törlöd a kijelölt ${selectedRows.size} ügyfelet? Ez nem vonható vissza!`, { title: 'Ügyfelek törlése', danger: true });
     if (!ok) return;
 
-    let deleted = 0;
-    for (const id of selectedRows) {
-      try {
-        const { error } = await supabase.from('clients').delete().eq('id', id);
-        if (!error) deleted++;
-      } catch { /* continue */ }
+    try {
+      const clientIds = [...selectedRows].map(id => Number(id));
+      const res = await authFetch('/admin/api/clients/bulk_delete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_ids: clientIds }),
+      });
+      if (res.ok) {
+        showToast(`${clientIds.length} ügyfél törölve`);
+      } else {
+        showToast('Hiba a törlés során', 'error');
+      }
+    } catch {
+      showToast('Hiba a törlés során', 'error');
     }
-    showToast(`${deleted} ügyfél törölve`);
     refetchClients();
   }, [selectedRows, confirm, refetchClients]);
 
@@ -390,7 +397,11 @@ export default function ClientsPage() {
                               const newAssignee = e.target.value;
                               const cd = parseCustomData(c.raw.custom_data);
                               const updatedCd = { ...cd, assigned_to: newAssignee, felelos: newAssignee };
-                              await supabase.from('clients').update({ custom_data: updatedCd }).eq('id', c.id);
+                              await authFetch(`/admin/api/clients/${c.id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ custom_data: updatedCd }),
+                              });
                               showToast(newAssignee ? `Felelős: ${newAssignee}` : 'Felelős eltávolítva');
                               refetchClients();
                             }}
