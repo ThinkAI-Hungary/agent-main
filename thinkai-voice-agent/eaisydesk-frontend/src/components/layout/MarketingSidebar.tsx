@@ -80,7 +80,7 @@ export default function MarketingSidebar() {
         <span className="mkt-logo-text">Marketing</span>
       </div>
 
-      {/* App Switcher Dropdown — back to DigiDesk */}
+      {/* App Switcher Dropdown — back to eaisydesk */}
       <div className={`logo-switch-dd${switcherOpen ? ' open' : ''}`}>
         <button
           className="logo-switch-link"
@@ -90,11 +90,11 @@ export default function MarketingSidebar() {
             setSwitcherOpen(false);
           }}
         >
-          <div className="logo-switch-icon" style={{ background: 'linear-gradient(135deg, #1ceee0, #14b8ad)', color: '#082432' }}>D</div>
-          <div>
-            <div className="logo-switch-name">DigiDesk</div>
-            <div className="logo-switch-desc">Ügyfélszolgálat</div>
-          </div>
+          <img
+            src={`${import.meta.env.BASE_URL}eaisydesk_logo.png`}
+            alt="eaisydesk"
+            style={{ height: 22, width: 'auto', objectFit: 'contain', borderRadius: 6 }}
+          />
         </button>
       </div>
 
