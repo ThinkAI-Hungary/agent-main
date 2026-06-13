@@ -468,8 +468,8 @@ export default function AnalyticsPage() {
                 responsive: true, maintainAspectRatio: false,
                 plugins: { legend: { display: true, position: 'bottom' as const, labels: { color: '#6b8b99', usePointStyle: true, boxWidth: 8, font: { size: 11 } } } },
                 scales: {
-                  x: { ticks: { color: '#6b8b99', font: { size: 11 } }, grid: { color: gridColor, borderDash: gridDash }, border: { display: false } },
-                  y: { min: 0, max: yMax, ticks: { color: '#6b8b99', font: { size: 11 }, stepSize: yStep }, grid: { color: gridColor, borderDash: gridDash }, border: { display: false } },
+                  x: { ticks: { color: '#6b8b99', font: { size: 11 } }, grid: { color: gridColor }, border: { display: false } },
+                  y: { min: 0, max: yMax, ticks: { color: '#6b8b99', font: { size: 11 }, stepSize: yStep }, grid: { color: gridColor }, border: { display: false } },
                 },
               }} />
               ); })()}

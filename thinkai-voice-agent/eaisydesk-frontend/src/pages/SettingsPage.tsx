@@ -604,6 +604,56 @@ export default function SettingsPage() {
                 </div>
               </div>
 
+              {/* ══════ 4. TRIÁZS SZABÁLYOK ══════ */}
+              <div style={{ marginBottom: 24 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                  <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
+                      <path d="M22 12h-4l-3 9-6-18-3 9H2" />
+                    </svg>
+                  </div>
+                  <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Prioritási szabályok</span>
+                </div>
+                <div className="settings-section" style={{ padding: 24 }}>
+                  <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+                    <thead>
+                      <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                        <th style={{ ...thStyle, width: '30%' }}>Helyzet</th>
+                        <th style={{ ...thStyle, width: '25%' }}>Prioritás</th>
+                        <th style={{ ...thStyle, width: '30%' }}>Eszkalációs e-mail</th>
+                        <th style={{ ...thStyle, width: '15%' }}></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {triageRules.map((r, i) => (
+                        <tr key={r.id || i}>
+                          <td style={tdStyle}>
+                            <input className="tt-input" value={r.situation} onChange={e => setTriageRules(prev => prev.map((x, j) => j === i ? { ...x, situation: e.target.value } : x))} onBlur={() => saveTriageRule(r, i)} />
+                          </td>
+                          <td style={tdStyle}>
+                            <select className="tt-select" value={r.priority} onChange={e => { const updated = { ...r, priority: e.target.value }; setTriageRules(prev => prev.map((x, j) => j === i ? updated : x)); saveTriageRule(updated, i); }}>
+                              <option value="alacsony">Alacsony</option>
+                              <option value="kozepes">Közepes</option>
+                              <option value="magas">Magas</option>
+                              <option value="surgos">Sürgős</option>
+                            </select>
+                          </td>
+                          <td style={tdStyle}>
+                            <input className="tt-input" value={r.escalation_email || ''} onChange={e => setTriageRules(prev => prev.map((x, j) => j === i ? { ...x, escalation_email: e.target.value } : x))} placeholder="email@example.com" onBlur={() => saveTriageRule(r, i)} />
+                          </td>
+                          <td style={{ ...tdStyle, textAlign: 'center' }}>
+                            <DeleteBtn onClick={() => deleteTriageRule(r.id, i)} />
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                  <div style={{ marginTop: 14 }}>
+                    <AddBtn label="Új szabály hozzáadása" onClick={() => setTriageRules(prev => [...prev, { situation: '', priority: 'kozepes', escalation_email: '' }])} />
+                  </div>
+                </div>
+              </div>
+
 
               {/* ── Last modified footer ── */}
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8, opacity: 0.7 }}>
@@ -897,45 +947,7 @@ export default function SettingsPage() {
                 </SectionCard>
               </div>
 
-              {/* 4. Triázs */}
-              <SectionCard title="Triázs szabályok" svgPath="M22 12h-4l-3 9-6-18-3 9H2">
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
-                  <thead>
-                    <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
-                      <th style={{ ...thStyle, width: '30%' }}>Helyzet</th>
-                      <th style={{ ...thStyle, width: '25%' }}>Prioritás</th>
-                      <th style={{ ...thStyle, width: '30%' }}>Eszkalációs e-mail</th>
-                      <th style={{ ...thStyle, width: '15%' }}></th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {triageRules.map((r, i) => (
-                      <tr key={r.id || i}>
-                        <td style={tdStyle}>
-                          <input className="tt-input" value={r.situation} onChange={e => setTriageRules(prev => prev.map((x, j) => j === i ? { ...x, situation: e.target.value } : x))} onBlur={() => saveTriageRule(r, i)} />
-                        </td>
-                        <td style={tdStyle}>
-                          <select className="tt-select" value={r.priority} onChange={e => { const updated = { ...r, priority: e.target.value }; setTriageRules(prev => prev.map((x, j) => j === i ? updated : x)); saveTriageRule(updated, i); }}>
-                            <option value="alacsony">Alacsony</option>
-                            <option value="kozepes">Közepes</option>
-                            <option value="magas">Magas</option>
-                            <option value="surgos">Sürgős</option>
-                          </select>
-                        </td>
-                        <td style={tdStyle}>
-                          <input className="tt-input" value={r.escalation_email || ''} onChange={e => setTriageRules(prev => prev.map((x, j) => j === i ? { ...x, escalation_email: e.target.value } : x))} placeholder="email@example.com" onBlur={() => saveTriageRule(r, i)} />
-                        </td>
-                        <td style={{ ...tdStyle, textAlign: 'center' }}>
-                          <DeleteBtn onClick={() => deleteTriageRule(r.id, i)} />
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-                <div style={{ marginTop: 14 }}>
-                  <AddBtn label="Új szabály hozzáadása" onClick={() => setTriageRules(prev => [...prev, { situation: '', priority: 'kozepes', escalation_email: '' }])} />
-                </div>
-              </SectionCard>
+
             </div>
           )}
     </div>

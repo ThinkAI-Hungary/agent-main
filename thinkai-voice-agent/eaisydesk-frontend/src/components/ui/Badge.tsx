@@ -52,7 +52,7 @@ export function DirectionBadge({ value }: { value: string }) {
   return <Badge value={value} colorMap={DIRECTION_COLORS} />;
 }
 
-export function TagBadge({ tag }: { tag: string }) {
+export function TagBadge({ tag, small }: { tag: string; small?: boolean }) {
   const c = getTagColor(tag);
   return (
     <span

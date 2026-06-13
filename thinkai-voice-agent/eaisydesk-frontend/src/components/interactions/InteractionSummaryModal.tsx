@@ -107,7 +107,7 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
           line = line.trim();
           if (!line && currentSender !== 'ai') continue;
 
-          let sender = currentSender;
+          let sender: 'user' | 'ai' | 'system' = currentSender;
           if (line.startsWith('Felhasználó:') || line.startsWith('User:')) {
             sender = 'user';
             line = line.replace(/^(Felhasználó|User):\s*/, '');
@@ -211,7 +211,7 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
         const clientName = (row.client || '').toLowerCase().trim();
         const clientEmail = ((cData.email as string) || '').toLowerCase().trim();
 
-        const matchedEvent = events
+        const matchedEvent = (events || [])
           .filter((ev: { attendee?: string; attendee_email?: string }) => {
             const evAttendee = (ev.attendee || '').toLowerCase().trim();
             const evEmail = (ev.attendee_email || '').toLowerCase().trim();

@@ -124,7 +124,7 @@ export default function InteractionsPage() {
     sessions.forEach((s: SessionSummary) => {
       const sessionDate = s.started_at || '';
       const sRoom = (s.room_name || '').toLowerCase();
-      const _sessionClientName = s.participant || s.client_name || 'Ismeretlen';
+      // const _sessionClientName = s.participant || s.client_name || 'Ismeretlen';
 
       if (s.interactions && s.interactions.length > 0) {
         s.interactions.forEach((r: SessionInteraction) => {

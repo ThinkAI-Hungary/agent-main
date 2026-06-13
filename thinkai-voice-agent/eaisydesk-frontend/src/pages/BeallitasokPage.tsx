@@ -54,7 +54,7 @@ export default function BeallitasokPage() {
   }, [isAdmin]);
 
   useEffect(() => {
-    setProfileName(user?.fullName || user?.full_name || user?.username || '');
+    setProfileName(user?.fullName || user?.username || '');
     setProfilePosition('');
     setProfileCompany('');
   }, [user]);

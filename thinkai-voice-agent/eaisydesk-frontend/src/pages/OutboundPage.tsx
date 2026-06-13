@@ -38,6 +38,10 @@ interface Campaign {
   processed_count?: number;
   total_count?: number;
   content?: string;
+  ai_instructions?: string;
+  body_html?: string;
+  subject?: string;
+  email_subject?: string;
 }
 
 const STATUS_FILTERS = ['Összes', 'Tervezet', 'Aktív', 'Elküldött', 'Ütemezett'] as const;
@@ -67,6 +71,7 @@ export default function OutboundPage() {
   const [reminderEnabled, setReminderEnabled] = useState(false);
   const [showNewCampaign, setShowNewCampaign] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
+  const [showDetail, setShowDetail] = useState<Campaign | null>(null);
   const { confirm, ConfirmDialog } = useConfirm();
 
   // ── Load campaigns ──
@@ -157,19 +162,19 @@ export default function OutboundPage() {
           padding: 16,
           usePointStyle: true,
           pointStyleWidth: 10,
-          font: { size: 11, weight: '600' as const },
+          font: { size: 11, weight: 'bold' as const },
           color: '#8ea9c0',
         }
       },
       tooltip: {
         backgroundColor: '#0d2538',
-        titleFont: { weight: '700' as const },
+        titleFont: { weight: 'bold' as const },
         bodyFont: { size: 12 },
         padding: 12,
         cornerRadius: 10,
         displayColors: true,
         callbacks: {
-          label: function(ctx: { dataset: { data: number[] }; raw: number; label: string }) {
+          label: function(ctx: any) {
             const total = ctx.dataset.data.reduce((a: number, b: number) => a + b, 0);
             const pct = total > 0 ? Math.round((ctx.raw / total) * 100) : 0;
             return ` ${ctx.label}: ${ctx.raw} (${pct}%)`;
@@ -222,13 +227,13 @@ export default function OutboundPage() {
         backgroundColor: '#0d2538',
         padding: 12,
         cornerRadius: 10,
-        titleFont: { weight: '700' as const },
-        callbacks: { label: function(ctx: { raw: number }) { return ` ${ctx.raw} kampány`; } }
+        titleFont: { weight: 'bold' as const },
+        callbacks: { label: function(ctx: any) { return ` ${ctx.raw} kampány`; } }
       }
     },
     scales: {
-      y: { beginAtZero: true, ticks: { stepSize: 1, font: { weight: '600' as const }, color: '#8ea9c0' }, grid: { color: 'rgba(107,139,153,0.15)' } },
-      x: { grid: { display: false }, ticks: { font: { weight: '600' as const }, color: '#8ea9c0' } }
+      y: { beginAtZero: true, ticks: { stepSize: 1, font: { weight: 'bold' as const }, color: '#8ea9c0' }, grid: { color: 'rgba(107,139,153,0.15)' } },
+      x: { grid: { display: false }, ticks: { font: { weight: 'bold' as const }, color: '#8ea9c0' } }
     }
   }), []);
 
@@ -257,12 +262,12 @@ export default function OutboundPage() {
         backgroundColor: '#0d2538',
         padding: 12,
         cornerRadius: 10,
-        callbacks: { label: function(ctx: { raw: number }) { return ` ${ctx.raw} ügyfél célozva`; } }
+        callbacks: { label: function(ctx: any) { return ` ${ctx.raw} ügyfél célozva`; } }
       }
     },
     scales: {
-      x: { beginAtZero: true, ticks: { stepSize: 1, font: { weight: '600' as const }, color: '#8ea9c0' }, grid: { color: 'rgba(107,139,153,0.15)' } },
-      y: { grid: { display: false }, ticks: { font: { size: 11, weight: '600' as const }, color: '#8ea9c0' } }
+      x: { beginAtZero: true, ticks: { stepSize: 1, font: { weight: 'bold' as const }, color: '#8ea9c0' }, grid: { color: 'rgba(107,139,153,0.15)' } },
+      y: { grid: { display: false }, ticks: { font: { size: 11, weight: 'bold' as const }, color: '#8ea9c0' } }
     }
   }), []);
 
@@ -321,17 +326,17 @@ export default function OutboundPage() {
     maintainAspectRatio: false,
     interaction: { mode: 'index' as const, intersect: false },
     plugins: {
-      legend: { position: 'bottom' as const, labels: { padding: 16, usePointStyle: true, font: { size: 11, weight: '600' as const }, color: '#8ea9c0' } },
+      legend: { position: 'bottom' as const, labels: { padding: 16, usePointStyle: true, font: { size: 11, weight: 'bold' as const }, color: '#8ea9c0' } },
       tooltip: {
         backgroundColor: '#0d2538',
         padding: 12,
         cornerRadius: 10,
-        titleFont: { weight: '700' as const }
+        titleFont: { weight: 'bold' as const }
       }
     },
     scales: {
-      y: { beginAtZero: true, ticks: { stepSize: 1, font: { weight: '600' as const }, color: '#8ea9c0' }, grid: { color: 'rgba(107,139,153,0.15)' } },
-      x: { grid: { display: false }, ticks: { font: { weight: '600' as const }, color: '#8ea9c0' } }
+      y: { beginAtZero: true, ticks: { stepSize: 1, font: { weight: 'bold' as const }, color: '#8ea9c0' }, grid: { color: 'rgba(107,139,153,0.15)' } },
+      x: { grid: { display: false }, ticks: { font: { weight: 'bold' as const }, color: '#8ea9c0' } }
     }
   }), []);
 
@@ -648,7 +653,7 @@ export default function OutboundPage() {
               const clientCount = c.client_ids?.length || 0;
 
               return (
-                <div key={c.id} className="out-campaign-card" style={{ cursor: 'default' }}>
+                <div key={c.id} className="out-campaign-card" style={{ cursor: 'pointer' }} onClick={() => setShowDetail(c)}>
                   {/* Channel + status badges */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
                     {channels.map((ch) => (
@@ -688,6 +693,116 @@ export default function OutboundPage() {
         )}
       </div>
 
+      {/* Campaign Preview Modal — 1:1 DIGIDESK_OLD port */}
+      {showDetail && (() => {
+        const channels = showDetail.channels || (showDetail.channel ? [showDetail.channel] : ['email']);
+        const channelLabels: Record<string, string> = { email: 'Email', whatsapp: 'WhatsApp', telefon: 'Telefon', messenger: 'Messenger', instagram: 'Instagram' };
+        const clientCount = showDetail.client_ids?.length || 0;
+        const delivered = showDetail.processed_count || 0;
+        const total = showDetail.total_count || clientCount || 1;
+        const deliveredPct = total > 0 ? ((delivered / total) * 100).toFixed(1) : '0.0';
+        const sc = STATUS_COLORS[showDetail.status] || STATUS_COLORS['Vázlat'];
+        // Parse email content exactly like DIGIDESK_OLD
+        let emailContent = showDetail.ai_instructions || showDetail.content || showDetail.body_html || '';
+        if (emailContent.startsWith('MODE:')) {
+          const colonIdx = emailContent.indexOf(':', 5);
+          emailContent = colonIdx >= 0 ? emailContent.substring(colonIdx + 1) : emailContent;
+        }
+
+        return (
+          <div className="cpv-overlay" onClick={() => setShowDetail(null)}>
+            <div className="cpv-card" onClick={e => e.stopPropagation()}>
+              {/* Header */}
+              <div className="cpv-header">
+                <button className="cpv-close" onClick={() => setShowDetail(null)}>✕</button>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <span className="cpv-badge cpv-badge-status">{sc.label.toUpperCase()}</span>
+                  {channels.map(ch => (
+                    <span key={ch} className="cpv-badge cpv-badge-channel">{channelLabels[ch] || ch}</span>
+                  ))}
+                </div>
+                <h2 className="cpv-name">{showDetail.name}</h2>
+              </div>
+
+              {/* Scrollable body */}
+              <div className="cpv-body">
+                {/* Meta info */}
+                <div className="cpv-meta">
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ color: 'var(--accent)' }}>⏱</span> <b>Létrehozva:</b> {showDetail.created_at ? new Date(showDetail.created_at).toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ color: 'var(--accent)' }}>👥</span> <b>Címzettek:</b> {clientCount} fő
+                  </div>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
+                    <span style={{ color: 'var(--accent)' }}>✈</span> <b>Feldolgozva:</b> {delivered} / {showDetail.total_count || clientCount}
+                  </div>
+                </div>
+
+                <div className="cpv-content">
+                  {/* Performance Stats */}
+                  <div className="cpv-section-title">📊 Kampány teljesítmény</div>
+                  <div className="cpv-stats-grid">
+                    <div className="cpv-stat">
+                      <div className="cpv-stat-icon" style={{ background: 'rgba(28,238,224,0.1)' }}><span>📬</span></div>
+                      <div className="cpv-stat-num" style={{ color: '#1ceee0' }}>{delivered}</div>
+                      <div className="cpv-stat-label">Kézbesítve</div>
+                      <div className="cpv-stat-pct">{deliveredPct}%</div>
+                    </div>
+                    <div className="cpv-stat">
+                      <div className="cpv-stat-icon" style={{ background: 'rgba(34,197,94,0.1)' }}><span>👁</span></div>
+                      <div className="cpv-stat-num" style={{ color: '#22c55e' }}>0</div>
+                      <div className="cpv-stat-label">Megnyitás</div>
+                      <div className="cpv-stat-pct">0.0%</div>
+                    </div>
+                    <div className="cpv-stat">
+                      <div className="cpv-stat-icon" style={{ background: 'rgba(59,130,246,0.1)' }}><span>🖱</span></div>
+                      <div className="cpv-stat-num" style={{ color: '#3b82f6' }}>0</div>
+                      <div className="cpv-stat-label">Kattintás</div>
+                      <div className="cpv-stat-pct">0.0%</div>
+                    </div>
+                    <div className="cpv-stat">
+                      <div className="cpv-stat-icon" style={{ background: 'rgba(239,68,68,0.1)' }}><span>🚫</span></div>
+                      <div className="cpv-stat-num" style={{ color: '#ef4444' }}>0</div>
+                      <div className="cpv-stat-label">Visszapattant</div>
+                      <div className="cpv-stat-pct">0.0%</div>
+                    </div>
+                  </div>
+
+                  {/* Email Content */}
+                  {emailContent && (
+                    <>
+                      <div className="cpv-section-title">✉ Email tartalom</div>
+                      <div className="cpv-email-card">
+                        <div className="cpv-email-header"><span>Eaisydesk Kampány</span></div>
+                        <div className="cpv-email-body" dangerouslySetInnerHTML={{ __html: emailContent.includes('<') ? emailContent : emailContent }} />
+                      </div>
+                    </>
+                  )}
+
+                  {/* Recipients */}
+                  <div className="cpv-section-title">👥 Címzettek ({clientCount})</div>
+                  <CampaignRecipients campaignId={showDetail.id} />
+                </div>
+              </div>
+
+              {/* Footer */}
+              <div className="cpv-footer">
+                {(showDetail.status === 'Vázlat' || showDetail.status === 'Megállítva') && (
+                  <button className="cpv-btn cpv-btn-start" onClick={() => { handleStartCampaign(showDetail.id); setShowDetail(null); }}>
+                    ✈ Indítás
+                  </button>
+                )}
+                <button className="cpv-btn cpv-btn-delete" onClick={() => { handleDeleteCampaign(showDetail.id); setShowDetail(null); }}>
+                  Törlés
+                </button>
+                <button className="cpv-btn cpv-btn-close" onClick={() => setShowDetail(null)}>Bezárás</button>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
+
       {/* New Campaign Wizard */}
       {showNewCampaign && (
         <CampaignWizardModal
@@ -719,5 +834,50 @@ function ActionBtn({ label, color, onClick }: { label: string; color: string; on
     >
       {label}
     </button>
+  );
+}
+
+interface ClientInfo { name: string; email: string; phone?: string; status: string; }
+
+function CampaignRecipients({ campaignId }: { campaignId: number }) {
+  const [clients, setClients] = useState<ClientInfo[]>([]);
+  const [loading, setLoading] = useState(true);
+  const avatarColors = ['#1ceee0','#2563eb','#0891b2','#059669','#d97706','#dc2626','#6366f1','#8b5cf6'];
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await authFetch(`/admin/api/campaigns/${campaignId}/clients`);
+        if (res.ok) {
+          const data = await res.json();
+          setClients(data.clients || []);
+        }
+      } catch { /* ignore */ }
+      setLoading(false);
+    })();
+  }, [campaignId]);
+
+  if (loading) return <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: 13 }}>Betöltés...</div>;
+  if (!clients.length) return <div style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)', fontSize: 13 }}>Nincsenek címzettek</div>;
+
+  return (
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+      {clients.map((cl, i) => {
+        const initials = (cl.name || 'N/A').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
+        const clColor = avatarColors[i % avatarColors.length];
+        return (
+          <div key={i} className="cpv-recipient">
+            <div className="cpv-avatar" style={{ background: `${clColor}15`, color: clColor }}>{initials}</div>
+            <div style={{ flex: 1, minWidth: 0 }}>
+              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cl.name}</div>
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cl.email || cl.phone || '—'}</div>
+            </div>
+            <span style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', background: 'rgba(28,238,224,0.08)', color: 'var(--accent)' }}>
+              {cl.status || 'Várakozik'}
+            </span>
+          </div>
+        );
+      })}
+    </div>
   );
 }
