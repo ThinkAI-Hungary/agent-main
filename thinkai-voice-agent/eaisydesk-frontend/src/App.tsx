@@ -45,7 +45,7 @@ import './styles/polish.css';
 function SmartRedirect() {
   const { user } = useAuth();
   const isAdmin = user?.role === 'admin' || user?.role === 'manager';
-  return <Navigate to={isAdmin ? 'analytics' : 'dashboard'} replace />;
+  return <Navigate to={isAdmin ? '/analytics' : '/dashboard'} replace />;
 }
 
 const PageLoader = () => (

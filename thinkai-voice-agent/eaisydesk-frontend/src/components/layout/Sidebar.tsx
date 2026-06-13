@@ -293,7 +293,7 @@ export default function Sidebar() {
         <div className="sidebar-user-row">
           <div className="user-avatar" style={avatarUrl ? { padding: 0, overflow: 'hidden' } : undefined}>
             {avatarUrl ? (
-              <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', borderRadius: '50%' }} />
+              <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             ) : initials}
           </div>
           <div className="user-text">

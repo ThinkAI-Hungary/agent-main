@@ -1781,7 +1781,7 @@
 
     /* NOTE: kanban.css also includes Todo Table + member dashboard styles above */
 
-    /* === Campaign Analytics — Light mode overrides === */
+    /* === Campaign Analytics ï¿½ Light mode overrides === */
     body:not(.dark) .ana-overlay { background: rgba(0,0,0,0.25); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
     body:not(.dark) .ana-close-btn { border-color: rgba(0,0,0,0.1); background: rgba(0,0,0,0.04); color: #6b7280; backdrop-filter: none; }
     body:not(.dark) .ana-close-btn:hover { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.2); color: #ef4444; }

@@ -72,6 +72,7 @@ export default function OutboundPage() {
   const [showNewCampaign, setShowNewCampaign] = useState(false);
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showDetail, setShowDetail] = useState<Campaign | null>(null);
+  const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
   const { confirm, ConfirmDialog } = useConfirm();
 
   // ── Load campaigns ──
@@ -386,10 +387,42 @@ export default function OutboundPage() {
     if (!ok) return;
     try {
       const res = await authFetch(`/admin/api/campaigns/${id}`, { method: 'DELETE' });
-      if (res.ok) { showToast('Kampány törölve'); loadCampaigns(); }
+      if (res.ok) { showToast('Kampány törölve'); setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; }); loadCampaigns(); }
       else showToast('Hiba', 'error');
     } catch { showToast('Hiba', 'error'); }
   }, [confirm, loadCampaigns]);
+
+  const handleBulkDelete = useCallback(async () => {
+    if (selectedIds.size === 0) return;
+    const ok = await confirm(`Biztosan törlöd a kijelölt ${selectedIds.size} kampányt?`, { title: 'Kampányok törlése', danger: true });
+    if (!ok) return;
+    let deleted = 0;
+    for (const id of selectedIds) {
+      try {
+        const res = await authFetch(`/admin/api/campaigns/${id}`, { method: 'DELETE' });
+        if (res.ok) deleted++;
+      } catch { /* continue */ }
+    }
+    setSelectedIds(new Set());
+    showToast(`${deleted} kampány törölve`);
+    loadCampaigns();
+  }, [selectedIds, confirm, loadCampaigns]);
+
+  const toggleSelect = useCallback((id: number) => {
+    setSelectedIds(prev => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id); else next.add(id);
+      return next;
+    });
+  }, []);
+
+  const selectAll = useCallback(() => {
+    setSelectedIds(new Set(filteredCampaigns.map(c => c.id)));
+  }, [filteredCampaigns]);
+
+  const deselectAll = useCallback(() => {
+    setSelectedIds(new Set());
+  }, []);
 
 
   return (
@@ -717,17 +750,67 @@ export default function OutboundPage() {
             </div>
           )}
 
-        {/* Status filter tabs */}
-        <div className="out-view-switcher">
-          {STATUS_FILTERS.map((tab) => (
-            <button
-              key={tab}
-              className={`out-view-btn ${activeFilter === tab ? 'active' : ''}`}
-              onClick={() => setActiveFilter(tab)}
-            >
-              {tab}
-            </button>
-          ))}
+        {/* Status filter tabs + selection bar */}
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+          <div className="out-view-switcher" style={{ marginBottom: 0 }}>
+            {STATUS_FILTERS.map((tab) => (
+              <button
+                key={tab}
+                className={`out-view-btn ${activeFilter === tab ? 'active' : ''}`}
+                onClick={() => { setActiveFilter(tab); setSelectedIds(new Set()); }}
+              >
+                {tab}
+              </button>
+            ))}
+          </div>
+
+          {/* Selection toolbar */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            {selectedIds.size > 0 && (
+              <>
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent)', marginRight: 4 }}>
+                  {selectedIds.size} kijelölve
+                </span>
+                <button
+                  onClick={deselectAll}
+                  style={{
+                    padding: '5px 12px', borderRadius: 8, border: '1px solid var(--border)',
+                    background: 'var(--card)', color: 'var(--text-muted)', fontSize: 11,
+                    fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                  }}
+                >
+                  Összes megszüntetése
+                </button>
+                <button
+                  onClick={handleBulkDelete}
+                  style={{
+                    padding: '5px 14px', borderRadius: 8, border: 'none',
+                    background: 'rgba(239,68,68,0.12)', color: '#ef4444', fontSize: 11,
+                    fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
+                    display: 'flex', alignItems: 'center', gap: 5, transition: 'all 0.15s',
+                  }}
+                >
+                  <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 13, height: 13 }}>
+                    <polyline points="3 6 5 6 21 6" />
+                    <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                  </svg>
+                  Kijelöltek törlése
+                </button>
+              </>
+            )}
+            {selectedIds.size === 0 && filteredCampaigns.length > 0 && (
+              <button
+                onClick={selectAll}
+                style={{
+                  padding: '5px 12px', borderRadius: 8, border: '1px solid var(--border)',
+                  background: 'var(--card)', color: 'var(--text-muted)', fontSize: 11,
+                  fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s',
+                }}
+              >
+                Összes kijelölése
+              </button>
+            )}
+          </div>
         </div>
 
         {/* Campaign grid */}
@@ -750,7 +833,26 @@ export default function OutboundPage() {
               const clientCount = c.client_ids?.length || 0;
 
               return (
-                <div key={c.id} className="out-campaign-card" style={{ cursor: 'pointer' }} onClick={() => setShowDetail(c)}>
+                <div key={c.id} className="out-campaign-card" style={{ cursor: 'pointer', outline: selectedIds.has(c.id) ? '2px solid var(--accent)' : 'none', outlineOffset: -2, transition: 'outline 0.15s' }} onClick={() => setShowDetail(c)}>
+                  {/* Checkbox */}
+                  <div
+                    style={{ position: 'absolute', top: 10, right: 10, zIndex: 2 }}
+                    onClick={e => { e.stopPropagation(); toggleSelect(c.id); }}
+                  >
+                    <div style={{
+                      width: 20, height: 20, borderRadius: 6,
+                      border: selectedIds.has(c.id) ? '2px solid var(--accent)' : '2px solid var(--border)',
+                      background: selectedIds.has(c.id) ? 'var(--accent)' : 'transparent',
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      cursor: 'pointer', transition: 'all 0.15s',
+                    }}>
+                      {selectedIds.has(c.id) && (
+                        <svg fill="none" stroke="#082432" strokeWidth="3" viewBox="0 0 24 24" style={{ width: 12, height: 12 }}>
+                          <polyline points="20 6 9 17 4 12" />
+                        </svg>
+                      )}
+                    </div>
+                  </div>
                   {/* Channel + status badges */}
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
                     {channels.map((ch) => (

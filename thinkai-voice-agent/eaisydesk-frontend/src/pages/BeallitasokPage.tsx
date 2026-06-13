@@ -189,6 +189,7 @@ export default function BeallitasokPage() {
 
         {/* ── PROFIL TAB ── */}
         {activeTab === 'profil' && (
+          <>
           <div className="beallitasok-card">
             <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
               <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" style={{ width: 20, height: 20, color: 'var(--text)' }}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
@@ -219,6 +220,10 @@ export default function BeallitasokPage() {
 
             <button className="beallitasok-save-btn" onClick={handleSaveProfile}>Profil mentése</button>
           </div>
+
+          {/* ── CSATORNÁK SECTION ── */}
+          <ChannelsSection />
+          </>
         )}
 
         {/* ── CSAPAT TAB ── */}
@@ -527,7 +532,7 @@ function ProfileAvatarUpload({ initials, username }: { initials: string; usernam
           background: 'var(--card)', display: 'flex', alignItems: 'center', justifyContent: 'center',
         }}>
           {avatarUrl ? (
-            <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+            <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
           ) : (
             <span style={{ fontSize: 32, fontWeight: 800, color: 'var(--text)', opacity: 0.5 }}>{initials}</span>
           )}
@@ -597,6 +602,182 @@ function ProfileAvatarUpload({ initials, username }: { initials: string; usernam
         style={{ display: 'none' }}
         onChange={e => { const f = e.target.files?.[0]; if (f) resizeAndUpload(f); e.target.value = ''; }}
       />
+    </div>
+  );
+}
+
+// ── Channel settings (frontend-only, localStorage) ──────────────────────────
+
+interface ChannelConfig {
+  id: string;
+  label: string;
+  icon: React.ReactNode;
+  placeholder: string;
+  enabled: boolean;
+  value: string;
+}
+
+const STORAGE_KEY = 'eaisydesk_channels';
+
+const DEFAULT_CHANNELS: Omit<ChannelConfig, 'enabled' | 'value'>[] = [
+  {
+    id: 'phone',
+    label: 'Telefon',
+    icon: (
+      <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
+        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z" />
+      </svg>
+    ),
+    placeholder: '+36 1 234 5678',
+  },
+  {
+    id: 'email',
+    label: 'E-mail',
+    icon: (
+      <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
+        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+        <polyline points="22,6 12,13 2,6" />
+      </svg>
+    ),
+    placeholder: 'info@ceg.hu',
+  },
+  {
+    id: 'messenger',
+    label: 'Messenger',
+    icon: (
+      <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
+        <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+      </svg>
+    ),
+    placeholder: 'fb.com/oldal',
+  },
+  {
+    id: 'instagram',
+    label: 'Instagram üzenet',
+    icon: (
+      <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
+        <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
+        <path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z" />
+        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
+      </svg>
+    ),
+    placeholder: 'Profil link vagy azonosító',
+  },
+  {
+    id: 'whatsapp',
+    label: 'WhatsApp',
+    icon: (
+      <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
+        <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
+      </svg>
+    ),
+    placeholder: '+36 30 123 4567',
+  },
+];
+
+function loadChannels(): ChannelConfig[] {
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) {
+      const saved: Record<string, { enabled: boolean; value: string }> = JSON.parse(raw);
+      return DEFAULT_CHANNELS.map(ch => ({
+        ...ch,
+        enabled: saved[ch.id]?.enabled ?? false,
+        value: saved[ch.id]?.value ?? '',
+      }));
+    }
+  } catch { /* ignore */ }
+  return DEFAULT_CHANNELS.map(ch => ({ ...ch, enabled: false, value: '' }));
+}
+
+function saveChannels(channels: ChannelConfig[]) {
+  const data: Record<string, { enabled: boolean; value: string }> = {};
+  channels.forEach(ch => { data[ch.id] = { enabled: ch.enabled, value: ch.value }; });
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+}
+
+function ChannelsSection() {
+  const [channels, setChannels] = useState<ChannelConfig[]>(loadChannels);
+
+  const update = useCallback((id: string, patch: Partial<ChannelConfig>) => {
+    setChannels(prev => {
+      const next = prev.map(ch => ch.id === id ? { ...ch, ...patch } : ch);
+      saveChannels(next);
+      return next;
+    });
+  }, []);
+
+  return (
+    <div className="beallitasok-card" style={{ marginTop: 20 }}>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+        <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" style={{ width: 20, height: 20, color: 'var(--text)' }}>
+          <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z" />
+        </svg>
+        <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Csatornák</div>
+      </div>
+      <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 24 }}>Kommunikációs csatornák kezelése</div>
+
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        {channels.map((ch, i) => (
+          <div
+            key={ch.id}
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: 16,
+              padding: '18px 20px',
+              borderRadius: 10,
+              background: i % 2 === 0 ? 'var(--bg3)' : 'transparent',
+              transition: 'background 0.15s',
+            }}
+          >
+            {/* Icon */}
+            <div style={{
+              width: 38, height: 38, borderRadius: '50%',
+              background: ch.enabled ? 'rgba(28, 238, 224, 0.10)' : 'rgba(148,163,184,0.08)',
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              color: ch.enabled ? '#1ceee0' : 'var(--text-muted)',
+              flexShrink: 0, transition: 'all 0.2s',
+            }}>
+              {ch.icon}
+            </div>
+
+            {/* Label */}
+            <div style={{
+              minWidth: 120, fontSize: 14, fontWeight: 600,
+              color: ch.enabled ? 'var(--text)' : 'var(--text-muted)',
+              transition: 'color 0.2s',
+            }}>
+              {ch.label}
+            </div>
+
+            {/* Toggle */}
+            <label className="toggle" style={{ flexShrink: 0 }}>
+              <input
+                type="checkbox"
+                checked={ch.enabled}
+                onChange={e => update(ch.id, { enabled: e.target.checked })}
+              />
+              <span className="toggle-slider" />
+            </label>
+
+            {/* Input */}
+            <input
+              type="text"
+              className="beallitasok-input"
+              placeholder={ch.placeholder}
+              value={ch.value}
+              onChange={e => update(ch.id, { value: e.target.value })}
+              disabled={!ch.enabled}
+              style={{
+                flex: 1,
+                opacity: ch.enabled ? 1 : 0.4,
+                transition: 'opacity 0.2s',
+              }}
+            />
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

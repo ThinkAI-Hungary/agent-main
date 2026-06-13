@@ -365,7 +365,7 @@ export default function MemberDashboardPage() {
           <div
             id="member-avatar"
             style={{
-              width: 44, height: 44, borderRadius: 6,
+              width: 44, height: 44, borderRadius: 10,
               background: avatarUrl ? 'transparent' : 'linear-gradient(135deg, #1ceee0, #3b82f6)',
               display: 'flex', alignItems: 'center', justifyContent: 'center',
               fontSize: 18, fontWeight: 800, color: '#082432', flexShrink: 0,
@@ -373,7 +373,7 @@ export default function MemberDashboardPage() {
             }}
           >
             {avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+              <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
             ) : initials}
           </div>
           <div>
