@@ -8,7 +8,13 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useApproval } from '../context/ApprovalContext';
 import { authFetch } from '../api/client';
+import { useClients } from '../hooks/useClients';
+import { useSessions } from '../hooks/useSessions';
+import { useCalendarEvents } from '../hooks/useCalendarEvents';
+import ClientDetailView from '../components/clients/ClientDetailView';
+import { bestClientName } from '../helpers/clientResolvers';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -22,7 +28,19 @@ interface Todo {
   badge: string;
   badgeLabel: string;
   date: Date;
+  createdAt: Date;
   completed: boolean;
+  // Approval-specific fields
+  interactionId?: number | null;
+  sessionId?: string | null;
+  aiDraftResponse?: string | null;
+  channel?: string | null;
+  topic?: string | null;
+  // Derived display fields
+  csatorna?: string;
+  ugyTipus?: string;
+  eredmeny?: string;
+  teendo?: string;
 }
 
 type TodoFilter = 'all' | 'today' | 'overdue' | 'upcoming' | 'completed';
@@ -61,6 +79,69 @@ function getCompletedIds(): string[] {
   catch { return []; }
 }
 
+// ── Channel / type detection helpers ────────────────────────────────────────
+
+function detectTodoChannel(t: { channel?: string | null; sessionId?: string | null; type?: string }): string {
+  if (t.channel) return t.channel;
+  const sid = (t.sessionId || '').toLowerCase();
+  if (sid.startsWith('instagram')) return 'Instagram';
+  if (sid.startsWith('messenger')) return 'Messenger';
+  if (sid.startsWith('whatsapp')) return 'WhatsApp';
+  if (sid.includes('email')) return 'Email';
+  if (sid.includes('call') || sid.includes('sip')) return 'Telefon';
+  if (t.type === 'calendar') return 'Naptár';
+  return '—';
+}
+
+function detectTodoUgyTipus(t: { topic?: string | null; desc?: string; type?: string; badge?: string }): string {
+  const text = ((t.topic || '') + ' ' + (t.desc || '') + ' ' + (t.badge || '')).toLowerCase();
+  if (text.includes('panasz') || text.includes('sürgős') || text.includes('surgos')) return 'PANASZ';
+  if (text.includes('kérdés') || text.includes('kérd')) return 'KÉRDÉS';
+  if (text.includes('kérés') || text.includes('intézked')) return 'KÉRÉS';
+  if (text.includes('időpont') || t.type === 'calendar') return 'IDŐPONT';
+  if (text.includes('jóváhagyás') || text.includes('jovahagyas') || t.type === 'approval') return 'KÉRDÉS';
+  return 'EGYÉB';
+}
+
+function detectTodoEredmeny(t: { type?: string; badge?: string }): string {
+  if (t.type === 'approval') return 'Válasz előkészítve';
+  if (t.type === 'calendar') return 'Rögzítve';
+  return 'Rögzítve';
+}
+
+function detectTodoTeendo(t: { type?: string; badge?: string; badgeLabel?: string; aiDraftResponse?: string | null }): string {
+  if (t.type === 'approval') return 'Jóváhagyásra vár';
+  if (t.badge === 'surgos') return 'Azonnali beavatkozás szükséges';
+  if (t.badge === 'visszahivas') return 'Visszahívás szükséges';
+  if (t.badge === 'intezked') return 'Intézkedés szükséges';
+  if (t.badge === 'valasz') return 'Válasz szükséges';
+  if (t.type === 'calendar') return 'Nincs további teendő';
+  return t.badgeLabel || 'Nincs további teendő';
+}
+
+const CSATORNA_STYLES: Record<string, { bg: string; color: string; border: string }> = {
+  'Messenger': { bg: 'rgba(59,130,246,0.08)', color: '#2563eb', border: 'rgba(59,130,246,0.25)' },
+  'Instagram': { bg: 'rgba(168,85,247,0.08)', color: '#7c3aed', border: 'rgba(168,85,247,0.25)' },
+  'Email': { bg: 'rgba(16,185,129,0.08)', color: '#059669', border: 'rgba(16,185,129,0.25)' },
+  'Telefon': { bg: 'rgba(59,130,246,0.08)', color: '#2563eb', border: 'rgba(59,130,246,0.25)' },
+  'WhatsApp': { bg: 'rgba(34,197,94,0.08)', color: '#16a34a', border: 'rgba(34,197,94,0.25)' },
+  'Naptár': { bg: 'rgba(168,85,247,0.08)', color: '#7c3aed', border: 'rgba(168,85,247,0.25)' },
+};
+
+const TEENDO_STYLES: Record<string, { bg: string; color: string; border: string }> = {
+  'Azonnali beavatkozás szükséges': { bg: 'rgba(239,68,68,0.08)', color: '#dc2626', border: 'rgba(239,68,68,0.25)' },
+  'Jóváhagyásra vár': { bg: 'rgba(245,158,11,0.08)', color: '#d97706', border: 'rgba(245,158,11,0.3)' },
+  'Intézkedés szükséges': { bg: 'rgba(59,130,246,0.08)', color: '#2563eb', border: 'rgba(59,130,246,0.25)' },
+  'Visszahívás szükséges': { bg: 'rgba(168,85,247,0.08)', color: '#7c3aed', border: 'rgba(168,85,247,0.25)' },
+  'Válasz szükséges': { bg: 'rgba(245,158,11,0.08)', color: '#d97706', border: 'rgba(245,158,11,0.3)' },
+  'Nincs további teendő': { bg: 'rgba(107,114,128,0.06)', color: '#6b7280', border: 'rgba(107,114,128,0.15)' },
+};
+
+function formatTodoDatum(d: Date): string {
+  const pad = (n: number) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}.  ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
+
 function saveCompletedIds(ids: string[]) {
   localStorage.setItem(getCompletedStorageKey(), JSON.stringify(ids));
 }
@@ -69,12 +150,17 @@ function saveCompletedIds(ids: string[]) {
 
 export default function MemberDashboardPage() {
   const { user } = useAuth();
+  const { openApproval } = useApproval();
   const navigate = useNavigate();
+  const { clients: hookClients, clientsMap } = useClients();
+  const { sessions: hookSessions, refetch: refetchSessions } = useSessions(100);
+  const { events } = useCalendarEvents();
   const [todos, setTodos] = useState<Todo[]>([]);
   const [filter, setFilter] = useState<TodoFilter>('all');
   const [clientCount, setClientCount] = useState(0);
   const [nextAppointment, setNextAppointment] = useState<{ text: string; sub: string }>({ text: '—', sub: 'naptárban' });
   const [loading, setLoading] = useState(true);
+  const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
   const username = user?.username || '';
   const fullName = user?.fullName || '';
@@ -102,7 +188,7 @@ export default function MemberDashboardPage() {
         authFetch('/admin/api/clients'),
         authFetch('/admin/api/calendar'),
         authFetch('/admin/api/approvals'),
-        authFetch('/admin/api/sessions/summary?limit=500'),
+        authFetch('/admin/api/sessions/summary?limit=200'),
       ]);
       const [cData, calData, apData, sData] = await Promise.all([
         cRes.json(), calRes.json(), apRes.json(), sRes.json(),
@@ -111,9 +197,14 @@ export default function MemberDashboardPage() {
       const allClients: Record<string, unknown>[] = cData.clients || [];
       const now = new Date();
 
-      // — Assigned client names/emails for filtering —
+      // — Assigned client names/emails/messengerIds for filtering —
       const assignedNames = new Set<string>();
       const assignedEmails = new Set<string>();
+      // Also collect client IDs for direct ID-based matching
+      const assignedClientIds = new Set<number>();
+      // Collect messenger_id (used for both Messenger & Instagram clients)
+      // session_id format: "messenger_{sender_id}" or "instagram_{sender_id}"
+      const assignedMessengerIds = new Set<string>();
 
       const myClients = allClients.filter(c => {
         const assigned = isClientAssignedToMe(c, username, fullName);
@@ -121,24 +212,50 @@ export default function MemberDashboardPage() {
           const cd = parseCustomData(c.custom_data);
           const name = ((cd.nev || cd.name || c.name || '') as string).toLowerCase().trim();
           const email = ((cd.email || c.email || '') as string).toLowerCase().trim();
+          const messengerId = ((cd.messenger_id || '') as string).trim();
           if (name) assignedNames.add(name);
           if (email) assignedEmails.add(email);
+          if (c.id) assignedClientIds.add(Number(c.id));
+          if (messengerId) assignedMessengerIds.add(messengerId);
         }
         return assigned;
       });
       setClientCount(myClients.length);
 
+      console.log('[MemberDashboard] user:', username, 'fullName:', fullName);
+      console.log('[MemberDashboard] assignedNames:', [...assignedNames]);
+      console.log('[MemberDashboard] assignedEmails:', [...assignedEmails]);
+      console.log('[MemberDashboard] assignedClientIds:', [...assignedClientIds]);
+      console.log('[MemberDashboard] assignedMessengerIds:', [...assignedMessengerIds]);
+
       // — Calendar events assigned to me —
       const allEvents: Record<string, unknown>[] = calData.events || [];
+      console.log('[MemberDashboard] allEvents count:', allEvents.length);
       const myEvents = allEvents.filter(ev => {
+        // Direct client_id match
+        if (ev.client_id && assignedClientIds.has(Number(ev.client_id))) return true;
         const attendee = ((ev.attendee || '') as string).toLowerCase().trim();
         const attendeeEmail = ((ev.attendee_email || '') as string).toLowerCase().trim();
         const title = ((ev.title || '') as string).toLowerCase().trim();
+        // Exact email match
         if (attendeeEmail && assignedEmails.has(attendeeEmail)) return true;
+        // Exact name match
         if (attendee && assignedNames.has(attendee)) return true;
-        for (const name of assignedNames) { if (name && title.includes(name)) return true; }
+        // Partial name match: check if attendee contains any assigned name or vice versa
+        for (const name of assignedNames) {
+          if (!name) continue;
+          if (attendee && (attendee.includes(name) || name.includes(attendee))) return true;
+          if (title && title.includes(name)) return true;
+        }
+        // Partial email match
+        for (const email of assignedEmails) {
+          if (!email) continue;
+          if (attendeeEmail && attendeeEmail === email) return true;
+          if (title && title.includes(email)) return true;
+        }
         return false;
       });
+      console.log('[MemberDashboard] myEvents count:', myEvents.length);
 
       // — Next appointment —
       const futureEvents = myEvents
@@ -171,32 +288,54 @@ export default function MemberDashboardPage() {
           badge: 'idopont',
           badgeLabel: 'Időpont',
           date: evDt,
+          createdAt: evDt,
           completed: ev.completed === true,
+          csatorna: 'Naptár',
+          ugyTipus: 'IDŐPONT',
+          eredmeny: 'Rögzítve',
+          teendo: 'Nincs további teendő',
         });
       });
 
       // b) Pending approvals → todos
       const allApprovals: Record<string, unknown>[] = apData.approvals || [];
+      console.log('[MemberDashboard] allApprovals count:', allApprovals.length);
       const myApprovals = allApprovals.filter(a => {
+        // Direct client_id match
+        if (a.client_id && assignedClientIds.has(Number(a.client_id))) return true;
         let draftData: Record<string, unknown> = {};
         try { draftData = JSON.parse((a.ai_draft_response || '{}') as string); } catch { /* */ }
         if (draftData.campaign_name) return true;
         const toName = ((draftData.to_name || '') as string).toLowerCase().trim();
         if (toName && assignedNames.has(toName)) return true;
+        // Partial name match for approvals
+        for (const name of assignedNames) {
+          if (name && toName && (toName.includes(name) || name.includes(toName))) return true;
+        }
         const toEmail = ((draftData.to_email || '') as string).toLowerCase().trim();
         if (toEmail && assignedEmails.has(toEmail)) return true;
         const sid = ((a.session_id || '') as string).toLowerCase();
         for (const email of assignedEmails) { if (email && sid.includes(email)) return true; }
+        // Match by messenger_id: session_id is "instagram_{sender_id}" or "messenger_{sender_id}"
+        // and draft sender_id matches the client's messenger_id
+        const draftSenderId = ((draftData.sender_id || '') as string).trim();
+        if (draftSenderId && assignedMessengerIds.has(draftSenderId)) return true;
+        for (const mid of assignedMessengerIds) {
+          if (mid && sid.includes(mid)) return true;
+        }
         return false;
       });
+      console.log('[MemberDashboard] myApprovals count:', myApprovals.filter(a => a.approval_status === 'pending').length);
 
       myApprovals.filter(a => a.approval_status === 'pending').forEach(ap => {
         const apDt = ap.created_at ? new Date(ap.created_at as string) : new Date();
         const deadlineDt = new Date(apDt.getTime() + 2 * 60 * 60 * 1000);
         let clientName = 'Ismeretlen';
+        let draftChannel = '';
         try {
           const draft = JSON.parse((ap.ai_draft_response || '{}') as string);
           clientName = draft.to_name || draft.sender_id || 'Ismeretlen';
+          draftChannel = draft.channel || '';
         } catch { /* */ }
 
         newTodos.push({
@@ -209,19 +348,46 @@ export default function MemberDashboardPage() {
           badge: 'jovahagyas',
           badgeLabel: 'Jóváhagyás',
           date: deadlineDt,
+          createdAt: apDt,
           completed: false,
+          interactionId: (ap.id || null) as number | null,
+          sessionId: (ap.session_id || null) as string | null,
+          aiDraftResponse: (ap.ai_draft_response || null) as string | null,
+          channel: draftChannel || null,
+          topic: (ap.topic || null) as string | null,
         });
+      });
+
+      // Populate derived display fields for all approval todos
+      newTodos.filter(t => t.type === 'approval').forEach(t => {
+        t.csatorna = detectTodoChannel(t);
+        t.ugyTipus = detectTodoUgyTipus(t);
+        t.eredmeny = detectTodoEredmeny(t);
+        t.teendo = detectTodoTeendo(t);
       });
 
       // c) Session handovers → todos
       const allSessions: Record<string, unknown>[] = sData.sessions || [];
+      console.log('[MemberDashboard] allSessions count:', allSessions.length);
       const mySessions = allSessions.filter(s => {
+        // Direct client_id match
+        if (s.client_id && assignedClientIds.has(Number(s.client_id))) return true;
         const participant = ((s.participant || s.client_name || '') as string).toLowerCase().trim();
         const sid = ((s.session_id || '') as string).toLowerCase();
+        // Exact name match
         if (participant && assignedNames.has(participant)) return true;
+        // Partial name match
+        for (const name of assignedNames) {
+          if (name && participant && (participant.includes(name) || name.includes(participant))) return true;
+        }
         for (const email of assignedEmails) { if (email && sid.includes(email)) return true; }
+        // Match by messenger_id: session_id is "instagram_{sender_id}" or "messenger_{sender_id}"
+        for (const mid of assignedMessengerIds) {
+          if (mid && sid.includes(mid)) return true;
+        }
         return false;
       });
+      console.log('[MemberDashboard] mySessions (with handover) count:', mySessions.filter(s => s.handover_reason && (s.handover_reason as string).trim() !== '').length);
 
       mySessions
         .filter(s => s.handover_reason && (s.handover_reason as string).trim() !== '')
@@ -255,7 +421,12 @@ export default function MemberDashboardPage() {
             badge,
             badgeLabel,
             date: deadlineDt,
+            createdAt: sDt,
             completed: false,
+            csatorna: detectTodoChannel({ sessionId: (s.session_id || '') as string }),
+            ugyTipus: detectTodoUgyTipus({ topic: (s.handover_reason || '') as string, desc: (s.handover_reason || '') as string, type: 'interaction', badge }),
+            eredmeny: detectTodoEredmeny({ type: 'interaction', badge }),
+            teendo: detectTodoTeendo({ type: 'interaction', badge, badgeLabel }),
           });
         });
 
@@ -355,6 +526,40 @@ export default function MemberDashboardPage() {
         <div className="spinner" style={{ borderColor: '#e5e7eb', borderTopColor: '#1ceee0' }} />
       </div>
     );
+  }
+
+  // ── Client Detail overlay ──
+  if (selectedClientId) {
+    const clientRaw = hookClients.find((c) => String(c.id) === selectedClientId);
+    if (clientRaw) {
+      const cd = parseCustomData(clientRaw.custom_data);
+      const enriched = {
+        id: clientRaw.id,
+        name: bestClientName(clientRaw) || clientRaw.name || 'Névtelen',
+        email: (cd?.email as string) || clientRaw.email || '',
+        phone: (cd?.telefonszam as string) || (cd?.phone as string) || (cd?.telefon as string) || clientRaw.phone || '',
+        status: clientRaw.status || '',
+        created_at: clientRaw.created_at || '',
+        tags: (cd?.tags as string[]) || [],
+        assignee: (cd?.assigned_to as string) || '',
+        lastInteraction: '',
+        appointmentCount: 0,
+        isNew: true,
+        isInactive: false,
+        raw: clientRaw,
+      };
+      return (
+        <ClientDetailView
+          client={enriched}
+          clientsMap={clientsMap}
+          sessions={hookSessions}
+          events={events}
+          source="interactions"
+          onBack={() => setSelectedClientId(null)}
+          onRefresh={refetchSessions}
+        />
+      );
+    }
   }
 
   return (
@@ -458,34 +663,34 @@ export default function MemberDashboardPage() {
         {/* Summary cards */}
         <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }}>
           <div
-            style={{ padding: '16px 18px', borderRadius: 6, border: '1px solid #dbeafe', background: '#eff6ff', cursor: 'pointer' }}
+            style={{ padding: '16px 18px', borderRadius: 6, border: '1px solid rgba(59,130,246,0.2)', background: 'rgba(59,130,246,0.08)', cursor: 'pointer' }}
             onClick={() => setFilter('today')}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <span style={{ fontSize: 14 }}>📋</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#1e40af' }}>Mai teendők</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#60a5fa' }}>Mai teendők</span>
             </div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: '#1e40af' }}>{counts.today}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#60a5fa' }}>{counts.today}</div>
           </div>
           <div
-            style={{ padding: '16px 18px', borderRadius: 6, border: '1px solid #fee2e2', background: '#fef2f2', cursor: 'pointer' }}
+            style={{ padding: '16px 18px', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.08)', cursor: 'pointer' }}
             onClick={() => setFilter('overdue')}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <span style={{ fontSize: 14 }}>🔴</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#b91c1c' }}>Lejárt teendők</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#f87171' }}>Lejárt teendők</span>
             </div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: '#b91c1c' }}>{counts.overdue}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#f87171' }}>{counts.overdue}</div>
           </div>
           <div
-            style={{ padding: '16px 18px', borderRadius: 6, border: '1px solid #dcfce7', background: '#f0fdf4', cursor: 'pointer' }}
+            style={{ padding: '16px 18px', borderRadius: 6, border: '1px solid rgba(34,197,94,0.2)', background: 'rgba(34,197,94,0.08)', cursor: 'pointer' }}
             onClick={() => setFilter('completed')}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
               <span style={{ fontSize: 14 }}>✅</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#15803d' }}>Lezárt teendők</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#4ade80' }}>Lezárt teendők</span>
             </div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: '#15803d' }}>{counts.completed}</div>
+            <div style={{ fontSize: 28, fontWeight: 800, color: '#4ade80' }}>{counts.completed}</div>
           </div>
           <div
             style={{ padding: '16px 18px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--card)', cursor: 'pointer' }}
@@ -499,22 +704,29 @@ export default function MemberDashboardPage() {
           </div>
         </div>
 
+        {/* Section header */}
+        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, padding: '0 4px' }}>
+          {filter === 'overdue' ? 'Lejárt teendők' : filter === 'today' ? 'Mai teendők' : filter === 'completed' ? 'Lezárt ügyek' : 'Sürgős / Nyitott státuszú ügyek'} ({filtered.length})
+        </div>
+
         {/* Todos table */}
-        <div className="int-table-wrapper" style={{ maxHeight: 400, overflowY: 'auto' }}>
-          <table className="todo-table">
-            <thead>
+        <div className="int-table-wrapper" style={{ maxHeight: 500, overflowY: 'auto' }}>
+          <table className="data-table" style={{ width: '100%' }}>
+            <thead className="int-thead">
               <tr>
-                <th>✓</th>
-                <th>Teendő leírása</th>
-                <th>Típus</th>
-                <th>Ügyfél</th>
-                <th>Határidő</th>
+                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Dátum</th>
+                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Ügyfél</th>
+                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Csatorna</th>
+                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Ügytípus</th>
+                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Eredmény</th>
+                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Teendő</th>
+                <th style={{ padding: '10px 16px', width: 40 }}></th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
                 <tr>
-                  <td colSpan={5} className="todo-empty">
+                  <td colSpan={7} className="todo-empty">
                     <svg width="40" height="40" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
                       <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
                     </svg>
@@ -523,41 +735,136 @@ export default function MemberDashboardPage() {
                 </tr>
               ) : (
                 filtered.map(t => {
-                  const dl = formatDeadline(t.date, t.completed);
+                  const csatornaStyle = CSATORNA_STYLES[t.csatorna || ''] || { bg: 'rgba(107,114,128,0.06)', color: '#6b7280', border: 'rgba(107,114,128,0.15)' };
+                  const teendoText = t.teendo || 'Nincs további teendő';
+                  const teendoStyle = TEENDO_STYLES[teendoText] || TEENDO_STYLES['Nincs további teendő'];
                   return (
-                    <tr key={t.id} className={`todo-row${t.completed ? ' completed' : ''}`}>
-                      <td style={{ textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          className="todo-checkbox"
-                          checked={t.completed}
-                          onChange={e => toggleTodoCompleted(t.id, e.target.checked)}
-                        />
+                    <tr key={t.id} className={`int-row${t.completed ? ' completed' : ''}`} style={{ opacity: t.completed ? 0.5 : 1 }}>
+                      {/* Dátum */}
+                      <td style={{ padding: '12px 16px', fontSize: 13, whiteSpace: 'nowrap', color: 'var(--text)' }}>
+                        {formatTodoDatum(t.createdAt || t.date)}
                       </td>
-                      <td>
-                        <div className="todo-desc" title={t.desc}>
-                          {typeIcon(t.type)} {t.desc}
-                        </div>
-                        {t.sub && <div className="todo-desc-sub">{t.sub}</div>}
-                      </td>
-                      <td>
-                        <span className={`todo-badge ${t.badge}`}>{t.badgeLabel}</span>
-                      </td>
-                      <td>
-                        {t.client ? (
+                      {/* Ügyfél */}
+                      <td style={{ padding: '12px 16px' }} onClick={e => e.stopPropagation()}>
+                        {t.client && t.client !== 'Ismeretlen' ? (
                           <button
-                            className="todo-client-btn"
-                            onClick={e => { e.stopPropagation(); navigate('/clients'); }}
+                            style={{
+                              background: 'rgba(0,212,200,0.1)',
+                              border: '1px solid var(--accent, #1ceee0)',
+                              color: 'var(--accent, #1ceee0)',
+                              borderRadius: 6,
+                              cursor: 'pointer',
+                              padding: '5px 10px',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              maxWidth: 160,
+                              whiteSpace: 'nowrap',
+                              overflow: 'hidden',
+                              textOverflow: 'ellipsis',
+                              display: 'inline-block',
+                              fontFamily: 'inherit',
+                            }}
                             title={t.client}
+                            onClick={() => {
+                              if (t.clientId) {
+                                setSelectedClientId(String(t.clientId));
+                              } else {
+                                const found = hookClients.find(c => {
+                                  const cd = parseCustomData(c.custom_data);
+                                  const cName = ((cd.nev || cd.name || c.name || '') as string).toLowerCase().trim();
+                                  return cName === t.client.toLowerCase().trim();
+                                });
+                                if (found) setSelectedClientId(String(found.id));
+                              }
+                            }}
                           >
                             {t.client}
                           </button>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>—</span>
+                          <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>—</span>
                         )}
                       </td>
-                      <td>
-                        <span className={`todo-deadline ${dl.cls}`}>{dl.text}</span>
+                      {/* Csatorna */}
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{
+                          display: 'inline-block',
+                          padding: '4px 12px',
+                          borderRadius: 6,
+                          fontSize: 12,
+                          fontWeight: 600,
+                          background: csatornaStyle.bg,
+                          color: csatornaStyle.color,
+                          border: `1px solid ${csatornaStyle.border}`,
+                          whiteSpace: 'nowrap',
+                        }}>
+                          {t.csatorna || '—'}
+                        </span>
+                      </td>
+                      {/* Ügytípus */}
+                      <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 800, color: 'var(--text)', letterSpacing: '0.2px' }}>
+                        {t.ugyTipus || 'EGYÉB'}
+                      </td>
+                      {/* Eredmény */}
+                      <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text-muted)' }}>
+                        {t.eredmeny || 'Rögzítve'}
+                      </td>
+                      {/* Teendő */}
+                      <td style={{ padding: '12px 16px' }} onClick={e => e.stopPropagation()}>
+                        {t.type === 'approval' && t.aiDraftResponse ? (
+                          <button
+                            style={{
+                              display: 'inline-block',
+                              padding: '5px 14px',
+                              borderRadius: 6,
+                              fontSize: 12,
+                              fontWeight: 600,
+                              background: teendoStyle.bg,
+                              color: teendoStyle.color,
+                              border: `1px solid ${teendoStyle.border}`,
+                              cursor: 'pointer',
+                              whiteSpace: 'nowrap',
+                              fontFamily: 'inherit',
+                            }}
+                            onClick={() => {
+                              openApproval({
+                                interactionId: t.interactionId,
+                                sessionId: t.sessionId,
+                                clientName: t.client,
+                                channel: t.channel || undefined,
+                                date: t.date.toISOString(),
+                                topic: t.topic || undefined,
+                                summary: t.desc,
+                                aiDraftResponse: t.aiDraftResponse || undefined,
+                                approvalStatus: 'pending',
+                              });
+                            }}
+                          >
+                            {teendoText}
+                          </button>
+                        ) : (
+                          <span style={{
+                            display: 'inline-block',
+                            padding: '5px 14px',
+                            borderRadius: 6,
+                            fontSize: 12,
+                            fontWeight: 600,
+                            background: teendoStyle.bg,
+                            color: teendoStyle.color,
+                            border: `1px solid ${teendoStyle.border}`,
+                            whiteSpace: 'nowrap',
+                          }}>
+                            {teendoText}
+                          </span>
+                        )}
+                      </td>
+                      {/* Checkbox */}
+                      <td style={{ textAlign: 'center', padding: '12px 8px' }} onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#1ceee0' }}
+                          checked={t.completed}
+                          onChange={e => toggleTodoCompleted(t.id, e.target.checked)}
+                        />
                       </td>
                     </tr>
                   );

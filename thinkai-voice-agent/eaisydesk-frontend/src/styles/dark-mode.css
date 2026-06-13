@@ -52,8 +52,8 @@
     }
 
     body.dark .settings-section {
-      background: var(--bg3) !important;
-      border-color: var(--border) !important;
+      background: var(--card) !important;
+      border-color: rgba(255,255,255,0.08) !important;
     }
 
     body.dark .settings-section-title {
@@ -66,14 +66,14 @@
 
     body.dark .settings-select,
     body.dark .settings-input {
-      background: var(--card) !important;
-      border-color: var(--border) !important;
+      background: rgba(255,255,255,0.06) !important;
+      border-color: rgba(255,255,255,0.1) !important;
       color: var(--text) !important;
     }
 
     body.dark .settings-textarea {
-      background: var(--card) !important;
-      border-color: var(--border) !important;
+      background: rgba(255,255,255,0.06) !important;
+      border-color: rgba(255,255,255,0.1) !important;
       color: var(--text) !important;
     }
 
@@ -91,7 +91,7 @@
     }
 
     body.dark .fmt-btn {
-      background: var(--bg3) !important;
+      background: rgba(255,255,255,0.04) !important;
       color: var(--text-muted) !important;
     }
 

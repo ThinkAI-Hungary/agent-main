@@ -431,7 +431,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                 <div
                   onClick={() => setPickerOpen(!pickerOpen)}
                   style={{
-                    background: 'var(--bg)', border: '1.5px solid var(--border)', borderRadius: 6,
+                    background: 'rgba(255,255,255,0.06)', border: '1.5px solid var(--border)', borderRadius: 6,
                     padding: '14px 16px', display: 'flex', alignItems: 'center', gap: 12,
                     cursor: 'pointer', transition: 'all 0.25s', marginBottom: 8,
                     ...(pickerOpen ? { borderColor: 'var(--accent)' } : {}),
@@ -453,18 +453,18 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                     <input
                       type="text" value={clientSearch} onChange={e => setClientSearch(e.target.value)}
                       placeholder="Ügyfél keresése név, email vagy telefon alapján..."
-                      style={{ width: '100%', padding: '10px 14px', background: 'var(--bg)', color: 'var(--text)', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                      style={{ width: '100%', padding: '10px 14px', background: 'rgba(255,255,255,0.06)', color: 'var(--text)', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 13, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
                     />
                     <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 12, marginBottom: 12 }}>
-                      <button onClick={selectAllClients} style={{ background: 'rgba(28,238,224,0.06)', color: 'var(--accent)', border: '1px solid rgba(28,238,224,0.2)', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Összes kijelölése</button>
-                      <button onClick={deselectAllClients} style={{ background: 'var(--bg)', color: 'var(--text-muted)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Összes törlése</button>
+                      <button onClick={selectAllClients} style={{ background: 'rgba(28,238,224,0.08)', color: 'var(--accent)', border: '1px solid rgba(28,238,224,0.2)', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Összes kijelölése</button>
+                      <button onClick={deselectAllClients} style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text-muted)', border: '1px solid var(--border)', padding: '6px 12px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Összes törlése</button>
                       <div style={{ marginLeft: 'auto', fontSize: 11, color: 'var(--text-muted)' }}>{selectedClientIds.size} / {filteredPickerClients.length} kijelölve</div>
                     </div>
-                    <div style={{ maxHeight: 200, overflowY: 'auto', border: '1px solid var(--border)', borderRadius: 10, background: 'var(--bg)' }}>
+                    <div style={{ maxHeight: 200, overflowY: 'auto', border: '1.5px solid var(--border)', borderRadius: 10, background: 'var(--card)' }}>
                       {filteredPickerClients.length === 0 ? (
                         <div style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>Nincs találat</div>
                       ) : filteredPickerClients.map(c => (
-                        <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: 13 }}>
+                        <label key={c.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 14px', cursor: 'pointer', borderBottom: '1px solid var(--border)', fontSize: 13, background: selectedClientIds.has(c.id) ? 'rgba(28,238,224,0.06)' : 'transparent', transition: 'background .15s' }}>
                           <input type="checkbox" checked={selectedClientIds.has(c.id)} onChange={() => toggleClient(c.id)} style={{ accentColor: '#1ceee0', width: 16, height: 16, cursor: 'pointer' }} />
                           <div style={{ flex: 1, minWidth: 0 }}>
                             <div style={{ fontWeight: 600, color: 'var(--text)' }}>{c.name}</div>
@@ -487,7 +487,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                 <input
                   type="text" value={campaignName} onChange={e => setCampaignName(e.target.value)}
                   placeholder="Pl. Tavaszi akció - 10% kedvezmény"
-                  style={{ width: '100%', padding: '14px 16px', background: 'var(--bg)', color: 'var(--text)', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
+                  style={{ width: '100%', padding: '14px 16px', background: 'rgba(255,255,255,0.06)', color: 'var(--text)', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 14, fontFamily: 'inherit', outline: 'none', boxSizing: 'border-box' }}
                   onFocus={e => e.target.style.borderColor = 'var(--accent)'}
                   onBlur={e => e.target.style.borderColor = 'var(--border)'}
                 />
@@ -528,7 +528,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Kampányüzenet szövege</label>
                   <div className="camp-quill-wrap">
                     {/* Simple toolbar */}
-                    <div style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)', padding: '8px 10px', display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
+                    <div style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.04)', padding: '8px 10px', display: 'flex', gap: 2, flexWrap: 'wrap', alignItems: 'center' }}>
                       <select onChange={e => { execCommand('formatBlock', e.target.value); e.target.value = ''; }} style={{ padding: '4px 8px', border: 'none', background: 'transparent', color: 'var(--text-muted)', fontSize: 12, cursor: 'pointer', borderRadius: 6 }}>
                         <option value="">Szöveg</option>
                         <option value="h1">Címsor 1</option>
@@ -592,7 +592,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                   <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Kampány tartalma</label>
                   {/* AI editor area */}
                   <div className="camp-quill-wrap" style={{ marginBottom: 16 }}>
-                    <div style={{ borderBottom: '1px solid var(--border)', background: 'var(--bg)', padding: '8px 10px', display: 'flex', gap: 2, alignItems: 'center' }}>
+                    <div style={{ borderBottom: '1px solid var(--border)', background: 'rgba(255,255,255,0.04)', padding: '8px 10px', display: 'flex', gap: 2, alignItems: 'center' }}>
                       <span style={{ fontSize: 12, color: 'var(--text-muted)', padding: '4px 8px' }}>Szöveg</span>
                       <div style={{ width: 1, height: 20, background: 'var(--border)', margin: '0 4px' }} />
                       <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>B I U S</span>
@@ -622,7 +622,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                             style={{
                               padding: '8px 4px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer',
                               border: aiStyle === s.key ? '1px solid var(--accent)' : '1px solid var(--border)',
-                              background: aiStyle === s.key ? 'rgba(28,238,224,0.1)' : 'var(--bg)',
+                              background: aiStyle === s.key ? 'rgba(28,238,224,0.1)' : 'rgba(255,255,255,0.06)',
                               color: aiStyle === s.key ? 'var(--accent)' : 'var(--text)',
                               transition: 'all 0.2s', textAlign: 'center', fontFamily: 'inherit',
                             }}
@@ -649,11 +649,11 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
         {/* Footer */}
         <div style={{ padding: '14px 28px 20px', display: 'flex', gap: 12, alignItems: 'center', borderTop: '1px solid var(--border)' }}>
           {step > 1 && (
-            <button onClick={prevStep} style={{ background: 'var(--bg)', color: 'var(--text)', border: '1px solid var(--border)', padding: '10px 22px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Előző</button>
+            <button onClick={prevStep} style={{ background: 'rgba(255,255,255,0.06)', color: 'var(--text)', border: '1px solid var(--border)', padding: '10px 22px', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Előző</button>
           )}
           <div style={{ flex: 1 }} />
           {step < 3 && (
-            <button onClick={nextStep} style={{ background: '#0d2538', color: '#fff', border: 'none', padding: '10px 28px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(0,0,0,0.15)' }}>Következő</button>
+            <button onClick={nextStep} style={{ background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)', color: '#082432', border: 'none', padding: '10px 28px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(28,238,224,0.25)' }}>Következő</button>
           )}
           {step === 3 && (
             <button onClick={handleCreate} style={{ background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)', color: '#082432', border: 'none', padding: '10px 28px', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 4px 12px rgba(28,238,224,0.25)' }}>Létrehozás</button>

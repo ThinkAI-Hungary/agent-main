@@ -7,7 +7,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { authFetch } from '../api/client';
 import { supabase } from '../lib/supabase';
 
-import Spinner from '../components/ui/Spinner';
+import { OutboundSkeleton } from '../components/ui/Skeleton';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
 import CampaignWizardModal from '../components/outbound/CampaignWizardModal';
@@ -815,7 +815,7 @@ export default function OutboundPage() {
 
         {/* Campaign grid */}
         {loading ? (
-          <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div>
+          <OutboundSkeleton />
         ) : filteredCampaigns.length === 0 ? (
           <div style={{ textAlign: 'center', padding: 60, color: 'var(--text-muted)' }}>
             <svg fill="none" stroke="var(--text-dim)" strokeWidth="1.5" viewBox="0 0 24 24" style={{ width: 48, height: 48, marginBottom: 12, opacity: 0.4 }}>

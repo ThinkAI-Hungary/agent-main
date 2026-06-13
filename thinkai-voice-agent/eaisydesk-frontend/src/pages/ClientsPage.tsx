@@ -11,7 +11,7 @@ import { useCalendarEvents, type CalendarEvent } from '../hooks/useCalendarEvent
 import { parseCustomData, bestClientName, isAssignedToMe, type ClientRecord } from '../helpers/clientResolvers';
 import { fmtDt, cleanStr } from '../helpers/formatters';
 import { TagBadge } from '../components/ui/Badge';
-import Spinner from '../components/ui/Spinner';
+import { TableSkeleton } from '../components/ui/Skeleton';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
 
@@ -355,8 +355,8 @@ export default function ClientsPage() {
             <tbody>
               {filteredClients.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleCols.size + 1} style={{ textAlign: 'center', padding: 40, color: '#6b7280' }}>
-                    {clients.length === 0 ? <><Spinner /><div style={{ marginTop: 10 }}>Betöltés...</div></> : 'Nincs találat'}
+                <td colSpan={visibleCols.size + 1} style={{ padding: 0, border: 'none' }}>
+                    {clients.length === 0 ? <TableSkeleton columns={visibleCols.size} rows={8} /> : <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Nincs találat</div>}
                   </td>
                 </tr>
               ) : (

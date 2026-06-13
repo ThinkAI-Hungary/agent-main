@@ -28,7 +28,7 @@ import { useAuth } from '../context/AuthContext';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
 import { authFetch } from '../api/client';
-import Spinner from '../components/ui/Spinner';
+import { KanbanSkeleton } from '../components/ui/Skeleton';
 import KanbanColumn from '../components/kanban/KanbanColumn';
 import KanbanCard from '../components/kanban/KanbanCard';
 import ClientDetailView from '../components/clients/ClientDetailView';
@@ -244,8 +244,14 @@ export default function KanbanPage() {
 
   if (loading) {
     return (
-      <div className="analytics-shell" style={{ textAlign: 'center', padding: 40 }}>
-        <Spinner />
+      <div className="analytics-shell">
+        <div className="page-header" style={{ marginBottom: 18 }}>
+          <div>
+            <div className="page-title">Érdeklődőkezelés</div>
+            <div className="page-subtitle">Konverziós tölcsér és érdeklődők nyomon követése</div>
+          </div>
+        </div>
+        <KanbanSkeleton />
       </div>
     );
   }

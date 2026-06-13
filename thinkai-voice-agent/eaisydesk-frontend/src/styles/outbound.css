@@ -804,7 +804,7 @@
       font-weight: 600;
       cursor: pointer;
       border: 1px solid var(--border);
-      background: var(--bg);
+      background: rgba(255,255,255,0.04);
       color: var(--text);
       transition: all 0.2s;
       font-family: 'Montserrat', Arial, sans-serif;
@@ -833,7 +833,7 @@
       padding: 16px;
       border: 1.5px solid var(--border);
       border-radius: var(--radius);
-      background: var(--bg);
+      background: rgba(255,255,255,0.04);
       color: var(--text);
       font-size: 13px;
       font-weight: 700;
@@ -891,7 +891,7 @@
       gap: 6px;
       transition: all 0.25s;
       font-family: 'Montserrat', Arial, sans-serif;
-      background: var(--bg);
+      background: rgba(255,255,255,0.04);
       color: var(--text-muted);
     }
     .camp-mode-btn.active {
@@ -917,7 +917,7 @@
     .camp-quill-wrap .ql-toolbar.ql-snow {
       border: none;
       border-bottom: 1px solid var(--border);
-      background: var(--bg);
+      background: rgba(255,255,255,0.04);
       padding: 8px 10px;
     }
     .camp-quill-wrap .ql-toolbar button {
@@ -962,7 +962,7 @@
     }
     .camp-quill-word-count {
       display: flex; align-items: center; justify-content: space-between;
-      padding: 8px 16px; border-top: 1px solid var(--border); background: var(--bg);
+      padding: 8px 16px; border-top: 1px solid var(--border); background: rgba(255,255,255,0.04);
     }
     .camp-quill-hints { display: flex; gap: 16px; }
     .camp-quill-hint {

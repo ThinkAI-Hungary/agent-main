@@ -450,13 +450,13 @@ body.dark .triage-table td {
   border-color: var(--border) !important;
 }
 body.dark .priority-select {
-  background: var(--bg3) !important;
-  border-color: var(--border) !important;
+  background: rgba(255,255,255,0.06) !important;
+  border-color: rgba(255,255,255,0.1) !important;
   color: var(--text) !important;
 }
 body.dark .escalation-input {
-  background: var(--bg3) !important;
-  border-color: var(--border) !important;
+  background: rgba(255,255,255,0.06) !important;
+  border-color: rgba(255,255,255,0.1) !important;
   color: var(--text) !important;
 }
 
@@ -470,8 +470,8 @@ body.dark .bh-table td {
   border-color: var(--border) !important;
 }
 body.dark .bh-time {
-  background: var(--bg3) !important;
-  border-color: var(--border) !important;
+  background: rgba(255,255,255,0.06) !important;
+  border-color: rgba(255,255,255,0.1) !important;
   color: var(--text) !important;
 }
 
@@ -492,8 +492,8 @@ body.dark .tt-label {
 body.dark .tt-input,
 body.dark .tt-textarea,
 body.dark .tt-select {
-  background: var(--bg3) !important;
-  border-color: var(--border) !important;
+  background: rgba(255,255,255,0.06) !important;
+  border-color: rgba(255,255,255,0.1) !important;
   color: var(--text) !important;
 }
 body.dark .tt-input:focus,
@@ -504,7 +504,7 @@ body.dark .tt-textarea:focus {
 /* Settings section dark overrides */
 body.dark .settings-section {
   background: var(--card) !important;
-  border-color: var(--border) !important;
+  border-color: rgba(255,255,255,0.08) !important;
 }
 body.dark .beallitasok-label {
   color: var(--text) !important;
@@ -514,13 +514,13 @@ body.dark .settings-label {
 }
 body.dark .settings-input,
 body.dark .settings-select {
-  background: var(--bg3) !important;
-  border-color: var(--border) !important;
+  background: rgba(255,255,255,0.06) !important;
+  border-color: rgba(255,255,255,0.1) !important;
   color: var(--text) !important;
 }
 body.dark .settings-textarea {
-  background: var(--bg3) !important;
-  border-color: var(--border) !important;
+  background: rgba(255,255,255,0.06) !important;
+  border-color: rgba(255,255,255,0.1) !important;
   color: var(--text) !important;
 }
 

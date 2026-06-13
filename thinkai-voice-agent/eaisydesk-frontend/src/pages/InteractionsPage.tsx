@@ -15,7 +15,7 @@ import {
 } from '../helpers/interactionClassifiers';
 import { fmtDt, cleanStr } from '../helpers/formatters';
 import { EredmenyBadge, StatuszBadge, DirectionBadge } from '../components/ui/Badge';
-import Spinner from '../components/ui/Spinner';
+import { TableSkeleton } from '../components/ui/Skeleton';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
 import { authFetch } from '../api/client';
@@ -636,9 +636,8 @@ export default function InteractionsPage() {
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={visibleCols.size + 1} style={{ textAlign: 'center', padding: 40, color: '#6b7280' }}>
-                  <Spinner />
-                  <div style={{ marginTop: 10 }}>Adatok betöltése...</div>
+                <td colSpan={visibleCols.size + 1} style={{ padding: 0, border: 'none' }}>
+                  <TableSkeleton columns={visibleCols.size} rows={10} />
                 </td>
               </tr>
             ) : filteredRows.length === 0 ? (

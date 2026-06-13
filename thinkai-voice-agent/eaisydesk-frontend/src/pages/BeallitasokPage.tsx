@@ -253,11 +253,7 @@ export default function BeallitasokPage() {
                         <span className={`team-role-badge ${u.role}`}>{u.role.toUpperCase()}</span>
                         {!isSelf && isAdmin && (
                           <div className="team-actions">
-                            <select value={u.role} onChange={(e) => handleChangeRole(u.id, e.target.value)} style={{ padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', fontSize: 12, color: 'var(--text)', background: 'var(--bg)', fontFamily: 'inherit' }}>
-                              <option value="member">Member</option>
-                              <option value="manager">Manager</option>
-                              <option value="admin">Admin</option>
-                            </select>
+                            <RoleDropdown value={u.role} onChange={(newRole) => handleChangeRole(u.id, newRole)} />
                             <button className="team-delete-btn" onClick={() => handleDeleteUser(u.id, u.username)} title="Törlés">
                               <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 15, height: 15 }}>
                                 <polyline points="3 6 5 6 21 6" />
@@ -778,6 +774,85 @@ function ChannelsSection() {
           </div>
         ))}
       </div>
+    </div>
+  );
+}
+
+// ── Custom role dropdown (dark mode safe) ────────────────────────────────────
+const ROLES = [
+  { value: 'member', label: 'Member' },
+  { value: 'manager', label: 'Manager' },
+  { value: 'admin', label: 'Admin' },
+];
+
+function RoleDropdown({ value, onChange }: { value: string; onChange: (role: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  const current = ROLES.find(r => r.value === value);
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        onClick={() => setOpen(!open)}
+        style={{
+          padding: '5px 12px', borderRadius: 8,
+          border: '1.5px solid var(--border)', fontSize: 12, fontWeight: 600,
+          color: 'var(--text)', background: 'rgba(255,255,255,0.06)',
+          fontFamily: 'inherit', cursor: 'pointer', display: 'flex',
+          alignItems: 'center', gap: 6, transition: 'all 0.2s',
+          ...(open ? { borderColor: 'var(--accent)', boxShadow: '0 0 0 2px rgba(28,238,224,0.12)' } : {}),
+        }}
+      >
+        {current?.label || value}
+        <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="12" height="12" style={{ opacity: 0.5, transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none' }}>
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', right: 0, minWidth: 140, zIndex: 100,
+          background: 'var(--card)', border: '1.5px solid var(--border)', borderRadius: 10,
+          boxShadow: '0 12px 40px rgba(0,0,0,0.25)', overflow: 'hidden',
+          animation: 'roleDropIn 0.15s ease',
+        }}>
+          {ROLES.map(r => (
+            <button
+              key={r.value}
+              onClick={() => { onChange(r.value); setOpen(false); }}
+              style={{
+                width: '100%', padding: '10px 14px', border: 'none', cursor: 'pointer',
+                fontSize: 12, fontWeight: 600, fontFamily: 'inherit', textAlign: 'left',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: r.value === value ? 'rgba(28,238,224,0.08)' : 'transparent',
+                color: r.value === value ? 'var(--accent)' : 'var(--text)',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => { if (r.value !== value) (e.target as HTMLElement).style.background = 'rgba(255,255,255,0.06)'; }}
+              onMouseLeave={e => { if (r.value !== value) (e.target as HTMLElement).style.background = 'transparent'; }}
+            >
+              {r.label}
+              {r.value === value && (
+                <svg fill="none" stroke="var(--accent)" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <style>{`@keyframes roleDropIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }`}</style>
     </div>
   );
 }

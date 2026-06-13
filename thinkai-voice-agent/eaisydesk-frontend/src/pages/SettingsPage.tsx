@@ -3,12 +3,12 @@
  * 3 tabs: eaisyDesk beállítások (agent), Céginformációk (praxis), Szabályok (rules)
  * All reads/writes directly to Supabase.
  */
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { authFetch } from '../api/client';
 import { supabase } from '../lib/supabase';
 import { showToast } from '../components/ui/Toast';
-import Spinner from '../components/ui/Spinner';
+import { SettingsSkeleton } from '../components/ui/Skeleton';
 
 // ── Tab definitions ──
 const _TABS = [
@@ -372,7 +372,7 @@ export default function SettingsPage() {
   }, [activeTab, saveAgent, savePraxis]);
 
   if (loading) {
-    return <div className="analytics-shell" style={{ textAlign: 'center', padding: 40 }}><Spinner /></div>;
+    return <div className="analytics-shell" style={{ padding: 40 }}><SettingsSkeleton /></div>;
   }
 
   return (
@@ -382,7 +382,7 @@ export default function SettingsPage() {
           {activeTab === 'agent' && (
             <div>
               {/* ── Page Header ── */}
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, marginTop: 10 }}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
                   <div style={{ width: 44, height: 44, borderRadius: 6, background: 'linear-gradient(135deg, rgba(28,238,224,0.15), rgba(59,130,246,0.12))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
                     <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="22" height="22">
@@ -395,23 +395,25 @@ export default function SettingsPage() {
                     <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>Nyelv, kommunikáció, hang és üdvözlőszöveg beállításai</div>
                   </div>
                 </div>
-                <button className="btn-settings-save" onClick={handleSave} disabled={saving} style={{ fontFamily: 'inherit', padding: '10px 24px', fontSize: 13, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>
-                  {saving ? 'Mentés...' : 'Változtatások mentése'}
-                </button>
               </div>
 
               {/* ══════ 1. ALAPBEÁLLÍTÁSOK ══════ */}
               <div style={{ marginBottom: 24 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                    <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
-                      <circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
-                    </svg>
+                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 16 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                      <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
+                        <circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
+                      </svg>
+                    </div>
+                    <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Alapbeállítások</span>
+                    <div title="Az AI válaszgenerálás nyelve (messenger, email, WhatsApp, Instagram csatornákra). A telefonos voice agent fix magyar marad." style={{ width: 18, height: 18, borderRadius: '50%', border: '1.5px solid var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', flexShrink: 0 }}>
+                      <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>i</span>
+                    </div>
                   </div>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Alapbeállítások</span>
-                  <div title="Az AI válaszgenerálás nyelve (messenger, email, WhatsApp, Instagram csatornákra). A telefonos voice agent fix magyar marad." style={{ width: 18, height: 18, borderRadius: '50%', border: '1.5px solid var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', flexShrink: 0 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>i</span>
-                  </div>
+                  <button className="btn-settings-save" onClick={handleSave} disabled={saving} style={{ fontFamily: 'inherit', padding: '10px 24px', fontSize: 13, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+                    {saving ? 'Mentés...' : 'Változtatások mentése'}
+                  </button>
                 </div>
                 <div className="settings-section" style={{ padding: 24 }}>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 32 }}>
@@ -429,7 +431,7 @@ export default function SettingsPage() {
                           style={{
                             display: 'flex', alignItems: 'center', gap: 10,
                             padding: '10px 14px', borderRadius: 10,
-                            border: '1.5px solid var(--border)', background: 'var(--bg)',
+                            border: '1.5px solid var(--border)', background: 'rgba(255,255,255,0.04)',
                             cursor: 'pointer', transition: 'all 0.2s ease',
                             minWidth: 180,
                           }}
@@ -449,7 +451,7 @@ export default function SettingsPage() {
                             <div onClick={() => setShowLangDropdown(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
                             <div style={{
                               position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-                              background: 'var(--card-bg, #fff)', border: '1.5px solid var(--border)',
+                              background: 'var(--card)', border: '1.5px solid var(--border)',
                               borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
                               zIndex: 100, overflow: 'hidden', maxHeight: 240, overflowY: 'auto',
                             }}>
@@ -492,13 +494,17 @@ export default function SettingsPage() {
                         </div>
                         <span style={{ fontSize: 14, fontWeight: 700, color: '#1ceee0' }}>Kommunikációs stílus kiválasztása</span>
                       </div>
-                      <select className="settings-select" value={agent.tone} onChange={(e) => setAgent({ ...agent, tone: e.target.value })}>
-                        <option value="professional_friendly">Professzionális, segítőkész</option>
-                        <option value="formal">Formális, tárgyszerű</option>
-                        <option value="informal">Informális, közvetlen</option>
-                        <option value="empathetic">Empatikus, támogató</option>
-                        <option value="custom">Egyedi leírás...</option>
-                      </select>
+                      <CustomSelect
+                        value={agent.tone}
+                        onChange={(v) => setAgent({ ...agent, tone: v })}
+                        options={[
+                          { value: 'professional_friendly', label: 'Professzionális, segítőkész' },
+                          { value: 'formal', label: 'Formális, tárgyszerű' },
+                          { value: 'informal', label: 'Informális, közvetlen' },
+                          { value: 'empathetic', label: 'Empatikus, támogató' },
+                          { value: 'custom', label: 'Egyedi leírás...' },
+                        ]}
+                      />
                       {agent.tone === 'custom' && (
                         <textarea className="settings-textarea" value={agent.tone_custom} onChange={(e) => setAgent({ ...agent, tone_custom: e.target.value })} placeholder="Írd le a kívánt kommunikációs stílust..." style={{ marginTop: 10, minHeight: 70 }} />
                       )}
@@ -541,7 +547,7 @@ export default function SettingsPage() {
                             padding: '14px 18px',
                             borderRadius: 6,
                             border: isSelected ? '2px solid #1ceee0' : '1.5px solid var(--border)',
-                            background: isSelected ? 'rgba(28,238,224,0.05)' : 'var(--bg)',
+                            background: isSelected ? 'rgba(28,238,224,0.05)' : 'rgba(255,255,255,0.04)',
                             cursor: 'pointer',
                             transition: 'all 0.2s ease',
                           }}
@@ -633,7 +639,7 @@ export default function SettingsPage() {
                 <div className="settings-section" style={{ padding: 24 }}>
                   <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
                     <thead>
-                      <tr style={{ background: 'var(--bg)', borderBottom: '1px solid var(--border)' }}>
+                      <tr style={{ background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid var(--border)' }}>
                         <th style={{ ...thStyle, width: '30%' }}>Helyzet</th>
                         <th style={{ ...thStyle, width: '25%' }}>Prioritás</th>
                         <th style={{ ...thStyle, width: '30%' }}>Eszkalációs e-mail</th>
@@ -973,7 +979,7 @@ export default function SettingsPage() {
 // ── Shared styles ──
 const thStyle: React.CSSProperties = { padding: '12px 16px', fontWeight: 600, textAlign: 'left', color: 'var(--text-muted)', fontSize: 12 };
 const tdStyle: React.CSSProperties = { padding: '8px 12px', borderBottom: '1px solid var(--border)' };
-const timeInput: React.CSSProperties = { padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, background: 'var(--bg)', color: 'var(--text)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' };
+const timeInput: React.CSSProperties = { padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, background: 'rgba(255,255,255,0.04)', color: 'var(--text)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' };
 const listItemStyle: React.CSSProperties = { display: 'flex', alignItems: 'center', gap: 10, marginBottom: 8 };
 
 // ── Sub-components ──
@@ -1042,3 +1048,81 @@ function DeleteBtn({ onClick }: { onClick: () => void }) {
     </button>
   );
 }
+
+// ── Custom dark-mode-safe select dropdown ──────────────────────────────────
+function CustomSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  const current = options.find(o => o.value === value);
+
+  return (
+    <div ref={ref} style={{ position: 'relative' }}>
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        style={{
+          width: '100%', padding: '12px 16px', borderRadius: 'var(--radius, 10px)',
+          border: open ? '1.5px solid var(--accent)' : '1.5px solid rgba(255,255,255,0.1)',
+          fontSize: 13, fontWeight: 500, color: 'var(--text)',
+          background: 'rgba(255,255,255,0.06)', fontFamily: 'inherit',
+          cursor: 'pointer', display: 'flex', alignItems: 'center',
+          justifyContent: 'space-between', gap: 8, textAlign: 'left',
+          transition: 'all 0.2s', boxSizing: 'border-box',
+          ...(open ? { boxShadow: '0 0 0 3px rgba(28,238,224,0.12)' } : {}),
+        }}
+      >
+        {current?.label || value}
+        <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14" style={{ opacity: 0.5, transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none', flexShrink: 0 }}>
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+
+      {open && (
+        <div style={{
+          position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 100,
+          background: 'var(--card)', border: '1.5px solid rgba(255,255,255,0.1)', borderRadius: 10,
+          boxShadow: '0 12px 40px rgba(0,0,0,0.3)', overflow: 'hidden',
+          animation: 'customSelectDropIn 0.15s ease',
+        }}>
+          {options.map(o => (
+            <button
+              type="button"
+              key={o.value}
+              onClick={() => { onChange(o.value); setOpen(false); }}
+              style={{
+                width: '100%', padding: '11px 16px', border: 'none', cursor: 'pointer',
+                fontSize: 13, fontWeight: o.value === value ? 600 : 400, fontFamily: 'inherit', textAlign: 'left',
+                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+                background: o.value === value ? 'rgba(28,238,224,0.08)' : 'transparent',
+                color: o.value === value ? 'var(--accent)' : 'var(--text)',
+                transition: 'background 0.15s',
+              }}
+              onMouseEnter={e => { if (o.value !== value) (e.currentTarget).style.background = 'rgba(255,255,255,0.06)'; }}
+              onMouseLeave={e => { if (o.value !== value) (e.currentTarget).style.background = 'transparent'; }}
+            >
+              {o.label}
+              {o.value === value && (
+                <svg fill="none" stroke="var(--accent)" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14">
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
+
+      <style>{`@keyframes customSelectDropIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }`}</style>
+    </div>
+  );
+}
+

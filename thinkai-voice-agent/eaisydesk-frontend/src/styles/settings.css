@@ -562,7 +562,7 @@
       padding: 10px 12px;
       font-size: 13px;
       color: var(--text);
-      border-bottom: 1px solid #f3f4f6;
+      border-bottom: 1px solid var(--border);
       vertical-align: middle;
     }
     .bh-table tbody tr:last-child td {

@@ -266,7 +266,8 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       {/* ═══ Top Card (Mint gradient) ═══ */}
       <div style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'stretch',
-        background: 'linear-gradient(90deg, #c4f2e8 0%, #b8eae0 100%)',
+        background: 'linear-gradient(135deg, rgba(28,238,224,0.12) 0%, rgba(20,184,173,0.08) 100%)',
+        border: '1px solid rgba(28,238,224,0.15)',
         padding: '24px 32px', borderRadius: 6, marginBottom: 24,
       }}>
         {/* Left: Avatar & Info */}
@@ -283,20 +284,20 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.removeAttribute('style'); }}
             />
           ) : null}
-          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'white', display: profilePicUrl ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--card)', display: profilePicUrl ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
             <svg fill="none" height="28" stroke="#1ceee0" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="28">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
             </svg>
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-              <h2 style={{ margin: 0, fontSize: 24, fontWeight: 'bold', color: '#082432' }}>{client.name}</h2>
+              <h2 style={{ margin: 0, fontSize: 24, fontWeight: 'bold', color: 'var(--text)' }}>{client.name}</h2>
               <span style={{ background: sl.bg, color: sl.color, fontSize: 11, fontWeight: 'bold', padding: '4px 8px', borderRadius: 6, letterSpacing: '0.5px' }}>{sl.text}</span>
             </div>
-            <div style={{ color: 'rgba(8,36,50,0.8)', fontSize: 14, marginBottom: 16 }}>
+            <div style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 16 }}>
               Eaisydesk azonosító: {client.id}
             </div>
-            <div style={{ display: 'flex', gap: 32, fontSize: 14, color: '#082432' }}>
+            <div style={{ display: 'flex', gap: 32, fontSize: 14, color: 'var(--text)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <svg fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" style={{ opacity: 0.7 }}>
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -318,7 +319,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <button
             onClick={() => setShowProfileEdit(true)}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: '#082432', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}
+            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}
           >
             <svg fill="none" height="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -326,12 +327,12 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             </svg>
             Profil módosítása
           </button>
-          <div style={{ background: 'white', padding: '12px 20px', borderRadius: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 120, boxShadow: '0 2px 8px rgba(0,0,0,0.05)' }}>
-            <div style={{ fontSize: 11, color: 'rgba(8,36,50,0.6)', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600, textTransform: 'uppercase' }}>
+          <div style={{ background: 'var(--card)', padding: '12px 20px', borderRadius: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 120, border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600, textTransform: 'uppercase' }}>
               <svg fill="none" height="12" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
               Regisztrálva:
             </div>
-            <div style={{ fontSize: 16, fontWeight: 'bold', color: '#082432', marginTop: 4 }}>{regDate}</div>
+            <div style={{ fontSize: 16, fontWeight: 'bold', color: 'var(--text)', marginTop: 4 }}>{regDate}</div>
           </div>
         </div>
       </div>
@@ -339,8 +340,8 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       {/* ═══ Middle Cards: Tags, Appointments, Notes ═══ */}
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: 20, marginBottom: 24 }}>
         {/* Tags */}
-        <div style={{ background: '#f3f4f6', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-          <h3 style={{ fontSize: 12, fontWeight: 'bold', color: '#6b7280', textTransform: 'uppercase', marginTop: 0, marginBottom: 16 }}>Címkék</h3>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column', position: 'relative' }}>
+          <h3 style={{ fontSize: 12, fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: 0, marginBottom: 16 }}>Címkék</h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {client.tags.length === 0 && <span style={{ fontSize: 13, color: '#9ca3af' }}>Nincs címke</span>}
             {client.tags.map((t) => (
@@ -351,10 +352,10 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             ))}
           </div>
           <div style={{ position: 'relative', marginTop: 16 }}>
-            <button onClick={() => setShowTagPicker(!showTagPicker)} style={{ background: 'transparent', border: 'none', color: '#6b7280', fontSize: 12, fontWeight: 600, textAlign: 'left', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>+ Címke hozzáadása</button>
+            <button onClick={() => setShowTagPicker(!showTagPicker)} style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: 12, fontWeight: 600, textAlign: 'left', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>+ Címke hozzáadása</button>
             {showTagPicker && (
-              <div style={{ position: 'absolute', left: 0, bottom: 32, background: 'white', border: '1px solid #e5e7eb', borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', padding: 12, zIndex: 999, minWidth: 220 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: '#6b7280', textTransform: 'uppercase', marginBottom: 8 }}>Előre definiált címkék</div>
+              <div style={{ position: 'absolute', left: 0, bottom: 32, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.3)', padding: 12, zIndex: 999, minWidth: 220 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>Előre definiált címkék</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
                   {PREDEFINED_TAGS.filter(t => !client.tags.includes(t.label)).map(t => (
                     <button key={t.label} onClick={() => addTag(t.label)} style={{ background: t.bg, color: t.color, border: 'none', padding: '5px 12px', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 600, borderRadius: 6, fontFamily: 'inherit', transition: 'opacity 0.15s' }}
@@ -363,9 +364,9 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                     >{t.label}</button>
                   ))}
                 </div>
-                <div style={{ borderTop: '1px solid #e5e7eb', margin: '10px 0' }} />
+                <div style={{ borderTop: '1px solid var(--border)', margin: '10px 0' }} />
                 <div style={{ display: 'flex', gap: 6 }}>
-                  <input value={customTag} onChange={e => setCustomTag(e.target.value)} placeholder="Egyéni címke..." style={{ flex: 1, border: '1px solid #d1d5db', borderRadius: 6, padding: '6px 8px', fontSize: 12, outline: 'none', fontFamily: 'inherit' }}
+                  <input value={customTag} onChange={e => setCustomTag(e.target.value)} placeholder="Egyéni címke..." style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 6, padding: '6px 8px', fontSize: 12, outline: 'none', fontFamily: 'inherit', background: 'rgba(255,255,255,0.06)', color: 'var(--text)' }}
                     onKeyDown={e => { if (e.key === 'Enter' && customTag.trim()) { addTag(customTag.trim()); } }}
                   />
                   <button onClick={() => { if (customTag.trim()) addTag(customTag.trim()); }} style={{ background: '#1ceee0', color: '#000', border: 'none', borderRadius: 6, padding: '6px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Hozzáadás</button>
@@ -376,12 +377,12 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         </div>
 
         {/* Previous Appointments */}
-        <div style={{ background: '#f3f4f6', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column' }}>
-          <h3 style={{ fontSize: 12, fontWeight: 'bold', color: '#6b7280', textTransform: 'uppercase', marginTop: 0, marginBottom: 16 }}>Korábbi időpontok</h3>
+        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column' }}>
+          <h3 style={{ fontSize: 12, fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: 0, marginBottom: 16 }}>Korábbi időpontok</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
             {clientAppointments.length === 0 && <span style={{ fontSize: 13, color: '#9ca3af', fontStyle: 'italic' }}>Nincs korábbi foglalás.</span>}
             {clientAppointments.slice(0, 3).map((ev, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: '#4b5563' }}>
+              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)' }}>
                 <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
                 {ev.start_dt ? fmtDt(ev.start_dt) : '—'}
               </div>
@@ -395,28 +396,28 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         </div>
 
         {/* Notes */}
-        <div style={{ background: 'white', border: '2px solid var(--accent, #1ceee0)', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column' }}>
+        <div style={{ background: 'var(--card)', border: '2px solid var(--accent, #1ceee0)', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column' }}>
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             onBlur={() => saveNotes(notes)}
             placeholder="Megjegyzés"
-            style={{ width: '100%', height: '100%', minHeight: 80, border: 'none', resize: 'none', fontFamily: 'inherit', fontSize: 14, color: '#082432', outline: 'none', background: 'transparent', boxSizing: 'border-box' }}
+            style={{ width: '100%', height: '100%', minHeight: 80, border: 'none', resize: 'none', fontFamily: 'inherit', fontSize: 14, color: 'var(--text)', outline: 'none', background: 'transparent', boxSizing: 'border-box' }}
           />
         </div>
       </div>
 
       {/* Total interactions count */}
-      <div style={{ fontSize: 14, fontWeight: 600, color: '#4b5563', marginBottom: 16 }}>
+      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 16 }}>
         Összes interakció: {clientInteractions.length}
       </div>
 
       {/* ═══ Aktuális Ügyek Table ═══ */}
       <div style={{ marginBottom: 32 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 16, color: '#4b5563', textTransform: 'uppercase' }}>Aktuális ügyek</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 16, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Aktuális ügyek</h3>
         <div style={{ borderRadius: 6, border: '1px solid var(--border)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: 'white' }}>
-            <thead style={{ background: '#f9fafb' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: 'var(--card)' }}>
+            <thead style={{ background: 'rgba(255,255,255,0.04)' }}>
               <tr>
                 <th style={thStyle}>Interakció időpontja</th>
                 <th style={thStyle}>Csatorna</th>
@@ -486,10 +487,10 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
 
       {/* ═══ Korábbi Interakciók Table ═══ */}
       <div style={{ marginBottom: 32 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 16, color: '#4b5563', textTransform: 'uppercase' }}>Korábbi interakciók</h3>
+        <h3 style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 16, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Korábbi interakciók</h3>
         <div style={{ borderRadius: 6, border: '1px solid var(--border)', overflow: 'hidden', opacity: 0.85 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: 'white' }}>
-            <thead style={{ background: '#f9fafb' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: 'var(--card)' }}>
+            <thead style={{ background: 'rgba(255,255,255,0.04)' }}>
               <tr>
                 <th style={thStyle}>Interakció időpontja</th>
                 <th style={thStyle}>Csatorna</th>
@@ -572,10 +573,10 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       {/* ═══ Profile Edit Modal ═══ */}
       {showProfileEdit && (
         <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowProfileEdit(false)}>
-          <div style={{ background: 'white', borderRadius: 8, width: 440, maxWidth: '90vw', boxShadow: '0 24px 48px rgba(0,0,0,0.2)', overflow: 'hidden' }} onClick={e => e.stopPropagation()}>
+          <div style={{ background: 'var(--card)', borderRadius: 8, width: 440, maxWidth: '90vw', boxShadow: '0 24px 48px rgba(0,0,0,0.3)', overflow: 'hidden', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
             {/* Header */}
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 28px 0' }}>
-              <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#1a1a1a' }}>Profil módosítása</h3>
+              <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>Profil módosítása</h3>
               <button onClick={() => setShowProfileEdit(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: 22, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontFamily: 'inherit' }}
                 onMouseOver={e => (e.currentTarget.style.color = '#374151')}
                 onMouseOut={e => (e.currentTarget.style.color = '#9ca3af')}
@@ -585,19 +586,19 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             {/* Form */}
             <div style={{ padding: '24px 28px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6, display: 'block' }}>Név</label>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Név</label>
                 <input value={editName} onChange={e => setEditName(e.target.value)} placeholder={client.name} style={modalInputStyle} />
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6, display: 'block' }}>Telefonszám</label>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Telefonszám</label>
                 <input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+36 30 ..." style={modalInputStyle} />
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6, display: 'block' }}>Email cím</label>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Email cím</label>
                 <input value={editEmail} onChange={e => setEditEmail(e.target.value)} placeholder="email@példa.hu" style={modalInputStyle} />
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: '#374151', marginBottom: 6, display: 'block' }}>Megjegyzés</label>
+                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Megjegyzés</label>
                 <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Adminisztrációs megjegyzések..." rows={4}
                   style={{ ...modalInputStyle, resize: 'vertical', minHeight: 80 }}
                 />
@@ -605,13 +606,13 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
 
               {/* Footer buttons */}
               <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 4 }}>
-                <button onClick={() => setShowProfileEdit(false)} style={{ padding: '11px 24px', background: 'white', color: '#374151', border: '1.5px solid #d1d5db', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
-                  onMouseOver={e => (e.currentTarget.style.borderColor = '#9ca3af')}
-                  onMouseOut={e => (e.currentTarget.style.borderColor = '#d1d5db')}
+                <button onClick={() => setShowProfileEdit(false)} style={{ padding: '11px 24px', background: 'transparent', color: 'var(--text-muted)', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
+                  onMouseOver={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                  onMouseOut={e => (e.currentTarget.style.borderColor = 'var(--border)')}
                 >Mégsem</button>
-                <button onClick={saveProfile} disabled={saving} style={{ padding: '11px 24px', background: '#1a1a1a', color: 'white', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
-                  onMouseOver={e => (e.currentTarget.style.background = '#333')}
-                  onMouseOut={e => (e.currentTarget.style.background = '#1a1a1a')}
+                <button onClick={saveProfile} disabled={saving} style={{ padding: '11px 24px', background: 'var(--accent)', color: '#082432', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
+                  onMouseOver={e => (e.currentTarget.style.opacity = '0.85')}
+                  onMouseOut={e => (e.currentTarget.style.opacity = '1')}
                 >{saving ? 'Mentés...' : 'Mentés'}</button>
               </div>
             </div>
@@ -658,7 +659,7 @@ const thStyle: React.CSSProperties = {
   padding: '16px',
   fontSize: 11,
   fontWeight: 600,
-  color: '#6b8b99',
+  color: 'var(--text-muted)',
   borderBottom: '1px solid var(--border)',
   textTransform: 'uppercase',
 };
@@ -674,13 +675,13 @@ const tdStyle: React.CSSProperties = {
 const modalInputStyle: React.CSSProperties = {
   width: '100%',
   padding: '12px 16px',
-  border: '1.5px solid #e5e7eb',
+  border: '1.5px solid var(--border)',
   borderRadius: 10,
   fontSize: 15,
-  color: '#1a1a1a',
+  color: 'var(--text)',
   fontFamily: 'inherit',
   outline: 'none',
-  background: '#fafafa',
+  background: 'rgba(255,255,255,0.06)',
   boxSizing: 'border-box',
   transition: 'border-color 0.15s',
 };

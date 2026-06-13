@@ -40,21 +40,23 @@ const DELAY_OPTIONS = [
 ];
 
 const sectionStyle: React.CSSProperties = {
-  background: 'var(--card-bg)',
-  border: '1px solid var(--border)',
-  borderRadius: 8,
+  background: 'var(--card)',
+  border: '1px solid rgba(255,255,255,0.08)',
+  borderRadius: 14,
   overflow: 'hidden',
-  marginBottom: 24,
+  marginBottom: 28,
+  boxShadow: '0 2px 12px rgba(0,0,0,0.15)',
 };
 const sectionHeaderStyle: React.CSSProperties = {
   display: 'flex',
   alignItems: 'center',
   gap: 14,
-  padding: '20px 28px',
-  borderBottom: '1px solid var(--border)',
+  padding: '22px 28px',
+  borderBottom: '1px solid rgba(255,255,255,0.06)',
+  background: 'rgba(255,255,255,0.02)',
 };
 const sectionBodyStyle: React.CSSProperties = {
-  padding: '24px 28px',
+  padding: '28px',
 };
 const labelStyle: React.CSSProperties = {
   display: 'block',
@@ -63,6 +65,7 @@ const labelStyle: React.CSSProperties = {
   color: 'var(--text-muted)',
   marginBottom: 8,
   letterSpacing: 0.3,
+  textTransform: 'uppercase',
 };
 
 export default function AutomatizaciokPage() {
@@ -126,8 +129,8 @@ export default function AutomatizaciokPage() {
       {/* ── Page Header ── */}
       <div style={{
         display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 32, paddingBottom: 20,
-        borderBottom: '1px solid var(--border)',
+        marginBottom: 36, paddingBottom: 24,
+        borderBottom: '1px solid rgba(255,255,255,0.06)',
       }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
           <div style={{
@@ -193,8 +196,11 @@ export default function AutomatizaciokPage() {
         </div>
         <div style={sectionBodyStyle}>
           {/* Toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 24,
-            background: 'var(--bg)', borderRadius: 6, padding: '14px 18px', border: '1px solid var(--border)',
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28,
+            background: 'linear-gradient(135deg, rgba(28,238,224,0.04), rgba(28,238,224,0.01))',
+            borderRadius: 12, padding: '16px 20px',
+            border: '1px solid rgba(28,238,224,0.12)',
+            boxShadow: '0 0 20px rgba(28,238,224,0.03)',
           }}>
             <label className="tt-toggle">
               <input type="checkbox" checked={reminder.reminder_enabled}
@@ -222,18 +228,18 @@ export default function AutomatizaciokPage() {
             </div>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '200px 1fr', gap: 20, marginBottom: 20 }}>
+          <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24, marginBottom: 20 }}>
             {/* Hours */}
             <div>
               <label style={labelStyle}>Emlékeztetés ideje</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.06)' }}>
                 <input type="number" className="tt-input" value={reminder.reminder_hours}
                   min={1} max={168}
                   onChange={e => setReminder({ ...reminder, reminder_hours: Number(e.target.value) })}
                   onBlur={() => saveReminder()}
-                  style={{ maxWidth: 80, textAlign: 'center', fontSize: 16, fontWeight: 700 }}
+                  style={{ maxWidth: 70, textAlign: 'center', fontSize: 18, fontWeight: 700, background: 'transparent', border: 'none', color: 'var(--accent)' }}
                 />
-                <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>órával az időpont előtt</span>
+                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>órával az időpont előtt</span>
               </div>
             </div>
             {/* Template */}
@@ -278,8 +284,9 @@ export default function AutomatizaciokPage() {
         </div>
         <div style={sectionBodyStyle}>
           <div style={{
-            background: 'var(--bg)', borderRadius: 6, padding: '18px 20px',
-            border: '1px solid var(--border)', marginBottom: 16,
+            background: 'linear-gradient(135deg, rgba(245,158,11,0.04), rgba(245,158,11,0.01))',
+            borderRadius: 12, padding: '20px 22px',
+            border: '1px solid rgba(245,158,11,0.12)', marginBottom: 16,
           }}>
             <label style={labelStyle}>Inaktivitási küszöb</label>
             <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
@@ -287,7 +294,7 @@ export default function AutomatizaciokPage() {
             </div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
               <input type="number" className="tt-input" value={inactivityDays}
-                min={7} max={365} style={{ maxWidth: 80, textAlign: 'center', fontSize: 16, fontWeight: 700 }}
+                min={7} max={365} style={{ maxWidth: 70, textAlign: 'center', fontSize: 18, fontWeight: 700, background: 'transparent', border: 'none', color: '#f59e0b' }}
                 onChange={e => setInactivityDays(Number(e.target.value))}
                 onBlur={() => {
                   localStorage.setItem('thinkai_inactivity_days', String(inactivityDays));
@@ -327,8 +334,8 @@ export default function AutomatizaciokPage() {
           {automations.length === 0 ? (
             <div style={{
               textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)',
-              fontSize: 13, background: 'var(--bg)', borderRadius: 6,
-              border: '1.5px dashed var(--border)',
+              fontSize: 13, background: 'rgba(255,255,255,0.02)', borderRadius: 12,
+              border: '1.5px dashed rgba(255,255,255,0.08)',
             }}>
               <svg fill="none" stroke="var(--text-muted)" strokeWidth="1.5" viewBox="0 0 24 24" width="32" height="32" style={{ marginBottom: 10, opacity: 0.5 }}>
                 <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8" />
@@ -341,10 +348,11 @@ export default function AutomatizaciokPage() {
               const isExpanded = expandedAuto === a.id;
               return (
                 <div key={a.id} style={{
-                  background: 'var(--bg)',
-                  border: `1px solid ${a.enabled ? `${meta.color}22` : 'var(--border)'}`,
-                  borderRadius: 6, marginBottom: 10, overflow: 'hidden',
-                  transition: 'all 0.2s ease',
+                  background: 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${a.enabled ? `${meta.color}25` : 'rgba(255,255,255,0.06)'}`,
+                  borderLeft: `3px solid ${a.enabled ? meta.color : 'rgba(255,255,255,0.08)'}`,
+                  borderRadius: 12, marginBottom: 12, overflow: 'hidden',
+                  transition: 'all 0.25s ease',
                 }}>
                   {/* Header row */}
                   <div
@@ -366,9 +374,10 @@ export default function AutomatizaciokPage() {
                       <span className="tt-toggle-slider" />
                     </label>
                     <div style={{
-                      width: 4, height: 28, borderRadius: 2,
-                      background: a.enabled ? meta.color : 'var(--border)',
+                      width: 3, height: 26, borderRadius: 2,
+                      background: a.enabled ? meta.color : 'rgba(255,255,255,0.1)',
                       transition: 'background 0.2s',
+                      boxShadow: a.enabled ? `0 0 8px ${meta.color}40` : 'none',
                     }} />
                     <div style={{ flex: 1 }}>
                       <div style={{ fontSize: 14, fontWeight: 700, color: a.enabled ? 'var(--text)' : 'var(--text-muted)' }}>
@@ -391,20 +400,21 @@ export default function AutomatizaciokPage() {
                   {/* Expanded content */}
                   {isExpanded && (
                     <div style={{
-                      padding: '0 20px 18px',
-                      borderTop: '1px solid var(--border)',
-                      paddingTop: 16,
+                      padding: '0 20px 20px',
+                      borderTop: '1px solid rgba(255,255,255,0.05)',
+                      paddingTop: 18,
+                      background: 'rgba(255,255,255,0.015)',
                     }}>
                       {/* Késleltetés inline */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 16 }}>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Késleltetés:</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, background: 'rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
+                        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Késleltetés:</label>
                         <select className="tt-input" value={a.delay_hours}
                           onChange={e => {
                             const updated = { ...a, delay_hours: Number(e.target.value) };
                             setAutomations(prev => prev.map(x => x.id === a.id ? updated : x));
                             supabase.from('outbound_automations').update({ delay_hours: Number(e.target.value) }).eq('id', a.id);
                           }}
-                          style={{ width: 'auto', minWidth: 120, padding: '6px 12px', fontSize: 13, borderRadius: 8 }}>
+                          style={{ width: 'auto', minWidth: 130, padding: '8px 14px', fontSize: 13, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text)', fontWeight: 600 }}>
                           {DELAY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                       </div>

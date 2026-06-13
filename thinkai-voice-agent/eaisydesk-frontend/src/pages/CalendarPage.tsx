@@ -15,7 +15,7 @@ import { useSessions } from '../hooks/useSessions';
 import { useAuth } from '../context/AuthContext';
 import { parseCustomData, isAssignedToMe, bestClientName } from '../helpers/clientResolvers';
 import { fmtDt } from '../helpers/formatters';
-import Spinner from '../components/ui/Spinner';
+import { CalendarSkeleton } from '../components/ui/Skeleton';
 import { showToast } from '../components/ui/Toast';
 import { supabase } from '../lib/supabase';
 import ClientDetailView from '../components/clients/ClientDetailView';
@@ -273,23 +273,11 @@ export default function CalendarPage() {
             + Új időpont
           </button>
 
-          {/* Refresh */}
-          <button
-            onClick={() => refetchEvents()}
-            title="Frissítés"
-            style={{ background: 'none', border: 'none', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: 'var(--text-muted)', borderRadius: 6 }}
-          >
-            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 15, height: 15 }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v5h5" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M20 20v-5h-5" />
-              <path strokeLinecap="round" strokeLinejoin="round" d="M20.49 9A9 9 0 005.64 5.64L4 9m16 6l-1.64 3.36A9 9 0 013.51 15" />
-            </svg>
-          </button>
         </div>
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div>
+        <CalendarSkeleton />
       ) : (
         <>
           {/* List view */}
@@ -441,84 +429,210 @@ export default function CalendarPage() {
         </>
       )}
 
-      {/* New Event Modal */}
+      {/* New Event Modal — Apple-style */}
       {showNewEventModal && (
         <div
-          style={{ display: 'flex', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, alignItems: 'center', justifyContent: 'center' }}
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            background: 'rgba(0,0,0,0.45)',
+            backdropFilter: 'blur(8px)',
+            WebkitBackdropFilter: 'blur(8px)',
+            zIndex: 9999,
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'fadeIn .18s ease',
+          }}
           onClick={() => setShowNewEventModal(false)}
         >
           <div
-            className="login-card"
-            style={{ width: 420, maxWidth: '90vw', padding: 28 }}
+            style={{
+              width: 460, maxWidth: '92vw',
+              background: 'var(--card, #fff)',
+              borderRadius: 18,
+              boxShadow: '0 24px 80px rgba(0,0,0,0.22), 0 0 0 1px rgba(255,255,255,0.06) inset',
+              border: '1px solid var(--border)',
+              overflow: 'hidden',
+              animation: 'modalSlideUp .22s cubic-bezier(.2,.9,.3,1)',
+            }}
             onClick={(e) => e.stopPropagation()}
           >
-            <h3 style={{ margin: '0 0 20px 0', fontSize: 18, fontWeight: 700, color: 'var(--text)' }}>Új időpont létrehozása</h3>
+            {/* Header */}
+            <div style={{
+              padding: '22px 28px 18px',
+              borderBottom: '1px solid var(--border)',
+              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.2px' }}>
+                  Új időpont létrehozása
+                </h3>
+                <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text-muted)', fontWeight: 400 }}>
+                  Adja meg az ügyfél és az esemény adatait
+                </p>
+              </div>
+              <button
+                onClick={() => setShowNewEventModal(false)}
+                style={{
+                  width: 30, height: 30, borderRadius: '50%',
+                  border: 'none', background: 'var(--bg3, rgba(0,0,0,0.06))',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--text-muted)', fontSize: 16, fontWeight: 300, lineHeight: 1,
+                  transition: 'background .15s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.12)', e.currentTarget.style.color = '#ef4444')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg3, rgba(0,0,0,0.06))', e.currentTarget.style.color = 'var(--text-muted)')}
+              >
+                ✕
+              </button>
+            </div>
 
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
-              <FormField label="Ügyfél neve *" value={newEvent.attendee} onChange={(v) => setNewEvent({ ...newEvent, attendee: v })} />
-              <FormField label="Email" value={newEvent.email} onChange={(v) => setNewEvent({ ...newEvent, email: v })} type="email" />
-              <FormField label="Telefon" value={newEvent.phone} onChange={(v) => setNewEvent({ ...newEvent, phone: v })} type="tel" />
-              <FormField label="Esemény címe *" value={newEvent.title} onChange={(v) => setNewEvent({ ...newEvent, title: v })} />
-              <div style={{ display: 'flex', gap: 10 }}>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Dátum *</label>
-                  <input type="date" value={newEvent.date} onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })} style={inputStyle} />
+            {/* Body */}
+            <div style={{ padding: '22px 28px 6px' }}>
+              {/* Section: Ügyfél */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
+                  👤 Ügyfél adatai
                 </div>
-                <div style={{ flex: 1 }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Időpont *</label>
-                  <input type="time" value={newEvent.time} onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })} style={inputStyle} />
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <ModalInput label="Név" value={newEvent.attendee} onChange={(v) => setNewEvent({ ...newEvent, attendee: v })} required placeholder="pl. Kiss Anna" />
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <ModalInput label="Email" value={newEvent.email} onChange={(v) => setNewEvent({ ...newEvent, email: v })} type="email" placeholder="email@pelda.hu" />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <ModalInput label="Telefon" value={newEvent.phone} onChange={(v) => setNewEvent({ ...newEvent, phone: v })} type="tel" placeholder="+36 20 123 4567" />
+                    </div>
+                  </div>
                 </div>
               </div>
-              <div>
-                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Időtartam (perc)</label>
-                <select value={newEvent.duration} onChange={(e) => setNewEvent({ ...newEvent, duration: e.target.value })} style={inputStyle}>
-                  <option value="15">15 perc</option>
-                  <option value="30">30 perc</option>
-                  <option value="45">45 perc</option>
-                  <option value="60">60 perc</option>
-                  <option value="90">90 perc</option>
-                  <option value="120">120 perc</option>
-                </select>
+
+              {/* Section: Esemény */}
+              <div style={{ marginBottom: 20 }}>
+                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
+                  📅 Esemény részletei
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  <ModalInput label="Esemény címe" value={newEvent.title} onChange={(v) => setNewEvent({ ...newEvent, title: v })} required placeholder="pl. Konzultáció" />
+                  <div style={{ display: 'flex', gap: 10 }}>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Dátum *</label>
+                      <input type="date" value={newEvent.date} onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })} style={modalInputStyle} />
+                    </div>
+                    <div style={{ flex: 1 }}>
+                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Időpont *</label>
+                      <input type="time" value={newEvent.time} onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })} style={modalInputStyle} />
+                    </div>
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Időtartam</label>
+                    <select value={newEvent.duration} onChange={(e) => setNewEvent({ ...newEvent, duration: e.target.value })} style={modalInputStyle}>
+                      <option value="15">15 perc</option>
+                      <option value="30">30 perc</option>
+                      <option value="45">45 perc</option>
+                      <option value="60">60 perc</option>
+                      <option value="90">90 perc</option>
+                      <option value="120">120 perc</option>
+                    </select>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div style={{ display: 'flex', gap: 10, marginTop: 20 }}>
+            {/* Footer */}
+            <div style={{
+              padding: '16px 28px 22px',
+              display: 'flex', gap: 10, justifyContent: 'flex-end',
+              borderTop: '1px solid var(--border)',
+            }}>
               <button
                 onClick={() => setShowNewEventModal(false)}
-                className="btn-primary"
-                style={{ background: 'var(--bg3)', color: 'var(--text)', fontFamily: 'inherit' }}
+                style={{
+                  padding: '9px 22px', borderRadius: 9,
+                  border: '1px solid var(--border)',
+                  background: 'var(--bg2, var(--bg, #f5f5f5))',
+                  color: 'var(--text)', fontSize: 13, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  transition: 'all .15s',
+                }}
+                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg3, #eee)')}
+                onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg2, var(--bg, #f5f5f5))')}
               >
                 Mégse
               </button>
-              <button onClick={handleSubmitEvent} className="btn-primary" style={{ fontFamily: 'inherit' }}>
-                Létrehozás
+              <button
+                onClick={handleSubmitEvent}
+                style={{
+                  padding: '9px 28px', borderRadius: 9,
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #1ceee0, #0abfb4)',
+                  color: '#0a1628', fontSize: 13, fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  boxShadow: '0 2px 12px rgba(28,238,224,0.3)',
+                  transition: 'all .15s',
+                }}
+                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 18px rgba(28,238,224,0.4)'; }}
+                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(28,238,224,0.3)'; }}
+              >
+                ✓ Létrehozás
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Modal animation keyframes */}
+      <style>{`
+        @keyframes modalSlideUp {
+          from { opacity: 0; transform: translateY(16px) scale(0.97); }
+          to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to { opacity: 1; }
+        }
+      `}</style>
     </div>
   );
 }
 
-const inputStyle: React.CSSProperties = {
+const modalInputStyle: React.CSSProperties = {
   width: '100%',
-  padding: '10px 14px',
-  border: '1px solid var(--border)',
-  borderRadius: 8,
+  padding: '9px 12px',
+  border: '1.5px solid var(--border)',
+  borderRadius: 9,
   fontSize: 13,
   color: 'var(--text)',
-  background: 'var(--bg, #f9fafb)',
+  background: 'var(--bg2, var(--bg, #f8f9fa))',
   fontFamily: 'inherit',
   boxSizing: 'border-box',
   outline: 'none',
+  transition: 'border-color .15s, box-shadow .15s',
+  colorScheme: 'light dark',
 };
 
-function FormField({ label, value, onChange, type = 'text' }: { label: string; value: string; onChange: (v: string) => void; type?: string }) {
+function ModalInput({ label, value, onChange, type = 'text', required, placeholder }: {
+  label: string; value: string; onChange: (v: string) => void; type?: string; required?: boolean; placeholder?: string;
+}) {
   return (
     <div>
-      <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>{label}</label>
-      <input type={type} value={value} onChange={(e) => onChange(e.target.value)} style={inputStyle} />
+      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>
+        {label}{required && ' *'}
+      </label>
+      <input
+        type={type}
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        placeholder={placeholder}
+        required={required}
+        style={modalInputStyle}
+        onFocus={e => {
+          e.currentTarget.style.borderColor = '#1ceee0';
+          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(28,238,224,0.12)';
+        }}
+        onBlur={e => {
+          e.currentTarget.style.borderColor = 'var(--border)';
+          e.currentTarget.style.boxShadow = 'none';
+        }}
+      />
     </div>
   );
 }
