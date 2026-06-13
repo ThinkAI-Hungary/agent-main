@@ -1655,3 +1655,52 @@
     body.dark #page-automatizaciok .tt-textarea::placeholder {
       color: #3a5568 !important;
     }
+
+    /* Alert Modal - Light mode default */
+    @keyframes alertOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes alertCardIn { from { opacity: 0; transform: translateY(24px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+    @keyframes alertRowIn { from { opacity: 0; transform: translateX(-12px); } to { opacity: 1; transform: translateX(0); } }
+    .alert-modal-overlay { position: fixed; inset: 0; z-index: 9999; background: rgba(0,0,0,0.25); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); display: flex; align-items: center; justify-content: center; padding: 24px; animation: alertOverlayIn 0.25s ease forwards; }
+    .alert-modal-card { width: 720px; max-width: 95vw; max-height: 85vh; background: #fff; border: 1px solid rgba(0,0,0,0.08); border-radius: 20px; overflow: hidden; display: flex; flex-direction: column; box-shadow: 0 24px 80px rgba(0,0,0,0.12); position: relative; animation: alertCardIn 0.4s cubic-bezier(0.16,1,0.3,1) forwards; }
+    .alert-modal-accent { position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, #ef4444, #f97316, #eab308); z-index: 1; }
+    .alert-modal-header { display: flex; align-items: center; justify-content: space-between; padding: 24px 28px 20px; border-bottom: 1px solid rgba(0,0,0,0.06); }
+    .alert-modal-header-left { display: flex; align-items: center; gap: 14px; }
+    .alert-modal-severity-dot { width: 12px; height: 12px; border-radius: 50%; background: #ef4444; box-shadow: 0 0 12px rgba(239,68,68,0.3); flex-shrink: 0; }
+    .alert-modal-title { font-size: 18px; font-weight: 800; color: #111827; letter-spacing: -0.3px; }
+    .alert-modal-subtitle { font-size: 12px; font-weight: 500; color: #9ca3af; margin-top: 2px; }
+    .alert-modal-close { width: 40px; height: 40px; border-radius: 50%; border: 1px solid rgba(0,0,0,0.08); background: rgba(0,0,0,0.03); color: #6b7280; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: all 0.25s; flex-shrink: 0; }
+    .alert-modal-close:hover { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.2); color: #ef4444; transform: rotate(90deg); }
+    .alert-modal-body { flex: 1; overflow-y: auto; padding: 20px 28px; background: #f9fafb; }
+    .alert-modal-loading { display: flex; align-items: center; justify-content: center; padding: 60px 0; }
+    .alert-modal-empty { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 60px 0; color: #9ca3af; font-size: 13px; font-weight: 500; }
+    .alert-modal-list { display: flex; flex-direction: column; gap: 10px; }
+    .alert-modal-row { background: #fff; border: 1px solid rgba(0,0,0,0.06); border-radius: 14px; padding: 16px 20px; box-shadow: 0 1px 3px rgba(0,0,0,0.04); transition: all 0.25s cubic-bezier(0.16,1,0.3,1); animation: alertRowIn 0.35s cubic-bezier(0.16,1,0.3,1) both; }
+    .alert-modal-row:hover { border-color: rgba(28,238,224,0.25); transform: translateX(4px); box-shadow: 0 4px 20px rgba(0,0,0,0.06); }
+    .alert-row-top { display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px; }
+    .alert-row-date { font-size: 11px; font-weight: 600; color: #9ca3af; letter-spacing: 0.3px; }
+    .alert-row-channel { font-size: 10px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px; padding: 3px 10px; border-radius: 100px; }
+    .alert-row-title { font-size: 14px; font-weight: 700; color: #111827; margin-bottom: 4px; line-height: 1.3; }
+    .alert-row-detail { font-size: 13px; color: #6b7280; line-height: 1.5; }
+    .alert-row-status { display: inline-flex; align-items: center; padding: 3px 10px; border-radius: 6px; font-size: 11px; font-weight: 600; background: rgba(28,238,224,0.08); color: #0d9488; border: 1px solid rgba(28,238,224,0.2); }
+    .alert-modal-footer { padding: 16px 28px; border-top: 1px solid rgba(0,0,0,0.06); display: flex; justify-content: flex-end; }
+    .alert-modal-footer-btn { padding: 8px 24px; border-radius: 10px; border: 1px solid rgba(0,0,0,0.1); background: #fff; color: #374151; font-size: 13px; font-weight: 600; cursor: pointer; transition: all 0.2s; font-family: 'Montserrat', Arial, sans-serif; }
+    .alert-modal-footer-btn:hover { background: #f3f4f6; border-color: rgba(28,238,224,0.3); color: #111827; }
+
+    /* Alert Modal - Dark mode overrides */
+    body.dark .alert-modal-overlay { background: rgba(8,20,32,0.7); backdrop-filter: blur(16px); -webkit-backdrop-filter: blur(16px); }
+    body.dark .alert-modal-card { background: rgba(14,30,46,0.95); border-color: rgba(255,255,255,0.08); box-shadow: 0 24px 80px rgba(0,0,0,0.4), 0 0 0 1px rgba(28,238,224,0.06); }
+    body.dark .alert-modal-header { border-bottom-color: rgba(255,255,255,0.06); }
+    body.dark .alert-modal-title { color: #fff; }
+    body.dark .alert-modal-subtitle { color: rgba(255,255,255,0.4); }
+    body.dark .alert-modal-close { border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.6); }
+    body.dark .alert-modal-body { background: transparent; }
+    body.dark .alert-modal-empty { color: rgba(255,255,255,0.3); }
+    body.dark .alert-modal-row { background: rgba(255,255,255,0.03); border-color: rgba(255,255,255,0.06); box-shadow: none; }
+    body.dark .alert-modal-row:hover { background: rgba(255,255,255,0.06); border-color: rgba(28,238,224,0.15); box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+    body.dark .alert-row-date { color: rgba(255,255,255,0.35); }
+    body.dark .alert-row-title { color: #fff; }
+    body.dark .alert-row-detail { color: rgba(255,255,255,0.5); }
+    body.dark .alert-row-status { color: #1ceee0; background: rgba(28,238,224,0.08); border-color: rgba(28,238,224,0.15); }
+    body.dark .alert-modal-footer { border-top-color: rgba(255,255,255,0.06); }
+    body.dark .alert-modal-footer-btn { border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7); }
+    body.dark .alert-modal-footer-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(28,238,224,0.2); color: #fff; }

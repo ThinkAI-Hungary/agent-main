@@ -521,99 +521,196 @@ export default function OutboundPage() {
           </div>
           </div>
 
-          {/* Analytics Panel (slide-down) */}
+          {/* Analytics Panel — Apple-style overlay */}
           {showAnalytics && (
-            <div className="out-analytics-panel open">
-              <div className="out-analytics-inner">
-                <div className="out-analytics-header">
-                  <div className="out-analytics-title">
-                    <div className="out-analytics-title-icon">
-                      <svg fill="none" stroke="var(--accent)" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
-                      </svg>
-                    </div>
-                    Kampány Analitika
-                  </div>
-                  <button onClick={() => setShowAnalytics(false)} className="out-analytics-close">
-                    <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 14, height: 14 }}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+            <div className="ana-overlay" onClick={() => setShowAnalytics(false)}>
+              <div className="ana-container" onClick={e => e.stopPropagation()}>
+                {/* Close */}
+                <button className="ana-close-btn" onClick={() => setShowAnalytics(false)}>
+                  <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+
+                {/* Hero Header */}
+                <div className="ana-hero">
+                  <div className="ana-hero-badge">
+                    <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 16, height: 16 }}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z" />
                     </svg>
-                    Bezárás
-                  </button>
+                    Analitika
+                  </div>
+                  <h2 className="ana-hero-title">Kampány teljesítmény</h2>
+                  <p className="ana-hero-sub">Részletes áttekintés kampányaid eredményéről</p>
                 </div>
 
-                {/* Charts Grid */}
-                <div className="out-analytics-grid">
-                  {/* Státusz eloszlás */}
-                  <div className="out-chart-card">
-                    <div className="out-chart-title">Státusz eloszlás</div>
-                    <div className="out-chart-subtitle">Kampányok állapota</div>
-                    <div className="out-chart-wrap">
+                {/* Hero KPI Row */}
+                <div className="ana-kpi-row">
+                  <div className="ana-kpi-glass">
+                    <div className="ana-kpi-icon" style={{ background: 'rgba(28,238,224,0.12)' }}>
+                      <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 20, height: 20 }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 7h8m0 0v8m0-8l-8 8-4-4-6 6" />
+                      </svg>
+                    </div>
+                    <div className="ana-kpi-content">
+                      <div className="ana-kpi-num">{analytics.avgClients}</div>
+                      <div className="ana-kpi-desc">Átl. ügyfél / kampány</div>
+                    </div>
+                  </div>
+                  <div className="ana-kpi-glass">
+                    <div className="ana-kpi-icon" style={{ background: 'rgba(139,92,246,0.12)' }}>
+                      <svg fill="none" stroke="#8b5cf6" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 20, height: 20 }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M7 20l4-16m2 16l4-16M6 9h14M4 15h14" />
+                      </svg>
+                    </div>
+                    <div className="ana-kpi-content">
+                      <div className="ana-kpi-num">{analytics.topChannel ? (CHANNEL_NAMES[analytics.topChannel[0]] || analytics.topChannel[0]) : '–'}</div>
+                      <div className="ana-kpi-desc">Top csatorna</div>
+                    </div>
+                  </div>
+                  <div className="ana-kpi-glass">
+                    <div className="ana-kpi-icon" style={{ background: 'rgba(34,197,94,0.12)' }}>
+                      <svg fill="none" stroke="#22c55e" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 20, height: 20 }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <div className="ana-kpi-content">
+                      <div className="ana-kpi-num">{analytics.successRate}<span style={{ fontSize: 16, opacity: 0.6 }}>%</span></div>
+                      <div className="ana-kpi-desc">Befejezési arány</div>
+                    </div>
+                  </div>
+                  <div className="ana-kpi-glass">
+                    <div className="ana-kpi-icon" style={{ background: 'rgba(59,130,246,0.12)' }}>
+                      <svg fill="none" stroke="#3b82f6" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 20, height: 20 }}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div className="ana-kpi-content">
+                      <div className="ana-kpi-num">{analytics.lastCampaign ? new Date(analytics.lastCampaign.created_at).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' }) : '–'}</div>
+                      <div className="ana-kpi-desc">Utolsó kampány</div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Charts — Bento Grid */}
+                <div className="ana-bento">
+                  {/* Status Doughnut — Feature card */}
+                  <div className="ana-bento-card ana-bento-featured">
+                    <div className="ana-card-header">
+                      <div className="ana-card-dot" style={{ background: '#1ceee0' }} />
+                      <span className="ana-card-label">Státusz eloszlás</span>
+                    </div>
+                    <div className="ana-card-chart" style={{ height: 240 }}>
                       {campaigns.length > 0 ? (
                         <Doughnut data={statusChartData} options={statusChartOptions} />
                       ) : (
-                        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)', fontSize: 12 }}>Nincs adat</div>
+                        <div className="ana-no-data">Nincs adat</div>
                       )}
                     </div>
                   </div>
 
-                  {/* Csatorna használat */}
-                  <div className="out-chart-card">
-                    <div className="out-chart-title">Csatorna használat</div>
-                    <div className="out-chart-subtitle">Melyik csatornán hány kampány fut</div>
-                    <div className="out-chart-wrap">
+                  {/* Channel Bar */}
+                  <div className="ana-bento-card">
+                    <div className="ana-card-header">
+                      <div className="ana-card-dot" style={{ background: '#3b82f6' }} />
+                      <span className="ana-card-label">Csatorna használat</span>
+                    </div>
+                    <div className="ana-card-chart" style={{ height: 240 }}>
                       {campaigns.length > 0 ? (
                         <Bar data={channelChartData} options={channelChartOptions} />
                       ) : (
-                        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)', fontSize: 12 }}>Nincs adat</div>
+                        <div className="ana-no-data">Nincs adat</div>
                       )}
                     </div>
                   </div>
 
-                  {/* Célzott ügyfelek */}
-                  <div className="out-chart-card">
-                    <div className="out-chart-title">Célzott ügyfelek</div>
-                    <div className="out-chart-subtitle">Ügyfélszám kampányonként</div>
-                    <div className="out-chart-wrap">
+                  {/* Clients Horizontal Bar */}
+                  <div className="ana-bento-card">
+                    <div className="ana-card-header">
+                      <div className="ana-card-dot" style={{ background: '#8b5cf6' }} />
+                      <span className="ana-card-label">Célzott ügyfelek</span>
+                    </div>
+                    <div className="ana-card-chart" style={{ height: 240 }}>
                       {campaigns.length > 0 ? (
                         <Bar data={clientsChartData} options={clientsChartOptions} />
                       ) : (
-                        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)', fontSize: 12 }}>Nincs adat</div>
+                        <div className="ana-no-data">Nincs adat</div>
                       )}
                     </div>
                   </div>
 
-                  {/* Idővonal */}
-                  <div className="out-chart-card">
-                    <div className="out-chart-title">Idővonal</div>
-                    <div className="out-chart-subtitle">Kampány létrehozások időrendben</div>
-                    <div className="out-chart-wrap">
+                  {/* Campaign Summary — mini stats card */}
+                  <div className="ana-bento-card">
+                    <div className="ana-card-header">
+                      <div className="ana-card-dot" style={{ background: '#f59e0b' }} />
+                      <span className="ana-card-label">Kampány összesítő</span>
+                      <span className="ana-card-tag">Live</span>
+                    </div>
+                    <div className="ana-summary-grid">
+                      <div className="ana-mini-stat">
+                        <div className="ana-mini-icon" style={{ background: 'rgba(28,238,224,0.1)' }}>
+                          <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M19 11H5m14 0a2 2 0 012 2v6a2 2 0 01-2 2H5a2 2 0 01-2-2v-6a2 2 0 012-2m14 0V9a2 2 0 00-2-2M5 11V9a2 2 0 012-2m0 0V5a2 2 0 012-2h6a2 2 0 012 2v2M7 7h10" />
+                          </svg>
+                        </div>
+                        <div className="ana-mini-num">{kpis.total}</div>
+                        <div className="ana-mini-label">Összes</div>
+                      </div>
+                      <div className="ana-mini-stat">
+                        <div className="ana-mini-icon" style={{ background: 'rgba(34,197,94,0.1)' }}>
+                          <svg fill="none" stroke="#22c55e" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M14.752 11.168l-3.197-2.132A1 1 0 0010 9.87v4.263a1 1 0 001.555.832l3.197-2.132a1 1 0 000-1.664z" />
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div className="ana-mini-num" style={{ color: '#22c55e' }}>{kpis.running}</div>
+                        <div className="ana-mini-label">Aktív</div>
+                      </div>
+                      <div className="ana-mini-stat">
+                        <div className="ana-mini-icon" style={{ background: 'rgba(139,92,246,0.1)' }}>
+                          <svg fill="none" stroke="#8b5cf6" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                        <div className="ana-mini-num">{kpis.closed}</div>
+                        <div className="ana-mini-label">Befejezett</div>
+                      </div>
+                      <div className="ana-mini-stat">
+                        <div className="ana-mini-icon" style={{ background: 'rgba(59,130,246,0.1)' }}>
+                          <svg fill="none" stroke="#3b82f6" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+                          </svg>
+                        </div>
+                        <div className="ana-mini-num">{kpis.targeted}</div>
+                        <div className="ana-mini-label">Célzott ügyfél</div>
+                      </div>
+                    </div>
+                    {/* Mini progress bar */}
+                    <div className="ana-progress-section">
+                      <div className="ana-progress-header">
+                        <span className="ana-progress-label">Befejezési arány</span>
+                        <span className="ana-progress-pct">{analytics.successRate}%</span>
+                      </div>
+                      <div className="ana-progress-bar">
+                        <div className="ana-progress-fill" style={{ width: `${analytics.successRate}%` }} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Timeline — Wide card */}
+                  <div className="ana-bento-card ana-bento-wide">
+                    <div className="ana-card-header">
+                      <div className="ana-card-dot" style={{ background: '#22c55e' }} />
+                      <span className="ana-card-label">Idővonal</span>
+                      <span className="ana-card-tag">Trend</span>
+                    </div>
+                    <div className="ana-card-chart" style={{ height: 220 }}>
                       {campaigns.length > 0 ? (
                         <Line data={timelineChartData} options={timelineChartOptions} />
                       ) : (
-                        <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--text-muted)', fontSize: 12 }}>Nincs adat</div>
+                        <div className="ana-no-data">Nincs adat</div>
                       )}
                     </div>
-                  </div>
-                </div>
-
-                {/* Summary Row */}
-                <div className="out-analytics-summary">
-                  <div className="out-summary-item">
-                    <div className="out-summary-value">{analytics.avgClients}</div>
-                    <div className="out-summary-label">Átl. ügyfél/kampány</div>
-                  </div>
-                  <div className="out-summary-item">
-                    <div className="out-summary-value">{analytics.topChannel ? (CHANNEL_NAMES[analytics.topChannel[0]] || analytics.topChannel[0]) : '-'}</div>
-                    <div className="out-summary-label">Leggyakoribb csatorna</div>
-                  </div>
-                  <div className="out-summary-item">
-                    <div className="out-summary-value">{analytics.successRate}%</div>
-                    <div className="out-summary-label">Befejezési arány</div>
-                  </div>
-                  <div className="out-summary-item">
-                    <div className="out-summary-value">{analytics.lastCampaign ? new Date(analytics.lastCampaign.created_at).toLocaleDateString('hu-HU') : '-'}</div>
-                    <div className="out-summary-label">Utolsó kampány</div>
                   </div>
                 </div>
               </div>

@@ -343,11 +343,337 @@
       letter-spacing: 0.3px;
     }
 
-    /* Dark mode */
-    body.dark .out-analytics-inner { background: var(--card); border-color: var(--border); }
-    body.dark .out-chart-card { background: var(--bg3); border-color: var(--border); }
-    body.dark .out-analytics-close { background: var(--bg3); border-color: var(--border); }
-    body.dark .out-summary-item { background: rgba(28,238,224,0.04); }
+    /* ═══ Apple-style Analytics Overlay ═══════════════════════ */
+    @keyframes anaOverlayIn {
+      from { opacity: 0; }
+      to { opacity: 1; }
+    }
+    @keyframes anaContainerIn {
+      from { opacity: 0; transform: translateY(30px) scale(0.97); }
+      to { opacity: 1; transform: translateY(0) scale(1); }
+    }
+    @keyframes anaCardIn {
+      from { opacity: 0; transform: translateY(20px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes anaKpiPulse {
+      0%, 100% { box-shadow: 0 0 0 0 rgba(28,238,224,0); }
+      50% { box-shadow: 0 0 0 4px rgba(28,238,224,0.06); }
+    }
+
+    .ana-overlay {
+      position: fixed;
+      inset: 0;
+      z-index: 9999;
+      background: rgba(8, 20, 32, 0.7);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      display: flex;
+      align-items: flex-start;
+      justify-content: center;
+      overflow-y: auto;
+      padding: 40px 24px;
+      animation: anaOverlayIn 0.3s ease forwards;
+    }
+
+    .ana-container {
+      width: 100%;
+      max-width: 1000px;
+      position: relative;
+      animation: anaContainerIn 0.45s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    }
+
+    .ana-close-btn {
+      position: absolute;
+      top: 0;
+      right: 0;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      border: 1px solid rgba(255,255,255,0.1);
+      background: rgba(255,255,255,0.06);
+      backdrop-filter: blur(8px);
+      color: rgba(255,255,255,0.7);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: all 0.25s;
+      z-index: 10;
+    }
+    .ana-close-btn:hover {
+      background: rgba(239,68,68,0.15);
+      border-color: rgba(239,68,68,0.3);
+      color: #ef4444;
+      transform: rotate(90deg);
+    }
+
+    /* Hero Section */
+    .ana-hero {
+      text-align: center;
+      margin-bottom: 32px;
+      animation: anaCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.1s both;
+    }
+    .ana-hero-badge {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 16px;
+      border-radius: 100px;
+      background: linear-gradient(135deg, rgba(28,238,224,0.12), rgba(59,130,246,0.12));
+      border: 1px solid rgba(28,238,224,0.2);
+      color: #1ceee0;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 16px;
+    }
+    .ana-hero-title {
+      font-size: 28px;
+      font-weight: 800;
+      color: #fff;
+      margin: 0 0 8px;
+      letter-spacing: -0.5px;
+    }
+    .ana-hero-sub {
+      font-size: 14px;
+      color: rgba(255,255,255,0.5);
+      margin: 0;
+      font-weight: 500;
+    }
+
+    /* KPI Row — Glassmorphism cards */
+    .ana-kpi-row {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 14px;
+      margin-bottom: 28px;
+      animation: anaCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.15s both;
+    }
+    @media (max-width: 800px) { .ana-kpi-row { grid-template-columns: repeat(2, 1fr); } }
+
+    .ana-kpi-glass {
+      background: rgba(255,255,255,0.04);
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 16px;
+      padding: 20px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      backdrop-filter: blur(8px);
+    }
+    .ana-kpi-glass:hover {
+      background: rgba(255,255,255,0.07);
+      border-color: rgba(28,238,224,0.2);
+      transform: translateY(-2px);
+      animation: anaKpiPulse 2s ease infinite;
+    }
+    .ana-kpi-icon {
+      width: 44px;
+      height: 44px;
+      border-radius: 12px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .ana-kpi-content { flex: 1; min-width: 0; }
+    .ana-kpi-num {
+      font-size: 24px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .ana-kpi-desc {
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    /* Bento Grid — Charts */
+    .ana-bento {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 700px) { .ana-bento { grid-template-columns: 1fr; } }
+
+    .ana-bento-card {
+      background: rgba(255,255,255,0.035);
+      border: 1px solid rgba(255,255,255,0.07);
+      border-radius: 18px;
+      padding: 24px;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      backdrop-filter: blur(6px);
+      animation: anaCardIn 0.5s cubic-bezier(0.16, 1, 0.3, 1) 0.2s both;
+    }
+    .ana-bento-card:nth-child(2) { animation-delay: 0.25s; }
+    .ana-bento-card:nth-child(3) { animation-delay: 0.3s; }
+    .ana-bento-card:nth-child(4) { animation-delay: 0.35s; }
+    .ana-bento-card:nth-child(5) { animation-delay: 0.4s; }
+
+    .ana-bento-card:hover {
+      background: rgba(255,255,255,0.055);
+      border-color: rgba(28,238,224,0.15);
+      transform: translateY(-2px);
+      box-shadow: 0 12px 40px rgba(0,0,0,0.2);
+    }
+
+    /* Mini Stats Grid (Campaign summary card) */
+    .ana-summary-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    .ana-mini-stat {
+      background: rgba(255,255,255,0.03);
+      border: 1px solid rgba(255,255,255,0.05);
+      border-radius: 12px;
+      padding: 14px;
+      text-align: center;
+      transition: all 0.25s;
+    }
+    .ana-mini-stat:hover {
+      background: rgba(255,255,255,0.06);
+      border-color: rgba(255,255,255,0.1);
+      transform: scale(1.03);
+    }
+    .ana-mini-icon {
+      width: 36px;
+      height: 36px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin: 0 auto 8px;
+    }
+    .ana-mini-num {
+      font-size: 22px;
+      font-weight: 800;
+      color: #fff;
+      line-height: 1;
+      margin-bottom: 4px;
+    }
+    .ana-mini-label {
+      font-size: 10px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.35);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+
+    /* Progress bar */
+    @keyframes anaProgressFill {
+      from { width: 0; }
+    }
+    .ana-progress-section {
+      padding-top: 4px;
+    }
+    .ana-progress-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 8px;
+    }
+    .ana-progress-label {
+      font-size: 11px;
+      font-weight: 600;
+      color: rgba(255,255,255,0.4);
+      text-transform: uppercase;
+      letter-spacing: 0.3px;
+    }
+    .ana-progress-pct {
+      font-size: 14px;
+      font-weight: 800;
+      color: #1ceee0;
+    }
+    .ana-progress-bar {
+      height: 6px;
+      background: rgba(255,255,255,0.06);
+      border-radius: 100px;
+      overflow: hidden;
+    }
+    .ana-progress-fill {
+      height: 100%;
+      background: linear-gradient(90deg, #1ceee0, #0bbdb1);
+      border-radius: 100px;
+      animation: anaProgressFill 1s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
+      box-shadow: 0 0 12px rgba(28,238,224,0.3);
+    }
+    .ana-bento-wide {
+      grid-column: 1 / -1;
+    }
+    .ana-bento-featured {
+      position: relative;
+      overflow: hidden;
+    }
+    .ana-bento-featured::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      height: 2px;
+      background: linear-gradient(90deg, #1ceee0, #3b82f6, #8b5cf6);
+      border-radius: 18px 18px 0 0;
+    }
+
+    /* Card Header */
+    .ana-card-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 18px;
+    }
+    .ana-card-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      flex-shrink: 0;
+      box-shadow: 0 0 8px currentColor;
+    }
+    .ana-card-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: rgba(255,255,255,0.85);
+      letter-spacing: -0.2px;
+    }
+    .ana-card-tag {
+      margin-left: auto;
+      font-size: 10px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+      color: rgba(28,238,224,0.7);
+      background: rgba(28,238,224,0.08);
+      padding: 3px 10px;
+      border-radius: 100px;
+      border: 1px solid rgba(28,238,224,0.15);
+    }
+
+    /* Chart container */
+    .ana-card-chart {
+      position: relative;
+    }
+    .ana-card-chart canvas {
+      max-height: 100% !important;
+    }
+
+    .ana-no-data {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      color: rgba(255,255,255,0.25);
+      font-size: 13px;
+      font-weight: 600;
+    }
 
     /* Calls page dark */
     body.dark #page-calls .page-title {
@@ -1454,3 +1780,32 @@
     }
 
     /* NOTE: kanban.css also includes Todo Table + member dashboard styles above */
+
+    /* === Campaign Analytics � Light mode overrides === */
+    body:not(.dark) .ana-overlay { background: rgba(0,0,0,0.25); backdrop-filter: blur(12px); -webkit-backdrop-filter: blur(12px); }
+    body:not(.dark) .ana-close-btn { border-color: rgba(0,0,0,0.1); background: rgba(0,0,0,0.04); color: #6b7280; backdrop-filter: none; }
+    body:not(.dark) .ana-close-btn:hover { background: rgba(239,68,68,0.08); border-color: rgba(239,68,68,0.2); color: #ef4444; }
+    body:not(.dark) .ana-hero-badge { background: linear-gradient(135deg, rgba(28,238,224,0.08), rgba(59,130,246,0.08)); border-color: rgba(28,238,224,0.25); color: #0d9488; }
+    body:not(.dark) .ana-hero-title { color: #fff; }
+    body:not(.dark) .ana-hero-sub { color: rgba(255,255,255,0.6); }
+    body:not(.dark) .ana-kpi-glass { background: #fff; border-color: rgba(0,0,0,0.08); backdrop-filter: none; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    body:not(.dark) .ana-kpi-glass:hover { background: #fff; border-color: rgba(28,238,224,0.3); box-shadow: 0 4px 16px rgba(0,0,0,0.08); }
+    body:not(.dark) .ana-kpi-num { color: #111827; }
+    body:not(.dark) .ana-kpi-desc { color: #9ca3af; }
+    body:not(.dark) .ana-bento-card { background: #fff; border-color: rgba(0,0,0,0.08); backdrop-filter: none; box-shadow: 0 1px 3px rgba(0,0,0,0.06); }
+    body:not(.dark) .ana-bento-card:hover { background: #fff; border-color: rgba(28,238,224,0.25); box-shadow: 0 8px 30px rgba(0,0,0,0.08); }
+    body:not(.dark) .ana-mini-stat { background: #f9fafb; border-color: rgba(0,0,0,0.06); }
+    body:not(.dark) .ana-mini-stat:hover { background: #f3f4f6; border-color: rgba(0,0,0,0.1); }
+    body:not(.dark) .ana-mini-num { color: #111827; }
+    body:not(.dark) .ana-mini-label { color: #9ca3af; }
+    body:not(.dark) .ana-card-label { color: #374151; }
+    body:not(.dark) .ana-card-tag { color: #0d9488; background: rgba(28,238,224,0.06); border-color: rgba(28,238,224,0.2); }
+    body:not(.dark) .ana-progress-label { color: #9ca3af; }
+    body:not(.dark) .ana-progress-pct { color: #0d9488; }
+    body:not(.dark) .ana-progress-bar { background: rgba(0,0,0,0.06); }
+    body:not(.dark) .ana-progress-fill { box-shadow: none; }
+    body:not(.dark) .ana-no-data { color: #9ca3af; }
+    /* Light mode hero - just color overrides, no card */
+    body:not(.dark) .ana-hero-badge { background: linear-gradient(135deg, #0d9488, #0891b2); border: none; color: #fff; padding: 6px 18px; box-shadow: 0 2px 8px rgba(13,148,136,0.3); }
+    body:not(.dark) .ana-hero-title { color: #fff; }
+    body:not(.dark) .ana-hero-sub { color: rgba(255,255,255,0.6); }

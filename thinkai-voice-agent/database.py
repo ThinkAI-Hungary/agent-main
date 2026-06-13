@@ -406,13 +406,23 @@ def get_alerts_stats(period: str = "month", channel: str = "mind", clinic_id: st
     if not supabase: 
         return {"urgent_count": 0, "complaint_count": 0, "callback_count": 0, "recurring_count": 0, "stuck_count": 0}
     try:
-        # We fetch all matching interactions to filter them in Python since count="exact" is hard to combine dynamically without complex query builder.
-        all_alerts_query = supabase.table("interactions").select("type, alert_tags, clinic_id").not_.is_("alert_tags", "null").execute()
+        # Calculate period start date (consistent with get_stats)
+        today = datetime.now(timezone.utc)
+        if period == "week":
+            start_dt = today - timedelta(days=today.weekday())
+        elif period == "month":
+            start_dt = today.replace(day=1)
+        else:  # year
+            start_dt = today - timedelta(days=365)
+
+        # Fetch interactions with alert_tags, filtered by period
+        all_alerts_query = supabase.table("interactions").select("type, alert_tags, clinic_id").not_.is_("alert_tags", "null").gte("created_at", start_dt.isoformat()).execute()
         urgent_count = complaint_count = callback_count = recurring_count = 0
         for row in all_alerts_query.data:
             if not _matches_channel(row.get("type"), channel): continue
             if clinic_id and clinic_id != "mind" and str(row.get("clinic_id")) != str(clinic_id): continue
             tags = row.get("alert_tags", [])
+            if not tags or tags == []:  continue  # Skip empty tag lists
             if "urgent" in tags: urgent_count += 1
             if "complaint" in tags: complaint_count += 1
             if "callback" in tags: callback_count += 1

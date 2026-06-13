@@ -252,21 +252,19 @@ export default function AnalyticsPage() {
     const title = ALERT_TYPE_NAMES[type] || type;
     setAlertModal({ type, title, rows: [], loading: true });
     try {
-      // Alert details: read directly from interaction_list view
-      const { data } = await supabase
-        .from('interaction_list')
-        .select('created_at, type, topic, participant, summary, approval_status')
-        .order('created_at', { ascending: false })
-        .limit(50);
-
-      if (data && data.length > 0) {
-        const mapped = data.map((r: Record<string, unknown>) => ({
+      // Use backend API which properly filters by alert_tags / stuck status
+      const res = await authFetch(`/admin/api/analytics/alerts/details?type=${type}`);
+      if (res.ok) {
+        const json = await res.json();
+        const details = json.data || [];
+        const mapped = details.map((r: Record<string, unknown>) => ({
           created_at: r.created_at as string,
-          channel: r.type as string,
+          channel: r.channel as string,
           topic: r.topic as string,
-          name: r.participant as string,
+          name: r.name as string,
           summary: r.summary as string,
-          status: r.approval_status as string,
+          status: r.status as string,
+          is_stuck: r.is_stuck as boolean,
         }));
         setAlertModal(prev => prev ? { ...prev, rows: mapped, loading: false } : null);
       } else {
@@ -665,67 +663,79 @@ export default function AnalyticsPage() {
         </div>
       </div>
 
-      {/* Alert Details Modal */}
+      {/* Alert Details Modal — Apple-style */}
       {alertModal && (
-        <div id="alert-details-modal"
-          style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,0.6)', zIndex: 9999,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}
-          onClick={e => { if (e.target === e.currentTarget) setAlertModal(null); }}
-        >
-          <div className="login-card" style={{
-            width: 800, maxWidth: '95vw', maxHeight: '85vh', padding: 0, overflow: 'hidden',
-            borderRadius: 8, border: 'none', boxShadow: '0 20px 40px rgba(0,0,0,0.2)',
-            display: 'flex', flexDirection: 'column',
-          }}>
+        <div className="alert-modal-overlay" onClick={e => { if (e.target === e.currentTarget) setAlertModal(null); }}>
+          <div className="alert-modal-card">
+            {/* Gradient top accent */}
+            <div className="alert-modal-accent" />
+
             {/* Header */}
-            <div style={{
-              background: 'linear-gradient(to right, #fef2f2, #fee2e2)',
-              padding: '20px 24px', borderBottom: '1px solid rgba(0,0,0,0.05)',
-            }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                <h3 style={{ margin: 0, color: '#b91c1c', fontSize: 18, fontWeight: 700 }}>
-                  Részletek: {alertModal.title}
-                </h3>
-                <button onClick={() => setAlertModal(null)} style={{
-                  background: 'transparent', border: 'none', color: 'rgba(0,0,0,0.4)',
-                  fontSize: 24, cursor: 'pointer', lineHeight: 1,
-                }}>&times;</button>
+            <div className="alert-modal-header">
+              <div className="alert-modal-header-left">
+                <div className="alert-modal-severity-dot" />
+                <div>
+                  <div className="alert-modal-title">{alertModal.title}</div>
+                  <div className="alert-modal-subtitle">{alertModal.rows.length} találat az aktuális időszakban</div>
+                </div>
               </div>
+              <button className="alert-modal-close" onClick={() => setAlertModal(null)}>
+                <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
+
             {/* Content */}
-            <div style={{ padding: 24, overflowY: 'auto', flex: 1, background: 'var(--bg2, #f9fafb)' }}>
-              <div className="table-card" style={{ margin: 0, boxShadow: 'none', border: '1px solid rgba(0,0,0,0.05)' }}>
-                <table className="data-table" style={{ margin: 0 }}>
-                  <thead>
-                    <tr>
-                      <th>Dátum</th>
-                      <th>Csatorna</th>
-                      <th>Név / Téma</th>
-                      <th>Részlet / Státusz</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {alertModal.loading ? (
-                      <tr><td colSpan={4} style={{ textAlign: 'center' }}><div className="spinner" /></td></tr>
-                    ) : alertModal.rows.length === 0 ? (
-                      <tr><td colSpan={4} style={{ textAlign: 'center', padding: 20, color: 'var(--text-muted)' }}>Nincs megjeleníthető adat.</td></tr>
-                    ) : alertModal.rows.map((item, i) => (
-                      <tr key={i}>
-                        <td className="td-time">{fmtDt(item.created_at)}</td>
-                        <td style={{ fontWeight: 600, color: 'var(--text)' }}>{item.channel}</td>
-                        <td><strong style={{ color: 'var(--text)' }}>{item.is_stuck ? item.name : item.topic}</strong></td>
-                        <td>{item.is_stuck
-                          ? <span className="status-badge" style={{ background: 'var(--bg3)', color: 'var(--text)', padding: '4px 8px', borderRadius: 4, fontSize: 12 }}>{item.status}</span>
-                          : <span style={{ color: 'rgba(8,36,50,0.8)' }}>{item.summary}</span>
-                        }</td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              </div>
+            <div className="alert-modal-body">
+              {alertModal.loading ? (
+                <div className="alert-modal-loading"><div className="spinner" /></div>
+              ) : alertModal.rows.length === 0 ? (
+                <div className="alert-modal-empty">
+                  <svg fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" style={{ width: 40, height: 40, opacity: 0.3 }}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
+                  </svg>
+                  <span>Nincs megjeleníthető adat ebben az időszakban</span>
+                </div>
+              ) : (
+                <div className="alert-modal-list">
+                  {alertModal.rows.map((item, i) => {
+                    const channelColors: Record<string, { bg: string; color: string }> = {
+                      instagram: { bg: 'rgba(225,48,108,0.12)', color: '#e1306c' },
+                      messenger: { bg: 'rgba(139,92,246,0.12)', color: '#8b5cf6' },
+                      email: { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6' },
+                      'E-Mail': { bg: 'rgba(59,130,246,0.12)', color: '#3b82f6' },
+                      telefon: { bg: 'rgba(34,197,94,0.12)', color: '#22c55e' },
+                      Telefon: { bg: 'rgba(34,197,94,0.12)', color: '#22c55e' },
+                      whatsapp: { bg: 'rgba(37,211,102,0.12)', color: '#25d366' },
+                      Whatsapp: { bg: 'rgba(37,211,102,0.12)', color: '#25d366' },
+                    };
+                    const chStyle = channelColors[item.channel] || { bg: 'rgba(28,238,224,0.1)', color: '#1ceee0' };
+                    return (
+                      <div key={i} className="alert-modal-row" style={{ animationDelay: `${i * 0.05}s` }}>
+                        <div className="alert-row-top">
+                          <span className="alert-row-date">{fmtDt(item.created_at)}</span>
+                          <span className="alert-row-channel" style={{ background: chStyle.bg, color: chStyle.color }}>
+                            {item.channel}
+                          </span>
+                        </div>
+                        <div className="alert-row-title">{item.is_stuck ? item.name : item.topic}</div>
+                        <div className="alert-row-detail">
+                          {item.is_stuck
+                            ? <span className="alert-row-status">{item.status}</span>
+                            : <span>{item.summary}</span>
+                          }
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+
+            {/* Footer */}
+            <div className="alert-modal-footer">
+              <button className="alert-modal-footer-btn" onClick={() => setAlertModal(null)}>Bezárás</button>
             </div>
           </div>
         </div>
