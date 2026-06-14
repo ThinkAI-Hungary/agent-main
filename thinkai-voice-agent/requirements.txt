@@ -147,3 +147,4 @@ supabase
 pandas
 openpyxl
 python-multipart
+beautifulsoup4
