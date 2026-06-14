@@ -2576,8 +2576,10 @@ async def download_price_template(username: str = Depends(verify_jwt)):
 async def upload_prices(file: UploadFile = File(...), username: str = Depends(verify_jwt)):
     content = await file.read()
     prices_text = ""
+    fname = (file.filename or "").lower()
+    print(f"[DEBUG upload_prices] filename={file.filename}, size={len(content)} bytes", flush=True)
     
-    if file.filename.endswith(".csv"):
+    if fname.endswith(".csv"):
         try:
             text = content.decode("utf-8")
         except UnicodeDecodeError:
@@ -2590,7 +2592,7 @@ async def upload_prices(file: UploadFile = File(...), username: str = Depends(ve
                 lines.append(" - ".join(str(item).strip() for item in row if str(item).strip()))
         prices_text = "\n".join(lines)
         
-    elif file.filename.endswith(".xlsx"):
+    elif fname.endswith(".xlsx"):
         try:
             import pandas as pd
             df = pd.read_excel(io.BytesIO(content))
@@ -2603,7 +2605,7 @@ async def upload_prices(file: UploadFile = File(...), username: str = Depends(ve
         except Exception as e:
             raise HTTPException(status_code=400, detail=f"Nem sikerült beolvasni az Excel fájlt: {e}")
     else:
-        raise HTTPException(status_code=400, detail="Kizárólag .csv vagy .xlsx fájl tölthető fel!")
+        raise HTTPException(status_code=400, detail=f"Kizárólag .csv vagy .xlsx fájl tölthető fel! (kapott: {file.filename})")
         
     if not prices_text.strip():
         raise HTTPException(status_code=400, detail="A fájl üres vagy nem tartalmaz értelmezhető adatot.")

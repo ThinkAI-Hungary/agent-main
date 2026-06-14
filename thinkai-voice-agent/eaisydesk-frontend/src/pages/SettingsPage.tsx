@@ -145,6 +145,59 @@ export default function SettingsPage() {
   const [_inactivityDays, setInactivityDays] = useState(60);
   const [showGreetingInfo, setShowGreetingInfo] = useState(false);
   const [showLangDropdown, setShowLangDropdown] = useState(false);
+  const [showPriceModal, setShowPriceModal] = useState(false);
+  const [priceRows, setPriceRows] = useState<{category: string; service: string; price: string; currency: string; note: string}[]>([]);
+  const [priceSaving, setPriceSaving] = useState(false);
+
+  const openPriceModal = useCallback(() => {
+    const pl = (praxis as Record<string, unknown>).price_list;
+    if (typeof pl === 'string' && pl.trim()) {
+      const rows = pl.split('\n').filter(l => l.trim()).map(line => {
+        const parts = line.split(' - ');
+        return {
+          category: (parts[0] || '').trim(),
+          service: (parts[1] || '').trim(),
+          price: (parts[2] || '').trim(),
+          currency: (parts[3] || '').trim(),
+          note: parts.slice(4).join(' - ').trim(),
+        };
+      });
+      setPriceRows(rows);
+    } else {
+      setPriceRows([{ category: '', service: '', price: '', currency: 'HUF', note: '' }]);
+    }
+    setShowPriceModal(true);
+  }, [praxis]);
+
+  const savePriceRows = useCallback(async () => {
+    setPriceSaving(true);
+    try {
+      const priceText = priceRows
+        .filter(r => r.service.trim() || r.category.trim())
+        .map(r => [r.category, r.service, r.price, r.currency, r.note].filter(Boolean).join(' - '))
+        .join('\n');
+      const updatedPraxis = { ...praxis, price_list: priceText };
+      const res = await authFetch('/admin/api/praxisinfo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updatedPraxis),
+      });
+      if (res.ok) {
+        const newPraxis = { ...praxis, price_list: priceText } as PraxisInfo;
+        setPraxis(newPraxis);
+        // Sync to Supabase so data persists across navigation
+        await supabase.from('app_settings').upsert({ key: 'praxisinfo', value: newPraxis });
+        showToast('Árlista mentve!');
+        setShowPriceModal(false);
+      } else {
+        showToast('Mentési hiba', 'error');
+      }
+    } catch {
+      showToast('Mentési hiba', 'error');
+    }
+    setPriceSaving(false);
+  }, [priceRows, praxis]);
+
 
   // ── Load Cartesia voices from FastAPI ──
   useEffect(() => {
@@ -212,6 +265,8 @@ export default function SettingsPage() {
           new_patient_required: p.new_patient_required || prev.new_patient_required,
           new_patient_auto_visit: p.new_patient_auto_visit ?? true,
           returning_patient_required: p.returning_patient_required || prev.returning_patient_required,
+          price_list: p.price_list || '',
+          price_list_file_meta: p.price_list_file_meta || null,
         }));
       }
       if (clinicsRes.data) setClinics(clinicsRes.data);
@@ -376,6 +431,7 @@ export default function SettingsPage() {
   }
 
   return (
+    <>
     <div className="page active" id="page-settings">
 
           {/* ═══════════ eaisyDesk BEÁLLÍTÁSOK TAB ═══════════ */}
@@ -833,13 +889,100 @@ export default function SettingsPage() {
               <SectionCard title="Árak" svgPath="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6">
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>Az aktuális árlista XLSX vagy CSV formátumban tölthető fel. A feltöltés a FastAPI-n keresztül történik.</div>
                 <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                  <button className="btn-settings-save" onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv,.xlsx'; input.onchange = async (e: Event) => { const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return; const formData = new FormData(); formData.append('file', file); try { const res = await authFetch('/admin/api/praxisinfo/pricelist', { method: 'POST', body: formData }); if (res.ok) showToast('Árlista feltöltve!'); else showToast('Feltöltési hiba', 'error'); } catch { showToast('Feltöltési hiba', 'error'); } }; input.click(); }} style={{ fontFamily: 'inherit', textAlign: 'center', justifyContent: 'center' }}>
+                  <button className="btn-settings-save" onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv,.xlsx'; input.onchange = async (e: Event) => { const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return; const formData = new FormData(); formData.append('file', file); try { const res = await authFetch('/admin/api/upload_prices', { method: 'POST', body: formData }); if (res.ok) { const data = await res.json(); showToast('Árlista feltöltve!'); if (data.price_list) { const newPraxis = { ...praxis, price_list: data.price_list, price_list_file_meta: data.price_list_file_meta }; setPraxis(newPraxis as typeof praxis); await supabase.from('app_settings').upsert({ key: 'praxisinfo', value: newPraxis }); } } else { const errData = await res.json().catch(() => null); showToast(errData?.detail || 'Feltöltési hiba', 'error'); } } catch { showToast('Feltöltési hiba', 'error'); } }; input.click(); }} style={{ fontFamily: 'inherit', textAlign: 'center', justifyContent: 'center' }}>
                     Új árlista feltöltése
                   </button>
-                  <button onClick={() => { window.open('/admin/api/praxisinfo/pricelist/template', '_blank'); }} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--accent)', color: 'var(--accent)', background: 'transparent', padding: '12px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 14, fontFamily: 'inherit' }}>
+                  <button onClick={async () => { try { const res = await authFetch('/admin/api/prices/template/download'); if (res.ok) { const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'arlista_minta.xlsx'; a.click(); URL.revokeObjectURL(url); } else { showToast('Letöltési hiba', 'error'); } } catch { showToast('Letöltési hiba', 'error'); } }} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--accent)', color: 'var(--accent)', background: 'transparent', padding: '12px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 14, fontFamily: 'inherit' }}>
                     Minta Excel letöltése
                   </button>
+
+
                 </div>
+
+                {/* Feltöltött árlista megjelenítése */}
+                {(praxis as Record<string, unknown>).price_list_file_meta && (praxis as Record<string, unknown>).price_list_file_meta !== null && typeof (praxis as Record<string, unknown>).price_list_file_meta === 'object' && ((praxis as Record<string, unknown>).price_list_file_meta as Record<string, string>).filename && (
+                  <div style={{
+                    marginTop: 16,
+                    padding: '14px 18px',
+                    borderRadius: 10,
+                    background: 'rgba(28,238,224,0.04)',
+                    border: '1px solid rgba(28,238,224,0.2)',
+                    cursor: 'pointer',
+                    transition: 'all 0.2s ease',
+                  }}
+                  onClick={openPriceModal}
+                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.08)'; }}
+                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(28,238,224,0.2)'; e.currentTarget.style.background = 'rgba(28,238,224,0.04)'; }}
+                  >
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                      <div style={{
+                        width: 36, height: 36, borderRadius: 8,
+                        background: 'rgba(28,238,224,0.12)',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                      }}>
+                        <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="18" height="18">
+                          <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" />
+                        </svg>
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+                          {((praxis as Record<string, unknown>).price_list_file_meta as Record<string, string>).filename}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                          Feltöltve: {((praxis as Record<string, unknown>).price_list_file_meta as Record<string, string>).uploaded_at}
+                          {(praxis as Record<string, unknown>).price_list && typeof (praxis as Record<string, unknown>).price_list === 'string' && (
+                            <span> · {((praxis as Record<string, unknown>).price_list as string).split('\n').filter(l => l.trim()).length} tétel</span>
+                          )}
+                        </div>
+                      </div>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <div style={{
+                          padding: '4px 10px', borderRadius: 20,
+                          background: 'rgba(28,238,224,0.12)',
+                          fontSize: 11, fontWeight: 600, color: '#1ceee0',
+                        }}>
+                          ✓ Aktív
+                        </div>
+                        <div style={{
+                          padding: '6px 14px', borderRadius: 8,
+                          background: 'linear-gradient(135deg, rgba(28,238,224,0.15), rgba(28,238,224,0.08))',
+                          border: '1px solid rgba(28,238,224,0.3)',
+                          fontSize: 12, fontWeight: 600, color: '#1ceee0',
+                          display: 'flex', alignItems: 'center', gap: 6,
+                          transition: 'all 0.2s ease',
+                        }}>
+                          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13">
+                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                          </svg>
+                          Megtekintés / Szerkesztés
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Ha nincs feltöltött árlista, mutassunk szerkesztés gombot */}
+                {(!(praxis as Record<string, unknown>).price_list_file_meta || !((praxis as Record<string, unknown>).price_list_file_meta as Record<string, string>)?.filename) && (praxis as Record<string, unknown>).price_list && typeof (praxis as Record<string, unknown>).price_list === 'string' && ((praxis as Record<string, unknown>).price_list as string).trim() && (
+                  <div style={{ marginTop: 12 }}>
+                    <button onClick={openPriceModal} style={{
+                      display: 'flex', alignItems: 'center', gap: 8,
+                      padding: '10px 18px', borderRadius: 8,
+                      background: 'rgba(28,238,224,0.06)', border: '1px solid rgba(28,238,224,0.2)',
+                      color: '#1ceee0', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={e => { e.currentTarget.style.borderColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.12)'; }}
+                    onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(28,238,224,0.2)'; e.currentTarget.style.background = 'rgba(28,238,224,0.06)'; }}
+                    >
+                      <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+                        <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                        <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                      </svg>
+                      Árlista megtekintése / szerkesztése
+                    </button>
+                  </div>
+                )}
               </SectionCard>
 
               {/* ══════ 5. Akciók, kedvezmények ══════ */}
@@ -973,6 +1116,18 @@ export default function SettingsPage() {
             </div>
           )}
     </div>
+
+      {/* Árlista szerkesztő modal */}
+      {showPriceModal && (
+        <PriceListModal
+          rows={priceRows}
+          setRows={setPriceRows}
+          onSave={savePriceRows}
+          onClose={() => setShowPriceModal(false)}
+          saving={priceSaving}
+        />
+      )}
+    </>
   );
 }
 
@@ -1122,6 +1277,272 @@ function CustomSelect({ value, onChange, options }: { value: string; onChange: (
       )}
 
       <style>{`@keyframes customSelectDropIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }`}</style>
+    </div>
+  );
+}
+
+/* ═══════════════════════════ PRICE LIST MODAL ═══════════════════════════ */
+function PriceListModal({
+  rows, setRows, onSave, onClose, saving
+}: {
+  rows: { category: string; service: string; price: string; currency: string; note: string }[];
+  setRows: React.Dispatch<React.SetStateAction<{ category: string; service: string; price: string; currency: string; note: string }[]>>;
+  onSave: () => void;
+  onClose: () => void;
+  saving: boolean;
+}) {
+  const updateRow = (idx: number, field: string, value: string) => {
+    setRows(prev => prev.map((r, i) => i === idx ? { ...r, [field]: value } : r));
+  };
+  const addRow = () => {
+    setRows(prev => [...prev, { category: '', service: '', price: '', currency: 'HUF', note: '' }]);
+  };
+  const removeRow = (idx: number) => {
+    setRows(prev => prev.filter((_, i) => i !== idx));
+  };
+
+  return (
+    <div
+      style={{
+        position: 'fixed', inset: 0, zIndex: 10000,
+        display: 'flex', alignItems: 'center', justifyContent: 'center',
+        animation: 'priceModalFadeIn 0.2s ease',
+      }}
+      onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
+    >
+      {/* Backdrop */}
+      <div style={{
+        position: 'absolute', inset: 0,
+        background: 'rgba(0,0,0,0.6)',
+        backdropFilter: 'blur(8px)',
+        WebkitBackdropFilter: 'blur(8px)',
+      }} />
+
+      {/* Modal */}
+      <div style={{
+        position: 'relative',
+        width: '90vw', maxWidth: 960,
+        maxHeight: '85vh',
+        display: 'flex', flexDirection: 'column',
+        background: 'var(--card, #1a2332)',
+        border: '1px solid rgba(28,238,224,0.2)',
+        borderRadius: 16,
+        boxShadow: '0 24px 80px rgba(0,0,0,0.5), 0 0 40px rgba(28,238,224,0.05)',
+        animation: 'priceModalSlideUp 0.3s ease',
+        overflow: 'hidden',
+      }}>
+        {/* Header */}
+        <div style={{
+          padding: '20px 28px',
+          borderBottom: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', gap: 14,
+          background: 'linear-gradient(135deg, rgba(28,238,224,0.06), transparent)',
+          flexShrink: 0,
+        }}>
+          <div style={{
+            width: 40, height: 40, borderRadius: 10,
+            background: 'linear-gradient(135deg, rgba(28,238,224,0.15), rgba(28,238,224,0.05))',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+          }}>
+            <svg fill="none" stroke="#1ceee0" strokeWidth="1.5" viewBox="0 0 24 24" width="22" height="22">
+              <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
+            </svg>
+          </div>
+          <div style={{ flex: 1 }}>
+            <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', letterSpacing: -0.3 }}>Árlista szerkesztő</div>
+            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{rows.length} tétel · Módosítsa közvetlenül a táblázatban</div>
+          </div>
+          <button onClick={onClose} style={{
+            width: 36, height: 36, borderRadius: 10,
+            border: '1px solid var(--border)', background: 'rgba(255,255,255,0.04)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            cursor: 'pointer', transition: 'all 0.2s ease', color: 'var(--text-muted)',
+          }}
+          onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,80,80,0.1)'; e.currentTarget.style.borderColor = 'rgba(255,80,80,0.3)'; e.currentTarget.style.color = '#ff5050'; }}
+          onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+          >
+            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="18" height="18">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+
+        {/* Table header */}
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: '160px 1fr 100px 80px 1fr 40px',
+          gap: 0,
+          padding: '0 28px',
+          borderBottom: '1px solid var(--border)',
+          background: 'rgba(28,238,224,0.03)',
+          flexShrink: 0,
+        }}>
+          {['Kategória', 'Szolgáltatás', 'Ár', 'Pénznem', 'Megjegyzés', ''].map((h, i) => (
+            <div key={i} style={{
+              padding: '10px 8px',
+              fontSize: 11, fontWeight: 700, color: 'var(--text-muted)',
+              textTransform: 'uppercase', letterSpacing: 0.8,
+              borderRight: i < 5 ? '1px solid rgba(255,255,255,0.04)' : 'none',
+            }}>{h}</div>
+          ))}
+        </div>
+
+        {/* Scrollable body */}
+        <div style={{
+          flex: 1, overflowY: 'auto',
+          padding: '0 28px',
+        }}>
+          {rows.map((row, idx) => (
+            <div key={idx} style={{
+              display: 'grid',
+              gridTemplateColumns: '160px 1fr 100px 80px 1fr 40px',
+              gap: 0,
+              borderBottom: '1px solid rgba(255,255,255,0.04)',
+              transition: 'background 0.15s',
+            }}
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(28,238,224,0.03)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+            >
+              <input
+                value={row.category}
+                onChange={e => updateRow(idx, 'category', e.target.value)}
+                placeholder="pl. Konzultáció"
+                style={{
+                  padding: '12px 8px', border: 'none', background: 'transparent',
+                  color: 'var(--text)', fontSize: 13, fontWeight: 500,
+                  borderRight: '1px solid rgba(255,255,255,0.04)',
+                  outline: 'none', fontFamily: 'inherit',
+                }}
+              />
+              <input
+                value={row.service}
+                onChange={e => updateRow(idx, 'service', e.target.value)}
+                placeholder="Szolgáltatás megnevezése"
+                style={{
+                  padding: '12px 8px', border: 'none', background: 'transparent',
+                  color: 'var(--text)', fontSize: 13,
+                  borderRight: '1px solid rgba(255,255,255,0.04)',
+                  outline: 'none', fontFamily: 'inherit',
+                }}
+              />
+              <input
+                value={row.price}
+                onChange={e => updateRow(idx, 'price', e.target.value)}
+                placeholder="0"
+                style={{
+                  padding: '12px 8px', border: 'none', background: 'transparent',
+                  color: '#1ceee0', fontSize: 13, fontWeight: 600, textAlign: 'right',
+                  borderRight: '1px solid rgba(255,255,255,0.04)',
+                  outline: 'none', fontFamily: 'inherit',
+                }}
+              />
+              <input
+                value={row.currency}
+                onChange={e => updateRow(idx, 'currency', e.target.value)}
+                placeholder="HUF"
+                style={{
+                  padding: '12px 8px', border: 'none', background: 'transparent',
+                  color: 'var(--text-muted)', fontSize: 12, textAlign: 'center',
+                  borderRight: '1px solid rgba(255,255,255,0.04)',
+                  outline: 'none', fontFamily: 'inherit',
+                }}
+              />
+              <input
+                value={row.note}
+                onChange={e => updateRow(idx, 'note', e.target.value)}
+                placeholder="Extra információ..."
+                style={{
+                  padding: '12px 8px', border: 'none', background: 'transparent',
+                  color: 'var(--text-muted)', fontSize: 12,
+                  borderRight: '1px solid rgba(255,255,255,0.04)',
+                  outline: 'none', fontFamily: 'inherit',
+                }}
+              />
+              <button
+                onClick={() => removeRow(idx)}
+                style={{
+                  padding: '12px 0', border: 'none', background: 'transparent',
+                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: 'var(--text-muted)', transition: 'color 0.15s',
+                }}
+                onMouseEnter={e => e.currentTarget.style.color = '#ff5050'}
+                onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+                title="Sor törlése"
+              >
+                <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+                  <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+                </svg>
+              </button>
+            </div>
+          ))}
+
+          {/* Add row button */}
+          <button onClick={addRow} style={{
+            display: 'flex', alignItems: 'center', gap: 8,
+            padding: '12px 8px', marginTop: 4, marginBottom: 8,
+            border: 'none', background: 'transparent',
+            color: '#1ceee0', fontSize: 13, fontWeight: 600,
+            cursor: 'pointer', fontFamily: 'inherit',
+            transition: 'opacity 0.15s', opacity: 0.7,
+            width: '100%',
+          }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
+          >
+            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16">
+              <circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" />
+            </svg>
+            Új tétel hozzáadása
+          </button>
+        </div>
+
+        {/* Footer */}
+        <div style={{
+          padding: '16px 28px',
+          borderTop: '1px solid var(--border)',
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          background: 'linear-gradient(135deg, rgba(28,238,224,0.03), transparent)',
+          flexShrink: 0,
+        }}>
+          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+            {rows.filter(r => r.service.trim() || r.category.trim()).length} aktív tétel
+          </div>
+          <div style={{ display: 'flex', gap: 10 }}>
+            <button onClick={onClose} style={{
+              padding: '10px 20px', borderRadius: 8,
+              border: '1px solid var(--border)', background: 'transparent',
+              color: 'var(--text-muted)', fontSize: 13, fontWeight: 600,
+              cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s ease',
+            }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--text-muted)'; e.currentTarget.style.color = 'var(--text)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+            >
+              Mégse
+            </button>
+            <button onClick={onSave} disabled={saving} style={{
+              padding: '10px 28px', borderRadius: 8,
+              border: 'none',
+              background: saving ? 'rgba(28,238,224,0.3)' : 'linear-gradient(135deg, #1ceee0, #14b8a6)',
+              color: '#0d2538', fontSize: 13, fontWeight: 700,
+              cursor: saving ? 'wait' : 'pointer', fontFamily: 'inherit',
+              letterSpacing: 0.5, transition: 'all 0.2s ease',
+              display: 'flex', alignItems: 'center', gap: 8,
+            }}>
+              {saving ? (
+                <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg> Mentés...</>
+              ) : (
+                <><svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14"><polyline points="20 6 9 17 4 12" /></svg> Változtatások mentése</>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      <style>{`
+        @keyframes priceModalFadeIn { from { opacity: 0; } to { opacity: 1; } }
+        @keyframes priceModalSlideUp { from { opacity: 0; transform: translateY(20px) scale(0.97); } to { opacity: 1; transform: translateY(0) scale(1); } }
+        @keyframes spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }
+      `}</style>
     </div>
   );
 }
