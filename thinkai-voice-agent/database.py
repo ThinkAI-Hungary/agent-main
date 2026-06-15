@@ -1069,6 +1069,26 @@ def edit_client_details(client_id: int, custom_data: dict) -> bool:
     except Exception:
         return False
 
+def add_client_tags(client_id: int, tags: list[str]) -> tuple[bool, list[str]]:
+    """Add tags to a client's custom_data.tags array. Returns (success, actually_added_tags)."""
+    if not supabase: return False, []
+    try:
+        res = supabase.table("clients").select("custom_data").eq("id", client_id).execute()
+        if not res.data:
+            return False, []
+        cd = res.data[0].get("custom_data") or {}
+        current_tags = cd.get("tags", []) or []
+        new_tags = [t for t in tags if t not in current_tags]
+        if not new_tags:
+            return True, []  # All tags already present
+        cd["tags"] = current_tags + new_tags
+        supabase.table("clients").update({"custom_data": cd}).eq("id", client_id).execute()
+        return True, new_tags
+    except Exception as e:
+        logger.error(f"Add client tags error: {e}")
+        return False, []
+
+
 def get_client_fields() -> list[dict]:
     if not supabase: return []
     try:

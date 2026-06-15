@@ -769,6 +769,84 @@ async def report_alert(
         return "Riasztás sikeresen rögzítve az adminisztrátorok felé a háttérben."
     return "Nem megfelelő címkék."
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# 10. TAG CLIENT (auto-tagging based on conversation topics)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+PREDEFINED_CLIENT_TAGS = ["árkérdés", "kampány lead", "ajánlatkérés", "törölt időpont", "no-show", "VIP"]
+
+@function_tool(description=(
+    "Ügyfél címkézése a beszélgetés témája alapján. "
+    "HASZNÁLD AUTOMATIKUSAN a háttérben, amikor a beszélgetés során felismered az alábbi témákat:\n"
+    "- 'árkérdés': ha az ügyfél árakról, költségekről, díjakról érdeklődik\n"
+    "- 'ajánlatkérés': ha az ügyfél konkrét ajánlatot, árajánlatot kér\n"
+    "- 'kampány lead': ha az ügyfél egy kampány/akció hatására keresi a rendelőt\n"
+    "- 'törölt időpont': ha az ügyfél időpontot mondott le vagy módosított\n"
+    "- 'no-show': ha az ügyfél nem jelent meg egy foglalt időponton\n"
+    "- 'VIP': ha az ügyfél rendszeres, fontos, vagy kiemelt ügyfél\n"
+    "Egyéni címke is megadható, ha a fentiek nem illenek.\n"
+    "FONTOS: Ehhez legalább az ügyfél nevét ismerni kell!"
+))
+async def tag_client(
+    ctx: RunContext,
+    client_name: Annotated[str, "Az ügyfél neve (kötelező)"],
+    tags: Annotated[list[str], "A hozzáadandó címkék listája (pl. ['árkérdés'] vagy ['VIP', 'ajánlatkérés'])"],
+    client_email: Annotated[str, "Az ügyfél email címe (ha ismert)"] = "",
+    client_phone: Annotated[str, "Az ügyfél telefonszáma (ha ismert)"] = "",
+) -> str:
+    """Ügyfél automatikus címkézése a beszélgetés alapján."""
+    logger.info(f"Auto-tagging client '{client_name}' with tags: {tags}")
+
+    if not tags:
+        return "Nem adtál meg címkét."
+
+    if not client_name.strip():
+        return "Az ügyfél neve szükséges a címkézéshez."
+
+    # Find existing client
+    existing = db.find_client_by_contact(
+        email=client_email.strip(),
+        phone=client_phone.strip(),
+    )
+
+    # If not found by contact, try name-based search
+    if not existing:
+        try:
+            all_clients = db.get_clients(limit=500)
+            name_lower = client_name.strip().lower()
+            for c in all_clients:
+                if c.get("name", "").strip().lower() == name_lower:
+                    existing = c
+                    break
+        except Exception:
+            pass
+
+    if not existing:
+        # Create a new client with the tags
+        custom_data = {
+            "name": client_name.strip(),
+            "email": client_email.strip(),
+            "phone": client_phone.strip(),
+            "tags": tags,
+            "forras_csatorna": "Voice Agent (auto-tag)",
+        }
+        client_id = db.add_client(custom_data, status="uj")
+        if client_id:
+            logger.info(f"Created new client '{client_name}' (ID: {client_id}) with tags: {tags}")
+            return f"Új ügyfél létrehozva ({client_name}) a következő címkékkel: {', '.join(tags)}."
+        return "Hiba az ügyfél létrehozásakor."
+
+    # Add tags to existing client
+    success, added = db.add_client_tags(existing["id"], tags)
+    if success:
+        if added:
+            logger.info(f"Tagged client '{client_name}' (ID: {existing['id']}) with: {added}")
+            return f"Címkék hozzáadva ({client_name}): {', '.join(added)}."
+        return f"Az ügyfélnek ({client_name}) már megvannak ezek a címkék."
+    return "Hiba a címkézéskor."
+
+
 # All tools for easy import
 ALL_TOOLS = [
     send_followup_email,
@@ -780,4 +858,6 @@ ALL_TOOLS = [
     get_weather,
     lookup_info,
     report_alert,
+    tag_client,
 ]
+

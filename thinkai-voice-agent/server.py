@@ -202,6 +202,9 @@ SZABÁLYOK:
     )
     system_instruction = language_hint + "\n\n" + system_instruction
 
+    # ── Load agent settings (voice, greeting, etc.) ─────────────────────────
+    settings = load_agent_settings()
+
     # ── Greeting: inject into system instructions so the model speaks first ──
     # generate_reply() is not supported on gemini-3.1 models, so we tell the
     # model to greet the caller as its first action via the system prompt.
@@ -213,7 +216,6 @@ SZABÁLYOK:
         else:
             greeting_text = f"Szia {client_name}! Itt a rendelő virtuális asszisztense. Van egy pillanatod? Szeretnék mesélni egy aktuális ajánlatunkról." if client_name else "Szia! Itt a rendelő virtuális asszisztense. Van egy pillanatod? Szeretnék mesélni egy aktuális ajánlatunkról."
     else:
-        settings = load_agent_settings()
         greeting_text = settings.get("greeting", "Szia! Miben segíthetek?")
 
     system_instruction += f"\n\nFONTOS: Amikor a beszélgetés elindul, AZONNAL köszöntsd az ügyfelet a következő üdvözléssel (ne várj, amíg megszólal): \"{greeting_text}\""
@@ -222,7 +224,13 @@ SZABÁLYOK:
     conn_options = APIConnectOptions(max_retry=3, timeout=10.0)
 
     # ── Gemini Multimodal Live API ──
-    logger.info("Initializing Gemini Multimodal Live API pipeline...")
+    # Voice selection: read from admin settings (Puck / Kore / Charon)
+    VALID_VOICES = {"Puck", "Kore", "Charon", "Fenrir", "Aoede", "Leda", "Orus", "Zephyr"}
+    selected_voice = settings.get("voice_id", "Puck")
+    if selected_voice not in VALID_VOICES:
+        logger.warning(f"Invalid voice_id '{selected_voice}' in settings, falling back to Puck")
+        selected_voice = "Puck"
+    logger.info(f"Initializing Gemini Multimodal Live API pipeline (voice={selected_voice})...")
     
     gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if not gemini_api_key:
@@ -232,7 +240,7 @@ SZABÁLYOK:
     live_model = realtime.RealtimeModel(
         model="gemini-3.1-flash-live-preview",
         api_key=gemini_api_key,
-        voice="Puck",
+        voice=selected_voice,
         language="hu",
         temperature=0.8,
         instructions=system_instruction,

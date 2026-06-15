@@ -234,13 +234,22 @@ Ha egyik sem releváns, legyen üres lista [].
             elif "urgent" in alert_tags_list:
                 details["prioritas"] = "Sürgős"
                 
-        # AI-alapú másodlagos címkék hozzáadása
+        # AI-alapú másodlagos címkék hozzáadása (meglévő tagek megőrzésével)
+        existing_tags = []
+        existing_client = db.find_client_by_contact(email=email)
+        if existing_client:
+            ec_data = existing_client.get("custom_data", {}) or {}
+            if isinstance(ec_data, str):
+                try: ec_data = json.loads(ec_data)
+                except: ec_data = {}
+            existing_tags = ec_data.get("tags", []) if isinstance(ec_data, dict) else []
+        if not isinstance(existing_tags, list): existing_tags = []
+        
         if isinstance(secondary_tags, list) and secondary_tags:
-            existing_tags = details.get("tags", [])
-            if not isinstance(existing_tags, list): existing_tags = []
             for st in secondary_tags:
                 if st and st not in existing_tags:
                     existing_tags.append(st)
+        if existing_tags:
             details["tags"] = existing_tags
                 
         # Mentsük Kanban "uj" oszlopba
@@ -336,6 +345,12 @@ Ha egyik sem releváns, legyen üres lista [].
                     if not isinstance(custom_data, dict):
                         custom_data = {}
                     custom_data["cancelled_viewed"] = False
+                    # Automatikus 'törölt időpont' tag hozzáadása
+                    existing_tags = custom_data.get("tags", [])
+                    if not isinstance(existing_tags, list): existing_tags = []
+                    if "törölt időpont" not in existing_tags:
+                        existing_tags.append("törölt időpont")
+                        custom_data["tags"] = existing_tags
                     db.edit_client_details(client["id"], custom_data)
                     db.update_client_status(client["id"], "lemondott")
 
@@ -678,6 +693,7 @@ async def reminder_worker_loop():
 async def send_booking_confirmation_email(event_id: int, title: str, date: str, time: str, attendee: str, attendee_email: str):
     import jwt as pyjwt
     import os
+    import base64 as b64module
     import database as db
     from datetime import datetime, timedelta
     
@@ -689,6 +705,53 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
         token = pyjwt.encode({"event_id": event_id, "exp": datetime.utcnow() + timedelta(days=90)}, JWT_SECRET, algorithm=JWT_ALGO)
         cancel_url = f"{SERVER_URL}/api/public/cancel?token={token}"
         
+        # ── ICS naptárfájl generálása ──────────────────────────────────
+        try:
+            start_dt = datetime.fromisoformat(f"{date}T{time}:00")
+            end_dt = start_dt + timedelta(minutes=30)  # alapértelmezett 30 perc
+            
+            # Próbáljuk megkapni a tényleges időtartamot az adatbázisból
+            try:
+                ev = db.supabase.table("calendar_events").select("duration_minutes").eq("id", event_id).execute()
+                if ev.data and ev.data[0].get("duration_minutes"):
+                    end_dt = start_dt + timedelta(minutes=ev.data[0]["duration_minutes"])
+            except Exception:
+                pass
+            
+            # ICS formátum (RFC 5545)
+            uid = f"eaisy-{event_id}@thinkai.hu"
+            now_utc = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+            dtstart = start_dt.strftime("%Y%m%dT%H%M%S")
+            dtend = end_dt.strftime("%Y%m%dT%H%M%S")
+            
+            ics_content = (
+                "BEGIN:VCALENDAR\r\n"
+                "VERSION:2.0\r\n"
+                "PRODID:-//EAISY//Booking//HU\r\n"
+                "CALSCALE:GREGORIAN\r\n"
+                "METHOD:REQUEST\r\n"
+                "BEGIN:VEVENT\r\n"
+                f"UID:{uid}\r\n"
+                f"DTSTAMP:{now_utc}\r\n"
+                f"DTSTART;TZID=Europe/Budapest:{dtstart}\r\n"
+                f"DTEND;TZID=Europe/Budapest:{dtend}\r\n"
+                f"SUMMARY:{title}\r\n"
+                f"DESCRIPTION:Időpont visszaigazolás - {title}\\nLemondás: {cancel_url}\r\n"
+                f"ATTENDEE;CN={attendee}:mailto:{attendee_email}\r\n"
+                "STATUS:CONFIRMED\r\n"
+                "BEGIN:VALARM\r\n"
+                "TRIGGER:-PT60M\r\n"
+                "ACTION:DISPLAY\r\n"
+                f"DESCRIPTION:Emlékeztető: {title} 1 óra múlva\r\n"
+                "END:VALARM\r\n"
+                "END:VEVENT\r\n"
+                "END:VCALENDAR\r\n"
+            )
+            ics_base64 = b64module.b64encode(ics_content.encode("utf-8")).decode("utf-8")
+        except Exception as e:
+            logger.error(f"ICS generálási hiba: {e}")
+            ics_base64 = None
+        
         html_content = f"""
         <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
             <p>Kedves {attendee}!</p>
@@ -698,7 +761,7 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
                 <strong>Időpont:</strong> {date} {time}<br>
                 <strong>Szolgáltatás:</strong> {title}
             </div>
-            <p>Mellékletként csatoltuk a foglalási szabályzatunkat és egy fájlt az időpontról, melyet könnyedén hozzáadhatsz okostelefonod naptárához.</p>
+            <p>Mellékletként csatoltuk az időpont naptárfájlját (.ics), melyet könnyedén hozzáadhatsz okostelefonod vagy számítógéped naptárához.</p>
             <p style="font-size: 12px; color: #6b7280; font-style: italic;">
                 * Kérjük, vegye figyelembe, hogy időpont módosítására az időpont előtti 48 órával van lehetőség. 
                 Tájékoztatjuk, hogy 24 órán belüli lemondás esetén rendelőnk külön szabályzata lehet érvényben.
@@ -716,7 +779,6 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
         api_key = brevo_key
         if brevo_key and not brevo_key.startswith("xkeysib-"):
             try:
-                import base64 as b64module
                 decoded = b64module.b64decode(brevo_key).decode()
                 import json
                 parsed = json.loads(decoded)
@@ -728,16 +790,26 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
             logger.error("Nincs beállítva BREVO_API_KEY az időpont visszaigazoló e-mailhez.")
             return
 
+        email_payload = {
+            "sender": {"name": "ThinkAI Virtuális Asszisztens", "email": "hello@thinkai.hu"},
+            "to": [{"email": attendee_email, "name": attendee}],
+            "subject": "Időpont visszaigazolás",
+            "htmlContent": html_content,
+        }
+        
+        # ICS melléklet csatolása (Brevo API attachment formátum)
+        if ics_base64:
+            safe_title = title.replace(" ", "_").replace("/", "-")[:30]
+            email_payload["attachment"] = [{
+                "content": ics_base64,
+                "name": f"idopont_{safe_title}_{date}.ics"
+            }]
+
         async with httpx.AsyncClient() as http_client:
             resp = await http_client.post(
                 "https://api.brevo.com/v3/smtp/email",
                 headers={"api-key": api_key, "Content-Type": "application/json"},
-                json={
-                    "sender": {"name": "ThinkAI Virtuális Asszisztens", "email": "hello@thinkai.hu"},
-                    "to": [{"email": attendee_email, "name": attendee}],
-                    "subject": "Időpont visszaigazolás",
-                    "htmlContent": html_content,
-                },
+                json=email_payload,
                 timeout=20,
             )
             resp.raise_for_status()
