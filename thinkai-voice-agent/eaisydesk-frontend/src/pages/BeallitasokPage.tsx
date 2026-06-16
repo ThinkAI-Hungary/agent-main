@@ -55,8 +55,11 @@ export default function BeallitasokPage() {
 
   useEffect(() => {
     setProfileName(user?.fullName || user?.username || '');
-    setProfilePosition('');
-    setProfileCompany('');
+    // Load persisted profile fields from localStorage
+    const savedPosition = localStorage.getItem('eaisydesk_profile_position');
+    const savedCompany = localStorage.getItem('eaisydesk_profile_company');
+    if (savedPosition) setProfilePosition(savedPosition);
+    if (savedCompany) setProfileCompany(savedCompany);
   }, [user]);
 
   const loadUsers = useCallback(async () => {
@@ -80,9 +83,12 @@ export default function BeallitasokPage() {
       if (user?.username) {
         await supabase.from('admin_users').update({ full_name: profileName }).eq('username', user.username);
       }
+      // Persist position and company to localStorage
+      localStorage.setItem('eaisydesk_profile_position', profilePosition);
+      localStorage.setItem('eaisydesk_profile_company', profileCompany);
       showToast('Profil mentve!');
     } catch { showToast('Hiba', 'error'); }
-  }, [user, profileName]);
+  }, [user, profileName, profilePosition, profileCompany]);
 
   const handleChangePassword = useCallback(async () => {
     if (!pwCurrent || !pwNew) { showToast('Mindkét mezőt ki kell tölteni!', 'error'); return; }
@@ -99,6 +105,7 @@ export default function BeallitasokPage() {
         showToast(data.detail || 'Hiba', 'error'); return;
       }
       showToast('Jelszó sikeresen módosítva!');
+      localStorage.setItem('eaisydesk_pw_changed_at', new Date().toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }));
       setShowPasswordModal(false);
       setPwCurrent(''); setPwNew(''); setPwConfirm('');
     } catch { showToast('Hálózati hiba', 'error'); }
@@ -294,7 +301,7 @@ export default function BeallitasokPage() {
                 </div>
                 <div className="security-info">
                   <div className="security-title">Jelszó módosítás</div>
-                  <div className="security-desc">Utolsó módosítás: ismeretlen</div>
+                  <div className="security-desc">Utolsó módosítás: {localStorage.getItem('eaisydesk_pw_changed_at') || 'még nem módosítva'}</div>
                 </div>
                 <div className="security-action">
                   <button className="btn-security-modify" onClick={() => setShowPasswordModal(true)}><span>Módosítás</span></button>

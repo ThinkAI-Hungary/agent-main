@@ -1,7 +1,7 @@
 /**
  * MarketingSidebar – Dedicated sidebar for the Marketing module.
  * Purple-themed with "M Marketing" logo and marketing-specific navigation.
- * Has a logo switcher to go back to the DigiDesk (eaisydesk) sidebar.
+ * Has a logo switcher to go back to the eaisyDesk sidebar.
  */
 import { useState, useEffect, useCallback } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -80,7 +80,7 @@ export default function MarketingSidebar() {
         <span className="mkt-logo-text">Marketing</span>
       </div>
 
-      {/* App Switcher Dropdown — back to DigiDesk */}
+      {/* App Switcher Dropdown — back to eaisyDesk */}
       <div className={`logo-switch-dd${switcherOpen ? ' open' : ''}`}>
         <button
           className="logo-switch-link"
@@ -92,7 +92,7 @@ export default function MarketingSidebar() {
         >
           <div className="logo-switch-icon" style={{ background: 'linear-gradient(135deg, #1ceee0, #14b8ad)', color: '#082432' }}>D</div>
           <div>
-            <div className="logo-switch-name">DigiDesk</div>
+            <div className="logo-switch-name">eaisyDesk</div>
             <div className="logo-switch-desc">Ügyfélszolgálat</div>
           </div>
         </button>

@@ -148,6 +148,7 @@ export default function SettingsPage() {
   const [showPriceModal, setShowPriceModal] = useState(false);
   const [priceRows, setPriceRows] = useState<{category: string; service: string; price: string; currency: string; note: string}[]>([]);
   const [priceSaving, setPriceSaving] = useState(false);
+  const [lastSavedAt, setLastSavedAt] = useState<string>('');
 
   const openPriceModal = useCallback(() => {
     const pl = (praxis as Record<string, unknown>).price_list;
@@ -300,6 +301,7 @@ export default function SettingsPage() {
       if (res.ok) {
         await supabase.from('app_settings').upsert({ key: 'agent_settings', value: agent });
         showToast('Beállítások mentve!', 'success');
+        setLastSavedAt(new Date().toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }));
       } else {
         showToast('Hiba a mentésnél', 'error');
       }
@@ -318,6 +320,7 @@ export default function SettingsPage() {
       if (res.ok) {
         await supabase.from('app_settings').upsert({ key: 'praxisinfo', value: praxis });
         showToast('Céginformációk mentve!', 'success');
+        setLastSavedAt(new Date().toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }));
       } else {
         showToast('Hiba a mentésnél', 'error');
       }
@@ -625,17 +628,19 @@ export default function SettingsPage() {
                               – {va.desc}
                             </span>
                           </div>
-                          {/* Play button */}
-                          <div style={{
-                            width: 36, height: 36, borderRadius: '50%',
-                            background: isSelected ? '#1ceee0' : 'rgba(28,238,224,0.12)',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                            transition: 'all 0.2s ease',
-                          }}>
-                            <svg fill={isSelected ? '#0d2538' : '#1ceee0'} viewBox="0 0 24 24" width="14" height="14">
-                              <path d="M8 5v14l11-7z" />
-                            </svg>
-                          </div>
+                          {/* Selection indicator */}
+                          {isSelected && (
+                            <div style={{
+                              width: 28, height: 28, borderRadius: '50%',
+                              background: '#1ceee0',
+                              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+                              transition: 'all 0.2s ease',
+                            }}>
+                              <svg fill="none" stroke="#0d2538" strokeWidth="3" viewBox="0 0 24 24" width="14" height="14">
+                                <polyline points="20 6 9 17 4 12" />
+                              </svg>
+                            </div>
+                          )}
                         </div>
                       );
                     })}
@@ -734,9 +739,11 @@ export default function SettingsPage() {
 
 
               {/* ── Last modified footer ── */}
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8, opacity: 0.7 }}>
-                Utolsó módosítás: {new Date().toLocaleDateString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit' })}
-              </div>
+              {lastSavedAt && (
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8, opacity: 0.7 }}>
+                  Utolsó módosítás: {lastSavedAt}
+                </div>
+              )}
             </div>
           )}
 
@@ -1077,13 +1084,18 @@ export default function SettingsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
                 {/* Kivételek */}
                 <SectionCard title="Kivételek kezelése" svgPath="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01">
-                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>Helyzetek, amikor a DigiDesk nem foglalhat automatikusan.</p>
+                  <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>Helyzetek, amikor az eaisyDesk nem foglalhat automatikusan.</p>
                   {(praxis.exceptions || []).map((ex, i) => (
                     <div key={i} style={{ ...listItemStyle, marginBottom: 6 }}>
                       <input className="tt-input" value={ex} onChange={e => { const exceptions = [...(praxis.exceptions || [])]; exceptions[i] = e.target.value; setPraxis({ ...praxis, exceptions }); }} style={{ flex: 1 }} />
                       <DeleteBtn onClick={() => { const exceptions = (praxis.exceptions || []).filter((_, j) => j !== i); setPraxis({ ...praxis, exceptions }); }} />
                     </div>
                   ))}
+                  {(!praxis.exceptions || praxis.exceptions.length === 0) && (
+                      <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)', fontSize: 12, opacity: 0.7 }}>
+                        Még nincsenek kivételek megadva.
+                      </div>
+                    )}
                   <AddBtn label="Kivétel hozzáadása" onClick={() => setPraxis({ ...praxis, exceptions: [...(praxis.exceptions || []), ''] })} />
                 </SectionCard>
 

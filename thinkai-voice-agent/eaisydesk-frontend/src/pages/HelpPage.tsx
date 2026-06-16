@@ -141,7 +141,7 @@ export default function HelpPage() {
             Segítség &amp; Dokumentáció
           </div>
           <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2, fontFamily: "'Inter', Arial, sans-serif" }}>
-            Minden, amit a DigiDesk moduljairól tudnod kell
+            Minden, amit az eaisyDesk moduljairól tudnod kell
           </div>
         </div>
       </div>
