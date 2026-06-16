@@ -10,9 +10,10 @@ interface NavItem {
   path: string;
   icon: string;
   adminOnly?: boolean;
+  adminExclusive?: boolean;
   memberOnly?: boolean;
   hidden?: boolean;
-  children?: { id: string; label: string; path: string; adminOnly?: boolean }[];
+  children?: { id: string; label: string; path: string; adminOnly?: boolean; adminExclusive?: boolean }[];
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -54,7 +55,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z',
     children: [
       { id: 'outbound', label: 'Kampányok', path: '/outbound' },
-      { id: 'automatizaciok', label: 'Automatizációk', path: '/automatizaciok', adminOnly: true },
+      { id: 'automatizaciok', label: 'Automatizációk', path: '/automatizaciok', adminExclusive: true },
     ],
   },
   {
@@ -79,7 +80,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export default function Sidebar() {
-  const { user, isAdmin, logout } = useAuth();
+  const { user, isAdmin, isAdminOnly, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -209,6 +210,7 @@ export default function Sidebar() {
 
       {/* Navigation items */}
       {NAV_ITEMS.map((item) => {
+        if (item.adminExclusive && !isAdminOnly) return null;
         if (item.adminOnly && !isAdmin) return null;
         if (item.memberOnly && isAdmin) return null;
         if (item.hidden) return null;
@@ -232,7 +234,11 @@ export default function Sidebar() {
                 </svg>
               </button>
               <div className={`nav-submenu${isOpen ? ' open' : ''}`}>
-                {item.children.filter(c => !c.adminOnly || isAdmin).map((child) => (
+                {item.children.filter(c => {
+                  if (c.adminExclusive && !isAdminOnly) return false;
+                  if (c.adminOnly && !isAdmin) return false;
+                  return true;
+                }).map((child) => (
                   <button
                     key={child.id}
                     className={`nav-sub-item${isActive(child.path) ? ' active' : ''}`}

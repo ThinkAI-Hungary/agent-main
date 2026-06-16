@@ -177,7 +177,7 @@ function AlertCards({ alerts, onOpenAlert }: { alerts: AlertData | null; onOpenA
 
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AnalyticsPage() {
-  const { isAdmin } = useAuth();
+  const { isAdmin, isAdminOnly } = useAuth();
   const navigate = useNavigate();
 
   // Redirect members to their dashboard
@@ -500,7 +500,7 @@ export default function AnalyticsPage() {
         {/* 2. Quality & Performance */}
         <div className="section-divider" />
         <h2 className="section-header-figma">Minőség és teljesítmény</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 18, marginBottom: 36 }}>
+        <div style={{ display: 'grid', gridTemplateColumns: isAdminOnly ? '1fr 1fr 1fr' : '1fr 1fr', gap: 18, marginBottom: 36 }}>
           {/* Top topics */}
           <div className="panel-white">
             <div className="panel-title">Top kérdéstípusok / témák</div>
@@ -525,7 +525,8 @@ export default function AnalyticsPage() {
             </div>
           </div>
 
-          {/* Handoff chart */}
+          {/* Handoff chart — admin only */}
+          {isAdminOnly && (
           <div className="panel-white">
             <div className="panel-title">Átadási okok</div>
             <div style={{ position: 'relative', height: 240 }}>
@@ -538,6 +539,7 @@ export default function AnalyticsPage() {
                 }} />
             </div>
           </div>
+          )}
 
           {/* Funnel */}
           <div className="panel-white">
@@ -555,7 +557,8 @@ export default function AnalyticsPage() {
             <AlertCards alerts={alerts} onOpenAlert={openAlertDetails} />
           </div>
 
-          {/* AI insights */}
+          {/* AI insights — admin only */}
+          {isAdminOnly && (
           <div className="panel-white">
             <div className="panel-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
               <span>Finomhangolási javaslatok</span>
@@ -575,9 +578,12 @@ export default function AnalyticsPage() {
               ))}
             </div>
           </div>
+          )}
         </div>
 
-        {/* 4. Outbound */}
+        {/* 4. Outbound — admin only */}
+        {isAdminOnly && (
+        <>
         <div className="section-divider" />
         <h2 className="section-header-figma">Kimenő kommunikáció</h2>
         <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', gap: 18, marginBottom: 20 }}>
@@ -661,6 +667,8 @@ export default function AnalyticsPage() {
             </div>
           </div>
         </div>
+        </>
+        )}
       </div>
 
       {/* Alert Details Modal — Apple-style */}

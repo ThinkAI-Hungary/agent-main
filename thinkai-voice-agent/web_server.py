@@ -1581,8 +1581,26 @@ def require_admin(credentials: HTTPAuthorizationCredentials = Depends(bearer_sch
     return user
 
 
+def require_admin_or_manager(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
+    """Dependency: admin or manager role can access."""
+    if not credentials:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Nincs token")
+    try:
+        payload = pyjwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGO])
+        username = payload["sub"]
+    except pyjwt.ExpiredSignatureError:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token lejárt")
+    except Exception:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Érvénytelen token")
+    
+    user = db.get_admin_user_by_username(username)
+    if not user or user.get("role") not in ("admin", "manager"):
+        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Csak admin/manager jogosultsággal elérhető")
+    return user
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
-# ADMIN USER MANAGEMENT — admin role required
+# ADMIN USER MANAGEMENT — admin/manager role required (with restrictions)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 class CreateUserRequest(BaseModel):
@@ -1601,16 +1619,21 @@ class ChangePasswordRequest(BaseModel):
     user_id: Optional[int] = None
 
 @app.get("/admin/api/users")
-def api_get_users(admin: dict = Depends(require_admin)):
-    """List all admin users (admin only)."""
-    return {"status": "success", "data": db.get_admin_users()}
+def api_get_users(caller: dict = Depends(require_admin_or_manager)):
+    """List admin users. Manager only sees members."""
+    all_users = db.get_admin_users()
+    if caller.get("role") == "manager":
+        all_users = [u for u in all_users if u.get("role") == "member"]
+    return {"status": "success", "data": all_users}
 
 @app.post("/admin/api/users")
-def api_create_user(req: CreateUserRequest, admin: dict = Depends(require_admin)):
-    """Create a new admin user (admin only)."""
+def api_create_user(req: CreateUserRequest, caller: dict = Depends(require_admin_or_manager)):
+    """Create a new user. Manager can only create members."""
     if req.role not in ("admin", "manager", "member"):
-        raise HTTPException(400, "Érvénytelen szerepkör. Lehetséges: admin, member")
-    success = db.create_admin_user(req.username, req.password, req.email, req.role, admin["username"], req.full_name)
+        raise HTTPException(400, "Érvénytelen szerepkör. Lehetséges: admin, manager, member")
+    if caller.get("role") == "manager" and req.role != "member":
+        raise HTTPException(403, "Manager csak member jogosultságú felhasználót hozhat létre")
+    success = db.create_admin_user(req.username, req.password, req.email, req.role, caller["username"], req.full_name)
     if not success:
         raise HTTPException(400, "A felhasználónév már foglalt")
     return {"status": "success", "message": f"Felhasználó létrehozva: {req.username}"}
@@ -1626,10 +1649,18 @@ def api_update_user_role(user_id: int, req: RoleUpdateRequest, admin: dict = Dep
     return {"status": "success"}
 
 @app.delete("/admin/api/users/{user_id}")
-def api_delete_user(user_id: int, admin: dict = Depends(require_admin)):
-    """Delete an admin user (admin only). Cannot delete self."""
-    if admin["id"] == user_id:
+def api_delete_user(user_id: int, caller: dict = Depends(require_admin_or_manager)):
+    """Delete a user. Manager can only delete members. Cannot delete self."""
+    if caller["id"] == user_id:
         raise HTTPException(400, "Nem törölheted saját magadat")
+    if caller.get("role") == "manager":
+        target_user = db.get_admin_user_by_id(user_id) if hasattr(db, 'get_admin_user_by_id') else None
+        if target_user is None:
+            # Fallback: look up from all users
+            all_users = db.get_admin_users()
+            target_user = next((u for u in all_users if u.get("id") == user_id), None)
+        if target_user and target_user.get("role") != "member":
+            raise HTTPException(403, "Manager csak member felhasználót törölhet")
     success = db.delete_admin_user(user_id)
     if not success:
         raise HTTPException(400, "Törlés sikertelen")

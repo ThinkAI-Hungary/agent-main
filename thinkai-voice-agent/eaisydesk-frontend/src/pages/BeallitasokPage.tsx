@@ -48,6 +48,7 @@ export default function BeallitasokPage() {
   const [newUser, setNewUser] = useState({ full_name: '', username: '', email: '', password: '', role: 'member' });
 
   const isAdmin = user?.role === 'admin' || user?.role === 'manager';
+  const isAdminOnly = user?.role === 'admin';
 
   const visibleTabs = useMemo(() => {
     return TABS.filter(tab => tab.id !== 'csapat' || isAdmin);
@@ -123,7 +124,7 @@ export default function BeallitasokPage() {
           email: newUser.email,
           password: newUser.password,
           full_name: newUser.full_name,
-          role: newUser.role,
+          role: user?.role === 'admin' ? newUser.role : 'member',
         }),
       });
       if (!res.ok) {
@@ -245,7 +246,9 @@ export default function BeallitasokPage() {
                 <div style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}><Spinner /></div>
               ) : (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                  {users.map((u) => {
+                  {users
+                    .filter(u => isAdminOnly ? true : u.role === 'member')
+                    .map((u) => {
                     const isSelf = u.username === user?.username;
                     return (
                       <div key={u.id} className="team-member-row">
@@ -260,13 +263,15 @@ export default function BeallitasokPage() {
                         <span className={`team-role-badge ${u.role}`}>{u.role.toUpperCase()}</span>
                         {!isSelf && isAdmin && (
                           <div className="team-actions">
-                            <RoleDropdown value={u.role} onChange={(newRole) => handleChangeRole(u.id, newRole)} />
+                            {isAdminOnly && <RoleDropdown value={u.role} onChange={(newRole) => handleChangeRole(u.id, newRole)} />}
+                            {(isAdminOnly || u.role === 'member') && (
                             <button className="team-delete-btn" onClick={() => handleDeleteUser(u.id, u.username)} title="Törlés">
                               <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 15, height: 15 }}>
                                 <polyline points="3 6 5 6 21 6" />
                                 <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
                               </svg>
                             </button>
+                            )}
                           </div>
                         )}
                       </div>
@@ -384,11 +389,15 @@ export default function BeallitasokPage() {
             </div>
             <div>
               <label className="beallitasok-label">Szerepkör</label>
+              {isAdminOnly ? (
               <select className="beallitasok-input" value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}>
                 <option value="member">Member</option>
                 <option value="manager">Manager</option>
                 <option value="admin">Admin</option>
               </select>
+              ) : (
+              <input className="beallitasok-input" value="Member" disabled style={{ opacity: 0.6 }} />
+              )}
             </div>
           </div>
           <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 24 }}>

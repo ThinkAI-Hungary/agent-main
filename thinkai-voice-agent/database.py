@@ -48,13 +48,20 @@ def _verify_password(password: str, stored_hash: str) -> bool:
         return False
 
 def create_admin_user(username: str, password: str, email: str = "", role: str = "admin", created_by: str = "", full_name: str = "") -> bool:
-    """Create a new admin user with role (admin/manager/member)."""
+    """Create a new admin user with role (admin/manager/member). Max 1 manager allowed."""
     if not supabase: return False
     try:
         res = supabase.table("admin_users").select("*").eq("username", username).execute()
         if res.data:
             logger.warning(f"Admin user already exists: {username}")
             return False
+        
+        # Enforce max 1 manager per company
+        if role == "manager":
+            existing_managers = supabase.table("admin_users").select("id").eq("role", "manager").execute()
+            if existing_managers.data and len(existing_managers.data) >= 1:
+                logger.warning("Cannot create manager: max 1 manager allowed per company")
+                return False
         
         supabase.table("admin_users").insert({
             "username": username,
@@ -136,9 +143,15 @@ def get_admin_user_by_username(username: str) -> dict | None:
         return None
 
 def update_admin_role(user_id: int, role: str) -> bool:
-    """Update admin user role (admin/manager/member)."""
+    """Update admin user role (admin/manager/member). Max 1 manager enforced."""
     if not supabase or role not in ("admin", "manager", "member"): return False
     try:
+        # Enforce max 1 manager per company
+        if role == "manager":
+            existing_managers = supabase.table("admin_users").select("id").eq("role", "manager").neq("id", user_id).execute()
+            if existing_managers.data and len(existing_managers.data) >= 1:
+                logger.warning("Cannot change role to manager: max 1 manager allowed per company")
+                return False
         supabase.table("admin_users").update({"role": role}).eq("id", user_id).execute()
         logger.info(f"Updated admin user {user_id} role to {role}")
         return True
