@@ -52,3 +52,10 @@ thinkai-voice-agent/cloudflared.exe
 figma/
 node_modules/
 **/node_modules/
+
+# Vite cache
+**/.vite/
+
+# Temp files
+*.diff
+lint_results*.txt
