@@ -574,17 +574,19 @@ export default function SettingsPage() {
                       </div>
                       <span style={{ fontSize: 14, fontWeight: 700, color: '#1ceee0' }}>Kommunikációs stílus kiválasztása</span>
                     </div>
-                    <CustomSelect
-                      value={agent.tone}
-                      onChange={(v) => setAgent({ ...agent, tone: v })}
-                      options={[
-                        { value: 'professional_friendly', label: 'Professzionális, segítőkész' },
-                        { value: 'formal', label: 'Formális, tárgyszerű' },
-                        { value: 'informal', label: 'Informális, közvetlen' },
-                        { value: 'empathetic', label: 'Empatikus, támogató' },
-                        { value: 'custom', label: 'Egyedi leírás...' },
-                      ]}
-                    />
+                    <div style={{ border: '1.5px solid var(--border)', borderRadius: 10, padding: '2px 0', background: 'rgba(255,255,255,0.04)' }}>
+                      <CustomSelect
+                        value={agent.tone}
+                        onChange={(v) => setAgent({ ...agent, tone: v })}
+                        options={[
+                          { value: 'professional_friendly', label: 'Professzionális, segítőkész' },
+                          { value: 'formal', label: 'Formális, tárgyszerű' },
+                          { value: 'informal', label: 'Informális, közvetlen' },
+                          { value: 'empathetic', label: 'Empatikus, támogató' },
+                          { value: 'custom', label: 'Egyedi leírás...' },
+                        ]}
+                      />
+                    </div>
                     {agent.tone === 'custom' && (
                       <textarea className="settings-textarea" value={agent.tone_custom} onChange={(e) => setAgent({ ...agent, tone_custom: e.target.value })} placeholder="Írd le a kívánt kommunikációs stílust..." style={{ marginTop: 10, minHeight: 70 }} />
                     )}
