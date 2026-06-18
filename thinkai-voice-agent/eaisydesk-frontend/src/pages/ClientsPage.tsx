@@ -123,14 +123,16 @@ export default function ClientsPage() {
       }
 
       // Is inactive: no appointment in last 90 days
-      const now = Date.now();
-      const ninetyDaysAgo = now - 90 * 24 * 60 * 60 * 1000;
+      const now = new Date();
+      const nowMs = now.getTime();
+      const ninetyDaysAgo = nowMs - 90 * 24 * 60 * 60 * 1000;
       const hasRecentAppointment = matchingEvents.some((ev) => {
         if (!ev.start_dt) return false;
         return new Date(ev.start_dt).getTime() > ninetyDaysAgo;
       });
       const isInactive = matchingEvents.length > 0 && !hasRecentAppointment;
-      const isNew = matchingEvents.length === 0;
+      const pastEvents = matchingEvents.filter(ev => ev.start_dt && new Date(ev.start_dt) < now);
+      const isNew = pastEvents.length <= 1;
 
       return {
         id: c.id,

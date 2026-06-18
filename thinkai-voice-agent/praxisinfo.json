@@ -1,36 +1,36 @@
 {
-  "practice_name": "Kiütöm a fogad",
+  "practice_name": "DentalMedical",
   "description": "",
   "address": "",
-  "markanev": "FogBox",
-  "szakterulet": "box, szájbaverés",
-  "kulcsszavak": "box, szájbaverés",
+  "markanev": "DenMed",
+  "szakterulet": "",
+  "kulcsszavak": "",
   "megkozelites": "",
   "price_list": "Konzultáció - Szakorvosi állapotfelmérés és kezelési terv - 15000 - HUF - Tartalmazza a szájüregi szűrővizsgálatot.\nDiagnosztika - Digitális Panoráma röntgen (OPG) - 12000 - HUF - Kiadható digitális formátumban (CD / E-mail).\nSzájhigiénia - Ultrahangos fogkőeltávolítás (Air-Flow) - 28000 - HUF - Mindkét állcsontra, polírozással együtt.\nKonzerváló fogászat - Esztétikus kompozit tömés (1 felszínű) - 25000 - HUF - Fényre kötő prémium tömőanyag.\nSzájsebészet - Bölcsességfog műtéti eltávolítása - 45000 - HUF - A bonyolultságtól függően az ár változhat.\nImplantológia - Prémium implantátum beültetése - 250000 - HUF - Az ár a felépítményt és koronát nem tartalmazza.",
   "price_list_file_meta": {
-    "filename": "arlista_minta (3).xlsx",
-    "uploaded_at": "2026. 05. 12."
+    "filename": "arlista_minta (6).xlsx",
+    "uploaded_at": "2026. 06. 03."
   },
   "doctors": [],
   "campaigns": [
     {
-      "active": true,
-      "text": "Tavaszi fogfehérítési akció: 20% kedvezmény minden fogfehérítési kezelésre április 30-ig. Az akció kódja: TAVASZ2026"
+      "text": "Tavaszi fogfehérítési akció: 20% kedvezmény minden fogfehérítési kezelésre április 30-ig. Az akció kódja: TAVASZ2026",
+      "active": true
     }
   ],
   "exceptions": [],
   "faq": [
     {
-      "question": "Mennyi idővel előre kell foglalni időpontot?",
-      "answer": "Általában 1-2 héttel előre javasoljuk az időpontfoglalást, de sürgős esetekben akár azonnali ellátást is tudunk biztosítani."
+      "answer": "Általában 1-2 héttel előre javasoljuk az időpontfoglalást, de sürgős esetekben akár azonnali ellátást is tudunk biztosítani.",
+      "question": "Mennyi idővel előre kell foglalni időpontot?"
     },
     {
-      "question": "Fogadnak-e TB-s betegeket?",
-      "answer": "Igen, TB-s ellátást is biztosítunk. Kérjük, hozza magával a TAJ-kártyáját és személyi igazolványát."
+      "answer": "Igen, TB-s ellátást is biztosítunk. Kérjük, hozza magával a TAJ-kártyáját és személyi igazolványát.",
+      "question": "Fogadnak-e TB-s betegeket?"
     },
     {
-      "question": "Van parkolási lehetőség a rendelő közelében?",
-      "answer": "Igen, az utcában fizetős parkolási lehetőség van, valamint 100 méterre található egy mélygarázs is."
+      "answer": "Igen, az utcában fizetős parkolási lehetőség van, valamint 100 méterre található egy mélygarázs is.",
+      "question": "Van parkolási lehetőség a rendelő közelében?"
     }
   ],
   "modositas_eng": "igen",
@@ -40,5 +40,5 @@
   "new_patient_required": "Teljes név",
   "new_patient_auto_visit": false,
   "returning_patient_required": "Páciens azonosító vagy telefonszám",
-  "last_updated": "2026-06-04T19:31:53.997339"
+  "last_updated": "2026-06-17T21:24:08.956344"
 }

@@ -154,7 +154,7 @@
     .nav-group-toggle.open .nav-chevron { transform:rotate(180deg); }
     .nav-submenu { max-height:0;overflow:hidden;transition:max-height 0.25s ease; }
     .nav-submenu.open { max-height:200px; }
-    .nav-sub-item { display:flex;align-items:center;gap:8px;padding:9px 14px 9px 44px;border-radius: 10px;cursor:pointer;font-size:13px;font-weight:500;color: #8ea9c0;transition:all 0.2s ease;margin-bottom:2px;border:none;background:none;width:100%;text-align:left; }
+    .nav-sub-item { display:flex;align-items:center;gap:8px;padding:9px 14px 9px 44px;border-radius: 10px;cursor:pointer;font-size:13px;font-weight:500;color: #8ea9c0;transition:all 0.2s ease;margin-bottom:2px;border:none;background:none;width:100%;text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
     .nav-sub-item:hover { background:rgba(28,238,224,0.08);color:#e0f2f1; }
     .nav-sub-item.active { background:rgba(28,238,224,0.15);color:#1ceee0;font-weight:600; }
 

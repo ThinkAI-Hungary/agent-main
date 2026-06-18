@@ -73,6 +73,8 @@ export default function OutboundPage() {
   const [showAnalytics, setShowAnalytics] = useState(false);
   const [showDetail, setShowDetail] = useState<Campaign | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<number>>(new Set());
+  const [schedulingId, setSchedulingId] = useState<number | null>(null);
+  const [scheduleDate, setScheduleDate] = useState('');
   const { confirm, ConfirmDialog } = useConfirm();
 
   // ── Load campaigns ──
@@ -392,6 +394,26 @@ export default function OutboundPage() {
     } catch { showToast('Hiba', 'error'); }
   }, [confirm, loadCampaigns]);
 
+  const handleScheduleCampaign = useCallback(async (id: number, dateStr: string) => {
+    if (!dateStr) { showToast('Válassz dátumot!', 'error'); return; }
+    try {
+      const res = await authFetch(`/admin/api/campaigns/${id}/schedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ scheduled_at: dateStr }),
+      });
+      if (res.ok) {
+        showToast('Kampány ütemezve!');
+        setSchedulingId(null);
+        setScheduleDate('');
+        loadCampaigns();
+      } else {
+        const err = await res.json().catch(() => ({}));
+        showToast(err.error || 'Hiba az ütemezésnél', 'error');
+      }
+    } catch { showToast('Hiba', 'error'); }
+  }, [loadCampaigns]);
+
   const handleBulkDelete = useCallback(async () => {
     if (selectedIds.size === 0) return;
     const ok = await confirm(`Biztosan törlöd a kijelölt ${selectedIds.size} kampányt?`, { title: 'Kampányok törlése', danger: true });
@@ -438,86 +460,27 @@ export default function OutboundPage() {
             </svg>
           </div>
           <div>
-            <div className="page-title" style={{ margin: 0 }}>Kimenő kommunikáció</div>
+            <div className="page-title" style={{ margin: 0 }}>Kampányok</div>
             <div className="page-subtitle" style={{ margin: 0 }}>Kampányok kezelése és kimenő üzenetek irányítása</div>
           </div>
         </div>
       </div>
 
-      {/* Event-driven actions */}
-      <div className="out-section">
-        <div className="out-section-title">
-          <div className="out-section-icon" style={{ background: 'rgba(34,197,94,0.12)' }}>
-            <svg fill="none" stroke="#22c55e" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-            </svg>
-          </div>
-          Eseményvezérelt akciók
-        </div>
-        <div className="out-notif-item">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg fill="none" stroke="var(--accent)" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 16, height: 16 }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-              </svg>
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Időpont emlékeztető</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Automatikus e-mail emlékeztetők</div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <label className="tt-toggle" style={{ transform: 'scale(0.8)' }}>
-              <input type="checkbox" checked={reminderEnabled} onChange={(e) => handleToggleReminder(e.target.checked)} />
-              <span className="tt-toggle-slider" />
-            </label>
-            <span style={{ fontSize: 11, fontWeight: 600, color: reminderEnabled ? '#22c55e' : 'var(--text-muted)' }}>
-              {reminderEnabled ? 'Aktív' : 'Kikapcsolva'}
-            </span>
-          </div>
-        </div>
-        {/* Lemondási értesítő */}
-        <div className="out-notif-item">
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-            <div style={{ width: 32, height: 32, borderRadius: 8, background: 'rgba(239,68,68,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-              <svg fill="none" stroke="#ef4444" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 16, height: 16 }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M18.364 18.364A9 9 0 005.636 5.636m12.728 12.728A9 9 0 015.636 5.636m12.728 12.728L5.636 5.636" />
-              </svg>
-            </div>
-            <div>
-              <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Lemondási értesítő</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Automatikus értesítés lemondáskor</div>
-            </div>
-          </div>
-          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#22c55e' }} />
-            <span style={{ fontSize: 11, fontWeight: 600, color: '#22c55e' }}>Aktív</span>
-          </div>
-        </div>
-      </div>
+
 
       {/* Campaigns section */}
       <div className="out-section">
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-          <div className="out-section-title" style={{ marginBottom: 0 }}>
-            <div className="out-section-icon" style={{ background: 'rgba(28,238,224,0.12)' }}>
-              <svg fill="none" stroke="var(--accent)" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
-                <path strokeLinecap="round" strokeLinejoin="round" d="M11 5.882V19.24a1.76 1.76 0 01-3.417.592l-2.147-6.15M18 13a3 3 0 100-6M5.436 13.683A4.001 4.001 0 017 6h1.832c4.1 0 7.625-1.234 9.168-3v14c-1.543-1.766-5.067-3-9.168-3H7a3.988 3.988 0 01-1.564-.317z" />
-              </svg>
-            </div>
-            Kampányok
-          </div>
-          <button onClick={() => setShowNewCampaign(true)} className="out-new-campaign-btn">
-            <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ width: 14, height: 14 }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            + ÚJ KAMPÁNY
-          </button>
-        </div>
-
         {/* KPI overview */}
         <div style={{ marginBottom: 24 }}>
-          <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)', marginBottom: 14 }}>Kampányok áttekintése</div>
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>Kampányok áttekintése</div>
+            <button onClick={() => setShowNewCampaign(true)} className="out-new-campaign-btn">
+              <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" style={{ width: 14, height: 14 }}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+              </svg>
+              ÚJ KAMPÁNY
+            </button>
+          </div>
           <div className="out-kpi-grid">
             <div className="out-kpi-stat">
               <div className="out-kpi-value">{kpis.total}</div>
@@ -751,7 +714,7 @@ export default function OutboundPage() {
           )}
 
         {/* Status filter tabs + selection bar */}
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, flexWrap: 'wrap', marginBottom: 16 }}>
           <div className="out-view-switcher" style={{ marginBottom: 0 }}>
             {STATUS_FILTERS.map((tab) => (
               <button
@@ -874,15 +837,16 @@ export default function OutboundPage() {
                   </div>
 
                   {/* Actions */}
-                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                  <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                     <ActionBtn label="Törlés" color="#ef4444" onClick={() => handleDeleteCampaign(c.id)} />
                     {(c.status === 'Vázlat' || c.status === 'Megállítva') && (
                       <>
-                        <ActionBtn label="▶ Indítás" color="#22c55e" onClick={() => handleStartCampaign(c.id)} />
+                        <ActionBtn label="Indítás" color="#22c55e" onClick={() => handleStartCampaign(c.id)} />
+                        <ActionBtn label="Ütemezés" color="#8b5cf6" onClick={() => { setSchedulingId(c.id); setScheduleDate(''); }} />
                       </>
                     )}
                     {c.status === 'Aktív' && (
-                      <ActionBtn label="⏸ Megállítás" color="#f59e0b" onClick={() => handleStopCampaign(c.id)} />
+                      <ActionBtn label="Megállítás" color="#f59e0b" onClick={() => handleStopCampaign(c.id)} />
                     )}
                   </div>
                 </div>
@@ -892,115 +856,188 @@ export default function OutboundPage() {
         )}
       </div>
 
-      {/* Campaign Preview Modal — 1:1 DIGIDESK_OLD port */}
+      {/* Campaign Detail Modal */}
       {showDetail && (() => {
         const channels = showDetail.channels || (showDetail.channel ? [showDetail.channel] : ['email']);
         const channelLabels: Record<string, string> = { email: 'Email', whatsapp: 'WhatsApp', telefon: 'Telefon', messenger: 'Messenger', instagram: 'Instagram' };
         const clientCount = showDetail.client_ids?.length || 0;
         const delivered = showDetail.processed_count || 0;
         const total = showDetail.total_count || clientCount || 1;
-        const deliveredPct = total > 0 ? ((delivered / total) * 100).toFixed(1) : '0.0';
+        const progressPct = total > 0 ? Math.round((delivered / total) * 100) : 0;
         const sc = STATUS_COLORS[showDetail.status] || STATUS_COLORS['Vázlat'];
-        // Parse email content exactly like DIGIDESK_OLD
         let emailContent = showDetail.ai_instructions || showDetail.content || showDetail.body_html || '';
-        if (emailContent.startsWith('MODE:')) {
-          const colonIdx = emailContent.indexOf(':', 5);
-          emailContent = colonIdx >= 0 ? emailContent.substring(colonIdx + 1) : emailContent;
+        // Strip all SCHED: and MODE: prefixes (may be nested)
+        let changed = true;
+        while (changed) {
+          changed = false;
+          if (emailContent.startsWith('SCHED:')) {
+            const pipeIdx = emailContent.indexOf('|');
+            if (pipeIdx >= 0) { emailContent = emailContent.substring(pipeIdx + 1); changed = true; }
+          }
+          if (emailContent.startsWith('MODE:')) {
+            const colonIdx = emailContent.indexOf(':', 5);
+            if (colonIdx >= 0) { emailContent = emailContent.substring(colonIdx + 1); changed = true; }
+          }
         }
+        emailContent = emailContent.trim();
+        const createdDate = showDetail.created_at ? new Date(showDetail.created_at) : null;
+        const isDraft = showDetail.status === 'Vázlat';
+        const isActive = showDetail.status === 'Aktív';
+        const isFinished = showDetail.status === 'Befejezett';
+        const hasSentData = delivered > 0 || isFinished;
 
         return (
           <div className="cpv-overlay" onClick={() => setShowDetail(null)}>
             <div className="cpv-card" onClick={e => e.stopPropagation()}>
-              {/* Header */}
+
+              {/* ── Header ── */}
               <div className="cpv-header">
-                <button className="cpv-close" onClick={() => setShowDetail(null)}>✕</button>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <span className="cpv-badge cpv-badge-status">{sc.label.toUpperCase()}</span>
-                  {channels.map(ch => (
-                    <span key={ch} className="cpv-badge cpv-badge-channel">{channelLabels[ch] || ch}</span>
-                  ))}
-                </div>
+                <button className="cpv-close" onClick={() => setShowDetail(null)} aria-label="Bezárás">
+                  <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
                 <h2 className="cpv-name">{showDetail.name}</h2>
+                <div className="cpv-header-meta">
+                  <span className="cpv-pill" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
+                  {channels.map(ch => (
+                    <span key={ch} className="cpv-pill cpv-pill-channel">{channelLabels[ch] || ch}</span>
+                  ))}
+                  <span className="cpv-header-dot" />
+                  <span className="cpv-header-info">{createdDate ? createdDate.toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric' }) : '—'}</span>
+                  <span className="cpv-header-dot" />
+                  <span className="cpv-header-info">{clientCount} címzett</span>
+                </div>
               </div>
 
-              {/* Scrollable body */}
+              {/* ── Body ── */}
               <div className="cpv-body">
-                {/* Meta info */}
-                <div className="cpv-meta">
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{ color: 'var(--accent)' }}>⏱</span> <b>Létrehozva:</b> {showDetail.created_at ? new Date(showDetail.created_at).toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '—'}
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{ color: 'var(--accent)' }}>👥</span> <b>Címzettek:</b> {clientCount} fő
-                  </div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 5 }}>
-                    <span style={{ color: 'var(--accent)' }}>✈</span> <b>Feldolgozva:</b> {delivered} / {showDetail.total_count || clientCount}
-                  </div>
-                </div>
 
-                <div className="cpv-content">
-                  {/* Performance Stats */}
-                  <div className="cpv-section-title">📊 Kampány teljesítmény</div>
-                  <div className="cpv-stats-grid">
-                    <div className="cpv-stat">
-                      <div className="cpv-stat-icon" style={{ background: 'rgba(28,238,224,0.1)' }}><span>📬</span></div>
-                      <div className="cpv-stat-num" style={{ color: '#1ceee0' }}>{delivered}</div>
-                      <div className="cpv-stat-label">Kézbesítve</div>
-                      <div className="cpv-stat-pct">{deliveredPct}%</div>
+                {/* Progress — only if campaign has been started */}
+                {(isActive || hasSentData) && (
+                  <div className="cpv-progress-section">
+                    <div className="cpv-progress-row">
+                      <span className="cpv-progress-label">Küldés folyamat</span>
+                      <span className="cpv-progress-value">{delivered} / {total} <span style={{ color: 'var(--text-dim)', fontWeight: 500 }}>({progressPct}%)</span></span>
                     </div>
-                    <div className="cpv-stat">
-                      <div className="cpv-stat-icon" style={{ background: 'rgba(34,197,94,0.1)' }}><span>👁</span></div>
-                      <div className="cpv-stat-num" style={{ color: '#22c55e' }}>0</div>
-                      <div className="cpv-stat-label">Megnyitás</div>
-                      <div className="cpv-stat-pct">0.0%</div>
-                    </div>
-                    <div className="cpv-stat">
-                      <div className="cpv-stat-icon" style={{ background: 'rgba(59,130,246,0.1)' }}><span>🖱</span></div>
-                      <div className="cpv-stat-num" style={{ color: '#3b82f6' }}>0</div>
-                      <div className="cpv-stat-label">Kattintás</div>
-                      <div className="cpv-stat-pct">0.0%</div>
-                    </div>
-                    <div className="cpv-stat">
-                      <div className="cpv-stat-icon" style={{ background: 'rgba(239,68,68,0.1)' }}><span>🚫</span></div>
-                      <div className="cpv-stat-num" style={{ color: '#ef4444' }}>0</div>
-                      <div className="cpv-stat-label">Visszapattant</div>
-                      <div className="cpv-stat-pct">0.0%</div>
+                    <div className="cpv-progress-track">
+                      <div className="cpv-progress-fill" style={{ width: `${progressPct}%` }} />
                     </div>
                   </div>
+                )}
 
-                  {/* Email Content */}
-                  {emailContent && (
-                    <>
-                      <div className="cpv-section-title">✉ Email tartalom</div>
-                      <div className="cpv-email-card">
-                        <div className="cpv-email-header"><span>Eaisydesk Kampány</span></div>
-                        <div className="cpv-email-body" dangerouslySetInnerHTML={{ __html: emailContent.includes('<') ? emailContent : emailContent }} />
-                      </div>
-                    </>
-                  )}
+                {/* Stats — only show if there's actual data */}
+                {hasSentData && (
+                  <div className="cpv-stats-row">
+                    <div className="cpv-stat-inline">
+                      <span className="cpv-stat-val" style={{ color: '#1ceee0' }}>{delivered}</span>
+                      <span className="cpv-stat-lbl">Kézbesítve</span>
+                    </div>
+                    <div className="cpv-stat-divider" />
+                    <div className="cpv-stat-inline">
+                      <span className="cpv-stat-val" style={{ color: '#22c55e' }}>0</span>
+                      <span className="cpv-stat-lbl">Megnyitás</span>
+                    </div>
+                    <div className="cpv-stat-divider" />
+                    <div className="cpv-stat-inline">
+                      <span className="cpv-stat-val" style={{ color: '#3b82f6' }}>0</span>
+                      <span className="cpv-stat-lbl">Kattintás</span>
+                    </div>
+                    <div className="cpv-stat-divider" />
+                    <div className="cpv-stat-inline">
+                      <span className="cpv-stat-val" style={{ color: '#ef4444' }}>0</span>
+                      <span className="cpv-stat-lbl">Visszapattant</span>
+                    </div>
+                  </div>
+                )}
 
-                  {/* Recipients */}
-                  <div className="cpv-section-title">👥 Címzettek ({clientCount})</div>
+                {/* Draft state — contextual message */}
+                {isDraft && !hasSentData && (
+                  <div className="cpv-draft-notice">
+                    <div className="cpv-draft-notice-text">
+                      Ez a kampány még nem lett elindítva. Indítás után a rendszer sorban elküldi az üzeneteket a címzetteknek.
+                    </div>
+                  </div>
+                )}
+
+                {/* Content preview */}
+                {emailContent && (
+                  <div className="cpv-section">
+                    <div className="cpv-section-label">Tartalom</div>
+                    <div className="cpv-content-preview" dangerouslySetInnerHTML={{ __html: emailContent.includes('<') ? emailContent : emailContent.replace(/\n/g, '<br>') }} />
+                  </div>
+                )}
+
+                {/* Recipients */}
+                <div className="cpv-section">
+                  <div className="cpv-section-label">Címzettek ({clientCount})</div>
                   <CampaignRecipients campaignId={showDetail.id} />
                 </div>
               </div>
 
-              {/* Footer */}
+              {/* ── Footer ── */}
               <div className="cpv-footer">
-                {(showDetail.status === 'Vázlat' || showDetail.status === 'Megállítva') && (
-                  <button className="cpv-btn cpv-btn-start" onClick={() => { handleStartCampaign(showDetail.id); setShowDetail(null); }}>
-                    ✈ Indítás
-                  </button>
+                {(isDraft || showDetail.status === 'Megállítva') && (
+                  <>
+                    <button className="cpv-btn cpv-btn-primary" onClick={() => { handleStartCampaign(showDetail.id); setShowDetail(null); }}>
+                      Kampány indítása
+                    </button>
+                    <button className="cpv-btn cpv-btn-ghost" style={{ color: '#8b5cf6' }} onClick={() => { setSchedulingId(showDetail.id); setScheduleDate(''); setShowDetail(null); }}>
+                      Ütemezés
+                    </button>
+                  </>
                 )}
-                <button className="cpv-btn cpv-btn-delete" onClick={() => { handleDeleteCampaign(showDetail.id); setShowDetail(null); }}>
+                <button className="cpv-btn cpv-btn-ghost cpv-btn-danger" onClick={() => { handleDeleteCampaign(showDetail.id); setShowDetail(null); }}>
                   Törlés
                 </button>
-                <button className="cpv-btn cpv-btn-close" onClick={() => setShowDetail(null)}>Bezárás</button>
+                <button className="cpv-btn cpv-btn-ghost" onClick={() => setShowDetail(null)} style={{ marginLeft: 'auto' }}>Bezárás</button>
               </div>
             </div>
           </div>
         );
       })()}
+
+      {/* Schedule Modal */}
+      {schedulingId !== null && (
+        <div className="cpv-overlay" onClick={() => { setSchedulingId(null); setScheduleDate(''); }}>
+          <div className="cpv-schedule-modal" onClick={e => e.stopPropagation()}>
+            <div className="cpv-schedule-modal-header">
+              <h3 className="cpv-schedule-modal-title">Kampány ütemezése</h3>
+              <button className="cpv-close" onClick={() => { setSchedulingId(null); setScheduleDate(''); }} aria-label="Bezárás">
+                <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <div className="cpv-schedule-modal-body">
+              <p className="cpv-schedule-modal-desc">
+                Válaszd ki, mikor induljon el automatikusan a kampány.
+              </p>
+              <label className="cpv-schedule-label">Dátum és időpont</label>
+              <input
+                type="datetime-local"
+                value={scheduleDate}
+                onChange={e => setScheduleDate(e.target.value)}
+                className="cpv-schedule-input"
+                min={new Date().toISOString().slice(0, 16)}
+                autoFocus
+              />
+            </div>
+            <div className="cpv-schedule-modal-footer">
+              <button className="cpv-btn cpv-btn-ghost" onClick={() => { setSchedulingId(null); setScheduleDate(''); }}>
+                Mégse
+              </button>
+              <button
+                className="cpv-btn cpv-btn-primary"
+                onClick={() => handleScheduleCampaign(schedulingId, scheduleDate)}
+                disabled={!scheduleDate}
+              >
+                Ütemezés megerősítése
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* New Campaign Wizard */}
       {showNewCampaign && (
@@ -1071,9 +1108,6 @@ function CampaignRecipients({ campaignId }: { campaignId: number }) {
               <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cl.name}</div>
               <div style={{ fontSize: 12, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{cl.email || cl.phone || '—'}</div>
             </div>
-            <span style={{ padding: '5px 12px', borderRadius: 8, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap', background: 'rgba(28,238,224,0.08)', color: 'var(--accent)' }}>
-              {cl.status || 'Várakozik'}
-            </span>
           </div>
         );
       })}

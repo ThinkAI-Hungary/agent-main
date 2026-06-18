@@ -144,7 +144,7 @@ export default function AutomatizaciokPage() {
             </svg>
           </div>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.5 }}>Automatizációk</div>
+            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.5 }}>Automatikus értesítések</div>
             <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>
               Időpont emlékeztetők, címkék és eseményvezérelt kommunikáció
             </div>
@@ -157,298 +157,191 @@ export default function AutomatizaciokPage() {
             background: 'rgba(28,238,224,0.06)', border: '1px solid rgba(28,238,224,0.12)',
             borderRadius: 10, padding: '10px 18px', textAlign: 'center',
           }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#1ceee0' }}>{automations.filter(a => a.enabled).length}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#1ceee0' }}>{automations.filter(a => a.enabled).length + (reminder.reminder_enabled ? 1 : 0)}</div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, marginTop: 2 }}>AKTÍV SZABÁLY</div>
           </div>
           <div style={{
             background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.12)',
             borderRadius: 10, padding: '10px 18px', textAlign: 'center',
           }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#8b5cf6' }}>{automations.length}</div>
+            <div style={{ fontSize: 18, fontWeight: 800, color: '#8b5cf6' }}>{automations.length + 1}</div>
             <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, marginTop: 2 }}>ÖSSZES</div>
           </div>
         </div>
       </div>
 
-      {/* ═══════ 1. IDŐPONT EMLÉKEZTETŐK ═══════ */}
+      {/* ═══════ EGYESÍTETT SZEKCIÓ ═══════ */}
       <div style={sectionStyle}>
-        <div style={sectionHeaderStyle}>
+        <div style={{ padding: '24px' }}>
+          
+          {/* 1. Időpont emlékeztető (Statikus sor) */}
           <div style={{
-            width: 38, height: 38, borderRadius: 11,
-            background: 'linear-gradient(135deg, rgba(28,238,224,0.1), rgba(28,238,224,0.05))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            background: 'rgba(255,255,255,0.03)',
+            border: '1px solid rgba(255,255,255,0.06)',
+            borderRadius: 12, marginBottom: 12, overflow: 'hidden',
+            transition: 'all 0.25s ease',
           }}>
-            <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="18" height="18">
-              <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
-            </svg>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Időpont emlékeztetők</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Automatikus emlékeztető küldése időpont előtt</div>
-          </div>
-          <div style={{
-            padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-            background: reminder.reminder_enabled ? 'rgba(34,197,94,0.1)' : 'rgba(107,139,153,0.1)',
-            color: reminder.reminder_enabled ? '#22c55e' : '#6b8b99',
-          }}>
-            {reminder.reminder_enabled ? '● Aktív' : '○ Kikapcsolva'}
-          </div>
-        </div>
-        <div style={sectionBodyStyle}>
-          {/* Toggle */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 28,
-            background: 'linear-gradient(135deg, rgba(28,238,224,0.04), rgba(28,238,224,0.01))',
-            borderRadius: 12, padding: '16px 20px',
-            border: '1px solid rgba(28,238,224,0.12)',
-            boxShadow: '0 0 20px rgba(28,238,224,0.03)',
-          }}>
-            <label className="tt-toggle">
-              <input type="checkbox" checked={reminder.reminder_enabled}
-                onChange={async (e) => {
-                  const enabled = e.target.checked;
-                  setReminder(prev => ({ ...prev, reminder_enabled: enabled }));
-                  try {
-                    if (reminder.id) {
-                      await supabase.from('reminder_settings').update({ reminder_enabled: enabled }).eq('id', reminder.id);
-                    } else {
-                      const { data } = await supabase.from('reminder_settings').insert({
-                        reminder_enabled: enabled, reminder_hours: reminder.reminder_hours, reminder_template: reminder.reminder_template,
-                      }).select().single();
-                      if (data) setReminder(data as ReminderSettings);
-                    }
-                    showToast(enabled ? 'Emlékeztető bekapcsolva!' : 'Emlékeztető kikapcsolva!');
-                  } catch { showToast('Hiba!', 'error'); }
-                }}
-              />
-              <span className="tt-toggle-slider" />
-            </label>
-            <div>
-              <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Automatikus emlékeztetők aktiválása</div>
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Az AI automatikusan emlékeztető üzenetet küld a beállított idővel az időpont előtt</div>
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr', gap: 24, marginBottom: 20 }}>
-            {/* Hours */}
-            <div>
-              <label style={labelStyle}>Emlékeztetés ideje</label>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'rgba(255,255,255,0.04)', borderRadius: 10, padding: '10px 14px', border: '1px solid rgba(255,255,255,0.06)' }}>
-                <input type="number" className="tt-input" value={reminder.reminder_hours}
-                  min={1} max={168}
-                  onChange={e => setReminder({ ...reminder, reminder_hours: Number(e.target.value) })}
-                  onBlur={() => saveReminder()}
-                  style={{ maxWidth: 70, textAlign: 'center', fontSize: 18, fontWeight: 700, background: 'transparent', border: 'none', color: 'var(--accent)' }}
+            <div
+              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px', cursor: 'pointer' }}
+              onClick={() => setExpandedAuto(expandedAuto === -1 ? null : -1)}
+            >
+              <label className="tt-toggle" onClick={e => e.stopPropagation()}>
+                <input type="checkbox" checked={reminder.reminder_enabled}
+                  onChange={async (e) => {
+                    const enabled = e.target.checked;
+                    setReminder(prev => ({ ...prev, reminder_enabled: enabled }));
+                    try {
+                      if (reminder.id) {
+                        await supabase.from('reminder_settings').update({ reminder_enabled: enabled }).eq('id', reminder.id);
+                      } else {
+                        const { data } = await supabase.from('reminder_settings').insert({
+                          reminder_enabled: enabled, reminder_hours: reminder.reminder_hours, reminder_template: reminder.reminder_template,
+                        }).select().single();
+                        if (data) setReminder(data as ReminderSettings);
+                      }
+                      showToast(enabled ? 'Aktiválva' : 'Kikapcsolva');
+                    } catch { showToast('Hiba!', 'error'); }
+                  }}
                 />
-                <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>órával az időpont előtt</span>
-              </div>
-            </div>
-            {/* Template */}
-            <div>
-              <label style={labelStyle}>Üzenet sablon</label>
-              <textarea className="tt-textarea" rows={3} value={reminder.reminder_template}
-                onChange={e => setReminder({ ...reminder, reminder_template: e.target.value })}
-                onBlur={() => saveReminder()}
-                placeholder="Kedves {nev}! Emlékeztetjük, hogy holnap {idopont}-kor időpontja van..."
-                style={{ fontSize: 13, lineHeight: 1.6 }}
-              />
-              <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6, display: 'flex', gap: 6, flexWrap: 'wrap' }}>
-                {['{nev}', '{idopont}', '{szolgaltatas}', '{telephely}'].map(v => (
-                  <span key={v} style={{
-                    padding: '2px 8px', borderRadius: 4, fontSize: 10, fontFamily: 'monospace',
-                    background: 'rgba(28,238,224,0.06)', color: '#1ceee0', border: '1px solid rgba(28,238,224,0.12)',
-                  }}>{v}</span>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </div>
+                <span className="tt-toggle-slider" />
+              </label>
 
-      {/* ═══════ 2. CÍMKERENDSZER ═══════ */}
-      <div style={sectionStyle}>
-        <div style={sectionHeaderStyle}>
-          <div style={{
-            width: 38, height: 38, borderRadius: 11,
-            background: 'linear-gradient(135deg, rgba(245,158,11,0.1), rgba(245,158,11,0.05))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <svg fill="none" stroke="#f59e0b" strokeWidth="2" viewBox="0 0 24 24" width="18" height="18">
-              <path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" />
-              <circle cx="7" cy="7" r="1" />
-            </svg>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Címkerendszer beállítások</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Automatikus ügyfél-címkézés konfigurálása</div>
-          </div>
-        </div>
-        <div style={sectionBodyStyle}>
-          <div style={{
-            background: 'linear-gradient(135deg, rgba(245,158,11,0.04), rgba(245,158,11,0.01))',
-            borderRadius: 12, padding: '20px 22px',
-            border: '1px solid rgba(245,158,11,0.12)', marginBottom: 16,
-          }}>
-            <label style={labelStyle}>Inaktivitási küszöb</label>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>
-              Ha az ügyfél ennyi napja nem lépett kapcsolatba, automatikusan <strong style={{ color: '#f59e0b' }}>„INAKTÍV"</strong> címkét kap
-            </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-              <input type="number" className="tt-input" value={inactivityDays}
-                min={7} max={365} style={{ maxWidth: 70, textAlign: 'center', fontSize: 18, fontWeight: 700, background: 'transparent', border: 'none', color: '#f59e0b' }}
-                onChange={e => setInactivityDays(Number(e.target.value))}
-                onBlur={() => {
-                  localStorage.setItem('thinkai_inactivity_days', String(inactivityDays));
-                  showToast('Mentve');
-                }}
-              />
-              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>nap</span>
-            </div>
-          </div>
-        </div>
-      </div>
-
-      {/* ═══════ 3. ESEMÉNYVEZÉRELT KOMMUNIKÁCIÓ ═══════ */}
-      <div style={sectionStyle}>
-        <div style={sectionHeaderStyle}>
-          <div style={{
-            width: 38, height: 38, borderRadius: 11,
-            background: 'linear-gradient(135deg, rgba(139,92,246,0.1), rgba(139,92,246,0.05))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
-            <svg fill="none" stroke="#8b5cf6" strokeWidth="2" viewBox="0 0 24 24" width="18" height="18">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8" />
-            </svg>
-          </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Eseményvezérelt kommunikáció</div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Automatikus üzenetek küldése meghatározott események bekövetkezésekor</div>
-          </div>
-          <div style={{
-            padding: '5px 12px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-            background: 'rgba(139,92,246,0.1)', color: '#8b5cf6',
-          }}>
-            {automations.filter(a => a.enabled).length}/{automations.length} aktív
-          </div>
-        </div>
-        <div style={{ padding: '16px 28px 28px' }}>
-          {automations.length === 0 ? (
-            <div style={{
-              textAlign: 'center', padding: '40px 20px', color: 'var(--text-muted)',
-              fontSize: 13, background: 'rgba(255,255,255,0.02)', borderRadius: 12,
-              border: '1.5px dashed rgba(255,255,255,0.08)',
-            }}>
-              <svg fill="none" stroke="var(--text-muted)" strokeWidth="1.5" viewBox="0 0 24 24" width="32" height="32" style={{ marginBottom: 10, opacity: 0.5 }}>
-                <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8" />
-              </svg>
-              <div>Nincs beállított automatizáció.</div>
-            </div>
-          ) : (
-            automations.map((a) => {
-              const meta = TRIGGER_LABELS[a.trigger_type] || { label: a.name, desc: '', color: '#6b8b99' };
-              const isExpanded = expandedAuto === a.id;
-              return (
-                <div key={a.id} style={{
-                  background: 'rgba(255,255,255,0.03)',
-                  border: `1px solid ${a.enabled ? `${meta.color}25` : 'rgba(255,255,255,0.06)'}`,
-                  borderLeft: `3px solid ${a.enabled ? meta.color : 'rgba(255,255,255,0.08)'}`,
-                  borderRadius: 12, marginBottom: 12, overflow: 'hidden',
-                  transition: 'all 0.25s ease',
-                }}>
-                  {/* Header row */}
-                  <div
-                    style={{
-                      display: 'flex', alignItems: 'center', gap: 14,
-                      padding: '14px 20px', cursor: 'pointer',
-                    }}
-                    onClick={() => setExpandedAuto(isExpanded ? null : a.id)}
-                  >
-                    <label className="tt-toggle" onClick={e => e.stopPropagation()}>
-                      <input type="checkbox" checked={a.enabled}
-                        onChange={e => {
-                          const updated = { ...a, enabled: e.target.checked };
-                          setAutomations(prev => prev.map(x => x.id === a.id ? updated : x));
-                          supabase.from('outbound_automations').update({ enabled: e.target.checked }).eq('id', a.id)
-                            .then(() => showToast(e.target.checked ? 'Aktiválva' : 'Kikapcsolva'));
-                        }}
-                      />
-                      <span className="tt-toggle-slider" />
-                    </label>
-                    <div style={{
-                      width: 3, height: 26, borderRadius: 2,
-                      background: a.enabled ? meta.color : 'rgba(255,255,255,0.1)',
-                      transition: 'background 0.2s',
-                      boxShadow: a.enabled ? `0 0 8px ${meta.color}40` : 'none',
-                    }} />
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 14, fontWeight: 700, color: a.enabled ? 'var(--text)' : 'var(--text-muted)' }}>
-                        {meta.label}
-                      </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{meta.desc}</div>
-                    </div>
-                    <div style={{
-                      padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600,
-                      background: `${meta.color}12`, color: meta.color,
-                    }}>
-                      {DELAY_OPTIONS.find(o => o.value === a.delay_hours)?.label || `${a.delay_hours}h`}
-                    </div>
-                    <svg fill="none" stroke="var(--text-muted)" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16"
-                      style={{ transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)' }}>
-                      <path d="M6 9l6 6 6-6" />
-                    </svg>
-                  </div>
-
-                  {/* Expanded content */}
-                  {isExpanded && (
-                    <div style={{
-                      padding: '0 20px 20px',
-                      borderTop: '1px solid rgba(255,255,255,0.05)',
-                      paddingTop: 18,
-                      background: 'rgba(255,255,255,0.015)',
-                    }}>
-                      {/* Késleltetés inline */}
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, background: 'rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
-                        <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Késleltetés:</label>
-                        <select className="tt-input" value={a.delay_hours}
-                          onChange={e => {
-                            const updated = { ...a, delay_hours: Number(e.target.value) };
-                            setAutomations(prev => prev.map(x => x.id === a.id ? updated : x));
-                            supabase.from('outbound_automations').update({ delay_hours: Number(e.target.value) }).eq('id', a.id);
-                          }}
-                          style={{ width: 'auto', minWidth: 130, padding: '8px 14px', fontSize: 13, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text)', fontWeight: 600 }}>
-                          {DELAY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                        </select>
-                      </div>
-
-                      {/* Sablon teljes szélességben */}
-                      <div>
-                        <label style={labelStyle}>Üzenet sablon</label>
-                        <textarea className="tt-textarea" value={a.message_template || ''}
-                          onChange={e => {
-                            setAutomations(prev => prev.map(x => x.id === a.id ? { ...x, message_template: e.target.value } : x));
-                            // Auto-resize
-                            e.target.style.height = 'auto';
-                            e.target.style.height = e.target.scrollHeight + 'px';
-                          }}
-                          onFocus={e => { e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px'; }}
-                          onBlur={() => supabase.from('outbound_automations').update({ message_template: a.message_template }).eq('id', a.id).then(() => showToast('Sablon mentve'))}
-                          style={{ minHeight: 48, fontSize: 13, lineHeight: 1.6, width: '100%', resize: 'none', overflow: 'hidden' }}
-                          placeholder="Üzenet sablon..."
-                        />
-                        <div style={{ fontSize: 10, color: 'var(--text-muted)', marginTop: 6, display: 'flex', gap: 4, flexWrap: 'wrap' }}>
-                          {['{nev}', '{szolgaltatas}', '{idopont}', '{telephely}'].map(v => (
-                            <span key={v} style={{
-                              padding: '1px 6px', borderRadius: 3, fontSize: 9, fontFamily: 'monospace',
-                              background: `${meta.color}08`, color: meta.color, border: `1px solid ${meta.color}18`,
-                            }}>{v}</span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  )}
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 14, fontWeight: 700, color: reminder.reminder_enabled ? 'var(--text)' : 'var(--text-muted)' }}>
+                  Időpont emlékeztető
                 </div>
-              );
-            })
-          )}
+                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Automatikus emlékeztető küldése időpont előtt</div>
+              </div>
+              <div style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: '#1ceee012', color: '#1ceee0' }}>
+                {reminder.reminder_hours}h
+              </div>
+              <svg fill="none" stroke="var(--text-muted)" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16"
+                style={{ transition: 'transform 0.2s', transform: expandedAuto === -1 ? 'rotate(180deg)' : 'rotate(0)' }}>
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </div>
+            
+            {expandedAuto === -1 && (
+              <div style={{ padding: '0 20px 20px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 18, background: 'rgba(255,255,255,0.015)' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, background: 'rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Időzítés:</label>
+                  <input type="number" className="tt-input" value={reminder.reminder_hours} min={1} max={168}
+                    onChange={e => setReminder({ ...reminder, reminder_hours: Number(e.target.value) })}
+                    onBlur={() => saveReminder()}
+                    style={{ width: 60, padding: '8px 14px', fontSize: 13, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text)', fontWeight: 600 }}
+                  />
+                  <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>órával előtte</span>
+                </div>
+                <div>
+                  <label style={labelStyle}>Üzenet sablon</label>
+                  <textarea className="tt-textarea" value={reminder.reminder_template}
+                    ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
+                    onChange={e => {
+                      setReminder({ ...reminder, reminder_template: e.target.value });
+                      e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
+                    onBlur={() => saveReminder()}
+                    style={{ minHeight: 48, fontSize: 13, lineHeight: 1.6, width: '100%', resize: 'none', overflow: 'hidden' }}
+                    placeholder="Kedves {nev}! Emlékeztetjük, hogy holnap {idopont}-kor időpontja van..."
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 2. Dinamikus Automatizációk */}
+          {automations.map((a) => {
+            const meta = TRIGGER_LABELS[a.trigger_type] || { label: a.name, desc: '', color: '#6b8b99' };
+            const isExpanded = expandedAuto === a.id;
+            return (
+              <div key={a.id} style={{
+                background: 'rgba(255,255,255,0.03)',
+                border: '1px solid rgba(255,255,255,0.06)',
+                borderRadius: 12, marginBottom: 12, overflow: 'hidden',
+                transition: 'all 0.25s ease',
+              }}>
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px', cursor: 'pointer' }}
+                  onClick={() => setExpandedAuto(isExpanded ? null : a.id)}
+                >
+                  <label className="tt-toggle" onClick={e => e.stopPropagation()}>
+                    <input type="checkbox" checked={a.enabled}
+                      onChange={e => {
+                        const updated = { ...a, enabled: e.target.checked };
+                        setAutomations(prev => prev.map(x => x.id === a.id ? updated : x));
+                        supabase.from('outbound_automations').update({ enabled: e.target.checked }).eq('id', a.id)
+                          .then(() => showToast(e.target.checked ? 'Aktiválva' : 'Kikapcsolva'));
+                      }}
+                    />
+                    <span className="tt-toggle-slider" />
+                  </label>
+
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: a.enabled ? 'var(--text)' : 'var(--text-muted)' }}>
+                      {meta.label}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{meta.desc}</div>
+                  </div>
+                  <div style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: `${meta.color}12`, color: meta.color }}>
+                    {DELAY_OPTIONS.find(o => o.value === a.delay_hours)?.label || `${a.delay_hours}h`}
+                  </div>
+                  <svg fill="none" stroke="var(--text-muted)" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16"
+                    style={{ transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)' }}>
+                    <path d="M6 9l6 6 6-6" />
+                  </svg>
+                </div>
+
+                {isExpanded && (
+                  <div style={{ padding: '0 20px 20px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 18, background: 'rgba(255,255,255,0.015)' }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, background: 'rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
+                      <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Késleltetés:</label>
+                      <select className="tt-input" value={a.delay_hours}
+                        onChange={e => {
+                          const updated = { ...a, delay_hours: Number(e.target.value) };
+                          setAutomations(prev => prev.map(x => x.id === a.id ? updated : x));
+                          supabase.from('outbound_automations').update({ delay_hours: Number(e.target.value) }).eq('id', a.id)
+                            .then(() => showToast('Késleltetés mentve'));
+                        }}
+                        style={{ width: 'auto', minWidth: 130, padding: '8px 14px', fontSize: 13, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text)', fontWeight: 600 }}>
+                        {DELAY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                      </select>
+                      
+                      {/* Inaktivitási küszöb beállítás, csak az inaktív ügyfél opciónál */}
+                      {a.trigger_type === 'inactive_client' && (
+                        <>
+                          <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)', margin: '0 8px' }} />
+                          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Inaktivitási küszöb:</label>
+                          <input type="number" className="tt-input" value={inactivityDays} min={7} max={365}
+                            onChange={e => setInactivityDays(Number(e.target.value))}
+                            onBlur={() => {
+                              localStorage.setItem('thinkai_inactivity_days', String(inactivityDays));
+                              showToast('Mentve');
+                            }}
+                            style={{ width: 60, padding: '8px 14px', fontSize: 13, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: '#f59e0b', fontWeight: 700, textAlign: 'center' }}
+                          />
+                          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>nap elteltével</span>
+                        </>
+                      )}
+                    </div>
+
+                    <div>
+                      <label style={labelStyle}>Üzenet sablon</label>
+                      <textarea className="tt-textarea" value={a.message_template || ''}
+                        ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
+                        onChange={e => {
+                          setAutomations(prev => prev.map(x => x.id === a.id ? { ...x, message_template: e.target.value } : x));
+                          e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px';
+                        }}
+                        onBlur={() => supabase.from('outbound_automations').update({ message_template: a.message_template }).eq('id', a.id).then(() => showToast('Sablon mentve'))}
+                        style={{ minHeight: 48, fontSize: 13, lineHeight: 1.6, width: '100%', resize: 'none', overflow: 'hidden' }}
+                        placeholder="Üzenet sablon..."
+                      />
+                    </div>
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
       </div>
     </div>

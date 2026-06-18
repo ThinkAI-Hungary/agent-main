@@ -923,12 +923,12 @@ async def automation_worker_loop():
             
             automations = db.get_outbound_automations()
             if not automations:
-                await asyncio.sleep(30 * 60)
+                await asyncio.sleep(5 * 60)
                 continue
             
             active = [a for a in automations if a.get("enabled")]
             if not active:
-                await asyncio.sleep(30 * 60)
+                await asyncio.sleep(5 * 60)
                 continue
             
             clients = db.get_clients(limit=1000)
@@ -1016,27 +1016,34 @@ async def automation_worker_loop():
                         msg = template.replace("{nev}", nev).replace("{szolgaltatas}", szolgaltatas).replace("{idopont}", idopont).replace("{telephely}", "")
                         html_msg = msg.replace("\n", "<br>")
                         
-                        success = await send_reminder_email(
-                            to_email=email,
-                            subject=f"{auto['name']} - {nev}",
-                            html_content=f'<div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">{html_msg}</div>'
-                        )
+                        # ── Human-in-the-loop: NE küldjünk közvetlenül! ──
+                        # Piszkozatot mentünk jóváhagyásra, pont úgy, mint az email/messenger válaszoknál.
+                        db.mark_automation_sent(client["id"], auto["id"])
+                        session_id = f"automation_{auto['id']}_{client['id']}"
+                        db.create_session(session_id=session_id, room_name=auto["name"], participant=nev)
                         
-                        if success:
-                            db.mark_automation_sent(client["id"], auto["id"])
-                            session_id = f"automation_{auto['id']}_{client['id']}"
-                            db.create_session(session_id=session_id, room_name=auto["name"], participant=nev)
-                            db.log_interaction(
-                                type="email",
-                                topic=auto["name"],
-                                summary=f"{auto['name']} elküldve: {email}",
-                                result="Elküldve",
-                                tool_name="automation_worker",
-                                session_id=session_id,
-                                direction="outbound",
-                                funnel_stage="relevans"
-                            )
-                            logger.info(f"Automation '{auto['name']}' sent to {email}")
+                        draft_payload = {
+                            "channel": "Email",
+                            "to_email": email,
+                            "to_name": nev,
+                            "subject": f"{auto['name']} - {nev}",
+                            "body": msg,
+                        }
+                        draft_json = json.dumps(draft_payload)
+                        
+                        db.log_interaction(
+                            type="email",
+                            topic=auto["name"],
+                            summary=f"{auto['name']} — {nev} ({email})",
+                            result="Várakozik jóváhagyásra",
+                            tool_name="automation_worker",
+                            session_id=session_id,
+                            direction="outbound",
+                            funnel_stage="relevans",
+                            approval_status="pending",
+                            ai_draft_response=draft_json,
+                        )
+                        logger.info(f"Automation '{auto['name']}' draft saved for approval: {email}")
                         
         except asyncio.CancelledError:
             logger.info("Automatizáció worker megszakítva.")
@@ -1044,4 +1051,4 @@ async def automation_worker_loop():
         except Exception as e:
             logger.error(f"Automation worker error: {e}")
         
-        await asyncio.sleep(30 * 60)  # 30 perc
+        await asyncio.sleep(5 * 60)  # 5 perc

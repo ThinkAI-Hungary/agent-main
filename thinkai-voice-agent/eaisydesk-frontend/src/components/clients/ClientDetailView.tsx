@@ -380,18 +380,25 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column' }}>
           <h3 style={{ fontSize: 12, fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: 0, marginBottom: 16 }}>Korábbi időpontok</h3>
           <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-            {clientAppointments.length === 0 && <span style={{ fontSize: 13, color: '#9ca3af', fontStyle: 'italic' }}>Nincs korábbi foglalás.</span>}
-            {clientAppointments.slice(0, 3).map((ev, i) => (
-              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)' }}>
-                <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-                {ev.start_dt ? fmtDt(ev.start_dt) : '—'}
-              </div>
-            ))}
-            {clientAppointments.length > 3 && (
-              <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent, #1ceee0)', cursor: 'pointer', textAlign: 'right', marginTop: 4 }}>
-                Összes időpont ({clientAppointments.length})
-              </div>
-            )}
+            {(() => {
+              const past = clientAppointments.filter(ev => ev.start_dt && new Date(ev.start_dt) < new Date());
+              if (past.length === 0) return <span style={{ fontSize: 13, color: '#9ca3af', fontStyle: 'italic' }}>Nincs korábbi foglalás.</span>;
+              return (
+                <>
+                  {past.slice(0, 3).map((ev, i) => (
+                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)' }}>
+                      <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                      {ev.start_dt ? fmtDt(ev.start_dt) : '—'}
+                    </div>
+                  ))}
+                  {past.length > 3 && (
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent, #1ceee0)', cursor: 'pointer', textAlign: 'right', marginTop: 4 }}>
+                      Összes időpont ({past.length})
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         </div>
 
@@ -443,7 +450,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                   <td style={tdStyle}><EredmenyBadge value={r.eredmeny} /></td>
                   <td style={tdStyle}><StatuszBadge value={r.statusz} /></td>
                   <td style={tdStyle}>
-                    {r.teendo === 'Jóváhagyásra vár' && r.ai_draft_response ? (
+                    {r.teendo === 'Jóváhagyásra vár' ? (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -517,7 +524,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                   <td style={tdStyle}><EredmenyBadge value={r.eredmeny} /></td>
                   <td style={tdStyle}><StatuszBadge value={r.statusz} /></td>
                   <td style={tdStyle}>
-                    {r.teendo === 'Jóváhagyásra vár' && r.ai_draft_response ? (
+                    {r.teendo === 'Jóváhagyásra vár' ? (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();

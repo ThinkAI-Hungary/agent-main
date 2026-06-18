@@ -103,6 +103,65 @@ async def social_publisher_worker():
         except Exception as e:
             logger.error(f"Social publisher worker error: {e}")
 
+async def campaign_scheduler_worker():
+    """Háttérfolyamat: 30 másodpercenként ellenőrzi az ütemezett kampányokat és elindítja őket."""
+    from datetime import datetime
+    import zoneinfo
+    local_tz = zoneinfo.ZoneInfo("Europe/Budapest")
+    while True:
+        await asyncio.sleep(30)
+        try:
+            campaigns = db.get_campaigns()
+            now = datetime.now(local_tz)
+            for c in campaigns:
+                if c.get("status") != "Ütemezett":
+                    continue
+                # Read scheduled_at from SCHED: prefix in ai_instructions
+                ai_inst = c.get("ai_instructions", "") or ""
+                if not ai_inst.startswith("SCHED:"):
+                    continue
+                pipe_idx = ai_inst.find("|")
+                if pipe_idx < 0:
+                    continue
+                sched = ai_inst[6:pipe_idx]  # Extract datetime string
+                if not sched:
+                    continue
+                try:
+                    dt = datetime.fromisoformat(sched)
+                    if dt.tzinfo is None:
+                        dt = dt.replace(tzinfo=local_tz)
+                    if dt <= now:
+                        logger.info(f"[Scheduler] Kampány indítása: {c['name']} (id={c['id']}, scheduled_at={sched})")
+                        campaign_id = c["id"]
+                        # Restore original ai_instructions (remove SCHED: prefix)
+                        original_instructions = ai_inst[pipe_idx + 1:]
+                        try:
+                            db.supabase.table("campaigns").update({"ai_instructions": original_instructions}).eq("id", campaign_id).execute()
+                        except Exception:
+                            pass
+                        # Start the campaign
+                        channels = c.get("channels", [c.get("channel", "email")])
+                        supported = {"email", "messenger", "telefon"}
+                        active_channels = [ch for ch in channels if ch in supported]
+                        if not active_channels:
+                            logger.warning(f"[Scheduler] Nem támogatott csatorna: {channels}")
+                            continue
+                        db.update_campaign_status(campaign_id, "Aktív")
+                        text_channels = [ch for ch in active_channels if ch in {"email", "messenger"}]
+                        if text_channels:
+                            task = asyncio.create_task(_run_campaign(c, text_channels))
+                            background_tasks.add(task)
+                            task.add_done_callback(background_tasks.discard)
+                        if "telefon" in active_channels:
+                            phone_task = asyncio.create_task(_run_phone_campaign(c))
+                            background_tasks.add(phone_task)
+                            phone_task.add_done_callback(background_tasks.discard)
+                        logger.info(f"[Scheduler] Kampány sikeresen elindítva: {c['name']}")
+                except Exception as parse_err:
+                    logger.error(f"[Scheduler] Dátum parse hiba: {sched} - {parse_err}")
+        except Exception as e:
+            logger.error(f"[Scheduler] Campaign scheduler error: {e}")
+
 
 @app.on_event("startup")
 async def startup_event():
@@ -124,6 +183,12 @@ async def startup_event():
     task4 = asyncio.create_task(social_publisher_worker())
     background_tasks.add(task4)
     task4.add_done_callback(background_tasks.discard)
+
+    # Kampány ütemezés worker
+    task5 = asyncio.create_task(campaign_scheduler_worker())
+    background_tasks.add(task5)
+    task5.add_done_callback(background_tasks.discard)
+
     # Inbound SIP szoba monitor — KIKAPCSOLVA
     # A lk_trigger.py (Asterisk) mar kezeli a dispatch-et, nem kell dupla.
     # mon = asyncio.create_task(inbound_sip_room_monitor())
@@ -3152,7 +3217,7 @@ async def start_campaign_api(campaign_id: int, username: str = Depends(verify_jw
     ch_str = ", ".join(channel_names.get(c, c) for c in active_channels)
     msg_parts = []
     if text_channels:
-        msg_parts.append("piszkozatok hamarosan megjelennek a Jóváhagyó rendszerben")
+        msg_parts.append("emailek küldése megkezdődött")
     if "telefon" in active_channels:
         msg_parts.append("AI telefonhívások indulnak")
     return {"status": "success", "message": f"Kampány elindítva ({ch_str}) — {', '.join(msg_parts)}."}
@@ -3171,6 +3236,36 @@ def delete_campaign_api(campaign_id: int, username: str = Depends(verify_jwt)):
     if success:
         return {"status": "success"}
     raise HTTPException(status_code=500, detail="Törlés sikertelen")
+
+@app.post("/admin/api/campaigns/{campaign_id}/schedule")
+async def schedule_campaign_api(campaign_id: int, request: Request, username: str = Depends(verify_jwt)):
+    """Kampány ütemezése jövőbeli időpontra (campaigns tábla)."""
+    data = await request.json()
+    scheduled_at = data.get("scheduled_at")
+    if not scheduled_at:
+        raise HTTPException(status_code=400, detail="Hiányzó scheduled_at mező")
+    
+    campaign = db.get_campaign(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Kampány nem található")
+    
+    # Update status to Ütemezett and store scheduled_at in ai_instructions as prefix
+    db.update_campaign_status(campaign_id, "Ütemezett")
+    existing_instructions = campaign.get("ai_instructions", "") or ""
+    # Remove any existing SCHED: prefix
+    if existing_instructions.startswith("SCHED:"):
+        pipe_idx = existing_instructions.find("|")
+        if pipe_idx >= 0:
+            existing_instructions = existing_instructions[pipe_idx + 1:]
+    new_instructions = f"SCHED:{scheduled_at}|{existing_instructions}"
+    try:
+        db.supabase.table("campaigns").update({"ai_instructions": new_instructions}).eq("id", campaign_id).execute()
+        logger.info(f"[Schedule] Kampány #{campaign_id} ütemezve: {scheduled_at}")
+    except Exception as e:
+        logger.error(f"Schedule update error: {e}")
+    
+    return {"status": "success", "scheduled_at": scheduled_at}
+
 
 @app.post("/admin/api/campaigns/generate_message")
 async def generate_campaign_message(request: Request, username: str = Depends(verify_jwt)):
@@ -3277,19 +3372,44 @@ def get_campaign_clients_api(campaign_id: int, username: str = Depends(verify_jw
 
 
 async def _run_campaign(campaign: dict, active_channels: list[str]):
-    """Háttérfolyamat: végigmegy a kampány ügyfelein, AI-val generál piszkozatokat az aktív csatornákra."""
-    from google import genai
-    from google.genai import types
-    from prompt_utils import get_system_prompt
+    """Háttérfolyamat: végigmegy a kampány ügyfelein és közvetlenül elküldi az emaileket."""
+    import httpx
+    import base64 as b64module
 
     campaign_id = campaign["id"]
     campaign_name = campaign["name"]
-    ai_instructions = campaign.get("ai_instructions", "")
+    ai_instructions = campaign.get("ai_instructions", "") or ""
+    # Strip internal SCHED: and MODE: prefixes
+    if ai_instructions.startswith("SCHED:"):
+        pipe_idx = ai_instructions.find("|")
+        if pipe_idx >= 0:
+            ai_instructions = ai_instructions[pipe_idx + 1:]
+    while ai_instructions.startswith("MODE:"):
+        colon_idx = ai_instructions.find(":", 5)
+        if colon_idx >= 0:
+            ai_instructions = ai_instructions[colon_idx + 1:]
+        else:
+            break
+    ai_instructions = ai_instructions.strip()
     client_ids = campaign.get("client_ids", [])
 
-    google_key = os.getenv("GOOGLE_API_KEY")
-    if not google_key:
-        print(f"[Campaign] GOOGLE_API_KEY hiányzik, kampány megszakítva: {campaign_name}")
+    if not ai_instructions:
+        print(f"[Campaign] Nincs kampány tartalom, megszakítva: {campaign_name}")
+        db.update_campaign_status(campaign_id, "Megállítva")
+        return
+
+    brevo_key = os.getenv("BREVO_API_KEY", "")
+    api_key = brevo_key
+    if brevo_key and not brevo_key.startswith("xkeysib-"):
+        try:
+            decoded = b64module.b64decode(brevo_key).decode()
+            parsed = json.loads(decoded)
+            api_key = parsed.get("api_key", brevo_key)
+        except:
+            pass
+
+    if not api_key:
+        print(f"[Campaign] BREVO_API_KEY hiányzik, kampány megszakítva: {campaign_name}")
         db.update_campaign_status(campaign_id, "Megállítva")
         return
 
@@ -3299,154 +3419,58 @@ async def _run_campaign(campaign: dict, active_channels: list[str]):
         db.update_campaign_status(campaign_id, "Befejezett", processed_count=0)
         return
 
-    base_system_prompt = get_system_prompt(channel="email")
-    gemini_client = genai.Client(api_key=google_key)
     processed = 0
+    failed = 0
 
-    for client in clients:
-        current = db.get_campaign(campaign_id)
-        if not current or current.get("status") == "Megállítva":
-            print(f"[Campaign] Kampány megállítva: {campaign_name}")
-            return
+    async with httpx.AsyncClient() as http_client:
+        for client in clients:
+            current = db.get_campaign(campaign_id)
+            if not current or current.get("status") == "Megállítva":
+                print(f"[Campaign] Kampány megállítva: {campaign_name}")
+                return
 
-        custom_data = client.get("custom_data", {})
-        if isinstance(custom_data, str):
+            custom_data = client.get("custom_data", {})
+            if isinstance(custom_data, str):
+                try:
+                    custom_data = json.loads(custom_data)
+                except:
+                    custom_data = {}
+
+            client_email = custom_data.get("email") or client.get("email", "")
+            client_name = custom_data.get("name") or client.get("name", "Névtelen")
+
+            if not client_email or client_email == "-":
+                print(f"[Campaign] Nincs email: {client_name}, kihagyva")
+                continue
+
+            # Personalize content
+            body = ai_instructions.replace("{név}", client_name).replace("{name}", client_name)
+            html_body = f'<div style="font-family: Arial, sans-serif;">{body.replace(chr(10), "<br>")}</div>'
+
             try:
-                custom_data = json.loads(custom_data)
-            except:
-                custom_data = {}
-
-        client_email = custom_data.get("email") or client.get("email", "")
-        client_name = custom_data.get("name") or client.get("name", "Névtelen")
-        client_messenger_id = custom_data.get("messenger_id", "")
-        client_phone = custom_data.get("phone", "")
-
-        interaction_log = client.get("interaction_log", "")
-        if not interaction_log:
-            interaction_log = custom_data.get("beszelgetes_naplo", "")
-
-        user_context = f"Ügyfél neve: {client_name}\n"
-        if client_email and client_email != "-":
-            user_context += f"Ügyfél email: {client_email}\n"
-        if client_phone:
-            user_context += f"Telefon: {client_phone}\n"
-        if interaction_log:
-            log_snippet = interaction_log[-1500:] if len(interaction_log) > 1500 else interaction_log
-            user_context += f"\nKorábbi előzmények:\n{log_snippet}\n"
-
-        # === Piszkozatok generálása minden aktív csatornára ===
-        drafts = []
-
-        if "email" in active_channels and client_email and client_email != "-":
-            email_prompt = f"""{base_system_prompt}
-
---- KIMENŐ KAMPÁNY UTASÍTÁS (EMAIL) ---
-Te most egy kimenő email kampány részeként írsz személyre szabott üzenetet.
-A kampány neve: {campaign_name}
-
-Az admin utasítása:
-{ai_instructions if ai_instructions else "Nincs külön utasítás – írj egy kedves, releváns megkeresést."}
-
-FELADATOD:
-Írj egy rövid, személyre szabott email üzenetet az ügyfélnek.
-- Kedves, de célratörő megszólítás
-- Ha van korábbi előzmény, hivatkozz rá
-- NE használj HTML tag-eket
-- A válaszod KIZÁRÓLAG az email szövege legyen
-"""
-            try:
-                response = await gemini_client.aio.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=user_context,
-                    config=types.GenerateContentConfig(system_instruction=email_prompt, temperature=0.4)
+                resp = await http_client.post(
+                    "https://api.brevo.com/v3/smtp/email",
+                    headers={"api-key": api_key, "Content-Type": "application/json"},
+                    json={
+                        "sender": {"name": "EAISY Marketing", "email": "hello@thinkai.hu"},
+                        "to": [{"email": client_email, "name": client_name}],
+                        "subject": campaign_name,
+                        "htmlContent": html_body,
+                    },
+                    timeout=20,
                 )
-                drafts.append({
-                    "channel": "Email",
-                    "to_email": client_email,
-                    "to_name": client_name,
-                    "subject": campaign_name,
-                    "body": response.text.strip()
-                })
-                print(f"[Campaign] Email piszkozat generálva: {client_name} <{client_email}>")
+                resp.raise_for_status()
+                processed += 1
+                print(f"[Campaign] Email elküldve: {client_name} <{client_email}>")
             except Exception as e:
-                print(f"[Campaign] Gemini email hiba ({client_name}): {e}")
+                failed += 1
+                print(f"[Campaign] Email küldési hiba ({client_name}): {e}")
 
-        if "messenger" in active_channels and client_messenger_id:
-            messenger_prompt = f"""{base_system_prompt}
-
---- KIMENŐ KAMPÁNY UTASÍTÁS (MESSENGER) ---
-Te most egy kimenő Messenger kampány részeként írsz személyre szabott üzenetet.
-A kampány neve: {campaign_name}
-
-Az admin utasítása:
-{ai_instructions if ai_instructions else "Nincs külön utasítás – írj egy kedves, releváns megkeresést."}
-
-FELADATOD:
-Írj egy rövid, személyre szabott Messenger üzenetet az ügyfélnek.
-- Legyen rövid és közvetlen (max 3-4 mondat)
-- Messenger stílusú: barátságos, informális
-- NE használj semmilyen formázást, csak sima szöveg
-- A válaszod KIZÁRÓLAG az üzenet szövege legyen
-"""
-            try:
-                response = await gemini_client.aio.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=user_context,
-                    config=types.GenerateContentConfig(system_instruction=messenger_prompt, temperature=0.5)
-                )
-                drafts.append({
-                    "channel": "Messenger",
-                    "sender_id": client_messenger_id,
-                    "to_name": client_name,
-                    "body": response.text.strip()
-                })
-                print(f"[Campaign] Messenger piszkozat generálva: {client_name}")
-            except Exception as e:
-                print(f"[Campaign] Gemini messenger hiba ({client_name}): {e}")
-
-        if not drafts:
-            continue
-
-        # Egy összevont piszkozat az összes csatornával
-        if len(drafts) == 1:
-            combined_payload = drafts[0]
-            combined_payload["campaign_name"] = campaign_name
-        else:
-            combined_payload = {
-                "multi_channel": True,
-                "campaign_name": campaign_name,
-                "to_name": client_name,
-                "body": drafts[0].get("body", ""),
-                "drafts": drafts
-            }
-
-        channel_names_list = [d["channel"] for d in drafts]
-        ch_display = " + ".join(channel_names_list)
-        session_id = f"campaign_{campaign_id}_{client['id']}"
-        db.create_session(session_id=session_id, room_name=f"Kampány: {campaign_name}", participant=client_name)
-        db.log_interaction(
-            type=ch_display,
-            topic=f"Kampány: {campaign_name}",
-            summary=f"Kimenő kampány ({ch_display}) – {client_name}",
-            result="Várakozik jóváhagyásra",
-            tool_name="campaign_worker",
-            session_id=session_id,
-            direction="outbound",
-            funnel_stage="relevans",
-            alert_tags=[],
-            handover_reason=None,
-            approval_status="pending",
-            ai_draft_response=json.dumps(combined_payload)
-        )
-
-        processed += 1
-        db.update_campaign_status(campaign_id, "Aktív", processed_count=processed)
-        print(f"[Campaign] Piszkozat kész ({processed}/{len(clients)}): {client_name} [{ch_display}]")
-        await asyncio.sleep(1)
+            db.update_campaign_status(campaign_id, "Aktív", processed_count=processed)
+            await asyncio.sleep(0.5)
 
     db.update_campaign_status(campaign_id, "Befejezett", processed_count=processed)
-    ch_str = ", ".join(active_channels)
-    print(f"[Campaign] Kampány befejezve: {campaign_name} ({ch_str}) – {processed} piszkozat generálva")
+    print(f"[Campaign] Kampány befejezve: {campaign_name} – {processed} email elküldve, {failed} hiba")
 
 
 async def _run_phone_campaign(campaign: dict):
@@ -3634,8 +3658,16 @@ async def public_cancel_appointment(token: str):
                     custom_data = {}
                 
                 custom_data["cancelled_viewed"] = False
+                # Automatikus 'törölt időpont' tag hozzáadása
+                existing_tags = custom_data.get("tags", [])
+                if not isinstance(existing_tags, list): existing_tags = []
+                if "törölt időpont" not in existing_tags:
+                    existing_tags.append("törölt időpont")
+                    custom_data["tags"] = existing_tags
                 db.edit_client_details(client["id"], custom_data)
                 db.update_client_status(client["id"], "lemondott")
+                # Reset automation sent log so cancelled_no_rebook can fire again
+                db.clear_automation_sent(client["id"])
 
         # Delete from calendar
         success = db.delete_calendar_event(event_id)

@@ -55,7 +55,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z',
     children: [
       { id: 'outbound', label: 'Kampányok', path: '/outbound' },
-      { id: 'automatizaciok', label: 'Automatizációk', path: '/automatizaciok', adminExclusive: true },
+      { id: 'automatizaciok', label: 'Automatikus értesítések', path: '/automatizaciok', adminExclusive: true },
     ],
   },
   {

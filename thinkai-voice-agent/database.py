@@ -1551,6 +1551,16 @@ def mark_automation_sent(client_id: int, automation_id: int) -> bool:
         logger.error(f"Error marking automation sent: {e}")
         return False
 
+def clear_automation_sent(client_id: int) -> bool:
+    """Clear all automation sent records for a client so automations can re-trigger."""
+    if not supabase: return False
+    try:
+        supabase.table("automation_sent_log").delete().eq("client_id", client_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Error clearing automation sent log: {e}")
+        return False
+
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # EMAIL CAMPAIGNS (EAISY Marketing)

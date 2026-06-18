@@ -112,11 +112,11 @@ const defaultPraxis: PraxisInfo = {
   practice_name: '', markanev: '', szakterulet: '', kulcsszavak: '',
   faq: [], campaigns: [], exceptions: [],
   modositas_eng: 'igen', lemondas_24h: 'figyelmeztetoSzoveggel',
-  figyelmezteto_szoveg: 'Tájékoztatjuk, hogy 24 órán belüli lemondás esetén rendelőnk külön szabályzata lehet érvényben.',
-  pacient_id_question: 'Korábban járt már a rendelőnkben?',
+  figyelmezteto_szoveg: 'Tájékoztatjuk, hogy 24 órán belüli lemondás esetén külön szabályzatunk lehet érvényben.',
+  pacient_id_question: 'Volt már korábban ügyfelünk?',
   new_patient_required: 'Születési dátum, teljes név',
   new_patient_auto_visit: true,
-  returning_patient_required: 'Páciens azonosító vagy telefonszám',
+  returning_patient_required: 'Ügyfél azonosító vagy telefonszám',
 };
 
 const defaultReminder: ReminderSettings = {
@@ -471,7 +471,6 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>eaisyDesk beállítások</div>
-                  <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2 }}>Nyelv, kommunikáció, hang és üdvözlőszöveg beállításai</div>
                 </div>
               </div>
             </div>
@@ -788,7 +787,6 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.5 }}>Cég- és szolgáltatásinformációk</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3, textTransform: 'uppercase', letterSpacing: 0.5 }}>Minden, amit a cégedről tudni kell az eaisyDesk-nek</div>
                 </div>
               </div>
             </div>
@@ -1077,24 +1075,23 @@ export default function SettingsPage() {
                 </div>
                 <div>
                   <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.5 }}>Foglalási szabályok</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 3, textTransform: 'uppercase', letterSpacing: 0.5 }}>Időpontfoglalás, páciens kezelés és szolgáltatások beállításai</div>
                 </div>
               </div>
             </div>
 
-            {/* 1. Új/visszatérő páciens */}
-            <SectionCard title="Új és visszatérő páciensek kezelése" svgPath="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75">
+            {/* 1. Új/visszatérő ügyfél */}
+            <SectionCard title="Új és visszatérő ügyfelek kezelése" svgPath="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75">
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                <LabelInput label="Páciens beazonosítását szolgáló kérdés" value={praxis.pacient_id_question} onChange={v => setPraxis({ ...praxis, pacient_id_question: v })} />
-                <LabelInput label="Új páciens -- kötelezően bekérendő adat" value={praxis.new_patient_required} onChange={v => setPraxis({ ...praxis, new_patient_required: v })} />
+                <LabelInput label="Ügyfél beazonosítását szolgáló kérdés" value={praxis.pacient_id_question} onChange={v => setPraxis({ ...praxis, pacient_id_question: v })} />
+                <LabelInput label="Új ügyfél -- kötelezően bekérendő adat" value={praxis.new_patient_required} onChange={v => setPraxis({ ...praxis, new_patient_required: v })} />
                 <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <label className="tt-label" style={{ margin: 0, whiteSpace: 'nowrap' }}>Új páciensnek automatikus első vizit</label>
+                  <label className="tt-label" style={{ margin: 0, whiteSpace: 'nowrap' }}>Új ügyfélnek automatikus első találkozó</label>
                   <label className="tt-toggle">
                     <input type="checkbox" checked={praxis.new_patient_auto_visit} onChange={e => setPraxis({ ...praxis, new_patient_auto_visit: e.target.checked })} />
                     <span className="tt-toggle-slider" />
                   </label>
                 </div>
-                <LabelInput label="Visszatérő páciens -- kötelező szabály" value={praxis.returning_patient_required} onChange={v => setPraxis({ ...praxis, returning_patient_required: v })} />
+                <LabelInput label="Visszatérő ügyfél -- kötelező szabály" value={praxis.returning_patient_required} onChange={v => setPraxis({ ...praxis, returning_patient_required: v })} />
               </div>
             </SectionCard>
 

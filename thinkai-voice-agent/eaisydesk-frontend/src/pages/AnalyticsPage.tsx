@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authFetch } from '../api/client';
@@ -175,6 +175,162 @@ function AlertCards({ alerts, onOpenAlert }: { alerts: AlertData | null; onOpenA
   );
 }
 
+// ── Campaign Performance Section ─────────────────────────────────────────────
+function CampaignPerformanceSection({ campaigns }: { campaigns: any[] }) {
+  const kpis = useMemo(() => {
+    const total = campaigns.length;
+    const running = campaigns.filter((c: any) => c.status === 'Aktív').length;
+    const closed = campaigns.filter((c: any) => c.status === 'Befejezett').length;
+    const scheduled = campaigns.filter((c: any) => c.status === 'Ütemezett').length;
+    const targeted = campaigns.reduce((s: number, c: any) => s + (c.client_ids?.length || 0), 0);
+    return { total, running, closed, scheduled, targeted };
+  }, [campaigns]);
+
+  const analytics = useMemo(() => {
+    const statusCounts: Record<string, number> = {};
+    campaigns.forEach((c: any) => { statusCounts[c.status] = (statusCounts[c.status] || 0) + 1; });
+    const avgClients = campaigns.length > 0 ? Math.round(kpis.targeted / campaigns.length) : 0;
+    const successRate = campaigns.length > 0 ? Math.round((kpis.closed / campaigns.length) * 100) : 0;
+    const lastCampaign = campaigns.length > 0 ? campaigns[0] : null;
+    return { statusCounts, avgClients, successRate, lastCampaign };
+  }, [campaigns, kpis]);
+
+  const statusChartData = useMemo(() => {
+    const counts: Record<string, number> = {
+      'Tervezet': campaigns.filter((c: any) => c.status === 'Vázlat').length,
+      'Aktív': campaigns.filter((c: any) => c.status === 'Aktív').length,
+      'Elküldött': campaigns.filter((c: any) => c.status === 'Befejezett').length,
+      'Megállítva': campaigns.filter((c: any) => c.status === 'Megállítva').length,
+      'Ütemezett': campaigns.filter((c: any) => c.status === 'Ütemezett').length,
+    };
+    return {
+      labels: Object.keys(counts),
+      datasets: [{
+        data: Object.values(counts),
+        backgroundColor: [
+          'rgba(107,139,153,0.7)',
+          'rgba(34,197,94,0.8)',
+          'rgba(28,238,224,0.8)',
+          'rgba(245,158,11,0.8)',
+          'rgba(139,92,246,0.8)',
+        ],
+        borderColor: 'rgba(13,37,56,0.15)',
+        borderWidth: 2,
+        hoverOffset: 6,
+      }]
+    };
+  }, [campaigns]);
+
+  if (campaigns.length === 0) return null;
+
+  const statCards = [
+    { label: 'Összes kampány', value: kpis.total, color: '#1ceee0' },
+    { label: 'Aktív', value: kpis.running, color: '#22c55e' },
+    { label: 'Befejezett', value: kpis.closed, color: '#8b5cf6' },
+    { label: 'Célzott ügyfél', value: kpis.targeted, color: '#3b82f6' },
+  ];
+
+  return (
+    <>
+      <div className="section-divider" />
+      <h2 className="section-header-figma">Kampány teljesítmény</h2>
+
+      {/* KPI stat row */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+        {statCards.map(sc => (
+          <div key={sc.label} className="panel-white" style={{ padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 16 }}>
+            <div style={{
+              width: 42, height: 42, borderRadius: 12,
+              background: `${sc.color}14`,
+              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
+            }}>
+              <div style={{
+                width: 10, height: 10, borderRadius: '50%',
+                background: sc.color,
+                boxShadow: `0 0 8px ${sc.color}60`,
+              }} />
+            </div>
+            <div>
+              <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)', lineHeight: 1.1 }}>{sc.value}</div>
+              <div style={{ fontSize: 12, fontWeight: 600, color: '#6b8b99', marginTop: 2, textTransform: 'uppercase' as const, letterSpacing: 0.4 }}>{sc.label}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Charts row */}
+      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 36 }}>
+        {/* Status Doughnut */}
+        <div className="panel-white" style={{ padding: '24px 28px' }}>
+          <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1ceee0' }} />
+            Státusz eloszlás
+          </div>
+          <div style={{ position: 'relative', height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+            <Doughnut data={statusChartData} options={{
+              responsive: true, maintainAspectRatio: false, cutout: '65%',
+              plugins: {
+                legend: {
+                  position: 'bottom' as const,
+                  labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10, font: { size: 11, weight: 'bold' as const }, color: '#8ea9c0' }
+                },
+                tooltip: { backgroundColor: '#0d2538', padding: 10, cornerRadius: 8 }
+              }
+            }} />
+          </div>
+        </div>
+
+        {/* Campaign summary */}
+        <div className="panel-white" style={{ padding: '24px 28px' }}>
+          <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
+            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }} />
+            Kampány összesítő
+          </div>
+
+          {/* Mini stat grid */}
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+            {[
+              { label: 'Átl. ügyfél / kampány', value: analytics.avgClients, color: '#1ceee0' },
+              { label: 'Befejezési arány', value: `${analytics.successRate}%`, color: '#22c55e' },
+              { label: 'Ütemezett', value: kpis.scheduled, color: '#8b5cf6' },
+              { label: 'Utolsó kampány', value: analytics.lastCampaign ? new Date(analytics.lastCampaign.created_at).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' }) : '–', color: '#3b82f6' },
+            ].map(item => (
+              <div key={item.label} style={{
+                background: 'var(--bg3, rgba(255,255,255,0.04))',
+                borderRadius: 12, padding: '16px 18px',
+                border: '1px solid var(--border, rgba(255,255,255,0.06))',
+              }}>
+                <div style={{ fontSize: 22, fontWeight: 700, color: item.color, lineHeight: 1.2 }}>{item.value}</div>
+                <div style={{ fontSize: 11, fontWeight: 600, color: '#6b8b99', marginTop: 4, textTransform: 'uppercase' as const, letterSpacing: 0.3 }}>{item.label}</div>
+              </div>
+            ))}
+          </div>
+
+          {/* Progress bar */}
+          <div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+              <span style={{ fontSize: 12, fontWeight: 600, color: '#6b8b99', textTransform: 'uppercase' as const, letterSpacing: 0.3 }}>Befejezési arány</span>
+              <span style={{ fontSize: 14, fontWeight: 700, color: '#1ceee0' }}>{analytics.successRate}%</span>
+            </div>
+            <div style={{
+              height: 8, borderRadius: 99,
+              background: 'var(--bg3, rgba(255,255,255,0.06))',
+              overflow: 'hidden',
+            }}>
+              <div style={{
+                height: '100%', borderRadius: 99,
+                background: 'linear-gradient(90deg, #1ceee0, #22c55e)',
+                width: `${analytics.successRate}%`,
+                transition: 'width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
+              }} />
+            </div>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 // ── Main Page ─────────────────────────────────────────────────────────────────
 export default function AnalyticsPage() {
   const { isAdmin, isAdminOnly } = useAuth();
@@ -198,23 +354,26 @@ export default function AnalyticsPage() {
   const [channelBreakdown, setChannelBreakdown] = useState(false);
   const [loading, setLoading] = useState(true);
   const [alertModal, setAlertModal] = useState<{ type: string; title: string; rows: AlertDetailItem[]; loading: boolean } | null>(null);
+  const [campaigns, setCampaigns] = useState<any[]>([]);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
       const params = `period=${period}&channel=${channel}`;
-      const [statsRes, funnelRes, alertsRes, outboundRes, insightsRes] = await Promise.all([
+      const [statsRes, funnelRes, alertsRes, outboundRes, insightsRes, campaignsRes] = await Promise.all([
         authFetch(`/admin/api/stats?${params}`),
         authFetch(`/admin/api/analytics/funnel?${params}`),
         authFetch(`/admin/api/analytics/alerts?${params}`),
         authFetch(`/admin/api/analytics/outbound/summary?${params}`),
         supabase.from('ai_insights').select('insights').order('created_at', { ascending: false }).limit(1).single(),
+        authFetch('/admin/api/campaigns'),
       ]);
       if (statsRes.ok) { const d = await statsRes.json(); if (d) setStats(d); }
       if (funnelRes.ok) { const d = await funnelRes.json(); if (d) setFunnel(d); }
       if (alertsRes.ok) { const d = await alertsRes.json(); if (d) setAlerts(d); }
       if (outboundRes.ok) { const d = await outboundRes.json(); if (d) setOutbound(d); }
       if (insightsRes.data?.insights) setInsights(insightsRes.data.insights);
+      if (campaignsRes.ok) { const d = await campaignsRes.json(); if (d?.campaigns) setCampaigns(d.campaigns); }
     } catch (e) {
       console.error('Analytics load error', e);
     } finally {
@@ -581,94 +740,9 @@ export default function AnalyticsPage() {
           )}
         </div>
 
-        {/* 4. Outbound — admin only */}
-        {isAdminOnly && (
-        <>
-        <div className="section-divider" />
-        <h2 className="section-header-figma">Kimenő kommunikáció</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '220px 1fr 1fr', gap: 18, marginBottom: 20 }}>
-          <div>
-            <div className="out-kpi-card">
-              <div className="out-kpi-label">Összes kimenő</div>
-              <div className="out-kpi-value">{obTotal}</div>
-            </div>
-            <div className="out-kpi-card">
-              <div className="out-kpi-label">Elért páciensek</div>
-              <div className="out-kpi-value">{outbound?.reached_rate || 0}%</div>
-              <div className="out-kpi-sub">az összes indított kapcsolatfelvételből</div>
-            </div>
-            <div className="out-kpi-card">
-              <div className="out-kpi-label">Foglalássá vált</div>
-              <div className="out-kpi-value">{obBooked}</div>
-              <div className="out-kpi-trend">{outbound?.booked_rate || 0}% konverziós arány</div>
-            </div>
-            <div className="out-kpi-card">
-              <div className="out-kpi-label">Nyitott utánkövetés</div>
-              <div className="out-kpi-value">{outbound?.open_followup || 0}</div>
-              <div className="out-kpi-sub">emberi lépést igényel</div>
-            </div>
-          </div>
+        {/* 4. Campaign Performance */}
+        <CampaignPerformanceSection campaigns={campaigns} />
 
-          {/* Activity chart */}
-          <div className="panel-white">
-            <div className="panel-title">Aktivitás típusok</div>
-            <div style={{ position: 'relative', height: 300 }}>
-              <Bar data={{ labels: activityLabels, datasets: [{ label: 'Aktivitás', data: activityData, backgroundColor: '#1ceee0', borderRadius: 6 }] }}
-                options={{ responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
-                  scales: {
-                    x: { ticks: { color: '#6b7280', font: { size: 11 }, maxRotation: 45 }, grid: { display: false } },
-                    y: { ticks: { color: '#6b7280', font: { size: 11 } }, grid: { color: '#f3f4f6' } },
-                  },
-                }} />
-            </div>
-          </div>
-
-          {/* Outbound funnel */}
-          <div className="panel-white">
-            <div className="panel-title">Eredményesség és konverzió</div>
-            <div>
-              {obTotal === 0 ? (
-                /* Demo funnel when no data -- same percentages as original JS */
-                <>
-                  <div className="green-funnel-step" style={{ width: '100%' }}>
-                    <div className="green-funnel-label">Kimenő kommunikáció indítva</div>
-                    <div><span className="green-funnel-val">0</span><span className="green-funnel-pct">(100%)</span></div>
-                  </div>
-                  <div className="funnel-conv">{"\u25bc"} 72% konverzió</div>
-                  <div className="green-funnel-step" style={{ width: '72%' }}>
-                    <div className="green-funnel-label">Páciens elérve / Reagált</div>
-                    <div><span className="green-funnel-val">0</span><span className="green-funnel-pct">(0%)</span></div>
-                  </div>
-                  <div className="funnel-conv">{"\u25bc"} 60% konverzió</div>
-                  <div className="green-funnel-step" style={{ width: '55%' }}>
-                    <div className="green-funnel-label">Időpont egyeztetve</div>
-                    <div><span className="green-funnel-val">0</span><span className="green-funnel-pct">(0%)</span></div>
-                  </div>
-                  <div className="funnel-conv">{"\u25bc"} 52% konverzió</div>
-                  <div className="green-funnel-step" style={{ width: '40%' }}>
-                    <div className="green-funnel-label">Foglalás létrejött</div>
-                    <div><span className="green-funnel-val">0</span><span className="green-funnel-pct">(0%)</span></div>
-                  </div>
-                </>
-              ) : [
-                { label: 'Kimenő kommunikáció indítva', val: obTotal, w: 100 },
-                { label: 'Páciens elérve / Reagált', val: obReached, w: Math.round((obReached / obTotal) * 100), conv: Math.round((obReached / obTotal) * 100) },
-                { label: 'Időpont egyeztetve', val: obNeg, w: Math.round((obNeg / obTotal) * 100), conv: obReached > 0 ? Math.round((obNeg / obReached) * 100) : 0 },
-                { label: 'Foglalás létrejött', val: obBooked, w: Math.round((obBooked / obTotal) * 100), conv: obNeg > 0 ? Math.round((obBooked / obNeg) * 100) : 0 },
-              ].map((s, i) => (
-                <div key={i}>
-                  {i > 0 && <div className="funnel-conv">{"\u25bc"} {s.conv}% konverzió</div>}
-                  <div className="green-funnel-step" style={{ width: `${Math.max(s.w, 10)}%` }}>
-                    <div className="green-funnel-label">{s.label}</div>
-                    <div><span className="green-funnel-val">{s.val}</span><span className="green-funnel-pct">({Math.round((s.val / obTotal) * 100)}%)</span></div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-        </div>
-        </>
-        )}
       </div>
 
       {/* Alert Details Modal — Apple-style */}
@@ -751,3 +825,4 @@ export default function AnalyticsPage() {
     </div>
   );
 }
+

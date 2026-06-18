@@ -125,7 +125,16 @@ export default function NotificationCenter() {
         async (payload) => {
           const row = payload.new as Record<string, unknown>;
           const channel = (row.type as string) || (row.channel as string) || 'Üzenet';
-          const summary = (row.summary as string) || (row.topic as string) || `Új ${channel} érkezett`;
+          const rawTopic = (row.topic as string) || '';
+          const rawSummary = (row.summary as string) || '';
+          // topic contains the incoming message (e.g. "Messenger AI válasz - Hello!")
+          // summary contains the AI's response — we want to show the incoming message
+          const incomingMessage = rawTopic
+            .replace(/^.+?AI\s+v[áa]lasz\s*-\s*/i, '')
+            .trim();
+          const displayText = incomingMessage
+            ? `Beérkezett üzenet: ${incomingMessage}`
+            : rawSummary || `Új ${channel} érkezett`;
           const alertTags = (row.alert_tags as string[]) || [];
           const isUrgent = alertTags.includes('urgent');
           const sessionId = (row.session_id as string) || '';
@@ -177,14 +186,14 @@ export default function NotificationCenter() {
             addNotification('urgent', {
               name: clientName,
               channel,
-              problem: 'Sürgős megkeresés beérkezett.',
+              problem: incomingMessage || 'Sürgős megkeresés beérkezett.',
             });
             urgentAudio.current?.play().catch(() => {});
           } else {
             addNotification('interaction', {
               client: clientName,
               channel,
-              summary,
+              summary: displayText,
             });
           }
         }

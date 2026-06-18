@@ -22,7 +22,7 @@ export default function SegmentsPage() {
   // Demo segments
   const segments = [
     { name: 'Összes feliratkozó', count: subscribers.length, color: '#8b5cf6', icon: '👥' },
-    { name: 'Aktív páciensek', count: Math.round(subscribers.length * 0.6), color: '#22c55e', icon: '✅' },
+    { name: 'Aktív ügyfelek', count: Math.round(subscribers.length * 0.6), color: '#22c55e', icon: '✅' },
     { name: 'Inaktív (90+ nap)', count: Math.round(subscribers.length * 0.15), color: '#f59e0b', icon: '⏳' },
     { name: 'Új feliratkozók (30 nap)', count: Math.round(subscribers.length * 0.25), color: '#3b82f6', icon: '🆕' },
   ];
@@ -30,7 +30,7 @@ export default function SegmentsPage() {
   // Demo coupons
   const coupons = [
     { code: 'NYAR2025', type: 'Százalék', value: '15%', expires: '2025-08-31', used: 12, campaign: 'Nyári akció' },
-    { code: 'UJPACIENS', type: 'Fix összeg', value: '5000 Ft', expires: '2025-12-31', used: 34, campaign: 'Új páciens' },
+    { code: 'UJPACIENS', type: 'Fix összeg', value: '5000 Ft', expires: '2025-12-31', used: 34, campaign: 'Új ügyfél' },
     { code: 'HIVD20', type: 'Százalék', value: '20%', expires: '2025-07-15', used: 8, campaign: 'Hivatkozási program' },
   ];
 

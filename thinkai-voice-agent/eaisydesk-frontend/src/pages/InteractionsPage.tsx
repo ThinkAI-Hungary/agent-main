@@ -728,7 +728,7 @@ export default function InteractionsPage() {
                       title={r.teendo}
                       onClick={(e) => e.stopPropagation()}
                     >
-                      {r.teendo === 'Jóváhagyásra vár' && r.ai_draft_response ? (
+                      {r.teendo === 'Jóváhagyásra vár' ? (
                         <button
                           onClick={() => handleApprovalFromInteraction(r)}
                           style={{

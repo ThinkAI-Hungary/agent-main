@@ -15,12 +15,7 @@ interface Props {
   initialSelectedIds?: string[];
 }
 
-const CHANNELS = [
-  { key: 'email', label: 'EMAIL', color: '#3b82f6', bgColor: 'rgba(59,130,246,0.1)',
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="#3b82f6" strokeWidth="2" style={{width:18,height:18}}><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"/><path d="M22 6l-10 7L2 6"/></svg> },
-  { key: 'telefon', label: 'TELEFON', color: '#22c55e', bgColor: 'rgba(34,197,94,0.1)',
-    icon: <svg viewBox="0 0 24 24" fill="none" stroke="#22c55e" strokeWidth="2" style={{width:18,height:18}}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.12.8.3 1.6.56 2.37a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.77.25 1.57.44 2.37.56A2 2 0 0122 16.92z"/></svg> },
-];
+
 
 const STEP_TIPS = [
   { title: 'CÉLCSOPORT KIVÁLASZTÁSA', text: 'Válaszd ki a kampány célcsoportját ügyfélstátusz, címkék vagy egyedi kijelölés alapján. A pontos célzás segít, hogy a megfelelő ügyfelekhez a megfelelő üzenet jusson el.' },
@@ -29,10 +24,10 @@ const STEP_TIPS = [
 ];
 
 const AI_STYLES = [
-  { key: 'hivatalos', label: '🏢 Hivatalos' },
-  { key: 'barátságos', label: '😊 Barátságos' },
-  { key: 'akciós', label: '🔥 Akciós' },
-  { key: 'személyes', label: '💬 Személyes' },
+  { key: 'hivatalos', label: 'Hivatalos' },
+  { key: 'barátságos', label: 'Barátságos' },
+  { key: 'akciós', label: 'Akciós' },
+  { key: 'személyes', label: 'Személyes' },
 ];
 
 export default function CampaignWizardModal({ onClose, onCreated, initialSelectedIds }: Props) {
@@ -48,12 +43,13 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
 
   // Step 2 state
   const [campaignName, setCampaignName] = useState('');
-  const [selectedChannels, setSelectedChannels] = useState<Set<string>>(new Set(['email']));
+  const selectedChannels = new Set(['email']);
 
   // Step 3 state
   const [messageMode, setMessageMode] = useState<'manual' | 'ai'>('manual');
   const [messageContent, setMessageContent] = useState('');
   const [aiStyle, setAiStyle] = useState('barátságos');
+  const [aiPrompt, setAiPrompt] = useState('');
   const [aiGenerating, setAiGenerating] = useState(false);
   const [aiResult, setAiResult] = useState('');
 
@@ -205,14 +201,6 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
     setSelectedClientIds(new Set());
   }, []);
 
-  const toggleChannel = useCallback((ch: string) => {
-    setSelectedChannels(prev => {
-      const next = new Set(prev);
-      if (next.has(ch)) next.delete(ch); else next.add(ch);
-      return next;
-    });
-  }, []);
-
   // Rich text toolbar actions
   const execCommand = useCallback((command: string, value?: string) => {
     document.execCommand(command, false, value);
@@ -231,32 +219,29 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
 
   // AI generate
   const generateAiMessage = useCallback(async () => {
+    if (!aiPrompt.trim()) {
+      showToast('Írd le, miről szóljon a kampány!', 'error');
+      return;
+    }
     setAiGenerating(true);
     try {
-      const res = await authFetch('/admin/api/campaigns/generate-message', {
+      const res = await authFetch('/admin/api/campaigns/generate_message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ style: aiStyle, campaign_name: campaignName, channels: Array.from(selectedChannels) }),
+        body: JSON.stringify({ style: aiStyle, brief: aiPrompt.trim(), campaign_name: campaignName, channel: Array.from(selectedChannels)[0] || 'email' }),
       });
       if (res.ok) {
         const data = await res.json();
-        setAiResult(data.message || 'Kedves Ügyfelünk! Örömmel értesítjük, hogy...');
+        setAiResult(data.message || '');
       } else {
-        // Fallback demo message
-        const demos: Record<string, string> = {
-          hivatalos: 'Tisztelt Ügyfelünk!\n\nTisztelettel értesítjük, hogy klinikánk új szolgáltatásokat indított. Kérjük, látogasson el weboldalunkra a részletekért.\n\nÜdvözlettel,\nA csapat',
-          barátságos: 'Szia! 😊\n\nRemek hírünk van! Új szolgáltatásainkkal még jobbá tesszük az élményt. Nézd meg, mit készítettünk neked!\n\nÜdv,\nA csapat',
-          akciós: '🔥 KÜLÖNLEGES AJÁNLAT! 🔥\n\nCsak korlátozott ideig: 20% kedvezmény minden szolgáltatásunkra! Ne hagyd ki ezt a lehetőséget!\n\nFoglalj most!',
-          személyes: 'Kedves Barátunk!\n\nSzemélyesen szeretnénk meghívni téged, hogy próbáld ki legújabb szolgáltatásainkat. Rád szabott ajánlattal várunk!\n\nSzeretettel,\nA csapat',
-        };
-        setAiResult(demos[aiStyle] || demos.barátságos);
+        showToast('Hiba a generálásnál, próbáld újra', 'error');
       }
     } catch {
-      setAiResult('Kedves Ügyfelünk!\n\nÖrömmel értesítjük, hogy új lehetőségek várják Önt klinikánkon. Foglaljon időpontot most!');
+      showToast('Hiba a generálásnál', 'error');
     } finally {
       setAiGenerating(false);
     }
-  }, [aiStyle, campaignName, selectedChannels]);
+  }, [aiStyle, aiPrompt, campaignName, selectedChannels]);
 
   // Create campaign
   const handleCreate = useCallback(async () => {
@@ -275,7 +260,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
         body: JSON.stringify({
           name: campaignName.trim(),
           channels: Array.from(selectedChannels),
-          content,
+          ai_instructions: content,
           client_ids: Array.from(selectedClientIds).map(Number).filter(n => !isNaN(n)),
         }),
       });
@@ -492,21 +477,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                   onBlur={e => e.target.style.borderColor = 'var(--border)'}
                 />
               </div>
-              <div className="camp-content-card">
-                <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', marginBottom: 16, letterSpacing: 0.2 }}>CSATORNA</div>
-                <div className="camp-channel-grid">
-                  {CHANNELS.map(ch => (
-                    <button
-                      key={ch.key}
-                      className={`camp-channel-card ${selectedChannels.has(ch.key) ? 'active' : ''}`}
-                      onClick={() => toggleChannel(ch.key)}
-                    >
-                      <div className="camp-channel-icon" style={{ background: ch.bgColor }}>{ch.icon}</div>
-                      {ch.label}
-                    </button>
-                  ))}
-                </div>
-              </div>
+
             </div>
           )}
 
@@ -606,14 +577,33 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                   </div>
 
                   {/* AI Wizard Card */}
-                  <div style={{ background: 'linear-gradient(135deg, rgba(28,238,224,0.04), rgba(59,130,246,0.04))', border: '1.5px solid var(--border)', borderRadius: 6, padding: 18 }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
-                      <span style={{ fontSize: 16 }}>✨</span>
+                  <div style={{ background: 'linear-gradient(135deg, rgba(28,238,224,0.04), rgba(59,130,246,0.04))', border: '1.5px solid var(--border)', borderRadius: 14, padding: 20 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
                       <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>AI Kampány Varázsló</span>
                       <span style={{ marginLeft: 'auto', fontSize: 10, color: 'var(--text-muted)', background: 'var(--bg)', padding: '3px 8px', borderRadius: 6, border: '1px solid var(--border)' }}>Gemini AI</span>
                     </div>
-                    <div style={{ marginBottom: 14 }}>
-                      <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 8 }}>Stílus / Hangnem</div>
+
+                    {/* Prompt input */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Miről szóljon a kampány?</div>
+                      <textarea
+                        value={aiPrompt}
+                        onChange={e => setAiPrompt(e.target.value)}
+                        placeholder="Pl. 20% akció fogfehérítésre a tavasz alkalmával, említsd meg hogy korlátozott ideig elérhető..."
+                        style={{
+                          width: '100%', minHeight: 72, padding: '10px 14px', border: '1.5px solid var(--border)',
+                          borderRadius: 10, fontSize: 13, fontFamily: 'inherit', color: 'var(--text)',
+                          background: 'rgba(255,255,255,0.06)', outline: 'none', resize: 'vertical',
+                          boxSizing: 'border-box', lineHeight: 1.5,
+                        }}
+                        onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                        onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                      />
+                    </div>
+
+                    {/* Style selector */}
+                    <div style={{ marginBottom: 16 }}>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8 }}>Stílus</div>
                       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6 }}>
                         {AI_STYLES.map(s => (
                           <button
@@ -621,7 +611,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                             onClick={() => setAiStyle(s.key)}
                             style={{
                               padding: '8px 4px', borderRadius: 8, fontSize: 11, fontWeight: 600, cursor: 'pointer',
-                              border: aiStyle === s.key ? '1px solid var(--accent)' : '1px solid var(--border)',
+                              border: aiStyle === s.key ? '1.5px solid var(--accent)' : '1.5px solid var(--border)',
                               background: aiStyle === s.key ? 'rgba(28,238,224,0.1)' : 'rgba(255,255,255,0.06)',
                               color: aiStyle === s.key ? 'var(--accent)' : 'var(--text)',
                               transition: 'all 0.2s', textAlign: 'center', fontFamily: 'inherit',
@@ -630,15 +620,21 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                         ))}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                      <button
-                        onClick={generateAiMessage}
-                        disabled={aiGenerating}
-                        style={{ background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)', color: '#082432', border: 'none', padding: '9px 18px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', opacity: aiGenerating ? 0.6 : 1 }}
-                      >
-                        {aiGenerating ? '⏳ Generálás...' : '✨ Generálás'}
-                      </button>
-                    </div>
+
+                    {/* Generate button */}
+                    <button
+                      onClick={generateAiMessage}
+                      disabled={aiGenerating || !aiPrompt.trim()}
+                      style={{
+                        background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)', color: '#082432',
+                        border: 'none', padding: '10px 20px', borderRadius: 8, fontSize: 12,
+                        fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', width: '100%',
+                        opacity: (aiGenerating || !aiPrompt.trim()) ? 0.5 : 1,
+                        transition: 'opacity 0.15s',
+                      }}
+                    >
+                      {aiGenerating ? 'Generálás...' : 'Levél generálása'}
+                    </button>
                   </div>
                 </div>
               )}

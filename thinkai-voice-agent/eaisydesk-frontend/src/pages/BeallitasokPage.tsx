@@ -260,7 +260,9 @@ export default function BeallitasokPage() {
                           </div>
                           <div className="team-meta">{u.email || (u.last_login ? `Utolsó belépés: ${new Date(u.last_login).toLocaleString('hu-HU')}` : u.username)}</div>
                         </div>
-                        <span className={`team-role-badge ${u.role}`}>{u.role.toUpperCase()}</span>
+                        <span className={`team-role-badge ${u.role}`}>
+                          {u.role === 'member' ? 'MUNKATÁRS' : u.role.toUpperCase()}
+                        </span>
                         {!isSelf && isAdmin && (
                           <div className="team-actions">
                             {isAdminOnly && <RoleDropdown value={u.role} onChange={(newRole) => handleChangeRole(u.id, newRole)} />}
@@ -391,12 +393,12 @@ export default function BeallitasokPage() {
               <label className="beallitasok-label">Szerepkör</label>
               {isAdminOnly ? (
               <select className="beallitasok-input" value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}>
-                <option value="member">Member</option>
+                <option value="member">Munkatárs</option>
                 <option value="manager">Manager</option>
                 <option value="admin">Admin</option>
               </select>
               ) : (
-              <input className="beallitasok-input" value="Member" disabled style={{ opacity: 0.6 }} />
+              <input className="beallitasok-input" value="Munkatárs" disabled style={{ opacity: 0.6 }} />
               )}
             </div>
           </div>
@@ -796,7 +798,7 @@ function ChannelsSection() {
 
 // ── Custom role dropdown (dark mode safe) ────────────────────────────────────
 const ROLES = [
-  { value: 'member', label: 'Member' },
+  { value: 'member', label: 'Munkatárs' },
   { value: 'manager', label: 'Manager' },
   { value: 'admin', label: 'Admin' },
 ];
