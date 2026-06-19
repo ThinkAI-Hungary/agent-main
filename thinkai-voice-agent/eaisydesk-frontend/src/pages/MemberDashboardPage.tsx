@@ -327,7 +327,7 @@ export default function MemberDashboardPage() {
       });
       console.log('[MemberDashboard] myApprovals count:', myApprovals.filter(a => a.approval_status === 'pending').length);
 
-      myApprovals.filter(a => a.approval_status === 'pending').forEach(ap => {
+      myApprovals.filter(a => a.approval_status === 'pending' && a.approval_status !== 'spam').forEach(ap => {
         const apDt = ap.created_at ? new Date(ap.created_at as string) : new Date();
         const deadlineDt = new Date(apDt.getTime() + 2 * 60 * 60 * 1000);
         let clientName = 'Ismeretlen';
@@ -401,7 +401,7 @@ export default function MemberDashboardPage() {
           else if (hr.includes('visszahív')) { badge = 'visszahivas'; badgeLabel = 'Visszahívás'; }
           else if (hr.includes('válasz')) { badge = 'valasz'; badgeLabel = 'Válasz'; }
           else if (hr.includes('intézked') || hr.includes('véglegesít')) { badge = 'intezked'; badgeLabel = 'Intézkedés'; }
-          if (as_ === 'approved' || as_ === 'rejected') return;
+          if (as_ === 'approved' || as_ === 'rejected' || as_ === 'spam') return;
 
           const sDt = s.started_at ? new Date(s.started_at as string) : new Date();
           let deadlineDt: Date;

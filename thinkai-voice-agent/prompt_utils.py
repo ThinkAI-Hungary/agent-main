@@ -81,6 +81,8 @@ def _format_cancellation_policy(pi: dict) -> str:
     # Módosítás
     if pi.get("modositas_eng", "igen") == "igen":
         rules.append("Amikor sikeresen lefoglalsz egy időpontot, TÁJÉKOZTASD az ügyfelet a válaszodban: 'Időpont módosítására az időpont előtti 48 órával van lehetőség.'")
+    else:
+        rules.append("SZIGORÚ SZABÁLY: Időpont módosítása NEM engedélyezett! Ha az ügyfél időpont módosítást kér, tájékoztasd, hogy időpont módosítására sajnos nincs lehetőség, és kérd meg, hogy vegye fel a kapcsolatot egy munkatárssal, vagy mondja le a jelenlegi időpontot és foglaljon újat.")
         
     # Lemondás (24 órán belül)
     lem_24h = pi.get("lemondas_24h", "figyelmeztetoSzoveggel")

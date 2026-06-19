@@ -29,28 +29,28 @@ const quickSteps = [
     desc: 'KPI kártyák, trendek és foglalási tölcsér — egy helyen látod a céged teljesítményét.',
     path: '/analytics',
     icon: <path d="M3 12h2l3-9 4 18 3-9h6" />,
-    color: '#3b82f6',
+    color: '#1ceee0',
   },
   {
     title: 'Ügyfélközpont',
     desc: 'Interakciók, ügyféllista és Kanban tábla — kövesd nyomon minden érdeklődőt.',
     path: '/clients',
     icon: <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></>,
-    color: '#8b5cf6',
+    color: '#1ceee0',
   },
   {
     title: 'Naptár',
     desc: 'Foglalások és időpontok vizualizálva — napi, heti és havi nézetben.',
     path: '/calendar',
     icon: <><rect height="18" rx="2" width="18" x="3" y="4" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
-    color: '#22c55e',
+    color: '#1ceee0',
   },
   {
     title: 'Tudástár',
     desc: 'Céginformációk, AI szabályok és csapatkezelés — szabályozd az asszisztenst.',
     path: '/settings/praxis',
     icon: <><path d="M4 19.5A2.5 2.5 0 016.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" /></>,
-    color: '#f59e0b',
+    color: '#1ceee0',
   },
 ];
 

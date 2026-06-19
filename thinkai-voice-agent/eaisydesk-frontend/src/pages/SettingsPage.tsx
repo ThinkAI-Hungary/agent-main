@@ -335,25 +335,59 @@ export default function SettingsPage() {
     setSaving(false);
   }, [praxis]);
 
-  // ── Praxis auto-save (debounced) ──
+  // ── Praxis auto-save (debounced, only when data actually changed) ──
   const praxisLoaded = useRef(false);
   const praxisTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const praxisSavedRef = useRef<string>('');
 
   useEffect(() => {
     if (!loading) {
-      const t = setTimeout(() => { praxisLoaded.current = true; }, 500);
+      const t = setTimeout(() => {
+        praxisLoaded.current = true;
+        praxisSavedRef.current = JSON.stringify(praxis);
+      }, 500);
       return () => clearTimeout(t);
     }
   }, [loading]);
 
   useEffect(() => {
     if (!praxisLoaded.current) return;
+    const currentJson = JSON.stringify(praxis);
+    if (currentJson === praxisSavedRef.current) return;
     if (praxisTimerRef.current) clearTimeout(praxisTimerRef.current);
     praxisTimerRef.current = setTimeout(() => {
       savePraxis();
+      praxisSavedRef.current = currentJson;
     }, 1500);
     return () => { if (praxisTimerRef.current) clearTimeout(praxisTimerRef.current); };
   }, [praxis, savePraxis]);
+
+  // ── Agent auto-save (debounced, only when data actually changed) ──
+  const agentSavedRef = useRef<string>('');
+  const agentTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Capture snapshot of agent state after initial load
+  useEffect(() => {
+    if (!loading && !agentSavedRef.current) {
+      const t = setTimeout(() => {
+        agentSavedRef.current = JSON.stringify(agent);
+      }, 300);
+      return () => clearTimeout(t);
+    }
+  }, [loading, agent]);
+
+  // Auto-save only when agent data actually changed from loaded/saved state
+  useEffect(() => {
+    if (!agentSavedRef.current) return;
+    const current = JSON.stringify(agent);
+    if (current === agentSavedRef.current) return;
+    if (agentTimerRef.current) clearTimeout(agentTimerRef.current);
+    agentTimerRef.current = setTimeout(() => {
+      saveAgent();
+      agentSavedRef.current = current;
+    }, 1500);
+    return () => { if (agentTimerRef.current) clearTimeout(agentTimerRef.current); };
+  }, [agent, saveAgent]);
 
   // ── CRUD for sub-tables ──
   const saveClinic = useCallback(async (clinic: Clinic, idx: number) => {
@@ -665,6 +699,7 @@ export default function SettingsPage() {
                             – {va.desc}
                           </span>
                         </div>
+
                         {/* Selection indicator */}
                         {isSelected && (
                           <div style={{
@@ -892,16 +927,16 @@ export default function SettingsPage() {
               </div>
             </SectionCard>
 
-            {/* ══════ 3. Nyitvatartás / Ügyfélfogadási idő ══════ */}
+            {/* ══════ 3. Nyitvatartás ══════ */}
             <div id="sec-nyitvatartas" style={{ scrollMarginTop: 20 }} />
-            <SectionCard title="Nyitvatartás / Ügyfélfogadási idő" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM12 6v6l4 2">
+            <SectionCard title="Nyitvatartás" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM12 6v6l4 2">
               <table className="bh-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
                 <thead>
                   <tr>
                     <th style={thStyle}>Nap</th>
                     <th style={thStyle}>Nyitás</th>
                     <th style={thStyle}>Zárás</th>
-                    <th style={{ ...thStyle, textAlign: 'center' }}>Nyitva?</th>
+                    <th style={{ ...thStyle, textAlign: 'center' }}></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -1067,15 +1102,72 @@ export default function SettingsPage() {
             {/* ══════ 6. Gyakori Kérdések ══════ */}
             <div id="sec-gyik" style={{ scrollMarginTop: 20 }} />
             <SectionCard title="Gyakori Kérdések" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01">
-              {(praxis.faq || []).map((f, i) => (
-                <div key={i} style={{ ...listItemStyle, flexDirection: 'column', alignItems: 'stretch', gap: 8 }}>
-                  <div style={{ display: 'flex', gap: 8, alignItems: 'flex-start' }}>
-                    <input className="tt-input" value={f.question} onChange={e => { const faq = [...(praxis.faq || [])]; faq[i] = { ...faq[i], question: e.target.value }; setPraxis({ ...praxis, faq }); }} placeholder="Kérdés" style={{ flex: 1 }} />
-                    <DeleteBtn onClick={() => { const faq = (praxis.faq || []).filter((_, j) => j !== i); setPraxis({ ...praxis, faq }); }} />
-                  </div>
-                  <textarea className="tt-textarea" value={f.answer} onChange={e => { const faq = [...(praxis.faq || [])]; faq[i] = { ...faq[i], answer: e.target.value }; setPraxis({ ...praxis, faq }); }} placeholder="Válasz" style={{ minHeight: 60 }} />
+              {(praxis.faq || []).length === 0 && (
+                <div style={{
+                  textAlign: 'center', padding: '48px 20px',
+                  background: 'rgba(255,255,255,0.015)', borderRadius: 14,
+                  border: '1.5px dashed rgba(255,255,255,0.08)',
+                }}>
+                  <svg fill="none" stroke="var(--text-muted)" strokeWidth="1.5" viewBox="0 0 24 24" width="36" height="36" style={{ opacity: 0.3, marginBottom: 10 }}>
+                    <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" /><circle cx="12" cy="17" r="0.5" fill="currentColor" />
+                  </svg>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 13, opacity: 0.6 }}>Még nincsenek gyakori kérdések hozzáadva</div>
+                  <div style={{ color: 'var(--text-muted)', fontSize: 11, opacity: 0.4, marginTop: 4 }}>Kattints a „Kérdés hozzáadása" gombra az induláshoz</div>
                 </div>
-              ))}
+              )}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+                {(praxis.faq || []).map((f, i) => (
+                  <div key={i} style={{
+                    borderRadius: 12, overflow: 'hidden',
+                    border: '1px solid rgba(255,255,255,0.07)',
+                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
+                    background: 'var(--card)',
+                  }}>
+                    {/* ── Question section ── */}
+                    <div style={{
+                      display: 'flex', alignItems: 'center', gap: 14,
+                      padding: '14px 18px',
+                      background: 'linear-gradient(135deg, rgba(28,238,224,0.06), rgba(28,238,224,0.01))',
+                    }}>
+                      <div style={{
+                        width: 28, height: 28, borderRadius: '50%',
+                        background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)',
+                        color: '#082432', fontSize: 12, fontWeight: 800,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        flexShrink: 0, boxShadow: '0 2px 6px rgba(28,238,224,0.25)',
+                      }}>{i + 1}</div>
+                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
+                        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: 1, color: '#1ceee0', opacity: 0.7 }}>Kérdés</span>
+                        <input className="tt-input" value={f.question}
+                          onChange={e => { const faq = [...(praxis.faq || [])]; faq[i] = { ...faq[i], question: e.target.value }; setPraxis({ ...praxis, faq }); }}
+                          placeholder="Írd be a kérdést..."
+                          style={{ fontWeight: 600, fontSize: 14, border: 'none', background: 'transparent', padding: 0, color: 'var(--text)' }}
+                        />
+                      </div>
+                      <DeleteBtn onClick={() => { const faq = (praxis.faq || []).filter((_, j) => j !== i); setPraxis({ ...praxis, faq }); }} />
+                    </div>
+                    {/* ── Answer section ── */}
+                    <div style={{
+                      padding: '14px 18px 14px 63px',
+                      borderTop: '1px solid rgba(255,255,255,0.05)',
+                      background: 'rgba(255,255,255,0.01)',
+                    }}>
+                      <span style={{ display: 'block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: 1, color: 'var(--text-muted)', opacity: 0.5, marginBottom: 6 }}>Válasz</span>
+                      <textarea className="tt-textarea" value={f.answer}
+                        onChange={e => { const faq = [...(praxis.faq || [])]; faq[i] = { ...faq[i], answer: e.target.value }; setPraxis({ ...praxis, faq }); }}
+                        placeholder="Írd be a választ..."
+                        ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
+                        onInput={e => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }}
+                        style={{
+                          width: '100%', minHeight: 38, border: 'none', background: 'transparent',
+                          padding: 0, resize: 'none', overflow: 'hidden',
+                          fontSize: 13, lineHeight: 1.7, color: 'var(--text)', opacity: 0.8,
+                        }}
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
               <AddBtn label="Kérdés hozzáadása" onClick={() => setPraxis({ ...praxis, faq: [...(praxis.faq || []), { question: '', answer: '' }] })} />
             </SectionCard>
           </div>

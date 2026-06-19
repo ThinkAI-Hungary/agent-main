@@ -839,7 +839,6 @@ export default function OutboundPage() {
 
                   {/* Actions */}
                   <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                    <ActionBtn label="Törlés" color="#ef4444" onClick={() => handleDeleteCampaign(c.id)} />
                     {(c.status === 'Vázlat' || c.status === 'Megállítva') && (
                       <>
                         <ActionBtn label="Indítás" color="#22c55e" onClick={() => handleStartCampaign(c.id)} />
@@ -849,6 +848,7 @@ export default function OutboundPage() {
                     {c.status === 'Aktív' && (
                       <ActionBtn label="Megállítás" color="#f59e0b" onClick={() => handleStopCampaign(c.id)} />
                     )}
+                    <ActionBtn label="Törlés" color="#ef4444" onClick={() => handleDeleteCampaign(c.id)} />
                   </div>
                 </div>
               );

@@ -26,7 +26,7 @@ const TABS = [
 ] as const;
 
 export default function BeallitasokPage() {
-  const { user } = useAuth();
+  const { user, updateUser } = useAuth();
   const { confirm, ConfirmDialog } = useConfirm();
   const [activeTab, setActiveTab] = useState('profil');
   const [users, setUsers] = useState<User[]>([]);
@@ -88,21 +88,14 @@ export default function BeallitasokPage() {
         showToast('Hiba a mentésnél', 'error');
         return;
       }
-      // Update localStorage user so name persists on refresh
-      try {
-        const raw = localStorage.getItem('sb_admin_user');
-        if (raw) {
-          const stored = JSON.parse(raw);
-          stored.fullName = profileName;
-          localStorage.setItem('sb_admin_user', JSON.stringify(stored));
-        }
-      } catch { /* ignore */ }
+      // Update AuthContext so sidebar reflects immediately
+      updateUser({ fullName: profileName });
       // Persist position and company to localStorage
       localStorage.setItem('eaisydesk_profile_position', profilePosition);
       localStorage.setItem('eaisydesk_profile_company', profileCompany);
       showToast('Profil mentve!');
     } catch { showToast('Hiba', 'error'); }
-  }, [profileName, profilePosition, profileCompany]);
+  }, [profileName, profilePosition, profileCompany, updateUser]);
 
   const handleChangePassword = useCallback(async () => {
     if (!pwCurrent || !pwNew) { showToast('Mindkét mezőt ki kell tölteni!', 'error'); return; }
@@ -273,9 +266,12 @@ export default function BeallitasokPage() {
                           </div>
                           <div className="team-meta">{u.email || (u.last_login ? `Utolsó belépés: ${new Date(u.last_login).toLocaleString('hu-HU')}` : u.username)}</div>
                         </div>
+                        {/* Show badge only when there's no role dropdown */}
+                        {(isSelf || !isAdmin || !isAdminOnly) && (
                         <span className={`team-role-badge ${u.role}`}>
                           {u.role === 'member' ? 'MUNKATÁRS' : u.role.toUpperCase()}
                         </span>
+                        )}
                         {!isSelf && isAdmin && (
                           <div className="team-actions">
                             {isAdminOnly && <RoleDropdown value={u.role} onChange={(newRole) => handleChangeRole(u.id, newRole)} />}
@@ -358,68 +354,443 @@ export default function BeallitasokPage() {
         )}
       </div>
 
-      {/* Password Modal */}
+      {/* Password Modal — Premium Design */}
       {showPasswordModal && (
-        <Modal title="Jelszó módosítása" subtitle="Add meg a jelenlegi és új jelszavad" onClose={() => setShowPasswordModal(false)}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div>
-              <label className="beallitasok-label">Jelenlegi jelszó</label>
-              <input type="password" className="beallitasok-input" placeholder="Jelenlegi jelszó" value={pwCurrent} onChange={(e) => setPwCurrent(e.target.value)} autoFocus />
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'cuFadeIn 0.25s ease',
+          }}
+          onClick={() => setShowPasswordModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 440, maxWidth: '92vw',
+              background: 'var(--card)',
+              borderRadius: 20,
+              border: '1px solid var(--border)',
+              boxShadow: '0 32px 80px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.04)',
+              overflow: 'hidden',
+              animation: 'cuSlideUp 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+            }}
+          >
+            {/* Gradient accent bar */}
+            <div style={{
+              height: 4,
+              background: 'linear-gradient(90deg, #1ceee0, #0bbdb1, #3b82f6)',
+              borderRadius: '20px 20px 0 0',
+            }} />
+
+            {/* Header */}
+            <div style={{ padding: '28px 32px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 19, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.3px' }}>
+                  Jelszó módosítása
+                </h3>
+                <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                  Add meg a jelenlegi és új jelszavad
+                </p>
+              </div>
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  border: '1px solid var(--border)',
+                  background: 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', color: 'var(--text-muted)',
+                  transition: 'all 0.2s',
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; e.currentTarget.style.color = '#ef4444'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+              >
+                <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            <div>
-              <label className="beallitasok-label">Új jelszó</label>
-              <input type="password" className="beallitasok-input" placeholder="Új jelszó (min. 4 karakter)" value={pwNew} onChange={(e) => setPwNew(e.target.value)} />
+
+            {/* Divider */}
+            <div style={{ margin: '20px 32px 0', height: 1, background: 'var(--border)' }} />
+
+            {/* Form Body */}
+            <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 7, textTransform: 'uppercase' as const, letterSpacing: '0.5px', display: 'block' }}>
+                  Jelenlegi jelszó <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="password"
+                  placeholder="Jelenlegi jelszó"
+                  value={pwCurrent}
+                  onChange={(e) => setPwCurrent(e.target.value)}
+                  autoFocus
+                  style={{
+                    width: '100%', padding: '11px 14px', fontSize: 14,
+                    border: '1.5px solid var(--border)', borderRadius: 12,
+                    background: 'var(--bg, rgba(255,255,255,0.04))',
+                    color: 'var(--text)', outline: 'none',
+                    transition: 'border-color 0.2s, box-shadow 0.2s',
+                    fontFamily: 'inherit', boxSizing: 'border-box',
+                  }}
+                  onFocus={(e) => { e.target.style.borderColor = '#1ceee0'; e.target.style.boxShadow = '0 0 0 3px rgba(28,238,224,0.1)'; }}
+                  onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 7, textTransform: 'uppercase' as const, letterSpacing: '0.5px', display: 'block' }}>
+                  Új jelszó <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="password"
+                  placeholder="Min. 4 karakter"
+                  value={pwNew}
+                  onChange={(e) => setPwNew(e.target.value)}
+                  style={{
+                    width: '100%', padding: '11px 14px', fontSize: 14,
+                    border: '1.5px solid var(--border)', borderRadius: 12,
+                    background: 'var(--bg, rgba(255,255,255,0.04))',
+                    color: 'var(--text)', outline: 'none',
+                    transition: 'border-color 0.2s, box-shadow 0.2s',
+                    fontFamily: 'inherit', boxSizing: 'border-box',
+                  }}
+                  onFocus={(e) => { e.target.style.borderColor = '#1ceee0'; e.target.style.boxShadow = '0 0 0 3px rgba(28,238,224,0.1)'; }}
+                  onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+                />
+              </div>
+
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 7, textTransform: 'uppercase' as const, letterSpacing: '0.5px', display: 'block' }}>
+                  Új jelszó megerősítése <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="password"
+                  placeholder="Új jelszó ismét"
+                  value={pwConfirm}
+                  onChange={(e) => setPwConfirm(e.target.value)}
+                  style={{
+                    width: '100%', padding: '11px 14px', fontSize: 14,
+                    border: '1.5px solid var(--border)', borderRadius: 12,
+                    background: 'var(--bg, rgba(255,255,255,0.04))',
+                    color: 'var(--text)', outline: 'none',
+                    transition: 'border-color 0.2s, box-shadow 0.2s',
+                    fontFamily: 'inherit', boxSizing: 'border-box',
+                  }}
+                  onFocus={(e) => { e.target.style.borderColor = '#1ceee0'; e.target.style.boxShadow = '0 0 0 3px rgba(28,238,224,0.1)'; }}
+                  onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+                />
+              </div>
             </div>
-            <div>
-              <label className="beallitasok-label">Új jelszó megerősítése</label>
-              <input type="password" className="beallitasok-input" placeholder="Új jelszó ismét" value={pwConfirm} onChange={(e) => setPwConfirm(e.target.value)} />
+
+            {/* Footer */}
+            <div style={{
+              padding: '0 32px 28px',
+              display: 'flex', gap: 12, justifyContent: 'flex-end',
+            }}>
+              <button
+                onClick={() => setShowPasswordModal(false)}
+                style={{
+                  padding: '11px 24px', borderRadius: 12,
+                  border: '1.5px solid var(--border)',
+                  background: 'transparent',
+                  color: 'var(--text-muted)', fontSize: 14, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--text-muted)'; e.currentTarget.style.color = 'var(--text)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+              >
+                Mégse
+              </button>
+              <button
+                onClick={handleChangePassword}
+                style={{
+                  padding: '11px 28px', borderRadius: 12,
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)',
+                  color: '#082432', fontSize: 14, fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 16px rgba(28,238,224,0.25)',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(28,238,224,0.35)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(28,238,224,0.25)'; }}
+              >
+                Jelszó módosítása
+              </button>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 24 }}>
-            <button onClick={() => setShowPasswordModal(false)} className="btn-cancel-modal">Mégse</button>
-            <button onClick={handleChangePassword} className="beallitasok-save-btn">Jelszó módosítása</button>
-          </div>
-        </Modal>
+
+          {/* Animations */}
+          <style>{`
+            @keyframes cuFadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes cuSlideUp { from { opacity: 0; transform: translateY(24px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+          `}</style>
+        </div>
       )}
 
-      {/* Create User Modal */}
+      {/* Create User Modal — Premium Design */}
       {showCreateUserModal && (
-        <Modal title="Új felhasználó létrehozása" subtitle="Hozz létre új hozzáférést a csapattagok számára" onClose={() => setShowCreateUserModal(false)}>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div>
-              <label className="beallitasok-label">Teljes név *</label>
-              <input type="text" className="beallitasok-input" placeholder="Teljes név" value={newUser.full_name} onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })} autoFocus />
+        <div
+          style={{
+            position: 'fixed', inset: 0, zIndex: 9999,
+            background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(8px)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            animation: 'cuFadeIn 0.25s ease',
+          }}
+          onClick={() => setShowCreateUserModal(false)}
+        >
+          <div
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 480, maxWidth: '92vw',
+              background: 'var(--card)',
+              borderRadius: 20,
+              border: '1px solid var(--border)',
+              boxShadow: '0 32px 80px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.04)',
+              overflow: 'hidden',
+              animation: 'cuSlideUp 0.35s cubic-bezier(0.34,1.56,0.64,1)',
+            }}
+          >
+            {/* Gradient accent bar */}
+            <div style={{
+              height: 4,
+              background: 'linear-gradient(90deg, #1ceee0, #0bbdb1, #3b82f6)',
+              borderRadius: '20px 20px 0 0',
+            }} />
+
+            {/* Header */}
+            <div style={{ padding: '28px 32px 0', display: 'flex', alignItems: 'flex-start', justifyContent: 'space-between' }}>
+              <div>
+                <h3 style={{ margin: 0, fontSize: 19, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.3px' }}>
+                  Új felhasználó
+                </h3>
+                <p style={{ margin: '3px 0 0', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                  Hozz létre új hozzáférést a csapattagok számára
+                </p>
+              </div>
+              <button
+                onClick={() => setShowCreateUserModal(false)}
+                style={{
+                  width: 36, height: 36, borderRadius: 10,
+                  border: '1px solid var(--border)',
+                  background: 'transparent',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  cursor: 'pointer', color: 'var(--text-muted)',
+                  transition: 'all 0.2s',
+                  flexShrink: 0,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.background = 'rgba(239,68,68,0.08)'; e.currentTarget.style.borderColor = 'rgba(239,68,68,0.3)'; e.currentTarget.style.color = '#ef4444'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.background = 'transparent'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+              >
+                <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
             </div>
-            <div>
-              <label className="beallitasok-label">Felhasználónév</label>
-              <input type="text" className="beallitasok-input" placeholder="Felhasználónév" value={newUser.username} onChange={(e) => setNewUser({ ...newUser, username: e.target.value })} />
+
+            {/* Divider */}
+            <div style={{ margin: '20px 32px 0', height: 1, background: 'var(--border)' }} />
+
+            {/* Form Body */}
+            <div style={{ padding: '24px 32px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+              {/* Name + Username row */}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 7, textTransform: 'uppercase' as const, letterSpacing: '0.5px', display: 'block' }}>
+                    Teljes név <span style={{ color: '#ef4444' }}>*</span>
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="Kovács Anna"
+                    value={newUser.full_name}
+                    onChange={(e) => setNewUser({ ...newUser, full_name: e.target.value })}
+                    autoFocus
+                    style={{
+                      width: '100%', padding: '11px 14px', fontSize: 14,
+                      border: '1.5px solid var(--border)', borderRadius: 12,
+                      background: 'var(--bg, rgba(255,255,255,0.04))',
+                      color: 'var(--text)', outline: 'none',
+                      transition: 'border-color 0.2s, box-shadow 0.2s',
+                      fontFamily: 'inherit', boxSizing: 'border-box',
+                    }}
+                    onFocus={(e) => { e.target.style.borderColor = '#1ceee0'; e.target.style.boxShadow = '0 0 0 3px rgba(28,238,224,0.1)'; }}
+                    onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+                  />
+                </div>
+                <div>
+                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 7, textTransform: 'uppercase' as const, letterSpacing: '0.5px', display: 'block' }}>
+                    Felhasználónév
+                  </label>
+                  <input
+                    type="text"
+                    placeholder="kovacsanna"
+                    value={newUser.username}
+                    onChange={(e) => setNewUser({ ...newUser, username: e.target.value })}
+                    style={{
+                      width: '100%', padding: '11px 14px', fontSize: 14,
+                      border: '1.5px solid var(--border)', borderRadius: 12,
+                      background: 'var(--bg, rgba(255,255,255,0.04))',
+                      color: 'var(--text)', outline: 'none',
+                      transition: 'border-color 0.2s, box-shadow 0.2s',
+                      fontFamily: 'inherit', boxSizing: 'border-box',
+                    }}
+                    onFocus={(e) => { e.target.style.borderColor = '#1ceee0'; e.target.style.boxShadow = '0 0 0 3px rgba(28,238,224,0.1)'; }}
+                    onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+                  />
+                </div>
+              </div>
+
+              {/* Email */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 7, textTransform: 'uppercase' as const, letterSpacing: '0.5px', display: 'block' }}>
+                  Email cím <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="email"
+                  placeholder="kollegak@pelda.hu"
+                  value={newUser.email}
+                  onChange={(e) => setNewUser({ ...newUser, email: e.target.value })}
+                  style={{
+                    width: '100%', padding: '11px 14px', fontSize: 14,
+                    border: '1.5px solid var(--border)', borderRadius: 12,
+                    background: 'var(--bg, rgba(255,255,255,0.04))',
+                    color: 'var(--text)', outline: 'none',
+                    transition: 'border-color 0.2s, box-shadow 0.2s',
+                    fontFamily: 'inherit', boxSizing: 'border-box',
+                  }}
+                  onFocus={(e) => { e.target.style.borderColor = '#1ceee0'; e.target.style.boxShadow = '0 0 0 3px rgba(28,238,224,0.1)'; }}
+                  onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+                />
+              </div>
+
+              {/* Password */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 7, textTransform: 'uppercase' as const, letterSpacing: '0.5px', display: 'block' }}>
+                  Jelszó <span style={{ color: '#ef4444' }}>*</span>
+                </label>
+                <input
+                  type="password"
+                  placeholder="Min. 4 karakter"
+                  value={newUser.password}
+                  onChange={(e) => setNewUser({ ...newUser, password: e.target.value })}
+                  style={{
+                    width: '100%', padding: '11px 14px', fontSize: 14,
+                    border: '1.5px solid var(--border)', borderRadius: 12,
+                    background: 'var(--bg, rgba(255,255,255,0.04))',
+                    color: 'var(--text)', outline: 'none',
+                    transition: 'border-color 0.2s, box-shadow 0.2s',
+                    fontFamily: 'inherit', boxSizing: 'border-box',
+                  }}
+                  onFocus={(e) => { e.target.style.borderColor = '#1ceee0'; e.target.style.boxShadow = '0 0 0 3px rgba(28,238,224,0.1)'; }}
+                  onBlur={(e) => { e.target.style.borderColor = 'var(--border)'; e.target.style.boxShadow = 'none'; }}
+                />
+              </div>
+
+              {/* Role selection — card style */}
+              <div>
+                <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 10, textTransform: 'uppercase' as const, letterSpacing: '0.5px', display: 'block' }}>
+                  Szerepkör
+                </label>
+                {isAdminOnly ? (
+                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 10 }}>
+                    {[
+                      { value: 'member', label: 'Munkatárs', desc: 'Saját ügyfelek kezelése' },
+                      { value: 'manager', label: 'Manager', desc: 'Csapatirányítás' },
+                      { value: 'admin', label: 'Admin', desc: 'Teljes hozzáférés' },
+                    ].map((r) => {
+                      const isSelected = newUser.role === r.value;
+                      return (
+                        <button
+                          key={r.value}
+                          type="button"
+                          onClick={() => setNewUser({ ...newUser, role: r.value })}
+                          style={{
+                            padding: '14px 12px',
+                            borderRadius: 14,
+                            border: isSelected ? '2px solid #1ceee0' : '1.5px solid var(--border)',
+                            background: isSelected ? 'rgba(28,238,224,0.06)' : 'transparent',
+                            cursor: 'pointer',
+                            display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6,
+                            transition: 'all 0.2s ease',
+                            fontFamily: 'inherit',
+                            boxShadow: isSelected ? '0 0 0 3px rgba(28,238,224,0.08)' : 'none',
+                          }}
+                        >
+
+                          <span style={{ fontSize: 13, fontWeight: 700, color: isSelected ? '#1ceee0' : 'var(--text)' }}>{r.label}</span>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.3 }}>{r.desc}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{
+                    padding: '12px 16px', borderRadius: 12,
+                    border: '1.5px solid var(--border)',
+                    background: 'var(--bg, rgba(255,255,255,0.04))',
+                    fontSize: 14, color: 'var(--text-muted)',
+                    display: 'flex', alignItems: 'center', gap: 8,
+                  }}>
+
+                    Munkatárs
+                  </div>
+                )}
+              </div>
             </div>
-            <div>
-              <label className="beallitasok-label">Email *</label>
-              <input type="email" className="beallitasok-input" placeholder="email@example.com" value={newUser.email} onChange={(e) => setNewUser({ ...newUser, email: e.target.value })} />
-            </div>
-            <div>
-              <label className="beallitasok-label">Jelszó *</label>
-              <input type="password" className="beallitasok-input" placeholder="Min. 4 karakter" value={newUser.password} onChange={(e) => setNewUser({ ...newUser, password: e.target.value })} />
-            </div>
-            <div>
-              <label className="beallitasok-label">Szerepkör</label>
-              {isAdminOnly ? (
-              <select className="beallitasok-input" value={newUser.role} onChange={(e) => setNewUser({ ...newUser, role: e.target.value })}>
-                <option value="member">Munkatárs</option>
-                <option value="manager">Manager</option>
-                <option value="admin">Admin</option>
-              </select>
-              ) : (
-              <input className="beallitasok-input" value="Munkatárs" disabled style={{ opacity: 0.6 }} />
-              )}
+
+            {/* Footer */}
+            <div style={{
+              padding: '0 32px 28px',
+              display: 'flex', gap: 12, justifyContent: 'flex-end',
+            }}>
+              <button
+                onClick={() => setShowCreateUserModal(false)}
+                style={{
+                  padding: '11px 24px', borderRadius: 12,
+                  border: '1.5px solid var(--border)',
+                  background: 'transparent',
+                  color: 'var(--text-muted)', fontSize: 14, fontWeight: 600,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  transition: 'all 0.2s',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--text-muted)'; e.currentTarget.style.color = 'var(--text)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+              >
+                Mégse
+              </button>
+              <button
+                onClick={handleCreateUser}
+                style={{
+                  padding: '11px 28px', borderRadius: 12,
+                  border: 'none',
+                  background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)',
+                  color: '#082432', fontSize: 14, fontWeight: 700,
+                  cursor: 'pointer', fontFamily: 'inherit',
+                  transition: 'all 0.2s',
+                  boxShadow: '0 4px 16px rgba(28,238,224,0.25)',
+                  display: 'flex', alignItems: 'center', gap: 8,
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 6px 24px rgba(28,238,224,0.35)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 4px 16px rgba(28,238,224,0.25)'; }}
+              >
+
+                Létrehozás
+              </button>
             </div>
           </div>
-          <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 24 }}>
-            <button onClick={() => setShowCreateUserModal(false)} className="btn-cancel-modal">Mégse</button>
-            <button onClick={handleCreateUser} className="beallitasok-save-btn">Létrehozás</button>
-          </div>
-        </Modal>
+
+          {/* Animations */}
+          <style>{`
+            @keyframes cuFadeIn { from { opacity: 0; } to { opacity: 1; } }
+            @keyframes cuSlideUp { from { opacity: 0; transform: translateY(24px) scale(0.96); } to { opacity: 1; transform: translateY(0) scale(1); } }
+          `}</style>
+        </div>
       )}
     </div>
   );
@@ -506,6 +877,7 @@ function ProfileAvatarUpload({ initials, username }: { initials: string; usernam
         const data = await res.json();
         setAvatarUrl(data.avatar_url);
         showToast('Profilkép feltöltve!');
+        window.dispatchEvent(new Event('avatar-changed'));
       } else {
         const err = await res.json().catch(() => ({ detail: 'Ismeretlen hiba' }));
         showToast(err.detail || 'Feltöltési hiba', 'error');
@@ -523,6 +895,7 @@ function ProfileAvatarUpload({ initials, username }: { initials: string; usernam
       if (res.ok) {
         setAvatarUrl(null);
         showToast('Profilkép eltávolítva');
+        window.dispatchEvent(new Event('avatar-changed'));
       }
     } catch {
       showToast('Hiba', 'error');

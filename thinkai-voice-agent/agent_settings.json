@@ -7,8 +7,8 @@
   "language": "hu",
   "business_hours": {
     "friday": {
-      "open": null,
-      "close": null,
+      "open": "09:00",
+      "close": "18:00",
       "enabled": false
     },
     "monday": {
@@ -32,9 +32,9 @@
       "enabled": false
     },
     "thursday": {
-      "open": null,
-      "close": null,
-      "enabled": false
+      "open": "09:00",
+      "close": "18:00",
+      "enabled": true
     },
     "wednesday": {
       "open": "00:32",

@@ -17,6 +17,7 @@ interface AuthContextType {
   isMember: boolean;
   login: (email: string, password: string) => Promise<void>;
   logout: (message?: string) => void;
+  updateUser: (patch: Partial<User>) => void;
   logoutMessage: string;
 }
 
@@ -76,6 +77,15 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     setLogoutMessage('');
   }, []);
 
+  const updateUser = useCallback((patch: Partial<User>) => {
+    setUser(prev => {
+      if (!prev) return prev;
+      const updated = { ...prev, ...patch };
+      setStoredUser(updated);
+      return updated;
+    });
+  }, []);
+
   const isAuthenticated = user !== null;
   const isAdmin = user?.role === 'admin' || user?.role === 'manager';
   const isAdminOnly = user?.role === 'admin';
@@ -84,7 +94,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   return (
     <AuthContext.Provider
-      value={{ user, isAuthenticated, isAdmin, isAdminOnly, isManager, isMember, login, logout, logoutMessage }}
+      value={{ user, isAuthenticated, isAdmin, isAdminOnly, isManager, isMember, login, logout, updateUser, logoutMessage }}
     >
       {children}
     </AuthContext.Provider>

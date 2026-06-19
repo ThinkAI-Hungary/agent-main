@@ -136,6 +136,8 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     matchingSessions.forEach((s) => {
       if (s.interactions && s.interactions.length > 0) {
         s.interactions.forEach((r) => {
+          // Skip spam interactions
+          if (r.approval_status === 'spam') return;
           const summary = r.summary || s.summary || '';
           const topic = r.topic || '';
           const channel = r.type || s.channel || 'Telefon';

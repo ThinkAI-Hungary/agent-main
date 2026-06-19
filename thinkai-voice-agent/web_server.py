@@ -1104,8 +1104,68 @@ async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Option
         print(f"[Meta API] Exception fetching profile: {e}")
         return None
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# SPAM FILTER — Heuristic message spam detection (Messenger/Instagram/WhatsApp)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+import re as _re_spam
+
+_SPAM_MSG_URL_RE = _re_spam.compile(r"https?://\S+", _re_spam.IGNORECASE)
+
+# Tipikus spam/bot szöveg minták
+_SPAM_MSG_PATTERNS = [
+    _re_spam.compile(p, _re_spam.IGNORECASE) for p in [
+        r"\bcrypto\b", r"\bbitcoin\b", r"\bethereum\b",
+        r"\bearn\s+money\b", r"\bmake\s+money\b",
+        r"\b(click|tap)\s+here\b.*\bfree\b",
+        r"\bcongratulations.*won\b", r"\byou\s+(have\s+)?won\b",
+        r"\bfree\s+gift\b", r"\bclaim\s+(your|now)\b",
+        r"\binvest\s+now\b", r"\bget\s+rich\b",
+        r"\b\d+%\s*(profit|return|cashback)\b",
+        r"\bcasino\b", r"\bbet(ting)?\s+online\b",
+        r"\badult\s+content\b", r"\b18\+\b.*\b(click|link)\b",
+        r"\bviagra\b", r"\bcialis\b",
+        r"\bunsubscribe\b",
+        r"\bwork\s+from\s+home\b.*\$([\d,]+)",
+    ]
+]
+
+
+def is_spam_message(message_text: str) -> bool:
+    """
+    Heuristic spam detection for Messenger/Instagram/WhatsApp messages.
+    Conservative — only catches obvious spam/bot messages.
+    """
+    if not message_text or not message_text.strip():
+        return True  # Üres üzenet = nem kell feldolgozni
+
+    text = message_text.strip()
+
+    # 1. Link-only message (no real text, just URL)
+    urls = _SPAM_MSG_URL_RE.findall(text)
+    text_without_urls = _SPAM_MSG_URL_RE.sub("", text).strip()
+    if urls and len(text_without_urls) < 5:
+        # Csak URL(ek), szinte semmi szöveg — spam
+        return True
+
+    # 2. Excessive links (5+ in a single message)
+    if len(urls) >= 5:
+        return True
+
+    # 3. Known spam/bot patterns
+    spam_hits = sum(1 for rx in _SPAM_MSG_PATTERNS if rx.search(text))
+    if spam_hits >= 2:
+        return True
+
+    # 4. Excessive length with many links (likely copypasted spam)
+    if len(text) > 1000 and len(urls) >= 3:
+        return True
+
+    return False
+
+
 async def process_meta_message(sender_id: str, message_text: str, source_channel: str = "Messenger", phone_number_id: str = None):
-    """Aszinkron háttérfeladat a Meta Messenger / Instagram üzenetek feldolgozására."""
+    """Aszinkron háttérfeladat a Meta Messenger / Instagram / WhatsApp üzenetek feldolgozására."""
     import asyncio
     import json
     from datetime import datetime, timedelta
@@ -1114,6 +1174,21 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
     from prompt_utils import get_system_prompt
     import database as db
     import email_processor
+
+    # ── SPAM CHECK — before any AI call ──────────────────────────────
+    if is_spam_message(message_text):
+        print(f"[SPAM] {source_channel} spam szűrve (silent drop): sender={sender_id}, msg={message_text[:100]}")
+        db.log_interaction(
+            type=source_channel.lower(),
+            topic=f"[SPAM] {source_channel} üzenet: {message_text[:200]}",
+            summary=f"Spam üzenet automatikusan szűrve ({source_channel})",
+            result="Automatikusan szűrve",
+            tool_name="spam_filter",
+            session_id=f"spam_{source_channel.lower()}_{sender_id}",
+            funnel_stage="spam",
+            approval_status="spam"
+        )
+        return
 
     alert_tags_task = asyncio.create_task(analyze_alert_tags(message_text))
 
@@ -1732,55 +1807,6 @@ def api_update_own_profile(req: ProfileUpdateRequest, caller: str = Depends(veri
         raise HTTPException(500, f"Profil mentés hiba: {ex}")
     return {"status": "success"}
 
-@app.delete("/admin/api/users/{user_id}")
-def api_delete_user(user_id: int, caller: dict = Depends(require_admin_or_manager)):
-    """Delete a user. Manager can only delete members. Cannot delete self."""
-    if caller["id"] == user_id:
-        raise HTTPException(400, "Nem törölheted saját magadat")
-    if caller.get("role") == "manager":
-        target_user = db.get_admin_user_by_id(user_id) if hasattr(db, 'get_admin_user_by_id') else None
-        if target_user is None:
-            # Fallback: look up from all users
-            all_users = db.get_admin_users()
-            target_user = next((u for u in all_users if u.get("id") == user_id), None)
-        if target_user and target_user.get("role") != "member":
-            raise HTTPException(403, "Manager csak member felhasználót törölhet")
-    success = db.delete_admin_user(user_id)
-    if not success:
-        raise HTTPException(400, "Törlés sikertelen")
-    return {"status": "success"}
-
-@app.post("/admin/api/users/change-password")
-def api_change_password(req: ChangePasswordRequest, username: str = Depends(verify_jwt)):
-    """Change password. Admins can change any user's password; members only their own."""
-    caller = db.get_admin_user_by_username(username)
-    if not caller:
-        raise HTTPException(401, "Felhasználó nem található")
-    
-    if req.user_id and req.user_id != caller["id"]:
-        # Changing someone else's password — admin only
-        if caller.get("role") != "admin":
-            raise HTTPException(403, "Csak admin módosíthat más felhasználó jelszavát")
-        success = db.update_admin_password(req.user_id, req.new_password)
-    else:
-        # Changing own password — verify current password
-        user = db.verify_admin_user(username, req.current_password)
-        if not user:
-            raise HTTPException(400, "A jelenlegi jelszó helytelen")
-        success = db.update_admin_password(caller["id"], req.new_password)
-    
-    if not success:
-        raise HTTPException(400, "Jelszó módosítása sikertelen")
-    return {"status": "success", "message": "Jelszó sikeresen módosítva"}
-
-
-@app.get("/admin/api/members")
-def api_get_members(username: str = Depends(verify_jwt)):
-    """List all member+manager users (for Felelős dropdown). Any logged-in user can access."""
-    users = db.get_admin_users()
-    members = [{"id": u["id"], "username": u["username"], "full_name": u.get("full_name", ""), "role": u.get("role", "member")} for u in users if u.get("role") in ("member", "manager")]
-    return {"status": "success", "data": members}
-
 class AvatarUploadRequest(BaseModel):
     avatar_data: str  # base64 data URL (e.g. "data:image/jpeg;base64,...")
 
@@ -1851,25 +1877,75 @@ async def api_get_avatar(username_or_id: str, _: str = Depends(verify_jwt)):
     except Exception:
         return {"avatar_url": None}
 
+@app.delete("/admin/api/users/{user_id}")
+def api_delete_user(user_id: int, caller: dict = Depends(require_admin_or_manager)):
+    """Delete a user. Manager can only delete members. Cannot delete self."""
+    if caller["id"] == user_id:
+        raise HTTPException(400, "Nem törölheted saját magadat")
+    if caller.get("role") == "manager":
+        target_user = db.get_admin_user_by_id(user_id) if hasattr(db, 'get_admin_user_by_id') else None
+        if target_user is None:
+            # Fallback: look up from all users
+            all_users = db.get_admin_users()
+            target_user = next((u for u in all_users if u.get("id") == user_id), None)
+        if target_user and target_user.get("role") != "member":
+            raise HTTPException(403, "Manager csak member felhasználót törölhet")
+    success = db.delete_admin_user(user_id)
+    if not success:
+        raise HTTPException(400, "Törlés sikertelen")
+    return {"status": "success"}
+
+@app.post("/admin/api/users/change-password")
+def api_change_password(req: ChangePasswordRequest, username: str = Depends(verify_jwt)):
+    """Change password. Admins can change any user's password; members only their own."""
+    caller = db.get_admin_user_by_username(username)
+    if not caller:
+        raise HTTPException(401, "Felhasználó nem található")
+    
+    if req.user_id and req.user_id != caller["id"]:
+        # Changing someone else's password — admin only
+        if caller.get("role") != "admin":
+            raise HTTPException(403, "Csak admin módosíthat más felhasználó jelszavát")
+        success = db.update_admin_password(req.user_id, req.new_password)
+    else:
+        # Changing own password — verify current password
+        user = db.verify_admin_user(username, req.current_password)
+        if not user:
+            raise HTTPException(400, "A jelenlegi jelszó helytelen")
+        success = db.update_admin_password(caller["id"], req.new_password)
+    
+    if not success:
+        raise HTTPException(400, "Jelszó módosítása sikertelen")
+    return {"status": "success", "message": "Jelszó sikeresen módosítva"}
+
+
+@app.get("/admin/api/members")
+def api_get_members(username: str = Depends(verify_jwt)):
+    """List all member+manager users (for Felelős dropdown). Any logged-in user can access."""
+    users = db.get_admin_users()
+    members = [{"id": u["id"], "username": u["username"], "full_name": u.get("full_name", ""), "role": u.get("role", "member")} for u in users if u.get("role") in ("member", "manager")]
+    return {"status": "success", "data": members}
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ADMIN API — protected routes
 # ═══════════════════════════════════════════════════════════════════════════════
 
 
 @app.get("/admin/api/stats")
-def admin_stats(period: str = "month", channel: str = "mind", username: str = Depends(verify_jwt)):
+def admin_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind", username: str = Depends(verify_jwt)):
     """Analytics summary stats."""
-    return db.get_stats(period=period, channel=channel)
+    return db.get_stats(period=period, channel=channel, clinic_id=clinic_id)
 
 @app.get("/admin/api/analytics/funnel")
-def admin_funnel(period: str = "month", channel: str = "mind", username: str = Depends(verify_jwt)):
+def admin_funnel(period: str = "month", channel: str = "mind", clinic_id: str = "mind", username: str = Depends(verify_jwt)):
     """Funnel stats based on interaction stages."""
-    return db.get_funnel_stats(period=period, channel=channel)
+    return db.get_funnel_stats(period=period, channel=channel, clinic_id=clinic_id)
 
 @app.get("/admin/api/analytics/alerts")
-def admin_alerts(period: str = "month", channel: str = "mind", username: str = Depends(verify_jwt)):
+def admin_alerts(period: str = "month", channel: str = "mind", clinic_id: str = "mind", username: str = Depends(verify_jwt)):
     """Operational alerts and tasks stats."""
-    return db.get_alerts_stats(period=period, channel=channel)
+    return db.get_alerts_stats(period=period, channel=channel, clinic_id=clinic_id)
 
 @app.get("/admin/api/analytics/alerts/details")
 def admin_alerts_details(type: str, username: str = Depends(verify_jwt)):
@@ -2765,7 +2841,6 @@ async def cartesia_voices(username: str = Depends(verify_jwt)):
         return resp.json()
     except Exception as e:
         raise HTTPException(status_code=502, detail=f"Cartesia API hiba: {e}")
-
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SIP OUTBOUND CALL API

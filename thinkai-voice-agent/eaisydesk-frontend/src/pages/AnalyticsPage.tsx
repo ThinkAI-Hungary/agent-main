@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
+import { useTheme } from '../context/ThemeContext';
 import { authFetch } from '../api/client';
 import { useCountUp } from '../hooks/useCountUp';
 
@@ -44,6 +45,7 @@ interface StatsData {
   total_interactions: number;
   total_bookings: number;
   total_sessions: number;
+  total_handovers: number;
   avg_session_duration: number;
   total_emails: number;
   open_tasks: number;
@@ -355,11 +357,20 @@ export default function AnalyticsPage() {
   const [loading, setLoading] = useState(true);
   const [alertModal, setAlertModal] = useState<{ type: string; title: string; rows: AlertDetailItem[]; loading: boolean } | null>(null);
   const [campaigns, setCampaigns] = useState<any[]>([]);
+  const [clinics, setClinics] = useState<{ id: number; name_and_address: string }[]>([]);
+
+  // Fetch clinics for the Telephely filter
+  useEffect(() => {
+    authFetch('/admin/api/clinics')
+      .then(r => r.json())
+      .then(d => { if (d?.clinics) setClinics(d.clinics); else if (Array.isArray(d)) setClinics(d); })
+      .catch(() => {});
+  }, []);
 
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const params = `period=${period}&channel=${channel}`;
+      const params = `period=${period}&channel=${channel}&clinic_id=${clinic}`;
       const [statsRes, funnelRes, alertsRes, outboundRes, insightsRes, campaignsRes] = await Promise.all([
         authFetch(`/admin/api/stats?${params}`),
         authFetch(`/admin/api/analytics/funnel?${params}`),
@@ -385,7 +396,7 @@ export default function AnalyticsPage() {
 
   // Auto-refresh analytics periodically
   useEffect(() => {
-    const interval = setInterval(loadAll, 60000);
+    const interval = setInterval(loadAll, 300000);
     return () => clearInterval(interval);
   }, [loadAll]);
 
@@ -428,7 +439,7 @@ export default function AnalyticsPage() {
   }
 
   // ── Chart data ──────────────────────────────────────────────────────────────
-  const isDark = document.body.classList.contains('dark');
+  const { isDark } = useTheme();
   const gridColor = isDark ? '#1a3548' : '#f1f5f9';
   const gridDash = isDark ? [] : [5, 5];
   const typeColorMap: Record<string, string> = {
@@ -490,8 +501,8 @@ export default function AnalyticsPage() {
   const kpiCards = stats ? [
     { label: 'Összes megkeresés', value: stats.total_interactions ?? 0, sub: 'interakció', prev: prev.total_interactions, page: 'interactions' },
     { label: 'Foglalási arány', value: stats.total_bookings ?? 0, sub: 'foglalás', prev: prev.total_bookings, page: 'calendar' },
-    { label: 'Átadási arány', value: stats.total_sessions ?? 0, sub: 'élő átadás', prev: prev.total_sessions, page: 'interactions' },
-    { label: 'Avg. session (mp)', value: stats.avg_session_duration ?? 0, sub: 'mp', prev: prev.avg_session_duration, page: 'interactions' },
+    { label: 'Átadási arány', value: stats.total_handovers ?? 0, sub: 'élő átadás', prev: prev.total_handovers, page: 'interactions' },
+    { label: 'Átlagos ügyintézési idő', value: stats.avg_session_duration ?? 0, sub: 'másodperc', prev: prev.avg_session_duration, page: 'interactions' },
     { label: 'Kimenő kommunikációk', value: stats.total_emails ?? 0, sub: 'email küldve', prev: prev.total_emails, page: 'outbound' },
     { label: 'Nyílt feladatok', value: stats.open_tasks ?? 0, sub: 'követést igényel', prev: undefined, page: 'interactions' },
   ] : [];
@@ -555,6 +566,9 @@ export default function AnalyticsPage() {
             <label>Telephely</label>
             <select className="filter-select-figma" value={clinic} onChange={e => setClinic(e.target.value)}>
               <option value="mind">Mind</option>
+              {clinics.map(c => (
+                <option key={c.id} value={String(c.id)}>{c.name_and_address}</option>
+              ))}
             </select>
           </div>
           <div className="filter-group">
@@ -597,12 +611,12 @@ export default function AnalyticsPage() {
               <div className="chart-title" style={{ marginBottom: 0, color: 'var(--text)', fontWeight: 700 }}>
                 Megkeresések időbeli alakulása
               </div>
-              <div style={{ display: 'flex', gap: 4, background: 'var(--bg3)', padding: 4, borderRadius: 8 }}>
+              <div style={{ display: 'flex', gap: 4, background: 'var(--bg3)', padding: 4, borderRadius: 8, border: '1px solid var(--border)' }}>
                 <button className={`toggle-btn${chartView === 'napi' ? ' active' : ''}`}
-                  style={{ background: chartView === 'napi' ? 'var(--primary)' : 'transparent', color: chartView === 'napi' ? '#0a192f' : '#6b8b99', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: chartView === 'napi' ? 600 : 400, padding: '4px 12px', cursor: 'pointer' }}
+                  style={{ background: chartView === 'napi' ? 'var(--primary)' : 'transparent', color: chartView === 'napi' ? '#0a192f' : 'var(--text)', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: chartView === 'napi' ? 600 : 400, padding: '4px 12px', cursor: 'pointer' }}
                   onClick={() => setChartView('napi')}>Napi</button>
                 <button className={`toggle-btn${chartView === 'oras' ? ' active' : ''}`}
-                  style={{ background: chartView === 'oras' ? 'var(--primary)' : 'transparent', color: chartView === 'oras' ? '#0a192f' : '#6b8b99', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: chartView === 'oras' ? 600 : 400, padding: '4px 12px', cursor: 'pointer' }}
+                  style={{ background: chartView === 'oras' ? 'var(--primary)' : 'transparent', color: chartView === 'oras' ? '#0a192f' : 'var(--text)', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: chartView === 'oras' ? 600 : 400, padding: '4px 12px', cursor: 'pointer' }}
                   onClick={() => setChartView('oras')}>Órás</button>
               </div>
             </div>

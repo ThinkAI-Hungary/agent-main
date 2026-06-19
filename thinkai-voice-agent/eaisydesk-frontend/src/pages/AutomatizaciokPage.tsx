@@ -222,19 +222,45 @@ export default function AutomatizaciokPage() {
               </svg>
             </div>
             
-            {expandedAuto === -1 && (
-              <div style={{ padding: '0 20px 20px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 18, background: 'rgba(255,255,255,0.015)' }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, background: 'rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)' }}>
-                  <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Időzítés:</label>
-                  <input type="number" className="tt-input" value={reminder.reminder_hours} min={1} max={168}
-                    onChange={e => setReminder({ ...reminder, reminder_hours: Number(e.target.value) })}
-                    onBlur={() => saveReminder()}
-                    style={{ width: 60, padding: '8px 14px', fontSize: 13, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text)', fontWeight: 600 }}
-                  />
-                  <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>órával előtte</span>
+              {expandedAuto === -1 && (
+              <div style={{
+                margin: '0 20px 20px',
+                padding: 20,
+                background: 'linear-gradient(135deg, rgba(28,238,224,0.04), rgba(28,238,224,0.01))',
+                borderRadius: 12,
+                border: '1px solid rgba(28,238,224,0.12)',
+                borderLeft: '3px solid #1ceee0',
+              }}>
+                {/* Timing row */}
+                <div style={{ marginBottom: 20 }}>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+                      <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+                    </svg>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#1ceee0', textTransform: 'uppercase', letterSpacing: 0.5 }}>Időzítés</span>
+                  </div>
+                  <div style={{
+                    display: 'flex', alignItems: 'center', gap: 12,
+                    background: 'rgba(255,255,255,0.04)', padding: '10px 14px', borderRadius: 10,
+                    border: '1px solid rgba(255,255,255,0.06)',
+                  }}>
+                    <input type="number" className="tt-input" value={reminder.reminder_hours} min={1} max={168}
+                      onChange={e => setReminder({ ...reminder, reminder_hours: Number(e.target.value) })}
+                      onBlur={() => saveReminder()}
+                      style={{ width: 60, padding: '8px 14px', fontSize: 13, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(28,238,224,0.35)', color: 'var(--text)', fontWeight: 600 }}
+                    />
+                    <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>órával az időpont előtt</span>
+                  </div>
                 </div>
+
+                {/* Template */}
                 <div>
-                  <label style={labelStyle}>Üzenet sablon</label>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+                      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                    </svg>
+                    <span style={{ fontSize: 11, fontWeight: 700, color: '#1ceee0', textTransform: 'uppercase', letterSpacing: 0.5 }}>Üzenet sablon</span>
+                  </div>
                   <textarea className="tt-textarea" value={reminder.reminder_template}
                     ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
                     onChange={e => {
@@ -242,7 +268,10 @@ export default function AutomatizaciokPage() {
                       e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px';
                     }}
                     onBlur={() => saveReminder()}
-                    style={{ minHeight: 48, fontSize: 13, lineHeight: 1.6, width: '100%', resize: 'none', overflow: 'hidden' }}
+                    style={{
+                      minHeight: 48, fontSize: 13, lineHeight: 1.6, width: '100%', resize: 'none', overflow: 'hidden',
+                      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(28,238,224,0.35)', borderRadius: 10, padding: 14,
+                    }}
                     placeholder="Kedves {nev}! Emlékeztetjük, hogy holnap {idopont}-kor időpontja van..."
                   />
                 </div>
@@ -256,8 +285,8 @@ export default function AutomatizaciokPage() {
             const isExpanded = expandedAuto === a.id;
             return (
               <div key={a.id} style={{
-                background: 'rgba(255,255,255,0.03)',
-                border: '1px solid rgba(255,255,255,0.06)',
+                background: isExpanded ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.03)',
+                border: isExpanded ? `1px solid ${meta.color}22` : '1px solid rgba(255,255,255,0.06)',
                 borderRadius: 12, marginBottom: 12, overflow: 'hidden',
                 transition: 'all 0.25s ease',
               }}>
@@ -303,47 +332,72 @@ export default function AutomatizaciokPage() {
                 </div>
 
                 {isExpanded && (
-                  <div style={{ padding: '0 20px 20px', borderTop: '1px solid rgba(255,255,255,0.05)', paddingTop: 18, background: 'rgba(255,255,255,0.015)' }}>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, background: 'rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
-                      <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Késleltetés:</label>
-                      <select className="tt-input" value={a.delay_hours}
-                        onChange={async (e) => {
-                          const delay_hours = Number(e.target.value);
-                          setAutomations(prev => prev.map(x => x.id === a.id ? { ...x, delay_hours } : x));
-                          try {
-                            const res = await authFetch(`/admin/api/outbound_automations/${a.id}`, {
-                              method: 'PUT',
-                              headers: { 'Content-Type': 'application/json' },
-                              body: JSON.stringify({ delay_hours }),
-                            });
-                            if (!res.ok) throw new Error('Save failed');
-                            showToast('Késleltetés mentve');
-                          } catch { showToast('Hiba a mentés során!', 'error'); }
-                        }}
-                        style={{ width: 'auto', minWidth: 130, padding: '8px 14px', fontSize: 13, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text)', fontWeight: 600 }}>
-                        {DELAY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
-                      </select>
-                      
-                      {/* Inaktivitási küszöb beállítás, csak az inaktív ügyfél opciónál */}
-                      {a.trigger_type === 'inactive_client' && (
-                        <>
-                          <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)', margin: '0 8px' }} />
-                          <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Inaktivitási küszöb:</label>
-                          <input type="number" className="tt-input" value={inactivityDays} min={7} max={365}
-                            onChange={e => setInactivityDays(Number(e.target.value))}
-                            onBlur={() => {
-                              localStorage.setItem('thinkai_inactivity_days', String(inactivityDays));
-                              showToast('Mentve');
-                            }}
-                            style={{ width: 60, padding: '8px 14px', fontSize: 13, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: '#f59e0b', fontWeight: 700, textAlign: 'center' }}
-                          />
-                          <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>nap elteltével</span>
-                        </>
-                      )}
+                  <div style={{
+                    margin: '0 20px 20px',
+                    padding: 20,
+                    background: 'linear-gradient(135deg, rgba(28,238,224,0.04), rgba(28,238,224,0.01))',
+                    borderRadius: 12,
+                    border: '1px solid rgba(28,238,224,0.12)',
+                    borderLeft: '3px solid #1ceee0',
+                  }}>
+                    {/* Timing row */}
+                    <div style={{ marginBottom: 20 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                        <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+                          <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
+                        </svg>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#1ceee0', textTransform: 'uppercase', letterSpacing: 0.5 }}>Késleltetés</span>
+                      </div>
+                      <div style={{
+                        display: 'flex', alignItems: 'center', gap: 12,
+                        background: 'rgba(255,255,255,0.04)', padding: '10px 14px', borderRadius: 10,
+                        border: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap',
+                      }}>
+                        <select className="tt-input" value={a.delay_hours}
+                          onChange={async (e) => {
+                            const delay_hours = Number(e.target.value);
+                            setAutomations(prev => prev.map(x => x.id === a.id ? { ...x, delay_hours } : x));
+                            try {
+                              const res = await authFetch(`/admin/api/outbound_automations/${a.id}`, {
+                                method: 'PUT',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ delay_hours }),
+                              });
+                              if (!res.ok) throw new Error('Save failed');
+                              showToast('Késleltetés mentve');
+                            } catch { showToast('Hiba a mentés során!', 'error'); }
+                          }}
+                          style={{ width: 'auto', minWidth: 130, padding: '8px 14px', fontSize: 13, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(28,238,224,0.35)', color: 'var(--text)', fontWeight: 600 }}>
+                          {DELAY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
+                        </select>
+                        
+                        {/* Inaktivitási küszöb beállítás, csak az inaktív ügyfél opciónál */}
+                        {a.trigger_type === 'inactive_client' && (
+                          <>
+                            <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)', margin: '0 8px' }} />
+                            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Inaktivitási küszöb:</label>
+                            <input type="number" className="tt-input" value={inactivityDays} min={7} max={365}
+                              onChange={e => setInactivityDays(Number(e.target.value))}
+                              onBlur={() => {
+                                localStorage.setItem('thinkai_inactivity_days', String(inactivityDays));
+                                showToast('Mentve');
+                              }}
+                              style={{ width: 90, padding: '8px 14px', fontSize: 13, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(28,238,224,0.35)', color: '#ef4444', fontWeight: 700, textAlign: 'center' }}
+                            />
+                            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>nap elteltével</span>
+                          </>
+                        )}
+                      </div>
                     </div>
 
+                    {/* Template */}
                     <div>
-                      <label style={labelStyle}>Üzenet sablon</label>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                        <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+                          <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                        </svg>
+                        <span style={{ fontSize: 11, fontWeight: 700, color: '#1ceee0', textTransform: 'uppercase', letterSpacing: 0.5 }}>Üzenet sablon</span>
+                      </div>
                       <textarea className="tt-textarea" value={a.message_template || ''}
                         ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
                         onChange={e => {
@@ -361,7 +415,10 @@ export default function AutomatizaciokPage() {
                             showToast('Sablon mentve');
                           } catch { showToast('Hiba a mentés során!', 'error'); }
                         }}
-                        style={{ minHeight: 48, fontSize: 13, lineHeight: 1.6, width: '100%', resize: 'none', overflow: 'hidden' }}
+                        style={{
+                          minHeight: 48, fontSize: 13, lineHeight: 1.6, width: '100%', resize: 'none', overflow: 'hidden',
+                          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(28,238,224,0.35)', borderRadius: 10, padding: 14,
+                        }}
                         placeholder="Üzenet sablon..."
                       />
                     </div>

@@ -92,14 +92,25 @@ export default function Sidebar() {
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   // Load avatar from backend
-  useEffect(() => {
+  const loadAvatar = useCallback(() => {
     const username = user?.username;
     if (!username) return;
     authFetch(`/admin/api/users/${username}/avatar`)
       .then(r => r.json())
-      .then(d => { if (d.avatar_url) setAvatarUrl(d.avatar_url); })
+      .then(d => setAvatarUrl(d.avatar_url || null))
       .catch(() => {});
   }, [user?.username]);
+
+  useEffect(() => {
+    loadAvatar();
+  }, [loadAvatar]);
+
+  // Listen for avatar changes from settings page
+  useEffect(() => {
+    const handler = () => loadAvatar();
+    window.addEventListener('avatar-changed', handler);
+    return () => window.removeEventListener('avatar-changed', handler);
+  }, [loadAvatar]);
 
   const toggleCollapse = useCallback(() => {
     setCollapsed((prev) => {

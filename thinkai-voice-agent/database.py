@@ -714,6 +714,10 @@ def get_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mi
         prev_val_durs = len([s for s in prev_sess_data.data if s.get("duration_seconds") is not None])
         prev_avg_dur = (prev_tot_dur / prev_val_durs) if prev_val_durs > 0 else 0
 
+        # Previous period handover count
+        prev_handover_res = supabase.table("interactions").select("id", count="exact", head=True).not_.is_("handover_reason", "null").gte("created_at", prev_start.isoformat()).lt("created_at", prev_end.isoformat()).execute()
+        prev_total_handovers = prev_handover_res.count or 0
+
         all_keys = []
         if period == "week":
             for i in range((today.date() - start_dt.date()).days + 1):
@@ -729,11 +733,15 @@ def get_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mi
         
         filled_days = [{"day": k, "count": day_counts.get(k, 0)} for k in all_keys]
 
+        # Total handovers in current period (interactions with handover_reason filled)
+        total_handovers = sum(handover_counts.values())
+
         return {
             "total_sessions": tot_sess if channel == "mind" else len([i for i in all_sess.data if _matches_channel(i.get("room_name",""), channel)]) ,
             "total_interactions": tot_inter if channel == "mind" else sum(type_counts.values()),
             "total_emails": tot_email if channel == "mind" else (tot_email if channel == "email" else 0),
             "total_bookings": tot_cal if channel == "mind" else 0,
+            "total_handovers": total_handovers,
             "open_tasks": tasks_res.count or 0,
             "avg_session_duration": round(avg_dur),
             "handovers": handovers,
@@ -747,6 +755,7 @@ def get_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mi
                 "total_interactions": prev_inter.count or 0,
                 "total_emails": prev_email.count or 0,
                 "total_bookings": prev_cal.count or 0,
+                "total_handovers": prev_total_handovers,
                 "avg_session_duration": round(prev_avg_dur),
             }
         }

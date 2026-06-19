@@ -33,12 +33,12 @@
       "question": "Van parkolási lehetőség a rendelő közelében?"
     }
   ],
-  "modositas_eng": "igen",
+  "modositas_eng": "nem",
   "lemondas_24h": "figyelmeztetoSzoveggel",
   "figyelmezteto_szoveg": "Tájékoztatjuk, hogy 24 órán belüli lemondás esetén rendelőnk külön szabályzata lehet érvényben.",
   "pacient_id_question": "Korábban járt már a rendelőnkben?",
   "new_patient_required": "Teljes név",
   "new_patient_auto_visit": false,
   "returning_patient_required": "Páciens azonosító vagy telefonszám",
-  "last_updated": "2026-06-19T03:24:47.674521"
+  "last_updated": "2026-06-19T15:25:15.360183"
 }

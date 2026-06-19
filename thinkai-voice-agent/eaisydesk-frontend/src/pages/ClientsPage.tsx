@@ -18,6 +18,7 @@ import { showToast } from '../components/ui/Toast';
 import { authFetch } from '../api/client';
 import ClientDetailView from '../components/clients/ClientDetailView';
 import CampaignWizardModal from '../components/outbound/CampaignWizardModal';
+import { useKanbanColumns } from '../hooks/useKanbanColumns';
 
 interface MemberUser {
   id: number;
@@ -61,6 +62,14 @@ export default function ClientsPage() {
   const { sessions } = useSessions(500);
   const { events } = useCalendarEvents();
   const { confirm, ConfirmDialog } = useConfirm();
+  const { columns: kanbanColumns } = useKanbanColumns();
+
+  // Lookup: column ID → display name
+  const kanbanNameMap = useMemo(() => {
+    const map: Record<string, string> = {};
+    kanbanColumns.forEach(col => { map[col.id] = col.name; });
+    return map;
+  }, [kanbanColumns]);
 
   const [viewMode] = useState<'table' | 'cards'>('table');
   const [searchQuery, setSearchQuery] = useState('');
@@ -430,7 +439,9 @@ export default function ClientsPage() {
                       <td style={{ padding: '12px 16px', fontSize: 13, whiteSpace: 'nowrap' }}>{c.lastInteraction ? fmtDt(c.lastInteraction) : '—'}</td>
                     )}
                     {visibleCols.has('sales_status') && (
-                      <td style={{ padding: '12px 16px', fontSize: 13 }}>{c.status || '—'}</td>
+                      <td style={{ padding: '12px 16px', fontSize: 13 }}>
+                        {kanbanNameMap[c.status] || c.status || '—'}
+                      </td>
                     )}
                     {visibleCols.has('actions') && (
                       <td style={{ padding: '12px 16px' }} onClick={(e) => e.stopPropagation()}>

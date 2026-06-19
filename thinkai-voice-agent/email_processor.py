@@ -46,7 +46,129 @@ def clean_email_body(text: str) -> str:
         lines.pop()
     return '\n'.join(lines).strip()
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SPAM FILTER — Heuristic email spam detection (no AI cost)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+import re as _re
+
+# Feladó prefixek, amik szinte mindig automatikus/marketing levelek
+_SPAM_SENDER_PREFIXES = (
+    "noreply@", "no-reply@", "no_reply@",
+    "newsletter@", "news@",
+    "marketing@", "promo@", "promotions@",
+    "mailer-daemon@", "postmaster@",
+    "donotreply@", "do-not-reply@",
+    "bounce@", "bounces@",
+    "notifications@", "notification@",
+    "updates@", "update@",
+    "support@mailchimp.com", "info@mail.",
+)
+
+# Feladó domain-ek, amik szinte mindig spam
+_SPAM_SENDER_DOMAINS = (
+    "mailchimp.com", "sendgrid.net", "constantcontact.com",
+    "mailgun.org", "amazonses.com", "sendinblue.com",
+    "brevo.com", "mailjet.com", "campaign-archive.com",
+    "hubspot.com", "hubspotmail.net",
+    "list-manage.com",
+)
+
+# Tárgy minták (case-insensitive)
+_SPAM_SUBJECT_PATTERNS = [
+    r"\bunsubscribe\b", r"\bnewsletter\b", r"\bhírlevél\b",
+    r"\bleiratkoz\b", r"\bsale\b", r"\b\d+%\s*off\b",
+    r"\bfree trial\b", r"\blimited time\b", r"\bact now\b",
+    r"\bspecial offer\b", r"\bexclusive deal\b",
+    r"\bpromotion\b", r"\bcoupon\b", r"\bdiscount\b",
+    r"\bkedvezmény\b", r"\bakció\b.*\bcsak\b",
+    r"\bwin\b.*\bfree\b", r"\bcongratulations\b",
+    r"\bdelivery status\b", r"\bfailure notice\b",
+    r"\bmailer.daemon\b", r"\bundeliverable\b",
+    r"\bauto[- ]?reply\b", r"\bautomatic reply\b",
+    r"\bout of office\b", r"\bházon kívül\b",
+    r"\biroda[i]?\s*kívül\b", r"\babsence\b",
+]
+_SPAM_SUBJECT_RE = [_re.compile(p, _re.IGNORECASE) for p in _SPAM_SUBJECT_PATTERNS]
+
+# Tartalom minták
+_SPAM_CONTENT_PATTERNS = [
+    r"\bunsubscribe\b", r"\bemail preferences\b",
+    r"\bleiratkoz\b", r"\bfeliratkoz.*kezel\b",
+    r"\bclick here to stop\b", r"\bopt.out\b",
+    r"\bview in browser\b", r"\bböngészőben megnyit\b",
+]
+_SPAM_CONTENT_RE = [_re.compile(p, _re.IGNORECASE) for p in _SPAM_CONTENT_PATTERNS]
+
+# URL regex a link-counting-hez
+_URL_RE = _re.compile(r"https?://\S+", _re.IGNORECASE)
+
+
+def is_spam_email(from_email: str, from_name: str, subject: str, text_content: str) -> bool:
+    """
+    Heuristic spam detection for incoming emails.
+    Conservative approach — returns True only when highly confident.
+    """
+    email_lower = from_email.lower().strip()
+    subject_lower = subject.lower().strip()
+    content_lower = text_content.lower().strip()
+
+    # 1. Sender prefix check
+    for prefix in _SPAM_SENDER_PREFIXES:
+        if email_lower.startswith(prefix):
+            logger.debug(f"Spam detected (sender prefix): {email_lower}")
+            return True
+
+    # 2. Sender domain check
+    domain = email_lower.split("@")[-1] if "@" in email_lower else ""
+    for spam_domain in _SPAM_SENDER_DOMAINS:
+        if domain == spam_domain or domain.endswith("." + spam_domain):
+            logger.debug(f"Spam detected (sender domain): {domain}")
+            return True
+
+    # 3. Subject pattern matching
+    spam_subject_hits = sum(1 for rx in _SPAM_SUBJECT_RE if rx.search(subject_lower))
+    if spam_subject_hits >= 1:
+        logger.debug(f"Spam detected (subject): {subject}")
+        return True
+
+    # 4. Content pattern matching — require at least 2 hits for content-only
+    spam_content_hits = sum(1 for rx in _SPAM_CONTENT_RE if rx.search(content_lower))
+    if spam_content_hits >= 2:
+        logger.debug(f"Spam detected (content patterns): {spam_content_hits} hits")
+        return True
+
+    # 5. Link flood — more than 8 links is very likely marketing
+    link_count = len(_URL_RE.findall(text_content))
+    if link_count > 8:
+        logger.debug(f"Spam detected (link flood): {link_count} links")
+        return True
+
+    # 6. Empty body with marketing subject
+    if len(content_lower) < 10 and not subject_lower:
+        logger.debug("Spam detected (empty email)")
+        return True
+
+    return False
+
+
 async def process_single_email(from_email: str, from_name: str, subject: str, text_content: str):
+    # ── SPAM CHECK — before any AI call ──────────────────────────────
+    if is_spam_email(from_email, from_name, subject, text_content):
+        logger.info(f"SPAM szűrve (silent drop): {from_email} — {subject}")
+        db.log_interaction(
+            type="email",
+            topic=f"[SPAM] {subject[:200]}",
+            summary=f"Spam email automatikusan szűrve: {from_email}",
+            result="Automatikusan szűrve",
+            tool_name="spam_filter",
+            session_id=f"spam_{from_email}",
+            funnel_stage="spam",
+            approval_status="spam"
+        )
+        return
+
     google_key = os.getenv("GOOGLE_API_KEY")
     if not google_key:
         logger.error("Nincs GOOGLE_API_KEY beállítva. E-mail feldolgozás megszakítva.")

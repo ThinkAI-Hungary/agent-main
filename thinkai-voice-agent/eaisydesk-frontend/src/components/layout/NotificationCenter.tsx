@@ -34,7 +34,7 @@ const TYPE_CONFIG: Record<NotifType, {
   label: string; color: string; bg: string; icon: string; borderColor: string;
 }> = {
   urgent:      { label: 'Sürgős',          color: '#ef4444', bg: 'rgba(239,68,68,0.08)',  icon: '🔴', borderColor: '#ef4444' },
-  interaction: { label: 'Új interakció',   color: '#1ceee0', bg: 'rgba(28,238,224,0.08)', icon: '💬', borderColor: '#1ceee0' },
+  interaction: { label: 'Új interakció',   color: '#0d9488', bg: 'rgba(13,148,136,0.08)', icon: '💬', borderColor: '#1ceee0' },
   cancelled:   { label: 'Időpont lemondva', color: '#f97316', bg: 'rgba(249,115,22,0.08)', icon: '⚠️', borderColor: '#f97316' },
 };
 

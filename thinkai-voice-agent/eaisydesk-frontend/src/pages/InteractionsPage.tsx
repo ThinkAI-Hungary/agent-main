@@ -128,6 +128,9 @@ export default function InteractionsPage() {
 
       if (s.interactions && s.interactions.length > 0) {
         s.interactions.forEach((r: SessionInteraction) => {
+          // Skip spam interactions — users should never see these
+          if (r.approval_status === 'spam') return;
+
           const clientInfo = resolveClientName(
             r,
             { session_id: s.session_id, participant: s.participant, client_name: s.client_name },
@@ -674,9 +677,9 @@ export default function InteractionsPage() {
                       {r.clientId ? (
                         <button
                           style={{
-                            background: 'rgba(0,212,200,0.1)',
-                            border: '1px solid var(--accent, #1ceee0)',
-                            color: 'var(--accent, #1ceee0)',
+                            background: 'rgba(13,148,136,0.08)',
+                            border: '1px solid rgba(13,148,136,0.3)',
+                            color: '#0d9488',
                             borderRadius: 6,
                             cursor: 'pointer',
                             padding: '5px 10px',
