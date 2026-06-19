@@ -488,7 +488,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
               <div style={{ marginBottom: 6 }}>
                 <label style={{ display: 'block', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 10 }}>Üzenetírás módja</label>
                 <div className="camp-mode-toggle">
-                  <button className={`camp-mode-btn ${messageMode === 'manual' ? 'active' : ''}`} onClick={() => setMessageMode('manual')}>✏️ Szabadkéz</button>
+                  <button className={`camp-mode-btn ${messageMode === 'manual' ? 'active' : ''}`} onClick={() => setMessageMode('manual')}>Szabadkéz</button>
                   <button className={`camp-mode-btn ${messageMode === 'ai' ? 'active' : ''}`} onClick={() => setMessageMode('ai')}>✨ AI varázsló</button>
                 </div>
               </div>

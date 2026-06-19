@@ -334,7 +334,7 @@ export default function EmailCampaignsPage() {
 
             <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
               {showDetailModal.status === 'draft' && (
-                <button className="mkt-btn-accent" onClick={() => handleSend(showDetailModal.id)}>📤 Küldés most</button>
+                <button className="mkt-btn-accent" onClick={() => handleSend(showDetailModal.id)}>Küldés most</button>
               )}
               <button className="mkt-btn-outline" style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }} onClick={() => handleDelete(showDetailModal.id)}>Törlés</button>
             </div>

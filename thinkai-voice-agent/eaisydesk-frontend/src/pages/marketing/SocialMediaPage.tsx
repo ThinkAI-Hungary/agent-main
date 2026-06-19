@@ -273,12 +273,12 @@ export default function SocialMediaPage() {
                   <>
                     <button className="mkt-approval-btn btn-approve" onClick={() => handleApprove(item.id)}>Jóváhagyás</button>
                     <button className="mkt-approval-btn btn-reject" onClick={() => handleReject(item.id)}>✕ Elutasítás</button>
-                    <button className="mkt-approval-btn" onClick={() => setShowEditModal(item)}>✏️ Szerkesztés</button>
+                    <button className="mkt-approval-btn" onClick={() => setShowEditModal(item)}>Szerkesztés</button>
                   </>
                 )}
                 {item.status === 'approved' && (
                   <>
-                    <button className="mkt-approval-btn btn-publish" onClick={() => handlePublish(item)}>📤 Publikálás</button>
+                    <button className="mkt-approval-btn btn-publish" onClick={() => handlePublish(item)}>Publikálás</button>
                     <button className="mkt-approval-btn" onClick={() => setShowEditModal(item)}>Ütemezés</button>
                   </>
                 )}

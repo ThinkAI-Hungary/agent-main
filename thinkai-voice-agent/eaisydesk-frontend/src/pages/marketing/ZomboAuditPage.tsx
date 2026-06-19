@@ -100,7 +100,7 @@ export default function ZomboAuditPage() {
 
       {r.suggestions && r.suggestions.length > 0 && (
         <div style={{ marginTop: 16 }}>
-          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>💡 Javaslatok</div>
+          <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Javaslatok</div>
           {r.suggestions.map((s, i) => (
             <div key={i} style={{ fontSize: 12, color: 'var(--text-muted)', padding: '4px 0', paddingLeft: 12 }}>→ {s}</div>
           ))}
