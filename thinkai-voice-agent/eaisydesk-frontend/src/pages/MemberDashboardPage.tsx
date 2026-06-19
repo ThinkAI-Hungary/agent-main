@@ -222,15 +222,9 @@ export default function MemberDashboardPage() {
       });
       setClientCount(myClients.length);
 
-      console.log('[MemberDashboard] user:', username, 'fullName:', fullName);
-      console.log('[MemberDashboard] assignedNames:', [...assignedNames]);
-      console.log('[MemberDashboard] assignedEmails:', [...assignedEmails]);
-      console.log('[MemberDashboard] assignedClientIds:', [...assignedClientIds]);
-      console.log('[MemberDashboard] assignedMessengerIds:', [...assignedMessengerIds]);
 
       // — Calendar events assigned to me —
       const allEvents: Record<string, unknown>[] = calData.events || [];
-      console.log('[MemberDashboard] allEvents count:', allEvents.length);
       const myEvents = allEvents.filter(ev => {
         // Direct client_id match
         if (ev.client_id && assignedClientIds.has(Number(ev.client_id))) return true;
@@ -255,7 +249,7 @@ export default function MemberDashboardPage() {
         }
         return false;
       });
-      console.log('[MemberDashboard] myEvents count:', myEvents.length);
+
 
       // — Next appointment —
       const futureEvents = myEvents
@@ -299,7 +293,6 @@ export default function MemberDashboardPage() {
 
       // b) Pending approvals → todos
       const allApprovals: Record<string, unknown>[] = apData.approvals || [];
-      console.log('[MemberDashboard] allApprovals count:', allApprovals.length);
       const myApprovals = allApprovals.filter(a => {
         // Direct client_id match
         if (a.client_id && assignedClientIds.has(Number(a.client_id))) return true;
@@ -325,7 +318,7 @@ export default function MemberDashboardPage() {
         }
         return false;
       });
-      console.log('[MemberDashboard] myApprovals count:', myApprovals.filter(a => a.approval_status === 'pending').length);
+
 
       myApprovals.filter(a => a.approval_status === 'pending' && a.approval_status !== 'spam').forEach(ap => {
         const apDt = ap.created_at ? new Date(ap.created_at as string) : new Date();
@@ -368,7 +361,6 @@ export default function MemberDashboardPage() {
 
       // c) Session handovers → todos
       const allSessions: Record<string, unknown>[] = sData.sessions || [];
-      console.log('[MemberDashboard] allSessions count:', allSessions.length);
       const mySessions = allSessions.filter(s => {
         // Direct client_id match
         if (s.client_id && assignedClientIds.has(Number(s.client_id))) return true;
@@ -387,7 +379,7 @@ export default function MemberDashboardPage() {
         }
         return false;
       });
-      console.log('[MemberDashboard] mySessions (with handover) count:', mySessions.filter(s => s.handover_reason && (s.handover_reason as string).trim() !== '').length);
+
 
       mySessions
         .filter(s => s.handover_reason && (s.handover_reason as string).trim() !== '')
@@ -749,9 +741,9 @@ export default function MemberDashboardPage() {
                         {t.client && t.client !== 'Ismeretlen' ? (
                           <button
                             style={{
-                              background: 'rgba(0,212,200,0.1)',
-                              border: '1px solid var(--accent, #1ceee0)',
-                              color: 'var(--accent, #1ceee0)',
+                              background: 'rgba(13,148,136,0.08)',
+                              border: '1px solid rgba(13,148,136,0.3)',
+                              color: '#0d9488',
                               borderRadius: 6,
                               cursor: 'pointer',
                               padding: '5px 10px',

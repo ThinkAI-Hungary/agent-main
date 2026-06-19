@@ -821,7 +821,7 @@ export default function OutboundPage() {
                   <div style={{ display: 'flex', alignItems: 'center', gap: 6, flexWrap: 'wrap', marginBottom: 10 }}>
                     {channels.map((ch) => (
                       <span key={ch} style={{ display: 'inline-flex', alignItems: 'center', gap: 3, background: 'rgba(59,130,246,0.08)', color: '#3b82f6', padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 600 }}>
-                        {CHANNEL_ICONS[ch] || ''} {CHANNEL_NAMES[ch] || ch}
+                        {CHANNEL_NAMES[ch] || ch}
                       </span>
                     ))}
                     <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, background: st.bg, color: st.color, padding: '3px 8px', borderRadius: 6, fontSize: 10, fontWeight: 700 }}>

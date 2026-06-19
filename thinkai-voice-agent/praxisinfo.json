@@ -6,7 +6,7 @@
   "szakterulet": "",
   "kulcsszavak": "",
   "megkozelites": "",
-  "price_list": "Konzultáció - Szakorvosi állapotfelmérés és kezelési terv - 15000 - HUF - Tartalmazza a szájüregi szűrővizsgálatot.\nDiagnosztika - Digitális Panoráma röntgen (OPG) - 12000 - HUF - Kiadható digitális formátumban (CD / E-mail).\nSzájhigiénia - Ultrahangos fogkőeltávolítás (Air-Flow) - 28000 - HUF - Mindkét állcsontra, polírozással együtt.\nKonzerváló fogászat - Esztétikus kompozit tömés (1 felszínű) - 25000 - HUF - Fényre kötő prémium tömőanyag.\nSzájsebészet - Bölcsességfog műtéti eltávolítása - 45000 - HUF - A bonyolultságtól függően az ár változhat.\nImplantológia - Prémium implantátum beültetése - 250000 - HUF - Az ár a felépítményt és koronát nem tartalmazza.\nasdasd - 100000 - HUF",
+  "price_list": "Konzultáció - Szakorvosi állapotfelmérés és kezelési terv - 15000 - HUF - Tartalmazza a szájüregi szűrővizsgálatot.\nDiagnosztika - Digitális Panoráma röntgen (OPG) - 12000 - HUF - Kiadható digitális formátumban (CD / E-mail).\nSzájhigiénia - Ultrahangos fogkőeltávolítás (Air-Flow) - 28000 - HUF - Mindkét állcsontra, polírozással együtt.\nKonzerváló fogászat - Esztétikus kompozit tömés (1 felszínű) - 25000 - HUF - Fényre kötő prémium tömőanyag.\nSzájsebészet - Bölcsességfog műtéti eltávolítása - 45000 - HUF - A bonyolultságtól függően az ár változhat.\nImplantológia - Prémium implantátum beültetése - 250000 - HUF - Az ár a felépítményt és koronát nem tartalmazza.",
   "price_list_file_meta": {
     "filename": "arlista_minta (6).xlsx",
     "uploaded_at": "2026. 06. 03."
@@ -40,5 +40,5 @@
   "new_patient_required": "Teljes név",
   "new_patient_auto_visit": false,
   "returning_patient_required": "Páciens azonosító vagy telefonszám",
-  "last_updated": "2026-06-19T15:25:15.360183"
+  "last_updated": "2026-06-19T17:39:29.182006"
 }

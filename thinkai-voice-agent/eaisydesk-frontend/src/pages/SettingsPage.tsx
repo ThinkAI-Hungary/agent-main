@@ -1478,7 +1478,7 @@ function PriceListModal({
       {/* Modal */}
       <div style={{
         position: 'relative',
-        width: '90vw', maxWidth: 960,
+        width: '92vw', maxWidth: 1100,
         maxHeight: '85vh',
         display: 'flex', flexDirection: 'column',
         background: 'var(--card, #1a2332)',
@@ -1527,7 +1527,7 @@ function PriceListModal({
         {/* Table header */}
         <div style={{
           display: 'grid',
-          gridTemplateColumns: '160px 1fr 100px 80px 1fr 40px',
+          gridTemplateColumns: '140px 1.5fr 100px 70px 1fr 40px',
           gap: 0,
           padding: '0 28px',
           borderBottom: '1px solid var(--border)',
@@ -1552,7 +1552,7 @@ function PriceListModal({
           {rows.map((row, idx) => (
             <div key={idx} style={{
               display: 'grid',
-              gridTemplateColumns: '160px 1fr 100px 80px 1fr 40px',
+              gridTemplateColumns: '140px 1.5fr 100px 70px 1fr 40px',
               gap: 0,
               borderBottom: '1px solid rgba(255,255,255,0.04)',
               transition: 'background 0.15s',
@@ -1565,55 +1565,75 @@ function PriceListModal({
                 onChange={e => updateRow(idx, 'category', e.target.value)}
                 placeholder="pl. Konzultáció"
                 style={{
-                  padding: '12px 8px', border: 'none', background: 'transparent',
+                  padding: '10px 8px', border: 'none', background: 'transparent',
                   color: 'var(--text)', fontSize: 13, fontWeight: 500,
                   borderRight: '1px solid rgba(255,255,255,0.04)',
+                  borderBottom: '2px solid transparent',
                   outline: 'none', fontFamily: 'inherit',
+                  transition: 'border-color 0.2s, background 0.2s',
                 }}
+                onFocus={e => { e.currentTarget.style.borderBottomColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.05)'; }}
+                onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
               />
               <input
                 value={row.service}
                 onChange={e => updateRow(idx, 'service', e.target.value)}
                 placeholder="Szolgáltatás megnevezése"
                 style={{
-                  padding: '12px 8px', border: 'none', background: 'transparent',
+                  padding: '10px 8px', border: 'none', background: 'transparent',
                   color: 'var(--text)', fontSize: 13,
                   borderRight: '1px solid rgba(255,255,255,0.04)',
+                  borderBottom: '2px solid transparent',
                   outline: 'none', fontFamily: 'inherit',
+                  transition: 'border-color 0.2s, background 0.2s',
                 }}
+                onFocus={e => { e.currentTarget.style.borderBottomColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.05)'; }}
+                onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
               />
               <input
                 value={row.price}
                 onChange={e => updateRow(idx, 'price', e.target.value)}
                 placeholder="0"
                 style={{
-                  padding: '12px 8px', border: 'none', background: 'transparent',
-                  color: '#1ceee0', fontSize: 13, fontWeight: 600, textAlign: 'right',
+                  padding: '10px 8px', border: 'none', background: 'transparent',
+                  color: '#1ceee0', fontSize: 13, fontWeight: 700, textAlign: 'right',
                   borderRight: '1px solid rgba(255,255,255,0.04)',
+                  borderBottom: '2px solid transparent',
                   outline: 'none', fontFamily: 'inherit',
+                  transition: 'border-color 0.2s, background 0.2s',
                 }}
+                onFocus={e => { e.currentTarget.style.borderBottomColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.05)'; }}
+                onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
               />
               <input
                 value={row.currency}
                 onChange={e => updateRow(idx, 'currency', e.target.value)}
                 placeholder="HUF"
                 style={{
-                  padding: '12px 8px', border: 'none', background: 'transparent',
-                  color: 'var(--text-muted)', fontSize: 12, textAlign: 'center',
+                  padding: '10px 8px', border: 'none', background: 'transparent',
+                  color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, textAlign: 'center',
                   borderRight: '1px solid rgba(255,255,255,0.04)',
+                  borderBottom: '2px solid transparent',
                   outline: 'none', fontFamily: 'inherit',
+                  transition: 'border-color 0.2s, background 0.2s',
                 }}
+                onFocus={e => { e.currentTarget.style.borderBottomColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.05)'; }}
+                onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
               />
               <input
                 value={row.note}
                 onChange={e => updateRow(idx, 'note', e.target.value)}
                 placeholder="Extra információ..."
                 style={{
-                  padding: '12px 8px', border: 'none', background: 'transparent',
+                  padding: '10px 8px', border: 'none', background: 'transparent',
                   color: 'var(--text-muted)', fontSize: 12,
                   borderRight: '1px solid rgba(255,255,255,0.04)',
+                  borderBottom: '2px solid transparent',
                   outline: 'none', fontFamily: 'inherit',
+                  transition: 'border-color 0.2s, background 0.2s',
                 }}
+                onFocus={e => { e.currentTarget.style.borderBottomColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.05)'; }}
+                onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
               />
               <button
                 onClick={() => removeRow(idx)}
