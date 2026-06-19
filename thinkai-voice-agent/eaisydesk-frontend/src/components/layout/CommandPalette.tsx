@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { supabase } from '../../lib/supabase';
+import { authFetch } from '../../api/client';
 import './CommandPalette.css';
 
 /* ── Types ──────────────────────────────────────────────────── */
@@ -76,7 +76,7 @@ export default function CommandPalette() {
     }
   }, [open]);
 
-  // ── Search clients from Supabase ──
+  // ── Search clients via backend API ──
   useEffect(() => {
     if (!query || query.length < 2) {
       setClientResults([]);
@@ -84,20 +84,20 @@ export default function CommandPalette() {
     }
     const timer = setTimeout(async () => {
       try {
-        const { data } = await supabase
-          .from('clients')
-          .select('id, name, email, phone')
-          .or(`name.ilike.%${query}%,email.ilike.%${query}%,phone.ilike.%${query}%`)
-          .limit(5);
-        if (data) {
-          setClientResults(data.map(c => ({
-            id: `client-${c.id}`,
-            title: c.name || 'Ismeretlen',
-            desc: [c.email, c.phone].filter(Boolean).join(' · ') || 'Nincs kontakt',
-            icon: '👤',
-            type: 'client' as const,
-            action: () => navigate(`/clients`),
-          })));
+        const res = await authFetch(`/admin/api/clients?search=${encodeURIComponent(query)}&limit=5`);
+        if (res.ok) {
+          const json = await res.json();
+          const data = json?.clients || json;
+          if (Array.isArray(data)) {
+            setClientResults(data.map((c: any) => ({
+              id: `client-${c.id}`,
+              title: c.name || 'Ismeretlen',
+              desc: [c.email, c.phone].filter(Boolean).join(' · ') || 'Nincs kontakt',
+              icon: '👤',
+              type: 'client' as const,
+              action: () => navigate(`/clients`),
+            })));
+          }
         }
       } catch { /* silent */ }
     }, 200);

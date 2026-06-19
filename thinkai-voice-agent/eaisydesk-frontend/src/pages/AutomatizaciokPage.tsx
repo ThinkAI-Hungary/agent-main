@@ -3,7 +3,7 @@
  * 3 szekció: Időpont emlékeztetők, Címkerendszer, Eseményvezérelt kommunikáció.
  */
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { authFetch } from '../api/client';
 import { showToast } from '../components/ui/Toast';
 
 // ── Interfaces ──
@@ -82,11 +82,13 @@ export default function AutomatizaciokPage() {
       setLoading(true);
       try {
         const [remRes, autoRes] = await Promise.all([
-          supabase.from('reminder_settings').select('*').limit(1).single(),
-          supabase.from('outbound_automations').select('*').order('id'),
+          authFetch('/admin/api/settings/reminder'),
+          authFetch('/admin/api/outbound_automations'),
         ]);
-        if (remRes.data) setReminder(remRes.data as ReminderSettings);
-        if (autoRes.data) setAutomations(autoRes.data as OutboundAutomation[]);
+        const remData = await remRes.json();
+        const autoData = await autoRes.json();
+        if (remData && !remData.error) setReminder(remData as ReminderSettings);
+        if (Array.isArray(autoData)) setAutomations(autoData as OutboundAutomation[]);
         const saved = localStorage.getItem('thinkai_inactivity_days');
         if (saved) setInactivityDays(Number(saved));
       } catch { /* ignore */ }
@@ -94,22 +96,19 @@ export default function AutomatizaciokPage() {
     })();
   }, []);
 
-  const saveReminder = useCallback(async () => {
+  const saveReminder = useCallback(async (overrides?: Partial<ReminderSettings>) => {
+    const toSave = { ...reminder, ...overrides };
     try {
-      if (reminder.id) {
-        await supabase.from('reminder_settings').update({
-          reminder_enabled: reminder.reminder_enabled,
-          reminder_hours: reminder.reminder_hours,
-          reminder_template: reminder.reminder_template,
-        }).eq('id', reminder.id);
-      } else {
-        const { data } = await supabase.from('reminder_settings').insert({
-          reminder_enabled: reminder.reminder_enabled,
-          reminder_hours: reminder.reminder_hours,
-          reminder_template: reminder.reminder_template,
-        }).select().single();
-        if (data) setReminder(data as ReminderSettings);
-      }
+      const res = await authFetch('/admin/api/settings/reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          reminder_enabled: toSave.reminder_enabled,
+          reminder_hours: toSave.reminder_hours,
+          reminder_template: toSave.reminder_template,
+        }),
+      });
+      if (!res.ok) throw new Error('Save failed');
       showToast('Emlékeztető mentve!');
     } catch {
       showToast('Hiba a mentés során!', 'error');
@@ -191,16 +190,18 @@ export default function AutomatizaciokPage() {
                     const enabled = e.target.checked;
                     setReminder(prev => ({ ...prev, reminder_enabled: enabled }));
                     try {
-                      if (reminder.id) {
-                        await supabase.from('reminder_settings').update({ reminder_enabled: enabled }).eq('id', reminder.id);
-                      } else {
-                        const { data } = await supabase.from('reminder_settings').insert({
-                          reminder_enabled: enabled, reminder_hours: reminder.reminder_hours, reminder_template: reminder.reminder_template,
-                        }).select().single();
-                        if (data) setReminder(data as ReminderSettings);
-                      }
+                      const res = await authFetch('/admin/api/settings/reminder', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                          reminder_enabled: enabled,
+                          reminder_hours: reminder.reminder_hours,
+                          reminder_template: reminder.reminder_template,
+                        }),
+                      });
+                      if (!res.ok) throw new Error('Save failed');
                       showToast(enabled ? 'Aktiválva' : 'Kikapcsolva');
-                    } catch { showToast('Hiba!', 'error'); }
+                    } catch { showToast('Hiba a mentés során!', 'error'); }
                   }}
                 />
                 <span className="tt-toggle-slider" />
@@ -266,11 +267,21 @@ export default function AutomatizaciokPage() {
                 >
                   <label className="tt-toggle" onClick={e => e.stopPropagation()}>
                     <input type="checkbox" checked={a.enabled}
-                      onChange={e => {
-                        const updated = { ...a, enabled: e.target.checked };
-                        setAutomations(prev => prev.map(x => x.id === a.id ? updated : x));
-                        supabase.from('outbound_automations').update({ enabled: e.target.checked }).eq('id', a.id)
-                          .then(() => showToast(e.target.checked ? 'Aktiválva' : 'Kikapcsolva'));
+                      onChange={async (e) => {
+                        const enabled = e.target.checked;
+                        setAutomations(prev => prev.map(x => x.id === a.id ? { ...x, enabled } : x));
+                        try {
+                          const res = await authFetch(`/admin/api/outbound_automations/${a.id}`, {
+                            method: 'PUT',
+                            headers: { 'Content-Type': 'application/json' },
+                            body: JSON.stringify({ enabled }),
+                          });
+                          if (!res.ok) throw new Error('Save failed');
+                          showToast(enabled ? 'Aktiválva' : 'Kikapcsolva');
+                        } catch {
+                          setAutomations(prev => prev.map(x => x.id === a.id ? { ...x, enabled: !enabled } : x));
+                          showToast('Hiba a mentés során!', 'error');
+                        }
                       }}
                     />
                     <span className="tt-toggle-slider" />
@@ -296,11 +307,18 @@ export default function AutomatizaciokPage() {
                     <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 18, background: 'rgba(255,255,255,0.03)', padding: '10px 14px', borderRadius: 10, border: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap' }}>
                       <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Késleltetés:</label>
                       <select className="tt-input" value={a.delay_hours}
-                        onChange={e => {
-                          const updated = { ...a, delay_hours: Number(e.target.value) };
-                          setAutomations(prev => prev.map(x => x.id === a.id ? updated : x));
-                          supabase.from('outbound_automations').update({ delay_hours: Number(e.target.value) }).eq('id', a.id)
-                            .then(() => showToast('Késleltetés mentve'));
+                        onChange={async (e) => {
+                          const delay_hours = Number(e.target.value);
+                          setAutomations(prev => prev.map(x => x.id === a.id ? { ...x, delay_hours } : x));
+                          try {
+                            const res = await authFetch(`/admin/api/outbound_automations/${a.id}`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ delay_hours }),
+                            });
+                            if (!res.ok) throw new Error('Save failed');
+                            showToast('Késleltetés mentve');
+                          } catch { showToast('Hiba a mentés során!', 'error'); }
                         }}
                         style={{ width: 'auto', minWidth: 130, padding: '8px 14px', fontSize: 13, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.08)', color: 'var(--text)', fontWeight: 600 }}>
                         {DELAY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -332,7 +350,17 @@ export default function AutomatizaciokPage() {
                           setAutomations(prev => prev.map(x => x.id === a.id ? { ...x, message_template: e.target.value } : x));
                           e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px';
                         }}
-                        onBlur={() => supabase.from('outbound_automations').update({ message_template: a.message_template }).eq('id', a.id).then(() => showToast('Sablon mentve'))}
+                        onBlur={async () => {
+                          try {
+                            const res = await authFetch(`/admin/api/outbound_automations/${a.id}`, {
+                              method: 'PUT',
+                              headers: { 'Content-Type': 'application/json' },
+                              body: JSON.stringify({ message_template: a.message_template }),
+                            });
+                            if (!res.ok) throw new Error('Save failed');
+                            showToast('Sablon mentve');
+                          } catch { showToast('Hiba a mentés során!', 'error'); }
+                        }}
                         style={{ minHeight: 48, fontSize: 13, lineHeight: 1.6, width: '100%', resize: 'none', overflow: 'hidden' }}
                         placeholder="Üzenet sablon..."
                       />

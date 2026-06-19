@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { authFetch } from '../api/client';
 
 export interface SessionInteraction {
   id?: number;
@@ -36,9 +36,8 @@ interface UseSessionsReturn {
 }
 
 /**
- * Reads directly from the interaction_list view which pre-joins
- * sessions + interactions + clients, then groups by session_id.
- * Subscribes to realtime changes on both sessions and interactions tables.
+ * Fetches interaction_list data via backend API, then groups by session_id.
+ * Uses polling for auto-refresh instead of Supabase realtime.
  */
 export function useSessions(limit = 100): UseSessionsReturn {
   const [sessions, setSessions] = useState<SessionSummary[]>([]);
@@ -49,18 +48,20 @@ export function useSessions(limit = 100): UseSessionsReturn {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: sbError } = await supabase
-        .from('interaction_list')
-        .select('id, session_id, room_name, participant, client_name, session_started_at, created_at, type, topic, summary, result, direction, client_id, approval_status, handover_reason, ai_draft_response, alert_tags, funnel_stage')
-        .order('created_at', { ascending: false })
-        .limit(limit * 5);
+      const res = await authFetch(`/admin/api/interactions?limit=${limit * 5}`);
+      if (!res.ok) throw new Error('fetch failed');
+      const data = await res.json();
+      const rows = data?.interactions || data;
 
-      if (sbError) throw sbError;
+      if (!Array.isArray(rows)) {
+        setSessions([]);
+        return;
+      }
 
       // Group by session_id to build SessionSummary objects
       const sessionMap = new Map<string, SessionSummary>();
       
-      for (const row of (data || [])) {
+      for (const row of rows) {
         const sid = row.session_id || `standalone-${row.id}`;
         
         if (!sessionMap.has(sid)) {
@@ -105,21 +106,9 @@ export function useSessions(limit = 100): UseSessionsReturn {
 
   useEffect(() => {
     fetchSessions();
-
-    // Realtime: refresh when interactions or sessions change
-    const channel = supabase
-      .channel('sessions-changes')
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'interactions' }, () => {
-        fetchSessions();
-      })
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'sessions' }, () => {
-        fetchSessions();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Polling fallback instead of Supabase realtime
+    const interval = setInterval(fetchSessions, 30000);
+    return () => clearInterval(interval);
   }, [fetchSessions]);
 
   return { sessions, loading, error, refetch: fetchSessions };

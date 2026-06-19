@@ -79,17 +79,30 @@ export default function BeallitasokPage() {
 
   const handleSaveProfile = useCallback(async () => {
     try {
-      // Use Supabase direct update for own profile (no admin endpoint needed)
-      const { supabase } = await import('../lib/supabase');
-      if (user?.username) {
-        await supabase.from('admin_users').update({ full_name: profileName }).eq('username', user.username);
+      const res = await authFetch('/admin/api/users/profile', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ full_name: profileName }),
+      });
+      if (!res.ok) {
+        showToast('Hiba a mentésnél', 'error');
+        return;
       }
+      // Update localStorage user so name persists on refresh
+      try {
+        const raw = localStorage.getItem('sb_admin_user');
+        if (raw) {
+          const stored = JSON.parse(raw);
+          stored.fullName = profileName;
+          localStorage.setItem('sb_admin_user', JSON.stringify(stored));
+        }
+      } catch { /* ignore */ }
       // Persist position and company to localStorage
       localStorage.setItem('eaisydesk_profile_position', profilePosition);
       localStorage.setItem('eaisydesk_profile_company', profileCompany);
       showToast('Profil mentve!');
     } catch { showToast('Hiba', 'error'); }
-  }, [user, profileName, profilePosition, profileCompany]);
+  }, [profileName, profilePosition, profileCompany]);
 
   const handleChangePassword = useCallback(async () => {
     if (!pwCurrent || !pwNew) { showToast('Mindkét mezőt ki kell tölteni!', 'error'); return; }

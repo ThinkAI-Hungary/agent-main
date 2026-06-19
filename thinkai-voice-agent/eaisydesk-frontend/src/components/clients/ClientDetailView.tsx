@@ -8,7 +8,6 @@ import { parseCustomData, type ClientRecord } from '../../helpers/clientResolver
 import { fmtDt } from '../../helpers/formatters';
 import { authFetch } from '../../api/client';
 import { showToast } from '../ui/Toast';
-import { supabase } from '../../lib/supabase';
 import type { SessionSummary } from '../../hooks/useSessions';
 import type { CalendarEvent } from '../../hooks/useCalendarEvents';
 import {
@@ -84,7 +83,16 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     return (c?.notes as string) || (c?.megjegyzes as string) || '';
   });
 
-  const cd = useMemo(() => parseCustomData(client.raw.custom_data), [client.raw.custom_data]);
+  // Local display states for optimistic updates
+  const [displayName, setDisplayName] = useState(client.name);
+  const [displayPhone, setDisplayPhone] = useState(client.phone);
+  const [displayEmail, setDisplayEmail] = useState(client.email);
+
+  const [cd, setCd] = useState(() => parseCustomData(client.raw.custom_data));
+  // Keep cd in sync if client prop changes (e.g. after parent refetch)
+  useEffect(() => {
+    setCd(parseCustomData(client.raw.custom_data));
+  }, [client.raw.custom_data]);
 
   // Auto-fetch profile picture from Meta if not cached
   const [profilePicUrl, setProfilePicUrl] = useState<string | null>((cd?.profile_pic_url as string) || null);
@@ -185,8 +193,12 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     setSaving(true);
     try {
       const updatedCd = { ...cd, notes: value };
-      const { error } = await supabase.from('clients').update({ custom_data: updatedCd }).eq('id', client.id);
-      if (!error) showToast('Jegyzetek mentve');
+      const res = await authFetch(`/admin/api/clients/${client.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ custom_data: updatedCd }),
+      });
+      if (res.ok) showToast('Jegyzetek mentve');
       else showToast('Hiba a mentéskor', 'error');
     } catch { showToast('Hiba', 'error'); }
     finally { setSaving(false); }
@@ -198,9 +210,15 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     if (currentTags.includes(tag)) return;
     const updatedTags = [...currentTags, tag];
     const updatedCd = { ...cd, tags: updatedTags };
-    const { error } = await supabase.from('clients').update({ custom_data: updatedCd }).eq('id', client.id);
-    if (!error) { showToast(`Címke hozzáadva: ${tag}`); onRefresh(); }
-    else showToast('Hiba', 'error');
+    try {
+      const res = await authFetch(`/admin/api/clients/${client.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ custom_data: updatedCd }),
+      });
+      if (res.ok) { setCd(updatedCd); showToast(`Címke hozzáadva: ${tag}`); onRefresh(); }
+      else showToast('Hiba a mentés során', 'error');
+    } catch { showToast('Hiba', 'error'); }
     setShowTagPicker(false);
     setCustomTag('');
   }, [cd, client.id, onRefresh]);
@@ -210,18 +228,32 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     const currentTags = (cd?.tags as string[]) || [];
     const updatedTags = currentTags.filter(t => t !== tag);
     const updatedCd = { ...cd, tags: updatedTags };
-    const { error } = await supabase.from('clients').update({ custom_data: updatedCd }).eq('id', client.id);
-    if (!error) { showToast('Címke eltávolítva'); onRefresh(); }
-    else showToast('Hiba', 'error');
+    try {
+      const res = await authFetch(`/admin/api/clients/${client.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ custom_data: updatedCd }),
+      });
+      if (res.ok) { setCd(updatedCd); showToast('Címke eltávolítva'); onRefresh(); }
+      else showToast('Hiba', 'error');
+    } catch { showToast('Hiba', 'error'); }
   }, [cd, client.id, onRefresh]);
 
   // Save profile
   const saveProfile = useCallback(async () => {
     setSaving(true);
     try {
-      const updatedCd = { ...cd, email: editEmail, telefonszam: editPhone, notes: editNotes };
-      const { error } = await supabase.from('clients').update({ name: editName, custom_data: updatedCd }).eq('id', client.id);
-      if (!error) {
+      const updatedCd = { ...cd, name: editName, email: editEmail, telefonszam: editPhone, notes: editNotes };
+      const res = await authFetch(`/admin/api/clients/${client.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ custom_data: updatedCd }),
+      });
+      if (res.ok) {
+        setCd(updatedCd);
+        setDisplayName(editName);
+        setDisplayPhone(editPhone);
+        setDisplayEmail(editEmail);
         showToast('Profil mentve');
         setShowProfileEdit(false);
         setNotes(editNotes);
@@ -291,7 +323,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           </div>
           <div>
             <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-              <h2 style={{ margin: 0, fontSize: 24, fontWeight: 'bold', color: 'var(--text)' }}>{client.name}</h2>
+              <h2 style={{ margin: 0, fontSize: 24, fontWeight: 'bold', color: 'var(--text)' }}>{displayName}</h2>
               <span style={{ background: sl.bg, color: sl.color, fontSize: 11, fontWeight: 'bold', padding: '4px 8px', borderRadius: 6, letterSpacing: '0.5px' }}>{sl.text}</span>
             </div>
             <div style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 16 }}>
@@ -302,14 +334,14 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                 <svg fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" style={{ opacity: 0.7 }}>
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                 </svg>
-                <span style={{ fontWeight: 500 }}>{client.phone || 'Nincs megadva'}</span>
+                <span style={{ fontWeight: 500 }}>{displayPhone || 'Nincs megadva'}</span>
               </div>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <svg fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" style={{ opacity: 0.7 }}>
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                   <polyline points="22,6 12,13 2,6" />
                 </svg>
-                <span style={{ fontWeight: 500 }}>{client.email || 'Nincs megadva'}</span>
+                <span style={{ fontWeight: 500 }}>{displayEmail || 'Nincs megadva'}</span>
               </div>
             </div>
           </div>
@@ -343,8 +375,8 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column', position: 'relative' }}>
           <h3 style={{ fontSize: 12, fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: 0, marginBottom: 16 }}>Címkék</h3>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {client.tags.length === 0 && <span style={{ fontSize: 13, color: '#9ca3af' }}>Nincs címke</span>}
-            {client.tags.map((t) => (
+            {((cd?.tags as string[]) || []).length === 0 && <span style={{ fontSize: 13, color: '#9ca3af' }}>Nincs címke</span>}
+            {((cd?.tags as string[]) || []).map((t) => (
               <span key={t} style={{ background: 'rgba(28,238,224,0.15)', color: '#0d9488', fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 9999, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
                 {t}
                 <button onClick={() => removeTag(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0d9488', fontSize: 14, padding: 0, lineHeight: 1, fontFamily: 'inherit' }}>×</button>
@@ -357,7 +389,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
               <div style={{ position: 'absolute', left: 0, bottom: 32, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.3)', padding: 12, zIndex: 999, minWidth: 220 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>Előre definiált címkék</div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                  {PREDEFINED_TAGS.filter(t => !client.tags.includes(t.label)).map(t => (
+                  {PREDEFINED_TAGS.filter(t => !((cd?.tags as string[]) || []).includes(t.label)).map(t => (
                     <button key={t.label} onClick={() => addTag(t.label)} style={{ background: t.bg, color: t.color, border: 'none', padding: '5px 12px', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 600, borderRadius: 6, fontFamily: 'inherit', transition: 'opacity 0.15s' }}
                       onMouseOver={e => (e.currentTarget.style.opacity = '0.8')}
                       onMouseOut={e => (e.currentTarget.style.opacity = '1')}

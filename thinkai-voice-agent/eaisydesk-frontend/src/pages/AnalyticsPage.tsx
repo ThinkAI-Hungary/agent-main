@@ -3,7 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authFetch } from '../api/client';
 import { useCountUp } from '../hooks/useCountUp';
-import { supabase } from '../lib/supabase';
+
 import {
   Chart as ChartJS,
   CategoryScale,
@@ -365,15 +365,15 @@ export default function AnalyticsPage() {
         authFetch(`/admin/api/analytics/funnel?${params}`),
         authFetch(`/admin/api/analytics/alerts?${params}`),
         authFetch(`/admin/api/analytics/outbound/summary?${params}`),
-        supabase.from('ai_insights').select('insights').order('created_at', { ascending: false }).limit(1).single(),
+        authFetch('/admin/api/analytics/insights'),
         authFetch('/admin/api/campaigns'),
       ]);
       if (statsRes.ok) { const d = await statsRes.json(); if (d) setStats(d); }
       if (funnelRes.ok) { const d = await funnelRes.json(); if (d) setFunnel(d); }
       if (alertsRes.ok) { const d = await alertsRes.json(); if (d) setAlerts(d); }
       if (outboundRes.ok) { const d = await outboundRes.json(); if (d) setOutbound(d); }
-      if (insightsRes.data?.insights) setInsights(insightsRes.data.insights);
-      if (campaignsRes.ok) { const d = await campaignsRes.json(); if (d?.campaigns) setCampaigns(d.campaigns); }
+      if (insightsRes.ok) { const d = await insightsRes.json(); if (d?.insights) setInsights(d.insights); }
+      if (campaignsRes.ok) { const d = await campaignsRes.json(); if (d?.campaigns || Array.isArray(d)) setCampaigns(d.campaigns || d); }
     } catch (e) {
       console.error('Analytics load error', e);
     } finally {
@@ -383,17 +383,10 @@ export default function AnalyticsPage() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
-  // Auto-refresh analytics when new interactions arrive
+  // Auto-refresh analytics periodically
   useEffect(() => {
-    const realtimeChan = supabase
-      .channel('analytics-realtime')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'interactions' },
-        () => { loadAll(); }
-      )
-      .subscribe();
-    return () => { supabase.removeChannel(realtimeChan); };
+    const interval = setInterval(loadAll, 60000);
+    return () => clearInterval(interval);
   }, [loadAll]);
 
   async function refreshInsights() {

@@ -5,7 +5,6 @@
  */
 import { useState, useEffect, useMemo, useCallback } from 'react';
 import { authFetch } from '../api/client';
-import { supabase } from '../lib/supabase';
 
 import { OutboundSkeleton } from '../components/ui/Skeleton';
 import { useConfirm } from '../components/ui/ConfirmDialog';
@@ -81,12 +80,13 @@ export default function OutboundPage() {
   const loadCampaigns = useCallback(async () => {
     setLoading(true);
     try {
-      const { data, error } = await supabase
-        .from('campaigns')
-        .select('*')
-        .order('created_at', { ascending: false });
-      if (error) throw error;
-      setCampaigns(data || []);
+      const res = await authFetch('/admin/api/campaigns');
+      if (res.ok) {
+        const data = await res.json();
+        setCampaigns(Array.isArray(data) ? data : (data.campaigns || []));
+      } else {
+        setCampaigns([]);
+      }
     } catch {
       setCampaigns([]);
     } finally {
@@ -97,10 +97,12 @@ export default function OutboundPage() {
   // ── Load reminder status ──
   useEffect(() => {
     loadCampaigns();
-    supabase.from('reminder_settings').select('reminder_enabled').limit(1).single()
-      .then(({ data }) => {
+    authFetch('/admin/api/settings/reminder')
+      .then(res => res.ok ? res.json() : null)
+      .then(data => {
         if (data) setReminderEnabled(!!data.reminder_enabled);
-      });
+      })
+      .catch(() => {});
   }, [loadCampaigns]);
 
   // ── KPIs ──
@@ -354,14 +356,13 @@ export default function OutboundPage() {
   const handleToggleReminder = useCallback(async (enabled: boolean) => {
     setReminderEnabled(enabled);
     try {
-      // Read current row
-      const { data: current } = await supabase.from('reminder_settings').select('*').limit(1).single();
-      if (current?.id) {
-        await supabase.from('reminder_settings').update({ reminder_enabled: enabled }).eq('id', current.id);
-      } else {
-        await supabase.from('reminder_settings').insert({ reminder_enabled: enabled, reminder_hours: 24, reminder_template: '' });
-      }
-      showToast(enabled ? 'Emlékeztető bekapcsolva!' : 'Emlékeztető kikapcsolva!');
+      const res = await authFetch('/admin/api/settings/reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reminder_enabled: enabled }),
+      });
+      if (res.ok) showToast(enabled ? 'Emlékeztető bekapcsolva!' : 'Emlékeztető kikapcsolva!');
+      else { setReminderEnabled(!enabled); showToast('Hiba a mentés során!', 'error'); }
     } catch {
       setReminderEnabled(!enabled);
       showToast('Hiba a mentés során!', 'error');

@@ -1677,6 +1677,7 @@ class CreateUserRequest(BaseModel):
 
 class RoleUpdateRequest(BaseModel):
     role: str
+    full_name: Optional[str] = None
 
 class ChangePasswordRequest(BaseModel):
     current_password: str = ""
@@ -1711,6 +1712,24 @@ def api_update_user_role(user_id: int, req: RoleUpdateRequest, admin: dict = Dep
     success = db.update_admin_role(user_id, req.role)
     if not success:
         raise HTTPException(400, "Szerepkör módosítása sikertelen")
+    # Update full_name if provided
+    if req.full_name is not None:
+        try:
+            db.supabase.table("admin_users").update({"full_name": req.full_name}).eq("id", user_id).execute()
+        except Exception:
+            pass  # non-critical
+    return {"status": "success"}
+
+class ProfileUpdateRequest(BaseModel):
+    full_name: str = ""
+
+@app.put("/admin/api/users/profile")
+def api_update_own_profile(req: ProfileUpdateRequest, caller: str = Depends(verify_jwt)):
+    """Update own profile (full_name). Any authenticated user can call this."""
+    try:
+        db.supabase.table("admin_users").update({"full_name": req.full_name}).eq("username", caller).execute()
+    except Exception as ex:
+        raise HTTPException(500, f"Profil mentés hiba: {ex}")
     return {"status": "success"}
 
 @app.delete("/admin/api/users/{user_id}")

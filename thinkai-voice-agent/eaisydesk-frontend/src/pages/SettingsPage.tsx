@@ -7,7 +7,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { authFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
-import { supabase } from '../lib/supabase';
+
 import { showToast } from '../components/ui/Toast';
 import { SettingsSkeleton } from '../components/ui/Skeleton';
 
@@ -35,6 +35,7 @@ interface PraxisInfo {
   practice_name: string;
   markanev: string;
   szakterulet: string;
+  service_description: string;
   kulcsszavak: string;
   faq: { question: string; answer: string }[];
   campaigns: { active: boolean; text: string }[];
@@ -109,7 +110,7 @@ const defaultAgent: AgentSettings = {
 };
 
 const defaultPraxis: PraxisInfo = {
-  practice_name: '', markanev: '', szakterulet: '', kulcsszavak: '',
+  practice_name: '', markanev: '', szakterulet: '', service_description: '', kulcsszavak: '',
   faq: [], campaigns: [], exceptions: [],
   modositas_eng: 'igen', lemondas_24h: 'figyelmeztetoSzoveggel',
   figyelmezteto_szoveg: 'Tájékoztatjuk, hogy 24 órán belüli lemondás esetén külön szabályzatunk lehet érvényben.',
@@ -188,8 +189,6 @@ export default function SettingsPage() {
       if (res.ok) {
         const newPraxis = { ...praxis, price_list: priceText } as PraxisInfo;
         setPraxis(newPraxis);
-        // Sync to Supabase so data persists across navigation
-        await supabase.from('app_settings').upsert({ key: 'praxisinfo', value: newPraxis });
         showToast('Árlista mentve!');
         setShowPriceModal(false);
       } else {
@@ -228,18 +227,28 @@ export default function SettingsPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [settingsRes, praxisRes, clinicsRes, doctorsRes, servicesRes, triageRes, reminderRes] = await Promise.all([
-        supabase.from('app_settings').select('value').eq('key', 'agent_settings').single(),
-        supabase.from('app_settings').select('value').eq('key', 'praxisinfo').single(),
-        supabase.from('clinics').select('*').order('id'),
-        supabase.from('doctors').select('*').order('id'),
-        supabase.from('services').select('*').order('id'),
-        supabase.from('triage_rules').select('*').order('id'),
-        supabase.from('reminder_settings').select('*').limit(1).single(),
+      const [settingsRes, praxisRes, clinicsRes, doctorsRes, servicesRes, triageRes, reminderRes, autoRes] = await Promise.all([
+        authFetch('/admin/api/settings'),
+        authFetch('/admin/api/praxisinfo'),
+        authFetch('/admin/api/clinics'),
+        authFetch('/admin/api/doctors'),
+        authFetch('/admin/api/services'),
+        authFetch('/admin/api/triage_rules'),
+        authFetch('/admin/api/settings/reminder'),
+        authFetch('/admin/api/outbound_automations'),
       ]);
 
-      if (settingsRes.data?.value) {
-        const v = settingsRes.data.value;
+      const settingsData = await settingsRes.json();
+      const praxisData = await praxisRes.json();
+      const clinicsData = await clinicsRes.json();
+      const doctorsData = await doctorsRes.json();
+      const servicesData = await servicesRes.json();
+      const triageData = await triageRes.json();
+      const reminderData = await reminderRes.json();
+      const autoData = await autoRes.json();
+
+      if (settingsData && !settingsData.error) {
+        const v = settingsData;
         setAgent(prev => ({
           ...prev,
           voice_id: v.voice_id || v.voice || 'Puck',
@@ -250,13 +259,14 @@ export default function SettingsPage() {
           business_hours: v.business_hours || prev.business_hours,
         }));
       }
-      if (praxisRes.data?.value) {
-        const p = praxisRes.data.value;
+      if (praxisData && !praxisData.error) {
+        const p = praxisData;
         setPraxis(prev => ({
           ...prev,
           practice_name: p.practice_name || p.nev || '',
           markanev: p.markanev || '',
           szakterulet: p.szakterulet || '',
+          service_description: p.service_description || '',
           kulcsszavak: p.kulcsszavak || '',
           faq: Array.isArray(p.faq) ? p.faq : [],
           campaigns: Array.isArray(p.campaigns) ? p.campaigns : [],
@@ -272,15 +282,12 @@ export default function SettingsPage() {
           price_list_file_meta: p.price_list_file_meta || null,
         }));
       }
-      if (clinicsRes.data) setClinics(clinicsRes.data);
-      if (doctorsRes.data) setDoctors(doctorsRes.data);
-      if (servicesRes.data) setServices(servicesRes.data);
-      if (triageRes.data) setTriageRules(triageRes.data);
-      if (reminderRes.data) setReminder(reminderRes.data as ReminderSettings);
-
-      // Automations
-      const autoRes = await supabase.from('outbound_automations').select('*').order('id');
-      if (autoRes.data) setAutomations(autoRes.data);
+      const cl = clinicsData?.clinics || clinicsData; if (Array.isArray(cl)) setClinics(cl);
+      const dc = doctorsData?.doctors || doctorsData; if (Array.isArray(dc)) setDoctors(dc);
+      const sv = servicesData?.services || servicesData; if (Array.isArray(sv)) setServices(sv);
+      const tr = triageData?.rules || triageData; if (Array.isArray(tr)) setTriageRules(tr);
+      if (reminderData && !reminderData.error) setReminder(reminderData as ReminderSettings);
+      if (Array.isArray(autoData)) setAutomations(autoData);
 
       // Inactivity days from localStorage
       const savedDays = localStorage.getItem('thinkai_inactivity_days');
@@ -301,7 +308,6 @@ export default function SettingsPage() {
         body: JSON.stringify(agent),
       });
       if (res.ok) {
-        await supabase.from('app_settings').upsert({ key: 'agent_settings', value: agent });
         showToast('Beállítások mentve!', 'success');
         setLastSavedAt(new Date().toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }));
       } else {
@@ -320,7 +326,6 @@ export default function SettingsPage() {
         body: JSON.stringify(praxis),
       });
       if (res.ok) {
-        await supabase.from('app_settings').upsert({ key: 'praxisinfo', value: praxis });
         showToast('Céginformációk mentve!', 'success');
         setLastSavedAt(new Date().toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }));
       } else {
@@ -352,13 +357,15 @@ export default function SettingsPage() {
 
   // ── CRUD for sub-tables ──
   const saveClinic = useCallback(async (clinic: Clinic, idx: number) => {
-    if (clinic.id) {
-      await supabase.from('clinics').update({ name_and_address: clinic.name_and_address, access_info: clinic.access_info }).eq('id', clinic.id);
-    } else {
-      const { data } = await supabase.from('clinics').insert({ name_and_address: clinic.name_and_address, access_info: clinic.access_info }).select().single();
-      if (data) setClinics(prev => prev.map((c, i) => i === idx ? data : c));
-    }
-    showToast('Telephely mentve');
+    try {
+      if (clinic.id) {
+        await authFetch(`/admin/api/clinics`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([clinic]) });
+      } else {
+        const res = await authFetch('/admin/api/clinics', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify([clinic]) });
+        if (res.ok) { const data = await res.json(); if (data.clinics) setClinics(prev => prev.map((c, i) => i === idx ? (data.clinics[idx] || c) : c)); }
+      }
+      showToast('Telephely mentve');
+    } catch { showToast('Hiba', 'error'); }
   }, []);
 
   const deleteClinic = useCallback(async (id: number | undefined, idx: number) => {
@@ -372,13 +379,15 @@ export default function SettingsPage() {
   }, []);
 
   const saveDoctor = useCallback(async (doc: Doctor, idx: number) => {
-    if (doc.id) {
-      await supabase.from('doctors').update({ name: doc.name, specialty: doc.specialty, related_services: doc.related_services }).eq('id', doc.id);
-    } else {
-      const { data } = await supabase.from('doctors').insert({ name: doc.name, specialty: doc.specialty, related_services: doc.related_services }).select().single();
-      if (data) setDoctors(prev => prev.map((d, i) => i === idx ? data : d));
-    }
-    showToast('Orvos mentve');
+    try {
+      if (doc.id) {
+        await authFetch(`/admin/api/doctors/${doc.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: doc.name, specialty: doc.specialty, related_services: doc.related_services }) });
+      } else {
+        const res = await authFetch('/admin/api/doctors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: doc.name, specialty: doc.specialty, related_services: doc.related_services }) });
+        if (res.ok) { const data = await res.json(); if (data.id) setDoctors(prev => prev.map((d, i) => i === idx ? { ...doc, id: data.id } : d)); }
+      }
+      showToast('Orvos mentve');
+    } catch { showToast('Hiba', 'error'); }
   }, []);
 
   const deleteDoctor = useCallback(async (id: number | undefined, idx: number) => {
@@ -392,13 +401,15 @@ export default function SettingsPage() {
   }, []);
 
   const saveService = useCallback(async (svc: Service, idx: number) => {
-    if (svc.id) {
-      await supabase.from('services').update({ service_name: svc.service_name, duration_minutes: svc.duration_minutes, doctor_id: svc.doctor_id, note: svc.note }).eq('id', svc.id);
-    } else {
-      const { data } = await supabase.from('services').insert({ service_name: svc.service_name, duration_minutes: svc.duration_minutes, doctor_id: svc.doctor_id, note: svc.note }).select().single();
-      if (data) setServices(prev => prev.map((s, i) => i === idx ? data : s));
-    }
-    showToast('Szolgáltatás mentve');
+    try {
+      if (svc.id) {
+        await authFetch(`/admin/api/services/${svc.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ service_name: svc.service_name, duration_minutes: svc.duration_minutes, doctor_id: svc.doctor_id, note: svc.note }) });
+      } else {
+        const res = await authFetch('/admin/api/services', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ service_name: svc.service_name, duration_minutes: svc.duration_minutes, doctor_id: svc.doctor_id, note: svc.note }) });
+        if (res.ok) { const data = await res.json(); if (data.id) setServices(prev => prev.map((s, i) => i === idx ? { ...svc, id: data.id } : s)); }
+      }
+      showToast('Szolgáltatás mentve');
+    } catch { showToast('Hiba', 'error'); }
   }, []);
 
   const deleteService = useCallback(async (id: number | undefined, idx: number) => {
@@ -412,13 +423,15 @@ export default function SettingsPage() {
   }, []);
 
   const saveTriageRule = useCallback(async (rule: TriageRule, idx: number) => {
-    if (rule.id) {
-      await supabase.from('triage_rules').update({ situation: rule.situation, priority: rule.priority, escalation_email: rule.escalation_email }).eq('id', rule.id);
-    } else {
-      const { data } = await supabase.from('triage_rules').insert({ situation: rule.situation, priority: rule.priority, escalation_email: rule.escalation_email }).select().single();
-      if (data) setTriageRules(prev => prev.map((r, i) => i === idx ? data : r));
-    }
-    showToast('Triázs szabály mentve');
+    try {
+      if (rule.id) {
+        await authFetch(`/admin/api/triage_rules/${rule.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ situation: rule.situation, priority: rule.priority, escalation_email: rule.escalation_email }) });
+      } else {
+        const res = await authFetch('/admin/api/triage_rules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ situation: rule.situation, priority: rule.priority, escalation_email: rule.escalation_email }) });
+        if (res.ok) { const data = await res.json(); if (data.id) setTriageRules(prev => prev.map((r, i) => i === idx ? { ...rule, id: data.id } : r)); }
+      }
+      showToast('Triázs szabály mentve');
+    } catch { showToast('Hiba', 'error'); }
   }, []);
 
   const deleteTriageRule = useCallback(async (id: number | undefined, idx: number) => {
@@ -434,13 +447,13 @@ export default function SettingsPage() {
   const _saveReminder = useCallback(async () => {
     setSaving(true);
     try {
-      if (reminder.id) {
-        await supabase.from('reminder_settings').update({ reminder_enabled: reminder.reminder_enabled, reminder_hours: reminder.reminder_hours, reminder_template: reminder.reminder_template }).eq('id', reminder.id);
-      } else {
-        const { data } = await supabase.from('reminder_settings').insert({ reminder_enabled: reminder.reminder_enabled, reminder_hours: reminder.reminder_hours, reminder_template: reminder.reminder_template }).select().single();
-        if (data) setReminder(data as ReminderSettings);
-      }
-      showToast('Emlékeztető mentve');
+      const res = await authFetch('/admin/api/settings/reminder', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ reminder_enabled: reminder.reminder_enabled, reminder_hours: reminder.reminder_hours, reminder_template: reminder.reminder_template }),
+      });
+      if (res.ok) showToast('Emlékeztető mentve');
+      else showToast('Hiba', 'error');
     } catch { showToast('Hiba', 'error'); }
     setSaving(false);
   }, [reminder]);
@@ -854,7 +867,7 @@ export default function SettingsPage() {
                     <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)' }}>i</span>
                   </div>
                 </div>
-                <textarea className="tt-textarea" value={praxis.szakterulet || ''} onChange={e => setPraxis({ ...praxis, szakterulet: e.target.value })} placeholder="Írja le részletesen a cég fő szolgáltatásait..." style={{ minHeight: 80, fontSize: 13, lineHeight: 1.6 }} />
+                <textarea className="tt-textarea" value={praxis.service_description || ''} onChange={e => setPraxis({ ...praxis, service_description: e.target.value })} placeholder="Írja le részletesen a cég fő szolgáltatásait..." style={{ minHeight: 80, fontSize: 13, lineHeight: 1.6 }} />
               </div>
 
               {/* Orvosok / Szolgáltatások lista */}
@@ -893,7 +906,8 @@ export default function SettingsPage() {
                 </thead>
                 <tbody>
                   {DAY_KEYS.map((key, i) => {
-                    const bh = agent.business_hours[key] || { open: '08:00', close: '17:00', enabled: true };
+                    const raw = agent.business_hours[key] || { open: '08:00', close: '17:00', enabled: true };
+                    const bh = { open: raw.open || '', close: raw.close || '', enabled: !!raw.enabled };
                     return (
                       <tr key={key}>
                         <td style={tdStyle}>{DAYS[i]}</td>
@@ -905,7 +919,14 @@ export default function SettingsPage() {
                         </td>
                         <td style={{ ...tdStyle, textAlign: 'center' }}>
                           <label className="tt-toggle" style={{ display: 'inline-flex' }}>
-                            <input type="checkbox" checked={bh.enabled} onChange={(e) => setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: { ...bh, enabled: e.target.checked } } })} />
+                            <input type="checkbox" checked={bh.enabled} onChange={(e) => {
+                              const newEnabled = e.target.checked;
+                              setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: {
+                                open: newEnabled && !bh.open ? '09:00' : bh.open,
+                                close: newEnabled && !bh.close ? '18:00' : bh.close,
+                                enabled: newEnabled,
+                              } } });
+                            }} />
                             <span className="tt-toggle-slider" />
                           </label>
                         </td>
@@ -921,7 +942,7 @@ export default function SettingsPage() {
             <SectionCard title="Árak" svgPath="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6">
               <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>Az aktuális árlista XLSX vagy CSV formátumban tölthető fel. A feltöltés a FastAPI-n keresztül történik.</div>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <button className="btn-settings-save" onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv,.xlsx'; input.onchange = async (e: Event) => { const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return; const formData = new FormData(); formData.append('file', file); try { const res = await authFetch('/admin/api/upload_prices', { method: 'POST', body: formData }); if (res.ok) { const data = await res.json(); showToast('Árlista feltöltve!'); if (data.price_list) { const newPraxis = { ...praxis, price_list: data.price_list, price_list_file_meta: data.price_list_file_meta }; setPraxis(newPraxis as typeof praxis); await supabase.from('app_settings').upsert({ key: 'praxisinfo', value: newPraxis }); } } else { const errData = await res.json().catch(() => null); showToast(errData?.detail || 'Feltöltési hiba', 'error'); } } catch { showToast('Feltöltési hiba', 'error'); } }; input.click(); }} style={{ fontFamily: 'inherit', textAlign: 'center', justifyContent: 'center' }}>
+                <button className="btn-settings-save" onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv,.xlsx'; input.onchange = async (e: Event) => { const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return; const formData = new FormData(); formData.append('file', file); try { const res = await authFetch('/admin/api/upload_prices', { method: 'POST', body: formData }); if (res.ok) { const data = await res.json(); showToast('Árlista feltöltve!'); if (data.price_list) { const newPraxis = { ...praxis, price_list: data.price_list, price_list_file_meta: data.price_list_file_meta }; setPraxis(newPraxis as typeof praxis); } } else { const errData = await res.json().catch(() => null); showToast(errData?.detail || 'Feltöltési hiba', 'error'); } } catch { showToast('Feltöltési hiba', 'error'); } }; input.click(); }} style={{ fontFamily: 'inherit', textAlign: 'center', justifyContent: 'center' }}>
                   Új árlista feltöltése
                 </button>
                 <button onClick={async () => { try { const res = await authFetch('/admin/api/prices/template/download'); if (res.ok) { const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'arlista_minta.xlsx'; a.click(); URL.revokeObjectURL(url); } else { showToast('Letöltési hiba', 'error'); } } catch { showToast('Letöltési hiba', 'error'); } }} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--accent)', color: 'var(--accent)', background: 'transparent', padding: '12px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 14, fontFamily: 'inherit' }}>

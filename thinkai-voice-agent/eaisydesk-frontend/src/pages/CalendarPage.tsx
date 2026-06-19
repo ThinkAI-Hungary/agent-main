@@ -17,7 +17,7 @@ import { parseCustomData, isAssignedToMe, bestClientName } from '../helpers/clie
 import { fmtDt } from '../helpers/formatters';
 import { CalendarSkeleton } from '../components/ui/Skeleton';
 import { showToast } from '../components/ui/Toast';
-import { supabase } from '../lib/supabase';
+import { authFetch } from '../api/client';
 import ClientDetailView from '../components/clients/ClientDetailView';
 import type { EventClickArg } from '@fullcalendar/core';
 
@@ -129,16 +129,20 @@ export default function CalendarPage() {
     }
     const start_dt = `${newEvent.date}T${newEvent.time}:00`;
     try {
-      const { error } = await supabase.from('calendar_events').insert({
-        title: newEvent.title,
-        attendee: newEvent.attendee,
-        attendee_email: newEvent.email,
-        attendee_phone: newEvent.phone,
-        start_dt,
-        duration_minutes: parseInt(newEvent.duration) || 30,
+      const res = await authFetch('/admin/api/calendar', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          title: newEvent.title,
+          attendee: newEvent.attendee,
+          attendee_email: newEvent.email,
+          attendee_phone: newEvent.phone,
+          start_dt,
+          duration_minutes: parseInt(newEvent.duration) || 30,
+        }),
       });
-      if (error) {
-        showToast(error.message || 'Hiba', 'error');
+      if (!res.ok) {
+        showToast('Hiba az időpont létrehozásakor', 'error');
         return;
       }
       setShowNewEventModal(false);
@@ -161,12 +165,12 @@ export default function CalendarPage() {
   // ── No-show marking ──
   const handleMarkNoShow = useCallback(async (eventId: number, _attendeeEmail: string, _attendeeName: string) => {
     try {
-      // Tag the client with 'no-show' via custom_data or a separate field
-      const { error } = await supabase
-        .from('calendar_events')
-        .update({ reminder_sent: true }) // reuse field as no-show marker
-        .eq('id', eventId);
-      if (!error) {
+      const res = await authFetch(`/admin/api/calendar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: eventId, reminder_sent: true }),
+      });
+      if (res.ok) {
         showToast('No-show címke hozzáadva');
         refetchEvents();
       } else {

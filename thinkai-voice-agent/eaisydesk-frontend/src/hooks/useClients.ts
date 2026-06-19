@@ -1,5 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
-import { supabase } from '../lib/supabase';
+import { authFetch } from '../api/client';
 import type { ClientRecord } from '../helpers/clientResolvers';
 
 interface UseClientsReturn {
@@ -20,14 +20,12 @@ export function useClients(): UseClientsReturn {
     setLoading(true);
     setError(null);
     try {
-      const { data, error: sbError } = await supabase
-        .from('clients')
-        .select('id, name, email, phone, status, custom_data, created_at')
-        .order('created_at', { ascending: false });
+      const res = await authFetch('/admin/api/clients');
+      if (!res.ok) throw new Error('fetch failed');
+      const data = await res.json();
+      const rawList = data?.clients || data;
 
-      if (sbError) throw sbError;
-
-      const list: ClientRecord[] = data || [];
+      const list: ClientRecord[] = Array.isArray(rawList) ? rawList : [];
       setClients(list);
       const map: Record<string, ClientRecord> = {};
       list.forEach((c) => {
@@ -44,20 +42,9 @@ export function useClients(): UseClientsReturn {
 
   useEffect(() => {
     fetchClients();
-
-    // Realtime: auto-refresh on clients table changes
-    // Use unique channel name to avoid conflict when multiple components use this hook
-    const channelId = `clients-changes-${Math.random().toString(36).slice(2, 9)}`;
-    const channel = supabase
-      .channel(channelId)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'clients' }, () => {
-        fetchClients();
-      })
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
+    // Polling fallback instead of Supabase realtime
+    const interval = setInterval(fetchClients, 30000);
+    return () => clearInterval(interval);
   }, [fetchClients]);
 
   return { clients, clientsMap, loading, error, refetch: fetchClients };

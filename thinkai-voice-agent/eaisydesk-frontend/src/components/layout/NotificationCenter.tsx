@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import { supabase } from '../../lib/supabase';
+import { authFetch } from '../../api/client';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigate } from 'react-router-dom';
 import './NotificationCenter.css';
@@ -112,75 +112,43 @@ export default function NotificationCenter() {
     return () => clearTimeout(timer);
   }, [toasts]);
 
-  /* ── Supabase Realtime: listen for new interactions ── */
+  /* ── Polling-based notification system (replaces Supabase Realtime) ── */
+  const lastInteractionIdRef = useRef(0);
+  const isFirstPollRef = useRef(true);
+
   useEffect(() => {
     if (!isAuthenticated) return;
 
-    // Subscribe to new rows in interactions table (interaction_list is a view — realtime only works on tables)
-    const interactionChannel = supabase
-      .channel('notif-interactions')
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'interactions' },
-        async (payload) => {
-          const row = payload.new as Record<string, unknown>;
-          const channel = (row.type as string) || (row.channel as string) || 'Üzenet';
-          const rawTopic = (row.topic as string) || '';
-          const rawSummary = (row.summary as string) || '';
-          // topic contains the incoming message (e.g. "Messenger AI válasz - Hello!")
-          // summary contains the AI's response — we want to show the incoming message
-          const incomingMessage = rawTopic
-            .replace(/^.+?AI\s+v[áa]lasz\s*-\s*/i, '')
-            .trim();
+    async function pollInteractions() {
+      try {
+        const res = await authFetch('/admin/api/interactions?limit=10');
+        if (!res.ok) return;
+        const data = await res.json();
+        const rows = data?.interactions || data;
+        if (!Array.isArray(rows) || rows.length === 0) return;
+
+        const maxId = Math.max(...rows.map((r: any) => r.id || 0));
+
+        // On first poll, just record the latest ID — don't fire notifications for old stuff
+        if (isFirstPollRef.current) {
+          isFirstPollRef.current = false;
+          lastInteractionIdRef.current = maxId;
+          return;
+        }
+
+        // Find new rows (id > last known)
+        const newRows = rows.filter((r: any) => (r.id || 0) > lastInteractionIdRef.current);
+        for (const row of newRows) {
+          const channel = row.type || row.channel || 'Üzenet';
+          const rawTopic = row.topic || '';
+          const rawSummary = row.summary || '';
+          const incomingMessage = rawTopic.replace(/^.+?AI\s+v[áa]lasz\s*-\s*/i, '').trim();
           const displayText = incomingMessage
             ? `Beérkezett üzenet: ${incomingMessage}`
             : rawSummary || `Új ${channel} érkezett`;
-          const alertTags = (row.alert_tags as string[]) || [];
+          const alertTags = row.alert_tags || [];
           const isUrgent = alertTags.includes('urgent');
-          const sessionId = (row.session_id as string) || '';
-
-          // Resolve client name: interactions table doesn't have participant field
-          // Try 1: look up session by session_id
-          let clientName = 'Ismeretlen';
-          if (sessionId) {
-            try {
-              const { data: sessionData } = await supabase
-                .from('sessions')
-                .select('participant')
-                .eq('session_id', sessionId)
-                .maybeSingle();
-              if (sessionData?.participant) {
-                clientName = sessionData.participant;
-              }
-            } catch { /* session lookup may fail */ }
-
-            // Try 2: extract messenger/platform ID from session_id and look up in clients
-            if (clientName === 'Ismeretlen') {
-              let platformId = '';
-              let idField = 'messenger_id';
-              if (sessionId.startsWith('messenger_')) { platformId = sessionId.substring(10); idField = 'messenger_id'; }
-              else if (sessionId.startsWith('instagram_')) { platformId = sessionId.substring(10); idField = 'instagram_id'; }
-              else if (sessionId.startsWith('whatsapp_')) { platformId = sessionId.substring(9); idField = 'whatsapp_id'; }
-              else if (sessionId.startsWith('email_')) clientName = sessionId.substring(6); // email address
-
-              if (platformId) {
-                try {
-                  const { data: clients } = await supabase
-                    .from('clients')
-                    .select('name, custom_data')
-                    .limit(200);
-                  const match = (clients || []).find((c: Record<string, unknown>) => {
-                    const cd = typeof c.custom_data === 'string' ? JSON.parse(c.custom_data) : (c.custom_data || {});
-                    return String(cd[idField] || cd.messenger_id || '') === platformId;
-                  });
-                  if (match) {
-                    const cd = typeof match.custom_data === 'string' ? JSON.parse(match.custom_data) : (match.custom_data || {});
-                    clientName = cd.name || cd.nev || match.name || clientName;
-                  }
-                } catch { /* client lookup may fail */ }
-              }
-            }
-          }
+          const clientName = row.client_name || row.participant || 'Ismeretlen';
 
           if (isUrgent) {
             addNotification('urgent', {
@@ -197,48 +165,16 @@ export default function NotificationCenter() {
             });
           }
         }
-      )
-      .subscribe();
 
-    // Subscribe to cancelled appointments (calendar_events with status change)
-    const calendarChannel = supabase
-      .channel('notif-calendar')
-      .on(
-        'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'calendar_events' },
-        (payload) => {
-          const row = payload.new as Record<string, unknown>;
-          const old = payload.old as Record<string, unknown>;
-          // Detect cancellation: status changed to cancelled/lemondva
-          const newStatus = ((row.status as string) || '').toLowerCase();
-          const oldStatus = ((old.status as string) || '').toLowerCase();
-          if (newStatus !== oldStatus && (newStatus.includes('cancel') || newStatus.includes('lemondva') || newStatus.includes('törölve'))) {
-            addNotification('cancelled', {
-              name: (row.title as string) || (row.patient_name as string) || 'Ismeretlen',
-              summary: 'Időpont lemondva',
-            });
-          }
+        if (maxId > lastInteractionIdRef.current) {
+          lastInteractionIdRef.current = maxId;
         }
-      )
-      .subscribe();
-
-    // Fetch recent interactions to preload (skip notification for existing ones)
-    if (!initialized.current) {
-      initialized.current = true;
-      supabase
-        .from('interactions')
-        .select('id, type, summary, topic, created_at')
-        .order('created_at', { ascending: false })
-        .limit(5)
-        .then(() => {
-          // Just mark as seen, don't create notifications for old ones
-        });
+      } catch { /* polling error */ }
     }
 
-    return () => {
-      supabase.removeChannel(interactionChannel);
-      supabase.removeChannel(calendarChannel);
-    };
+    pollInteractions();
+    const interval = setInterval(pollInteractions, 10000);
+    return () => clearInterval(interval);
   }, [isAuthenticated, addNotification]);
 
   /* ── Handle notification click ── */
