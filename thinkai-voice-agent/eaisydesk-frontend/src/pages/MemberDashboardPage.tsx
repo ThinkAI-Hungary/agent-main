@@ -508,7 +508,7 @@ export default function MemberDashboardPage() {
     }
   }
 
-  const typeIcon = (type: string) => type === 'calendar' ? '📅' : type === 'approval' ? '✉️' : '💬';
+  const typeIcon = (_type: string) => '';
 
   // ── Render ─────────────────────────────────────────────────────────────────
 
@@ -689,7 +689,7 @@ export default function MemberDashboardPage() {
             onClick={() => setFilter('all')}
           >
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 14 }}>📊</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>●</span>
               <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Összes teendő</span>
             </div>
             <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)' }}>{counts.all}</div>

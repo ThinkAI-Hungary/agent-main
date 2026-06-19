@@ -303,7 +303,7 @@ export default function ClientsPage() {
           {/* Bulk delete */}
           {isAdmin && selectedRows.size > 0 && (
             <button className="int-toolbar-btn" style={{ color: '#ef4444', borderColor: '#ef4444' }} onClick={handleBulkDelete}>
-              🗑 Kijelöltek törlése ({selectedRows.size})
+              Kijelöltek törlése ({selectedRows.size})
             </button>
           )}
 

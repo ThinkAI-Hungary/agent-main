@@ -272,7 +272,7 @@ body.dark .login-input:-webkit-autofill:active {
   width: 100%;
   height: 44px;
   margin-top: 8px;
-  background: linear-gradient(135deg, #1ceee0, #14b8ad);
+  background: #1ceee0;
   border: none;
   border-radius: 8px;
   font-size: 15px;
@@ -400,7 +400,7 @@ body.dark .login-showcase-title {
 }
 
 .login-showcase-title .accent {
-  background: linear-gradient(135deg, var(--accent), #0bbdb1);
+  background: var(--accent);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;

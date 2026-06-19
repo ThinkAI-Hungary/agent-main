@@ -342,7 +342,7 @@
       font-weight: 600 !important;
       cursor: pointer !important;
       transition: transform 0.15s, box-shadow 0.15s !important;
-      background: linear-gradient(135deg, #1ceee0 0%, #0dbcb4 100%) !important;
+      background: #1ceee0 !important;
       color: #0a1f2e !important;
       box-shadow: 0 2px 8px rgba(28, 238, 224, 0.25) !important;
     }

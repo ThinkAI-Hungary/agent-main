@@ -512,7 +512,7 @@ export default function BeallitasokPage() {
                 style={{
                   padding: '11px 28px', borderRadius: 12,
                   border: 'none',
-                  background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)',
+                  background: '#1ceee0',
                   color: '#082432', fontSize: 14, fontWeight: 700,
                   cursor: 'pointer', fontFamily: 'inherit',
                   transition: 'all 0.2s',
@@ -769,7 +769,7 @@ export default function BeallitasokPage() {
                 style={{
                   padding: '11px 28px', borderRadius: 12,
                   border: 'none',
-                  background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)',
+                  background: '#1ceee0',
                   color: '#082432', fontSize: 14, fontWeight: 700,
                   cursor: 'pointer', fontFamily: 'inherit',
                   transition: 'all 0.2s',
@@ -974,7 +974,7 @@ function ProfileAvatarUpload({ initials, username }: { initials: string; usernam
             disabled={uploading}
             style={{
               padding: '7px 16px', borderRadius: 8, border: 'none', cursor: 'pointer',
-              background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)', color: '#082432',
+              background: '#1ceee0', color: '#082432',
               fontSize: 12, fontWeight: 700, transition: 'all 0.2s',
             }}
           >

@@ -110,7 +110,7 @@
       padding: 11px 30px;
       border-radius: var(--radius);
       border: none;
-      background: linear-gradient(135deg, #0dbcb4, #0a9e97);
+      background: #0dbcb4;
       color: #fff;
       font-size: 14px;
       font-weight: 600;
@@ -120,7 +120,7 @@
       box-shadow: 0 2px 8px rgba(13, 188, 180, 0.25);
     }
     .beallitasok-save-btn:hover {
-      background: linear-gradient(135deg, #0a9e97, #088f89);
+      background: #0a9e97;
       box-shadow: 0 4px 12px rgba(13, 188, 180, 0.35);
       transform: translateY(-1px);
     }
@@ -713,7 +713,7 @@
 
     /* Save button */
     .btn-settings-save {
-      background: linear-gradient(135deg, #1ceee0 0%, #0dbcb4 100%);
+      background: #1ceee0;
       color: #082432;
       border: none;
       border-radius: 6px;

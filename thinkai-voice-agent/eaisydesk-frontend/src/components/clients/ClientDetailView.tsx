@@ -513,7 +513,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                           fontFamily: 'inherit',
                         }}
                       >
-                        ⚠ Jóváhagyásra vár
+                        Jóváhagyásra vár
                       </button>
                     ) : (
                       <span style={{ color: 'var(--text-muted)' }}>{r.teendo}</span>
@@ -587,7 +587,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                           fontFamily: 'inherit',
                         }}
                       >
-                        ⚠ Jóváhagyásra vár
+                        Jóváhagyásra vár
                       </button>
                     ) : (
                       <span style={{ color: 'var(--text-muted)' }}>{r.teendo}</span>

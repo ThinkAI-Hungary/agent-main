@@ -333,7 +333,7 @@ export default function CalendarPage() {
                                 style={{ background: 'rgba(245,127,23,0.1)', color: '#f57f17', border: '1px solid rgba(245,127,23,0.3)', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}
                                 title="No-show címke hozzáadása"
                               >
-                                ⚠ Nem jelent meg
+                                Nem jelent meg
                               </button>
                             ) : (
                               <span style={{ color: '#22c55e', fontSize: 11, fontWeight: 600 }}>Várakozik</span>
@@ -395,7 +395,7 @@ export default function CalendarPage() {
 
                 {todayEvents.length === 0 ? (
                   <div className="agenda-empty">
-                    <div className="agenda-empty-icon">📅</div>
+                    <div className="agenda-empty-icon"></div>
                     <div className="agenda-empty-text">Nincs mai időpont</div>
                   </div>
                 ) : (
@@ -494,7 +494,7 @@ export default function CalendarPage() {
               {/* Section: Ügyfél */}
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
-                  👤 Ügyfél adatai
+                  Ügyfél adatai
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <ModalInput label="Név" value={newEvent.attendee} onChange={(v) => setNewEvent({ ...newEvent, attendee: v })} required placeholder="pl. Kiss Anna" />
@@ -512,7 +512,7 @@ export default function CalendarPage() {
               {/* Section: Esemény */}
               <div style={{ marginBottom: 20 }}>
                 <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
-                  📅 Esemény részletei
+                  Esemény részletei
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <ModalInput label="Esemény címe" value={newEvent.title} onChange={(v) => setNewEvent({ ...newEvent, title: v })} required placeholder="pl. Konzultáció" />
@@ -567,7 +567,7 @@ export default function CalendarPage() {
                 style={{
                   padding: '9px 28px', borderRadius: 9,
                   border: 'none',
-                  background: 'linear-gradient(135deg, #1ceee0, #0abfb4)',
+                  background: '#1ceee0',
                   color: '#0a1628', fontSize: 13, fontWeight: 700,
                   cursor: 'pointer', fontFamily: 'inherit',
                   boxShadow: '0 2px 12px rgba(28,238,224,0.3)',
@@ -576,7 +576,7 @@ export default function CalendarPage() {
                 onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 18px rgba(28,238,224,0.4)'; }}
                 onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(28,238,224,0.3)'; }}
               >
-                ✓ Létrehozás
+                Létrehozás
               </button>
             </div>
           </div>

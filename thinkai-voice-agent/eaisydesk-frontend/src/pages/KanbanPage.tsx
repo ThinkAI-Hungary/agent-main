@@ -396,7 +396,7 @@ export default function KanbanPage() {
               </button>
               <button
                 onClick={handleAddColumn}
-                style={{ padding: '10px 20px', border: 'none', background: 'linear-gradient(135deg,#1ceee0,#0bbdb1)', color: '#082432', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: 'none' }}
+                style={{ padding: '10px 20px', border: 'none', background: '#1ceee0', color: '#082432', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: 'none' }}
               >
                 Hozzáadás
               </button>

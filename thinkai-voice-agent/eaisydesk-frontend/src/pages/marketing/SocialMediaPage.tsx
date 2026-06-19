@@ -27,7 +27,7 @@ interface SocialAnalytics {
 }
 
 const STATUS_FILTERS = ['pending', 'approved', 'scheduled', 'published', 'all'] as const;
-const STATUS_LABELS: Record<string, string> = { pending: 'Várakozó', approved: 'Jóváhagyott', scheduled: '📅 Ütemezett', published: 'Publikált', all: 'Összes' };
+const STATUS_LABELS: Record<string, string> = { pending: 'Várakozó', approved: 'Jóváhagyott', scheduled: 'Ütemezett', published: 'Publikált', all: 'Összes' };
 
 export default function SocialMediaPage() {
   const [items, setItems] = useState<ContentItem[]>([]);
@@ -265,13 +265,13 @@ export default function SocialMediaPage() {
               <div className="mkt-approval-card-meta">
                 {platformIcon(item.platform)}
                 <span>{item.created_at ? new Date(item.created_at).toLocaleDateString('hu-HU') : '—'}</span>
-                {item.scheduled_at && <span>📅 {new Date(item.scheduled_at).toLocaleString('hu-HU')}</span>}
+                {item.scheduled_at && <span>{new Date(item.scheduled_at).toLocaleString('hu-HU')}</span>}
               </div>
               <div className="mkt-approval-card-preview">{item.body}</div>
               <div className="mkt-approval-card-actions">
                 {(item.status === 'pending' || item.status === 'ai_draft') && (
                   <>
-                    <button className="mkt-approval-btn btn-approve" onClick={() => handleApprove(item.id)}>✓ Jóváhagyás</button>
+                    <button className="mkt-approval-btn btn-approve" onClick={() => handleApprove(item.id)}>Jóváhagyás</button>
                     <button className="mkt-approval-btn btn-reject" onClick={() => handleReject(item.id)}>✕ Elutasítás</button>
                     <button className="mkt-approval-btn" onClick={() => setShowEditModal(item)}>✏️ Szerkesztés</button>
                   </>
@@ -279,7 +279,7 @@ export default function SocialMediaPage() {
                 {item.status === 'approved' && (
                   <>
                     <button className="mkt-approval-btn btn-publish" onClick={() => handlePublish(item)}>📤 Publikálás</button>
-                    <button className="mkt-approval-btn" onClick={() => setShowEditModal(item)}>📅 Ütemezés</button>
+                    <button className="mkt-approval-btn" onClick={() => setShowEditModal(item)}>Ütemezés</button>
                   </>
                 )}
               </div>
@@ -360,7 +360,7 @@ export default function SocialMediaPage() {
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button className="mkt-btn-outline" onClick={() => setShowEditModal(null)}>Mégse</button>
-              <button className="mkt-btn-accent" onClick={() => handleSchedule(showEditModal.id)}>📅 Ütemezés</button>
+              <button className="mkt-btn-accent" onClick={() => handleSchedule(showEditModal.id)}>Ütemezés</button>
             </div>
           </div>
         </div>

@@ -340,7 +340,7 @@
 .mkt-approval-btn svg { width: 14px; height: 14px; }
 .mkt-approval-btn:hover { border-color: var(--marketing-accent); color: var(--marketing-accent); }
 .mkt-approval-btn.btn-approve {
-  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  background: #8b5cf6;
   color: #fff;
   border-color: transparent;
   box-shadow: 0 2px 8px rgba(139,92,246,0.3);
@@ -349,7 +349,7 @@
 .mkt-approval-btn.btn-reject { color: #ef4444; }
 .mkt-approval-btn.btn-reject:hover { background: rgba(239,68,68,0.08); border-color: #ef4444; }
 .mkt-approval-btn.btn-publish {
-  background: linear-gradient(135deg, #22c55e, #16a34a);
+  background: #22c55e;
   color: #fff;
   border-color: transparent;
   box-shadow: 0 2px 8px rgba(34,197,94,0.3);
@@ -715,7 +715,7 @@
 .mkt-logo-icon {
   width: 32px;
   height: 32px;
-  background: linear-gradient(135deg, #8b5cf6, #6d28d9);
+  background: #8b5cf6;
   border-radius: 8px;
   display: flex;
   align-items: center;
@@ -896,7 +896,7 @@
 .cpv-progress-fill {
   height: 100%;
   border-radius: 3px;
-  background: linear-gradient(90deg, #1ceee0, #14b8ad);
+  background: #1ceee0;
   transition: width 0.5s cubic-bezier(0.16,1,0.3,1);
   min-width: 2px;
 }
@@ -1023,7 +1023,7 @@
   gap: 6px;
 }
 .cpv-btn-primary {
-  background: linear-gradient(135deg, #1ceee0, #14b8ad);
+  background: #1ceee0;
   color: #082432;
   font-weight: 700;
 }

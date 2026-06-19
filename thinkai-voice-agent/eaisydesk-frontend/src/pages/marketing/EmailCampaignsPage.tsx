@@ -226,7 +226,7 @@ export default function EmailCampaignsPage() {
                   <div className="mkt-campaign-name">{c.name}</div>
                   <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: sb.bg, color: sb.color }}>{sb.label}</span>
                 </div>
-                {c.subject && <div className="mkt-campaign-meta">📧 {c.subject}</div>}
+                {c.subject && <div className="mkt-campaign-meta">{c.subject}</div>}
                 <div className="mkt-campaign-meta">{c.created_at ? new Date(c.created_at).toLocaleDateString('hu-HU') : '—'}</div>
                 <div className="mkt-campaign-stats">
                   <div className="mkt-campaign-stat"><div className="mkt-campaign-stat-val">{c.sent_count || 0}</div><div className="mkt-campaign-stat-label">Elküldve</div></div>
@@ -336,7 +336,7 @@ export default function EmailCampaignsPage() {
               {showDetailModal.status === 'draft' && (
                 <button className="mkt-btn-accent" onClick={() => handleSend(showDetailModal.id)}>📤 Küldés most</button>
               )}
-              <button className="mkt-btn-outline" style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }} onClick={() => handleDelete(showDetailModal.id)}>🗑 Törlés</button>
+              <button className="mkt-btn-outline" style={{ color: '#ef4444', borderColor: 'rgba(239,68,68,0.3)' }} onClick={() => handleDelete(showDetailModal.id)}>Törlés</button>
             </div>
           </div>
         </div>

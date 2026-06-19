@@ -1131,7 +1131,7 @@ export default function SettingsPage() {
                     }}>
                       <div style={{
                         width: 28, height: 28, borderRadius: '50%',
-                        background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)',
+                        background: '#1ceee0',
                         color: '#082432', fontSize: 12, fontWeight: 800,
                         display: 'flex', alignItems: 'center', justifyContent: 'center',
                         flexShrink: 0, boxShadow: '0 2px 6px rgba(28,238,224,0.25)',
@@ -1699,7 +1699,7 @@ function PriceListModal({
             <button onClick={onSave} disabled={saving} style={{
               padding: '10px 28px', borderRadius: 8,
               border: 'none',
-              background: saving ? 'rgba(28,238,224,0.3)' : 'linear-gradient(135deg, #1ceee0, #14b8a6)',
+              background: saving ? 'rgba(28,238,224,0.3)' : '#1ceee0',
               color: '#0d2538', fontSize: 13, fontWeight: 700,
               cursor: saving ? 'wait' : 'pointer', fontFamily: 'inherit',
               letterSpacing: 0.5, transition: 'all 0.2s ease',

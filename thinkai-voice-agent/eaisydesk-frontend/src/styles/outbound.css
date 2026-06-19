@@ -141,7 +141,7 @@
 
     /* + ÚJ KAMPÁNY button */
     .out-new-campaign-btn {
-      background: linear-gradient(135deg, #1ceee0, #0bbdb1);
+      background: #1ceee0;
       color: #082432;
       border: none;
       padding: 10px 20px;
@@ -601,7 +601,7 @@
     }
     .ana-progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #1ceee0, #0bbdb1);
+      background: #1ceee0;
       border-radius: 100px;
       animation: anaProgressFill 1s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
       box-shadow: 0 0 12px rgba(28,238,224,0.3);
@@ -947,7 +947,7 @@
     }
     .ana-inline-progress-fill {
       height: 100%;
-      background: linear-gradient(90deg, #1ceee0, #0bbdb1);
+      background: #1ceee0;
       border-radius: 100px;
       animation: anaInlineProgressFill 1s cubic-bezier(0.16, 1, 0.3, 1) 0.5s both;
       box-shadow: 0 0 12px rgba(28,238,224,0.3);
@@ -1173,7 +1173,7 @@
       color: var(--text-muted);
     }
     .camp-mode-btn.active {
-      background: linear-gradient(135deg, #1ceee0, #0bbdb1);
+      background: #1ceee0;
       color: #082432;
     }
     .camp-mode-btn:not(.active):hover {
@@ -1374,7 +1374,7 @@
       color: #fff;
     }
     .camp-float-confirm {
-      background: linear-gradient(135deg, #1ceee0, #0bbdb1);
+      background: #1ceee0;
       color: #082432;
       border: none;
       padding: 10px 24px;

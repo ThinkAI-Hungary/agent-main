@@ -747,7 +747,7 @@ export default function InteractionsPage() {
                             fontFamily: 'inherit',
                           }}
                         >
-                          ⚠ Jóváhagyásra vár
+                          Jóváhagyásra vár
                         </button>
                       ) : (
                         <span style={{ color: 'var(--text-muted)' }}>{r.teendo}</span>
