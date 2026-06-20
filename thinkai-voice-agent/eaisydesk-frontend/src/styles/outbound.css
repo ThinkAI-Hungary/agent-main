@@ -1451,10 +1451,15 @@
     /* ══════════════════════════════════════════════════════════════════
        MEMBER DASHBOARD — Premium UX Redesign
 
+    /* Dashboard shell padding */
+    .member-dashboard-shell {
+      padding: 0 32px 32px;
+    }
+
     /* KPI Cards */
     .m-kpi-grid {
       display: grid;
-      grid-template-columns: repeat(3, 1fr);
+      grid-template-columns: 1fr 1fr;
       gap: 16px;
       margin-bottom: 24px;
     }
@@ -1658,6 +1663,9 @@
     }
 
     /* ── Todo Table (MiniCRM style) ────────────────── */
+    .todo-summary-grid {
+      grid-template-columns: repeat(4, 1fr);
+    }
     .todo-section {
       margin-bottom: 18px;
     }

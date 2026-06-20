@@ -555,7 +555,7 @@ export default function MemberDashboardPage() {
   }
 
   return (
-    <div id="member-analytics-shell" style={{ padding: '0 32px 32px' }}>
+    <div id="member-analytics-shell" className="member-dashboard-shell">
       {/* ── Greeting ──────────────────────────────────────────────────────── */}
       <div style={{ marginBottom: 28 }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
@@ -585,7 +585,7 @@ export default function MemberDashboardPage() {
       </div>
 
       {/* ── KPI Cards ─────────────────────────────────────────────────────── */}
-      <div className="m-kpi-grid" style={{ gridTemplateColumns: '1fr 1fr' }}>
+      <div className="m-kpi-grid">
         {/* Assigned clients */}
         <div className="m-kpi-card">
           <div className="m-kpi-header">
@@ -653,7 +653,7 @@ export default function MemberDashboardPage() {
         </div>
 
         {/* Summary cards */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4,1fr)', gap: 12, marginBottom: 18 }}>
+        <div className="todo-summary-grid" style={{ display: 'grid', gap: 12, marginBottom: 18 }}>
           <div
             style={{ padding: '16px 18px', borderRadius: 6, border: '1px solid rgba(59,130,246,0.2)', background: 'rgba(59,130,246,0.08)', cursor: 'pointer' }}
             onClick={() => setFilter('today')}
@@ -702,7 +702,7 @@ export default function MemberDashboardPage() {
         </div>
 
         {/* Todos table */}
-        <div className="int-table-wrapper" style={{ maxHeight: 500, overflowY: 'auto' }}>
+        <div className="int-table-wrapper todo-table-wrapper" style={{ maxHeight: 500, overflowY: 'auto' }}>
           <table className="data-table" style={{ width: '100%' }}>
             <thead className="int-thead">
               <tr>

@@ -298,7 +298,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       </div>
 
       {/* ═══ Top Card (Mint gradient) ═══ */}
-      <div style={{
+      <div className="cd-top-card-content" style={{
         display: 'flex', justifyContent: 'space-between', alignItems: 'stretch',
         background: 'linear-gradient(135deg, rgba(28,238,224,0.12) 0%, rgba(20,184,173,0.08) 100%)',
         border: '1px solid rgba(28,238,224,0.15)',
@@ -331,7 +331,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             <div style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 16 }}>
               Eaisydesk azonosító: {client.id}
             </div>
-            <div style={{ display: 'flex', gap: 32, fontSize: 14, color: 'var(--text)' }}>
+            <div className="cd-info-contact" style={{ display: 'flex', gap: 32, fontSize: 14, color: 'var(--text)' }}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <svg fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" style={{ opacity: 0.7 }}>
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
@@ -350,7 +350,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         </div>
 
         {/* Right: Profile Edit & Registration Date */}
-        <div style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div className="cd-right-panel" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-end' }}>
           <button
             onClick={() => setShowProfileEdit(true)}
             style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}
@@ -372,7 +372,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       </div>
 
       {/* ═══ Middle Cards: Tags, Appointments, Notes ═══ */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1.5fr', gap: 20, marginBottom: 24 }}>
+      <div className="cd-middle-grid" style={{ display: 'grid', gap: 20, marginBottom: 24 }}>
         {/* Tags */}
         <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column', position: 'relative' }}>
           <h3 style={{ fontSize: 12, fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: 0, marginBottom: 16 }}>Címkék</h3>
@@ -456,7 +456,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       {/* ═══ Aktuális Ügyek Table ═══ */}
       <div style={{ marginBottom: 32 }}>
         <h3 style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 16, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Aktuális ügyek</h3>
-        <div style={{ borderRadius: 6, border: '1px solid var(--border)', overflow: 'hidden' }}>
+        <div className="cd-aktual-table" style={{ borderRadius: 6, border: '1px solid var(--border)', overflow: 'hidden' }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: 'var(--card)' }}>
             <thead style={{ background: 'rgba(255,255,255,0.04)' }}>
               <tr>
@@ -529,7 +529,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       {/* ═══ Korábbi Interakciók Table ═══ */}
       <div style={{ marginBottom: 32 }}>
         <h3 style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 16, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Korábbi interakciók</h3>
-        <div style={{ borderRadius: 6, border: '1px solid var(--border)', overflow: 'hidden', opacity: 0.85 }}>
+        <div className="cd-korabbi-table" style={{ borderRadius: 6, border: '1px solid var(--border)', overflow: 'hidden', opacity: 0.85 }}>
           <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: 'var(--card)' }}>
             <thead style={{ background: 'rgba(255,255,255,0.04)' }}>
               <tr>

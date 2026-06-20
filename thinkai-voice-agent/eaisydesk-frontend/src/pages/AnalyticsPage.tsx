@@ -240,7 +240,7 @@ function CampaignPerformanceSection({ campaigns }: { campaigns: any[] }) {
       <h2 className="section-header-figma">Kampányteljesítmény</h2>
 
       {/* KPI stat row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
+      <div className="analytics-campaign-kpi-row" style={{ display: 'grid', gap: 16, marginBottom: 24 }}>
         {statCards.map(sc => (
           <div key={sc.label} className="panel-white" style={{ padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 16 }}>
             <div style={{
@@ -263,7 +263,7 @@ function CampaignPerformanceSection({ campaigns }: { campaigns: any[] }) {
       </div>
 
       {/* Charts row */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 36 }}>
+      <div className="analytics-campaign-charts-row" style={{ display: 'grid', gap: 18, marginBottom: 36 }}>
         {/* Status Doughnut */}
         <div className="panel-white" style={{ padding: '24px 28px' }}>
           <div className="panel-title" style={{ marginBottom: 20 }}>
@@ -551,13 +551,13 @@ export default function AnalyticsPage() {
             ))}
           </div>
           {/* Skeleton KPI grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16, marginBottom: 36 }}>
+          <div className="analytics-skeleton-kpi" style={{ display: 'grid', gap: 16, marginBottom: 36 }}>
             {Array.from({ length: 6 }).map((_, i) => (
               <div key={i} className="skeleton-shimmer" style={{ height: 110, borderRadius: 6 }} />
             ))}
           </div>
           {/* Skeleton chart row */}
-          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: 16 }}>
+          <div className="analytics-skeleton-charts" style={{ display: 'grid', gap: 16 }}>
             <div className="skeleton-shimmer" style={{ height: 300, borderRadius: 18 }} />
             <div className="skeleton-shimmer" style={{ height: 300, borderRadius: 18 }} />
           </div>
@@ -733,7 +733,7 @@ export default function AnalyticsPage() {
         {/* 2. Quality & Performance */}
         <div className="section-divider" />
         <h2 className="section-header-figma">Minőség és teljesítmény</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: isAdminOnly ? '1fr 1fr 1fr' : '1fr 1fr', gap: 18, marginBottom: 36 }}>
+        <div className="analytics-quality-grid" style={{ display: 'grid', gap: 18, marginBottom: 36 }}>
           {/* Top topics */}
           <div className="panel-white">
             <div className="panel-title">Top kérdéstípusok / témák</div>
@@ -784,7 +784,7 @@ export default function AnalyticsPage() {
         {/* 3. Alerts */}
         <div className="section-divider" />
         <h2 className="section-header-figma">Operatív figyelmeztetések és teendők</h2>
-        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 36 }}>
+        <div className="analytics-alerts-grid" style={{ display: 'grid', gap: 18, marginBottom: 36 }}>
           <div className="panel-white">
             <div className="panel-title">Kritikus ügyek</div>
             <AlertCards alerts={alerts} onOpenAlert={openAlertDetails} />

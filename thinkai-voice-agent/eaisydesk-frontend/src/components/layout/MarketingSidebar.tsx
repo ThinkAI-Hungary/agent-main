@@ -8,6 +8,8 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 
+const MOBILE_BP = 768;
+
 const MKT_NAV_ITEMS = [
   { id: 'mkt-dashboard', label: 'Áttekintés', path: '/marketing', icon: 'M3 12h2l3-9 4 18 3-9h6' },
   { id: 'mkt-email', label: 'E-mail kampányok', path: '/marketing/email', icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
@@ -28,6 +30,7 @@ export default function MarketingSidebar() {
     () => localStorage.getItem('digidesk_sidebar_collapsed') === '1'
   );
   const [switcherOpen, setSwitcherOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
 
   useEffect(() => {
     if (collapsed) document.body.classList.add('sidebar-collapsed');
@@ -50,6 +53,23 @@ export default function MarketingSidebar() {
     return () => document.removeEventListener('keydown', handleKey);
   }, [toggleCollapse]);
 
+  // Close mobile sidebar on navigation
+  useEffect(() => { setMobileOpen(false); }, [location.pathname]);
+
+  // Close on resize to desktop
+  useEffect(() => {
+    const onResize = () => { if (window.innerWidth > MOBILE_BP) setMobileOpen(false); };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Lock body scroll
+  useEffect(() => {
+    if (mobileOpen) document.body.classList.add('sidebar-mobile-open');
+    else document.body.classList.remove('sidebar-mobile-open');
+    return () => document.body.classList.remove('sidebar-mobile-open');
+  }, [mobileOpen]);
+
   function isActive(path: string): boolean {
     if (path === '/marketing') return location.pathname === '/marketing' || location.pathname === '/marketing/dashboard';
     return location.pathname === path || location.pathname.startsWith(path + '/');
@@ -62,7 +82,20 @@ export default function MarketingSidebar() {
     : avatarName.substring(0, 2).toUpperCase();
 
   return (
-    <aside className={`sidebar mkt-sidebar${collapsed ? ' collapsed' : ''}`}>
+    <>
+    <button
+      className="mobile-hamburger-btn"
+      onClick={() => setMobileOpen(prev => !prev)}
+      aria-label="Menü"
+    >
+      <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="22" height="22">
+        {mobileOpen
+          ? <path d="M18 6L6 18M6 6l12 12" />
+          : <><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></>}
+      </svg>
+    </button>
+    {mobileOpen && <div className="sidebar-mobile-backdrop" onClick={() => setMobileOpen(false)} />}
+    <aside className={`sidebar mkt-sidebar${collapsed ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
       {/* Collapse toggle */}
       <button className="sidebar-collapse-btn" onClick={toggleCollapse} title="Ctrl+B">
         <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="12" height="12">
@@ -139,5 +172,6 @@ export default function MarketingSidebar() {
         </div>
       </div>
     </aside>
+    </>
   );
 }

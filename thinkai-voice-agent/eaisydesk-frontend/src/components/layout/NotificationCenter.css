@@ -400,18 +400,34 @@ body.dark .notif-toast-channel {
 }
 
 /* ── Responsive ── */
-@media (max-width: 640px) {
+@media (max-width: 768px) {
   .notif-center {
-    right: 16px;
-    top: 16px;
+    right: 12px;
+    top: 12px;
+  }
+
+  .notif-bell {
+    width: 40px;
+    height: 40px;
   }
 
   .notif-dropdown {
-    width: calc(100vw - 32px);
-    right: -16px;
+    position: fixed;
+    top: 60px;
+    right: 8px;
+    left: 8px;
+    width: auto;
+    max-height: calc(100vh - 80px);
+    border-radius: 12px;
+  }
+
+  .notif-toast-container {
+    right: 8px;
+    left: 8px;
+    bottom: 16px;
   }
 
   .notif-toast {
-    width: calc(100vw - 48px);
+    width: 100%;
   }
 }

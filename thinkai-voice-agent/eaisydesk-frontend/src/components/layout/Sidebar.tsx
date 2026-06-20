@@ -4,6 +4,9 @@ import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
 import { authFetch } from '../../api/client';
 
+// Mobile breakpoint constant
+const MOBILE_BP = 768;
+
 interface NavItem {
   id: string;
   label: string;
@@ -89,6 +92,7 @@ export default function Sidebar() {
   );
   const [openGroups, setOpenGroups] = useState<Set<string>>(new Set(['interactions-group']));
   const [appSwitcherOpen, setAppSwitcherOpen] = useState(false);
+  const [mobileOpen, setMobileOpen] = useState(false);
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
 
   // Load avatar from backend
@@ -131,6 +135,30 @@ export default function Sidebar() {
     document.addEventListener('keydown', handleKey);
     return () => document.removeEventListener('keydown', handleKey);
   }, [toggleCollapse]);
+
+  // Close mobile sidebar on navigation
+  useEffect(() => {
+    setMobileOpen(false);
+  }, [location.pathname]);
+
+  // Close mobile sidebar on resize to desktop
+  useEffect(() => {
+    const onResize = () => {
+      if (window.innerWidth > MOBILE_BP) setMobileOpen(false);
+    };
+    window.addEventListener('resize', onResize);
+    return () => window.removeEventListener('resize', onResize);
+  }, []);
+
+  // Lock body scroll when mobile sidebar is open
+  useEffect(() => {
+    if (mobileOpen) {
+      document.body.classList.add('sidebar-mobile-open');
+    } else {
+      document.body.classList.remove('sidebar-mobile-open');
+    }
+    return () => document.body.classList.remove('sidebar-mobile-open');
+  }, [mobileOpen]);
 
   // Sync collapsed state to body class for CSS layout
   useEffect(() => {
@@ -178,7 +206,22 @@ export default function Sidebar() {
         : 'Member';
 
   return (
-    <aside className={`sidebar${collapsed ? ' collapsed' : ''}`}>
+    <>
+    {/* Mobile hamburger button — rendered outside sidebar */}
+    <button
+      className="mobile-hamburger-btn"
+      onClick={() => setMobileOpen(prev => !prev)}
+      aria-label="Menü"
+    >
+      <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="22" height="22">
+        {mobileOpen
+          ? <path d="M18 6L6 18M6 6l12 12" />
+          : <><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></>}
+      </svg>
+    </button>
+    {/* Mobile overlay backdrop */}
+    {mobileOpen && <div className="sidebar-mobile-backdrop" onClick={() => setMobileOpen(false)} />}
+    <aside className={`sidebar${collapsed ? ' collapsed' : ''}${mobileOpen ? ' mobile-open' : ''}`}>
       {/* Collapse toggle */}
       <button className="sidebar-collapse-btn" onClick={toggleCollapse} title="Ctrl+B">
         <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="12" height="12">
@@ -366,5 +409,6 @@ export default function Sidebar() {
         </button>
       </div>
     </aside>
+    </>
   );
 }

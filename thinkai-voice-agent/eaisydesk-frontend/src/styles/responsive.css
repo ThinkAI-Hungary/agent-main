@@ -1,4 +1,4 @@
-﻿    /* ── Responsive ────────────────────────────────────────────────── */
+    /* ── Responsive ────────────────────────────────────────────────── */
     @media (max-width: 1400px) {
 
       .stats-grid {
@@ -17,20 +17,787 @@
     }
 
     @media (max-width: 768px) {
-      .sidebar {
-        width: 60px;
-        padding: 16px 8px;
+      /* ── REMOVED old sidebar rules — now handled in sidebar.css ── */
+
+      /* ═══════════════════════════════════════════════════════════════
+         GLOBAL MOBILE STYLES (768px and below)
+         ═══════════════════════════════════════════════════════════════ */
+
+      /* Page titles */
+      .page-title {
+        font-size: 20px !important;
+        letter-spacing: -0.3px;
       }
 
-      .sidebar-logo-text,
-      .nav-item span,
-      .user-name,
-      .user-role {
-        display: none;
+      /* Analytics shell */
+      .analytics-shell {
+        padding: 12px !important;
       }
 
-      .main {
-        margin-left: 60px;
-        padding: 20px 16px;
+      /* Greeting bar */
+      .greeting-bar {
+        padding-left: 48px; /* space for hamburger */
+      }
+
+      /* ── Grids — stack to 2 columns or 1 column ────────────── */
+      .stats-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 8px;
+      }
+
+      .charts-row {
+        grid-template-columns: 1fr;
+        gap: 12px;
+      }
+
+      /* KPI grid (analytics page) */
+      .kpi-grid-figma {
+        grid-template-columns: 1fr 1fr !important;
+        gap: 10px !important;
+      }
+
+      .kpi-card-figma {
+        padding: 14px 16px !important;
+      }
+
+      /* Filter row */
+      .filter-row-figma {
+        flex-direction: column;
+        gap: 10px;
+      }
+      .filter-group {
+        min-width: 0;
+        width: 100%;
+      }
+      .btn-filter-apply {
+        width: 100%;
+      }
+
+      /* Section headers */
+      .section-header-figma {
+        font-size: 16px !important;
+      }
+
+      /* ── Panels and cards ─────────────────────────────────────── */
+      .panel-white {
+        padding: 16px !important;
+      }
+
+      /* Chart cards */
+      .chart-card {
+        padding: 14px !important;
+        height: auto !important;
+        min-height: 280px;
+      }
+
+      /* ── Tables — column hiding on mobile ──────────────────── */
+      /* Remove the forced min-width so tables fit naturally */
+      .data-table {
+        min-width: 0 !important;
+      }
+
+      /* Interactions table (#interactions-flat-table):
+         Columns: checkbox(1), Időpont(2), Ügyfél(3), Csatorna(4),
+         Irány(5), Ügytípus(6), Eredmény(7), Státusz(8), Teendő(9)
+         Keep: Időpont, Ügyfél, Csatorna — Hide: checkbox, Irány+
+      */
+      #interactions-flat-table .int-checkbox-col {
+        display: none !important;
+      }
+      #interactions-flat-table th:nth-child(n+5),
+      #interactions-flat-table td:nth-child(n+5) {
+        display: none !important;
+      }
+
+      /* When admin is logged in, checkbox column is the first <th>/<td>,
+         so the columns shift. We already hide .int-checkbox-col above.
+         After hiding checkbox: columns become Időpont(1), Ügyfél(2), Csatorna(3), Irány(4)...
+         Hide from 4th column onwards */
+      #interactions-flat-table tr > th:nth-child(n+5):not(.int-checkbox-col),
+      #interactions-flat-table tr > td:nth-child(n+5):not(.int-checkbox-col) {
+        display: none !important;
+      }
+
+      /* Interactions table cell padding */
+      #interactions-flat-table td,
+      #interactions-flat-table th {
+        padding: 10px 8px !important;
+        font-size: 12px !important;
+      }
+
+      /* Interactions toolbar — stack search and actions */
+      #interactions-flat-table ~ div,
+      .table-card > div:first-child {
+        flex-direction: column !important;
+        align-items: stretch !important;
+      }
+
+      /* Clients table: wraps in .table-card
+         Columns: checkbox(1), Ügyfél(2), Új/Visszatérő(3), Címkék(4),
+         Telefonszám(5), Email(6), Felelős(7), Utolsó interakció(8), Értékesítési státusz(9)
+         Keep: Ügyfél, Új/Visszatérő, Címkék, Telefonszám — Hide: checkbox, Email+
+      */
+      .table-card .data-table th:first-child,
+      .table-card .data-table td:first-child {
+        display: none !important;
+      }
+      .table-card .data-table th:nth-child(n+6),
+      .table-card .data-table td:nth-child(n+6) {
+        display: none !important;
+      }
+
+      /* Clients table cell sizing */
+      .table-card .data-table td,
+      .table-card .data-table th {
+        padding: 10px 8px !important;
+        font-size: 12px !important;
+      }
+
+      /* ── Table toolbar — responsive ──────────────────────── */
+      .int-toolbar-input {
+        width: 100% !important;
+        max-width: none !important;
+      }
+
+      .int-toolbar-btn {
+        font-size: 11px !important;
+        padding: 6px 10px !important;
+      }
+
+      /* ── Modals — nearly fullscreen on mobile ─────────────── */
+      .modal-overlay > div,
+      .security-modal,
+      .confirmation-modal {
+        width: 95vw !important;
+        max-width: 95vw !important;
+        max-height: 90vh;
+        overflow-y: auto;
+      }
+
+      /* ── Page shell — reduce padding ──────────────────────── */
+      .page.active:not(#page-analytics):not(#page-interactions):not(#page-settings):not(#page-kanban):not(#page-outbound) {
+        padding: 16px !important;
+      }
+
+      /* ── Global catch-all for inline-styled grids ─────────── */
+      /* Forces multi-column inline grids to stack on mobile   */
+      .settings-subview [style*="grid-template-columns"],
+      .tt-section [style*="grid-template-columns"],
+      #page-settings [style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* Beállítások page grids */
+      .beallitasok-shell [style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* GDPR & Help pages */
+      #page-gdpr [style*="grid-template-columns"],
+      #page-help [style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+      }
+
+
+      /* Marketing pages — inline grids */
+      .mkt-shell [style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* Triage / szabályok table → horizontal scroll */
+      .triage-table-wrapper,
+      .tt-bh-table-wrapper {
+        overflow-x: auto;
+        -webkit-overflow-scrolling: touch;
+      }
+      .triage-table,
+      .tt-bh-table {
+        min-width: 500px;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         ANALYTICS PAGE
+         ═══════════════════════════════════════════════════════════════ */
+
+      /* Inline grids in CampaignPerformanceSection & quality section */
+      #page-analytics [style*="gridTemplateColumns: 'repeat(4"] ,
+      #page-analytics [style*="grid-template-columns: repeat(4"] ,
+      #page-analytics [style*="grid-template-columns:repeat(4"] {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+
+      #page-analytics [style*="gridTemplateColumns: '1fr 1fr 1fr'"],
+      #page-analytics [style*="grid-template-columns: 1fr 1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+      }
+
+      #page-analytics [style*="gridTemplateColumns: '1fr 1fr'"],
+      #page-analytics [style*="grid-template-columns: 1fr 1fr"] {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* Severity cards */
+      .severity-card {
+        padding: 12px 14px !important;
+      }
+
+      /* Funnel */
+      .funnel-step {
+        width: 100% !important;
+        min-width: 0 !important;
+      }
+
+      /* Topic rows */
+      .topic-row {
+        padding: 10px 0;
+      }
+
+      /* Skeleton loading */
+      #page-analytics .skeleton-shimmer[style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* Alert modal */
+      .alert-detail-modal {
+        width: 95vw !important;
+        max-height: 85vh;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         INTERACTIONS PAGE
+         ═══════════════════════════════════════════════════════════════ */
+
+      .interactions-header {
+        flex-direction: column;
+        gap: 10px;
+        align-items: flex-start !important;
+      }
+
+      .interactions-search {
+        width: 100% !important;
+      }
+
+      .filter-row {
+        flex-wrap: wrap;
+        gap: 6px;
+        padding: 10px 14px;
+      }
+
+      .filter-btn {
+        font-size: 11px;
+        padding: 5px 10px;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         CLIENTS PAGE
+         ═══════════════════════════════════════════════════════════════ */
+
+      /* Client detail panel — take full width */
+      .client-detail-panel,
+      .client-detail-sidebar {
+        position: fixed !important;
+        left: 0 !important;
+        top: 0 !important;
+        right: 0 !important;
+        bottom: 0 !important;
+        width: 100% !important;
+        max-width: 100% !important;
+        z-index: 150 !important;
+        border-radius: 0 !important;
+      }
+
+      .clients-search-bar {
+        width: 100% !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         CALENDAR PAGE
+         ═══════════════════════════════════════════════════════════════ */
+
+      .fc .fc-toolbar {
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .fc .fc-toolbar-title {
+        font-size: 16px !important;
+      }
+
+      .fc .fc-button {
+        padding: 4px 8px !important;
+        font-size: 12px !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         KANBAN PAGE
+         ═══════════════════════════════════════════════════════════════ */
+
+      .kanban-board {
+        flex-direction: column !important;
+        gap: 16px;
+      }
+
+      .kanban-column {
+        width: 100% !important;
+        min-width: 0 !important;
+        max-width: 100% !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         OUTBOUND PAGE
+         ═══════════════════════════════════════════════════════════════ */
+
+      .out-kpi-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+
+      .out-page-header {
+        flex-direction: column;
+        align-items: flex-start !important;
+        gap: 10px;
+      }
+
+      .out-header-actions {
+        width: 100%;
+        flex-wrap: wrap;
+      }
+
+      /* Campaign wizard modal — fullscreen on mobile */
+      .campaign-wizard-modal,
+      .out-modal-content {
+        width: 100vw !important;
+        max-width: 100vw !important;
+        height: 100vh !important;
+        max-height: 100vh !important;
+        border-radius: 0 !important;
+        margin: 0 !important;
+      }
+
+      /* Outbound analytics grids */
+      .ana-kpi-row {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+      .ana-bento {
+        grid-template-columns: 1fr !important;
+      }
+      .ana-inline-kpi-row {
+        grid-template-columns: 1fr !important;
+      }
+      .ana-inline-bento {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         SETTINGS / TUDÁSTÁR PAGE
+         ═══════════════════════════════════════════════════════════════ */
+
+      .settings-layout {
+        flex-direction: column !important;
+        gap: 12px !important;
+      }
+
+      .settings-sidebar-nav {
+        width: 100% !important;
+        flex-direction: row !important;
+        overflow-x: auto;
+        position: static !important;
+        gap: 4px !important;
+        padding-bottom: 4px;
+        flex-wrap: nowrap;
+      }
+
+      .settings-tab {
+        white-space: nowrap;
+        flex-shrink: 0;
+        font-size: 12px !important;
+        padding: 8px 14px !important;
+      }
+
+      .settings-content-area .settings-subview {
+        padding: 16px 14px !important;
+      }
+
+      /* Tudástár sections */
+      .tt-section {
+        padding: 16px !important;
+      }
+
+      .tt-section-title {
+        font-size: 15px !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         BEÁLLÍTÁSOK (SETTINGS) PAGE
+         ═══════════════════════════════════════════════════════════════ */
+
+      .settings-page-header h1 {
+        font-size: 20px !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         MARKETING PAGES
+         ═══════════════════════════════════════════════════════════════ */
+
+      .mkt-dashboard-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      .mkt-kpi-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+
+      .mkt-content-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      .email-campaign-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* Social media grid */
+      .social-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         HELP PAGE
+         ═══════════════════════════════════════════════════════════════ */
+
+      .help-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         MEMBER DASHBOARD
+         ═══════════════════════════════════════════════════════════════ */
+
+      .member-kpi-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+
+      .member-charts-row {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         NOTIFICATION CENTER
+         ═══════════════════════════════════════════════════════════════ */
+
+      .notification-dropdown {
+        right: 0 !important;
+        left: 0 !important;
+        width: 100vw !important;
+        max-width: 100vw !important;
+        border-radius: 0 0 12px 12px !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         COMMAND PALETTE
+         ═══════════════════════════════════════════════════════════════ */
+
+      .command-palette-modal {
+        width: 95vw !important;
+        max-width: 95vw !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         GDPR PAGE
+         ═══════════════════════════════════════════════════════════════ */
+
+      .gdpr-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         AUTOMATIZACIOK PAGE
+         ═══════════════════════════════════════════════════════════════ */
+
+      .automation-grid {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         INTERACTION SUMMARY MODAL
+         ═══════════════════════════════════════════════════════════════ */
+
+      /* The modal content grid (summary + result side by side) */
+      .login-card [style*="grid-template-columns"] {
+        grid-template-columns: 1fr !important;
+      }
+
+      /* Modal footer — stack buttons vertically */
+      .login-card > div:last-child {
+        flex-direction: column !important;
+        gap: 8px;
+        padding: 12px 16px !important;
+      }
+
+      .login-card > div:last-child .btn-primary {
+        width: 100% !important;
+        text-align: center;
+        justify-content: center;
+      }
+
+      /* Modal header padding on mobile */
+      .login-card > div:first-child {
+        padding: 16px !important;
+      }
+
+      /* Modal content padding */
+      .login-card > div:nth-child(2) {
+        padding: 16px !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         MEMBER DASHBOARD — Mobile overrides
+         ═══════════════════════════════════════════════════════════════ */
+
+      /* Shell padding — reduce on mobile */
+      .member-dashboard-shell {
+        padding: 0 14px 20px !important;
+      }
+
+      /* KPI grid — stack to 1 column on mobile */
+      .m-kpi-grid {
+        grid-template-columns: 1fr !important;
+        gap: 10px !important;
+      }
+
+      /* KPI cards — smaller padding & text */
+      .m-kpi-card {
+        padding: 16px 14px !important;
+      }
+      .m-kpi-label {
+        font-size: 10px !important;
+        letter-spacing: 0.4px !important;
+      }
+      .m-kpi-value {
+        font-size: 24px !important;
+      }
+      .m-kpi-icon {
+        width: 32px !important;
+        height: 32px !important;
+      }
+      .m-kpi-icon svg {
+        width: 16px !important;
+        height: 16px !important;
+      }
+
+      /* Todo summary cards — 3 columns + hide "Összes" */
+      .todo-summary-grid {
+        grid-template-columns: repeat(3, 1fr) !important;
+        gap: 8px !important;
+      }
+      .todo-summary-grid > div:last-child {
+        display: none !important;
+      }
+      /* Summary card sizing */
+      .todo-summary-grid > div {
+        padding: 12px 10px !important;
+      }
+      .todo-summary-grid > div > div:last-child {
+        font-size: 22px !important;
+      }
+      .todo-summary-grid > div > div:first-child > span:last-child {
+        font-size: 11px !important;
+      }
+
+      /* Todo section header — stack on mobile */
+      .todo-section-header {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+        gap: 10px !important;
+      }
+
+      /* Todo table (dashboard) — hide columns 4+ (Ügytípus, Eredmény, Teendő, checkbox) */
+      .todo-table-wrapper .data-table th:nth-child(n+4),
+      .todo-table-wrapper .data-table td:nth-child(n+4) {
+        display: none !important;
+      }
+      .todo-table-wrapper .data-table td,
+      .todo-table-wrapper .data-table th {
+        padding: 10px 8px !important;
+        font-size: 12px !important;
+      }
+
+      /* Todo table — horizontal scroll wrapper */
+      .todo-table-wrapper {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         CLIENTS TABLE — Enhanced mobile
+         ═══════════════════════════════════════════════════════════════ */
+
+      /* Client table — horizontal scroll wrapper */
+      .table-card {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* Clients toolbar — stack better */
+      .table-card > div:first-child {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+      }
+      .table-card > div:first-child > div {
+        width: 100% !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         INTERACTIONS TABLE — Enhanced mobile
+         ═══════════════════════════════════════════════════════════════ */
+
+      /* Interactions toolbar — stack on mobile */
+      .analytics-shell > div[style*="border-radius: 10"] > div:first-child {
+        flex-direction: column !important;
+        align-items: stretch !important;
+        gap: 10px !important;
+      }
+
+      /* ═══════════════════════════════════════════════════════════════
+         CLIENT DETAIL VIEW — Mobile overrides
+         ═══════════════════════════════════════════════════════════════ */
+
+      /* Top card — stack vertically */
+      .cd-top-card-content {
+        flex-direction: column !important;
+        padding: 18px 16px !important;
+        gap: 16px !important;
+      }
+
+      /* Contact info (phone + email) — stack vertically */
+      .cd-info-contact {
+        flex-direction: column !important;
+        gap: 8px !important;
+      }
+
+      /* Right panel (profile edit + registration date) — stack left-aligned */
+      .cd-right-panel {
+        flex-direction: row !important;
+        align-items: center !important;
+        justify-content: space-between !important;
+        gap: 12px !important;
+      }
+
+      /* Name + badge — wrap */
+      .cd-top-card-content h2 {
+        font-size: 20px !important;
+      }
+
+      /* Middle grid (Tags, Appointments, Notes) — single column */
+      .cd-middle-grid {
+        grid-template-columns: 1fr !important;
+        gap: 14px !important;
+      }
+
+      /* Aktuális ügyek table — hide columns 3+ (Irány, Ügytípus, Eredmény, Státusz, Teendő) */
+      .cd-aktual-table table th:nth-child(n+3),
+      .cd-aktual-table table td:nth-child(n+3) {
+        display: none !important;
+      }
+      .cd-aktual-table table th,
+      .cd-aktual-table table td {
+        padding: 10px 8px !important;
+        font-size: 12px !important;
+      }
+      .cd-aktual-table {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+      }
+
+      /* Korábbi interakciók table — hide columns 3+ (Irány, Ügytípus, Eredmény, Státusz, Teendő, Napló) */
+      .cd-korabbi-table table th:nth-child(n+3),
+      .cd-korabbi-table table td:nth-child(n+3) {
+        display: none !important;
+      }
+      .cd-korabbi-table table th,
+      .cd-korabbi-table table td {
+        padding: 10px 8px !important;
+        font-size: 12px !important;
+      }
+      .cd-korabbi-table {
+        overflow-x: auto !important;
+        -webkit-overflow-scrolling: touch;
+      }
+    }
+
+    /* ═══════════════════════════════════════════════════════════════════
+       EXTRA SMALL MOBILE (≤420px) — iPhone SE / 375px devices
+       ═══════════════════════════════════════════════════════════════════ */
+    @media (max-width: 420px) {
+      /* Dashboard — summary cards 2 columns, hide 3rd */
+      .todo-summary-grid {
+        grid-template-columns: repeat(2, 1fr) !important;
+      }
+      .todo-summary-grid > div:nth-child(3) {
+        display: none !important;
+      }
+
+      /* Dashboard — even smaller text */
+      .m-kpi-value {
+        font-size: 20px !important;
+      }
+      .m-kpi-label {
+        font-size: 9px !important;
+      }
+
+      /* Client detail — right panel stacks vertically */
+      .cd-right-panel {
+        flex-direction: column !important;
+        align-items: flex-start !important;
+      }
+
+      /* Client detail — top card even tighter padding */
+      .cd-top-card-content {
+        padding: 14px 12px !important;
+      }
+      .cd-top-card-content h2 {
+        font-size: 18px !important;
+      }
+
+      /* Tighter table padding across all detail tables */
+      .cd-aktual-table table th,
+      .cd-aktual-table table td,
+      .cd-korabbi-table table th,
+      .cd-korabbi-table table td {
+        padding: 8px 6px !important;
+        font-size: 11px !important;
+      }
+
+      /* Clients list table — hide 4th column (Telefonszám) at 375px */
+      .table-card .data-table th:nth-child(n+4),
+      .table-card .data-table td:nth-child(n+4) {
+        display: none !important;
+      }
+
+      /* Interactions list table — hide 3rd column at 375px */
+      #interactions-flat-table th:nth-child(n+3),
+      #interactions-flat-table td:nth-child(n+3) {
+        display: none !important;
+      }
+
+      /* Global tighter table padding */
+      .data-table td,
+      .data-table th {
+        padding: 8px 6px !important;
+        font-size: 11px !important;
+      }
+
+      /* Shell — even less padding */
+      .member-dashboard-shell {
+        padding: 0 10px 16px !important;
+      }
+
+      /* Analytics shell — tighter padding */
+      .analytics-shell {
+        padding: 16px 10px !important;
+      }
+
+      /* Global page content tighter */
+      .main-content-area {
+        padding: 10px !important;
       }
     }

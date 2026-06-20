@@ -43,6 +43,12 @@
     }
 
     /* ── Client Details View Styles ────────────────────────────────────────── */
+
+    /* Middle grid: Tags, Appointments, Notes — desktop default */
+    .cd-middle-grid {
+      grid-template-columns: 1fr 1fr 1.5fr;
+    }
+
     .cd-top-card {
       background: linear-gradient(100deg, #c5f0ee 0%, #a8e5e3 100%);
       border-radius: var(--radius-lg);

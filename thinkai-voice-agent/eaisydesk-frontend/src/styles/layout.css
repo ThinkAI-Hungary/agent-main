@@ -17,3 +17,14 @@
     body.sidebar-collapsed .main-content {
       margin-left: 64px;
     }
+
+    /* ── Mobile layout ─────────────────────────────────────────── */
+    @media (max-width: 768px) {
+      .main-content {
+        margin-left: 0 !important;
+        padding: 60px 14px 20px;
+      }
+      body.sidebar-collapsed .main-content {
+        margin-left: 0 !important;
+      }
+    }
