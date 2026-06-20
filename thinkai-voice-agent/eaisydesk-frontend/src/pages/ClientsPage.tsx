@@ -53,7 +53,6 @@ const CLIENT_COLUMNS = [
   { key: 'assignee', label: 'Felelős' },
   { key: 'lastInteraction', label: 'Utolsó interakció' },
   { key: 'sales_status', label: 'Értékesítési státusz' },
-  { key: 'actions', label: 'Műveletek' },
 ] as const;
 
 export default function ClientsPage() {
@@ -281,80 +280,92 @@ export default function ClientsPage() {
         />
       )}
 
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <div className="page-title">Ügyféllista</div>
-          <div className="page-subtitle">Ügyfelek listázása és alapadatok módosítása</div>
-        </div>
-        <div style={{ display: 'flex', gap: 12, alignItems: 'center', flexWrap: 'wrap' }}>
-
-
-          {/* Search */}
-          <input
-            type="text"
-            className="int-toolbar-input"
-            placeholder="Keresés ügyfelek között..."
-            style={{ width: 250 }}
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-          />
-
-          {/* Bulk delete */}
-          {isAdmin && selectedRows.size > 0 && (
-            <button className="int-toolbar-btn" style={{ color: '#ef4444', borderColor: '#ef4444' }} onClick={handleBulkDelete}>
-              Kijelöltek törlése ({selectedRows.size})
-            </button>
-          )}
-
-          {/* Campaign export */}
-          {selectedRows.size > 0 && (
-            <button
-              className="int-toolbar-btn"
-              style={{ color: '#1ceee0', borderColor: '#1ceee0', background: 'rgba(28,238,224,0.08)', fontWeight: 600 }}
-              onClick={() => setShowCampaignWizard(true)}
-            >
-              <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 14, height: 14 }}>
-                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-              </svg>
-              Kampányba exportálás ({selectedRows.size})
-            </button>
-          )}
-
-          {/* Column toggle */}
-          <div style={{ position: 'relative', display: 'inline-block' }} ref={colDropdownRef}>
-            <button
-              className="int-toolbar-btn"
-              style={{ gap: 6, display: 'flex', alignItems: 'center' }}
-              title="Oszlopok"
-              onClick={() => setColDropdownOpen(!colDropdownOpen)}
-            >
-              <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-                <rect height="18" rx="2" ry="2" width="18" x="3" y="3" />
-                <line x1="9" x2="9" y1="3" y2="21" />
-              </svg>
-              Oszlopok
-            </button>
-            {colDropdownOpen && (
-              <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: '10px 0', minWidth: 200, zIndex: 50 }}>
-                <div style={{ padding: '4px 14px 8px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Látható oszlopok</div>
-                {CLIENT_COLUMNS.map((col) => (
-                  <label key={col.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>
-                    <input type="checkbox" checked={visibleCols.has(col.key)} onChange={() => toggleCol(col.key)} style={{ accentColor: '#1ceee0', width: 15, height: 15, cursor: 'pointer' }} />
-                    {col.label}
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Page title — standalone */}
+      <div style={{ marginBottom: 20 }}>
+        <div className="page-title">Ügyféllista</div>
       </div>
 
 
       {/* Table view */}
       {viewMode === 'table' && (
-        <div className="table-card" style={{ overflowX: 'auto' }}>
-          <table className="data-table">
+        <div className="table-card" style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid var(--border)' }}>
+          {/* Toolbar strip */}
+          <div style={{
+            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+            padding: '10px 18px', borderBottom: '1px solid var(--border)',
+            flexWrap: 'wrap', gap: 8,
+          }}>
+            {/* Left: search + count */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <input
+                type="text"
+                className="int-toolbar-input"
+                placeholder="Keresés ügyfelek között..."
+                style={{ width: 250 }}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {filteredClients.length > 0 && (
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                  {filteredClients.length} ügyfél
+                </span>
+              )}
+            </div>
+
+            {/* Right: actions */}
+            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+              {/* Bulk delete */}
+              {isAdmin && selectedRows.size > 0 && (
+                <button className="int-toolbar-btn" style={{ color: '#ef4444', borderColor: '#ef4444' }} onClick={handleBulkDelete}>
+                  Kijelöltek törlése ({selectedRows.size})
+                </button>
+              )}
+
+              {/* Campaign export */}
+              {selectedRows.size > 0 && (
+                <button
+                  className="int-toolbar-btn"
+                  style={{ color: '#1ceee0', borderColor: '#1ceee0', background: 'rgba(28,238,224,0.08)', fontWeight: 600 }}
+                  onClick={() => setShowCampaignWizard(true)}
+                >
+                  <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 14, height: 14 }}>
+                    <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                  </svg>
+                  Kampányba exportálás ({selectedRows.size})
+                </button>
+              )}
+
+              {/* Column toggle */}
+              <div style={{ position: 'relative', display: 'inline-block' }} ref={colDropdownRef}>
+                <button
+                  className="int-toolbar-btn"
+                  style={{ gap: 6, display: 'flex', alignItems: 'center' }}
+                  title="Oszlopok"
+                  onClick={() => setColDropdownOpen(!colDropdownOpen)}
+                >
+                  <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
+                    <rect height="18" rx="2" ry="2" width="18" x="3" y="3" />
+                    <line x1="9" x2="9" y1="3" y2="21" />
+                  </svg>
+                  Oszlopok
+                </button>
+                {colDropdownOpen && (
+                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: '10px 0', minWidth: 200, zIndex: 50 }}>
+                    <div style={{ padding: '4px 14px 8px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Látható oszlopok</div>
+                    {CLIENT_COLUMNS.map((col) => (
+                      <label key={col.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>
+                        <input type="checkbox" checked={visibleCols.has(col.key)} onChange={() => toggleCol(col.key)} style={{ accentColor: '#1ceee0', width: 15, height: 15, cursor: 'pointer' }} />
+                        {col.label}
+                      </label>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* Table */}
+          <table className="data-table" style={{ borderRadius: 0 }}>
             <thead>
               <tr>
                 <th style={{ width: 40, textAlign: 'center' }}>
@@ -367,7 +378,7 @@ export default function ClientsPage() {
               {filteredClients.length === 0 ? (
                 <tr>
                 <td colSpan={visibleCols.size + 1} style={{ padding: 0, border: 'none' }}>
-                    {clients.length === 0 ? <TableSkeleton columns={visibleCols.size} rows={8} /> : <div style={{ textAlign: 'center', padding: 40, color: 'var(--text-muted)' }}>Nincs találat</div>}
+                    {clients.length === 0 ? <TableSkeleton columns={visibleCols.size} rows={8} /> : <div style={{ textAlign: 'center', padding: 40 }}><span className="no-data">Nincs találat</span></div>}
                   </td>
                 </tr>
               ) : (
@@ -443,16 +454,7 @@ export default function ClientsPage() {
                         {kanbanNameMap[c.status] || c.status || '—'}
                       </td>
                     )}
-                    {visibleCols.has('actions') && (
-                      <td style={{ padding: '12px 16px' }} onClick={(e) => e.stopPropagation()}>
-                        <button
-                          onClick={() => openClientDetail(String(c.id))}
-                          style={{ background: 'rgba(28,238,224,0.1)', border: '1px solid var(--accent)', color: 'var(--accent)', borderRadius: 6, padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-                        >
-                          Részletek
-                        </button>
-                      </td>
-                    )}
+
                   </tr>
                 ))
               )}

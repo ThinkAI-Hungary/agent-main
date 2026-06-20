@@ -19,7 +19,7 @@ function useStaticCommands(navigate: ReturnType<typeof useNavigate>): CmdItem[] 
   return useMemo(() => [
     // Navigation — paths are relative to BrowserRouter basename="/admin"
     { id: 'nav-analytics', title: 'Irányítópult', desc: 'Analitika és KPI-k', icon: '📊', type: 'nav' as const, action: () => navigate('/analytics'), keywords: 'analytics dashboard analitika kpi' },
-    { id: 'nav-interactions', title: 'Interakciós lista', desc: 'Összes beérkező és kimenő interakció', icon: '💬', type: 'nav' as const, action: () => navigate('/interactions'), keywords: 'interactions interakció üzenet message' },
+    { id: 'nav-interactions', title: 'Interakciós napló', desc: 'Összes beérkező és kimenő interakció', icon: '💬', type: 'nav' as const, action: () => navigate('/interactions'), keywords: 'interactions interakció üzenet message' },
     { id: 'nav-clients', title: 'Ügyféllista', desc: 'Ügyfelek keresése és kezelése', icon: '👥', type: 'nav' as const, action: () => navigate('/clients'), keywords: 'clients ügyfelek customer' },
     { id: 'nav-kanban', title: 'Érdeklődőkezelés', desc: 'Kanban board — lead pipeline', icon: '📋', type: 'nav' as const, action: () => navigate('/kanban'), keywords: 'kanban board lead pipeline érdeklődő' },
     { id: 'nav-calendar', title: 'Naptár', desc: 'Időpontok és foglalások', icon: '📅', type: 'nav' as const, action: () => navigate('/calendar'), keywords: 'calendar naptár foglalás időpont' },

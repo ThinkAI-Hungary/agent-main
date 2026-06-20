@@ -18,7 +18,7 @@ export default function SeoPage() {
         </div>
         <div>
           <div className="mkt-page-title">SEO / SEM</div>
-          <div className="mkt-page-subtitle">Keresőoptimalizálás, kulcsszó pozíciók és Google Ads kezelés</div>
+
         </div>
       </div>
 

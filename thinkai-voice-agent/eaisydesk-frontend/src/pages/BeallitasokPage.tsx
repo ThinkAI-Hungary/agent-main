@@ -181,7 +181,7 @@ export default function BeallitasokPage() {
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
           <h1 style={{ fontSize: 26, fontWeight: 800, color: 'var(--text)', margin: 0 }}>Beállítások</h1>
         </div>
-        <p style={{ fontSize: 14, color: 'var(--text-muted)', margin: 0 }}>Rendszer és üzleti beállítások kezelése</p>
+
       </div>
 
       {/* Pill-style tab bar (legacy match) */}
@@ -209,7 +209,7 @@ export default function BeallitasokPage() {
               <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" style={{ width: 20, height: 20, color: 'var(--text)' }}><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
               <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Felhasználói profil</div>
             </div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginBottom: 32 }}>Személyes információk és avatar kezelése</div>
+
 
             {/* ── Profile Picture Upload ── */}
             <ProfileAvatarUpload
@@ -245,7 +245,7 @@ export default function BeallitasokPage() {
           <div className="beallitasok-card">
             <div style={{ marginBottom: 8 }}>
               <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>Csapat</div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Felhasználók és hozzáférések kezelése</div>
+
             </div>
             <div style={{ borderTop: '1px solid var(--border)', marginTop: 16, paddingTop: 8 }}>
               {loading ? (
@@ -307,7 +307,7 @@ export default function BeallitasokPage() {
           <div className="beallitasok-card">
             <div style={{ marginBottom: 8 }}>
               <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)' }}>Biztonság</div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 4 }}>Jelszó, munkamenet és adatvédelem</div>
+
             </div>
             <div style={{ borderTop: '1px solid var(--border)', marginTop: 16, paddingTop: 8 }}>
               {/* Jelszó */}

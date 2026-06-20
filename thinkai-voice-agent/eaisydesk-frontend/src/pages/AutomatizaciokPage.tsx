@@ -144,9 +144,6 @@ export default function AutomatizaciokPage() {
           </div>
           <div>
             <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.5 }}>Automatikus értesítések</div>
-            <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 3 }}>
-              Időpont emlékeztetők, címkék és eseményvezérelt kommunikáció
-            </div>
           </div>
         </div>
 

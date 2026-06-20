@@ -16,7 +16,7 @@ export default function CompetitorPage() {
         </div>
         <div>
           <div className="mkt-page-title">Árfigyelő</div>
-          <div className="mkt-page-subtitle">Versenytárs monitoring és árösszehasonlítás</div>
+
         </div>
       </div>
 

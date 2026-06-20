@@ -16,7 +16,7 @@ export default function LoyaltyPage() {
         </div>
         <div>
           <div className="mkt-page-title">Hűségprogram</div>
-          <div className="mkt-page-subtitle">Szintrendszer, pontgyűjtés és kedvezmények kezelése</div>
+
         </div>
       </div>
 

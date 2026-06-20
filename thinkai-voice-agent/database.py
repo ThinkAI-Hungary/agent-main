@@ -415,13 +415,15 @@ def delete_task(task_id: int) -> bool:
 # ANALYTICS
 # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
-def get_alerts_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind") -> dict:
+def get_alerts_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind", date_from: str = "", date_to: str = "") -> dict:
     if not supabase: 
         return {"urgent_count": 0, "complaint_count": 0, "callback_count": 0, "recurring_count": 0, "stuck_count": 0}
     try:
         # Calculate period start date (consistent with get_stats)
         today = datetime.now(timezone.utc)
-        if period == "week":
+        if date_from and date_to:
+            start_dt = datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
+        elif period == "week":
             start_dt = today - timedelta(days=today.weekday())
         elif period == "month":
             start_dt = today.replace(day=1)
@@ -567,11 +569,17 @@ def map_topic_category(raw_topic: str) -> str:
     
     return "Általános érdeklődés"
 
-def get_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind") -> dict:
+def get_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind", date_from: str = "", date_to: str = "") -> dict:
     if not supabase: return {}
     today = datetime.now(timezone.utc)
     
-    if period == "week":
+    if date_from and date_to:
+        start_dt = datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
+        end_dt = datetime.fromisoformat(date_to).replace(tzinfo=timezone.utc) + timedelta(days=1)
+        duration = end_dt - start_dt
+        prev_end = start_dt
+        prev_start = prev_end - duration
+    elif period == "week":
         start_dt = today - timedelta(days=today.weekday())
         prev_start = start_dt - timedelta(days=7)
         prev_end = start_dt
@@ -763,11 +771,13 @@ def get_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mi
         logger.error(f"Stats error: {e}")
         return {}
 
-def get_outbound_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind") -> dict:
+def get_outbound_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind", date_from: str = "", date_to: str = "") -> dict:
     if not supabase: return {"total_outbound": 0, "reached_rate": 0, "booked_count": 0, "booked_rate": 0, "open_followup": 0}
     today = datetime.now(timezone.utc)
     
-    if period == "week":
+    if date_from and date_to:
+        start_dt = datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
+    elif period == "week":
         start_dt = today - timedelta(days=today.weekday())
     elif period == "month":
         start_dt = today.replace(day=1)
@@ -866,11 +876,13 @@ def get_outbound_stats(period: str = "month", channel: str = "mind", clinic_id: 
         logger.error(f"Outbound stats error: {e}")
         return {"total_outbound": 0, "reached_rate": 0, "booked_count": 0, "booked_rate": 0, "open_followup": 0, "activities": {}}
 
-def get_funnel_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind") -> dict:
+def get_funnel_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind", date_from: str = "", date_to: str = "") -> dict:
     if not supabase: return {}
     try:
         today = datetime.now(timezone.utc)
-        if period == "week": start_dt = today - timedelta(days=today.weekday())
+        if date_from and date_to:
+            start_dt = datetime.fromisoformat(date_from).replace(tzinfo=timezone.utc)
+        elif period == "week": start_dt = today - timedelta(days=today.weekday())
         elif period == "month": start_dt = today.replace(day=1)
         else: start_dt = today - timedelta(days=365)
         

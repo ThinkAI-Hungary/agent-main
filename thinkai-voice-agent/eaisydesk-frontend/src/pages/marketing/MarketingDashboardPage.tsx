@@ -132,7 +132,7 @@ export default function MarketingDashboardPage() {
         </div>
         <div>
           <div className="mkt-page-title">Marketing Áttekintés</div>
-          <div className="mkt-page-subtitle">Összesített marketing teljesítmény és gyors műveletek</div>
+
         </div>
       </div>
 
@@ -153,7 +153,7 @@ export default function MarketingDashboardPage() {
             <div className="mkt-card-title-icon" style={{ background: 'rgba(139,92,246,0.1)' }}>
               <svg fill="none" stroke="#8b5cf6" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 12h2l3-9 4 18 3-9h6" /></svg>
             </div>
-            Kampány teljesítmény
+            Kampányteljesítmény
           </div>
           <div style={{ height: 'calc(100% - 50px)' }}>
             <Line data={chartData} options={chartOpts} />
@@ -206,13 +206,13 @@ export default function MarketingDashboardPage() {
             Legutóbbi kampányok
           </div>
           {campaigns.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-muted)', fontSize: 13 }}>Még nincsenek kampányok.</div>
+            <div style={{ textAlign: 'center', padding: 30, fontSize: 13 }}><span className="no-data">Még nincsenek kampányok.</span></div>
           ) : campaigns.map(c => (
             <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
               <div>
                 <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{c.name}</div>
                 <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
-                  {c.created_at ? new Date(c.created_at).toLocaleDateString('hu-HU') : '—'}
+                  {c.created_at ? new Date(c.created_at).toLocaleDateString('hu-HU') : <span className="no-data">Nincs dátum</span>}
                   {c.sent_count > 0 && ` · ${c.sent_count} elküldve`}
                 </div>
               </div>
@@ -228,8 +228,8 @@ export default function MarketingDashboardPage() {
             </div>
             Értesítések
           </div>
-          <div style={{ textAlign: 'center', padding: 30, color: 'var(--text-muted)', fontSize: 13 }}>
-            Nincs új értesítés.
+          <div style={{ textAlign: 'center', padding: 30, fontSize: 13 }}>
+            <span className="no-data">Nincs új értesítés.</span>
           </div>
         </div>
       </div>

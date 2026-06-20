@@ -1,4 +1,4 @@
-﻿    /* �� Stats grid �������������������������������������������������� */
+    /* �� Stats grid �������������������������������������������������� */
     .stats-grid {
       display: grid;
       grid-template-columns: repeat(6, 1fr);
@@ -337,6 +337,23 @@
 
     .empty-state-text {
       font-size: 14px;
+    }
+
+    /* Global no-data placeholder style */
+    .no-data {
+      color: var(--text-muted, #9ca3af);
+      font-style: italic;
+      font-weight: 400;
+    }
+
+    /* Hungarian date input formatting */
+    input[type="date"],
+    input[type="datetime-local"] {
+      font-family: inherit;
+    }
+    input[type="date"]::-webkit-datetime-edit-fields-wrapper,
+    input[type="datetime-local"]::-webkit-datetime-edit-fields-wrapper {
+      font-family: inherit;
     }
 
     /* �� Type color mapping ������������������������������������������ */

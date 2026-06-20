@@ -174,7 +174,7 @@ export default function EmailCampaignsPage() {
         </div>
         <div style={{ flex: 1 }}>
           <div className="mkt-page-title">E-mail kampányok</div>
-          <div className="mkt-page-subtitle">Kampányok kezelése, hírlevelek és automatizált sorozatok</div>
+
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           <span style={{ fontSize: 12, color: 'var(--text-muted)', background: 'var(--bg3)', padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
@@ -214,7 +214,7 @@ export default function EmailCampaignsPage() {
       ) : filtered.length === 0 ? (
         <div className="mkt-empty-state">
           <svg fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8" /></svg>
-          <p>{filter === 'all' ? 'Még nincsenek kampányok. Kattints az "Új kampány" gombra!' : `Nincs "${STATUS_LABELS[filter]}" státuszú kampány.`}</p>
+          <p className="no-data">{filter === 'all' ? 'Még nincsenek kampányok. Kattints az "Új kampány" gombra!' : `Nincs "${STATUS_LABELS[filter]}" státuszú kampány.`}</p>
         </div>
       ) : (
         <div className="mkt-campaign-grid">

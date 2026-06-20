@@ -117,7 +117,7 @@ export default function ZomboAuditPage() {
         </div>
         <div>
           <div className="mkt-page-title">Zombo Audit</div>
-          <div className="mkt-page-subtitle">Weblap elemzés, versenytárs összehasonlítás és AI tartalomgenerálás</div>
+
         </div>
       </div>
 

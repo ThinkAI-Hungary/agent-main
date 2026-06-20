@@ -248,7 +248,7 @@ export default function KanbanPage() {
         <div className="page-header" style={{ marginBottom: 18 }}>
           <div>
             <div className="page-title">Érdeklődőkezelés</div>
-            <div className="page-subtitle">Konverziós tölcsér és érdeklődők nyomon követése</div>
+
           </div>
         </div>
         <KanbanSkeleton />
@@ -301,7 +301,7 @@ export default function KanbanPage() {
       <div className="page-header" style={{ marginBottom: 18 }}>
         <div>
           <div className="page-title">Érdeklődőkezelés</div>
-          <div className="page-subtitle">Konverziós tölcsér és érdeklődők nyomon követése</div>
+
         </div>
         <button
           onClick={() => setShowAddModal(true)}

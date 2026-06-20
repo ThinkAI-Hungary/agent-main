@@ -43,7 +43,20 @@ export function detectUgyTipus(r: {
     topic.includes('kérdés') ||
     topic.includes('question') ||
     topic.includes('információ') ||
-    topic.includes('érdeklőd')
+    topic.includes('érdeklőd') ||
+    topic.includes('mennyi') ||
+    topic.includes('kerül') ||
+    topic.includes('ár') ||
+    topic.includes('költség') ||
+    topic.includes('fizetés') ||
+    topic.includes('hány') ||
+    topic.includes('mikor') ||
+    topic.includes('hogyan') ||
+    topic.includes('miért') ||
+    topic.includes('milyen') ||
+    topic.includes('tudnak') ||
+    topic.includes('lehet') ||
+    topic.includes('csinál')
   )
     return 'KÉRDÉS';
   return 'EGYÉB';

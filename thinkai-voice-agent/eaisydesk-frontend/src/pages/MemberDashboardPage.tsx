@@ -320,7 +320,7 @@ export default function MemberDashboardPage() {
       });
 
 
-      myApprovals.filter(a => a.approval_status === 'pending' && a.approval_status !== 'spam').forEach(ap => {
+      myApprovals.filter(a => a.approval_status === 'pending').forEach(ap => {
         const apDt = ap.created_at ? new Date(ap.created_at as string) : new Date();
         const deadlineDt = new Date(apDt.getTime() + 2 * 60 * 60 * 1000);
         let clientName = 'Ismeretlen';

@@ -1933,19 +1933,19 @@ def api_get_members(username: str = Depends(verify_jwt)):
 
 
 @app.get("/admin/api/stats")
-def admin_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind", username: str = Depends(verify_jwt)):
+def admin_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mind", date_from: str = "", date_to: str = "", username: str = Depends(verify_jwt)):
     """Analytics summary stats."""
-    return db.get_stats(period=period, channel=channel, clinic_id=clinic_id)
+    return db.get_stats(period=period, channel=channel, clinic_id=clinic_id, date_from=date_from, date_to=date_to)
 
 @app.get("/admin/api/analytics/funnel")
-def admin_funnel(period: str = "month", channel: str = "mind", clinic_id: str = "mind", username: str = Depends(verify_jwt)):
+def admin_funnel(period: str = "month", channel: str = "mind", clinic_id: str = "mind", date_from: str = "", date_to: str = "", username: str = Depends(verify_jwt)):
     """Funnel stats based on interaction stages."""
-    return db.get_funnel_stats(period=period, channel=channel, clinic_id=clinic_id)
+    return db.get_funnel_stats(period=period, channel=channel, clinic_id=clinic_id, date_from=date_from, date_to=date_to)
 
 @app.get("/admin/api/analytics/alerts")
-def admin_alerts(period: str = "month", channel: str = "mind", clinic_id: str = "mind", username: str = Depends(verify_jwt)):
+def admin_alerts(period: str = "month", channel: str = "mind", clinic_id: str = "mind", date_from: str = "", date_to: str = "", username: str = Depends(verify_jwt)):
     """Operational alerts and tasks stats."""
-    return db.get_alerts_stats(period=period, channel=channel, clinic_id=clinic_id)
+    return db.get_alerts_stats(period=period, channel=channel, clinic_id=clinic_id, date_from=date_from, date_to=date_to)
 
 @app.get("/admin/api/analytics/alerts/details")
 def admin_alerts_details(type: str, username: str = Depends(verify_jwt)):
@@ -2015,9 +2015,9 @@ A válaszod kizárólag egy valid JSON lista legyen (pl. ["javaslat 1", "javasla
     return {"status": "success", "insights": insights}
 
 @app.get("/admin/api/analytics/outbound/summary")
-def admin_outbound_summary(period: str = "month", channel: str = "mind", clinic_id: str = "mind", username: str = Depends(verify_jwt)):
+def admin_outbound_summary(period: str = "month", channel: str = "mind", clinic_id: str = "mind", date_from: str = "", date_to: str = "", username: str = Depends(verify_jwt)):
     """Get outbound summary metrics."""
-    return db.get_outbound_stats(period, channel, clinic_id)
+    return db.get_outbound_stats(period, channel, clinic_id, date_from=date_from, date_to=date_to)
 
 
 @app.get("/admin/api/interactions")

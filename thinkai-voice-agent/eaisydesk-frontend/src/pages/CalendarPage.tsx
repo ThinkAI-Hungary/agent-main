@@ -225,7 +225,7 @@ export default function CalendarPage() {
       <div className="page-header" style={{ marginBottom: 18 }}>
         <div>
           <div className="page-title">Naptár</div>
-          <div className="page-subtitle">Időpontok és események kezelése</div>
+
         </div>
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
           {/* View toggle */}
@@ -304,7 +304,7 @@ export default function CalendarPage() {
                       <td colSpan={6}>
                         <div className="empty-state">
                           <div className="empty-state-icon" />
-                          <div className="empty-state-text">Nincs naptári esemény</div>
+                          <div className="empty-state-text no-data">Nincs naptári esemény</div>
                         </div>
                       </td>
                     </tr>
@@ -321,11 +321,11 @@ export default function CalendarPage() {
                           <td style={{ fontWeight: 500 }}>{ev.title}</td>
                           <td>
                             <span style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3 }}>
-                              {ev.attendee || '—'}
+                              {ev.attendee || <span className="no-data">Nincs ügyfél</span>}
                             </span>
                           </td>
                           <td><span className="badge badge-teal">{ev.duration_minutes} perc</span></td>
-                          <td className="td-summary">{ev.attendee_email || '—'}</td>
+                          <td className="td-summary">{ev.attendee_email || <span className="no-data">Nincs email</span>}</td>
                           <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
                             {isPast ? (
                               <button
@@ -396,7 +396,7 @@ export default function CalendarPage() {
                 {todayEvents.length === 0 ? (
                   <div className="agenda-empty">
                     <div className="agenda-empty-icon"></div>
-                    <div className="agenda-empty-text">Nincs mai időpont</div>
+                    <div className="agenda-empty-text no-data">Nincs mai időpont</div>
                   </div>
                 ) : (
                   <div className="agenda-list">
@@ -417,7 +417,7 @@ export default function CalendarPage() {
                           </div>
                           <div className="agenda-card-info">
                             <div className="agenda-card-title">{ev.title}</div>
-                            <div className="agenda-card-attendee">{ev.attendee || '—'}</div>
+                            <div className="agenda-card-attendee">{ev.attendee || <span className="no-data">Nincs ügyfél</span>}</div>
                           </div>
                           <div className="agenda-card-duration">
                             {ev.duration_minutes || 30} perc
@@ -519,7 +519,7 @@ export default function CalendarPage() {
                   <div style={{ display: 'flex', gap: 10 }}>
                     <div style={{ flex: 1 }}>
                       <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Dátum *</label>
-                      <input type="date" value={newEvent.date} onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })} style={modalInputStyle} />
+                      <input type="date" lang="hu" value={newEvent.date} onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })} style={modalInputStyle} />
                     </div>
                     <div style={{ flex: 1 }}>
                       <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Időpont *</label>

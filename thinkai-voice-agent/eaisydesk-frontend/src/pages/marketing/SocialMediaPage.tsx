@@ -186,7 +186,7 @@ export default function SocialMediaPage() {
         </div>
         <div style={{ flex: 1 }}>
           <div className="mkt-page-title">Közösségi Média</div>
-          <div className="mkt-page-subtitle">Posztok kezelése, ütemezés és publikálás Instagramra és Facebookra</div>
+
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="mkt-btn-outline" onClick={loadContent} style={{ padding: '8px 14px', fontSize: 12 }}>🔄 Frissítés</button>
@@ -250,7 +250,7 @@ export default function SocialMediaPage() {
       ) : filtered.length === 0 ? (
         <div className="mkt-empty-state">
           <svg fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547" /></svg>
-          <p>Nincs tartalom ebben a kategóriában.</p>
+          <p className="no-data">Nincs tartalom ebben a kategóriában.</p>
         </div>
       ) : (
         <div className="mkt-approval-grid">
@@ -356,7 +356,7 @@ export default function SocialMediaPage() {
             </div>
             <div className="mkt-form-row">
               <label>Ütemezés dátuma</label>
-              <input type="datetime-local" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} />
+              <input type="datetime-local" lang="hu" value={scheduleDate} onChange={e => setScheduleDate(e.target.value)} />
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
               <button className="mkt-btn-outline" onClick={() => setShowEditModal(null)}>Mégse</button>

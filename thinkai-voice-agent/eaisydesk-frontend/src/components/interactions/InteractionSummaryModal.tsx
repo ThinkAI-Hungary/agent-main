@@ -12,6 +12,7 @@ interface Props {
   onClose: () => void;
   clients: ClientRecord[];
   clientsMap: Record<string, ClientRecord>;
+  onClientClick?: (clientId: string) => void;
 }
 
 interface ResultData {
@@ -26,7 +27,7 @@ interface ChatBlock {
   text: string;
 }
 
-export default function InteractionSummaryModal({ row, onClose, clients, clientsMap }: Props) {
+export default function InteractionSummaryModal({ row, onClose, clients, clientsMap, onClientClick }: Props) {
   const [showChat, setShowChat] = useState(false);
   const [resultData, setResultData] = useState<ResultData>({ date: '-', service: '-', doctor: '-', reminder: '-' });
   const [chatBlocks, setChatBlocks] = useState<ChatBlock[]>([]);
@@ -428,7 +429,24 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
         <div style={{ padding: '16px 24px', background: 'var(--bg3)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
           <button
             className="btn-primary"
-            style={{ background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)', width: 'auto', padding: '10px 16px', margin: 0, fontFamily: 'inherit' }}
+            style={{
+              background: 'transparent',
+              color: row.clientId ? 'var(--text)' : 'var(--text-muted)',
+              border: '1px solid var(--border)',
+              width: 'auto',
+              padding: '10px 16px',
+              margin: 0,
+              fontFamily: 'inherit',
+              cursor: row.clientId ? 'pointer' : 'default',
+              opacity: row.clientId ? 1 : 0.5,
+            }}
+            disabled={!row.clientId}
+            onClick={() => {
+              if (row.clientId && onClientClick) {
+                onClose();
+                onClientClick(String(row.clientId));
+              }
+            }}
           >
             Ugrás ügyfélprofilra
           </button>

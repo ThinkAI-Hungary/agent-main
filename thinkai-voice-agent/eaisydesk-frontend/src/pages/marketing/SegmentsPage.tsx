@@ -64,7 +64,7 @@ export default function SegmentsPage() {
         </div>
         <div style={{ flex: 1 }}>
           <div className="mkt-page-title">Szegmentáció & Kuponok</div>
-          <div className="mkt-page-subtitle">Célcsoportok kezelése és kuponkód generálás</div>
+
         </div>
         <div style={{ display: 'flex', gap: 10 }}>
           <button className="mkt-btn-outline" onClick={handleImportCrm}>📥 CRM Import</button>

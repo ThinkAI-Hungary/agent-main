@@ -26,7 +26,7 @@ const NAV_ITEMS: NavItem[] = [
   },
   {
     id: 'analytics',
-    label: 'Irányítópult',
+    label: 'Analitika',
     path: '/analytics',
     icon: 'M3 12h2l3-9 4 18 3-9h6',
     adminOnly: true,
@@ -37,7 +37,7 @@ const NAV_ITEMS: NavItem[] = [
     path: '',
     icon: 'M8 12h8M8 8h4m-4 8h6M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z',
     children: [
-      { id: 'interactions', label: 'Interakciós lista', path: '/interactions' },
+      { id: 'interactions', label: 'Interakciós napló', path: '/interactions' },
       { id: 'clients', label: 'Ügyféllista', path: '/clients' },
       { id: 'kanban', label: 'Érdeklődőkezelés', path: '/kanban' },
     ],

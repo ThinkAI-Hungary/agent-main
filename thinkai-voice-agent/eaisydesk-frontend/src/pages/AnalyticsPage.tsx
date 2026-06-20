@@ -85,8 +85,8 @@ interface OutboundSummary {
 }
 
 // ── KPI Card ──────────────────────────────────────────────────────────────────
-function KpiCard({ label, value, sub, prev, prevLabel }: {
-  label: string; value: number; sub: string; prev?: number; prevLabel: string;
+function KpiCard({ label, value, sub, prev, prevLabel, suffix }: {
+  label: string; value: number; sub: string; prev?: number; prevLabel: string; suffix?: string;
 }) {
   const animatedValue = useCountUp(value, 900);
   let trendClass = 'kpi-trend-neutral';
@@ -102,12 +102,14 @@ function KpiCard({ label, value, sub, prev, prevLabel }: {
   return (
     <div className="kpi-card-figma" style={{ cursor: 'default' }}>
       <div className="kpi-card-label">{label}</div>
-      <div className="kpi-card-value">{animatedValue}</div>
+      <div className="kpi-card-value">{animatedValue}{suffix}</div>
       <div className="kpi-card-subtitle">{sub}</div>
-      <div className={`kpi-card-trend ${trendClass}`}>
-        <span>{trendText}</span>
-        {prevLabel && <span className="kpi-trend-desc">{prevLabel} képest</span>}
-      </div>
+      {trendText && (
+        <div className={`kpi-card-trend ${trendClass}`}>
+          <span>{trendText}</span>
+          {prevLabel && <span className="kpi-trend-desc">{prevLabel} képest</span>}
+        </div>
+      )}
     </div>
   );
 }
@@ -235,7 +237,7 @@ function CampaignPerformanceSection({ campaigns }: { campaigns: any[] }) {
   return (
     <>
       <div className="section-divider" />
-      <h2 className="section-header-figma">Kampány teljesítmény</h2>
+      <h2 className="section-header-figma">Kampányteljesítmény</h2>
 
       {/* KPI stat row */}
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginBottom: 24 }}>
@@ -264,8 +266,7 @@ function CampaignPerformanceSection({ campaigns }: { campaigns: any[] }) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 18, marginBottom: 36 }}>
         {/* Status Doughnut */}
         <div className="panel-white" style={{ padding: '24px 28px' }}>
-          <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1ceee0' }} />
+          <div className="panel-title" style={{ marginBottom: 20 }}>
             Státusz eloszlás
           </div>
           <div style={{ position: 'relative', height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
@@ -274,7 +275,10 @@ function CampaignPerformanceSection({ campaigns }: { campaigns: any[] }) {
               plugins: {
                 legend: {
                   position: 'bottom' as const,
-                  labels: { padding: 14, usePointStyle: true, pointStyleWidth: 10, font: { size: 11, weight: 'bold' as const }, color: '#8ea9c0' }
+                  labels: {
+                    padding: 16, usePointStyle: true, pointStyle: 'circle',
+                    font: { size: 12, weight: 'bold' as const }, color: '#8ea9c0',
+                  }
                 },
                 tooltip: { backgroundColor: '#0d2538', padding: 10, cornerRadius: 8 }
               }
@@ -284,8 +288,7 @@ function CampaignPerformanceSection({ campaigns }: { campaigns: any[] }) {
 
         {/* Campaign summary */}
         <div className="panel-white" style={{ padding: '24px 28px' }}>
-          <div className="panel-title" style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 20 }}>
-            <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#f59e0b' }} />
+          <div className="panel-title" style={{ marginBottom: 20 }}>
             Kampány összesítő
           </div>
 
@@ -295,15 +298,17 @@ function CampaignPerformanceSection({ campaigns }: { campaigns: any[] }) {
               { label: 'Átl. ügyfél / kampány', value: analytics.avgClients, color: '#1ceee0' },
               { label: 'Befejezési arány', value: `${analytics.successRate}%`, color: '#22c55e' },
               { label: 'Ütemezett', value: kpis.scheduled, color: '#8b5cf6' },
-              { label: 'Utolsó kampány', value: analytics.lastCampaign ? new Date(analytics.lastCampaign.created_at).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' }) : '–', color: '#3b82f6' },
+              { label: 'Utolsó kampány', value: analytics.lastCampaign?.name || '–', sub: analytics.lastCampaign ? new Date(analytics.lastCampaign.created_at).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric' }) : '', color: '#3b82f6' },
             ].map(item => (
               <div key={item.label} style={{
-                background: 'var(--bg3, rgba(255,255,255,0.04))',
                 borderRadius: 12, padding: '16px 18px',
-                border: '1px solid var(--border, rgba(255,255,255,0.06))',
+                borderLeft: `3px solid ${item.color}`,
+                background: 'var(--card, #fff)',
+                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
               }}>
-                <div style={{ fontSize: 22, fontWeight: 700, color: item.color, lineHeight: 1.2 }}>{item.value}</div>
-                <div style={{ fontSize: 11, fontWeight: 600, color: '#6b8b99', marginTop: 4, textTransform: 'uppercase' as const, letterSpacing: 0.3 }}>{item.label}</div>
+                <div style={{ fontSize: item.label === 'Utolsó kampány' ? 15 : 22, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={String(item.value)}>{item.value}</div>
+                {'sub' in item && item.sub && <div style={{ fontSize: 11, color: 'var(--text-muted, #6b8b99)', marginTop: 2 }}>{item.sub}</div>}
+                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted, #6b8b99)', marginTop: 4, textTransform: 'uppercase' as const, letterSpacing: 0.3 }}>{item.label}</div>
               </div>
             ))}
           </div>
@@ -311,12 +316,12 @@ function CampaignPerformanceSection({ campaigns }: { campaigns: any[] }) {
           {/* Progress bar */}
           <div>
             <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#6b8b99', textTransform: 'uppercase' as const, letterSpacing: 0.3 }}>Befejezési arány</span>
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted, #6b8b99)', textTransform: 'uppercase' as const, letterSpacing: 0.3 }}>Befejezési arány</span>
               <span style={{ fontSize: 14, fontWeight: 700, color: '#1ceee0' }}>{analytics.successRate}%</span>
             </div>
             <div style={{
               height: 8, borderRadius: 99,
-              background: 'var(--bg3, rgba(255,255,255,0.06))',
+              background: 'var(--bg3, rgba(0,0,0,0.04))',
               overflow: 'hidden',
             }}>
               <div style={{
@@ -346,6 +351,8 @@ export default function AnalyticsPage() {
   const [period, setPeriod] = useState('month');
   const [channel, setChannel] = useState('mind');
   const [clinic, setClinic] = useState('mind');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [stats, setStats] = useState<StatsData | null>(null);
   const [funnel, setFunnel] = useState<FunnelData | null>(null);
   const [alerts, setAlerts] = useState<AlertData | null>(null);
@@ -370,7 +377,7 @@ export default function AnalyticsPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const params = `period=${period}&channel=${channel}&clinic_id=${clinic}`;
+      const params = `period=${period}&channel=${channel}&clinic_id=${clinic}${period === 'custom' && dateFrom && dateTo ? `&date_from=${dateFrom}&date_to=${dateTo}` : ''}`;
       const [statsRes, funnelRes, alertsRes, outboundRes, insightsRes, campaignsRes] = await Promise.all([
         authFetch(`/admin/api/stats?${params}`),
         authFetch(`/admin/api/analytics/funnel?${params}`),
@@ -390,15 +397,17 @@ export default function AnalyticsPage() {
     } finally {
       setLoading(false);
     }
-  }, [period, channel, clinic]);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [period, channel, clinic, dateFrom, dateTo]);
 
-  useEffect(() => { loadAll(); }, [loadAll]);
+  // Load only on initial mount
+  useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-refresh analytics periodically
+  // Auto-refresh analytics every 5 minutes (uses latest loadAll via ref-like behavior)
   useEffect(() => {
-    const interval = setInterval(loadAll, 300000);
+    const interval = setInterval(() => loadAll(), 300000);
     return () => clearInterval(interval);
-  }, [loadAll]);
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function refreshInsights() {
     setInsightsLoading(true);
@@ -495,13 +504,13 @@ export default function AnalyticsPage() {
     return { yMax, yStep };
   }
 
-  const prevLabel = { week: 'előző héthez', month: 'előző hónaphoz', year: 'előző évhez' }[period] || '';
+  const prevLabel = period === 'custom' ? 'előző időszakhoz' : ({ week: 'előző héthez', month: 'előző hónaphoz', year: 'előző évhez' }[period] || '');
   const prev = stats?.previous_period || {};
 
   const kpiCards = stats ? [
     { label: 'Összes megkeresés', value: stats.total_interactions ?? 0, sub: 'interakció', prev: prev.total_interactions, page: 'interactions' },
     { label: 'Foglalási arány', value: stats.total_bookings ?? 0, sub: 'foglalás', prev: prev.total_bookings, page: 'calendar' },
-    { label: 'Átadási arány', value: stats.total_handovers ?? 0, sub: 'élő átadás', prev: prev.total_handovers, page: 'interactions' },
+    { label: 'Átadási arány', value: (stats.total_interactions ?? 0) > 0 ? Math.round(((stats.total_handovers ?? 0) / (stats.total_interactions ?? 1)) * 100) : 0, sub: 'az összes megkeresésből', prev: (prev.total_interactions ?? 0) > 0 ? Math.round(((prev.total_handovers ?? 0) / (prev.total_interactions ?? 1)) * 100) : undefined, page: 'interactions', suffix: '%' },
     { label: 'Átlagos ügyintézési idő', value: stats.avg_session_duration ?? 0, sub: 'másodperc', prev: prev.avg_session_duration, page: 'interactions' },
     { label: 'Kimenő kommunikációk', value: stats.total_emails ?? 0, sub: 'email küldve', prev: prev.total_emails, page: 'outbound' },
     { label: 'Nyílt feladatok', value: stats.open_tasks ?? 0, sub: 'követést igényel', prev: undefined, page: 'interactions' },
@@ -560,6 +569,11 @@ export default function AnalyticsPage() {
   return (
     <div className="page active" id="page-analytics">
       <div className="analytics-shell">
+        {/* Page title */}
+        <div style={{ marginBottom: 8 }}>
+          <h1 className="page-title" style={{ margin: 0 }}>Analitika</h1>
+        </div>
+
         {/* Filter row */}
         <div className="filter-row-figma">
           <div className="filter-group">
@@ -582,13 +596,66 @@ export default function AnalyticsPage() {
               <option value="instagram">Instagram</option>
             </select>
           </div>
-          <div className="filter-group">
+          <div className="filter-group" style={{ position: 'relative' }}>
             <label>Időszak</label>
-            <select className="filter-select-figma" value={period} onChange={e => setPeriod(e.target.value)}>
-              <option value="week">Jelenlegi hét</option>
-              <option value="month">Jelen hónap</option>
-              <option value="year">Éves nézet</option>
+            <select className="filter-select-figma" value={period} onChange={e => { setPeriod(e.target.value); if (e.target.value !== 'custom') { setDateFrom(''); setDateTo(''); } }}>
+              <option value="week">Aktuális hét</option>
+              <option value="month">Aktuális hónap</option>
+              <option value="year">Aktuális év</option>
+              <option value="custom">Egyedi időszak</option>
             </select>
+            {period === 'custom' && (
+              <div style={{
+                position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 50,
+                background: 'var(--card, #fff)', border: '1px solid var(--border, #e2e8f0)',
+                borderRadius: 14, boxShadow: '0 12px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)',
+                padding: '20px 22px 16px', minWidth: 320,
+                animation: 'fadein 0.2s ease',
+              }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>
+                  Egyedi időszak kiválasztása
+                </div>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted, #6b8b99)', display: 'block', marginBottom: 6, textTransform: 'uppercase' as const, letterSpacing: 0.4 }}>Kezdő dátum</label>
+                    <input type="date" lang="hu" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                      style={{
+                        width: '100%', padding: '10px 12px', border: '1px solid var(--border, #e2e8f0)',
+                        borderRadius: 10, fontSize: 13, background: 'var(--bg, #f8fafc)', color: 'var(--text)',
+                        fontFamily: 'inherit', outline: 'none', transition: 'border-color 0.2s',
+                        boxSizing: 'border-box',
+                      }} />
+                  </div>
+                  <div>
+                    <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted, #6b8b99)', display: 'block', marginBottom: 6, textTransform: 'uppercase' as const, letterSpacing: 0.4 }}>Záró dátum</label>
+                    <input type="date" lang="hu" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                      style={{
+                        width: '100%', padding: '10px 12px', border: '1px solid var(--border, #e2e8f0)',
+                        borderRadius: 10, fontSize: 13, background: 'var(--bg, #f8fafc)', color: 'var(--text)',
+                        fontFamily: 'inherit', outline: 'none', transition: 'border-color 0.2s',
+                        boxSizing: 'border-box',
+                      }} />
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                  {[
+                    { label: 'Utolsó 7 nap', days: 7 },
+                    { label: 'Utolsó 30 nap', days: 30 },
+                    { label: 'Utolsó 90 nap', days: 90 },
+                  ].map(p => (
+                    <button key={p.days} onClick={() => {
+                      const to = new Date(); const from = new Date(); from.setDate(from.getDate() - p.days);
+                      setDateFrom(from.toISOString().slice(0, 10)); setDateTo(to.toISOString().slice(0, 10));
+                    }} style={{
+                      padding: '5px 12px', fontSize: 11, fontWeight: 600, borderRadius: 8,
+                      border: '1px solid var(--border, #e2e8f0)', background: 'var(--bg, #f8fafc)',
+                      color: 'var(--text-muted, #6b8b99)', cursor: 'pointer', fontFamily: 'inherit',
+                      transition: 'all 0.15s',
+                    }}>{p.label}</button>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
           <button className="btn-filter-apply" onClick={loadAll}>Szűrés alkalmazása</button>
         </div>
@@ -597,7 +664,7 @@ export default function AnalyticsPage() {
         <div className="kpi-grid-figma">
           {kpiCards.map(c => (
             <KpiCard key={c.label} label={c.label} value={c.value} sub={c.sub}
-              prev={c.prev} prevLabel={prevLabel} />
+              prev={c.prev} prevLabel={prevLabel} suffix={c.suffix} />
           ))}
         </div>
 
@@ -672,7 +739,7 @@ export default function AnalyticsPage() {
             <div className="panel-title">Top kérdéstípusok / témák</div>
             <div>
               {topics.length === 0 ? (
-                <div style={{ color: '#6b7280', fontSize: 13, textAlign: 'center', padding: 20 }}>Nincs adat</div>
+                <div style={{ textAlign: 'center', padding: 20 }}><span className="no-data">Nincs adat</span></div>
               ) : topics.slice(0, 5).map((t, i) => {
                 const pct = topicsTotal > 0 ? Math.round((t.count / topicsTotal) * 100) : 0;
                 return (
@@ -680,7 +747,7 @@ export default function AnalyticsPage() {
                     <div className="topic-row-header">
                       <div style={{ display: 'flex', alignItems: 'center' }}>
                         <div className="topic-rank-badge">{i + 1}</div>
-                        <span className="topic-name">{t.topic || 'Ismeretlen'}</span>
+                        <span className="topic-name">{t.topic || <span className="no-data">Ismeretlen</span>}</span>
                       </div>
                       <span className="topic-value">{t.count}<span className="topic-pct">({pct}%)</span></span>
                     </div>

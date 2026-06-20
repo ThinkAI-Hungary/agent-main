@@ -67,10 +67,10 @@ const IRANY_OPTIONS = ['Bejövő', 'Kimenő'];
 const STATUSZ_OPTIONS = ['LEZÁRT', 'NYITOTT', 'SÜRGŐS'];
 
 const SORT_OPTIONS = [
-  { value: 'date_desc', label: '⬇ Legújabb elöl' },
-  { value: 'date_asc', label: '⬆ Legrégebbi elöl' },
-  { value: 'client_asc', label: 'A-Z Ügyfél név szerint' },
-  { value: 'topic_asc', label: 'A-Z Téma szerint' },
+  { value: 'date_desc', label: 'Legújabb elöl' },
+  { value: 'date_asc', label: 'Legrégebbi elöl' },
+  { value: 'client_asc', label: 'Ügyfélnév szerint A–Z' },
+  { value: 'topic_asc', label: 'Ügytípus szerint A–Z' },
 ];
 
 export default function InteractionsPage() {
@@ -86,6 +86,7 @@ export default function InteractionsPage() {
   const [sortBy, setSortBy] = useState('date_desc');
   const [filterOpen, setFilterOpen] = useState(false);
   const [colDropdownOpen, setColDropdownOpen] = useState(false);
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   const [visibleCols, setVisibleCols] = useState<Set<string>>(
     new Set(ALL_COLUMNS.map((c) => c.key))
   );
@@ -103,6 +104,7 @@ export default function InteractionsPage() {
 
   const filterContainerRef = useRef<HTMLDivElement>(null);
   const colDropdownRef = useRef<HTMLDivElement>(null);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
 
   // Outside click to close dropdowns
   useEffect(() => {
@@ -112,6 +114,9 @@ export default function InteractionsPage() {
       }
       if (colDropdownRef.current && !colDropdownRef.current.contains(e.target as Node)) {
         setColDropdownOpen(false);
+      }
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
+        setSortDropdownOpen(false);
       }
     }
     document.addEventListener('click', handleClick);
@@ -182,7 +187,7 @@ export default function InteractionsPage() {
           clientStatus: clientInfo.status,
           clientCreatedAt: clientInfo.created_at,
           direction: 'Bejövő',
-          ugyTipus: 'EGYÉB',
+          ugyTipus: detectUgyTipus({ topic: '', summary: s.summary || '' }),
           eredmeny: 'Rögzítve',
           statusz: 'LEZÁRT',
           teendo: 'Nincs további teendő',
@@ -394,230 +399,203 @@ export default function InteractionsPage() {
     <div className="analytics-shell">
       <ConfirmDialog />
 
-      {/* Toolbar */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 20 }}>
-        <div>
-          <div className="page-title">Interakciós lista</div>
-          <div className="page-subtitle">Összes beérkező és kimenő interakció</div>
-        </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          {/* Delete button */}
-          {isAdmin && selectedRows.size > 0 && (
-            <button
-              className="int-toolbar-btn"
-              onClick={handleDeleteSelected}
-              style={{ display: 'flex', background: '#fee2e2', color: '#b91c1c', borderColor: '#fca5a5', gap: 6, alignItems: 'center', fontWeight: 600 }}
-            >
-              <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-                <polyline points="3 6 5 6 21 6" />
-                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                <path d="M10 11v6" />
-                <path d="M14 11v6" />
-              </svg>
-              {selectedRows.size} kijelölt törlése
-            </button>
-          )}
-
-          {/* Search */}
-          <input
-            className="int-toolbar-input"
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder=" Keresés..."
-            type="text"
-          />
-
-          {/* Filter button */}
-          <div style={{ position: 'relative', display: 'inline-block' }} ref={filterContainerRef}>
-            <button
-              className="int-toolbar-btn"
-              style={{ gap: 6, display: 'flex', alignItems: 'center' }}
-              title="Szűrés"
-              onClick={() => setFilterOpen(!filterOpen)}
-            >
-              <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-              </svg>
-              Szűrés
-              {activeFilterCount > 0 && (
-                <span
-                  style={{
-                    background: '#1ceee0',
-                    color: '#0a1628',
-                    fontSize: 10,
-                    fontWeight: 800,
-                    minWidth: 18,
-                    height: 18,
-                    borderRadius: 9,
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    padding: '0 5px',
-                    marginLeft: 2,
-                  }}
-                >
-                  {activeFilterCount}
-                </span>
-              )}
-            </button>
-
-            {/* Filter panel */}
-            {filterOpen && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: 'calc(100% + 8px)',
-                  right: 0,
-                  zIndex: 999,
-                  width: 340,
-                  background: 'var(--card, #fff)',
-                  border: '1px solid var(--border, #e5e7eb)',
-                  borderRadius: 6,
-                  boxShadow: '0 12px 40px rgba(0,0,0,0.12)',
-                  overflow: 'hidden',
-                  animation: 'fadein 0.2s ease',
-                }}
-              >
-                {/* Header */}
-                <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 20px 12px', borderBottom: '1px solid var(--border)' }}>
-                  <span style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Szűrő</span>
-                  <button
-                    onClick={() => setFilterOpen(false)}
-                    style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 18, width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 6 }}
-                  >
-                    ✕
-                  </button>
-                </div>
-
-                <div style={{ padding: '8px 0', maxHeight: 420, overflowY: 'auto' }}>
-                  {/* Date */}
-                  <FilterSection title="Dátum">
-                    <div style={{ display: 'flex', gap: 8 }}>
-                      <input type="date" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} style={{ flex: 1, padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, background: 'var(--bg, #fff)', color: 'var(--text)', fontFamily: 'inherit' }} />
-                      <input type="date" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} style={{ flex: 1, padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 12, background: 'var(--bg, #fff)', color: 'var(--text)', fontFamily: 'inherit' }} />
-                    </div>
-                  </FilterSection>
-
-                  {/* Ügytípus */}
-                  <FilterSection title="Ügytípus" bordered>
-                    {UGYTIPUS_OPTIONS.map((v) => (
-                      <FilterCheckbox key={v} label={v} checked={filterUgyTipus.has(v)} onChange={() => toggleFilter(filterUgyTipus, v, setFilterUgyTipus)} />
-                    ))}
-                  </FilterSection>
-
-                  {/* Csatorna */}
-                  <FilterSection title="Csatorna" bordered>
-                    {CSATORNA_OPTIONS.map((v) => (
-                      <FilterCheckbox key={v} label={v} checked={filterCsatorna.has(v)} onChange={() => toggleFilter(filterCsatorna, v, setFilterCsatorna)} />
-                    ))}
-                  </FilterSection>
-
-                  {/* Irány */}
-                  <FilterSection title="Irány" bordered>
-                    {IRANY_OPTIONS.map((v) => (
-                      <FilterCheckbox key={v} label={v} checked={filterIrany.has(v)} onChange={() => toggleFilter(filterIrany, v, setFilterIrany)} />
-                    ))}
-                  </FilterSection>
-
-                  {/* Státusz */}
-                  <FilterSection title="Státusz" bordered>
-                    {STATUSZ_OPTIONS.map((v) => (
-                      <FilterCheckbox key={v} label={v} checked={filterStatusz.has(v)} onChange={() => toggleFilter(filterStatusz, v, setFilterStatusz)} />
-                    ))}
-                  </FilterSection>
-                </div>
-
-                {/* Footer */}
-                <div style={{ display: 'flex', gap: 10, padding: '14px 20px', borderTop: '1px solid var(--border)' }}>
-                  <button onClick={resetFilters} style={{ flex: 1, padding: 10, border: '1px solid var(--border)', borderRadius: 8, background: 'none', color: 'var(--text)', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>
-                    Visszaállítás
-                  </button>
-                  <button
-                    onClick={() => setFilterOpen(false)}
-                    style={{ flex: 1, padding: 10, border: 'none', borderRadius: 8, background: '#1ceee0', color: '#0a1628', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: '0 2px 8px rgba(28,238,224,0.25)' }}
-                  >
-                    Alkalmaz
-                  </button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Sort */}
-          <select
-            className="int-toolbar-btn"
-            value={sortBy}
-            onChange={(e) => setSortBy(e.target.value)}
-            style={{ gap: 6, display: 'flex', alignItems: 'center', appearance: 'none', paddingRight: 32, cursor: 'pointer' }}
-          >
-            {SORT_OPTIONS.map((o) => (
-              <option key={o.value} value={o.value}>{o.label}</option>
-            ))}
-          </select>
-
-          {/* Columns */}
-          <div style={{ position: 'relative', display: 'inline-block' }} ref={colDropdownRef}>
-            <button
-              className="int-toolbar-btn"
-              style={{ gap: 6, display: 'flex', alignItems: 'center' }}
-              title="Oszlopok"
-              onClick={() => setColDropdownOpen(!colDropdownOpen)}
-            >
-              <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-                <rect height="18" rx="2" ry="2" width="18" x="3" y="3" />
-                <line x1="9" x2="9" y1="3" y2="21" />
-              </svg>
-              Oszlopok
-            </button>
-            {colDropdownOpen && (
-              <div
-                style={{
-                  position: 'absolute',
-                  top: '100%',
-                  left: 0,
-                  marginTop: 6,
-                  background: 'var(--card)',
-                  border: '1px solid var(--border)',
-                  borderRadius: 6,
-                  boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                  padding: '10px 0',
-                  minWidth: 200,
-                  zIndex: 50,
-                }}
-              >
-                <div style={{ padding: '4px 14px 8px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>
-                  Látható oszlopok
-                </div>
-                {ALL_COLUMNS.map((col) => (
-                  <label
-                    key={col.key}
-                    style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}
-                  >
-                    <input
-                      type="checkbox"
-                      checked={visibleCols.has(col.key)}
-                      onChange={() => toggleCol(col.key)}
-                      style={{ accentColor: '#1ceee0', width: 15, height: 15, cursor: 'pointer' }}
-                    />
-                    {col.label}
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
-        </div>
+      {/* Page title — standalone */}
+      <div style={{ marginBottom: 20 }}>
+        <div className="page-title">Interakciós napló</div>
       </div>
 
-      {/* Count */}
-      {filteredRows.length > 0 && (
-        <div className="int-count" style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6 }}>
-          {filteredRows.length} interakció
-        </div>
-      )}
+      {/* Table card with integrated toolbar */}
+      <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'visible', background: 'var(--card)' }}>
+        {/* Toolbar strip */}
+        <div style={{
+          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
+          padding: '10px 18px', borderBottom: '1px solid var(--border)',
+          flexWrap: 'wrap', gap: 8,
+        }}>
+          {/* Left: search + count */}
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <input
+              className="int-toolbar-input"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Keresés..."
+              type="text"
+              style={{ width: 220 }}
+            />
+            {filteredRows.length > 0 && (
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                {filteredRows.length} találat
+              </span>
+            )}
+          </div>
 
-      {/* Table */}
-      <div className="int-table-wrapper">
-        <table className="data-table" id="interactions-flat-table">
+          {/* Right: actions */}
+          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            {isAdmin && selectedRows.size > 0 && (
+              <button
+                className="int-toolbar-btn"
+                onClick={handleDeleteSelected}
+                style={{ display: 'flex', background: '#fee2e2', color: '#b91c1c', borderColor: '#fca5a5', gap: 6, alignItems: 'center', fontWeight: 600 }}
+              >
+                <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                  <path d="M10 11v6" />
+                  <path d="M14 11v6" />
+                </svg>
+                {selectedRows.size} törlése
+              </button>
+            )}
+
+            {/* Filter */}
+            <div style={{ position: 'relative', display: 'inline-block' }} ref={filterContainerRef}>
+              <button
+                className="int-toolbar-btn"
+                style={{ gap: 6, display: 'flex', alignItems: 'center' }}
+                title="Szűrés"
+                onClick={() => setFilterOpen(!filterOpen)}
+              >
+                <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                </svg>
+                Szűrés
+                {activeFilterCount > 0 && (
+                  <span style={{
+                    background: '#1ceee0', color: '#0a1628', fontSize: 10, fontWeight: 800,
+                    minWidth: 18, height: 18, borderRadius: 9,
+                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+                    padding: '0 5px', marginLeft: 2,
+                  }}>
+                    {activeFilterCount}
+                  </span>
+                )}
+              </button>
+
+              {filterOpen && (
+                <div style={{
+                  position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 999, width: 280,
+                  background: 'var(--card)', border: '1px solid var(--border)',
+                  borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                  overflow: 'hidden',
+                }}>
+                  <div style={{ padding: '4px 14px 8px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid var(--border)', paddingTop: 10, paddingBottom: 8 }}>
+                    Szűrők
+                  </div>
+                  <div style={{ maxHeight: 360, overflowY: 'auto', padding: '4px 0' }}>
+                    <FilterSection title="Dátum">
+                      <div style={{ display: 'flex', gap: 8 }}>
+                        <input type="date" lang="hu" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} style={{ flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, background: 'var(--bg, #fff)', color: 'var(--text)', fontFamily: 'inherit' }} />
+                        <input type="date" lang="hu" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} style={{ flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, background: 'var(--bg, #fff)', color: 'var(--text)', fontFamily: 'inherit' }} />
+                      </div>
+                    </FilterSection>
+                    <FilterSection title="Ügytípus" bordered>
+                      {UGYTIPUS_OPTIONS.map((v) => (
+                        <FilterCheckbox key={v} label={v} checked={filterUgyTipus.has(v)} onChange={() => toggleFilter(filterUgyTipus, v, setFilterUgyTipus)} />
+                      ))}
+                    </FilterSection>
+                    <FilterSection title="Csatorna" bordered>
+                      {CSATORNA_OPTIONS.map((v) => (
+                        <FilterCheckbox key={v} label={v} checked={filterCsatorna.has(v)} onChange={() => toggleFilter(filterCsatorna, v, setFilterCsatorna)} />
+                      ))}
+                    </FilterSection>
+                    <FilterSection title="Irány" bordered>
+                      {IRANY_OPTIONS.map((v) => (
+                        <FilterCheckbox key={v} label={v} checked={filterIrany.has(v)} onChange={() => toggleFilter(filterIrany, v, setFilterIrany)} />
+                      ))}
+                    </FilterSection>
+                    <FilterSection title="Státusz" bordered>
+                      {STATUSZ_OPTIONS.map((v) => (
+                        <FilterCheckbox key={v} label={v} checked={filterStatusz.has(v)} onChange={() => toggleFilter(filterStatusz, v, setFilterStatusz)} />
+                      ))}
+                    </FilterSection>
+                  </div>
+                  <div style={{ display: 'flex', gap: 8, padding: '10px 14px', borderTop: '1px solid var(--border)' }}>
+                    <button onClick={resetFilters} style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'none', color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Visszaállítás</button>
+                    <button onClick={() => setFilterOpen(false)} style={{ flex: 1, padding: '7px 10px', border: 'none', borderRadius: 6, background: '#1ceee0', color: '#0a1628', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Alkalmaz</button>
+                  </div>
+                </div>
+              )}
+            </div>
+
+            {/* Sort */}
+            <div style={{ position: 'relative', display: 'inline-block' }} ref={sortDropdownRef}>
+              <button
+                className="int-toolbar-btn"
+                style={{ gap: 6, display: 'flex', alignItems: 'center' }}
+                onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+              >
+                <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
+                  <path d="M3 6h18M6 12h12M9 18h6" />
+                </svg>
+                {SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Rendezés'}
+              </button>
+              {sortDropdownOpen && (
+                <div style={{
+                  position: 'absolute', top: '100%', right: 0, marginTop: 6,
+                  background: 'var(--card)', border: '1px solid var(--border)',
+                  borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                  padding: '6px 0', minWidth: 200, zIndex: 50,
+                }}>
+                  {SORT_OPTIONS.map((o) => (
+                    <button
+                      key={o.value}
+                      onClick={() => { setSortBy(o.value); setSortDropdownOpen(false); }}
+                      style={{
+                        display: 'block', width: '100%', textAlign: 'left',
+                        padding: '8px 14px', border: 'none', background: sortBy === o.value ? 'rgba(28,238,224,0.1)' : 'transparent',
+                        color: sortBy === o.value ? '#1ceee0' : 'var(--text)',
+                        fontSize: 13, fontWeight: sortBy === o.value ? 600 : 400,
+                        cursor: 'pointer', fontFamily: 'inherit',
+                        transition: 'background 0.15s',
+                      }}
+                      onMouseEnter={(e) => { if (sortBy !== o.value) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
+                      onMouseLeave={(e) => { if (sortBy !== o.value) e.currentTarget.style.background = 'transparent'; }}
+                    >
+                      {sortBy === o.value && <span style={{ marginRight: 6 }}>✓</span>}
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Columns */}
+            <div style={{ position: 'relative', display: 'inline-block' }} ref={colDropdownRef}>
+              <button
+                className="int-toolbar-btn"
+                style={{ gap: 6, display: 'flex', alignItems: 'center' }}
+                title="Oszlopok"
+                onClick={() => setColDropdownOpen(!colDropdownOpen)}
+              >
+                <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
+                  <rect height="18" rx="2" ry="2" width="18" x="3" y="3" />
+                  <line x1="9" x2="9" y1="3" y2="21" />
+                </svg>
+                Oszlopok
+              </button>
+              {colDropdownOpen && (
+                <div style={{
+                  position: 'absolute', top: '100%', right: 0, marginTop: 6,
+                  background: 'var(--card)', border: '1px solid var(--border)',
+                  borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+                  padding: '10px 0', minWidth: 200, zIndex: 50,
+                }}>
+                  <div style={{ padding: '4px 14px 8px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Látható oszlopok</div>
+                  {ALL_COLUMNS.map((col) => (
+                    <label key={col.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>
+                      <input type="checkbox" checked={visibleCols.has(col.key)} onChange={() => toggleCol(col.key)} style={{ accentColor: '#1ceee0', width: 15, height: 15, cursor: 'pointer' }} />
+                      {col.label}
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+
+        {/* Table */}
+        <table className="data-table" id="interactions-flat-table" style={{ borderRadius: 0 }}>
           <thead className="int-thead">
             <tr>
               {isAdmin && (
@@ -645,8 +623,8 @@ export default function InteractionsPage() {
               </tr>
             ) : filteredRows.length === 0 ? (
               <tr>
-                <td colSpan={visibleCols.size + 1} style={{ textAlign: 'center', color: '#6b7280', padding: 40 }}>
-                  Nincs találat
+                <td colSpan={visibleCols.size + 1} style={{ textAlign: 'center', padding: 40 }}>
+                  <span className="no-data">Nincs találat</span>
                 </td>
               </tr>
             ) : (
@@ -677,28 +655,32 @@ export default function InteractionsPage() {
                       {r.clientId ? (
                         <button
                           style={{
-                            background: 'rgba(13,148,136,0.08)',
-                            border: '1px solid rgba(13,148,136,0.3)',
+                            background: 'none',
+                            border: 'none',
                             color: '#0d9488',
-                            borderRadius: 6,
                             cursor: 'pointer',
-                            padding: '5px 10px',
-                            fontSize: 12,
+                            padding: 0,
+                            fontSize: 13,
                             fontWeight: 600,
-                            maxWidth: 160,
+                            maxWidth: 180,
                             whiteSpace: 'nowrap',
                             overflow: 'hidden',
                             textOverflow: 'ellipsis',
                             display: 'inline-block',
                             fontFamily: 'inherit',
+                            textDecoration: 'none',
+                            borderBottom: '1px dashed transparent',
+                            transition: 'border-color 0.15s, color 0.15s',
                           }}
                           title="Ugrás az ügyfél adatlapjára"
                           onClick={() => setSelectedClientId(String(r.clientId))}
+                          onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = '#0d9488'; e.currentTarget.style.color = '#0f766e'; }}
+                          onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.color = '#0d9488'; }}
                         >
                           {r.client}
                         </button>
                       ) : (
-                        <span style={{ fontWeight: 500 }}>{r.client || 'Ismeretlen'}</span>
+                        <span style={{ fontWeight: 500 }}>{r.client || <span className="no-data">Ismeretlen</span>}</span>
                       )}
                     </td>
                   )}
@@ -768,6 +750,7 @@ export default function InteractionsPage() {
           onClose={() => setSummaryModalRow(null)}
           clients={clients}
           clientsMap={clientsMap}
+          onClientClick={(id) => { setSummaryModalRow(null); setSelectedClientId(id); }}
         />
       )}
     </div>
@@ -779,7 +762,7 @@ export default function InteractionsPage() {
 function FilterSection({ title, bordered, children }: { title: string; bordered?: boolean; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={{ padding: '0 20px', borderTop: bordered ? '1px solid var(--border, #f3f4f6)' : undefined }}>
+    <div style={{ padding: '0 14px', borderTop: bordered ? '1px solid var(--border, #f3f4f6)' : undefined }}>
       <button
         onClick={() => setOpen(!open)}
         style={{
@@ -787,12 +770,12 @@ function FilterSection({ title, bordered, children }: { title: string; bordered?
           display: 'flex',
           alignItems: 'center',
           justifyContent: 'space-between',
-          padding: '10px 0',
+          padding: '8px 0',
           border: 'none',
           background: 'none',
           cursor: 'pointer',
           color: 'var(--text)',
-          fontSize: 14,
+          fontSize: 13,
           fontWeight: 600,
           fontFamily: 'inherit',
         }}
@@ -803,12 +786,12 @@ function FilterSection({ title, bordered, children }: { title: string; bordered?
           stroke="currentColor"
           strokeWidth="2"
           viewBox="0 0 24 24"
-          style={{ width: 16, height: 16, transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          style={{ width: 14, height: 14, transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
-      {open && <div style={{ paddingBottom: 12 }}>{children}</div>}
+      {open && <div style={{ paddingBottom: 8 }}>{children}</div>}
     </div>
   );
 }

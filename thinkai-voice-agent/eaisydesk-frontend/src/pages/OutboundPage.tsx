@@ -462,7 +462,7 @@ export default function OutboundPage() {
           </div>
           <div>
             <div className="page-title" style={{ margin: 0 }}>Kampányok</div>
-            <div className="page-subtitle" style={{ margin: 0 }}>Kampányok kezelése és kimenő üzenetek irányítása</div>
+
           </div>
         </div>
       </div>
@@ -537,7 +537,7 @@ export default function OutboundPage() {
                     </svg>
                     Analitika
                   </div>
-                  <h2 className="ana-hero-title">Kampány teljesítmény</h2>
+                  <h2 className="ana-hero-title">Kampányteljesítmény</h2>
                   <p className="ana-hero-sub">Részletes áttekintés kampányaid eredményéről</p>
                 </div>
 
@@ -561,7 +561,7 @@ export default function OutboundPage() {
                       </svg>
                     </div>
                     <div className="ana-kpi-content">
-                      <div className="ana-kpi-num">{analytics.topChannel ? (CHANNEL_NAMES[analytics.topChannel[0]] || analytics.topChannel[0]) : '–'}</div>
+                      <div className="ana-kpi-num">{analytics.topChannel ? (CHANNEL_NAMES[analytics.topChannel[0]] || analytics.topChannel[0]) : <span className="no-data">Nincs adat</span>}</div>
                       <div className="ana-kpi-desc">Top csatorna</div>
                     </div>
                   </div>
@@ -583,7 +583,7 @@ export default function OutboundPage() {
                       </svg>
                     </div>
                     <div className="ana-kpi-content">
-                      <div className="ana-kpi-num">{analytics.lastCampaign ? new Date(analytics.lastCampaign.created_at).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' }) : '–'}</div>
+                      <div className="ana-kpi-num">{analytics.lastCampaign ? new Date(analytics.lastCampaign.created_at).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' }) : <span className="no-data">Nincs adat</span>}</div>
                       <div className="ana-kpi-desc">Utolsó kampány</div>
                     </div>
                   </div>
@@ -601,7 +601,7 @@ export default function OutboundPage() {
                       {campaigns.length > 0 ? (
                         <Doughnut data={statusChartData} options={statusChartOptions} />
                       ) : (
-                        <div className="ana-no-data">Nincs adat</div>
+                        <div className="ana-no-data no-data">Nincs adat</div>
                       )}
                     </div>
                   </div>
@@ -616,7 +616,7 @@ export default function OutboundPage() {
                       {campaigns.length > 0 ? (
                         <Bar data={channelChartData} options={channelChartOptions} />
                       ) : (
-                        <div className="ana-no-data">Nincs adat</div>
+                        <div className="ana-no-data no-data">Nincs adat</div>
                       )}
                     </div>
                   </div>
@@ -631,7 +631,7 @@ export default function OutboundPage() {
                       {campaigns.length > 0 ? (
                         <Bar data={clientsChartData} options={clientsChartOptions} />
                       ) : (
-                        <div className="ana-no-data">Nincs adat</div>
+                        <div className="ana-no-data no-data">Nincs adat</div>
                       )}
                     </div>
                   </div>
@@ -705,7 +705,7 @@ export default function OutboundPage() {
                       {campaigns.length > 0 ? (
                         <Line data={timelineChartData} options={timelineChartOptions} />
                       ) : (
-                        <div className="ana-no-data">Nincs adat</div>
+                        <div className="ana-no-data no-data">Nincs adat</div>
                       )}
                     </div>
                   </div>
@@ -834,7 +834,7 @@ export default function OutboundPage() {
                   <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 14, display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                     <span>{c.status === 'Aktív' ? `${c.processed_count || 0}/${c.total_count || clientCount} feldolgozva` : `${clientCount} ügyfél célozva`}</span>
                     <span>·</span>
-                    <span>{c.created_at ? new Date(c.created_at).toLocaleDateString('hu-HU') : '-'}</span>
+                    <span>{c.created_at ? new Date(c.created_at).toLocaleDateString('hu-HU') : <span className="no-data">Nincs dátum</span>}</span>
                   </div>
 
                   {/* Actions */}
@@ -1016,7 +1016,7 @@ export default function OutboundPage() {
               </p>
               <label className="cpv-schedule-label">Dátum és időpont</label>
               <input
-                type="datetime-local"
+                type="datetime-local" lang="hu"
                 value={scheduleDate}
                 onChange={e => setScheduleDate(e.target.value)}
                 className="cpv-schedule-input"

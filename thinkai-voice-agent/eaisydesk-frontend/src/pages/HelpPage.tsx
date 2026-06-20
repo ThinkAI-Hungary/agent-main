@@ -16,7 +16,7 @@ const faqs = [
 // ── Module list ──────────────────────────────────────────────────────────────
 const modules = [
   { name: 'Irányítópult', desc: 'Interakció statisztikák, foglalási arány, csatornamegoszlás, heti trendek, foglalási tölcsér', icon: <path d="M18 20V10M12 20V4M6 20v-6" /> },
-  { name: 'Ügyfélközpont', desc: 'Interakciós lista, ügyféllista kezelés, Kanban tábla az érdeklődők nyomon követéséhez', icon: <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></> },
+  { name: 'Ügyfélközpont', desc: 'Interakciós napló, ügyféllista kezelés, Kanban tábla az érdeklődők nyomon követéséhez', icon: <><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></> },
   { name: 'Naptár', desc: 'Foglalások és időpontok vizuális kezelése, napi/heti/havi nézet', icon: <><rect height="18" rx="2" width="18" x="3" y="4" /><path d="M16 2v4M8 2v4M3 10h18" /></> },
   { name: 'Kimenő kommunikáció', desc: 'Email kampányok létrehozása, automatizációk beállítása, esemény alapú küldések', icon: <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /> },
   { name: 'Tudástár', desc: 'AI asszisztens testreszabás, céginformációk, foglalási szabályok, csapatkezelés', icon: <><path d="M4 19.5A2.5 2.5 0 016.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" /><path d="M8 7h8M8 11h6" /></>, last: true },
@@ -164,9 +164,6 @@ export default function HelpPage() {
         <div>
           <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', fontFamily: "'Inter', Arial, sans-serif" }}>
             Segítség &amp; Dokumentáció
-          </div>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', marginTop: 2, fontFamily: "'Inter', Arial, sans-serif" }}>
-            Minden, amit az eaisyDesk moduljairól tudnod kell
           </div>
         </div>
       </div>
