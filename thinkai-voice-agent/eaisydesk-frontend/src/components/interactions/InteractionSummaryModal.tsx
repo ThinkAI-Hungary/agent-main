@@ -1,10 +1,12 @@
 /**
  * InteractionSummaryModal – 1:1 port of legacy log-modal + openInteractionSummaryModal()
+ * Now includes embedded approval functionality for pending interactions.
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { fmtDt } from '../../helpers/formatters';
 import { parseCustomData, type ClientRecord } from '../../helpers/clientResolvers';
 import { authFetch } from '../../api/client';
+import { showToast } from '../ui/Toast';
 import type { InteractionRow } from '../../pages/InteractionsPage';
 
 interface Props {
@@ -13,6 +15,10 @@ interface Props {
   clients: ClientRecord[];
   clientsMap: Record<string, ClientRecord>;
   onClientClick?: (clientId: string) => void;
+  /** When true, auto-expand chat + approval section on mount */
+  autoExpandApproval?: boolean;
+  /** Called after successful approval to let parent refresh data */
+  onApproved?: () => void;
 }
 
 interface ResultData {
@@ -27,11 +33,18 @@ interface ChatBlock {
   text: string;
 }
 
-export default function InteractionSummaryModal({ row, onClose, clients, clientsMap, onClientClick }: Props) {
-  const [showChat, setShowChat] = useState(false);
+export default function InteractionSummaryModal({ row, onClose, clients, clientsMap, onClientClick, autoExpandApproval, onApproved }: Props) {
+  const isPendingApproval = row.teendo === 'Jóváhagyásra vár';
+  const [showChat, setShowChat] = useState(!!autoExpandApproval);
   const [resultData, setResultData] = useState<ResultData>({ date: '-', service: '-', doctor: '-', reminder: '-' });
   const [chatBlocks, setChatBlocks] = useState<ChatBlock[]>([]);
   const [summary, setSummary] = useState('');
+
+  // ── Approval state ──
+  const [draftText, setDraftText] = useState('');
+  const [submittingApproval, setSubmittingApproval] = useState(false);
+  const approvalTextareaRef = useRef<HTMLTextAreaElement>(null);
+  const approvalSectionRef = useRef<HTMLDivElement>(null);
 
   // Build result data + chat blocks
   useEffect(() => {
@@ -274,6 +287,70 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
     return () => { cancelled = true; };
   }, [row, clients, clientsMap]);
 
+  // ── Parse AI draft for approval ──
+  useEffect(() => {
+    if (!isPendingApproval || !row.ai_draft_response) return;
+    let parsedDraft: string;
+    try {
+      const draftData = JSON.parse(row.ai_draft_response);
+      if (draftData.multi_channel && draftData.drafts && draftData.drafts.length > 1) {
+        parsedDraft = draftData.drafts
+          .map((d: { channel: string; body?: string }) => {
+            const chIcon: Record<string, string> = { Email: '📧', Messenger: '💬', WhatsApp: '📱' };
+            return `━━━ ${chIcon[d.channel] || '📨'} ${d.channel} ━━━\n${d.body || ''}`;
+          })
+          .join('\n\n');
+      } else {
+        parsedDraft = draftData.body || '';
+      }
+    } catch {
+      parsedDraft = row.ai_draft_response || '';
+    }
+    setDraftText(parsedDraft.replace(/<br\s*\/?>/gi, '\n'));
+  }, [isPendingApproval, row.ai_draft_response]);
+
+  // Auto-scroll to approval section when auto-expanding
+  useEffect(() => {
+    if (autoExpandApproval && approvalSectionRef.current) {
+      setTimeout(() => {
+        approvalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        approvalTextareaRef.current?.focus();
+      }, 300);
+    }
+  }, [autoExpandApproval, showChat]);
+
+  // ── Approval submit handler ──
+  const handleApprovalSubmit = async () => {
+    if (!row.interactionId) return;
+    setSubmittingApproval(true);
+    try {
+      const res = await authFetch(
+        `/admin/api/approvals/${row.interactionId}/approve`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ modified_draft: draftText }),
+        }
+      );
+      if (!res.ok) {
+        const d = await res.json().catch(() => ({ detail: 'Ismeretlen hiba' }));
+        throw new Error(d.detail || 'Hiba történt a mentés során');
+      }
+      const result = await res.json().catch(() => ({ status: 'success' }));
+      if (result.status === 'warning') {
+        showToast(result.message || 'Jóváhagyva, de a küldés sikertelen', 'error');
+      } else {
+        showToast('Válasz jóváhagyva és elküldve!', 'success');
+      }
+      onApproved?.();
+      onClose();
+    } catch (e) {
+      showToast((e as Error).message || 'Hiba történt', 'error');
+    } finally {
+      setSubmittingApproval(false);
+    }
+  };
+
   return (
     <div
       style={{
@@ -366,60 +443,143 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
                 Teljes beszélgetés
               </h4>
               <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                {chatBlocks.map((b, i) =>
-                  b.sender === 'system' ? (
-                    <div key={i} style={{
-                      textAlign: 'center',
-                      margin: '16px 0',
-                      fontSize: 11.5,
-                      color: 'var(--text-muted)',
-                      fontWeight: 500,
-                      fontStyle: 'italic',
-                      padding: '4px 16px',
-                      background: 'rgba(0,0,0,0.03)',
-                      borderRadius: 8,
-                    }}>
-                      {b.text}
-                    </div>
-                  ) : (
-                    <div key={i} style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'flex-start' }}>
-                      {/* Avatar */}
-                      <div style={{
-                        width: 32,
-                        height: 32,
-                        borderRadius: '50%',
-                        display: 'flex',
-                        alignItems: 'center',
-                        justifyContent: 'center',
-                        fontWeight: 700,
-                        fontSize: 12,
-                        flexShrink: 0,
-                        ...(b.sender === 'user'
-                          ? { background: '#e5e7eb', color: '#374151' }
-                          : { background: 'linear-gradient(135deg, var(--accent, #1ceee0), var(--accent2, #0bbdb1))', color: '#082432' }
-                        ),
-                      }}>
-                        {b.sender === 'user' ? 'Ü' : 'AI'}
-                      </div>
-                      {/* Bubble */}
-                      <div style={{
-                        padding: '12px 16px',
-                        borderRadius: 6,
-                        fontSize: 13,
-                        lineHeight: 1.5,
-                        maxWidth: '85%',
-                        whiteSpace: 'pre-wrap',
-                        borderTopLeftRadius: 4,
-                        ...(b.sender === 'user'
-                          ? { background: '#f3f4f6', color: '#1f2937' }
-                          : { background: 'rgba(28, 238, 224, 0.1)', color: 'var(--text)', border: '1px solid rgba(28, 238, 224, 0.2)' }
-                        ),
+                {(() => {
+                  // Find the index of the last AI message for making it editable
+                  const lastAiIndex = isPendingApproval
+                    ? chatBlocks.reduce((acc, b, idx) => (b.sender === 'ai' ? idx : acc), -1)
+                    : -1;
+
+                  return chatBlocks.map((b, i) =>
+                    b.sender === 'system' ? (
+                      <div key={i} style={{
+                        textAlign: 'center',
+                        margin: '16px 0',
+                        fontSize: 11.5,
+                        color: 'var(--text-muted)',
+                        fontWeight: 500,
+                        fontStyle: 'italic',
+                        padding: '4px 16px',
+                        background: 'rgba(0,0,0,0.03)',
+                        borderRadius: 8,
                       }}>
                         {b.text}
                       </div>
-                    </div>
-                  )
-                )}
+                    ) : i === lastAiIndex ? (
+                      /* ── Last AI bubble: editable textarea when pending approval ── */
+                      <div key={i} ref={approvalSectionRef}>
+                        <div style={{ display: 'flex', gap: 12, marginBottom: 0, alignItems: 'flex-start' }}>
+                          {/* Avatar */}
+                          <div style={{
+                            width: 32,
+                            height: 32,
+                            borderRadius: '50%',
+                            display: 'flex',
+                            alignItems: 'center',
+                            justifyContent: 'center',
+                            fontWeight: 700,
+                            fontSize: 12,
+                            flexShrink: 0,
+                            background: 'linear-gradient(135deg, var(--accent, #1ceee0), var(--accent2, #0bbdb1))',
+                            color: '#082432',
+                          }}>
+                            AI
+                          </div>
+                          {/* Editable bubble */}
+                          <div style={{ flex: 1, maxWidth: '85%' }}>
+                            <textarea
+                              ref={approvalTextareaRef}
+                              value={draftText}
+                              onChange={(e) => setDraftText(e.target.value)}
+                              disabled={submittingApproval}
+                              style={{
+                                width: '100%',
+                                minHeight: 80,
+                                padding: '12px 16px',
+                                borderRadius: 6,
+                                borderTopLeftRadius: 4,
+                                fontSize: 13,
+                                lineHeight: 1.5,
+                                color: 'var(--text)',
+                                background: 'rgba(28, 238, 224, 0.1)',
+                                border: '2px solid rgba(28, 238, 224, 0.35)',
+                                fontFamily: 'inherit',
+                                resize: 'vertical',
+                                outline: 'none',
+                                boxSizing: 'border-box',
+                                transition: 'border-color 0.2s',
+                              }}
+                              onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(28,238,224,0.7)'; }}
+                              onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(28,238,224,0.35)'; }}
+                            />
+                          </div>
+                        </div>
+                        {/* Approve button — right below the editable bubble */}
+                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12, marginBottom: 8 }}>
+                          <button
+                            onClick={handleApprovalSubmit}
+                            disabled={submittingApproval || !draftText.trim()}
+                            style={{
+                              background: 'linear-gradient(135deg, var(--accent, #1ceee0), var(--accent2, #0bbdb1))',
+                              color: '#082432',
+                              border: 'none',
+                              borderRadius: 8,
+                              padding: '10px 20px',
+                              fontSize: 13,
+                              fontWeight: 700,
+                              cursor: submittingApproval || !draftText.trim() ? 'not-allowed' : 'pointer',
+                              opacity: submittingApproval || !draftText.trim() ? 0.5 : 1,
+                              display: 'flex',
+                              alignItems: 'center',
+                              gap: 8,
+                              fontFamily: 'inherit',
+                              transition: 'opacity 0.15s',
+                            }}
+                          >
+                            {submittingApproval ? 'Küldés...' : 'Küldés'}
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      /* ── Normal chat bubble ── */
+                      <div key={i} style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'flex-start' }}>
+                        {/* Avatar */}
+                        <div style={{
+                          width: 32,
+                          height: 32,
+                          borderRadius: '50%',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          fontWeight: 700,
+                          fontSize: 12,
+                          flexShrink: 0,
+                          ...(b.sender === 'user'
+                            ? { background: '#e5e7eb', color: '#374151' }
+                            : { background: 'linear-gradient(135deg, var(--accent, #1ceee0), var(--accent2, #0bbdb1))', color: '#082432' }
+                          ),
+                        }}>
+                          {b.sender === 'user' ? 'Ü' : 'AI'}
+                        </div>
+                        {/* Bubble */}
+                        <div style={{
+                          padding: '12px 16px',
+                          borderRadius: 6,
+                          fontSize: 13,
+                          lineHeight: 1.5,
+                          maxWidth: '85%',
+                          whiteSpace: 'pre-wrap',
+                          borderTopLeftRadius: 4,
+                          ...(b.sender === 'user'
+                            ? { background: '#f3f4f6', color: '#1f2937' }
+                            : { background: 'rgba(28, 238, 224, 0.1)', color: 'var(--text)', border: '1px solid rgba(28, 238, 224, 0.2)' }
+                          ),
+                        }}>
+                          {b.text}
+                        </div>
+                      </div>
+                    )
+                  );
+                })()}
               </div>
             </div>
           )}
@@ -464,7 +624,12 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
             }}
           >
             <span style={{ marginRight: 6 }}>{showChat ? '↑' : '↓'}</span>
-            {showChat ? 'Beszélgetés elrejtése' : 'Interakció megtekintése'}
+            {showChat
+              ? 'Beszélgetés elrejtése'
+              : isPendingApproval
+                ? 'Beszélgetés és jóváhagyás'
+                : 'Interakció megtekintése'
+            }
           </button>
         </div>
       </div>

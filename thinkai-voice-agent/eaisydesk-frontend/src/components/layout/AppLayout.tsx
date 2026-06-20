@@ -4,6 +4,7 @@ import MarketingSidebar from './MarketingSidebar';
 import MainHeader from './MainHeader';
 import NotificationCenter from './NotificationCenter';
 import CommandPalette from './CommandPalette';
+import SessionTimeoutGuard from './SessionTimeoutGuard';
 
 export default function AppLayout() {
   const { pathname } = useLocation();
@@ -19,7 +20,7 @@ export default function AppLayout() {
         <Outlet />
       </main>
       <CommandPalette />
+      <SessionTimeoutGuard />
     </div>
   );
 }
-

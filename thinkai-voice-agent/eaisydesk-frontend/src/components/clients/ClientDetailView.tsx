@@ -596,7 +596,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                   <td style={tdStyle}>
                     <button
                       onClick={(e) => { e.stopPropagation(); setSummaryModalRow(r); }}
-                      style={{ background: 'rgba(28,238,224,0.1)', border: '1px solid var(--accent, #1ceee0)', color: 'var(--accent, #1ceee0)', borderRadius: 6, padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                      style={{ background: 'rgba(13,148,136,0.1)', border: '1px solid #0d9488', color: '#0d9488', borderRadius: 6, padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
                     >
                       Megtekintés
                     </button>
@@ -613,49 +613,56 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
 
       {/* ═══ Profile Edit Modal ═══ */}
       {showProfileEdit && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.45)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }} onClick={() => setShowProfileEdit(false)}>
-          <div style={{ background: 'var(--card)', borderRadius: 8, width: 440, maxWidth: '90vw', boxShadow: '0 24px 48px rgba(0,0,0,0.3)', overflow: 'hidden', border: '1px solid var(--border)' }} onClick={e => e.stopPropagation()}>
-            {/* Header */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '24px 28px 0' }}>
-              <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>Profil módosítása</h3>
-              <button onClick={() => setShowProfileEdit(false)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9ca3af', fontSize: 22, width: 32, height: 32, display: 'flex', alignItems: 'center', justifyContent: 'center', borderRadius: 8, fontFamily: 'inherit' }}
-                onMouseOver={e => (e.currentTarget.style.color = '#374151')}
-                onMouseOut={e => (e.currentTarget.style.color = '#9ca3af')}
-              >×</button>
+        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowProfileEdit(false)}>
+          <div style={{ background: 'var(--card)', borderRadius: 8, width: 480, maxWidth: '90vw', boxShadow: '0 24px 48px rgba(0,0,0,0.3)', overflow: 'hidden', border: 'none', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
+            {/* Header — teal gradient, matching other modals */}
+            <div style={{ background: 'linear-gradient(to right, #14b8ad, #1ceee0)', padding: '20px 24px', flexShrink: 0 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+                <div>
+                  <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(8,36,50,0.7)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
+                    Ügyfélkezelés
+                  </div>
+                  <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#082432' }}>Profil módosítása</h3>
+                </div>
+                <button
+                  onClick={() => setShowProfileEdit(false)}
+                  style={{ background: 'rgba(8,36,50,0.15)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#082432', marginLeft: 8 }}
+                >✕</button>
+              </div>
             </div>
 
             {/* Form */}
-            <div style={{ padding: '24px 28px 28px', display: 'flex', flexDirection: 'column', gap: 18 }}>
+            <div style={{ padding: '24px 24px 28px', display: 'flex', flexDirection: 'column', gap: 18, overflowY: 'auto' }}>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Név</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, display: 'block' }}>Név</label>
                 <input value={editName} onChange={e => setEditName(e.target.value)} placeholder={client.name} style={modalInputStyle} />
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Telefonszám</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, display: 'block' }}>Telefonszám</label>
                 <input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+36 30 ..." style={modalInputStyle} />
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Email cím</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, display: 'block' }}>Email cím</label>
                 <input value={editEmail} onChange={e => setEditEmail(e.target.value)} placeholder="email@példa.hu" style={modalInputStyle} />
               </div>
               <div>
-                <label style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Megjegyzés</label>
+                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, display: 'block' }}>Megjegyzés</label>
                 <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Adminisztrációs megjegyzések..." rows={4}
                   style={{ ...modalInputStyle, resize: 'vertical', minHeight: 80 }}
                 />
               </div>
+            </div>
 
-              {/* Footer buttons */}
-              <div style={{ display: 'flex', gap: 12, justifyContent: 'flex-end', marginTop: 4 }}>
-                <button onClick={() => setShowProfileEdit(false)} style={{ padding: '11px 24px', background: 'transparent', color: 'var(--text-muted)', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 14, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
-                  onMouseOver={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                  onMouseOut={e => (e.currentTarget.style.borderColor = 'var(--border)')}
-                >Mégsem</button>
-                <button onClick={saveProfile} disabled={saving} style={{ padding: '11px 24px', background: 'var(--accent)', color: '#082432', border: 'none', borderRadius: 10, fontSize: 14, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
-                  onMouseOver={e => (e.currentTarget.style.opacity = '0.85')}
-                  onMouseOut={e => (e.currentTarget.style.opacity = '1')}
-                >{saving ? 'Mentés...' : 'Mentés'}</button>
-              </div>
+            {/* Footer — matching other modals */}
+            <div style={{ padding: '16px 24px', background: 'var(--bg3, rgba(0,0,0,0.02))', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 12, flexShrink: 0 }}>
+              <button onClick={() => setShowProfileEdit(false)} style={{ padding: '10px 20px', background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
+                onMouseOver={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
+                onMouseOut={e => (e.currentTarget.style.borderColor = 'var(--border)')}
+              >Mégsem</button>
+              <button onClick={saveProfile} disabled={saving} style={{ padding: '10px 20px', background: 'linear-gradient(135deg, var(--accent, #1ceee0), var(--accent2, #0bbdb1))', color: '#082432', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'opacity 0.15s', opacity: saving ? 0.6 : 1 }}
+                onMouseOver={e => { if (!saving) e.currentTarget.style.opacity = '0.85'; }}
+                onMouseOut={e => { if (!saving) e.currentTarget.style.opacity = '1'; }}
+              >{saving ? 'Mentés...' : 'Mentés'}</button>
             </div>
           </div>
         </div>

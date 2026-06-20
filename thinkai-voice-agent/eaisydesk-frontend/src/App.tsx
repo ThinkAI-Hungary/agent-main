@@ -7,6 +7,7 @@ import LoginPage from './pages/LoginPage';
 import ToastContainer from './components/ui/Toast';
 import ApprovalModal from './components/interactions/ApprovalModal';
 import Spinner from './components/ui/Spinner';
+import CookieConsentBanner from './components/gdpr/CookieConsentBanner';
 
 // Lazy-loaded pages — only downloaded after login
 const AppLayout = lazy(() => import('./components/layout/AppLayout'));
@@ -22,6 +23,8 @@ const BeallitasokPage = lazy(() => import('./pages/BeallitasokPage'));
 const HelpPage = lazy(() => import('./pages/HelpPage'));
 const MarketingPage = lazy(() => import('./pages/marketing/MarketingPage'));
 const AutomatizaciokPage = lazy(() => import('./pages/AutomatizaciokPage'));
+const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
+const GdprPage = lazy(() => import('./pages/GdprPage'));
 
 // Global styles (same CSS as the old admin)
 import './styles/variables.css';
@@ -78,6 +81,8 @@ function AuthGate() {
           <Route path="beallitasok" element={<BeallitasokPage />} />
           <Route path="help" element={<HelpPage />} />
           <Route path="marketing/*" element={<MarketingPage />} />
+          <Route path="privacy" element={<PrivacyPolicyPage />} />
+          <Route path="gdpr" element={<GdprPage />} />
           <Route path="*" element={<SmartRedirect />} />
         </Route>
       </Routes>
@@ -93,6 +98,7 @@ export default function App() {
           <ApprovalProvider>
             <AuthGate />
             <ApprovalModal />
+            <CookieConsentBanner />
             <ToastContainer />
           </ApprovalProvider>
         </AuthProvider>

@@ -92,6 +92,7 @@ export default function InteractionsPage() {
   );
   const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
   const [summaryModalRow, setSummaryModalRow] = useState<InteractionRow | null>(null);
+  const [autoExpandApproval, setAutoExpandApproval] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
   // Filters
@@ -632,7 +633,7 @@ export default function InteractionsPage() {
                 <tr
                   key={`${r.sessionId}-${r.interactionId}-${i}`}
                   className="int-row"
-                  onClick={() => setSummaryModalRow(r)}
+                  onClick={() => { setAutoExpandApproval(false); setSummaryModalRow(r); }}
                   style={{ cursor: 'pointer' }}
                 >
                   {isAdmin && (
@@ -698,7 +699,7 @@ export default function InteractionsPage() {
                     </td>
                   )}
                   {visibleCols.has('eredmeny') && (
-                    <td style={{ padding: '12px 16px' }}>
+                    <td style={{ padding: '12px 16px' }} onClick={(e) => e.stopPropagation()}>
                       <EredmenyBadge value={r.eredmeny} />
                     </td>
                   )}
@@ -715,7 +716,7 @@ export default function InteractionsPage() {
                     >
                       {r.teendo === 'Jóváhagyásra vár' ? (
                         <button
-                          onClick={() => handleApprovalFromInteraction(r)}
+                          onClick={() => { setSummaryModalRow(r); setAutoExpandApproval(true); }}
                           style={{
                             background: 'rgba(251,191,36,0.12)',
                             color: '#d97706',
@@ -750,7 +751,9 @@ export default function InteractionsPage() {
           onClose={() => setSummaryModalRow(null)}
           clients={clients}
           clientsMap={clientsMap}
-          onClientClick={(id) => { setSummaryModalRow(null); setSelectedClientId(id); }}
+          onClientClick={(id) => { setSummaryModalRow(null); setAutoExpandApproval(false); setSelectedClientId(id); }}
+          autoExpandApproval={autoExpandApproval}
+          onApproved={() => { setAutoExpandApproval(false); refetchSessions(); }}
         />
       )}
     </div>
