@@ -4,6 +4,7 @@
  * tags, clinic display, double-click to client detail.
  */
 import { useState, useMemo, useCallback } from 'react';
+import { useIsMobile } from '../hooks/useIsMobile';
 import {
   DndContext,
   DragOverlay,
@@ -48,6 +49,8 @@ export interface KanbanCardData {
 
 export default function KanbanPage() {
   const { user, isAdmin } = useAuth();
+  const isMobile = useIsMobile(768);
+  const [openAccordion, setOpenAccordion] = useState<string | null>(null);
   const { clients, clientsMap, refetch: refetchClients } = useClients();
   const { sessions } = useSessions(500);
   const { events } = useCalendarEvents();
@@ -330,32 +333,79 @@ export default function KanbanPage() {
       </div>
 
       {/* Kanban Board */}
-      <DndContext
-        sensors={sensors}
-        collisionDetection={closestCenter}
-        onDragStart={handleDragStart}
-        onDragEnd={handleDragEnd}
-        measuring={measuring}
-      >
-        <div className="kanban-board">
-          {columns.map((col) => (
-            <KanbanColumn
-              key={col.id}
-              column={col}
-              cards={cardsByColumn[col.id] || []}
-              onRename={handleRenameColumn}
-              onDelete={handleDeleteColumn}
-              onDeleteClient={handleDeleteClient}
-              onCardClick={handleCardClick}
-            />
-          ))}
+      {isMobile ? (
+        /* ═══ MOBILE: Accordion view ═══ */
+        <div className="kanban-mobile-accordion">
+          {columns.map((col) => {
+            const cards = cardsByColumn[col.id] || [];
+            const isOpen = openAccordion === col.id;
+            // Auto-open first column with cards if nothing is open
+            if (openAccordion === null && cards.length > 0) {
+              setTimeout(() => setOpenAccordion(col.id), 0);
+            }
+            return (
+              <div key={col.id} className="kanban-accordion-section">
+                <div
+                  className="kanban-accordion-header"
+                  onClick={() => setOpenAccordion(isOpen ? null : col.id)}
+                >
+                  <div className="kanban-accordion-header-left">
+                    <span className="kanban-accordion-title">{col.name}</span>
+                    <span className="kanban-accordion-count">{cards.length}</span>
+                  </div>
+                  <svg className={`kanban-accordion-chevron${isOpen ? ' open' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                    <polyline points="6 9 12 15 18 9" />
+                  </svg>
+                </div>
+                {isOpen && (
+                  <div className="kanban-accordion-body">
+                    {cards.length === 0 ? (
+                      <div className="kanban-accordion-empty">Üres oszlop</div>
+                    ) : (
+                      cards.map((card) => (
+                        <KanbanCard
+                          key={String(card.id)}
+                          card={card}
+                          onClick={(c) => handleCardClick(String(c.id))}
+                          onDelete={() => handleDeleteClient(String(card.id))}
+                        />
+                      ))
+                    )}
+                  </div>
+                )}
+              </div>
+            );
+          })}
         </div>
+      ) : (
+        /* ═══ DESKTOP: DnD board ═══ */
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+          measuring={measuring}
+        >
+          <div className="kanban-board">
+            {columns.map((col) => (
+              <KanbanColumn
+                key={col.id}
+                column={col}
+                cards={cardsByColumn[col.id] || []}
+                onRename={handleRenameColumn}
+                onDelete={handleDeleteColumn}
+                onDeleteClient={handleDeleteClient}
+                onCardClick={handleCardClick}
+              />
+            ))}
+          </div>
 
-        {/* Drag Overlay */}
-        <DragOverlay dropAnimation={dropAnimation}>
-          {activeCard && <KanbanCard card={activeCard} isDragOverlay />}
-        </DragOverlay>
-      </DndContext>
+          {/* Drag Overlay */}
+          <DragOverlay dropAnimation={dropAnimation}>
+            {activeCard && <KanbanCard card={activeCard} isDragOverlay />}
+          </DragOverlay>
+        </DndContext>
+      )}
 
       {/* Add Column Modal */}
       {showAddModal && (

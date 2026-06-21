@@ -4,6 +4,8 @@
  * Client Detail overlay is handled by ClientDetailView component.
  */
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useAuth } from '../context/AuthContext';
 import { useClients } from '../hooks/useClients';
 import { useSessions } from '../hooks/useSessions';
@@ -56,12 +58,14 @@ const CLIENT_COLUMNS = [
 ] as const;
 
 export default function ClientsPage() {
+  const isMobile = useIsMobile(768);
   const { user, isAdmin } = useAuth();
   const { clients, clientsMap, refetch: refetchClients } = useClients();
   const { sessions } = useSessions(500);
   const { events } = useCalendarEvents();
   const { confirm, ConfirmDialog } = useConfirm();
   const { columns: kanbanColumns } = useKanbanColumns();
+  const pullClients = usePullToRefresh({ onRefresh: refetchClients, enabled: isMobile });
 
   // Lookup: column ID → display name
   const kanbanNameMap = useMemo(() => {
@@ -286,8 +290,134 @@ export default function ClientsPage() {
       </div>
 
 
-      {/* Table view */}
-      {viewMode === 'table' && (
+      {/* ═══ MOBILE: Search bar + Card view ═══ */}
+      {isMobile && (
+        <div ref={pullClients.containerRef} style={{ overflowY: 'auto' }}>
+          {/* Pull-to-refresh indicator */}
+          <div className="pull-to-refresh-indicator" style={{ height: pullClients.pullDistance > 0 || pullClients.isRefreshing ? Math.max(pullClients.pullDistance, pullClients.isRefreshing ? 36 : 0) : 0 }}>
+            {pullClients.isRefreshing ? (
+              <div className="pull-spinner" />
+            ) : pullClients.pullDistance > 0 ? (
+              <svg className={`pull-arrow${pullClients.pullDistance > 30 ? ' ready' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 15 12 9 18 15" /></svg>
+            ) : null}
+          </div>
+          {/* Sticky search bar */}
+          <div className="mobile-search-sticky">
+            <div className="mobile-search-wrapper">
+              <svg className="search-icon" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Keresés ügyfelek között..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+              />
+              {searchQuery && (
+                <button className="mobile-search-clear" onClick={() => setSearchQuery('')}>✕</button>
+              )}
+            </div>
+            <div className="mobile-search-meta">
+              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
+                {filteredClients.length} ügyfél
+              </span>
+            </div>
+          </div>
+
+          {/* Mobile card list */}
+          <div className="mobile-card-list">
+            {filteredClients.length === 0 ? (
+              clients.length === 0
+                ? <TableSkeleton columns={3} rows={4} />
+                : <div style={{ textAlign: 'center', padding: 40 }}><span className="no-data">Nincs találat</span></div>
+            ) : (
+              filteredClients.map((c) => {
+                // Avatar initials & color
+                const initials = (c.name || '?').split(/\s+/).map(w => w[0]).join('').slice(0, 2).toUpperCase();
+                const avatarColors = ['#6366f1', '#0d9488', '#d946ef', '#f59e0b', '#3b82f6', '#ef4444', '#22c55e', '#8b5cf6'];
+                const avatarBg = avatarColors[(c.name || '').length % avatarColors.length];
+                // Accent color per status
+                const accentColor = c.isNew ? '#1ceee0' : c.isInactive ? '#94a3b8' : '#22c55e';
+
+                return (
+                  <div
+                    key={String(c.id)}
+                    className="mobile-card"
+                    style={{ '--accent': accentColor } as React.CSSProperties}
+                    onClick={() => openClientDetail(String(c.id))}
+                  >
+                    {/* Card header: avatar + name + badge */}
+                    <div className="mobile-card-header">
+                      <div className="mobile-card-avatar" style={{ background: avatarBg }}>
+                        {initials}
+                      </div>
+                      <div style={{ flex: 1, minWidth: 0 }}>
+                        <div className="mobile-card-name">{c.name}</div>
+                        {c.lastInteraction && (
+                          <div className="mobile-card-subtitle">
+                            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="10" height="10" style={{ verticalAlign: '-1px', marginRight: 3, opacity: 0.4 }}>
+                              <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
+                            </svg>
+                            {fmtDt(c.lastInteraction)}
+                          </div>
+                        )}
+                      </div>
+                      {statusBadge(c)}
+                    </div>
+
+                    {/* Contact info — inline */}
+                    <div className="mobile-card-details">
+                      {c.phone && (
+                        <div className="mobile-card-detail-row">
+                          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13">
+                            <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
+                          </svg>
+                          <span>{c.phone}</span>
+                        </div>
+                      )}
+                      {c.email && (
+                        <div className="mobile-card-detail-row">
+                          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13">
+                            <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
+                            <polyline points="22,6 12,13 2,6" />
+                          </svg>
+                          <span>{c.email}</span>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Tags + footer */}
+                    <div className="mobile-card-footer">
+                      {c.tags.length > 0 && (
+                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                          {c.tags.slice(0, 2).map((t) => <TagBadge key={t} tag={t} />)}
+                          {c.tags.length > 2 && <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>+{c.tags.length - 2}</span>}
+                        </div>
+                      )}
+                      {c.assignee && (
+                        <div className="mobile-card-footer-item" style={{ marginLeft: 'auto' }}>
+                          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12" height="12"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
+                          <span>{c.assignee}</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                );
+              })
+            )}
+          </div>
+
+          {/* FAB — new client */}
+          <button className="mobile-fab" onClick={() => { /* Could open new client modal */ }} title="Új ügyfél">
+            <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="22" height="22">
+              <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+            </svg>
+          </button>
+        </div>
+      )}
+
+      {/* ═══ DESKTOP: Table view ═══ */}
+      {!isMobile && viewMode === 'table' && (
         <div className="table-card" style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid var(--border)' }}>
           {/* Toolbar strip */}
           <div style={{

@@ -4,6 +4,7 @@
  * Clicking an event opens the client profile.
  */
 import { useState, useMemo, useCallback } from 'react';
+import { useIsMobile } from '../hooks/useIsMobile';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import timeGridPlugin from '@fullcalendar/timegrid';
@@ -29,6 +30,7 @@ export default function CalendarPage() {
   const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
   const [showNewEventModal, setShowNewEventModal] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const isMobile = useIsMobile(768);
 
   // Member filtering: build set of assigned client names/emails
   const myEvents = useMemo(() => {
@@ -355,7 +357,7 @@ export default function CalendarPage() {
               <div className="calendar-grid-wrapper">
                 <FullCalendar
                   plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-                  initialView="timeGridWeek"
+                  initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
                   locale="hu"
                   firstDay={1}
                   height="100%"
@@ -365,7 +367,11 @@ export default function CalendarPage() {
                   slotMaxTime="19:00:00"
                   slotDuration="00:30:00"
                   expandRows
-                  headerToolbar={{
+                  headerToolbar={isMobile ? {
+                    left: 'prev,today,next',
+                    center: 'title',
+                    right: 'timeGridDay,dayGridMonth',
+                  } : {
                     left: 'prev,today,next',
                     center: 'title',
                     right: 'timeGridDay,timeGridWeek,dayGridMonth',

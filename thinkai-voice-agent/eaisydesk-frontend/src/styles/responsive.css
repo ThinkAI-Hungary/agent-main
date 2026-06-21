@@ -90,67 +90,10 @@
         min-height: 280px;
       }
 
-      /* ── Tables — column hiding on mobile ──────────────────── */
-      /* Remove the forced min-width so tables fit naturally */
+      /* ── Tables — React now renders card views on mobile ──────── */
+      /* Old nth-child column hiding hacks removed — mobile card view handles this */
       .data-table {
         min-width: 0 !important;
-      }
-
-      /* Interactions table (#interactions-flat-table):
-         Columns: checkbox(1), Időpont(2), Ügyfél(3), Csatorna(4),
-         Irány(5), Ügytípus(6), Eredmény(7), Státusz(8), Teendő(9)
-         Keep: Időpont, Ügyfél, Csatorna — Hide: checkbox, Irány+
-      */
-      #interactions-flat-table .int-checkbox-col {
-        display: none !important;
-      }
-      #interactions-flat-table th:nth-child(n+5),
-      #interactions-flat-table td:nth-child(n+5) {
-        display: none !important;
-      }
-
-      /* When admin is logged in, checkbox column is the first <th>/<td>,
-         so the columns shift. We already hide .int-checkbox-col above.
-         After hiding checkbox: columns become Időpont(1), Ügyfél(2), Csatorna(3), Irány(4)...
-         Hide from 4th column onwards */
-      #interactions-flat-table tr > th:nth-child(n+5):not(.int-checkbox-col),
-      #interactions-flat-table tr > td:nth-child(n+5):not(.int-checkbox-col) {
-        display: none !important;
-      }
-
-      /* Interactions table cell padding */
-      #interactions-flat-table td,
-      #interactions-flat-table th {
-        padding: 10px 8px !important;
-        font-size: 12px !important;
-      }
-
-      /* Interactions toolbar — stack search and actions */
-      #interactions-flat-table ~ div,
-      .table-card > div:first-child {
-        flex-direction: column !important;
-        align-items: stretch !important;
-      }
-
-      /* Clients table: wraps in .table-card
-         Columns: checkbox(1), Ügyfél(2), Új/Visszatérő(3), Címkék(4),
-         Telefonszám(5), Email(6), Felelős(7), Utolsó interakció(8), Értékesítési státusz(9)
-         Keep: Ügyfél, Új/Visszatérő, Címkék, Telefonszám — Hide: checkbox, Email+
-      */
-      .table-card .data-table th:first-child,
-      .table-card .data-table td:first-child {
-        display: none !important;
-      }
-      .table-card .data-table th:nth-child(n+6),
-      .table-card .data-table td:nth-child(n+6) {
-        display: none !important;
-      }
-
-      /* Clients table cell sizing */
-      .table-card .data-table td,
-      .table-card .data-table th {
-        padding: 10px 8px !important;
-        font-size: 12px !important;
       }
 
       /* ── Table toolbar — responsive ──────────────────────── */
@@ -722,6 +665,413 @@
         overflow-x: auto !important;
         -webkit-overflow-scrolling: touch;
       }
+
+      /* ═══════════════════════════════════════════════════════════════
+         MOBILE CARD VIEW — shared styles for ClientsPage & InteractionsPage
+         ═══════════════════════════════════════════════════════════════ */
+
+      /* ── Card list container ── */
+      .mobile-card-list {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      /* ── Card base ── */
+      .mobile-card {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 14px;
+        padding: 12px 14px 12px 17px;
+        cursor: pointer;
+        transition: border-color 0.2s, box-shadow 0.2s, transform 0.15s;
+        position: relative;
+        overflow: hidden;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.04), 0 1px 2px rgba(0, 0, 0, 0.02);
+      }
+
+      /* Left accent strip */
+      .mobile-card::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 0;
+        bottom: 0;
+        width: 3.5px;
+        background: var(--accent, #1ceee0);
+        border-radius: 3px 0 0 3px;
+      }
+
+      .mobile-card:active {
+        border-color: rgba(28, 238, 224, 0.5);
+        box-shadow: 0 2px 12px rgba(28, 238, 224, 0.12);
+        transform: scale(0.99);
+      }
+
+      /* ── Card header with avatar ── */
+      .mobile-card-header {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-bottom: 6px;
+      }
+
+      .mobile-card-avatar {
+        width: 36px;
+        height: 36px;
+        border-radius: 10px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 13px;
+        font-weight: 700;
+        color: #fff;
+        flex-shrink: 0;
+        letter-spacing: 0.5px;
+      }
+
+      .mobile-card-name {
+        font-size: 14px;
+        font-weight: 700;
+        color: var(--text);
+        line-height: 1.25;
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      .mobile-card-subtitle {
+        font-size: 11px;
+        color: var(--text-muted);
+        margin-top: 1px;
+      }
+
+      /* ── Contact details (inline) ── */
+      .mobile-card-details {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 6px 14px;
+        margin-bottom: 8px;
+      }
+
+      .mobile-card-detail-row {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      .mobile-card-detail-row svg {
+        flex-shrink: 0;
+        opacity: 0.45;
+      }
+
+      .mobile-card-detail-row span {
+        white-space: nowrap;
+        overflow: hidden;
+        text-overflow: ellipsis;
+      }
+
+      /* ── Card footer ── */
+      .mobile-card-footer {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        flex-wrap: wrap;
+        padding-top: 6px;
+        border-top: 1px solid var(--border);
+      }
+
+      .mobile-card-footer-item {
+        display: flex;
+        align-items: center;
+        gap: 4px;
+        font-size: 11px;
+        color: var(--text-muted);
+        font-weight: 500;
+      }
+
+      .mobile-card-footer-item svg {
+        opacity: 0.35;
+        flex-shrink: 0;
+      }
+
+      /* ── Sticky search bar ── */
+      .mobile-search-sticky {
+        position: sticky;
+        top: 0;
+        z-index: 20;
+        background: var(--bg, #f5f7fa);
+        padding: 8px 0 10px;
+        margin: -8px 0 4px;
+      }
+
+      .mobile-search-wrapper {
+        position: relative;
+        display: flex;
+        align-items: center;
+      }
+
+      .mobile-search-wrapper .search-icon {
+        position: absolute;
+        left: 12px;
+        width: 16px;
+        height: 16px;
+        color: var(--text-muted);
+        opacity: 0.4;
+        pointer-events: none;
+      }
+
+      .mobile-search-wrapper input {
+        width: 100%;
+        padding: 10px 38px 10px 36px;
+        border: 1.5px solid var(--border);
+        border-radius: 12px;
+        font-size: 13px;
+        font-weight: 500;
+        color: var(--text);
+        background: var(--card);
+        font-family: inherit;
+        outline: none;
+        transition: border-color 0.2s, box-shadow 0.2s;
+      }
+
+      .mobile-search-wrapper input:focus {
+        border-color: rgba(28, 238, 224, 0.5);
+        box-shadow: 0 0 0 3px rgba(28, 238, 224, 0.08);
+      }
+
+      .mobile-search-wrapper input::placeholder {
+        color: var(--text-muted);
+        opacity: 0.6;
+      }
+
+      .mobile-search-clear {
+        position: absolute;
+        right: 10px;
+        width: 22px;
+        height: 22px;
+        border-radius: 50%;
+        border: none;
+        background: var(--bg3, rgba(0,0,0,0.06));
+        color: var(--text-muted);
+        font-size: 12px;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        transition: background 0.15s;
+      }
+
+      .mobile-search-clear:active {
+        background: rgba(239, 68, 68, 0.15);
+        color: #ef4444;
+      }
+
+      .mobile-search-meta {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 8px;
+        padding: 0 2px;
+      }
+
+      /* ── Timeline date separators ── */
+      .mobile-timeline-separator {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        padding: 6px 0 4px;
+        margin-top: 4px;
+      }
+
+      .mobile-timeline-separator .sep-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--text-muted);
+        text-transform: uppercase;
+        letter-spacing: 0.5px;
+        white-space: nowrap;
+      }
+
+      .mobile-timeline-separator .sep-line {
+        flex: 1;
+        height: 1px;
+        background: var(--border);
+      }
+
+      /* ── Kanban accordion (mobile) ── */
+      .kanban-mobile-accordion {
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .kanban-accordion-section {
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: 12px;
+        overflow: hidden;
+      }
+
+      .kanban-accordion-header {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 14px 16px;
+        cursor: pointer;
+        user-select: none;
+        transition: background 0.15s;
+      }
+
+      .kanban-accordion-header:active {
+        background: rgba(28, 238, 224, 0.04);
+      }
+
+      .kanban-accordion-header-left {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+      }
+
+      .kanban-accordion-title {
+        font-size: 13px;
+        font-weight: 700;
+        color: var(--text);
+        text-transform: uppercase;
+        letter-spacing: 0.3px;
+      }
+
+      .kanban-accordion-count {
+        font-size: 11px;
+        font-weight: 700;
+        color: #0a1628;
+        background: #1ceee0;
+        padding: 2px 8px;
+        border-radius: 6px;
+        min-width: 20px;
+        text-align: center;
+      }
+
+      .kanban-accordion-chevron {
+        width: 18px;
+        height: 18px;
+        color: var(--text-muted);
+        transition: transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      }
+
+      .kanban-accordion-chevron.open {
+        transform: rotate(180deg);
+      }
+
+      .kanban-accordion-body {
+        padding: 0 12px 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+      }
+
+      .kanban-accordion-empty {
+        text-align: center;
+        padding: 16px;
+        font-size: 12px;
+        color: var(--text-muted);
+      }
+
+      /* ── Calendar mobile layout fix ── */
+      .calendar-page-layout {
+        grid-template-columns: 1fr !important;
+      }
+
+      .calendar-agenda-panel {
+        order: -1 !important;
+        height: auto !important;
+        min-height: 0 !important;
+        max-height: none !important;
+      }
+
+      .agenda-empty {
+        padding: 16px !important;
+        flex: 0 !important;
+      }
+
+      .agenda-empty-icon {
+        width: 32px !important;
+        height: 32px !important;
+        margin-bottom: 8px !important;
+        font-size: 16px !important;
+      }
+
+      .agenda-header {
+        padding: 14px 16px 10px !important;
+      }
+
+      .calendar-grid-wrapper {
+        height: calc(100vh - 200px) !important;
+        min-height: 380px !important;
+      }
+
+      /* ── FAB button ── */
+      .mobile-fab {
+        position: fixed;
+        bottom: 24px;
+        right: 20px;
+        width: 52px;
+        height: 52px;
+        border-radius: 16px;
+        border: none;
+        background: linear-gradient(135deg, #1ceee0, #0dbcb4);
+        color: #0a1628;
+        font-size: 24px;
+        font-weight: 300;
+        cursor: pointer;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        box-shadow: 0 4px 20px rgba(28, 238, 224, 0.35), 0 2px 8px rgba(0, 0, 0, 0.1);
+        z-index: 100;
+        transition: transform 0.2s, box-shadow 0.2s;
+      }
+
+      .mobile-fab:active {
+        transform: scale(0.92);
+        box-shadow: 0 2px 12px rgba(28, 238, 224, 0.25);
+      }
+
+      /* ── Pull-to-refresh indicator ── */
+      .pull-to-refresh-indicator {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        overflow: hidden;
+        transition: height 0.2s ease;
+      }
+
+      .pull-spinner {
+        width: 22px;
+        height: 22px;
+        border: 2.5px solid var(--border);
+        border-top-color: #1ceee0;
+        border-radius: 50%;
+        animation: ptr-spin 0.7s linear infinite;
+      }
+
+      .pull-arrow {
+        width: 20px;
+        height: 20px;
+        color: var(--text-muted);
+        transition: transform 0.2s;
+      }
+
+      .pull-arrow.ready {
+        transform: rotate(180deg);
+        color: #1ceee0;
+      }
+
+      @keyframes ptr-spin {
+        to { transform: rotate(360deg); }
+      }
     }
 
     /* ═══════════════════════════════════════════════════════════════════
@@ -767,16 +1117,18 @@
         font-size: 11px !important;
       }
 
-      /* Clients list table — hide 4th column (Telefonszám) at 375px */
-      .table-card .data-table th:nth-child(n+4),
-      .table-card .data-table td:nth-child(n+4) {
-        display: none !important;
-      }
+      /* Clients list table — no longer needed, mobile card view handles this */
+      /* Interactions list table — no longer needed, mobile card view handles this */
 
-      /* Interactions list table — hide 3rd column at 375px */
-      #interactions-flat-table th:nth-child(n+3),
-      #interactions-flat-table td:nth-child(n+3) {
-        display: none !important;
+      /* Mobile cards — even tighter on tiny screens */
+      .mobile-card {
+        padding: 12px 12px !important;
+      }
+      .mobile-card-name {
+        font-size: 13px !important;
+      }
+      .mobile-card-detail-row {
+        font-size: 11px !important;
       }
 
       /* Global tighter table padding */

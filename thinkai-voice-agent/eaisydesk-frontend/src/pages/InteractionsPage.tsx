@@ -1,7 +1,9 @@
 /**
  * InteractionsPage – 1:1 migration of legacy view-interactions + admin-interactions.js
  */
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useIsMobile } from '../hooks/useIsMobile';
+import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useAuth } from '../context/AuthContext';
 import { useApproval } from '../context/ApprovalContext';
 import { useClients } from '../hooks/useClients';
@@ -74,12 +76,14 @@ const SORT_OPTIONS = [
 ];
 
 export default function InteractionsPage() {
+  const isMobile = useIsMobile(768);
   const { user, isAdmin } = useAuth();
   const { openApproval } = useApproval();
   const { clients, clientsMap } = useClients();
   const { sessions, loading, refetch: refetchSessions } = useSessions(100);
   const { confirm, ConfirmDialog } = useConfirm();
   const { events } = useCalendarEvents();
+  const pullInteractions = usePullToRefresh({ onRefresh: refetchSessions, enabled: isMobile });
 
   // State
   const [searchQuery, setSearchQuery] = useState('');
@@ -407,7 +411,8 @@ export default function InteractionsPage() {
 
       {/* Table card with integrated toolbar */}
       <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'visible', background: 'var(--card)' }}>
-        {/* Toolbar strip */}
+        {/* Toolbar strip — hidden on mobile (mobile card view has its own) */}
+        {!isMobile && (
         <div style={{
           display: 'flex', alignItems: 'center', justifyContent: 'space-between',
           padding: '10px 18px', borderBottom: '1px solid var(--border)',
@@ -593,155 +598,329 @@ export default function InteractionsPage() {
             </div>
           </div>
         </div>
+        )}
 
 
-        {/* Table */}
-        <table className="data-table" id="interactions-flat-table" style={{ borderRadius: 0 }}>
-          <thead className="int-thead">
-            <tr>
-              {isAdmin && (
-              <th className="int-checkbox-col" style={{ width: 40, textAlign: 'center' }}>
+        {/* ═══ MOBILE: Card view ═══ */}
+        {isMobile && (
+          <div ref={pullInteractions.containerRef} style={{ padding: '0 2px', overflowY: 'auto' }}>
+            {/* Pull-to-refresh indicator */}
+            <div className="pull-to-refresh-indicator" style={{ height: pullInteractions.pullDistance > 0 || pullInteractions.isRefreshing ? Math.max(pullInteractions.pullDistance, pullInteractions.isRefreshing ? 36 : 0) : 0 }}>
+              {pullInteractions.isRefreshing ? (
+                <div className="pull-spinner" />
+              ) : pullInteractions.pullDistance > 0 ? (
+                <svg className={`pull-arrow${pullInteractions.pullDistance > 30 ? ' ready' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 15 12 9 18 15" /></svg>
+              ) : null}
+            </div>
+            {/* Sticky search bar */}
+            <div className="mobile-search-sticky">
+              <div className="mobile-search-wrapper">
+                <svg className="search-icon" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+                </svg>
                 <input
-                  type="checkbox"
-                  checked={isAllSelected}
-                  ref={(el) => { if (el) el.indeterminate = isIndeterminate; }}
-                  onChange={(e) => toggleAll(e.target.checked)}
-                  style={{ cursor: 'pointer', width: 16, height: 16, accentColor: '#1ceee0' }}
+                  type="text"
+                  placeholder="Keresés interakciók között..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
                 />
-              </th>
-              )}
-              {ALL_COLUMNS.map((col) =>
-                visibleCols.has(col.key) ? <th key={col.key}>{col.label === 'Időpont' ? 'Interakció időpontja' : col.label === 'Irány' ? 'Interakció iránya' : col.label}</th> : null
-              )}
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
+                {searchQuery && (
+                  <button className="mobile-search-clear" onClick={() => setSearchQuery('')}>✕</button>
+                )}
+              </div>
+              <div className="mobile-search-meta">
+                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
+                  {filteredRows.length} találat
+                </span>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  {/* Filter */}
+                  <div style={{ position: 'relative', display: 'inline-block' }} ref={filterContainerRef}>
+                    <button className="int-toolbar-btn" style={{ gap: 4, display: 'flex', alignItems: 'center', fontSize: 11 }} onClick={() => setFilterOpen(!filterOpen)}>
+                      <svg fill="none" height="12" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
+                      Szűrés
+                      {activeFilterCount > 0 && (
+                        <span style={{ background: '#1ceee0', color: '#0a1628', fontSize: 9, fontWeight: 800, minWidth: 16, height: 16, borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                          {activeFilterCount}
+                        </span>
+                      )}
+                    </button>
+                    {filterOpen && (
+                      <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 999, width: 280, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
+                        <div style={{ padding: '10px 14px 8px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid var(--border)' }}>Szűrők</div>
+                        <div style={{ maxHeight: 360, overflowY: 'auto', padding: '4px 0' }}>
+                          <FilterSection title="Dátum">
+                            <div style={{ display: 'flex', gap: 8 }}>
+                              <input type="date" lang="hu" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} style={{ flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, background: 'var(--bg, #fff)', color: 'var(--text)', fontFamily: 'inherit' }} />
+                              <input type="date" lang="hu" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} style={{ flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, background: 'var(--bg, #fff)', color: 'var(--text)', fontFamily: 'inherit' }} />
+                            </div>
+                          </FilterSection>
+                          <FilterSection title="Ügytípus" bordered>{UGYTIPUS_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterUgyTipus.has(v)} onChange={() => toggleFilter(filterUgyTipus, v, setFilterUgyTipus)} />))}</FilterSection>
+                          <FilterSection title="Csatorna" bordered>{CSATORNA_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterCsatorna.has(v)} onChange={() => toggleFilter(filterCsatorna, v, setFilterCsatorna)} />))}</FilterSection>
+                          <FilterSection title="Irány" bordered>{IRANY_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterIrany.has(v)} onChange={() => toggleFilter(filterIrany, v, setFilterIrany)} />))}</FilterSection>
+                          <FilterSection title="Státusz" bordered>{STATUSZ_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterStatusz.has(v)} onChange={() => toggleFilter(filterStatusz, v, setFilterStatusz)} />))}</FilterSection>
+                        </div>
+                        <div style={{ display: 'flex', gap: 8, padding: '10px 14px', borderTop: '1px solid var(--border)' }}>
+                          <button onClick={resetFilters} style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'none', color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Visszaállítás</button>
+                          <button onClick={() => setFilterOpen(false)} style={{ flex: 1, padding: '7px 10px', border: 'none', borderRadius: 8, background: '#1ceee0', color: '#0a1628', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Alkalmaz</button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  {/* Sort */}
+                  <div style={{ position: 'relative', display: 'inline-block' }} ref={sortDropdownRef}>
+                    <button className="int-toolbar-btn" style={{ gap: 4, display: 'flex', alignItems: 'center', fontSize: 11 }} onClick={() => setSortDropdownOpen(!sortDropdownOpen)}>
+                      <svg fill="none" height="12" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12"><path d="M3 6h18M6 12h12M9 18h6" /></svg>
+                      Rendezés
+                    </button>
+                    {sortDropdownOpen && (
+                      <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', padding: '6px 0', minWidth: 200, zIndex: 50 }}>
+                        {SORT_OPTIONS.map((o) => (
+                          <button key={o.value} onClick={() => { setSortBy(o.value); setSortDropdownOpen(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', border: 'none', background: sortBy === o.value ? 'rgba(28,238,224,0.1)' : 'transparent', color: sortBy === o.value ? '#1ceee0' : 'var(--text)', fontSize: 13, fontWeight: sortBy === o.value ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
+                            {sortBy === o.value && <span style={{ marginRight: 6 }}>✓</span>}{o.label}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Mobile card list with timeline separators */}
+            <div className="mobile-card-list" style={{ padding: '4px 0' }}>
+              {loading ? (
+                <TableSkeleton columns={3} rows={6} />
+              ) : filteredRows.length === 0 ? (
+                <div style={{ textAlign: 'center', padding: 40 }}><span className="no-data">Nincs találat</span></div>
+              ) : (() => {
+                const todayStr = new Date().toISOString().split('T')[0];
+                const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+                let lastDateGroup = '';
+                return filteredRows.map((r, i) => {
+                  const dateStr = (r.date || '').split('T')[0] || (r.date || '').split(' ')[0];
+                  let separator = null;
+                  if (dateStr !== lastDateGroup) {
+                    lastDateGroup = dateStr;
+                    let label = dateStr;
+                    if (dateStr === todayStr) label = 'Ma';
+                    else if (dateStr === yesterdayStr) label = 'Tegnap';
+                    else {
+                      try { label = new Date(dateStr).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric', weekday: 'short' }); } catch { /* keep dateStr */ }
+                    }
+                    separator = (
+                      <div className="mobile-timeline-separator" key={`sep-${dateStr}`}>
+                        <span className="sep-label">{label}</span>
+                        <div className="sep-line" />
+                      </div>
+                    );
+                  }
+
+                  // Avatar
+                  const clientName = r.client || 'Ismeretlen';
+                  const initials = clientName.split(/\s+/).map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
+                  const avatarColors = ['#6366f1', '#0d9488', '#d946ef', '#f59e0b', '#3b82f6', '#ef4444', '#22c55e', '#8b5cf6'];
+                  const avatarBg = avatarColors[clientName.length % avatarColors.length];
+                  // Accent per status
+                  const accentColor = r.statusz === 'LEZÁRT' ? '#22c55e' : r.statusz === 'NYITOTT' ? '#f59e0b' : '#1ceee0';
+
+                  return (
+                    <React.Fragment key={`${r.sessionId}-${r.interactionId}-${i}`}>
+                      {separator}
+                      <div
+                        className="mobile-card"
+                        style={{ '--accent': accentColor } as React.CSSProperties}
+                        onClick={() => { setAutoExpandApproval(false); setSummaryModalRow(r); }}
+                      >
+                        {/* Header: avatar + name + status */}
+                        <div className="mobile-card-header">
+                          <div className="mobile-card-avatar" style={{ background: avatarBg }}>
+                            {initials}
+                          </div>
+                          <div style={{ flex: 1, minWidth: 0 }}>
+                            <div className="mobile-card-name">{clientName}</div>
+                            <div className="mobile-card-subtitle">
+                              {(() => { try { return new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; } })()}
+                            </div>
+                          </div>
+                          <StatuszBadge value={r.statusz} />
+                        </div>
+
+                        {/* Details — inline */}
+                        <div className="mobile-card-details">
+                          <div className="mobile-card-detail-row">
+                            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
+                            <span>{r.channel}</span>
+                            <DirectionBadge value={r.direction} />
+                          </div>
+                          <div className="mobile-card-detail-row">
+                            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+                            <span>{r.ugyTipus}</span>
+                          </div>
+                        </div>
+
+                        {/* Footer */}
+                        <div className="mobile-card-footer">
+                          <EredmenyBadge value={r.eredmeny} />
+                          {r.teendo === 'Jóváhagyásra vár' ? (
+                            <button
+                              onClick={(e) => { e.stopPropagation(); setSummaryModalRow(r); setAutoExpandApproval(true); }}
+                              style={{ background: 'rgba(251,191,36,0.12)', color: '#d97706', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 6, padding: '3px 10px', fontSize: 10, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}
+                            >
+                              Jóváhagyásra vár
+                            </button>
+                          ) : (
+                            <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{r.teendo}</span>
+                          )}
+                        </div>
+                      </div>
+                    </React.Fragment>
+                  );
+                });
+              })()}
+            </div>
+
+            {/* FAB — quick action */}
+            <button className="mobile-fab" onClick={() => { /* Could open new interaction flow */ }} title="Új interakció">
+              <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="22" height="22">
+                <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
+              </svg>
+            </button>
+          </div>
+        )}
+
+        {/* ═══ DESKTOP: Table ═══ */}
+        {!isMobile && (
+          <table className="data-table" id="interactions-flat-table" style={{ borderRadius: 0 }}>
+            <thead className="int-thead">
               <tr>
-                <td colSpan={visibleCols.size + 1} style={{ padding: 0, border: 'none' }}>
-                  <TableSkeleton columns={visibleCols.size} rows={10} />
-                </td>
+                {isAdmin && (
+                <th className="int-checkbox-col" style={{ width: 40, textAlign: 'center' }}>
+                  <input
+                    type="checkbox"
+                    checked={isAllSelected}
+                    ref={(el) => { if (el) el.indeterminate = isIndeterminate; }}
+                    onChange={(e) => toggleAll(e.target.checked)}
+                    style={{ cursor: 'pointer', width: 16, height: 16, accentColor: '#1ceee0' }}
+                  />
+                </th>
+                )}
+                {ALL_COLUMNS.map((col) =>
+                  visibleCols.has(col.key) ? <th key={col.key}>{col.label === 'Időpont' ? 'Interakció időpontja' : col.label === 'Irány' ? 'Interakció iránya' : col.label}</th> : null
+                )}
               </tr>
-            ) : filteredRows.length === 0 ? (
-              <tr>
-                <td colSpan={visibleCols.size + 1} style={{ textAlign: 'center', padding: 40 }}>
-                  <span className="no-data">Nincs találat</span>
-                </td>
-              </tr>
-            ) : (
-              filteredRows.map((r, i) => (
-                <tr
-                  key={`${r.sessionId}-${r.interactionId}-${i}`}
-                  className="int-row"
-                  onClick={() => { setAutoExpandApproval(false); setSummaryModalRow(r); }}
-                  style={{ cursor: 'pointer' }}
-                >
-                  {isAdmin && (
-                  <td className="int-checkbox-col" style={{ padding: '12px 16px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      checked={selectedRows.has(i)}
-                      onChange={() => toggleRow(i)}
-                      style={{ cursor: 'pointer', width: 16, height: 16, accentColor: '#1ceee0' }}
-                    />
+            </thead>
+            <tbody>
+              {loading ? (
+                <tr>
+                  <td colSpan={visibleCols.size + 1} style={{ padding: 0, border: 'none' }}>
+                    <TableSkeleton columns={visibleCols.size} rows={10} />
                   </td>
-                  )}
-                  {visibleCols.has('date') && (
-                    <td style={{ padding: '12px 16px', fontSize: 13, whiteSpace: 'nowrap' }}>
-                      <div style={{ fontWeight: 500 }}>{fmtDt(r.date)}</div>
-                    </td>
-                  )}
-                  {visibleCols.has('client') && (
-                    <td style={{ padding: '12px 16px', fontSize: 13 }} onClick={(e) => e.stopPropagation()}>
-                      {r.clientId ? (
-                        <button
-                          style={{
-                            background: 'none',
-                            border: 'none',
-                            color: '#0d9488',
-                            cursor: 'pointer',
-                            padding: 0,
-                            fontSize: 13,
-                            fontWeight: 600,
-                            maxWidth: 180,
-                            whiteSpace: 'nowrap',
-                            overflow: 'hidden',
-                            textOverflow: 'ellipsis',
-                            display: 'inline-block',
-                            fontFamily: 'inherit',
-                            textDecoration: 'none',
-                            borderBottom: '1px dashed transparent',
-                            transition: 'border-color 0.15s, color 0.15s',
-                          }}
-                          title="Ugrás az ügyfél adatlapjára"
-                          onClick={() => setSelectedClientId(String(r.clientId))}
-                          onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = '#0d9488'; e.currentTarget.style.color = '#0f766e'; }}
-                          onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.color = '#0d9488'; }}
-                        >
-                          {r.client}
-                        </button>
-                      ) : (
-                        <span style={{ fontWeight: 500 }}>{r.client || <span className="no-data">Ismeretlen</span>}</span>
-                      )}
-                    </td>
-                  )}
-                  {visibleCols.has('channel') && (
-                    <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text)' }}>{r.channel}</td>
-                  )}
-                  {visibleCols.has('direction') && (
-                    <td style={{ padding: '12px 16px' }}>
-                      <DirectionBadge value={r.direction} />
-                    </td>
-                  )}
-                  {visibleCols.has('ugyTipus') && (
-                    <td style={{ padding: '12px 16px' }}>
-                      <span style={{ fontSize: 12, color: 'var(--text)' }}>{r.ugyTipus}</span>
-                    </td>
-                  )}
-                  {visibleCols.has('eredmeny') && (
-                    <td style={{ padding: '12px 16px' }} onClick={(e) => e.stopPropagation()}>
-                      <EredmenyBadge value={r.eredmeny} />
-                    </td>
-                  )}
-                  {visibleCols.has('statusz') && (
-                    <td style={{ padding: '12px 16px' }}>
-                      <StatuszBadge value={r.statusz} />
-                    </td>
-                  )}
-                  {visibleCols.has('teendo') && (
-                    <td
-                      style={{ padding: '12px 16px', fontSize: 12, maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                      title={r.teendo}
-                      onClick={(e) => e.stopPropagation()}
-                    >
-                      {r.teendo === 'Jóváhagyásra vár' ? (
-                        <button
-                          onClick={() => { setSummaryModalRow(r); setAutoExpandApproval(true); }}
-                          style={{
-                            background: 'rgba(251,191,36,0.12)',
-                            color: '#d97706',
-                            border: '1px solid rgba(251,191,36,0.3)',
-                            borderRadius: 6,
-                            padding: '4px 12px',
-                            fontSize: 11,
-                            fontWeight: 600,
-                            cursor: 'pointer',
-                            whiteSpace: 'nowrap',
-                            fontFamily: 'inherit',
-                          }}
-                        >
-                          Jóváhagyásra vár
-                        </button>
-                      ) : (
-                        <span style={{ color: 'var(--text-muted)' }}>{r.teendo}</span>
-                      )}
-                    </td>
-                  )}
                 </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+              ) : filteredRows.length === 0 ? (
+                <tr>
+                  <td colSpan={visibleCols.size + 1} style={{ textAlign: 'center', padding: 40 }}>
+                    <span className="no-data">Nincs találat</span>
+                  </td>
+                </tr>
+              ) : (
+                filteredRows.map((r, i) => (
+                  <tr
+                    key={`${r.sessionId}-${r.interactionId}-${i}`}
+                    className="int-row"
+                    onClick={() => { setAutoExpandApproval(false); setSummaryModalRow(r); }}
+                    style={{ cursor: 'pointer' }}
+                  >
+                    {isAdmin && (
+                    <td className="int-checkbox-col" style={{ padding: '12px 16px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                      <input
+                        type="checkbox"
+                        checked={selectedRows.has(i)}
+                        onChange={() => toggleRow(i)}
+                        style={{ cursor: 'pointer', width: 16, height: 16, accentColor: '#1ceee0' }}
+                      />
+                    </td>
+                    )}
+                    {visibleCols.has('date') && (
+                      <td style={{ padding: '12px 16px', fontSize: 13, whiteSpace: 'nowrap' }}>
+                        <div style={{ fontWeight: 500 }}>{fmtDt(r.date)}</div>
+                      </td>
+                    )}
+                    {visibleCols.has('client') && (
+                      <td style={{ padding: '12px 16px', fontSize: 13 }} onClick={(e) => e.stopPropagation()}>
+                        {r.clientId ? (
+                          <button
+                            style={{
+                              background: 'none', border: 'none', color: '#0d9488',
+                              cursor: 'pointer', padding: 0, fontSize: 13, fontWeight: 600,
+                              maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden',
+                              textOverflow: 'ellipsis', display: 'inline-block', fontFamily: 'inherit',
+                              textDecoration: 'none', borderBottom: '1px dashed transparent',
+                              transition: 'border-color 0.15s, color 0.15s',
+                            }}
+                            title="Ugrás az ügyfél adatlapjára"
+                            onClick={() => setSelectedClientId(String(r.clientId))}
+                            onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = '#0d9488'; e.currentTarget.style.color = '#0f766e'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.color = '#0d9488'; }}
+                          >
+                            {r.client}
+                          </button>
+                        ) : (
+                          <span style={{ fontWeight: 500 }}>{r.client || <span className="no-data">Ismeretlen</span>}</span>
+                        )}
+                      </td>
+                    )}
+                    {visibleCols.has('channel') && (
+                      <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text)' }}>{r.channel}</td>
+                    )}
+                    {visibleCols.has('direction') && (
+                      <td style={{ padding: '12px 16px' }}>
+                        <DirectionBadge value={r.direction} />
+                      </td>
+                    )}
+                    {visibleCols.has('ugyTipus') && (
+                      <td style={{ padding: '12px 16px' }}>
+                        <span style={{ fontSize: 12, color: 'var(--text)' }}>{r.ugyTipus}</span>
+                      </td>
+                    )}
+                    {visibleCols.has('eredmeny') && (
+                      <td style={{ padding: '12px 16px' }} onClick={(e) => e.stopPropagation()}>
+                        <EredmenyBadge value={r.eredmeny} />
+                      </td>
+                    )}
+                    {visibleCols.has('statusz') && (
+                      <td style={{ padding: '12px 16px' }}>
+                        <StatuszBadge value={r.statusz} />
+                      </td>
+                    )}
+                    {visibleCols.has('teendo') && (
+                      <td
+                        style={{ padding: '12px 16px', fontSize: 12, maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
+                        title={r.teendo}
+                        onClick={(e) => e.stopPropagation()}
+                      >
+                        {r.teendo === 'Jóváhagyásra vár' ? (
+                          <button
+                            onClick={() => { setSummaryModalRow(r); setAutoExpandApproval(true); }}
+                            style={{
+                              background: 'rgba(251,191,36,0.12)', color: '#d97706',
+                              border: '1px solid rgba(251,191,36,0.3)', borderRadius: 6,
+                              padding: '4px 12px', fontSize: 11, fontWeight: 600,
+                              cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit',
+                            }}
+                          >
+                            Jóváhagyásra vár
+                          </button>
+                        ) : (
+                          <span style={{ color: 'var(--text-muted)' }}>{r.teendo}</span>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        )}
       </div>
 
       {/* Summary Modal */}
