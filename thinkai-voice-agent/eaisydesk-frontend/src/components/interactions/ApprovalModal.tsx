@@ -14,7 +14,7 @@ import { showToast } from '../ui/Toast';
 import './ApprovalModal.css';
 
 export default function ApprovalModal() {
-  const { pendingApproval, closeApproval } = useApproval();
+  const { pendingApproval, closeApproval, notifyApproved } = useApproval();
   const [draftText, setDraftText] = useState('');
   const [submitting, setSubmitting] = useState(false);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -101,6 +101,7 @@ export default function ApprovalModal() {
 
       const result = await res.json().catch(() => ({ status: 'success' }));
       closeApproval();
+      notifyApproved();
       if (result.status === 'warning') {
         showToast(result.message || 'Jóváhagyva, de a küldés sikertelen', 'error');
       } else {

@@ -260,7 +260,7 @@ export default function NotificationCenter() {
                       <div className="notif-item-body">
                         <div className="notif-item-top">
                           <span className="notif-item-type" style={{ color: cfg.color }}>
-                            {cfg.icon} {cfg.label}
+                            {cfg.label}
                           </span>
                           <span className="notif-item-time">{timeAgo(n.time)}</span>
                         </div>

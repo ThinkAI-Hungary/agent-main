@@ -214,13 +214,16 @@ export function detectEredmeny(r: {
 export function detectStatusz(r: {
   handover_reason?: string;
   approval_status?: string;
+  alert_tags?: string[];
 }): string {
   const hr = (r.handover_reason || '').toLowerCase();
   const as = (r.approval_status || '').toLowerCase();
+  const tags = r.alert_tags || [];
   if (
     hr.includes('sürgős') ||
     hr.includes('urgent') ||
-    hr.includes('panasz')
+    hr.includes('panasz') ||
+    tags.includes('urgent')
   )
     return 'SÜRGŐS';
   if (as === 'approved' || as === 'lezárt' || as === 'rejected')
@@ -265,7 +268,7 @@ export const EREDMENY_COLORS: Record<string, { bg: string; color: string }> = {
 export const STATUSZ_COLORS: Record<string, { bg: string; color: string }> = {
   LEZÁRT: { bg: '#dcfce7', color: '#166534' },
   NYITOTT: { bg: '#fef9c3', color: '#854d0e' },
-  SÜRGŐS: { bg: '#fee2e2', color: '#b91c1c' },
+  SÜRGŐS: { bg: '#ef4444', color: '#ffffff' },
 };
 
 export const UGYTIPUS_COLORS: Record<string, { bg: string; color: string }> = {

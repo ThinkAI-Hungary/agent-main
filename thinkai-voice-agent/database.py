@@ -1073,20 +1073,70 @@ def update_client_status(client_id: int, status: str) -> bool:
 def delete_client(client_id: int) -> bool:
     if not supabase: return False
     try:
-        client = supabase.table("clients").select("name, email").eq("id", client_id).execute().data
+        client = supabase.table("clients").select("name, email, phone, custom_data").eq("id", client_id).execute().data
         if client:
             c = client[0]
             name = c.get("name")
             email = c.get("email")
+            phone = c.get("phone")
+            cd = c.get("custom_data") or {}
+            messenger_id = cd.get("messenger_id", "")
+
+            # ── Delete calendar events ──
             if name and name not in ("Névtelen", "-"):
                 supabase.table("calendar_events").delete().or_(f"title.ilike.%{name}%,attendee.ilike.%{name}%").execute()
             if email and email != "-":
                 supabase.table("calendar_events").delete().or_(f"title.ilike.%{email}%,attendee_email.ilike.%{email}%").execute()
-                supabase.table("interactions").delete().eq("session_id", f"email_{email}").execute()
+
+            # ── Delete ALL related sessions & interactions ──
+            # Collect session_ids that belong to this client
+            session_ids_to_delete = set()
+
+            # By email
+            if email and email != "-":
                 supabase.table("email_logs").delete().eq("to_email", email).execute()
+                sess_res = supabase.table("sessions").select("session_id").or_(f"session_id.ilike.%{email}%,participant.ilike.%{email}%").execute()
+                for s in (sess_res.data or []):
+                    session_ids_to_delete.add(s["session_id"])
+
+            # By name
+            if name and name not in ("Névtelen", "-"):
+                sess_res = supabase.table("sessions").select("session_id").ilike("participant", f"%{name}%").execute()
+                for s in (sess_res.data or []):
+                    session_ids_to_delete.add(s["session_id"])
+
+            # By phone
+            if phone and phone not in ("", "-"):
+                sess_res = supabase.table("sessions").select("session_id").ilike("participant", f"%{phone}%").execute()
+                for s in (sess_res.data or []):
+                    session_ids_to_delete.add(s["session_id"])
+
+            # By messenger_id (session_id often contains it)
+            if messenger_id:
+                sess_res = supabase.table("sessions").select("session_id").ilike("session_id", f"%{messenger_id}%").execute()
+                for s in (sess_res.data or []):
+                    session_ids_to_delete.add(s["session_id"])
+
+            # Also try to find interactions by client name in participant field of their sessions
+            if name and name not in ("Névtelen", "-"):
+                inter_sess_res = supabase.table("interactions").select("session_id").ilike("topic", f"%{name}%").execute()
+                for i in (inter_sess_res.data or []):
+                    if i.get("session_id"):
+                        session_ids_to_delete.add(i["session_id"])
+
+            # Delete interactions & sessions by collected session_ids
+            sid_list = list(session_ids_to_delete)
+            # Supabase .in_() has a limit, process in chunks
+            for chunk_start in range(0, len(sid_list), 50):
+                chunk = sid_list[chunk_start:chunk_start + 50]
+                supabase.table("interactions").delete().in_("session_id", chunk).execute()
+                supabase.table("sessions").delete().in_("session_id", chunk).execute()
+
+        # ── Finally delete the client record itself ──
         supabase.table("clients").delete().eq("id", client_id).execute()
         return True
-    except Exception:
+    except Exception as e:
+        logger.error(f"Delete client cascade error: {e}")
         return False
 
 def edit_client_details(client_id: int, custom_data: dict) -> bool:

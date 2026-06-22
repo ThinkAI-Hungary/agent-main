@@ -1,13 +1,25 @@
 /**
- * InteractionSummaryModal – 1:1 port of legacy log-modal + openInteractionSummaryModal()
- * Now includes embedded approval functionality for pending interactions.
+ * InteractionSummaryModal – Complete redesign
+ * Based on user-provided mockups (June 2026).
+ *
+ * Features:
+ * - Header with client name + ÚJ/VISSZATÉRŐ badge, date, channel/direction/type pills
+ * - Summary + Status/Eredmény box
+ * - Messenger/Instagram 24h warning banner
+ * - Collapsible "Interakció részletei" with chat bubbles
+ * - Profile picture loading for Messenger/Instagram channels
+ * - Draft approval: Szerkesztés + Jóváhagyás és küldés
+ * - Dynamic footer: "Ugrás teendőkre" vs "Ugrás naptárra"
  */
 import { useState, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { fmtDt } from '../../helpers/formatters';
 import { parseCustomData, type ClientRecord } from '../../helpers/clientResolvers';
 import { authFetch } from '../../api/client';
 import { showToast } from '../ui/Toast';
+import { EredmenyBadge, StatuszBadge } from '../ui/Badge';
 import type { InteractionRow } from '../../pages/InteractionsPage';
+import './InteractionSummaryModal.css';
 
 interface Props {
   row: InteractionRow;
@@ -21,32 +33,98 @@ interface Props {
   onApproved?: () => void;
 }
 
-interface ResultData {
-  date: string;
-  service: string;
-  doctor: string;
-  reminder: string;
-}
-
 interface ChatBlock {
   sender: 'user' | 'ai' | 'system';
   text: string;
+  timestamp?: string;
 }
 
-export default function InteractionSummaryModal({ row, onClose, clients, clientsMap, onClientClick, autoExpandApproval, onApproved }: Props) {
+export default function InteractionSummaryModal({
+  row,
+  onClose,
+  clients,
+  clientsMap,
+  onClientClick,
+  autoExpandApproval,
+  onApproved,
+}: Props) {
+  const navigate = useNavigate();
   const isPendingApproval = row.teendo === 'Jóváhagyásra vár';
-  const [showChat, setShowChat] = useState(!!autoExpandApproval);
-  const [resultData, setResultData] = useState<ResultData>({ date: '-', service: '-', doctor: '-', reminder: '-' });
+  const [showDetails, setShowDetails] = useState(!!autoExpandApproval);
   const [chatBlocks, setChatBlocks] = useState<ChatBlock[]>([]);
-  const [summary, setSummary] = useState('');
+  const [summaryText, setSummaryText] = useState('');
+  const [notificationText, setNotificationText] = useState('');
 
-  // ── Approval state ──
+  // Appointment result data
+  const [appointmentInfo, setAppointmentInfo] = useState<{
+    date: string;
+    service: string;
+    doctor: string;
+  } | null>(null);
+
+  // Profile picture
+  const [profilePicUrl, setProfilePicUrl] = useState<string | null>(null);
+
+  // Approval state
   const [draftText, setDraftText] = useState('');
+  const [isEditing, setIsEditing] = useState(false);
   const [submittingApproval, setSubmittingApproval] = useState(false);
-  const approvalTextareaRef = useRef<HTMLTextAreaElement>(null);
-  const approvalSectionRef = useRef<HTMLDivElement>(null);
+  const approvalRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const overlayRef = useRef<HTMLDivElement>(null);
 
-  // Build result data + chat blocks
+  // ── Derived values ──
+  const channel = row.channel || 'Telefon';
+  const channelUpper = channel.toUpperCase();
+  const isMessengerOrInsta = channel === 'Messenger' || channel === 'Instagram';
+  const isAppointmentType =
+    row.eredmeny.includes('időpont') || row.eredmeny.includes('Időpont') || row.ugyTipus === 'IDŐPONT';
+
+  // Client status: Új vs Visszatérő
+  const isNewClient = (() => {
+    if (!row.clientCreatedAt) return true;
+    const created = new Date(row.clientCreatedAt);
+    const now = new Date();
+    const diffDays = (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
+    return diffDays <= 30;
+  })();
+
+  // Formatted date
+  const formattedDate = row.date ? fmtDt(row.date) : '';
+
+  // ── Load profile picture for Messenger/Instagram ──
+  useEffect(() => {
+    if (!row.clientId) return;
+    const clientData = clientsMap[String(row.clientId)];
+    if (!clientData) return;
+
+    const cd = parseCustomData(clientData.custom_data);
+
+    // Check for cached profile_pic_url first
+    if (cd?.profile_pic_url) {
+      setProfilePicUrl(cd.profile_pic_url as string);
+      return;
+    }
+
+    // Only fetch for Messenger/Instagram channels
+    if (!isMessengerOrInsta) return;
+    if (!cd?.messenger_id) return;
+
+    let cancelled = false;
+    authFetch(`/admin/api/clients/${row.clientId}/profile-pic`)
+      .then((r) => r.json())
+      .then((data) => {
+        if (!cancelled && data.profile_pic_url) {
+          setProfilePicUrl(data.profile_pic_url);
+        }
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [row.clientId, clientsMap, isMessengerOrInsta]);
+
+  // ── Build summary, chat blocks, appointment info ──
   useEffect(() => {
     let cancelled = false;
 
@@ -59,7 +137,14 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
         const rn = (row.client || '').toLowerCase().trim();
         const match = clients.find((c) => {
           const cd = parseCustomData(c.custom_data);
-          const cn = ((cd?.nev as string) || (cd?.name as string) || c.name || '').toLowerCase().trim();
+          const cn = (
+            (cd?.nev as string) ||
+            (cd?.name as string) ||
+            c.name ||
+            ''
+          )
+            .toLowerCase()
+            .trim();
           return cn && cn === rn;
         });
         if (match) cData = parseCustomData(match.custom_data);
@@ -68,10 +153,9 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
       const fullLog = (cData.beszelgetes_naplo as string) || '';
 
       // ── Parse the full log into timestamped entries ──
-      // Format: [YYYY-MM-DD HH:MM] Ügyfél (Channel): text / AI Válasz: text / [Rendszer] text
       interface LogEntry {
-        timestamp: string; // raw timestamp string
-        time: number;      // unix ms for sorting
+        timestamp: string;
+        time: number;
         sender: 'user' | 'ai' | 'system';
         text: string;
       }
@@ -79,33 +163,32 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
       function parseLogEntries(log: string): LogEntry[] {
         if (!log) return [];
         const entries: LogEntry[] = [];
-        // Match each [timestamp] ... block
-        const entryRegex = /\[(\d{4}-\d{2}-\d{2}\s*\d{2}:\d{2}(?::\d{2})?)\]\s*(.*?)(?=\[\d{4}-\d{2}-\d{2}\s*\d{2}:\d{2}|$)/gs;
+        const entryRegex =
+          /\[(\d{4}-\d{2}-\d{2}\s*\d{2}:\d{2}(?::\d{2})?)\]\s*(.*?)(?=\[\d{4}-\d{2}-\d{2}\s*\d{2}:\d{2}|$)/gs;
         let m;
         while ((m = entryRegex.exec(log)) !== null) {
           const timestamp = m[1].trim();
           let content = m[2].trim();
-          const time = new Date(timestamp.replace(' ', 'T')).getTime() || 0;
+          // Log timestamps are in local Budapest time — append timezone so Date() doesn't treat as UTC
+          const isoWithTz = timestamp.replace(' ', 'T') + (timestamp.includes('+') || timestamp.includes('Z') ? '' : '+02:00');
+          const time = new Date(isoWithTz).getTime() || 0;
 
-          // ── Email format: single block contains summary + "- Bejövő e-mail (...): ..." + "AI Válasz:\n..."
-          // Split these compound blocks into separate entries
-          // IMPORTANT: Only enter this branch if the content has the email marker ("Bejövő e-mail")
-          // to avoid false-positives on Messenger logs that also contain "AI Válasz:"
           const hasEmailMarker = /[-–]\s*Bejövő e-mail\s*\(/i.test(content);
           const emailIncoming = hasEmailMarker
-            ? content.match(/[-–]\s*Bejövő e-mail\s*\(Tárgy:\s*([^)]*)\)\s*:\s*([\s\S]*?)(?=\n\s*(?:AI\s*Válasz|$))/i)
+            ? content.match(
+                /[-–]\s*Bejövő e-mail\s*\(Tárgy:\s*([^)]*)\)\s*:\s*([\s\S]*?)(?=\n\s*(?:AI\s*Válasz|$))/i
+              )
             : null;
-          const aiResponseSplit = hasEmailMarker ? content.split(/\n\s*AI\s*Válasz\s*:\s*/i) : [content];
+          const aiResponseSplit = hasEmailMarker
+            ? content.split(/\n\s*AI\s*Válasz\s*:\s*/i)
+            : [content];
 
           if (hasEmailMarker && (emailIncoming || aiResponseSplit.length > 1)) {
-            // Extract summary (text before "- Bejövő e-mail")
             const beforeEmail = content.match(/^([\s\S]*?)(?=[-–]\s*Bejövő e-mail)/i);
             const summaryText = beforeEmail ? beforeEmail[1].trim() : '';
             if (summaryText) {
               entries.push({ timestamp, time, sender: 'system', text: summaryText });
             }
-
-            // Extract incoming email content
             if (emailIncoming) {
               const emailSubject = emailIncoming[1].trim();
               const emailBody = emailIncoming[2].trim();
@@ -114,8 +197,6 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
                 : emailBody;
               entries.push({ timestamp, time, sender: 'user', text: userText });
             }
-
-            // Extract AI response
             if (aiResponseSplit.length > 1) {
               const aiText = aiResponseSplit.slice(1).join('\n').trim();
               if (aiText) {
@@ -126,7 +207,6 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
           }
 
           let sender: 'user' | 'ai' | 'system' = 'system';
-          // Detect sender from content prefix
           if (/^Ügyfél\s*\([^)]*\)\s*:/i.test(content)) {
             sender = 'user';
             content = content.replace(/^Ügyfél\s*\([^)]*\)\s*:\s*/i, '');
@@ -148,8 +228,6 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
         return entries;
       }
 
-
-      // Also support the simpler Felhasználó: / AI: format (no timestamps)
       function parseSimpleLog(log: string): ChatBlock[] {
         const lines = log.split('\n');
         const blocks: ChatBlock[] = [];
@@ -164,7 +242,11 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
           if (line.startsWith('Felhasználó:') || line.startsWith('User:')) {
             sender = 'user';
             line = line.replace(/^(Felhasználó|User):\s*/, '');
-          } else if (line.startsWith('AI:') || line.startsWith('Asszisztens:') || line.startsWith('Bot:')) {
+          } else if (
+            line.startsWith('AI:') ||
+            line.startsWith('Asszisztens:') ||
+            line.startsWith('Bot:')
+          ) {
             sender = 'ai';
             line = line.replace(/^(AI|Asszisztens|Bot):\s*/, '');
           } else if (line.startsWith('[')) {
@@ -184,14 +266,14 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
         return blocks;
       }
 
-      // ── Group entries into conversation sessions (30 min gap = new session) ──
+      // Group entries into conversation sessions (30 min gap = new session)
       function groupIntoSessions(entries: LogEntry[]): LogEntry[][] {
         if (entries.length === 0) return [];
         const sorted = [...entries].sort((a, b) => a.time - b.time);
         const sessions: LogEntry[][] = [[sorted[0]]];
         for (let i = 1; i < sorted.length; i++) {
           const gap = sorted[i].time - sorted[i - 1].time;
-          if (gap > 30 * 60 * 1000) { // 30 minute gap
+          if (gap > 30 * 60 * 1000) {
             sessions.push([sorted[i]]);
           } else {
             sessions[sessions.length - 1].push(sorted[i]);
@@ -200,8 +282,7 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
         return sessions;
       }
 
-      // ── Find the session closest to the interaction's date ──
-      let logText: string;
+      // Find the session closest to the interaction's date
       let parsedBlocks: ChatBlock[];
 
       const allEntries = parseLogEntries(fullLog);
@@ -209,147 +290,153 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
         const interactionTime = new Date(row.date).getTime();
         const sessionGroups = groupIntoSessions(allEntries);
 
-        // Find the session group whose time range is closest to the interaction date
         let bestSession = sessionGroups[0];
         let bestDistance = Infinity;
         for (const group of sessionGroups) {
           const groupStart = group[0].time;
           const groupEnd = group[group.length - 1].time;
-          // Distance = how close is interactionTime to this group's time range
-          const dist = interactionTime >= groupStart && interactionTime <= groupEnd
-            ? 0
-            : Math.min(Math.abs(interactionTime - groupStart), Math.abs(interactionTime - groupEnd));
+          const dist =
+            interactionTime >= groupStart && interactionTime <= groupEnd
+              ? 0
+              : Math.min(
+                  Math.abs(interactionTime - groupStart),
+                  Math.abs(interactionTime - groupEnd)
+                );
           if (dist < bestDistance) {
             bestDistance = dist;
             bestSession = group;
           }
         }
 
-        // Convert the best session's entries to chat blocks with timestamp headers
         const blocks: ChatBlock[] = [];
-        let lastTimestamp = '';
         for (const entry of bestSession) {
-          // Add timestamp header when timestamp changes
-          const ts = entry.timestamp;
-          if (ts !== lastTimestamp) {
-            blocks.push({ sender: 'system', text: `[${ts}]` });
-            lastTimestamp = ts;
-          }
-          blocks.push({ sender: entry.sender, text: entry.text });
+          blocks.push({
+            sender: entry.sender,
+            text: entry.text,
+            timestamp: entry.timestamp,
+          });
         }
         parsedBlocks = blocks;
-        logText = bestSession.map((e) => `[${e.timestamp}] ${e.text}`).join('\n');
       } else if (fullLog) {
-        // Fallback: try simple format parsing
         parsedBlocks = parseSimpleLog(fullLog);
-        logText = fullLog;
       } else {
-        logText = row.summary || 'Nincs elérhető beszélgetés napló.';
-        parsedBlocks = [{ sender: 'system' as const, text: logText }];
+        parsedBlocks = [];
       }
 
-      setSummary((cData.problem_description as string) || row.summary || '');
+      // ── Set summary text ──
+      const baseSummary =
+        (cData.problem_description as string) || row.summary || '';
 
-      // ── Result data: fetch calendar for matching ──
-      let finalDate = '-';
-      let finalService = '-';
-      let finalDoctor = '-';
-      let finalReminder = '-';
+      // ── Calendar lookup for appointment data ──
+      let apptDate = '';
+      let apptService = '';
+      let apptDoctor = '';
+      let notifText = '';
 
       try {
         const res = await authFetch('/admin/api/calendar');
         const calData = res.ok ? await res.json() : null;
         const events = calData?.events || calData || [];
         const clientName = (row.client || '').toLowerCase().trim();
-        const clientEmail = ((cData.email as string) || '').toLowerCase().trim();
+        const clientEmail = (
+          (cData.email as string) || ''
+        )
+          .toLowerCase()
+          .trim();
 
         const matchedEvent = (events || [])
-          .filter((ev: { attendee?: string; attendee_email?: string }) => {
-            const evAttendee = (ev.attendee || '').toLowerCase().trim();
-            const evEmail = (ev.attendee_email || '').toLowerCase().trim();
-            return (
-              (clientName && evAttendee.includes(clientName)) ||
-              (clientName && clientName.includes(evAttendee) && evAttendee.length > 2) ||
-              (clientEmail && evEmail === clientEmail)
-            );
-          })
-          .sort((a: { start_dt?: string }, b: { start_dt?: string }) => (b.start_dt || '').localeCompare(a.start_dt || ''))[0];
+          .filter(
+            (ev: { attendee?: string; attendee_email?: string }) => {
+              const evAttendee = (ev.attendee || '').toLowerCase().trim();
+              const evEmail = (ev.attendee_email || '').toLowerCase().trim();
+              return (
+                (clientName && evAttendee.includes(clientName)) ||
+                (clientName &&
+                  clientName.includes(evAttendee) &&
+                  evAttendee.length > 2) ||
+                (clientEmail && evEmail === clientEmail)
+              );
+            }
+          )
+          .sort(
+            (
+              a: { start_dt?: string },
+              b: { start_dt?: string }
+            ) => (b.start_dt || '').localeCompare(a.start_dt || '')
+          )[0];
 
         if (matchedEvent) {
-          if (matchedEvent.start_dt) finalDate = fmtDt(matchedEvent.start_dt);
-          finalReminder = matchedEvent.reminder_sent ? 'Kiküldve ✓' : '-';
+          if (matchedEvent.start_dt) apptDate = fmtDt(matchedEvent.start_dt);
+          if (matchedEvent.doctor && matchedEvent.doctor !== '-')
+            apptDoctor = matchedEvent.doctor;
 
-          // Extract doctor from dedicated field first
-          if (matchedEvent.doctor && matchedEvent.doctor !== '-') {
-            finalDoctor = matchedEvent.doctor;
-          }
-
-          // Parse title: may contain both service + doctor name, e.g. "Fogászati vizsgálat Dr. Kiss József"
           const rawTitle = matchedEvent.title || '';
           if (rawTitle && rawTitle !== '-') {
-            // Try to split doctor name from title using "Dr." / "dr." pattern
             const drMatch = rawTitle.match(/^(.+?)\s+(Dr\.?\s+.+)$/i);
             if (drMatch) {
-              finalService = drMatch[1].trim();
-              if (finalDoctor === '-') {
-                finalDoctor = drMatch[2].trim();
-              }
+              apptService = drMatch[1].trim();
+              if (!apptDoctor) apptDoctor = drMatch[2].trim();
             } else {
-              finalService = rawTitle;
+              apptService = rawTitle;
             }
+          }
+
+          if (matchedEvent.reminder_sent) {
+            notifText = 'Visszaigazoló kiküldve';
           }
         }
 
-        // Also check custom_data for doctor info
-        if (finalDoctor === '-') {
-          const cdDoctor = (cData.orvos as string) || (cData.doctor as string) || '';
-          if (cdDoctor) finalDoctor = cdDoctor;
+        // Fallbacks from custom_data
+        if (!apptDoctor) {
+          const cdDoctor =
+            (cData.orvos as string) || (cData.doctor as string) || '';
+          if (cdDoctor) apptDoctor = cdDoctor;
         }
-
       } catch {
         /* calendar fetch optional */
       }
 
-      // Fallback from custom_data
-      if (finalDate === '-' && cData.booked_datetime) {
-        finalDate = fmtDt(cData.booked_datetime as string);
-      }
-
-      // Fallback from log text
-      if (finalDate === '-') {
-        const naploDateMatch = logText.match(/Naptár bejegyzés létrehozva:\s*(\d{4}-\d{2}-\d{2}T\d{2}:\d{2})/i);
-        if (naploDateMatch) finalDate = fmtDt(naploDateMatch[1]);
-      }
-
-      if (finalService === '-') {
-        const servicePatterns = [
-          /szolgáltatás:\s*([^\n,]+)/i,
-          /(fogászati vizsgálat|ultrahangos fogkőeltávolítás|fogkőeltávolítás|általános vizit|általános konzultáció|konzultáció|fogászat|fogpótlás|implantátum|tömés|gyökérkezelés|fogfehérítés|szájsebészet|fogszabályozás|paradontológia|fogtisztítás|kontroll vizsgálat|vizit|vizsgálat|kezelés)/i,
-        ];
-        for (const pat of servicePatterns) {
-          const m = logText.match(pat);
-          if (m) {
-            const s = (m[1] || m[0]).trim();
-            finalService = s.charAt(0).toUpperCase() + s.slice(1);
-            break;
-          }
-        }
-      }
-
-      if (finalDoctor === '-') {
-        const docMatch = logText.match(/(?:orvos|doktor|dr\.):\s*([^\n,]+)/i);
-        if (docMatch) finalDoctor = docMatch[1].trim();
+      // Fallbacks from custom_data
+      if (!apptDate && cData.booked_datetime) {
+        apptDate = fmtDt(cData.booked_datetime as string);
       }
 
       if (!cancelled) {
-        setResultData({ date: finalDate, service: finalService, doctor: finalDoctor, reminder: finalReminder });
         setChatBlocks(parsedBlocks);
+        setNotificationText(notifText);
+
+        // Build appointment info if applicable
+        if (apptDate || apptService || apptDoctor) {
+          setAppointmentInfo({
+            date: apptDate || '-',
+            service: apptService || '-',
+            doctor: apptDoctor || '-',
+          });
+        }
+
+        // For IDŐPONT type with appointment data, create structured summary
+        if (
+          (row.ugyTipus === 'IDŐPONT' || isAppointmentType) &&
+          (apptDate || apptService || apptDoctor)
+        ) {
+          const lines = [baseSummary];
+          if (apptDate) lines.push(`Befoglalt időpont:  ${apptDate}`);
+          if (apptService && apptService !== '-')
+            lines.push(`Szolgáltatás:       ${apptService}`);
+          if (apptDoctor && apptDoctor !== '-')
+            lines.push(`Orvos:              ${apptDoctor}`);
+          setSummaryText(lines.filter(Boolean).join('\n'));
+        } else {
+          setSummaryText(baseSummary);
+        }
       }
     }
 
     load();
-    return () => { cancelled = true; };
-  }, [row, clients, clientsMap]);
+    return () => {
+      cancelled = true;
+    };
+  }, [row, clients, clientsMap, isAppointmentType]);
 
   // ── Parse AI draft for approval ──
   useEffect(() => {
@@ -357,10 +444,18 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
     let parsedDraft: string;
     try {
       const draftData = JSON.parse(row.ai_draft_response);
-      if (draftData.multi_channel && draftData.drafts && draftData.drafts.length > 1) {
+      if (
+        draftData.multi_channel &&
+        draftData.drafts &&
+        draftData.drafts.length > 1
+      ) {
         parsedDraft = draftData.drafts
           .map((d: { channel: string; body?: string }) => {
-            const chIcon: Record<string, string> = { Email: '📧', Messenger: '💬', WhatsApp: '📱' };
+            const chIcon: Record<string, string> = {
+              Email: '📧',
+              Messenger: '💬',
+              WhatsApp: '📱',
+            };
             return `━━━ ${chIcon[d.channel] || '📨'} ${d.channel} ━━━\n${d.body || ''}`;
           })
           .join('\n\n');
@@ -375,15 +470,26 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
 
   // Auto-scroll to approval section when auto-expanding
   useEffect(() => {
-    if (autoExpandApproval && approvalSectionRef.current) {
+    if (autoExpandApproval && approvalRef.current) {
       setTimeout(() => {
-        approvalSectionRef.current?.scrollIntoView({ behavior: 'smooth', block: 'center' });
-        approvalTextareaRef.current?.focus();
-      }, 300);
+        approvalRef.current?.scrollIntoView({
+          behavior: 'smooth',
+          block: 'center',
+        });
+      }, 350);
     }
-  }, [autoExpandApproval, showChat]);
+  }, [autoExpandApproval, showDetails]);
 
-  // ── Approval submit handler ──
+  // Close on Escape
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key === 'Escape') onClose();
+    }
+    document.addEventListener('keydown', handleKeyDown);
+    return () => document.removeEventListener('keydown', handleKeyDown);
+  }, [onClose]);
+
+  // ── Approval submit ──
   const handleApprovalSubmit = async () => {
     if (!row.interactionId) return;
     setSubmittingApproval(true);
@@ -397,12 +503,19 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
         }
       );
       if (!res.ok) {
-        const d = await res.json().catch(() => ({ detail: 'Ismeretlen hiba' }));
+        const d = await res
+          .json()
+          .catch(() => ({ detail: 'Ismeretlen hiba' }));
         throw new Error(d.detail || 'Hiba történt a mentés során');
       }
-      const result = await res.json().catch(() => ({ status: 'success' }));
+      const result = await res
+        .json()
+        .catch(() => ({ status: 'success' }));
       if (result.status === 'warning') {
-        showToast(result.message || 'Jóváhagyva, de a küldés sikertelen', 'error');
+        showToast(
+          result.message || 'Jóváhagyva, de a küldés sikertelen',
+          'error'
+        );
       } else {
         showToast('Válasz jóváhagyva és elküldve!', 'success');
       }
@@ -415,255 +528,356 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
     }
   };
 
+  // ── Avatar helper ──
+  const clientName = row.client || 'Ismeretlen';
+  const clientInitials = clientName
+    .split(/\s+/)
+    .map((w: string) => w[0])
+    .join('')
+    .slice(0, 2)
+    .toUpperCase();
+
+  // ── SÜRGŐS notification ──
+  const isSurgos = row.statusz === 'SÜRGŐS';
+  const surgosEmail = (() => {
+    if (!isSurgos || !row.clientId) return '';
+    const clientData = clientsMap[String(row.clientId)];
+    if (!clientData) return '';
+    const cd = parseCustomData(clientData.custom_data);
+    return (cd?.notification_email as string) || (cd?.email as string) || '';
+  })();
+
+  // "Korábbi üzenetek" channel label
+  const earlierMessagesLabel = `Korábbi ${channel} üzenetek`;
+
+  // Does this interaction have appointment result?
+  const showCalendarButton = isAppointmentType && appointmentInfo && appointmentInfo.date !== '-';
+
   return (
     <div
-      style={{
-        display: 'flex',
-        position: 'fixed',
-        top: 0,
-        left: 0,
-        right: 0,
-        bottom: 0,
-        background: 'rgba(0,0,0,0.6)',
-        zIndex: 9999,
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: 20,
+      className="ism-overlay"
+      ref={overlayRef}
+      onClick={(e) => {
+        if (e.target === overlayRef.current) onClose();
       }}
-      onClick={onClose}
     >
-      <div
-        className="login-card"
-        style={{
-          width: 700,
-          maxWidth: '100%',
-          maxHeight: '90vh',
-          display: 'flex',
-          flexDirection: 'column',
-          padding: 0,
-          overflow: 'hidden',
-          borderRadius: 8,
-          border: 'none',
-          boxShadow: '0 24px 48px rgba(0,0,0,0.3)',
-          background: 'var(--card)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        {/* Header */}
-        <div style={{ background: 'linear-gradient(to right, #14b8ad, #1ceee0)', padding: '20px 24px', flexShrink: 0 }}>
-          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
-            <div>
-              <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(8,36,50,0.7)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
-                Interakciós összefoglaló
-              </div>
-              <h3 style={{ margin: '0 0 6px 0', color: '#082432', fontSize: 20, fontWeight: 700 }}>
-                {row.client || 'Ismeretlen'}
-              </h3>
-              <div style={{ display: 'flex', gap: 12, fontSize: 13, color: 'rgba(8,36,50,0.8)', fontWeight: 500 }}>
-                <span>{row.channel || 'Telefon'}</span>
-                <span>•</span>
-                <span>{row.date ? fmtDt(row.date) : ''}</span>
-              </div>
+      <div className="ism-card" onClick={(e) => e.stopPropagation()}>
+        {/* ═══ HEADER ═══ */}
+        <div className="ism-header">
+          <div className="ism-header-left">
+            <div className="ism-header-name-row">
+              <h2 className="ism-header-name">{clientName}</h2>
+              <span
+                className={`ism-badge ${isNewClient ? 'ism-badge--new' : 'ism-badge--returning'}`}
+              >
+                {isNewClient ? 'ÚJ ÜGYFÉL' : 'VISSZATÉRŐ'}
+              </span>
             </div>
+            <div className="ism-header-date">{formattedDate}</div>
+          </div>
+          <div className="ism-header-right">
             <button
+              className="ism-close-btn"
               onClick={onClose}
-              style={{ background: 'rgba(8,36,50,0.15)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#082432', marginLeft: 8 }}
+              aria-label="Bezárás"
             >
               ✕
             </button>
+            <div className="ism-pills">
+              <span className="ism-pill ism-pill--filled">{channelUpper}</span>
+              <span className="ism-pill ism-pill--outline">
+                {row.direction.toUpperCase()}
+              </span>
+              <span className="ism-pill ism-pill--outline">{row.ugyTipus}</span>
+            </div>
           </div>
         </div>
 
-        {/* Content */}
-        <div style={{ padding: 24, overflowY: 'auto', flexGrow: 1 }}>
-          {/* Summary + Result side by side */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 24 }}>
-            {/* Summary */}
-            <div>
-              <h4 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 12px 0' }}>
-                Összefoglaló
-              </h4>
-              <div style={{ fontSize: 13, lineHeight: 1.6, color: 'var(--text)' }}>
-                {summary || 'Az asszisztens a beszélgetés során rögzítette a felhasználó igényeit.'}
+        {/* ═══ BODY ═══ */}
+        <div className="ism-body">
+          {/* Summary + Status Box */}
+          <div className="ism-summary-row">
+            <div className="ism-summary-content">
+              <div className="ism-section-label">Összefoglaló</div>
+              <div className="ism-summary-text">
+                {summaryText ||
+                  'Az asszisztens rögzítette az interakció adatait.'}
               </div>
             </div>
-
-            {/* Result */}
-            <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6, padding: 16 }}>
-              <h4 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 16px 0' }}>
-                Eredmény
-              </h4>
-              <ResultLine label="Befoglalt időpont:" value={resultData.date} />
-              <ResultLine label="Szolgáltatás:" value={resultData.service} />
-              <ResultLine label="Orvos:" value={resultData.doctor} />
-              <ResultLine label="Emlékeztető kiküldve:" value={resultData.reminder} last />
+            <div className="ism-status-box">
+              <div className="ism-status-row">
+                <span className="ism-status-label">Státusz:</span>
+                <StatuszBadge value={row.statusz} />
+              </div>
+              <div className="ism-status-row">
+                <span className="ism-status-label">Eredmény:</span>
+                <EredmenyBadge value={row.eredmeny} />
+              </div>
+              {(notificationText || (isSurgos && surgosEmail)) && (
+                <div className="ism-status-row">
+                  <span className="ism-status-label">Értesítés:</span>
+                  <span className="ism-status-value">
+                    {isSurgos && surgosEmail ? surgosEmail : notificationText}
+                  </span>
+                </div>
+              )}
             </div>
           </div>
 
-          {/* Chat */}
-          {showChat && (
-            <div style={{ marginTop: 8, borderTop: '1px solid var(--border)', paddingTop: 20 }}>
-              <h4 style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 1, margin: '0 0 16px 0' }}>
-                Teljes beszélgetés
-              </h4>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
-                {(() => {
-                  // Find the index of the last AI message for making it editable
-                  const lastAiIndex = isPendingApproval
-                    ? chatBlocks.reduce((acc, b, idx) => (b.sender === 'ai' ? idx : acc), -1)
-                    : -1;
+          {/* Warning Banner for Messenger/Instagram */}
+          {isMessengerOrInsta && (() => {
+            const msgDate = new Date(row.date);
+            const now = new Date();
+            const hoursDiff = (now.getTime() - msgDate.getTime()) / (1000 * 60 * 60);
+            const isExpired = hoursDiff >= 24;
 
-                  return chatBlocks.map((b, i) =>
-                    b.sender === 'system' ? (
-                      <div key={i} style={{
-                        textAlign: 'center',
-                        margin: '16px 0',
-                        fontSize: 11.5,
-                        color: 'var(--text-muted)',
-                        fontWeight: 500,
-                        fontStyle: 'italic',
-                        padding: '4px 16px',
-                        background: 'rgba(0,0,0,0.03)',
-                        borderRadius: 8,
-                      }}>
-                        {b.text}
-                      </div>
-                    ) : i === lastAiIndex ? (
-                      /* ── Last AI bubble: editable textarea when pending approval ── */
-                      <div key={i} ref={approvalSectionRef}>
-                        <div style={{ display: 'flex', gap: 12, marginBottom: 0, alignItems: 'flex-start' }}>
-                          {/* Avatar */}
-                          <div style={{
-                            width: 32,
-                            height: 32,
-                            borderRadius: '50%',
-                            display: 'flex',
-                            alignItems: 'center',
-                            justifyContent: 'center',
-                            fontWeight: 700,
-                            fontSize: 12,
-                            flexShrink: 0,
-                            background: 'linear-gradient(135deg, var(--accent, #1ceee0), var(--accent2, #0bbdb1))',
-                            color: '#082432',
-                          }}>
-                            AI
+            if (isExpired) {
+              return (
+                <div className="ism-warning-banner ism-warning-banner--expired">
+                  <svg
+                    className="ism-warning-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
+                  <span>
+                    A válaszadási időablak lejárt, ezért Messenger/Instagram
+                    csatornán már nem küldhető válasz.
+                  </span>
+                </div>
+              );
+            }
+
+            if (isPendingApproval) {
+              return (
+                <div className="ism-warning-banner">
+                  <svg
+                    className="ism-warning-icon"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"
+                    />
+                  </svg>
+                  <span>
+                    Messenger/Instagram csatornán 24 órás időablak áll
+                    rendelkezésre a válaszadásra.
+                  </span>
+                </div>
+              );
+            }
+
+            return null;
+          })()}
+
+          {/* ═══ INTERAKCIÓ RÉSZLETEI ═══ */}
+          <div className="ism-details-section">
+            <button
+              className="ism-details-toggle"
+              onClick={() => setShowDetails(!showDetails)}
+            >
+              <span className="ism-details-title">Interakció részletei</span>
+              <svg
+                className={`ism-chevron${showDetails ? ' ism-chevron--open' : ''}`}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2.5"
+                viewBox="0 0 24 24"
+              >
+                <polyline points="6 9 12 15 18 9" />
+              </svg>
+            </button>
+
+            {showDetails && (
+              <div className="ism-chat-list">
+                {chatBlocks.length === 0 && !isPendingApproval ? (
+                  <div className="ism-no-history">Nincs előzmény</div>
+                ) : (
+                  <>
+                    {/* Chat messages — hide AI blocks when pending approval (shown as draft below) */}
+                    {(isPendingApproval
+                      ? chatBlocks.filter((b) => b.sender !== 'ai')
+                      : chatBlocks
+                    ).map((block, i) =>
+                      block.sender === 'system' ? (
+                        <div key={i} className="ism-chat-system">
+                          {block.text.replace(
+                            /\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?([+-]\d{2}:\d{2}|Z)?/g,
+                            (iso) => {
+                              try {
+                                const d = new Date(iso);
+                                return d.toLocaleString('hu-HU', {
+                                  year: 'numeric', month: '2-digit', day: '2-digit',
+                                  hour: '2-digit', minute: '2-digit',
+                                });
+                              } catch { return iso; }
+                            }
+                          )}
+                        </div>
+                      ) : (
+                        <div key={i} className="ism-chat-entry">
+                          <div className="ism-chat-meta">
+                            {block.sender === 'user' ? (
+                              <div className="ism-chat-avatar ism-chat-avatar--user">
+                                {profilePicUrl ? (
+                                  <img
+                                    src={profilePicUrl}
+                                    alt={clientName}
+                                    onError={(e) => {
+                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    }}
+                                  />
+                                ) : null}
+                                {!profilePicUrl && clientInitials}
+                              </div>
+                            ) : (
+                              <div className="ism-chat-avatar ism-chat-avatar--ai">
+                                <svg
+                                  fill="none"
+                                  stroke="currentColor"
+                                  strokeWidth="2"
+                                  viewBox="0 0 24 24"
+                                  width="16"
+                                  height="16"
+                                >
+                                  <path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 16l-6.4 5.2L8 14 2 9.2h7.6z" />
+                                </svg>
+                              </div>
+                            )}
+                            <span className="ism-chat-sender">
+                              {block.sender === 'user'
+                                ? clientName
+                                : 'eaisyDesk'}
+                            </span>
+                            {block.timestamp && (
+                              <span className="ism-chat-time">
+                                {fmtDt(
+                                  block.timestamp.includes('+') || block.timestamp.includes('Z')
+                                    ? block.timestamp
+                                    : block.timestamp.replace(' ', 'T') + '+02:00'
+                                )}
+                              </span>
+                            )}
+                            {!block.timestamp && row.date && (
+                              <span className="ism-chat-time">
+                                {formattedDate}
+                              </span>
+                            )}
                           </div>
-                          {/* Editable bubble */}
-                          <div style={{ flex: 1, maxWidth: '85%' }}>
-                            <textarea
-                              ref={approvalTextareaRef}
-                              value={draftText}
-                              onChange={(e) => setDraftText(e.target.value)}
-                              disabled={submittingApproval}
-                              style={{
-                                width: '100%',
-                                minHeight: 80,
-                                padding: '12px 16px',
-                                borderRadius: 6,
-                                borderTopLeftRadius: 4,
-                                fontSize: 13,
-                                lineHeight: 1.5,
-                                color: 'var(--text)',
-                                background: 'rgba(28, 238, 224, 0.1)',
-                                border: '2px solid rgba(28, 238, 224, 0.35)',
-                                fontFamily: 'inherit',
-                                resize: 'vertical',
-                                outline: 'none',
-                                boxSizing: 'border-box',
-                                transition: 'border-color 0.2s',
-                              }}
-                              onFocus={(e) => { e.currentTarget.style.borderColor = 'rgba(28,238,224,0.7)'; }}
-                              onBlur={(e) => { e.currentTarget.style.borderColor = 'rgba(28,238,224,0.35)'; }}
-                            />
+                          <div
+                            className={`ism-chat-bubble ${
+                              block.sender === 'user'
+                                ? 'ism-chat-bubble--user'
+                                : 'ism-chat-bubble--ai'
+                            }`}
+                          >
+                            {block.text}
                           </div>
                         </div>
-                        {/* Approve button — right below the editable bubble */}
-                        <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 12, marginBottom: 8 }}>
+                      )
+                    )}
+
+                    {/* ── Pending Approval Draft ── */}
+                    {isPendingApproval && draftText && (
+                      <div className="ism-draft-section" ref={approvalRef}>
+                        <div className="ism-draft-header">
+                          <svg
+                            className="ism-draft-icon"
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2"
+                            viewBox="0 0 24 24"
+                          >
+                            <path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 16l-6.4 5.2L8 14 2 9.2h7.6z" />
+                          </svg>
+                          <span className="ism-draft-label">
+                            eaisyDesk választerv
+                          </span>
+                        </div>
+
+                        {isEditing ? (
+                          <textarea
+                            ref={textareaRef}
+                            className="ism-draft-textarea"
+                            value={draftText}
+                            onChange={(e) => setDraftText(e.target.value)}
+                            disabled={submittingApproval}
+                            rows={5}
+                          />
+                        ) : (
+                          <div className="ism-draft-box">{draftText}</div>
+                        )}
+
+                        <div className="ism-draft-actions">
                           <button
-                            onClick={handleApprovalSubmit}
-                            disabled={submittingApproval || !draftText.trim()}
-                            style={{
-                              background: 'linear-gradient(135deg, var(--accent, #1ceee0), var(--accent2, #0bbdb1))',
-                              color: '#082432',
-                              border: 'none',
-                              borderRadius: 8,
-                              padding: '10px 20px',
-                              fontSize: 13,
-                              fontWeight: 700,
-                              cursor: submittingApproval || !draftText.trim() ? 'not-allowed' : 'pointer',
-                              opacity: submittingApproval || !draftText.trim() ? 0.5 : 1,
-                              display: 'flex',
-                              alignItems: 'center',
-                              gap: 8,
-                              fontFamily: 'inherit',
-                              transition: 'opacity 0.15s',
+                            className="ism-btn-edit"
+                            onClick={() => {
+                              setIsEditing(!isEditing);
+                              if (!isEditing) {
+                                setTimeout(
+                                  () => textareaRef.current?.focus(),
+                                  100
+                                );
+                              }
                             }}
                           >
-                            {submittingApproval ? 'Küldés...' : 'Küldés'}
+                            {isEditing ? 'Mégsem' : 'Szerkesztés'}
+                          </button>
+                          <button
+                            className="ism-btn-approve"
+                            onClick={handleApprovalSubmit}
+                            disabled={submittingApproval || !draftText.trim()}
+                          >
+                            {submittingApproval
+                              ? 'Küldés...'
+                              : 'Jóváhagyás és küldés'}
                           </button>
                         </div>
                       </div>
-                    ) : (
-                      /* ── Normal chat bubble ── */
-                      <div key={i} style={{ display: 'flex', gap: 12, marginBottom: 16, alignItems: 'flex-start' }}>
-                        {/* Avatar */}
-                        <div style={{
-                          width: 32,
-                          height: 32,
-                          borderRadius: '50%',
-                          display: 'flex',
-                          alignItems: 'center',
-                          justifyContent: 'center',
-                          fontWeight: 700,
-                          fontSize: 12,
-                          flexShrink: 0,
-                          ...(b.sender === 'user'
-                            ? { background: '#e5e7eb', color: '#374151' }
-                            : { background: 'linear-gradient(135deg, var(--accent, #1ceee0), var(--accent2, #0bbdb1))', color: '#082432' }
-                          ),
-                        }}>
-                          {b.sender === 'user' ? 'Ü' : 'AI'}
-                        </div>
-                        {/* Bubble */}
-                        <div style={{
-                          padding: '12px 16px',
-                          borderRadius: 6,
-                          fontSize: 13,
-                          lineHeight: 1.5,
-                          maxWidth: '85%',
-                          whiteSpace: 'pre-wrap',
-                          borderTopLeftRadius: 4,
-                          ...(b.sender === 'user'
-                            ? { background: '#f3f4f6', color: '#1f2937' }
-                            : { background: 'rgba(28, 238, 224, 0.1)', color: 'var(--text)', border: '1px solid rgba(28, 238, 224, 0.2)' }
-                          ),
-                        }}>
-                          {b.text}
-                        </div>
-                      </div>
-                    )
-                  );
-                })()}
+                    )}
+
+                  </>
+                )}
+
+                {/* Earlier messages link */}
+                {chatBlocks.length > 0 && channel !== 'Telefon' ? (
+                  <button className="ism-earlier-link">
+                    {earlierMessagesLabel}
+                    <svg
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2.5"
+                      viewBox="0 0 24 24"
+                      width="14"
+                      height="14"
+                    >
+                      <polyline points="9 18 15 12 9 6" />
+                    </svg>
+                  </button>
+                ) : chatBlocks.length === 0 && !isPendingApproval ? null : (
+                  <div className="ism-no-history">Nincs előzmény</div>
+                )}
               </div>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
-        {/* Footer */}
-        <div style={{ padding: '16px 24px', background: 'var(--bg3)', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center', flexShrink: 0 }}>
+        {/* ═══ FOOTER ═══ */}
+        <div className="ism-footer">
           <button
-            className="btn-primary"
-            style={{
-              background: 'transparent',
-              color: row.clientId ? 'var(--text)' : 'var(--text-muted)',
-              border: '1px solid var(--border)',
-              width: 'auto',
-              padding: '10px 16px',
-              margin: 0,
-              fontFamily: 'inherit',
-              cursor: row.clientId ? 'pointer' : 'default',
-              opacity: row.clientId ? 1 : 0.5,
-            }}
+            className="ism-footer-btn ism-footer-btn--outline"
             disabled={!row.clientId}
             onClick={() => {
               if (row.clientId && onClientClick) {
@@ -675,37 +889,16 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
             Ugrás ügyfélprofilra
           </button>
           <button
-            className="btn-primary"
-            onClick={() => setShowChat(!showChat)}
-            style={{
-              background: 'linear-gradient(135deg, var(--accent), var(--accent2))',
-              color: '#082432',
-              border: 'none',
-              width: 'auto',
-              padding: '10px 16px',
-              margin: 0,
-              fontFamily: 'inherit',
+            className={`ism-footer-btn ${showCalendarButton ? 'ism-footer-btn--calendar' : 'ism-footer-btn--solid'}`}
+            onClick={() => {
+              onClose();
+              navigate(showCalendarButton ? '/calendar' : '/kanban');
             }}
           >
-            <span style={{ marginRight: 6 }}>{showChat ? '↑' : '↓'}</span>
-            {showChat
-              ? 'Beszélgetés elrejtése'
-              : isPendingApproval
-                ? 'Beszélgetés és jóváhagyás'
-                : 'Interakció megtekintése'
-            }
+            {showCalendarButton ? 'Ugrás naptárra' : 'Ugrás teendőkre'}
           </button>
         </div>
       </div>
-    </div>
-  );
-}
-
-function ResultLine({ label, value, last }: { label: string; value: string; last?: boolean }) {
-  return (
-    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: last ? 0 : 12, fontSize: 13 }}>
-      <span style={{ color: 'var(--text-muted)' }}>{label}</span>
-      <span style={{ fontWeight: 600, color: 'var(--text)' }}>{value}</span>
     </div>
   );
 }

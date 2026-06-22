@@ -78,12 +78,17 @@ const SORT_OPTIONS = [
 export default function InteractionsPage() {
   const isMobile = useIsMobile(768);
   const { user, isAdmin } = useAuth();
-  const { openApproval } = useApproval();
+  const { openApproval, registerOnApproved } = useApproval();
   const { clients, clientsMap } = useClients();
   const { sessions, loading, refetch: refetchSessions } = useSessions(100);
   const { confirm, ConfirmDialog } = useConfirm();
   const { events } = useCalendarEvents();
   const pullInteractions = usePullToRefresh({ onRefresh: refetchSessions, enabled: isMobile });
+
+  // Register refetch so approval triggers an immediate data refresh
+  useEffect(() => {
+    registerOnApproved(refetchSessions);
+  }, [registerOnApproved, refetchSessions]);
 
   // State
   const [searchQuery, setSearchQuery] = useState('');
