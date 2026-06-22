@@ -1729,7 +1729,7 @@ def update_content_item(item_id: str, data: dict) -> dict | None:
     """AI tartalom frissítése (szöveg, státusz, stb.)."""
     if not supabase: return None
     try:
-        allowed = ["title", "body", "hashtags", "image_url", "image_description",
+        allowed = ["title", "type", "body", "hashtags", "image_url", "image_description",
                     "keywords", "status", "target_platforms", "published_at",
                     "published_platforms", "ig_media_id", "fb_post_id",
                     "engagement_stats", "scheduled_at", "image_prompt"]

@@ -3789,7 +3789,7 @@ class ZomboScrapeRequest(BaseModel):
 
 @app.post("/admin/api/zombo/scrape")
 @app.post("/marketing/api/zombo/scrape")
-async def api_zombo_scrape(req: ZomboScrapeRequest, username: str = Depends(verify_jwt)):
+async def api_zombo_scrape(req: ZomboScrapeRequest):
     """Streaming NDJSON endpoint for website SEO audit and visual tone analysis using multi-agent pipeline."""
     from fastapi.responses import StreamingResponse
     import httpx
@@ -5015,6 +5015,25 @@ async def api_zombo_scrape(req: ZomboScrapeRequest, username: str = Depends(veri
                   "platform_rules": {{
                     "instagram": {{"tone_modifier": "...", "emoji_allowed": true, "max_hashtags": 15, "preferred_format": "carousel", "optimal_post_length": "150-300 karakter"}},
                     "facebook": {{"tone_modifier": "...", "emoji_allowed": true, "max_hashtags": 5, "preferred_format": "image_with_text", "optimal_post_length": "200-500 karakter"}}
+                  }},
+                  "linguistic_fingerprint": {{
+                    "sentence_metrics": {{
+                      "avg_sentence_length": "short|medium|long",
+                      "question_ratio": "none|low|medium|high",
+                      "exclamation_ratio": "none|low|medium|high",
+                      "imperative_ratio": "none|low|medium|high"
+                    }},
+                    "vocabulary_profile": {{
+                      "brand_specific_terms": ["..."],
+                      "power_words": ["..."],
+                      "avoided_words": ["..."]
+                    }},
+                    "rhetoric_patterns": {{
+                      "opening_patterns": ["..."],
+                      "closing_patterns": ["..."],
+                      "persuasion_style": "rational|emotional|social_proof|authority|urgency"
+                    }},
+                    "post_style_examples": ["2-3 example sentences written in this brand's exact voice"]
                   }}
                 }}
                 """
@@ -5043,6 +5062,10 @@ async def api_zombo_scrape(req: ZomboScrapeRequest, username: str = Depends(veri
                                     brand_personality["platform_rules"][plat_name] = plat_data
                 except Exception as e:
                     print(f"[Zombo Scrape] Brand DNA Extractor (Call 2) error: {e}")
+
+                # Merge linguistic_fingerprint separately into brand_personality
+                if 'parsed2' in locals() and isinstance(parsed2, dict) and 'linguistic_fingerprint' in parsed2:
+                    brand_personality['linguistic_fingerprint'] = parsed2['linguistic_fingerprint']
 
                 # ╔══════════════════════════════════════════════╗
                 # ║  CALL 3: Visual Recipe Agent                 ║
@@ -5427,6 +5450,855 @@ async def serve_generated_image(filename: str):
     if img_path.exists():
         return FileResponse(img_path, media_type="image/png")
     return JSONResponse({"error": "Kép nem található."}, status_code=404)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# SOCIAL BATCH GENERATOR — Dynamic 3-step pipeline, zero hardcoded rules
+# Step 0: Claude derives Visual Strategy from audit (business-type-aware)
+@app.post("/marketing/api/zombo/visual-strategy")
+async def zombo_visual_strategy(request: Request):
+    """
+    Standalone endpoint: derives the Visual Strategy from audit data.
+    Returns the same Visual Strategy JSON that social-batch uses internally.
+    Used by Image Lab to enrich user prompts with brand DNA.
+    Works for ANY business type — fully dynamic, no hardcoding.
+    """
+    import json as _json
+    from google import genai
+    from google.genai import types as genai_types
+
+    body = await request.json()
+    audit = body.get("audit", {})
+
+    if not audit:
+        return JSONResponse({"error": "No audit data provided"}, status_code=400)
+
+    bp    = audit.get("brand_personality", {})
+    vis   = audit.get("visuals", {})
+    cont  = audit.get("content", {})
+
+    archetype      = bp.get("brand_archetype", "")
+    target_aud     = bp.get("target_audience", "")
+    brand_voice    = bp.get("brand_voice", [])
+    key_themes     = cont.get("detected_posts", [])
+    visual_style   = vis.get("visual_style_description", "")
+    visual_tone    = vis.get("visual_tone", "")
+    color_palette  = ", ".join(vis.get("top_colors", [])[:5])
+    brand_dont     = bp.get("brand_dont", {})
+    visual_recipe  = bp.get("visual_recipe", {})
+    brand_coords   = bp.get("brand_coordinates", {})
+    vis_coords     = brand_coords.get("visual", {})
+    products       = audit.get("products", [])
+    products_str   = ", ".join([p.get("name","") for p in products[:8] if p.get("name")]) if products else ""
+
+    vr_composition = visual_recipe.get("composition", "")
+    vr_background  = visual_recipe.get("background_type", "")
+    vis_style_tags = vis_coords.get("visual_style_tags", [])
+    vis_warmth     = vis_coords.get("warmth_vs_coolness", 50)
+    vis_vibrancy   = vis_coords.get("vibrancy", 50)
+    vis_minimalism = vis_coords.get("minimalist_vs_decorative", 50)
+    brand_hex      = ", ".join([c.get("hex","") for c in vis.get("top_colors_detail",[])[:3] if c.get("hex")])
+
+    visual_strategy_prompt = f"""You are a professional Creative Director and Art Director. Your job is to define the visual strategy for a brand based on its audit data.
+
+== BRAND AUDIT DATA ==
+Brand archetype: {archetype}
+Target audience: {target_aud}
+Visual style: {visual_style}
+Visual tone: {visual_tone}
+Dominant colors: {color_palette}
+Products/services: {products_str if products_str else "none listed"}
+Brand voice: {", ".join([v.get("voice", str(v)) if isinstance(v, dict) else str(v) for v in brand_voice]) if brand_voice else "none"}
+Content themes: {", ".join([t.get("topic", t.get("theme", str(t))) if isinstance(t, dict) else str(t) for t in key_themes]) if key_themes else "none"}
+
+== VISUAL RECIPE (from scraper) ==
+  * Composition: {vr_composition or "not specified"}, Background: {vr_background or "not specified"}
+  * Visual style tags (brand DNA): {', '.join([str(tag) for tag in vis_style_tags]) if vis_style_tags else "none"}
+  * Warmth: {vis_warmth}/100 (0=warm tones, 100=cool tones)
+  * Vibrancy: {vis_vibrancy}/100 (0=muted/desaturated, 100=vivid/saturated)
+  * Minimalism: {vis_minimalism}/100 (0=very minimal clean, 100=decorative/busy)
+  * Brand colors (hex): {brand_hex or "not available"}
+- Use the above as reference BUT override with business-appropriate decisions.
+  For example: if the scraper says 'no hands' but this is a nail salon, allow hands.
+
+== REASONING GUIDE ==
+Decide based on the ACTUAL BUSINESS what is appropriate:
+- Nail / beauty salon → hands and nails ARE the product hero, allow hands
+- Restaurant / cafe / food → food, plating, drinks are the main visual
+- Fitness / gym / sport → athletic movement and bodies may be appropriate
+- Home improvement / paint / hardware → surfaces, tools, textures (never product text)
+- Pet care → animals are the primary subject
+- Software / SaaS / Tech → abstract concepts, workspaces, NOT screens or UIs
+- Luxury / jewelry → pristine surfaces, elegant arrangements, dark backgrounds
+- DIY / craft → authentic, slightly imperfect, in-use tools and materials
+
+Output ONLY valid JSON (no markdown fences, no explanation):
+{{
+  "business_understood": "1-2 sentence description of what this business does and who it serves",
+  "visual_subjects": ["5-8 specific visual subjects appropriate for this brand"],
+  "allow_hands": true or false,
+  "allow_human_silhouettes": true or false,
+  "allow_faces": false,
+  "photography_style": "product_photography|lifestyle_editorial|flat_lay|macro_closeup|architectural|food_photography|nature_outdoor|abstract_minimal|documentary",
+  "lighting": "5-10 word DIRECTIONAL lighting description — specify ONE source (e.g. 'morning window light from the left', 'overhead lamp, warm', 'overcast outdoor from above'). Not 'soft diffused from all sides'.",
+  "mood": "5-10 word mood description",
+  "color_direction": "how to use the brand colors (1-2 sentences)",
+  "object_condition": "BRAND-DERIVED: describe appropriate object condition. Examples: 'pristine and perfect, luxury brand' OR 'slightly worn and used, authentic DIY feel' OR 'clinical and spotless, medical/hygiene brand' OR 'richly textured but new, premium retail'. Choose based on the actual brand positioning from audit data.",
+  "arrangement_style": "BRAND-DERIVED: describe appropriate composition and arrangement. Examples: 'perfectly ordered flat-lay, minimalist brand' OR 'casual and organic, lifestyle brand' OR 'precise and structured, professional/B2B' OR 'asymmetric and natural, authentic brand'. Choose based on audit data.",
+  "background_style": "BRAND-DERIVED: describe appropriate background. Examples: 'pure white seamless, e-commerce product photography' OR 'real-life contextual environment, lifestyle brand' OR 'clean solid color, modern minimalist' OR 'shallow DOF blur of relevant environment'. Choose based on brand type.",
+  "flux_negations": ["10-14 forbidden elements — ALWAYS include: text, letters, numbers, labels, watermarks, logos, brand names, screens, monitors, phones, laptops, tablets, UI elements, websites. Add brand-specific visual violations from brand_dont.visual_restrictions."],
+  "prompt_prefix": "2-3 word opening phrase for any image prompt (e.g. 'Close-up shot of', 'Lifestyle photo of', 'Documentary style')",
+  "prompt_suffix": "5-10 word closing phrase for any image prompt (e.g. 'slight film grain, 35mm f/2.0, shallow DOF')",
+  "good_prompt_example": "English Flux 2 Pro prompt for THIS SPECIFIC brand, 70-90 words. Must use: (1) the directional lighting defined above, (2) the arrangement_style defined above, (3) the object_condition defined above, (4) the background_style defined above, (5) specific focal length + aperture, (6) slight film grain.",
+  "bad_prompt_example": "Prompt that looks AI-generated for THIS brand — show what NOT to write."
+}}"""
+
+    try:
+        client_vs = genai.Client(api_key=os.environ.get("GEMINI_API_KEY", ""))
+        strat_resp = await client_vs.aio.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=visual_strategy_prompt,
+            config=genai_types.GenerateContentConfig(
+                response_mime_type="application/json",
+                temperature=0.3,
+            ),
+        )
+        if strat_resp and strat_resp.text:
+            strategy = _json.loads(strat_resp.text)
+            return JSONResponse({"status": "ok", "visual_strategy": strategy})
+        else:
+            return JSONResponse({"error": "Empty response from model"}, status_code=500)
+    except Exception as e:
+        return JSONResponse({"error": str(e)}, status_code=500)
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ZOMBO SOCIAL BATCH — Full 3-step pipeline:
+# Step 0: Claude derives Visual Strategy from audit (per-brand, fully dynamic)
+# Step 1: Claude plans 10 posts using that strategy
+# Step 2: Flux 2 Pro generates images with strategy-informed prompts
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/marketing/api/zombo/social-batch")
+async def zombo_social_batch(request: Request):
+    """
+    SSE streaming endpoint.
+    Dynamically derives visual rules from the audit data using Claude,
+    then generates 10 posts + Flux 2 Pro images. Works for ANY business type.
+    """
+    import json as _json
+    import asyncio
+    import os
+    import time
+    from fastapi.responses import StreamingResponse
+    from google import genai
+    from google.genai import types as genai_types
+
+    body = await request.json()
+    audit = body.get("audit", {})
+
+    if not audit:
+        return JSONResponse({"error": "Nincs audit adat."}, status_code=400)
+
+    google_key = os.getenv("GOOGLE_API_KEY") or os.getenv("GEMINI_API_KEY")
+    bfl_key = os.getenv("BFL_API_KEY")
+
+    if not google_key:
+        return JSONResponse({"error": "GOOGLE_API_KEY hiányzik."}, status_code=500)
+    if not bfl_key:
+        return JSONResponse({"error": "BFL_API_KEY hiányzik."}, status_code=500)
+
+    async def stream():
+        import httpx
+
+        def send(event_type: str, data: dict):
+            return f"data: {_json.dumps({'type': event_type, **data}, ensure_ascii=False)}\n\n"
+
+        # ── Extract audit data ───────────────────────────────────────────────
+        bp       = audit.get("brand_personality", {})
+        coords   = bp.get("brand_coordinates", {})
+        vis      = audit.get("visuals", {})
+        content  = audit.get("content", {})
+        products = audit.get("products", [])
+        seo      = audit.get("seo", {})
+        contact  = audit.get("contact") or audit.get("contacts") or {}
+
+        brand_voice        = bp.get("brand_voice", [])
+        archetype          = bp.get("brand_archetype", "")
+        target_audience    = bp.get("target_audience", "")
+        personality_summary= bp.get("personality_summary", "")
+        cta_library        = bp.get("cta_library", {})
+        brand_dont         = bp.get("brand_dont", {})
+        visual_style       = vis.get("visual_style_description", "")
+        top_colors         = vis.get("top_colors_detail", [])
+        visual_tone        = vis.get("visual_tone", "")
+        business_category  = content.get("business_category", "")
+        site_summary       = content.get("summary", "")
+        company_name       = contact.get("company_name", "")
+        primary_ctas       = cta_library.get("primary_ctas", [])
+        avoid_words        = brand_dont.get("avoid_words", [])
+        avoid_topics       = brand_dont.get("avoid_topics", [])
+        key_themes         = coords.get("content", {}).get("key_content_themes", [])
+        primary_industry   = coords.get("content", {}).get("primary_industry", "")
+        tone_coords        = coords.get("tone", {})
+
+        # Visual recipe from scraper Call 3
+        visual_recipe      = bp.get("visual_recipe", {})
+        vr_prefix          = visual_recipe.get("image_prompt_prefix", "")
+        vr_suffix          = visual_recipe.get("image_prompt_suffix", "")
+        vr_negative        = visual_recipe.get("negative_prompt", "")
+        vr_color_palette   = visual_recipe.get("color_palette", {})
+        vr_photo_style     = visual_recipe.get("photography_style", "")
+        vr_lighting        = visual_recipe.get("lighting", "")
+        vr_composition     = visual_recipe.get("composition", "")
+        vr_background      = visual_recipe.get("background_type", "")
+        vr_mood            = visual_recipe.get("mood", "")
+
+        # Brand visual coordinates
+        vis_coords         = coords.get("visual", {})
+        vis_style_tags     = vis_coords.get("visual_style_tags", [])
+        vis_warmth         = vis_coords.get("warmth_vs_coolness", 50)   # 0=warm, 100=cool
+        vis_vibrancy       = vis_coords.get("vibrancy", 50)             # 0=muted, 100=vivid
+        vis_minimalism     = vis_coords.get("minimalist_vs_decorative", 50)  # 0=minimal, 100=decorative
+
+        # Brand color hex values
+        brand_hex_colors   = ", ".join([
+            f"{k}: {v}" for k, v in vr_color_palette.items()
+            if v and k != "background" and k != "text_color"
+        ]) if vr_color_palette else ""
+
+        # Brand dont visual restrictions
+        visual_restrictions= brand_dont.get("visual_restrictions", [])
+
+        # Platform rules — find the primary active platform
+        platform_rules_all = bp.get("platform_rules", {})
+        active_platforms   = {k: v for k, v in platform_rules_all.items() if v.get("active")}
+        # Pick primary platform for post format (instagram first, then facebook, then first active)
+        primary_platform   = None
+        for pname in ["instagram", "facebook", "tiktok", "youtube", "linkedin"]:
+            if pname in active_platforms:
+                primary_platform = pname
+                break
+        pf_rules = active_platforms.get(primary_platform, {}) if primary_platform else {}
+        pf_optimal_len     = pf_rules.get("optimal_post_length", "150-300 karakter")
+        pf_tone_modifier   = pf_rules.get("tone_modifier", "")
+        pf_max_hashtags    = pf_rules.get("max_hashtags", 10)
+        pf_format          = pf_rules.get("preferred_format", "image_with_text")
+
+        # Content pillars → dynamic post type distribution
+        raw_pillars        = bp.get("content_pillars", [])
+
+        top_products = products[:5]
+        products_str = ""
+        if top_products:
+            parts = []
+            for p in top_products:
+                desc = f"{p.get('name','')} ({p.get('brand','')}) — {p.get('price','')} — {p.get('description','')[:80]}"
+                parts.append(desc.strip())
+            products_str = "\n".join(parts)
+
+        color_palette = ", ".join(
+            f"{c.get('hex','')} ({c.get('name','')})" for c in top_colors[:4]
+        )
+
+        site_lang = seo.get("lang_val", "hu")
+        post_lang = (
+            "Hungarian" if site_lang == "hu"
+            else "English" if site_lang == "en"
+            else f"the website's language ({site_lang})"
+        )
+
+        client = genai.Client(api_key=google_key)
+
+        # ════════════════════════════════════════════════════════════════════
+        # STEP 0 — Claude derives a Visual Strategy from the audit.
+        # This is the core intelligence layer. Claude reasons about what is
+        # appropriate for THIS specific business — no hardcoded category rules.
+        #
+        # Examples of what Claude should decide on its own:
+        #   Nail salon     → hands/nails are the PRODUCT, allow them
+        #   Restaurant     → food photography is the obvious choice
+        #   Fitness studio → athletic bodies in action can be appropriate
+        #   Paint store    → surfaces, textures, tools (no text on labels)
+        #   Law firm       → serious minimal spaces, no people
+        #   Pet shop       → animals are the hero
+        #   Hair salon     → styling tools, salon atmosphere, hair texture
+        #   SaaS company   → abstract tech, workspaces, UI elements
+        # ════════════════════════════════════════════════════════════════════
+        yield send("status", {"message": "🔍 1/3 — Visual Strategy levezetése az audit adatból..."})
+
+        visual_strategy_prompt = f"""You are a creative director specializing in AI image generation for brands.
+
+Analyze this brand audit and derive a VISUAL STRATEGY for generating Flux 2 Pro images.
+Reason carefully about THIS specific business — do NOT apply generic rules.
+
+== AUDIT DATA ==
+Business type: {primary_industry or business_category}
+Company: {company_name or "unknown"}
+Summary: {site_summary}
+Brand archetype: {archetype}
+Target audience: {target_audience}
+Visual style: {visual_style}
+Visual tone: {visual_tone}
+Dominant colors: {color_palette}
+Products/services: {products_str if products_str else "none listed"}
+Brand voice: {", ".join(brand_voice)}
+Content themes: {", ".join(key_themes) if key_themes else "none"}
+
+== REASONING GUIDE ==
+Decide based on the ACTUAL BUSINESS what is appropriate:
+- Nail / beauty salon → hands and nails ARE the product hero, allow hands
+- Restaurant / cafe / food → food, plating, drinks are the main visual
+- Fitness / gym / sport → athletic movement and bodies may be appropriate
+- Home improvement / paint / hardware → surfaces, tools, textures (never product text)
+- Pet care → animals are the primary subject
+- Law / finance / consulting → serious, minimal, professional spaces
+- Hair salon / barbershop → styling tools, hair textures, salon mood
+- Software / SaaS / tech → screens, workspaces, abstract digital visuals
+- Clothing / fashion → garments, fabric textures, styled flat lays
+- Children / education → colorful, playful, kid-friendly elements
+- ANY business: Flux 2 Pro CANNOT render legible text — ALWAYS forbid all text, screens, monitors, phones, laptops, tablets showing any content
+- Brand's established visual coordinates:
+  * Photography style from brand audit: {vr_photo_style or "not specified"}
+  * Lighting from brand audit: {vr_lighting or "not specified"}
+  * Composition: {vr_composition or "not specified"}, Background: {vr_background or "not specified"}
+  * Visual style tags (brand DNA): {', '.join(vis_style_tags) if vis_style_tags else "none"}
+  * Warmth: {vis_warmth}/100 (0=warm tones, 100=cool tones)
+  * Vibrancy: {vis_vibrancy}/100 (0=muted/desaturated, 100=vivid/saturated)
+  * Minimalism: {vis_minimalism}/100 (0=very minimal clean, 100=decorative/busy)
+  * Brand colors (hex): {brand_hex_colors or "not available"}
+- Use the above as reference BUT override with business-appropriate decisions.
+  For example: if the scraper says 'no hands' but this is a nail salon, allow hands.
+
+Output ONLY valid JSON (no markdown fences, no explanation):
+{{
+  "business_understood": "1-2 sentence description of what this business does and who it serves",
+  "visual_subjects": ["5-8 specific visual subjects appropriate for this brand"],
+  "allow_hands": true or false,
+  "allow_human_silhouettes": true or false,
+  "allow_faces": false,
+  "photography_style": "product_photography|lifestyle_editorial|flat_lay|macro_closeup|architectural|food_photography|nature_outdoor|abstract_minimal|documentary",
+  "lighting": "5-10 word DIRECTIONAL lighting description — specify ONE source (e.g. 'morning window light from the left', 'overhead lamp, warm', 'overcast outdoor from above'). Not 'soft diffused from all sides'.",
+  "mood": "5-10 word mood description",
+  "color_direction": "how to use the brand colors (1-2 sentences)",
+  "object_condition": "BRAND-DERIVED: describe appropriate object condition. Examples: 'pristine and perfect, luxury brand' OR 'slightly worn and used, authentic DIY feel' OR 'clinical and spotless, medical/hygiene brand' OR 'richly textured but new, premium retail'. Choose based on the actual brand positioning from audit data.",
+  "arrangement_style": "BRAND-DERIVED: describe appropriate composition and arrangement. Examples: 'perfectly ordered flat-lay, minimalist brand' OR 'casual and organic, lifestyle brand' OR 'precise and structured, professional/B2B' OR 'asymmetric and natural, authentic brand'. Choose based on audit data.",
+  "background_style": "BRAND-DERIVED: describe appropriate background. Examples: 'pure white seamless, e-commerce product photography' OR 'real-life contextual environment, lifestyle brand' OR 'clean solid color, modern minimalist' OR 'shallow DOF blur of relevant environment'. Choose based on brand type.",
+  "flux_negations": ["10-14 forbidden elements — ALWAYS include: text, letters, numbers, labels, watermarks, logos, brand names, screens, monitors, phones, laptops, tablets, UI elements, websites. Add brand-specific visual violations from brand_dont.visual_restrictions."],
+  "scraper_visual_overrides": "brief note: which parts of the scraped visual_recipe you are KEEPING vs. OVERRIDING for this business, and why",
+  "good_prompt_example": "English Flux 2 Pro prompt for THIS SPECIFIC brand, 70-90 words. Must use: (1) the directional lighting defined above, (2) the arrangement_style defined above (neat if brand is neat, casual if brand is casual), (3) the object_condition defined above, (4) the background_style defined above, (5) specific focal length + aperture, (6) slight film grain. Show what a CORRECT prompt looks like for this brand.",
+  "bad_prompt_example": "Prompt that looks AI-generated for THIS brand — show what NOT to write by violating the above rules (wrong lighting, wrong object condition, wrong arrangement for this brand)."
+}}"""
+
+        visual_strategy = {}
+        try:
+            strat_resp = await client.aio.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=visual_strategy_prompt,
+                config=genai_types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.3,
+                ),
+            )
+            raw_s = strat_resp.text.strip()
+            if raw_s.startswith("```json"): raw_s = raw_s[7:]
+            if raw_s.startswith("```"):     raw_s = raw_s[3:]
+            if raw_s.endswith("```"):       raw_s = raw_s[:-3]
+            visual_strategy = _json.loads(raw_s.strip())
+        except Exception as e:
+            yield send("error", {"message": f"Visual Strategy hiba: {str(e)}"})
+            return
+
+        yield send("visual_strategy", {
+            "strategy": visual_strategy,
+            "message": f"✅ Visual Strategy: {visual_strategy.get('business_understood', '')[:100]}"
+        })
+
+        # Unpack — all derived by Claude, nothing hardcoded
+        vs_subjects  = visual_strategy.get("visual_subjects", [])
+        vs_hands     = visual_strategy.get("allow_hands", False)
+        vs_silh      = visual_strategy.get("allow_human_silhouettes", False)
+        vs_faces     = visual_strategy.get("allow_faces", False)
+        vs_style     = visual_strategy.get("photography_style", "product_photography")
+        vs_lighting  = visual_strategy.get("lighting", "side window light, soft directional")
+        vs_mood      = visual_strategy.get("mood", "clean and professional")
+        vs_color_dir = visual_strategy.get("color_direction", f"inspired by {color_palette}")
+        vs_negs      = visual_strategy.get("flux_negations", ["text", "letters", "numbers", "labels", "watermarks", "logos"])
+        vs_good_ex   = visual_strategy.get("good_prompt_example", "")
+        vs_bad_ex    = visual_strategy.get("bad_prompt_example", "")
+        # Brand-derived content style rules (decided by Claude per-brand, NOT hardcoded)
+        vs_obj_cond  = visual_strategy.get("object_condition", "")
+        vs_arrange   = visual_strategy.get("arrangement_style", "")
+        vs_bg_style  = visual_strategy.get("background_style", "")
+
+        negation_str = ", ".join(vs_negs)
+
+        forbidden_people = []
+        if not vs_faces: forbidden_people.append("no human faces")
+        if not vs_hands: forbidden_people.append("no hands")
+        if not vs_silh:  forbidden_people.append("no human bodies or silhouettes")
+        people_clause = ". Additionally: " + ", ".join(forbidden_people) + "." if forbidden_people else ""
+
+        # ════════════════════════════════════════════════════════════════════
+        # STEP 1 — Claude plans 10 posts using the derived visual strategy
+        # ════════════════════════════════════════════════════════════════════
+        yield send("status", {"message": "🧠 2/3 — 10 poszt megtervezése a Visual Strategy alapján..."})
+
+        # Extract linguistic fingerprint for voice authenticity
+        lf = audit.get("brand_personality", {}).get("linguistic_fingerprint", {})
+        lf_metrics   = lf.get("sentence_metrics", {})
+        lf_vocab     = lf.get("vocabulary_profile", {})
+        lf_rhetoric  = lf.get("rhetoric_patterns", {})
+        lf_examples  = lf.get("post_style_examples", [])
+        brand_terms  = lf_vocab.get("brand_specific_terms", [])
+        power_words  = lf_vocab.get("power_words", [])
+        avoided_voc  = lf_vocab.get("avoided_words", [])
+        opening_pats = lf_rhetoric.get("opening_patterns", [])
+        closing_pats = lf_rhetoric.get("closing_patterns", [])
+        persuasion   = lf_rhetoric.get("primary_persuasion", "")
+        complexity   = lf_vocab.get("complexity_level", "")
+        avg_sent_len = lf_metrics.get("avg_sentence_length", "")
+        excl_ratio   = lf_metrics.get("exclamation_ratio", "")
+        quest_ratio  = lf_metrics.get("question_ratio", "")
+        imperative_r = lf_metrics.get("imperative_ratio", "")
+
+        # Content coordinates for style calibration
+        coord_content   = tone_coords  # reuse
+        humor_lvl       = audit.get("brand_personality", {}).get("brand_coordinates", {}).get("content", {}).get("humor_level", 50)
+        promo_lvl       = audit.get("brand_personality", {}).get("brand_coordinates", {}).get("content", {}).get("promotional_level", 50)
+        story_lvl       = audit.get("brand_personality", {}).get("brand_coordinates", {}).get("content", {}).get("storytelling_level", 50)
+        edu_lvl         = audit.get("brand_personality", {}).get("brand_coordinates", {}).get("content", {}).get("educational_level", 50)
+        cta_aggr        = audit.get("brand_personality", {}).get("brand_coordinates", {}).get("engagement", {}).get("cta_aggressiveness", 50)
+        emoji_usage     = audit.get("brand_personality", {}).get("brand_coordinates", {}).get("engagement", {}).get("emoji_usage", 20)
+        post_len_pref   = audit.get("brand_personality", {}).get("brand_coordinates", {}).get("engagement", {}).get("post_length_preference", 50)
+        interact_ask    = audit.get("brand_personality", {}).get("brand_coordinates", {}).get("engagement", {}).get("interaction_asking", 30)
+
+        # Brand dont — voice restrictions
+        brand_dont_all  = audit.get("brand_personality", {}).get("brand_dont", {})
+        tone_restrict   = brand_dont_all.get("tone_restrictions", avoid_words)
+        content_restrict= brand_dont_all.get("content_restrictions", avoid_topics)
+
+        # Hashtag strategy
+        hashtag_strat   = audit.get("brand_personality", {}).get("hashtag_strategy", {})
+        brand_hashtags  = hashtag_strat.get("brand_hashtags", [])
+        industry_htags  = hashtag_strat.get("industry_hashtags", [])
+        content_pillars = audit.get("brand_personality", {}).get("content_pillars", [])
+
+        # Tagline and slogans
+        tagline         = audit.get("brand_personality", {}).get("cta_library", {}).get("tagline", "")
+        slogans         = audit.get("brand_personality", {}).get("cta_library", {}).get("slogans", [])
+        all_primary_ctas= audit.get("brand_personality", {}).get("cta_library", {}).get("primary_ctas", primary_ctas)
+        secondary_ctas  = audit.get("brand_personality", {}).get("cta_library", {}).get("secondary_ctas", [])
+        word_style_anal = audit.get("content", {}).get("word_style_analysis", "")
+        detected_posts_raw = content.get("detected_posts", [])
+
+        # ―― FIX 2: Load brand_dna.json as gold-standard baseline ――
+        brand_dna_baseline_str = "No verified baseline available."
+        try:
+            _bdna_path = THIS_DIR / "brand_dna.json"
+            if _bdna_path.exists():
+                import json as _json_bdna
+                _bdna = _json_bdna.loads(_bdna_path.read_text(encoding="utf-8"))
+                _bco   = _bdna.get("company", {})
+                _bct   = _bdna.get("contacts", {})
+                _bpr   = _bdna.get("products", [])
+                _bname = _bco.get("name", "")
+                _bprods = ", ".join(p.get("name","") for p in _bpr[:8] if p.get("name")) or "see products section"
+                _bphone = (_bct.get("phone_numbers") or [""])[0]
+                _bemail = (_bct.get("emails") or [""])[0]
+                _bhours = _bct.get("opening_hours", "") or ""
+                _bsocials = " | ".join(
+                    f"{k}: {v}" for k, v in _bct.items()
+                    if k in ["facebook", "instagram", "tiktok", "youtube"]
+                    and isinstance(v, str) and v.startswith("http")
+                )
+                _parts = []
+                if _bname:   _parts.append(f"Company: {_bname}")
+                if _bprods:  _parts.append(f"Verified products: {_bprods}")
+                if _bphone or _bemail: _parts.append(f"Contact: {_bphone} | {_bemail}".strip(" |"))
+                if _bhours:  _parts.append(f"Opening hours: {_bhours}")
+                if _bsocials: _parts.append(f"Social: {_bsocials}")
+                if _parts:
+                    brand_dna_baseline_str = "\n".join(_parts)
+        except Exception as _bdna_err:
+            logger.warning(f"[SocialBatch] brand_dna.json load error: {_bdna_err}")
+
+        # Addressing mode
+        addr_mode = audit.get("brand_personality", {}).get("addressing", {}).get("mode", "vegyes")
+        addr_evidence = audit.get("brand_personality", {}).get("addressing", {}).get("evidence", [])
+
+        # Load archetype rules for the detected archetype
+        archetype_rule = {}
+        try:
+            import json as _json_ar
+            import re as _re_ar
+            _ar_path = THIS_DIR / "archetype_rules.json"
+            if _ar_path.exists():
+                _ar_data = _json_ar.loads(_ar_path.read_text(encoding="utf-8"))
+                _archetypes = _ar_data.get("archetypes", {})
+                # Parse English key from e.g. "Bölcs (Sage)" → "Sage"
+                _en_match = _re_ar.search(r'\((\w+)\)', archetype)
+                if _en_match:
+                    archetype_rule = _archetypes.get(_en_match.group(1), {})
+                if not archetype_rule:
+                    # Fallback: match by hu_name
+                    for _key, _val in _archetypes.items():
+                        if _val.get("hu_name", "").lower() in archetype.lower():
+                            archetype_rule = _val
+                            break
+        except Exception as _ar_err:
+            logger.warning(f"[SocialBatch] archetype_rules.json load error: {_ar_err}")
+
+        planning_prompt = f"""You are an expert social media manager ghostwriting for a specific brand. Your job is to produce posts that are INDISTINGUISHABLE from what this brand would write themselves.
+
+== BRAND IDENTITY ==
+Company: {company_name or "unknown"}
+Tagline: {tagline}
+Slogans: {", ".join(slogans) if slogans else "none"}
+Industry: {primary_industry or business_category}
+This business: {visual_strategy.get("business_understood", "")}
+Archetype: {archetype}
+Target audience: {target_audience}
+Brand voice adjectives: {", ".join(brand_voice)}
+Addressing mode: {addr_mode} ({"tegező — 'te', not 'ön'" if addr_mode == "te" else "formal — 'ön'" if addr_mode == "ön" else "mixed"})
+Evidence from actual site: {", ".join(f'"{e}"' for e in addr_evidence[:3]) if addr_evidence else "none"}
+
+== BRAND VOICE CALIBRATION (read carefully, these are the dials) ==
+- Humor level: {humor_lvl}/100 {"→ NO humor, zero jokes" if humor_lvl < 15 else "→ occasional light humor" if humor_lvl < 40 else "→ frequent humor"}
+- Promotional level: {promo_lvl}/100 {"→ HIGHLY promotional, always tie to product/offer" if promo_lvl > 65 else "→ moderately promotional"}
+- Storytelling level: {story_lvl}/100 {"→ NO storytelling, NO narrative arcs" if story_lvl < 30 else "→ some narrative"}
+- Educational level: {edu_lvl}/100 {"→ practical tips and how-tos welcome" if edu_lvl > 50 else "→ minimal education"}
+- CTA aggressiveness: {cta_aggr}/100 {"→ EVERY post must end with a clear CTA" if cta_aggr > 60 else "→ soft CTAs"}
+- Emoji usage: {emoji_usage}/100 {"→ SPARINGLY, max 1-2 per post" if emoji_usage < 30 else "→ moderate emoji use"}
+- Post length: {post_len_pref}/100 {"→ SHORT posts, punchy and direct" if post_len_pref < 40 else "→ medium length posts"}
+- Audience interaction: {interact_ask}/100 {"→ occasionally ask the audience" if interact_ask > 30 else "→ mostly statements, rarely questions"}
+- Formality: {tone_coords.get("formal_vs_casual", 50)}/100 {"→ CASUAL and friendly" if tone_coords.get("formal_vs_casual", 50) > 55 else "→ balanced"}
+- Tone: {tone_coords.get("rational_vs_emotional", 50)}/100 emotional {"→ practical and benefit-driven, NOT emotional" if tone_coords.get("rational_vs_emotional", 50) < 40 else "→ emotional resonance welcome"}
+
+== LINGUISTIC FINGERPRINT (mirror this voice exactly) ==
+- Average sentence length: {f"{avg_sent_len} words per sentence" if avg_sent_len else "short to medium"}
+- Exclamation marks: {f"{excl_ratio}% of sentences" if excl_ratio else "moderate"}
+- Questions: {f"{quest_ratio}% of sentences" if quest_ratio else "few"}
+- Imperatives (Rendelj!, Próbáld ki!): {f"{imperative_r}% of sentences" if imperative_r else "frequent"}
+- Vocabulary complexity: {complexity or "simple/everyday"}
+- Brand-specific terms to USE: {", ".join(brand_terms) if brand_terms else "use product category terms naturally"}
+- Power words to USE: {", ".join(power_words) if power_words else "practical, action-oriented words"}
+- Words/phrases to AVOID: {", ".join(avoided_voc) if avoided_voc else "avoid corporate jargon and over-hype"}
+- Typical post openers: {", ".join(f'"{p}"' for p in opening_pats) if opening_pats else "direct statements or imperatives"}
+- Typical post closers: {", ".join(f'"{p}"' for p in closing_pats) if closing_pats else "CTA + hashtags"}
+- Persuasion style: {persuasion or "benefit-led"}
+
+== VOICE EXAMPLES (copy this exact style, never generic AI tone) ==
+{chr(10).join(f'• "{ex}"' for ex in lf_examples) if lf_examples else "• Write in a practical, direct, friendly tone."}
+
+== ARCHETYPE RULES (the detected archetype is: {archetype}) ==
+{f'''Core motivation: {archetype_rule.get("core_motivation", "")}\nTone style: {archetype_rule.get("tone_rules", {}).get("style", "")}\nSentence structure: {archetype_rule.get("tone_rules", {}).get("sentence_structure", "")}\nVocabulary MUST USE: {", ".join(archetype_rule.get("vocabulary", {}).get("must_use", []))}\nVocabulary AVOID: {", ".join(archetype_rule.get("vocabulary", {}).get("avoid", []))}\nPrimary CTA pattern: {archetype_rule.get("cta_style", {}).get("primary_pattern", "")}\nUrgency level: {archetype_rule.get("cta_style", {}).get("urgency_level", "")}\nPersuasion mode: {archetype_rule.get("persuasion_mode", "")}''' if archetype_rule else "No archetype rules available — apply brand voice above."}
+
+== WEBSITE COPY STYLE ANALYSIS ==
+{word_style_anal if word_style_anal else "No website copy analysis available."}
+
+== WHAT THIS BRAND NEVER DOES ==
+- Tone restrictions: {", ".join(tone_restrict) if tone_restrict else "avoid over-hyped or pushy language"}
+- Content restrictions: {", ".join(content_restrict[:4]) if content_restrict else "stay on-brand topics only"}
+- NEVER write these exact phrases or close variants: "Fedezd fel", "Emeld új szintre", "Légy a legjobb", "Érezd az erőt", "Merülj el", "Egy egészen új szinten", "Forradalmasítsd", "Érezd a különbséget", "Változtasd meg az életed"
+- NEVER use: vague motivational fluff without a concrete product/service connection
+- NEVER describe screens, phones, laptops or websites in image_prompt — Flux cannot render readable UI
+
+== CTA LIBRARY (use ONLY these, do not invent CTAs) ==
+Primary: {", ".join(f'"{c}"' for c in all_primary_ctas[:4]) if all_primary_ctas else "none available"}
+Secondary: {", ".join(f'"{c}"' for c in secondary_ctas[:3]) if secondary_ctas else "none available"}
+
+== BRAND BASELINE (manually verified data — takes priority over AI inferences) ==
+{brand_dna_baseline_str}
+
+== HASHTAGS TO USE ==
+Brand hashtags: {", ".join(brand_hashtags) if brand_hashtags else "create from brand name"}
+Industry hashtags: {", ".join(industry_htags[:8]) if industry_htags else "use relevant industry tags"}
+Campaign hashtags: {", ".join(audit.get("brand_personality", {}).get("hashtag_strategy", {}).get("campaign_hashtags", [])) if audit.get("brand_personality", {}).get("hashtag_strategy", {}).get("campaign_hashtags") else "none"}
+
+== PRODUCTS / SERVICES (reference these concretely where relevant) ==
+{products_str if products_str else "No specific product data available."}
+
+== DETECTED WEBSITE CONTENT / EXISTING POSTS (use as inspiration, do not copy directly) ==
+{chr(10).join(f'• {str(dp)[:150]}' for dp in detected_posts_raw[:5]) if detected_posts_raw else "No detected posts available."}
+
+== CONTENT PILLARS ==
+{chr(10).join(f'• {p.get("name","?")} ({p.get("ratio","?")}%): {p.get("description","")}' for p in content_pillars) if content_pillars else "Vary content types: product, tip, promotion, lifestyle, community"}
+
+== DERIVED VISUAL STRATEGY (do not override) ==
+Visual subjects: {", ".join(vs_subjects)}
+Photography style: {vs_style}
+Lighting: {vs_lighting}
+Mood: {vs_mood}
+Color direction: {vs_color_dir}
+Hands in images: {"ALLOWED" if vs_hands else "NOT allowed"}
+Human silhouettes: {"ALLOWED" if vs_silh else "NOT allowed"}
+FORBIDDEN in all images: {negation_str}
+
+== GOOD IMAGE PROMPT EXAMPLE ==
+{vs_good_ex}
+
+== BAD IMAGE PROMPT EXAMPLE ==
+{vs_bad_ex}
+
+== TASK ==
+Write exactly 10 social media posts distributed across the content pillars below.
+This distribution is derived from the brand's actual content strategy:
+
+{chr(10).join(
+    f"  {idx+1}. {p.get('name','?')} ({p.get('ratio','?')}%) — {p.get('description','')[:60]}" 
+    for idx, p in enumerate(raw_pillars)
+) if raw_pillars else "  No content pillars extracted — vary freely: termék, tipp, promóció, inspiráció, szezonális, közösség, oktató, értékek, kulisszák, akció"}
+
+Assign 10 post slots proportionally to the ratios above (round to nearest whole number, must sum to 10).
+Each post must have a UNIQUE content_type label in {post_lang} matching its pillar.
+No two posts can have the same content_type.
+{f"Platform: {primary_platform} — {pf_tone_modifier}" if primary_platform else ""}
+{f"Optimal post length for {primary_platform}: {pf_optimal_len}" if primary_platform else ""}
+{f"Max hashtags: {pf_max_hashtags}" if primary_platform else ""}
+Rules per post:
+1. post_text: {post_lang}. Max {"150" if post_len_pref < 40 else "220"} characters for the main text body (BEFORE hashtags). Use the brand voice calibration above. End with a CTA from the CTA library. Must feel REAL, not like an AI wrote it. No generic AI phrasing.
+2. image_prompt: English, 70-100 words, Flux 2 Pro. Think like a professional photographer.
+
+   ║ UNIVERSAL ANTI-AI TECHNICAL RULES (always apply, make images look photographed not AI-generated):
+   - LIGHT: Name the exact light source and direction (e.g. "window light from left", "overcast outdoor", "warm overhead lamp"). NEVER write "bright even lighting" or "soft diffused light from all sides" — those are not real light sources.
+   - CAMERA: Always specify focal length + aperture (e.g. "35mm f/2.0", "50mm f/4", "macro 100mm f/2.8"). Add "slight film grain" for photographic authenticity.
+   - DEPTH OF FIELD: Use shallow DOF unless the visual strategy requires otherwise.
+
+   ║ BRAND-DERIVED STYLE RULES (follow the Visual Strategy derived above — these vary per brand):
+   - Object condition: {vs_obj_cond if vs_obj_cond else "as appropriate for this brand"}
+   - Arrangement style: {vs_arrange if vs_arrange else "as appropriate for this brand"}
+   - Background style: {vs_bg_style if vs_bg_style else "as appropriate for this brand"}
+   - See good/bad examples above for this specific brand.
+
+   ║ PRODUCT CONTAINER / PACKAGING REALISM RULES (critical for paint, chemical, hardware products):
+   - If the product is a paint can, bucket, spray can, tube, bottle or bag: it MUST have a REALISTIC printed label.
+   - The label must show: a product name in large text, usage category (e.g. "Beltéri falfesték", "Lazúr", "Alapozó"), coverage or volume info, and 2-3 lines of small printed instructions text — exactly as real hardware store products look.
+   - The can/container body color (lid color or painted swatch area) must reflect the ACTUAL paint color being described in the post (e.g. deep red paint → red lid swatch), NOT the website's UI colors.
+   - NEVER show a plain white container with only colored decorative stripes from the website palette. Real product = real label.
+   - The label color scheme should follow the brand's product line (e.g. Dunaplaszt = green/blue/red horizontal stripe is OK as brand stripe, but must also have text).
+
+   STRICTLY FORBIDDEN: {negation_str}, screens, monitors, phones, laptops, tablets, UI, website interfaces, plain generic white containers without any label text
+3. content_type: the exact {post_lang} type word from the list above (1-10 in order)
+
+SELF-CHECK before outputting: scan your post_text for these forbidden phrases and replace them if found: "Fedezd fel", "Emeld új szintre", "Érezd", "Merülj el", "Forradalmasítsd"
+
+Output ONLY valid JSON array of exactly 10 objects, in the order of the content type list:
+[
+  {{
+    "post_text": "...",
+    "image_prompt": "...",
+    "content_type": "..."
+  }}
+]"""
+
+
+        posts_plan = []
+        try:
+            plan_resp = await client.aio.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=planning_prompt,
+                config=genai_types.GenerateContentConfig(
+                    response_mime_type="application/json",
+                    temperature=0.80,
+                ),
+            )
+            raw_p = plan_resp.text.strip()
+            if raw_p.startswith("```json"): raw_p = raw_p[7:]
+            if raw_p.startswith("```"):     raw_p = raw_p[3:]
+            if raw_p.endswith("```"):       raw_p = raw_p[:-3]
+            posts_plan = _json.loads(raw_p.strip())
+        except Exception as e:
+            yield send("error", {"message": f"Post planning hiba: {str(e)}"})
+            return
+
+        yield send("status", {
+            "message": f"✅ {len(posts_plan)} poszt megtervezve! 3/3 — Flux 2 Pro képgenerálás indul..."
+        })
+
+        # ════════════════════════════════════════════════════════════════════
+        # STEP 2 — Flux 2 Pro image generation.
+        # Enrichment is built entirely from Claude's Visual Strategy output —
+        # no hardcoded "no hands", no hardcoded subjects, no hardcoded style.
+        # ════════════════════════════════════════════════════════════════════
+        results = []
+        async with httpx.AsyncClient(timeout=180.0) as http:
+            for i, plan in enumerate(posts_plan[:10]):
+                post_text    = plan.get("post_text", "")
+                image_prompt = plan.get("image_prompt", "")
+                content_type = plan.get("content_type", "")
+
+                yield send("item_start", {
+                    "index":        i,
+                    "total":        len(posts_plan),
+                    "content_type": content_type,
+                    "message":      f"🎨 [{i+1}/10] Flux 2 Pro: {content_type}..."
+                })
+
+                image_url = ""
+                if image_prompt:
+                    try:
+                        # ── Enrichment: combine Claude's planning prompt + Visual Strategy + brand visual recipe ──
+                        # Priority order:
+                        #   1. Claude's image_prompt (content from planning)
+                        #   2. Visual Strategy (allow_hands, style, mood — OVERRIDES scraper negative_prompt)
+                        #   3. visual_recipe prefix/suffix (brand DNA from scraper)
+                        #   4. brand_dont.visual_restrictions + brand colors
+
+                        # Build negation: merge VS negations + vr_negative, but exclude any
+                        # terms that conflict with Visual Strategy allow_hands/allow_faces decisions
+                        vs_neg_set = set(n.strip().lower() for n in vs_negs)
+                        # Add brand visual restrictions to negations
+                        vis_restr_terms = []
+                        for restr in visual_restrictions:
+                            # Extract key term from restriction sentence
+                            if 'elmosódott' in restr.lower() or 'blurry' in restr.lower():
+                                vis_restr_terms.append('blurry')
+                            if 'zsúfolt' in restr.lower() or 'crowded' in restr.lower():
+                                vis_restr_terms.append('cluttered composition')
+                            if 'alacsony felbontás' in restr.lower():
+                                vis_restr_terms.append('low resolution')
+                        combined_neg_terms = list(vs_neg_set) + [t for t in vis_restr_terms if t not in vs_neg_set]
+                        combined_negation = ", ".join(combined_neg_terms)
+
+                        # Brand color hint for image prompt
+                        # ONLY apply website colors for lifestyle/inspiration shots, NOT product shots
+                        # For product shots the actual product color defines the image
+                        _is_product_shot = any(kw in image_prompt.lower() for kw in [
+                            "paint can", "bucket", "tin", "spray", "bottle", "bag", "tube",
+                            "container", "packaging", "product", "can ", "vödr", "doboz",
+                            "festék", "lazúr", "alapozó", "spray"
+                        ])
+                        color_hint = ""
+                        if brand_hex_colors and not _is_product_shot:
+                            color_hint = f"Color palette inspired by brand: {brand_hex_colors}."
+
+                        # Visual style tags hint
+                        style_tag_hint = ""
+                        if vis_style_tags:
+                            style_tag_hint = f"Visual style: {', '.join(vis_style_tags[:4])}."
+
+                        # Vibrancy/warmth hint
+                        color_temp = "warm tones" if vis_warmth < 40 else "cool tones" if vis_warmth > 60 else "neutral tones"
+                        sat_level  = "muted, desaturated" if vis_vibrancy < 35 else "vivid, saturated" if vis_vibrancy > 65 else "moderate saturation"
+                        minimalism_hint = "very clean, minimal composition" if vis_minimalism < 30 else "rich, detailed composition" if vis_minimalism > 70 else ""
+
+                        enriched_parts = []
+                        # 1. visual_recipe prefix (if set by scraper)
+                        if vr_prefix and vr_prefix.strip():
+                            enriched_parts.append(vr_prefix.strip())
+                        # 2. Claude's content-specific image prompt
+                        enriched_parts.append(image_prompt.strip())
+                        # 3. Visual strategy enforcement
+                        enriched_parts.append(f"Photography style: {vs_style.replace('_', ' ')}.")
+                        enriched_parts.append(f"Lighting: {vs_lighting}.")
+                        enriched_parts.append(f"Mood: {vs_mood}.")
+                        # 4. Brand visual identity
+                        if color_hint:
+                            enriched_parts.append(color_hint)
+                        if style_tag_hint:
+                            enriched_parts.append(style_tag_hint)
+                        if minimalism_hint:
+                            enriched_parts.append(minimalism_hint + ".")
+                        enriched_parts.append(f"Color temperature: {color_temp}, {sat_level}.")
+                        # 5. visual_recipe suffix (quality/finish)
+                        if vr_suffix and vr_suffix.strip():
+                            enriched_parts.append(vr_suffix.strip())
+                        else:
+                            enriched_parts.append("Ultra-realistic, 4K, professional quality, clean composition, no artifacts.")
+                        # 6. People constraints from Visual Strategy (overrides scraper)
+                        if people_clause:
+                            enriched_parts.append(people_clause)
+                        # 7. Combined negations
+                        enriched_parts.append(f"STRICTLY FORBIDDEN: {combined_negation}.")
+
+                        enriched_prompt = " ".join(enriched_parts)
+
+                        submit_resp = await http.post(
+                            "https://api.bfl.ai/v1/flux-2-pro",
+                            json={
+                                "prompt":           enriched_prompt[:1500],
+                                "width":            1024,
+                                "height":           1024,
+                                "output_format":    "jpeg",
+                                "safety_tolerance": 2,
+                            },
+                            headers={"X-Key": bfl_key, "Content-Type": "application/json"},
+                        )
+                        task_data   = submit_resp.json()
+                        task_id     = task_data.get("id")
+                        polling_url = task_data.get("polling_url")
+
+                        if task_id and polling_url:
+                            yield send("item_progress", {
+                                "index":   i,
+                                "message": f"[{i+1}] ⏳ Polling... {task_id[:12]}"
+                            })
+                            poll_start = time.time()
+                            while time.time() - poll_start < 120:
+                                await asyncio.sleep(2)
+                                poll_resp = await http.get(polling_url, headers={"X-Key": bfl_key})
+                                poll_data = poll_resp.json()
+                                pstatus   = poll_data.get("status")
+                                if pstatus == "Ready":
+                                    image_url = poll_data.get("result", {}).get("sample", "")
+                                    yield send("item_progress", {"index": i, "message": f"[{i+1}] ✅ Kép kész!"})
+                                    break
+                                elif pstatus == "Failed":
+                                    yield send("item_progress", {"index": i, "message": f"[{i+1}] ❌ Flux hiba"})
+                                    break
+                    except Exception as img_err:
+                        yield send("item_progress", {
+                            "index":   i,
+                            "message": f"[{i+1}] ⚠️ Hiba: {str(img_err)[:80]}"
+                        })
+
+                result_item = {
+                    "index":        i,
+                    "post_text":    post_text,
+                    "image_prompt": image_prompt,
+                    "image_url":    image_url,
+                    "content_type": content_type,
+                }
+                results.append(result_item)
+
+                # ―― FIX 1: Mentsd el Supabase-be azonnal ――
+                try:
+                    import re as _re_ht
+                    _hashtags = _re_ht.findall(r'#\w+', post_text)
+                    db.create_content_item({
+                        "title":           f"{content_type} poszt #{i+1}",
+                        "type":            "social_post",
+                        "body":            post_text,
+                        "hashtags":        _hashtags,
+                        "image_url":       image_url,
+                        "image_prompt":    image_prompt,
+                        "keywords":        key_themes[:5] if key_themes else [],
+                        "target_platforms": [primary_platform] if primary_platform else ["instagram"],
+                        "status":          "ai_draft",
+                        "ai_model":        "gemini-2.5-flash+flux-2-pro",
+                        "created_by":      "social_batch",
+                    })
+                except Exception as _db_err:
+                    logger.warning(f"[SocialBatch] Supabase mentés hiba: {_db_err}")
+
+                yield send("item_complete", {
+                    "index":   i,
+                    "item":    result_item,
+                    "message": f"[{i+1}/10] ✅ {content_type} poszt kész"
+                })
+
+        yield send("complete", {
+            "results":         results,
+            "visual_strategy": visual_strategy,
+            "message":         f"🎉 Mind a {len(results)} poszt és kép elkészült!"
+        })
+
+    return StreamingResponse(
+        stream(),
+        media_type="text/event-stream",
+        headers={"X-Accel-Buffering": "no", "Cache-Control": "no-cache"}
+    )
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

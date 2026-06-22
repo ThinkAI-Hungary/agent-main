@@ -1,5 +1,5 @@
 {
-  "name": "eaisydesk-frontend",
+  "name": "eaisymarketing",
   "private": true,
   "version": "0.0.0",
   "type": "module",
@@ -10,23 +10,10 @@
     "preview": "vite preview"
   },
   "dependencies": {
-    "@dnd-kit/core": "^6.3.1",
-    "@dnd-kit/sortable": "^10.0.0",
-    "@dnd-kit/utilities": "^3.2.2",
-    "@fullcalendar/core": "^6.1.20",
-    "@fullcalendar/daygrid": "^6.1.20",
-    "@fullcalendar/interaction": "^6.1.20",
-    "@fullcalendar/list": "^6.1.20",
-    "@fullcalendar/react": "^6.1.20",
-    "@fullcalendar/timegrid": "^6.1.20",
-    "@supabase/supabase-js": "^2.108.1",
-    "chart.js": "^4.5.1",
     "lucide-react": "^1.20.0",
     "react": "^19.2.6",
-    "react-chartjs-2": "^5.3.1",
     "react-dom": "^19.2.6",
-    "react-quill-new": "^3.8.3",
-    "react-router-dom": "^7.17.0"
+    "react-router-dom": "^7.18.0"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",

@@ -1,0 +1,352 @@
+{
+  "archetypes": {
+    "Creator": {
+      "hu_name": "Alkotó",
+      "core_motivation": "Önkifejezés és innováció",
+      "tone_rules": {
+        "style": "Inspiráló, kreatív, vizionárius",
+        "sentence_structure": "Felszólító és rövid mondatok, vizuális leírások",
+        "formality": "casual_to_moderate",
+        "emotional_range": "wonder, inspiration, pride"
+      },
+      "vocabulary": {
+        "must_use": ["képzeld el", "alkoss", "egyedi", "kreativitás", "tervezd meg", "inspiráció", "eredeti"],
+        "avoid": ["szokásos", "átlagos", "mindenkinek", "sablon", "olcsó"],
+        "power_words": ["egyedülálló", "kézzel készített", "limitált", "művészi", "dizájn"]
+      },
+      "cta_style": {
+        "primary_pattern": "Tervezd meg a sajátodat!",
+        "tone": "inspiring_action",
+        "urgency_level": "low",
+        "examples": ["Alkoss valami különlegeset!", "Tervezd meg most!", "Engedd szabadjára a fantáziád!"]
+      },
+      "emotional_triggers": ["self_expression", "originality", "craftsmanship", "innovation"],
+      "content_approach": {
+        "storytelling": "behind_the_scenes",
+        "hero": "the_creator_process",
+        "social_proof_type": "portfolio_showcase",
+        "post_structure": "visual_first_then_story"
+      },
+      "persuasion_mode": "pathos"
+    },
+    "Sage": {
+      "hu_name": "Bölcs",
+      "core_motivation": "Tudás és megértés",
+      "tone_rules": {
+        "style": "Tárgyilagos, nyugodt, tekintélyes",
+        "sentence_structure": "Összetett, adatgazdag, logikus felépítés",
+        "formality": "moderate_to_formal",
+        "emotional_range": "trust, clarity, wisdom"
+      },
+      "vocabulary": {
+        "must_use": ["kutatások alapján", "a tudomány szerint", "elemzés", "stratégia", "szakértő", "megoldás"],
+        "avoid": ["szuper", "nagyon menő", "brutális", "király", "FOMO"],
+        "power_words": ["bizonyított", "hatékony", "megalapozott", "professzionális", "komplex"]
+      },
+      "cta_style": {
+        "primary_pattern": "Tudj meg többet!",
+        "tone": "calm_invitation",
+        "urgency_level": "none",
+        "examples": ["Olvasd el a teljes elemzést", "Ismerd meg a részleteket", "Töltsd le az útmutatót"]
+      },
+      "emotional_triggers": ["understanding", "truth_seeking", "expertise", "insight"],
+      "content_approach": {
+        "storytelling": "educational",
+        "hero": "the_knowledge_itself",
+        "social_proof_type": "statistics_and_data",
+        "post_structure": "insight_then_evidence"
+      },
+      "persuasion_mode": "logos"
+    },
+    "Hero": {
+      "hu_name": "Hős",
+      "core_motivation": "Kihívás legyőzése és fejlődés",
+      "tone_rules": {
+        "style": "Motiváló, erőt adó, határozott",
+        "sentence_structure": "Rövid, ütős, felkiáltásos mondatok",
+        "formality": "casual_to_moderate",
+        "emotional_range": "determination, courage, triumph"
+      },
+      "vocabulary": {
+        "must_use": ["győzd le", "küzdj meg", "elérheted", "erősebb", "változtass", "légy a legjobb"],
+        "avoid": ["kényelmes", "egyszerű", "pihenj", "ne aggódj", "könnyű"],
+        "power_words": ["kihívás", "teljesítmény", "kitartás", "siker", "határ nélkül"]
+      },
+      "cta_style": {
+        "primary_pattern": "Kezdd el most!",
+        "tone": "urgent_empowerment",
+        "urgency_level": "high",
+        "examples": ["Vágj bele!", "Tedd meg az első lépést!", "Ne várj tovább — cselekedj!"]
+      },
+      "emotional_triggers": ["challenge", "achievement", "overcoming", "personal_growth"],
+      "content_approach": {
+        "storytelling": "hero_journey",
+        "hero": "the_customer_as_hero",
+        "social_proof_type": "transformation_stories",
+        "post_structure": "challenge_then_solution"
+      },
+      "persuasion_mode": "pathos"
+    },
+    "Rebel": {
+      "hu_name": "Lázadó",
+      "core_motivation": "Szabadság és a normák felrúgása",
+      "tone_rules": {
+        "style": "Provokatív, merész, nyers",
+        "sentence_structure": "Töredékes, félbehagyott, kérdő, felkiáltásos",
+        "formality": "very_casual",
+        "emotional_range": "defiance, excitement, rebellion"
+      },
+      "vocabulary": {
+        "must_use": ["szegd meg a szabályokat", "ne hallgass rájuk", "merj", "legyél más", "forradalom"],
+        "avoid": ["hagyomány", "szabályos", "megfelelés", "illendő", "konvencionális"],
+        "power_words": ["lázadj", "tiltott", "underground", "extrém", "határsértő"]
+      },
+      "cta_style": {
+        "primary_pattern": "Csatlakozz a forradalomhoz!",
+        "tone": "provocative",
+        "urgency_level": "moderate",
+        "examples": ["Merj másnak lenni!", "Változtasd meg a játékszabályokat!", "Ne fogadd el a megszokottat!"]
+      },
+      "emotional_triggers": ["freedom", "uniqueness", "disruption", "nonconformity"],
+      "content_approach": {
+        "storytelling": "disruptive_narrative",
+        "hero": "the_outsider",
+        "social_proof_type": "counter_culture_movement",
+        "post_structure": "provoke_then_invite"
+      },
+      "persuasion_mode": "pathos"
+    },
+    "Lover": {
+      "hu_name": "Szerető",
+      "core_motivation": "Kapcsolat, szépség és élmény",
+      "tone_rules": {
+        "style": "Meleg, intim, érzéki, szép",
+        "sentence_structure": "Folyamatos, szenzoros leírások, költői",
+        "formality": "moderate",
+        "emotional_range": "desire, beauty, intimacy, passion"
+      },
+      "vocabulary": {
+        "must_use": ["érezd", "élvezd", "kényeztesd", "szépség", "harmónia", "varázslatos"],
+        "avoid": ["praktikus", "funkcionális", "olcsó", "tömeg", "mennyiség"],
+        "power_words": ["érzéki", "csábító", "luxus", "exkluzív", "kényeztető"]
+      },
+      "cta_style": {
+        "primary_pattern": "Ajándékozd meg magad!",
+        "tone": "sensual_invitation",
+        "urgency_level": "low",
+        "examples": ["Fedezd fel az élményt!", "Engedd, hogy elkápráztasson!", "Mert megérdemled."]
+      },
+      "emotional_triggers": ["desire", "beauty", "connection", "sensory_pleasure"],
+      "content_approach": {
+        "storytelling": "sensory_experience",
+        "hero": "the_experience_itself",
+        "social_proof_type": "aspirational_lifestyle",
+        "post_structure": "emotion_first_then_product"
+      },
+      "persuasion_mode": "pathos"
+    },
+    "Jester": {
+      "hu_name": "Mókamester",
+      "core_motivation": "Öröm és szórakozás",
+      "tone_rules": {
+        "style": "Humoros, könnyű, játékos, szellemes",
+        "sentence_structure": "Rövid, vicces, dialógus-szerű, poénnal záródó",
+        "formality": "very_casual",
+        "emotional_range": "joy, humor, surprise, playfulness"
+      },
+      "vocabulary": {
+        "must_use": ["szórakoztató", "vicces", "játékos", "imádom", "LOL", "próbáld ki"],
+        "avoid": ["komoly", "hivatalos", "aggasztó", "nehéz", "bonyolult"],
+        "power_words": ["zseniális", "hihetetlen", "őrülten jó", "kihagyhatatlan", "élmény"]
+      },
+      "cta_style": {
+        "primary_pattern": "Próbáld ki, mi a legrosszabb ami történhet?",
+        "tone": "playful_dare",
+        "urgency_level": "low",
+        "examples": ["Vigyázat, addiktív! 😄", "Na, ki meri elsőként?", "Mire vársz még? 🎉"]
+      },
+      "emotional_triggers": ["joy", "laughter", "surprise", "shared_fun"],
+      "content_approach": {
+        "storytelling": "comedic_situational",
+        "hero": "the_fun_moment",
+        "social_proof_type": "user_generated_fun",
+        "post_structure": "hook_joke_then_product"
+      },
+      "persuasion_mode": "pathos"
+    },
+    "Everyman": {
+      "hu_name": "Átlagember",
+      "core_motivation": "Tartozás és megbízhatóság",
+      "tone_rules": {
+        "style": "Egyszerű, őszinte, barátságos, hétköznapi",
+        "sentence_structure": "Közvetlen, egyszerű, beszélgetős",
+        "formality": "casual",
+        "emotional_range": "warmth, belonging, trust, familiarity"
+      },
+      "vocabulary": {
+        "must_use": ["mindenkinek", "egyszerű", "megbízható", "velünk", "közösség", "hétköznapi"],
+        "avoid": ["exkluzív", "luxus", "elit", "különleges", "ritka"],
+        "power_words": ["megfizethetö", "mindenki számára", "bevált", "közeli", "barátságos"]
+      },
+      "cta_style": {
+        "primary_pattern": "Velünk nem kell aggódnod!",
+        "tone": "friendly_reassurance",
+        "urgency_level": "none",
+        "examples": ["Gyere, csatlakozz hozzánk!", "Nézd meg, mennyire egyszerű!", "Próbáld ki Te is!"]
+      },
+      "emotional_triggers": ["belonging", "safety", "familiarity", "community"],
+      "content_approach": {
+        "storytelling": "relatable_everyday",
+        "hero": "the_regular_person",
+        "social_proof_type": "community_reviews",
+        "post_structure": "relatable_problem_then_solution"
+      },
+      "persuasion_mode": "ethos"
+    },
+    "Caregiver": {
+      "hu_name": "Gondoskodó",
+      "core_motivation": "Védelem és törődés",
+      "tone_rules": {
+        "style": "Empatikus, támogató, megnyugtató, gondoskodó",
+        "sentence_structure": "Lágy, kérdő, megnyugtató mondatok",
+        "formality": "moderate",
+        "emotional_range": "empathy, care, protection, nurturing"
+      },
+      "vocabulary": {
+        "must_use": ["segítünk", "gondoskodunk", "biztonság", "védelem", "odafigyelünk", "törődünk"],
+        "avoid": ["agresszív", "harcos", "extravagáns", "kockázatos", "szélsőséges"],
+        "power_words": ["megbízható", "természetes", "biztonságos", "családbarát", "gyengéd"]
+      },
+      "cta_style": {
+        "primary_pattern": "Hadd segítsünk!",
+        "tone": "gentle_offer",
+        "urgency_level": "none",
+        "examples": ["Fordulj hozzánk bizalommal!", "Mi itt vagyunk Neked.", "Kérdezz bátran!"]
+      },
+      "emotional_triggers": ["protection", "safety", "nurturing", "trust"],
+      "content_approach": {
+        "storytelling": "caring_narrative",
+        "hero": "the_person_being_helped",
+        "social_proof_type": "testimonials_and_gratitude",
+        "post_structure": "empathy_then_solution"
+      },
+      "persuasion_mode": "ethos"
+    },
+    "Ruler": {
+      "hu_name": "Uralkodó",
+      "core_motivation": "Kontroll, státusz és kiválóság",
+      "tone_rules": {
+        "style": "Tekintélyes, prémium, határozott, elegáns",
+        "sentence_structure": "Rövid, határozott, magázó, kijelentő",
+        "formality": "formal",
+        "emotional_range": "authority, prestige, control, sophistication"
+      },
+      "vocabulary": {
+        "must_use": ["exkluzív", "vezető", "legkiválóbb", "prémium", "kiváltság", "elit"],
+        "avoid": ["olcsó", "mindenkinek", "alap", "egyszerű", "kompromisszum"],
+        "power_words": ["piacvezető", "első osztályú", "páratlan", "méltó", "kiválasztott"]
+      },
+      "cta_style": {
+        "primary_pattern": "Lépjen a vezetők közé!",
+        "tone": "authoritative_invitation",
+        "urgency_level": "low",
+        "examples": ["Igényelje a prémium szolgáltatást!", "Csatlakozzon az elithez!", "Tapasztalja meg a kiválóságot!"]
+      },
+      "emotional_triggers": ["status", "control", "exclusivity", "power"],
+      "content_approach": {
+        "storytelling": "authority_narrative",
+        "hero": "the_brand_as_leader",
+        "social_proof_type": "prestige_partnerships",
+        "post_structure": "statement_then_proof"
+      },
+      "persuasion_mode": "ethos"
+    },
+    "Magician": {
+      "hu_name": "Varázsló",
+      "core_motivation": "Átalakulás és csoda",
+      "tone_rules": {
+        "style": "Misztikus, vízionárius, átalakító",
+        "sentence_structure": "Narratív, metaforikus, képi",
+        "formality": "moderate",
+        "emotional_range": "wonder, transformation, mystery, awe"
+      },
+      "vocabulary": {
+        "must_use": ["változtasd meg", "fedezd fel a titkot", "átalakulás", "varázslat", "titok", "új szint"],
+        "avoid": ["hétköznapi", "szokásos", "unalmas", "ugyanolyan", "változatlan"],
+        "power_words": ["forradalmi", "áttörés", "mágikus", "elképesztő", "rejtett erő"]
+      },
+      "cta_style": {
+        "primary_pattern": "Tapasztald meg az átalakulást!",
+        "tone": "mystical_invitation",
+        "urgency_level": "moderate",
+        "examples": ["Fedezd fel a titkot!", "Engedd, hogy átalakítson!", "Az első lépés a varázslathoz"]
+      },
+      "emotional_triggers": ["transformation", "wonder", "hidden_power", "breakthrough"],
+      "content_approach": {
+        "storytelling": "before_after_transformation",
+        "hero": "the_transformation_process",
+        "social_proof_type": "before_after_results",
+        "post_structure": "mystery_then_revelation"
+      },
+      "persuasion_mode": "pathos"
+    },
+    "Innocent": {
+      "hu_name": "Ártatlan",
+      "core_motivation": "Egyszerűség, tisztaság és optimizmus",
+      "tone_rules": {
+        "style": "Optimista, egyszerű, tiszta, pozitív",
+        "sentence_structure": "Rövid, pozitív, egyszerű mondatok",
+        "formality": "casual",
+        "emotional_range": "hope, purity, simplicity, nostalgia"
+      },
+      "vocabulary": {
+        "must_use": ["természetes", "tiszta", "egyszerű", "örömteli", "boldog", "igazi"],
+        "avoid": ["bonyolult", "sötét", "agresszív", "manipuláció", "kockázat"],
+        "power_words": ["természetes", "organikus", "tiszta", "fenntartható", "ártatlan"]
+      },
+      "cta_style": {
+        "primary_pattern": "Éld az egyszerű életet!",
+        "tone": "gentle_positive",
+        "urgency_level": "none",
+        "examples": ["Próbáld ki a természetest!", "Válaszd az egyszerűt!", "Térj vissza az alapokhoz!"]
+      },
+      "emotional_triggers": ["nostalgia", "purity", "simplicity", "happiness"],
+      "content_approach": {
+        "storytelling": "simple_positive_narrative",
+        "hero": "the_simple_life",
+        "social_proof_type": "happy_customer_photos",
+        "post_structure": "positive_image_then_message"
+      },
+      "persuasion_mode": "ethos"
+    },
+    "Explorer": {
+      "hu_name": "Felfedező",
+      "core_motivation": "Szabadság és felfedezés",
+      "tone_rules": {
+        "style": "Kalandos, szabadságot sugárzó, energikus",
+        "sentence_structure": "Felkiáltásos, akciórientált, leíró",
+        "formality": "casual",
+        "emotional_range": "freedom, adventure, discovery, excitement"
+      },
+      "vocabulary": {
+        "must_use": ["fedezd fel", "indulj", "nincs határ", "kaland", "új utak", "szabadság"],
+        "avoid": ["maradj", "biztonságos", "megszokott", "korlát", "rutin"],
+        "power_words": ["határtalan", "felfedezés", "ismeretlen", "expedíció", "vadon"]
+      },
+      "cta_style": {
+        "primary_pattern": "Indulj a kalandba!",
+        "tone": "adventurous_call",
+        "urgency_level": "moderate",
+        "examples": ["Fedezd fel az ismeretlent!", "Az út vár rád!", "Ne habozz — indulj!"]
+      },
+      "emotional_triggers": ["freedom", "adventure", "discovery", "self_reliance"],
+      "content_approach": {
+        "storytelling": "journey_narrative",
+        "hero": "the_explorer_customer",
+        "social_proof_type": "adventure_stories",
+        "post_structure": "destination_then_call"
+      },
+      "persuasion_mode": "pathos"
+    }
+  }
+}

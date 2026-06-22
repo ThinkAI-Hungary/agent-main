@@ -1,0 +1,335 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <title>Polotno Renderer</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      width: 1080px;
+      height: 1350px;
+      position: relative;
+      overflow: hidden;
+      background-color: #000;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    #canvas {
+      position: relative;
+      width: 1080px;
+      height: 1350px;
+      overflow: hidden;
+    }
+    .element {
+      position: absolute;
+      display: block;
+      box-sizing: border-box;
+    }
+    .text-element {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+    .image-element {
+      object-fit: cover;
+    }
+    .figure-rect {
+      display: block;
+    }
+    .figure-circle {
+      border-radius: 50%;
+    }
+    
+    /* Premium visual classes */
+    .premium-shadow {
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.22), 0 5px 15px rgba(0, 0, 0, 0.08);
+    }
+    .premium-shadow-soft {
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+    }
+    .inner-border {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      right: 24px;
+      bottom: 24px;
+      pointer-events: none;
+      z-index: 99;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .inner-border-dark {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      right: 24px;
+      bottom: 24px;
+      pointer-events: none;
+      z-index: 99;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    .diamond-sep {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      transform: rotate(45deg);
+      background-color: currentColor;
+    }
+  </style>
+  <svg width="0" height="0" style="position: absolute;">
+    <defs id="svg-filters">
+      <!-- Dynamic SVG filters will be placed here -->
+    </defs>
+  </svg>
+</head>
+<body>
+  <div id="canvas"></div>
+  
+  <script>
+    function hexToRgb(hex) {
+      const cleanHex = hex.replace('#', '');
+      const r = parseInt(cleanHex.substring(0, 2), 16) || 0;
+      const g = parseInt(cleanHex.substring(2, 4), 16) || 0;
+      const b = parseInt(cleanHex.substring(4, 6), 16) || 0;
+      return { r, g, b };
+    }
+
+    function createDuotoneFilter(lightHex, darkHex, filterId) {
+      const defs = document.getElementById('svg-filters');
+      if (!defs) return;
+      if (document.getElementById(filterId)) return;
+      
+      const light = hexToRgb(lightHex);
+      const dark = hexToRgb(darkHex);
+      
+      const rWeight = 0.2126;
+      const gWeight = 0.7152;
+      const bWeight = 0.0722;
+      
+      const rDelta = (light.r - dark.r) / 255;
+      const gDelta = (light.g - dark.g) / 255;
+      const bDelta = (light.b - dark.b) / 255;
+      
+      const rOffset = dark.r / 255;
+      const gOffset = dark.g / 255;
+      const bOffset = dark.b / 255;
+      
+      const matrixValues = [
+        rDelta * rWeight, rDelta * gWeight, rDelta * bWeight, 0, rOffset,
+        gDelta * rWeight, gDelta * gWeight, gDelta * bWeight, 0, gOffset,
+        bDelta * rWeight, bDelta * gWeight, bDelta * bWeight, 0, bOffset,
+        0, 0, 0, 1, 0
+      ].join(' ');
+      
+      const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+      filter.setAttribute('id', filterId);
+      
+      const feColorMatrix = document.createElementNS('http://www.w3.org/2000/svg', 'feColorMatrix');
+      feColorMatrix.setAttribute('type', 'matrix');
+      feColorMatrix.setAttribute('values', matrixValues);
+      
+      filter.appendChild(feColorMatrix);
+      defs.appendChild(filter);
+    }
+
+    window.renderPolotno = async (json) => {
+      console.log('Rendering Polotno JSON:', json);
+      const canvas = document.getElementById('canvas');
+      canvas.innerHTML = '';
+      
+      const width = json.width || 1080;
+      const height = json.height || 1350;
+      
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      document.body.style.width = width + 'px';
+      document.body.style.height = height + 'px';
+      
+      // Load Google Fonts or Woff
+      if (json.fonts) {
+        for (const font of json.fonts) {
+          try {
+            const fontFace = new FontFace(font.fontFamily, `url(${font.url})`);
+            const loaded = await fontFace.load();
+            document.fonts.add(loaded);
+          } catch (e) {
+            console.warn(`Fallback stylesheet load for font: ${font.fontFamily}`);
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = `https://fonts.googleapis.com/css2?family=${font.fontFamily.replace(/ /g, '+')}:wght@400;600;700;800&display=swap`;
+            document.head.appendChild(link);
+          }
+        }
+      }
+      
+      await document.fonts.ready;
+      
+      const page = json.pages?.[0] || json;
+      if (page.background) {
+        canvas.style.backgroundColor = page.background;
+      }
+      
+      // Check if we need to add a premium outer border frame overlay
+      if (json.premiumBorder) {
+        const borderDiv = document.createElement('div');
+        borderDiv.className = json.premiumBorder === 'dark' ? 'inner-border-dark' : 'inner-border';
+        canvas.appendChild(borderDiv);
+      }
+      
+      const children = page.children || [];
+      const imagePromises = [];
+      
+      children.forEach((child, index) => {
+        if (child.visible === false) return;
+        // Handle texture-preserving duotone rendering
+        if (child.type === 'image' && child.filter === 'duotone' && child.duotoneColors) {
+          const container = document.createElement('div');
+          container.className = 'element';
+          if (child.premiumShadow) {
+            container.className += ' premium-shadow';
+          }
+          container.style.left = child.x + 'px';
+          container.style.top = child.y + 'px';
+          container.style.width = child.width + 'px';
+          container.style.height = child.height + 'px';
+          container.style.position = 'absolute';
+          container.style.overflow = 'hidden';
+          
+          // Original image underneath (100% opacity)
+          const baseImg = document.createElement('img');
+          baseImg.src = child.src;
+          baseImg.className = 'image-element';
+          baseImg.style.width = '100%';
+          baseImg.style.height = '100%';
+          baseImg.style.position = 'absolute';
+          baseImg.style.top = '0';
+          baseImg.style.left = '0';
+          container.appendChild(baseImg);
+          
+          // Duotone color-mapped image on top (85% opacity, blends original textures)
+          const duoImg = document.createElement('img');
+          duoImg.src = child.src;
+          duoImg.className = 'image-element';
+          duoImg.style.width = '100%';
+          duoImg.style.height = '100%';
+          duoImg.style.position = 'absolute';
+          duoImg.style.top = '0';
+          duoImg.style.left = '0';
+          duoImg.style.opacity = '0.85'; 
+          
+          const filterId = `duotone-filter-${index}`;
+          createDuotoneFilter(child.duotoneColors[0], child.duotoneColors[1], filterId);
+          duoImg.style.filter = `url(#${filterId})`;
+          
+          container.appendChild(duoImg);
+          canvas.appendChild(container);
+          
+          const p1 = new Promise((resolve) => {
+            baseImg.onload = resolve;
+            baseImg.onerror = resolve;
+          });
+          const p2 = new Promise((resolve) => {
+            duoImg.onload = resolve;
+            duoImg.onerror = resolve;
+          });
+          imagePromises.push(p1, p2);
+          return;
+        }
+
+        const isImage = child.type === 'image';
+        const el = document.createElement(isImage ? 'img' : 'div');
+        el.className = 'element';
+        el.style.left = child.x + 'px';
+        el.style.top = child.y + 'px';
+        el.style.width = child.width + 'px';
+        
+        if (child.height) {
+          el.style.height = child.height + 'px';
+        }
+        
+        if (child.opacity !== undefined) {
+          el.style.opacity = child.opacity;
+        }
+        
+        // Add drop shadow if requested
+        if (child.premiumShadow) {
+          el.className += ' premium-shadow';
+        } else if (child.premiumShadowSoft) {
+          el.className += ' premium-shadow-soft';
+        }
+        
+        if (child.type === 'text') {
+          el.className += ' text-element';
+          
+          // Support rendering small diamond shape separators
+          if (child.text === '◆') {
+            const sep = document.createElement('span');
+            sep.className = 'diamond-sep';
+            el.appendChild(sep);
+            el.style.alignItems = child.align === 'center' ? 'center' : 'flex-start';
+            el.style.color = child.fill || '#000000';
+          } else {
+            el.innerText = child.text;
+          }
+          
+          el.style.fontFamily = child.fontFamily;
+          el.style.fontSize = child.fontSize + 'px';
+          el.style.lineHeight = child.lineHeight || 1.2;
+          el.style.fontWeight = child.fontWeight || 'normal';
+          el.style.textAlign = child.align || 'left';
+          el.style.color = child.fill || '#000000';
+          
+          // Modern spacing rules
+          if (child.fontSize >= 72) {
+            el.style.letterSpacing = '-0.035em';
+          } else if (child.fontSize >= 36) {
+            el.style.letterSpacing = '-0.02em';
+          } else if (child.fontSize <= 24) {
+            el.style.letterSpacing = '0.04em';
+            el.style.textTransform = 'uppercase';
+          }
+          
+          // Text shadow for readability
+          if (child.textShadow) {
+            el.style.textShadow = child.textShadow;
+          }
+        } else if (child.type === 'image') {
+          el.className += ' image-element';
+          el.src = child.src;
+          
+          const p = new Promise((resolve) => {
+            el.onload = () => resolve(true);
+            el.onerror = () => resolve(false);
+          });
+          imagePromises.push(p);
+        } else if (child.type === 'figure') {
+          el.style.background = child.fill || '#000000';
+          if (child.subType === 'circle') {
+            el.className += ' figure-circle';
+          } else {
+            el.className += ' figure-rect';
+            if (child.cornerRadius) {
+              el.style.borderRadius = child.cornerRadius + 'px';
+            }
+          }
+          // Border mapping support
+          if (child.border) {
+            el.style.border = child.border;
+          }
+        }
+        
+        canvas.appendChild(el);
+      });
+      
+      await Promise.all(imagePromises);
+      await document.fonts.ready;
+      console.log('Premium rendering complete.');
+    };
+  </script>
+</body>
+</html>
