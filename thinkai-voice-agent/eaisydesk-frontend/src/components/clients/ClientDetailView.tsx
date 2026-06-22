@@ -128,10 +128,41 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
   const clientInteractions = useMemo(() => {
     const name = client.name.toLowerCase().trim();
     const email = client.email.toLowerCase().trim();
+    const phone = client.phone?.replace(/\s/g, '') || '';
+    const clientId = String(client.id);
+    // Get messenger_id from custom_data for matching against session_id
+    const messengerId = ((cd?.messenger_id as string) || (cd?.messenger_psid as string) || '').toString().trim();
+
     const matchingSessions = sessions.filter((s) => {
       const participant = (s.participant || s.client_name || '').toLowerCase().trim();
-      return participant === name || (email && s.session_id?.includes(email));
+      const sid = s.session_id || '';
+
+      // 1. Match by participant name (exact or partial)
+      if (name && participant && participant !== 'ismeretlen' && (
+        participant === name ||
+        participant.includes(name) ||
+        (name.length > 2 && name.includes(participant) && participant.length > 2)
+      )) return true;
+
+      // 2. Match by email in session_id
+      if (email && sid.includes(email)) return true;
+
+      // 3. Match by messenger_id in session_id (e.g. session_id = "messenger_12345")
+      if (messengerId) {
+        if (sid === `messenger_${messengerId}` || sid === `instagram_${messengerId}` || sid === `whatsapp_${messengerId}`) return true;
+      }
+
+      // 4. Match by client_id from interactions
+      if (s.interactions && s.interactions.length > 0) {
+        if (s.interactions.some((r) => r.client_id && String(r.client_id) === clientId)) return true;
+      }
+
+      // 5. Match by phone in session_id
+      if (phone && sid.includes(phone)) return true;
+
+      return false;
     });
+
     const rows: InteractionRowDetail[] = [];
     matchingSessions.forEach((s) => {
       if (s.interactions && s.interactions.length > 0) {
@@ -185,7 +216,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     });
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     return rows;
-  }, [client, sessions]);
+  }, [client, sessions, cd]);
 
   const openInteractions = clientInteractions.filter((r) => r.status === 'pending' || r.status === 'nyitott' || r.statusz === 'NYITOTT');
   const closedInteractions = clientInteractions.filter((r) => r.status !== 'pending' && r.status !== 'nyitott' && r.statusz !== 'NYITOTT');

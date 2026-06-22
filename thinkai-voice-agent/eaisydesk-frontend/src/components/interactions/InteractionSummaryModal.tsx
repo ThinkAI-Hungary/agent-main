@@ -87,6 +87,44 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
           let content = m[2].trim();
           const time = new Date(timestamp.replace(' ', 'T')).getTime() || 0;
 
+          // ── Email format: single block contains summary + "- Bejövő e-mail (...): ..." + "AI Válasz:\n..."
+          // Split these compound blocks into separate entries
+          // IMPORTANT: Only enter this branch if the content has the email marker ("Bejövő e-mail")
+          // to avoid false-positives on Messenger logs that also contain "AI Válasz:"
+          const hasEmailMarker = /[-–]\s*Bejövő e-mail\s*\(/i.test(content);
+          const emailIncoming = hasEmailMarker
+            ? content.match(/[-–]\s*Bejövő e-mail\s*\(Tárgy:\s*([^)]*)\)\s*:\s*([\s\S]*?)(?=\n\s*(?:AI\s*Válasz|$))/i)
+            : null;
+          const aiResponseSplit = hasEmailMarker ? content.split(/\n\s*AI\s*Válasz\s*:\s*/i) : [content];
+
+          if (hasEmailMarker && (emailIncoming || aiResponseSplit.length > 1)) {
+            // Extract summary (text before "- Bejövő e-mail")
+            const beforeEmail = content.match(/^([\s\S]*?)(?=[-–]\s*Bejövő e-mail)/i);
+            const summaryText = beforeEmail ? beforeEmail[1].trim() : '';
+            if (summaryText) {
+              entries.push({ timestamp, time, sender: 'system', text: summaryText });
+            }
+
+            // Extract incoming email content
+            if (emailIncoming) {
+              const emailSubject = emailIncoming[1].trim();
+              const emailBody = emailIncoming[2].trim();
+              const userText = emailSubject
+                ? `Bejövő e-mail (Tárgy: ${emailSubject}):\n${emailBody}`
+                : emailBody;
+              entries.push({ timestamp, time, sender: 'user', text: userText });
+            }
+
+            // Extract AI response
+            if (aiResponseSplit.length > 1) {
+              const aiText = aiResponseSplit.slice(1).join('\n').trim();
+              if (aiText) {
+                entries.push({ timestamp, time: time + 1, sender: 'ai', text: aiText });
+              }
+            }
+            continue;
+          }
+
           let sender: 'user' | 'ai' | 'system' = 'system';
           // Detect sender from content prefix
           if (/^Ügyfél\s*\([^)]*\)\s*:/i.test(content)) {
@@ -109,6 +147,7 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
         }
         return entries;
       }
+
 
       // Also support the simpler Felhasználó: / AI: format (no timestamps)
       function parseSimpleLog(log: string): ChatBlock[] {
@@ -237,11 +276,36 @@ export default function InteractionSummaryModal({ row, onClose, clients, clients
           .sort((a: { start_dt?: string }, b: { start_dt?: string }) => (b.start_dt || '').localeCompare(a.start_dt || ''))[0];
 
         if (matchedEvent) {
-          if (matchedEvent.title && matchedEvent.title !== '-') finalService = matchedEvent.title;
           if (matchedEvent.start_dt) finalDate = fmtDt(matchedEvent.start_dt);
-          if (matchedEvent.doctor) finalDoctor = matchedEvent.doctor;
           finalReminder = matchedEvent.reminder_sent ? 'Kiküldve ✓' : '-';
+
+          // Extract doctor from dedicated field first
+          if (matchedEvent.doctor && matchedEvent.doctor !== '-') {
+            finalDoctor = matchedEvent.doctor;
+          }
+
+          // Parse title: may contain both service + doctor name, e.g. "Fogászati vizsgálat Dr. Kiss József"
+          const rawTitle = matchedEvent.title || '';
+          if (rawTitle && rawTitle !== '-') {
+            // Try to split doctor name from title using "Dr." / "dr." pattern
+            const drMatch = rawTitle.match(/^(.+?)\s+(Dr\.?\s+.+)$/i);
+            if (drMatch) {
+              finalService = drMatch[1].trim();
+              if (finalDoctor === '-') {
+                finalDoctor = drMatch[2].trim();
+              }
+            } else {
+              finalService = rawTitle;
+            }
+          }
         }
+
+        // Also check custom_data for doctor info
+        if (finalDoctor === '-') {
+          const cdDoctor = (cData.orvos as string) || (cData.doctor as string) || '';
+          if (cdDoctor) finalDoctor = cdDoctor;
+        }
+
       } catch {
         /* calendar fetch optional */
       }

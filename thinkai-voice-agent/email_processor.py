@@ -598,14 +598,36 @@ def check_imap_sync():
                             content_type = part.get_content_type()
                             content_disposition = str(part.get("Content-Disposition"))
                             if content_type == "text/plain" and "attachment" not in content_disposition:
-                                text_content = part.get_payload(decode=True).decode("utf-8", errors="replace")
+                                charset = part.get_content_charset() or 'utf-8'
+                                raw_payload = part.get_payload(decode=True)
+                                if raw_payload is None:
+                                    text_content = ""
+                                else:
+                                    try:
+                                        text_content = raw_payload.decode(charset, errors="replace")
+                                    except (LookupError, UnicodeDecodeError):
+                                        text_content = raw_payload.decode("utf-8", errors="replace")
                                 break
                             elif content_type == "text/html" and "attachment" not in content_disposition:
-                                # Fallback, ha nincs text/plain, de van html (később megtisztíthatnánk bs4-el, 
-                                # de a Claude HTML-ből is megérti a szöveget)
-                                text_content = part.get_payload(decode=True).decode("utf-8", errors="replace")
+                                charset = part.get_content_charset() or 'utf-8'
+                                raw_payload = part.get_payload(decode=True)
+                                if raw_payload is None:
+                                    text_content = ""
+                                else:
+                                    try:
+                                        text_content = raw_payload.decode(charset, errors="replace")
+                                    except (LookupError, UnicodeDecodeError):
+                                        text_content = raw_payload.decode("utf-8", errors="replace")
                     else:
-                        text_content = msg.get_payload(decode=True).decode("utf-8", errors="replace")
+                        charset = msg.get_content_charset() or 'utf-8'
+                        raw_payload = msg.get_payload(decode=True)
+                        if raw_payload is None:
+                            text_content = ""
+                        else:
+                            try:
+                                text_content = raw_payload.decode(charset, errors="replace")
+                            except (LookupError, UnicodeDecodeError):
+                                text_content = raw_payload.decode("utf-8", errors="replace")
                     text_content = clean_email_body(text_content)
                     emails_to_process.append((msg_id, from_email, from_name, subject, text_content))
         

@@ -140,8 +140,8 @@ export default function NotificationCenter() {
         const newRows = rows.filter((r: any) => (r.id || 0) > lastInteractionIdRef.current);
         for (const row of newRows) {
           const channel = row.type || row.channel || 'Üzenet';
-          const rawTopic = row.topic || '';
-          const rawSummary = row.summary || '';
+          const rawTopic = (row.topic || '').replace(/\uFFFD/g, '');
+          const rawSummary = (row.summary || '').replace(/\uFFFD/g, '');
           const incomingMessage = rawTopic.replace(/^.+?AI\s+v[áa]lasz\s*-\s*/i, '').trim();
           const displayText = incomingMessage
             ? `Beérkezett üzenet: ${incomingMessage}`
