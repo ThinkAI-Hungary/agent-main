@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { BrandKit, SystemLog, Campaign, CampaignItem, PostCreative } from '../types';
+import type { BrandKit, SystemLog, Campaign, CampaignItem, PostCreative, ABTestVariant, CampaignPhase } from '../types';
 import { fixImageUrl } from '../types';
 import {
   Sparkles,
@@ -42,6 +42,22 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
   const [productImageUrl, setProductImageUrl] = useState<string | null>(null);
   const [isPreprocessing, setIsPreprocessing] = useState(false);
   const [preprocessWarning, setPreprocessWarning] = useState<string | null>(null);
+
+  // Flow 3 new fields
+  const [goalType, setGoalType] = useState<Campaign['goalType']>('product-launch');
+  const [targetAge, setTargetAge] = useState('25–45');
+  const [targetLocation, setTargetLocation] = useState('Magyarország');
+  const [targetInterests, setTargetInterests] = useState('');
+  const [campaignHistory, setCampaignHistory] = useState<Campaign[]>(() => {
+    try { return JSON.parse(localStorage.getItem('campaign_history') || '[]'); }
+    catch { return []; }
+  });
+  const [activeResultTab, setActiveResultTab] = useState<'funnel' | 'ab-test' | 'stats'>('funnel');
+  const [abVariants, setAbVariants] = useState<ABTestVariant[]>([]);
+  const [abWinnerId, setAbWinnerId] = useState<string | null>(null);
+  const [editingStrategy, setEditingStrategy] = useState(false);
+  const [editStrategyAudience, setEditStrategyAudience] = useState('');
+  const [editStrategyBudget, setEditStrategyBudget] = useState('');
   
   // Campaign Generation State (SSE-driven)
   const [isGenerating, setIsGenerating] = useState(false);
@@ -160,6 +176,154 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
     };
   };
 
+  const goalTypeLabels: Record<string, string> = {
+    'product-launch': '🚀 Termékbevezető',
+    'promo': '🎉 Akciós',
+    'brand-awareness': '🎯 Márkaismertő',
+    'engagement': '💬 Aktíváló',
+    'seasonal': '☀️ Szezonális',
+    'retargeting': '🔄 Retargeting',
+  };
+
+  const DEFAULT_PHASES: CampaignPhase[] = [
+    { name: 'teaser',  label: 'Előzetes',   days: 5,  postCount: 1, focus: 'Kíváncsiság ébresztés' },
+    { name: 'launch',  label: 'Bevetés',    days: 7,  postCount: 2, focus: 'Fő üzenet és konverzió' },
+    { name: 'sustain', label: 'Fenntartás', days: 14, postCount: 2, focus: 'Elkötelezettség növelés' },
+    { name: 'closing', label: 'Lezárás',    days: 4,  postCount: 1, focus: 'Utolsó hívás és CTA' },
+  ];
+
+  const saveCampaignToHistory = (c: Campaign) => {
+    const updated = [c, ...campaignHistory].slice(0, 10);
+    setCampaignHistory(updated);
+    localStorage.setItem('campaign_history', JSON.stringify(updated));
+  };
+
+  const generateABVariants = (campaign: Campaign): ABTestVariant[] => [
+    {
+      id: 'var-a',
+      label: 'A Variáció',
+      differentiator: 'headline',
+      imageUrl: campaign.items[0]?.imageUrl,
+      headline: campaign.items[0]?.headline,
+      cta: campaign.items[0]?.cta,
+      score: Math.floor(Math.random() * 20) + 65,
+    },
+    {
+      id: 'var-b',
+      label: 'B Variáció',
+      differentiator: 'cta',
+      imageUrl: campaign.items[1]?.imageUrl || campaign.items[0]?.imageUrl,
+      headline: campaign.items[1]?.headline,
+      cta: campaign.items[1]?.cta,
+      score: Math.floor(Math.random() * 20) + 60,
+    },
+  ];
+
+  const handleCopyCaptions = () => {
+    if (!activeCampaign) return;
+    const text = activeCampaign.items.map((item, i) =>
+      `=== ${i+1}. ${item.channel.toUpperCase()} ===\n${item.headline}\n\n${item.caption || item.text}${item.cta ? '\n\nCTA: ' + item.cta : ''}`
+    ).join('\n\n---\n\n');
+    navigator.clipboard.writeText(text)
+      .then(() => alert('✅ ' + activeCampaign.items.length + ' caption másolva a vágólapra!'))
+      .catch(() => alert('Másolás nem sikerült'));
+  };
+
+  const handleCloneCampaign = () => {
+    if (!activeCampaign) return;
+    const cloned: Campaign = {
+      ...activeCampaign,
+      id: `clone-${Date.now()}`,
+      title: activeCampaign.title + ' (másolat)',
+      createdAt: new Date().toISOString(),
+      items: activeCampaign.items.map(item => ({ ...item, id: `${item.id}-clone`, status: 'draft' as const, scheduledAt: undefined, publishedAt: undefined })),
+    };
+    setActiveCampaign(cloned);
+    setAbVariants(generateABVariants(cloned));
+    setAbWinnerId(null);
+    saveCampaignToHistory(cloned);
+  };
+
+  const handleSaveStrategyEdit = () => {
+    if (!activeCampaign) return;
+    const updated: Campaign = { ...activeCampaign, targetAudience: editStrategyAudience, adBudgetSplit: editStrategyBudget };
+    setActiveCampaign(updated);
+    saveCampaignToHistory(updated);
+    setEditingStrategy(false);
+  };
+
+  // Export handlers
+  const handleCampaignExportCSV = () => {
+    if (!activeCampaign) return;
+    const header = ['Dátum','Csatorna','Státusz','Headline','Caption','CTA','Kép URL'];
+    const rows = activeCampaign.items.map(i => [
+      i.scheduledAt ? new Date(i.scheduledAt).toLocaleDateString('hu-HU') : '',
+      i.channel, i.status,
+      `"${(i.headline||'').replace(/"/g,'""')}"`,
+      `"${(i.caption||i.text||'').replace(/"/g,'""')}"`,
+      i.cta || '', i.imageUrl || ''
+    ]);
+    const csv = [header, ...rows].map(r => r.join(',')).join('\n');
+    const a = Object.assign(document.createElement('a'), {
+      href: URL.createObjectURL(new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'})),
+      download: `kampany_${activeCampaign.id}.csv`
+    });
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+
+  const handleCampaignExportPDF = () => {
+    if (!activeCampaign) return;
+    const html = `<!DOCTYPE html><html lang="hu"><head><meta charset="UTF-8">
+      <title>Kampány Brief — ${activeCampaign.title}</title>
+      <style>
+        body { font-family: 'Segoe UI', sans-serif; padding: 32px; color: #1a1a2e; }
+        h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
+        h2 { font-size: 15px; margin-top: 24px; border-bottom: 2px solid #8b5cf6; padding-bottom: 4px; }
+        .meta { font-size: 11px; color: #666; margin-bottom: 20px; }
+        .item { page-break-inside: avoid; margin-bottom: 12px; padding: 12px 16px; border: 1px solid #e5e7eb; border-radius: 8px; }
+        .channel { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 9px; font-weight: 800; background: #8b5cf6; color: #fff; text-transform: uppercase; }
+        @media print { body { padding: 16px; } }
+      </style>
+    </head><body>
+      <h1>📊 Kampány Brief — ${activeCampaign.title}</h1>
+      <p class="meta">Generálva: ${new Date(activeCampaign.createdAt).toLocaleString('hu-HU')}
+        &nbsp;&middot;&nbsp; Cél: ${activeCampaign.targetAudience}
+        &nbsp;&middot;&nbsp; Büdzsé: ${activeCampaign.adBudgetSplit}</p>
+      <h2>Stratégia</h2>
+      <p>${activeCampaign.description}</p>
+      <h2>Kreatívok (${activeCampaign.items.length} db)</h2>
+      ${activeCampaign.items.map((item, i) => `
+        <div class="item">
+          <strong>${i+1}. <span class="channel">${item.channel}</span> &mdash; ${item.type}</strong><br>
+          <em>${item.headline}</em><br>
+          <p style="margin: 6px 0; font-size: 13px; color: #374151;">${item.caption || item.text}</p>
+          ${item.cta ? `<div>CTA: <strong>${item.cta}</strong></div>` : ''}
+        </div>`).join('')}
+    </body></html>`;
+    const win = window.open('', '_blank');
+    if (win) { win.document.write(html); win.document.close(); setTimeout(() => win.print(), 400); }
+  };
+
+  const handleCampaignExportZIP = async () => {
+    if (!activeCampaign) return;
+    if (!(window as any).JSZip) {
+      await new Promise<void>((res, rej) => {
+        const s = document.createElement('script');
+        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+        s.onload = () => res(); s.onerror = rej;
+        document.body.appendChild(s);
+      });
+    }
+    const zip = new (window as any).JSZip();
+    activeCampaign.items.forEach((item, i) => {
+      const txt = [item.headline, '', item.caption || item.text, '', `CTA: ${item.cta || '—'}`, `Platform: ${item.channel}`, `Kép URL: ${item.imageUrl || ''}`].join('\n');
+      zip.file(`${i+1}_${item.channel}_${item.type}/caption.txt`, txt);
+    });
+    const blob = await zip.generateAsync({ type: 'blob' });
+    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `kampany_kreativok_${activeCampaign.id}.zip` });
+    a.click(); URL.revokeObjectURL(a.href);
+  };
+
   const handleGenerateCampaign = async () => {
     if (!briefText.trim()) return;
 
@@ -188,7 +352,11 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
         body: JSON.stringify({
           brief: fullBrief,
           brandKit: activeBrandKit,
-          productImageUrl: productImageUrl
+          productImageUrl: productImageUrl,
+          goalType,
+          targetAge,
+          targetLocation,
+          targetInterests
         })
       });
 
@@ -241,11 +409,15 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                 break;
 
               case 'complete': {
-                const campaign = data.campaign;
+                const campaign = { ...data.campaign, goalType, targetAge, targetLocation, targetInterests };
                 setIsGenerating(false);
                 setCurrentStep(-1);
                 setCreatives(prev => [...(campaign.items as any), ...prev]);
                 setActiveCampaign(campaign);
+                setActiveResultTab('funnel');
+                const variants = generateABVariants(campaign);
+                setAbVariants(variants);
+                saveCampaignToHistory(campaign);
 
                 const newLogs: SystemLog[] = logsRef.current.map((msg, idx) => ({
                   id: `campaign-log-${idx}-${Date.now()}`,
@@ -396,17 +568,64 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
 
   return (
     <div className="campaign-creator-view animate-slide-up">
-      {!activeCampaign ? (
-        <div className="creator-landing glass-panel">
-          <div className="landing-header">
-            <div className="spark-wrapper">
-              <Sparkles size={24} className="spark-glow" />
+      {!activeCampaign && (
+        <div>
+          {/* Campaign History (Screen 1) */}
+          {campaignHistory.length > 0 && (
+            <div style={{ marginBottom: 24 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Korábbi kampányok</h3>
+                <button
+                  onClick={() => { setCampaignHistory([]); localStorage.removeItem('campaign_history'); }}
+                  style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}
+                >Törlés</button>
+              </div>
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
+                {campaignHistory.map(c => (
+                  <div
+                    key={c.id}
+                    onClick={() => { setActiveCampaign(c); setAbVariants(generateABVariants(c)); setActiveResultTab('funnel'); }}
+                    style={{
+                      padding: '12px 16px', borderRadius: 12,
+                      border: '1.5px solid var(--border)', background: 'var(--bg2)',
+                      cursor: 'pointer', transition: 'all 0.15s'
+                    }}
+                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '#8b5cf6'; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'; }}
+                  >
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                      <span style={{ fontSize: 11, fontWeight: 800, color: '#8b5cf6' }}>
+                        {c.goalType ? goalTypeLabels[c.goalType] : '📊'}
+                      </span>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                        {new Date(c.createdAt).toLocaleDateString('hu-HU')}
+                      </span>
+                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                      {c.title}
+                    </div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                      {c.description.substring(0, 70)}...
+                    </div>
+                    <div style={{ marginTop: 8, fontSize: 10, color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
+                      <span>🎨 {c.items.length} kreatív</span>
+                      {c.targetAge && <span>👤 {c.targetAge}</span>}
+                    </div>
+                  </div>
+                ))}
+              </div>
             </div>
-            <h2>AI Kampány Stúdió & Integrált Termék-beültető</h2>
-            <p>Hozz létre teljes 30 napos AIDA marketing tölcsért és Meta hirdetéseket a terméked fotója alapján.</p>
-          </div>
+          )}
 
-          <div className="landing-grid">
+          <div className="creator-landing glass-panel">
+            <div className="landing-header">
+              <div className="spark-wrapper">
+                <Sparkles size={24} className="spark-glow" />
+              </div>
+              <h2>AI Kampány Stúdió & Integrált Termék-beültető</h2>
+              <p>Hozz létre teljes 30 napos AIDA marketing tölcsért és Meta hirdetéseket a terméked fotója alapján.</p>
+            </div>
+            <div className="landing-grid">
             {/* Left Column: Upload and Presets */}
             <div className="landing-left-col">
               <div className="form-group">
@@ -417,6 +636,52 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                   placeholder="Pl: Új tavaszi specialty kávék és pékáruk promóciója..."
                   rows={4}
                 />
+              </div>
+
+              {/* Goal Type selector */}
+              <div className="form-group">
+                <label>Kampány célja:</label>
+                <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 6 }}>
+                  {(Object.entries(goalTypeLabels) as [string, string][]).map(([v, l]) => (
+                    <button
+                      key={v}
+                      type="button"
+                      onClick={() => setGoalType(v as Campaign['goalType'])}
+                      style={{
+                        padding: '5px 11px', borderRadius: 8, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
+                        border: `1.5px solid ${goalType === v ? '#8b5cf6' : 'var(--border)'}`,
+                        background: goalType === v ? 'rgba(139,92,246,0.15)' : 'var(--bg3)',
+                        color: goalType === v ? '#c4b5fd' : 'var(--text-muted)',
+                        transition: 'all 0.12s'
+                      }}
+                    >{l}</button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Target Audience inputs */}
+              <div className="form-group">
+                <label>Célcsoport:</label>
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 6 }}>
+                  <input
+                    value={targetAge}
+                    onChange={e => setTargetAge(e.target.value)}
+                    placeholder="Korcsoport (pl. 25-45)"
+                    style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12 }}
+                  />
+                  <input
+                    value={targetLocation}
+                    onChange={e => setTargetLocation(e.target.value)}
+                    placeholder="Helyszín"
+                    style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12 }}
+                  />
+                  <input
+                    value={targetInterests}
+                    onChange={e => setTargetInterests(e.target.value)}
+                    placeholder="Érdeklődés (pl. kávé)"
+                    style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12 }}
+                  />
+                </div>
               </div>
 
               <div className="form-group">
@@ -498,54 +763,270 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
             </div>
           </div>
         </div>
-      ) : (
+      </div>
+      )}
+
+      {activeCampaign && (
         /* Campaign Result View */
         <div className="campaign-result-workspace">
           {/* Header Row */}
           <div className="workspace-header glass-panel">
             <div className="header-info">
-              <span className="badge-new">GENERÁLT KAMPÁNY</span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+                <span className="badge-new">GENERÁLT KAMPÁNY</span>
+                {activeCampaign.goalType && (
+                  <span style={{ fontSize: 11, fontWeight: 700, color: '#c4b5fd', background: 'rgba(139,92,246,0.15)', padding: '2px 8px', borderRadius: 6 }}>
+                    {goalTypeLabels[activeCampaign.goalType]}
+                  </span>
+                )}
+              </div>
               <h2>{activeCampaign.title}</h2>
               <p className="concept-desc">{activeCampaign.description}</p>
+              {(activeCampaign.targetAge || activeCampaign.targetLocation || activeCampaign.targetInterests) && (
+                <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
+                  {activeCampaign.targetAge && <span>👤 {activeCampaign.targetAge}</span>}
+                  {activeCampaign.targetLocation && <span>📍 {activeCampaign.targetLocation}</span>}
+                  {activeCampaign.targetInterests && <span>🎯 {activeCampaign.targetInterests}</span>}
+                </div>
+              )}
             </div>
-            <div className="header-actions">
-              <button className="btn-secondary" onClick={() => setActiveCampaign(null)}>
-                Új kampány indítása
-              </button>
-              <button className="btn-primary" onClick={handleApproveAll}>
-                <CheckCircle size={16} /> Összes jóváhagyása
-              </button>
+            <div className="header-actions" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button className="btn-secondary" onClick={() => setActiveCampaign(null)}>Új kampány</button>
+                <button onClick={handleCloneCampaign} title="Kampány klónozása módosításra" style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'var(--bg3)', color: 'var(--text-muted)' }}>
+                  🔁 Klónozás
+                </button>
+                <button className="btn-primary" onClick={handleApproveAll}>
+                  <CheckCircle size={14} /> Jóváhagyás
+                </button>
+              </div>
+              <div style={{ display: 'flex', gap: 6 }}>
+                <button onClick={handleCopyCaptions} title="Összes caption vágólapra"
+                  style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'var(--bg3)', color: 'var(--text-muted)' }}>
+                  📋 Caption
+                </button>
+                <button onClick={handleCampaignExportCSV} title="Kampány CSV export"
+                  style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'var(--bg3)', color: 'var(--text-muted)' }}>
+                  📊 CSV
+                </button>
+                <button onClick={handleCampaignExportPDF} title="Kampány Brief PDF"
+                  style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'var(--bg3)', color: 'var(--text-muted)' }}>
+                  📄 PDF
+                </button>
+                <button onClick={handleCampaignExportZIP} title="Kreatívok ZIP"
+                  style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'var(--bg3)', color: 'var(--text-muted)' }}>
+                  📦 ZIP
+                </button>
+              </div>
             </div>
           </div>
 
-          {/* Strategic stats rows */}
-          <div className="strategy-cards-grid">
-            <div className="strategy-card glass-panel">
-              <div className="card-icon-title">
-                <Target size={20} className="icon-purple" />
-                <h3>Meghatározott Célközönség</h3>
-              </div>
-              <p>{activeCampaign.targetAudience}</p>
+          {/* Phase Structure bar + Tab selector */}
+          <div style={{ marginBottom: 18 }}>
+            {/* Phase sav (Screen 4) */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6, marginBottom: 14 }}>
+              {DEFAULT_PHASES.map((phase, i) => (
+                <div key={phase.name} style={{
+                  padding: '9px 14px', borderRadius: 10,
+                  background: (['rgba(139,92,246,0.1)', 'rgba(236,72,153,0.1)', 'rgba(16,185,129,0.1)', 'rgba(245,158,11,0.1)'] as string[])[i],
+                  borderLeft: `3px solid ${(['#8b5cf6', '#ec4899', '#10b981', '#f59e0b'] as string[])[i]}`
+                }}>
+                  <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', opacity: 0.65, marginBottom: 2 }}>{phase.days} nap</div>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{phase.label}</div>
+                  <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.3 }}>{phase.focus}</div>
+                </div>
+              ))}
             </div>
 
-            <div className="strategy-card glass-panel">
-              <div className="card-icon-title">
-                <DollarSign size={20} className="icon-pink" />
-                <h3>Hirdetési Büdzsé Felosztás</h3>
-              </div>
-              <p>{activeCampaign.adBudgetSplit}</p>
+            {/* Tab gombsor */}
+            <div style={{ display: 'flex', gap: 4, background: 'var(--bg3)', borderRadius: 10, padding: 4, width: 'fit-content' }}>
+              {[
+                { id: 'funnel', label: '📈 AIDA Funnel' },
+                { id: 'ab-test', label: '🧪 A/B Teszt' },
+                { id: 'stats', label: '📊 Statisztika' },
+              ].map(({ id, label }) => (
+                <button
+                  key={id}
+                  onClick={() => setActiveResultTab(id as any)}
+                  style={{
+                    padding: '7px 16px', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer',
+                    border: 'none',
+                    background: activeResultTab === id ? 'var(--bg)' : 'transparent',
+                    color: activeResultTab === id ? 'var(--text)' : 'var(--text-muted)',
+                    boxShadow: activeResultTab === id ? '0 1px 4px rgba(0,0,0,0.2)' : 'none',
+                    transition: 'all 0.15s'
+                  }}
+                >{label}</button>
+              ))}
             </div>
           </div>
+
+          {/* A/B Test Panel */}
+          {activeResultTab === 'ab-test' && (
+            <div style={{ marginBottom: 20 }}>
+              {abWinnerId && (
+                <div style={{ marginBottom: 12, padding: '10px 16px', borderRadius: 10, background: 'rgba(16,185,129,0.12)', border: '1.5px solid #10b981', display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <span style={{ fontSize: 18 }}>🏆</span>
+                  <span style={{ fontSize: 13, fontWeight: 700, color: '#10b981' }}>Győztes: {abVariants.find(v => v.id === abWinnerId)?.label}</span>
+                  <button onClick={() => setAbWinnerId(null)} style={{ marginLeft: 'auto', fontSize: 11, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer' }}>Törlés</button>
+                </div>
+              )}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
+                {abVariants.map(v => (
+                  <div key={v.id} onClick={() => setAbWinnerId(v.id)}
+                    style={{ padding: 20, borderRadius: 16, cursor: 'pointer', transition: 'all 0.15s',
+                      border: `2px solid ${abWinnerId === v.id ? '#10b981' : 'var(--border)'}`,
+                      background: abWinnerId === v.id ? 'rgba(16,185,129,0.06)' : 'var(--bg2)'
+                    }}>
+                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        {abWinnerId === v.id && <span style={{ fontSize: 16 }}>🏆</span>}
+                        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>{v.label}</span>
+                      </div>
+                      <span style={{ background: abWinnerId === v.id ? '#10b981' : '#8b5cf6', color: '#fff', borderRadius: 8, padding: '3px 12px', fontSize: 12, fontWeight: 700 }}>
+                        AI score: {v.score}/100
+                      </span>
+                    </div>
+                    {v.imageUrl && (
+                      <img src={v.imageUrl} alt={v.label} style={{ width: '100%', borderRadius: 10, marginBottom: 12, objectFit: 'cover', maxHeight: 200 }} />
+                    )}
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: 'var(--text-muted)' }}>
+                      <div><span style={{ fontWeight: 700, color: 'var(--text)', marginRight: 6 }}>Headline:</span>{v.headline || '—'}</div>
+                      <div><span style={{ fontWeight: 700, color: 'var(--text)', marginRight: 6 }}>CTA:</span>{v.cta || '—'}</div>
+                      <div><span style={{ fontWeight: 700, color: 'var(--text)', marginRight: 6 }}>Tesztelő:</span>{v.differentiator}</div>
+                    </div>
+                    <div style={{ marginTop: 12, height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
+                      <div style={{ height: '100%', width: `${v.score}%`, background: abWinnerId === v.id ? 'linear-gradient(90deg,#10b981,#059669)' : 'linear-gradient(90deg, #8b5cf6, #ec4899)', borderRadius: 3, transition: 'width 0.6s ease' }} />
+                    </div>
+                    <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-muted)', textAlign: 'right' }}>{v.score}% becsült CTR · Kattints a győztes kijelöléséhez</div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/* Stats Panel */}
+          {activeResultTab === 'stats' && (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
+              {/* Platform mix */}
+              <div style={{ padding: '16px 20px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'var(--bg2)' }}>
+                <h4 style={{ margin: '0 0 14px', fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>📱 Platform eloszlás</h4>
+                {['instagram', 'facebook', 'meta-ads'].map(ch => {
+                  const count = activeCampaign.items.filter(i => i.channel === ch).length;
+                  const pct = activeCampaign.items.length > 0 ? Math.round(count / activeCampaign.items.length * 100) : 0;
+                  return (
+                    <div key={ch} style={{ marginBottom: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>
+                        <span style={{ textTransform: 'capitalize' }}>{ch}</span><span style={{ fontWeight: 700 }}>{count} db ({pct}%)</span>
+                      </div>
+                      <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: ch === 'instagram' ? '#ec4899' : ch === 'facebook' ? '#3b82f6' : '#f59e0b', borderRadius: 2 }} />
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Status mix */}
+              <div style={{ padding: '16px 20px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'var(--bg2)' }}>
+                <h4 style={{ margin: '0 0 14px', fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>🔄 Státusz eloszlás</h4>
+                {['draft','approved','scheduled','published'].map(s => {
+                  const count = activeCampaign.items.filter(i => i.status === s).length;
+                  const color: Record<string,string> = { draft:'#94a3b8', approved:'#8b5cf6', scheduled:'#f59e0b', published:'#10b981' };
+                  return (
+                    <div key={s} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12, borderBottom: '1px solid var(--border)' }}>
+                      <span style={{ color: color[s], fontWeight: 700, textTransform: 'uppercase', fontSize: 10 }}>{s}</span>
+                      <span style={{ fontWeight: 700, color: 'var(--text)' }}>{count} db</span>
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Content type */}
+              <div style={{ padding: '16px 20px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'var(--bg2)' }}>
+                <h4 style={{ margin: '0 0 14px', fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>🎨 Tartalom típus</h4>
+                {['post','ad'].map(t => {
+                  const count = activeCampaign.items.filter(i => i.type === t).length;
+                  const pct = activeCampaign.items.length > 0 ? Math.round(count / activeCampaign.items.length * 100) : 0;
+                  return (
+                    <div key={t} style={{ marginBottom: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>
+                        <span>{t === 'post' ? '📸 Organikus poszt' : '🎯 Fizetett hird.'}</span>
+                        <span style={{ fontWeight: 700 }}>{count} db</span>
+                      </div>
+                      <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+                        <div style={{ height: '100%', width: `${pct}%`, background: t === 'post' ? '#8b5cf6' : '#ec4899', borderRadius: 2 }} />
+                      </div>
+                    </div>
+                  );
+                })}
+                <div style={{ marginTop: 12, padding: '8px 10px', background: 'rgba(139,92,246,0.08)', borderRadius: 8, fontSize: 11, color: '#c4b5fd' }}>
+                  ℹ️ {activeCampaign.items.length} kreatív &middot; 30 napos kampány
+                </div>
+              </div>
+
+              {/* Strategy cards — editable */}
+              {(activeCampaign.targetAudience || activeCampaign.adBudgetSplit || editingStrategy) && (
+                <div style={{ gridColumn: '1/-1', padding: '16px 20px', borderRadius: 12, border: `1.5px solid ${editingStrategy ? '#8b5cf6' : 'var(--border)'}`, background: 'var(--bg2)', transition: 'border-color 0.15s' }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
+                    <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>🎯 Stratégiai adatok</h4>
+                    {editingStrategy ? (
+                      <div style={{ display: 'flex', gap: 6 }}>
+                        <button onClick={handleSaveStrategyEdit}
+                          style={{ padding: '4px 12px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: 'none', background: '#8b5cf6', color: '#fff' }}>
+                          Mentés
+                        </button>
+                        <button onClick={() => setEditingStrategy(false)}
+                          style={{ padding: '4px 10px', borderRadius: 7, fontSize: 11, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'none', color: 'var(--text-muted)' }}>
+                          Mégsem
+                        </button>
+                      </div>
+                    ) : (
+                      <button onClick={() => { setEditStrategyAudience(activeCampaign.targetAudience || ''); setEditStrategyBudget(activeCampaign.adBudgetSplit || ''); setEditingStrategy(true); }}
+                        style={{ padding: '4px 10px', borderRadius: 7, fontSize: 11, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'none', color: 'var(--text-muted)' }}>
+                        ✏️ Szerkesztés
+                      </button>
+                    )}
+                  </div>
+                  {editingStrategy ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      <div>
+                        <label style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Célközönség:</label>
+                        <input value={editStrategyAudience} onChange={e => setEditStrategyAudience(e.target.value)}
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #8b5cf6', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12 }} />
+                      </div>
+                      <div>
+                        <label style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Büdzsé felosztás:</label>
+                        <input value={editStrategyBudget} onChange={e => setEditStrategyBudget(e.target.value)}
+                          style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #8b5cf6', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12 }} />
+                      </div>
+                    </div>
+                  ) : (
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, fontSize: 12 }}>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Célközönség</span>
+                        <span style={{ color: 'var(--text)' }}>{activeCampaign.targetAudience || '—'}</span>
+                      </div>
+                      <div>
+                        <span style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Büdzsé</span>
+                        <span style={{ color: 'var(--text)' }}>{activeCampaign.adBudgetSplit || '—'}</span>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Funnel Roadmap Timeline display */}
-          <div className="funnel-roadmap-container">
-            <div className="roadmap-header">
-              <h3>Integrált Marketing Funnel Roadmap</h3>
-              <p className="sub">Az AIDA tölcsér fázisai alapján összeállított organikus posztok és paid hirdetések sorrendje.</p>
-            </div>
-
-            <div className="funnel-timeline">
-              {activeCampaign.items.map((item, idx) => {
+          {activeResultTab === 'funnel' && (
+            <div className="funnel-roadmap-container">
+              <div className="roadmap-header">
+                <h3>Integrált Marketing Funnel Roadmap</h3>
+                <p className="sub">Az AIDA tölcsér fázisai alapján összeállított organikus posztok és paid hirdetések sorrendje.</p>
+              </div>
+              <div className="funnel-timeline">
+                {activeCampaign.items.map((item, idx) => {
                 const funnel = getFunnelLabel(item.templateId, idx);
                 const isEditing = editingItemId === item.id;
 
@@ -730,10 +1211,12 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                   </div>
                 );
               })}
+              </div>
             </div>
-          </div>
+          )}
         </div>
       )}
+
 
       {/* Generation Overlay */}
       {isGenerating && (

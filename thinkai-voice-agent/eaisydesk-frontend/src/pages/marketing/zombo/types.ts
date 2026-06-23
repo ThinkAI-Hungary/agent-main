@@ -2,6 +2,7 @@ export interface BrandKit {
   id: string;
   version: number;
   createdAt: string;
+  name?: string;
   colors: {
     primary: string;      // Primary HEX code
     secondary: string;    // Secondary HEX code
@@ -161,9 +162,31 @@ export interface PostCreative {
   text: string;
   cta?: string;
   imageUrl: string;
+  originalImageUrl?: string;
   imagePrompt: string;
   colorVariation: 'default' | 'inverted' | 'accent';
   logoVariant: 'light' | 'dark';
+  logoPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  bgBlur?: number;
+  overlayOpacity?: number;
+  logoSize?: number;
+  fontSize?: number;
+  textAlignment?: 'left' | 'center' | 'right';
+  ctaRadius?: number;
+  fontWeight?: string;
+  textColor?: string;
+  textYOffset?: number;
+  textXOffset?: number;
+  panelBgColor?: string;
+  panelPadding?: number;
+  panelRadius?: number;
+  panelPosition?: string;
+  ctaFontSize?: number;
+  ctaBgColor?: string;
+  ctaYOffset?: number;
+  hashtags?: string[];
+  altText?: string;
+  platform?: 'instagram' | 'facebook' | 'meta-ads';
   createdAt: string;
   scheduledAt?: string;
   publishedAt?: string;
@@ -213,6 +236,32 @@ export interface Campaign {
   adBudgetSplit: string;
   items: CampaignItem[];
   createdAt: string;
+  goalType?: 'product-launch' | 'promo' | 'brand-awareness' | 'engagement' | 'seasonal' | 'retargeting';
+  targetAge?: string;
+  targetLocation?: string;
+  targetInterests?: string;
+  phases?: CampaignPhase[];
+  abTests?: ABTestVariant[];
+}
+
+export interface CampaignPhase {
+  name: 'teaser' | 'launch' | 'sustain' | 'closing';
+  label: string;
+  days: number;
+  postCount: number;
+  focus: string;
+}
+
+export interface ABTestVariant {
+  id: string;
+  label: string;
+  differentiator: 'image' | 'headline' | 'cta' | 'template' | 'color';
+  imageUrl?: string;
+  headline?: string;
+  cta?: string;
+  templateId?: string;
+  colorVariation?: string;
+  score?: number;
 }
 
 export function fixImageUrl(url: string | undefined | null): string {
