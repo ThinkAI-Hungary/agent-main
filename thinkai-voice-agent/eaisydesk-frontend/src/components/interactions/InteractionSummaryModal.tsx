@@ -192,9 +192,7 @@ export default function InteractionSummaryModal({
             if (emailIncoming) {
               const emailSubject = emailIncoming[1].trim();
               const emailBody = emailIncoming[2].trim();
-              const userText = emailSubject
-                ? `Bejövő e-mail (Tárgy: ${emailSubject}):\n${emailBody}`
-                : emailBody;
+              const userText = emailBody;
               entries.push({ timestamp, time, sender: 'user', text: userText });
             }
             if (aiResponseSplit.length > 1) {
@@ -735,12 +733,13 @@ export default function InteractionSummaryModal({
                                   <img
                                     src={profilePicUrl}
                                     alt={clientName}
-                                    onError={(e) => {
-                                      (e.target as HTMLImageElement).style.display = 'none';
+                                    onError={() => {
+                                      setProfilePicUrl(null);
                                     }}
                                   />
-                                ) : null}
-                                {!profilePicUrl && clientInitials}
+                                ) : (
+                                  clientInitials
+                                )}
                               </div>
                             ) : (
                               <div className="ism-chat-avatar ism-chat-avatar--ai">

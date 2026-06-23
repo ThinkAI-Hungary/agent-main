@@ -918,78 +918,39 @@ export default function SettingsPage() {
             {/* ══════ 4. Árak ══════ */}
             <div id="sec-arak" className="scroll-anchor" />
             <SectionCard title="Árak" svgPath="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6">
-              <div className="text-desc mb-16">Az aktuális árlista XLSX vagy CSV formátumban tölthető fel. A feltöltés a FastAPI-n keresztül történik.</div>
-              <div className="grid-2col gap-12">
-                <button className="btn-settings-save settings-upload-btn" onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv,.xlsx'; input.onchange = async (e: Event) => { const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return; const formData = new FormData(); formData.append('file', file); try { const res = await authFetch('/admin/api/upload_prices', { method: 'POST', body: formData }); if (res.ok) { const data = await res.json(); showToast('Árlista feltöltve!'); if (data.price_list) { const newPraxis = { ...praxis, price_list: data.price_list, price_list_file_meta: data.price_list_file_meta }; setPraxis(newPraxis as typeof praxis); } } else { const errData = await res.json().catch(() => null); showToast(errData?.detail || 'Feltöltési hiba', 'error'); } } catch { showToast('Feltöltési hiba', 'error'); } }; input.click(); }}>
-                  Új árlista feltöltése
-                </button>
-                <button className="btn btn-accent-outline settings-download-btn" onClick={async () => { try { const res = await authFetch('/admin/api/prices/template/download'); if (res.ok) { const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'arlista_minta.xlsx'; a.click(); URL.revokeObjectURL(url); } else { showToast('Letöltési hiba', 'error'); } } catch { showToast('Letöltési hiba', 'error'); } }}>
-                  Minta Excel letöltése
-                </button>
-
-
-              </div>
-
-              {/* Feltöltött árlista megjelenítése */}
+              <div className="text-desc mb-16">Az aktuális árlista itt szerkeszthető és tekinthető meg.</div>
               {(() => {
-                const meta = (praxis as Record<string, unknown>).price_list_file_meta;
                 const pl = (praxis as Record<string, unknown>).price_list;
-                if (!meta || typeof meta !== 'object' || !(meta as Record<string, string>).filename) {
-                  // Ha nincs feltöltött árlista, mutassunk szerkesztés gombot
-                  if (typeof pl === 'string' && pl.trim()) {
-                    return (
-                      <div className="mt-12">
-                       <button className="btn btn-accent-outline" onClick={openPriceModal}
-                       >
-                          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
-                            <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                            <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                          </svg>
-                          Árlista megtekintése / szerkesztése
+                const rows = typeof pl === 'string' ? pl.split('\n').filter(r => r.trim()).map(r => {
+                  const parts = r.split(' - ');
+                  return {
+                    category: (parts[0] || '').trim(),
+                    service: (parts[1] || '').trim(),
+                    price: (parts[2] || '').trim(),
+                    currency: (parts[3] || '').trim(),
+                    note: parts.slice(4).join(' - ').trim(),
+                  };
+                }) : [];
+                return (
+                  <>
+                    {rows.length === 0 && (
+                      <div className="grid-2col gap-12 mb-16">
+                        <button className="btn-settings-save settings-upload-btn" onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv,.xlsx'; input.onchange = async (e: any) => { const file = e.target.files?.[0]; if (!file) return; const formData = new FormData(); formData.append('file', file); try { const res = await authFetch('/admin/api/upload_prices', { method: 'POST', body: formData }); if (res.ok) { const data = await res.json(); showToast('Árlista feltöltve!', 'success'); if (data.price_list) { setPraxis({ ...praxis, price_list: data.price_list, price_list_file_meta: data.price_list_file_meta }); } } else { const errData = await res.json().catch(() => null); showToast(errData?.detail || 'Feltöltési hiba', 'error'); } } catch { showToast('Feltöltési hiba', 'error'); } }; input.click(); }}>
+                          Új árlista feltöltése
+                        </button>
+                        <button className="btn btn-accent-outline settings-download-btn" onClick={async () => { try { const res = await authFetch('/admin/api/prices/template/download'); if (res.ok) { const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'arlista_minta.xlsx'; a.click(); URL.revokeObjectURL(url); } else { showToast('Letöltési hiba', 'error'); } } catch { showToast('Letöltési hiba', 'error'); } }}>
+                          Minta Excel letöltése
                         </button>
                       </div>
-                    );
-                  }
-                  return null;
-                }
-                const fileMeta = meta as Record<string, string>;
-                return (
-                <div className="settings-price-card"
-                  onClick={openPriceModal}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.08)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(28,238,224,0.2)'; e.currentTarget.style.background = 'rgba(28,238,224,0.04)'; }}
-                >
-                  <div className="flex-row gap-10">
-                    <div className="settings-price-icon">
-                      <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="18" height="18">
-                        <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" />
-                      </svg>
-                    </div>
-                    <div className="flex-1">
-                      <div className="font-semibold text-md settings-price-filename">
-                        {fileMeta.filename}
-                      </div>
-                      <div className="text-desc settings-price-meta">
-                        Feltöltve: {fileMeta.uploaded_at}
-                        {typeof pl === 'string' && pl && (
-                          <span> · {pl.split('\n').filter(l => l.trim()).length} tétel</span>
-                        )}
-                      </div>
-                    </div>
-                    <div className="flex-row gap-8">
-                      <div className="settings-price-active-badge">
-                        ✓ Aktív
-                      </div>
-                      <div className="settings-price-edit-btn">
-                        <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13">
-                          <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
-                          <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
-                        </svg>
-                        Megtekintés / Szerkesztés
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                    )}
+                    <InlinePriceEditor
+                      initialRows={rows}
+                      onSave={(updatedRows) => {
+                        const newPl = updatedRows.map(r => `${r.category} - ${r.service} - ${r.price} - ${r.currency} - ${r.note}`).join('\n');
+                        setPraxis({ ...praxis, price_list: newPl });
+                      }}
+                    />
+                  </>
                 );
               })()}
             </SectionCard>
@@ -1399,3 +1360,156 @@ function PriceListModal({
   );
 }
 
+
+function InlinePriceEditor({ initialRows, onSave }: { initialRows: { category: string; service: string; price: string; currency: string; note: string }[], onSave: (rows: any[]) => void }) {
+  const [rows, setRows] = useState(initialRows.length ? initialRows : [{ category: '', service: '', price: '', currency: 'HUF', note: '' }]);
+  const [saving, setSaving] = useState(false);
+
+  const updateRow = (idx: number, field: string, value: string) => {
+    setRows(prev => prev.map((r, i) => i === idx ? { ...r, [field]: value } : r));
+  };
+  const addRow = () => {
+    setRows(prev => [...prev, { category: '', service: '', price: '', currency: 'HUF', note: '' }]);
+  };
+  const removeRow = (idx: number) => {
+    setRows(prev => prev.filter((_, i) => i !== idx));
+  };
+  const clearAllRows = () => {
+    if (window.confirm('Biztosan törölni szeretnéd a teljes árlistát? Ezt követően a Változtatások mentése gombbal véglegesítheted.')) {
+      setRows([]);
+    }
+  };
+
+  const handleSave = async () => {
+    setSaving(true);
+    await onSave(rows);
+    setSaving(false);
+  };
+  
+  const handleCancel = () => {
+    if (initialRows.length > 0) {
+      setRows(initialRows);
+    } else {
+      setRows([{ category: '', service: '', price: '', currency: 'HUF', note: '' }]);
+    }
+  };
+
+  return (
+    <div className="price-inline-editor">
+      {/* Table header */}
+      <div className="price-modal-thead">
+        {['KATEGÓRIA', 'SZOLGÁLTATÁS', 'ÁR', 'PÉNZNEM', 'MEGJEGYZÉS', ''].map((h, i) => (
+          <div key={i} className={`price-modal-th ${i < 5 ? 'price-modal-th--border' : 'price-modal-th--noborder'}`}>{h}</div>
+        ))}
+      </div>
+
+      {/* Scrollable body */}
+      <div className="price-modal-body" style={{ maxHeight: 'none', overflowY: 'visible', paddingBottom: '16px' }}>
+        {rows.map((row, idx) => (
+          <div key={idx} className="price-modal-row"
+            onMouseEnter={e => e.currentTarget.style.background = 'rgba(28,238,224,0.03)'}
+            onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
+          >
+            <input
+              value={row.category}
+              onChange={e => updateRow(idx, 'category', e.target.value)}
+              placeholder="pl. Konzultáció"
+              className="price-modal-input"
+              onFocus={e => { e.currentTarget.style.borderBottomColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.05)'; }}
+              onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
+            />
+            <input
+              value={row.service}
+              onChange={e => updateRow(idx, 'service', e.target.value)}
+              placeholder="Szolgáltatás megnevezése"
+              className="price-modal-input"
+              onFocus={e => { e.currentTarget.style.borderBottomColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.05)'; }}
+              onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
+            />
+            <input
+              value={row.price}
+              onChange={e => updateRow(idx, 'price', e.target.value)}
+              placeholder="0"
+              className="price-modal-input price-modal-input--price"
+              onFocus={e => { e.currentTarget.style.borderBottomColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.05)'; }}
+              onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
+            />
+            <input
+              value={row.currency}
+              onChange={e => updateRow(idx, 'currency', e.target.value)}
+              placeholder="HUF"
+              className="price-modal-input price-modal-input--currency"
+              onFocus={e => { e.currentTarget.style.borderBottomColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.05)'; }}
+              onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
+            />
+            <input
+              value={row.note}
+              onChange={e => updateRow(idx, 'note', e.target.value)}
+              placeholder="Extra információ..."
+              className="price-modal-input price-modal-input--note"
+              onFocus={e => { e.currentTarget.style.borderBottomColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.05)'; }}
+              onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
+            />
+            <button
+              onClick={() => removeRow(idx)}
+              className="price-modal-del-btn"
+              onMouseEnter={e => e.currentTarget.style.color = '#ff5050'}
+              onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
+              title="Sor törlése"
+            >
+              <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+                <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+              </svg>
+            </button>
+          </div>
+        ))}
+      </div>
+      
+      {/* Add row / Clear all buttons */}
+      <div style={{ padding: '0 0 16px 0', display: 'flex', gap: '24px', alignItems: 'center' }}>
+        <button onClick={addRow} className="price-modal-add-btn"
+          style={{ width: 'auto', margin: 0, padding: 0, color: '#1ceee0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer' }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
+        >
+          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+            <circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" />
+          </svg>
+          Új tétel hozzáadása
+        </button>
+        <button onClick={clearAllRows} className="price-modal-clear-btn"
+          style={{ width: 'auto', margin: 0, padding: 0, color: '#ff5050', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer', opacity: 0.7 }}
+          onMouseEnter={e => e.currentTarget.style.opacity = '1'}
+          onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
+        >
+          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+            <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" />
+          </svg>
+          Teljes árlista törlése
+        </button>
+      </div>
+
+      {/* Footer */}
+      <div className="price-modal-footer" style={{ borderTop: '1px solid var(--border)', paddingTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <div className="price-modal-count" style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
+          {rows.filter(r => r.service.trim() || r.category.trim()).length} aktív tétel
+        </div>
+        <div className="flex-row gap-10">
+          <button onClick={handleCancel} className="price-modal-cancel" style={{ padding: '10px 20px', borderRadius: '6px', border: '1px solid var(--border)', background: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer', color: '#082432' }}
+            onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--text-muted)'; }}
+            onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; }}
+          >
+            Mégse
+          </button>
+          <button onClick={handleSave} disabled={saving} className={`price-modal-save${saving ? ' price-modal-save--saving' : ''}`} style={{ padding: '10px 20px', borderRadius: '6px', border: 'none', background: '#1ceee0', color: '#082432', fontSize: '14px', fontWeight: 600, display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer' }}>
+            {saving ? (
+              <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="spin-anim"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg> Mentés...</>
+            ) : (
+              <><svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14"><polyline points="20 6 9 17 4 12" /></svg> Változtatások mentése</>
+            )}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

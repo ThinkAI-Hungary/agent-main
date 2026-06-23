@@ -19,22 +19,22 @@ interface Props {
 
 
 const STEP_TIPS = [
-  { title: 'CÉLCSOPORT KIVÁLASZTÁSA', text: 'Válaszd ki a kampány célcsoportját ügyfélstátusz, címkék vagy egyedi kijelölés alapján. A pontos célzás segít, hogy a megfelelő ügyfelekhez a megfelelő üzenet jusson el.' },
-  { title: 'KAMPÁNY BEÁLLÍTÁSAI', text: 'Ebben a lépésben beállíthatod a kampány nevét és a használt csatornákat. Érdemes egyértelmű nevet adni, amiről később könnyen beazonosítod a kampányt és olyan csatornát választani, amely legjobban illik a célcsoporthoz és a tervezett üzenet stílusához és terjedelméhez.' },
-  { title: 'KAMPÁNYÜZENET', text: 'Írd meg az üzenetet szabadon vagy használd az AI szövegvarázslót. A Rich Text szerkesztővel formázott, professzionális üzeneteket hozhatsz létre.' },
+  { title: 'Célcsoport kiválasztása', text: 'Válaszd ki a kampány célcsoportját ügyfélstátusz, címkék vagy egyedi kijelölés alapján. A pontos célzás segít, hogy a megfelelő ügyfelekhez a megfelelő üzenet jusson el.' },
+  { title: 'Kampány beállításai', text: 'Ebben a lépésben beállíthatod a kampány nevét és a használt csatornákat. Érdemes egyértelmű nevet adni, amiről később könnyen beazonosítod a kampányt és olyan csatornát választani, amely legjobban illik a célcsoporthoz és a tervezett üzenet stílusához és terjedelméhez.' },
+  { title: 'Kampányüzenet', text: 'Írd meg az üzenetet szabadon vagy használd az AI szövegvarázslót. A Rich Text szerkesztővel formázott, professzionális üzeneteket hozhatsz létre.' },
 ];
 
 const AI_STYLES = [
   { key: 'hivatalos', label: 'Hivatalos' },
   { key: 'barátságos', label: 'Barátságos' },
-  { key: 'akciós', label: 'Akciós' },
+  { key: 'akciós', label: 'Promóciós' },
   { key: 'személyes', label: 'Személyes' },
 ];
 
 export default function CampaignWizardModal({ onClose, onCreated, initialSelectedIds }: Props) {
   const navigate = useNavigate();
   const [step, setStep] = useState(1);
-  const [tipVisible, setTipVisible] = useState([true, true, true]);
+  const [tipVisible, setTipVisible] = useState([false, false, false]);
 
   // Step 1 state
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
@@ -45,10 +45,11 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
 
   // Step 2 state
   const [campaignName, setCampaignName] = useState('');
-  const selectedChannels = new Set(['email']);
+  const [selectedChannels, setSelectedChannels] = useState<Set<string>>(new Set(['E-Mail']));
 
   // Step 3 state
   const [messageMode, setMessageMode] = useState<'manual' | 'ai'>('manual');
+  const [messageSubject, setMessageSubject] = useState('');
   const [messageContent, setMessageContent] = useState('');
   const [aiStyle, setAiStyle] = useState('barátságos');
   const [aiPrompt, setAiPrompt] = useState('');
@@ -56,7 +57,22 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
   const [aiResult, setAiResult] = useState('');
   const [activeFormats, setActiveFormats] = useState<Record<string, boolean>>({});
 
+  const [stepError, setStepError] = useState('');
+
   const editorRef = useRef<HTMLDivElement>(null);
+  const aiEditorRef = useRef<HTMLDivElement>(null);
+
+  // Sync AI result to AI editor when generated
+  useEffect(() => {
+    if (messageMode === 'ai' && aiEditorRef.current && aiResult !== aiEditorRef.current.innerHTML) {
+      aiEditorRef.current.innerHTML = aiResult;
+    }
+  }, [aiResult, messageMode]);
+
+  // Clear error on input change
+  useEffect(() => { setStepError(''); }, [selectedClientIds, step]);
+  useEffect(() => { setStepError(''); }, [campaignName]);
+  useEffect(() => { setStepError(''); }, [messageSubject, messageContent, aiResult]);
 
   // Client data
   const { clients } = useClients();
@@ -202,6 +218,8 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
 
   const deselectAllClients = useCallback(() => {
     setSelectedClientIds(new Set());
+    setStatusFilters(new Set());
+    setTagFilters(new Set());
   }, []);
 
   // Rich text toolbar actions
@@ -220,9 +238,13 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
 
   const execCommand = useCallback((command: string, value?: string) => {
     document.execCommand(command, false, value);
-    editorRef.current?.focus();
+    if (messageMode === 'manual') {
+      editorRef.current?.focus();
+    } else {
+      aiEditorRef.current?.focus();
+    }
     updateFormatState();
-  }, [updateFormatState]);
+  }, [updateFormatState, messageMode]);
 
   // Word count
   const wordCount = useMemo(() => {
@@ -250,6 +272,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
       if (res.ok) {
         const data = await res.json();
         setAiResult(data.message || '');
+        if (data.subject) setMessageSubject(data.subject);
       } else {
         showToast('Hiba a generálásnál, próbáld újra', 'error');
       }
@@ -262,15 +285,23 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
 
   // Create campaign
   const handleCreate = useCallback(async () => {
-    if (!campaignName.trim()) {
-      showToast('A kampány neve kötelező!', 'error');
+    if (!messageSubject.trim()) {
+      setStepError('Az üzenet tárgyának megadása kötelező!');
       return;
     }
+
     const content = messageMode === 'manual'
       ? (editorRef.current?.innerHTML || messageContent)
-      : aiResult;
+      : (aiEditorRef.current?.innerHTML || aiResult);
+
+    const cleanContent = content.replace(/<[^>]*>?/gm, '').trim();
+    if (!cleanContent) {
+      setStepError('Az üzenet szövegének megadása kötelező!');
+      return;
+    }
 
     try {
+      setIsCreating(true);
       const res = await authFetch('/admin/api/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -278,6 +309,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
           name: campaignName.trim(),
           channels: Array.from(selectedChannels),
           ai_instructions: content,
+          subject: messageSubject.trim(),
           client_ids: Array.from(selectedClientIds).map(Number).filter(n => !isNaN(n)),
         }),
       });
@@ -294,8 +326,22 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
   }, [campaignName, selectedChannels, messageMode, messageContent, aiResult, selectedClientIds, onCreated, onClose]);
 
   // Navigation
-  const nextStep = () => { if (step < 3) setStep(step + 1); };
-  const prevStep = () => { if (step > 1) setStep(step - 1); };
+  const nextStep = () => {
+    if (step === 1 && selectedClientIds.size === 0) {
+      setStepError('Kérlek válassz ki legalább egy ügyfelet a folytatáshoz!');
+      return;
+    }
+    if (step === 2 && !campaignName.trim()) {
+      setStepError('Kérlek adj meg egy nevet a kampánynak!');
+      return;
+    }
+    setStepError('');
+    if (step < 3) setStep(step + 1); 
+  };
+  const prevStep = () => {
+    setStepError('');
+    if (step > 1) setStep(step - 1); 
+  };
 
   const hideTip = (idx: number) => {
     setTipVisible(prev => { const next = [...prev]; next[idx] = false; return next; });
@@ -316,44 +362,65 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
         className="camp-wizard-modal"
         onClick={e => e.stopPropagation()}
       >
-        {/* Header with stepper */}
-        <div className="camp-wizard-header">
-          <div className="flex-between">
-            <div className="flex-row gap-12">
-              <div className="camp-header-icon">
-                <svg fill="none" stroke="#082432" strokeWidth="2.5" viewBox="0 0 24 24" className="camp-header-svg"><path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" /></svg>
-              </div>
-              <div>
-                <h3 className="camp-header-title">Új kampány</h3>
-              </div>
+        {/* Header with Step Info */}
+        <div className="camp-wizard-header" style={{ paddingBottom: '16px' }}>
+          <div className="flex-between mb-20">
+            <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.8px' }}>
+              Új kampány
             </div>
-            <button className="modal-close" onClick={onClose}>✕</button>
+            <button className="modal-close" onClick={onClose} style={{ top: 0, position: 'relative' }}>
+              <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="22" height="22">
+                <path d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
           </div>
-
-          {/* Stepper */}
-          <div className="flex-row camp-wizard-stepper">
-            {[1, 2, 3].map(s => (
-              <React.Fragment key={s}>
-                {s > 1 && (
-                  <div className={`camp-step-connector ${step > s - 1 ? 'camp-step-connector--active' : ''}`} />
-                )}
-                <div className={`camp-step-dot ${step > s ? 'camp-step-dot--done' : step === s ? 'camp-step-dot--active' : 'camp-step-dot--idle'}`}>
-                  {step > s ? '✓' : s}
-                </div>
-              </React.Fragment>
-            ))}
+          
+          <div className="flex-row items-center gap-16">
+            <div style={{ 
+              width: '42px', height: '42px', borderRadius: '50%', background: 'var(--accent)', 
+              color: '#082432', display: 'flex', alignItems: 'center', justifyContent: 'center', 
+              fontSize: '18px', fontWeight: 700 
+            }}>
+              {step}
+            </div>
+            <h3 style={{ fontSize: '22px', fontWeight: 600, color: 'var(--text)', margin: 0 }}>
+              {STEP_TIPS[step - 1].title}
+            </h3>
+            <button 
+              onClick={() => {
+                setTipVisible(prev => {
+                  const next = [...prev];
+                  next[step - 1] = !next[step - 1];
+                  return next;
+                });
+              }}
+              style={{ background: 'none', border: 'none', padding: 0, cursor: 'pointer', color: 'var(--text-muted)', display: 'flex' }}
+              title="Információ megjelenítése"
+            >
+              <svg fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" width="22" height="22">
+                <circle cx="12" cy="12" r="10" />
+                <path d="M12 16v-4 M12 8h.01" strokeWidth="2" strokeLinecap="round" />
+              </svg>
+            </button>
           </div>
         </div>
 
         {/* Body */}
-        <div className="camp-wizard-body">
+        <div className="camp-wizard-body" style={{ paddingTop: '20px', minHeight: '500px' }}>
 
-          {/* Tip box */}
+          {/* Expanded Info Box */}
           {tipVisible[step - 1] && (
-            <div className="camp-tip-box">
-              <div className="camp-tip-title">{STEP_TIPS[step - 1].title}</div>
-              <div className="camp-tip-text">{STEP_TIPS[step - 1].text}</div>
-              <button className="camp-tip-close" onClick={() => hideTip(step - 1)}>✕</button>
+            <div style={{
+              background: 'rgba(28, 238, 224, 0.04)',
+              border: '1px solid rgba(28, 238, 224, 0.2)',
+              borderRadius: '8px',
+              padding: '14px 18px',
+              marginBottom: '24px',
+              color: 'var(--text-muted)',
+              fontSize: '13px',
+              lineHeight: '1.6'
+            }}>
+              {STEP_TIPS[step - 1].text}
             </div>
           )}
 
@@ -361,7 +428,6 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
           {step === 1 && (
             <div>
               <div className="camp-content-card">
-                <div className="camp-section-title-text">CÉLCSOPORT</div>
 
                 {/* Status badges */}
                 <div className="mb-24">
@@ -476,86 +542,122 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                 />
               </div>
 
+              {/* CHANNELS CARD */}
+              <div className="camp-content-card">
+                <div className="camp-name-section-label">CSATORNA KIVÁLASZTÁSA</div>
+                <div className="flex-row flex-wrap gap-12 mt-12" style={{ marginBottom: 0 }}>
+                  {['E-Mail', 'Telefon', 'SMS'].map(ch => {
+                    const isActive = selectedChannels.has(ch);
+                    return (
+                      <button
+                        key={ch}
+                        onClick={() => {
+                          const next = new Set(selectedChannels);
+                          if (isActive) {
+                            if (next.size > 1) next.delete(ch);
+                          } else {
+                            next.add(ch);
+                          }
+                          setSelectedChannels(next);
+                        }}
+                        style={{
+                          flex: '1 1 calc(33.333% - 12px)',
+                          minWidth: '120px',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: '16px 20px',
+                          borderRadius: '12px',
+                          border: isActive ? '1.5px solid var(--accent)' : '1.5px solid var(--border)',
+                          background: isActive ? 'rgba(28,238,224,0.06)' : 'var(--bg)',
+                          color: 'var(--text)',
+                          fontWeight: 700,
+                          fontSize: '13px',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s ease',
+                          boxShadow: isActive ? '0 4px 12px rgba(28,238,224,0.1)' : 'none'
+                        }}
+                        onMouseEnter={(e) => {
+                          if (!isActive) {
+                            e.currentTarget.style.borderColor = 'var(--text-muted)';
+                            e.currentTarget.style.background = 'rgba(255,255,255,0.03)';
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isActive) {
+                            e.currentTarget.style.borderColor = 'var(--border)';
+                            e.currentTarget.style.background = 'var(--bg)';
+                          }
+                        }}
+                      >
+                        {ch}
+                      </button>
+                    )
+                  })}
+                </div>
+              </div>
+
             </div>
           )}
 
           {/* STEP 3: Üzenet */}
           {step === 3 && (
             <div>
-              {/* Mode toggle */}
-              <div className="mb-6">
-                <label className="camp-field-label camp-field-label--mb10">Üzenetírás módja</label>
-                <div className="camp-mode-toggle">
-                  <button className={`camp-mode-btn ${messageMode === 'manual' ? 'active' : ''}`} onClick={() => setMessageMode('manual')}>Saját szöveg</button>
-                  <button className={`camp-mode-btn ${messageMode === 'ai' ? 'active' : ''}`} onClick={() => setMessageMode('ai')}>AI varázsló</button>
+              {/* Mode toggle for Step 3 floating above card */}
+              <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: '8px', marginTop: '-12px', position: 'relative', zIndex: 10 }}>
+                <div style={{ display: 'flex', background: '#f5f7f9', padding: '4px', borderRadius: '8px', border: '1px solid #e2e8f0', boxShadow: '0 1px 2px rgba(0,0,0,0.05)' }}>
+                  <button 
+                    onClick={() => setMessageMode('manual')}
+                    style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: messageMode === 'manual' ? '#146f90' : 'transparent', color: messageMode === 'manual' ? '#fff' : '#6b8b99', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                  >
+                    <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"/></svg>
+                    Saját szöveg
+                  </button>
+                  <button 
+                    onClick={() => setMessageMode('ai')}
+                    style={{ padding: '8px 16px', borderRadius: '6px', border: 'none', background: messageMode === 'ai' ? '#146f90' : 'transparent', color: messageMode === 'ai' ? '#fff' : '#6b8b99', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s' }}
+                  >
+                    <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16"><path d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"/></svg>
+                    AI varázsló
+                  </button>
                 </div>
               </div>
 
               {/* Manual mode */}
               {messageMode === 'manual' && (
-                <div>
-                  <label className="camp-field-label">Kampányüzenet szövege</label>
-                  <div className="camp-quill-wrap">
-                    {/* Simple toolbar */}
-                    <div className="camp-toolbar-strip flex-row flex-wrap gap-2">
-                      <select onChange={e => { execCommand('formatBlock', e.target.value); e.target.value = ''; }} className="camp-toolbar-select">
-                        <option value="">Szöveg</option>
-                        <option value="h1">Címsor 1</option>
-                        <option value="h2">Címsor 2</option>
-                      </select>
-                      <div className="camp-toolbar-sep" />
-                      <ToolbarBtn title="Félkövér" onClick={() => execCommand('bold')} active={activeFormats.bold} icon={<svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><path d="M6 4h8a4 4 0 014 4 4 4 0 01-4 4H6z" /><path d="M6 12h9a4 4 0 014 4 4 4 0 01-4 4H6z" /></svg>} />
-                      <ToolbarBtn title="Dőlt" onClick={() => execCommand('italic')} active={activeFormats.italic} icon={<svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><line x1="19" y1="4" x2="10" y2="4" /><line x1="14" y1="20" x2="5" y2="20" /><line x1="15" y1="4" x2="9" y2="20" /></svg>} />
-                      <ToolbarBtn title="Aláhúzott" onClick={() => execCommand('underline')} active={activeFormats.underline} icon={<svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><path d="M6 3v7a6 6 0 006 6 6 6 0 006-6V3" /><line x1="4" y1="21" x2="20" y2="21" /></svg>} />
-                      <ToolbarBtn title="Áthúzott" onClick={() => execCommand('strikeThrough')} active={activeFormats.strikeThrough} icon={<svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><line x1="5" y1="12" x2="19" y2="12" /><path d="M16 6C16 6 14.5 4 12 4 9.5 4 8 5.5 8 7.5 8 10.5 16 10.5 16 13.5 16 16.5 14.5 18 12 18 9.5 18 8 16 8 16" /></svg>} />
-                      <div className="camp-toolbar-sep" />
-                      <button onClick={() => execCommand('insertOrderedList')} className={`camp-toolbar-btn ${activeFormats.insertOrderedList ? 'active' : ''}`} title="Számozott lista">
-                        <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
-                      </button>
-                      <button onClick={() => execCommand('insertUnorderedList')} className={`camp-toolbar-btn ${activeFormats.insertUnorderedList ? 'active' : ''}`} title="Felsorolásos lista">
-                        <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
-                      </button>
-                      <div className="camp-toolbar-vsep" />
-                      <button onClick={() => { 
-                        let url = prompt('Link URL:'); 
-                        if (url) {
-                          url = url.trim();
-                          if (!/^https?:\/\//i.test(url) && !url.startsWith('mailto:') && !url.startsWith('tel:')) {
-                            url = 'https://' + url;
-                          }
-                          execCommand('createLink', url); 
-                        }
-                      }} className="camp-toolbar-btn" title="Link">
-                        <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-                      </button>
-                      <button onClick={() => execCommand('formatBlock', 'blockquote')} className={`camp-toolbar-btn ${activeFormats.blockquote ? 'active' : ''}`} title="Idézet">
-                        <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><path d="M6 17h3l2-4V7H5v6h3M14 17h3l2-4V7h-6v6h3"/></svg>
-                      </button>
-                      <button onClick={() => execCommand('removeFormat')} className="camp-toolbar-btn" title="Formázás törlése">
-                        <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><path d="M17 10H3M21 6H3M21 14H3M17 18H3"/></svg>
-                      </button>
-                    </div>
-                    {/* Editor */}
-                    <div
-                      ref={editorRef}
-                      contentEditable
-                      onInput={() => setMessageContent(editorRef.current?.innerHTML || '')}
-                      onKeyUp={updateFormatState}
-                      onMouseUp={updateFormatState}
-                      onFocus={updateFormatState}
-                      className="camp-editor"
-                      data-placeholder="Írd ide a kampányüzenet szövegét…"
+                <div style={{ background: '#f5f7f9', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px' }}>
+                  
+                  {/* Tárgy */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1a6f8f', marginBottom: '8px' }}>Üzenet tárgya</label>
+                    <input 
+                      type="text" 
+                      placeholder="Ide írd az email tárgyát..." 
+                      style={{ width: '100%', padding: '14px 16px', borderRadius: '8px', border: '1px solid #1ceee0', fontSize: '14px', outline: 'none', background: '#fff', color: '#082432' }} 
+                      value={messageSubject}
+                      onChange={e => setMessageSubject(e.target.value)}
                     />
-                    {/* Word count footer */}
-                    <div className="camp-quill-word-count">
-                      <div className="camp-quill-hints">
-                        <span className="camp-quill-hint">
-                          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
-                          A linkek kattintása mérhető
-                        </span>
+                  </div>
 
-                      </div>
-                      <span className="camp-quill-count">{wordCount} szó</span>
+                  {/* Szöveg */}
+                  <div>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1a6f8f', marginBottom: '8px' }}>Üzenet szövege</label>
+                    <div style={{ borderRadius: '8px', border: '1px solid #1ceee0', overflow: 'hidden', background: '#fff' }}>
+                      <EditorToolbar activeFormats={activeFormats} execCommand={execCommand} />
+                      {/* Editor */}
+                      <div
+                        ref={editorRef}
+                        contentEditable
+                        onInput={() => setMessageContent(editorRef.current?.innerHTML || '')}
+                        onKeyUp={updateFormatState}
+                        onMouseUp={updateFormatState}
+                        onFocus={updateFormatState}
+                        className="camp-editor"
+                        style={{ minHeight: '280px', padding: '20px', outline: 'none', fontSize: '14px', color: '#082432', lineHeight: '1.6' }}
+                        data-placeholder="Ide írd a kampányüzenet szövegét..."
+                      />
                     </div>
                   </div>
                 </div>
@@ -563,65 +665,132 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
 
               {/* AI mode */}
               {messageMode === 'ai' && (
-                <div>
-                  <label className="camp-field-label">Kampány tartalma</label>
-                  {/* AI editor area */}
-                  <div className="camp-quill-wrap mb-16">
-                    <div className="camp-ai-toolbar flex-row gap-2">
-                      <span className="camp-ai-toolbar-txt">Szöveg</span>
-                      <div className="camp-toolbar-sep" />
-                      <span className="camp-ai-toolbar-dim">B I U S</span>
+                <div style={{ background: '#f5f7f9', border: '1px solid #e2e8f0', borderRadius: '12px', padding: '24px' }}>
+                  
+                  {/* Stílus választó */}
+                  <div className="mb-24">
+                    <label style={{ fontSize: '14px', fontWeight: 700, color: '#1a6f8f', marginBottom: '12px', display: 'block' }}>
+                      Kommunikációs stílus
+                    </label>
+                    <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
+                      {AI_STYLES.map(s => (
+                        <button
+                          key={s.key}
+                          onClick={() => setAiStyle(s.key)}
+                          style={{
+                            flex: 1,
+                            minWidth: '100px',
+                            padding: '10px 16px',
+                            borderRadius: '8px',
+                            border: aiStyle === s.key ? '1px solid #1ceee0' : '1px solid #e2e8f0',
+                            background: aiStyle === s.key ? '#e6fcfb' : 'transparent',
+                            color: aiStyle === s.key ? '#082432' : '#6b8b99',
+                            fontSize: '13px',
+                            fontWeight: aiStyle === s.key ? 700 : 600,
+                            cursor: 'pointer',
+                            transition: 'all 0.2s',
+                            textAlign: 'center'
+                          }}
+                        >
+                          {s.label}
+                        </button>
+                      ))}
                     </div>
-                    <textarea
-                      value={aiResult}
-                      onChange={e => setAiResult(e.target.value)}
-                      placeholder="Szerkeszd a kampány tartalmát formázottan..."
-                      className="camp-ai-textarea"
-                    />
                   </div>
 
-                  {/* AI Wizard Card */}
-                  <div className="camp-ai-card">
-                    <div className="flex-row gap-8 mb-16">
-                      <span className="camp-ai-card-title">AI Kampány Varázsló</span>
-                      <span className="camp-ai-badge">Gemini AI</span>
-                    </div>
+                  {/* Üzenet szövege */}
+                  <div>
+                    <label style={{ fontSize: '14px', fontWeight: 700, color: '#1a6f8f', marginBottom: '12px', display: 'block' }}>
+                      Üzenet szövege
+                    </label>
+                    <div style={{ 
+                      position: 'relative', 
+                      border: '1px solid #1ceee0', 
+                      borderRadius: '8px', 
+                      overflow: 'hidden', 
+                      background: '#fff',
+                      display: 'flex',
+                      flexDirection: 'column'
+                    }}>
+                      {!aiResult && !aiGenerating ? (
+                        <textarea
+                          value={aiPrompt}
+                          onChange={e => setAiPrompt(e.target.value)}
+                          placeholder="Fogalmazd meg, miről szóljon a kampány..."
+                          style={{ 
+                            width: '100%', 
+                            height: '240px', 
+                            padding: '24px', 
+                            border: 'none', 
+                            resize: 'none', 
+                            outline: 'none', 
+                            fontSize: '14px', 
+                            color: '#082432',
+                            lineHeight: '1.6'
+                          }}
+                        />
+                      ) : (
+                        <div style={{ display: 'flex', flexDirection: 'column', minHeight: '240px' }}>
+                          <div style={{ opacity: aiGenerating ? 0.4 : 1, pointerEvents: aiGenerating ? 'none' : 'auto', transition: 'all 0.2s' }}>
+                            <EditorToolbar activeFormats={activeFormats} execCommand={execCommand} />
+                          </div>
+                          
+                          {/* AI Editor Body */}
+                          <div
+                            ref={aiEditorRef}
+                            contentEditable={!aiGenerating}
+                            onInput={() => setAiResult(aiEditorRef.current?.innerHTML || '')}
+                            onKeyUp={updateFormatState}
+                            onMouseUp={updateFormatState}
+                            onFocus={updateFormatState}
+                            className="camp-editor"
+                            style={{ 
+                              flex: 1, 
+                              padding: '20px', 
+                              outline: 'none', 
+                              fontSize: '14px', 
+                              color: aiGenerating ? '#9ca3af' : '#082432', 
+                              lineHeight: '1.6',
+                              opacity: aiGenerating ? 0.6 : 1
+                            }}
+                          />
+                        </div>
+                      )}
 
-                    {/* Prompt input */}
-                    <div className="mb-16">
-                      <div className="camp-ai-subsec-title">Miről szóljon a kampány?</div>
-                      <textarea
-                        value={aiPrompt}
-                        onChange={e => setAiPrompt(e.target.value)}
-                        placeholder="Pl. 20% akció fogfehérítésre a tavasz alkalmával, említsd meg hogy korlátozott ideig elérhető..."
-                        className="camp-ai-prompt"
-                        onFocus={e => e.target.style.borderColor = 'var(--accent)'}
-                        onBlur={e => e.target.style.borderColor = 'var(--border)'}
-                      />
+                      <button 
+                        onClick={generateAiMessage}
+                        disabled={aiGenerating || (!aiPrompt.trim() && !aiResult)}
+                        style={{ 
+                          width: '100%', 
+                          height: '56px', 
+                          background: aiGenerating ? '#8ff2ed' : '#1ceee0', 
+                          border: 'none', 
+                          borderTop: aiResult || aiGenerating ? '1px solid rgba(28,238,224,0.3)' : 'none',
+                          color: '#082432', 
+                          fontSize: '15px', 
+                          fontWeight: 700, 
+                          cursor: (aiGenerating || (!aiPrompt.trim() && !aiResult)) ? 'default' : 'pointer',
+                          display: 'flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          gap: '8px',
+                          position: 'relative',
+                          overflow: 'hidden',
+                          transition: 'background 0.2s',
+                          opacity: (!aiPrompt.trim() && !aiResult) ? 0.6 : 1
+                        }}
+                      >
+                        <span style={{ position: 'relative', zIndex: 2, display: 'flex', alignItems: 'center', gap: '8px' }}>
+                          {aiGenerating ? (
+                            'Kampányüzenet generálása folyamatban...'
+                          ) : aiResult ? (
+                            'Új verzió generálása'
+                          ) : (
+                            'Szöveg generálása'
+                          )}
+                        </span>
+                      </button>
                     </div>
-
-                    {/* Style selector */}
-                    <div className="mb-16">
-                      <div className="camp-ai-subsec-title">Stílus</div>
-                      <div className="camp-ai-style-grid">
-                        {AI_STYLES.map(s => (
-                          <button
-                            key={s.key}
-                          className={`camp-ai-style-btn ${aiStyle === s.key ? 'camp-ai-style-btn--active' : ''}`}
-                          onClick={() => setAiStyle(s.key)}
-                          >{s.label}</button>
-                        ))}
-                      </div>
-                    </div>
-
-                    {/* Generate button */}
-                    <button
-                      onClick={generateAiMessage}
-                      disabled={aiGenerating || !aiPrompt.trim()}
-                      className={`camp-ai-generate-btn${(aiGenerating || !aiPrompt.trim()) ? ' camp-ai-generate-btn--disabled' : ''}`}
-                    >
-                      {aiGenerating ? 'Generálás...' : 'Levél generálása'}
-                    </button>
                   </div>
                 </div>
               )}
@@ -634,7 +803,24 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
           {step > 1 && (
             <button className="btn btn-outline" onClick={prevStep}>Előző</button>
           )}
-          <div className="flex-1" />
+          
+          <div className="flex-1" style={{ display: 'flex', justifyContent: 'flex-end', paddingRight: '16px', alignItems: 'center' }}>
+            {stepError && (
+              <span style={{
+                color: '#e11d48',
+                fontSize: '13px',
+                fontWeight: 600,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '6px',
+                animation: 'fadeIn 0.3s ease-out'
+              }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5"><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/></svg>
+                {stepError}
+              </span>
+            )}
+          </div>
+
           {step < 3 && (
             <button className="btn btn-primary" onClick={nextStep}>Következő</button>
           )}
@@ -647,7 +833,6 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
   );
 }
 
-// ── Toolbar button helper ──
 function ToolbarBtn({ icon, title, onClick, active }: { icon: React.ReactNode; title: string; onClick: () => void; active?: boolean }) {
   const classes = [
     'camp-toolbar-btn',
@@ -658,6 +843,56 @@ function ToolbarBtn({ icon, title, onClick, active }: { icon: React.ReactNode; t
     <button onClick={onClick} className={classes} title={title}>
       {icon}
     </button>
+  );
+}
+
+function EditorToolbar({ activeFormats, execCommand }: { activeFormats: Record<string, boolean>; execCommand: (cmd: string, val?: string) => void }) {
+  return (
+    <div className="camp-toolbar-strip flex-row flex-wrap items-center gap-2" style={{ borderBottom: '1px solid rgba(28,238,224,0.3)', padding: '10px 16px', background: '#fff' }}>
+      <select onChange={e => { execCommand('formatBlock', e.target.value); e.target.value = ''; }} className="camp-toolbar-select" style={{ border: 'none', outline: 'none', background: 'transparent', color: '#6b8b99', fontSize: '13px', fontWeight: 600, cursor: 'pointer' }}>
+        <option value="">Szöveg</option>
+        <option value="h1">Címsor 1</option>
+        <option value="h2">Címsor 2</option>
+      </select>
+      <div className="camp-toolbar-sep" style={{ width: '1px', height: '16px', background: '#e2e8f0', margin: '0 8px' }} />
+      <ToolbarBtn title="Félkövér" onClick={() => execCommand('bold')} active={activeFormats.bold} icon={<svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><path d="M6 4h8a4 4 0 014 4 4 4 0 01-4 4H6z" /><path d="M6 12h9a4 4 0 014 4 4 4 0 01-4 4H6z" /></svg>} />
+      <ToolbarBtn title="Dőlt" onClick={() => execCommand('italic')} active={activeFormats.italic} icon={<svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><line x1="19" y1="4" x2="10" y2="4" /><line x1="14" y1="20" x2="5" y2="20" /><line x1="15" y1="4" x2="9" y2="20" /></svg>} />
+      <ToolbarBtn title="Aláhúzott" onClick={() => execCommand('underline')} active={activeFormats.underline} icon={<svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><path d="M6 3v7a6 6 0 006 6 6 6 0 006-6V3" /><line x1="4" y1="21" x2="20" y2="21" /></svg>} />
+      <ToolbarBtn title="Áthúzott" onClick={() => execCommand('strikeThrough')} active={activeFormats.strikeThrough} icon={<svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><line x1="5" y1="12" x2="19" y2="12" /><path d="M16 6C16 6 14.5 4 12 4 9.5 4 8 5.5 8 7.5 8 10.5 16 10.5 16 13.5 16 16.5 14.5 18 12 18 9.5 18 8 16 8 16" /></svg>} />
+      <div className="camp-toolbar-sep" style={{ width: '1px', height: '16px', background: '#e2e8f0', margin: '0 8px' }} />
+      <button onClick={() => execCommand('insertOrderedList')} className={`camp-toolbar-btn ${activeFormats.insertOrderedList ? 'active' : ''}`} title="Számozott lista">
+        <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><line x1="10" y1="6" x2="21" y2="6"/><line x1="10" y1="12" x2="21" y2="12"/><line x1="10" y1="18" x2="21" y2="18"/><path d="M4 6h1v4"/><path d="M4 10h2"/><path d="M6 18H4c0-1 2-2 2-3s-1-1.5-2-1"/></svg>
+      </button>
+      <button onClick={() => execCommand('insertUnorderedList')} className={`camp-toolbar-btn ${activeFormats.insertUnorderedList ? 'active' : ''}`} title="Felsorolásos lista">
+        <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01"/></svg>
+      </button>
+      <div className="camp-toolbar-sep" style={{ width: '1px', height: '16px', background: '#e2e8f0', margin: '0 8px' }} />
+      <button onClick={() => execCommand('justifyLeft')} className={`camp-toolbar-btn ${activeFormats.justifyLeft ? 'active' : ''}`} title="Balra igazítás">
+        <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><path d="M3 6h18M3 12h12M3 18h18"/></svg>
+      </button>
+      <button onClick={() => execCommand('justifyCenter')} className={`camp-toolbar-btn ${activeFormats.justifyCenter ? 'active' : ''}`} title="Középre igazítás">
+        <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><path d="M3 6h18M6 12h12M3 18h18"/></svg>
+      </button>
+      <div className="camp-toolbar-sep" style={{ width: '1px', height: '16px', background: '#e2e8f0', margin: '0 8px' }} />
+      <button onClick={() => { 
+        let url = prompt('Link URL:'); 
+        if (url) {
+          url = url.trim();
+          if (!/^https?:\/\//i.test(url) && !url.startsWith('mailto:') && !url.startsWith('tel:')) {
+            url = 'https://' + url;
+          }
+          execCommand('createLink', url); 
+        }
+      }} className="camp-toolbar-btn" title="Link">
+        <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-14"><path d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/></svg>
+      </button>
+      <button onClick={() => execCommand('formatBlock', 'blockquote')} className={`camp-toolbar-btn ${activeFormats.blockquote ? 'active' : ''}`} title="Idézet">
+        <span style={{ fontSize: '18px', fontWeight: 'bold', fontFamily: 'serif', marginTop: '-4px' }}>”</span>
+      </button>
+      <button onClick={() => execCommand('removeFormat')} className="camp-toolbar-btn" title="Formázás törlése">
+        <span style={{ fontSize: '14px', fontWeight: 600 }}>T</span>
+      </button>
+    </div>
   );
 }
 

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ClientDetailView â€“ 1:1 port of legacy openClientDetails() / view-client-details
  * Rendered as inline overlay within ClientsPage or InteractionsPage.
  */
@@ -337,7 +337,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
               src={profilePicUrl}
               alt={client.name}
               className="cd-profile-pic"
-              onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.removeAttribute('style'); }}
+              onError={() => setProfilePicUrl(null)}
             />
           ) : null}
           <div className={`cd-avatar-placeholder${profilePicUrl ? ' cd-avatar-placeholder--hidden' : ''}`}>

@@ -526,10 +526,10 @@ export default function ClientsPage() {
                     {visibleCols.has('assignee') && (
                       <td className="td-p-fs13" onClick={e => e.stopPropagation()}>
                         {isAdmin ? (
-                          <select
+                          <AssigneeDropdown
                             value={c.assignee || ''}
-                            onChange={async (e) => {
-                              const newAssignee = e.target.value;
+                            members={members}
+                            onChange={async (newAssignee) => {
                               const cd = parseCustomData(c.raw.custom_data);
                               const updatedCd = { ...cd, assigned_to: newAssignee, felelos: newAssignee };
                               await authFetch(`/admin/api/clients/${c.id}`, {
@@ -540,15 +540,7 @@ export default function ClientsPage() {
                               showToast(newAssignee ? `Felelős: ${newAssignee}` : 'Felelős eltávolítva');
                               refetchClients();
                             }}
-                            className="form-input-sm cl-assignee-select"
-                          >
-                            <option value="">Nincs hozzárendelve</option>
-                            {members.map(m => (
-                              <option key={m.id} value={m.full_name || m.username}>
-                                {m.full_name || m.username}
-                              </option>
-                            ))}
-                          </select>
+                          />
                         ) : (
                           <span className="cl-assignee-muted">{c.assignee || '—'}</span>
                         )}
@@ -571,6 +563,53 @@ export default function ClientsPage() {
         </div>
       )}
 
+    </div>
+  );
+}
+
+function AssigneeDropdown({ value, members, onChange }: { value: string; members: MemberUser[]; onChange: (val: string) => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    const handleClick = (e: MouseEvent) => {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [open]);
+
+  const options = [
+    { value: '', label: 'Nincs hozzárendelve' },
+    ...members.map(m => ({ value: m.full_name || m.username, label: m.full_name || m.username }))
+  ];
+  
+  const current = options.find(o => o.value === value);
+  const displayLabel = current?.label || value || 'Nincs hozzárendelve';
+
+  return (
+    <div ref={ref} className="role-dd-wrap" onClick={e => e.stopPropagation()}>
+      <button type="button" onClick={(e) => { e.stopPropagation(); setOpen(!open); }} className={`role-dd-btn${open ? ' role-dd-btn--open' : ''}`} style={{ minWidth: '160px', justifyContent: 'space-between' }}>
+        <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayLabel}</span>
+        <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="12" height="12" className={`role-dd-chevron${open ? ' role-dd-chevron--open' : ''}`}>
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <div className="role-dd-panel" style={{ minWidth: '100%', left: 0, right: 'auto', zIndex: 9999 }}>
+          {options.map(o => (
+            <button key={o.value} type="button" onClick={(e) => { e.stopPropagation(); onChange(o.value); setOpen(false); }} className={`role-dd-option ${o.value === value ? 'role-dd-option--active' : 'role-dd-option--idle'}`}>
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.label}</span>
+              {o.value === value && (
+                <svg fill="none" stroke="var(--accent, #1ceee0)" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14" style={{ flexShrink: 0 }}>
+                  <polyline points="20 6 9 17 4 12" />
+                </svg>
+              )}
+            </button>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

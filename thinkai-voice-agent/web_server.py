@@ -3263,6 +3263,7 @@ class CampaignCreateRequest(BaseModel):
     channels: list[str] = ["email"]
     client_ids: list[int]
     ai_instructions: str = ""
+    subject: str = ""
 
 @app.get("/admin/api/campaigns")
 def get_campaigns_api(username: str = Depends(verify_jwt)):
@@ -3271,11 +3272,14 @@ def get_campaigns_api(username: str = Depends(verify_jwt)):
 
 @app.post("/admin/api/campaigns")
 def create_campaign_api(req: CampaignCreateRequest, username: str = Depends(verify_jwt)):
+    instructions = req.ai_instructions
+    if req.subject:
+        instructions = f"SUBJECT:{req.subject}|{instructions}"
     campaign_id = db.create_campaign(
         name=req.name,
         channels=req.channels,
         client_ids=req.client_ids,
-        ai_instructions=req.ai_instructions
+        ai_instructions=instructions
     )
     if campaign_id:
         return {"status": "success", "id": campaign_id}
@@ -3478,6 +3482,14 @@ async def _run_campaign(campaign: dict, active_channels: list[str]):
         pipe_idx = ai_instructions.find("|")
         if pipe_idx >= 0:
             ai_instructions = ai_instructions[pipe_idx + 1:]
+    
+    subject = campaign_name
+    if ai_instructions.startswith("SUBJECT:"):
+        pipe_idx = ai_instructions.find("|")
+        if pipe_idx >= 0:
+            subject = ai_instructions[8:pipe_idx]
+            ai_instructions = ai_instructions[pipe_idx + 1:]
+
     while ai_instructions.startswith("MODE:"):
         colon_idx = ai_instructions.find(":", 5)
         if colon_idx >= 0:
@@ -3548,7 +3560,7 @@ async def _run_campaign(campaign: dict, active_channels: list[str]):
                     json={
                         "sender": {"name": "EAISY Marketing", "email": "hello@thinkai.hu"},
                         "to": [{"email": client_email, "name": client_name}],
-                        "subject": campaign_name,
+                        "subject": subject,
                         "htmlContent": html_body,
                     },
                     timeout=20,
