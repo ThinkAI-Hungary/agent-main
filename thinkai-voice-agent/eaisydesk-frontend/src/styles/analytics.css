@@ -1,4 +1,4 @@
-﻿    /* â”€â”€ Analytics page dark â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
+    /* â”€â”€ Analytics page dark â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     body.dark #page-analytics .analytics-shell {
       background: var(--bg) !important;
     }
@@ -201,6 +201,7 @@
     }
 
     .int-thead th {
+      background: #f9fafb;
       color: #6b7280;
       font-size: 11px;
       font-weight: 600;
@@ -257,6 +258,7 @@
     }
 
     body.dark .int-thead th {
+      background: var(--bg3) !important;
       color: var(--text-muted) !important;
       border-color: var(--border) !important;
     }

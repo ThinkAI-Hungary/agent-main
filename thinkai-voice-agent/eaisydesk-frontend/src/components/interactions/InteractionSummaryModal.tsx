@@ -49,7 +49,7 @@ export default function InteractionSummaryModal({
   onApproved,
 }: Props) {
   const navigate = useNavigate();
-  const isPendingApproval = row.teendo === 'Jóváhagyásra vár';
+  const isPendingApproval = row.teendo === 'Jóváhagyásra vár' || row.teendo === 'Válasz jóváhagyása szükséges';
   const [showDetails, setShowDetails] = useState(!!autoExpandApproval);
   const [chatBlocks, setChatBlocks] = useState<ChatBlock[]>([]);
   const [summaryText, setSummaryText] = useState('');

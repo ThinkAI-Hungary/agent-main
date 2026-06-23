@@ -63,10 +63,10 @@ const ALL_COLUMNS = [
 ] as const;
 
 // ── Filter options ──
-const UGYTIPUS_OPTIONS = ['IDŐPONT', 'KÉRDÉS', 'KÉRÉS', 'PANASZ', 'EGYÉB'];
+const UGYTIPUS_OPTIONS = ['Időpont', 'Kérdés', 'Kérés', 'Panasz', 'Egyéb'];
 const CSATORNA_OPTIONS = ['Messenger', 'Telefon', 'Email', 'Instagram', 'WhatsApp'];
 const IRANY_OPTIONS = ['Bejövő', 'Kimenő'];
-const STATUSZ_OPTIONS = ['LEZÁRT', 'NYITOTT', 'SÜRGŐS'];
+const STATUSZ_OPTIONS = ['Lezárt', 'Nyitott', 'Sürgős'];
 
 const SORT_OPTIONS = [
   { value: 'date_desc', label: 'Legújabb elöl' },
@@ -198,8 +198,8 @@ export default function InteractionsPage() {
           clientCreatedAt: clientInfo.created_at,
           direction: 'Bejövő',
           ugyTipus: detectUgyTipus({ topic: '', summary: s.summary || '' }),
-          eredmeny: 'Rögzítve',
-          statusz: 'LEZÁRT',
+          eredmeny: detectEredmeny({ topic: '', summary: s.summary || '', approval_status: 'approved' }),
+          statusz: 'Lezárt',
           teendo: 'Nincs további teendő',
           tags: [],
           type: 'session',
@@ -422,7 +422,6 @@ export default function InteractionsPage() {
           {/* Left: search + count */}
           <div className="flex-row gap-12">
             <input
-              className="int-toolbar-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Keresés..."
@@ -440,7 +439,6 @@ export default function InteractionsPage() {
           <div className="flex-row gap-8 flex-wrap">
             {isAdmin && selectedRows.size > 0 && (
               <button
-                className="int-toolbar-btn"
                 onClick={handleDeleteSelected}
                 className="int-toolbar-btn int-toolbar-btn--danger"
               >

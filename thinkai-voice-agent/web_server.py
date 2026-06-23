@@ -3324,6 +3324,14 @@ def stop_campaign_api(campaign_id: int, username: str = Depends(verify_jwt)):
     db.update_campaign_status(campaign_id, "Megállítva")
     return {"status": "success"}
 
+@app.post("/admin/api/campaigns/{campaign_id}/close")
+def close_campaign_api(campaign_id: int, username: str = Depends(verify_jwt)):
+    campaign = db.get_campaign(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Kampány nem található")
+    db.update_campaign_status(campaign_id, "Befejezett")
+    return {"status": "success"}
+
 @app.delete("/admin/api/campaigns/{campaign_id}")
 def delete_campaign_api(campaign_id: int, username: str = Depends(verify_jwt)):
     success = db.delete_campaign(campaign_id)

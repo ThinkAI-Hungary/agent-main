@@ -18,7 +18,12 @@ import { bestClientName } from '../helpers/clientResolvers';
 import { StatuszBadge, EredmenyBadge } from '../components/ui/Badge';
 import InteractionSummaryModal from '../components/interactions/InteractionSummaryModal';
 import type { InteractionRow } from './InteractionsPage';
-import { detectStatusz } from '../helpers/interactionClassifiers';
+import {
+  detectStatusz,
+  detectUgyTipus,
+  detectEredmeny,
+  detectTeendo,
+} from '../helpers/interactionClassifiers';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -98,31 +103,7 @@ function detectTodoChannel(t: { channel?: string | null; sessionId?: string | nu
   return '—';
 }
 
-function detectTodoUgyTipus(t: { topic?: string | null; desc?: string; type?: string; badge?: string }): string {
-  const text = ((t.topic || '') + ' ' + (t.desc || '') + ' ' + (t.badge || '')).toLowerCase();
-  if (text.includes('panasz') || text.includes('sürgős') || text.includes('surgos')) return 'PANASZ';
-  if (text.includes('kérdés') || text.includes('kérd')) return 'KÉRDÉS';
-  if (text.includes('kérés') || text.includes('intézked')) return 'KÉRÉS';
-  if (text.includes('időpont') || t.type === 'calendar') return 'IDŐPONT';
-  if (text.includes('jóváhagyás') || text.includes('jovahagyas') || t.type === 'approval') return 'KÉRDÉS';
-  return 'EGYÉB';
-}
 
-function detectTodoEredmeny(t: { type?: string; badge?: string }): string {
-  if (t.type === 'approval') return 'Válasz előkészítve';
-  if (t.type === 'calendar') return 'Rögzítve';
-  return 'Rögzítve';
-}
-
-function detectTodoTeendo(t: { type?: string; badge?: string; badgeLabel?: string; aiDraftResponse?: string | null }): string {
-  if (t.type === 'approval') return 'Jóváhagyásra vár';
-  if (t.badge === 'surgos') return 'Azonnali beavatkozás szükséges';
-  if (t.badge === 'visszahivas') return 'Visszahívás szükséges';
-  if (t.badge === 'intezked') return 'Intézkedés szükséges';
-  if (t.badge === 'valasz') return 'Válasz szükséges';
-  if (t.type === 'calendar') return 'Nincs további teendő';
-  return t.badgeLabel || 'Nincs további teendő';
-}
 
 const CSATORNA_STYLES: Record<string, { bg: string; color: string; border: string }> = {
   'Messenger': { bg: 'rgba(59,130,246,0.08)', color: '#2563eb', border: 'rgba(59,130,246,0.25)' },
@@ -303,6 +284,11 @@ export default function MemberDashboardPage() {
       // a) Calendar events → todos
       myEvents.forEach(ev => {
         const evDt = new Date(ev.start_dt as string);
+        const helperObj = {
+          type: 'calendar',
+          approval_status: ev.completed === true ? 'approved' : 'pending',
+          topic: (ev.title || '') as string,
+        };
         newTodos.push({
           id: String(ev.id),
           type: 'calendar',
@@ -316,10 +302,10 @@ export default function MemberDashboardPage() {
           createdAt: evDt,
           completed: ev.completed === true,
           csatorna: 'Email',
-          ugyTipus: 'IDŐPONT',
-          eredmeny: 'Rögzítve',
-          teendo: 'Nincs további teendő',
-          statusz: 'LEZÁRT',
+          ugyTipus: detectUgyTipus(helperObj),
+          eredmeny: detectEredmeny(helperObj),
+          teendo: detectTeendo(helperObj),
+          statusz: detectStatusz(helperObj),
         });
       });
 
@@ -363,6 +349,14 @@ export default function MemberDashboardPage() {
           draftChannel = draft.channel || '';
         } catch { /* */ }
 
+        const helperObj = {
+          topic: (ap.topic || '') as string,
+          handover_reason: (ap.handover_reason || '') as string,
+          approval_status: (ap.approval_status || '') as string,
+          alert_tags: (ap.alert_tags || []) as string[],
+          type: 'approval',
+          badge: 'jovahagyas',
+        };
         newTodos.push({
           id: 'approval-' + (ap.id || Math.random()),
           type: 'approval',
@@ -380,20 +374,12 @@ export default function MemberDashboardPage() {
           aiDraftResponse: (ap.ai_draft_response || null) as string | null,
           channel: draftChannel || null,
           topic: (ap.topic || null) as string | null,
-          statusz: detectStatusz({
-            handover_reason: (ap.handover_reason || '') as string,
-            approval_status: (ap.approval_status || '') as string,
-            alert_tags: (ap.alert_tags || []) as string[],
-          }),
+          csatorna: detectTodoChannel({ channel: draftChannel, sessionId: ap.session_id as string, type: 'approval' }),
+          ugyTipus: detectUgyTipus(helperObj),
+          eredmeny: detectEredmeny(helperObj),
+          teendo: detectTeendo(helperObj),
+          statusz: detectStatusz(helperObj),
         });
-      });
-
-      // Populate derived display fields for all approval todos
-      newTodos.filter(t => t.type === 'approval').forEach(t => {
-        t.csatorna = detectTodoChannel(t);
-        t.ugyTipus = detectTodoUgyTipus(t);
-        t.eredmeny = detectTodoEredmeny(t);
-        t.teendo = detectTodoTeendo(t);
       });
 
       // c) Session handovers → todos
@@ -440,6 +426,15 @@ export default function MemberDashboardPage() {
 
           const clientName = ((s.participant || s.client_name || 'Ismeretlen') as string);
 
+          const helperObj = {
+            topic: (s.handover_reason || '') as string,
+            desc: (s.handover_reason || '') as string,
+            handover_reason: (s.handover_reason || '') as string,
+            type: 'interaction',
+            approval_status: (s.approval_status || '') as string,
+            badge,
+            alert_tags: (s.alert_tags || []) as string[],
+          };
           newTodos.push({
             id: 'session-' + (s.id || s.session_id || Math.random()),
             type: 'interaction',
@@ -453,14 +448,10 @@ export default function MemberDashboardPage() {
             createdAt: sDt,
             completed: false,
             csatorna: detectTodoChannel({ sessionId: (s.session_id || '') as string }),
-            ugyTipus: detectTodoUgyTipus({ topic: (s.handover_reason || '') as string, desc: (s.handover_reason || '') as string, type: 'interaction', badge }),
-            eredmeny: detectTodoEredmeny({ type: 'interaction', badge }),
-            teendo: detectTodoTeendo({ type: 'interaction', badge, badgeLabel }),
-            statusz: detectStatusz({
-              handover_reason: (s.handover_reason || '') as string,
-              approval_status: (s.approval_status || '') as string,
-              alert_tags: (s.alert_tags || []) as string[],
-            }),
+            ugyTipus: detectUgyTipus(helperObj),
+            eredmeny: detectEredmeny(helperObj),
+            teendo: detectTeendo(helperObj),
+            statusz: detectStatusz(helperObj),
           });
         });
 

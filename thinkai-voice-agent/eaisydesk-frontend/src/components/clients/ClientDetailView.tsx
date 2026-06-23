@@ -199,9 +199,9 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           channel: s.channel || 'Telefon',
           direction: 'Bejövő',
           ugyTipus: detectUgyTipus({ topic: '', summary }),
-          eredmeny: detectEredmeny({ topic: '', summary }),
-          statusz: 'LEZĂÂRT',
-          teendo: 'Nincs teendő',
+          eredmeny: detectEredmeny({ topic: '', summary, approval_status: 'approved' }),
+          statusz: 'Lezárt',
+          teendo: 'Nincs további teendő',
           topic: '',
           summary,
           status: 'lezárt',
@@ -510,7 +510,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                   <td className="int-td"><EredmenyBadge value={r.eredmeny} /></td>
                   <td className="int-td"><StatuszBadge value={r.statusz} /></td>
                   <td className="int-td" onClick={(e) => e.stopPropagation()}>
-                    {r.teendo === 'Jóváhagyásra vár' ? (
+                    {r.teendo === 'Válasz jóváhagyása szükséges' || r.teendo === 'Jóváhagyásra vár' ? (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -528,7 +528,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                         }}
                         className="btn btn-warning"
                       >
-                        Jóváhagyásra vár
+                        Válasz jóváhagyása szükséges
                       </button>
                     ) : (
                       <span className="cd-teendo-muted">{r.teendo}</span>
@@ -577,7 +577,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                   <td className="int-td"><EredmenyBadge value={r.eredmeny} /></td>
                   <td className="int-td"><StatuszBadge value={r.statusz} /></td>
                   <td className="int-td" onClick={(e) => e.stopPropagation()}>
-                    {r.teendo === 'Jóváhagyásra vár' ? (
+                    {r.teendo === 'Válasz jóváhagyása szükséges' || r.teendo === 'Jóváhagyásra vár' ? (
                       <button
                         onClick={(e) => {
                           e.stopPropagation();
@@ -595,7 +595,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                         }}
                         className="btn btn-warning"
                       >
-                        Jóváhagyásra vár
+                        Válasz jóváhagyása szükséges
                       </button>
                     ) : (
                       <span className="cd-teendo-muted">{r.teendo}</span>
