@@ -1,4 +1,4 @@
-﻿/**
+/**
  * OutboundPage – Kimenő kommunikáció / Kampányok
  * Optimized: chart options lifted to module-level constants, analytics overlay
  * lazy-rendered, campaign card and detail panel extracted to sub-components.
@@ -49,21 +49,21 @@ interface Campaign {
 
 // ── Module-level constants (never change — no useMemo needed) ─────────────────
 
-const STATUS_FILTERS = ['Összes', 'Tervezet', 'Aktív', 'Elküldött', 'Ütemezett'] as const;
+const STATUS_FILTERS = ['Összes', 'Tervezet', 'Aktív', 'Ütemezett', 'Lezárt'] as const;
 
 const STATUS_MAP: Record<string, string> = {
   'Tervezet': 'Vázlat',
   'Aktív': 'Aktív',
-  'Elküldött': 'Befejezett',
   'Ütemezett': 'Ütemezett',
+  'Lezárt': 'Befejezett',
 };
 
 const STATUS_COLORS: Record<string, { bg: string; color: string; label: string }> = {
-  'Vázlat':     { bg: 'rgba(107,139,153,0.1)', color: 'var(--text-muted)', label: 'Tervezet' },
+  'Vázlat':     { bg: 'rgba(59,130,246,0.1)', color: '#3b82f6', label: 'Tervezet' },
   'Aktív':      { bg: 'rgba(34,197,94,0.1)',    color: '#22c55e',           label: 'Aktív' },
-  'Befejezett': { bg: 'rgba(28,238,224,0.1)',   color: 'var(--accent)',     label: 'Elküldött' },
-  'Megállítva': { bg: 'rgba(245,158,11,0.1)',   color: '#f59e0b',          label: 'Megállítva' },
-  'Ütemezett':  { bg: 'rgba(139,92,246,0.1)',   color: '#8b5cf6',          label: 'Ütemezett' },
+  'Befejezett': { bg: 'rgba(107,114,128,0.1)',   color: '#6b7280',     label: 'Lezárt' },
+  'Megállítva': { bg: 'rgba(107,114,128,0.1)',   color: '#6b7280',          label: 'Lezárt' },
+  'Ütemezett':  { bg: 'rgba(28,238,224,0.1)',   color: '#1ceee0',          label: 'Ütemezett' },
 };
 
 const CHANNEL_NAMES: Record<string, string> = {
@@ -341,6 +341,9 @@ export default function OutboundPage() {
   // ── Filtered campaigns ──
   const filteredCampaigns = useMemo(() => {
     if (activeFilter === 'Összes') return campaigns;
+    if (activeFilter === 'Lezárt') {
+      return campaigns.filter(c => c.status === 'Befejezett' || c.status === 'Megállítva');
+    }
     const targetStatus = STATUS_MAP[activeFilter];
     return campaigns.filter(c => c.status === targetStatus);
   }, [campaigns, activeFilter]);
@@ -373,9 +376,17 @@ export default function OutboundPage() {
   const handleStopCampaign = useCallback(async (id: number) => {
     try {
       const res = await authFetch(`/admin/api/campaigns/${id}/stop`, { method: 'POST' });
-      if (res.ok) { showToast('Kampány megállítva'); loadCampaigns(); }
+      if (res.ok) { showToast('Kampány megállítva (szüneteltetve)'); loadCampaigns(); }
       else showToast('Hiba', 'error');
     } catch { showToast('Hiba', 'error'); }
+  }, [loadCampaigns]);
+
+  const handleCloseCampaign = useCallback(async (id: number) => {
+    try {
+      const res = await authFetch(`/admin/api/campaigns/${id}/close`, { method: 'POST' });
+      if (res.ok) { showToast('Kampány lezárva!'); loadCampaigns(); }
+      else showToast('Hiba a kampány lezárásakor', 'error');
+    } catch { showToast('Hiba a kampány lezárásakor', 'error'); }
   }, [loadCampaigns]);
 
   const handleDeleteCampaign = useCallback(async (id: number) => {
@@ -493,14 +504,6 @@ export default function OutboundPage() {
             <div className="out-kpi-stat">
               <div className="out-kpi-value">{kpis.targeted}</div>
               <div className="out-kpi-label">Összes célzott ügyfél</div>
-            </div>
-            <div className="out-kpi-stat">
-              <div className="out-kpi-value">0</div>
-              <div className="out-kpi-label">Ügyfélreakció</div>
-            </div>
-            <div className="out-kpi-stat out-kpi-stat--green-border">
-              <div className="out-kpi-value out-kpi-value--green">0</div>
-              <div className="out-kpi-label">Konverzió</div>
             </div>
           </div>
         </div>
@@ -760,6 +763,7 @@ export default function OutboundPage() {
                 onOpenDetail={setShowDetail}
                 onStart={handleStartCampaign}
                 onStop={handleStopCampaign}
+                onClose={handleCloseCampaign}
                 onDelete={handleDeleteCampaign}
                 onSchedule={handleOpenSchedule}
               />

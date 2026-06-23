@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CalendarPage – 1:1 migration of legacy calendar view
  * Features: list view + grid (FullCalendar) view, new event creation, no-show marking
  * Clicking an event opens the client profile.
@@ -260,8 +260,8 @@ export default function CalendarPage() {
           {/* List view */}
           {viewMode === 'list' && (
             <div className="table-card cal-table-card">
-              <table className="data-table">
-                <thead>
+              <table className="data-table int-table-norx">
+                <thead className="int-thead">
                   <tr>
                     <th>Időpont</th>
                     <th>Esemény</th>
@@ -273,8 +273,8 @@ export default function CalendarPage() {
                 </thead>
                 <tbody>
                   {myEvents.length === 0 ? (
-                    <tr>
-                      <td colSpan={6}>
+                    <tr className="int-row">
+                      <td className="int-td" colSpan={6}>
                         <div className="empty-state">
                           <div className="empty-state-icon" />
                           <div className="empty-state-text no-data">Nincs naptári esemény</div>
@@ -287,19 +287,20 @@ export default function CalendarPage() {
                       return (
                         <tr
                           key={ev.id}
-                          style={{ opacity: isPast ? 0.7 : 1, cursor: 'pointer' }}
+                          className="int-row cursor-pointer"
+                          style={{ opacity: isPast ? 0.7 : 1 }}
                           onClick={() => openClientFromEvent(ev.attendee || '', ev.attendee_email || '')}
                         >
-                          <td><div className="td-time">{fmtDt(ev.start_dt || '')}</div></td>
-                          <td className="cal-ev-title">{ev.title}</td>
-                          <td>
+                          <td className="int-td"><div className="td-time">{fmtDt(ev.start_dt || '')}</div></td>
+                          <td className="int-td cal-ev-title">{ev.title}</td>
+                          <td className="int-td">
                             <span className="cal-attendee-link">
                               {ev.attendee || <span className="no-data">Nincs ügyfél</span>}
                             </span>
                           </td>
-                          <td><span className="badge badge-teal">{ev.duration_minutes} perc</span></td>
-                          <td className="td-summary">{ev.attendee_email || <span className="no-data">Nincs email</span>}</td>
-                          <td className="cal-status-cell" onClick={(e) => e.stopPropagation()}>
+                          <td className="int-td"><span className="badge badge-teal">{ev.duration_minutes} perc</span></td>
+                          <td className="int-td td-summary">{ev.attendee_email || <span className="no-data">Nincs email</span>}</td>
+                          <td className="int-td cal-status-cell" onClick={(e) => e.stopPropagation()}>
                             {isPast ? (
                               <button
                                 onClick={() => handleMarkNoShow(ev.id as number, ev.attendee_email || '', ev.attendee || '')}

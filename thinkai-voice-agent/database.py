@@ -979,6 +979,23 @@ def get_sessions_with_summary(limit: int = 50) -> list[dict]:
             sess["interaction_count"] = len(inters)
             sess["interactions"] = inters
             sess["summary"] = _build_session_summary(inters)
+            
+            # Find the handover interaction to extract handover_reason, approval_status, alert_tags, client_id
+            handover_reason = None
+            approval_status = None
+            alert_tags = []
+            client_id = None
+            for inter in inters:
+                if inter.get("handover_reason"):
+                    handover_reason = inter["handover_reason"]
+                    approval_status = inter.get("approval_status")
+                    alert_tags = inter.get("alert_tags") or []
+                    client_id = inter.get("client_id")
+                    break
+            sess["handover_reason"] = handover_reason
+            sess["approval_status"] = approval_status
+            sess["alert_tags"] = alert_tags
+            sess["client_id"] = client_id
         return sessions
     except Exception as e:
         logger.error(f"Sessions with summary error: {e}")

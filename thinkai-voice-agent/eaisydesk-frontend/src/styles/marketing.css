@@ -1115,10 +1115,10 @@
 
 
 /* ======================================================
-   SocialMediaPage — migrated from inline styles
+   SocialMediaPage â€” migrated from inline styles
    ====================================================== */
 
-/* Platform icon — IG */
+/* Platform icon â€” IG */
 .sm-icon-ig {
   display: inline-flex; width: 20px; height: 20px; border-radius: 5px;
   background: linear-gradient(135deg,#833AB4,#E1306C,#F77737);
@@ -1126,7 +1126,7 @@
   font-size: 10px; color: #fff; font-weight: 800;
 }
 
-/* Platform icon — FB */
+/* Platform icon â€” FB */
 .sm-icon-fb {
   display: inline-flex; width: 20px; height: 20px; border-radius: 5px;
   background: #1877F2;
@@ -1134,7 +1134,7 @@
   font-size: 10px; color: #fff; font-weight: 800;
 }
 
-/* Header icon — orange gradient */
+/* Header icon â€” orange gradient */
 .mkt-page-header-icon--orange { background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(234,88,12,0.15)); }
 
 /* Refresh button smaller */
@@ -1171,16 +1171,16 @@
 /* Platform stat value */
 .sm-stat-val { font-size: 24px; font-weight: 800; color: var(--text); }
 
-/* KPI card accent — pending */
+/* KPI card accent â€” pending */
 .mkt-kpi-card--yellow { border-left-color: #f59e0b; }
 
-/* KPI card accent — approved */
+/* KPI card accent â€” approved */
 .mkt-kpi-card--purple { border-left-color: #8b5cf6; }
 
-/* KPI card accent — scheduled */
+/* KPI card accent â€” scheduled */
 .mkt-kpi-card--blue { border-left-color: #3b82f6; }
 
-/* KPI card accent — published */
+/* KPI card accent â€” published */
 .mkt-kpi-card--green { border-left-color: #22c55e; }
 
 /* Post count row */
@@ -1227,10 +1227,10 @@
 }
 
 /* ======================================================
-   EmailCampaignsPage — migrated from inline styles
+   EmailCampaignsPage â€” migrated from inline styles
    ====================================================== */
 
-/* Header icon — purple gradient */
+/* Header icon â€” purple gradient */
 .mkt-page-header-icon--purple { background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(99,102,241,0.15)); }
 
 /* Subscriber count badge */
@@ -1314,7 +1314,7 @@
 .mkt-modal-card--440 { width: 440px; }
 
 /* ======================================================
-   MarketingDashboardPage — migrated from inline styles
+   MarketingDashboardPage â€” migrated from inline styles
    ====================================================== */
 
 /* Loading shell center */
@@ -1323,10 +1323,10 @@
 /* Spinner purple */
 .spinner--purple { border-top-color: #8b5cf6; }
 
-/* Header icon — purple/blue gradient */
+/* Header icon â€” purple/blue gradient */
 .mkt-page-header-icon--violet { background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(59,130,246,0.15)); }
 
-/* KPI border color — dynamic via style attr  */
+/* KPI border color â€” dynamic via style attr  */
 
 /* Chart card fixed height */
 .mkt-chart-card--h320 { height: 320px; }
@@ -1334,31 +1334,31 @@
 /* Chart inner fills parent */
 .mkt-chart-inner { height: calc(100% - 50px); }
 
-/* Title icon — purple */
+/* Title icon â€” purple */
 .mkt-card-title-icon--purple { background: rgba(139,92,246,0.1); }
 
-/* Title icon — green */
+/* Title icon â€” green */
 .mkt-card-title-icon--green { background: rgba(34,197,94,0.1); }
 
-/* Title icon — blue */
+/* Title icon â€” blue */
 .mkt-card-title-icon--blue { background: rgba(59,130,246,0.1); }
 
-/* Title icon — orange */
+/* Title icon â€” orange */
 .mkt-card-title-icon--orange { background: rgba(245,158,11,0.1); }
 
-/* Title icon — red */
+/* Title icon â€” red */
 .mkt-card-title-icon--red { background: rgba(239,68,68,0.1); }
 
-/* Action btn icon — purple */
+/* Action btn icon â€” purple */
 .mkt-action-btn-icon--purple { background: rgba(139,92,246,0.1); }
 
-/* Action btn icon — orange */
+/* Action btn icon â€” orange */
 .mkt-action-btn-icon--orange { background: rgba(245,158,11,0.1); }
 
-/* Action btn icon — blue */
+/* Action btn icon â€” blue */
 .mkt-action-btn-icon--blue { background: rgba(59,130,246,0.1); }
 
-/* Action btn icon — green */
+/* Action btn icon â€” green */
 .mkt-action-btn-icon--green { background: rgba(34,197,94,0.1); }
 
 /* Status badge */
@@ -1379,7 +1379,7 @@
 .mkt-empty-center { padding: 30px; font-size: 13px; }
 
 /* ======================================================
-   ZomboAuditPage — migrated from inline styles
+   ZomboAuditPage â€” migrated from inline styles
    ====================================================== */
 
 /* Section label */
@@ -1430,7 +1430,7 @@
 }
 
 /* ======================================================
-   SegmentsPage — migrated from inline styles
+   SegmentsPage â€” migrated from inline styles
    ====================================================== */
 
 /* Header icon green */
@@ -1461,10 +1461,10 @@
 .seg-value-cell { font-weight: 600; }
 
 /* ======================================================
-   SeoPage — migrated from inline styles
+   SeoPage â€” migrated from inline styles
    ====================================================== */
 
-/* Header icon — blue */
+/* Header icon â€” blue */
 .mkt-page-header-icon--seo { background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(37,99,235,0.15)); }
 
 /* Keyword table card */

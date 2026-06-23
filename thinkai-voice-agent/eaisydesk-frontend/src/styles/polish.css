@@ -1132,7 +1132,7 @@ body.dark .beallitasok-tab.active {
 }
 
 /* Table wrapper scrollable */
-.todo-table-scroll { max-height: 500px; overflow-y: auto; }
+.todo-table-scroll { max-height: 500px; overflow-y: auto; overflow-x: auto; }
 
 /* Table full width */
 .data-table--full { width: 100%; }
@@ -1774,7 +1774,7 @@ body.dark .beallitasok-tab.active {
 /* Statusz badge override */
 .badge-statusz { border-radius: 6px; font-weight: 700; letter-spacing: 0.5px; }
 
-/* ¦¦ InteractionsPage: danger delete button ¦¦ */
+/* ~~ InteractionsPage: danger delete button ~~ */
 .int-toolbar-btn--danger {
   background: #fee2e2 !important;
   color: #b91c1c !important;
@@ -1787,4 +1787,18 @@ body.dark .int-toolbar-btn--danger {
   background: rgba(239,68,68,0.15) !important;
   color: #f87171 !important;
   border-color: rgba(239,68,68,0.3) !important;
+}
+
+/* Dashboard todo table compact sizing to fit Elvegzett column */
+.todo-table-scroll th,
+.todo-table-scroll td {
+  padding: 10px 8px !important;
+  font-size: 12px !important;
+}
+.todo-table-scroll th.int-checkbox-col,
+.todo-table-scroll td.int-checkbox-col {
+  padding: 0 !important;
+  width: 48px !important;
+  min-width: 48px !important;
+  max-width: 48px !important;
 }

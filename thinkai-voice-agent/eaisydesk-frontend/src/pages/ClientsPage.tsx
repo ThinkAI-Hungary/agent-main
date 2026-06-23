@@ -478,11 +478,11 @@ export default function ClientsPage() {
           </div>
 
           {/* Table */}
-          <table className="data-table data-table--no-radius">
-            <thead>
+          <table className="data-table data-table--no-radius int-table-norx">
+            <thead className="int-thead">
               <tr>
-                <th className="th-checkbox">
-                  <input type="checkbox" checked={isAllSelected} ref={(el) => { if (el) el.indeterminate = isIndeterminate; }} onChange={(e) => toggleAll(e.target.checked)} className="th-select-checkbox" />
+                <th className="int-checkbox-col">
+                  <input type="checkbox" checked={isAllSelected} ref={(el) => { if (el) el.indeterminate = isIndeterminate; }} onChange={(e) => toggleAll(e.target.checked)} className="int-checkbox-input" />
                 </th>
                 {CLIENT_COLUMNS.map((col) => visibleCols.has(col.key) ? <th key={col.key}>{col.label}</th> : null)}
               </tr>
@@ -490,27 +490,27 @@ export default function ClientsPage() {
             <tbody>
               {filteredClients.length === 0 ? (
                 <tr>
-                <td colSpan={visibleCols.size + 1} className="td-empty">
+                  <td colSpan={visibleCols.size + 1} className="int-td--pad40">
                     {clients.length === 0 ? <TableSkeleton columns={visibleCols.size} rows={8} /> : <div className="cl-empty-center"><span className="no-data">Nincs találat</span></div>}
                   </td>
                 </tr>
               ) : (
                 filteredClients.map((c) => (
-                  <tr key={String(c.id)} className="cursor-pointer" onClick={() => openClientDetail(String(c.id))}>
-                    <td className="td-checkbox" onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" checked={selectedRows.has(String(c.id))} onChange={() => toggleRow(String(c.id))} className="td-select-checkbox" />
+                  <tr key={String(c.id)} className="int-row cursor-pointer" onClick={() => openClientDetail(String(c.id))}>
+                    <td className="int-checkbox-col int-td-checkbox" onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" checked={selectedRows.has(String(c.id))} onChange={() => toggleRow(String(c.id))} className="int-checkbox-input" />
                     </td>
                     {visibleCols.has('name') && (
-                      <td className="td-p">
+                      <td className="int-td">
                         <div className="cl-name-cell">{c.name}</div>
                         <div className="cl-name-id">ID: {c.id}</div>
                       </td>
                     )}
                     {visibleCols.has('status_badge') && (
-                      <td className="td-p">{statusBadge(c)}</td>
+                      <td className="int-td">{statusBadge(c)}</td>
                     )}
                     {visibleCols.has('tags') && (
-                      <td className="td-p">
+                      <td className="int-td">
                         <div className="flex-row gap-4 flex-wrap">
                           {c.tags.slice(0, 3).map((t) => <TagBadge key={t} tag={t} />)}
                           {c.tags.length > 3 && <span className="cl-tag-overflow--sm">+{c.tags.length - 3}</span>}
@@ -518,13 +518,13 @@ export default function ClientsPage() {
                       </td>
                     )}
                     {visibleCols.has('phone') && (
-                      <td className="td-p-sm">{c.phone || '—'}</td>
+                      <td className="int-td">{c.phone || '—'}</td>
                     )}
                     {visibleCols.has('email') && (
-                      <td className="td-p-sm">{c.email || '—'}</td>
+                      <td className="int-td">{c.email || '—'}</td>
                     )}
                     {visibleCols.has('assignee') && (
-                      <td className="td-p-fs13" onClick={e => e.stopPropagation()}>
+                      <td className="int-td" onClick={e => e.stopPropagation()}>
                         {isAdmin ? (
                           <AssigneeDropdown
                             value={c.assignee || ''}
@@ -547,10 +547,10 @@ export default function ClientsPage() {
                       </td>
                     )}
                     {visibleCols.has('lastInteraction') && (
-                      <td className="td-p-sm-nowrap">{c.lastInteraction ? fmtDt(c.lastInteraction) : '—'}</td>
+                      <td className="int-td int-td--date">{c.lastInteraction ? fmtDt(c.lastInteraction) : '—'}</td>
                     )}
                     {visibleCols.has('sales_status') && (
-                      <td className="td-p-fs13">
+                      <td className="int-td">
                         {kanbanNameMap[c.status] || c.status || '—'}
                       </td>
                     )}

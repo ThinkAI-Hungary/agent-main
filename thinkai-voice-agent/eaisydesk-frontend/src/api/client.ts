@@ -94,15 +94,16 @@ export async function loginApi(
   }
 
   if (!res.ok) {
+    let errorMessage = 'Hibás adatok.';
     try {
       const data = await res.json();
-      throw new Error(data.detail || 'Hibás adatok.');
-    } catch (e) {
-      if (e instanceof Error && e.message !== 'Hibás adatok.' && !e.message.includes('detail')) {
-        throw new Error('A szerver nem elérhető vagy hibás választ adott.', { cause: e });
+      if (data && data.detail) {
+        errorMessage = data.detail;
       }
-      throw e;
+    } catch (e) {
+      throw new Error('A szerver nem elérhető vagy hibás választ adott.', { cause: e });
     }
+    throw new Error(errorMessage);
   }
 
   try {

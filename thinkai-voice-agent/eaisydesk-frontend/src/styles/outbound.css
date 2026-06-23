@@ -40,11 +40,11 @@
     /* KPI Grid */
     .out-kpi-grid {
       display: grid;
-      grid-template-columns: repeat(6, 1fr);
+      grid-template-columns: repeat(4, 1fr);
       gap: 14px;
       margin-bottom: 16px;
     }
-    @media (max-width: 1200px) { .out-kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+    @media (max-width: 1200px) { .out-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
     @media (max-width: 768px) { .out-kpi-grid { grid-template-columns: repeat(2, 1fr); } }
 
     .out-kpi-stat {
@@ -2097,7 +2097,7 @@
     body:not(.dark) .ana-hero-sub { color: rgba(255,255,255,0.6); }
 
 /* ======================================================
-   OutboundPage & AnalyticsPage — migrated from inline styles
+   OutboundPage & AnalyticsPage â€” migrated from inline styles
    ====================================================== */
 
 /* Icon box header gradient */
@@ -2207,7 +2207,7 @@
 .out-schedule-date { border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 13px; background: var(--bg); color: var(--text); font-family: inherit; }
 
 /* ======================================================
-   CampaignWizardModal — migrated from inline styles
+   CampaignWizardModal â€” migrated from inline styles
    ====================================================== */
 
 /* Modal inner panel */
@@ -2445,7 +2445,7 @@
 }
 
 /* ======================================================
-   OutboundPage — migrated from inline styles
+   OutboundPage â€” migrated from inline styles
    ====================================================== */
 
 /* Filter row */
@@ -2454,13 +2454,13 @@
 /* View switcher no margin */
 .out-view-switcher--no-mb { margin-bottom: 0; }
 
-/* Card outline dynamic — selected */
+/* Card outline dynamic â€” selected */
 .out-campaign-card--clickable { cursor: pointer; transition: outline 0.15s; }
 
 /* Card checkbox position */
 .out-card-checkbox-wrap { position: absolute; top: 10px; right: 10px; z-index: 2; }
 
-/* Card checkbox box — border/bg dynamic */
+/* Card checkbox box â€” border/bg dynamic */
 .out-card-checkbox {
   width: 20px; height: 20px; border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
@@ -2509,7 +2509,7 @@
 /* Close btn push right */
 .cpv-btn-close-right { margin-left: auto; }
 
-/* Action btn — color all dynamic */
+/* Action btn â€” color all dynamic */
 .out-action-btn {
   padding: 6px 14px; border-radius: 8px; font-size: 11px;
   font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s;
@@ -2614,3 +2614,125 @@
   transition: opacity 0.15s;
 }
 .camp-ai-generate-btn--disabled { opacity: 0.5; }
+
+/* === Outbound Campaign Card Status Enhancements === */
+.out-campaign-card--tervezet {
+  border: 1px solid #3b82f6 !important;
+}
+.out-campaign-card--aktiv {
+  border: 1px solid #22c55e !important;
+}
+.out-campaign-card--utemezett {
+  border: 1px solid #1ceee0 !important;
+}
+.out-campaign-card--lezart {
+  border: 1px solid #6b7280 !important;
+}
+
+/* Header Avatar and User Info */
+.out-card-avatar {
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 800;
+  color: #082432;
+  flex-shrink: 0;
+  overflow: hidden;
+}
+.out-card-avatar--gradient {
+  background: linear-gradient(135deg, #1ceee0, #3b82f6);
+}
+.out-card-avatar--transparent {
+  background: transparent;
+}
+.out-card-user-date {
+  font-size: 11px;
+  color: var(--text-muted);
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+.out-card-user {
+  font-weight: 600;
+  color: var(--text);
+}
+.out-card-date-separator {
+  color: var(--border);
+}
+
+/* Centered Title */
+.out-card-name-centered {
+  text-align: center;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  margin-top: 18px;
+  margin-bottom: 18px;
+}
+
+/* Split Layout Box Grid */
+.out-card-split-cards {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+  margin-bottom: 20px;
+}
+.out-card-split-box {
+  background: rgba(107, 139, 153, 0.04);
+  border: 1px solid rgba(107, 139, 153, 0.08);
+  border-radius: 8px;
+  padding: 12px 6px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  min-height: 85px;
+}
+body.dark .out-card-split-box {
+  background: rgba(255, 255, 255, 0.02);
+  border-color: rgba(255, 255, 255, 0.05);
+}
+.out-card-split-icon {
+  color: var(--text-muted);
+  margin-bottom: 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.out-card-split-text-main {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1.25;
+}
+.out-card-split-text-sub {
+  font-size: 9px;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  margin-top: 3px;
+}
+
+/* Left-aligned Delete Button */
+.out-delete-btn {
+  background: none;
+  border: 1px solid rgba(239, 68, 68, 0.2);
+  color: #ef4444;
+  padding: 8px;
+  border-radius: 8px;
+  cursor: pointer;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.out-delete-btn:hover {
+  background: rgba(239, 68, 68, 0.08);
+  border-color: #ef4444;
+}
+
