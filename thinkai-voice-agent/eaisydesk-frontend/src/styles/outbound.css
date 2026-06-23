@@ -2097,7 +2097,7 @@
     body:not(.dark) .ana-hero-sub { color: rgba(255,255,255,0.6); }
 
 /* ======================================================
-   OutboundPage & AnalyticsPage — migrated from inline styles
+   OutboundPage & AnalyticsPage â€” migrated from inline styles
    ====================================================== */
 
 /* Icon box header gradient */
@@ -2207,7 +2207,7 @@
 .out-schedule-date { border: 1px solid var(--border); border-radius: 8px; padding: 6px 10px; font-size: 13px; background: var(--bg); color: var(--text); font-family: inherit; }
 
 /* ======================================================
-   CampaignWizardModal — migrated from inline styles
+   CampaignWizardModal â€” migrated from inline styles
    ====================================================== */
 
 /* Modal inner panel */
@@ -2445,7 +2445,7 @@
 }
 
 /* ======================================================
-   OutboundPage — migrated from inline styles
+   OutboundPage â€” migrated from inline styles
    ====================================================== */
 
 /* Filter row */
@@ -2454,13 +2454,13 @@
 /* View switcher no margin */
 .out-view-switcher--no-mb { margin-bottom: 0; }
 
-/* Card outline dynamic — selected */
+/* Card outline dynamic â€” selected */
 .out-campaign-card--clickable { cursor: pointer; transition: outline 0.15s; }
 
 /* Card checkbox position */
 .out-card-checkbox-wrap { position: absolute; top: 10px; right: 10px; z-index: 2; }
 
-/* Card checkbox box — border/bg dynamic */
+/* Card checkbox box â€” border/bg dynamic */
 .out-card-checkbox {
   width: 20px; height: 20px; border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
@@ -2509,7 +2509,7 @@
 /* Close btn push right */
 .cpv-btn-close-right { margin-left: auto; }
 
-/* Action btn — color all dynamic */
+/* Action btn â€” color all dynamic */
 .out-action-btn {
   padding: 6px 14px; border-radius: 8px; font-size: 11px;
   font-weight: 600; cursor: pointer; font-family: inherit; transition: all 0.2s;

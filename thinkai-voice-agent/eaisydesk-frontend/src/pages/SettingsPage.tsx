@@ -727,9 +727,9 @@ export default function SettingsPage() {
                 <span className="section-heading">Prioritási szabályok</span>
               </div>
               <div className="settings-section p-24">
-                <table className="settings-triage-table">
-                  <thead>
-                    <tr className="settings-triage-thead-row">
+                <table className="data-table">
+                  <thead className="int-thead">
+                    <tr>
                       <th className="sett-th sett-th--w30">Helyzet</th>
                       <th className="sett-th sett-th--w25">Prioritás</th>
                       <th className="sett-th sett-th--w30">Eszkalációs e-mail</th>
@@ -738,11 +738,11 @@ export default function SettingsPage() {
                   </thead>
                   <tbody>
                     {triageRules.map((r, i) => (
-                      <tr key={r.id || i}>
-                        <td className="sett-td">
+                      <tr key={r.id || i} className="int-row">
+                        <td className="int-td">
                           <input className="tt-input" value={r.situation} onChange={e => setTriageRules(prev => prev.map((x, j) => j === i ? { ...x, situation: e.target.value } : x))} onBlur={() => saveTriageRule(r, i)} />
                         </td>
-                        <td className="sett-td">
+                        <td className="int-td">
                           <select className="tt-select" value={r.priority} onChange={e => { const updated = { ...r, priority: e.target.value }; setTriageRules(prev => prev.map((x, j) => j === i ? updated : x)); saveTriageRule(updated, i); }}>
                             <option value="alacsony">Alacsony</option>
                             <option value="kozepes">Közepes</option>
@@ -750,10 +750,10 @@ export default function SettingsPage() {
                             <option value="surgos">Sürgős</option>
                           </select>
                         </td>
-                        <td className="sett-td">
+                        <td className="int-td">
                           <input className="tt-input" value={r.escalation_email || ''} onChange={e => setTriageRules(prev => prev.map((x, j) => j === i ? { ...x, escalation_email: e.target.value } : x))} placeholder="email@example.com" onBlur={() => saveTriageRule(r, i)} />
                         </td>
-                        <td className="sett-td sett-td--center">
+                        <td className="int-td int-td--center">
                           <DeleteBtn onClick={() => deleteTriageRule(r.id, i)} />
                         </td>
                       </tr>
@@ -873,8 +873,8 @@ export default function SettingsPage() {
             {/* ══════ 3. Nyitvatartás ══════ */}
             <div id="sec-nyitvatartas" className="scroll-anchor" />
             <SectionCard title="Nyitvatartás" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM12 6v6l4 2">
-              <table className="bh-table settings-bh-table-wrap">
-                <thead>
+              <table className="data-table">
+                <thead className="int-thead">
                   <tr>
                     <th className="sett-th">Nap</th>
                     <th className="sett-th">Nyitás</th>
@@ -887,15 +887,15 @@ export default function SettingsPage() {
                     const raw = agent.business_hours[key] || { open: '08:00', close: '17:00', enabled: true };
                     const bh = { open: raw.open || '', close: raw.close || '', enabled: !!raw.enabled };
                     return (
-                      <tr key={key}>
-                        <td className="sett-td">{DAYS[i]}</td>
-                        <td className="sett-td">
+                      <tr key={key} className="int-row">
+                        <td className="int-td">{DAYS[i]}</td>
+                        <td className="int-td">
                           <input type="time" value={bh.open} onChange={(e) => setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: { ...bh, open: e.target.value } } })} className="sett-time-input" disabled={!bh.enabled} />
                         </td>
-                        <td className="sett-td">
+                        <td className="int-td">
                           <input type="time" value={bh.close} onChange={(e) => setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: { ...bh, close: e.target.value } } })} className="sett-time-input" disabled={!bh.enabled} />
                         </td>
-                        <td className="sett-td sett-td--center">
+                        <td className="int-td int-td--center">
                           <label className="tt-toggle settings-toggle-inline">
                             <input type="checkbox" checked={bh.enabled} onChange={(e) => {
                               const newEnabled = e.target.checked;

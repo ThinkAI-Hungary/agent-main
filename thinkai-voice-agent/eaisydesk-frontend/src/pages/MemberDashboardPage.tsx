@@ -15,6 +15,10 @@ import { useSessions } from '../hooks/useSessions';
 import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import ClientDetailView from '../components/clients/ClientDetailView';
 import { bestClientName } from '../helpers/clientResolvers';
+import { StatuszBadge, EredmenyBadge } from '../components/ui/Badge';
+import InteractionSummaryModal from '../components/interactions/InteractionSummaryModal';
+import type { InteractionRow } from './InteractionsPage';
+import { detectStatusz } from '../helpers/interactionClassifiers';
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
@@ -41,6 +45,7 @@ interface Todo {
   ugyTipus?: string;
   eredmeny?: string;
   teendo?: string;
+  statusz?: string;
 }
 
 type TodoFilter = 'all' | 'today' | 'overdue' | 'upcoming' | 'completed';
@@ -89,7 +94,7 @@ function detectTodoChannel(t: { channel?: string | null; sessionId?: string | nu
   if (sid.startsWith('whatsapp')) return 'WhatsApp';
   if (sid.includes('email')) return 'Email';
   if (sid.includes('call') || sid.includes('sip')) return 'Telefon';
-  if (t.type === 'calendar') return 'Naptár';
+  if (t.type === 'calendar') return 'Email';
   return '—';
 }
 
@@ -146,6 +151,31 @@ function saveCompletedIds(ids: string[]) {
   localStorage.setItem(getCompletedStorageKey(), JSON.stringify(ids));
 }
 
+function mapTodoToInteractionRow(t: Todo): InteractionRow {
+  return {
+    date: t.createdAt ? t.createdAt.toISOString() : t.date.toISOString(),
+    channel: t.csatorna || 'Email',
+    client: t.client || 'Ismeretlen',
+    clientId: t.clientId,
+    clientStatus: null,
+    clientCreatedAt: null,
+    direction: t.type === 'approval' ? 'Kimenő' : 'Bejövő',
+    ugyTipus: t.ugyTipus || 'EGYÉB',
+    eredmeny: t.eredmeny || 'Rögzítve',
+    statusz: t.statusz || 'LEZÁRT',
+    teendo: t.teendo || 'Nincs további teendő',
+    tags: [],
+    type: t.type,
+    topic: t.topic || '',
+    summary: t.desc || '',
+    result: t.eredmeny || '',
+    interactionId: t.interactionId || null,
+    sessionId: t.sessionId || null,
+    ai_draft_response: t.aiDraftResponse || null,
+    approval_status: t.type === 'approval' ? 'pending' : null,
+  };
+}
+
 // ── Component ───────────────────────────────────────────────────────────────
 
 export default function MemberDashboardPage() {
@@ -161,6 +191,7 @@ export default function MemberDashboardPage() {
   const [nextAppointment, setNextAppointment] = useState<{ text: string; sub: string }>({ text: '—', sub: 'naptárban' });
   const [loading, setLoading] = useState(true);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [summaryModalRow, setSummaryModalRow] = useState<InteractionRow | null>(null);
 
   const username = user?.username || '';
   const fullName = user?.fullName || '';
@@ -284,10 +315,11 @@ export default function MemberDashboardPage() {
           date: evDt,
           createdAt: evDt,
           completed: ev.completed === true,
-          csatorna: 'Naptár',
+          csatorna: 'Email',
           ugyTipus: 'IDŐPONT',
           eredmeny: 'Rögzítve',
           teendo: 'Nincs további teendő',
+          statusz: 'LEZÁRT',
         });
       });
 
@@ -348,6 +380,11 @@ export default function MemberDashboardPage() {
           aiDraftResponse: (ap.ai_draft_response || null) as string | null,
           channel: draftChannel || null,
           topic: (ap.topic || null) as string | null,
+          statusz: detectStatusz({
+            handover_reason: (ap.handover_reason || '') as string,
+            approval_status: (ap.approval_status || '') as string,
+            alert_tags: (ap.alert_tags || []) as string[],
+          }),
         });
       });
 
@@ -419,6 +456,11 @@ export default function MemberDashboardPage() {
             ugyTipus: detectTodoUgyTipus({ topic: (s.handover_reason || '') as string, desc: (s.handover_reason || '') as string, type: 'interaction', badge }),
             eredmeny: detectTodoEredmeny({ type: 'interaction', badge }),
             teendo: detectTodoTeendo({ type: 'interaction', badge, badgeLabel }),
+            statusz: detectStatusz({
+              handover_reason: (s.handover_reason || '') as string,
+              approval_status: (s.approval_status || '') as string,
+              alert_tags: (s.alert_tags || []) as string[],
+            }),
           });
         });
 
@@ -680,45 +722,48 @@ export default function MemberDashboardPage() {
 
         {/* Todos table */}
         <div className="int-table-wrapper todo-table-scroll">
-          <table className="data-table data-table--full">
+          <table className="data-table int-table-norx data-table--full">
             <thead className="int-thead">
               <tr>
-                <th className="todo-th">Dátum</th>
-                <th className="todo-th">Ügyfél</th>
-                <th className="todo-th">Csatorna</th>
-                <th className="todo-th">Ügytípus</th>
-                <th className="todo-th">Eredmény</th>
-                <th className="todo-th">Teendő</th>
-                <th className="todo-th--narrow"></th>
+                <th>Dátum</th>
+                <th>Ügyfél</th>
+                <th>Csatorna</th>
+                <th>Ügytípus</th>
+                <th>Eredmény</th>
+                <th>Státusz</th>
+                <th>Teendő</th>
+                <th className="int-checkbox-col">Elvégzett</th>
               </tr>
             </thead>
             <tbody>
               {filtered.length === 0 ? (
-                <tr>
-                  <td colSpan={7} className="todo-empty">
-                    <svg width="40" height="40" fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24">
-                      <path d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
-                    </svg>
-                    {filter === 'all' ? 'Nincs teendő — szuper!' : 'Nincs ilyen teendő.'}
+                <tr className="int-row">
+                  <td colSpan={8} className="int-td--pad40">
+                    <span className="no-data">
+                      {filter === 'all' ? 'Nincs teendő — szuper!' : 'Nincs ilyen teendő.'}
+                    </span>
                   </td>
                 </tr>
               ) : (
                 filtered.map(t => {
-                  const csatornaStyle = CSATORNA_STYLES[t.csatorna || ''] || { bg: 'rgba(107,114,128,0.06)', color: '#6b7280', border: 'rgba(107,114,128,0.15)' };
                   const teendoText = t.teendo || 'Nincs további teendő';
-                  const teendoStyle = TEENDO_STYLES[teendoText] || TEENDO_STYLES['Nincs további teendő'];
                   return (
-                    <tr key={t.id} className={`int-row${t.completed ? ' completed' : ''}`} style={{ opacity: t.completed ? 0.5 : 1 }}>
+                    <tr
+                      key={t.id}
+                      className={`int-row cursor-pointer${t.completed ? ' completed' : ''}`}
+                      style={{ opacity: t.completed ? 0.5 : 1 }}
+                      onClick={() => setSummaryModalRow(mapTodoToInteractionRow(t))}
+                    >
                       {/* Dátum */}
-                      <td className="todo-td--date">
-                        {formatTodoDatum(t.createdAt || t.date)}
+                      <td className="int-td int-td--date">
+                        <div className="int-date-cell">{formatTodoDatum(t.createdAt || t.date)}</div>
                       </td>
                       {/* Ügyfél */}
-                      <td className="todo-td" onClick={e => e.stopPropagation()}>
+                      <td className="int-td" onClick={e => e.stopPropagation()}>
                         {t.client && t.client !== 'Ismeretlen' ? (
                           <button
-                            className="todo-client-btn"
-                            title={t.client}
+                            className="int-client-link"
+                            title="Ugrás az ügyfél adatlapjára"
                             onClick={() => {
                               if (t.clientId) {
                                 setSelectedClientId(String(t.clientId));
@@ -731,60 +776,40 @@ export default function MemberDashboardPage() {
                                 if (found) setSelectedClientId(String(found.id));
                               }
                             }}
+                            onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = '#0d9488'; e.currentTarget.style.color = '#0f766e'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.color = '#0d9488'; }}
                           >
                             {t.client}
                           </button>
                         ) : (
-                          <span className="todo-client-dash">—</span>
+                          <span className="int-client-unknown">{t.client || <span className="no-data">Ismeretlen</span>}</span>
                         )}
                       </td>
                       {/* Csatorna */}
-                      <td className="todo-td">
-                        <span className="csatorna-badge" style={{ background: csatornaStyle.bg, color: csatornaStyle.color, border: `1px solid ${csatornaStyle.border}` }}>
-                          {t.csatorna || '—'}
-                        </span>
+                      <td className="int-td int-td--channel">
+                        {t.csatorna || '—'}
                       </td>
                       {/* Ügytípus */}
-                      <td className="todo-td--type">
-                        {t.ugyTipus || 'EGYÉB'}
+                      <td className="int-td">
+                        <span className="int-type-label">{t.ugyTipus || 'EGYÉB'}</span>
                       </td>
                       {/* Eredmény */}
-                      <td className="todo-td--muted">
-                        {t.eredmeny || 'Rögzítve'}
+                      <td className="int-td">
+                        <EredmenyBadge value={t.eredmeny || 'Rögzítve'} />
+                      </td>
+                      {/* Státusz */}
+                      <td className="int-td">
+                        <StatuszBadge value={t.statusz || 'LEZÁRT'} />
                       </td>
                       {/* Teendő */}
-                      <td className="todo-td" onClick={e => e.stopPropagation()}>
-                        {t.type === 'approval' && t.aiDraftResponse ? (
-                          <button
-                            className="teendo-badge teendo-badge--btn"
-                            style={{ background: teendoStyle.bg, color: teendoStyle.color, border: `1px solid ${teendoStyle.border}` }}
-                            onClick={() => {
-                              openApproval({
-                                interactionId: t.interactionId,
-                                sessionId: t.sessionId,
-                                clientName: t.client,
-                                channel: t.channel || undefined,
-                                date: t.date.toISOString(),
-                                topic: t.topic || undefined,
-                                summary: t.desc,
-                                aiDraftResponse: t.aiDraftResponse || undefined,
-                                approvalStatus: 'pending',
-                              });
-                            }}
-                          >
-                            {teendoText}
-                          </button>
-                        ) : (
-                          <span className="teendo-badge" style={{ background: teendoStyle.bg, color: teendoStyle.color, border: `1px solid ${teendoStyle.border}` }}>
-                            {teendoText}
-                          </span>
-                        )}
+                      <td className="int-td int-td--truncate" title={teendoText}>
+                        <span className="int-teendo-text">{teendoText}</span>
                       </td>
                       {/* Checkbox */}
-                      <td className="todo-td--check" onClick={e => e.stopPropagation()}>
+                      <td className="int-checkbox-col int-td-checkbox" onClick={e => e.stopPropagation()}>
                         <input
                           type="checkbox"
-                          className="todo-checkbox"
+                          className="int-checkbox-input"
                           checked={t.completed}
                           onChange={e => toggleTodoCompleted(t.id, e.target.checked)}
                         />
@@ -797,6 +822,24 @@ export default function MemberDashboardPage() {
           </table>
         </div>
       </div>
+
+      {summaryModalRow && (
+        <InteractionSummaryModal
+          row={summaryModalRow}
+          onClose={() => setSummaryModalRow(null)}
+          clients={hookClients}
+          clientsMap={clientsMap}
+          onClientClick={(id) => {
+            setSummaryModalRow(null);
+            setSelectedClientId(id);
+          }}
+          autoExpandApproval={summaryModalRow.type === 'approval'}
+          onApproved={() => {
+            refetchSessions();
+            loadDashboardData();
+          }}
+        />
+      )}
     </div>
   );
 }

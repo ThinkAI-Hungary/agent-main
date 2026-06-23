@@ -1774,7 +1774,7 @@ body.dark .beallitasok-tab.active {
 /* Statusz badge override */
 .badge-statusz { border-radius: 6px; font-weight: 700; letter-spacing: 0.5px; }
 
-/* ¦¦ InteractionsPage: danger delete button ¦¦ */
+/* ~~ InteractionsPage: danger delete button ~~ */
 .int-toolbar-btn--danger {
   background: #fee2e2 !important;
   color: #b91c1c !important;

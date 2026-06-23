@@ -162,8 +162,8 @@ export default function GdprPage() {
 
       {/* Table */}
       <div className="card-container gdpr-table-wrap">
-        <table className="table">
-          <thead>
+        <table className="data-table int-table-norx">
+          <thead className="int-thead">
             <tr>
               {['Érintett', 'Típus', 'Benyújtás', 'Státusz', 'Művelet'].map(h => (
                 <th key={h}>{h}</th>
@@ -172,8 +172,8 @@ export default function GdprPage() {
           </thead>
           <tbody>
             {requests.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="text-center text-muted gdpr-empty-td">
+              <tr className="int-row">
+                <td colSpan={5} className="int-td text-center text-muted gdpr-empty-td">
                   <svg fill="none" stroke="var(--text-muted)" strokeWidth="1.5" viewBox="0 0 24 24" width="32" height="32" className="gdpr-empty-icon">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   </svg>
@@ -183,16 +183,16 @@ export default function GdprPage() {
             ) : requests.map(req => {
               const sc = STATUS_CONFIG[req.status];
               return (
-                <tr key={req.id}>
-                  <td className="font-semibold">{req.employeeName}</td>
-                  <td className="text-muted">{TYPE_LABELS[req.requestType]}</td>
-                  <td className="text-sm text-muted">
+                <tr key={req.id} className="int-row">
+                  <td className="int-td font-semibold">{req.employeeName}</td>
+                  <td className="int-td text-muted">{TYPE_LABELS[req.requestType]}</td>
+                  <td className="int-td text-sm text-muted">
                     {new Date(req.requestedAt).toLocaleDateString('hu-HU')}
                   </td>
-                  <td>
+                  <td className="int-td">
                     <span className="badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
                   </td>
-                  <td>
+                  <td className="int-td">
                     <div className="flex-row gap-4">
                       {req.status === 'pending' && (
                         <button className="btn btn-xs btn-outline gdpr-btn-start" onClick={() => updateStatus(req.id, 'in_progress')}>Elkezd</button>
@@ -245,9 +245,8 @@ export default function GdprPage() {
               </div>
               <div className="form-group">
                 <label className="form-label">Megjegyzés</label>
-                <textarea className="input" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
-                  placeholder="Opcionális megjegyzés..." rows={3}
-                  className="input gdpr-textarea" />
+                <textarea className="input gdpr-textarea" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+                  placeholder="Opcionális megjegyzés..." rows={3} />
               </div>
             </div>
             {/* Footer */}

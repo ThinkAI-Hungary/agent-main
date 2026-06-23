@@ -1666,11 +1666,11 @@
 .modal-divider-mx { margin: 20px 32px 0; height: 1px; background: var(--border); }
 .modal-form-body { padding: 24px 32px; display: flex; flex-direction: column; gap: 18px; }
 .modal-footer-row { padding: 0 32px 28px; display: flex; gap: 12px; justify-content: flex-end; }
-/* ¶¶ BeallitasokPage: Biztons·g tab ¶¶ */
+/* ~~ BeallitasokPage: Biztons√°g tab ~~ */
 .beal-sec-title-wrap { margin-bottom: 8px; }
 .beal-sec-title { font-size: 17px; font-weight: 700; color: var(--text); }
 
-/* ¶¶ Modal overlay ¶¶ */
+/* ~~ Modal overlay ~~ */
 .beal-modal-overlay {
   position: fixed; inset: 0; z-index: 9999;
   background: rgba(0,0,0,0.5); backdrop-filter: blur(8px);
@@ -1789,7 +1789,7 @@
 .beal-legacy-modal-title { margin: 0; font-size: 18px; font-weight: 700; color: var(--text); }
 .beal-legacy-modal-sub  { margin: 2px 0 0; font-size: 12px; color: var(--text-muted); }
 
-/* ¶¶ ChannelsSection ¶¶ */
+/* ~~ ChannelsSection ~~ */
 .channels-card { margin-top: 20px; }
 .channels-header { display: flex; align-items: center; gap: 10px; margin-bottom: 4px; }
 .channels-title  { font-size: 16px; font-weight: 700; color: var(--text); }
@@ -1816,7 +1816,7 @@
 .channels-input-wrap input { opacity: 1; transition: opacity 0.2s; }
 .channels-input-wrap input:disabled { opacity: 0.4; }
 
-/* ¶¶ RoleDropdown ¶¶ */
+/* ~~ RoleDropdown ~~ */
 .role-dd-wrap   { position: relative; }
 .role-dd-btn {
   padding: 5px 12px; border-radius: 8px;

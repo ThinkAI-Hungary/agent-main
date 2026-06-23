@@ -1,4 +1,4 @@
-﻿/**
+/**
  * ClientDetailView â€“ 1:1 port of legacy openClientDetails() / view-client-details
  * Rendered as inline overlay within ClientsPage or InteractionsPage.
  */
@@ -475,12 +475,12 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         Összes interakció: {clientInteractions.length}
       </div>
 
-      {/* â• â• â•  Aktuális Ügyek Table â• â• â•  */}
+      {/* ═══ Aktuális Ügyek Table ═══ */}
       <div className="mb-32">
         <h3 className="form-label form-label--uppercase">Aktuális ügyek</h3>
         <div className="table-card">
-          <table className="data-table">
-            <thead>
+          <table className="data-table int-table-norx">
+            <thead className="int-thead">
               <tr>
                 <th>Interakció időpontja</th>
                 <th>Csatorna</th>
@@ -493,19 +493,23 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             </thead>
             <tbody>
               {openInteractions.length === 0 ? (
-                <tr><td colSpan={7} className="empty-state">Nincs aktuális ügy</td></tr>
+                <tr><td colSpan={7} className="empty-state no-data">Nincs aktuális ügy</td></tr>
               ) : openInteractions.map((r, i) => (
-                <tr key={i}>
-                  <td>
+                <tr
+                  key={i}
+                  className="int-row cursor-pointer"
+                  onClick={() => setSummaryModalRow(r)}
+                >
+                  <td className="int-td">
                     <div className="cd-date-primary">{r.date ? new Date(r.date).toLocaleDateString('hu-HU') : '-'}</div>
                     <div className="cd-date-time">{r.date ? new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
                   </td>
-                  <td>{r.channel}</td>
-                  <td><DirectionBadge value={r.direction} /></td>
-                  <td><span className="cd-ugytipus">{r.ugyTipus}</span></td>
-                  <td><EredmenyBadge value={r.eredmeny} /></td>
-                  <td><StatuszBadge value={r.statusz} /></td>
-                  <td>
+                  <td className="int-td">{r.channel}</td>
+                  <td className="int-td"><DirectionBadge value={r.direction} /></td>
+                  <td className="int-td"><span className="cd-ugytipus">{r.ugyTipus}</span></td>
+                  <td className="int-td"><EredmenyBadge value={r.eredmeny} /></td>
+                  <td className="int-td"><StatuszBadge value={r.statusz} /></td>
+                  <td className="int-td" onClick={(e) => e.stopPropagation()}>
                     {r.teendo === 'Jóváhagyásra vár' ? (
                       <button
                         onClick={(e) => {
@@ -541,8 +545,8 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       <div className="mb-32">
         <h3 className="form-label form-label--uppercase">Korábbi interakciók</h3>
         <div className="table-card table-card--dim">
-          <table className="data-table">
-            <thead>
+          <table className="data-table int-table-norx">
+            <thead className="int-thead">
               <tr>
                 <th>Interakció időpontja</th>
                 <th>Csatorna</th>
@@ -556,19 +560,23 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             </thead>
             <tbody>
               {closedInteractions.length === 0 ? (
-                <tr><td colSpan={8} className="empty-state">Nincs korábbi interakció</td></tr>
+                <tr><td colSpan={8} className="empty-state no-data">Nincs korábbi interakció</td></tr>
               ) : closedInteractions.slice(0, 20).map((r, i) => (
-                <tr key={i}>
-                  <td>
+                <tr
+                  key={i}
+                  className="int-row cursor-pointer"
+                  onClick={() => setSummaryModalRow(r)}
+                >
+                  <td className="int-td">
                     <div className="cd-date-primary">{r.date ? new Date(r.date).toLocaleDateString('hu-HU') : '-'}</div>
                     <div className="cd-date-time">{r.date ? new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
                   </td>
-                  <td>{r.channel}</td>
-                  <td><DirectionBadge value={r.direction} /></td>
-                  <td><span className="cd-ugytipus">{r.ugyTipus}</span></td>
-                  <td><EredmenyBadge value={r.eredmeny} /></td>
-                  <td><StatuszBadge value={r.statusz} /></td>
-                  <td>
+                  <td className="int-td">{r.channel}</td>
+                  <td className="int-td"><DirectionBadge value={r.direction} /></td>
+                  <td className="int-td"><span className="cd-ugytipus">{r.ugyTipus}</span></td>
+                  <td className="int-td"><EredmenyBadge value={r.eredmeny} /></td>
+                  <td className="int-td"><StatuszBadge value={r.statusz} /></td>
+                  <td className="int-td" onClick={(e) => e.stopPropagation()}>
                     {r.teendo === 'Jóváhagyásra vár' ? (
                       <button
                         onClick={(e) => {
@@ -593,7 +601,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                       <span className="cd-teendo-muted">{r.teendo}</span>
                     )}
                   </td>
-                  <td>
+                  <td className="int-td" onClick={(e) => e.stopPropagation()}>
                     <button
                       onClick={(e) => { e.stopPropagation(); setSummaryModalRow(r); }}
                       className="btn btn-teal-sm"
@@ -611,7 +619,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         )}
       </div>
 
-      {/* ââ€˘Â ââ€˘Â ââ€˘Â  Profile Edit Modal ââ€˘Â ââ€˘Â ââ€˘Â  */}
+      {/* • • •  Profile Edit Modal • • •  */}
       {showProfileEdit && (
         <div className="modal-overlay" onClick={() => setShowProfileEdit(false)}>
           <div className="modal-card modal-card--480" onClick={e => e.stopPropagation()}>
@@ -642,7 +650,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
               </div>
               <div className="form-group">
                 <label className="form-label">Megjegyzés</label>
-                <textarea className="input" value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Adminisztrációs megjegyzések..." rows={4}
+                <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Adminisztrációs megjegyzések..." rows={4}
                   className="input cd-textarea"
                 />
               </div>
