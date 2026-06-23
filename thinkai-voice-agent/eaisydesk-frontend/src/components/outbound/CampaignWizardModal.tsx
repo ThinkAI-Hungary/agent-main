@@ -58,6 +58,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
   const [activeFormats, setActiveFormats] = useState<Record<string, boolean>>({});
 
   const [stepError, setStepError] = useState('');
+  const [isCreating, setIsCreating] = useState(false);
 
   const editorRef = useRef<HTMLDivElement>(null);
   const aiEditorRef = useRef<HTMLDivElement>(null);
@@ -264,10 +265,13 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
     }
     setAiGenerating(true);
     try {
+      const rawChannel = (Array.from(selectedChannels)[0] as string) || 'email';
+      const cleanChannel = rawChannel.toLowerCase().trim() === 'e-mail' ? 'email' : rawChannel.toLowerCase().trim();
+      
       const res = await authFetch('/admin/api/campaigns/generate_message', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ style: aiStyle, brief: aiPrompt.trim(), campaign_name: campaignName, channel: Array.from(selectedChannels)[0] || 'email' }),
+        body: JSON.stringify({ style: aiStyle, brief: aiPrompt.trim(), campaign_name: campaignName, channel: cleanChannel }),
       });
       if (res.ok) {
         const data = await res.json();
@@ -302,12 +306,16 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
 
     try {
       setIsCreating(true);
+      const cleanChannels = Array.from(selectedChannels).map(ch => {
+        const low = (ch as string).toLowerCase().trim();
+        return low === 'e-mail' ? 'email' : low;
+      });
       const res = await authFetch('/admin/api/campaigns', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           name: campaignName.trim(),
-          channels: Array.from(selectedChannels),
+          channels: cleanChannels,
           ai_instructions: content,
           subject: messageSubject.trim(),
           client_ids: Array.from(selectedClientIds).map(Number).filter(n => !isNaN(n)),
@@ -322,6 +330,8 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
       }
     } catch {
       showToast('Hiba a kampány létrehozásakor', 'error');
+    } finally {
+      setIsCreating(false);
     }
   }, [campaignName, selectedChannels, messageMode, messageContent, aiResult, selectedClientIds, onCreated, onClose]);
 
@@ -406,7 +416,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
         </div>
 
         {/* Body */}
-        <div className="camp-wizard-body" style={{ paddingTop: '20px', minHeight: '500px' }}>
+        <div className="camp-wizard-body" style={{ paddingTop: '20px', minHeight: '300px', display: 'flex', flexDirection: 'column' }}>
 
           {/* Expanded Info Box */}
           {tipVisible[step - 1] && (
@@ -698,6 +708,18 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                     </div>
                   </div>
 
+                  {/* Tárgy */}
+                  <div style={{ marginBottom: '24px' }}>
+                    <label style={{ display: 'block', fontSize: '14px', fontWeight: 700, color: '#1a6f8f', marginBottom: '8px' }}>Üzenet tárgya</label>
+                    <input 
+                      type="text" 
+                      placeholder="A generált tárgysor itt fog megjelenni..." 
+                      style={{ width: '100%', padding: '14px 16px', borderRadius: '8px', border: '1px solid #1ceee0', fontSize: '14px', outline: 'none', background: '#fff', color: '#082432' }} 
+                      value={messageSubject}
+                      onChange={e => setMessageSubject(e.target.value)}
+                    />
+                  </div>
+
                   {/* Üzenet szövege */}
                   <div>
                     <label style={{ fontSize: '14px', fontWeight: 700, color: '#1a6f8f', marginBottom: '12px', display: 'block' }}>
@@ -825,7 +847,9 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
             <button className="btn btn-primary" onClick={nextStep}>Következő</button>
           )}
           {step === 3 && (
-            <button className="btn btn-primary" onClick={handleCreate}>Létrehozás</button>
+            <button className="btn btn-primary" onClick={handleCreate} disabled={isCreating}>
+              {isCreating ? 'Létrehozás...' : 'Létrehozás'}
+            </button>
           )}
         </div>
       </div>

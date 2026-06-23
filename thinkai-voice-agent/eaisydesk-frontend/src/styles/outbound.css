@@ -2240,7 +2240,7 @@
 .camp-wizard-stepper { margin-top: 20px; padding: 0 4px; }
 
 /* Modal body */
-.camp-wizard-body { padding: 28px; min-height: 260px; max-height: 55vh; overflow-y: auto; }
+.camp-wizard-body { padding: 28px; min-height: 260px; flex: 1; overflow-y: auto; }
 
 /* Tip box relative */
 .camp-tip-box { position: relative; }

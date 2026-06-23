@@ -3275,9 +3275,17 @@ def create_campaign_api(req: CampaignCreateRequest, username: str = Depends(veri
     instructions = req.ai_instructions
     if req.subject:
         instructions = f"SUBJECT:{req.subject}|{instructions}"
+    
+    clean_channels = []
+    for ch in req.channels:
+        ch_clean = ch.lower().strip()
+        if ch_clean in {"e-mail", "email"}:
+            ch_clean = "email"
+        clean_channels.append(ch_clean)
+        
     campaign_id = db.create_campaign(
         name=req.name,
-        channels=req.channels,
+        channels=clean_channels,
         client_ids=req.client_ids,
         ai_instructions=instructions
     )
@@ -3292,7 +3300,15 @@ async def start_campaign_api(campaign_id: int, username: str = Depends(verify_jw
         raise HTTPException(status_code=404, detail="Kampány nem található")
     channels = campaign.get("channels", [campaign.get("channel", "email")])
     supported = {"email", "messenger", "telefon"}
-    active_channels = [ch for ch in channels if ch in supported]
+    
+    active_channels = []
+    for ch in channels:
+        ch_clean = ch.lower().strip()
+        if ch_clean in {"e-mail", "email"}:
+            ch_clean = "email"
+        if ch_clean in supported:
+            active_channels.append(ch_clean)
+            
     if not active_channels:
         raise HTTPException(status_code=400, detail="Jelenleg csak email, messenger és telefon kampányok támogatottak")
 
@@ -3379,7 +3395,9 @@ async def generate_campaign_message(request: Request, username: str = Depends(ve
     data = await request.json()
     brief = data.get("brief", "")
     style = data.get("style", "barátságos")
-    channel = data.get("channel", "email")
+    channel = data.get("channel", "email").lower().strip()
+    if channel in {"e-mail", "email"}:
+        channel = "email"
     
     if not brief:
         raise HTTPException(status_code=400, detail="A kampány brief megadása kötelező.")
@@ -3421,7 +3439,11 @@ SZABÁLYOK:
 - Maximum {max_len}
 - Magyarul
 
-Csak a kész scriptet add vissza, semmi mást."""
+A válaszod KIZÁRÓLAG egyetlen valid JSON objektum legyen az alábbi formában, minden egyéb szöveg vagy markdown blokk nélkül:
+{{
+    "subject": "A hívás rövid témája (pl. Időpont egyeztetés)",
+    "message": "A hívás script teljes szövege"
+}}"""
         else:
             prompt = f"""Írj egy kampány üzenetet az alábbi paraméterek alapján:
 
@@ -3439,15 +3461,42 @@ SZABÁLYOK:
 - Ha {channel} == "sms", nagyon rövid legyen (max 160 karakter)
 - Nem kell aláírás sor
 
-Csak a kész üzenet szöveget add vissza, semmi mást."""
+A válaszod KIZÁRÓLAG egyetlen valid JSON objektum legyen az alábbi formában, minden egyéb szöveg vagy markdown blokk nélkül:
+{{
+    "subject": "Az üzenet tárgysora (pl. Különleges ajánlat Önnek!)",
+    "message": "A kampányüzenet teljes szövege"
+}}"""
 
         response = await client.aio.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt,
-            config=types.GenerateContentConfig(temperature=0.7)
+            config=types.GenerateContentConfig(
+                temperature=0.7,
+                response_mime_type="application/json"
+            )
         )
         generated = response.text.strip()
-        return {"message": generated, "style": style, "channel": channel}
+        
+        # Clean markdown code blocks if any
+        if generated.startswith("```json"):
+            generated = generated[7:]
+        if generated.startswith("```"):
+            generated = generated[3:]
+        if generated.endswith("```"):
+            generated = generated[:-3]
+        generated = generated.strip()
+        
+        import json
+        subject = ""
+        message = generated
+        try:
+            data_json = json.loads(generated)
+            subject = data_json.get("subject", "")
+            message = data_json.get("message", "")
+        except Exception as e:
+            logger.error(f"Error parsing campaign message generation JSON: {e}")
+            
+        return {"subject": subject, "message": message, "style": style, "channel": channel}
     except Exception as e:
         logger.error(f"Campaign message generation error: {e}")
         raise HTTPException(status_code=500, detail=f"AI generálási hiba: {str(e)}")
