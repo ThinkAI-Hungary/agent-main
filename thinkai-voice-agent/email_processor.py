@@ -48,6 +48,51 @@ def clean_email_body(text: str) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# ROBUST EMAIL PAYLOAD DECODING — handles Central European encodings (Hungarian)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+# Common encodings for Hungarian emails, tried in order of likelihood
+_FALLBACK_CHARSETS = ['iso-8859-2', 'windows-1250', 'latin-1', 'iso-8859-1', 'cp1252', 'utf-8']
+
+
+def _decode_payload(raw_payload: bytes | None, declared_charset: str) -> str:
+    """Decode email payload with robust charset fallback for Hungarian content.
+    
+    Strategy:
+    1. Try the declared charset first (strict mode)
+    2. If that produces replacement chars (�) or fails, try common Central European charsets
+    3. Last resort: utf-8 with replace
+    """
+    if raw_payload is None:
+        return ""
+
+    # 1. Try declared charset in strict mode first
+    try:
+        result = raw_payload.decode(declared_charset)
+        if '\ufffd' not in result:  # No replacement characters — success
+            return result
+    except (LookupError, UnicodeDecodeError):
+        pass
+
+    # 2. Try common Central European encodings (strict mode)
+    for charset in _FALLBACK_CHARSETS:
+        if charset.lower().replace('-', '') == declared_charset.lower().replace('-', ''):
+            continue  # Skip if it's the same as declared (already tried)
+        try:
+            result = raw_payload.decode(charset)
+            if '\ufffd' not in result:
+                return result
+        except (LookupError, UnicodeDecodeError):
+            continue
+
+    # 3. Last resort: declared charset with replace, then utf-8 with replace
+    try:
+        return raw_payload.decode(declared_charset, errors='replace')
+    except (LookupError, UnicodeDecodeError):
+        return raw_payload.decode('utf-8', errors='replace')
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # SPAM FILTER — Heuristic email spam detection (no AI cost)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -600,34 +645,16 @@ def check_imap_sync():
                             if content_type == "text/plain" and "attachment" not in content_disposition:
                                 charset = part.get_content_charset() or 'utf-8'
                                 raw_payload = part.get_payload(decode=True)
-                                if raw_payload is None:
-                                    text_content = ""
-                                else:
-                                    try:
-                                        text_content = raw_payload.decode(charset, errors="replace")
-                                    except (LookupError, UnicodeDecodeError):
-                                        text_content = raw_payload.decode("utf-8", errors="replace")
+                                text_content = _decode_payload(raw_payload, charset)
                                 break
                             elif content_type == "text/html" and "attachment" not in content_disposition:
                                 charset = part.get_content_charset() or 'utf-8'
                                 raw_payload = part.get_payload(decode=True)
-                                if raw_payload is None:
-                                    text_content = ""
-                                else:
-                                    try:
-                                        text_content = raw_payload.decode(charset, errors="replace")
-                                    except (LookupError, UnicodeDecodeError):
-                                        text_content = raw_payload.decode("utf-8", errors="replace")
+                                text_content = _decode_payload(raw_payload, charset)
                     else:
                         charset = msg.get_content_charset() or 'utf-8'
                         raw_payload = msg.get_payload(decode=True)
-                        if raw_payload is None:
-                            text_content = ""
-                        else:
-                            try:
-                                text_content = raw_payload.decode(charset, errors="replace")
-                            except (LookupError, UnicodeDecodeError):
-                                text_content = raw_payload.decode("utf-8", errors="replace")
+                        text_content = _decode_payload(raw_payload, charset)
                     text_content = clean_email_body(text_content)
                     emails_to_process.append((msg_id, from_email, from_name, subject, text_content))
         

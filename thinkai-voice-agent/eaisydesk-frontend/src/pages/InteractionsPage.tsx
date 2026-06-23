@@ -728,16 +728,7 @@ export default function InteractionsPage() {
                         {/* Footer */}
                         <div className="mobile-card-footer">
                           <EredmenyBadge value={r.eredmeny} />
-                          {r.teendo === 'Jóváhagyásra vár' ? (
-                            <button
-                              onClick={(e) => { e.stopPropagation(); setSummaryModalRow(r); setAutoExpandApproval(true); }}
-                              className="btn btn-warning"
-                            >
-                              Jóváhagyásra vár
-                            </button>
-                          ) : (
-                            <span className="int-teendo-text">{r.teendo}</span>
-                          )}
+                          <span className="int-teendo-text">{r.teendo}</span>
                         </div>
                       </div>
                     </React.Fragment>
@@ -829,7 +820,7 @@ export default function InteractionsPage() {
                       </td>
                     )}
                     {visibleCols.has('eredmeny') && (
-                      <td className="int-td" onClick={(e) => e.stopPropagation()}>
+                      <td className="int-td">
                         <EredmenyBadge value={r.eredmeny} />
                       </td>
                     )}
@@ -839,17 +830,8 @@ export default function InteractionsPage() {
                       </td>
                     )}
                     {visibleCols.has('teendo') && (
-                      <td className="int-td int-td--truncate" title={r.teendo} onClick={(e) => e.stopPropagation()}>
-                        {r.teendo === 'Jóváhagyásra vár' ? (
-                          <button
-                            onClick={() => { setSummaryModalRow(r); setAutoExpandApproval(true); }}
-                            className="btn btn-warning"
-                          >
-                            Jóváhagyásra vár
-                          </button>
-                        ) : (
-                          <span className="int-teendo-text">{r.teendo}</span>
-                        )}
+                      <td className="int-td int-td--truncate" title={r.teendo}>
+                        <span className="int-teendo-text">{r.teendo}</span>
                       </td>
                     )}
                   </tr>
