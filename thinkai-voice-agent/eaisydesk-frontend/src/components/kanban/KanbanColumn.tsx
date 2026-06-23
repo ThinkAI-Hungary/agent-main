@@ -44,8 +44,8 @@ export default function KanbanColumn({ column, cards, onRename, onDelete, onDele
       id={`col-${column.id}`}
     >
       {/* Header */}
-      <div className="kanban-col-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 8, flex: 1, minWidth: 0 }}>
+      <div className="kanban-col-header flex-between">
+        <div className="flex-row gap-8 flex-1 min-w-0">
           {editing ? (
             <input
               ref={inputRef}
@@ -76,7 +76,7 @@ export default function KanbanColumn({ column, cards, onRename, onDelete, onDele
             />
           ) : (
             <span
-              style={{ cursor: 'pointer' }}
+              className="cursor-pointer"
               onDoubleClick={() => { setEditName(column.name); setEditing(true); }}
               title="Kattints duplán az átnevezéshez"
             >
@@ -85,7 +85,7 @@ export default function KanbanColumn({ column, cards, onRename, onDelete, onDele
           )}
           <span className="kanban-col-count">{cards.length}</span>
         </div>
-        <div style={{ display: 'flex', gap: 6 }}>
+        <div className="flex-row gap-6">
           <button
             onClick={() => { setEditName(column.name); setEditing(true); }}
             style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center', opacity: 0.6 }}

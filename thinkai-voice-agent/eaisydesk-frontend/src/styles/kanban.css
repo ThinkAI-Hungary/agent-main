@@ -134,3 +134,18 @@
     .kanban-col {
       transition: background 0.25s ease, border-color 0.25s ease, box-shadow 0.25s ease;
     }
+
+/* === KanbanCard: migrated inline styles === */
+.kanban-card-urgent-badge {
+  display: inline-block; background: #ef4444; color: white;
+  font-size: 10px; font-weight: bold; padding: 2px 6px;
+  border-radius: 4px; margin-bottom: 6px;
+  box-shadow: 0 1px 2px rgba(239,68,68,0.4);
+}
+.kanban-card-tags { display: flex; flex-wrap: wrap; gap: 3px; margin: 4px 0; }
+.client-info--clinic { color: #1ceee0; font-weight: 600; }
+.kanban-card-delete-wrap { text-align: right; }
+.kanban-card-delete-btn {
+  background: transparent; border: none; color: var(--red);
+  cursor: pointer; font-size: 11px; font-family: inherit;
+}

@@ -248,7 +248,7 @@ export default function KanbanPage() {
   if (loading) {
     return (
       <div className="analytics-shell">
-        <div className="page-header" style={{ marginBottom: 18 }}>
+        <div className="page-header mb-18">
           <div>
             <div className="page-title">Érdeklődőkezelés</div>
 
@@ -301,7 +301,7 @@ export default function KanbanPage() {
       <ConfirmDialog />
 
       {/* Header */}
-      <div className="page-header" style={{ marginBottom: 18 }}>
+      <div className="page-header mb-18">
         <div>
           <div className="page-title">Érdeklődőkezelés</div>
 
@@ -410,46 +410,48 @@ export default function KanbanPage() {
       {/* Add Column Modal */}
       {showAddModal && (
         <div
-          style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.4)', backdropFilter: 'blur(4px)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+          className="modal-overlay"
           onClick={() => setShowAddModal(false)}
         >
           <div
-            style={{ background: 'var(--card, #fff)', borderRadius: 8, padding: 28, width: 380, maxWidth: '90vw', boxShadow: '0 20px 60px rgba(0,0,0,0.2)' }}
+            className="modal-card modal-card-sm"
             onClick={(e) => e.stopPropagation()}
           >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-              <div style={{ width: 40, height: 40, borderRadius: 6, background: 'rgba(28,238,224,0.12)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                <svg fill="none" stroke="var(--accent)" strokeWidth="2" viewBox="0 0 24 24" width="20" height="20">
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-                </svg>
+            <div className="modal-body">
+              <div className="flex-row gap-12 mb-20">
+                <div className="icon-box-lg" style={{ background: 'rgba(28,238,224,0.12)', border: 'none' }}>
+                  <svg fill="none" stroke="var(--accent)" strokeWidth="2" viewBox="0 0 24 24" width="20" height="20">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
+                  </svg>
+                </div>
+                <div>
+                  <div className="text-lg font-bold">Új oszlop hozzáadása</div>
+                  <div className="text-sm text-muted">Adj nevet az új kanban oszlopnak</div>
+                </div>
               </div>
-              <div>
-                <div style={{ fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>Új oszlop hozzáadása</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>Adj nevet az új kanban oszlopnak</div>
+              <input
+                type="text"
+                className="input"
+                value={newColName}
+                onChange={(e) => setNewColName(e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleAddColumn(); if (e.key === 'Escape') setShowAddModal(false); }}
+                placeholder="Pl. Ajánlatkérés, Tárgyalás..."
+                autoFocus
+              />
+              <div className="flex-row gap-10 justify-end mt-18">
+                <button
+                  className="btn btn-outline"
+                  onClick={() => { setShowAddModal(false); setNewColName(''); }}
+                >
+                  Mégse
+                </button>
+                <button
+                  className="btn btn-primary"
+                  onClick={handleAddColumn}
+                >
+                  Hozzáadás
+                </button>
               </div>
-            </div>
-            <input
-              type="text"
-              value={newColName}
-              onChange={(e) => setNewColName(e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleAddColumn(); if (e.key === 'Escape') setShowAddModal(false); }}
-              placeholder="Pl. Ajánlatkérés, Tárgyalás..."
-              autoFocus
-              style={{ width: '100%', padding: '12px 16px', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 14, color: 'var(--text)', background: 'var(--bg, #f9fafb)', outline: 'none', boxSizing: 'border-box', fontFamily: 'inherit' }}
-            />
-            <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 18 }}>
-              <button
-                onClick={() => { setShowAddModal(false); setNewColName(''); }}
-                style={{ padding: '10px 20px', border: '1px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', borderRadius: 10, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}
-              >
-                Mégse
-              </button>
-              <button
-                onClick={handleAddColumn}
-                style={{ padding: '10px 20px', border: 'none', background: '#1ceee0', color: '#082432', borderRadius: 10, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', boxShadow: 'none' }}
-              >
-                Hozzáadás
-              </button>
             </div>
           </div>
         </div>

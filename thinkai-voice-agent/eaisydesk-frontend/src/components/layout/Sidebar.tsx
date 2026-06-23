@@ -58,7 +58,7 @@ const NAV_ITEMS: NavItem[] = [
     icon: 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z',
     children: [
       { id: 'outbound', label: 'Kampányok', path: '/outbound' },
-      { id: 'automatizaciok', label: 'Automatikus értesítések', path: '/automatizaciok', adminExclusive: true },
+      { id: 'automatizaciok', label: 'Automatikus értesítések', path: '/automatizaciok' },
     ],
   },
   {
@@ -231,15 +231,13 @@ export default function Sidebar() {
 
       {/* Logo with App Switcher */}
       <div
-        className={`sidebar-logo${appSwitcherOpen ? ' has-switch-open' : ''}`}
+        className={`sidebar-logo sidebar-logo--clickable${appSwitcherOpen ? ' has-switch-open' : ''}`}
         onClick={() => setAppSwitcherOpen(!appSwitcherOpen)}
-        style={{ cursor: 'pointer', position: 'relative' }}
       >
         <img
           src={`${import.meta.env.BASE_URL}eaisydesk_logo.png`}
           alt="eaisydesk"
           className="sidebar-logo-img"
-          style={{ height: 28, width: 'auto', objectFit: 'contain' }}
         />
       </div>
 
@@ -253,7 +251,7 @@ export default function Sidebar() {
             setAppSwitcherOpen(false);
           }}
         >
-          <div className="logo-switch-icon" style={{ background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', color: '#fff' }}>M</div>
+          <div className="logo-switch-icon logo-switch-icon--marketing">M</div>
           <div>
             <div className="logo-switch-name">EAISY Marketing</div>
             <div className="logo-switch-desc">Marketing automatizáció</div>
@@ -351,9 +349,9 @@ export default function Sidebar() {
       {/* Bottom section */}
       <div className="sidebar-bottom">
         <div className="sidebar-user-row">
-          <div className="user-avatar" style={avatarUrl ? { padding: 0, overflow: 'hidden' } : undefined}>
+          <div className={`user-avatar${avatarUrl ? ' user-avatar--img' : ''}`}>
             {avatarUrl ? (
-              <img src={avatarUrl} alt="avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              <img src={avatarUrl} alt="avatar" className="user-avatar-img" />
             ) : initials}
           </div>
           <div className="user-text">

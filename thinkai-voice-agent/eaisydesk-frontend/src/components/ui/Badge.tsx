@@ -56,14 +56,10 @@ export function TagBadge({ tag, small }: { tag: string; small?: boolean }) {
   const c = getTagColor(tag);
   return (
     <span
+      className="tag-badge"
       style={{
         background: c.bg,
         color: c.color,
-        fontSize: '11px',
-        padding: '3px 8px',
-        borderRadius: '12px',
-        fontWeight: 600,
-        whiteSpace: 'nowrap',
       }}
     >
       {tag}

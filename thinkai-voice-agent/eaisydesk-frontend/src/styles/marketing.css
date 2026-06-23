@@ -1113,3 +1113,396 @@
   box-shadow: none;
 }
 
+
+/* ======================================================
+   SocialMediaPage — migrated from inline styles
+   ====================================================== */
+
+/* Platform icon — IG */
+.sm-icon-ig {
+  display: inline-flex; width: 20px; height: 20px; border-radius: 5px;
+  background: linear-gradient(135deg,#833AB4,#E1306C,#F77737);
+  align-items: center; justify-content: center;
+  font-size: 10px; color: #fff; font-weight: 800;
+}
+
+/* Platform icon — FB */
+.sm-icon-fb {
+  display: inline-flex; width: 20px; height: 20px; border-radius: 5px;
+  background: #1877F2;
+  align-items: center; justify-content: center;
+  font-size: 10px; color: #fff; font-weight: 800;
+}
+
+/* Header icon — orange gradient */
+.mkt-page-header-icon--orange { background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(234,88,12,0.15)); }
+
+/* Refresh button smaller */
+.mkt-btn-outline--sm { padding: 8px 14px; font-size: 12px; }
+
+/* Platform cards row */
+.sm-platform-row { gap: 14px; margin-bottom: 18px; }
+
+/* IG platform icon wrapper */
+.sm-ig-icon {
+  width: 32px; height: 32px; border-radius: 10px;
+  background: linear-gradient(135deg,#833AB4,#E1306C,#F77737);
+  display: flex; align-items: center; justify-content: center;
+}
+
+/* FB platform icon wrapper */
+.sm-fb-icon {
+  width: 32px; height: 32px; border-radius: 10px;
+  background: #1877F2; display: flex; align-items: center; justify-content: center;
+}
+
+/* Platform name */
+.sm-platform-name { font-size: 15px; font-weight: 700; color: var(--text); }
+
+/* Platform stats row */
+.sm-stats-row { gap: 24px; }
+
+/* Platform stat label */
+.sm-stat-lbl {
+  font-size: 11px; font-weight: 600; text-transform: uppercase;
+  letter-spacing: 0.5px; color: var(--text-dim); margin-bottom: 4px;
+}
+
+/* Platform stat value */
+.sm-stat-val { font-size: 24px; font-weight: 800; color: var(--text); }
+
+/* KPI card accent — pending */
+.mkt-kpi-card--yellow { border-left-color: #f59e0b; }
+
+/* KPI card accent — approved */
+.mkt-kpi-card--purple { border-left-color: #8b5cf6; }
+
+/* KPI card accent — scheduled */
+.mkt-kpi-card--blue { border-left-color: #3b82f6; }
+
+/* KPI card accent — published */
+.mkt-kpi-card--green { border-left-color: #22c55e; }
+
+/* Post count row */
+.sm-post-count { text-align: right; margin-bottom: 12px; font-size: 13px; color: var(--text-muted); font-weight: 600; }
+
+/* Loading center */
+.sm-loading-center { padding: 40px; }
+
+/* Modal width 640 */
+.mkt-modal-card--640 { width: 640px; }
+
+/* Modal width 500 */
+.mkt-modal-card--500 { width: 500px; }
+
+/* AI text gen panel */
+.sm-ai-panel {
+  background: rgba(139,92,246,0.04); border: 1px solid rgba(139,92,246,0.15);
+  border-radius: 6px; padding: 16px; margin-bottom: 16px;
+}
+
+/* AI panel title */
+.sm-ai-panel-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+
+/* AI prompt input */
+.sm-ai-prompt-input {
+  flex: 1; padding: 10px 14px; border: 1.5px solid var(--border);
+  border-radius: 10px; font-size: 13px; font-family: inherit;
+  color: var(--text); background: var(--bg);
+}
+
+/* AI generate btn no-wrap */
+.sm-ai-generate-btn { white-space: nowrap; }
+
+/* Generated image preview container */
+.sm-generated-img-wrap { margin-bottom: 16px; text-align: center; }
+
+/* Generated image */
+.sm-generated-img { max-width: 100%; max-height: 200px; border-radius: 6px; border: 1px solid var(--border); }
+
+/* Edit modal post body */
+.sm-modal-body {
+  background: var(--bg3); border-radius: 10px; padding: 16px;
+  font-size: 13px; line-height: 1.6; margin-bottom: 20px; color: var(--text);
+}
+
+/* ======================================================
+   EmailCampaignsPage — migrated from inline styles
+   ====================================================== */
+
+/* Header icon — purple gradient */
+.mkt-page-header-icon--purple { background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(99,102,241,0.15)); }
+
+/* Subscriber count badge */
+.ec-sub-count {
+  font-size: 12px; color: var(--text-muted); background: var(--bg3);
+  padding: 6px 12px; border-radius: 8px; border: 1px solid var(--border);
+}
+
+/* Subscriber btn icon */
+.ec-sub-btn-icon { width: 14px; height: 14px; }
+
+/* KPI card accents for email campaigns */
+.mkt-kpi-card--violet { border-left-color: #8b5cf6; }
+.mkt-kpi-card--red { border-left-color: #ef4444; }
+
+/* Campaign status badge */
+.ec-status-badge {
+  font-size: 11px; font-weight: 700; padding: 3px 8px;
+  border-radius: 6px; display: inline-block;
+}
+
+/* Card header row */
+.ec-card-header { justify-content: space-between; margin-bottom: 10px; }
+
+/* AI gen panel */
+.ec-ai-panel {
+  background: rgba(139,92,246,0.04); border: 1px solid rgba(139,92,246,0.15);
+  border-radius: 6px; padding: 16px; margin-bottom: 16px;
+}
+
+/* AI panel title */
+.ec-ai-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; display: flex; align-items: center; gap: 6px; }
+
+/* AI prompt input */
+.ec-ai-input {
+  flex: 1; padding: 10px 14px; border: 1.5px solid var(--border);
+  border-radius: 10px; font-size: 13px; font-family: inherit; color: var(--text); background: var(--bg);
+}
+
+/* AI btn no-wrap */
+.ec-ai-btn { white-space: nowrap; }
+
+/* Inline spinner tiny */
+.spinner--xs { width: 14px; height: 14px; border-width: 2px; }
+
+/* Form action row */
+.ec-form-actions { justify-content: flex-end; margin-top: 20px; }
+
+/* Stats icon purple */
+.mkt-stat-mini-icon--purple { background: rgba(139,92,246,0.1); }
+
+/* Stats icon green */
+.mkt-stat-mini-icon--green { background: rgba(34,197,94,0.1); }
+
+/* Stats icon blue */
+.mkt-stat-mini-icon--blue { background: rgba(59,130,246,0.1); }
+
+/* Modal stat grid */
+.ec-detail-stats { gap: 12px; margin-bottom: 20px; }
+
+/* Detail subject label */
+.ec-detail-subject-lbl { font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 4px; }
+
+/* Detail subject value */
+.ec-detail-subject-val { font-size: 14px; color: var(--text); font-weight: 500; }
+
+/* Detail body preview */
+.ec-detail-body {
+  background: var(--bg3); border-radius: 10px; padding: 16px;
+  font-size: 13px; line-height: 1.6; max-height: 200px; overflow-y: auto;
+  margin-bottom: 20px; color: var(--text);
+}
+
+/* Delete btn outline */
+.ec-btn--delete { color: #ef4444; border-color: rgba(239,68,68,0.3); }
+
+/* Sub modal actions */
+.ec-sub-actions { justify-content: space-between; margin-top: 20px; }
+
+/* Modal 440 */
+.mkt-modal-card--440 { width: 440px; }
+
+/* ======================================================
+   MarketingDashboardPage — migrated from inline styles
+   ====================================================== */
+
+/* Loading shell center */
+.mkt-loading-shell { padding: 60px; }
+
+/* Spinner purple */
+.spinner--purple { border-top-color: #8b5cf6; }
+
+/* Header icon — purple/blue gradient */
+.mkt-page-header-icon--violet { background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(59,130,246,0.15)); }
+
+/* KPI border color — dynamic via style attr  */
+
+/* Chart card fixed height */
+.mkt-chart-card--h320 { height: 320px; }
+
+/* Chart inner fills parent */
+.mkt-chart-inner { height: calc(100% - 50px); }
+
+/* Title icon — purple */
+.mkt-card-title-icon--purple { background: rgba(139,92,246,0.1); }
+
+/* Title icon — green */
+.mkt-card-title-icon--green { background: rgba(34,197,94,0.1); }
+
+/* Title icon — blue */
+.mkt-card-title-icon--blue { background: rgba(59,130,246,0.1); }
+
+/* Title icon — orange */
+.mkt-card-title-icon--orange { background: rgba(245,158,11,0.1); }
+
+/* Title icon — red */
+.mkt-card-title-icon--red { background: rgba(239,68,68,0.1); }
+
+/* Action btn icon — purple */
+.mkt-action-btn-icon--purple { background: rgba(139,92,246,0.1); }
+
+/* Action btn icon — orange */
+.mkt-action-btn-icon--orange { background: rgba(245,158,11,0.1); }
+
+/* Action btn icon — blue */
+.mkt-action-btn-icon--blue { background: rgba(59,130,246,0.1); }
+
+/* Action btn icon — green */
+.mkt-action-btn-icon--green { background: rgba(34,197,94,0.1); }
+
+/* Status badge */
+.mkt-status-badge {
+  font-size: 11px; font-weight: 700; padding: 3px 8px; border-radius: 6px; display: inline-block;
+}
+
+/* Campaign row */
+.mkt-campaign-row { justify-content: space-between; padding: 12px 0; border-bottom: 1px solid var(--border); }
+
+/* Campaign name */
+.mkt-campaign-row-name { font-size: 13px; font-weight: 600; color: var(--text); }
+
+/* Campaign date */
+.mkt-campaign-row-date { font-size: 11px; color: var(--text-muted); margin-top: 2px; }
+
+/* Text center with padding */
+.mkt-empty-center { padding: 30px; font-size: 13px; }
+
+/* ======================================================
+   ZomboAuditPage — migrated from inline styles
+   ====================================================== */
+
+/* Section label */
+.zombo-section-label {
+  font-size: 11px; font-weight: 700; color: var(--marketing-accent);
+  text-transform: uppercase; letter-spacing: 1px; margin-bottom: 12px;
+}
+
+/* Result title */
+.zombo-result-title { font-size: 18px; font-weight: 700; color: var(--text); }
+
+/* Result desc */
+.zombo-result-desc { font-size: 13px; color: var(--text-muted); margin-top: 4px; }
+
+/* Keyword tag */
+.zombo-keyword-tag {
+  font-size: 11px; padding: 3px 8px;
+  background: rgba(139,92,246,0.08); color: var(--marketing-accent);
+  border-radius: 6px; border: 1px solid rgba(139,92,246,0.15);
+  font-weight: 600; font-family: monospace;
+}
+
+/* Detail row */
+.zombo-detail-row { font-size: 12px; color: var(--text-muted); padding: 2px 0; padding-left: 12px; }
+
+/* Suggestions box */
+.zombo-suggestions-wrap { margin-top: 16px; }
+
+/* Suggestions title */
+.zombo-suggestions-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 8px; }
+
+/* Suggestion item */
+.zombo-suggestion-item { font-size: 12px; color: var(--text-muted); padding: 4px 0; padding-left: 12px; }
+
+/* Header icon */
+.mkt-page-header-icon--deep-purple { background: linear-gradient(135deg, rgba(139,92,246,0.15), rgba(109,40,217,0.15)); }
+
+/* Tiny spinner */
+.spinner--tiny { width: 14px; height: 14px; border-width: 2px; }
+
+/* Title icon purple */
+.mkt-card-title-icon--mkt-purple { background: rgba(139,92,246,0.1); }
+
+/* AI output box */
+.zombo-ai-box {
+  background: var(--bg3); border-radius: 10px; padding: 16px;
+  font-size: 13px; line-height: 1.7; color: var(--text); white-space: pre-wrap;
+}
+
+/* ======================================================
+   SegmentsPage — migrated from inline styles
+   ====================================================== */
+
+/* Header icon green */
+.mkt-page-header-icon--green { background: linear-gradient(135deg, rgba(34,197,94,0.15), rgba(16,185,129,0.15)); }
+
+/* Loading center */
+.seg-loading-center { padding: 40px; }
+
+/* Segments grid */
+.seg-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; }
+
+/* Segment name */
+.seg-name { font-size: 15px; font-weight: 700; color: var(--text); }
+
+/* Segment count */
+.seg-count { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* Progress track */
+.seg-progress-track { height: 6px; background: var(--bg3); border-radius: 3px; overflow: hidden; }
+
+/* Table wrap */
+.seg-table-wrap { overflow: hidden; padding: 0; }
+
+/* Code cell */
+.seg-code-cell { font-weight: 700; font-family: monospace; color: var(--marketing-accent); }
+
+/* Value cell */
+.seg-value-cell { font-weight: 600; }
+
+/* ======================================================
+   SeoPage — migrated from inline styles
+   ====================================================== */
+
+/* Header icon — blue */
+.mkt-page-header-icon--seo { background: linear-gradient(135deg, rgba(59,130,246,0.15), rgba(37,99,235,0.15)); }
+
+/* Keyword table card */
+.seo-table-card { overflow: hidden; padding: 0; margin-bottom: 18px; }
+
+/* Table card header */
+.seo-table-header {
+  padding: 18px 24px 0; font-size: 15px; font-weight: 700; color: var(--text);
+  display: flex; align-items: center; gap: 10px;
+}
+
+/* Title icon blue */
+.mkt-card-title-icon--seo { background: rgba(59,130,246,0.1); }
+
+/* Keyword cell */
+.seo-keyword-cell { font-weight: 600; }
+
+/* === Marketing page header icons === */
+.mkt-page-header-icon--loyalty {
+  background: linear-gradient(135deg, rgba(245,158,11,0.15), rgba(234,88,12,0.15));
+}
+.mkt-page-header-icon--competitor {
+  background: linear-gradient(135deg, rgba(239,68,68,0.15), rgba(220,38,38,0.15));
+}
+
+/* === KPI card color variants === */
+.mkt-kpi-card--amber { border-left-color: #f59e0b; }
+.mkt-kpi-card--green { border-left-color: #22c55e; }
+.mkt-kpi-card--purple { border-left-color: #8b5cf6; }
+.mkt-kpi-card--blue  { border-left-color: #3b82f6; }
+.mkt-kpi-card--red   { border-left-color: #ef4444; }
+
+/* === Competitor card text === */
+.mkt-competitor-name { font-size: 14px; font-weight: 700; color: var(--text); }
+.mkt-competitor-url  { font-size: 11px; color: var(--text-muted); }
+.mkt-competitor-products { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+
+/* === Tier card text === */
+.mkt-tier-threshold { font-size: 13px; color: var(--text-muted); margin-bottom: 4px; }
+.mkt-tier-discount  { font-size: 13px; color: var(--text); }
+.mkt-tier-discount-value { color: var(--marketing-accent); }

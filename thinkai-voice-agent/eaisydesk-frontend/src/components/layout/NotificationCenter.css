@@ -431,3 +431,6 @@ body.dark .notif-toast-channel {
     width: 100%;
   }
 }
+
+/* === NotificationCenter: migrated inline styles === */
+.notif-empty-icon { width: 32px; height: 32px; opacity: 0.4; }

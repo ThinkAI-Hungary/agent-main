@@ -28,3 +28,25 @@
         margin-left: 0 !important;
       }
     }
+
+/* === SessionTimeoutGuard: migrated inline styles === */
+.st-modal-overlay { z-index: 99999; }
+.st-modal-card { width: 420px; max-width: 92vw; }
+.st-warning-header {
+  background: linear-gradient(135deg, #f59e0b, #d97706);
+  padding: 20px 24px;
+}
+.st-warning-icon {
+  width: 40px; height: 40px; border-radius: 50%;
+  background: rgba(255,255,255,0.2);
+}
+.st-warning-subtitle {
+  color: rgba(255,255,255,0.7); text-transform: uppercase;
+  letter-spacing: 1px; margin-bottom: 2px;
+}
+.st-warning-title { margin: 0; color: #fff; }
+.st-countdown {
+  font-size: 48px; color: #d97706;
+  font-variant-numeric: tabular-nums; margin-bottom: 8px;
+}
+.st-countdown-label { line-height: 1.5; }

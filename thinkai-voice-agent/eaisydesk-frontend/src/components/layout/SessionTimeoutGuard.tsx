@@ -112,109 +112,42 @@ export default function SessionTimeoutGuard() {
   if (!showWarning) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        zIndex: 99999,
-        background: 'rgba(0,0,0,0.6)',
-        backdropFilter: 'blur(4px)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        animation: 'stFadeIn 0.3s ease',
-      }}
-    >
-      <div
-        style={{
-          width: 420,
-          maxWidth: '90vw',
-          background: 'var(--card, #fff)',
-          borderRadius: 16,
-          boxShadow: '0 24px 64px rgba(0,0,0,0.3)',
-          overflow: 'hidden',
-          animation: 'stSlideUp 0.35s cubic-bezier(0.34,1.56,0.64,1)',
-        }}
-      >
+    <div className="modal-overlay st-modal-overlay">
+      <div className="modal-card st-modal-card">
         {/* Warning header */}
-        <div style={{
-          background: 'linear-gradient(135deg, #f59e0b, #d97706)',
-          padding: '20px 24px',
-          display: 'flex',
-          alignItems: 'center',
-          gap: 12,
-        }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: '50%',
-            background: 'rgba(255,255,255,0.2)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
+        <div className="flex-row gap-12 st-warning-header">
+          <div className="flex-center st-warning-icon">
             <svg fill="none" stroke="#fff" strokeWidth="2" viewBox="0 0 24 24" width="22" height="22">
               <circle cx="12" cy="12" r="10" />
               <polyline points="12 6 12 12 16 14" />
             </svg>
           </div>
           <div>
-            <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(255,255,255,0.7)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 2 }}>
+            <div className="text-xs font-bold st-warning-subtitle">
               Biztonsági figyelmeztetés
             </div>
-            <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#fff' }}>
+            <h3 className="text-xl font-bold st-warning-title">
               Munkamenet lejár
             </h3>
           </div>
         </div>
 
         {/* Body */}
-        <div style={{ padding: '24px 24px 16px', textAlign: 'center' }}>
-          <div style={{
-            fontSize: 48, fontWeight: 800, color: '#d97706',
-            fontVariantNumeric: 'tabular-nums',
-            marginBottom: 8,
-          }}>
+        <div className="modal-body text-center">
+          <div className="font-extrabold st-countdown">
             {remainingSeconds}
           </div>
-          <div style={{ fontSize: 14, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+          <div className="text-md text-muted st-countdown-label">
             másodperc múlva automatikusan kijelentkeztetünk inaktivitás miatt.
           </div>
         </div>
 
         {/* Actions */}
-        <div style={{ padding: '8px 24px 24px', display: 'flex', gap: 12 }}>
-          <button
-            onClick={doLogout}
-            style={{
-              flex: 1,
-              padding: '12px 16px',
-              borderRadius: 10,
-              border: '1px solid var(--border)',
-              background: 'transparent',
-              color: 'var(--text-muted)',
-              fontSize: 14,
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              transition: 'all 0.15s',
-            }}
-          >
+        <div className="modal-footer">
+          <button className="btn btn-outline flex-1" onClick={doLogout}>
             Kijelentkezés
           </button>
-          <button
-            onClick={handleStayLoggedIn}
-            style={{
-              flex: 1,
-              padding: '12px 16px',
-              borderRadius: 10,
-              border: 'none',
-              background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)',
-              color: '#082432',
-              fontSize: 14,
-              fontWeight: 700,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              transition: 'all 0.15s',
-              boxShadow: '0 4px 16px rgba(28,238,224,0.25)',
-            }}
-          >
+          <button className="btn btn-primary flex-1" onClick={handleStayLoggedIn}>
             Maradok bejelentkezve
           </button>
         </div>

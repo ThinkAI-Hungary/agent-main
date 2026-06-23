@@ -263,12 +263,12 @@ export default function ClientsPage() {
   // ── Status badge ──
   function statusBadge(c: EnrichedClient) {
     if (c.isInactive) {
-      return <span style={{ background: '#f3f4f6', color: '#9ca3af', fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 9999, display: 'inline-block' }}>INAKTÍV</span>;
+      return <span className="status-badge badge-inactive">INAKTÍV</span>;
     }
     if (c.isNew) {
-      return <span style={{ background: '#dbeafe', color: '#1e40af', fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 9999, display: 'inline-block' }}>ÚJ</span>;
+      return <span className="status-badge badge-new">ÚJ</span>;
     }
-    return <span style={{ background: '#dcfce7', color: '#166534', fontSize: 11, fontWeight: 600, padding: '3px 10px', borderRadius: 9999, display: 'inline-block' }}>VISSZATÉRŐ</span>;
+    return <span className="status-badge badge-returning">VISSZATÉRŐ</span>;
   }
 
   return (
@@ -285,14 +285,14 @@ export default function ClientsPage() {
       )}
 
       {/* Page title — standalone */}
-      <div style={{ marginBottom: 20 }}>
+      <div className="mb-20">
         <div className="page-title">Ügyféllista</div>
       </div>
 
 
       {/* ═══ MOBILE: Search bar + Card view ═══ */}
       {isMobile && (
-        <div ref={pullClients.containerRef} style={{ overflowY: 'auto' }}>
+        <div ref={pullClients.containerRef} className="cl-pull-container">
           {/* Pull-to-refresh indicator */}
           <div className="pull-to-refresh-indicator" style={{ height: pullClients.pullDistance > 0 || pullClients.isRefreshing ? Math.max(pullClients.pullDistance, pullClients.isRefreshing ? 36 : 0) : 0 }}>
             {pullClients.isRefreshing ? (
@@ -318,7 +318,7 @@ export default function ClientsPage() {
               )}
             </div>
             <div className="mobile-search-meta">
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
+              <span className="cl-mobile-count">
                 {filteredClients.length} ügyfél
               </span>
             </div>
@@ -329,7 +329,7 @@ export default function ClientsPage() {
             {filteredClients.length === 0 ? (
               clients.length === 0
                 ? <TableSkeleton columns={3} rows={4} />
-                : <div style={{ textAlign: 'center', padding: 40 }}><span className="no-data">Nincs találat</span></div>
+                : <div className="cl-empty-center"><span className="no-data">Nincs találat</span></div>
             ) : (
               filteredClients.map((c) => {
                 // Avatar initials & color
@@ -351,11 +351,11 @@ export default function ClientsPage() {
                       <div className="mobile-card-avatar" style={{ background: avatarBg }}>
                         {initials}
                       </div>
-                      <div style={{ flex: 1, minWidth: 0 }}>
+                      <div className="cl-card-info">
                         <div className="mobile-card-name">{c.name}</div>
                         {c.lastInteraction && (
                           <div className="mobile-card-subtitle">
-                            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="10" height="10" style={{ verticalAlign: '-1px', marginRight: 3, opacity: 0.4 }}>
+                            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="10" height="10" className="cl-clock-icon">
                               <circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" />
                             </svg>
                             {fmtDt(c.lastInteraction)}
@@ -389,13 +389,13 @@ export default function ClientsPage() {
                     {/* Tags + footer */}
                     <div className="mobile-card-footer">
                       {c.tags.length > 0 && (
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                        <div className="flex-row gap-4 flex-wrap">
                           {c.tags.slice(0, 2).map((t) => <TagBadge key={t} tag={t} />)}
-                          {c.tags.length > 2 && <span style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600 }}>+{c.tags.length - 2}</span>}
+                          {c.tags.length > 2 && <span className="cl-tag-overflow">+{c.tags.length - 2}</span>}
                         </div>
                       )}
                       {c.assignee && (
-                        <div className="mobile-card-footer-item" style={{ marginLeft: 'auto' }}>
+                        <div className="mobile-card-footer-item cl-footer-right">
                           <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12" height="12"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2" /><circle cx="12" cy="7" r="4" /></svg>
                           <span>{c.assignee}</span>
                         </div>
@@ -411,35 +411,30 @@ export default function ClientsPage() {
 
       {/* ═══ DESKTOP: Table view ═══ */}
       {!isMobile && viewMode === 'table' && (
-        <div className="table-card" style={{ overflowX: 'auto', borderRadius: 10, border: '1px solid var(--border)' }}>
+        <div className="table-card card-container cl-table-wrap">
           {/* Toolbar strip */}
-          <div style={{
-            display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            padding: '10px 18px', borderBottom: '1px solid var(--border)',
-            flexWrap: 'wrap', gap: 8,
-          }}>
+          <div className="toolbar-strip">
             {/* Left: search + count */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div className="flex-row gap-12">
               <input
                 type="text"
-                className="int-toolbar-input"
-                placeholder="Keresés ügyfelek között..."
-                style={{ width: 250 }}
+                className="int-toolbar-input int-toolbar-input--w220"
+                placeholder="Keresés..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
               {filteredClients.length > 0 && (
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+                <span className="text-desc font-semibold cl-no-wrap">
                   {filteredClients.length} ügyfél
                 </span>
               )}
             </div>
 
             {/* Right: actions */}
-            <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+            <div className="flex-row gap-8 flex-wrap">
               {/* Bulk delete */}
               {isAdmin && selectedRows.size > 0 && (
-                <button className="int-toolbar-btn" style={{ color: '#ef4444', borderColor: '#ef4444' }} onClick={handleBulkDelete}>
+                <button className="int-toolbar-btn cl-btn--delete" onClick={handleBulkDelete}>
                   Kijelöltek törlése ({selectedRows.size})
                 </button>
               )}
@@ -447,8 +442,7 @@ export default function ClientsPage() {
               {/* Campaign export */}
               {selectedRows.size > 0 && (
                 <button
-                  className="int-toolbar-btn"
-                  style={{ color: '#1ceee0', borderColor: '#1ceee0', background: 'rgba(28,238,224,0.08)', fontWeight: 600 }}
+                  className="cl-btn--export int-toolbar-btn"
                   onClick={() => setShowCampaignWizard(true)}
                 >
                   Kampányba exportálás ({selectedRows.size})
@@ -456,10 +450,9 @@ export default function ClientsPage() {
               )}
 
               {/* Column toggle */}
-              <div style={{ position: 'relative', display: 'inline-block' }} ref={colDropdownRef}>
+              <div className="cl-col-toggle" ref={colDropdownRef}>
                 <button
-                  className="int-toolbar-btn"
-                  style={{ gap: 6, display: 'flex', alignItems: 'center' }}
+                  className="int-toolbar-btn cl-col-toggle-btn"
                   title="Oszlopok"
                   onClick={() => setColDropdownOpen(!colDropdownOpen)}
                 >
@@ -470,11 +463,11 @@ export default function ClientsPage() {
                   Oszlopok
                 </button>
                 {colDropdownOpen && (
-                  <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.12)', padding: '10px 0', minWidth: 200, zIndex: 50 }}>
-                    <div style={{ padding: '4px 14px 8px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Látható oszlopok</div>
+                  <div className="dropdown-menu">
+                    <div className="dropdown-header">Látható oszlopok</div>
                     {CLIENT_COLUMNS.map((col) => (
-                      <label key={col.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>
-                        <input type="checkbox" checked={visibleCols.has(col.key)} onChange={() => toggleCol(col.key)} style={{ accentColor: '#1ceee0', width: 15, height: 15, cursor: 'pointer' }} />
+                      <label key={col.key} className="cl-col-label">
+                        <input type="checkbox" checked={visibleCols.has(col.key)} onChange={() => toggleCol(col.key)} className="cl-col-checkbox" />
                         {col.label}
                       </label>
                     ))}
@@ -485,11 +478,11 @@ export default function ClientsPage() {
           </div>
 
           {/* Table */}
-          <table className="data-table" style={{ borderRadius: 0 }}>
+          <table className="data-table data-table--no-radius">
             <thead>
               <tr>
-                <th style={{ width: 40, textAlign: 'center' }}>
-                  <input type="checkbox" checked={isAllSelected} ref={(el) => { if (el) el.indeterminate = isIndeterminate; }} onChange={(e) => toggleAll(e.target.checked)} style={{ cursor: 'pointer', width: 16, height: 16, accentColor: '#1ceee0' }} />
+                <th className="th-checkbox">
+                  <input type="checkbox" checked={isAllSelected} ref={(el) => { if (el) el.indeterminate = isIndeterminate; }} onChange={(e) => toggleAll(e.target.checked)} className="th-select-checkbox" />
                 </th>
                 {CLIENT_COLUMNS.map((col) => visibleCols.has(col.key) ? <th key={col.key}>{col.label}</th> : null)}
               </tr>
@@ -497,41 +490,41 @@ export default function ClientsPage() {
             <tbody>
               {filteredClients.length === 0 ? (
                 <tr>
-                <td colSpan={visibleCols.size + 1} style={{ padding: 0, border: 'none' }}>
-                    {clients.length === 0 ? <TableSkeleton columns={visibleCols.size} rows={8} /> : <div style={{ textAlign: 'center', padding: 40 }}><span className="no-data">Nincs találat</span></div>}
+                <td colSpan={visibleCols.size + 1} className="td-empty">
+                    {clients.length === 0 ? <TableSkeleton columns={visibleCols.size} rows={8} /> : <div className="cl-empty-center"><span className="no-data">Nincs találat</span></div>}
                   </td>
                 </tr>
               ) : (
                 filteredClients.map((c) => (
-                  <tr key={String(c.id)} style={{ cursor: 'pointer' }} onClick={() => openClientDetail(String(c.id))}>
-                    <td style={{ padding: '12px 16px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
-                      <input type="checkbox" checked={selectedRows.has(String(c.id))} onChange={() => toggleRow(String(c.id))} style={{ cursor: 'pointer', width: 16, height: 16, accentColor: '#1ceee0' }} />
+                  <tr key={String(c.id)} className="cursor-pointer" onClick={() => openClientDetail(String(c.id))}>
+                    <td className="td-checkbox" onClick={(e) => e.stopPropagation()}>
+                      <input type="checkbox" checked={selectedRows.has(String(c.id))} onChange={() => toggleRow(String(c.id))} className="td-select-checkbox" />
                     </td>
                     {visibleCols.has('name') && (
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>{c.name}</div>
-                        <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>ID: {c.id}</div>
+                      <td className="td-p">
+                        <div className="cl-name-cell">{c.name}</div>
+                        <div className="cl-name-id">ID: {c.id}</div>
                       </td>
                     )}
                     {visibleCols.has('status_badge') && (
-                      <td style={{ padding: '12px 16px' }}>{statusBadge(c)}</td>
+                      <td className="td-p">{statusBadge(c)}</td>
                     )}
                     {visibleCols.has('tags') && (
-                      <td style={{ padding: '12px 16px' }}>
-                        <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                      <td className="td-p">
+                        <div className="flex-row gap-4 flex-wrap">
                           {c.tags.slice(0, 3).map((t) => <TagBadge key={t} tag={t} />)}
-                          {c.tags.length > 3 && <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>+{c.tags.length - 3}</span>}
+                          {c.tags.length > 3 && <span className="cl-tag-overflow--sm">+{c.tags.length - 3}</span>}
                         </div>
                       </td>
                     )}
                     {visibleCols.has('phone') && (
-                      <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text)' }}>{c.phone || '—'}</td>
+                      <td className="td-p-sm">{c.phone || '—'}</td>
                     )}
                     {visibleCols.has('email') && (
-                      <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text)' }}>{c.email || '—'}</td>
+                      <td className="td-p-sm">{c.email || '—'}</td>
                     )}
                     {visibleCols.has('assignee') && (
-                      <td style={{ padding: '12px 16px', fontSize: 13 }} onClick={e => e.stopPropagation()}>
+                      <td className="td-p-fs13" onClick={e => e.stopPropagation()}>
                         {isAdmin ? (
                           <select
                             value={c.assignee || ''}
@@ -547,12 +540,7 @@ export default function ClientsPage() {
                               showToast(newAssignee ? `Felelős: ${newAssignee}` : 'Felelős eltávolítva');
                               refetchClients();
                             }}
-                            style={{
-                              background: 'var(--card)', border: '1px solid var(--border)',
-                              borderRadius: 6, padding: '4px 8px', fontSize: 12,
-                              color: 'var(--text)', cursor: 'pointer', fontFamily: 'inherit',
-                              minWidth: 140,
-                            }}
+                            className="form-input-sm cl-assignee-select"
                           >
                             <option value="">Nincs hozzárendelve</option>
                             {members.map(m => (
@@ -562,15 +550,15 @@ export default function ClientsPage() {
                             ))}
                           </select>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>{c.assignee || '—'}</span>
+                          <span className="cl-assignee-muted">{c.assignee || '—'}</span>
                         )}
                       </td>
                     )}
                     {visibleCols.has('lastInteraction') && (
-                      <td style={{ padding: '12px 16px', fontSize: 13, whiteSpace: 'nowrap' }}>{c.lastInteraction ? fmtDt(c.lastInteraction) : '—'}</td>
+                      <td className="td-p-sm-nowrap">{c.lastInteraction ? fmtDt(c.lastInteraction) : '—'}</td>
                     )}
                     {visibleCols.has('sales_status') && (
-                      <td style={{ padding: '12px 16px', fontSize: 13 }}>
+                      <td className="td-p-fs13">
                         {kanbanNameMap[c.status] || c.status || '—'}
                       </td>
                     )}

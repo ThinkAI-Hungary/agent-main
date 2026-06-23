@@ -1,4 +1,4 @@
-    /* ── Analytics page dark ─────────────────────────────────────── */
+﻿    /* â”€â”€ Analytics page dark â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     body.dark #page-analytics .analytics-shell {
       background: var(--bg) !important;
     }
@@ -101,7 +101,7 @@
       color: var(--text) !important;
     }
 
-    /* Chart view toggle (Napi/Órás) */
+    /* Chart view toggle (Napi/Ă“rĂˇs) */
     body.dark #page-analytics .chart-view-btn {
       background: var(--border) !important;
       color: var(--text-muted) !important;
@@ -146,7 +146,7 @@
       color: var(--text-muted) !important;
     }
 
-    /* ── Interactions page light ────────────────────────────────────── */
+    /* â”€â”€ Interactions page light â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .int-toolbar-input {
       background: var(--card);
       border: 1px solid var(--border);
@@ -210,7 +210,7 @@
       border-bottom: 1px solid var(--border);
     }
 
-    /* Member felhasználóknál elrejtjük a kijelölés oszlopot [visszaállítható: role-member class eltávolítás] */
+    /* Member felhasznĂˇlĂłknĂˇl elrejtjĂĽk a kijelĂ¶lĂ©s oszlopot [visszaĂˇllĂ­thatĂł: role-member class eltĂˇvolĂ­tĂˇs] */
     body.role-member .int-checkbox-col {
       display: none !important;
     }
@@ -228,7 +228,7 @@
       text-align: left;
     }
 
-    /* ── Interactions page dark ─────────────────────────────────────── */
+    /* â”€â”€ Interactions page dark â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     body.dark #page-interactions .analytics-shell {
       background: var(--card) !important;
     }
@@ -283,7 +283,7 @@
       color: var(--text) !important;
     }
 
-    /* ── Settings Page – Accounty Layout ──────────────────────────── */
+    /* â”€â”€ Settings Page â€“ Accounty Layout â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .settings-page-header {
       margin-bottom: 28px;
     }
@@ -303,7 +303,7 @@
     .settings-layout {
       display: block;
     }
-    /* Internal settings sidebar hidden — navigation moved to main sidebar */
+    /* Internal settings sidebar hidden â€” navigation moved to main sidebar */
     .settings-sidebar-nav {
       display: none !important;
     }
@@ -321,10 +321,10 @@
       box-shadow: 0 1px 3px rgba(0,0,0,0.04), 0 4px 16px rgba(0,0,0,0.03);
     }
 
-    /* Override existing view-switcher inside settings – it's now hidden */
+    /* Override existing view-switcher inside settings â€“ it's now hidden */
     #page-settings > .view-switcher-container { display: none !important; }
 
-    /* ── Security section (Biztonság) ────────────────────────────── */
+    /* â”€â”€ Security section (BiztonsĂˇg) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .security-row {
       display: flex;
       align-items: center;
@@ -349,12 +349,12 @@
       color: #0dbcb4;
     }
     .security-icon.clock {
-      background: rgba(249, 115, 22, 0.10);
-      color: #f97316;
+      background: rgba(28, 238, 224, 0.10);
+      color: #0dbcb4;
     }
     .security-icon.shield {
-      background: rgba(34, 197, 94, 0.10);
-      color: #22c55e;
+      background: rgba(28, 238, 224, 0.10);
+      color: #0dbcb4;
     }
     .security-info {
       flex: 1;
@@ -546,7 +546,7 @@
       transform: translateY(-1px);
     }
 
-    /* ── Team member cards (Accounty style) ─────────────────────── */
+    /* â”€â”€ Team member cards (Accounty style) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .team-member-row {
       display: flex;
       align-items: center;
@@ -825,7 +825,7 @@
       }
     }
 
-    /* ── Tudástár page dark ─────────────────────────────────────────── */
+    /* â”€â”€ TudĂˇstĂˇr page dark â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     body.dark #page-settings .analytics-shell,
     body.dark #page-settings .tudastar-shell {
       background: var(--card) !important;
@@ -1080,7 +1080,7 @@
       color: var(--text) !important;
     }
 
-    /* Inline-styled elements in Tudástár */
+    /* Inline-styled elements in TudĂˇstĂˇr */
     body.dark #page-settings [style*="color:#6b7280"],
     body.dark #page-settings [style*="color: #6b7280"],
     body.dark #page-settings [style*="color:#374151"],
@@ -1120,7 +1120,7 @@
       color: #1ceee0 !important;
     }
 
-    /* ── Main ──────────────────────────────────────────────────────── */
+    /* â”€â”€ Main â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .main {
       margin-left: 240px;
       padding: 28px 32px;
@@ -1167,8 +1167,8 @@
       font-weight: 400;
     }
 
-    /* ╔══════════════════════════════════════════════════════════════════════════╗
-    /* ── DigiDesk Analytics — Accounty-inspired styles ─────────── */
+    /* â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
+    /* â”€â”€ DigiDesk Analytics â€” Accounty-inspired styles â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     .analytics-shell {
       background: var(--bg);
       border-radius: 0;
@@ -1236,7 +1236,7 @@
       opacity: 0.85;
     }
 
-    /* KPI cards – light cyan gradient */
+    /* KPI cards â€“ light cyan gradient */
     .kpi-grid-figma {
       display: grid;
       grid-template-columns: repeat(3, 1fr);
@@ -1347,7 +1347,7 @@
       gap: 8px;
     }
 
-    /* Chart toggle (Napi / Órás) */
+    /* Chart toggle (Napi / Ă“rĂˇs) */
     .chart-view-toggle {
       display: flex;
       gap: 4px;
@@ -1638,7 +1638,7 @@
       margin: 32px 0;
     }
 
-    /* ── Automatizációk page dark mode ──────────────────────────── */
+    /* â”€â”€ AutomatizĂˇciĂłk page dark mode â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€ */
     body.dark #page-automatizaciok .tt-input,
     body.dark #page-automatizaciok .tt-textarea,
     body.dark #page-automatizaciok select.tt-input {
@@ -1705,7 +1705,7 @@
     body.dark .alert-modal-footer-btn { border-color: rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: rgba(255,255,255,0.7); }
     body.dark .alert-modal-footer-btn:hover { background: rgba(255,255,255,0.1); border-color: rgba(28,238,224,0.2); color: #fff; }
 
-    /* ── Analytics grid classes (extracted from inline styles) ─── */
+    /* â”€â”€ Analytics grid classes (extracted from inline styles) â”€â”€â”€ */
     .analytics-campaign-kpi-row {
       grid-template-columns: repeat(4, 1fr);
     }
@@ -1745,3 +1745,376 @@
         grid-template-columns: 1fr !important;
       }
     }
+
+/* ======================================================
+   AnalyticsPage — migrated from inline styles
+   ====================================================== */
+
+/* KPI card no-pointer */
+.kpi-card-figma--no-cursor { cursor: default; }
+
+/* Spinner center wrapper */
+.spinner-center { text-align: center; padding: 20px; color: #6b7280; }
+
+/* Analytics skeleton grids */
+.analytics-skeleton-kpi { display: grid; gap: 16px; margin-bottom: 36px; }
+.analytics-skeleton-charts { display: grid; gap: 16px; }
+.skeleton-shimmer--h40 { height: 40px; border-radius: 10px; }
+.skeleton-shimmer--h110 { height: 110px; border-radius: 6px; }
+.skeleton-shimmer--h300 { height: 300px; border-radius: 18px; }
+
+/* Campaign KPI row */
+.analytics-campaign-kpi-row { display: grid; gap: 16px; margin-bottom: 24px; }
+@media (min-width: 600px) { .analytics-campaign-kpi-row { grid-template-columns: repeat(4, 1fr); } }
+
+/* Campaign KPI card */
+.ana-cmp-kpi-card { padding: 20px 22px; display: flex; align-items: center; gap: 16px; }
+
+/* Campaign icon box */
+.ana-cmp-icon-box {
+  width: 42px; height: 42px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+/* Campaign dot indicator */
+.ana-cmp-dot {
+  width: 10px; height: 10px; border-radius: 50%;
+}
+
+/* Stat value large */
+.ana-stat-value {
+  font-size: 26px; font-weight: 700; color: var(--text); line-height: 1.1;
+}
+
+/* Stat label */
+.ana-stat-label {
+  font-size: 12px; font-weight: 600; color: #6b8b99;
+  margin-top: 2px; text-transform: uppercase; letter-spacing: 0.4px;
+}
+
+/* Campaign charts row */
+.analytics-campaign-charts-row { display: grid; gap: 18px; margin-bottom: 36px; }
+@media (min-width: 700px) { .analytics-campaign-charts-row { grid-template-columns: 1fr 1fr; } }
+
+/* Doughnut wrapper */
+.ana-doughnut-wrap {
+  position: relative; height: 200px;
+  display: flex; justify-content: center; align-items: center;
+}
+
+/* Mini stat grid inside campaign panel */
+.ana-mini-stat-grid {
+  display: grid; grid-template-columns: 1fr 1fr;
+  gap: 14px; margin-bottom: 20px;
+}
+
+/* Mini stat item */
+.ana-mini-stat-item {
+  border-radius: 12px; padding: 16px 18px;
+  background: var(--card, #fff);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+/* Mini stat value */
+.ana-mini-stat-val {
+  font-size: 22px; font-weight: 700; color: var(--text);
+  line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ana-mini-stat-val--sm { font-size: 15px; }
+
+/* Mini stat sub */
+.ana-mini-stat-sub {
+  font-size: 11px; color: var(--text-muted, #6b8b99); margin-top: 2px;
+}
+
+/* Mini stat label */
+.ana-mini-stat-lbl {
+  font-size: 11px; font-weight: 600; color: var(--text-muted, #6b8b99);
+  margin-top: 4px; text-transform: uppercase; letter-spacing: 0.3px;
+}
+
+/* Progress label */
+.ana-progress-text-lbl {
+  font-size: 12px; font-weight: 600; color: var(--text-muted, #6b8b99);
+  text-transform: uppercase; letter-spacing: 0.3px;
+}
+
+/* Progress pct accent */
+.ana-progress-text-pct {
+  font-size: 14px; font-weight: 700; color: #1ceee0;
+}
+
+/* Progress bar track */
+.ana-progress-track {
+  height: 8px; border-radius: 99px;
+  background: var(--bg3, rgba(0,0,0,0.04));
+  overflow: hidden;
+}
+
+/* Progress bar fill */
+.ana-progress-fill-bar {
+  height: 100%; border-radius: 99px;
+  background: linear-gradient(90deg, #1ceee0, #22c55e);
+  transition: width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1);
+}
+
+/* Quality grid */
+.analytics-quality-grid { display: grid; gap: 18px; margin-bottom: 36px; }
+@media (min-width: 800px) { .analytics-quality-grid { grid-template-columns: 1fr 1fr 1fr; } }
+
+/* Alerts grid */
+.analytics-alerts-grid { display: grid; gap: 18px; margin-bottom: 36px; }
+@media (min-width: 800px) { .analytics-alerts-grid { grid-template-columns: 1fr 1fr; } }
+
+/* Chart card fixed heights */
+.chart-card--350 { height: 350px; }
+
+/* Chart title no-margin-bottom */
+.chart-title--no-mb { margin-bottom: 0; color: var(--text); font-weight: 700; }
+
+/* Toggle wrap */
+.chart-toggle-wrap {
+  background: var(--bg3); padding: 4px; border-radius: 8px; border: 1px solid var(--border);
+}
+
+/* Chart margin-top */
+.chart-mt10 { margin-top: 10px; }
+
+/* Channel grid inside chart */
+.channel-legend-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px 16px; margin-top: 20px; padding: 0 10px; }
+
+/* Channel dot */
+.channel-dot { width: 8px; height: 8px; border-radius: 50%; margin-right: 8px; }
+
+/* Channel label text */
+.channel-label-txt { font-size: 12px; color: #6b8b99; }
+
+/* Channel count */
+.channel-count { font-size: 16px; font-weight: 600; color: var(--text); padding-left: 16px; }
+
+/* Handoff chart wrap */
+.handoff-chart-wrap { position: relative; height: 240px; }
+
+/* Filter group relative */
+.filter-group--relative { position: relative; }
+
+/* Date picker dropdown */
+.date-picker-dropdown {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 50;
+  background: var(--card, #fff); border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+  padding: 20px 22px 16px; min-width: 320px;
+  animation: fadein 0.2s ease;
+}
+
+/* Date picker title */
+.date-picker-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 14px; }
+
+/* Date picker grid */
+.date-picker-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+
+/* Date picker label */
+.date-picker-label {
+  font-size: 11px; font-weight: 600; color: var(--text-muted, #6b8b99);
+  display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px;
+}
+
+/* Date picker input */
+.date-picker-input {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px; font-size: 13px; background: var(--bg, #f8fafc); color: var(--text);
+  font-family: inherit; outline: none; transition: border-color 0.2s; box-sizing: border-box;
+}
+
+/* Quick date button */
+.date-quick-btn {
+  padding: 5px 12px; font-size: 11px; font-weight: 600; border-radius: 8px;
+  border: 1px solid var(--border, #e2e8f0); background: var(--bg, #f8fafc);
+  color: var(--text-muted, #6b8b99); cursor: pointer; font-family: inherit; transition: all 0.15s;
+}
+
+/* Checkbox label */
+.chart-channel-label { display: flex; align-items: center; font-size: 12px; color: #6b8b99; cursor: pointer; width: fit-content; }
+.chart-channel-cb { margin-right: 8px; accent-color: #1ceee0; }
+
+/* Chart sessions position */
+.chart-sessions-inner { position: relative; height: calc(100% - 70px); margin-top: 10px; }
+
+/* Channel doughnut inner */
+.channel-doughnut-inner { position: relative; height: 160px; display: flex; justify-content: center; align-items: center; margin-top: 10px; }
+
+/* AI insights btn */
+.ai-insights-btn {
+  background: transparent; border: none; cursor: pointer; color: var(--text-muted);
+  font-size: 14px; display: flex; align-items: center; gap: 4px;
+  padding: 4px 8px; border-radius: 4px;
+}
+
+/* Spinner small */
+.spinner--sm { width: 12px; height: 12px; border-width: 2px; }
+
+/* ======================================================
+   AnalyticsPage — migrated from inline styles
+   ====================================================== */
+
+/* Campaign stat card */
+.ana-stat-card { padding: 20px 22px; display: flex; align-items: center; gap: 16px; }
+
+/* Campaign stat icon wrapper — bg dynamic */
+.ana-stat-icon {
+  width: 42px; height: 42px; border-radius: 12px;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+/* Campaign stat icon dot — bg dynamic */
+.ana-stat-dot { width: 10px; height: 10px; border-radius: 50%; }
+
+/* Panel with padding 24 28 */
+.panel-white--p2428 { padding: 24px 28px; }
+
+/* Mini stat card */
+.ana-mini-stat-item {
+  border-radius: 12px; padding: 16px 18px;
+  background: var(--card, #fff);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+/* Mini stat value — font-size dynamic */
+.ana-mini-stat-value {
+  font-weight: 700; color: var(--text);
+  line-height: 1.2; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.ana-mini-stat-value--lg { font-size: 22px; }
+.ana-mini-stat-value--sm { font-size: 15px; }
+
+/* Mini stat sub */
+.ana-mini-stat-sub { font-size: 11px; color: var(--text-muted, #6b8b99); margin-top: 2px; }
+
+/* Mini stat label */
+.ana-mini-stat-lbl {
+  font-size: 11px; font-weight: 600; color: var(--text-muted, #6b8b99);
+  margin-top: 4px; text-transform: uppercase; letter-spacing: 0.3px;
+}
+
+/* Filter group position */
+.filter-group--relative { position: relative; }
+
+/* Custom date picker dropdown */
+.ana-date-picker {
+  position: absolute; top: calc(100% + 8px); left: 0; z-index: 50;
+  background: var(--card, #fff); border: 1px solid var(--border, #e2e8f0);
+  border-radius: 14px; box-shadow: 0 12px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06);
+  padding: 20px 22px 16px; min-width: 320px;
+  animation: fadein 0.2s ease;
+}
+
+/* Date picker title */
+.ana-date-picker-title { font-size: 13px; font-weight: 700; color: var(--text); margin-bottom: 14px; }
+
+/* Date picker grid */
+.ana-date-picker-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 14px; }
+
+/* Date picker label */
+.ana-date-picker-lbl {
+  font-size: 11px; font-weight: 600; color: var(--text-muted, #6b8b99);
+  display: block; margin-bottom: 6px; text-transform: uppercase; letter-spacing: 0.4px;
+}
+
+/* Date picker input */
+.ana-date-input {
+  width: 100%; padding: 10px 12px; border: 1px solid var(--border, #e2e8f0);
+  border-radius: 10px; font-size: 13px; background: var(--bg, #f8fafc); color: var(--text);
+  font-family: inherit; outline: none; transition: border-color 0.2s; box-sizing: border-box;
+}
+
+/* Preset quick buttons */
+.ana-preset-btn {
+  padding: 5px 12px; font-size: 11px; font-weight: 600; border-radius: 8px;
+  border: 1px solid var(--border, #e2e8f0); background: var(--bg, #f8fafc);
+  color: var(--text-muted, #6b8b99); cursor: pointer; font-family: inherit;
+  transition: all 0.15s;
+}
+.ana-preset-btn:hover { background: var(--card); color: var(--text); }
+
+/* Skeleton items within analytics */
+.ana-skel-kpi { height: 110px; border-radius: 6px; }
+.ana-skel-chart { height: 300px; border-radius: 18px; }
+
+/* ======================================================
+   AnalyticsPage — additional migrated inline styles
+   ====================================================== */
+
+/* Toggle bar */
+.ana-toggle-bar { background: var(--bg3); padding: 4px; border-radius: 8px; border: 1px solid var(--border); }
+
+/* Breakdown checkbox wrap */
+.ana-breakdown-wrap { margin-top: 10px; }
+
+/* Breakdown label */
+.ana-breakdown-label { display: flex; align-items: center; font-size: 12px; color: #6b8b99; cursor: pointer; width: fit-content; }
+
+/* Breakdown checkbox */
+.ana-breakdown-cb { margin-right: 8px; accent-color: #1ceee0; }
+
+/* Chart inner — sessions */
+.ana-chart-inner { position: relative; height: calc(100% - 70px); margin-top: 10px; }
+
+/* Doughnut wrap */
+.ana-doughnut-wrap { position: relative; height: 160px; display: flex; justify-content: center; align-items: center; margin-top: 10px; }
+
+/* Doughnut legend grid */
+.ana-legend-grid { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px 16px; margin-top: 20px; padding: 0 10px; }
+
+/* Legend item */
+.ana-legend-item { align-items: flex-start; }
+
+/* Legend row */
+.ana-legend-row { margin-bottom: 4px; }
+
+/* Legend label */
+.ana-legend-label { font-size: 12px; color: #6b8b99; }
+
+/* Legend value */
+.ana-legend-value { font-size: 16px; font-weight: 600; color: var(--text); padding-left: 16px; }
+
+/* No data center */
+.ana-no-data-center { text-align: center; padding: 20px; }
+
+/* Handoff chart wrap */
+.ana-handoff-wrap { position: relative; height: 240px; }
+
+/* Insights refresh btn */
+.ana-insights-btn {
+  background: transparent; border: none; cursor: pointer; color: var(--text-muted);
+  font-size: 14px; display: flex; align-items: center; gap: 4px;
+  padding: 4px 8px; border-radius: 4px;
+}
+
+/* Insights tiny spinner */
+.ana-spinner-tiny { width: 12px; height: 12px; border-width: 2px; }
+
+/* Skeleton shimmer item */
+.ana-skel-item { height: 40px; border-radius: 10px; }
+
+/* === AnalyticsPage: migrated inline styles === */
+.toggle-btn {
+  background: transparent; color: var(--text); border: none; border-radius: 6px;
+  font-size: 12px; font-weight: 400; padding: 4px 12px; cursor: pointer;
+  transition: all 0.15s;
+}
+.toggle-btn.active {
+  background: var(--primary); color: #0a192f; font-weight: 600;
+}
+.analytics-legend-dot {
+  width: 8px; height: 8px; border-radius: 50%; margin-right: 8px;
+  flex-shrink: 0;
+}
+.analytics-empty-state { text-align: center; color: var(--text-muted); padding: 20px; }
+.svg-40-dim { width: 40px; height: 40px; opacity: 0.3; }
+.svg-15 { width: 15px; height: 15px; }
+.svg-16 { width: 16px; height: 16px; }
+.svg-18 { width: 18px; height: 18px; }
+.svg-20 { width: 20px; height: 20px; }
+.svg-32 { width: 32px; height: 32px; }
+.beal-letter-spacing { letter-spacing: -0.3px; }
+.flex-col.gap-0 { gap: 0; }

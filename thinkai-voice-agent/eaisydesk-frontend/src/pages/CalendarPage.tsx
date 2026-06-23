@@ -1,4 +1,4 @@
-/**
+﻿/**
  * CalendarPage – 1:1 migration of legacy calendar view
  * Features: list view + grid (FullCalendar) view, new event creation, no-show marking
  * Clicking an event opens the client profile.
@@ -224,61 +224,32 @@ export default function CalendarPage() {
   return (
     <div className="analytics-shell">
       {/* Header */}
-      <div className="page-header" style={{ marginBottom: 18 }}>
+      <div className="page-header mb-18">
         <div>
           <div className="page-title">Naptár</div>
 
         </div>
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+        <div className="flex-row gap-10">
           {/* View toggle */}
-          <div style={{ display: 'flex', gap: 4, background: 'var(--bg3)', borderRadius: 8, padding: 3 }}>
+          <div className="flex-row gap-4 cal-view-toggle">
             <button
+              className={`btn btn-ghost-sm ${viewMode === 'list' ? 'filter-btn active' : ''}`}
               onClick={() => setViewMode('list')}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 6,
-                border: 'none',
-                fontSize: 12,
-                fontWeight: viewMode === 'list' ? 800 : 600,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                background: viewMode === 'list' ? 'rgba(28,238,224,0.12)' : 'transparent',
-                color: viewMode === 'list' ? 'var(--accent, #1ceee0)' : 'var(--text-muted)',
-              }}
             >
               Lista
             </button>
             <button
+              className={`btn btn-ghost-sm ${viewMode === 'grid' ? 'filter-btn active' : ''}`}
               onClick={() => setViewMode('grid')}
-              style={{
-                padding: '6px 14px',
-                borderRadius: 6,
-                border: 'none',
-                fontSize: 12,
-                fontWeight: viewMode === 'grid' ? 800 : 600,
-                cursor: 'pointer',
-                fontFamily: 'inherit',
-                background: viewMode === 'grid' ? 'rgba(28,238,224,0.12)' : 'transparent',
-                color: viewMode === 'grid' ? 'var(--accent, #1ceee0)' : 'var(--text-muted)',
-              }}
             >
               Naptár
             </button>
           </div>
 
           {/* New event button */}
-          <button
-            onClick={() => setShowNewEventModal(true)}
-            style={{
-              display: 'flex', alignItems: 'center', gap: 6, padding: '8px 18px',
-              background: '#1ceee0', color: '#0a1628', border: 'none', borderRadius: 8,
-              fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-              boxShadow: '0 2px 8px rgba(28,238,224,0.25)',
-            }}
-          >
+          <button className="btn btn-primary" onClick={() => setShowNewEventModal(true)}>
             + Új időpont
           </button>
-
         </div>
       </div>
 
@@ -288,7 +259,7 @@ export default function CalendarPage() {
         <>
           {/* List view */}
           {viewMode === 'list' && (
-            <div className="table-card" style={{ overflowX: 'auto' }}>
+            <div className="table-card cal-table-card">
               <table className="data-table">
                 <thead>
                   <tr>
@@ -297,7 +268,7 @@ export default function CalendarPage() {
                     <th>Ügyfél</th>
                     <th>Időtartam</th>
                     <th>Email</th>
-                    <th style={{ textAlign: 'center' }}>Státusz</th>
+                    <th className="text-center">Státusz</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -320,25 +291,25 @@ export default function CalendarPage() {
                           onClick={() => openClientFromEvent(ev.attendee || '', ev.attendee_email || '')}
                         >
                           <td><div className="td-time">{fmtDt(ev.start_dt || '')}</div></td>
-                          <td style={{ fontWeight: 500 }}>{ev.title}</td>
+                          <td className="cal-ev-title">{ev.title}</td>
                           <td>
-                            <span style={{ color: 'var(--accent)', fontWeight: 600, textDecoration: 'underline', textUnderlineOffset: 3 }}>
+                            <span className="cal-attendee-link">
                               {ev.attendee || <span className="no-data">Nincs ügyfél</span>}
                             </span>
                           </td>
                           <td><span className="badge badge-teal">{ev.duration_minutes} perc</span></td>
                           <td className="td-summary">{ev.attendee_email || <span className="no-data">Nincs email</span>}</td>
-                          <td style={{ textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                          <td className="cal-status-cell" onClick={(e) => e.stopPropagation()}>
                             {isPast ? (
                               <button
                                 onClick={() => handleMarkNoShow(ev.id as number, ev.attendee_email || '', ev.attendee || '')}
-                                style={{ background: 'rgba(245,127,23,0.1)', color: '#f57f17', border: '1px solid rgba(245,127,23,0.3)', borderRadius: 6, padding: '4px 10px', fontSize: 11, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}
+                                className="btn btn-noshow"
                                 title="No-show címke hozzáadása"
                               >
                                 Nem jelent meg
                               </button>
                             ) : (
-                              <span style={{ color: '#22c55e', fontSize: 11, fontWeight: 600 }}>Várakozik</span>
+                              <span className="cal-waiting">Várakozik</span>
                             )}
                           </td>
                         </tr>
@@ -441,74 +412,28 @@ export default function CalendarPage() {
 
       {/* New Event Modal — Apple-style */}
       {showNewEventModal && (
-        <div
-          style={{
-            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
-            background: 'rgba(0,0,0,0.45)',
-            backdropFilter: 'blur(8px)',
-            WebkitBackdropFilter: 'blur(8px)',
-            zIndex: 9999,
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            animation: 'fadeIn .18s ease',
-          }}
-          onClick={() => setShowNewEventModal(false)}
-        >
-          <div
-            style={{
-              width: 460, maxWidth: '92vw',
-              background: 'var(--card, #fff)',
-              borderRadius: 18,
-              boxShadow: '0 24px 80px rgba(0,0,0,0.22), 0 0 0 1px rgba(255,255,255,0.06) inset',
-              border: '1px solid var(--border)',
-              overflow: 'hidden',
-              animation: 'modalSlideUp .22s cubic-bezier(.2,.9,.3,1)',
-            }}
-            onClick={(e) => e.stopPropagation()}
-          >
+        <div className="modal-overlay" onClick={() => setShowNewEventModal(false)}>
+          <div className="modal-card modal-card--460" onClick={(e) => e.stopPropagation()}>
             {/* Header */}
-            <div style={{
-              padding: '22px 28px 18px',
-              borderBottom: '1px solid var(--border)',
-              display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-            }}>
+            <div className="modal-header">
               <div>
-                <h3 style={{ margin: 0, fontSize: 17, fontWeight: 700, color: 'var(--text)', letterSpacing: '-0.2px' }}>
-                  Új időpont létrehozása
-                </h3>
-                <p style={{ margin: '4px 0 0', fontSize: 12, color: 'var(--text-muted)', fontWeight: 400 }}>
-                  Adja meg az ügyfél és az esemény adatait
-                </p>
+                <h3 className="modal-title">Új időpont létrehozása</h3>
+                <p className="text-sm text-muted cal-modal-sub">Adja meg az ügyfél és az esemény adatait</p>
               </div>
-              <button
-                onClick={() => setShowNewEventModal(false)}
-                style={{
-                  width: 30, height: 30, borderRadius: '50%',
-                  border: 'none', background: 'var(--bg3, rgba(0,0,0,0.06))',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: 'var(--text-muted)', fontSize: 16, fontWeight: 300, lineHeight: 1,
-                  transition: 'background .15s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'rgba(239,68,68,0.12)', e.currentTarget.style.color = '#ef4444')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg3, rgba(0,0,0,0.06))', e.currentTarget.style.color = 'var(--text-muted)')}
-              >
-                ✕
-              </button>
+              <button className="modal-close" onClick={() => setShowNewEventModal(false)}>✕</button>
             </div>
 
-            {/* Body */}
-            <div style={{ padding: '22px 28px 6px' }}>
+            <div className="modal-body">
               {/* Section: Ügyfél */}
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
-                  Ügyfél adatai
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="mb-20">
+                <div className="form-label form-label--section">Ügyfél adatai</div>
+                <div className="flex-col gap-10">
                   <ModalInput label="Név" value={newEvent.attendee} onChange={(v) => setNewEvent({ ...newEvent, attendee: v })} required placeholder="pl. Kiss Anna" />
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <div style={{ flex: 1 }}>
+                  <div className="flex-row gap-10">
+                    <div className="flex-1">
                       <ModalInput label="Email" value={newEvent.email} onChange={(v) => setNewEvent({ ...newEvent, email: v })} type="email" placeholder="email@pelda.hu" />
                     </div>
-                    <div style={{ flex: 1 }}>
+                    <div className="flex-1">
                       <ModalInput label="Telefon" value={newEvent.phone} onChange={(v) => setNewEvent({ ...newEvent, phone: v })} type="tel" placeholder="+36 20 123 4567" />
                     </div>
                   </div>
@@ -516,25 +441,23 @@ export default function CalendarPage() {
               </div>
 
               {/* Section: Esemény */}
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 10 }}>
-                  Esemény részletei
-                </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+              <div className="mb-20">
+                <div className="form-label form-label--section">Esemény részletei</div>
+                <div className="flex-col gap-10">
                   <ModalInput label="Esemény címe" value={newEvent.title} onChange={(v) => setNewEvent({ ...newEvent, title: v })} required placeholder="pl. Konzultáció" />
-                  <div style={{ display: 'flex', gap: 10 }}>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Dátum *</label>
-                      <input type="date" lang="hu" value={newEvent.date} onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })} style={modalInputStyle} />
+                  <div className="flex-row gap-10">
+                    <div className="flex-1">
+                      <label className="form-label">Dátum *</label>
+                      <input className="input" type="date" lang="hu" value={newEvent.date} onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })} />
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Időpont *</label>
-                      <input type="time" value={newEvent.time} onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })} style={modalInputStyle} />
+                    <div className="flex-1">
+                      <label className="form-label">Időpont *</label>
+                      <input className="input" type="time" value={newEvent.time} onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })} />
                     </div>
                   </div>
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Időtartam</label>
-                    <select value={newEvent.duration} onChange={(e) => setNewEvent({ ...newEvent, duration: e.target.value })} style={modalInputStyle}>
+                    <label className="form-label">Időtartam</label>
+                    <select className="input" value={newEvent.duration} onChange={(e) => setNewEvent({ ...newEvent, duration: e.target.value })}>
                       <option value="15">15 perc</option>
                       <option value="30">30 perc</option>
                       <option value="45">45 perc</option>
@@ -548,58 +471,13 @@ export default function CalendarPage() {
             </div>
 
             {/* Footer */}
-            <div style={{
-              padding: '16px 28px 22px',
-              display: 'flex', gap: 10, justifyContent: 'flex-end',
-              borderTop: '1px solid var(--border)',
-            }}>
-              <button
-                onClick={() => setShowNewEventModal(false)}
-                style={{
-                  padding: '9px 22px', borderRadius: 9,
-                  border: '1px solid var(--border)',
-                  background: 'var(--bg2, var(--bg, #f5f5f5))',
-                  color: 'var(--text)', fontSize: 13, fontWeight: 600,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                  transition: 'all .15s',
-                }}
-                onMouseEnter={e => (e.currentTarget.style.background = 'var(--bg3, #eee)')}
-                onMouseLeave={e => (e.currentTarget.style.background = 'var(--bg2, var(--bg, #f5f5f5))')}
-              >
-                Mégse
-              </button>
-              <button
-                onClick={handleSubmitEvent}
-                style={{
-                  padding: '9px 28px', borderRadius: 9,
-                  border: 'none',
-                  background: '#1ceee0',
-                  color: '#0a1628', fontSize: 13, fontWeight: 700,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                  boxShadow: '0 2px 12px rgba(28,238,224,0.3)',
-                  transition: 'all .15s',
-                }}
-                onMouseEnter={e => { e.currentTarget.style.transform = 'translateY(-1px)'; e.currentTarget.style.boxShadow = '0 4px 18px rgba(28,238,224,0.4)'; }}
-                onMouseLeave={e => { e.currentTarget.style.transform = 'translateY(0)'; e.currentTarget.style.boxShadow = '0 2px 12px rgba(28,238,224,0.3)'; }}
-              >
-                Létrehozás
-              </button>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowNewEventModal(false)}>Mégse</button>
+              <button className="btn btn-primary" onClick={handleSubmitEvent}>Létrehozás</button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Modal animation keyframes */}
-      <style>{`
-        @keyframes modalSlideUp {
-          from { opacity: 0; transform: translateY(16px) scale(0.97); }
-          to { opacity: 1; transform: translateY(0) scale(1); }
-        }
-        @keyframes fadeIn {
-          from { opacity: 0; }
-          to { opacity: 1; }
-        }
-      `}</style>
 
       {/* Mobile FAB — new event */}
       {isMobile && (
@@ -613,45 +491,15 @@ export default function CalendarPage() {
   );
 }
 
-const modalInputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '9px 12px',
-  border: '1.5px solid var(--border)',
-  borderRadius: 9,
-  fontSize: 13,
-  color: 'var(--text)',
-  background: 'var(--bg2, var(--bg, #f8f9fa))',
-  fontFamily: 'inherit',
-  boxSizing: 'border-box',
-  outline: 'none',
-  transition: 'border-color .15s, box-shadow .15s',
-  colorScheme: 'light dark',
-};
+
 
 function ModalInput({ label, value, onChange, type = 'text', required, placeholder }: {
   label: string; value: string; onChange: (v: string) => void; type?: string; required?: boolean; placeholder?: string;
 }) {
   return (
-    <div>
-      <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>
-        {label}{required && ' *'}
-      </label>
-      <input
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-        required={required}
-        style={modalInputStyle}
-        onFocus={e => {
-          e.currentTarget.style.borderColor = '#1ceee0';
-          e.currentTarget.style.boxShadow = '0 0 0 3px rgba(28,238,224,0.12)';
-        }}
-        onBlur={e => {
-          e.currentTarget.style.borderColor = 'var(--border)';
-          e.currentTarget.style.boxShadow = 'none';
-        }}
-      />
+    <div className="form-group">
+      <label className="form-label">{label}{required && ' *'}</label>
+      <input className="input" type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} required={required} />
     </div>
   );
 }

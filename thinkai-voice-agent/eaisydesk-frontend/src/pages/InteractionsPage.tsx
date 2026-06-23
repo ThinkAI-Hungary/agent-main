@@ -410,43 +410,39 @@ export default function InteractionsPage() {
       <ConfirmDialog />
 
       {/* Page title — standalone */}
-      <div style={{ marginBottom: 20 }}>
+      <div className="mb-20">
         <div className="page-title">Interakciós napló</div>
       </div>
 
       {/* Table card with integrated toolbar */}
-      <div style={{ border: '1px solid var(--border)', borderRadius: 10, overflow: 'visible', background: 'var(--card)' }}>
+      <div className="card-container card-container--overflow-visible">
         {/* Toolbar strip — hidden on mobile (mobile card view has its own) */}
         {!isMobile && (
-        <div style={{
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          padding: '10px 18px', borderBottom: '1px solid var(--border)',
-          flexWrap: 'wrap', gap: 8,
-        }}>
+        <div className="toolbar-strip">
           {/* Left: search + count */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          <div className="flex-row gap-12">
             <input
               className="int-toolbar-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Keresés..."
               type="text"
-              style={{ width: 220 }}
+              className="int-toolbar-input int-toolbar-input--w220"
             />
             {filteredRows.length > 0 && (
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>
+              <span className="text-desc font-semibold int-count-label">
                 {filteredRows.length} találat
               </span>
             )}
           </div>
 
           {/* Right: actions */}
-          <div style={{ display: 'flex', gap: 8, alignItems: 'center', flexWrap: 'wrap' }}>
+          <div className="flex-row gap-8 flex-wrap">
             {isAdmin && selectedRows.size > 0 && (
               <button
                 className="int-toolbar-btn"
                 onClick={handleDeleteSelected}
-                style={{ display: 'flex', background: '#fee2e2', color: '#b91c1c', borderColor: '#fca5a5', gap: 6, alignItems: 'center', fontWeight: 600 }}
+                className="int-toolbar-btn int-toolbar-btn--danger"
               >
                 <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
                   <polyline points="3 6 5 6 21 6" />
@@ -459,10 +455,9 @@ export default function InteractionsPage() {
             )}
 
             {/* Filter */}
-            <div style={{ position: 'relative', display: 'inline-block' }} ref={filterContainerRef}>
+            <div className="relative int-dropdown-wrap" ref={filterContainerRef}>
               <button
-                className="int-toolbar-btn"
-                style={{ gap: 6, display: 'flex', alignItems: 'center' }}
+                className="int-toolbar-btn flex-row gap-6"
                 title="Szűrés"
                 onClick={() => setFilterOpen(!filterOpen)}
               >
@@ -471,32 +466,20 @@ export default function InteractionsPage() {
                 </svg>
                 Szűrés
                 {activeFilterCount > 0 && (
-                  <span style={{
-                    background: '#1ceee0', color: '#0a1628', fontSize: 10, fontWeight: 800,
-                    minWidth: 18, height: 18, borderRadius: 9,
-                    display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
-                    padding: '0 5px', marginLeft: 2,
-                  }}>
+                  <span className="int-filter-badge">
                     {activeFilterCount}
                   </span>
                 )}
               </button>
 
               {filterOpen && (
-                <div style={{
-                  position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 999, width: 280,
-                  background: 'var(--card)', border: '1px solid var(--border)',
-                  borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                  overflow: 'hidden',
-                }}>
-                  <div style={{ padding: '4px 14px 8px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid var(--border)', paddingTop: 10, paddingBottom: 8 }}>
-                    Szűrők
-                  </div>
-                  <div style={{ maxHeight: 360, overflowY: 'auto', padding: '4px 0' }}>
+                <div className="dropdown-menu dropdown-menu--filter">
+                  <div className="dropdown-header">Szűrők</div>
+                  <div className="int-filter-list">
                     <FilterSection title="Dátum">
-                      <div style={{ display: 'flex', gap: 8 }}>
-                        <input type="date" lang="hu" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} style={{ flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, background: 'var(--bg, #fff)', color: 'var(--text)', fontFamily: 'inherit' }} />
-                        <input type="date" lang="hu" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} style={{ flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, background: 'var(--bg, #fff)', color: 'var(--text)', fontFamily: 'inherit' }} />
+                      <div className="flex-row gap-8">
+                        <input className="form-date int-date-input" type="date" lang="hu" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
+                        <input className="form-date int-date-input" type="date" lang="hu" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
                       </div>
                     </FilterSection>
                     <FilterSection title="Ügytípus" bordered>
@@ -520,19 +503,18 @@ export default function InteractionsPage() {
                       ))}
                     </FilterSection>
                   </div>
-                  <div style={{ display: 'flex', gap: 8, padding: '10px 14px', borderTop: '1px solid var(--border)' }}>
-                    <button onClick={resetFilters} style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 6, background: 'none', color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Visszaállítás</button>
-                    <button onClick={() => setFilterOpen(false)} style={{ flex: 1, padding: '7px 10px', border: 'none', borderRadius: 6, background: '#1ceee0', color: '#0a1628', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Alkalmaz</button>
+                  <div className="flex-row gap-8 int-filter-footer">
+                    <button className="btn btn-outline int-filter-btn" onClick={resetFilters}>Visszaállítás</button>
+                    <button className="btn btn-primary int-filter-btn" onClick={() => setFilterOpen(false)}>Alkalmaz</button>
                   </div>
                 </div>
               )}
             </div>
 
             {/* Sort */}
-            <div style={{ position: 'relative', display: 'inline-block' }} ref={sortDropdownRef}>
+            <div className="relative int-dropdown-wrap" ref={sortDropdownRef}>
               <button
-                className="int-toolbar-btn"
-                style={{ gap: 6, display: 'flex', alignItems: 'center' }}
+                className="int-toolbar-btn flex-row gap-6"
                 onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
               >
                 <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
@@ -541,28 +523,14 @@ export default function InteractionsPage() {
                 {SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Rendezés'}
               </button>
               {sortDropdownOpen && (
-                <div style={{
-                  position: 'absolute', top: '100%', right: 0, marginTop: 6,
-                  background: 'var(--card)', border: '1px solid var(--border)',
-                  borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                  padding: '6px 0', minWidth: 200, zIndex: 50,
-                }}>
+                <div className="dropdown-menu dropdown-menu--sort">
                   {SORT_OPTIONS.map((o) => (
                     <button
                       key={o.value}
+                      className={`dropdown-item ${sortBy === o.value ? 'active' : ''}`}
                       onClick={() => { setSortBy(o.value); setSortDropdownOpen(false); }}
-                      style={{
-                        display: 'block', width: '100%', textAlign: 'left',
-                        padding: '8px 14px', border: 'none', background: sortBy === o.value ? 'rgba(28,238,224,0.1)' : 'transparent',
-                        color: sortBy === o.value ? '#1ceee0' : 'var(--text)',
-                        fontSize: 13, fontWeight: sortBy === o.value ? 600 : 400,
-                        cursor: 'pointer', fontFamily: 'inherit',
-                        transition: 'background 0.15s',
-                      }}
-                      onMouseEnter={(e) => { if (sortBy !== o.value) e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; }}
-                      onMouseLeave={(e) => { if (sortBy !== o.value) e.currentTarget.style.background = 'transparent'; }}
                     >
-                      {sortBy === o.value && <span style={{ marginRight: 6 }}>✓</span>}
+                      {sortBy === o.value && <span className="int-sort-check">✓</span>}
                       {o.label}
                     </button>
                   ))}
@@ -571,10 +539,9 @@ export default function InteractionsPage() {
             </div>
 
             {/* Columns */}
-            <div style={{ position: 'relative', display: 'inline-block' }} ref={colDropdownRef}>
+            <div className="relative int-dropdown-wrap" ref={colDropdownRef}>
               <button
-                className="int-toolbar-btn"
-                style={{ gap: 6, display: 'flex', alignItems: 'center' }}
+                className="int-toolbar-btn flex-row gap-6"
                 title="Oszlopok"
                 onClick={() => setColDropdownOpen(!colDropdownOpen)}
               >
@@ -585,16 +552,11 @@ export default function InteractionsPage() {
                 Oszlopok
               </button>
               {colDropdownOpen && (
-                <div style={{
-                  position: 'absolute', top: '100%', right: 0, marginTop: 6,
-                  background: 'var(--card)', border: '1px solid var(--border)',
-                  borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
-                  padding: '10px 0', minWidth: 200, zIndex: 50,
-                }}>
-                  <div style={{ padding: '4px 14px 8px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Látható oszlopok</div>
+                <div className="dropdown-menu">
+                  <div className="dropdown-header">Látható oszlopok</div>
                   {ALL_COLUMNS.map((col) => (
-                    <label key={col.key} style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '6px 14px', cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>
-                      <input type="checkbox" checked={visibleCols.has(col.key)} onChange={() => toggleCol(col.key)} style={{ accentColor: '#1ceee0', width: 15, height: 15, cursor: 'pointer' }} />
+                    <label key={col.key} className="int-col-label">
+                      <input type="checkbox" checked={visibleCols.has(col.key)} onChange={() => toggleCol(col.key)} className="int-col-cb" />
                       {col.label}
                     </label>
                   ))}
@@ -608,7 +570,7 @@ export default function InteractionsPage() {
 
         {/* ═══ MOBILE: Card view ═══ */}
         {isMobile && (
-          <div ref={pullInteractions.containerRef} style={{ padding: '0 2px', overflowY: 'auto' }}>
+          <div ref={pullInteractions.containerRef} className="int-mobile-scroll">
             {/* Pull-to-refresh indicator */}
             <div className="pull-to-refresh-indicator" style={{ height: pullInteractions.pullDistance > 0 || pullInteractions.isRefreshing ? Math.max(pullInteractions.pullDistance, pullInteractions.isRefreshing ? 36 : 0) : 0 }}>
               {pullInteractions.isRefreshing ? (
@@ -634,29 +596,29 @@ export default function InteractionsPage() {
                 )}
               </div>
               <div className="mobile-search-meta">
-                <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
+                  <span className="int-count-label">
                   {filteredRows.length} találat
                 </span>
-                <div style={{ display: 'flex', gap: 6 }}>
+                <div className="flex-row gap-6">
                   {/* Filter */}
-                  <div style={{ position: 'relative', display: 'inline-block' }} ref={filterContainerRef}>
-                    <button className="int-toolbar-btn" style={{ gap: 4, display: 'flex', alignItems: 'center', fontSize: 11 }} onClick={() => setFilterOpen(!filterOpen)}>
+                  <div className="relative int-dropdown-wrap" ref={filterContainerRef}>
+                    <button className="int-toolbar-btn int-toolbar-btn--flex" onClick={() => setFilterOpen(!filterOpen)}>
                       <svg fill="none" height="12" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
                       Szűrés
                       {activeFilterCount > 0 && (
-                        <span style={{ background: '#1ceee0', color: '#0a1628', fontSize: 9, fontWeight: 800, minWidth: 16, height: 16, borderRadius: 8, display: 'inline-flex', alignItems: 'center', justifyContent: 'center', padding: '0 4px' }}>
+                        <span className="int-filter-badge">
                           {activeFilterCount}
                         </span>
                       )}
                     </button>
                     {filterOpen && (
-                      <div style={{ position: 'absolute', top: 'calc(100% + 6px)', right: 0, zIndex: 999, width: 280, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', overflow: 'hidden' }}>
-                        <div style={{ padding: '10px 14px 8px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', borderBottom: '1px solid var(--border)' }}>Szűrők</div>
-                        <div style={{ maxHeight: 360, overflowY: 'auto', padding: '4px 0' }}>
+                      <div className="int-filter-dropdown">
+                        <div className="int-filter-header">Szűrők</div>
+                        <div className="int-filter-list">
                           <FilterSection title="Dátum">
-                            <div style={{ display: 'flex', gap: 8 }}>
-                              <input type="date" lang="hu" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} style={{ flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, background: 'var(--bg, #fff)', color: 'var(--text)', fontFamily: 'inherit' }} />
-                              <input type="date" lang="hu" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} style={{ flex: 1, padding: '6px 8px', border: '1px solid var(--border)', borderRadius: 6, fontSize: 12, background: 'var(--bg, #fff)', color: 'var(--text)', fontFamily: 'inherit' }} />
+                            <div className="flex-row gap-8">
+                              <input type="date" lang="hu" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="int-date-input" />
+                              <input type="date" lang="hu" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="int-date-input" />
                             </div>
                           </FilterSection>
                           <FilterSection title="Ügytípus" bordered>{UGYTIPUS_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterUgyTipus.has(v)} onChange={() => toggleFilter(filterUgyTipus, v, setFilterUgyTipus)} />))}</FilterSection>
@@ -664,24 +626,24 @@ export default function InteractionsPage() {
                           <FilterSection title="Irány" bordered>{IRANY_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterIrany.has(v)} onChange={() => toggleFilter(filterIrany, v, setFilterIrany)} />))}</FilterSection>
                           <FilterSection title="Státusz" bordered>{STATUSZ_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterStatusz.has(v)} onChange={() => toggleFilter(filterStatusz, v, setFilterStatusz)} />))}</FilterSection>
                         </div>
-                        <div style={{ display: 'flex', gap: 8, padding: '10px 14px', borderTop: '1px solid var(--border)' }}>
-                          <button onClick={resetFilters} style={{ flex: 1, padding: '7px 10px', border: '1px solid var(--border)', borderRadius: 8, background: 'none', color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit' }}>Visszaállítás</button>
-                          <button onClick={() => setFilterOpen(false)} style={{ flex: 1, padding: '7px 10px', border: 'none', borderRadius: 8, background: '#1ceee0', color: '#0a1628', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Alkalmaz</button>
+                        <div className="flex-row gap-8 int-filter-footer">
+                          <button className="btn btn-outline int-filter-btn" onClick={resetFilters}>Visszaállítás</button>
+                          <button className="btn btn-primary int-filter-btn" onClick={() => setFilterOpen(false)}>Alkalmaz</button>
                         </div>
                       </div>
                     )}
                   </div>
                   {/* Sort */}
-                  <div style={{ position: 'relative', display: 'inline-block' }} ref={sortDropdownRef}>
-                    <button className="int-toolbar-btn" style={{ gap: 4, display: 'flex', alignItems: 'center', fontSize: 11 }} onClick={() => setSortDropdownOpen(!sortDropdownOpen)}>
+                  <div className="relative int-dropdown-wrap" ref={sortDropdownRef}>
+                    <button className="int-toolbar-btn int-toolbar-btn--flex" onClick={() => setSortDropdownOpen(!sortDropdownOpen)}>
                       <svg fill="none" height="12" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12"><path d="M3 6h18M6 12h12M9 18h6" /></svg>
                       Rendezés
                     </button>
                     {sortDropdownOpen && (
-                      <div style={{ position: 'absolute', top: '100%', right: 0, marginTop: 6, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 8, boxShadow: '0 8px 24px rgba(0,0,0,0.15)', padding: '6px 0', minWidth: 200, zIndex: 50 }}>
+                      <div className="int-sort-dropdown">
                         {SORT_OPTIONS.map((o) => (
-                          <button key={o.value} onClick={() => { setSortBy(o.value); setSortDropdownOpen(false); }} style={{ display: 'block', width: '100%', textAlign: 'left', padding: '8px 14px', border: 'none', background: sortBy === o.value ? 'rgba(28,238,224,0.1)' : 'transparent', color: sortBy === o.value ? '#1ceee0' : 'var(--text)', fontSize: 13, fontWeight: sortBy === o.value ? 600 : 400, cursor: 'pointer', fontFamily: 'inherit' }}>
-                            {sortBy === o.value && <span style={{ marginRight: 6 }}>✓</span>}{o.label}
+                          <button key={o.value} onClick={() => { setSortBy(o.value); setSortDropdownOpen(false); }} className={`int-sort-option ${sortBy === o.value ? 'active' : ''}`}>
+                            {sortBy === o.value && <span className="int-sort-check">✓</span>}{o.label}
                           </button>
                         ))}
                       </div>
@@ -692,11 +654,11 @@ export default function InteractionsPage() {
             </div>
 
             {/* Mobile card list with timeline separators */}
-            <div className="mobile-card-list" style={{ padding: '4px 0' }}>
+            <div className="int-mobile-list">
               {loading ? (
                 <TableSkeleton columns={3} rows={6} />
               ) : filteredRows.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 40 }}><span className="no-data">Nincs találat</span></div>
+                <div className="int-empty-state"><span className="no-data">Nincs találat</span></div>
               ) : (() => {
                 const todayStr = new Date().toISOString().split('T')[0];
                 const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
@@ -741,7 +703,7 @@ export default function InteractionsPage() {
                           <div className="mobile-card-avatar" style={{ background: avatarBg }}>
                             {initials}
                           </div>
-                          <div style={{ flex: 1, minWidth: 0 }}>
+                          <div className="int-card-inner">
                             <div className="mobile-card-name">{clientName}</div>
                             <div className="mobile-card-subtitle">
                               {(() => { try { return new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; } })()}
@@ -769,12 +731,12 @@ export default function InteractionsPage() {
                           {r.teendo === 'Jóváhagyásra vár' ? (
                             <button
                               onClick={(e) => { e.stopPropagation(); setSummaryModalRow(r); setAutoExpandApproval(true); }}
-                              style={{ background: 'rgba(251,191,36,0.12)', color: '#d97706', border: '1px solid rgba(251,191,36,0.3)', borderRadius: 6, padding: '3px 10px', fontSize: 10, fontWeight: 600, cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit' }}
+                              className="btn btn-warning"
                             >
                               Jóváhagyásra vár
                             </button>
                           ) : (
-                            <span style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', maxWidth: 140 }}>{r.teendo}</span>
+                            <span className="int-teendo-text">{r.teendo}</span>
                           )}
                         </div>
                       </div>
@@ -788,18 +750,12 @@ export default function InteractionsPage() {
 
         {/* ═══ DESKTOP: Table ═══ */}
         {!isMobile && (
-          <table className="data-table" id="interactions-flat-table" style={{ borderRadius: 0 }}>
+          <table className="data-table int-table-norx" id="interactions-flat-table">
             <thead className="int-thead">
               <tr>
                 {isAdmin && (
-                <th className="int-checkbox-col" style={{ width: 40, textAlign: 'center' }}>
-                  <input
-                    type="checkbox"
-                    checked={isAllSelected}
-                    ref={(el) => { if (el) el.indeterminate = isIndeterminate; }}
-                    onChange={(e) => toggleAll(e.target.checked)}
-                    style={{ cursor: 'pointer', width: 16, height: 16, accentColor: '#1ceee0' }}
-                  />
+                <th className="int-checkbox-col">
+                  <input type="checkbox" checked={isAllSelected} ref={(el) => { if (el) el.indeterminate = isIndeterminate; }} onChange={(e) => toggleAll(e.target.checked)} className="int-checkbox-input" />
                 </th>
                 )}
                 {ALL_COLUMNS.map((col) =>
@@ -810,13 +766,13 @@ export default function InteractionsPage() {
             <tbody>
               {loading ? (
                 <tr>
-                  <td colSpan={visibleCols.size + 1} style={{ padding: 0, border: 'none' }}>
+                  <td colSpan={visibleCols.size + 1} className="int-td--p0">
                     <TableSkeleton columns={visibleCols.size} rows={10} />
                   </td>
                 </tr>
               ) : filteredRows.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleCols.size + 1} style={{ textAlign: 'center', padding: 40 }}>
+                  <td colSpan={visibleCols.size + 1} className="int-td--pad40">
                     <span className="no-data">Nincs találat</span>
                   </td>
                 </tr>
@@ -824,37 +780,29 @@ export default function InteractionsPage() {
                 filteredRows.map((r, i) => (
                   <tr
                     key={`${r.sessionId}-${r.interactionId}-${i}`}
-                    className="int-row"
+                    className="int-row cursor-pointer"
                     onClick={() => { setAutoExpandApproval(false); setSummaryModalRow(r); }}
-                    style={{ cursor: 'pointer' }}
                   >
                     {isAdmin && (
-                    <td className="int-checkbox-col" style={{ padding: '12px 16px', textAlign: 'center' }} onClick={(e) => e.stopPropagation()}>
+                    <td className="int-checkbox-col int-td-checkbox" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
                         checked={selectedRows.has(i)}
                         onChange={() => toggleRow(i)}
-                        style={{ cursor: 'pointer', width: 16, height: 16, accentColor: '#1ceee0' }}
+                        className="int-checkbox-input"
                       />
                     </td>
                     )}
                     {visibleCols.has('date') && (
-                      <td style={{ padding: '12px 16px', fontSize: 13, whiteSpace: 'nowrap' }}>
-                        <div style={{ fontWeight: 500 }}>{fmtDt(r.date)}</div>
+                      <td className="int-td int-td--date">
+                        <div className="int-date-cell">{fmtDt(r.date)}</div>
                       </td>
                     )}
                     {visibleCols.has('client') && (
-                      <td style={{ padding: '12px 16px', fontSize: 13 }} onClick={(e) => e.stopPropagation()}>
+                      <td className="int-td" onClick={(e) => e.stopPropagation()}>
                         {r.clientId ? (
                           <button
-                            style={{
-                              background: 'none', border: 'none', color: '#0d9488',
-                              cursor: 'pointer', padding: 0, fontSize: 13, fontWeight: 600,
-                              maxWidth: 180, whiteSpace: 'nowrap', overflow: 'hidden',
-                              textOverflow: 'ellipsis', display: 'inline-block', fontFamily: 'inherit',
-                              textDecoration: 'none', borderBottom: '1px dashed transparent',
-                              transition: 'border-color 0.15s, color 0.15s',
-                            }}
+                            className="int-client-link"
                             title="Ugrás az ügyfél adatlapjára"
                             onClick={() => setSelectedClientId(String(r.clientId))}
                             onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = '#0d9488'; e.currentTarget.style.color = '#0f766e'; }}
@@ -863,53 +811,44 @@ export default function InteractionsPage() {
                             {r.client}
                           </button>
                         ) : (
-                          <span style={{ fontWeight: 500 }}>{r.client || <span className="no-data">Ismeretlen</span>}</span>
+                          <span className="int-client-unknown">{r.client || <span className="no-data">Ismeretlen</span>}</span>
                         )}
                       </td>
                     )}
                     {visibleCols.has('channel') && (
-                      <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text)' }}>{r.channel}</td>
+                      <td className="int-td int-td--channel">{r.channel}</td>
                     )}
                     {visibleCols.has('direction') && (
-                      <td style={{ padding: '12px 16px' }}>
+                      <td className="int-td">
                         <DirectionBadge value={r.direction} />
                       </td>
                     )}
                     {visibleCols.has('ugyTipus') && (
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{ fontSize: 12, color: 'var(--text)' }}>{r.ugyTipus}</span>
+                      <td className="int-td">
+                        <span className="int-type-label">{r.ugyTipus}</span>
                       </td>
                     )}
                     {visibleCols.has('eredmeny') && (
-                      <td style={{ padding: '12px 16px' }} onClick={(e) => e.stopPropagation()}>
+                      <td className="int-td" onClick={(e) => e.stopPropagation()}>
                         <EredmenyBadge value={r.eredmeny} />
                       </td>
                     )}
                     {visibleCols.has('statusz') && (
-                      <td style={{ padding: '12px 16px' }}>
+                      <td className="int-td">
                         <StatuszBadge value={r.statusz} />
                       </td>
                     )}
                     {visibleCols.has('teendo') && (
-                      <td
-                        style={{ padding: '12px 16px', fontSize: 12, maxWidth: 200, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}
-                        title={r.teendo}
-                        onClick={(e) => e.stopPropagation()}
-                      >
+                      <td className="int-td int-td--truncate" title={r.teendo} onClick={(e) => e.stopPropagation()}>
                         {r.teendo === 'Jóváhagyásra vár' ? (
                           <button
                             onClick={() => { setSummaryModalRow(r); setAutoExpandApproval(true); }}
-                            style={{
-                              background: 'rgba(251,191,36,0.12)', color: '#d97706',
-                              border: '1px solid rgba(251,191,36,0.3)', borderRadius: 6,
-                              padding: '4px 12px', fontSize: 11, fontWeight: 600,
-                              cursor: 'pointer', whiteSpace: 'nowrap', fontFamily: 'inherit',
-                            }}
+                            className="btn btn-warning"
                           >
                             Jóváhagyásra vár
                           </button>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)' }}>{r.teendo}</span>
+                          <span className="int-teendo-text">{r.teendo}</span>
                         )}
                       </td>
                     )}
@@ -942,23 +881,10 @@ export default function InteractionsPage() {
 function FilterSection({ title, bordered, children }: { title: string; bordered?: boolean; children: React.ReactNode }) {
   const [open, setOpen] = useState(false);
   return (
-    <div style={{ padding: '0 14px', borderTop: bordered ? '1px solid var(--border, #f3f4f6)' : undefined }}>
+    <div className={`filter-section${bordered ? ' filter-section--bordered' : ''}`}>
       <button
         onClick={() => setOpen(!open)}
-        style={{
-          width: '100%',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'space-between',
-          padding: '8px 0',
-          border: 'none',
-          background: 'none',
-          cursor: 'pointer',
-          color: 'var(--text)',
-          fontSize: 13,
-          fontWeight: 600,
-          fontFamily: 'inherit',
-        }}
+        className="filter-section-btn"
       >
         <span>{title}</span>
         <svg
@@ -966,20 +892,20 @@ function FilterSection({ title, bordered, children }: { title: string; bordered?
           stroke="currentColor"
           strokeWidth="2"
           viewBox="0 0 24 24"
-          style={{ width: 14, height: 14, transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'rotate(0deg)' }}
+          className={`filter-section-chevron${open ? ' filter-section-chevron--open' : ''}`}
         >
           <polyline points="6 9 12 15 18 9" />
         </svg>
       </button>
-      {open && <div style={{ paddingBottom: 8 }}>{children}</div>}
+      {open && <div className="filter-section-body">{children}</div>}
     </div>
   );
 }
 
 function FilterCheckbox({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
   return (
-    <label style={{ display: 'flex', alignItems: 'center', gap: 8, padding: '5px 0', cursor: 'pointer', fontSize: 13, color: 'var(--text)' }}>
-      <input type="checkbox" checked={checked} onChange={onChange} style={{ accentColor: '#1ceee0', width: 15, height: 15, cursor: 'pointer' }} />
+    <label className="filter-cb-label">
+      <input type="checkbox" checked={checked} onChange={onChange} className="filter-cb-input" />
       {label}
     </label>
   );

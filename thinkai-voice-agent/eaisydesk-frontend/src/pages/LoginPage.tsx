@@ -479,7 +479,7 @@ export default function LoginPage() {
           </div>
 
           {(error || logoutMessage) && (
-            <div className="login-error" style={{ display: 'flex' }}>
+            <div className="login-error">
               <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16">
                 <circle cx="12" cy="12" r="10" /><path d="M12 8v4M12 16h.01" />
               </svg>

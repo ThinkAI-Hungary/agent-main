@@ -40,9 +40,9 @@ export default function Skeleton({ width, height, borderRadius, variant = 'text'
 /** Skeleton row for KPI grid */
 export function KpiSkeleton() {
   return (
-    <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+    <div className="skel-kpi-grid">
       {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="skeleton-shimmer" style={{ height: 110, borderRadius: 6 }} />
+        <div key={i} className="skeleton-shimmer skel-kpi-item" />
       ))}
     </div>
   );
@@ -51,22 +51,18 @@ export function KpiSkeleton() {
 /** Skeleton for table-based pages (Interactions, Clients) */
 export function TableSkeleton({ columns = 6, rows = 8 }: { columns?: number; rows?: number }) {
   return (
-    <div style={{ borderRadius: 14, overflow: 'hidden', border: '1px solid var(--border)' }}>
+    <div className="skel-table-wrap">
       {/* Header */}
-      <div style={{ display: 'flex', gap: 12, padding: '16px 20px', borderBottom: '1px solid var(--border)' }}>
+      <div className="flex-row gap-12 skel-table-header">
         {Array.from({ length: columns }).map((_, i) => (
-          <div key={i} className="skeleton-shimmer" style={{ height: 12, flex: i === 0 ? 0.5 : 1, borderRadius: 4 }} />
+          <div key={i} className={`skeleton-shimmer ${i === 0 ? 'skel-th-first' : 'skel-th-rest'}`} />
         ))}
       </div>
       {/* Rows */}
       {Array.from({ length: rows }).map((_, r) => (
-        <div key={r} style={{ display: 'flex', gap: 12, padding: '14px 20px', borderBottom: '1px solid var(--border)', alignItems: 'center' }}>
+        <div key={r} className="skel-table-row">
           {Array.from({ length: columns }).map((_, c) => (
-            <div key={c} className="skeleton-shimmer" style={{
-              height: c === 0 ? 10 : 14,
-              flex: c === 0 ? 0.5 : c === 1 ? 1.5 : 1,
-              borderRadius: 6,
-            }} />
+            <div key={c} className={`skeleton-shimmer ${c === 0 ? 'skel-td-narrow' : c === 1 ? 'skel-td-wide' : 'skel-td-std'}`} />
           ))}
         </div>
       ))}
@@ -77,25 +73,25 @@ export function TableSkeleton({ columns = 6, rows = 8 }: { columns?: number; row
 /** Skeleton for calendar page */
 export function CalendarSkeleton() {
   return (
-    <div style={{ display: 'flex', gap: 20 }}>
+    <div className="flex-row gap-20">
       {/* Main calendar area */}
-      <div style={{ flex: 1 }}>
+      <div className="flex-1">
         {/* Day headers */}
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(7, 1fr)', gap: 6, marginBottom: 12 }}>
+        <div className="skel-cal-days">
           {Array.from({ length: 7 }).map((_, i) => (
-            <div key={i} className="skeleton-shimmer" style={{ height: 32, borderRadius: 6 }} />
+            <div key={i} className="skeleton-shimmer skel-cal-day-item" />
           ))}
         </div>
         {/* Time grid */}
-        <div className="skeleton-shimmer" style={{ height: 500, borderRadius: 14 }} />
+        <div className="skeleton-shimmer skel-cal-time" />
       </div>
       {/* Side panel */}
-      <div style={{ width: 220, flexShrink: 0 }}>
-        <div className="skeleton-shimmer" style={{ height: 28, width: '70%', borderRadius: 6, marginBottom: 16 }} />
-        <div className="skeleton-shimmer" style={{ height: 14, width: '50%', borderRadius: 4, marginBottom: 24 }} />
-        <div className="skeleton-shimmer" style={{ height: 60, borderRadius: 10, marginBottom: 10 }} />
-        <div className="skeleton-shimmer" style={{ height: 60, borderRadius: 10, marginBottom: 10 }} />
-        <div className="skeleton-shimmer" style={{ height: 60, borderRadius: 10 }} />
+      <div className="skel-cal-side">
+        <div className="skeleton-shimmer skel-cal-title" />
+        <div className="skeleton-shimmer skel-cal-sub" />
+        <div className="skeleton-shimmer skel-cal-event" />
+        <div className="skeleton-shimmer skel-cal-event" />
+        <div className="skeleton-shimmer skel-cal-event-last" />
       </div>
     </div>
   );
@@ -104,24 +100,18 @@ export function CalendarSkeleton() {
 /** Skeleton for Kanban board */
 export function KanbanSkeleton() {
   return (
-    <div style={{ display: 'flex', gap: 16, overflowX: 'auto', paddingBottom: 12 }}>
+    <div className="flex-row gap-16 skel-kanban">
       {Array.from({ length: 4 }).map((_, col) => (
-        <div key={col} style={{
-          width: 280, minWidth: 280, borderRadius: 14,
-          border: '1px solid var(--border)', padding: 16,
-          background: 'var(--card)',
-        }}>
+        <div key={col} className="skel-kanban-col">
           {/* Column header */}
-          <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 20 }}>
-            <div className="skeleton-shimmer" style={{ width: 10, height: 10, borderRadius: '50%' }} />
-            <div className="skeleton-shimmer" style={{ height: 14, flex: 1, borderRadius: 6 }} />
-            <div className="skeleton-shimmer" style={{ width: 24, height: 18, borderRadius: 10 }} />
+          <div className="flex-row gap-10 mb-20">
+            <div className="skeleton-shimmer skel-kanban-dot" />
+            <div className="skeleton-shimmer skel-kanban-title" />
+            <div className="skeleton-shimmer skel-kanban-count" />
           </div>
           {/* Cards */}
           {Array.from({ length: col === 0 ? 4 : col === 1 ? 3 : 2 }).map((_, c) => (
-            <div key={c} className="skeleton-shimmer" style={{
-              height: 80, borderRadius: 10, marginBottom: 10,
-            }} />
+            <div key={c} className="skeleton-shimmer skel-kanban-card" />
           ))}
         </div>
       ))}
@@ -132,26 +122,23 @@ export function KanbanSkeleton() {
 /** Skeleton for Outbound / Campaign list */
 export function OutboundSkeleton() {
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+      <div className="flex-col gap-12">
       {/* Stats row */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 14, marginBottom: 12 }}>
+      <div className="skel-outbound-stats">
         {Array.from({ length: 4 }).map((_, i) => (
-          <div key={i} className="skeleton-shimmer" style={{ height: 80, borderRadius: 12 }} />
+          <div key={i} className="skeleton-shimmer skel-out-stat" />
         ))}
       </div>
       {/* Campaign cards */}
       {Array.from({ length: 5 }).map((_, i) => (
-        <div key={i} style={{
-          display: 'flex', alignItems: 'center', gap: 16, padding: '16px 20px',
-          borderRadius: 12, border: '1px solid var(--border)',
-        }}>
-          <div className="skeleton-shimmer" style={{ width: 36, height: 36, borderRadius: 10, flexShrink: 0 }} />
-          <div style={{ flex: 1 }}>
-            <div className="skeleton-shimmer" style={{ height: 14, width: '40%', borderRadius: 6, marginBottom: 8 }} />
-            <div className="skeleton-shimmer" style={{ height: 10, width: '60%', borderRadius: 4 }} />
+        <div key={i} className="skel-outbound-card">
+          <div className="skeleton-shimmer skel-out-avatar" />
+          <div className="flex-1">
+            <div className="skeleton-shimmer skel-out-name" />
+            <div className="skeleton-shimmer skel-out-sub" />
           </div>
-          <div className="skeleton-shimmer" style={{ width: 70, height: 26, borderRadius: 14 }} />
-          <div className="skeleton-shimmer" style={{ width: 50, height: 14, borderRadius: 6 }} />
+          <div className="skeleton-shimmer skel-out-badge" />
+          <div className="skeleton-shimmer skel-out-date" />
         </div>
       ))}
     </div>
@@ -163,23 +150,20 @@ export function SettingsSkeleton() {
   return (
     <div>
       {/* Tabs */}
-      <div style={{ display: 'flex', gap: 8, marginBottom: 28 }}>
+      <div className="flex-row gap-8 skel-settings-tabs">
         {Array.from({ length: 3 }).map((_, i) => (
-          <div key={i} className="skeleton-shimmer" style={{ height: 36, width: 140, borderRadius: 8 }} />
+          <div key={i} className="skeleton-shimmer skel-set-tab" />
         ))}
       </div>
       {/* Section cards */}
       {Array.from({ length: 3 }).map((_, s) => (
-        <div key={s} style={{
-          borderRadius: 14, border: '1px solid var(--border)',
-          padding: 24, marginBottom: 20,
-        }}>
-          <div className="skeleton-shimmer" style={{ height: 16, width: '30%', borderRadius: 6, marginBottom: 20 }} />
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16 }}>
+        <div key={s} className="skel-settings-card">
+          <div className="skeleton-shimmer skel-set-section-title" />
+          <div className="skel-settings-grid">
             {Array.from({ length: 4 }).map((_, i) => (
               <div key={i}>
-                <div className="skeleton-shimmer" style={{ height: 10, width: '40%', borderRadius: 4, marginBottom: 8 }} />
-                <div className="skeleton-shimmer" style={{ height: 38, borderRadius: 8 }} />
+                <div className="skeleton-shimmer skel-set-field-label" />
+                <div className="skeleton-shimmer skel-set-input" />
               </div>
             ))}
           </div>

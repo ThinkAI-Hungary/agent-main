@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback, useMemo } from 'react';
+﻿import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -100,7 +100,7 @@ function KpiCard({ label, value, sub, prev, prevLabel, suffix }: {
     trendText = `${arrow} ${sign}${pct}%`;
   }
   return (
-    <div className="kpi-card-figma" style={{ cursor: 'default' }}>
+    <div className="kpi-card-figma kpi-card-figma--no-cursor">
       <div className="kpi-card-label">{label}</div>
       <div className="kpi-card-value">{animatedValue}{suffix}</div>
       <div className="kpi-card-subtitle">{sub}</div>
@@ -116,7 +116,7 @@ function KpiCard({ label, value, sub, prev, prevLabel, suffix }: {
 
 // ── Funnel ────────────────────────────────────────────────────────────────────
 function FunnelBlock({ data }: { data: FunnelData | null }) {
-  if (!data) return <div style={{ textAlign: 'center', padding: 20, color: '#6b7280' }}><div className="spinner" /></div>;
+  if (!data) return <div className="spinner-center"><div className="spinner" /></div>;
   const { osszes_relevans: total, valaszolt_ugyek: valaszolt, ajanlatig_jutott: ajanlat, idopont_lett: foglalt } = data;
   const p2 = total > 0 ? Math.round((valaszolt / total) * 100) : 0;
   const p3 = valaszolt > 0 ? Math.round((ajanlat / valaszolt) * 100) : 0;
@@ -179,50 +179,62 @@ function AlertCards({ alerts, onOpenAlert }: { alerts: AlertData | null; onOpenA
   );
 }
 
+// ── Campaign Doughnut options — static, module-level (never changes) ──────────
+const CAMPAIGN_DOUGHNUT_OPTIONS = {
+  responsive: true,
+  maintainAspectRatio: false,
+  cutout: '65%',
+  plugins: {
+    legend: {
+      position: 'bottom' as const,
+      labels: {
+        padding: 16, usePointStyle: true, pointStyle: 'circle',
+        font: { size: 12, weight: 'bold' as const }, color: '#8ea9c0',
+      }
+    },
+    tooltip: { backgroundColor: '#0d2538', padding: 10, cornerRadius: 8 }
+  }
+};
+
 // ── Campaign Performance Section ─────────────────────────────────────────────
 function CampaignPerformanceSection({ campaigns }: { campaigns: any[] }) {
-  const kpis = useMemo(() => {
+  // Merged into one useMemo — eliminates cascade recompute (kpis → analytics)
+  const { kpis, analytics, statusChartData } = useMemo(() => {
     const total = campaigns.length;
     const running = campaigns.filter((c: any) => c.status === 'Aktív').length;
     const closed = campaigns.filter((c: any) => c.status === 'Befejezett').length;
     const scheduled = campaigns.filter((c: any) => c.status === 'Ütemezett').length;
     const targeted = campaigns.reduce((s: number, c: any) => s + (c.client_ids?.length || 0), 0);
-    return { total, running, closed, scheduled, targeted };
-  }, [campaigns]);
+    const kpis = { total, running, closed, scheduled, targeted };
 
-  const analytics = useMemo(() => {
     const statusCounts: Record<string, number> = {};
     campaigns.forEach((c: any) => { statusCounts[c.status] = (statusCounts[c.status] || 0) + 1; });
-    const avgClients = campaigns.length > 0 ? Math.round(kpis.targeted / campaigns.length) : 0;
-    const successRate = campaigns.length > 0 ? Math.round((kpis.closed / campaigns.length) * 100) : 0;
-    const lastCampaign = campaigns.length > 0 ? campaigns[0] : null;
-    return { statusCounts, avgClients, successRate, lastCampaign };
-  }, [campaigns, kpis]);
+    const avgClients = total > 0 ? Math.round(targeted / total) : 0;
+    const successRate = total > 0 ? Math.round((closed / total) * 100) : 0;
+    const lastCampaign = total > 0 ? campaigns[0] : null;
+    const analytics = { statusCounts, avgClients, successRate, lastCampaign };
 
-  const statusChartData = useMemo(() => {
-    const counts: Record<string, number> = {
-      'Tervezet': campaigns.filter((c: any) => c.status === 'Vázlat').length,
-      'Aktív': campaigns.filter((c: any) => c.status === 'Aktív').length,
-      'Elküldött': campaigns.filter((c: any) => c.status === 'Befejezett').length,
-      'Megállítva': campaigns.filter((c: any) => c.status === 'Megállítva').length,
-      'Ütemezett': campaigns.filter((c: any) => c.status === 'Ütemezett').length,
-    };
-    return {
-      labels: Object.keys(counts),
+    const statusChartData = {
+      labels: ['Tervezet', 'Aktív', 'Elküldött', 'Megállítva', 'Ütemezett'],
       datasets: [{
-        data: Object.values(counts),
+        data: [
+          campaigns.filter((c: any) => c.status === 'Vázlat').length,
+          campaigns.filter((c: any) => c.status === 'Aktív').length,
+          campaigns.filter((c: any) => c.status === 'Befejezett').length,
+          campaigns.filter((c: any) => c.status === 'Megállítva').length,
+          campaigns.filter((c: any) => c.status === 'Ütemezett').length,
+        ],
         backgroundColor: [
-          'rgba(107,139,153,0.7)',
-          'rgba(34,197,94,0.8)',
-          'rgba(28,238,224,0.8)',
-          'rgba(245,158,11,0.8)',
-          'rgba(139,92,246,0.8)',
+          'rgba(107,139,153,0.7)', 'rgba(34,197,94,0.8)', 'rgba(28,238,224,0.8)',
+          'rgba(245,158,11,0.8)', 'rgba(139,92,246,0.8)',
         ],
         borderColor: 'rgba(13,37,56,0.15)',
         borderWidth: 2,
         hoverOffset: 6,
       }]
     };
+
+    return { kpis, analytics, statusChartData };
   }, [campaigns]);
 
   if (campaigns.length === 0) return null;
@@ -240,96 +252,62 @@ function CampaignPerformanceSection({ campaigns }: { campaigns: any[] }) {
       <h2 className="section-header-figma">Kampányteljesítmény</h2>
 
       {/* KPI stat row */}
-      <div className="analytics-campaign-kpi-row" style={{ display: 'grid', gap: 16, marginBottom: 24 }}>
+      <div className="analytics-campaign-kpi-row">
         {statCards.map(sc => (
-          <div key={sc.label} className="panel-white" style={{ padding: '20px 22px', display: 'flex', alignItems: 'center', gap: 16 }}>
-            <div style={{
-              width: 42, height: 42, borderRadius: 12,
-              background: `${sc.color}14`,
-              display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-            }}>
-              <div style={{
-                width: 10, height: 10, borderRadius: '50%',
-                background: sc.color,
-                boxShadow: `0 0 8px ${sc.color}60`,
-              }} />
+          <div key={sc.label} className="panel-white ana-stat-card">
+            <div className="ana-stat-icon" style={{ background: `${sc.color}14` }}>
+              <div className="ana-stat-dot" style={{ background: sc.color, boxShadow: `0 0 8px ${sc.color}60` }} />
             </div>
             <div>
-              <div style={{ fontSize: 26, fontWeight: 700, color: 'var(--text)', lineHeight: 1.1 }}>{sc.value}</div>
-              <div style={{ fontSize: 12, fontWeight: 600, color: '#6b8b99', marginTop: 2, textTransform: 'uppercase' as const, letterSpacing: 0.4 }}>{sc.label}</div>
+              <div className="ana-stat-value">{sc.value}</div>
+              <div className="ana-stat-label">{sc.label}</div>
             </div>
           </div>
         ))}
       </div>
 
       {/* Charts row */}
-      <div className="analytics-campaign-charts-row" style={{ display: 'grid', gap: 18, marginBottom: 36 }}>
+      <div className="analytics-campaign-charts-row">
         {/* Status Doughnut */}
-        <div className="panel-white" style={{ padding: '24px 28px' }}>
-          <div className="panel-title" style={{ marginBottom: 20 }}>
+        <div className="panel-white panel-white--p2428">
+          <div className="panel-title mb-20">
             Státusz eloszlás
           </div>
-          <div style={{ position: 'relative', height: 200, display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
-            <Doughnut data={statusChartData} options={{
-              responsive: true, maintainAspectRatio: false, cutout: '65%',
-              plugins: {
-                legend: {
-                  position: 'bottom' as const,
-                  labels: {
-                    padding: 16, usePointStyle: true, pointStyle: 'circle',
-                    font: { size: 12, weight: 'bold' as const }, color: '#8ea9c0',
-                  }
-                },
-                tooltip: { backgroundColor: '#0d2538', padding: 10, cornerRadius: 8 }
-              }
-            }} />
+          <div className="ana-doughnut-wrap">
+            <Doughnut data={statusChartData} options={CAMPAIGN_DOUGHNUT_OPTIONS} />
           </div>
         </div>
 
         {/* Campaign summary */}
-        <div className="panel-white" style={{ padding: '24px 28px' }}>
-          <div className="panel-title" style={{ marginBottom: 20 }}>
+        <div className="panel-white panel-white--p2428">
+          <div className="panel-title mb-20">
             Kampány összesítő
           </div>
 
           {/* Mini stat grid */}
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, marginBottom: 20 }}>
+          <div className="ana-mini-stat-grid">
             {[
               { label: 'Átl. ügyfél / kampány', value: analytics.avgClients, color: '#1ceee0' },
               { label: 'Befejezési arány', value: `${analytics.successRate}%`, color: '#22c55e' },
               { label: 'Ütemezett', value: kpis.scheduled, color: '#8b5cf6' },
               { label: 'Utolsó kampány', value: analytics.lastCampaign?.name || '–', sub: analytics.lastCampaign ? new Date(analytics.lastCampaign.created_at).toLocaleDateString('hu-HU', { year: 'numeric', month: 'short', day: 'numeric' }) : '', color: '#3b82f6' },
             ].map(item => (
-              <div key={item.label} style={{
-                borderRadius: 12, padding: '16px 18px',
-                borderLeft: `3px solid ${item.color}`,
-                background: 'var(--card, #fff)',
-                boxShadow: '0 1px 4px rgba(0,0,0,0.04)',
-              }}>
-                <div style={{ fontSize: item.label === 'Utolsó kampány' ? 15 : 22, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }} title={String(item.value)}>{item.value}</div>
-                {'sub' in item && item.sub && <div style={{ fontSize: 11, color: 'var(--text-muted, #6b8b99)', marginTop: 2 }}>{item.sub}</div>}
-                <div style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted, #6b8b99)', marginTop: 4, textTransform: 'uppercase' as const, letterSpacing: 0.3 }}>{item.label}</div>
+              <div key={item.label} className="ana-mini-stat-item" style={{ borderLeft: `3px solid ${item.color}` }}>
+                <div className={`ana-mini-stat-value ${item.label === 'Utolsó kampány' ? 'ana-mini-stat-value--sm' : 'ana-mini-stat-value--lg'}`} title={String(item.value)}>{item.value}</div>
+                {'sub' in item && item.sub && <div className="ana-mini-stat-sub">{item.sub}</div>}
+                <div className="ana-mini-stat-lbl">{item.label}</div>
               </div>
             ))}
           </div>
 
           {/* Progress bar */}
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted, #6b8b99)', textTransform: 'uppercase' as const, letterSpacing: 0.3 }}>Befejezési arány</span>
-              <span style={{ fontSize: 14, fontWeight: 700, color: '#1ceee0' }}>{analytics.successRate}%</span>
+            <div className="flex-between mb-8">
+              <span className="ana-progress-text-lbl">Befejezési arány</span>
+              <span className="ana-progress-text-pct">{analytics.successRate}%</span>
             </div>
-            <div style={{
-              height: 8, borderRadius: 99,
-              background: 'var(--bg3, rgba(0,0,0,0.04))',
-              overflow: 'hidden',
-            }}>
-              <div style={{
-                height: '100%', borderRadius: 99,
-                background: 'linear-gradient(90deg, #1ceee0, #22c55e)',
-                width: `${analytics.successRate}%`,
-                transition: 'width 0.8s cubic-bezier(0.34, 1.56, 0.64, 1)',
-              }} />
+            <div className="ana-progress-track">
+              <div className="ana-progress-fill-bar" style={{ width: `${analytics.successRate}%` }} />
             </div>
           </div>
         </div>
@@ -403,11 +381,14 @@ export default function AnalyticsPage() {
   // Load only on initial mount
   useEffect(() => { loadAll(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Auto-refresh analytics every 5 minutes (uses latest loadAll via ref-like behavior)
+  // Auto-refresh every 5 min — useRef ensures we always call the latest loadAll
+  // (avoids stale closure bug where period/channel/clinic would be frozen at mount-time)
+  const loadAllRef = useRef(loadAll);
+  useEffect(() => { loadAllRef.current = loadAll; }, [loadAll]);
   useEffect(() => {
-    const interval = setInterval(() => loadAll(), 300000);
+    const interval = setInterval(() => loadAllRef.current(), 300000);
     return () => clearInterval(interval);
-  }, []); // eslint-disable-line react-hooks/exhaustive-deps
+  }, []); // intentionally empty — fires once, always uses fresh ref
 
   async function refreshInsights() {
     setInsightsLoading(true);
@@ -545,21 +526,21 @@ export default function AnalyticsPage() {
       <div className="page active" id="page-analytics">
         <div className="analytics-shell">
           {/* Skeleton filter row */}
-          <div style={{ display: 'flex', gap: 12, marginBottom: 28 }}>
+          <div className="flex-row gap-12 mb-28">
             {[140, 140, 140, 160].map((w, i) => (
               <div key={i} className="skeleton-shimmer" style={{ width: w, height: 40, borderRadius: 10 }} />
             ))}
           </div>
           {/* Skeleton KPI grid */}
-          <div className="analytics-skeleton-kpi" style={{ display: 'grid', gap: 16, marginBottom: 36 }}>
+          <div className="analytics-skeleton-kpi">
             {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className="skeleton-shimmer" style={{ height: 110, borderRadius: 6 }} />
+              <div key={i} className="skeleton-shimmer ana-skel-kpi" />
             ))}
           </div>
           {/* Skeleton chart row */}
-          <div className="analytics-skeleton-charts" style={{ display: 'grid', gap: 16 }}>
-            <div className="skeleton-shimmer" style={{ height: 300, borderRadius: 18 }} />
-            <div className="skeleton-shimmer" style={{ height: 300, borderRadius: 18 }} />
+          <div className="analytics-skeleton-charts">
+            <div className="skeleton-shimmer ana-skel-chart" />
+            <div className="skeleton-shimmer ana-skel-chart" />
           </div>
         </div>
       </div>
@@ -570,8 +551,8 @@ export default function AnalyticsPage() {
     <div className="page active" id="page-analytics">
       <div className="analytics-shell">
         {/* Page title */}
-        <div style={{ marginBottom: 8 }}>
-          <h1 className="page-title" style={{ margin: 0 }}>Analitika</h1>
+        <div className="mb-8">
+          <h1 className="page-title page-title-no-margin">Analitika</h1>
         </div>
 
         {/* Filter row */}
@@ -596,7 +577,7 @@ export default function AnalyticsPage() {
               <option value="instagram">Instagram</option>
             </select>
           </div>
-          <div className="filter-group" style={{ position: 'relative' }}>
+          <div className="filter-group filter-group--relative">
             <label>Időszak</label>
             <select className="filter-select-figma" value={period} onChange={e => { setPeriod(e.target.value); if (e.target.value !== 'custom') { setDateFrom(''); setDateTo(''); } }}>
               <option value="week">Aktuális hét</option>
@@ -605,39 +586,23 @@ export default function AnalyticsPage() {
               <option value="custom">Egyedi időszak</option>
             </select>
             {period === 'custom' && (
-              <div style={{
-                position: 'absolute', top: 'calc(100% + 8px)', left: 0, zIndex: 50,
-                background: 'var(--card, #fff)', border: '1px solid var(--border, #e2e8f0)',
-                borderRadius: 14, boxShadow: '0 12px 40px rgba(0,0,0,0.12), 0 2px 8px rgba(0,0,0,0.06)',
-                padding: '20px 22px 16px', minWidth: 320,
-                animation: 'fadein 0.2s ease',
-              }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 14 }}>
+              <div className="ana-date-picker">
+                <div className="ana-date-picker-title">
                   Egyedi időszak kiválasztása
                 </div>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12, marginBottom: 14 }}>
+                <div className="ana-date-picker-grid">
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted, #6b8b99)', display: 'block', marginBottom: 6, textTransform: 'uppercase' as const, letterSpacing: 0.4 }}>Kezdő dátum</label>
+                    <label className="ana-date-picker-lbl">Kezdő dátum</label>
                     <input type="date" lang="hu" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
-                      style={{
-                        width: '100%', padding: '10px 12px', border: '1px solid var(--border, #e2e8f0)',
-                        borderRadius: 10, fontSize: 13, background: 'var(--bg, #f8fafc)', color: 'var(--text)',
-                        fontFamily: 'inherit', outline: 'none', transition: 'border-color 0.2s',
-                        boxSizing: 'border-box',
-                      }} />
+                      className="ana-date-input" />
                   </div>
                   <div>
-                    <label style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-muted, #6b8b99)', display: 'block', marginBottom: 6, textTransform: 'uppercase' as const, letterSpacing: 0.4 }}>Záró dátum</label>
+                    <label className="ana-date-picker-lbl">Záró dátum</label>
                     <input type="date" lang="hu" value={dateTo} onChange={e => setDateTo(e.target.value)}
-                      style={{
-                        width: '100%', padding: '10px 12px', border: '1px solid var(--border, #e2e8f0)',
-                        borderRadius: 10, fontSize: 13, background: 'var(--bg, #f8fafc)', color: 'var(--text)',
-                        fontFamily: 'inherit', outline: 'none', transition: 'border-color 0.2s',
-                        boxSizing: 'border-box',
-                      }} />
+                      className="ana-date-input" />
                   </div>
                 </div>
-                <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                <div className="flex-row gap-6 flex-wrap">
                   {[
                     { label: 'Utolsó 7 nap', days: 7 },
                     { label: 'Utolsó 30 nap', days: 30 },
@@ -646,12 +611,7 @@ export default function AnalyticsPage() {
                     <button key={p.days} onClick={() => {
                       const to = new Date(); const from = new Date(); from.setDate(from.getDate() - p.days);
                       setDateFrom(from.toISOString().slice(0, 10)); setDateTo(to.toISOString().slice(0, 10));
-                    }} style={{
-                      padding: '5px 12px', fontSize: 11, fontWeight: 600, borderRadius: 8,
-                      border: '1px solid var(--border, #e2e8f0)', background: 'var(--bg, #f8fafc)',
-                      color: 'var(--text-muted, #6b8b99)', cursor: 'pointer', fontFamily: 'inherit',
-                      transition: 'all 0.15s',
-                    }}>{p.label}</button>
+                    }} className="ana-preset-btn">{p.label}</button>
                   ))}
                 </div>
               </div>
@@ -671,29 +631,27 @@ export default function AnalyticsPage() {
         {/* 1. Charts */}
         <div className="section-divider" />
         <h2 className="section-header-figma">Működési áttekintés</h2>
-        <div className="charts-row" style={{ marginBottom: 36 }}>
+        <div className="charts-row mb-36">
           {/* Sessions over time */}
-          <div className="chart-card" style={{ height: 350 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div className="chart-title" style={{ marginBottom: 0, color: 'var(--text)', fontWeight: 700 }}>
+          <div className="chart-card chart-card--350">
+            <div className="flex-between">
+              <div className="chart-title chart-title--no-mb">
                 Megkeresések időbeli alakulása
               </div>
-              <div style={{ display: 'flex', gap: 4, background: 'var(--bg3)', padding: 4, borderRadius: 8, border: '1px solid var(--border)' }}>
+              <div className="flex-row gap-4 ana-toggle-bar">
                 <button className={`toggle-btn${chartView === 'napi' ? ' active' : ''}`}
-                  style={{ background: chartView === 'napi' ? 'var(--primary)' : 'transparent', color: chartView === 'napi' ? '#0a192f' : 'var(--text)', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: chartView === 'napi' ? 600 : 400, padding: '4px 12px', cursor: 'pointer' }}
                   onClick={() => setChartView('napi')}>Napi</button>
                 <button className={`toggle-btn${chartView === 'oras' ? ' active' : ''}`}
-                  style={{ background: chartView === 'oras' ? 'var(--primary)' : 'transparent', color: chartView === 'oras' ? '#0a192f' : 'var(--text)', border: 'none', borderRadius: 6, fontSize: 12, fontWeight: chartView === 'oras' ? 600 : 400, padding: '4px 12px', cursor: 'pointer' }}
                   onClick={() => setChartView('oras')}>Órás</button>
               </div>
             </div>
-            <div style={{ marginTop: 10 }}>
-              <label style={{ display: 'flex', alignItems: 'center', fontSize: 12, color: '#6b8b99', cursor: 'pointer', width: 'fit-content' }}>
+            <div className="ana-breakdown-wrap">
+              <label className="ana-breakdown-label">
                 <input type="checkbox" checked={channelBreakdown} onChange={e => setChannelBreakdown(e.target.checked)}
-                  style={{ marginRight: 8, accentColor: '#1ceee0' }} /> Csatorna szerinti bontás
+                  className="ana-breakdown-cb" /> Csatorna szerinti bontás
               </label>
             </div>
-            <div style={{ position: 'relative', height: 'calc(100% - 70px)', marginTop: 10 }}>
+            <div className="ana-chart-inner">
               {(() => { const { yMax, yStep } = getSessionsYScale(); return (
               <Line data={getSessionsChartData()} options={{
                 responsive: true, maintainAspectRatio: false,
@@ -708,22 +666,22 @@ export default function AnalyticsPage() {
           </div>
 
           {/* Channel doughnut */}
-          <div className="chart-card" style={{ height: 350 }}>
-            <div className="chart-title" style={{ color: 'var(--text)', fontWeight: 700 }}>Csatornamegoszlás</div>
-            <div style={{ position: 'relative', height: 160, display: 'flex', justifyContent: 'center', alignItems: 'center', marginTop: 10 }}>
+          <div className="chart-card chart-card--350">
+            <div className="chart-title chart-title--no-mb">Csatornamegoszlás</div>
+            <div className="ana-doughnut-wrap">
               <Doughnut data={{
                 labels: chartTypes.map(t => t.type),
                 datasets: [{ data: chartTypes.map(t => t.count), backgroundColor: typeColors.slice(0, chartTypes.length), borderWidth: 0 }],
               }} options={{ responsive: true, maintainAspectRatio: false, cutout: '65%', plugins: { legend: { display: false } } }} />
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '12px 16px', marginTop: 20, padding: '0 10px' }}>
+            <div className="ana-legend-grid">
               {chartTypes.map((t, i) => (
-                <div key={t.type} style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', marginBottom: 4 }}>
-                    <div style={{ width: 8, height: 8, borderRadius: '50%', backgroundColor: typeColors[i % typeColors.length], marginRight: 8 }} />
-                    <span style={{ fontSize: 12, color: '#6b8b99' }}>{t.type}</span>
+                <div key={t.type} className="flex-col ana-legend-item">
+                  <div className="flex-row ana-legend-row">
+                    <div className="analytics-legend-dot" style={{ backgroundColor: typeColors[i % typeColors.length] }} />
+                    <span className="ana-legend-label">{t.type}</span>
                   </div>
-                  <div style={{ fontSize: 16, fontWeight: 600, color: 'var(--text)', paddingLeft: 16 }}>{t.count}</div>
+                  <div className="ana-legend-value">{t.count}</div>
                 </div>
               ))}
             </div>
@@ -733,19 +691,19 @@ export default function AnalyticsPage() {
         {/* 2. Quality & Performance */}
         <div className="section-divider" />
         <h2 className="section-header-figma">Minőség és teljesítmény</h2>
-        <div className="analytics-quality-grid" style={{ display: 'grid', gap: 18, marginBottom: 36 }}>
+        <div className="analytics-quality-grid">
           {/* Top topics */}
           <div className="panel-white">
             <div className="panel-title">Top kérdéstípusok / témák</div>
             <div>
               {topics.length === 0 ? (
-                <div style={{ textAlign: 'center', padding: 20 }}><span className="no-data">Nincs adat</span></div>
+                <div className="ana-no-data-center"><span className="no-data">Nincs adat</span></div>
               ) : topics.slice(0, 5).map((t, i) => {
                 const pct = topicsTotal > 0 ? Math.round((t.count / topicsTotal) * 100) : 0;
                 return (
                   <div className="topic-row" key={i}>
                     <div className="topic-row-header">
-                      <div style={{ display: 'flex', alignItems: 'center' }}>
+                      <div className="flex-row">
                         <div className="topic-rank-badge">{i + 1}</div>
                         <span className="topic-name">{t.topic || <span className="no-data">Ismeretlen</span>}</span>
                       </div>
@@ -762,7 +720,7 @@ export default function AnalyticsPage() {
           {isAdminOnly && (
           <div className="panel-white">
             <div className="panel-title">Átadási okok</div>
-            <div style={{ position: 'relative', height: 240 }}>
+            <div className="ana-handoff-wrap">
               <Bar data={{ labels: handoffLabels, datasets: [{ label: 'Átadások', data: handoffValues, backgroundColor: '#ef4444', borderRadius: 6 }] }}
                 options={{ indexAxis: 'y' as const, responsive: true, maintainAspectRatio: false, plugins: { legend: { display: false } },
                   scales: {
@@ -784,7 +742,7 @@ export default function AnalyticsPage() {
         {/* 3. Alerts */}
         <div className="section-divider" />
         <h2 className="section-header-figma">Operatív figyelmeztetések és teendők</h2>
-        <div className="analytics-alerts-grid" style={{ display: 'grid', gap: 18, marginBottom: 36 }}>
+        <div className="analytics-alerts-grid">
           <div className="panel-white">
             <div className="panel-title">Kritikus ügyek</div>
             <AlertCards alerts={alerts} onOpenAlert={openAlertDetails} />
@@ -793,16 +751,16 @@ export default function AnalyticsPage() {
           {/* AI insights — admin only */}
           {isAdminOnly && (
           <div className="panel-white">
-            <div className="panel-title" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <div className="panel-title flex-between">
               <span>Finomhangolási javaslatok</span>
               <button onClick={refreshInsights} disabled={insightsLoading}
-                style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text-muted)', fontSize: 14, display: 'flex', alignItems: 'center', gap: 4, padding: '4px 8px', borderRadius: 4 }}>
-                {insightsLoading ? <div className="spinner" style={{ width: 12, height: 12, borderWidth: 2 }} /> : <span>Frissítés</span>}
+                className="ana-insights-btn">
+                {insightsLoading ? <div className="spinner ana-spinner-tiny" /> : <span>Frissítés</span>}
               </button>
             </div>
             <div>
               {insights.length === 0 ? (
-                <div style={{ textAlign: 'center', color: 'var(--text-muted)', padding: 20 }}>Nincs elérhető javaslat.</div>
+                <div className="analytics-empty-state">Nincs elérhető javaslat.</div>
               ) : insights.map((text, i) => (
                 <div className="suggestion-card" key={i}>
                   <span className="suggestion-icon">&#x1f4a1;</span>
@@ -836,7 +794,7 @@ export default function AnalyticsPage() {
                 </div>
               </div>
               <button className="alert-modal-close" onClick={() => setAlertModal(null)}>
-                <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: 18, height: 18 }}>
+                <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" className="svg-18">
                   <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
                 </svg>
               </button>
@@ -848,7 +806,7 @@ export default function AnalyticsPage() {
                 <div className="alert-modal-loading"><div className="spinner" /></div>
               ) : alertModal.rows.length === 0 ? (
                 <div className="alert-modal-empty">
-                  <svg fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" style={{ width: 40, height: 40, opacity: 0.3 }}>
+                  <svg fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" className="svg-40-dim">
                     <path strokeLinecap="round" strokeLinejoin="round" d="M20 13V6a2 2 0 00-2-2H6a2 2 0 00-2 2v7m16 0v5a2 2 0 01-2 2H6a2 2 0 01-2-2v-5m16 0h-2.586a1 1 0 00-.707.293l-2.414 2.414a1 1 0 01-.707.293h-3.172a1 1 0 01-.707-.293l-2.414-2.414A1 1 0 006.586 13H4" />
                   </svg>
                   <span>Nincs megjeleníthető adat ebben az időszakban</span>

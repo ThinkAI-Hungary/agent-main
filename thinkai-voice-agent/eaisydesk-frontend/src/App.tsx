@@ -42,6 +42,7 @@ import './styles/kanban.css';
 import './styles/outbound.css';
 import './styles/marketing.css';
 import './styles/dark-mode.css';
+import './styles/automatizaciok.css';
 import './styles/responsive.css';
 import './styles/polish.css';
 

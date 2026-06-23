@@ -93,17 +93,7 @@ export default function KanbanCard({ card, isDragOverlay, onDelete, onClick }: P
     >
       {/* Urgent badge */}
       {card.isSurgos && (
-        <div style={{
-          display: 'inline-block',
-          background: '#ef4444',
-          color: 'white',
-          fontSize: 10,
-          fontWeight: 'bold',
-          padding: '2px 6px',
-          borderRadius: 4,
-          marginBottom: 6,
-          boxShadow: '0 1px 2px rgba(239,68,68,0.4)',
-        }}>
+        <div className="kanban-card-urgent-badge">
           🚨 SÜRGŐS
         </div>
       )}
@@ -113,14 +103,14 @@ export default function KanbanCard({ card, isDragOverlay, onDelete, onClick }: P
 
       {/* Tags */}
       {card.tags.length > 0 && (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, margin: '4px 0' }}>
+        <div className="kanban-card-tags">
           {card.tags.map((t) => <TagBadge key={t} tag={t} small />)}
         </div>
       )}
 
       {/* Clinic */}
       {card.clinicName && (
-        <div className="client-info" style={{ color: '#1ceee0', fontWeight: 600 }}>
+        <div className="client-info client-info--clinic">
           {card.clinicName}
         </div>
       )}
@@ -132,11 +122,11 @@ export default function KanbanCard({ card, isDragOverlay, onDelete, onClick }: P
 
       {/* Delete button */}
       {onDelete && (
-        <div style={{ textAlign: 'right' }}>
+        <div className="kanban-card-delete-wrap">
           <button
             onClick={(e) => { e.stopPropagation(); onDelete(card.id); }}
             onPointerDown={(e) => e.stopPropagation()}
-            style={{ background: 'transparent', border: 'none', color: 'var(--red)', cursor: 'pointer', fontSize: 11, fontFamily: 'inherit' }}
+            className="kanban-card-delete-btn"
           >
             Törlés
           </button>

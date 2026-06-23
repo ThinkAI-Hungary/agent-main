@@ -1,5 +1,5 @@
-/**
- * ClientDetailView – 1:1 port of legacy openClientDetails() / view-client-details
+﻿/**
+ * ClientDetailView â€“ 1:1 port of legacy openClientDetails() / view-client-details
  * Rendered as inline overlay within ClientsPage or InteractionsPage.
  */
 import { useState, useMemo, useCallback, useEffect } from 'react';
@@ -124,7 +124,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       .sort((a, b) => (b.start_dt || '').localeCompare(a.start_dt || ''));
   }, [client, events]);
 
-  // Client interactions from sessions – enriched with classifiers
+  // Client interactions from sessions â€“ enriched with classifiers
   const clientInteractions = useMemo(() => {
     const name = client.name.toLowerCase().trim();
     const email = client.email.toLowerCase().trim();
@@ -200,7 +200,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           direction: 'Bejövő',
           ugyTipus: detectUgyTipus({ topic: '', summary }),
           eredmeny: detectEredmeny({ topic: '', summary }),
-          statusz: 'LEZÁRT',
+          statusz: 'LEZĂÂRT',
           teendo: 'Nincs teendő',
           topic: '',
           summary,
@@ -318,73 +318,64 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
   return (
     <div className="analytics-shell">
       {/* Back button */}
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20 }}>
+      <div className="flex-between mb-20">
         <button
+          className="btn btn-ghost btn-ghost--accent"
           onClick={onBack}
-          style={{ display: 'flex', alignItems: 'center', gap: 8, background: 'none', border: 'none', cursor: 'pointer', color: 'var(--accent, #1ceee0)', fontSize: 14, fontWeight: 600, fontFamily: 'inherit', padding: 0 }}
         >
-          <span>←</span>
+          <span>← </span>
           {source === 'interactions' ? 'Vissza az interakciós listához' : 'Vissza az ügyféllistához'}
         </button>
       </div>
 
-      {/* ═══ Top Card (Mint gradient) ═══ */}
-      <div className="cd-top-card-content" style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'stretch',
-        background: 'linear-gradient(135deg, rgba(28,238,224,0.12) 0%, rgba(20,184,173,0.08) 100%)',
-        border: '1px solid rgba(28,238,224,0.15)',
-        padding: '24px 32px', borderRadius: 6, marginBottom: 24,
-      }}>
+      {/* • • •  Top Card (Mint gradient) • • •  */}
+      <div className="cd-top-card-full">
         {/* Left: Avatar & Info */}
-        <div style={{ display: 'flex', alignItems: 'flex-start', gap: 20 }}>
+        <div className="flex-row cd-avatar-row">
           {profilePicUrl ? (
             <img
               src={profilePicUrl}
               alt={client.name}
-              style={{
-                width: 56, height: 56, borderRadius: '50%', objectFit: 'cover',
-                border: '2px solid white', boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-                flexShrink: 0,
-              }}
+              className="cd-profile-pic"
               onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; (e.target as HTMLImageElement).nextElementSibling?.removeAttribute('style'); }}
             />
           ) : null}
-          <div style={{ width: 56, height: 56, borderRadius: '50%', background: 'var(--card)', display: profilePicUrl ? 'none' : 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+          <div className={`cd-avatar-placeholder${profilePicUrl ? ' cd-avatar-placeholder--hidden' : ''}`}>
             <svg fill="none" height="28" stroke="#1ceee0" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="28">
               <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" />
             </svg>
           </div>
           <div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 4 }}>
-              <h2 style={{ margin: 0, fontSize: 24, fontWeight: 'bold', color: 'var(--text)' }}>{displayName}</h2>
-              <span style={{ background: sl.bg, color: sl.color, fontSize: 11, fontWeight: 'bold', padding: '4px 8px', borderRadius: 6, letterSpacing: '0.5px' }}>{sl.text}</span>
+            <div className="flex-row gap-12 cd-name-row">
+              <h2 className="cd-client-name">{displayName}</h2>
+              <span className="cd-status-badge" style={{ background: sl.bg, color: sl.color }}>{sl.text}</span>
             </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: 14, marginBottom: 16 }}>
+            <div className="cd-client-sub">
               Eaisydesk azonosító: {client.id}
             </div>
-            <div className="cd-info-contact" style={{ display: 'flex', gap: 32, fontSize: 14, color: 'var(--text)' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <svg fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" style={{ opacity: 0.7 }}>
+            <div className="cd-info-contact cd-contact-info">
+              <div className="flex-row gap-8">
+                <svg fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" className="cd-contact-icon">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                 </svg>
-                <span style={{ fontWeight: 500 }}>{displayPhone || 'Nincs megadva'}</span>
+                <span className="cd-contact-value">{displayPhone || 'Nincs megadva'}</span>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <svg fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" style={{ opacity: 0.7 }}>
+              <div className="flex-row gap-8">
+                <svg fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" className="cd-contact-icon">
                   <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
                   <polyline points="22,6 12,13 2,6" />
                 </svg>
-                <span style={{ fontWeight: 500 }}>{displayEmail || 'Nincs megadva'}</span>
+                <span className="cd-contact-value">{displayEmail || 'Nincs megadva'}</span>
               </div>
             </div>
           </div>
         </div>
 
         {/* Right: Profile Edit & Registration Date */}
-        <div className="cd-right-panel" style={{ display: 'flex', flexDirection: 'column', justifyContent: 'space-between', alignItems: 'flex-end' }}>
+        <div className="cd-right-panel cd-right-panel-inner">
           <button
+            className="btn btn-ghost"
             onClick={() => setShowProfileEdit(true)}
-            style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: 'var(--text)', fontSize: 14, fontWeight: 600, display: 'flex', alignItems: 'center', gap: 6, fontFamily: 'inherit' }}
           >
             <svg fill="none" height="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
@@ -392,49 +383,49 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             </svg>
             Profil módosítása
           </button>
-          <div style={{ background: 'var(--card)', padding: '12px 20px', borderRadius: 6, display: 'flex', flexDirection: 'column', alignItems: 'center', minWidth: 120, border: '1px solid var(--border)' }}>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4, fontWeight: 600, textTransform: 'uppercase' }}>
+          <div className="cd-regdate-card">
+            <div className="cd-regdate-label">
               <svg fill="none" height="12" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
               Regisztrálva:
             </div>
-            <div style={{ fontSize: 16, fontWeight: 'bold', color: 'var(--text)', marginTop: 4 }}>{regDate}</div>
+            <div className="cd-regdate-value">{regDate}</div>
           </div>
         </div>
       </div>
 
-      {/* ═══ Middle Cards: Tags, Appointments, Notes ═══ */}
-      <div className="cd-middle-grid" style={{ display: 'grid', gap: 20, marginBottom: 24 }}>
+      {/* ââ€˘Âââ€˘Âââ€˘Â Middle Cards: Tags, Appointments, Notes ââ€˘Âââ€˘Âââ€˘Â */}
+      <div className="cd-middle-grid cd-middle-grid-inner">
         {/* Tags */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column', position: 'relative' }}>
-          <h3 style={{ fontSize: 12, fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: 0, marginBottom: 16 }}>Címkék</h3>
-          <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {((cd?.tags as string[]) || []).length === 0 && <span style={{ fontSize: 13, color: '#9ca3af' }}>Nincs címke</span>}
+        <div className="cd-inner-card">
+          <h3 className="cd-section-title">Címkék</h3>
+          <div className="flex-row flex-wrap gap-8">
+            {((cd?.tags as string[]) || []).length === 0 && <span className="cd-empty-tag">Nincs címke</span>}
             {((cd?.tags as string[]) || []).map((t) => (
-              <span key={t} style={{ background: 'rgba(28,238,224,0.15)', color: '#0d9488', fontSize: 12, fontWeight: 600, padding: '4px 10px', borderRadius: 9999, display: 'inline-flex', alignItems: 'center', gap: 4 }}>
+              <span key={t} className="cd-tag-chip">
                 {t}
-                <button onClick={() => removeTag(t)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#0d9488', fontSize: 14, padding: 0, lineHeight: 1, fontFamily: 'inherit' }}>×</button>
+                <button onClick={() => removeTag(t)} className="cd-tag-remove">×</button>
               </span>
             ))}
           </div>
-          <div style={{ position: 'relative', marginTop: 16 }}>
-            <button onClick={() => setShowTagPicker(!showTagPicker)} style={{ background: 'transparent', border: 'none', color: 'var(--accent)', fontSize: 12, fontWeight: 600, textAlign: 'left', cursor: 'pointer', padding: 0, fontFamily: 'inherit' }}>+ Címke hozzáadása</button>
+          <div className="cd-tag-picker-wrap">
+            <button onClick={() => setShowTagPicker(!showTagPicker)} className="cd-tag-add-btn">+ Címke hozzáadása</button>
             {showTagPicker && (
-              <div style={{ position: 'absolute', left: 0, bottom: 32, background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, boxShadow: '0 8px 24px rgba(0,0,0,0.3)', padding: 12, zIndex: 999, minWidth: 220 }}>
-                <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', marginBottom: 8 }}>Előre definiált címkék</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+              <div className="cd-tag-picker-panel">
+                <div className="cd-tag-picker-header">Előre definiált címkék</div>
+                <div className="flex-col gap-4">
                   {PREDEFINED_TAGS.filter(t => !((cd?.tags as string[]) || []).includes(t.label)).map(t => (
-                    <button key={t.label} onClick={() => addTag(t.label)} style={{ background: t.bg, color: t.color, border: 'none', padding: '5px 12px', textAlign: 'left', cursor: 'pointer', fontSize: 13, fontWeight: 600, borderRadius: 6, fontFamily: 'inherit', transition: 'opacity 0.15s' }}
+                    <button key={t.label} onClick={() => addTag(t.label)} className="cd-predefined-tag" style={{ background: t.bg, color: t.color }}
                       onMouseOver={e => (e.currentTarget.style.opacity = '0.8')}
                       onMouseOut={e => (e.currentTarget.style.opacity = '1')}
                     >{t.label}</button>
                   ))}
                 </div>
-                <div style={{ borderTop: '1px solid var(--border)', margin: '10px 0' }} />
-                <div style={{ display: 'flex', gap: 6 }}>
-                  <input value={customTag} onChange={e => setCustomTag(e.target.value)} placeholder="Egyéni címke..." style={{ flex: 1, border: '1px solid var(--border)', borderRadius: 6, padding: '6px 8px', fontSize: 12, outline: 'none', fontFamily: 'inherit', background: 'rgba(255,255,255,0.06)', color: 'var(--text)' }}
+                <div className="cd-tag-picker-divider" />
+                <div className="flex-row gap-6">
+                  <input value={customTag} onChange={e => setCustomTag(e.target.value)} placeholder="Egyéni címke..." className="cd-custom-tag-input"
                     onKeyDown={e => { if (e.key === 'Enter' && customTag.trim()) { addTag(customTag.trim()); } }}
                   />
-                  <button onClick={() => { if (customTag.trim()) addTag(customTag.trim()); }} style={{ background: '#1ceee0', color: '#000', border: 'none', borderRadius: 6, padding: '6px 10px', fontSize: 11, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit' }}>Hozzáadás</button>
+                  <button onClick={() => { if (customTag.trim()) addTag(customTag.trim()); }} className="cd-custom-tag-btn">Hozzáadás</button>
                 </div>
               </div>
             )}
@@ -442,22 +433,22 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         </div>
 
         {/* Previous Appointments */}
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column' }}>
-          <h3 style={{ fontSize: 12, fontWeight: 'bold', color: 'var(--text-muted)', textTransform: 'uppercase', marginTop: 0, marginBottom: 16 }}>Korábbi időpontok</h3>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+        <div className="cd-inner-card--appt">
+          <h3 className="cd-section-title">Korábbi időpontok</h3>
+          <div className="flex-col gap-8">
             {(() => {
               const past = clientAppointments.filter(ev => ev.start_dt && new Date(ev.start_dt) < new Date());
-              if (past.length === 0) return <span style={{ fontSize: 13, color: '#9ca3af', fontStyle: 'italic' }}>Nincs korábbi foglalás.</span>;
+              if (past.length === 0) return <span className="cd-appt-empty">Nincs korábbi foglalás.</span>;
               return (
                 <>
                   {past.slice(0, 3).map((ev, i) => (
-                    <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 13, color: 'var(--text)' }}>
+                    <div key={i} className="flex-row gap-8 cd-appt-row">
                       <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-                      {ev.start_dt ? fmtDt(ev.start_dt) : '—'}
+                      {ev.start_dt ? fmtDt(ev.start_dt) : 'â€”'}
                     </div>
                   ))}
                   {past.length > 3 && (
-                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--accent, #1ceee0)', cursor: 'pointer', textAlign: 'right', marginTop: 4 }}>
+                    <div className="cd-appt-showmore">
                       Összes időpont ({past.length})
                     </div>
                   )}
@@ -468,53 +459,53 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         </div>
 
         {/* Notes */}
-        <div style={{ background: 'var(--card)', border: '2px solid var(--accent, #1ceee0)', borderRadius: 6, padding: 20, display: 'flex', flexDirection: 'column' }}>
+        <div className="cd-inner-card--notes">
           <textarea
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             onBlur={() => saveNotes(notes)}
             placeholder="Megjegyzés"
-            style={{ width: '100%', height: '100%', minHeight: 80, border: 'none', resize: 'none', fontFamily: 'inherit', fontSize: 14, color: 'var(--text)', outline: 'none', background: 'transparent', boxSizing: 'border-box' }}
+            className="cd-notes-textarea"
           />
         </div>
       </div>
 
       {/* Total interactions count */}
-      <div style={{ fontSize: 14, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 16 }}>
+      <div className="cd-int-count">
         Összes interakció: {clientInteractions.length}
       </div>
 
-      {/* ═══ Aktuális Ügyek Table ═══ */}
-      <div style={{ marginBottom: 32 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 16, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Aktuális ügyek</h3>
-        <div className="cd-aktual-table" style={{ borderRadius: 6, border: '1px solid var(--border)', overflow: 'hidden' }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: 'var(--card)' }}>
-            <thead style={{ background: 'rgba(255,255,255,0.04)' }}>
+      {/* â• â• â•  Aktuális Ügyek Table â• â• â•  */}
+      <div className="mb-32">
+        <h3 className="form-label form-label--uppercase">Aktuális ügyek</h3>
+        <div className="table-card">
+          <table className="data-table">
+            <thead>
               <tr>
-                <th style={thStyle}>Interakció időpontja</th>
-                <th style={thStyle}>Csatorna</th>
-                <th style={thStyle}>Interakció iránya</th>
-                <th style={thStyle}>Ügytípus</th>
-                <th style={thStyle}>Eredmény</th>
-                <th style={thStyle}>Státusz</th>
-                <th style={thStyle}>Teendő</th>
+                <th>Interakció időpontja</th>
+                <th>Csatorna</th>
+                <th>Interakció iránya</th>
+                <th>Ügytípus</th>
+                <th>Eredmény</th>
+                <th>Státusz</th>
+                <th>Teendő</th>
               </tr>
             </thead>
             <tbody>
               {openInteractions.length === 0 ? (
-                <tr><td colSpan={7} style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>Nincs aktuális ügy</td></tr>
+                <tr><td colSpan={7} className="empty-state">Nincs aktuális ügy</td></tr>
               ) : openInteractions.map((r, i) => (
                 <tr key={i}>
-                  <td style={tdStyle}>
-                    <div style={{ fontWeight: 500 }}>{r.date ? new Date(r.date).toLocaleDateString('hu-HU') : '—'}</div>
-                    <div style={{ fontSize: 11, color: '#9ca3af' }}>{r.date ? new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
+                  <td>
+                    <div className="cd-date-primary">{r.date ? new Date(r.date).toLocaleDateString('hu-HU') : '-'}</div>
+                    <div className="cd-date-time">{r.date ? new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
                   </td>
-                  <td style={tdStyle}>{r.channel}</td>
-                  <td style={tdStyle}><DirectionBadge value={r.direction} /></td>
-                  <td style={tdStyle}><span style={{ fontSize: 13, textTransform: 'uppercase', fontWeight: 600 }}>{r.ugyTipus}</span></td>
-                  <td style={tdStyle}><EredmenyBadge value={r.eredmeny} /></td>
-                  <td style={tdStyle}><StatuszBadge value={r.statusz} /></td>
-                  <td style={tdStyle}>
+                  <td>{r.channel}</td>
+                  <td><DirectionBadge value={r.direction} /></td>
+                  <td><span className="cd-ugytipus">{r.ugyTipus}</span></td>
+                  <td><EredmenyBadge value={r.eredmeny} /></td>
+                  <td><StatuszBadge value={r.statusz} /></td>
+                  <td>
                     {r.teendo === 'Jóváhagyásra vár' ? (
                       <button
                         onClick={(e) => {
@@ -531,23 +522,12 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                             approvalStatus: r.approval_status || undefined,
                           });
                         }}
-                        style={{
-                          background: 'rgba(251,191,36,0.12)',
-                          color: '#d97706',
-                          border: '1px solid rgba(251,191,36,0.3)',
-                          borderRadius: 6,
-                          padding: '4px 12px',
-                          fontSize: 11,
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap',
-                          fontFamily: 'inherit',
-                        }}
+                        className="btn btn-warning"
                       >
                         Jóváhagyásra vár
                       </button>
                     ) : (
-                      <span style={{ color: 'var(--text-muted)' }}>{r.teendo}</span>
+                      <span className="cd-teendo-muted">{r.teendo}</span>
                     )}
                   </td>
                 </tr>
@@ -557,38 +537,38 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         </div>
       </div>
 
-      {/* ═══ Korábbi Interakciók Table ═══ */}
-      <div style={{ marginBottom: 32 }}>
-        <h3 style={{ fontSize: 14, fontWeight: 'bold', marginBottom: 16, color: 'var(--text-muted)', textTransform: 'uppercase' }}>Korábbi interakciók</h3>
-        <div className="cd-korabbi-table" style={{ borderRadius: 6, border: '1px solid var(--border)', overflow: 'hidden', opacity: 0.85 }}>
-          <table style={{ width: '100%', borderCollapse: 'collapse', textAlign: 'left', background: 'var(--card)' }}>
-            <thead style={{ background: 'rgba(255,255,255,0.04)' }}>
+      {/* ── Korábbi Interakciók Table ── */}
+      <div className="mb-32">
+        <h3 className="form-label form-label--uppercase">Korábbi interakciók</h3>
+        <div className="table-card table-card--dim">
+          <table className="data-table">
+            <thead>
               <tr>
-                <th style={thStyle}>Interakció időpontja</th>
-                <th style={thStyle}>Csatorna</th>
-                <th style={thStyle}>Interakció iránya</th>
-                <th style={thStyle}>Ügytípus</th>
-                <th style={thStyle}>Eredmény</th>
-                <th style={thStyle}>Státusz</th>
-                <th style={thStyle}>Teendő</th>
-                <th style={thStyle}>Napló</th>
+                <th>Interakció időpontja</th>
+                <th>Csatorna</th>
+                <th>Interakció iránya</th>
+                <th>Ügytípus</th>
+                <th>Eredmény</th>
+                <th>Státusz</th>
+                <th>Teendő</th>
+                <th>Napló</th>
               </tr>
             </thead>
             <tbody>
               {closedInteractions.length === 0 ? (
-                <tr><td colSpan={8} style={{ padding: 32, textAlign: 'center', color: 'var(--text-muted)', fontSize: 14 }}>Nincs korábbi interakció</td></tr>
+                <tr><td colSpan={8} className="empty-state">Nincs korábbi interakció</td></tr>
               ) : closedInteractions.slice(0, 20).map((r, i) => (
                 <tr key={i}>
-                  <td style={tdStyle}>
-                    <div style={{ fontWeight: 500 }}>{r.date ? new Date(r.date).toLocaleDateString('hu-HU') : '—'}</div>
-                    <div style={{ fontSize: 11, color: '#9ca3af' }}>{r.date ? new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
+                  <td>
+                    <div className="cd-date-primary">{r.date ? new Date(r.date).toLocaleDateString('hu-HU') : '-'}</div>
+                    <div className="cd-date-time">{r.date ? new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
                   </td>
-                  <td style={tdStyle}>{r.channel}</td>
-                  <td style={tdStyle}><DirectionBadge value={r.direction} /></td>
-                  <td style={tdStyle}><span style={{ fontSize: 13, textTransform: 'uppercase', fontWeight: 600 }}>{r.ugyTipus}</span></td>
-                  <td style={tdStyle}><EredmenyBadge value={r.eredmeny} /></td>
-                  <td style={tdStyle}><StatuszBadge value={r.statusz} /></td>
-                  <td style={tdStyle}>
+                  <td>{r.channel}</td>
+                  <td><DirectionBadge value={r.direction} /></td>
+                  <td><span className="cd-ugytipus">{r.ugyTipus}</span></td>
+                  <td><EredmenyBadge value={r.eredmeny} /></td>
+                  <td><StatuszBadge value={r.statusz} /></td>
+                  <td>
                     {r.teendo === 'Jóváhagyásra vár' ? (
                       <button
                         onClick={(e) => {
@@ -605,29 +585,18 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                             approvalStatus: r.approval_status || undefined,
                           });
                         }}
-                        style={{
-                          background: 'rgba(251,191,36,0.12)',
-                          color: '#d97706',
-                          border: '1px solid rgba(251,191,36,0.3)',
-                          borderRadius: 6,
-                          padding: '4px 12px',
-                          fontSize: 11,
-                          fontWeight: 600,
-                          cursor: 'pointer',
-                          whiteSpace: 'nowrap',
-                          fontFamily: 'inherit',
-                        }}
+                        className="btn btn-warning"
                       >
                         Jóváhagyásra vár
                       </button>
                     ) : (
-                      <span style={{ color: 'var(--text-muted)' }}>{r.teendo}</span>
+                      <span className="cd-teendo-muted">{r.teendo}</span>
                     )}
                   </td>
-                  <td style={tdStyle}>
+                  <td>
                     <button
                       onClick={(e) => { e.stopPropagation(); setSummaryModalRow(r); }}
-                      style={{ background: 'rgba(13,148,136,0.1)', border: '1px solid #0d9488', color: '#0d9488', borderRadius: 6, padding: '4px 12px', fontSize: 11, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', whiteSpace: 'nowrap' }}
+                      className="btn btn-teal-sm"
                     >
                       Megtekintés
                     </button>
@@ -638,68 +607,57 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           </table>
         </div>
         {closedInteractions.length > 20 && (
-          <div style={{ fontSize: 12, color: 'var(--text-muted)', textAlign: 'center', marginTop: 8 }}>+ {closedInteractions.length - 20} további</div>
+          <div className="cd-more-label">+ {closedInteractions.length - 20} további</div>
         )}
       </div>
 
-      {/* ═══ Profile Edit Modal ═══ */}
+      {/* ââ€˘Â ââ€˘Â ââ€˘Â  Profile Edit Modal ââ€˘Â ââ€˘Â ââ€˘Â  */}
       {showProfileEdit && (
-        <div style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.6)', zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20 }} onClick={() => setShowProfileEdit(false)}>
-          <div style={{ background: 'var(--card)', borderRadius: 8, width: 480, maxWidth: '90vw', boxShadow: '0 24px 48px rgba(0,0,0,0.3)', overflow: 'hidden', border: 'none', display: 'flex', flexDirection: 'column' }} onClick={e => e.stopPropagation()}>
-            {/* Header — teal gradient, matching other modals */}
-            <div style={{ background: 'linear-gradient(to right, #14b8ad, #1ceee0)', padding: '20px 24px', flexShrink: 0 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+        <div className="modal-overlay" onClick={() => setShowProfileEdit(false)}>
+          <div className="modal-card modal-card--480" onClick={e => e.stopPropagation()}>
+            {/* Header â€” teal gradient */}
+            <div className="cd-modal-header">
+              <div className="flex-between">
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(8,36,50,0.7)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>
-                    Ügyfélkezelés
-                  </div>
-                  <h3 style={{ margin: 0, fontSize: 20, fontWeight: 700, color: '#082432' }}>Profil módosítása</h3>
+                  <div className="text-xs font-bold cd-modal-label">Ügyfélkezelés</div>
+                  <h3 className="text-xl font-bold cd-modal-title">Profil módosítása</h3>
                 </div>
-                <button
-                  onClick={() => setShowProfileEdit(false)}
-                  style={{ background: 'rgba(8,36,50,0.15)', border: 'none', borderRadius: '50%', width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', color: '#082432', marginLeft: 8 }}
-                >✕</button>
+                <button className="modal-close cd-modal-close" onClick={() => setShowProfileEdit(false)}>✕</button>
               </div>
             </div>
 
             {/* Form */}
-            <div style={{ padding: '24px 24px 28px', display: 'flex', flexDirection: 'column', gap: 18, overflowY: 'auto' }}>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, display: 'block' }}>Név</label>
-                <input value={editName} onChange={e => setEditName(e.target.value)} placeholder={client.name} style={modalInputStyle} />
+            <div className="modal-body flex-col gap-16">
+              <div className="form-group">
+                <label className="form-label">Név</label>
+                <input className="input" value={editName} onChange={e => setEditName(e.target.value)} placeholder={client.name} />
               </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, display: 'block' }}>Telefonszám</label>
-                <input value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+36 30 ..." style={modalInputStyle} />
+              <div className="form-group">
+                <label className="form-label">Telefonszám</label>
+                <input className="input" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+36 30 ..." />
               </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, display: 'block' }}>Email cím</label>
-                <input value={editEmail} onChange={e => setEditEmail(e.target.value)} placeholder="email@példa.hu" style={modalInputStyle} />
+              <div className="form-group">
+                <label className="form-label">Email cím</label>
+                <input className="input" value={editEmail} onChange={e => setEditEmail(e.target.value)} placeholder="email@példa.hu" />
               </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, display: 'block' }}>Megjegyzés</label>
-                <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Adminisztrációs megjegyzések..." rows={4}
-                  style={{ ...modalInputStyle, resize: 'vertical', minHeight: 80 }}
+              <div className="form-group">
+                <label className="form-label">Megjegyzés</label>
+                <textarea className="input" value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Adminisztrációs megjegyzések..." rows={4}
+                  className="input cd-textarea"
                 />
               </div>
             </div>
 
-            {/* Footer — matching other modals */}
-            <div style={{ padding: '16px 24px', background: 'var(--bg3, rgba(0,0,0,0.02))', borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 12, flexShrink: 0 }}>
-              <button onClick={() => setShowProfileEdit(false)} style={{ padding: '10px 20px', background: 'transparent', color: 'var(--text-muted)', border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.15s' }}
-                onMouseOver={e => (e.currentTarget.style.borderColor = 'var(--accent)')}
-                onMouseOut={e => (e.currentTarget.style.borderColor = 'var(--border)')}
-              >Mégsem</button>
-              <button onClick={saveProfile} disabled={saving} style={{ padding: '10px 20px', background: 'linear-gradient(135deg, var(--accent, #1ceee0), var(--accent2, #0bbdb1))', color: '#082432', border: 'none', borderRadius: 6, fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit', transition: 'opacity 0.15s', opacity: saving ? 0.6 : 1 }}
-                onMouseOver={e => { if (!saving) e.currentTarget.style.opacity = '0.85'; }}
-                onMouseOut={e => { if (!saving) e.currentTarget.style.opacity = '1'; }}
-              >{saving ? 'Mentés...' : 'Mentés'}</button>
+            {/* Footer */}
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowProfileEdit(false)}>Mégsem</button>
+              <button className="btn btn-primary" onClick={saveProfile} disabled={saving}>{saving ? 'Mentés...' : 'Mentés'}</button>
             </div>
           </div>
         </div>
       )}
 
-      {/* ═══ Interaction Summary Modal ═══ */}
+      {/* ââ€˘Â ââ€˘Â ââ€˘Â  Interaction Summary Modal ââ€˘Â ââ€˘Â ââ€˘Â  */}
       {summaryModalRow && (
         <InteractionSummaryModal
           row={{
@@ -733,34 +691,4 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
   );
 }
 
-// ── Shared styles ──
-const thStyle: React.CSSProperties = {
-  padding: '16px',
-  fontSize: 11,
-  fontWeight: 600,
-  color: 'var(--text-muted)',
-  borderBottom: '1px solid var(--border)',
-  textTransform: 'uppercase',
-};
-
-const tdStyle: React.CSSProperties = {
-  padding: '16px',
-  fontSize: 13,
-  borderBottom: '1px solid var(--border)',
-  color: 'var(--text)',
-};
-
-
-const modalInputStyle: React.CSSProperties = {
-  width: '100%',
-  padding: '12px 16px',
-  border: '1.5px solid var(--border)',
-  borderRadius: 10,
-  fontSize: 15,
-  color: 'var(--text)',
-  fontFamily: 'inherit',
-  outline: 'none',
-  background: 'rgba(255,255,255,0.06)',
-  boxSizing: 'border-box',
-  transition: 'border-color 0.15s',
-};
+// â”€â”€ Shared styles â”€â”€

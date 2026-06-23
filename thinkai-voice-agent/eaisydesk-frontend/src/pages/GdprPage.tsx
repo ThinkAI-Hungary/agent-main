@@ -109,62 +109,35 @@ export default function GdprPage() {
     completed: requests.filter(r => r.status === 'completed').length,
   };
 
-  const inputStyle: React.CSSProperties = {
-    width: '100%', padding: '10px 14px', fontSize: 13,
-    border: '1.5px solid var(--border)', borderRadius: 8,
-    background: 'var(--bg)', color: 'var(--text)',
-    outline: 'none', fontFamily: 'inherit', boxSizing: 'border-box',
-    transition: 'border-color 0.2s',
-  };
-
   return (
-    <div className="page active" style={{ maxWidth: 900, margin: '0 auto' }}>
+    <div className="page active gdpr-page">
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 24, flexWrap: 'wrap', gap: 12 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-          <button onClick={() => navigate('/beallitasok')} style={{
-            width: 36, height: 36, borderRadius: 8, border: '1px solid var(--border)',
-            background: 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', color: 'var(--text-muted)', fontFamily: 'inherit',
-          }}>
+      <div className="flex-between mb-24">
+        <div className="flex-row gap-12">
+          <button className="btn btn-ghost gdpr-back-btn" onClick={() => navigate('/beallitasok')}>
             <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
             </svg>
           </button>
-          <div style={{
-            width: 40, height: 40, borderRadius: 12,
-            background: 'linear-gradient(135deg, #14b8ad, #1ceee0)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            boxShadow: '0 4px 12px rgba(20,184,173,0.3)',
-          }}>
+          <div className="icon-box-lg gdpr-header-icon">
             <svg fill="none" stroke="#082432" strokeWidth="2" viewBox="0 0 24 24" width="20" height="20">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               <polyline points="9 12 11 14 15 10" />
             </svg>
           </div>
           <div>
-            <h1 style={{ margin: 0, fontSize: 22, fontWeight: 800, color: 'var(--text)' }}>GDPR modul</h1>
-            <p style={{ margin: 0, fontSize: 12, color: 'var(--text-muted)' }}>Érintetti kérelmek kezelése</p>
+            <h1 className="text-2xl font-extrabold gdpr-h1">GDPR modul</h1>
+            <p className="text-sm text-muted gdpr-sub">Érintetti kérelmek kezelése</p>
           </div>
         </div>
-        <div style={{ display: 'flex', gap: 8 }}>
-          <button onClick={handleExport} disabled={exporting} style={{
-            padding: '9px 16px', borderRadius: 8, border: '1px solid var(--border)',
-            background: 'transparent', color: 'var(--text)', fontSize: 12, fontWeight: 600,
-            cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center', gap: 6,
-            opacity: exporting ? 0.5 : 1,
-          }}>
+        <div className="flex-row gap-8">
+          <button className="btn btn-outline btn-sm" onClick={handleExport} disabled={exporting}>
             <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
               <path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" />
             </svg>
             {exporting ? 'Exportálás...' : 'Adat export'}
           </button>
-          <button onClick={() => setShowCreate(true)} style={{
-            padding: '9px 16px', borderRadius: 8, border: 'none',
-            background: 'linear-gradient(135deg, var(--accent, #1ceee0), var(--accent2, #0bbdb1))',
-            color: '#082432', fontSize: 12, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-            display: 'flex', alignItems: 'center', gap: 6,
-          }}>
+          <button className="btn btn-primary btn-sm" onClick={() => setShowCreate(true)}>
             <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14">
               <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
             </svg>
@@ -174,44 +147,34 @@ export default function GdprPage() {
       </div>
 
       {/* Stats */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 12, marginBottom: 24 }}>
+      <div className="grid-3col gap-12 mb-24">
         {[
           { label: 'Függőben', value: stats.pending, bg: 'rgba(245,158,11,0.08)', color: '#d97706' },
           { label: 'Folyamatban', value: stats.in_progress, bg: 'rgba(59,130,246,0.08)', color: '#2563eb' },
           { label: 'Teljesítve', value: stats.completed, bg: 'rgba(16,185,129,0.08)', color: '#059669' },
         ].map(s => (
-          <div key={s.label} style={{
-            background: s.bg, borderRadius: 12, padding: 16,
-            border: '1px solid var(--border)',
-          }}>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4 }}>{s.label}</div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: s.color }}>{s.value}</div>
+          <div key={s.label} className="p-16 gdpr-stat-card" style={{ background: s.bg }}>
+            <div className="text-xs text-muted mb-4">{s.label}</div>
+            <div className="font-extrabold gdpr-stat-val" style={{ color: s.color }}>{s.value}</div>
           </div>
         ))}
       </div>
 
       {/* Table */}
-      <div style={{
-        background: 'var(--card)', borderRadius: 12, border: '1px solid var(--border)',
-        boxShadow: '0 1px 3px rgba(0,0,0,0.04)', overflow: 'hidden',
-      }}>
-        <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+      <div className="card-container gdpr-table-wrap">
+        <table className="table">
           <thead>
-            <tr style={{ borderBottom: '1px solid var(--border)' }}>
+            <tr>
               {['Érintett', 'Típus', 'Benyújtás', 'Státusz', 'Művelet'].map(h => (
-                <th key={h} style={{
-                  textAlign: 'left', padding: '10px 16px', fontSize: 10,
-                  fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase',
-                  letterSpacing: 0.5,
-                }}>{h}</th>
+                <th key={h}>{h}</th>
               ))}
             </tr>
           </thead>
           <tbody>
             {requests.length === 0 ? (
               <tr>
-                <td colSpan={5} style={{ padding: '48px 16px', textAlign: 'center', color: 'var(--text-muted)', fontSize: 13 }}>
-                  <svg fill="none" stroke="var(--text-muted)" strokeWidth="1.5" viewBox="0 0 24 24" width="32" height="32" style={{ margin: '0 auto 8px', display: 'block', opacity: 0.4 }}>
+                <td colSpan={5} className="text-center text-muted gdpr-empty-td">
+                  <svg fill="none" stroke="var(--text-muted)" strokeWidth="1.5" viewBox="0 0 24 24" width="32" height="32" className="gdpr-empty-icon">
                     <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
                   </svg>
                   Nincs érintetti kérelem
@@ -220,45 +183,24 @@ export default function GdprPage() {
             ) : requests.map(req => {
               const sc = STATUS_CONFIG[req.status];
               return (
-                <tr key={req.id} style={{ borderBottom: '1px solid var(--border)', transition: 'background 0.15s' }}
-                  onMouseEnter={e => (e.currentTarget.style.background = 'rgba(0,0,0,0.02)')}
-                  onMouseLeave={e => (e.currentTarget.style.background = 'transparent')}
-                >
-                  <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{req.employeeName}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text-muted)' }}>{TYPE_LABELS[req.requestType]}</td>
-                  <td style={{ padding: '12px 16px', fontSize: 12, color: 'var(--text-muted)' }}>
+                <tr key={req.id}>
+                  <td className="font-semibold">{req.employeeName}</td>
+                  <td className="text-muted">{TYPE_LABELS[req.requestType]}</td>
+                  <td className="text-sm text-muted">
                     {new Date(req.requestedAt).toLocaleDateString('hu-HU')}
                   </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <span style={{
-                      display: 'inline-flex', alignItems: 'center', gap: 4,
-                      padding: '4px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700,
-                      background: sc.bg, color: sc.color,
-                    }}>
-                      {sc.label}
-                    </span>
+                  <td>
+                    <span className="badge" style={{ background: sc.bg, color: sc.color }}>{sc.label}</span>
                   </td>
-                  <td style={{ padding: '12px 16px' }}>
-                    <div style={{ display: 'flex', gap: 4 }}>
+                  <td>
+                    <div className="flex-row gap-4">
                       {req.status === 'pending' && (
-                        <button onClick={() => updateStatus(req.id, 'in_progress')} style={{
-                          padding: '4px 10px', borderRadius: 6, border: '1px solid var(--border)',
-                          background: 'transparent', color: '#2563eb', fontSize: 11, fontWeight: 600,
-                          cursor: 'pointer', fontFamily: 'inherit',
-                        }}>Elkezd</button>
+                        <button className="btn btn-xs btn-outline gdpr-btn-start" onClick={() => updateStatus(req.id, 'in_progress')}>Elkezd</button>
                       )}
                       {req.status === 'in_progress' && (
-                        <button onClick={() => updateStatus(req.id, 'completed')} style={{
-                          padding: '4px 10px', borderRadius: 6, border: '1px solid rgba(16,185,129,0.3)',
-                          background: 'rgba(16,185,129,0.08)', color: '#059669', fontSize: 11, fontWeight: 600,
-                          cursor: 'pointer', fontFamily: 'inherit',
-                        }}>Teljesít</button>
+                        <button className="btn btn-xs gdpr-btn-complete" onClick={() => updateStatus(req.id, 'completed')}>Teljesít</button>
                       )}
-                      <button onClick={() => deleteRequest(req.id)} title="Törlés" style={{
-                        padding: '4px 8px', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)',
-                        background: 'rgba(239,68,68,0.06)', color: '#dc2626', fontSize: 11, fontWeight: 600,
-                        cursor: 'pointer', fontFamily: 'inherit', display: 'flex', alignItems: 'center',
-                      }}>
+                      <button className="btn btn-xs btn-danger" onClick={() => deleteRequest(req.id)} title="Törlés">
                         <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13">
                           <polyline points="3 6 5 6 21 6" />
                           <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
@@ -275,71 +217,43 @@ export default function GdprPage() {
 
       {/* Create Modal */}
       {showCreate && (
-        <div style={{
-          position: 'fixed', inset: 0, zIndex: 9999, background: 'rgba(0,0,0,0.6)',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 20,
-        }} onClick={() => setShowCreate(false)}>
-          <div style={{
-            width: 440, maxWidth: '90vw', background: 'var(--card)', borderRadius: 8,
-            boxShadow: '0 24px 48px rgba(0,0,0,0.3)', overflow: 'hidden',
-          }} onClick={e => e.stopPropagation()}>
+        <div className="modal-overlay" onClick={() => setShowCreate(false)}>
+          <div className="modal-card modal-card-sm" onClick={e => e.stopPropagation()}>
             {/* Header */}
-            <div style={{ background: 'linear-gradient(to right, #14b8ad, #1ceee0)', padding: '20px 24px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start' }}>
+            <div className="gdpr-modal-header">
+              <div className="flex-between">
                 <div>
-                  <div style={{ fontSize: 10, fontWeight: 700, color: 'rgba(8,36,50,0.7)', textTransform: 'uppercase', letterSpacing: 1, marginBottom: 4 }}>GDPR</div>
-                  <h3 style={{ margin: 0, fontSize: 18, fontWeight: 700, color: '#082432' }}>Új érintetti kérelem</h3>
+                  <div className="text-xs font-bold gdpr-modal-label">GDPR</div>
+                  <h3 className="text-xl font-bold gdpr-modal-title">Új érintetti kérelem</h3>
                 </div>
-                <button onClick={() => setShowCreate(false)} style={{
-                  background: 'rgba(8,36,50,0.15)', border: 'none', borderRadius: '50%',
-                  width: 28, height: 28, display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  cursor: 'pointer', color: '#082432',
-                }}>✕</button>
+                <button className="modal-close gdpr-modal-close" onClick={() => setShowCreate(false)}>✕</button>
               </div>
             </div>
             {/* Form */}
-            <div style={{ padding: '24px 24px 28px', display: 'flex', flexDirection: 'column', gap: 16 }}>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, display: 'block' }}>
-                  Érintett neve
-                </label>
-                <input value={form.employeeName} onChange={e => setForm(f => ({ ...f, employeeName: e.target.value }))}
-                  placeholder="Név" style={inputStyle} autoFocus />
+            <div className="modal-body">
+              <div className="form-group">
+                <label className="form-label">Érintett neve</label>
+                <input className="input" value={form.employeeName} onChange={e => setForm(f => ({ ...f, employeeName: e.target.value }))}
+                  placeholder="Név" autoFocus />
               </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, display: 'block' }}>
-                  Kérelem típusa
-                </label>
-                <select value={form.requestType} onChange={e => setForm(f => ({ ...f, requestType: e.target.value }))}
-                  style={{ ...inputStyle, cursor: 'pointer' }}>
+              <div className="form-group">
+                <label className="form-label">Kérelem típusa</label>
+                <select className="input" value={form.requestType} onChange={e => setForm(f => ({ ...f, requestType: e.target.value }))}
+                  style={{ cursor: 'pointer' }}>
                   {Object.entries(TYPE_LABELS).map(([k, v]) => <option key={k} value={k}>{v}</option>)}
                 </select>
               </div>
-              <div>
-                <label style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: 0.5, marginBottom: 8, display: 'block' }}>
-                  Megjegyzés
-                </label>
-                <textarea value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
+              <div className="form-group">
+                <label className="form-label">Megjegyzés</label>
+                <textarea className="input" value={form.notes} onChange={e => setForm(f => ({ ...f, notes: e.target.value }))}
                   placeholder="Opcionális megjegyzés..." rows={3}
-                  style={{ ...inputStyle, resize: 'vertical', minHeight: 60 }} />
+                  className="input gdpr-textarea" />
               </div>
             </div>
             {/* Footer */}
-            <div style={{
-              padding: '16px 24px', background: 'var(--bg3, rgba(0,0,0,0.02))',
-              borderTop: '1px solid var(--border)', display: 'flex', justifyContent: 'flex-end', gap: 12,
-            }}>
-              <button onClick={() => setShowCreate(false)} style={{
-                padding: '10px 20px', background: 'transparent', color: 'var(--text-muted)',
-                border: '1px solid var(--border)', borderRadius: 6, fontSize: 13, fontWeight: 600,
-                cursor: 'pointer', fontFamily: 'inherit',
-              }}>Mégsem</button>
-              <button onClick={handleCreate} disabled={!form.employeeName.trim()} style={{
-                padding: '10px 20px', borderRadius: 6, border: 'none',
-                background: 'linear-gradient(135deg, var(--accent, #1ceee0), var(--accent2, #0bbdb1))',
-                color: '#082432', fontSize: 13, fontWeight: 700, cursor: 'pointer', fontFamily: 'inherit',
-                opacity: !form.employeeName.trim() ? 0.5 : 1,
-              }}>Létrehozás</button>
+            <div className="modal-footer">
+              <button className="btn btn-outline" onClick={() => setShowCreate(false)}>Mégsem</button>
+              <button className="btn btn-primary" onClick={handleCreate} disabled={!form.employeeName.trim()}>Létrehozás</button>
             </div>
           </div>
         </div>

@@ -514,8 +514,8 @@ export default function MemberDashboardPage() {
 
   if (loading) {
     return (
-      <div style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '60vh' }}>
-        <div className="spinner" style={{ borderColor: '#e5e7eb', borderTopColor: '#1ceee0' }} />
+      <div className="flex-row member-loading-center">
+        <div className="spinner spinner--brand" />
       </div>
     );
   }
@@ -557,27 +557,21 @@ export default function MemberDashboardPage() {
   return (
     <div id="member-analytics-shell" className="member-dashboard-shell">
       {/* ── Greeting ──────────────────────────────────────────────────────── */}
-      <div style={{ marginBottom: 28 }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 6 }}>
+      <div className="mb-28">
+        <div className="flex-row gap-12 mb-6">
           <div
             id="member-avatar"
-            style={{
-              width: 44, height: 44, borderRadius: 10,
-              background: avatarUrl ? 'transparent' : 'linear-gradient(135deg, #1ceee0, #3b82f6)',
-              display: 'flex', alignItems: 'center', justifyContent: 'center',
-              fontSize: 18, fontWeight: 800, color: '#082432', flexShrink: 0,
-              overflow: 'hidden',
-            }}
+            className={`member-avatar ${avatarUrl ? 'member-avatar--transparent' : 'member-avatar--gradient'}`}
           >
             {avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }} />
+              <img src={avatarUrl} alt="Avatar" className="member-avatar-img" />
             ) : initials}
           </div>
           <div>
-            <h2 style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', margin: 0, lineHeight: 1.3 }}>
+            <h2 className="member-greeting-title">
               Szia, <strong>{firstName}</strong>!
             </h2>
-            <p style={{ color: 'var(--text-muted)', fontSize: 13, margin: 0 }}>
+            <p className="member-greeting-date">
               {formatGreetingDate(now)}
             </p>
           </div>
@@ -590,7 +584,7 @@ export default function MemberDashboardPage() {
         <div className="m-kpi-card">
           <div className="m-kpi-header">
             <div className="m-kpi-label">Hozzám rendelt ügyfelek</div>
-            <div className="m-kpi-icon" style={{ background: 'rgba(28,238,224,0.1)' }}>
+            <div className="m-kpi-icon m-kpi-icon--teal">
               <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
                 <circle cx="9" cy="7" r="4" />
@@ -598,7 +592,7 @@ export default function MemberDashboardPage() {
               </svg>
             </div>
           </div>
-          <div className="m-kpi-value" style={{ color: 'var(--accent)' }}>{clientCount}</div>
+          <div className="m-kpi-value m-kpi-value--accent">{clientCount}</div>
           <div className="m-kpi-sub">aktív ügyfél</div>
         </div>
 
@@ -606,7 +600,7 @@ export default function MemberDashboardPage() {
         <div className="m-kpi-card">
           <div className="m-kpi-header">
             <div className="m-kpi-label">Következő időpont</div>
-            <div className="m-kpi-icon" style={{ background: 'rgba(139,92,246,0.1)' }}>
+            <div className="m-kpi-icon m-kpi-icon--purple">
               <svg fill="none" stroke="#8b5cf6" strokeWidth="2" viewBox="0 0 24 24">
                 <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
                 <line x1="16" y1="2" x2="16" y2="6" />
@@ -615,7 +609,7 @@ export default function MemberDashboardPage() {
               </svg>
             </div>
           </div>
-          <div className="m-kpi-value" style={{ fontSize: 22 }}>{nextAppointment.text}</div>
+          <div className="m-kpi-value m-kpi-value--sm">{nextAppointment.text}</div>
           <div className="m-kpi-sub">{nextAppointment.sub}</div>
         </div>
       </div>
@@ -624,7 +618,7 @@ export default function MemberDashboardPage() {
       <div className="m-card todo-section">
         <div className="todo-section-header">
           <div className="todo-section-title">
-            <div className="m-card-title-icon" style={{ background: 'rgba(251,191,36,0.1)' }}>
+            <div className="m-card-title-icon m-card-title-icon--amber">
               <svg fill="none" stroke="#f59e0b" strokeWidth="2" viewBox="0 0 24 24">
                 <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
               </svg>
@@ -632,16 +626,11 @@ export default function MemberDashboardPage() {
             Teendők
             <span className="todo-section-count">{counts.all}</span>
           </div>
-          <div style={{ display: 'flex', gap: 8 }}>
+          <div className="flex-row gap-8">
             <select
               value={filter}
               onChange={e => setFilter(e.target.value as TodoFilter)}
-              style={{
-                padding: '6px 12px', borderRadius: 8,
-                border: '1px solid var(--border)',
-                background: 'var(--card)', color: 'var(--text)',
-                fontSize: 12, fontWeight: 600,
-              }}
+              className="todo-filter-select"
             >
               <option value="all">Minden teendő</option>
               <option value="today">Mai teendők</option>
@@ -653,66 +642,54 @@ export default function MemberDashboardPage() {
         </div>
 
         {/* Summary cards */}
-        <div className="todo-summary-grid" style={{ display: 'grid', gap: 12, marginBottom: 18 }}>
-          <div
-            style={{ padding: '16px 18px', borderRadius: 6, border: '1px solid rgba(59,130,246,0.2)', background: 'rgba(59,130,246,0.08)', cursor: 'pointer' }}
-            onClick={() => setFilter('today')}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 14 }}>📋</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#60a5fa' }}>Mai teendők</span>
+        <div className="todo-summary-grid">
+          <div className="todo-summary-card todo-summary-card--today" onClick={() => setFilter('today')}>
+            <div className="todo-summary-row">
+              <span className="todo-summary-emoji">📋</span>
+              <span className="todo-summary-lbl-today">Mai teendők</span>
             </div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: '#60a5fa' }}>{counts.today}</div>
+            <div className="todo-summary-num-today">{counts.today}</div>
           </div>
-          <div
-            style={{ padding: '16px 18px', borderRadius: 6, border: '1px solid rgba(239,68,68,0.2)', background: 'rgba(239,68,68,0.08)', cursor: 'pointer' }}
-            onClick={() => setFilter('overdue')}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 14 }}>🔴</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#f87171' }}>Lejárt teendők</span>
+          <div className="todo-summary-card todo-summary-card--overdue" onClick={() => setFilter('overdue')}>
+            <div className="todo-summary-row">
+              <span className="todo-summary-emoji">🔴</span>
+              <span className="todo-summary-lbl-overdue">Lejárt teendők</span>
             </div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: '#f87171' }}>{counts.overdue}</div>
+            <div className="todo-summary-num-overdue">{counts.overdue}</div>
           </div>
-          <div
-            style={{ padding: '16px 18px', borderRadius: 6, border: '1px solid rgba(34,197,94,0.2)', background: 'rgba(34,197,94,0.08)', cursor: 'pointer' }}
-            onClick={() => setFilter('completed')}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 14 }}>✅</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: '#4ade80' }}>Lezárt teendők</span>
+          <div className="todo-summary-card todo-summary-card--done" onClick={() => setFilter('completed')}>
+            <div className="todo-summary-row">
+              <span className="todo-summary-emoji">✅</span>
+              <span className="todo-summary-lbl-done">Lezárt teendők</span>
             </div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: '#4ade80' }}>{counts.completed}</div>
+            <div className="todo-summary-num-done">{counts.completed}</div>
           </div>
-          <div
-            style={{ padding: '16px 18px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--card)', cursor: 'pointer' }}
-            onClick={() => setFilter('all')}
-          >
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 6 }}>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>●</span>
-              <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>Összes teendő</span>
+          <div className="todo-summary-card todo-summary-card--all" onClick={() => setFilter('all')}>
+            <div className="todo-summary-row">
+              <span className="todo-summary-lbl-all-bullet">●</span>
+              <span className="todo-summary-lbl-all">Összes teendő</span>
             </div>
-            <div style={{ fontSize: 28, fontWeight: 800, color: 'var(--text)' }}>{counts.all}</div>
+            <div className="todo-summary-num-all">{counts.all}</div>
           </div>
         </div>
 
         {/* Section header */}
-        <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 8, padding: '0 4px' }}>
+        <div className="todo-filter-section-lbl">
           {filter === 'overdue' ? 'Lejárt teendők' : filter === 'today' ? 'Mai teendők' : filter === 'completed' ? 'Lezárt ügyek' : 'Sürgős / Nyitott státuszú ügyek'} ({filtered.length})
         </div>
 
         {/* Todos table */}
-        <div className="int-table-wrapper todo-table-wrapper" style={{ maxHeight: 500, overflowY: 'auto' }}>
-          <table className="data-table" style={{ width: '100%' }}>
+        <div className="int-table-wrapper todo-table-scroll">
+          <table className="data-table data-table--full">
             <thead className="int-thead">
               <tr>
-                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Dátum</th>
-                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Ügyfél</th>
-                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Csatorna</th>
-                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Ügytípus</th>
-                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Eredmény</th>
-                <th style={{ padding: '10px 16px', fontSize: 11, fontWeight: 700, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Teendő</th>
-                <th style={{ padding: '10px 16px', width: 40 }}></th>
+                <th className="todo-th">Dátum</th>
+                <th className="todo-th">Ügyfél</th>
+                <th className="todo-th">Csatorna</th>
+                <th className="todo-th">Ügytípus</th>
+                <th className="todo-th">Eredmény</th>
+                <th className="todo-th">Teendő</th>
+                <th className="todo-th--narrow"></th>
               </tr>
             </thead>
             <tbody>
@@ -733,29 +710,14 @@ export default function MemberDashboardPage() {
                   return (
                     <tr key={t.id} className={`int-row${t.completed ? ' completed' : ''}`} style={{ opacity: t.completed ? 0.5 : 1 }}>
                       {/* Dátum */}
-                      <td style={{ padding: '12px 16px', fontSize: 13, whiteSpace: 'nowrap', color: 'var(--text)' }}>
+                      <td className="todo-td--date">
                         {formatTodoDatum(t.createdAt || t.date)}
                       </td>
                       {/* Ügyfél */}
-                      <td style={{ padding: '12px 16px' }} onClick={e => e.stopPropagation()}>
+                      <td className="todo-td" onClick={e => e.stopPropagation()}>
                         {t.client && t.client !== 'Ismeretlen' ? (
                           <button
-                            style={{
-                              background: 'rgba(13,148,136,0.08)',
-                              border: '1px solid rgba(13,148,136,0.3)',
-                              color: '#0d9488',
-                              borderRadius: 6,
-                              cursor: 'pointer',
-                              padding: '5px 10px',
-                              fontSize: 12,
-                              fontWeight: 600,
-                              maxWidth: 160,
-                              whiteSpace: 'nowrap',
-                              overflow: 'hidden',
-                              textOverflow: 'ellipsis',
-                              display: 'inline-block',
-                              fontFamily: 'inherit',
-                            }}
+                            className="todo-client-btn"
                             title={t.client}
                             onClick={() => {
                               if (t.clientId) {
@@ -773,50 +735,29 @@ export default function MemberDashboardPage() {
                             {t.client}
                           </button>
                         ) : (
-                          <span style={{ color: 'var(--text-muted)', fontSize: 13 }}>—</span>
+                          <span className="todo-client-dash">—</span>
                         )}
                       </td>
                       {/* Csatorna */}
-                      <td style={{ padding: '12px 16px' }}>
-                        <span style={{
-                          display: 'inline-block',
-                          padding: '4px 12px',
-                          borderRadius: 6,
-                          fontSize: 12,
-                          fontWeight: 600,
-                          background: csatornaStyle.bg,
-                          color: csatornaStyle.color,
-                          border: `1px solid ${csatornaStyle.border}`,
-                          whiteSpace: 'nowrap',
-                        }}>
+                      <td className="todo-td">
+                        <span className="csatorna-badge" style={{ background: csatornaStyle.bg, color: csatornaStyle.color, border: `1px solid ${csatornaStyle.border}` }}>
                           {t.csatorna || '—'}
                         </span>
                       </td>
                       {/* Ügytípus */}
-                      <td style={{ padding: '12px 16px', fontSize: 13, fontWeight: 800, color: 'var(--text)', letterSpacing: '0.2px' }}>
+                      <td className="todo-td--type">
                         {t.ugyTipus || 'EGYÉB'}
                       </td>
                       {/* Eredmény */}
-                      <td style={{ padding: '12px 16px', fontSize: 13, color: 'var(--text-muted)' }}>
+                      <td className="todo-td--muted">
                         {t.eredmeny || 'Rögzítve'}
                       </td>
                       {/* Teendő */}
-                      <td style={{ padding: '12px 16px' }} onClick={e => e.stopPropagation()}>
+                      <td className="todo-td" onClick={e => e.stopPropagation()}>
                         {t.type === 'approval' && t.aiDraftResponse ? (
                           <button
-                            style={{
-                              display: 'inline-block',
-                              padding: '5px 14px',
-                              borderRadius: 6,
-                              fontSize: 12,
-                              fontWeight: 600,
-                              background: teendoStyle.bg,
-                              color: teendoStyle.color,
-                              border: `1px solid ${teendoStyle.border}`,
-                              cursor: 'pointer',
-                              whiteSpace: 'nowrap',
-                              fontFamily: 'inherit',
-                            }}
+                            className="teendo-badge teendo-badge--btn"
+                            style={{ background: teendoStyle.bg, color: teendoStyle.color, border: `1px solid ${teendoStyle.border}` }}
                             onClick={() => {
                               openApproval({
                                 interactionId: t.interactionId,
@@ -834,26 +775,16 @@ export default function MemberDashboardPage() {
                             {teendoText}
                           </button>
                         ) : (
-                          <span style={{
-                            display: 'inline-block',
-                            padding: '5px 14px',
-                            borderRadius: 6,
-                            fontSize: 12,
-                            fontWeight: 600,
-                            background: teendoStyle.bg,
-                            color: teendoStyle.color,
-                            border: `1px solid ${teendoStyle.border}`,
-                            whiteSpace: 'nowrap',
-                          }}>
+                          <span className="teendo-badge" style={{ background: teendoStyle.bg, color: teendoStyle.color, border: `1px solid ${teendoStyle.border}` }}>
                             {teendoText}
                           </span>
                         )}
                       </td>
                       {/* Checkbox */}
-                      <td style={{ textAlign: 'center', padding: '12px 8px' }} onClick={e => e.stopPropagation()}>
+                      <td className="todo-td--check" onClick={e => e.stopPropagation()}>
                         <input
                           type="checkbox"
-                          style={{ width: 16, height: 16, cursor: 'pointer', accentColor: '#1ceee0' }}
+                          className="todo-checkbox"
                           checked={t.completed}
                           onChange={e => toggleTodoCompleted(t.id, e.target.checked)}
                         />

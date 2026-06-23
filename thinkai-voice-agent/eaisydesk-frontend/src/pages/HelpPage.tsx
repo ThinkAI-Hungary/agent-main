@@ -64,36 +64,22 @@ const shortcuts = [
 // ── Kbd component ────────────────────────────────────────────────────────────
 function Kbd({ children }: { children: string }) {
   return (
-    <kbd style={{
-      background: 'var(--bg)', border: '1px solid var(--border)', borderRadius: 6,
-      padding: '4px 10px', fontSize: 11, fontWeight: 600, color: 'var(--text)',
-      fontFamily: "'Inter', monospace", boxShadow: '0 1px 2px rgba(0,0,0,0.05)',
-    }}>{children}</kbd>
+    <kbd className="kbd-key">{children}</kbd>
   );
 }
 
 // ── Section card wrapper ─────────────────────────────────────────────────────
 function SectionCard({ children }: { children: React.ReactNode }) {
   return (
-    <div style={{
-      background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 6,
-      padding: '24px 28px', marginBottom: 20,
-    }}>{children}</div>
+    <div className="content-card-padded mb-20">{children}</div>
   );
 }
 
 // ── Section title ────────────────────────────────────────────────────────────
 function SectionTitle({ icon, children }: { icon: React.ReactNode; children: React.ReactNode }) {
   return (
-    <h3 style={{
-      fontSize: 16, fontWeight: 700, color: 'var(--text)', margin: '0 0 20px',
-      display: 'flex', alignItems: 'center', gap: 10, fontFamily: "'Inter', Arial, sans-serif",
-    }}>
-      <div style={{
-        width: 28, height: 28, borderRadius: 8,
-        background: 'linear-gradient(135deg, rgba(28,238,224,0.15), rgba(28,238,224,0.05))',
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-      }}>
+    <h3 className="flex-row gap-10 mb-20 help-section-title">
+      <div className="icon-box">
         {icon}
       </div>
       {children}
@@ -114,12 +100,7 @@ function FaqItem({ q, a, isOpen, onClick }: { q: string; a: string; isOpen: bool
       onMouseEnter={e => { if (!isOpen) (e.currentTarget as HTMLElement).style.background = 'rgba(28,238,224,0.04)'; }}
       onMouseLeave={e => { if (!isOpen) (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
     >
-      <button onClick={onClick} style={{
-        display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-        width: '100%', padding: '14px 16px', border: 'none', background: 'none',
-        cursor: 'pointer', textAlign: 'left', fontSize: 13, fontWeight: 500,
-        color: 'var(--text)', fontFamily: 'inherit', borderRadius: 10,
-      }}>
+      <button onClick={onClick} className="faq-btn">
         <span>{q}</span>
         <svg className="faq-chevron" fill="none" stroke="var(--text-muted)" strokeWidth="2"
           viewBox="0 0 24 24" width="16" height="16"
@@ -131,7 +112,7 @@ function FaqItem({ q, a, isOpen, onClick }: { q: string; a: string; isOpen: bool
         maxHeight: isOpen ? 200 : 0, overflow: 'hidden',
         transition: 'max-height 0.3s ease',
       }}>
-        <div style={{ padding: '0 16px 14px', fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}
+        <div className="faq-answer-inner"
           dangerouslySetInnerHTML={{ __html: a }} />
       </div>
     </div>
@@ -151,46 +132,33 @@ export default function HelpPage() {
     <div className="page active" id="page-help">
 
       {/* Header */}
-      <div style={{ display: 'flex', alignItems: 'center', gap: 14, marginBottom: 6 }}>
-        <div style={{
-          width: 42, height: 42, borderRadius: 6,
-          background: 'linear-gradient(135deg, rgba(28,238,224,0.15), rgba(28,238,224,0.1))',
-          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-        }}>
+      <div className="flex-row gap-14 mb-6">
+        <div className="icon-box-lg">
           <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="22" height="22">
             <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" /><circle cx="12" cy="17" r="0.5" fill="#1ceee0" />
           </svg>
         </div>
         <div>
-          <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)', fontFamily: "'Inter', Arial, sans-serif" }}>
+          <div className="page-title">
             Segítség &amp; Dokumentáció
           </div>
         </div>
       </div>
 
       {/* Divider */}
-      <div style={{ borderTop: '1px solid var(--border)', margin: '20px 0 24px' }} />
+      <div className="help-divider" />
 
       {/* Quick Guide */}
       <SectionCard>
         <SectionTitle icon={
           <svg fill="none" stroke="#1ceee0" strokeWidth="2.5" viewBox="0 0 24 24" width="15" height="15"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
         }>Gyors útmutató</SectionTitle>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))', gap: 16 }}>
+        <div className="help-quicksteps-grid">
           {quickSteps.map((s, i) => (
             <div
               key={i}
               onClick={() => navigate(s.path)}
-              style={{
-                position: 'relative',
-                background: 'var(--card)',
-                border: '1px solid var(--border)',
-                borderRadius: 14,
-                padding: '22px 20px 18px',
-                cursor: 'pointer',
-                transition: 'all 0.25s ease',
-                overflow: 'hidden',
-              }}
+              className="help-step-card"
               onMouseEnter={e => {
                 e.currentTarget.style.borderColor = s.color;
                 e.currentTarget.style.transform = 'translateY(-3px)';
@@ -204,22 +172,18 @@ export default function HelpPage() {
             >
               {/* Accent bar top */}
               <div style={{ position: 'absolute', top: 0, left: 0, right: 0, height: 3, background: `linear-gradient(90deg, ${s.color}, ${s.color}80)`, borderRadius: '14px 14px 0 0' }} />
-              <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-                <div style={{
-                  width: 42, height: 42, borderRadius: 12,
-                  background: `${s.color}15`,
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                }}>
+              <div className="flex-row" style={{ alignItems: 'flex-start', gap: 14 }}>
+                <div className="help-step-icon" style={{ background: `${s.color}15` }}>
                   <svg fill="none" stroke={s.color} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="20" height="20">
                     {s.icon}
                   </svg>
                 </div>
-                <div style={{ flex: 1, minWidth: 0 }}>
-                  <div style={{ fontWeight: 700, fontSize: 14, color: 'var(--text)', marginBottom: 4 }}>{s.title}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>{s.desc}</div>
+                <div className="help-step-text">
+                  <div className="help-step-title">{s.title}</div>
+                  <div className="help-step-desc">{s.desc}</div>
                 </div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 4, marginTop: 14, fontSize: 12, fontWeight: 600, color: s.color }}>
+              <div className="help-step-open" style={{ color: s.color }}>
                 Megnyitás
                 <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="13" height="13"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
               </div>
@@ -229,31 +193,24 @@ export default function HelpPage() {
       </SectionCard>
 
       {/* Accent divider */}
-      <div style={{ height: 1, background: 'linear-gradient(90deg, transparent, rgba(28,238,224,0.25), transparent)', margin: '8px 0 20px' }} />
+      <div className="help-accent-divider" />
 
       {/* Module Overview */}
       <SectionCard>
         <SectionTitle icon={
           <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="15" height="15"><rect x="3" y="3" width="7" height="7" rx="1" /><rect x="14" y="3" width="7" height="7" rx="1" /><rect x="3" y="14" width="7" height="7" rx="1" /><rect x="14" y="14" width="7" height="7" rx="1" /></svg>
         }>Modulok áttekintése</SectionTitle>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className="flex-col">
           {modules.map(m => (
-            <div key={m.name} style={{
-              display: 'flex', alignItems: 'center', gap: 14, padding: '14px 0',
-              borderBottom: m.last ? 'none' : '1px solid var(--border)',
-            }}>
-              <div style={{
-                width: 38, height: 38, borderRadius: 10,
-                background: 'rgba(28,238,224,0.08)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}>
+            <div key={m.name} className="help-module-row" style={{ borderBottom: m.last ? 'none' : '1px solid var(--border)' }}>
+              <div className="help-module-icon">
                 <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="18" height="18">
                   {m.icon}
                 </svg>
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <div style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>{m.name}</div>
-                <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{m.desc}</div>
+              <div className="help-module-text">
+                <div className="help-module-name">{m.name}</div>
+                <div className="help-module-desc">{m.desc}</div>
               </div>
             </div>
           ))}
@@ -265,7 +222,7 @@ export default function HelpPage() {
         <SectionTitle icon={
           <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="15" height="15"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
         }>Gyakran ismételt kérdések</SectionTitle>
-        <div style={{ display: 'flex', flexDirection: 'column' }}>
+        <div className="flex-col">
           {faqs.map((f, i) => (
             <FaqItem key={i} q={f.q} a={f.a} isOpen={openFaq === i} onClick={() => toggleFaq(i)} />
           ))}
@@ -277,18 +234,14 @@ export default function HelpPage() {
         <SectionTitle icon={
           <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="15" height="15"><rect x="2" y="6" width="20" height="12" rx="2" /><path d="M6 10h0M10 10h0M14 10h0M18 10h0M8 14h8" /></svg>
         }>Billentyűparancsok</SectionTitle>
-        <div style={{ display: 'flex', flexDirection: 'column', gap: 0 }}>
+        <div className="flex-col">
           {shortcuts.map((s, i) => (
-            <div key={i} style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '12px 0',
-              borderBottom: i < shortcuts.length - 1 ? '1px solid var(--border)' : 'none',
-            }}>
-              <span style={{ fontSize: 13, color: 'var(--text)' }}>{s.label}</span>
-              <div style={{ display: 'flex', gap: 4, alignItems: 'center' }}>
+            <div key={i} className="help-shortcut-row" style={{ borderBottom: i < shortcuts.length - 1 ? '1px solid var(--border)' : 'none' }}>
+              <span className="help-shortcut-lbl">{s.label}</span>
+              <div className="flex-row gap-4">
                 {s.keys.map((k, j) => (
                   <span key={j}>
-                    {j > 0 && <span style={{ color: 'var(--text-muted)', fontSize: 11, marginRight: 4 }}>+</span>}
+                    {j > 0 && <span className="help-shortcut-plus">+</span>}
                     <Kbd>{k}</Kbd>
                   </span>
                 ))}
@@ -299,37 +252,29 @@ export default function HelpPage() {
       </SectionCard>
 
       {/* Contact + Version */}
-      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20, marginBottom: 20 }}>
+      <div className="grid-2col gap-20 mb-20">
         {/* Contact */}
         <SectionCard>
           <SectionTitle icon={
             <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="15" height="15"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
           }>Kapcsolat</SectionTitle>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{
-                width: 38, height: 38, borderRadius: 10,
-                background: 'rgba(28,238,224,0.08)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}>
+          <div className="flex-col gap-16">
+            <div className="flex-row gap-14">
+              <div className="help-contact-icon">
                 <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="17" height="17"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
               </div>
               <div>
-                <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>support@thinkai.hu</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Email támogatás</div>
+                <div className="help-contact-name">support@thinkai.hu</div>
+                <div className="help-contact-sub">Email támogatás</div>
               </div>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-              <div style={{
-                width: 38, height: 38, borderRadius: 10,
-                background: 'rgba(28,238,224,0.08)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-              }}>
+            <div className="flex-row gap-14">
+              <div className="help-contact-icon">
                 <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="17" height="17"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.07 1.18 2 2 0 012.07 0h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 14.92z" /></svg>
               </div>
               <div>
-                <div style={{ fontWeight: 600, fontSize: 13, color: 'var(--text)' }}>+36 1 234 5678</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>H-P 9:00-17:00</div>
+                <div className="help-contact-name">+36 1 234 5678</div>
+                <div className="help-contact-sub">H-P 9:00-17:00</div>
               </div>
             </div>
           </div>
@@ -340,27 +285,16 @@ export default function HelpPage() {
           <SectionTitle icon={
             <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="15" height="15"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
           }>Verzió &amp; Adatvédelem</SectionTitle>
-          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-            <div style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '10px 16px', background: 'var(--bg3, var(--bg))', borderRadius: 10,
-              border: '1px solid var(--border)',
-            }}>
-              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Verzió</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>2.0.0-beta</span>
+          <div className="flex-col gap-10">
+            <div className="help-version-row">
+              <span className="help-version-lbl">Verzió</span>
+              <span className="help-version-val">2.0.0-beta</span>
             </div>
-            <div style={{
-              display: 'flex', justifyContent: 'space-between', alignItems: 'center',
-              padding: '10px 16px', background: 'var(--bg3, var(--bg))', borderRadius: 10,
-              border: '1px solid var(--border)',
-            }}>
-              <span style={{ fontSize: 13, color: 'var(--text-muted)' }}>Utolsó frissítés</span>
-              <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>2026. 05. 31.</span>
+            <div className="help-version-row">
+              <span className="help-version-lbl">Utolsó frissítés</span>
+              <span className="help-version-val">2026. 05. 31.</span>
             </div>
-            <a href="#" onClick={e => e.preventDefault()} style={{
-              display: 'flex', alignItems: 'center', gap: 8, fontSize: 13,
-              color: 'var(--accent)', textDecoration: 'none', marginTop: 8, transition: 'opacity 0.2s',
-            }}
+            <a href="#" onClick={e => e.preventDefault()} className="help-privacy-link"
               onMouseEnter={e => { (e.currentTarget as HTMLElement).style.opacity = '0.7'; }}
               onMouseLeave={e => { (e.currentTarget as HTMLElement).style.opacity = '1'; }}
             >

@@ -73,35 +73,15 @@ export default function CookieConsentBanner() {
   return (
     <>
       {/* Overlay */}
-      <div style={{
-        position: 'fixed', inset: 0, zIndex: 99998,
-        background: 'rgba(0,0,0,0.35)',
-        animation: 'ccFadeIn 0.3s ease',
-      }} />
+      <div className="cookie-overlay" />
 
       {/* Banner — TOP position */}
-      <div style={{
-        position: 'fixed', top: 0, left: 0, right: 0, zIndex: 99999,
-        padding: 16,
-        animation: 'ccSlideDown 0.4s cubic-bezier(0.34, 1.56, 0.64, 1)',
-      }}>
-        <div style={{
-          maxWidth: 540, margin: '0 auto',
-          background: 'var(--card, #fff)',
-          border: '1px solid var(--border)',
-          borderRadius: 16,
-          boxShadow: '0 20px 60px rgba(0,0,0,0.25), 0 0 0 1px rgba(255,255,255,0.05)',
-          overflow: 'hidden',
-        }}>
+      <div className="cookie-banner-wrap">
+        <div className="cookie-card">
           {/* Main content */}
-          <div style={{ padding: 20 }}>
-            <div style={{ display: 'flex', alignItems: 'flex-start', gap: 14 }}>
-              <div style={{
-                width: 40, height: 40, borderRadius: 12,
-                background: 'rgba(28,238,224,0.12)',
-                display: 'flex', alignItems: 'center', justifyContent: 'center',
-                flexShrink: 0,
-              }}>
+          <div className="cookie-body">
+            <div className="flex-row cookie-header-row">
+              <div className="cookie-icon">
                 {/* Cookie icon */}
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <circle cx="12" cy="12" r="10" />
@@ -112,11 +92,11 @@ export default function CookieConsentBanner() {
                   <circle cx="13" cy="17" r="1" fill="#1ceee0" />
                 </svg>
               </div>
-              <div style={{ flex: 1, minWidth: 0 }}>
-                <h3 style={{ margin: 0, fontSize: 14, fontWeight: 700, color: 'var(--text)' }}>
+              <div className="flex-1 min-w-0">
+                <h3 className="cookie-title">
                   Süti beállítások
                 </h3>
-                <p style={{ margin: '5px 0 0', fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.55 }}>
+                <p className="cookie-sub">
                   Az eaisydesk sütiket használ a működéshez és a felhasználói élmény javításához.
                   Az „Összes elfogadása" gombra kattintva hozzájárulsz az összes süti használatához.
                 </p>
@@ -124,18 +104,10 @@ export default function CookieConsentBanner() {
             </div>
 
             {/* Buttons */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 16 }}>
+            <div className="flex-row gap-8 mt-16">
               <button
                 onClick={() => accept(true)}
-                style={{
-                  display: 'flex', alignItems: 'center', gap: 6,
-                  padding: '9px 18px', borderRadius: 8, border: 'none',
-                  background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)',
-                  color: '#082432', fontSize: 12, fontWeight: 700,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                  boxShadow: '0 2px 8px rgba(28,238,224,0.25)',
-                  transition: 'all 0.15s',
-                }}
+                className="cookie-btn-accept-all"
               >
                 <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="13" height="13">
                   <polyline points="20 6 9 17 4 12" />
@@ -144,28 +116,13 @@ export default function CookieConsentBanner() {
               </button>
               <button
                 onClick={() => accept(false)}
-                style={{
-                  padding: '9px 18px', borderRadius: 8,
-                  border: '1.5px solid var(--border)',
-                  background: 'transparent',
-                  color: 'var(--text)', fontSize: 12, fontWeight: 600,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                  transition: 'all 0.15s',
-                }}
+                className="cookie-btn-necessary"
               >
                 Csak szükségesek
               </button>
               <button
                 onClick={() => setShowDetails(!showDetails)}
-                style={{
-                  marginLeft: 'auto',
-                  display: 'flex', alignItems: 'center', gap: 5,
-                  padding: '6px 10px', borderRadius: 6,
-                  border: 'none', background: 'transparent',
-                  color: 'var(--text-muted)', fontSize: 11, fontWeight: 500,
-                  cursor: 'pointer', fontFamily: 'inherit',
-                  transition: 'color 0.15s',
-                }}
+                className="cookie-btn-customize"
               >
                 <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13">
                   <circle cx="12" cy="12" r="3" />
@@ -177,28 +134,18 @@ export default function CookieConsentBanner() {
           </div>
 
           {/* Detailed settings — expandable */}
-          <div style={{
-            maxHeight: showDetails ? 400 : 0,
-            overflow: 'hidden',
-            transition: 'max-height 0.35s ease',
-          }}>
-            <div style={{
-              padding: '0 20px 20px', paddingTop: 14,
-              borderTop: '1px solid var(--border)',
-              display: 'flex', flexDirection: 'column', gap: 8,
-            }}>
+          <div style={{ maxHeight: showDetails ? 400 : 0, overflow: 'hidden', transition: 'max-height 0.35s ease' }}>
+            <div className="flex-col gap-8 cookie-detail-inner">
               {cookies.map(c => {
                 const isActive = c.checked;
                 return (
                   <label
                     key={c.id}
+                  className="cookie-row-label"
                     style={{
-                      display: 'flex', alignItems: 'flex-start', gap: 12,
-                      padding: '12px 14px', borderRadius: 10,
                       border: isActive ? '1.5px solid rgba(28,238,224,0.4)' : '1.5px solid var(--border)',
                       background: isActive ? 'rgba(28,238,224,0.04)' : 'transparent',
                       cursor: c.disabled ? 'default' : 'pointer',
-                      transition: 'all 0.2s',
                       opacity: c.disabled ? 0.7 : 1,
                     }}
                   >
@@ -210,19 +157,16 @@ export default function CookieConsentBanner() {
                         if (c.id === 'functional') setFunctional(!functional);
                         if (c.id === 'analytics') setAnalytics(!analytics);
                       }}
-                      style={{ marginTop: 1, accentColor: '#1ceee0', width: 15, height: 15 }}
+                      className="cookie-checkbox"
                     />
                     <div>
-                      <div style={{
-                        fontSize: 12, fontWeight: 700, color: 'var(--text)',
-                        display: 'flex', alignItems: 'center', gap: 6,
-                      }}>
+                      <div className="cookie-type-title">
                         {c.label}
                         {c.disabled && (
-                          <span style={{ fontSize: 9, color: 'var(--text-muted)', fontWeight: 400 }}>(kötelező)</span>
+                          <span className="cookie-mandatory-tag">(kötelező)</span>
                         )}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3, lineHeight: 1.4 }}>
+                      <div className="cookie-type-desc">
                         {c.desc}
                       </div>
                     </div>
@@ -232,13 +176,7 @@ export default function CookieConsentBanner() {
 
               <button
                 onClick={() => accept(false)}
-                style={{
-                  width: '100%', padding: '10px 16px', borderRadius: 8, border: 'none',
-                  background: 'linear-gradient(135deg, #1ceee0, #0bbdb1)',
-                  color: '#082432', fontSize: 12, fontWeight: 700,
-                  cursor: 'pointer', fontFamily: 'inherit', marginTop: 4,
-                  boxShadow: '0 2px 8px rgba(28,238,224,0.2)',
-                }}
+                className="cookie-btn-save"
               >
                 Kiválasztottak mentése
               </button>

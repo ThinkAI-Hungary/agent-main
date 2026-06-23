@@ -1,4 +1,4 @@
-/**
+﻿/**
  * MarketingDashboardPage – Overview with KPIs, charts, quick actions, recent campaigns.
  */
 import { useState, useEffect, useCallback } from 'react';
@@ -112,13 +112,13 @@ export default function MarketingDashboardPage() {
       scheduled: { bg: 'rgba(59,130,246,0.1)', color: '#3b82f6', label: 'Ütemezett' },
     };
     const s = map[status] || map.draft;
-    return <span style={{ fontSize: 11, fontWeight: 700, padding: '3px 8px', borderRadius: 6, background: s.bg, color: s.color }}>{s.label}</span>;
+    return <span className="mkt-status-badge" style={{ background: s.bg, color: s.color }}>{s.label}</span>;
   };
 
   if (loading) {
     return (
-      <div className="analytics-shell" style={{ textAlign: 'center', padding: 60 }}>
-        <div className="spinner" style={{ borderTopColor: '#8b5cf6' }} /> Betöltés...
+      <div className="analytics-shell text-center mkt-loading-shell">
+        <div className="spinner spinner--purple" /> Betöltés...
       </div>
     );
   }
@@ -127,7 +127,7 @@ export default function MarketingDashboardPage() {
     <div className="page active">
       {/* Header */}
       <div className="mkt-page-header">
-        <div className="mkt-page-header-icon" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.15), rgba(59,130,246,0.15))' }}>
+        <div className="mkt-page-header-icon mkt-page-header-icon--violet">
           <svg fill="none" stroke="#8b5cf6" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 12h2l3-9 4 18 3-9h6" /></svg>
         </div>
         <div>
@@ -148,46 +148,46 @@ export default function MarketingDashboardPage() {
 
       {/* Charts + Quick Actions */}
       <div className="mkt-grid-2">
-        <div className="mkt-chart-card" style={{ height: 320 }}>
+        <div className="mkt-chart-card mkt-chart-card--h320">
           <div className="mkt-card-title">
-            <div className="mkt-card-title-icon" style={{ background: 'rgba(139,92,246,0.1)' }}>
+            <div className="mkt-card-title-icon mkt-card-title-icon--purple">
               <svg fill="none" stroke="#8b5cf6" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 12h2l3-9 4 18 3-9h6" /></svg>
             </div>
             Kampányteljesítmény
           </div>
-          <div style={{ height: 'calc(100% - 50px)' }}>
+          <div className="mkt-chart-inner">
             <Line data={chartData} options={chartOpts} />
           </div>
         </div>
 
         <div className="mkt-card">
           <div className="mkt-card-title">
-            <div className="mkt-card-title-icon" style={{ background: 'rgba(34,197,94,0.1)' }}>
+            <div className="mkt-card-title-icon mkt-card-title-icon--green">
               <svg fill="none" stroke="#22c55e" strokeWidth="2" viewBox="0 0 24 24"><path d="M13 10V3L4 14h7v7l9-11h-7z" /></svg>
             </div>
             Gyors műveletek
           </div>
           <div className="mkt-action-grid">
             <button className="mkt-action-btn" onClick={() => navigate('/admin/marketing/email')}>
-              <div className="mkt-action-btn-icon" style={{ background: 'rgba(139,92,246,0.1)' }}>
+              <div className="mkt-action-btn-icon mkt-action-btn-icon--purple">
                 <svg fill="none" stroke="#8b5cf6" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z" /></svg>
               </div>
               <div className="mkt-action-btn-text"><div className="mkt-action-btn-label">Új kampány</div><div className="mkt-action-btn-sub">E-mail kampány indítása</div></div>
             </button>
             <button className="mkt-action-btn" onClick={() => navigate('/admin/marketing/social')}>
-              <div className="mkt-action-btn-icon" style={{ background: 'rgba(245,158,11,0.1)' }}>
+              <div className="mkt-action-btn-icon mkt-action-btn-icon--orange">
                 <svg fill="none" stroke="#f59e0b" strokeWidth="2" viewBox="0 0 24 24"><path d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" /></svg>
               </div>
               <div className="mkt-action-btn-text"><div className="mkt-action-btn-label">Új poszt</div><div className="mkt-action-btn-sub">Közösségi média tartalom</div></div>
             </button>
             <button className="mkt-action-btn" onClick={() => navigate('/admin/marketing/seo')}>
-              <div className="mkt-action-btn-icon" style={{ background: 'rgba(59,130,246,0.1)' }}>
+              <div className="mkt-action-btn-icon mkt-action-btn-icon--blue">
                 <svg fill="none" stroke="#3b82f6" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
               </div>
               <div className="mkt-action-btn-text"><div className="mkt-action-btn-label">SEO Audit</div><div className="mkt-action-btn-sub">Kulcsszó pozíciók</div></div>
             </button>
             <button className="mkt-action-btn" onClick={() => navigate('/admin/marketing/segments')}>
-              <div className="mkt-action-btn-icon" style={{ background: 'rgba(34,197,94,0.1)' }}>
+              <div className="mkt-action-btn-icon mkt-action-btn-icon--green">
                 <svg fill="none" stroke="#22c55e" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>
               </div>
               <div className="mkt-action-btn-text"><div className="mkt-action-btn-label">Szegmensek</div><div className="mkt-action-btn-sub">Célcsoport kezelés</div></div>
@@ -200,18 +200,18 @@ export default function MarketingDashboardPage() {
       <div className="mkt-grid-2">
         <div className="mkt-card">
           <div className="mkt-card-title">
-            <div className="mkt-card-title-icon" style={{ background: 'rgba(59,130,246,0.1)' }}>
+            <div className="mkt-card-title-icon mkt-card-title-icon--blue">
               <svg fill="none" stroke="#3b82f6" strokeWidth="2" viewBox="0 0 24 24"><path d="M3 8l7.89 5.26a2 2 0 002.22 0L21 8" /></svg>
             </div>
             Legutóbbi kampányok
           </div>
           {campaigns.length === 0 ? (
-            <div style={{ textAlign: 'center', padding: 30, fontSize: 13 }}><span className="no-data">Még nincsenek kampányok.</span></div>
+            <div className="text-center mkt-empty-center"><span className="no-data">Még nincsenek kampányok.</span></div>
           ) : campaigns.map(c => (
-            <div key={c.id} style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '12px 0', borderBottom: '1px solid var(--border)' }}>
+            <div key={c.id} className="flex-row mkt-campaign-row">
               <div>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>{c.name}</div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                <div className="mkt-campaign-row-name">{c.name}</div>
+                <div className="mkt-campaign-row-date">
                   {c.created_at ? new Date(c.created_at).toLocaleDateString('hu-HU') : <span className="no-data">Nincs dátum</span>}
                   {c.sent_count > 0 && ` · ${c.sent_count} elküldve`}
                 </div>
@@ -223,12 +223,12 @@ export default function MarketingDashboardPage() {
 
         <div className="mkt-card">
           <div className="mkt-card-title">
-            <div className="mkt-card-title-icon" style={{ background: 'rgba(239,68,68,0.1)' }}>
+            <div className="mkt-card-title-icon mkt-card-title-icon--red">
               <svg fill="none" stroke="#ef4444" strokeWidth="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 006 8c0 7-3 9-3 9h18s-3-2-3-9M13.73 21a2 2 0 01-3.46 0" /></svg>
             </div>
             Értesítések
           </div>
-          <div style={{ textAlign: 'center', padding: 30, fontSize: 13 }}>
+          <div className="text-center mkt-empty-center">
             <span className="no-data">Nincs új értesítés.</span>
           </div>
         </div>

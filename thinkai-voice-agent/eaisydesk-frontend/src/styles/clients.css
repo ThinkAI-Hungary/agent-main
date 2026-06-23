@@ -969,3 +969,321 @@
     body.dark #page-outbound .page-subtitle {
       color: var(--text-muted);
     }
+
+/* ======================================================
+   ClientDetailView — migrated from inline styles
+   ====================================================== */
+
+/* Back btn accent */
+.btn-ghost--accent { color: var(--accent); padding: 0; }
+
+/* Top card content */
+.cd-top-card-full {
+  display: flex; justify-content: space-between; align-items: stretch;
+  background: linear-gradient(135deg, rgba(28,238,224,0.12) 0%, rgba(20,184,173,0.08) 100%);
+  border: 1px solid rgba(28,238,224,0.15);
+  padding: 24px 32px; border-radius: 6px; margin-bottom: 24px;
+}
+
+/* Avatar row */
+.cd-avatar-row { align-items: flex-start; gap: 20px; }
+
+/* Profile pic */
+.cd-profile-pic {
+  width: 56px; height: 56px; border-radius: 50%; object-fit: cover;
+  border: 2px solid white; box-shadow: 0 2px 8px rgba(0,0,0,0.1); flex-shrink: 0;
+}
+
+/* Avatar placeholder */
+.cd-avatar-placeholder {
+  width: 56px; height: 56px; border-radius: 50%; background: var(--card);
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+/* Client name row */
+.cd-name-row { margin-bottom: 4px; }
+
+/* Client name heading */
+.cd-client-name { margin: 0; font-size: 24px; font-weight: bold; color: var(--text); }
+
+/* Status badge - bg/color are dynamic */
+.cd-status-badge {
+  font-size: 11px; font-weight: bold; padding: 4px 8px;
+  border-radius: 6px; letter-spacing: 0.5px;
+}
+
+/* Client sub ID */
+.cd-client-sub { color: var(--text-muted); font-size: 14px; margin-bottom: 16px; }
+
+/* Contact info row */
+.cd-contact-info { display: flex; gap: 32px; font-size: 14px; color: var(--text); }
+
+/* Contact icon */
+.cd-contact-icon { opacity: 0.7; }
+
+/* Contact value */
+.cd-contact-value { font-weight: 500; }
+
+/* Right panel */
+.cd-right-panel-inner {
+  display: flex; flex-direction: column; justify-content: space-between; align-items: flex-end;
+}
+
+/* Registration date card */
+.cd-regdate-card {
+  background: var(--card); padding: 12px 20px; border-radius: 6px;
+  display: flex; flex-direction: column; align-items: center;
+  min-width: 120px; border: 1px solid var(--border);
+}
+
+/* Reg date label */
+.cd-regdate-label {
+  font-size: 11px; color: var(--text-muted);
+  display: flex; align-items: center; gap: 4px; font-weight: 600; text-transform: uppercase;
+}
+
+/* Reg date value */
+.cd-regdate-value { font-size: 16px; font-weight: bold; color: var(--text); margin-top: 4px; }
+
+/* Middle grid */
+.cd-middle-grid-inner { display: grid; gap: 20px; margin-bottom: 24px; }
+
+/* Inner card */
+.cd-inner-card {
+  background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+  padding: 20px; display: flex; flex-direction: column; position: relative;
+}
+
+/* Inner card appointment */
+.cd-inner-card--appt {
+  background: var(--card); border: 1px solid var(--border); border-radius: 6px;
+  padding: 20px; display: flex; flex-direction: column;
+}
+
+/* Inner card notes */
+.cd-inner-card--notes {
+  background: var(--card); border: 2px solid var(--accent, #1ceee0); border-radius: 6px;
+  padding: 20px; display: flex; flex-direction: column;
+}
+
+/* Card section title */
+.cd-section-title {
+  font-size: 12px; font-weight: bold; color: var(--text-muted);
+  text-transform: uppercase; margin-top: 0; margin-bottom: 16px;
+}
+
+/* Empty tag span */
+.cd-empty-tag { font-size: 13px; color: #9ca3af; }
+
+/* Tag chip */
+.cd-tag-chip {
+  background: rgba(28,238,224,0.15); color: #0d9488; font-size: 12px; font-weight: 600;
+  padding: 4px 10px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 4px;
+}
+
+/* Tag remove button */
+.cd-tag-remove {
+  background: none; border: none; cursor: pointer; color: #0d9488;
+  font-size: 14px; padding: 0; line-height: 1; font-family: inherit;
+}
+
+/* Tag picker trigger wrapper */
+.cd-tag-picker-wrap { position: relative; margin-top: 16px; }
+
+/* Tag add button */
+.cd-tag-add-btn {
+  background: transparent; border: none; color: var(--accent); font-size: 12px;
+  font-weight: 600; text-align: left; cursor: pointer; padding: 0; font-family: inherit;
+}
+
+/* Tag picker panel */
+.cd-tag-picker-panel {
+  position: absolute; left: 0; bottom: 32px; background: var(--card);
+  border: 1px solid var(--border); border-radius: 6px;
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3); padding: 12px; z-index: 999; min-width: 220px;
+}
+
+/* Tag picker header */
+.cd-tag-picker-header {
+  font-size: 11px; font-weight: 700; color: var(--text-muted);
+  text-transform: uppercase; margin-bottom: 8px;
+}
+
+/* Predefined tag button - dynamic bg/color */
+.cd-predefined-tag {
+  border: none; padding: 5px 12px; text-align: left; cursor: pointer;
+  font-size: 13px; font-weight: 600; border-radius: 6px;
+  font-family: inherit; transition: opacity 0.15s;
+}
+.cd-predefined-tag:hover { opacity: 0.8; }
+
+/* Tag picker divider */
+.cd-tag-picker-divider { border-top: 1px solid var(--border); margin: 10px 0; }
+
+/* Custom tag input */
+.cd-custom-tag-input {
+  flex: 1; border: 1px solid var(--border); border-radius: 6px; padding: 6px 8px;
+  font-size: 12px; outline: none; font-family: inherit;
+  background: rgba(255,255,255,0.06); color: var(--text);
+}
+
+/* Custom tag add button */
+.cd-custom-tag-btn {
+  background: #1ceee0; color: #000; border: none; border-radius: 6px;
+  padding: 6px 10px; font-size: 11px; font-weight: 700; cursor: pointer; font-family: inherit;
+}
+
+/* Appointment row */
+.cd-appt-row { font-size: 13px; color: var(--text); }
+
+/* Appointment empty */
+.cd-appt-empty { font-size: 13px; color: #9ca3af; font-style: italic; }
+
+/* Appointment "show all" link */
+.cd-appt-showmore {
+  font-size: 12px; font-weight: 600; color: var(--accent, #1ceee0);
+  cursor: pointer; text-align: right; margin-top: 4px;
+}
+
+/* Notes textarea */
+.cd-notes-textarea {
+  width: 100%; height: 100%; min-height: 80px; border: none; resize: none;
+  font-family: inherit; font-size: 14px; color: var(--text);
+  outline: none; background: transparent; box-sizing: border-box;
+}
+
+/* Interaction count */
+.cd-int-count { font-size: 14px; font-weight: 600; color: var(--text-muted); margin-bottom: 16px; }
+
+/* Form label with uppercase */
+.form-label--uppercase { font-size: 14px; margin-bottom: 16px; text-transform: uppercase; }
+
+/* Closed interactions table */
+.table-card--dim { opacity: 0.85; }
+
+/* Table date cell */
+.cd-td-date-main { font-weight: 500; }
+.cd-td-date-time { font-size: 11px; color: #9ca3af; }
+
+/* ugyTipus badge */
+.cd-ugytipus { font-size: 13px; text-transform: uppercase; font-weight: 600; }
+
+/* Teendo muted span */
+.cd-teendo-muted { color: var(--text-muted); }
+
+/* More closed rows */
+.cd-more-label { font-size: 12px; color: var(--text-muted); text-align: center; margin-top: 8px; }
+
+/* Profile edit modal header */
+.cd-modal-header {
+  background: linear-gradient(to right, #14b8ad, #1ceee0);
+  padding: 20px 24px; flex-shrink: 0;
+}
+
+/* Modal title label */
+.cd-modal-label { color: rgba(8,36,50,0.7); text-transform: uppercase; letter-spacing: 1px; margin-bottom: 4px; }
+
+/* Modal title */
+.cd-modal-title { margin: 0; color: #082432; }
+
+/* Modal close btn */
+.cd-modal-close {
+  background: rgba(8,36,50,0.15); border-radius: 50%;
+  width: 28px; height: 28px; color: #082432;
+}
+
+/* Textarea resize */
+.textarea-resize-v { resize: vertical; min-height: 80px; }
+
+/* Modal width 480 */
+.modal-card--480 { width: 480px; }
+
+/* ======================================================
+   ClientsPage table cell — migrated from inline styles
+   ====================================================== */
+
+/* Overflow hidden pull container */
+.cl-pull-container { overflow-y: auto; }
+
+/* Mobile card count span */
+.cl-mobile-count { font-size: 12px; font-weight: 600; color: var(--text-muted); }
+
+/* Empty result with padding */
+.cl-empty-center { text-align: center; padding: 40px; }
+
+/* Card name info block */
+.cl-card-info { flex: 1; min-width: 0; }
+
+/* Mobile card clock icon */
+.cl-clock-icon { vertical-align: -1px; margin-right: 3px; opacity: 0.4; }
+
+/* Tag overflow count */
+.cl-tag-overflow { font-size: 10px; color: var(--text-muted); font-weight: 600; }
+.cl-tag-overflow--sm { font-size: 11px; color: var(--text-muted); }
+
+/* Footer item push right */
+.cl-footer-right { margin-left: auto; }
+
+/* Desktop table wrapper */
+.cl-table-wrap { overflow-x: auto; }
+
+/* Search width */
+.cl-search-input { width: 250px; }
+
+/* No-wrap text */
+.cl-no-wrap { white-space: nowrap; }
+
+/* Delete button */
+.cl-btn--delete { color: #ef4444; border-color: #ef4444; }
+
+/* Campaign export button */
+.cl-btn--export { color: #1ceee0; border-color: #1ceee0; background: rgba(28,238,224,0.08); font-weight: 600; }
+
+/* Column toggle dropdown trigger */
+.cl-col-toggle { display: inline-block; position: relative; }
+
+/* Toggle btn inner */
+.cl-col-toggle-btn { gap: 6px; display: flex; align-items: center; }
+
+/* Dropdown label */
+.cl-col-label { display: flex; align-items: center; gap: 8px; padding: 6px 14px; cursor: pointer; font-size: 13px; color: var(--text); }
+
+/* Dropdown checkbox */
+.cl-col-checkbox { accent-color: #1ceee0; width: 15px; height: 15px; cursor: pointer; }
+
+/* Table no-radius */
+.data-table--no-radius { border-radius: 0; }
+
+/* Table th checkbox cell */
+.th-checkbox { width: 40px; text-align: center; }
+
+/* Table th/td select checkbox */
+.td-checkbox { padding: 12px 16px; text-align: center; }
+.td-select-checkbox { cursor: pointer; width: 16px; height: 16px; accent-color: #1ceee0; }
+
+/* Table header checkbox */
+.th-select-checkbox { cursor: pointer; width: 16px; height: 16px; accent-color: #1ceee0; }
+
+/* Standard td with padding */
+.td-p { padding: 12px 16px; }
+.td-p-sm { padding: 12px 16px; font-size: 13px; color: var(--text); }
+.td-p-sm-nowrap { padding: 12px 16px; font-size: 13px; white-space: nowrap; }
+.td-p-fs13 { padding: 12px 16px; font-size: 13px; }
+
+/* Client name cell */
+.cl-name-cell { font-weight: 600; font-size: 13px; color: var(--text); }
+.cl-name-id { font-size: 11px; color: var(--text-muted); }
+
+/* Assignee muted */
+.cl-assignee-muted { color: var(--text-muted); }
+
+/* Assignee select */
+.cl-assignee-select { min-width: 140px; }
+
+/* Table empty td */
+.td-empty { padding: 0; border: none; }
+
+/* === ClientDetailView: migrated inline styles === */
+.cd-avatar-placeholder--hidden { display: none !important; }
+.cd-date-primary { font-weight: 500; }
+.cd-date-time { font-size: 11px; color: #9ca3af; }

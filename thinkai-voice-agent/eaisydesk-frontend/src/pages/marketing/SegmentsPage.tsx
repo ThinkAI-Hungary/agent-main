@@ -59,14 +59,14 @@ export default function SegmentsPage() {
   return (
     <div className="page active">
       <div className="mkt-page-header">
-        <div className="mkt-page-header-icon" style={{ background: 'linear-gradient(135deg, rgba(34,197,94,0.15), rgba(16,185,129,0.15))' }}>
+        <div className="mkt-page-header-icon mkt-page-header-icon--green">
           <svg fill="none" stroke="#22c55e" strokeWidth="2" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></svg>
         </div>
-        <div style={{ flex: 1 }}>
+        <div className="flex-1">
           <div className="mkt-page-title">Szegmentáció & Kuponok</div>
 
         </div>
-        <div style={{ display: 'flex', gap: 10 }}>
+        <div className="flex-row gap-10">
           <button className="mkt-btn-outline" onClick={handleImportCrm}>📥 CRM Import</button>
           <button className="mkt-btn-accent">
             <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 4v16m8-8H4" /></svg>
@@ -81,26 +81,26 @@ export default function SegmentsPage() {
       </div>
 
       {loading ? (
-        <div style={{ textAlign: 'center', padding: 40 }}><Spinner /></div>
+        <div className="text-center seg-loading-center"><Spinner /></div>
       ) : view === 'segments' ? (
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 16 }}>
+        <div className="seg-card-grid">
           {segments.map(s => (
-            <div key={s.name} className="mkt-card" style={{ cursor: 'pointer' }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 16 }}>
+            <div key={s.name} className="mkt-card cursor-pointer">
+              <div className="flex-row gap-12 mb-16">
                 <div style={{ width: 44, height: 44, borderRadius: 6, background: `${s.color}15`, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 20 }}>{s.icon}</div>
                 <div>
-                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>{s.name}</div>
-                  <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{s.count} feliratkozó</div>
+                  <div className="seg-name">{s.name}</div>
+                  <div className="seg-count">{s.count} feliratkozó</div>
                 </div>
               </div>
-              <div style={{ height: 6, background: 'var(--bg3)', borderRadius: 3, overflow: 'hidden' }}>
+              <div className="seg-progress-track">
                 <div style={{ height: '100%', width: `${subscribers.length > 0 ? Math.round((s.count / subscribers.length) * 100) : 0}%`, background: s.color, borderRadius: 3, transition: 'width 0.6s ease' }} />
               </div>
             </div>
           ))}
         </div>
       ) : (
-        <div className="mkt-card" style={{ overflow: 'hidden', padding: 0 }}>
+        <div className="mkt-card seg-table-wrap">
           <table className="data-table">
             <thead>
               <tr>
@@ -115,9 +115,9 @@ export default function SegmentsPage() {
             <tbody>
               {coupons.map(c => (
                 <tr key={c.code}>
-                  <td style={{ fontWeight: 700, fontFamily: 'monospace', color: 'var(--marketing-accent)' }}>{c.code}</td>
+                  <td className="seg-code-cell">{c.code}</td>
                   <td>{c.type}</td>
-                  <td style={{ fontWeight: 600 }}>{c.value}</td>
+                  <td className="seg-value-cell">{c.value}</td>
                   <td>{c.expires}</td>
                   <td>{c.used}×</td>
                   <td><span className="mkt-badge mkt-badge-purple">{c.campaign}</span></td>

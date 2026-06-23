@@ -852,8 +852,16 @@ export default function InteractionSummaryModal({
                 )}
 
                 {/* Earlier messages link */}
-                {chatBlocks.length > 0 && channel !== 'Telefon' ? (
-                  <button className="ism-earlier-link">
+                {chatBlocks.length > 0 && channel !== 'Telefon' && (
+                  <button 
+                    className="ism-earlier-link"
+                    onClick={() => {
+                      if (row.clientId && onClientClick) {
+                        onClose();
+                        onClientClick(String(row.clientId));
+                      }
+                    }}
+                  >
                     {earlierMessagesLabel}
                     <svg
                       fill="none"
@@ -866,8 +874,6 @@ export default function InteractionSummaryModal({
                       <polyline points="9 18 15 12 9 6" />
                     </svg>
                   </button>
-                ) : chatBlocks.length === 0 && !isPendingApproval ? null : (
-                  <div className="ism-no-history">Nincs előzmény</div>
                 )}
               </div>
             )}

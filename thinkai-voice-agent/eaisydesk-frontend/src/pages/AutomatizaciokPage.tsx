@@ -117,8 +117,8 @@ export default function AutomatizaciokPage() {
 
   if (loading) {
     return (
-      <div className="page active" style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 400 }}>
-        <div className="spinner" style={{ width: 32, height: 32 }} />
+      <div className="flex-row auto-loading">
+        <div className="spinner spinner--md" />
       </div>
     );
   }
@@ -126,59 +126,39 @@ export default function AutomatizaciokPage() {
   return (
     <div className="page active" id="page-automatizaciok">
       {/* ── Page Header ── */}
-      <div style={{
-        display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-        marginBottom: 36, paddingBottom: 24,
-        borderBottom: '1px solid rgba(255,255,255,0.06)',
-      }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-          <div style={{
-            width: 48, height: 48, borderRadius: 6,
-            background: 'linear-gradient(135deg, rgba(28,238,224,0.12), rgba(20,184,173,0.08))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            border: '1px solid rgba(28,238,224,0.15)',
-          }}>
+      <div className="auto-page-header">
+        <div className="flex-row gap-16">
+          <div className="auto-page-icon">
             <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="22" height="22">
               <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8" />
             </svg>
           </div>
           <div>
-            <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.5 }}>Automatikus értesítések</div>
+            <div className="auto-page-title">Automatikus értesítések</div>
           </div>
         </div>
 
         {/* KPI pills */}
-        <div style={{ display: 'flex', gap: 12 }}>
-          <div style={{
-            background: 'rgba(28,238,224,0.06)', border: '1px solid rgba(28,238,224,0.12)',
-            borderRadius: 10, padding: '10px 18px', textAlign: 'center',
-          }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#1ceee0' }}>{automations.filter(a => a.enabled).length + (reminder.reminder_enabled ? 1 : 0)}</div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, marginTop: 2 }}>AKTÍV SZABÁLY</div>
+        <div className="flex-row gap-12">
+          <div className="auto-kpi-pill--teal">
+            <div className="auto-kpi-val--teal">{automations.filter(a => a.enabled).length + (reminder.reminder_enabled ? 1 : 0)}</div>
+            <div className="auto-kpi-lbl">AKTÍV SZABÁLY</div>
           </div>
-          <div style={{
-            background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.12)',
-            borderRadius: 10, padding: '10px 18px', textAlign: 'center',
-          }}>
-            <div style={{ fontSize: 18, fontWeight: 800, color: '#8b5cf6' }}>{automations.length + 1}</div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)', fontWeight: 600, marginTop: 2 }}>ÖSSZES</div>
+          <div className="auto-kpi-pill--purple">
+            <div className="auto-kpi-val--purple">{automations.length + 1}</div>
+            <div className="auto-kpi-lbl">ÖSSZES</div>
           </div>
         </div>
       </div>
 
       {/* ═══════ EGYESÍTETT SZEKCIÓ ═══════ */}
-      <div style={sectionStyle}>
-        <div style={{ padding: '24px' }}>
+      <div className="auto-section-card">
+        <div className="p-24">
           
           {/* 1. Időpont emlékeztető (Statikus sor) */}
-          <div style={{
-            background: 'rgba(255,255,255,0.03)',
-            border: '1px solid rgba(255,255,255,0.06)',
-            borderRadius: 12, marginBottom: 12, overflow: 'hidden',
-            transition: 'all 0.25s ease',
-          }}>
+          <div className="auto-item-card">
             <div
-              style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px', cursor: 'pointer' }}
+              className="flex-row auto-row-trigger"
               onClick={() => setExpandedAuto(expandedAuto === -1 ? null : -1)}
             >
               <label className="tt-toggle" onClick={e => e.stopPropagation()}>
@@ -204,59 +184,48 @@ export default function AutomatizaciokPage() {
                 <span className="tt-toggle-slider" />
               </label>
 
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 14, fontWeight: 700, color: reminder.reminder_enabled ? 'var(--text)' : 'var(--text-muted)' }}>
+              <div className="flex-1">
+                <div className={`auto-row-title ${reminder.reminder_enabled ? '' : 'auto-row-title--muted'}`}>
                   Időpont emlékeztető
                 </div>
-                <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>Automatikus emlékeztető küldése időpont előtt</div>
+                <div className="auto-row-desc">Automatikus emlékeztető küldése időpont előtt</div>
               </div>
-              <div style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: '#1ceee012', color: '#1ceee0' }}>
+              <div className="auto-delay-badge auto-delay-badge--reminder">
                 {reminder.reminder_hours}h
               </div>
               <svg fill="none" stroke="var(--text-muted)" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16"
-                style={{ transition: 'transform 0.2s', transform: expandedAuto === -1 ? 'rotate(180deg)' : 'rotate(0)' }}>
+                className={`auto-chevron ${expandedAuto === -1 ? 'auto-chevron--open' : 'auto-chevron--closed'}`}>
                 <path d="M6 9l6 6 6-6" />
               </svg>
             </div>
             
               {expandedAuto === -1 && (
-              <div style={{
-                margin: '0 20px 20px',
-                padding: 20,
-                background: 'linear-gradient(135deg, rgba(28,238,224,0.04), rgba(28,238,224,0.01))',
-                borderRadius: 12,
-                border: '1px solid rgba(28,238,224,0.12)',
-                borderLeft: '3px solid #1ceee0',
-              }}>
+              <div className="auto-expand-body">
                 {/* Timing row */}
-                <div style={{ marginBottom: 20 }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                <div className="mb-20">
+                  <div className="flex-row gap-8 mb-12">
                     <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
                       <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
                     </svg>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#1ceee0', textTransform: 'uppercase', letterSpacing: 0.5 }}>Időzítés</span>
+                    <span className="auto-label-accent">Időzítés</span>
                   </div>
-                  <div style={{
-                    display: 'flex', alignItems: 'center', gap: 12,
-                    background: 'rgba(255,255,255,0.04)', padding: '10px 14px', borderRadius: 10,
-                    border: '1px solid rgba(255,255,255,0.06)',
-                  }}>
+                  <div className="auto-timing-row">
                     <input type="number" className="tt-input" value={reminder.reminder_hours} min={1} max={168}
                       onChange={e => setReminder({ ...reminder, reminder_hours: Number(e.target.value) })}
                       onBlur={() => saveReminder()}
-                      style={{ width: 60, padding: '8px 14px', fontSize: 13, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(28,238,224,0.35)', color: 'var(--text)', fontWeight: 600 }}
+                      className="auto-timing-input"
                     />
-                    <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>órával az időpont előtt</span>
+                    <span className="auto-timing-lbl">órával az időpont előtt</span>
                   </div>
                 </div>
 
                 {/* Template */}
                 <div>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                  <div className="flex-row gap-8 mb-12">
                     <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
                       <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
                     </svg>
-                    <span style={{ fontSize: 11, fontWeight: 700, color: '#1ceee0', textTransform: 'uppercase', letterSpacing: 0.5 }}>Üzenet sablon</span>
+                    <span className="auto-label-accent">Üzenet sablon</span>
                   </div>
                   <textarea className="tt-textarea" value={reminder.reminder_template}
                     ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
@@ -265,10 +234,7 @@ export default function AutomatizaciokPage() {
                       e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px';
                     }}
                     onBlur={() => saveReminder()}
-                    style={{
-                      minHeight: 48, fontSize: 13, lineHeight: 1.6, width: '100%', resize: 'none', overflow: 'hidden',
-                      background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(28,238,224,0.35)', borderRadius: 10, padding: 14,
-                    }}
+                    className="auto-template-textarea"
                     placeholder="Kedves {nev}! Emlékeztetjük, hogy holnap {idopont}-kor időpontja van..."
                   />
                 </div>
@@ -281,14 +247,9 @@ export default function AutomatizaciokPage() {
             const meta = TRIGGER_LABELS[a.trigger_type] || { label: a.name, desc: '', color: '#6b8b99' };
             const isExpanded = expandedAuto === a.id;
             return (
-              <div key={a.id} style={{
-                background: isExpanded ? 'rgba(255,255,255,0.04)' : 'rgba(255,255,255,0.03)',
-                border: isExpanded ? `1px solid ${meta.color}22` : '1px solid rgba(255,255,255,0.06)',
-                borderRadius: 12, marginBottom: 12, overflow: 'hidden',
-                transition: 'all 0.25s ease',
-              }}>
-                <div
-                  style={{ display: 'flex', alignItems: 'center', gap: 14, padding: '14px 20px', cursor: 'pointer' }}
+              <div key={a.id} className={`auto-item-card ${isExpanded ? 'auto-item-card--expanded' : ''}`} style={isExpanded ? { '--auto-color': meta.color, borderColor: `${meta.color}22` } as React.CSSProperties : undefined}>
+            <div
+                  className="flex-row auto-row-trigger"
                   onClick={() => setExpandedAuto(isExpanded ? null : a.id)}
                 >
                   <label className="tt-toggle" onClick={e => e.stopPropagation()}>
@@ -313,43 +274,32 @@ export default function AutomatizaciokPage() {
                     <span className="tt-toggle-slider" />
                   </label>
 
-                  <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 14, fontWeight: 700, color: a.enabled ? 'var(--text)' : 'var(--text-muted)' }}>
+                  <div className="flex-1">
+                    <div className={`auto-row-title ${a.enabled ? '' : 'auto-row-title--muted'}`}>
                       {meta.label}
                     </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>{meta.desc}</div>
+                    <div className="auto-row-desc">{meta.desc}</div>
                   </div>
-                  <div style={{ padding: '4px 10px', borderRadius: 6, fontSize: 11, fontWeight: 600, background: `${meta.color}12`, color: meta.color }}>
+                  <div className="auto-delay-badge" style={{ background: `${meta.color}12`, color: meta.color }}>
                     {DELAY_OPTIONS.find(o => o.value === a.delay_hours)?.label || `${a.delay_hours}h`}
                   </div>
                   <svg fill="none" stroke="var(--text-muted)" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16"
-                    style={{ transition: 'transform 0.2s', transform: isExpanded ? 'rotate(180deg)' : 'rotate(0)' }}>
+                    className={`auto-chevron ${isExpanded ? 'auto-chevron--open' : 'auto-chevron--closed'}`}>
                     <path d="M6 9l6 6 6-6" />
                   </svg>
                 </div>
 
                 {isExpanded && (
-                  <div style={{
-                    margin: '0 20px 20px',
-                    padding: 20,
-                    background: 'linear-gradient(135deg, rgba(28,238,224,0.04), rgba(28,238,224,0.01))',
-                    borderRadius: 12,
-                    border: '1px solid rgba(28,238,224,0.12)',
-                    borderLeft: '3px solid #1ceee0',
-                  }}>
+                  <div className="auto-expand-body">
                     {/* Timing row */}
-                    <div style={{ marginBottom: 20 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                    <div className="mb-20">
+                      <div className="flex-row gap-8 mb-12">
                         <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
                           <circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" />
                         </svg>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#1ceee0', textTransform: 'uppercase', letterSpacing: 0.5 }}>Késleltetés</span>
+                        <span className="auto-label-accent">Késleltetés</span>
                       </div>
-                      <div style={{
-                        display: 'flex', alignItems: 'center', gap: 12,
-                        background: 'rgba(255,255,255,0.04)', padding: '10px 14px', borderRadius: 10,
-                        border: '1px solid rgba(255,255,255,0.06)', flexWrap: 'wrap',
-                      }}>
+                      <div className="auto-timing-row auto-timing-row--flex">
                         <select className="tt-input" value={a.delay_hours}
                           onChange={async (e) => {
                             const delay_hours = Number(e.target.value);
@@ -363,25 +313,24 @@ export default function AutomatizaciokPage() {
                               if (!res.ok) throw new Error('Save failed');
                               showToast('Késleltetés mentve');
                             } catch { showToast('Hiba a mentés során!', 'error'); }
-                          }}
-                          style={{ width: 'auto', minWidth: 130, padding: '8px 14px', fontSize: 13, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(28,238,224,0.35)', color: 'var(--text)', fontWeight: 600 }}>
+                          }}>
                           {DELAY_OPTIONS.map(o => <option key={o.value} value={o.value}>{o.label}</option>)}
                         </select>
                         
                         {/* Inaktivitási küszöb beállítás, csak az inaktív ügyfél opciónál */}
                         {a.trigger_type === 'inactive_client' && (
                           <>
-                            <div style={{ width: 1, height: 20, background: 'rgba(255,255,255,0.1)', margin: '0 8px' }} />
-                            <label style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', whiteSpace: 'nowrap' }}>Inaktivitási küszöb:</label>
+                            <div className="auto-timing-divider" />
+                            <label className="auto-inactivity-lbl">Inaktivitási küszöb:</label>
                             <input type="number" className="tt-input" value={inactivityDays} min={7} max={365}
                               onChange={e => setInactivityDays(Number(e.target.value))}
                               onBlur={() => {
                                 localStorage.setItem('thinkai_inactivity_days', String(inactivityDays));
                                 showToast('Mentve');
                               }}
-                              style={{ width: 90, padding: '8px 14px', fontSize: 13, borderRadius: 8, background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(28,238,224,0.35)', color: '#ef4444', fontWeight: 700, textAlign: 'center' }}
+                              className="auto-inactivity-input"
                             />
-                            <span style={{ fontSize: 12, color: 'var(--text-muted)', fontWeight: 500 }}>nap elteltével</span>
+                            <span className="auto-inactivity-after">nap elteltével</span>
                           </>
                         )}
                       </div>
@@ -389,11 +338,11 @@ export default function AutomatizaciokPage() {
 
                     {/* Template */}
                     <div>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+                      <div className="flex-row gap-8 mb-12">
                         <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
                           <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
                         </svg>
-                        <span style={{ fontSize: 11, fontWeight: 700, color: '#1ceee0', textTransform: 'uppercase', letterSpacing: 0.5 }}>Üzenet sablon</span>
+                        <span className="auto-label-accent">Üzenet sablon</span>
                       </div>
                       <textarea className="tt-textarea" value={a.message_template || ''}
                         ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
@@ -412,10 +361,7 @@ export default function AutomatizaciokPage() {
                             showToast('Sablon mentve');
                           } catch { showToast('Hiba a mentés során!', 'error'); }
                         }}
-                        style={{
-                          minHeight: 48, fontSize: 13, lineHeight: 1.6, width: '100%', resize: 'none', overflow: 'hidden',
-                          background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(28,238,224,0.35)', borderRadius: 10, padding: 14,
-                        }}
+                        className="auto-template-textarea"
                         placeholder="Üzenet sablon..."
                       />
                     </div>

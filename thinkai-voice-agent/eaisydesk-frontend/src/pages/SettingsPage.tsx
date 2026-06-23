@@ -7,6 +7,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import { authFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
+import CustomSelect from '../components/settings/CustomSelect';
 
 import { showToast } from '../components/ui/Toast';
 import { SettingsSkeleton } from '../components/ui/Skeleton';
@@ -497,7 +498,7 @@ export default function SettingsPage() {
   }, [activeTab, saveAgent]);
 
   if (loading) {
-    return <div className="analytics-shell" style={{ padding: 40 }}><SettingsSkeleton /></div>;
+    return <div className="analytics-shell p-40"><SettingsSkeleton /></div>;
   }
 
   return (
@@ -508,103 +509,87 @@ export default function SettingsPage() {
         {activeTab === 'agent' && (
           <div>
             {/* ── Page Header ── */}
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 28, marginTop: 10 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
-                <div style={{ width: 44, height: 44, borderRadius: 6, background: 'linear-gradient(135deg, rgba(28,238,224,0.15), rgba(59,130,246,0.12))', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+            <div className="flex-row-between mb-28 mt-10 settings-header-align">
+              <div className="flex-row gap-14">
+                <div className="icon-box-lg">
                   <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="22" height="22">
                     <path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z" />
                     <circle cx="12" cy="12" r="3" />
                   </svg>
                 </div>
                 <div>
-                  <div style={{ fontSize: 20, fontWeight: 700, color: 'var(--text)' }}>eaisyDesk beállítások</div>
+                  <div className="page-title">eaisyDesk beállítások</div>
                 </div>
               </div>
             </div>
 
             {/* ══════ 1. ALAPBEÁLLÍTÁSOK ══════ */}
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, marginBottom: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                  <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="mb-24">
+              <div className="flex-row-between gap-8 mb-16">
+                <div className="flex-row gap-8">
+                  <div className="icon-box">
                     <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
                       <circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
                     </svg>
                   </div>
-                  <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Alapbeállítások</span>
-                  <div title="Az AI válaszgenerálás nyelve (messenger, email, WhatsApp, Instagram csatornákra). A telefonos voice agent fix magyar marad." style={{ width: 18, height: 18, borderRadius: '50%', border: '1.5px solid var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', flexShrink: 0 }}>
-                    <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>i</span>
+                  <span className="section-heading">Alapbeállítások</span>
+                  <div className="info-tooltip" title="Az AI válaszgenerálás nyelve (messenger, email, WhatsApp, Instagram csatornákra). A telefonos voice agent fix magyar marad.">
+                    <span>i</span>
                   </div>
                 </div>
-                <button className="btn-settings-save" onClick={handleSave} disabled={saving} style={{ fontFamily: 'inherit', padding: '10px 24px', fontSize: 13, fontWeight: 700, letterSpacing: 0.5, textTransform: 'uppercase' }}>
+                <button className="btn btn-settings-save btn-settings-save-upper" onClick={handleSave} disabled={saving}>
                   {saving ? 'Mentés...' : 'Változtatások mentése'}
                 </button>
               </div>
-              <div className="settings-section" style={{ padding: 24 }}>
-                <div style={{ display: 'grid', gridTemplateColumns: isAdminOnly ? '1fr 1fr' : '1fr', gap: 32 }}>
+              <div className="settings-section p-24">
+                <div className={`gap-32 ${isAdminOnly ? 'sett-agent-grid-2' : 'sett-agent-grid-1'}`}>
                   {/* Nyelv beállítása — csak admin */}
                   {isAdminOnly && (
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                      <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="flex-row gap-8 mb-12">
+                      <div className="icon-box-sm">
                         <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13"><path d="M5 8l6 10M4 14h6M2 5h12M7 2v3M11 2a17 17 0 010 18M13 18h9M22 22l-4-4M17 13l5 9" /></svg>
                       </div>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#1ceee0' }}>Nyelv beállítása</span>
+                      <span className="section-subheading">Nyelv beállítása</span>
                     </div>
-                    <div style={{ position: 'relative' }}>
+                    <div className="relative">
                       <div
                         onClick={() => setShowLangDropdown(!showLangDropdown)}
-                        style={{
-                          display: 'flex', alignItems: 'center', gap: 10,
-                          padding: '10px 14px', borderRadius: 10,
-                          border: '1.5px solid var(--border)', background: 'rgba(255,255,255,0.04)',
-                          cursor: 'pointer', transition: 'all 0.2s ease',
-                          minWidth: 180,
-                        }}
+                        className="settings-lang-trigger"
                       >
-                        <div style={{ width: 22, height: 15, borderRadius: 2, overflow: 'hidden', flexShrink: 0, display: 'flex' }}>
+                        <div className="settings-flag-wrap">
                           {FLAGS[agent.language] || FLAGS.hu}
                         </div>
-                        <span style={{ flex: 1, fontSize: 13, fontWeight: 500, color: 'var(--text)' }}>
+                        <span className="flex-1 text-md font-medium settings-lang-text">
                           {LANGUAGE_OPTIONS.find(l => l.code === agent.language)?.label || 'magyar'}
                         </span>
-                        <svg fill="none" stroke="var(--text-muted)" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14" style={{ transition: 'transform 0.2s', transform: showLangDropdown ? 'rotate(180deg)' : 'rotate(0)' }}>
+                        <svg fill="none" stroke="var(--text-muted)" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14" className={`settings-lang-chevron ${showLangDropdown ? 'settings-lang-chevron--open' : 'settings-lang-chevron--closed'}`}>
                           <path d="M6 9l6 6 6-6" />
                         </svg>
                       </div>
                       {showLangDropdown && (
                         <>
-                          <div onClick={() => setShowLangDropdown(false)} style={{ position: 'fixed', inset: 0, zIndex: 99 }} />
-                          <div style={{
-                            position: 'absolute', top: 'calc(100% + 4px)', left: 0, right: 0,
-                            background: 'var(--card)', border: '1.5px solid var(--border)',
-                            borderRadius: 10, boxShadow: '0 8px 24px rgba(0,0,0,0.15)',
-                            zIndex: 100, overflow: 'hidden', maxHeight: 240, overflowY: 'auto',
-                          }}>
+                          <div className="dropdown-backdrop" onClick={() => setShowLangDropdown(false)} />
+                          <div className="settings-lang-dropdown">
                             {LANGUAGE_OPTIONS.map(l => (
                               <div
                                 key={l.code}
                                 onClick={() => { setAgent({ ...agent, language: l.code }); setShowLangDropdown(false); }}
-                                style={{
-                                  display: 'flex', alignItems: 'center', gap: 10,
-                                  padding: '10px 14px', cursor: 'pointer',
-                                  background: agent.language === l.code ? 'rgba(28,238,224,0.08)' : 'transparent',
-                                  transition: 'background 0.15s',
-                                }}
-                                onMouseEnter={e => { if (agent.language !== l.code) (e.currentTarget as HTMLDivElement).style.background = 'rgba(28,238,224,0.04)'; }}
-                                onMouseLeave={e => { if (agent.language !== l.code) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
-                              >
-                                <div style={{ width: 22, height: 15, borderRadius: 2, overflow: 'hidden', flexShrink: 0, display: 'flex' }}>
-                                  {FLAGS[l.code]}
-                                </div>
-                                <span style={{ fontSize: 13, fontWeight: agent.language === l.code ? 600 : 400, color: agent.language === l.code ? '#1ceee0' : 'var(--text)' }}>
-                                  {l.label}
-                                </span>
-                                {agent.language === l.code && (
-                                  <svg fill="none" stroke="#1ceee0" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14" style={{ marginLeft: 'auto' }}>
-                                    <polyline points="20 6 9 17 4 12" />
-                                  </svg>
-                                )}
+                               className={`settings-lang-option ${agent.language === l.code ? 'settings-lang-option--active' : 'settings-lang-option--idle'}`}
+                              onMouseEnter={e => { if (agent.language !== l.code) (e.currentTarget as HTMLDivElement).style.background = 'rgba(28,238,224,0.04)'; }}
+                              onMouseLeave={e => { if (agent.language !== l.code) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+                            >
+                              <div className="settings-flag-wrap">
+                                {FLAGS[l.code]}
+                              </div>
+                              <span className={`${agent.language === l.code ? 'settings-lang-option-text--active' : 'settings-lang-option-text--idle'}`}>
+                                {l.label}
+                              </span>
+                              {agent.language === l.code && (
+                                <svg fill="none" stroke="#1ceee0" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14" className="settings-lang-check">
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              )}
                               </div>
                             ))}
                           </div>
@@ -615,13 +600,13 @@ export default function SettingsPage() {
                   )}
                   {/* Kommunikációs stílus */}
                   <div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                      <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                    <div className="flex-row gap-8 mb-12">
+                      <div className="icon-box-sm">
                         <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
                       </div>
-                      <span style={{ fontSize: 14, fontWeight: 700, color: '#1ceee0' }}>Kommunikációs stílus kiválasztása</span>
+                      <span className="section-subheading">Kommunikációs stílus kiválasztása</span>
                     </div>
-                    <div style={{ border: '1.5px solid var(--border)', borderRadius: 10, padding: '2px 0', background: 'rgba(255,255,255,0.04)' }}>
+                    <div className="settings-tone-select-wrap">
                       <CustomSelect
                         value={agent.tone}
                         onChange={(v) => setAgent({ ...agent, tone: v })}
@@ -635,7 +620,7 @@ export default function SettingsPage() {
                       />
                     </div>
                     {agent.tone === 'custom' && (
-                      <textarea className="settings-textarea" value={agent.tone_custom} onChange={(e) => setAgent({ ...agent, tone_custom: e.target.value })} placeholder="Írd le a kívánt kommunikációs stílust..." style={{ marginTop: 10, minHeight: 70 }} />
+                      <textarea className="settings-textarea settings-textarea--mt" value={agent.tone_custom} onChange={(e) => setAgent({ ...agent, tone_custom: e.target.value })} placeholder="Írd le a kívánt kommunikációs stílust..." />
                     )}
                   </div>
                 </div>
@@ -644,70 +629,50 @@ export default function SettingsPage() {
 
             {/* ══════ 2. VOICE AGENT BEÁLLÍTÁSAI — csak admin ══════ */}
             {isAdminOnly && (
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="mb-24">
+              <div className="flex-row gap-8 mb-16">
+                <div className="icon-box">
                   <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
                     <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3zM19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" />
                   </svg>
                 </div>
-                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Voice Agent beállításai</span>
-                <div title="A telefonos voice agent hangja. Ez határozza meg, hogy milyen hanggal beszéljen az AI a hívások során." style={{ width: 18, height: 18, borderRadius: '50%', border: '1.5px solid var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help', flexShrink: 0 }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>i</span>
+                <span className="section-heading">Voice Agent beállításai</span>
+                <div className="info-tooltip" title="A telefonos voice agent hangja. Ez határozza meg, hogy milyen hanggal beszéljen az AI a hívások során.">
+                  <span>i</span>
                 </div>
               </div>
-              <div className="settings-section" style={{ padding: 24 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 18 }}>
-                  <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="settings-section p-24">
+                <div className="flex-row gap-8 mb-18">
+                  <div className="icon-box-sm">
                     <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" /></svg>
                   </div>
-                  <span style={{ fontSize: 14, fontWeight: 700, color: '#1ceee0' }}>Voice Agent kiválasztása</span>
+                  <span className="section-subheading">Voice Agent kiválasztása</span>
                 </div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                <div className="flex-col gap-10">
                   {VOICE_AGENTS.map(va => {
                     const isSelected = agent.voice_id === va.id;
                     return (
                       <div
                         key={va.id}
                         onClick={() => setAgent({ ...agent, voice_id: va.id })}
-                        style={{
-                          display: 'flex',
-                          alignItems: 'center',
-                          gap: 14,
-                          padding: '14px 18px',
-                          borderRadius: 6,
-                          border: isSelected ? '2px solid #1ceee0' : '1.5px solid var(--border)',
-                          background: isSelected ? 'rgba(28,238,224,0.05)' : 'rgba(255,255,255,0.04)',
-                          cursor: 'pointer',
-                          transition: 'all 0.2s ease',
-                        }}
+                        className={`settings-voice-card ${isSelected ? 'settings-voice-card--active' : 'settings-voice-card--idle'}`}
                       >
-                        {/* Radio dot */}
-                        <div style={{
-                          width: 18, height: 18, borderRadius: '50%',
-                          border: isSelected ? '2px solid #1ceee0' : '2px solid var(--text-muted)',
-                          display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                        }}>
-                          {isSelected && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#1ceee0' }} />}
+                        <div className={`settings-voice-radio ${isSelected ? 'settings-voice-radio--active' : 'settings-voice-radio--idle'}`}>
+                          {isSelected && <div className="settings-voice-radio-dot" />}
                         </div>
                         {/* Name + description */}
-                        <div style={{ flex: 1 }}>
-                          <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', letterSpacing: 0.5 }}>
+                        <div className="flex-1">
+                          <span className="settings-voice-name">
                             {va.name}
                           </span>
-                          <span style={{ fontSize: 12, color: 'var(--text-muted)', marginLeft: 8 }}>
+                          <span className="settings-voice-desc">
                             – {va.desc}
                           </span>
                         </div>
 
                         {/* Selection indicator */}
                         {isSelected && (
-                          <div style={{
-                            width: 28, height: 28, borderRadius: '50%',
-                            background: '#1ceee0',
-                            display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                            transition: 'all 0.2s ease',
-                          }}>
+                          <div className="settings-voice-check">
                             <svg fill="none" stroke="#0d2538" strokeWidth="3" viewBox="0 0 24 24" width="14" height="14">
                               <polyline points="20 6 9 17 4 12" />
                             </svg>
@@ -722,31 +687,22 @@ export default function SettingsPage() {
             )}
 
             {/* ══════ 3. ÜDVÖZLŐSZÖVEG BEÁLLÍTÁSA ══════ */}
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="mb-24">
+              <div className="flex-row gap-8 mb-16">
+                <div className="icon-box">
                   <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
                     <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z" />
                   </svg>
                 </div>
-                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Üdvözlőszöveg beállítása</span>
-                <div onClick={() => setShowGreetingInfo(!showGreetingInfo)} style={{ width: 18, height: 18, borderRadius: '50%', border: showGreetingInfo ? '1.5px solid #1ceee0' : '1.5px solid var(--text-muted)', background: showGreetingInfo ? 'rgba(28,238,224,0.1)' : 'transparent', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer', flexShrink: 0, transition: 'all 0.2s ease' }}>
-                  <span style={{ fontSize: 10, fontWeight: 700, color: showGreetingInfo ? '#1ceee0' : 'var(--text-muted)' }}>i</span>
+                <span className="section-heading">Üdvözlőszöveg beállítása</span>
+                <div onClick={() => setShowGreetingInfo(!showGreetingInfo)} className={`info-tooltip ${showGreetingInfo ? 'info-tooltip--active' : 'info-tooltip--idle'}`}>
+                  <span className={showGreetingInfo ? 'info-tooltip-i--active' : ''}>í</span>
                 </div>
               </div>
-              <div className="settings-section" style={{ padding: 24 }}>
+              <div className="settings-section p-24">
                 {/* Info box - toggle */}
                 {showGreetingInfo && (
-                  <div style={{
-                    background: 'rgba(28,238,224,0.04)',
-                    border: '1px solid rgba(28,238,224,0.25)',
-                    borderRadius: 10,
-                    padding: '14px 18px',
-                    marginBottom: 18,
-                    fontSize: 12,
-                    lineHeight: 1.6,
-                    color: 'var(--text-muted)',
-                  }}>
+                  <div className="settings-greeting-info">
                     Az üdvözlőszöveg legyen rövid, természetes és egyértelmű. A Voice Agentet nevezheted egyszerűen virtuális asszisztensnek és/vagy adhatsz neki nevet is. Kerüld a túl hosszú vagy túl információsűrű megfogalmazást. Érdemes rögtön felkínálni a segítséget — a cél az, hogy a beszélgetés gyorsan és gördülékenyen elinduljon.
                   </div>
                 )}
@@ -755,38 +711,38 @@ export default function SettingsPage() {
                   value={agent.greeting}
                   onChange={(e) => setAgent({ ...agent, greeting: e.target.value })}
                   placeholder="Írd ide az üdvözlőszöveget..."
-                  style={{ minHeight: 90, fontSize: 14, lineHeight: 1.6 }}
+                  className="settings-textarea settings-textarea--greeting"
                 />
               </div>
             </div>
 
             {/* ══════ 4. TRIÁZS SZABÁLYOK ══════ */}
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="mb-24">
+              <div className="flex-row gap-8 mb-16">
+                <div className="icon-box">
                   <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
                     <path d="M22 12h-4l-3 9-6-18-3 9H2" />
                   </svg>
                 </div>
-                <span style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Prioritási szabályok</span>
+                <span className="section-heading">Prioritási szabályok</span>
               </div>
-              <div className="settings-section" style={{ padding: 24 }}>
-                <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13, border: '1px solid var(--border)', borderRadius: 8, overflow: 'hidden' }}>
+              <div className="settings-section p-24">
+                <table className="settings-triage-table">
                   <thead>
-                    <tr style={{ background: 'rgba(255,255,255,0.04)', borderBottom: '1px solid var(--border)' }}>
-                      <th style={{ ...thStyle, width: '30%' }}>Helyzet</th>
-                      <th style={{ ...thStyle, width: '25%' }}>Prioritás</th>
-                      <th style={{ ...thStyle, width: '30%' }}>Eszkalációs e-mail</th>
-                      <th style={{ ...thStyle, width: '15%' }}></th>
+                    <tr className="settings-triage-thead-row">
+                      <th className="sett-th sett-th--w30">Helyzet</th>
+                      <th className="sett-th sett-th--w25">Prioritás</th>
+                      <th className="sett-th sett-th--w30">Eszkalációs e-mail</th>
+                      <th className="sett-th sett-th--w15"></th>
                     </tr>
                   </thead>
                   <tbody>
                     {triageRules.map((r, i) => (
                       <tr key={r.id || i}>
-                        <td style={tdStyle}>
+                        <td className="sett-td">
                           <input className="tt-input" value={r.situation} onChange={e => setTriageRules(prev => prev.map((x, j) => j === i ? { ...x, situation: e.target.value } : x))} onBlur={() => saveTriageRule(r, i)} />
                         </td>
-                        <td style={tdStyle}>
+                        <td className="sett-td">
                           <select className="tt-select" value={r.priority} onChange={e => { const updated = { ...r, priority: e.target.value }; setTriageRules(prev => prev.map((x, j) => j === i ? updated : x)); saveTriageRule(updated, i); }}>
                             <option value="alacsony">Alacsony</option>
                             <option value="kozepes">Közepes</option>
@@ -794,17 +750,17 @@ export default function SettingsPage() {
                             <option value="surgos">Sürgős</option>
                           </select>
                         </td>
-                        <td style={tdStyle}>
+                        <td className="sett-td">
                           <input className="tt-input" value={r.escalation_email || ''} onChange={e => setTriageRules(prev => prev.map((x, j) => j === i ? { ...x, escalation_email: e.target.value } : x))} placeholder="email@example.com" onBlur={() => saveTriageRule(r, i)} />
                         </td>
-                        <td style={{ ...tdStyle, textAlign: 'center' }}>
+                        <td className="sett-td sett-td--center">
                           <DeleteBtn onClick={() => deleteTriageRule(r.id, i)} />
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <div style={{ marginTop: 14 }}>
+                <div className="settings-triage-add">
                   <AddBtn label="Új szabály hozzáadása" onClick={() => setTriageRules(prev => [...prev, { situation: '', priority: 'kozepes', escalation_email: '' }])} />
                 </div>
               </div>
@@ -813,7 +769,7 @@ export default function SettingsPage() {
 
             {/* ── Last modified footer ── */}
             {lastSavedAt && (
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 8, opacity: 0.7 }}>
+              <div className="text-desc mt-8 settings-last-saved">
                 Utolsó módosítás: {lastSavedAt}
               </div>
             )}
@@ -823,27 +779,22 @@ export default function SettingsPage() {
         {/* ═══════════ CÉGINFORMÁCIÓK TAB ═══════════ */}
         {activeTab === 'praxis' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <div style={{
-                  width: 48, height: 48, borderRadius: 6,
-                  background: 'linear-gradient(135deg, rgba(28,238,224,0.12), rgba(20,184,173,0.08))',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  border: '1px solid rgba(28,238,224,0.15)',
-                }}>
+            <div className="flex-row-between mb-20 settings-header-align">
+              <div className="flex-row gap-16">
+                <div className="icon-box-lg settings-praxis-icon-box">
                   <svg fill="none" stroke="#1ceee0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="22" height="22">
                     <path d="M4 19.5A2.5 2.5 0 016.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
                   </svg>
                 </div>
                 <div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.5 }}>Cég- és szolgáltatásinformációk</div>
+                  <div className="page-title settings-praxis-title">Cég- és szolgáltatásinformációk</div>
                 </div>
               </div>
             </div>
 
             {/* Quick-nav pills */}
-            <div style={{ display: 'flex', gap: 8, marginBottom: 24, flexWrap: 'wrap', alignItems: 'center' }}>
-              <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap', flex: 1 }}>
+            <div className="flex-row gap-8 mb-24 flex-wrap">
+              <div className="flex-row gap-8 flex-wrap flex-1">
               {[
                 { id: 'sec-cegadatok', label: 'Cég fő adatai' },
                 { id: 'sec-szolgaltatasok', label: 'Szolgáltatás leírása' },
@@ -852,33 +803,25 @@ export default function SettingsPage() {
                 { id: 'sec-kedvezmenyek', label: 'Kedvezmények' },
                 { id: 'sec-gyik', label: 'GYIK' },
               ].map(s => (
-                <button key={s.id} onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                  style={{
-                    padding: '7px 18px', borderRadius: 20, fontSize: 12, fontWeight: 600,
-                    background: 'transparent', border: '1.5px solid var(--border)',
-                    color: 'var(--text-muted)', cursor: 'pointer', fontFamily: 'inherit',
-                    transition: 'all 0.2s ease', whiteSpace: 'nowrap',
-                  }}
-                  onMouseEnter={e => { e.currentTarget.style.borderColor = '#1ceee0'; e.currentTarget.style.color = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.06)'; }}
-                  onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; e.currentTarget.style.background = 'transparent'; }}
+                <button key={s.id} className="btn pill-tab" onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                 >{s.label}</button>
               ))}
               </div>
             </div>
 
             {/* ══════ 1. Cégadatok ══════ */}
-            <div id="sec-cegadatok" style={{ scrollMarginTop: 20 }} />
+            <div id="sec-cegadatok" className="scroll-anchor" />
             <SectionCard title="Cégadatok" svgPath="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2zM9 22V12h6v10">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+              <div className="grid-2col gap-16 mb-20">
                 <LabelInput label="Cég neve" value={praxis.practice_name} onChange={v => setPraxis({ ...praxis, practice_name: v })} placeholder="pl. Rivergate Bútoráruház Kft." />
                 <LabelInput label="Cég rövid (hivatkozási) neve" value={praxis.markanev} onChange={v => setPraxis({ ...praxis, markanev: v })} placeholder="pl. Rivergate" />
                 <LabelInput label="Szakterület" value={praxis.szakterulet} onChange={v => setPraxis({ ...praxis, szakterulet: v })} placeholder="pl. Fogászat, szájsebészet" />
                 <LabelInput label="Fő profil" value={praxis.kulcsszavak} onChange={v => setPraxis({ ...praxis, kulcsszavak: v })} placeholder="pl. Bútor kis-és nagykereskedés" />
               </div>
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 12 }}>Telephelyek</div>
+              <div className="settings-section-divider">
+                <div className="form-label font-semibold mb-12 settings-form-label-bold">Telephelyek</div>
                 {clinics.map((c, i) => (
-                  <div key={c.id || i} style={{ display: 'grid', gridTemplateColumns: '1fr 1fr auto', gap: 12, marginBottom: 10, alignItems: 'center' }}>
+                  <div key={c.id || i} className="settings-clinic-row">
                     <input className="tt-input" value={c.name_and_address} onChange={e => setClinics(prev => prev.map((x, j) => j === i ? { ...x, name_and_address: e.target.value } : x))} placeholder="Telephely / üzlet címe" onBlur={() => saveClinic(c, i)} />
                     <input className="tt-input" value={c.access_info || ''} onChange={e => setClinics(prev => prev.map((x, j) => j === i ? { ...x, access_info: e.target.value } : x))} placeholder="Megközelítés (opcionális)" onBlur={() => saveClinic(c, i)} />
                     <DeleteBtn onClick={() => deleteClinic(c.id, i)} />
@@ -889,33 +832,33 @@ export default function SettingsPage() {
             </SectionCard>
 
             {/* ══════ 2. Szolgáltatással kapcsolatos információk ══════ */}
-            <div id="sec-szolgaltatasok" style={{ scrollMarginTop: 20 }} />
+            <div id="sec-szolgaltatasok" className="scroll-anchor" />
             <SectionCard title="Szolgáltatással kapcsolatos információk" svgPath="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M8.5 3a4 4 0 100 8 4 4 0 000-8zM20 8v6M23 11h-6">
               {/* Szolgáltatás leírása */}
-              <div style={{ marginBottom: 20 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 10 }}>
-                  <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(28,238,224,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="mb-20">
+                <div className="flex-row gap-8 mb-10">
+                  <div className="icon-box-sm settings-icon-sm-teal">
                     <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="12" height="12"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" /></svg>
                   </div>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Szolgáltatás leírása</span>
-                  <div style={{ width: 16, height: 16, borderRadius: '50%', border: '1.5px solid var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'help' }} title="Ide írd le részletesen, milyen szolgáltatásokat kínál a cég. Ez segíti az AI-t a pontos tájékoztatásban.">
-                    <span style={{ fontSize: 9, fontWeight: 700, color: 'var(--text-muted)' }}>i</span>
+                  <span className="font-semibold text-md settings-section-text">Szolgáltatás leírása</span>
+                  <div className="settings-info-circle" title="Ide írd le részletesen, milyen szolgáltatásokat kínál a cég. Ez segíti az AI-t a pontos tájékoztatásban.">
+                    <span className="settings-info-circle-i">i</span>
                   </div>
                 </div>
-                <textarea className="tt-textarea" value={praxis.service_description || ''} onChange={e => setPraxis({ ...praxis, service_description: e.target.value })} placeholder="Írja le részletesen a cég fő szolgáltatásait..." style={{ minHeight: 80, fontSize: 13, lineHeight: 1.6 }} />
+                <textarea className="tt-textarea settings-textarea--desc" value={praxis.service_description || ''} onChange={e => setPraxis({ ...praxis, service_description: e.target.value })} placeholder="Írja le részletesen a cég fő szolgáltatásait..." />
               </div>
 
               {/* Orvosok / Szolgáltatások lista */}
-              <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-                  <div style={{ width: 24, height: 24, borderRadius: 6, background: 'rgba(28,238,224,0.08)', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+              <div className="settings-svc-divider">
+                <div className="flex-row gap-8 mb-12">
+                  <div className="settings-icon-24">
                     <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="12" height="12"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8z" /></svg>
                   </div>
-                  <span style={{ fontSize: 14, fontWeight: 600, color: 'var(--text)' }}>Szolgáltatások</span>
+                  <span className="font-semibold text-md settings-section-text">Szolgáltatások</span>
                 </div>
                 {doctors.map((d, i) => (
-                  <div key={d.id || i} style={listItemStyle}>
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 12, flex: 1 }}>
+                  <div className="sett-list-item">
+                    <div className="grid-3col gap-12 flex-1">
                       <input className="tt-input" value={d.name} onChange={e => setDoctors(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Név" onBlur={() => saveDoctor(d, i)} />
                       <input className="tt-input" value={d.specialty || ''} onChange={e => setDoctors(prev => prev.map((x, j) => j === i ? { ...x, specialty: e.target.value } : x))} placeholder="Szakterület" onBlur={() => saveDoctor(d, i)} />
                       <input className="tt-input" value={d.related_services || ''} onChange={e => setDoctors(prev => prev.map((x, j) => j === i ? { ...x, related_services: e.target.value } : x))} placeholder="Szolgáltatások" onBlur={() => saveDoctor(d, i)} />
@@ -928,15 +871,15 @@ export default function SettingsPage() {
             </SectionCard>
 
             {/* ══════ 3. Nyitvatartás ══════ */}
-            <div id="sec-nyitvatartas" style={{ scrollMarginTop: 20 }} />
+            <div id="sec-nyitvatartas" className="scroll-anchor" />
             <SectionCard title="Nyitvatartás" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM12 6v6l4 2">
-              <table className="bh-table" style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
+              <table className="bh-table settings-bh-table-wrap">
                 <thead>
                   <tr>
-                    <th style={thStyle}>Nap</th>
-                    <th style={thStyle}>Nyitás</th>
-                    <th style={thStyle}>Zárás</th>
-                    <th style={{ ...thStyle, textAlign: 'center' }}></th>
+                    <th className="sett-th">Nap</th>
+                    <th className="sett-th">Nyitás</th>
+                    <th className="sett-th">Zárás</th>
+                    <th className="sett-th sett-th--center"></th>
                   </tr>
                 </thead>
                 <tbody>
@@ -945,15 +888,15 @@ export default function SettingsPage() {
                     const bh = { open: raw.open || '', close: raw.close || '', enabled: !!raw.enabled };
                     return (
                       <tr key={key}>
-                        <td style={tdStyle}>{DAYS[i]}</td>
-                        <td style={tdStyle}>
-                          <input type="time" value={bh.open} onChange={(e) => setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: { ...bh, open: e.target.value } } })} style={timeInput} disabled={!bh.enabled} />
+                        <td className="sett-td">{DAYS[i]}</td>
+                        <td className="sett-td">
+                          <input type="time" value={bh.open} onChange={(e) => setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: { ...bh, open: e.target.value } } })} className="sett-time-input" disabled={!bh.enabled} />
                         </td>
-                        <td style={tdStyle}>
-                          <input type="time" value={bh.close} onChange={(e) => setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: { ...bh, close: e.target.value } } })} style={timeInput} disabled={!bh.enabled} />
+                        <td className="sett-td">
+                          <input type="time" value={bh.close} onChange={(e) => setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: { ...bh, close: e.target.value } } })} className="sett-time-input" disabled={!bh.enabled} />
                         </td>
-                        <td style={{ ...tdStyle, textAlign: 'center' }}>
-                          <label className="tt-toggle" style={{ display: 'inline-flex' }}>
+                        <td className="sett-td sett-td--center">
+                          <label className="tt-toggle settings-toggle-inline">
                             <input type="checkbox" checked={bh.enabled} onChange={(e) => {
                               const newEnabled = e.target.checked;
                               setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: {
@@ -973,14 +916,14 @@ export default function SettingsPage() {
             </SectionCard>
 
             {/* ══════ 4. Árak ══════ */}
-            <div id="sec-arak" style={{ scrollMarginTop: 20 }} />
+            <div id="sec-arak" className="scroll-anchor" />
             <SectionCard title="Árak" svgPath="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6">
-              <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 16 }}>Az aktuális árlista XLSX vagy CSV formátumban tölthető fel. A feltöltés a FastAPI-n keresztül történik.</div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
-                <button className="btn-settings-save" onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv,.xlsx'; input.onchange = async (e: Event) => { const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return; const formData = new FormData(); formData.append('file', file); try { const res = await authFetch('/admin/api/upload_prices', { method: 'POST', body: formData }); if (res.ok) { const data = await res.json(); showToast('Árlista feltöltve!'); if (data.price_list) { const newPraxis = { ...praxis, price_list: data.price_list, price_list_file_meta: data.price_list_file_meta }; setPraxis(newPraxis as typeof praxis); } } else { const errData = await res.json().catch(() => null); showToast(errData?.detail || 'Feltöltési hiba', 'error'); } } catch { showToast('Feltöltési hiba', 'error'); } }; input.click(); }} style={{ fontFamily: 'inherit', textAlign: 'center', justifyContent: 'center' }}>
+              <div className="text-desc mb-16">Az aktuális árlista XLSX vagy CSV formátumban tölthető fel. A feltöltés a FastAPI-n keresztül történik.</div>
+              <div className="grid-2col gap-12">
+                <button className="btn-settings-save settings-upload-btn" onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv,.xlsx'; input.onchange = async (e: Event) => { const file = (e.target as HTMLInputElement).files?.[0]; if (!file) return; const formData = new FormData(); formData.append('file', file); try { const res = await authFetch('/admin/api/upload_prices', { method: 'POST', body: formData }); if (res.ok) { const data = await res.json(); showToast('Árlista feltöltve!'); if (data.price_list) { const newPraxis = { ...praxis, price_list: data.price_list, price_list_file_meta: data.price_list_file_meta }; setPraxis(newPraxis as typeof praxis); } } else { const errData = await res.json().catch(() => null); showToast(errData?.detail || 'Feltöltési hiba', 'error'); } } catch { showToast('Feltöltési hiba', 'error'); } }; input.click(); }}>
                   Új árlista feltöltése
                 </button>
-                <button onClick={async () => { try { const res = await authFetch('/admin/api/prices/template/download'); if (res.ok) { const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'arlista_minta.xlsx'; a.click(); URL.revokeObjectURL(url); } else { showToast('Letöltési hiba', 'error'); } } catch { showToast('Letöltési hiba', 'error'); } }} style={{ display: 'flex', justifyContent: 'center', alignItems: 'center', border: '1px solid var(--accent)', color: 'var(--accent)', background: 'transparent', padding: '12px', borderRadius: 6, cursor: 'pointer', fontWeight: 600, fontSize: 14, fontFamily: 'inherit' }}>
+                <button className="btn btn-accent-outline settings-download-btn" onClick={async () => { try { const res = await authFetch('/admin/api/prices/template/download'); if (res.ok) { const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'arlista_minta.xlsx'; a.click(); URL.revokeObjectURL(url); } else { showToast('Letöltési hiba', 'error'); } } catch { showToast('Letöltési hiba', 'error'); } }}>
                   Minta Excel letöltése
                 </button>
 
@@ -995,17 +938,9 @@ export default function SettingsPage() {
                   // Ha nincs feltöltött árlista, mutassunk szerkesztés gombot
                   if (typeof pl === 'string' && pl.trim()) {
                     return (
-                      <div style={{ marginTop: 12 }}>
-                        <button onClick={openPriceModal} style={{
-                          display: 'flex', alignItems: 'center', gap: 8,
-                          padding: '10px 18px', borderRadius: 8,
-                          background: 'rgba(28,238,224,0.06)', border: '1px solid rgba(28,238,224,0.2)',
-                          color: '#1ceee0', fontSize: 13, fontWeight: 600, cursor: 'pointer', fontFamily: 'inherit',
-                          transition: 'all 0.2s ease',
-                        }}
-                          onMouseEnter={e => { e.currentTarget.style.borderColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.12)'; }}
-                          onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(28,238,224,0.2)'; e.currentTarget.style.background = 'rgba(28,238,224,0.06)'; }}
-                        >
+                      <div className="mt-12">
+                       <button className="btn btn-accent-outline" onClick={openPriceModal}
+                       >
                           <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
                             <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                             <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -1019,56 +954,33 @@ export default function SettingsPage() {
                 }
                 const fileMeta = meta as Record<string, string>;
                 return (
-                <div style={{
-                  marginTop: 16,
-                  padding: '14px 18px',
-                  borderRadius: 10,
-                  background: 'rgba(28,238,224,0.04)',
-                  border: '1px solid rgba(28,238,224,0.2)',
-                  cursor: 'pointer',
-                  transition: 'all 0.2s ease',
-                }}
+                <div className="settings-price-card"
                   onClick={openPriceModal}
                   onMouseEnter={e => { e.currentTarget.style.borderColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.08)'; }}
                   onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(28,238,224,0.2)'; e.currentTarget.style.background = 'rgba(28,238,224,0.04)'; }}
                 >
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{
-                      width: 36, height: 36, borderRadius: 8,
-                      background: 'rgba(28,238,224,0.12)',
-                      display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0,
-                    }}>
+                  <div className="flex-row gap-10">
+                    <div className="settings-price-icon">
                       <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="18" height="18">
                         <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" />
                       </svg>
                     </div>
-                    <div style={{ flex: 1 }}>
-                      <div style={{ fontSize: 13, fontWeight: 600, color: 'var(--text)' }}>
+                    <div className="flex-1">
+                      <div className="font-semibold text-md settings-price-filename">
                         {fileMeta.filename}
                       </div>
-                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 1 }}>
+                      <div className="text-desc settings-price-meta">
                         Feltöltve: {fileMeta.uploaded_at}
                         {typeof pl === 'string' && pl && (
                           <span> · {pl.split('\n').filter(l => l.trim()).length} tétel</span>
                         )}
                       </div>
                     </div>
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                      <div style={{
-                        padding: '4px 10px', borderRadius: 20,
-                        background: 'rgba(28,238,224,0.12)',
-                        fontSize: 11, fontWeight: 600, color: '#1ceee0',
-                      }}>
+                    <div className="flex-row gap-8">
+                      <div className="settings-price-active-badge">
                         ✓ Aktív
                       </div>
-                      <div style={{
-                        padding: '6px 14px', borderRadius: 8,
-                        background: 'linear-gradient(135deg, rgba(28,238,224,0.15), rgba(28,238,224,0.08))',
-                        border: '1px solid rgba(28,238,224,0.3)',
-                        fontSize: 12, fontWeight: 600, color: '#1ceee0',
-                        display: 'flex', alignItems: 'center', gap: 6,
-                        transition: 'all 0.2s ease',
-                      }}>
+                      <div className="settings-price-edit-btn">
                         <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13">
                           <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
                           <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
@@ -1083,16 +995,16 @@ export default function SettingsPage() {
             </SectionCard>
 
             {/* ══════ 5. Akciók, kedvezmények ══════ */}
-            <div id="sec-kedvezmenyek" style={{ scrollMarginTop: 20 }} />
+            <div id="sec-kedvezmenyek" className="scroll-anchor" />
             <SectionCard title="Akciók, kedvezmények" svgPath="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z">
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>Aktuális akciók, szezonális kedvezmények — az AI ezeket is megemlíti az ügyfeleknek.</div>
+              <div className="text-desc mb-12">Aktuális akciók, szezonális kedvezmények — az AI ezeket is megemlíti az ügyfeleknek.</div>
               {(praxis.campaigns || []).map((c: { active: boolean; text: string }, i: number) => (
-                <div key={i} style={{ ...listItemStyle, marginBottom: 8 }}>
-                  <label className="tt-toggle" style={{ flexShrink: 0 }}>
+                <div key={i} className="sett-list-item sett-list-item--mb8">
+                  <label className="tt-toggle">
                     <input type="checkbox" checked={c.active} onChange={e => { const campaigns = [...(praxis.campaigns || [])]; campaigns[i] = { ...campaigns[i], active: e.target.checked }; setPraxis({ ...praxis, campaigns }); }} />
                     <span className="tt-toggle-slider" />
                   </label>
-                  <input className="tt-input" value={c.text} onChange={e => { const campaigns = [...(praxis.campaigns || [])]; campaigns[i] = { ...campaigns[i], text: e.target.value }; setPraxis({ ...praxis, campaigns }); }} placeholder="Akció leírása..." style={{ flex: 1 }} />
+                  <input className="tt-input flex-1" value={c.text} onChange={e => { const campaigns = [...(praxis.campaigns || [])]; campaigns[i] = { ...campaigns[i], text: e.target.value }; setPraxis({ ...praxis, campaigns }); }} placeholder="Akció leírása..." />
                   <DeleteBtn onClick={() => { const campaigns = (praxis.campaigns || []).filter((_: unknown, j: number) => j !== i); setPraxis({ ...praxis, campaigns }); }} />
                 </div>
               ))}
@@ -1100,69 +1012,42 @@ export default function SettingsPage() {
             </SectionCard>
 
             {/* ══════ 6. Gyakori Kérdések ══════ */}
-            <div id="sec-gyik" style={{ scrollMarginTop: 20 }} />
+            <div id="sec-gyik" className="scroll-anchor" />
             <SectionCard title="Gyakori Kérdések" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01">
               {(praxis.faq || []).length === 0 && (
-                <div style={{
-                  textAlign: 'center', padding: '48px 20px',
-                  background: 'rgba(255,255,255,0.015)', borderRadius: 14,
-                  border: '1.5px dashed rgba(255,255,255,0.08)',
-                }}>
-                  <svg fill="none" stroke="var(--text-muted)" strokeWidth="1.5" viewBox="0 0 24 24" width="36" height="36" style={{ opacity: 0.3, marginBottom: 10 }}>
+                <div className="settings-faq-empty">
+                  <svg fill="none" stroke="var(--text-muted)" strokeWidth="1.5" viewBox="0 0 24 24" width="36" height="36" className="settings-faq-empty-icon">
                     <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" /><circle cx="12" cy="17" r="0.5" fill="currentColor" />
                   </svg>
-                  <div style={{ color: 'var(--text-muted)', fontSize: 13, opacity: 0.6 }}>Még nincsenek gyakori kérdések hozzáadva</div>
-                  <div style={{ color: 'var(--text-muted)', fontSize: 11, opacity: 0.4, marginTop: 4 }}>Kattints a „Kérdés hozzáadása" gombra az induláshoz</div>
+                  <div className="settings-faq-empty-title">Még nincsenek gyakori kérdések hozzáadva</div>
+                  <div className="settings-faq-empty-sub">Kattints a „Kérdés hozzáadása" gombra az induláshoz</div>
                 </div>
               )}
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div className="flex-col gap-16">
                 {(praxis.faq || []).map((f, i) => (
-                  <div key={i} style={{
-                    borderRadius: 12, overflow: 'hidden',
-                    border: '1px solid rgba(255,255,255,0.07)',
-                    boxShadow: '0 2px 8px rgba(0,0,0,0.08)',
-                    background: 'var(--card)',
-                  }}>
+                  <div key={i} className="settings-faq-card">
                     {/* ── Question section ── */}
-                    <div style={{
-                      display: 'flex', alignItems: 'center', gap: 14,
-                      padding: '14px 18px',
-                      background: 'linear-gradient(135deg, rgba(28,238,224,0.06), rgba(28,238,224,0.01))',
-                    }}>
-                      <div style={{
-                        width: 28, height: 28, borderRadius: '50%',
-                        background: '#1ceee0',
-                        color: '#082432', fontSize: 12, fontWeight: 800,
-                        display: 'flex', alignItems: 'center', justifyContent: 'center',
-                        flexShrink: 0, boxShadow: '0 2px 6px rgba(28,238,224,0.25)',
-                      }}>{i + 1}</div>
-                      <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 2 }}>
-                        <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: 1, color: '#1ceee0', opacity: 0.7 }}>Kérdés</span>
+                    <div className="settings-faq-question">
+                      <div className="settings-faq-num">{i + 1}</div>
+                      <div className="settings-faq-q-col">
+                        <span className="settings-faq-label">Kérdés</span>
                         <input className="tt-input" value={f.question}
                           onChange={e => { const faq = [...(praxis.faq || [])]; faq[i] = { ...faq[i], question: e.target.value }; setPraxis({ ...praxis, faq }); }}
                           placeholder="Írd be a kérdést..."
-                          style={{ fontWeight: 600, fontSize: 14, border: 'none', background: 'transparent', padding: 0, color: 'var(--text)' }}
+                          className="settings-faq-q-input"
                         />
                       </div>
                       <DeleteBtn onClick={() => { const faq = (praxis.faq || []).filter((_, j) => j !== i); setPraxis({ ...praxis, faq }); }} />
                     </div>
                     {/* ── Answer section ── */}
-                    <div style={{
-                      padding: '14px 18px 14px 63px',
-                      borderTop: '1px solid rgba(255,255,255,0.05)',
-                      background: 'rgba(255,255,255,0.01)',
-                    }}>
-                      <span style={{ display: 'block', fontSize: 10, fontWeight: 700, textTransform: 'uppercase' as const, letterSpacing: 1, color: 'var(--text-muted)', opacity: 0.5, marginBottom: 6 }}>Válasz</span>
+                    <div className="settings-faq-answer">
+                      <span className="settings-faq-a-label">Válasz</span>
                       <textarea className="tt-textarea" value={f.answer}
                         onChange={e => { const faq = [...(praxis.faq || [])]; faq[i] = { ...faq[i], answer: e.target.value }; setPraxis({ ...praxis, faq }); }}
                         placeholder="Írd be a választ..."
                         ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
                         onInput={e => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }}
-                        style={{
-                          width: '100%', minHeight: 38, border: 'none', background: 'transparent',
-                          padding: 0, resize: 'none', overflow: 'hidden',
-                          fontSize: 13, lineHeight: 1.7, color: 'var(--text)', opacity: 0.8,
-                        }}
+                        className="settings-faq-a-textarea"
                       />
                     </div>
                   </div>
@@ -1176,31 +1061,26 @@ export default function SettingsPage() {
         {/* ═══════════ SZABÁLYOK TAB ═══════════ */}
         {activeTab === 'szabalyok' && (
           <div>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 20 }}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
-                <div style={{
-                  width: 48, height: 48, borderRadius: 6,
-                  background: 'linear-gradient(135deg, rgba(28,238,224,0.12), rgba(20,184,173,0.08))',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  border: '1px solid rgba(28,238,224,0.15)',
-                }}>
+            <div className="flex-between settings-header-align mb-20">
+              <div className="flex-row gap-16">
+                <div className="settings-rules-icon">
                   <svg fill="none" stroke="#1ceee0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="22" height="22">
                     <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
                   </svg>
                 </div>
                 <div>
-                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', letterSpacing: -0.5 }}>Foglalási szabályok</div>
+                  <div className="settings-rules-title">Foglalási szabályok</div>
                 </div>
               </div>
             </div>
 
             {/* 1. Új/visszatérő ügyfél */}
             <SectionCard title="Új és visszatérő ügyfelek kezelése" svgPath="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75">
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+              <div className="settings-clients-grid">
                 <LabelInput label="Ügyfél beazonosítását szolgáló kérdés" value={praxis.pacient_id_question} onChange={v => setPraxis({ ...praxis, pacient_id_question: v })} />
                 <LabelInput label="Új ügyfél -- kötelezően bekérendő adat" value={praxis.new_patient_required} onChange={v => setPraxis({ ...praxis, new_patient_required: v })} />
-                <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
-                  <label className="tt-label" style={{ margin: 0, whiteSpace: 'nowrap' }}>Új ügyfélnek automatikus első találkozó</label>
+                <div className="flex-row gap-12">
+                  <label className="tt-label settings-label-nowrap">Új ügyfélnek automatikus első találkozó</label>
                   <label className="tt-toggle">
                     <input type="checkbox" checked={praxis.new_patient_auto_visit} onChange={e => setPraxis({ ...praxis, new_patient_auto_visit: e.target.checked })} />
                     <span className="tt-toggle-slider" />
@@ -1213,8 +1093,8 @@ export default function SettingsPage() {
             {/* 2. Szolgáltatások */}
             <SectionCard title="Szolgáltatások és időtartamok" svgPath="M2 7h20v14a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16">
               {services.map((s, i) => (
-                <div key={s.id || i} style={listItemStyle}>
-                  <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr 2fr', gap: 12, flex: 1 }}>
+                <div key={s.id || i} className="sett-list-item">
+                  <div className="sett-svc-grid">
                     <input className="tt-input" value={s.service_name} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, service_name: e.target.value } : x))} placeholder="Szolgáltatás neve" onBlur={() => saveService(s, i)} />
                     <input className="tt-input" type="number" value={s.duration_minutes} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, duration_minutes: Number(e.target.value) } : x))} placeholder="Perc" onBlur={() => saveService(s, i)} />
                     <input className="tt-input" value={s.note || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, note: e.target.value } : x))} placeholder="Megjegyzés" onBlur={() => saveService(s, i)} />
@@ -1226,18 +1106,18 @@ export default function SettingsPage() {
             </SectionCard>
 
             {/* 3. Kivételek + Lemondás */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24 }}>
+            <div className="settings-rules-2col">
               {/* Kivételek */}
               <SectionCard title="Kivételek kezelése" svgPath="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01">
-                <p style={{ fontSize: 12, color: 'var(--text-muted)', marginBottom: 12 }}>Helyzetek, amikor az eaisyDesk nem foglalhat automatikusan.</p>
+                <p className="settings-exceptions-p">Helyzetek, amikor az eaisyDesk nem foglalhat automatikusan.</p>
                 {(praxis.exceptions || []).map((ex, i) => (
-                  <div key={i} style={{ ...listItemStyle, marginBottom: 6 }}>
-                    <input className="tt-input" value={ex} onChange={e => { const exceptions = [...(praxis.exceptions || [])]; exceptions[i] = e.target.value; setPraxis({ ...praxis, exceptions }); }} style={{ flex: 1 }} />
+                  <div key={i} className="sett-list-item sett-list-item--mb6">
+                    <input className="tt-input flex-1" value={ex} onChange={e => { const exceptions = [...(praxis.exceptions || [])]; exceptions[i] = e.target.value; setPraxis({ ...praxis, exceptions }); }} />
                     <DeleteBtn onClick={() => { const exceptions = (praxis.exceptions || []).filter((_, j) => j !== i); setPraxis({ ...praxis, exceptions }); }} />
                   </div>
                 ))}
                 {(!praxis.exceptions || praxis.exceptions.length === 0) && (
-                  <div style={{ textAlign: 'center', padding: '20px 0', color: 'var(--text-muted)', fontSize: 12, opacity: 0.7 }}>
+                  <div className="settings-exceptions-empty">
                     Még nincsenek kivételek megadva.
                   </div>
                 )}
@@ -1246,7 +1126,7 @@ export default function SettingsPage() {
 
               {/* Lemondás */}
               <SectionCard title="Lemondás és módosítás" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM15 9l-6 6M9 9l6 6">
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                <div className="flex-col settings-cancel-col">
                   <div>
                     <label className="tt-label">Időpont módosításának engedélyezése</label>
                     <select className="tt-select" value={praxis.modositas_eng} onChange={e => setPraxis({ ...praxis, modositas_eng: e.target.value })}>
@@ -1298,8 +1178,8 @@ const listItemStyle: React.CSSProperties = { display: 'flex', alignItems: 'cente
 function _SettingsField({ label, svgPath, children }: { label: string; svgPath: string; children: React.ReactNode }) {
   return (
     <div>
-      <div className="settings-section-title" style={{ marginBottom: 10 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <div className="settings-section-title mb-10">
+        <div className="icon-box">
           <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><path d={svgPath} /></svg>
         </div>
         {label}
@@ -1312,8 +1192,8 @@ function _SettingsField({ label, svgPath, children }: { label: string; svgPath: 
 function SectionCard({ title, svgPath, children }: { title: string; svgPath: string; children: React.ReactNode }) {
   return (
     <div className="tt-section">
-      <div className="tt-section-title" style={{ marginBottom: 16 }}>
-        <div style={{ width: 28, height: 28, borderRadius: 8, background: 'rgba(28,238,224,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <div className="tt-section-title mb-16">
+        <div className="icon-box">
           <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><path d={svgPath} /></svg>
         </div>
         {title}
@@ -1334,7 +1214,7 @@ function LabelInput({ label, value, onChange, placeholder }: { label: string; va
 
 function SaveButton({ saving, onClick }: { saving: boolean; onClick: () => void }) {
   return (
-    <button className="btn-settings-save" onClick={onClick} disabled={saving} style={{ fontFamily: 'inherit' }}>
+    <button className="btn btn-settings-save" onClick={onClick} disabled={saving}>
       <svg fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15">
         <path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" />
         <polyline points="17 21 17 13 7 13 7 21" />
@@ -1347,7 +1227,7 @@ function SaveButton({ saving, onClick }: { saving: boolean; onClick: () => void 
 
 function AddBtn({ label, onClick }: { label: string; onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{ background: 'transparent', border: 'none', color: '#10b981', fontWeight: 600, cursor: 'pointer', padding: 0, fontSize: 13, fontFamily: 'inherit' }}>
+    <button className="btn-add" onClick={onClick}>
       + {label}
     </button>
   );
@@ -1355,86 +1235,9 @@ function AddBtn({ label, onClick }: { label: string; onClick: () => void }) {
 
 function DeleteBtn({ onClick }: { onClick: () => void }) {
   return (
-    <button onClick={onClick} style={{ background: 'none', border: 'none', color: '#ef4444', fontSize: 16, cursor: 'pointer', padding: '4px 6px', borderRadius: 4, flexShrink: 0 }} title="Törlés">
+    <button className="btn-icon btn-icon--danger" onClick={onClick} title="Törlés">
       <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
     </button>
-  );
-}
-
-// ── Custom dark-mode-safe select dropdown ──────────────────────────────────
-function CustomSelect({ value, onChange, options }: { value: string; onChange: (v: string) => void; options: { value: string; label: string }[] }) {
-  const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handleClick = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [open]);
-
-  const current = options.find(o => o.value === value);
-
-  return (
-    <div ref={ref} style={{ position: 'relative' }}>
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        style={{
-          width: '100%', padding: '12px 16px', borderRadius: 'var(--radius, 10px)',
-          border: open ? '1.5px solid var(--accent)' : '1.5px solid rgba(255,255,255,0.1)',
-          fontSize: 13, fontWeight: 500, color: 'var(--text)',
-          background: 'rgba(255,255,255,0.06)', fontFamily: 'inherit',
-          cursor: 'pointer', display: 'flex', alignItems: 'center',
-          justifyContent: 'space-between', gap: 8, textAlign: 'left',
-          transition: 'all 0.2s', boxSizing: 'border-box',
-          ...(open ? { boxShadow: '0 0 0 3px rgba(28,238,224,0.12)' } : {}),
-        }}
-      >
-        {current?.label || value}
-        <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14" style={{ opacity: 0.5, transition: 'transform 0.2s', transform: open ? 'rotate(180deg)' : 'none', flexShrink: 0 }}>
-          <path d="M6 9l6 6 6-6" />
-        </svg>
-      </button>
-
-      {open && (
-        <div style={{
-          position: 'absolute', top: 'calc(100% + 6px)', left: 0, right: 0, zIndex: 100,
-          background: 'var(--card)', border: '1.5px solid rgba(255,255,255,0.1)', borderRadius: 10,
-          boxShadow: '0 12px 40px rgba(0,0,0,0.3)', overflow: 'hidden',
-          animation: 'customSelectDropIn 0.15s ease',
-        }}>
-          {options.map(o => (
-            <button
-              type="button"
-              key={o.value}
-              onClick={() => { onChange(o.value); setOpen(false); }}
-              style={{
-                width: '100%', padding: '11px 16px', border: 'none', cursor: 'pointer',
-                fontSize: 13, fontWeight: o.value === value ? 600 : 400, fontFamily: 'inherit', textAlign: 'left',
-                display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-                background: o.value === value ? 'rgba(28,238,224,0.08)' : 'transparent',
-                color: o.value === value ? 'var(--accent)' : 'var(--text)',
-                transition: 'background 0.15s',
-              }}
-              onMouseEnter={e => { if (o.value !== value) (e.currentTarget).style.background = 'rgba(255,255,255,0.06)'; }}
-              onMouseLeave={e => { if (o.value !== value) (e.currentTarget).style.background = 'transparent'; }}
-            >
-              {o.label}
-              {o.value === value && (
-                <svg fill="none" stroke="var(--accent)" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14">
-                  <polyline points="20 6 9 17 4 12" />
-                </svg>
-              )}
-            </button>
-          ))}
-        </div>
-      )}
-
-      <style>{`@keyframes customSelectDropIn { from { opacity:0; transform:translateY(-4px); } to { opacity:1; transform:translateY(0); } }`}</style>
-    </div>
   );
 }
 
@@ -1460,64 +1263,24 @@ function PriceListModal({
 
   return (
     <div
-      style={{
-        position: 'fixed', inset: 0, zIndex: 10000,
-        display: 'flex', alignItems: 'center', justifyContent: 'center',
-        animation: 'priceModalFadeIn 0.2s ease',
-      }}
+      className="modal-overlay price-modal-overlay-top"
       onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}
     >
-      {/* Backdrop */}
-      <div style={{
-        position: 'absolute', inset: 0,
-        background: 'rgba(0,0,0,0.6)',
-        backdropFilter: 'blur(8px)',
-        WebkitBackdropFilter: 'blur(8px)',
-      }} />
 
       {/* Modal */}
-      <div style={{
-        position: 'relative',
-        width: '92vw', maxWidth: 1100,
-        maxHeight: '85vh',
-        display: 'flex', flexDirection: 'column',
-        background: 'var(--card, #1a2332)',
-        border: '1px solid rgba(28,238,224,0.2)',
-        borderRadius: 16,
-        boxShadow: '0 24px 80px rgba(0,0,0,0.5), 0 0 40px rgba(28,238,224,0.05)',
-        animation: 'priceModalSlideUp 0.3s ease',
-        overflow: 'hidden',
-      }}>
+      <div className="price-modal">
         {/* Header */}
-        <div style={{
-          padding: '20px 28px',
-          borderBottom: '1px solid var(--border)',
-          display: 'flex', alignItems: 'center', gap: 14,
-          background: 'linear-gradient(135deg, rgba(28,238,224,0.06), transparent)',
-          flexShrink: 0,
-        }}>
-          <div style={{
-            width: 40, height: 40, borderRadius: 10,
-            background: 'linear-gradient(135deg, rgba(28,238,224,0.15), rgba(28,238,224,0.05))',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-          }}>
+        <div className="price-modal-header">
+          <div className="price-modal-icon">
             <svg fill="none" stroke="#1ceee0" strokeWidth="1.5" viewBox="0 0 24 24" width="22" height="22">
               <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
             </svg>
           </div>
-          <div style={{ flex: 1 }}>
-            <div style={{ fontSize: 17, fontWeight: 700, color: 'var(--text)', letterSpacing: -0.3 }}>Árlista szerkesztő</div>
-            <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 2 }}>{rows.length} tétel · Módosítsa közvetlenül a táblázatban</div>
+          <div className="flex-1">
+            <div className="price-modal-title">Árlista szerkesztő</div>
+            <div className="price-modal-subtitle">{rows.length} tétel · Módosítsa közvetlenül a táblázatban</div>
           </div>
-          <button onClick={onClose} style={{
-            width: 36, height: 36, borderRadius: 10,
-            border: '1px solid var(--border)', background: 'rgba(255,255,255,0.04)',
-            display: 'flex', alignItems: 'center', justifyContent: 'center',
-            cursor: 'pointer', transition: 'all 0.2s ease', color: 'var(--text-muted)',
-          }}
-            onMouseEnter={e => { e.currentTarget.style.background = 'rgba(255,80,80,0.1)'; e.currentTarget.style.borderColor = 'rgba(255,80,80,0.3)'; e.currentTarget.style.color = '#ff5050'; }}
-            onMouseLeave={e => { e.currentTarget.style.background = 'rgba(255,255,255,0.04)'; e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
-          >
+          <button className="modal-close" onClick={onClose}>
             <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="18" height="18">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
@@ -1525,38 +1288,16 @@ function PriceListModal({
         </div>
 
         {/* Table header */}
-        <div style={{
-          display: 'grid',
-          gridTemplateColumns: '140px 1.5fr 100px 70px 1fr 40px',
-          gap: 0,
-          padding: '0 28px',
-          borderBottom: '1px solid var(--border)',
-          background: 'rgba(28,238,224,0.03)',
-          flexShrink: 0,
-        }}>
+        <div className="price-modal-thead">
           {['Kategória', 'Szolgáltatás', 'Ár', 'Pénznem', 'Megjegyzés', ''].map((h, i) => (
-            <div key={i} style={{
-              padding: '10px 8px',
-              fontSize: 11, fontWeight: 700, color: 'var(--text-muted)',
-              textTransform: 'uppercase', letterSpacing: 0.8,
-              borderRight: i < 5 ? '1px solid rgba(255,255,255,0.04)' : 'none',
-            }}>{h}</div>
+            <div key={i} className={`price-modal-th ${i < 5 ? 'price-modal-th--border' : 'price-modal-th--noborder'}`}>{h}</div>
           ))}
         </div>
 
         {/* Scrollable body */}
-        <div style={{
-          flex: 1, overflowY: 'auto',
-          padding: '0 28px',
-        }}>
+        <div className="price-modal-body">
           {rows.map((row, idx) => (
-            <div key={idx} style={{
-              display: 'grid',
-              gridTemplateColumns: '140px 1.5fr 100px 70px 1fr 40px',
-              gap: 0,
-              borderBottom: '1px solid rgba(255,255,255,0.04)',
-              transition: 'background 0.15s',
-            }}
+            <div key={idx} className="price-modal-row"
               onMouseEnter={e => e.currentTarget.style.background = 'rgba(28,238,224,0.03)'}
               onMouseLeave={e => e.currentTarget.style.background = 'transparent'}
             >
@@ -1564,14 +1305,7 @@ function PriceListModal({
                 value={row.category}
                 onChange={e => updateRow(idx, 'category', e.target.value)}
                 placeholder="pl. Konzultáció"
-                style={{
-                  padding: '10px 8px', border: 'none', background: 'transparent',
-                  color: 'var(--text)', fontSize: 13, fontWeight: 500,
-                  borderRight: '1px solid rgba(255,255,255,0.04)',
-                  borderBottom: '2px solid transparent',
-                  outline: 'none', fontFamily: 'inherit',
-                  transition: 'border-color 0.2s, background 0.2s',
-                }}
+                className="price-modal-input"
                 onFocus={e => { e.currentTarget.style.borderBottomColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.05)'; }}
                 onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
               />
@@ -1579,14 +1313,7 @@ function PriceListModal({
                 value={row.service}
                 onChange={e => updateRow(idx, 'service', e.target.value)}
                 placeholder="Szolgáltatás megnevezése"
-                style={{
-                  padding: '10px 8px', border: 'none', background: 'transparent',
-                  color: 'var(--text)', fontSize: 13,
-                  borderRight: '1px solid rgba(255,255,255,0.04)',
-                  borderBottom: '2px solid transparent',
-                  outline: 'none', fontFamily: 'inherit',
-                  transition: 'border-color 0.2s, background 0.2s',
-                }}
+                className="price-modal-input"
                 onFocus={e => { e.currentTarget.style.borderBottomColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.05)'; }}
                 onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
               />
@@ -1594,14 +1321,7 @@ function PriceListModal({
                 value={row.price}
                 onChange={e => updateRow(idx, 'price', e.target.value)}
                 placeholder="0"
-                style={{
-                  padding: '10px 8px', border: 'none', background: 'transparent',
-                  color: '#1ceee0', fontSize: 13, fontWeight: 700, textAlign: 'right',
-                  borderRight: '1px solid rgba(255,255,255,0.04)',
-                  borderBottom: '2px solid transparent',
-                  outline: 'none', fontFamily: 'inherit',
-                  transition: 'border-color 0.2s, background 0.2s',
-                }}
+                className="price-modal-input price-modal-input--price"
                 onFocus={e => { e.currentTarget.style.borderBottomColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.05)'; }}
                 onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
               />
@@ -1609,14 +1329,7 @@ function PriceListModal({
                 value={row.currency}
                 onChange={e => updateRow(idx, 'currency', e.target.value)}
                 placeholder="HUF"
-                style={{
-                  padding: '10px 8px', border: 'none', background: 'transparent',
-                  color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, textAlign: 'center',
-                  borderRight: '1px solid rgba(255,255,255,0.04)',
-                  borderBottom: '2px solid transparent',
-                  outline: 'none', fontFamily: 'inherit',
-                  transition: 'border-color 0.2s, background 0.2s',
-                }}
+                className="price-modal-input price-modal-input--currency"
                 onFocus={e => { e.currentTarget.style.borderBottomColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.05)'; }}
                 onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
               />
@@ -1624,24 +1337,13 @@ function PriceListModal({
                 value={row.note}
                 onChange={e => updateRow(idx, 'note', e.target.value)}
                 placeholder="Extra információ..."
-                style={{
-                  padding: '10px 8px', border: 'none', background: 'transparent',
-                  color: 'var(--text-muted)', fontSize: 12,
-                  borderRight: '1px solid rgba(255,255,255,0.04)',
-                  borderBottom: '2px solid transparent',
-                  outline: 'none', fontFamily: 'inherit',
-                  transition: 'border-color 0.2s, background 0.2s',
-                }}
+                className="price-modal-input price-modal-input--note"
                 onFocus={e => { e.currentTarget.style.borderBottomColor = '#1ceee0'; e.currentTarget.style.background = 'rgba(28,238,224,0.05)'; }}
                 onBlur={e => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.background = 'transparent'; }}
               />
               <button
                 onClick={() => removeRow(idx)}
-                style={{
-                  padding: '12px 0', border: 'none', background: 'transparent',
-                  cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  color: 'var(--text-muted)', transition: 'color 0.15s',
-                }}
+                className="price-modal-del-btn"
                 onMouseEnter={e => e.currentTarget.style.color = '#ff5050'}
                 onMouseLeave={e => e.currentTarget.style.color = 'var(--text-muted)'}
                 title="Sor törlése"
@@ -1654,15 +1356,7 @@ function PriceListModal({
           ))}
 
           {/* Add row button */}
-          <button onClick={addRow} style={{
-            display: 'flex', alignItems: 'center', gap: 8,
-            padding: '12px 8px', marginTop: 4, marginBottom: 8,
-            border: 'none', background: 'transparent',
-            color: '#1ceee0', fontSize: 13, fontWeight: 600,
-            cursor: 'pointer', fontFamily: 'inherit',
-            transition: 'opacity 0.15s', opacity: 0.7,
-            width: '100%',
-          }}
+          <button onClick={addRow} className="price-modal-add-btn"
             onMouseEnter={e => e.currentTarget.style.opacity = '1'}
             onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
           >
@@ -1674,39 +1368,20 @@ function PriceListModal({
         </div>
 
         {/* Footer */}
-        <div style={{
-          padding: '16px 28px',
-          borderTop: '1px solid var(--border)',
-          display: 'flex', alignItems: 'center', justifyContent: 'space-between',
-          background: 'linear-gradient(135deg, rgba(28,238,224,0.03), transparent)',
-          flexShrink: 0,
-        }}>
-          <div style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+        <div className="price-modal-footer">
+          <div className="price-modal-count">
             {rows.filter(r => r.service.trim() || r.category.trim()).length} aktív tétel
           </div>
-          <div style={{ display: 'flex', gap: 10 }}>
-            <button onClick={onClose} style={{
-              padding: '10px 20px', borderRadius: 8,
-              border: '1px solid var(--border)', background: 'transparent',
-              color: 'var(--text-muted)', fontSize: 13, fontWeight: 600,
-              cursor: 'pointer', fontFamily: 'inherit', transition: 'all 0.2s ease',
-            }}
+          <div className="flex-row gap-10">
+            <button onClick={onClose} className="price-modal-cancel"
               onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--text-muted)'; e.currentTarget.style.color = 'var(--text)'; }}
               onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
             >
               Mégse
             </button>
-            <button onClick={onSave} disabled={saving} style={{
-              padding: '10px 28px', borderRadius: 8,
-              border: 'none',
-              background: saving ? 'rgba(28,238,224,0.3)' : '#1ceee0',
-              color: '#0d2538', fontSize: 13, fontWeight: 700,
-              cursor: saving ? 'wait' : 'pointer', fontFamily: 'inherit',
-              letterSpacing: 0.5, transition: 'all 0.2s ease',
-              display: 'flex', alignItems: 'center', gap: 8,
-            }}>
+            <button onClick={onSave} disabled={saving} className={`price-modal-save${saving ? ' price-modal-save--saving' : ''}`}>
               {saving ? (
-                <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" style={{ animation: 'spin 1s linear infinite' }}><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg> Mentés...</>
+                <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="spin-anim"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg> Mentés...</>
               ) : (
                 <><svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14"><polyline points="20 6 9 17 4 12" /></svg> Változtatások mentése</>
               )}

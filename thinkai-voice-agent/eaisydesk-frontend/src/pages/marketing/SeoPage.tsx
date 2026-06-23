@@ -1,4 +1,4 @@
-/**
+﻿/**
  * SeoPage – Placeholder for SEO/SEM features (keyword tracking, Google Ads, backlinks).
  */
 export default function SeoPage() {
@@ -13,7 +13,7 @@ export default function SeoPage() {
   return (
     <div className="page active">
       <div className="mkt-page-header">
-        <div className="mkt-page-header-icon" style={{ background: 'linear-gradient(135deg, rgba(59,130,246,0.15), rgba(37,99,235,0.15))' }}>
+        <div className="mkt-page-header-icon mkt-page-header-icon--seo">
           <svg fill="none" stroke="#3b82f6" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
         </div>
         <div>
@@ -24,26 +24,26 @@ export default function SeoPage() {
 
       {/* KPI Grid */}
       <div className="mkt-kpi-grid">
-        <div className="mkt-kpi-card" style={{ borderLeftColor: '#3b82f6' }}><div className="mkt-kpi-label">Figyelt kulcsszavak</div><div className="mkt-kpi-value">5</div></div>
-        <div className="mkt-kpi-card" style={{ borderLeftColor: '#22c55e' }}><div className="mkt-kpi-label">Top 10 pozíció</div><div className="mkt-kpi-value">3</div></div>
-        <div className="mkt-kpi-card" style={{ borderLeftColor: '#f59e0b' }}><div className="mkt-kpi-label">Havi organikus forgalom</div><div className="mkt-kpi-value">~4.2K</div></div>
-        <div className="mkt-kpi-card" style={{ borderLeftColor: '#8b5cf6' }}><div className="mkt-kpi-label">Domain Authority</div><div className="mkt-kpi-value">34</div></div>
+        <div className="mkt-kpi-card mkt-kpi-card--blue"><div className="mkt-kpi-label">Figyelt kulcsszavak</div><div className="mkt-kpi-value">5</div></div>
+        <div className="mkt-kpi-card mkt-kpi-card--green"><div className="mkt-kpi-label">Top 10 pozíció</div><div className="mkt-kpi-value">3</div></div>
+        <div className="mkt-kpi-card mkt-kpi-card--orange"><div className="mkt-kpi-label">Havi organikus forgalom</div><div className="mkt-kpi-value">~4.2K</div></div>
+        <div className="mkt-kpi-card mkt-kpi-card--violet"><div className="mkt-kpi-label">Domain Authority</div><div className="mkt-kpi-value">34</div></div>
       </div>
 
       {/* Keyword Table */}
-      <div className="mkt-card" style={{ overflow: 'hidden', padding: 0, marginBottom: 18 }}>
-        <div style={{ padding: '18px 24px 0', fontSize: 15, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div className="mkt-card-title-icon" style={{ background: 'rgba(59,130,246,0.1)' }}>
+      <div className="mkt-card seo-table-card">
+        <div className="seo-table-header">
+          <div className="mkt-card-title-icon mkt-card-title-icon--seo">
             <svg fill="none" stroke="#3b82f6" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
           </div>
           Kulcsszó pozíciók
         </div>
-        <table className="data-table" style={{ marginTop: 12 }}>
+        <table className="data-table mt-12">
           <thead><tr><th>Kulcsszó</th><th>Pozíció</th><th>Változás</th><th>Havi keresés</th><th>Nehézség</th></tr></thead>
           <tbody>
             {demoKeywords.map(k => (
               <tr key={k.keyword}>
-                <td style={{ fontWeight: 600 }}>{k.keyword}</td>
+                <td className="seo-keyword-cell">{k.keyword}</td>
                 <td><span style={{ fontWeight: 800, fontSize: 16, color: k.position <= 10 ? '#22c55e' : 'var(--text)' }}>#{k.position}</span></td>
                 <td>
                   <span className={`mkt-kpi-trend ${k.change > 0 ? 'up' : k.change < 0 ? 'down' : 'neutral'}`}>

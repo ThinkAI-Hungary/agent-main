@@ -25,89 +25,23 @@ export default function ConfirmDialog({
   if (!open) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        inset: 0,
-        background: 'rgba(0,0,0,0.4)',
-        backdropFilter: 'blur(4px)',
-        zIndex: 9999,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        animation: 'fadeIn 0.2s ease',
-      }}
-      onClick={onCancel}
-    >
-      <div
-        style={{
-          background: 'var(--card, #fff)',
-          borderRadius: 8,
-          padding: 28,
-          width: 380,
-          maxWidth: '90vw',
-          boxShadow: '0 20px 60px rgba(0,0,0,0.2)',
-        }}
-        onClick={(e) => e.stopPropagation()}
-      >
-        <div
-          style={{
-            fontSize: 16,
-            fontWeight: 700,
-            color: 'var(--text)',
-            marginBottom: 12,
-          }}
-        >
-          {title}
-        </div>
-        <div
-          style={{
-            fontSize: 14,
-            color: 'var(--text-muted)',
-            lineHeight: 1.6,
-            marginBottom: 24,
-          }}
-        >
-          {message}
-        </div>
-        <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end' }}>
-          <button
-            onClick={onCancel}
-            style={{
-              padding: '10px 20px',
-              border: '1px solid var(--border)',
-              background: 'transparent',
-              color: 'var(--text-muted)',
-              borderRadius: 10,
-              fontSize: 13,
-              fontWeight: 600,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-            }}
-          >
-            {cancelLabel}
-          </button>
-          <button
-            onClick={onConfirm}
-            style={{
-              padding: '10px 20px',
-              border: 'none',
-              background: danger
-                ? '#ef4444'
-                : 'linear-gradient(135deg,#1ceee0,#0bbdb1)',
-              color: danger ? '#fff' : '#082432',
-              borderRadius: 10,
-              fontSize: 13,
-              fontWeight: 700,
-              cursor: 'pointer',
-              fontFamily: 'inherit',
-              boxShadow: danger
-                ? '0 4px 12px rgba(239,68,68,0.3)'
-                : '0 4px 12px rgba(28,238,224,0.3)',
-            }}
-          >
-            {confirmLabel}
-          </button>
+    <div className="modal-overlay" onClick={onCancel}>
+      <div className="modal-card modal-card-sm" onClick={(e) => e.stopPropagation()}>
+        <div className="modal-body">
+          <div className="text-lg font-bold mb-12">{title}</div>
+          <div className="text-md text-muted mb-24" style={{ lineHeight: 1.6 }}>{message}</div>
+          <div className="flex-row gap-10 justify-end">
+            <button className="btn btn-outline" onClick={onCancel}>
+              {cancelLabel}
+            </button>
+            <button
+              className={`btn ${danger ? 'btn-danger' : 'btn-primary'}`}
+              onClick={onConfirm}
+              style={danger ? { background: '#ef4444', color: '#fff', borderColor: 'transparent' } : undefined}
+            >
+              {confirmLabel}
+            </button>
+          </div>
         </div>
       </div>
     </div>

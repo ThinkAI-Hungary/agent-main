@@ -107,7 +107,7 @@ export default function MarketingSidebar() {
       <div
         className="sidebar-logo mkt-logo"
         onClick={() => setSwitcherOpen(!switcherOpen)}
-        style={{ cursor: 'pointer' }}
+        className="cursor-pointer"
       >
         <div className="mkt-logo-icon">M</div>
         <span className="mkt-logo-text">Marketing</span>
