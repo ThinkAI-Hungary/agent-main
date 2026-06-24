@@ -19,13 +19,100 @@ import database as db
 THIS_DIR = Path(__file__).resolve().parent
 load_dotenv(THIS_DIR / ".env")
 from prompt_utils import get_system_prompt
+# Common encodings for Hungarian emails, tried in order of likelihood
+_FALLBACK_CHARSETS = ['iso-8859-2', 'windows-1250', 'latin-1', 'iso-8859-1', 'cp1252', 'utf-8']
+
+
+def _decode_payload(raw_payload: bytes | None, declared_charset: str) -> str:
+    """Decode email payload with robust charset fallback for Hungarian content.
+    
+    Strategy:
+    1. First, try decoding as UTF-8 (strict) regardless of declared charset.
+       If the payload is valid UTF-8, it is almost certainly the correct decoding.
+    2. Try the declared charset (strict)
+    3. Try common Hungarian/Central European fallbacks (strict)
+    4. Last resort: declared charset with replace, then utf-8 with replace
+    """
+    if raw_payload is None:
+        return ""
+
+    # 1. Try decoding as UTF-8 (strict) first
+    try:
+        result = raw_payload.decode('utf-8')
+        if '\ufffd' not in result:
+            return result
+    except UnicodeDecodeError:
+        pass
+
+    # 2. Try the declared charset (strict)
+    if declared_charset and declared_charset.lower() != 'utf-8':
+        try:
+            result = raw_payload.decode(declared_charset)
+            if '\ufffd' not in result:
+                return result
+        except (LookupError, UnicodeDecodeError):
+            pass
+
+    # 3. Try common Central European encodings (strict mode)
+    for charset in _FALLBACK_CHARSETS:
+        if charset.lower() == 'utf-8' or (declared_charset and charset.lower() == declared_charset.lower()):
+            continue
+        try:
+            result = raw_payload.decode(charset)
+            if '\ufffd' not in result:
+                return result
+        except (LookupError, UnicodeDecodeError):
+            continue
+
+    # 4. Last resort: declared charset with replace, then utf-8 with replace
+    try:
+        return raw_payload.decode(declared_charset or 'utf-8', errors='replace')
+    except (LookupError, UnicodeDecodeError):
+        return raw_payload.decode('utf-8', errors='replace')
+
+
 def decode_mime_words(s):
     if not s:
         return ""
-    return "".join(
-        word.decode(encoding or "utf8", errors="replace") if isinstance(word, bytes) else word
-        for word, encoding in decode_header(s)
-    )
+    # Ensure s is a string before passing to decode_header
+    if isinstance(s, bytes):
+        try:
+            s = s.decode('ascii', 'surrogateescape')
+        except Exception:
+            s = s.decode('utf-8', errors='replace')
+
+    parts = []
+    try:
+        header_parts = decode_header(s)
+    except Exception as e:
+        logger.error(f"Failed to decode header with decode_header: {e}")
+        if isinstance(s, str):
+            s_bytes = s.encode('ascii', 'surrogateescape')
+        else:
+            s_bytes = s
+        return _decode_payload(s_bytes, "utf-8")
+
+    for word, encoding in header_parts:
+        if isinstance(word, bytes):
+            decoded = _decode_payload(word, encoding or "utf-8")
+            parts.append(decoded)
+        elif isinstance(word, str):
+            try:
+                word_bytes = word.encode('ascii', 'surrogateescape')
+                if any(b >= 0x80 for b in word_bytes):
+                    decoded = _decode_payload(word_bytes, encoding or "utf-8")
+                    parts.append(decoded)
+                else:
+                    parts.append(word)
+            except UnicodeEncodeError:
+                parts.append(word)
+            except Exception:
+                parts.append(word)
+        else:
+            parts.append(str(word))
+    return "".join(parts)
+
+
 
 def clean_email_body(text: str) -> str:
     import re
@@ -48,48 +135,6 @@ def clean_email_body(text: str) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# ROBUST EMAIL PAYLOAD DECODING — handles Central European encodings (Hungarian)
-# ═══════════════════════════════════════════════════════════════════════════════
-
-# Common encodings for Hungarian emails, tried in order of likelihood
-_FALLBACK_CHARSETS = ['iso-8859-2', 'windows-1250', 'latin-1', 'iso-8859-1', 'cp1252', 'utf-8']
-
-
-def _decode_payload(raw_payload: bytes | None, declared_charset: str) -> str:
-    """Decode email payload with robust charset fallback for Hungarian content.
-    
-    Strategy:
-    1. Try the declared charset first (strict mode)
-    2. If that produces replacement chars (�) or fails, try common Central European charsets
-    3. Last resort: utf-8 with replace
-    """
-    if raw_payload is None:
-        return ""
-
-    # 1. Try declared charset in strict mode first
-    try:
-        result = raw_payload.decode(declared_charset)
-        if '\ufffd' not in result:  # No replacement characters — success
-            return result
-    except (LookupError, UnicodeDecodeError):
-        pass
-
-    # 2. Try common Central European encodings (strict mode)
-    for charset in _FALLBACK_CHARSETS:
-        if charset.lower().replace('-', '') == declared_charset.lower().replace('-', ''):
-            continue  # Skip if it's the same as declared (already tried)
-        try:
-            result = raw_payload.decode(charset)
-            if '\ufffd' not in result:
-                return result
-        except (LookupError, UnicodeDecodeError):
-            continue
-
-    # 3. Last resort: declared charset with replace, then utf-8 with replace
-    try:
-        return raw_payload.decode(declared_charset, errors='replace')
-    except (LookupError, UnicodeDecodeError):
-        return raw_payload.decode('utf-8', errors='replace')
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

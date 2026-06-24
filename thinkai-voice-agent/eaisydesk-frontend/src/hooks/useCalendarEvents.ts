@@ -12,6 +12,7 @@ export interface CalendarEvent {
   duration_minutes?: number;
   doctor?: string;
   reminder_sent?: boolean;
+  client_id?: number | string;
 }
 
 interface UseCalendarEventsReturn {

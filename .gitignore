@@ -14,6 +14,9 @@ __pycache__/
 venv/
 env/
 ENV/
+scratch_venv/
+**/*scratch_*
+
 
 # Distribution
 dist/

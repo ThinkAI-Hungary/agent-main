@@ -793,12 +793,12 @@ export default function InteractionsPage() {
                       </td>
                     )}
                     {visibleCols.has('client') && (
-                      <td className="int-td" onClick={(e) => e.stopPropagation()}>
+                      <td className="int-td">
                         {r.clientId ? (
                           <button
                             className="int-client-link"
                             title="Ugrás az ügyfél adatlapjára"
-                            onClick={() => setSelectedClientId(String(r.clientId))}
+                            onClick={(e) => { e.stopPropagation(); setSelectedClientId(String(r.clientId)); }}
                             onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = '#0d9488'; e.currentTarget.style.color = '#0f766e'; }}
                             onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.color = '#0d9488'; }}
                           >
