@@ -1,4 +1,4 @@
-﻿/**
+/**
  * CampaignDetailPanel — Lazy-mounted campaign detail overlay.
  * Extracted from OutboundPage to keep the parent component lean.
  * Only rendered when a campaign is selected (showDetail !== null).
@@ -60,6 +60,10 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
   while (changed) {
     changed = false;
     if (emailContent.startsWith('SCHED:')) {
+      const pipeIdx = emailContent.indexOf('|');
+      if (pipeIdx >= 0) { emailContent = emailContent.substring(pipeIdx + 1); changed = true; }
+    }
+    if (emailContent.startsWith('SUBJECT:')) {
       const pipeIdx = emailContent.indexOf('|');
       if (pipeIdx >= 0) { emailContent = emailContent.substring(pipeIdx + 1); changed = true; }
     }

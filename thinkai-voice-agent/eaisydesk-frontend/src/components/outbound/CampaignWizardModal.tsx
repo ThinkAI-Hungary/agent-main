@@ -275,7 +275,16 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
       });
       if (res.ok) {
         const data = await res.json();
-        setAiResult(data.message || '');
+        let msg = data.message || '';
+        while (msg.startsWith('SUBJECT:')) {
+          const pipeIdx = msg.indexOf('|');
+          if (pipeIdx >= 0) {
+            msg = msg.substring(pipeIdx + 1);
+          } else {
+            break;
+          }
+        }
+        setAiResult(msg);
         if (data.subject) setMessageSubject(data.subject);
       } else {
         showToast('Hiba a generálásnál, próbáld újra', 'error');

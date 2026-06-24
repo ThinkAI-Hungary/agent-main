@@ -3561,11 +3561,13 @@ async def _run_campaign(campaign: dict, active_channels: list[str]):
             ai_instructions = ai_instructions[pipe_idx + 1:]
     
     subject = campaign_name
-    if ai_instructions.startswith("SUBJECT:"):
+    while ai_instructions.startswith("SUBJECT:"):
         pipe_idx = ai_instructions.find("|")
         if pipe_idx >= 0:
             subject = ai_instructions[8:pipe_idx]
             ai_instructions = ai_instructions[pipe_idx + 1:]
+        else:
+            break
 
     while ai_instructions.startswith("MODE:"):
         colon_idx = ai_instructions.find(":", 5)

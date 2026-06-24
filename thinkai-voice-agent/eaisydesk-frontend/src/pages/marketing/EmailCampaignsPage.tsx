@@ -1,4 +1,4 @@
-﻿/**
+/**
  * EmailCampaignsPage – CRUD for email campaigns, AI generation, send/schedule via Brevo.
  */
 import { useState, useEffect, useCallback, useMemo } from 'react';
@@ -117,8 +117,16 @@ export default function EmailCampaignsPage() {
       if (res.ok) {
         const data = await res.json();
         if (data.subject) setNewSubject(data.subject);
-        if (data.body_html) setNewBody(data.body_html);
-        else if (data.body) setNewBody(data.body);
+        let msg = data.body_html || data.body || '';
+        while (msg.startsWith('SUBJECT:')) {
+          const pipeIdx = msg.indexOf('|');
+          if (pipeIdx >= 0) {
+            msg = msg.substring(pipeIdx + 1);
+          } else {
+            break;
+          }
+        }
+        setNewBody(msg);
         showToast('AI tartalom generálva!');
       } else showToast('AI generálás sikertelen', 'error');
     } catch { showToast('Hiba', 'error'); }
