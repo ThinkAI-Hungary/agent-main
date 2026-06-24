@@ -179,22 +179,13 @@ export default function NotificationCenter() {
 
   /* ── Handle notification click ── */
   const handleClick = useCallback((notifId: number) => {
-    const n = notifications.find(n => n.id === notifId);
-    if (!n) return;
-
     // Remove from list
     setNotifications(prev => prev.filter(x => x.id !== notifId));
     setOpen(false);
 
-    // Navigate based on type
-    if (n.type === 'urgent') {
-      navigate('/clients');
-    } else if (n.type === 'cancelled') {
-      navigate('/calendar');
-    } else if (n.type === 'interaction') {
-      navigate(isAdmin ? '/interactions' : '/dashboard');
-    }
-  }, [navigate, notifications, isAdmin]);
+    // Navigate: admin -> /interactions, member/user -> /dashboard
+    navigate(isAdmin ? '/interactions' : '/dashboard');
+  }, [navigate, isAdmin]);
 
   /* ── Clear all notifications ── */
   const clearAll = useCallback(() => {
@@ -303,6 +294,11 @@ export default function NotificationCenter() {
               style={{
                 borderLeftColor: cfg.borderColor,
                 animationDelay: `${i * 100}ms`,
+                cursor: 'pointer',
+              }}
+              onClick={() => {
+                handleClick(t.id);
+                setToasts(prev => prev.filter(x => x.id !== t.id));
               }}
             >
               <div className="notif-toast-header">
@@ -312,7 +308,10 @@ export default function NotificationCenter() {
                 </div>
                 <button
                   className="notif-toast-close"
-                  onClick={() => setToasts(prev => prev.filter(x => x.id !== t.id))}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setToasts(prev => prev.filter(x => x.id !== t.id));
+                  }}
                 >
                   ×
                 </button>

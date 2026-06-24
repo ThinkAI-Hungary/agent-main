@@ -5,9 +5,31 @@ from loguru import logger
 import database
 
 THIS_DIR = Path(__file__).resolve().parent
+DATA_DIR = Path("/app/data")
+if not DATA_DIR.exists():
+    DATA_DIR = THIS_DIR
+
 PROMPT_FILE      = THIS_DIR / "system_prompt.md"
-PRAXISINFO_FILE  = THIS_DIR / "praxisinfo.json"
-SETTINGS_FILE    = THIS_DIR / "agent_settings.json"
+PRAXISINFO_FILE  = DATA_DIR / "praxisinfo.json"
+SETTINGS_FILE    = DATA_DIR / "agent_settings.json"
+KNOWLEDGE_JSON   = DATA_DIR / "knowledge.json"
+KNOWLEDGE_MD     = DATA_DIR / "knowledge.md"
+
+def init_config_files():
+    """Copy default configuration files to the persistent volume data directory if they don't exist."""
+    if DATA_DIR != THIS_DIR:
+        try:
+            DATA_DIR.mkdir(parents=True, exist_ok=True)
+            for filename in ["praxisinfo.json", "agent_settings.json", "knowledge.json", "knowledge.md"]:
+                src = THIS_DIR / filename
+                dst = DATA_DIR / filename
+                if src.exists() and not dst.exists():
+                    dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
+        except Exception as e:
+            logger.warning(f"Could not initialize config files in persistent volume: {e}")
+
+# Run config initialization on module import
+init_config_files()
 
 def load_agent_settings() -> dict:
     """Load agent_settings.json — override .env values at runtime."""
@@ -26,6 +48,14 @@ def _load_praxisinfo() -> dict:
         except Exception as e:
             logger.warning(f"Could not read praxisinfo.json: {e}")
     return {}
+
+def _load_knowledge(settings: dict) -> str:
+    """Read knowledge content directly from disk based on configuration."""
+    fmt = settings.get("knowledge_format", "json")
+    if fmt == "md":
+        return KNOWLEDGE_MD.read_text(encoding="utf-8") if KNOWLEDGE_MD.exists() else ""
+    else:
+        return KNOWLEDGE_JSON.read_text(encoding="utf-8") if KNOWLEDGE_JSON.exists() else "{}"
 
 def _format_doctors() -> str:
     doctors = database.get_doctors()
@@ -199,6 +229,7 @@ def get_system_prompt(channel: str = None) -> str:
     template = PROMPT_FILE.read_text(encoding="utf-8")
     pi       = _load_praxisinfo()
     settings = load_agent_settings()
+    knowledge_content = _load_knowledge(settings)
     
     # ── Determine language ──
     is_text_channel = channel and channel.lower() not in ("voice", "telefon", "phone")
@@ -247,7 +278,7 @@ def get_system_prompt(channel: str = None) -> str:
         "cancellation_policy": _format_cancellation_policy(pi),
         "patient_rules":  _format_patient_rules(pi),
         "faq":            _format_faq(pi.get("faq", [])),
-        "knowledge":      _format_knowledge(settings.get("knowledge_content", "")),
+        "knowledge":      _format_knowledge(knowledge_content),
         "tone":           settings.get("tone", ""),
         "business_hours": _format_business_hours(settings),
         "clinics_prompt": clinics_str,

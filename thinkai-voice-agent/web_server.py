@@ -2419,9 +2419,13 @@ def get_emails():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-SETTINGS_FILE  = THIS_DIR / "agent_settings.json"
-KNOWLEDGE_JSON = THIS_DIR / "knowledge.json"
-KNOWLEDGE_MD   = THIS_DIR / "knowledge.md"
+DATA_DIR = Path("/app/data")
+if not DATA_DIR.exists():
+    DATA_DIR = THIS_DIR
+
+SETTINGS_FILE  = DATA_DIR / "agent_settings.json"
+KNOWLEDGE_JSON = DATA_DIR / "knowledge.json"
+KNOWLEDGE_MD   = DATA_DIR / "knowledge.md"
 SYSTEM_PROMPT_FILE = THIS_DIR / "system_prompt.md"
 WORKFLOW_FILE      = THIS_DIR / "workflow.md"
 
@@ -2517,7 +2521,7 @@ async def save_settings(payload: SettingsSaveRequest, username: str = Depends(ve
                 print(f"[DEBUG] JSON decode error: {e} | Content: {payload.knowledge_content}", flush=True)
                 raise HTTPException(status_code=400, detail=f"Hibás JSON formátum: {e}")
 
-    return {"ok": True, "message": "Beállítások elmentve. Az agent újraindítása szükséges a változtatások érvényesítéséhez."}
+    return {"ok": True, "message": "Beállítások elmentve. A változtatások a következő hívásnál már érvényesek."}
 
 
 # ── System Prompt ─────────────────────────────────────────────────────────────
@@ -2554,7 +2558,7 @@ async def save_workflow(payload: TextFileRequest, username: str = Depends(verify
 
 
 # ── Praxisinfó ────────────────────────────────────────────────────────────────
-PRAXISINFO_FILE = THIS_DIR / "praxisinfo.json"
+PRAXISINFO_FILE = DATA_DIR / "praxisinfo.json"
 
 _HU_TO_EN = {
     "hetfo": "monday", "kedd": "tuesday", "szerda": "wednesday",
