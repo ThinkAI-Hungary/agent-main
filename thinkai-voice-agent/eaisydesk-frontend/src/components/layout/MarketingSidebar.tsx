@@ -105,9 +105,8 @@ export default function MarketingSidebar() {
 
       {/* Marketing Logo with App Switcher */}
       <div
-        className="sidebar-logo mkt-logo"
+        className="sidebar-logo mkt-logo cursor-pointer"
         onClick={() => setSwitcherOpen(!switcherOpen)}
-        className="cursor-pointer"
       >
         <div className="mkt-logo-icon">M</div>
         <span className="mkt-logo-text">Marketing</span>

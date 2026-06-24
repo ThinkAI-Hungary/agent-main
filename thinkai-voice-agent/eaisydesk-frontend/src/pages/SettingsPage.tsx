@@ -39,7 +39,7 @@ interface PraxisInfo {
   service_description: string;
   kulcsszavak: string;
   faq: { question: string; answer: string }[];
-  campaigns: { active: boolean; text: string }[];
+  campaigns: { active: boolean; text: string; name?: string }[];
   exceptions: string[];
   modositas_eng: string;
   lemondas_24h: string;
@@ -707,11 +707,10 @@ export default function SettingsPage() {
                   </div>
                 )}
                 <textarea
-                  className="settings-textarea"
+                  className="settings-textarea settings-textarea--greeting"
                   value={agent.greeting}
                   onChange={(e) => setAgent({ ...agent, greeting: e.target.value })}
                   placeholder="Írd ide az üdvözlőszöveget..."
-                  className="settings-textarea settings-textarea--greeting"
                 />
               </div>
             </div>
@@ -958,18 +957,40 @@ export default function SettingsPage() {
             {/* ══════ 5. Akciók, kedvezmények ══════ */}
             <div id="sec-kedvezmenyek" className="scroll-anchor" />
             <SectionCard title="Akciók, kedvezmények" svgPath="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z">
-              <div className="text-desc mb-12">Aktuális akciók, szezonális kedvezmények — az AI ezeket is megemlíti az ügyfeleknek.</div>
-              {(praxis.campaigns || []).map((c: { active: boolean; text: string }, i: number) => (
-                <div key={i} className="sett-list-item sett-list-item--mb8">
-                  <label className="tt-toggle">
-                    <input type="checkbox" checked={c.active} onChange={e => { const campaigns = [...(praxis.campaigns || [])]; campaigns[i] = { ...campaigns[i], active: e.target.checked }; setPraxis({ ...praxis, campaigns }); }} />
-                    <span className="tt-toggle-slider" />
-                  </label>
-                  <input className="tt-input flex-1" value={c.text} onChange={e => { const campaigns = [...(praxis.campaigns || [])]; campaigns[i] = { ...campaigns[i], text: e.target.value }; setPraxis({ ...praxis, campaigns }); }} placeholder="Akció leírása..." />
-                  <DeleteBtn onClick={() => { const campaigns = (praxis.campaigns || []).filter((_: unknown, j: number) => j !== i); setPraxis({ ...praxis, campaigns }); }} />
+
+              {(praxis.campaigns || []).map((c: { active: boolean; text: string, name?: string }, i: number) => (
+                <div key={i} className="campaign-card">
+                  <div className="campaign-card-header">
+                    <div className="campaign-card-title">KEDVEZMÉNY #{i + 1}</div>
+                    <div className="campaign-card-actions">
+                      <DeleteBtn onClick={() => { const campaigns = (praxis.campaigns || []).filter((_: unknown, j: number) => j !== i); setPraxis({ ...praxis, campaigns }); }} />
+                      <label className="tt-toggle" style={{ margin: 0 }}>
+                        <input type="checkbox" checked={c.active !== false} onChange={e => { const campaigns = [...(praxis.campaigns || [])]; campaigns[i] = { ...campaigns[i], active: e.target.checked }; setPraxis({ ...praxis, campaigns }); }} />
+                        <span className="tt-toggle-slider" />
+                      </label>
+                    </div>
+                  </div>
+                  <div className="campaign-card-body">
+                    <div className="campaign-field">
+                      <label className="campaign-label">Kedvezmény neve</label>
+                      <input className="tt-input" style={{ width: '100%' }} value={c.name || ''} onChange={e => { const campaigns = [...(praxis.campaigns || [])]; campaigns[i] = { ...campaigns[i], name: e.target.value }; setPraxis({ ...praxis, campaigns }); }} placeholder="pl. Nyári 10% akció" />
+                    </div>
+                    <div className="campaign-field mt-16">
+                      <label className="campaign-label">Kedvezmény leírása</label>
+                      <textarea className="tt-input" style={{ width: '100%', resize: 'vertical' }} value={c.text || ''} onChange={e => { const campaigns = [...(praxis.campaigns || [])]; campaigns[i] = { ...campaigns[i], text: e.target.value }; setPraxis({ ...praxis, campaigns }); }} placeholder="Írd ide a kedvezmény részleteit..." rows={3} />
+                    </div>
+                  </div>
                 </div>
               ))}
-              <AddBtn label="Akció hozzáadása" onClick={() => setPraxis({ ...praxis, campaigns: [...(praxis.campaigns || []), { active: true, text: '' }] })} />
+              <div className="mt-16">
+                <button 
+                  className="campaign-add-btn"
+                  onClick={() => setPraxis({ ...praxis, campaigns: [...(praxis.campaigns || []), { active: true, name: '', text: '' }] })}
+                >
+                  <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                  Kedvezmény hozzáadása
+                </button>
+              </div>
             </SectionCard>
 
             {/* ══════ 6. Gyakori Kérdések ══════ */}
@@ -992,10 +1013,9 @@ export default function SettingsPage() {
                       <div className="settings-faq-num">{i + 1}</div>
                       <div className="settings-faq-q-col">
                         <span className="settings-faq-label">Kérdés</span>
-                        <input className="tt-input" value={f.question}
+                        <input className="tt-input settings-faq-q-input" value={f.question}
                           onChange={e => { const faq = [...(praxis.faq || [])]; faq[i] = { ...faq[i], question: e.target.value }; setPraxis({ ...praxis, faq }); }}
                           placeholder="Írd be a kérdést..."
-                          className="settings-faq-q-input"
                         />
                       </div>
                       <DeleteBtn onClick={() => { const faq = (praxis.faq || []).filter((_, j) => j !== i); setPraxis({ ...praxis, faq }); }} />
@@ -1003,12 +1023,11 @@ export default function SettingsPage() {
                     {/* ── Answer section ── */}
                     <div className="settings-faq-answer">
                       <span className="settings-faq-a-label">Válasz</span>
-                      <textarea className="tt-textarea" value={f.answer}
+                      <textarea className="tt-textarea settings-faq-a-textarea" value={f.answer}
                         onChange={e => { const faq = [...(praxis.faq || [])]; faq[i] = { ...faq[i], answer: e.target.value }; setPraxis({ ...praxis, faq }); }}
                         placeholder="Írd be a választ..."
                         ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
                         onInput={e => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }}
-                        className="settings-faq-a-textarea"
                       />
                     </div>
                   </div>

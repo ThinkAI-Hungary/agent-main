@@ -58,7 +58,7 @@ function timeAgo(d: Date): string {
 /* ── Component ──────────────────────────────────────────────── */
 
 export default function NotificationCenter() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isAdmin } = useAuth();
   const navigate = useNavigate();
 
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -192,9 +192,9 @@ export default function NotificationCenter() {
     } else if (n.type === 'cancelled') {
       navigate('/calendar');
     } else if (n.type === 'interaction') {
-      navigate('/interactions');
+      navigate(isAdmin ? '/interactions' : '/dashboard');
     }
-  }, [navigate, notifications]);
+  }, [navigate, notifications, isAdmin]);
 
   /* ── Clear all notifications ── */
   const clearAll = useCallback(() => {

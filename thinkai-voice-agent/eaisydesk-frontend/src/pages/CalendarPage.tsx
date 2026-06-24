@@ -209,7 +209,7 @@ export default function CalendarPage() {
           clientsMap={clientsMap}
           sessions={sessions}
           events={events}
-          source="clients"
+          source="calendar"
           onBack={() => setSelectedClientId(null)}
           onRefresh={refetchEvents}
         />

@@ -46,6 +46,15 @@ interface EnrichedClient {
   raw: ClientRecord;
 }
 
+
+const SORT_OPTIONS = [
+  { value: 'date_desc', label: 'Legújabb elöl' },
+  { value: 'date_asc', label: 'Régebbiek elöl' },
+  { value: 'name_asc', label: 'Név alapján (A-Z)' },
+  { value: 'name_desc', label: 'Név alapján (Z-A)' },
+  { value: 'interaction_desc', label: 'Utolsó interakció' },
+];
+
 const CLIENT_COLUMNS = [
   { key: 'name', label: 'Ügyfél' },
   { key: 'status_badge', label: 'Új / Visszatérő' },
@@ -84,6 +93,26 @@ export default function ClientsPage() {
   const [showCampaignWizard, setShowCampaignWizard] = useState(false);
   const [members, setMembers] = useState<MemberUser[]>([]);
 
+  const [filterOpen, setFilterOpen] = useState(false);
+  const filterDropdownRef = useRef<HTMLDivElement>(null);
+  const [filterKategoria, setFilterKategoria] = useState<Set<string>>(new Set());
+  const [filterErtStatusz, setFilterErtStatusz] = useState<Set<string>>(new Set());
+  const [filterFelelos, setFilterFelelos] = useState<Set<string>>(new Set());
+  
+  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
+  const sortDropdownRef = useRef<HTMLDivElement>(null);
+  const [sortBy, setSortBy] = useState('date_desc');
+
+  const ALL_KATEGORIA = ['Új beteg', 'Visszatérő', 'Inaktív'];
+  
+  const activeFilterCount = filterKategoria.size + filterErtStatusz.size + filterFelelos.size;
+  const resetFilters = () => {
+    setFilterKategoria(new Set());
+    setFilterErtStatusz(new Set());
+    setFilterFelelos(new Set());
+  };
+
+
   const colDropdownRef = useRef<HTMLDivElement>(null);
 
   // Load member/manager users for Felelős dropdown
@@ -96,9 +125,9 @@ export default function ClientsPage() {
   // Outside click
   useEffect(() => {
     function handleClick(e: MouseEvent) {
-      if (colDropdownRef.current && !colDropdownRef.current.contains(e.target as Node)) {
-        setColDropdownOpen(false);
-      }
+      if (colDropdownRef.current && !colDropdownRef.current.contains(e.target as Node)) setColDropdownOpen(false);
+      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) setSortDropdownOpen(false);
+      if (filterDropdownRef.current && !filterDropdownRef.current.contains(e.target as Node)) setFilterOpen(false);
     }
     document.addEventListener('click', handleClick);
     return () => document.removeEventListener('click', handleClick);
@@ -172,15 +201,65 @@ export default function ClientsPage() {
     return enrichedClients.filter(c => isAssignedToMe(c.raw, username, fullName));
   }, [enrichedClients, isAdmin, user]);
 
-  // ── Search filter ──
+  const { ALL_ERT_STATUSZ, ALL_FELELOS } = useMemo(() => {
+    const statuses = kanbanColumns.map(col => col.name);
+    if (myClients.some(c => !c.status)) {
+      if (!statuses.includes('Üres')) statuses.push('Üres');
+    }
+    return {
+      ALL_ERT_STATUSZ: statuses,
+      ALL_FELELOS: Array.from(new Set(myClients.map(c => c.assignee || 'Nincs felelős'))).sort()
+    };
+  }, [myClients, kanbanColumns]);
+
+  // ── Search & filter ──
   const filteredClients = useMemo(() => {
-    if (!searchQuery) return myClients;
-    const q = cleanStr(searchQuery);
-    return myClients.filter((c) => {
-      const searchable = [c.name, c.email, c.phone, c.tags.join(' '), c.assignee, c.status].join(' ');
-      return cleanStr(searchable).includes(q);
+    let result = myClients;
+    
+    // Filters
+    if (filterKategoria.size > 0 || filterErtStatusz.size > 0 || filterFelelos.size > 0) {
+      result = result.filter(c => {
+        let katMatch = true;
+        if (filterKategoria.size > 0) {
+          const kateg = c.isInactive ? 'Inaktív' : (c.isNew ? 'Új beteg' : 'Visszatérő');
+          if (!filterKategoria.has(kateg)) katMatch = false;
+        }
+        
+        let ertMatch = true;
+        if (filterErtStatusz.size > 0) {
+          const ertStatusz = kanbanNameMap[c.status] || c.status || 'Üres';
+          if (!filterErtStatusz.has(ertStatusz)) ertMatch = false;
+        }
+
+        let felMatch = true;
+        if (filterFelelos.size > 0) {
+          const felelos = c.assignee || 'Nincs felelős';
+          if (!filterFelelos.has(felelos)) felMatch = false;
+        }
+
+        return katMatch && ertMatch && felMatch;
+      });
+    }
+
+    // Search
+    if (searchQuery) {
+      const q = cleanStr(searchQuery);
+      result = result.filter((c) => {
+        const searchable = [c.name, c.email, c.phone, c.tags.join(' '), c.assignee, c.status].join(' ');
+        return cleanStr(searchable).includes(q);
+      });
+    }
+    
+    // Sort
+    return result.sort((a, b) => {
+      if (sortBy === 'date_desc') return (b.created_at || '').localeCompare(a.created_at || '');
+      if (sortBy === 'date_asc') return (a.created_at || '').localeCompare(b.created_at || '');
+      if (sortBy === 'name_asc') return (a.name || '').localeCompare(b.name || '', 'hu');
+      if (sortBy === 'name_desc') return (b.name || '').localeCompare(a.name || '', 'hu');
+      if (sortBy === 'interaction_desc') return (b.lastInteraction || '').localeCompare(a.lastInteraction || '');
+      return 0;
     });
-  }, [myClients, searchQuery]);
+  }, [myClients, searchQuery, filterKategoria, filterErtStatusz, filterFelelos, sortBy, kanbanNameMap]);
 
   // Reset selection when data changes
   useEffect(() => setSelectedRows(new Set()), [filteredClients]);
@@ -449,6 +528,74 @@ export default function ClientsPage() {
                 </button>
               )}
 
+              {/* Filter */}
+              <div className="relative int-dropdown-wrap" ref={filterDropdownRef}>
+                <button
+                  className={`int-toolbar-btn flex-row gap-6 ${activeFilterCount > 0 ? 'active' : ''}`}
+                  title="Szűrés"
+                  onClick={() => setFilterOpen(!filterOpen)}
+                >
+                  <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
+                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
+                  </svg>
+                  Szűrés
+                  {activeFilterCount > 0 && <span className="int-filter-badge">{activeFilterCount}</span>}
+                </button>
+                {filterOpen && (
+                  <div className="dropdown-menu dropdown-menu--filter">
+                    <div className="dropdown-header">Szűrők</div>
+                    <div className="int-filter-list">
+                      <FilterSection title="Ügyfél kategória" bordered>
+                        {ALL_KATEGORIA.map((v) => (
+                          <FilterCheckbox key={v} label={v} checked={filterKategoria.has(v)} onChange={() => toggleFilter(filterKategoria, v, setFilterKategoria)} />
+                        ))}
+                      </FilterSection>
+                      <FilterSection title="Értékesítési státusz" bordered>
+                        {ALL_ERT_STATUSZ.map((v) => (
+                          <FilterCheckbox key={v} label={v} checked={filterErtStatusz.has(v)} onChange={() => toggleFilter(filterErtStatusz, v, setFilterErtStatusz)} />
+                        ))}
+                      </FilterSection>
+                      <FilterSection title="Felelős" bordered>
+                        {ALL_FELELOS.map((v) => (
+                          <FilterCheckbox key={v} label={v} checked={filterFelelos.has(v)} onChange={() => toggleFilter(filterFelelos, v, setFilterFelelos)} />
+                        ))}
+                      </FilterSection>
+                    </div>
+                    <div className="flex-row gap-8 int-filter-footer">
+                      <button className="btn btn-outline int-filter-btn" onClick={resetFilters}>Visszaállítás</button>
+                      <button className="btn btn-primary int-filter-btn" onClick={() => setFilterOpen(false)}>Alkalmaz</button>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              {/* Sort */}
+              <div className="relative int-dropdown-wrap" ref={sortDropdownRef}>
+                <button
+                  className="int-toolbar-btn flex-row gap-6"
+                  onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+                >
+                  <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
+                    <path d="M3 6h18M6 12h12M9 18h6" />
+                  </svg>
+                  {SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Rendezés'}
+                </button>
+                {sortDropdownOpen && (
+                  <div className="dropdown-menu dropdown-menu--sort">
+                    {SORT_OPTIONS.map((o) => (
+                      <button
+                        key={o.value}
+                        className={`dropdown-item ${sortBy === o.value ? 'active' : ''}`}
+                        onClick={() => { setSortBy(o.value); setSortDropdownOpen(false); }}
+                      >
+                        {sortBy === o.value && <span className="int-sort-check">✓</span>}
+                        {o.label}
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+
               {/* Column toggle */}
               <div className="cl-col-toggle" ref={colDropdownRef}>
                 <button
@@ -612,4 +759,46 @@ function AssigneeDropdown({ value, members, onChange }: { value: string; members
       )}
     </div>
   );
+}
+
+
+function FilterSection({ title, bordered, children }: { title: string; bordered?: boolean; children: React.ReactNode }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className={`filter-section${bordered ? ' filter-section--bordered' : ''}`}>
+      <button
+        onClick={() => setOpen(!open)}
+        className="filter-section-btn"
+      >
+        <span>{title}</span>
+        <svg
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          viewBox="0 0 24 24"
+          className={`filter-section-chevron${open ? ' filter-section-chevron--open' : ''}`}
+        >
+          <polyline points="6 9 12 15 18 9" />
+        </svg>
+      </button>
+      {open && <div className="filter-section-body">{children}</div>}
+    </div>
+  );
+}
+
+function FilterCheckbox({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
+  return (
+    <label className="filter-cb-label">
+      <input type="checkbox" checked={checked} onChange={onChange} className="filter-cb-input" />
+      {label}
+    </label>
+  );
+}
+
+function toggleFilter(current: Set<string>, val: string, setter: React.Dispatch<React.SetStateAction<Set<string>>>) {
+  setter(prev => {
+    const next = new Set(prev);
+    if (next.has(val)) next.delete(val); else next.add(val);
+    return next;
+  });
 }

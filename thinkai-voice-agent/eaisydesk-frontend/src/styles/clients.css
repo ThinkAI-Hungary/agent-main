@@ -1225,7 +1225,7 @@
 .cl-footer-right { margin-left: auto; }
 
 /* Desktop table wrapper */
-.cl-table-wrap { overflow-x: auto; }
+.cl-table-wrap { overflow-x: auto; min-height: 400px; }
 
 /* Search width */
 .cl-search-input { width: 250px; }

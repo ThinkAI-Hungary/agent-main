@@ -40,7 +40,7 @@ interface Props {
   clientsMap: Record<string, ClientRecord>;
   sessions: SessionSummary[];
   events: CalendarEvent[];
-  source: 'clients' | 'interactions';
+  source: 'clients' | 'interactions' | 'calendar';
   onBack: () => void;
   onRefresh: () => void;
 }
@@ -324,7 +324,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           onClick={onBack}
         >
           <span>← </span>
-          {source === 'interactions' ? 'Vissza az interakciós listához' : 'Vissza az ügyféllistához'}
+          {source === 'calendar' ? 'Vissza a naptárhoz' : source === 'interactions' ? 'Vissza az interakciós listához' : 'Vissza az ügyféllistához'}
         </button>
       </div>
 

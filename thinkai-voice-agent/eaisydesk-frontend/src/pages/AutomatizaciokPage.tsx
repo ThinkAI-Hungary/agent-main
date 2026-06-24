@@ -210,10 +210,9 @@ export default function AutomatizaciokPage() {
                     <span className="auto-label-accent">Időzítés</span>
                   </div>
                   <div className="auto-timing-row">
-                    <input type="number" className="tt-input" value={reminder.reminder_hours} min={1} max={168}
+                    <input type="number" className="tt-input auto-timing-input" value={reminder.reminder_hours} min={1} max={168}
                       onChange={e => setReminder({ ...reminder, reminder_hours: Number(e.target.value) })}
                       onBlur={() => saveReminder()}
-                      className="auto-timing-input"
                     />
                     <span className="auto-timing-lbl">órával az időpont előtt</span>
                   </div>
@@ -227,14 +226,13 @@ export default function AutomatizaciokPage() {
                     </svg>
                     <span className="auto-label-accent">Üzenet sablon</span>
                   </div>
-                  <textarea className="tt-textarea" value={reminder.reminder_template}
+                  <textarea className="tt-textarea auto-template-textarea" value={reminder.reminder_template}
                     ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
                     onChange={e => {
                       setReminder({ ...reminder, reminder_template: e.target.value });
                       e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px';
                     }}
                     onBlur={() => saveReminder()}
-                    className="auto-template-textarea"
                     placeholder="Kedves {nev}! Emlékeztetjük, hogy holnap {idopont}-kor időpontja van..."
                   />
                 </div>
@@ -322,13 +320,12 @@ export default function AutomatizaciokPage() {
                           <>
                             <div className="auto-timing-divider" />
                             <label className="auto-inactivity-lbl">Inaktivitási küszöb:</label>
-                            <input type="number" className="tt-input" value={inactivityDays} min={7} max={365}
+                            <input type="number" className="tt-input auto-inactivity-input" value={inactivityDays} min={7} max={365}
                               onChange={e => setInactivityDays(Number(e.target.value))}
                               onBlur={() => {
                                 localStorage.setItem('thinkai_inactivity_days', String(inactivityDays));
                                 showToast('Mentve');
                               }}
-                              className="auto-inactivity-input"
                             />
                             <span className="auto-inactivity-after">nap elteltével</span>
                           </>
@@ -344,7 +341,7 @@ export default function AutomatizaciokPage() {
                         </svg>
                         <span className="auto-label-accent">Üzenet sablon</span>
                       </div>
-                      <textarea className="tt-textarea" value={a.message_template || ''}
+                      <textarea className="tt-textarea auto-template-textarea" value={a.message_template || ''}
                         ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
                         onChange={e => {
                           setAutomations(prev => prev.map(x => x.id === a.id ? { ...x, message_template: e.target.value } : x));
@@ -361,7 +358,6 @@ export default function AutomatizaciokPage() {
                             showToast('Sablon mentve');
                           } catch { showToast('Hiba a mentés során!', 'error'); }
                         }}
-                        className="auto-template-textarea"
                         placeholder="Üzenet sablon..."
                       />
                     </div>

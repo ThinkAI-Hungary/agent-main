@@ -58,7 +58,15 @@ def _format_services() -> str:
     return "\n".join(lines) if lines else "Nincs megadva"
 
 def _format_campaigns(campaigns: list) -> str:
-    active = [c.get("text", "").strip() for c in campaigns if c.get("active") and c.get("text")]
+    active = []
+    for c in campaigns:
+        if c.get("active"):
+            name = c.get("name", "").strip()
+            text = c.get("text", "").strip()
+            if name and text:
+                active.append(f"{name}: {text}")
+            elif text:
+                active.append(text)
     return "\n".join(f"- {t}" for t in active) if active else "Nincs aktív kampány"
 
 def _format_exceptions(exceptions: list) -> str:

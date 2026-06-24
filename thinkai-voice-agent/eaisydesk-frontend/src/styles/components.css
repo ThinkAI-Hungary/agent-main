@@ -1561,6 +1561,10 @@
       overflow: hidden;
       background: var(--card);
     }
+    .card-container--overflow-visible {
+      overflow: visible;
+      min-height: 400px;
+    }
 
     /* ── TOOLBAR STRIP ─────────────────────────────────────────── */
     .toolbar-strip {

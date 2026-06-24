@@ -366,7 +366,7 @@ export default function KanbanPage() {
                         <KanbanCard
                           key={String(card.id)}
                           card={card}
-                          onClick={(c) => handleCardClick(String(c.id))}
+                          onClick={() => handleCardClick(card)}
                           onDelete={() => handleDeleteClient(String(card.id))}
                         />
                       ))
