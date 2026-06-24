@@ -200,10 +200,6 @@ export function detectEredmeny(r: {
       fs === 'booked' ||
       fs === 'foglalt' ||
       ty === 'foglalás' ||
-      combined.includes('időpontfoglal') ||
-      combined.includes('foglal') ||
-      combined.includes('lefoglal') ||
-      combined.includes('új időpont') ||
       rs.includes('lefoglalva')
     ) {
       return 'Új időpont';

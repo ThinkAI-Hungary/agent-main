@@ -49,7 +49,12 @@ export default function InteractionSummaryModal({
   onApproved,
 }: Props) {
   const navigate = useNavigate();
-  const isPendingApproval = row.teendo === 'Jóváhagyásra vár' || row.teendo === 'Válasz jóváhagyása szükséges';
+  const rawDraft = row.ai_draft_response || row.aiDraftResponse || null;
+  const approvalStatus = row.approval_status || row.approvalStatus || null;
+  const isPendingApproval =
+    row.teendo === 'Jóváhagyásra vár' ||
+    row.teendo === 'Válasz jóváhagyása szükséges' ||
+    approvalStatus === 'pending';
   const [showDetails, setShowDetails] = useState(!!autoExpandApproval);
   const [chatBlocks, setChatBlocks] = useState<ChatBlock[]>([]);
   const [summaryText, setSummaryText] = useState('');
@@ -438,10 +443,10 @@ export default function InteractionSummaryModal({
 
   // ── Parse AI draft for approval ──
   useEffect(() => {
-    if (!isPendingApproval || !row.ai_draft_response) return;
+    if (!isPendingApproval || !rawDraft) return;
     let parsedDraft: string;
     try {
-      const draftData = JSON.parse(row.ai_draft_response);
+      const draftData = JSON.parse(rawDraft);
       if (
         draftData.multi_channel &&
         draftData.drafts &&
@@ -461,10 +466,10 @@ export default function InteractionSummaryModal({
         parsedDraft = draftData.body || '';
       }
     } catch {
-      parsedDraft = row.ai_draft_response || '';
+      parsedDraft = rawDraft || '';
     }
     setDraftText(parsedDraft.replace(/<br\s*\/?>/gi, '\n'));
-  }, [isPendingApproval, row.ai_draft_response]);
+  }, [isPendingApproval, rawDraft]);
 
   // Auto-scroll to approval section when auto-expanding
   useEffect(() => {

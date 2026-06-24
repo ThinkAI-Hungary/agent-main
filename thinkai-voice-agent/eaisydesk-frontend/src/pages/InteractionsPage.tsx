@@ -48,6 +48,8 @@ export interface InteractionRow {
   sessionId: string | null;
   ai_draft_response: string | null;
   approval_status: string | null;
+  aiDraftResponse?: string | null;
+  approvalStatus?: string | null;
 }
 
 // ── Column visibility keys ──
@@ -217,15 +219,18 @@ export default function InteractionsPage() {
     return rows;
   }, [sessions, clients, clientsMap]);
 
-  // ── Member filtering: non-admins only see assigned clients' interactions ──
+  // ── Member filtering: non-admins only see assigned or unassigned interactions ──
   const myRows = useMemo(() => {
     if (isAdmin) return allRows;
     const username = user?.username || '';
     const fullName = user?.fullName || '';
     return allRows.filter(r => {
-      if (!r.clientId) return false;
+      if (!r.clientId) return true;
       const client = clientsMap[String(r.clientId)];
-      if (!client) return false;
+      if (!client) return true;
+      const cd = parseCustomData(client.custom_data);
+      const assignedTo = ((cd.assigned_to || cd.felelos || '') as string).trim();
+      if (!assignedTo) return true;
       return isAssignedToMe(client, username, fullName);
     });
   }, [allRows, isAdmin, user, clientsMap]);

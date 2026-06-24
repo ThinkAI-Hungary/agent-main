@@ -193,12 +193,17 @@ export default function ClientsPage() {
     });
   }, [clients, sessions, events]);
 
-  // ── Member filtering: non-admins only see assigned clients ──
+  // ── Member filtering: non-admins only see assigned or unassigned clients ──
   const myClients = useMemo(() => {
     if (isAdmin) return enrichedClients;
     const username = user?.username || '';
     const fullName = user?.fullName || '';
-    return enrichedClients.filter(c => isAssignedToMe(c.raw, username, fullName));
+    return enrichedClients.filter(c => {
+      const cd = parseCustomData(c.raw.custom_data);
+      const assignedTo = ((cd.assigned_to || cd.felelos || '') as string).trim();
+      if (!assignedTo) return true;
+      return isAssignedToMe(c.raw, username, fullName);
+    });
   }, [enrichedClients, isAdmin, user]);
 
   const { ALL_ERT_STATUSZ, ALL_FELELOS } = useMemo(() => {

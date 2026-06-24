@@ -43,6 +43,9 @@ interface Todo {
   interactionId?: number | null;
   sessionId?: string | null;
   aiDraftResponse?: string | null;
+  ai_draft_response?: string | null;
+  approvalStatus?: string | null;
+  approval_status?: string | null;
   channel?: string | null;
   topic?: string | null;
   // Derived display fields
@@ -152,15 +155,15 @@ function mapTodoToInteractionRow(t: Todo): InteractionRow {
     result: t.eredmeny || '',
     interactionId: t.interactionId || null,
     sessionId: t.sessionId || null,
-    ai_draft_response: t.aiDraftResponse || null,
-    approval_status: t.type === 'approval' ? 'pending' : null,
+    ai_draft_response: t.ai_draft_response || t.aiDraftResponse || null,
+    approval_status: t.approval_status || t.approvalStatus || (t.type === 'approval' ? 'pending' : null),
   };
 }
 
 // ── Component ───────────────────────────────────────────────────────────────
 
 export default function MemberDashboardPage() {
-  const { user } = useAuth();
+  const { user, isAdmin } = useAuth();
   const { openApproval } = useApproval();
   const navigate = useNavigate();
   const { clients: hookClients, clientsMap } = useClients();
@@ -312,6 +315,22 @@ export default function MemberDashboardPage() {
       // b) Pending approvals → todos
       const allApprovals: Record<string, unknown>[] = apData.approvals || [];
       const myApprovals = allApprovals.filter(a => {
+        if (isAdmin) return true;
+
+        // If client/interaction is unassigned, allow anyone to see it
+        let isUnassigned = true;
+        if (a.client_id) {
+          const clientObj = allClients.find(c => Number(c.id) === Number(a.client_id));
+          if (clientObj) {
+            const cd = parseCustomData(clientObj.custom_data);
+            const felelos = ((cd.felelos || cd.assigned_to || '') as string).trim();
+            if (felelos) {
+              isUnassigned = false;
+            }
+          }
+        }
+        if (isUnassigned) return true;
+
         // Direct client_id match
         if (a.client_id && assignedClientIds.has(Number(a.client_id))) return true;
         let draftData: Record<string, unknown> = {};
@@ -372,6 +391,9 @@ export default function MemberDashboardPage() {
           interactionId: (ap.id || null) as number | null,
           sessionId: (ap.session_id || null) as string | null,
           aiDraftResponse: (ap.ai_draft_response || null) as string | null,
+          ai_draft_response: (ap.ai_draft_response || null) as string | null,
+          approvalStatus: (ap.approval_status || null) as string | null,
+          approval_status: (ap.approval_status || null) as string | null,
           channel: draftChannel || null,
           topic: (ap.topic || null) as string | null,
           csatorna: detectTodoChannel({ channel: draftChannel, sessionId: ap.session_id as string, type: 'approval' }),
@@ -385,6 +407,22 @@ export default function MemberDashboardPage() {
       // c) Session handovers → todos
       const allSessions: Record<string, unknown>[] = sData.sessions || [];
       const mySessions = allSessions.filter(s => {
+        if (isAdmin) return true;
+
+        // If client/session is unassigned, allow anyone to see it
+        let isUnassigned = true;
+        if (s.client_id) {
+          const clientObj = allClients.find(c => Number(c.id) === Number(s.client_id));
+          if (clientObj) {
+            const cd = parseCustomData(clientObj.custom_data);
+            const felelos = ((cd.felelos || cd.assigned_to || '') as string).trim();
+            if (felelos) {
+              isUnassigned = false;
+            }
+          }
+        }
+        if (isUnassigned) return true;
+
         // Direct client_id match
         if (s.client_id && assignedClientIds.has(Number(s.client_id))) return true;
         const participant = ((s.participant || s.client_name || '') as string).toLowerCase().trim();

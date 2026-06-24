@@ -241,7 +241,7 @@ JSON STRUKTÃRA:
         "jarmu_modell": "pontos modell (opcionális)"
     },
     "meeting": {
-        "title": "Találkozó címe (ha az email egyértelműen időpontot kér/foglal)",
+        "title": "Találkozó címe (KIZÁRÓLAG akkor töltsd ki ezt a meeting objektumot, ha az ügyfél konkrét dátumot és konkrét időpontot/idősávot jelölt meg a foglaláshoz! Ha csak általánosságban kérdez szabad időpontokról vagy kér időpontot konkrét nap és óra megjelölése nélkül, a meeting értéke KÖTELEZŐEN null kell legyen!)",
         "date": "YYYY-MM-DD",
         "time": "HH:MM",
         "duration_minutes": 30,
@@ -259,7 +259,7 @@ JSON STRUKTÃRA:
     "secondary_tags": [],
     "handover_reason": "Az átadás oka, ha emberi beavatkozás szükséges. Válaszd ezek közül: 'Összetett kérdés', 'Sürgős / triázs', 'Hiányzó info', 'Foglalási kivétel', 'Emberi döntés'. Ha az AI mindent meg tudott oldani, ez legyen null."
 }
-Ha nem kérnek egyértelműen időpontot, a "meeting" értéke legyen null. 
+Ha az ügyfél nem jelölt meg konkrét és pontos foglalási időpontot (konkrét napot és órát), a "meeting" értéke KÖTELEZŐEN null legyen.
 FIGYELEM: Ha az eset Sürgős vagy Kiemelt prioritású, VAGY a kérés szerepel a Kivételek (Exceptions) listájában, a "meeting" értéke KÖTELEZŐEN null kell legyen (SZIGORÚAN TILOS időpontot foglalni!), és a "handover_reason" legyen 'Sürgős / triázs' vagy 'Foglalási kivétel'.
 Ebben az esetben a válaszlevélben se ígérj egyeztetést konkrét időpontokról, kizárólag azt jelezd, hogy az ügyét azonnal továbbítottad egy élő kollégának/munkatársnak!
 

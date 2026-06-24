@@ -85,11 +85,13 @@ export default function KanbanPage() {
     columns.forEach((col) => { map[col.id] = []; });
 
     clients.forEach((c) => {
-      // Member filtering: non-admins only see their assigned clients
+      // Member filtering: non-admins only see their assigned clients or unassigned ones
       if (!isAdmin) {
         const username = user?.username || '';
         const fullName = user?.fullName || '';
-        if (!isAssignedToMe(c, username, fullName)) return;
+        const cd = parseCustomData(c.custom_data);
+        const assignedTo = ((cd.assigned_to || cd.felelos || '') as string).trim();
+        if (assignedTo && !isAssignedToMe(c, username, fullName)) return;
       }
 
       const status = c.status || 'uj';

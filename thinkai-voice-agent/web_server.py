@@ -1264,6 +1264,7 @@ A kimeneted KIZÁRÓLAG egyetlen valid JSON objektum legyen, minden további mar
 JSON STRUKTÚRA:
 {{
     "reply_text": "A válaszüzenet szövege. Ez fog kimenni a Messengerre.",
+    "summary": "Tömör, 1 mondatos összefoglaló magyarul az ügyfél panaszáról, kérdéséről vagy kéréséről (összegzés).",
     "kanban_data": {{
         "name": "Ügyfél neve (ha megadta vagy tudod)",
         "email": "Ügyfél e-mailje (ha megadta)",
@@ -1326,6 +1327,7 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             return
 
         final_text = data.get("reply_text", "")
+        summary = data.get("summary", "")
         kanban = data.get("kanban_data") or {}
         meeting = data.get("meeting")
         modify_action = data.get("action_modify_meeting")
@@ -1341,6 +1343,8 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 "messenger_id": sender_id,
                 "forras_csatorna": source_channel
             }
+            if summary:
+                custom_data["problem_description"] = summary
             kanban_name = kanban.get("name", "").strip()
             # Don't accept placeholder names from AI — prefer the real name from Meta API
             if kanban_name and kanban_name not in ("Ismeretlen", "Névtelen", "-", "ismeretlen", "névtelen"):
@@ -1595,7 +1599,7 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             db.log_interaction(
                 type=source_channel.lower(),
                 topic=f"{source_channel} AI válasz - {message_text[:200]}",
-                summary=final_text[:100],
+                summary=summary or message_text[:200],
                 result="Várakozik jóváhagyásra",
                 tool_name="process_meta_message",
                 session_id=session_id,
