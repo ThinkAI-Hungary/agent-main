@@ -39,7 +39,6 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
   // Step 1 state
   const [statusFilters, setStatusFilters] = useState<Set<string>>(new Set());
   const [tagFilters, setTagFilters] = useState<Set<string>>(new Set());
-  const [selectedClientIds, setSelectedClientIds] = useState<Set<string>>(new Set(initialSelectedIds || []));
   const [pickerOpen, setPickerOpen] = useState(false);
   const [clientSearch, setClientSearch] = useState('');
 
@@ -71,7 +70,6 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
   }, [aiResult, messageMode]);
 
   // Clear error on input change
-  useEffect(() => { setStepError(''); }, [selectedClientIds, step]);
   useEffect(() => { setStepError(''); }, [campaignName]);
   useEffect(() => { setStepError(''); }, [messageSubject, messageContent, aiResult]);
 
@@ -175,50 +173,64 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
     'Inaktív': 'inactive',
   };
 
-  // Auto-select based on filters
-  useEffect(() => {
-    if (statusFilters.size === 0 && tagFilters.size === 0) {
-      setSelectedClientIds(new Set());
-      return;
-    }
+  const [manualSelectedIds, setManualSelectedIds] = useState<Set<string>>(new Set(initialSelectedIds || []));
+  const [manualDeselectedIds, setManualDeselectedIds] = useState<Set<string>>(new Set());
+
+  // Compute final selected clients based on filters + manual overrides
+  const selectedClientIds = useMemo(() => {
     const matching = new Set<string>();
-    enrichedClients.forEach(c => {
-      let matchesStatus = true;
-      let matchesTag = true;
-      
-      if (statusFilters.size > 0) {
-        matchesStatus = Array.from(statusFilters).some(sf => STATUS_MAP[sf] === c.clientType);
-      }
-      if (tagFilters.size > 0) {
-        matchesTag = c.tags.some(t => tagFilters.has(t));
-      }
-      
-      // If both filters active, client must match at least one
-      if (statusFilters.size > 0 && tagFilters.size > 0) {
-        if (matchesStatus || matchesTag) matching.add(c.id);
-      } else if (statusFilters.size > 0) {
-        if (matchesStatus) matching.add(c.id);
-      } else if (tagFilters.size > 0) {
-        if (matchesTag) matching.add(c.id);
-      }
-    });
-    setSelectedClientIds(matching);
-  }, [tagFilters, statusFilters, enrichedClients]);
+
+    if (statusFilters.size > 0 || tagFilters.size > 0) {
+      enrichedClients.forEach(c => {
+        let matchesStatus = true;
+        let matchesTag = true;
+        
+        if (statusFilters.size > 0) {
+          matchesStatus = Array.from(statusFilters).some(sf => STATUS_MAP[sf] === c.clientType);
+        }
+        if (tagFilters.size > 0) {
+          matchesTag = c.tags.some(t => tagFilters.has(t));
+        }
+        
+        if (statusFilters.size > 0 && tagFilters.size > 0) {
+          if (matchesStatus || matchesTag) matching.add(c.id);
+        } else if (statusFilters.size > 0) {
+          if (matchesStatus) matching.add(c.id);
+        } else if (tagFilters.size > 0) {
+          if (matchesTag) matching.add(c.id);
+        }
+      });
+    }
+
+    // Subtract manual deselections
+    manualDeselectedIds.forEach(id => matching.delete(id));
+    
+    // Add manual selections
+    manualSelectedIds.forEach(id => matching.add(id));
+
+    return matching;
+  }, [statusFilters, tagFilters, enrichedClients, manualSelectedIds, manualDeselectedIds]);
+
+  useEffect(() => { setStepError(''); }, [selectedClientIds, step]);
 
   const toggleClient = useCallback((id: string) => {
-    setSelectedClientIds(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
-  }, []);
+    if (selectedClientIds.has(id)) {
+      setManualSelectedIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+      setManualDeselectedIds(prev => { const next = new Set(prev); next.add(id); return next; });
+    } else {
+      setManualDeselectedIds(prev => { const next = new Set(prev); next.delete(id); return next; });
+      setManualSelectedIds(prev => { const next = new Set(prev); next.add(id); return next; });
+    }
+  }, [selectedClientIds]);
 
   const selectAllClients = useCallback(() => {
-    setSelectedClientIds(new Set(filteredPickerClients.map(c => c.id)));
+    setManualSelectedIds(new Set(filteredPickerClients.map(c => c.id)));
+    setManualDeselectedIds(new Set());
   }, [filteredPickerClients]);
 
   const deselectAllClients = useCallback(() => {
-    setSelectedClientIds(new Set());
+    setManualSelectedIds(new Set());
+    setManualDeselectedIds(new Set());
     setStatusFilters(new Set());
     setTagFilters(new Set());
   }, []);
