@@ -1079,7 +1079,7 @@ async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Option
     # Messenger PSID only supports 'first_name', 'last_name', 'profile_pic' — NOT 'name'.
     # Requesting 'name' on a PSID causes a 400 error, breaking the entire request.
     if source_channel == "Instagram":
-        fields = "name,profile_pic"
+        fields = "name,username,profile_pic"
     else:
         fields = "first_name,last_name,profile_pic"
         
@@ -1091,12 +1091,18 @@ async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Option
             if resp.status_code == 200:
                 data = resp.json()
                 name = data.get("name")
+                username = data.get("username")
+                if source_channel == "Instagram" and not name:
+                    name = username
                 if not name:
                     first = data.get("first_name", "")
                     last = data.get("last_name", "")
                     name = f"{first} {last}".strip()
                 profile_pic = data.get("profile_pic")
-                return {"name": name, "profile_pic": profile_pic} if name else None
+                res_dict = {"name": name, "profile_pic": profile_pic}
+                if username:
+                    res_dict["username"] = username
+                return res_dict if name else None
             else:
                 print(f"[Meta API] Error fetching profile for {sender_id} ({source_channel}): {resp.text}")
                 return None
@@ -1202,12 +1208,18 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
         meta_profile = await fetch_meta_user_profile(sender_id, source_channel)
         meta_name = None
         if meta_profile:
-            meta_name = meta_profile.get("name")
+            if source_channel == "Instagram":
+                meta_name = meta_profile.get("username") or meta_profile.get("name")
+            else:
+                meta_name = meta_profile.get("name")
             if meta_name:
                 client_data["name"] = meta_name
             profile_pic = meta_profile.get("profile_pic")
             if profile_pic:
                 client_data["profile_pic_url"] = profile_pic
+            username = meta_profile.get("username")
+            if username:
+                client_data["instagram_username"] = username
         
         if not meta_name:
             # Fallback: keressük az adatbázisban a nevet
@@ -1219,7 +1231,7 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
                     try: cd_fb = json.loads(cd_fb)
                     except: cd_fb = {}
                 if isinstance(cd_fb, dict):
-                    db_name = cd_fb.get("nev") or cd_fb.get("name") or existing.get("name")
+                    db_name = cd_fb.get("nev") or cd_fb.get("name") or cd_fb.get("instagram_username") or existing.get("name")
                     if db_name and db_name not in ("Névtelen", "-", ""):
                         meta_name = db_name
                         print(f"[Meta API] DB fallback név: {meta_name}")
@@ -1563,7 +1575,7 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                     try: cd_for_name = json.loads(cd_for_name)
                     except: cd_for_name = {}
                 if isinstance(cd_for_name, dict):
-                    display_name = cd_for_name.get("nev") or cd_for_name.get("name") or existing_client.get("name")
+                    display_name = cd_for_name.get("nev") or cd_for_name.get("name") or cd_for_name.get("instagram_username") or existing_client.get("name")
             if not display_name or display_name in ("Névtelen", "Ismeretlen", "-", ""):
                 display_name = None
 

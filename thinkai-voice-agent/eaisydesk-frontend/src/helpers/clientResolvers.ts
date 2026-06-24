@@ -47,6 +47,7 @@ export function bestClientName(c: ClientRecord): string | null {
     (cd?.nev as string) ||
     (cd?.name as string) ||
     (cd?.['név'] as string) ||
+    (cd?.instagram_username as string) ||
     c.name;
   if (n && n !== 'Névtelen' && n !== '-' && !isRawId(n)) return n;
   return null;
@@ -188,6 +189,10 @@ export function resolveClientName(
       bestName = sid.substring(6);
     } else if (sid.startsWith('phone_')) {
       bestName = sid.substring(6);
+    } else if (sid.startsWith('instagram_')) {
+      bestName = sid.substring(10);
+    } else if (sid.startsWith('messenger_')) {
+      bestName = sid.substring(10);
     }
   }
   return { name: bestName, id: null, status: null, created_at: null };
