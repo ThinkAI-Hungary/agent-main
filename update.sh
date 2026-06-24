@@ -16,8 +16,8 @@ case "${1:-update}" in
     echo " Git pull..."
     git pull
 
-    echo " Docker build + restart..."
-    docker compose up -d --build
+    echo " Docker build + restart skipped for duplicate local agent..."
+    # docker compose up -d --build
 
     if [ -d "../ugyfelszolg" ]; then
       echo " Rebuilding ugyfelszolg dobozos-agent..."

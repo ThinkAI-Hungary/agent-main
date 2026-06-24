@@ -7,6 +7,15 @@ import asyncio
 from email.header import decode_header
 from pathlib import Path
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+BUDAPEST_TZ = ZoneInfo("Europe/Budapest")
+
+def _to_budapest_tz(dt_str: str) -> datetime:
+    dt = datetime.fromisoformat(dt_str)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=BUDAPEST_TZ)
+    return dt.astimezone(BUDAPEST_TZ)
 
 import httpx
 from dotenv import load_dotenv
@@ -479,7 +488,7 @@ Ha egyik sem releváns, legyen üres lista [].
             title = meeting.get("title", f"Megbeszélés: {from_name}")
             
             if date_str and time_str:
-                start_dt = datetime.fromisoformat(f"{date_str}T{time_str}:00")
+                start_dt = _to_budapest_tz(f"{date_str}T{time_str}:00")
                 end_dt = start_dt + timedelta(minutes=dur)
                 created_event_id = db.add_calendar_event(
                     title=title,
@@ -501,10 +510,10 @@ Ha egyik sem releváns, legyen üres lista [].
             if found:
                 updates = {}
                 if modify_action.get("new_date") or modify_action.get("new_time"):
-                    old_dt = datetime.fromisoformat(found["start_dt"])
+                    old_dt = _to_budapest_tz(found["start_dt"])
                     d = modify_action.get("new_date") or old_dt.strftime("%Y-%m-%d")
                     t = modify_action.get("new_time") or old_dt.strftime("%H:%M")
-                    new_start = datetime.fromisoformat(f"{d}T{t}:00")
+                    new_start = _to_budapest_tz(f"{d}T{t}:00")
                     dur = found.get("duration_minutes", 30)
                     updates["start_dt"] = new_start.isoformat()
                     updates["end_dt"] = (new_start + timedelta(minutes=dur)).isoformat()
@@ -912,6 +921,15 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
     import base64 as b64module
     import database as db
     from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+BUDAPEST_TZ = ZoneInfo("Europe/Budapest")
+
+def _to_budapest_tz(dt_str: str) -> datetime:
+    dt = datetime.fromisoformat(dt_str)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=BUDAPEST_TZ)
+    return dt.astimezone(BUDAPEST_TZ)
     
     JWT_SECRET = os.getenv("JWT_SECRET", "thinkai-admin-secret-change-me")
     JWT_ALGO = "HS256"
@@ -923,7 +941,7 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
         
         # ── ICS naptárfájl generálása ──────────────────────────────────
         try:
-            start_dt = datetime.fromisoformat(f"{date}T{time}:00")
+            start_dt = _to_budapest_tz(f"{date}T{time}:00")
             end_dt = start_dt + timedelta(minutes=30)  # alapértelmezett 30 perc
             
             # Próbáljuk megkapni a tényleges időtartamot az adatbázisból
@@ -1037,6 +1055,15 @@ def get_cancellation_html(event_id: int) -> str:
     import jwt as pyjwt
     import os
     from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+BUDAPEST_TZ = ZoneInfo("Europe/Budapest")
+
+def _to_budapest_tz(dt_str: str) -> datetime:
+    dt = datetime.fromisoformat(dt_str)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=BUDAPEST_TZ)
+    return dt.astimezone(BUDAPEST_TZ)
     
     JWT_SECRET = os.getenv("JWT_SECRET", "thinkai-admin-secret-change-me")
     JWT_ALGO = "HS256"
@@ -1135,7 +1162,16 @@ async def automation_worker_loop():
     while True:
         try:
             import database as db
-            from datetime import datetime, timedelta, timezone
+            from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+BUDAPEST_TZ = ZoneInfo("Europe/Budapest")
+
+def _to_budapest_tz(dt_str: str) -> datetime:
+    dt = datetime.fromisoformat(dt_str)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=BUDAPEST_TZ)
+    return dt.astimezone(BUDAPEST_TZ), timezone
             
             automations = db.get_outbound_automations()
             if not automations:

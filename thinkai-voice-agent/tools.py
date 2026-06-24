@@ -6,6 +6,15 @@ Function tools using @function_tool decorator for the voice assistant.
 import os
 import json
 from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
+
+BUDAPEST_TZ = ZoneInfo("Europe/Budapest")
+
+def _to_budapest_tz(dt_str: str) -> datetime:
+    dt = datetime.fromisoformat(dt_str)
+    if dt.tzinfo is None:
+        return dt.replace(tzinfo=BUDAPEST_TZ)
+    return dt.astimezone(BUDAPEST_TZ)
 from pathlib import Path
 from typing import Annotated
 import re
@@ -81,7 +90,7 @@ def _parse_hungarian_date(raw: str) -> str:
 
     # Last resort: try fromisoformat
     try:
-        return datetime.fromisoformat(raw).strftime("%Y-%m-%d")
+        return _to_budapest_tz(raw).strftime("%Y-%m-%d")
     except Exception:
         pass
 
@@ -218,13 +227,13 @@ async def check_calendar(
     if not events:
         return f"A következő {days_ahead} napban nincsenek rögzített események — teljesen szabad a naptár!"
 
-    now = datetime.utcnow()
+    now = datetime.now(BUDAPEST_TZ)
     cutoff = now + timedelta(days=days_ahead)
 
     upcoming = []
     for ev in events:
         try:
-            ev_dt = datetime.fromisoformat(ev["start_dt"])
+            ev_dt = _to_budapest_tz(ev["start_dt"])
             if now <= ev_dt <= cutoff:
                 upcoming.append(ev)
         except Exception:
@@ -238,7 +247,7 @@ async def check_calendar(
     event_list = []
     for ev in upcoming[:10]:
         try:
-            dt = datetime.fromisoformat(ev["start_dt"])
+            dt = _to_budapest_tz(ev["start_dt"])
             formatted = dt.strftime("%m/%d %H:%M")
         except Exception:
             formatted = ev["start_dt"]
@@ -284,7 +293,7 @@ async def book_meeting(
     try:
         parsed_date = _parse_hungarian_date(date)
         parsed_time = _parse_hungarian_time(time)
-        start_dt = datetime.fromisoformat(f"{parsed_date}T{parsed_time}:00")
+        start_dt = _to_budapest_tz(f"{parsed_date}T{parsed_time}:00")
         end_dt = start_dt + timedelta(minutes=duration_minutes)
 
         events = db.get_calendar_events()
@@ -292,7 +301,7 @@ async def book_meeting(
         # ── Conflict detection ────────────────────────────────────────
         for ev in events:
             try:
-                ev_start = datetime.fromisoformat(ev["start_dt"])
+                ev_start = _to_budapest_tz(ev["start_dt"])
                 ev_end = ev_start + timedelta(minutes=ev.get("duration_minutes", 30))
                 if start_dt < ev_end and end_dt > ev_start:
                     ev_title = ev.get("title", "Névtelen esemény")
@@ -386,7 +395,7 @@ def _find_next_slot(events: list, date: str, duration: int, after: datetime) -> 
     day_events = []
     for ev in events:
         try:
-            ev_start = datetime.fromisoformat(ev["start_dt"])
+            ev_start = _to_budapest_tz(ev["start_dt"])
             if ev_start.strftime("%Y-%m-%d") == date:
                 ev_end = ev_start + timedelta(minutes=ev.get("duration_minutes", 30))
                 day_events.append((ev_start, ev_end))
@@ -675,16 +684,16 @@ async def modify_meeting(
         if new_title:
             updates["title"] = new_title
         if new_date or new_time:
-            old_dt = datetime.fromisoformat(found["start_dt"])
+            old_dt = _to_budapest_tz(found["start_dt"])
             d = _parse_hungarian_date(new_date) if new_date else old_dt.strftime("%Y-%m-%d")
             t = _parse_hungarian_time(new_time) if new_time else old_dt.strftime("%H:%M")
-            new_start = datetime.fromisoformat(f"{d}T{t}:00")
+            new_start = _to_budapest_tz(f"{d}T{t}:00")
             dur = new_duration_minutes or found.get("duration_minutes", 30)
             updates["start_dt"] = new_start.isoformat()
             updates["end_dt"] = (new_start + timedelta(minutes=dur)).isoformat()
             updates["duration_minutes"] = dur
         elif new_duration_minutes:
-            start = datetime.fromisoformat(found["start_dt"])
+            start = _to_budapest_tz(found["start_dt"])
             updates["duration_minutes"] = new_duration_minutes
             updates["end_dt"] = (start + timedelta(minutes=new_duration_minutes)).isoformat()
 
