@@ -218,8 +218,31 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     return rows;
   }, [client, sessions, cd]);
 
-  const openInteractions = clientInteractions.filter((r) => r.status === 'pending' || r.status === 'nyitott' || r.statusz === 'NYITOTT');
-  const closedInteractions = clientInteractions.filter((r) => r.status !== 'pending' && r.status !== 'nyitott' && r.statusz !== 'NYITOTT');
+  // Find the date of the latest finalized appointment ('Új időpont')
+  const latestBookedDate = clientInteractions
+    .filter(r => r.eredmeny.includes('Új időpont'))
+    .reduce((latest, r) => {
+      const d = r.date || '';
+      return d > latest ? d : latest;
+    }, '');
+
+  const openInteractions = clientInteractions.filter((r) => {
+    const sz = (r.statusz || '').toLowerCase();
+    const st = (r.status || '').toLowerCase();
+    const isPending = st === 'pending';
+    const isOpenStatus = sz === 'nyitott' || sz === 'sürgős';
+
+    // If it's an appointment preparation, check if it was resolved by a later booking
+    if (r.eredmeny.includes('Időpont előkészítve') && latestBookedDate && r.date && r.date <= latestBookedDate) {
+      return false; // resolved by a later booking
+    }
+
+    return isPending || isOpenStatus;
+  });
+
+  const closedInteractions = clientInteractions.filter((r) => {
+    return !openInteractions.includes(r);
+  });
 
   // Save notes
   const saveNotes = useCallback(async (value: string) => {

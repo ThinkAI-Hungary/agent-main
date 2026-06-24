@@ -541,7 +541,7 @@ export default function InteractionSummaryModal({
     .toUpperCase();
 
   // ── SÜRGŐS notification ──
-  const isSurgos = row.statusz === 'SÜRGŐS';
+  const isSurgos = row.statusz === 'SÜRGŐS' || row.statusz === 'Sürgős';
   const surgosEmail = (() => {
     if (!isSurgos || !row.clientId) return '';
     const clientData = clientsMap[String(row.clientId)];

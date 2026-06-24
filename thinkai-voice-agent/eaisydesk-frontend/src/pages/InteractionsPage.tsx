@@ -691,7 +691,7 @@ export default function InteractionsPage() {
                   const avatarColors = ['#6366f1', '#0d9488', '#d946ef', '#f59e0b', '#3b82f6', '#ef4444', '#22c55e', '#8b5cf6'];
                   const avatarBg = avatarColors[clientName.length % avatarColors.length];
                   // Accent per status
-                  const accentColor = r.statusz === 'LEZÁRT' ? '#22c55e' : r.statusz === 'NYITOTT' ? '#f59e0b' : '#1ceee0';
+                  const accentColor = (r.statusz === 'LEZÁRT' || r.statusz === 'Lezárt') ? '#22c55e' : (r.statusz === 'NYITOTT' || r.statusz === 'Nyitott' || r.statusz === 'Sürgős' || r.statusz === 'SÜRGŐS') ? '#f59e0b' : '#1ceee0';
 
                   return (
                     <React.Fragment key={`${r.sessionId}-${r.interactionId}-${i}`}>

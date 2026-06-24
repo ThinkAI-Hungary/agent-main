@@ -35,7 +35,15 @@ export function Badge({ value, colorMap, style }: BadgeProps) {
 }
 
 export function EredmenyBadge({ value }: { value: string }) {
-  return <Badge value={value} colorMap={EREDMENY_COLORS} />;
+  if (!value) return <span>—</span>;
+  const parts = value.split(',').map((p) => p.trim()).filter(Boolean);
+  return (
+    <div style={{ display: 'flex', gap: '4px', flexWrap: 'wrap' }}>
+      {parts.map((p) => (
+        <Badge key={p} value={p} colorMap={EREDMENY_COLORS} />
+      ))}
+    </div>
+  );
 }
 
 export function StatuszBadge({ value }: { value: string }) {
