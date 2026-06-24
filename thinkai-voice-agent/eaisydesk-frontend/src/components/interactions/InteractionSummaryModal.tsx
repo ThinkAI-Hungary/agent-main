@@ -405,7 +405,22 @@ export default function InteractionSummaryModal({
       }
 
       if (!cancelled) {
-        setChatBlocks(parsedBlocks);
+        // Filter out blocks that duplicate the summary
+        const filteredBlocks = parsedBlocks.filter((block) => {
+          if (block.sender === 'system') {
+            const normalizedBlock = block.text.replace(/\s+/g, ' ').trim().toLowerCase();
+            const normalizedSummary = baseSummary.replace(/\s+/g, ' ').trim().toLowerCase();
+            if (
+              normalizedSummary.includes(normalizedBlock) ||
+              normalizedBlock.includes(normalizedSummary) ||
+              normalizedBlock === normalizedSummary
+            ) {
+              return false;
+            }
+          }
+          return true;
+        });
+        setChatBlocks(filteredBlocks);
         setNotificationText(notifText);
 
         // Build appointment info if applicable

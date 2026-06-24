@@ -195,8 +195,8 @@
 
 /* ── Status Box ── */
 .ism-status-box {
-  flex-shrink: 0;
-  min-width: 200px;
+  flex: 0 0 320px;
+  max-width: 320px;
   border: 1px solid var(--border, #e5e7eb);
   border-radius: 8px;
   padding: 14px 18px;
@@ -208,7 +208,7 @@
 
 .ism-status-row {
   display: flex;
-  align-items: center;
+  align-items: flex-start;
   justify-content: space-between;
   gap: 12px;
 }
@@ -220,6 +220,7 @@
   text-transform: uppercase;
   letter-spacing: 0.3px;
   white-space: nowrap;
+  padding-top: 3px;
 }
 
 .ism-status-value {
@@ -632,6 +633,8 @@
   .ism-status-box {
     min-width: 0;
     width: 100%;
+    max-width: 100%;
+    flex: none;
   }
 
   .ism-footer {
