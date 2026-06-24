@@ -135,13 +135,20 @@ export default function ClientsPage() {
 
   // ── Enrich clients ──
   const enrichedClients = useMemo<EnrichedClient[]>(() => {
+    const defaultMunkatars = members.find(m => (m.role || '').toLowerCase().includes('munkat') || m.role === 'worker' || m.role === 'member');
+    const defaultAssigneeName = defaultMunkatars ? (defaultMunkatars.full_name || defaultMunkatars.username) : '';
+
     return clients.map((c) => {
       const cd = parseCustomData(c.custom_data);
       const name = bestClientName(c) || c.name || 'Névtelen';
       const email = (cd?.email as string) || c.email || '';
       const phone = (cd?.telefonszam as string) || (cd?.phone as string) || (cd?.telefon as string) || c.phone || '';
       const tags: string[] = (cd?.tags as string[]) || [];
-      const assignee = (cd?.assigned_to as string) || '';
+      
+      let assignee = ((cd?.assigned_to as string) || (cd?.felelos as string) || '').trim();
+      if (!assignee && defaultAssigneeName) {
+        assignee = defaultAssigneeName;
+      }
 
       // Count calendar appointments for this client
       const clientNameLower = name.toLowerCase().trim();
@@ -191,7 +198,7 @@ export default function ClientsPage() {
         raw: c,
       };
     });
-  }, [clients, sessions, events]);
+  }, [clients, sessions, events, members]);
 
   // ── Member filtering: non-admins only see assigned or unassigned clients ──
   const myClients = useMemo(() => {
@@ -199,10 +206,9 @@ export default function ClientsPage() {
     const username = user?.username || '';
     const fullName = user?.fullName || '';
     return enrichedClients.filter(c => {
-      const cd = parseCustomData(c.raw.custom_data);
-      const assignedTo = ((cd.assigned_to || cd.felelos || '') as string).trim();
+      const assignedTo = c.assignee;
       if (!assignedTo) return true;
-      return isAssignedToMe(c.raw, username, fullName);
+      return assignedTo === username || (!!fullName && assignedTo === fullName);
     });
   }, [enrichedClients, isAdmin, user]);
 
