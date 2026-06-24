@@ -3554,27 +3554,26 @@ async def _run_campaign(campaign: dict, active_channels: list[str]):
     campaign_id = campaign["id"]
     campaign_name = campaign["name"]
     ai_instructions = campaign.get("ai_instructions", "") or ""
-    # Strip internal SCHED: and MODE: prefixes
-    if ai_instructions.startswith("SCHED:"):
-        pipe_idx = ai_instructions.find("|")
-        if pipe_idx >= 0:
-            ai_instructions = ai_instructions[pipe_idx + 1:]
-    
     subject = campaign_name
-    while ai_instructions.startswith("SUBJECT:"):
-        pipe_idx = ai_instructions.find("|")
-        if pipe_idx >= 0:
-            subject = ai_instructions[8:pipe_idx]
-            ai_instructions = ai_instructions[pipe_idx + 1:]
-        else:
-            break
-
-    while ai_instructions.startswith("MODE:"):
-        colon_idx = ai_instructions.find(":", 5)
-        if colon_idx >= 0:
-            ai_instructions = ai_instructions[colon_idx + 1:]
-        else:
-            break
+    changed = True
+    while changed:
+        changed = False
+        if ai_instructions.startswith("SCHED:"):
+            pipe_idx = ai_instructions.find("|")
+            if pipe_idx >= 0:
+                ai_instructions = ai_instructions[pipe_idx + 1:]
+                changed = True
+        if ai_instructions.startswith("MODE:"):
+            colon_idx = ai_instructions.find(":", 5)
+            if colon_idx >= 0:
+                ai_instructions = ai_instructions[colon_idx + 1:]
+                changed = True
+        if ai_instructions.startswith("SUBJECT:"):
+            pipe_idx = ai_instructions.find("|")
+            if pipe_idx >= 0:
+                subject = ai_instructions[8:pipe_idx]
+                ai_instructions = ai_instructions[pipe_idx + 1:]
+                changed = True
     ai_instructions = ai_instructions.strip()
     client_ids = campaign.get("client_ids", [])
 
