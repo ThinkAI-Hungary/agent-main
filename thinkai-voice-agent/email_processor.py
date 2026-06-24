@@ -921,16 +921,6 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
     import base64 as b64module
     import database as db
     from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
-
-BUDAPEST_TZ = ZoneInfo("Europe/Budapest")
-
-def _to_budapest_tz(dt_str: str) -> datetime:
-    dt = datetime.fromisoformat(dt_str)
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=BUDAPEST_TZ)
-    return dt.astimezone(BUDAPEST_TZ)
-    
     JWT_SECRET = os.getenv("JWT_SECRET", "thinkai-admin-secret-change-me")
     JWT_ALGO = "HS256"
     SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8000")
@@ -1055,16 +1045,6 @@ def get_cancellation_html(event_id: int) -> str:
     import jwt as pyjwt
     import os
     from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
-
-BUDAPEST_TZ = ZoneInfo("Europe/Budapest")
-
-def _to_budapest_tz(dt_str: str) -> datetime:
-    dt = datetime.fromisoformat(dt_str)
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=BUDAPEST_TZ)
-    return dt.astimezone(BUDAPEST_TZ)
-    
     JWT_SECRET = os.getenv("JWT_SECRET", "thinkai-admin-secret-change-me")
     JWT_ALGO = "HS256"
     SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8000")
@@ -1162,16 +1142,7 @@ async def automation_worker_loop():
     while True:
         try:
             import database as db
-            from datetime import datetime, timedelta
-from zoneinfo import ZoneInfo
-
-BUDAPEST_TZ = ZoneInfo("Europe/Budapest")
-
-def _to_budapest_tz(dt_str: str) -> datetime:
-    dt = datetime.fromisoformat(dt_str)
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=BUDAPEST_TZ)
-    return dt.astimezone(BUDAPEST_TZ), timezone
+            from datetime import datetime, timedelta, timezone
             
             automations = db.get_outbound_automations()
             if not automations:
