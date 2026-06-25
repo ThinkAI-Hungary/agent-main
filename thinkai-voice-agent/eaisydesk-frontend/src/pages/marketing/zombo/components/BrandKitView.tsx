@@ -147,7 +147,7 @@ export const BrandKitView: React.FC<BrandKitViewProps> = ({
   const [fontName, setFontName] = useState('Montserrat');
   const [maxLineLength, setMaxLineLength] = useState(40);
 
-  const [logoPosition, setLogoPosition] = useState('top-left');
+  const [logoPosition, setLogoPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>('top-left');
   const [toneInput, setToneInput] = useState('');
   const [toneGood, setToneGood] = useState('');
   const [toneBad, setToneBad] = useState('');
@@ -770,7 +770,7 @@ export const BrandKitView: React.FC<BrandKitViewProps> = ({
                   </div>
                   <div style={{ flex: '1 1 160px' }}>
                     <FieldGroup label="Logó pozíciója">
-                      <select value={logoPosition} onChange={e => setLogoPosition(e.target.value)} style={selectStyle}>
+                      <select value={logoPosition} onChange={e => setLogoPosition(e.target.value as 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right')} style={selectStyle}>
                         <option value="top-left">Bal felül</option>
                         <option value="top-right">Jobb felül</option>
                         <option value="bottom-left">Bal alul</option>

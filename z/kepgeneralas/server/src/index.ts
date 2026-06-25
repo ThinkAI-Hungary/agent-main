@@ -11,6 +11,7 @@ import {
   analyzeBrandKit,
   orchestrateCreatives,
   orchestrateCampaign,
+  orchestrateSingleCreative,
   GeneratedPostVariant
 } from './orchestrator.js';
 import { renderPost, renderPolotnoJSON } from './renderer.js';
@@ -21,26 +22,49 @@ import fs from 'fs';
 // OpenAI import removed — using Bria Product Shot via fal.ai
 
 // ═══════════════════════════════════════════════════════════════════════════════
-// FLUX 2 PRO HELPER — BFL Direct API (replaces fal-ai/flux/schnell everywhere)
+// FLUX.2 [flex] HELPER — BFL Direct API (recommended for label/packaging + general use)
+// Defaults: safety_tolerance=1, guidance=4.5, steps=50
 // ═══════════════════════════════════════════════════════════════════════════════
 
-async function generateWithFlux2(prompt: string, width: number, height: number): Promise<string> {
+async function generateWithFluxFlex(
+  prompt: string,
+  width: number,
+  height: number,
+  opts?: { safetyTolerance?: number; guidance?: number; steps?: number; aspectRatio?: string; inputImage?: string; inputImage2?: string }
+): Promise<string> {
   const bflKey = process.env.BFL_API_KEY;
   if (!bflKey) throw new Error('BFL_API_KEY is not configured in .env');
 
-  console.log(`[FLUX2] Submitting to BFL Flux 2 Pro — ${width}x${height}`);
-  console.log(`[FLUX2] Prompt: "${prompt.substring(0, 100)}..."`);
+  const safetyTol = opts?.safetyTolerance ?? 1;
+  const guidance  = opts?.guidance ?? 4.5;
+  const steps     = opts?.steps ?? 50;
+  const ar        = opts?.aspectRatio ?? '2:3';
+
+  console.log(`[FLEX] Submitting to BFL FLUX.2 [flex] — ${width}x${height} | guidance=${guidance} steps=${steps}`);
+  console.log(`[FLEX] Prompt: "${prompt.substring(0, 100)}..."`);
+
+  const payload: any = {
+    prompt,
+    aspect_ratio: ar,
+    width,
+    height,
+    output_format: 'jpeg',
+    safety_tolerance: safetyTol,
+    guidance,
+    steps,
+  };
+
+  if (opts?.inputImage) {
+    payload.input_image = opts.inputImage;
+    if (opts.inputImage2) {
+      payload.input_image_2 = opts.inputImage2;
+    }
+  }
 
   // Step 1: Submit generation task
   const submitResponse = await axios.post(
-    'https://api.bfl.ai/v1/flux-2-pro',
-    {
-      prompt,
-      width,
-      height,
-      output_format: 'jpeg',
-      safety_tolerance: 2,
-    },
+    'https://api.bfl.ai/v1/flux-2-flex',
+    payload,
     {
       headers: { 'X-Key': bflKey, 'Content-Type': 'application/json' },
       timeout: 30000,
@@ -52,7 +76,7 @@ async function generateWithFlux2(prompt: string, width: number, height: number):
   if (!taskId || !pollingUrl) {
     throw new Error(`BFL submit failed: ${JSON.stringify(submitResponse.data)}`);
   }
-  console.log(`[FLUX2] Task submitted: ${taskId}`);
+  console.log(`[FLEX] Task submitted: ${taskId}`);
 
   // Step 2: Poll until Ready
   const pollStart = Date.now();
@@ -67,20 +91,23 @@ async function generateWithFlux2(prompt: string, width: number, height: number):
     });
 
     const { status, result } = statusResp.data;
-    console.log(`[FLUX2] Poll: ${status} (${((Date.now() - pollStart) / 1000).toFixed(0)}s)`);
+    console.log(`[FLEX] Poll: ${status} (${((Date.now() - pollStart) / 1000).toFixed(0)}s)`);
 
     if (status === 'Ready') {
       const imageUrl = result?.sample;
       if (!imageUrl) throw new Error('BFL returned Ready but no sample URL');
-      console.log(`[FLUX2] ✅ Done in ${((Date.now() - pollStart) / 1000).toFixed(1)}s → ${imageUrl.substring(0, 80)}...`);
+      console.log(`[FLEX] ✅ Done in ${((Date.now() - pollStart) / 1000).toFixed(1)}s → ${imageUrl.substring(0, 80)}...`);
       return imageUrl;
     } else if (status === 'Failed') {
-      throw new Error(`BFL Flux 2 task failed: ${JSON.stringify(statusResp.data?.error || statusResp.data)}`);
+      throw new Error(`BFL Flex task failed: ${JSON.stringify(statusResp.data?.error || statusResp.data)}`);
     }
   }
 
-  throw new Error('BFL Flux 2 task timed out after 2 minutes');
+  throw new Error('BFL Flex task timed out after 2 minutes');
 }
+
+// Backwards-compat alias
+const generateWithFlux2 = generateWithFluxFlex;
 
 // Reload trigger comment - updated model to sonnet 4.6
 const __filename = fileURLToPath(import.meta.url);
@@ -94,6 +121,19 @@ const anthropic = new Anthropic({
 
 const app = express();
 const port = process.env.PORT || 3001;
+
+function getFallbackImage(brandKit: BrandKit): string {
+  let fallback = 'https://images.unsplash.com/photo-1490730141103-6cac27aaab94?auto=format&fit=crop&q=80&w=1080'; // default sunrise
+  if (brandKit && brandKit.name) {
+    const name = brandKit.name.toLowerCase();
+    if (name.includes('festék') || name.includes('paint') || name.includes('piktor') || name.includes('diy') || name.includes('szín')) {
+      fallback = 'https://images.unsplash.com/photo-1562259949-e8e7689d7828?auto=format&fit=crop&q=80&w=1080';
+    } else if (name.includes('kávé') || name.includes('coffee') || name.includes('cafe') || name.includes('latte')) {
+      fallback = 'https://images.unsplash.com/photo-1507133750040-4a8f57021571?auto=format&fit=crop&q=80&w=1080';
+    }
+  }
+  return fallback;
+}
 
 // CORS setup to allow react frontend dev server
 app.use(cors());
@@ -122,6 +162,7 @@ app.post('/api/extract', async (req, res) => {
       id: `kit-v1`,
       version: 1,
       createdAt: new Date().toISOString(),
+      name: (analyzedKit as any).name || 'Brand',
       colors: {
         primary: analyzedKit.colors?.primary || '#3E2723',
         secondary: analyzedKit.colors?.secondary || '#F5F5DC',
@@ -135,7 +176,7 @@ app.post('/api/extract', async (req, res) => {
         bodySize: analyzedKit.typography?.bodySize || '15px',
         maxLineLength: analyzedKit.typography?.maxLineLength || 40
       },
-      logoUrl: 'coffee-cup-minimal', // Default SVG design
+      logoUrl: '', // Default SVG design
       logoPosition: analyzedKit.logoPosition || 'top-left',
       tone: analyzedKit.tone || ['meleg', 'direkt', 'barátságos'],
       toneExampleGood: analyzedKit.toneExampleGood || 'Példa szöveg...',
@@ -176,16 +217,16 @@ app.post('/api/generate', async (req, res) => {
       if (process.env.BFL_API_KEY) {
         try {
           const fullPrompt = `${variant.imagePrompt}, visual style matching rules: ${brandKit.visualRules.join(', ')}`;
-          imageUrl = await generateWithFlux2(fullPrompt, 768, 960);
+          imageUrl = await generateWithFlux2(fullPrompt, 768, 960, { aspectRatio: '4:5', safetyTolerance: 1, guidance: 4.5, steps: 50 });
           console.log(`[FLUX2] Image generated for variant ${idx+1}: ${imageUrl}`);
         } catch (imageErr: any) {
           console.error(`[FLUX2] Image generation failed for variant ${idx+1}:`, imageErr.message);
           // Fallback image url if generator fails
-          imageUrl = 'https://images.unsplash.com/photo-1507133750040-4a8f57021571?auto=format&fit=crop&q=80&w=1080';
+          imageUrl = getFallbackImage(brandKit);
         }
       } else {
         console.log(`[FLUX2] BFL_API_KEY not configured, using fallback image.`);
-        imageUrl = 'https://images.unsplash.com/photo-1507133750040-4a8f57021571?auto=format&fit=crop&q=80&w=1080';
+        imageUrl = getFallbackImage(brandKit);
       }
 
       // 2. Local rendering using Playwright
@@ -201,6 +242,7 @@ app.post('/api/generate', async (req, res) => {
         text: variant.text,
         cta: variant.cta,
         imageUrl: localRenderPath,
+        originalImageUrl: imageUrl,
         imagePrompt: variant.imagePrompt,
         colorVariation: variant.colorVariation,
         logoVariant: variant.logoVariant,
@@ -219,6 +261,89 @@ app.post('/api/generate', async (req, res) => {
   }
 });
 
+// Route 2.5: Generate a single custom creative from scratch or custom prompt
+app.post('/api/generate-adhoc', async (req, res) => {
+  const { brief, brandKit, customText, customImagePrompt, templateId, colorVariation, logoVariant, cta, productImageUrl, preprocessedImageUrl } = req.body;
+  if (!brandKit || !templateId) {
+    return res.status(400).json({ error: 'brandKit and templateId params are required.' });
+  }
+
+  try {
+    let postText = customText || '';
+    let postCta = cta || '';
+    let postImagePrompt = customImagePrompt || '';
+    let postColorVariation = colorVariation || 'default';
+    let postLogoVariant = logoVariant || 'dark';
+
+    // 1. If we don't have custom text or custom prompt, let Claude generate them!
+    if (!customText || !customImagePrompt) {
+      console.log(`[ADHOC] Orchestrating single creative using Claude for template: ${templateId}`);
+      const orchestrated = await orchestrateSingleCreative(brief || 'Általános promóció', brandKit, templateId);
+      if (!postText) postText = orchestrated.text;
+      if (!postCta) postCta = orchestrated.cta || '';
+      if (!postImagePrompt) postImagePrompt = orchestrated.imagePrompt;
+      if (!colorVariation) postColorVariation = orchestrated.colorVariation;
+      if (!logoVariant) postLogoVariant = orchestrated.logoVariant;
+    }
+
+    // 2. Generate image using Flux 2 Pro
+    let imageUrl = '';
+    if (process.env.BFL_API_KEY) {
+      try {
+        const fullPrompt = `${postImagePrompt}, visual style matching rules: ${brandKit.visualRules.join(', ')}`;
+        imageUrl = await generateWithFlux2(fullPrompt, 768, 960, {
+          aspectRatio: '4:5',
+          safetyTolerance: 1,
+          guidance: 4.5,
+          steps: 50,
+          inputImage: preprocessedImageUrl || productImageUrl,
+          inputImage2: preprocessedImageUrl ? productImageUrl : undefined
+        });
+        console.log(`[ADHOC-FLUX2] Image generated: ${imageUrl}`);
+      } catch (imageErr: any) {
+        console.error(`[ADHOC-FLUX2] Image generation failed:`, imageErr.message);
+        imageUrl = getFallbackImage(brandKit);
+      }
+    } else {
+      console.log(`[ADHOC-FLUX2] BFL_API_KEY not configured, using fallback image.`);
+      imageUrl = getFallbackImage(brandKit);
+    }
+
+    // 3. Render Playwright overlay
+    const variant = {
+      templateId,
+      logoVariant: postLogoVariant,
+      colorVariation: postColorVariation,
+      text: postText,
+      cta: postCta
+    };
+
+    console.log(`[ADHOC-RENDER] Playwright screenshotting layout: ${templateId}`);
+    const localRenderPath = await renderPost(variant, brandKit, imageUrl);
+    console.log(`[ADHOC-RENDER] Screenshot saved at: ${localRenderPath}`);
+
+    const postCreative: PostCreative = {
+      id: `creative-adhoc-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      briefId: `brief-adhoc-${Date.now()}`,
+      templateId,
+      status: 'scheduled',
+      text: postText,
+      cta: postCta,
+      imageUrl: localRenderPath,
+      originalImageUrl: imageUrl,
+      imagePrompt: postImagePrompt,
+      colorVariation: postColorVariation,
+      logoVariant: postLogoVariant,
+      createdAt: new Date().toISOString()
+    };
+
+    res.json(postCreative);
+  } catch (err: any) {
+    console.error('Error generating adhoc creative:', err);
+    res.status(500).json({ error: 'Failed to generate creative', details: err.message });
+  }
+});
+
 // Route 3: Re-render copy updates
 app.post('/api/render-update', async (req, res) => {
   const { post, brandKit, text } = req.body;
@@ -234,13 +359,15 @@ app.post('/api/render-update', async (req, res) => {
     };
 
     // Keep the same image but re-screenshot layouts with Playwright
-    const localRenderPath = await renderPost(updatedVariant, brandKit, post.imageUrl);
+    const bgImage = post.originalImageUrl || post.imageUrl;
+    const localRenderPath = await renderPost(updatedVariant, brandKit, bgImage);
     console.log(`[RE-RENDER] Screenshot updated at: ${localRenderPath}`);
 
     const updatedPost: PostCreative = {
       ...post,
       text: text,
-      imageUrl: localRenderPath
+      imageUrl: localRenderPath,
+      originalImageUrl: post.originalImageUrl || post.imageUrl
     };
 
     res.json(updatedPost);
@@ -311,7 +438,8 @@ app.post('/api/image/preprocess', async (req, res) => {
 app.post('/api/test-image', async (req, res) => {
   const { productImageUrl, preprocessedImageUrl, scenePrompt, model, ipStrength, cnStrength, guidanceScale, numSteps,
     briaPlacement, briaPositions, briaOptimize, briaFast, briaShotSize,
-    safetyTolerance, bflAspectRatio, bflRaw, imagePromptStrength, width, height } = req.body;
+    safetyTolerance, bflAspectRatio, bflRaw, imagePromptStrength, width, height,
+    guidance, aspectRatio, steps } = req.body;
   if (!scenePrompt) {
     return res.status(400).json({ error: 'scenePrompt is required.' });
   }
@@ -331,9 +459,12 @@ app.post('/api/test-image', async (req, res) => {
         throw new Error('BFL_API_KEY is not configured in .env');
       }
 
+      const isFlex = model === 'bfl-flux-2-flex';
       const isUltra = model === 'bfl-flux-pro-1.1-ultra';
-      const endpoint = model === 'bfl-flux-2-max' 
+      const endpoint = model === 'bfl-flux-2-max'
         ? 'https://api.bfl.ai/v1/flux-2-max'
+        : isFlex
+        ? 'https://api.bfl.ai/v1/flux-2-flex'
         : isUltra
         ? 'https://api.bfl.ai/v1/flux-pro-1.1-ultra'
         : 'https://api.bfl.ai/v1/flux-2-pro';
@@ -343,10 +474,24 @@ app.post('/api/test-image', async (req, res) => {
       let bflPayload: any = {
         prompt: scenePrompt,
         output_format: 'jpeg',
-        safety_tolerance: safetyTolerance !== undefined ? Number(safetyTolerance) : 2
+        safety_tolerance: safetyTolerance !== undefined ? Number(safetyTolerance) : 1
       };
 
-      if (isUltra) {
+      if (isFlex) {
+        // FLUX.2 [flex] — BFL's recommended model for label/packaging/typography
+        bflPayload.aspect_ratio = aspectRatio || bflAspectRatio || '2:3';
+        bflPayload.guidance = guidance !== undefined ? Number(guidance) : 4.5;
+        bflPayload.steps = steps !== undefined ? Math.min(50, Math.max(1, Number(steps))) : 50;
+        if (width) bflPayload.width = Number(width);
+        if (height) bflPayload.height = Number(height);
+        // Image referencing for Flex
+        if (preprocessedImageUrl) {
+          bflPayload.input_image = preprocessedImageUrl;
+          if (productImageUrl) bflPayload.input_image_2 = productImageUrl;
+        } else if (productImageUrl) {
+          bflPayload.input_image = productImageUrl;
+        }
+      } else if (isUltra) {
         bflPayload.aspect_ratio = bflAspectRatio || '2:3';
         bflPayload.raw = bflRaw === true;
         if (preprocessedImageUrl || productImageUrl) {
@@ -354,15 +499,12 @@ app.post('/api/test-image', async (req, res) => {
           bflPayload.image_prompt_strength = imagePromptStrength !== undefined ? Number(imagePromptStrength) : 0.1;
         }
       } else {
+        // Pro / Max: fixed width + height
         bflPayload.width = width ? Number(width) : 1024;
         bflPayload.height = height ? Number(height) : 1536;
-        
-        // Multi-image referencing: input_image is preprocessed, input_image_2 is original
         if (preprocessedImageUrl) {
           bflPayload.input_image = preprocessedImageUrl;
-          if (productImageUrl) {
-            bflPayload.input_image_2 = productImageUrl;
-          }
+          if (productImageUrl) bflPayload.input_image_2 = productImageUrl;
         } else if (productImageUrl) {
           bflPayload.input_image = productImageUrl;
         }
@@ -432,7 +574,7 @@ app.post('/api/test-image', async (req, res) => {
       
       // Step 1: Generate background image using Flux 2 Pro
       console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Step 1/3: Generating background using Flux 2 Pro...`);
-      const generatedBgUrl = await generateWithFlux2(scenePrompt, 1024, 1536);
+      const generatedBgUrl = await generateWithFlux2(scenePrompt, 1024, 1536, { aspectRatio: '2:3', safetyTolerance: 1, guidance: 4.5, steps: 50 });
       console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Background generated: ${generatedBgUrl}`);
       
       // Step 2: Composite product onto background
@@ -570,7 +712,12 @@ app.post('/api/test-image', async (req, res) => {
         usedModel = 'bria-product-shot';
       } else {
         console.log(`[TEST-IMAGE] [FLUX2] Scene-only mode — Flux 2 Pro`);
-        imageUrl = await generateWithFlux2(scenePrompt, width ? Number(width) : 1024, height ? Number(height) : 1536);
+        imageUrl = await generateWithFlux2(scenePrompt, width ? Number(width) : 1024, height ? Number(height) : 1536, {
+          aspectRatio: aspectRatio || '2:3',
+          safetyTolerance: safetyTolerance !== undefined ? Number(safetyTolerance) : 1,
+          guidance: guidance !== undefined ? Number(guidance) : 4.5,
+          steps: steps !== undefined ? Math.min(50, Math.max(1, Number(steps))) : 50
+        });
         usedModel = 'flux-2-pro';
       }
     }
@@ -863,7 +1010,7 @@ app.post('/api/campaign/generate', async (req, res) => {
           console.log(`[ITEM ${idx+1}] [FLUX2] "${imagePrompt.substring(0, 80)}..."`);
           sendEvent('item-progress', { index: idx, message: `[${idx+1}] Flux 2 Pro jelenet generálás...` });
           
-          finalImageUrl = await generateWithFlux2(scenePrompt, 1024, 1536);
+          finalImageUrl = await generateWithFlux2(scenePrompt, 1024, 1536, { aspectRatio: '2:3', safetyTolerance: 1, guidance: 4.5, steps: 50 });
           
           const elapsed = Date.now() - genStart;
           console.log(`[ITEM ${idx+1}] [FLUX2] ✅ ${elapsed}ms`);
@@ -899,6 +1046,7 @@ app.post('/api/campaign/generate', async (req, res) => {
         text: item.caption || item.text || '',
         cta: item.cta,
         imageUrl: localRenderPath,
+        originalImageUrl: finalImageUrl,
         imagePrompt: item.imagePrompt,
         colorVariation: item.colorVariation,
         logoVariant: item.logoVariant,

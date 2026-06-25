@@ -2,6 +2,7 @@ export interface BrandKit {
   id: string;
   version: number;
   createdAt: string;
+  name?: string;
   colors: {
     primary: string;
     secondary: string;
@@ -71,9 +72,28 @@ export interface PostCreative {
   text: string;
   cta?: string;
   imageUrl: string;
+  originalImageUrl?: string;
   imagePrompt: string;
   colorVariation: 'default' | 'inverted' | 'accent';
   logoVariant: 'light' | 'dark';
+  logoPosition?: 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right';
+  bgBlur?: number;
+  overlayOpacity?: number;
+  logoSize?: number;
+  fontSize?: number;
+  textAlignment?: 'left' | 'center' | 'right';
+  ctaRadius?: number;
+  fontWeight?: string;
+  textColor?: string;
+  textYOffset?: number;
+  textXOffset?: number;
+  panelBgColor?: string;
+  panelPadding?: number;
+  panelRadius?: number;
+  panelPosition?: string;
+  ctaFontSize?: number;
+  ctaBgColor?: string;
+  ctaYOffset?: number;
   createdAt: string;
   scheduledAt?: string;
   publishedAt?: string;

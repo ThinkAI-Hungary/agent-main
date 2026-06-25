@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { BrandKit, SystemLog, Campaign, CampaignItem, PostCreative, ABTestVariant, CampaignPhase } from '../types';
 import { fixImageUrl } from '../types';
+import { buildLayerTemplates } from '../layerTemplates';
 import {
   Sparkles,
   UploadCloud,
@@ -73,6 +74,35 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
   const [isUpdatingItem, setIsUpdatingItem] = useState(false);
   const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
   const [scheduleDate, setScheduleDate] = useState('');
+
+  // Layer Template & Editing States for the active editing item
+  const [editingBgBlur, setEditingBgBlur] = useState(0);
+  const [editingOverlayOpacity, setEditingOverlayOpacity] = useState(0.4);
+  const [editingLogoSize, setEditingLogoSize] = useState(1.0);
+  const [editingLogoPosition, setEditingLogoPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>('top-left');
+  const [editingLogoVariant, setEditingLogoVariant] = useState<'light' | 'dark'>('light');
+
+  const [editingFontSize, setEditingFontSize] = useState(38);
+  const [editingTextAlignment, setEditingTextAlignment] = useState<'left' | 'center' | 'right'>('left');
+  const [editingFontWeight, setEditingFontWeight] = useState('normal');
+  const [editingTextColor, setEditingTextColor] = useState<'default' | 'primary' | 'secondary' | 'accent' | 'white' | 'black'>('default');
+
+  const [editingTextYOffset, setEditingTextYOffset] = useState(0);
+  const [editingTextXOffset, setEditingTextXOffset] = useState(0);
+
+  const [editingPanelBgColor, setEditingPanelBgColor] = useState<'default' | 'primary' | 'secondary' | 'accent' | 'translucent-dark' | 'translucent-light' | 'none'>('default');
+  const [editingPanelPadding, setEditingPanelPadding] = useState(40);
+  const [editingPanelRadius, setEditingPanelRadius] = useState(16);
+  const [editingPanelPosition, setEditingPanelPosition] = useState<'relative' | 'top' | 'center' | 'bottom'>('relative');
+
+  const [editingCtaFontSize, setEditingCtaFontSize] = useState(20);
+  const [editingCtaBgColor, setEditingCtaBgColor] = useState<'default' | 'primary' | 'secondary' | 'accent' | 'white' | 'black'>('default');
+  const [editingCtaYOffset, setEditingCtaYOffset] = useState(0);
+  const [editingCtaRadius, setEditingCtaRadius] = useState(8);
+
+  const [selectedLayerTemplateId, setSelectedLayerTemplateId] = useState<string | null>(null);
+  const [hoveredLayerTemplateId, setHoveredLayerTemplateId] = useState<string | null>(null);
+  const [isApplyingLayerTemplate, setIsApplyingLayerTemplate] = useState(false);
 
   const logsRef = useRef<string[]>([]);
   useEffect(() => {
@@ -458,6 +488,33 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
     setEditingItemId(item.id);
     setEditingText(item.text);
     setEditingCta(item.cta || '');
+
+    setEditingBgBlur((item as any).bgBlur || 0);
+    setEditingOverlayOpacity((item as any).overlayOpacity ?? 0.4);
+    setEditingLogoSize((item as any).logoSize ?? 1.0);
+    setEditingLogoPosition((item as any).logoPosition || 'top-left');
+    setEditingLogoVariant((item as any).logoVariant || 'light');
+
+    setEditingFontSize((item as any).fontSize || 38);
+    setEditingTextAlignment((item as any).textAlignment || 'left');
+    setEditingFontWeight((item as any).fontWeight || 'normal');
+    setEditingTextColor((item as any).textColor || 'default');
+
+    setEditingTextYOffset((item as any).textYOffset || 0);
+    setEditingTextXOffset((item as any).textXOffset || 0);
+
+    setEditingPanelBgColor((item as any).panelBgColor || 'default');
+    setEditingPanelPadding((item as any).panelPadding || 40);
+    setEditingPanelRadius((item as any).panelRadius || 16);
+    setEditingPanelPosition((item as any).panelPosition || 'relative');
+
+    setEditingCtaFontSize((item as any).ctaFontSize || 20);
+    setEditingCtaBgColor((item as any).ctaBgColor || 'default');
+    setEditingCtaYOffset((item as any).ctaYOffset || 0);
+    setEditingCtaRadius((item as any).ctaRadius || 8);
+
+    setSelectedLayerTemplateId(item.templateId || null);
+    setHoveredLayerTemplateId(null);
   };
 
   const handleItemEditSave = async (id: string) => {
@@ -473,7 +530,27 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
           post: {
             ...creative,
             text: editingText,
-            cta: editingCta
+            cta: editingCta,
+            templateId: selectedLayerTemplateId || creative.templateId,
+            bgBlur: editingBgBlur,
+            overlayOpacity: editingOverlayOpacity,
+            logoSize: editingLogoSize,
+            logoPosition: editingLogoPosition,
+            logoVariant: editingLogoVariant,
+            fontSize: editingFontSize,
+            textAlignment: editingTextAlignment,
+            fontWeight: editingFontWeight,
+            textColor: editingTextColor,
+            textYOffset: editingTextYOffset,
+            textXOffset: editingTextXOffset,
+            panelBgColor: editingPanelBgColor,
+            panelPadding: editingPanelPadding,
+            panelRadius: editingPanelRadius,
+            panelPosition: editingPanelPosition,
+            ctaFontSize: editingCtaFontSize,
+            ctaBgColor: editingCtaBgColor,
+            ctaYOffset: editingCtaYOffset,
+            ctaRadius: editingCtaRadius
           },
           brandKit: activeBrandKit,
           text: editingText
@@ -497,8 +574,29 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
             ...item,
             text: editingText,
             cta: editingCta,
-            imageUrl: fixImageUrl(updatedPost.imageUrl)
-          } : item)
+            imageUrl: fixImageUrl(updatedPost.imageUrl),
+            templateId: (selectedLayerTemplateId || item.templateId) as any,
+            bgBlur: editingBgBlur,
+            overlayOpacity: editingOverlayOpacity,
+            logoSize: editingLogoSize,
+            logoPosition: editingLogoPosition,
+            logoVariant: editingLogoVariant,
+            fontSize: editingFontSize,
+            textAlignment: editingTextAlignment,
+            fontWeight: editingFontWeight,
+            textColor: editingTextColor,
+            textYOffset: editingTextYOffset,
+            textXOffset: editingTextXOffset,
+            panelBgColor: editingPanelBgColor,
+            panelPadding: editingPanelPadding,
+            panelRadius: editingPanelRadius,
+            panelPosition: editingPanelPosition,
+            ctaFontSize: editingCtaFontSize,
+            ctaBgColor: editingCtaBgColor,
+            ctaYOffset: editingCtaYOffset,
+            ctaRadius: editingCtaRadius,
+            originalImageUrl: updatedPost.originalImageUrl
+          } as any : item)
         });
       }
       
@@ -552,6 +650,179 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
       handleApproveItem(item.id);
     });
     alert('A kampány összes eleme jóváhagyva!');
+  };
+
+  const getLayoutCategory = (templateId: string | null): 'product' | 'quote' | 'testimonial' | 'list' | 'universal' => {
+    if (!templateId) return 'universal';
+    if (templateId === 'universal' || templateId === 'clean') return 'universal';
+    if (templateId.startsWith('product') || templateId === 'product-callout' || templateId === 'product-showcase' || templateId === 'tag-feature') return 'product';
+    if (templateId.startsWith('quote') || templateId === 'quote-card' || templateId === 'quote-minimal' || templateId === 'quote-bold') return 'quote';
+    if (templateId.startsWith('testimonial') || templateId === 'testimonial-rating' || templateId === 'testimonial-bubble' || templateId === 'review-stars') return 'testimonial';
+    if (templateId.startsWith('list') || templateId === 'numbered-list' || templateId === 'bullet-list' || templateId === 'steps-list') return 'list';
+    
+    const idLower = templateId.toLowerCase();
+    if (idLower.includes('quote')) return 'quote';
+    if (idLower.includes('product') || idLower.includes('feature') || idLower.includes('badge') || idLower.includes('promo')) return 'product';
+    if (idLower.includes('testi') || idLower.includes('review') || idLower.includes('rating')) return 'testimonial';
+    if (idLower.includes('list') || idLower.includes('step')) return 'list';
+    
+    return 'universal';
+  };
+
+  const getColorValue = (colorName: string, defaultColor: string) => {
+    if (colorName === 'primary') return activeBrandKit.colors.primary;
+    if (colorName === 'secondary') return activeBrandKit.colors.secondary;
+    if (colorName === 'accent') return activeBrandKit.colors.accent;
+    if (colorName === 'white') return '#FFFFFF';
+    if (colorName === 'black') return '#000000';
+    return defaultColor;
+  };
+
+  const getPanelStyle = () => {
+    let bgColor = getColorValue(editingPanelBgColor, activeBrandKit.colors.primary);
+    if (editingPanelBgColor === 'none') bgColor = 'transparent';
+    else if (editingPanelBgColor === 'translucent-dark') bgColor = 'rgba(0, 0, 0, 0.65)';
+    else if (editingPanelBgColor === 'translucent-light') bgColor = 'rgba(255, 255, 255, 0.65)';
+    else if (editingPanelBgColor === 'default') {
+      const activeTmplId = hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId);
+      const category = getLayoutCategory(activeTmplId);
+      if (category === 'quote') bgColor = activeBrandKit.colors.primary;
+      else if (category === 'testimonial') bgColor = activeBrandKit.colors.secondary;
+      else bgColor = activeBrandKit.colors.primary;
+    }
+
+    const activeTmplId = hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId);
+    const category = getLayoutCategory(activeTmplId);
+    const textColorVal = category === 'testimonial' ? activeBrandKit.colors.primary : activeBrandKit.colors.secondary;
+    
+    const scale = 240 / 1080;
+    const paddingVal = editingPanelPadding * scale;
+    const radiusVal = editingPanelRadius * scale;
+    const posX = editingTextXOffset * scale;
+    const posY = editingTextYOffset * scale;
+
+    let positionStyles: React.CSSProperties = {};
+    if (editingPanelPosition !== 'relative') {
+      positionStyles = {
+        position: 'absolute',
+        left: '50%',
+        width: 'calc(100% - 24px)',
+      };
+      if (editingPanelPosition === 'top') {
+        positionStyles.top = `${60 * scale + posY}px`;
+        positionStyles.bottom = 'auto';
+        positionStyles.transform = `translateX(-50%) translateX(${posX}px)`;
+      } else if (editingPanelPosition === 'center') {
+        positionStyles.top = '50%';
+        positionStyles.bottom = 'auto';
+        positionStyles.transform = `translate(-50%, -50%) translate(${posX}px, ${posY}px)`;
+      } else if (editingPanelPosition === 'bottom') {
+        positionStyles.bottom = `${60 * scale + posY}px`;
+        positionStyles.top = 'auto';
+        positionStyles.transform = `translateX(-50%) translateX(${posX}px)`;
+      }
+    } else {
+      positionStyles = {
+        position: 'relative',
+        width: '100%',
+        transform: `translate(${posX}px, ${posY}px)`,
+      };
+    }
+
+    return {
+      backgroundColor: bgColor,
+      padding: `${paddingVal}px`,
+      borderRadius: `${radiusVal}px`,
+      color: getColorValue(editingTextColor, textColorVal),
+      ...positionStyles,
+      zIndex: 3,
+      display: 'flex',
+      flexDirection: 'column' as const,
+      boxSizing: 'border-box' as const,
+      transition: 'all 0.15s ease',
+    };
+  };
+
+  const getTextStyle = (): React.CSSProperties => {
+    const scale = 240 / 1080;
+    const fontSizeVal = editingFontSize * scale;
+    const activeTmplId = hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId);
+    const category = getLayoutCategory(activeTmplId);
+    let textColorVal = category === 'testimonial' ? activeBrandKit.colors.primary : activeBrandKit.colors.secondary;
+    
+    return {
+      fontSize: `${fontSizeVal}px`,
+      fontWeight: editingFontWeight as any,
+      textAlign: editingTextAlignment,
+      color: getColorValue(editingTextColor, textColorVal),
+      fontFamily: activeBrandKit.typography.fontName,
+      lineHeight: 1.45,
+      margin: 0,
+      wordBreak: 'break-word',
+      whiteSpace: 'pre-wrap',
+    };
+  };
+
+  const getCtaStyle = (): React.CSSProperties => {
+    const scale = 240 / 1080;
+    const radiusVal = editingCtaRadius * scale;
+    const fontSizeVal = editingCtaFontSize * scale;
+    const spacingVal = (24 + editingCtaYOffset) * scale;
+
+    const creative = creatives.find(c => c.id === editingItemId);
+    const colorVar = creative?.colorVariation || 'default';
+
+    let bgCol = getColorValue(editingCtaBgColor, activeBrandKit.colors.accent);
+    if (editingCtaBgColor === 'default') {
+      if (colorVar === 'inverted') bgCol = activeBrandKit.colors.secondary;
+      else if (colorVar === 'accent') bgCol = activeBrandKit.colors.primary;
+      else bgCol = activeBrandKit.colors.accent;
+    }
+
+    let textCol = '#FFFFFF';
+    if (editingCtaBgColor === 'white' || editingCtaBgColor === 'secondary' || (editingCtaBgColor === 'default' && colorVar === 'inverted')) {
+      textCol = activeBrandKit.colors.primary;
+    }
+
+    return {
+      backgroundColor: bgCol,
+      color: textCol,
+      padding: `${10 * scale}px ${20 * scale}px`,
+      borderRadius: `${radiusVal}px`,
+      border: 'none',
+      fontWeight: 700,
+      fontSize: `${fontSizeVal}px`,
+      cursor: 'pointer',
+      width: '100%',
+      marginTop: `${spacingVal}px`,
+      boxSizing: 'border-box' as const,
+      textAlign: 'center' as const,
+      fontFamily: activeBrandKit.typography.fontName,
+      transition: 'all 0.15s ease',
+    };
+  };
+
+  const handleApplyLayerTemplate = (template: any) => {
+    setSelectedLayerTemplateId(template.id);
+    
+    if (template.layoutDefaults) {
+      if (template.layoutDefaults.bgBlur !== undefined) setEditingBgBlur(template.layoutDefaults.bgBlur);
+      if (template.layoutDefaults.overlayOpacity !== undefined) setEditingOverlayOpacity(template.layoutDefaults.overlayOpacity);
+      if (template.layoutDefaults.panelBgColor !== undefined) setEditingPanelBgColor(template.layoutDefaults.panelBgColor as any);
+      if (template.layoutDefaults.panelPosition !== undefined) setEditingPanelPosition(template.layoutDefaults.panelPosition as any);
+      if (template.layoutDefaults.panelPadding !== undefined) setEditingPanelPadding(template.layoutDefaults.panelPadding);
+      if (template.layoutDefaults.panelRadius !== undefined) setEditingPanelRadius(template.layoutDefaults.panelRadius);
+      if (template.layoutDefaults.fontSize !== undefined) setEditingFontSize(template.layoutDefaults.fontSize);
+      if (template.layoutDefaults.textAlignment !== undefined) setEditingTextAlignment(template.layoutDefaults.textAlignment as any);
+      if (template.layoutDefaults.fontWeight !== undefined) setEditingFontWeight(template.layoutDefaults.fontWeight);
+      if (template.layoutDefaults.textColor !== undefined) setEditingTextColor(template.layoutDefaults.textColor as any);
+      if (template.layoutDefaults.textYOffset !== undefined) setEditingTextYOffset(template.layoutDefaults.textYOffset);
+      if (template.layoutDefaults.textXOffset !== undefined) setEditingTextXOffset(template.layoutDefaults.textXOffset);
+      if (template.layoutDefaults.ctaBgColor !== undefined) setEditingCtaBgColor(template.layoutDefaults.ctaBgColor as any);
+      if (template.layoutDefaults.ctaFontSize !== undefined) setEditingCtaFontSize(template.layoutDefaults.ctaFontSize);
+      if (template.layoutDefaults.ctaYOffset !== undefined) setEditingCtaYOffset(template.layoutDefaults.ctaYOffset);
+      if (template.layoutDefaults.ctaRadius !== undefined) setEditingCtaRadius(template.layoutDefaults.ctaRadius);
+    }
   };
 
   const getFunnelLabel = (templateId: string, idx: number) => {
@@ -1045,17 +1316,313 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                       <div className="node-grid">
                         {/* Image aspect preview */}
                         <div className="node-image-side">
-                          {item.imageUrl ? (
-                            <img src={fixImageUrl(item.imageUrl)} alt="Rendered template" className="node-preview-img" />
-                          ) : (
-                            <div className="img-placeholder">
-                              <Loader className="spinner" />
-                              <span>Háttér betöltése...</span>
+                          {isEditing ? (
+                            <div 
+                              className="phone-image-canvas" 
+                              style={{ 
+                                position: 'relative', 
+                                width: '240px', 
+                                height: '300px', 
+                                background: '#000', 
+                                overflow: 'hidden',
+                                display: 'flex',
+                                flexDirection: 'column',
+                                justifyContent: (getLayoutCategory(hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId)) === 'quote' || getLayoutCategory(hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId)) === 'testimonial') ? 'center' : 'flex-end',
+                                alignItems: (getLayoutCategory(hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId)) === 'quote' || getLayoutCategory(hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId)) === 'testimonial') ? 'center' : 'stretch',
+                                borderRadius: '8px',
+                                border: '1px solid var(--panel-border)'
+                              }}
+                            >
+                              <img 
+                                src={item.originalImageUrl || item.imageUrl} 
+                                alt="" 
+                                style={{ 
+                                  width: '100%', 
+                                  height: '100%', 
+                                  objectFit: 'cover',
+                                  filter: editingBgBlur > 0 ? `blur(${editingBgBlur}px)` : 'none',
+                                  transition: 'filter 0.15s ease',
+                                  position: 'absolute',
+                                  top: 0,
+                                  left: 0,
+                                  zIndex: 1
+                                }} 
+                              />
+
+                              {/* Hover Layer Template Preview – CSS overlay on the canvas */}
+                              {hoveredLayerTemplateId && (() => {
+                                const allTmpls = buildLayerTemplates(
+                                  activeBrandKit.colors.primary,
+                                  activeBrandKit.colors.accent,
+                                  activeBrandKit.typography?.fontName || 'Inter'
+                                );
+                                const tmpl = allTmpls.find(t => t.id === hoveredLayerTemplateId);
+                                if (!tmpl) return null;
+                                const scaleX = 240 / 1080;
+                                const scaleY = 300 / 1350;
+                                return (
+                                  <div style={{ position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none', overflow: 'hidden', transition: 'opacity 0.2s ease' }}>
+                                    <div style={{
+                                      position: 'absolute', top: 6, left: 6, zIndex: 20,
+                                      background: 'rgba(80,20,200,0.92)',
+                                      borderRadius: 6, padding: '3px 8px',
+                                      fontSize: 9, fontWeight: 800, color: '#fff',
+                                      display: 'flex', alignItems: 'center', gap: 4
+                                    }}>
+                                      <span>{tmpl.emoji}</span>
+                                      <span>ELŐNÉZET: {tmpl.name}</span>
+                                    </div>
+                                    {tmpl.layers.map((layer, li) => {
+                                      const lx = Math.round(layer.x * scaleX);
+                                      const ly = Math.round(layer.y * scaleY);
+                                      const lw = Math.round(layer.width * scaleX);
+                                      const lh = layer.height != null ? Math.round(layer.height * scaleY) : undefined;
+                                      const baseStyle: React.CSSProperties = {
+                                        position: 'absolute',
+                                        left: lx, top: ly, width: lw,
+                                        height: lh,
+                                        opacity: layer.opacity ?? 1,
+                                        boxSizing: 'border-box',
+                                        pointerEvents: 'none'
+                                      };
+                                      if (layer.type === 'figure') {
+                                        return (
+                                          <div key={li} style={{
+                                            ...baseStyle,
+                                            background: layer.fill || 'transparent',
+                                            borderRadius: layer.subType === 'circle' ? '50%' : (layer.cornerRadius ? `${layer.cornerRadius * scaleX}px` : 0),
+                                            border: layer.border || 'none'
+                                          }} />
+                                        );
+                                      }
+                                      if (layer.type === 'text') {
+                                        return (
+                                          <div key={li} style={{
+                                            ...baseStyle,
+                                            fontFamily: layer.fontFamily || 'Inter',
+                                            fontSize: `${(layer.fontSize || 16) * scaleX}px`,
+                                            fontWeight: layer.fontWeight || 'normal',
+                                            color: layer.fill || '#ffffff',
+                                            textAlign: (layer.align || 'left') as any,
+                                            lineHeight: layer.lineHeight || 1.2,
+                                            textShadow: layer.textShadow || 'none',
+                                            whiteSpace: 'pre-wrap',
+                                            wordBreak: 'break-word',
+                                            display: 'flex', flexDirection: 'column', justifyContent: 'flex-start'
+                                          }}>{layer.text}
+                                          </div>
+                                        );
+                                      }
+                                      return null;
+                                    })}
+                                  </div>
+                                );
+                              })()}
+                              
+                              {/* Dynamic Background Gradient Overlay — template-specific */}
+                              {(() => {
+                                const activeTmplId = hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId);
+                                const category = getLayoutCategory(activeTmplId);
+                                if (category === 'testimonial') {
+                                  return (
+                                    <div style={{
+                                      position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                                      background: `rgba(0,0,0,${editingOverlayOpacity})`,
+                                      pointerEvents: 'none', zIndex: 2
+                                    }} />
+                                  );
+                                }
+                                if (category === 'quote') {
+                                  return (
+                                    <>
+                                      <div style={{
+                                        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                                        background: `linear-gradient(135deg, rgba(0,0,0,${editingOverlayOpacity * 1.2}) 0%, rgba(0,0,0,${editingOverlayOpacity * 0.6}) 60%, rgba(0,0,0,${editingOverlayOpacity}) 100%)`,
+                                        pointerEvents: 'none', zIndex: 2
+                                      }} />
+                                      <div style={{
+                                        position: 'absolute', top: 0, left: 0, bottom: 0, width: '4px',
+                                        backgroundColor: activeBrandKit.colors.accent,
+                                        zIndex: 4, pointerEvents: 'none'
+                                      }} />
+                                    </>
+                                  );
+                                }
+                                return (
+                                  <div style={{
+                                    position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
+                                    background: `linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,${editingOverlayOpacity}) 100%)`,
+                                    pointerEvents: 'none', zIndex: 2
+                                  }} />
+                                );
+                              })()}
+
+                              {/* Real-time Logo Overlay */}
+                              <div className="mock-watermark" style={{
+                                position: 'absolute',
+                                display: 'flex',
+                                alignItems: 'center',
+                                gap: 6,
+                                padding: '4px 8px',
+                                background: editingLogoVariant === 'light' ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.75)',
+                                backdropFilter: 'none',
+                                color: editingLogoVariant === 'light' ? '#fff' : activeBrandKit.colors.primary,
+                                borderRadius: 4,
+                                fontSize: 9,
+                                fontWeight: 700,
+                                textTransform: 'uppercase',
+                                letterSpacing: '0.5px',
+                                zIndex: 10,
+                                transform: `scale(${editingLogoSize})`,
+                                transformOrigin: editingLogoPosition.replace('-', ' '),
+                                transition: 'all 0.15s ease',
+                                ...(editingLogoPosition === 'top-right' ? { top: 10, right: 10 } :
+                                   editingLogoPosition === 'bottom-left' ? { bottom: 10, left: 10 } :
+                                   editingLogoPosition === 'bottom-right' ? { bottom: 10, right: 10 } :
+                                   { top: 10, left: 10 })
+                              }}>
+                                {(() => {
+                                  const brandNameLower = (activeBrandKit.name || '').toLowerCase();
+                                  const isCup = activeBrandKit.logoUrl === 'coffee-cup-minimal' || 
+                                                brandNameLower.includes('kávé') || 
+                                                brandNameLower.includes('coffee') || 
+                                                brandNameLower.includes('cafe') || 
+                                                brandNameLower.includes('latte');
+                                  return isCup ? (
+                                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 2 }}>
+                                      <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
+                                      <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
+                                    </svg>
+                                  ) : (
+                                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 2 }}>
+                                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+                                    </svg>
+                                  );
+                                })()}
+                                <span>{activeBrandKit.name || 'Márka'}</span>
+                              </div>
+
+                              {/* Real-time Content Panel Overlays */}
+                              {(() => {
+                                const activeTmplId = hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId);
+                                const category = getLayoutCategory(activeTmplId);
+                                if (category === 'universal') return null;
+
+                                const panelStyle = getPanelStyle();
+                                const textStyle = getTextStyle();
+                                const ctaStyle = getCtaStyle();
+                                const scale = 240 / 1080;
+
+                                if (category === 'product') {
+                                  return (
+                                    <div style={{ ...panelStyle, borderTop: `${3 * scale}px solid ${activeBrandKit.colors.accent}` }}>
+                                      <div style={{ width: `${24 * scale}px`, height: `${2 * scale}px`, background: activeBrandKit.colors.accent, marginBottom: `${6 * scale}px`, borderRadius: '1px' }} />
+                                      <p style={textStyle}>{editingText}</p>
+                                      {editingCta && (
+                                        <button style={ctaStyle}>{editingCta}</button>
+                                      )}
+                                    </div>
+                                  );
+                                }
+
+                                if (category === 'quote') {
+                                  return (
+                                    <div style={{
+                                      position: 'absolute',
+                                      top: '50%',
+                                      left: '50%',
+                                      transform: 'translate(-50%, -50%)',
+                                      width: 'calc(100% - 32px)',
+                                      zIndex: 3,
+                                      display: 'flex',
+                                      flexDirection: 'column',
+                                      alignItems: 'center',
+                                      textAlign: 'center',
+                                      gap: `${8 * scale}px`,
+                                      color: activeBrandKit.colors.secondary
+                                    }}>
+                                      <span style={{
+                                        fontSize: `${54 * scale}px`,
+                                        color: activeBrandKit.colors.accent,
+                                        fontFamily: "'Playfair Display', serif",
+                                        lineHeight: 0.1,
+                                        marginBottom: `${-8 * scale}px`
+                                      }}>“</span>
+                                      <p style={{ ...textStyle, fontStyle: 'italic', textAlign: 'center', color: '#fff' }}>{editingText}</p>
+                                      <div style={{ width: `${30 * scale}px`, height: `${2 * scale}px`, background: activeBrandKit.colors.accent, marginTop: `${4 * scale}px` }} />
+                                    </div>
+                                  );
+                                }
+
+                                if (category === 'testimonial') {
+                                  return (
+                                    <div style={panelStyle}>
+                                      <div style={{ display: 'flex', gap: `${3 * scale}px`, color: '#fbbf24', fontSize: `${14 * scale}px`, marginBottom: `${8 * scale}px`, justifyContent: 'center' }}>
+                                        {[...Array(5)].map((_, i) => (
+                                          <span key={i}>★</span>
+                                        ))}
+                                      </div>
+                                      <p style={{ ...textStyle, fontStyle: 'italic', textAlign: 'center' }}>{editingText}</p>
+                                      {editingCta && (
+                                        <p style={{
+                                          fontSize: `${11 * scale}px`,
+                                          fontWeight: 700,
+                                          color: activeBrandKit.colors.accent,
+                                          textTransform: 'uppercase',
+                                          textAlign: 'center',
+                                          margin: `${8 * scale}px 0 0 0`,
+                                          fontFamily: activeBrandKit.typography.fontName
+                                        }}>{editingCta}</p>
+                                      )}
+                                    </div>
+                                  );
+                                }
+
+                                if (category === 'list') {
+                                  const lines = (editingText || '').split('\n');
+                                  const listTitle = lines[0] || '';
+                                  const listItems = lines.slice(1).map(l => l.replace(/^\d+\.\s*/, '')).filter(Boolean).slice(0, 4);
+                                  return (
+                                    <div style={panelStyle}>
+                                      <h4 style={{ ...textStyle, fontSize: `${(editingFontSize + 4) * scale}px`, fontWeight: 800, marginBottom: `${10 * scale}px` }}>{listTitle}</h4>
+                                      <div style={{ display: 'flex', flexDirection: 'column', gap: `${6 * scale}px` }}>
+                                        {listItems.map((itemStr, idx) => (
+                                          <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: `${8 * scale}px` }}>
+                                            <div style={{
+                                              width: `${16 * scale}px`, height: `${16 * scale}px`, borderRadius: '50%',
+                                              backgroundColor: activeBrandKit.colors.accent, color: '#fff',
+                                              display: 'flex', alignItems: 'center', justifyContent: 'center',
+                                              fontSize: `${10 * scale}px`, fontWeight: 'bold', flexShrink: 0, marginTop: `${2 * scale}px`
+                                            }}>{idx + 1}</div>
+                                            <p style={{ ...textStyle, fontSize: `${(editingFontSize - 4) * scale}px`, lineHeight: 1.3 }}>{itemStr}</p>
+                                          </div>
+                                        ))}
+                                      </div>
+                                      {editingCta && (
+                                        <button style={ctaStyle}>{editingCta}</button>
+                                      )}
+                                    </div>
+                                  );
+                                }
+
+                                return null;
+                              })()}
                             </div>
+                          ) : (
+                            <>
+                              {item.imageUrl ? (
+                                <img src={fixImageUrl(item.imageUrl)} alt="Rendered template" className="node-preview-img" />
+                              ) : (
+                                <div className="img-placeholder">
+                                  <Loader className="spinner" />
+                                  <span>Háttér betöltése...</span>
+                                </div>
+                              )}
+                              <a href={fixImageUrl(item.imageUrl)} target="_blank" rel="noreferrer" className="zoom-btn" title="Kép megtekintése">
+                                <Eye size={14} /> Nagyítás
+                              </a>
+                            </>
                           )}
-                          <a href={fixImageUrl(item.imageUrl)} target="_blank" rel="noreferrer" className="zoom-btn" title="Kép megtekintése">
-                            <Eye size={14} /> Nagyítás
-                          </a>
                         </div>
 
                         {/* Information & Controls */}
@@ -1087,31 +1654,262 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
 
                           <div className="node-creative-details">
                             {isEditing ? (
-                              <div className="node-editor-form">
+                              <div className="node-editor-form" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
                                 <div className="field-group">
-                                  <label>Poszt szövege (magyarul):</label>
+                                  <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)' }}>Poszt szövege (magyarul):</label>
                                   <textarea
                                     value={editingText}
                                     onChange={(e) => setEditingText(e.target.value)}
                                     rows={4}
+                                    style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12 }}
                                   />
                                 </div>
                                 {item.cta && (
                                   <div className="field-group">
-                                    <label>CTA felirat:</label>
+                                    <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)' }}>CTA felirat:</label>
                                     <input
                                       type="text"
                                       value={editingCta}
                                       onChange={(e) => setEditingCta(e.target.value)}
+                                      style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12 }}
                                     />
                                   </div>
                                 )}
-                                <div className="editor-controls">
-                                  <button className="btn-secondary btn-sm" onClick={() => setEditingItemId(null)}>
+
+                                {/* Layer Templates picker grid */}
+                                {(() => {
+                                  const layerTemplates = buildLayerTemplates(
+                                    activeBrandKit.colors.primary,
+                                    activeBrandKit.colors.accent,
+                                    activeBrandKit.typography?.fontName || 'Inter'
+                                  );
+                                  return (
+                                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
+                                        <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)', display: 'block' }}>
+                                          <Layers size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />
+                                          Layer Sablonok ({layerTemplates.length} db) – hover = előnézet, kattintás = renderelés:
+                                        </label>
+                                        {isApplyingLayerTemplate && (
+                                          <span style={{ fontSize: 10, color: '#8b5cf6', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                            <Loader size={10} className="spin-icon" /> Renderelés...
+                                          </span>
+                                        )}
+                                      </div>
+                                      <div style={{
+                                        display: 'grid',
+                                        gridTemplateColumns: 'repeat(3, 1fr)',
+                                        gap: 6,
+                                        maxHeight: 180,
+                                        overflowY: 'auto',
+                                        paddingRight: 4
+                                      }}>
+                                        {layerTemplates.map(tmpl => (
+                                          <button
+                                            key={tmpl.id}
+                                            type="button"
+                                            onClick={() => handleApplyLayerTemplate(tmpl)}
+                                            onMouseEnter={() => setHoveredLayerTemplateId(tmpl.id)}
+                                            onMouseLeave={() => setHoveredLayerTemplateId(null)}
+                                            disabled={isApplyingLayerTemplate}
+                                            style={{
+                                              display: 'flex',
+                                              flexDirection: 'column',
+                                              alignItems: 'flex-start',
+                                              gap: 2,
+                                              padding: '6px 8px',
+                                              borderRadius: 8,
+                                              border: `2px solid ${
+                                                hoveredLayerTemplateId === tmpl.id ? '#a78bfa'
+                                                : selectedLayerTemplateId === tmpl.id ? '#8b5cf6'
+                                                : 'var(--border)'
+                                              }`,
+                                              background: hoveredLayerTemplateId === tmpl.id
+                                                ? 'rgba(167,139,250,0.18)'
+                                                : selectedLayerTemplateId === tmpl.id
+                                                ? 'rgba(139,92,246,0.12)'
+                                                : 'var(--bg3)',
+                                              cursor: isApplyingLayerTemplate ? 'not-allowed' : 'pointer',
+                                              opacity: isApplyingLayerTemplate && selectedLayerTemplateId !== tmpl.id ? 0.5 : 1,
+                                              transition: 'all 0.12s ease',
+                                              textAlign: 'left',
+                                              position: 'relative',
+                                              boxShadow: hoveredLayerTemplateId === tmpl.id ? '0 0 0 3px rgba(167,139,250,0.2)' : 'none'
+                                            }}
+                                          >
+                                            {isApplyingLayerTemplate && selectedLayerTemplateId === tmpl.id && (
+                                              <div style={{
+                                                position: 'absolute', inset: 0, background: 'rgba(139,92,246,0.15)',
+                                                borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center'
+                                              }}>
+                                                <Loader size={14} className="spin-icon" style={{ color: '#8b5cf6' }} />
+                                              </div>
+                                            )}
+                                            <span style={{ fontSize: 14, lineHeight: 1 }}>{tmpl.emoji}</span>
+                                            <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>{tmpl.name}</span>
+                                            <span style={{ fontSize: 8.5, color: 'var(--text-muted)', lineHeight: 1.3 }}>{tmpl.desc}</span>
+                                          </button>
+                                        ))}
+                                      </div>
+                                    </div>
+                                  );
+                                })()}
+
+                                {/* Custom Sliders panel */}
+                                <div className="layer-editor-panel" style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
+                                  <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, display: 'block' }}>Rétegek Testreszabása (Layer Editor):</label>
+                                  
+                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
+                                    {/* Column 1: Layout & Position */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                      <span style={{ fontSize: 9.5, fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', marginBottom: 2 }}>Elrendezés & Pozíció</span>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Kártya Horgony:</label>
+                                        <select value={editingPanelPosition} onChange={e => setEditingPanelPosition(e.target.value as any)} style={{ width: '100%', padding: '4px 6px', borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 10.5 }}>
+                                          <option value="relative">Folyamatos (Relative)</option>
+                                          <option value="top">Fent (Top)</option>
+                                          <option value="center">Középen (Center)</option>
+                                          <option value="bottom">Lent (Bottom)</option>
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Vízszintes (X): <span style={{ color: '#8b5cf6', float: 'right' }}>{editingTextXOffset}px</span></label>
+                                        <input type="range" min="-150" max="150" step="5" value={editingTextXOffset} onChange={e => setEditingTextXOffset(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Függőleges (Y): <span style={{ color: '#8b5cf6', float: 'right' }}>{editingTextYOffset}px</span></label>
+                                        <input type="range" min="-300" max="300" step="5" value={editingTextYOffset} onChange={e => setEditingTextYOffset(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
+                                      </div>
+                                    </div>
+
+                                    {/* Column 2: Background & Overlays */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                      <span style={{ fontSize: 9.5, fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', marginBottom: 2 }}>Kártya & Háttér</span>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Kártya Háttér:</label>
+                                        <select value={editingPanelBgColor} onChange={e => setEditingPanelBgColor(e.target.value as any)} style={{ width: '100%', padding: '4px 6px', borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 10.5 }}>
+                                          <option value="default">Alapértelmezett</option>
+                                          <option value="primary">Elsődleges szín</option>
+                                          <option value="secondary">Másodlagos szín</option>
+                                          <option value="accent">Kiemelő szín</option>
+                                          <option value="translucent-dark">Áttetsző sötét</option>
+                                          <option value="translucent-light">Áttetsző világos</option>
+                                          <option value="none">Nincs (Átlátszó)</option>
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Belső Margó: <span style={{ color: '#8b5cf6', float: 'right' }}>{editingPanelPadding}px</span></label>
+                                        <input type="range" min="20" max="100" step="5" value={editingPanelPadding} onChange={e => setEditingPanelPadding(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Kártya Lekerekítés: <span style={{ color: '#8b5cf6', float: 'right' }}>{editingPanelRadius}px</span></label>
+                                        <input type="range" min="0" max="40" step="2" value={editingPanelRadius} onChange={e => setEditingPanelRadius(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Háttér Elmosás: <span style={{ color: '#8b5cf6', float: 'right' }}>{editingBgBlur}px</span></label>
+                                        <input type="range" min="0" max="15" step="1" value={editingBgBlur} onChange={e => setEditingBgBlur(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Sötétítő réteg: <span style={{ color: '#8b5cf6', float: 'right' }}>{Math.round(editingOverlayOpacity*100)}%</span></label>
+                                        <input type="range" min="0.1" max="0.9" step="0.05" value={editingOverlayOpacity} onChange={e => setEditingOverlayOpacity(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
+                                      </div>
+                                    </div>
+
+                                    {/* Column 3: Typography & Text */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                      <span style={{ fontSize: 9.5, fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', marginBottom: 2 }}>Szöveg & Betű</span>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Szöveg Igazítás:</label>
+                                        <select value={editingTextAlignment} onChange={e => setEditingTextAlignment(e.target.value as any)} style={{ width: '100%', padding: '4px 6px', borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 10.5 }}>
+                                          <option value="left">Balra</option>
+                                          <option value="center">Középre</option>
+                                          <option value="right">Jobbra</option>
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Betű Vastagság:</label>
+                                        <select value={editingFontWeight} onChange={e => setEditingFontWeight(e.target.value)} style={{ width: '100%', padding: '4px 6px', borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 10.5 }}>
+                                          <option value="normal">Normal</option>
+                                          <option value="600">Semi-Bold</option>
+                                          <option value="700">Bold</option>
+                                          <option value="800">Extra-Bold</option>
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Szöveg Színe:</label>
+                                        <select value={editingTextColor} onChange={e => setEditingTextColor(e.target.value as any)} style={{ width: '100%', padding: '4px 6px', borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 10.5 }}>
+                                          <option value="default">Alapértelmezett</option>
+                                          <option value="primary">Elsődleges</option>
+                                          <option value="secondary">Másodlagos</option>
+                                          <option value="accent">Kiemelő</option>
+                                          <option value="white">Fehér</option>
+                                          <option value="black">Fekete</option>
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Betűméret: <span style={{ color: '#8b5cf6', float: 'right' }}>{editingFontSize}px</span></label>
+                                        <input type="range" min="18" max="64" step="2" value={editingFontSize} onChange={e => setEditingFontSize(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
+                                      </div>
+                                    </div>
+
+                                    {/* Column 4: CTA Button & Logo */}
+                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                                      <span style={{ fontSize: 9.5, fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', marginBottom: 2 }}>CTA Gomb & Logó</span>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Gomb Háttér:</label>
+                                        <select value={editingCtaBgColor} onChange={e => setEditingCtaBgColor(e.target.value as any)} style={{ width: '100%', padding: '4px 6px', borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 10.5 }}>
+                                          <option value="default">Alapértelmezett</option>
+                                          <option value="primary">Elsődleges</option>
+                                          <option value="secondary">Másodlagos</option>
+                                          <option value="accent">Kiemelő</option>
+                                          <option value="white">Fehér</option>
+                                          <option value="black">Fekete</option>
+                                        </select>
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Gomb Betűméret: <span style={{ color: '#8b5cf6', float: 'right' }}>{editingCtaFontSize}px</span></label>
+                                        <input type="range" min="12" max="36" step="1" value={editingCtaFontSize} onChange={e => setEditingCtaFontSize(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Gomb Margó Y: <span style={{ color: '#8b5cf6', float: 'right' }}>{editingCtaYOffset}px</span></label>
+                                        <input type="range" min="-50" max="150" step="5" value={editingCtaYOffset} onChange={e => setEditingCtaYOffset(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Gomb Lekerekítés: <span style={{ color: '#8b5cf6', float: 'right' }}>{editingCtaRadius}px</span></label>
+                                        <input type="range" min="0" max="24" step="2" value={editingCtaRadius} onChange={e => setEditingCtaRadius(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
+                                      </div>
+                                      <div>
+                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Logó Méret: <span style={{ color: '#8b5cf6', float: 'right' }}>{editingLogoSize}x</span></label>
+                                        <input type="range" min="0.6" max="1.6" step="0.1" value={editingLogoSize} onChange={e => setEditingLogoSize(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
+                                      </div>
+                                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
+                                        <div>
+                                          <label style={{ fontSize: 8, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 1, display: 'block' }}>Helye:</label>
+                                          <select value={editingLogoPosition} onChange={e => setEditingLogoPosition(e.target.value as any)} style={{ width: '100%', padding: '2px 4px', borderRadius: 4, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 9 }}>
+                                            <option value="top-left">Bal Fent</option>
+                                            <option value="top-right">Jobb Fent</option>
+                                            <option value="bottom-left">Bal Lent</option>
+                                            <option value="bottom-right">Jobb Lent</option>
+                                          </select>
+                                        </div>
+                                        <div>
+                                          <label style={{ fontSize: 8, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 1, display: 'block' }}>Szín:</label>
+                                          <select value={editingLogoVariant} onChange={e => setEditingLogoVariant(e.target.value as any)} style={{ width: '100%', padding: '2px 4px', borderRadius: 4, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 9 }}>
+                                            <option value="light">Világos</option>
+                                            <option value="dark">Sötét</option>
+                                          </select>
+                                        </div>
+                                      </div>
+                                    </div>
+                                  </div>
+                                </div>
+
+                                <div className="editor-controls" style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
+                                  <button type="button" className="btn-secondary btn-sm" onClick={() => setEditingItemId(null)}>
                                     Mégse
                                   </button>
-                                  <button className="btn-primary btn-sm" onClick={() => handleItemEditSave(item.id)} disabled={isUpdatingItem}>
-                                    {isUpdatingItem ? <Loader className="spinner" size={12} /> : 'Mentés és Újrarenderelés'}
+                                  <button type="button" className="btn-primary btn-sm" onClick={() => handleItemEditSave(item.id)} disabled={isUpdatingItem}>
+                                    {isUpdatingItem ? <Loader className="spinner" size={12} /> : 'Kép Újrarenderelése'}
                                   </button>
                                 </div>
                               </div>

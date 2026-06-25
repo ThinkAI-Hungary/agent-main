@@ -22,6 +22,8 @@ import { AdminMonitor } from './zombo/components/AdminMonitor';
 import { CampaignCreator } from './zombo/components/CampaignCreator';
 import { ImageTestLab } from './zombo/components/ImageTestLab';
 import { OverlayTestLab } from './zombo/components/OverlayTestLab';
+import { ProdCalendarView } from './zombo/components/ProdCalendarView';
+import { QuickPostView }    from './zombo/components/QuickPostView';
 import './zombo/zombo.css';
 
 // Lucide icons for generator sidebar
@@ -331,6 +333,8 @@ const TABS = [
   { id: 'contact', label: 'Kontakt' },
   { id: 'products', label: 'Termékek' },
   { id: 'generate', label: 'AI Generálás' },
+  { id: 'prod',        label: 'Éles Naptár (Prod)' },
+  { id: 'quick-post',  label: '⚡ Quick Post' },
   { id: 'raw', label: '{ } JSON' },
 ];
 
@@ -350,6 +354,7 @@ function deriveBrandKitFromAudit(data: AuditResult, version: number): ZomboBrand
   const bp = data.brand_personality;
   const coords = bp?.brand_coordinates;
   const lf = data.linguistic_fingerprint as Record<string, any> | undefined;
+  const companyName = data.contact?.company_name || data.contacts?.company_name || data.seo?.title?.split(/[|-]/)[0]?.trim() || 'Márka';
 
   /* ── Numeric DNA coordinates ── */
   const mappedDna = coords ? {
@@ -472,6 +477,7 @@ function deriveBrandKitFromAudit(data: AuditResult, version: number): ZomboBrand
     id: `kit-v${version}`,
     version,
     createdAt: new Date().toISOString(),
+    name: companyName,
     colors: { primary, secondary, accent, rules: colorRules },
     typography: {
       fontName: 'Montserrat',
@@ -565,6 +571,10 @@ export default function ZomboAuditPage() {
   const [socialStatus, setSocialStatus] = useState('');
   const [socialProgress, setSocialProgress] = useState<string[]>([]);
   const socialAbortRef = useRef<AbortController | null>(null);
+
+  // Hoisted Prod Calendar / Quick Post states
+  const [prodPosts, setProdPosts] = useState<ZomboPostCreative[]>([]);
+  const [prodBypassOnboarding, setProdBypassOnboarding] = useState(false);
 
   const addLog = useCallback((message: string, level: 'info' | 'warn' | 'error' | 'success', step?: 'queue' | 'orchestrator' | 'renderer' | 'meta-api') => {
     const newLog: ZomboSystemLog = {
@@ -723,7 +733,7 @@ export default function ZomboAuditPage() {
   const CATEGORY_MAP: Record<string, string> = {
     seo: 'seo', visual: 'visual', content: 'content',
     marketing: 'marketing', brand: 'brand', contact: 'contact',
-    products: 'products', generate: '', raw: ''
+    products: 'products', generate: '', prod: '', raw: ''
   };
 
   const handleCategoryEvaluate = useCallback(async (category: string) => {
@@ -2347,6 +2357,39 @@ export default function ZomboAuditPage() {
         );
       }
 
+      /* ──────── PROD CALENDAR VIEW ──────── */
+      case 'prod': {
+        const activeKit = brandKits.find(k => k.id === activeKitId) || brandKits[brandKits.length - 1];
+        return (
+          <ProdCalendarView
+            activeBrandKit={activeKit}
+            auditResult={result}
+            posts={prodPosts}
+            setPosts={setProdPosts}
+            bypassOnboarding={prodBypassOnboarding}
+            setBypassOnboarding={setProdBypassOnboarding}
+          />
+        );
+      }
+
+      /* ──────── QUICK POST (Flow 4) ──────── */
+      case 'quick-post': {
+        const activeKit = brandKits.find(k => k.id === activeKitId) || brandKits[brandKits.length - 1];
+        return (
+          <QuickPostView
+            activeBrandKit={activeKit}
+            auditResult={result}
+            onSavePost={(post) => {
+              setProdPosts(prev => {
+                if (prev.some(p => p.id === post.id)) return prev;
+                return [...prev, post];
+              });
+              setProdBypassOnboarding(true);
+            }}
+          />
+        );
+      }
+
       /* ──────── RAW JSON ──────── */
       case 'raw': {
         const jsonStr = JSON.stringify(d?.scraper_json || {}, null, 2);
@@ -2491,6 +2534,7 @@ export default function ZomboAuditPage() {
                 (t.id === 'contact' && (result.contact || result.contacts)) ||
                 (t.id === 'products' && result.products?.length) ||
                 (t.id === 'generate') ||
+                (t.id === 'prod') ||
                 (t.id === 'raw' && result.scraper_json)
               );
               const isLoadingCat = loadingCategory[t.id];

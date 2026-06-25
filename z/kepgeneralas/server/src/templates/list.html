@@ -5,159 +5,115 @@
   <title>List Template</title>
   <style>
     :root {
-      --primary-color: #3E2723;
-      --secondary-color: #F5F5DC;
-      --accent-color: #FF8F00;
-      --font-name: 'Montserrat', sans-serif;
+      --primary-color: #1a1a2e;
+      --secondary-color: #f8f8f8;
+      --accent-color: #e52d2e;
+      --font-name: 'Inter', sans-serif;
     }
-    * {
-      box-sizing: border-box;
-      margin: 0;
-      padding: 0;
-    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
     body {
-      width: 1080px;
-      height: 1350px;
+      width: 1080px; height: 1350px;
       font-family: var(--font-name), sans-serif;
-      display: flex;
-      flex-direction: column;
+      display: flex; flex-direction: column;
       justify-content: flex-end;
-      position: relative;
-      overflow: hidden;
+      position: relative; overflow: hidden;
       background-color: #000;
     }
     .background-img {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      z-index: 1;
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      object-fit: cover; z-index: 1;
     }
+    /* LIST-specific: gradient from right half, so list stands on top cleanly */
     .gradient-overlay {
-      position: absolute;
-      top: 0;
-      left: 0;
-      width: 100%;
-      height: 100%;
-      background: linear-gradient(to bottom, rgba(0,0,0,0.3) 0%, rgba(0,0,0,0.7) 100%);
+      position: absolute; top: 0; left: 0;
+      width: 100%; height: 100%;
+      background: linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.8) 65%, rgba(0,0,0,0.95) 100%);
       z-index: 2;
     }
-
-    /* Logo Slot */
     .logo-container {
       position: absolute;
-      display: flex;
-      align-items: center;
-      gap: 12px;
-      font-weight: 800;
-      font-size: 24px;
-      letter-spacing: 0.05em;
-      z-index: 3;
+      display: flex; align-items: center; gap: 12px;
+      font-weight: 800; font-size: 24px;
+      letter-spacing: 0.05em; z-index: 10;
     }
-    .logo-text {
-      text-transform: uppercase;
-    }
-    .position-top-left { top: 60px; left: 60px; }
-    .position-top-right { top: 60px; right: 60px; }
+    .logo-text { text-transform: uppercase; }
+    .position-top-left    { top: 60px; left: 60px; }
+    .position-top-right   { top: 60px; right: 60px; }
     .position-bottom-left { bottom: 60px; left: 60px; }
-    .position-bottom-right { bottom: 60px; right: 60px; }
+    .position-bottom-right{ bottom: 60px; right: 60px; }
 
-    /* Content Panel */
+    /* LIST-specific: transparent panel, no solid background (let the gradient show) */
     .content-panel {
-      position: relative;
-      z-index: 3;
-      background-color: var(--primary-color);
+      position: relative; z-index: 3;
       color: var(--secondary-color);
-      padding: 50px 60px;
-      display: flex;
-      flex-direction: column;
-      gap: 24px;
+      padding: 50px 60px 60px;
+      display: flex; flex-direction: column; gap: 28px;
     }
     .list-title {
-      font-size: 34px;
-      font-weight: 700;
-      border-bottom: 3px solid var(--accent-color);
-      padding-bottom: 12px;
-      margin-bottom: 8px;
+      font-size: 38px; font-weight: 800;
+      padding-bottom: 16px;
+      border-bottom: 4px solid var(--accent-color);
+      color: #fff;
     }
     .list-items {
-      display: flex;
-      flex-direction: column;
-      gap: 20px;
+      display: flex; flex-direction: column; gap: 20px;
     }
     .list-item-row {
-      display: flex;
-      align-items: flex-start;
-      gap: 20px;
+      display: flex; align-items: flex-start; gap: 20px;
     }
     .list-badge {
-      width: 36px;
-      height: 36px;
-      border-radius: 50%;
+      width: 40px; height: 40px; border-radius: 50%;
       background-color: var(--accent-color);
-      color: #fff;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: 700;
-      font-size: 18px;
-      flex-shrink: 0;
+      color: #fff; display: flex;
+      align-items: center; justify-content: center;
+      font-weight: 700; font-size: 18px; flex-shrink: 0;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
     }
     .list-text {
-      font-size: 24px;
-      line-height: 1.5;
+      font-size: 26px; line-height: 1.5; color: #fff;
     }
     .cta-button {
       align-self: flex-start;
       background-color: var(--accent-color);
-      color: #fff;
-      border: none;
-      padding: 14px 28px;
-      border-radius: 8px;
-      font-size: 18px;
-      font-weight: 700;
-      cursor: pointer;
-      text-transform: uppercase;
-      box-shadow: 0 4px 12px rgba(0,0,0,0.2);
-      margin-top: 10px;
+      color: #fff; border: none;
+      padding: 14px 28px; border-radius: 8px;
+      font-size: 20px; font-weight: 700;
+      cursor: pointer; text-transform: uppercase;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+      margin-top: 8px;
     }
   </style>
 </head>
 <body>
-  <!-- Background image -->
   <img id="image-slot" class="background-img" src="" alt="List Background">
   <div class="gradient-overlay"></div>
 
-  <!-- Logo Slot -->
   <div id="logo-slot" class="logo-container position-top-left">
     <svg viewBox="0 0 24 24" width="38" height="38" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-      <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
-      <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
+      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
     </svg>
     <span class="logo-text">Brand</span>
   </div>
 
-  <!-- Content panel -->
   <div class="content-panel">
-    <h3 id="title-slot" class="list-title">Mitől különleges az új tavaszi kávénk?</h3>
+    <h3 id="title-slot" class="list-title">Lista cím helye</h3>
     <div id="list-items-slot" class="list-items">
       <!-- Injected list items will go here -->
       <div class="list-item-row">
         <div class="list-badge">1</div>
-        <p class="list-text">Friss eper infúzió</p>
+        <p class="list-text">Első pont</p>
       </div>
       <div class="list-item-row">
         <div class="list-badge">2</div>
-        <p class="list-text">Single-origin etióp kávé</p>
+        <p class="list-text">Második pont</p>
       </div>
       <div class="list-item-row">
         <div class="list-badge">3</div>
-        <p class="list-text">Biominősítésű zabtej</p>
+        <p class="list-text">Harmadik pont</p>
       </div>
     </div>
-    <button id="cta-slot" class="cta-button" style="display:none;">Mutass többet!</button>
+    <button id="cta-slot" class="cta-button" style="display:none;">Tudj meg többet!</button>
   </div>
 </body>
 </html>

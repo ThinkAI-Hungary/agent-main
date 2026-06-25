@@ -85,10 +85,16 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
   const [aiLayersEnabled, setAiLayersEnabled] = useState<Record<number, boolean>>({});
   const [isGeneratingAiLayers, setIsGeneratingAiLayers] = useState(false);
 
-  // Flux 2 Pro params
-  const [safetyTolerance, setSafetyTolerance] = useState(2);
+  // BFL model + params — global defaults: Flex / safety=1 / guidance=4.5 / steps=50
+  const [safetyTolerance, setSafetyTolerance] = useState(1);
+  const [bflModel, setBflModel] = useState<'bfl-flux-2-pro' | 'bfl-flux-2-max' | 'bfl-flux-2-flex'>('bfl-flux-2-flex');
   const [bflWidth, setBflWidth] = useState(1024);
   const [bflHeight, setBflHeight] = useState(1536);
+  const [flexAspectRatio, setFlexAspectRatio] = useState('2:3');
+  const [flexGuidance, setFlexGuidance] = useState(4.5);
+  const [flexSteps, setFlexSteps] = useState(50);
+  const [flexWidth, setFlexWidth] = useState(1024);
+  const [flexHeight, setFlexHeight] = useState(1536);
 
   const addLog = (msg: string, type: 'info' | 'success' | 'error' = 'info') => {
     const timestamp = new Date().toLocaleTimeString('hu-HU');
@@ -213,18 +219,23 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
     setIsGenerating(true); setError(''); setLogs([]);
     let finalPrompt = scenePrompt;
     if (autoTranslate) { addLog('Magyar -> angol forditas...', 'info'); finalPrompt = await handleTranslate(scenePrompt); }
-    addLog('Generalas inditasa: BFL FLUX.2 [pro]...', 'info');
-    setStatusMsg('FLUX.2 Pro generalas...');
+    addLog(`Generalas inditasa: BFL ${bflModel}...`, 'info');
+    setStatusMsg(`${bflModel} generalas...`);
     const start = Date.now();
     try {
+      const isFlexModel = bflModel === 'bfl-flux-2-flex';
       const resp = await fetch('http://localhost:3001/api/test-image', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           productImageUrl: originalUrl || preprocessedUrl || null,
           preprocessedImageUrl: preprocessedUrl || null,
           scenePrompt: finalPrompt,
-          model: 'bfl-flux-2-pro',
-          safetyTolerance, width: bflWidth, height: bflHeight,
+          model: bflModel,
+          safetyTolerance,
+          ...(isFlexModel
+            ? { aspectRatio: flexAspectRatio, guidance: flexGuidance, steps: flexSteps, width: flexWidth, height: flexHeight }
+            : { width: bflWidth, height: bflHeight }
+          ),
           brandStyle: brandStyleContext.length > 0 ? brandStyleContext.join(', ') : undefined,
           negativePrompt: brandNegativePrompt.length > 0 ? brandNegativePrompt.join(', ') : undefined,
           brandKit: activeBrandKit ? { colors: activeBrandKit.colors, tone: activeBrandKit.tone, visualRules: activeBrandKit.visualRules, brandDna: activeBrandKit.brandDna, brandProfile: activeBrandKit.brandProfile } : undefined,
@@ -234,7 +245,7 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
       const data = await resp.json();
       const elapsed = Date.now() - start;
       addLog(`Kesz! (${(elapsed / 1000).toFixed(1)}s)`, 'success');
-      setResults(prev => [{ url: data.imageUrl, prompt: finalPrompt, elapsed, model: data.model || 'flux-2-pro', params: { size: `${bflWidth}x${bflHeight}`, safety: safetyTolerance } }, ...prev]);
+      setResults(prev => [{ url: data.imageUrl, prompt: finalPrompt, elapsed, model: data.model || bflModel, params: isFlexModel ? { aspectRatio: flexAspectRatio, size: `${flexWidth}x${flexHeight}`, guidance: flexGuidance, steps: flexSteps, safety: safetyTolerance } : { size: `${bflWidth}x${bflHeight}`, safety: safetyTolerance } }, ...prev]);
       setStatusMsg(`Kesz! (${(elapsed / 1000).toFixed(1)}s)`);
     } catch (err: any) {
       addLog(`Hiba: ${err.message}`, 'error');
@@ -1317,28 +1328,132 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
             </div>
           </div>
 
-          {/* Flux 2 Pro Params */}
+          {/* BFL Model Selector + Params */}
           <div className="lab-card glass-panel">
-            <h3 style={{ color: '#f97316' }}>FLUX.2 [pro] — BFL Direct API</h3>
+            <h3 style={{ color: '#f97316', marginBottom: 14 }}>BFL FLUX.2 — Model & Params</h3>
+
+            {/* Model selector cards */}
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
+              {([
+                {
+                  id: 'bfl-flux-2-pro' as const,
+                  name: 'FLUX.2 [pro]',
+                  badge: '⚡ Pro',
+                  color: '#f97316',
+                  desc: 'Legjobb minőség/ár arány. Nagy volumenű generáláshoz, ha néhány újrapróbálás megengedett.',
+                  tags: ['Általános', 'Nagy volumen', 'Költséghatékony'],
+                },
+                {
+                  id: 'bfl-flux-2-max' as const,
+                  name: 'FLUX.2 [max]',
+                  badge: '🏆 Max',
+                  color: '#a855f7',
+                  desc: 'Legjobb általános konzisztencia és szövegminőség, ha a budget másodlagos szempont.',
+                  tags: ['Legjobb minőség', 'Konzisztens', 'Prémium'],
+                },
+                {
+                  id: 'bfl-flux-2-flex' as const,
+                  name: 'FLUX.2 [flex]',
+                  badge: '🏷️ Flex',
+                  color: '#10b981',
+                  desc: 'BFL ajánlott eszköze label/csomagolás szövegekhez: összetevőlista, nutrition panel, pontos feliratozás.',
+                  tags: ['Label/Packaging', 'Tipográfia', 'Szöveg-pontos'],
+                  recommended: true,
+                },
+              ]).map(m => (
+                <div
+                  key={m.id}
+                  onClick={() => setBflModel(m.id)}
+                  style={{
+                    padding: '12px 14px', borderRadius: 10, cursor: 'pointer', transition: 'all 0.15s',
+                    border: `2px solid ${bflModel === m.id ? m.color : 'rgba(255,255,255,0.08)'}`,
+                    background: bflModel === m.id ? `${m.color}18` : 'rgba(255,255,255,0.03)',
+                    position: 'relative',
+                  }}
+                >
+                  {m.recommended && (
+                    <div style={{ position: 'absolute', top: -8, right: 8, fontSize: 9, fontWeight: 800, background: '#10b981', color: '#fff', padding: '1px 7px', borderRadius: 4, textTransform: 'uppercase', letterSpacing: '0.05em' }}>BFL ajánlott</div>
+                  )}
+                  <div style={{ fontSize: 13, fontWeight: 800, color: bflModel === m.id ? m.color : '#e2e8f0', marginBottom: 4 }}>{m.badge} {m.name}</div>
+                  <div style={{ fontSize: 10.5, color: '#94a3b8', lineHeight: 1.4, marginBottom: 8 }}>{m.desc}</div>
+                  <div style={{ display: 'flex', gap: 4, flexWrap: 'wrap' }}>
+                    {m.tags.map(t => (
+                      <span key={t} style={{ fontSize: 9, fontWeight: 700, padding: '2px 6px', borderRadius: 4, background: `${m.color}22`, color: m.color, textTransform: 'uppercase', letterSpacing: '0.04em' }}>{t}</span>
+                    ))}
+                  </div>
+                </div>
+              ))}
+            </div>
+
             <div className="flux-params">
               <div className="param-row">
                 <label>Safety Tolerance <span className="param-val">{safetyTolerance}</span></label>
                 <input type="range" min={0} max={5} step={1} value={safetyTolerance} onChange={e => setSafetyTolerance(+e.target.value)} />
-                <span className="param-hint">0 = legbiztonsagosabb, 5 = legtolernsabb</span>
+                <span className="param-hint">0 = legbiztonságosabb, 5 = legtoleránsabb</span>
               </div>
-              <div className="param-row">
-                <label>Meretek <span className="param-val">{bflWidth}x{bflHeight}px</span></label>
-                <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                  <input type="number" className="size-input" value={bflWidth} onChange={e => setBflWidth(+e.target.value)} placeholder="Szelesseg" />
-                  <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>x</span>
-                  <input type="number" className="size-input" value={bflHeight} onChange={e => setBflHeight(+e.target.value)} placeholder="Magassag" />
+
+              {/* Pro/Max: width + height */}
+              {bflModel !== 'bfl-flux-2-flex' && (
+                <div className="param-row">
+                  <label>Méretek <span className="param-val">{bflWidth}x{bflHeight}px</span></label>
+                  <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                    <input type="number" className="size-input" value={bflWidth} onChange={e => setBflWidth(+e.target.value)} placeholder="Szélesség" />
+                    <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>x</span>
+                    <input type="number" className="size-input" value={bflHeight} onChange={e => setBflHeight(+e.target.value)} placeholder="Magasság" />
+                  </div>
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 4 }}>
+                    {[['1:1', 1024, 1024], ['4:5', 1024, 1280], ['2:3', 1024, 1536], ['9:16', 1080, 1920], ['16:9', 1920, 1080]].map(([label, w, h]) => (
+                      <button key={String(label)} className={`preset-chip ${bflWidth === w && bflHeight === h ? 'active' : ''}`} onClick={() => { setBflWidth(Number(w)); setBflHeight(Number(h)); }}>{String(label)}</button>
+                    ))}
+                  </div>
                 </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 4 }}>
-                  {[['1:1', 1024, 1024], ['4:5', 1024, 1280], ['2:3', 1024, 1536], ['9:16', 1080, 1920], ['16:9', 1920, 1080]].map(([label, w, h]) => (
-                    <button key={String(label)} className={`preset-chip ${bflWidth === w && bflHeight === h ? 'active' : ''}`} onClick={() => { setBflWidth(Number(w)); setBflHeight(Number(h)); }}>{String(label)}</button>
-                  ))}
-                </div>
-              </div>
+              )}
+
+              {/* Flex: aspect_ratio + resolution + guidance + steps */}
+              {bflModel === 'bfl-flux-2-flex' && (
+                <>
+                  <div className="param-row">
+                    <label>Felbontás <span className="param-val">{flexWidth}x{flexHeight}px</span></label>
+                    <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+                      <input type="number" className="size-input" value={flexWidth} onChange={e => setFlexWidth(+e.target.value)} placeholder="Szélesség" />
+                      <span style={{ color: 'var(--text-muted)', fontSize: 12 }}>x</span>
+                      <input type="number" className="size-input" value={flexHeight} onChange={e => setFlexHeight(+e.target.value)} placeholder="Magasság" />
+                    </div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5, marginTop: 4 }}>
+                      {([
+                        ['1:1', 1024, 1024],
+                        ['4:5', 1024, 1280],
+                        ['2:3', 1024, 1536],
+                        ['9:16', 1080, 1920],
+                        ['16:9', 1920, 1080],
+                        ['3:4', 1024, 1365],
+                      ] as [string, number, number][]).map(([ar, w, h]) => (
+                        <button
+                          key={ar}
+                          className={`preset-chip ${flexAspectRatio === ar && flexWidth === w && flexHeight === h ? 'active' : ''}`}
+                          onClick={() => { setFlexAspectRatio(ar); setFlexWidth(w); setFlexHeight(h); }}
+                        >{ar}</button>
+                      ))}
+                    </div>
+                    <span className="param-hint">Preset = aspect_ratio + px méret egyszerre állítódik</span>
+                  </div>
+                  <div className="param-row">
+                    <label>Guidance <span className="param-val">{flexGuidance.toFixed(1)}</span></label>
+                    <input type="range" min={1.5} max={10} step={0.5} value={flexGuidance} onChange={e => setFlexGuidance(+e.target.value)} />
+                    <span className="param-hint">Magasabb = pontosabb szöveg. Label/packaging: 4–5 ajánlott</span>
+                  </div>
+                  <div className="param-row">
+                    <label>Inference Steps <span className="param-val">{flexSteps}</span></label>
+                    <input type="range" min={1} max={50} step={1} value={flexSteps} onChange={e => setFlexSteps(+e.target.value)} />
+                    <div style={{ display: 'flex', gap: 5, marginTop: 4 }}>
+                      {[[10, 'Gyors'], [20, 'Normál'], [30, 'Alapért.'], [40, 'Minőségi'], [50, 'Max']].map(([v, l]) => (
+                        <button key={v} className={`preset-chip ${flexSteps === v ? 'active' : ''}`} onClick={() => setFlexSteps(Number(v))}>{l} ({v})</button>
+                      ))}
+                    </div>
+                    <span className="param-hint">Kevesebb = gyorsabb &amp; olcsóbb · Több = élesebb szöveg. Default 30 ajánlott label munkához</span>
+                  </div>
+                </>
+              )}
             </div>
           </div>
 

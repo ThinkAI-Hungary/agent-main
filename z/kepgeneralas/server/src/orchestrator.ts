@@ -16,6 +16,25 @@ const anthropic = new Anthropic({
 
 const modelName = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
 
+// Clean text to extract JSON array/object blocks
+function extractJson(text: string): string {
+  const firstBrace = text.indexOf('{');
+  const firstBracket = text.indexOf('[');
+  
+  if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+    const lastBrace = text.lastIndexOf('}');
+    if (lastBrace !== -1) {
+      return text.substring(firstBrace, lastBrace + 1);
+    }
+  } else if (firstBracket !== -1) {
+    const lastBracket = text.lastIndexOf(']');
+    if (lastBracket !== -1) {
+      return text.substring(firstBracket, lastBracket + 1);
+    }
+  }
+  return text;
+}
+
 // 1. Analyzes website scraped data and returns a structured BrandKit
 export async function analyzeBrandKit(scraped: ScrapedData): Promise<Partial<BrandKit>> {
   const systemPrompt = `Te egy professzionális arculattervező és márka-tanácsadó grafikus vagy. 
@@ -33,6 +52,7 @@ A kimenetet KIZÁRÓLAG egy érvényes JSON formátumban add vissza, markdown k�
 
 A várt JSON formátum:
 {
+  "name": "A cég/márka rövid neve magyarul (pl. PiktorFesték, Anna Kávézója)",
   "colors": {
     "primary": "#HEX (Elsődleges márka szín, domináns háttérszín)",
     "secondary": "#HEX (Másodlagos krémes/világos vagy kiegészítő szín)",
@@ -339,4 +359,72 @@ Kérlek tervezd meg a teljes online kampányt a create_campaign tool használat�
     throw error;
   }
 }
+
+// 4. Generates a single post creative based on brief, template type, and Brand Kit
+export async function orchestrateSingleCreative(
+  brief: string,
+  brandKit: BrandKit,
+  templateId: 'quote' | 'product' | 'testimonial' | 'list',
+  pastApproved: PostCreative[] = []
+): Promise<GeneratedPostVariant> {
+  const systemPrompt = `Te egy social media marketing specialista AI szövegíró és arculattervező vagy.
+Feladatod, hogy a megadott Márka Kit (Brand Kit) szabályai és az aktuális Brief alapján legenerálj egy darab kreatív poszt variánst Instagram és Facebook felületekre, kifejezetten a megadott '${templateId}' sablon elrendezéshez.
+
+A sablon elrendezés:
+${
+  templateId === 'quote' ? 'quote (Idézet sablon): Szövegközpontú, idézet vagy mottó jellegű.' :
+  templateId === 'product' ? 'product (Termék fókuszú): Kép + termékleírás + CTA gomb.' :
+  templateId === 'testimonial' ? 'testimonial (Vásárlói értékelés): Csillagos értékelés, idézőjeles visszajelzés szöveg, és a CTA helyén az ügyfél neve.' :
+  'list (Tények/Lista): Fejléc sor, majd 3 pontba szedett számozott lista (1., 2., 3. formátumban), és egy CTA gomb.'
+}
+
+Szabályok a szöveghez (text):
+- A szöveg MAGYAR nyelven íródjon.
+- Hűen tükrözze a márka hangnemét (Tone of Voice).
+- A maxLineLength korlátot tartsd be (a sorok ne legyenek túl hosszúak, használj újsor karaktert '\\n' ha szükséges, pl. a list sablonnál).
+
+Szabályok a képgenerálási promptokhoz (imagePrompt):
+- A Flux képgenerátornak szóló prompt ANGOL nyelvű legyen.
+- Írd le részletesen a kompozíciót (pl. cozy cup on a rustic tray, soft shadows, warm natural lighting).
+- Vedd figyelembe a Brand Kit képi szabályait (pl. termék fókusz, emberek nélkül) és építsd be a promptba.
+
+A kimenetet KIZÁRÓLAG egy valid JSON objektumként add vissza, markdown kódblokkok nélkül. Bármilyen idézőjelet a JSON értékeken belül kötelezően escape-elj backslash-sel (pl. \\\"szöveg\\\"). Soha ne használj valódi újsor karaktert a string értékekben, hanem helyettesítsd \\n-nel.
+
+Várt JSON szerkezet:
+{
+  "templateId": "${templateId}",
+  "text": "Szöveg vagy idézet magyarul",
+  ${templateId !== 'quote' ? '"cta": "CTA gomb szövege vagy az ügyfél neve magyarul",' : ''}
+  "imagePrompt": "Flux image prompt in English",
+  "colorVariation": "default | inverted | accent",
+  "logoVariant": "light | dark"
+}`;
+
+  const userPrompt = `Brief: "${brief}"
+Generálj le 1 db '${templateId}' típusú poszt ötletet a fentiek alapján JSON formátumban.`;
+
+  try {
+    const response = await anthropic.messages.create({
+      model: modelName,
+      max_tokens: 1000,
+      temperature: 0.7,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userPrompt }],
+    });
+
+    const textContent = response.content[0].type === 'text' ? response.content[0].text : '';
+    const cleanJson = extractJson(textContent);
+    try {
+      return JSON.parse(cleanJson);
+    } catch (parseError: any) {
+      console.error('Failed to parse single creative JSON. Raw content:', textContent);
+      console.error('Cleaned content:', cleanJson);
+      throw new Error(`Poszt generálási JSON elemzés sikertelen: ${parseError.message}`);
+    }
+  } catch (error) {
+    console.error('Error in orchestrateSingleCreative:', error);
+    throw error;
+  }
+}
+
 

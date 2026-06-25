@@ -31,7 +31,12 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
   // Logo rendering based on variant and configuration
   const renderLogo = () => {
     const fill = post.logoVariant === 'light' ? brandKit.colors.secondary : brandKit.colors.primary;
-    const isCup = brandKit.logoUrl === 'coffee-cup-minimal';
+    const brandNameLower = (brandKit.name || '').toLowerCase();
+    const isCup = brandKit.logoUrl === 'coffee-cup-minimal' || 
+                  brandNameLower.includes('kávé') || 
+                  brandNameLower.includes('coffee') || 
+                  brandNameLower.includes('cafe') || 
+                  brandNameLower.includes('latte');
 
     return (
       <div className={`post-logo position-${brandKit.logoPosition}`}>
@@ -44,13 +49,12 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
             <line x1="14" y1="2" x2="14" y2="4" />
           </svg>
         ) : (
-          <svg viewBox="0 0 24 24" width="24" height="24" fill={fill}>
-            <circle cx="12" cy="12" r="10" fill="none" stroke={fill} strokeWidth="2" />
-            <path d="M12 8c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4Zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2Z" />
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke={fill} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
           </svg>
         )}
         <span className="logo-text" style={{ color: fill, fontFamily: brandKit.typography.fontName }}>
-          ANNA
+          {brandKit.name || 'Márka'}
         </span>
       </div>
     );

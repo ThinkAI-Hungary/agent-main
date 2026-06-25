@@ -17,15 +17,19 @@ const modelName = process.env.ANTHROPIC_MODEL || 'claude-sonnet-4-6';
 
 // Clean text to extract JSON array/object blocks
 function extractJson(text: string): string {
-  const jsonStart = text.indexOf('{');
-  const jsonEnd = text.lastIndexOf('}');
-  if (jsonStart !== -1 && jsonEnd !== -1) {
-    return text.substring(jsonStart, jsonEnd + 1);
-  }
-  const arrayStart = text.indexOf('[');
-  const arrayEnd = text.lastIndexOf(']');
-  if (arrayStart !== -1 && arrayEnd !== -1) {
-    return text.substring(arrayStart, arrayEnd + 1);
+  const firstBrace = text.indexOf('{');
+  const firstBracket = text.indexOf('[');
+  
+  if (firstBrace !== -1 && (firstBracket === -1 || firstBrace < firstBracket)) {
+    const lastBrace = text.lastIndexOf('}');
+    if (lastBrace !== -1) {
+      return text.substring(firstBrace, lastBrace + 1);
+    }
+  } else if (firstBracket !== -1) {
+    const lastBracket = text.lastIndexOf(']');
+    if (lastBracket !== -1) {
+      return text.substring(firstBracket, lastBracket + 1);
+    }
   }
   return text;
 }

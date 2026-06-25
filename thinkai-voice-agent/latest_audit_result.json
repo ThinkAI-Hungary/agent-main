@@ -1,98 +1,108 @@
 {
   "status": "success",
-  "url": "https://piktor.hu/kezdolap",
-  "scraper_json": "[\n  {\n    \"metadata\": {\n      \"title\": \"Festék webáruház lakásfelújításhoz - Ügyfélszolgálat\",\n      \"description\": \"Piktor ügyfélszolgálat: +36 96/ 511 860. Hívj, ha kérdésed van termékeinkről, szolgáltatásainkról vagy segítség kell online rendelés előtt, után.\",\n      \"keywords\": null,\n      \"viewport\": \"width=device-width, initial-scale=1.0, maximum-scale=1.0\",\n      \"canonical\": \"https://piktor.hu/ugyfelszolgalat\",\n      \"lang\": \"hu\",\n      \"is_https\": true\n    },\n    \"headings\": {\n      \"h1\": [\n        \"Ügyfélszolgálat\"\n      ],\n      \"h2\": [\n        \"Piktor\",\n        \"Keresés\",\n        \"Minibasket V24\",\n        \"\"\n      ],\n      \"h3\": [\n        \"Aktuális ajánlataink\"\n      ]\n    },\n    \"images\": [\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/favicon.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_76x76.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_70x70.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_150x150.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_310x150.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_310x310.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/site/icon_fb.svg\",\n        \"alt\": \"Facebook\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/site/icon_in.svg\",\n        \"alt\": \"Insta\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/site/icon_yt.svg\",\n        \"alt\": \"YouTube\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/site/icon_tt.svg\",\n        \"alt\": \"TikTok\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/site/icon_nl.svg\",\n        \"alt\": \"Newsletter\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/user/logo_maestro_h60.svg\",\n        \"alt\": \"Maestro\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/user/logo_mastercard_h60.svg\",\n        \"alt\": \"Mastercard\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/user/logo_visa_h60.svg\",\n        \"alt\": \"Visa\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/user/logo_applepay_h60.svg\",\n        \"alt\": \"Apple Pay\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/ujsag/2026/Piktor-ujsag-414x414px-2026-junus-web.webp\",\n        \"alt\": \"Aktuális ajánlataink\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/gfx/logo_infoartnet.svg\",\n        \"alt\": \"Infoartnet Kft.\"\n      }\n    ],\n    \"links\": [\n      {\n        \"href\": \"https://piktor.hu/\",\n        \"text\": \"\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/login_piktor\",\n        \"text\": \"Bejelentkezés\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/basket\",\n        \"text\": \"Kosár\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/basket\",\n        \"text\": \"Kosár\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/basket/checkoutlink\",\n        \"text\": \"Pénztár\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/\",\n        \"text\": \"Információk\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/\",\n        \"text\": \"Webáruház\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/ugyfelszolgalat\",\n        \"text\": \"Ügyfélszolgálat\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"mailto:piktor@piktor.hu\",\n        \"text\": \"piktor@piktor.hu\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"http://twitter.com/share?url=https://piktor.hu/ugyfelszolgalat\",\n        \"text\": \"Twitter\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://www.facebook.com/PiktorFestekboltGyor/\",\n        \"text\": \"Facebook\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://www.instagram.com/piktorfestekgyor/\",\n        \"text\": \"Insta\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://www.youtube.com/@piktorvideo465\",\n        \"text\": \"YouTube\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://www.tiktok.com/@piktor.hu\",\n        \"text\": \"TikTok\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://piktor.hu/feliratkozas\",\n        \"text\": \"Newsletter\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/aktualis-ajanlataink\",\n        \"text\": \"Aktuális ajánlataink\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/aktualis-ajanlataink\",\n        \"text\": \"Tovább\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/extra-kedvezmenyeink\",\n        \"text\": \"Extra kedvezmények\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/szallitas-es-fizetes\",\n        \"text\": \"Szállítás és fizetés\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/atveteli-pontok\",\n        \"text\": \"Átvételi pontok\",\n        \"is_external\": false\n      }\n    ],\n    \"sections\": [\n      {\n        \"id\": null,\n        \"title\": \"Header\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Breadcrumb\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Ügyfélszolgálat\",\n        \"type\": \"Contact\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Social Media Links\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Payment Icons\",\n        \"type\": \"Footer\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Aktuális ajánlataink\",\n        \"type\": \"Articles\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Webáruház Information\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Piktor boltok Information\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Footer - Infoartnet\",\n        \"type\": \"Footer\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Piktor.hu Categories\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Cookie Consent\",\n        \"type\": \"Other\"\n      }\n    ],\n    \"products\": []\n  },\n  {\n    \"metadata\": {\n      \"title\": \"Festék webáruház lakásfelújításhoz - Informatikai partner\",\n      \"description\": \"Piktor Kft. 9023 Győr, Mészáros Lőrinc út 1.\",\n      \"keywords\": null,\n      \"viewport\": \"width=device-width, initial-scale=1.0, maximum-scale=1.0\",\n      \"canonical\": \"https://piktor.hu/informatikai-partner\",\n      \"lang\": \"hu\",\n      \"is_https\": true\n    },\n    \"headings\": {\n      \"h1\": [\n        \"Informatikai partner\"\n      ],\n      \"h2\": [\n        \"Piktor\",\n        \"Keresés\",\n        \"Minibasket V24\",\n        \"\"\n      ],\n      \"h3\": [\n        \"\",\n        \"Aktuális ajánlataink\"\n      ]\n    },\n    \"images\": [\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/favicon.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_76x76.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_70x70.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_150x150.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_310x150.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_310x310.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/site/icon_fb.svg\",\n        \"alt\": \"Facebook\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/site/icon_in.svg\",\n        \"alt\": \"Insta\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/site/icon_yt.svg\",\n        \"alt\": \"YouTube\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/site/icon_tt.svg\",\n        \"alt\": \"TikTok\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/site/icon_nl.svg\",\n        \"alt\": \"Newsletter\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/user/logo_maestro_h60.svg\",\n        \"alt\": \"Maestro\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/user/logo_mastercard_h60.svg\",\n        \"alt\": \"Mastercard\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/user/logo_visa_h60.svg\",\n        \"alt\": \"Visa\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/user/logo_applepay_h60.svg\",\n        \"alt\": \"Apple Pay\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/ujsag/2026/Piktor-ujsag-414x414px-2026-junus-web.webp\",\n        \"alt\": \"Aktuális ajánlataink\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/gfx/logo_infoartnet.svg\",\n        \"alt\": \"Infoartnet Kft.\"\n      }\n    ],\n    \"links\": [\n      {\n        \"href\": \"https://piktor.hu/\",\n        \"text\": \"\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/login_piktor\",\n        \"text\": \"Bejelentkezés\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/basket\",\n        \"text\": \"Kosár\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/basket\",\n        \"text\": \"Kosár\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/basket/checkoutlink\",\n        \"text\": \"Pénztár\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/\",\n        \"text\": \"Információk\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/\",\n        \"text\": \"Webáruház\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/informatikai-partner\",\n        \"text\": \"Informatikai partner\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"http://twitter.com/share?url=https://piktor.hu/informatikai-partner\",\n        \"text\": \"Twitter\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://www.facebook.com/PiktorFestekboltGyor/\",\n        \"text\": \"Facebook\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://www.instagram.com/piktorfestekgyor/\",\n        \"text\": \"Insta\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://www.youtube.com/@piktorvideo465\",\n        \"text\": \"YouTube\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://www.tiktok.com/@piktor.hu\",\n        \"text\": \"TikTok\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://piktor.hu/feliratkozas\",\n        \"text\": \"Newsletter\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/aktualis-ajanlataink\",\n        \"text\": \"Aktuális ajánlataink\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/aktualis-ajanlataink\",\n        \"text\": \"Tovább\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/extra-kedvezmenyeink\",\n        \"text\": \"Extra kedvezmények\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/szallitas-es-fizetes\",\n        \"text\": \"Szállítás és fizetés\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/atveteli-pontok\",\n        \"text\": \"Átvételi pontok\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/garancialis-feltetelek\",\n        \"text\": \"Garanciális feltételek\",\n        \"is_external\": false\n      }\n    ],\n    \"sections\": [\n      {\n        \"id\": null,\n        \"title\": \"Header\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Breadcrumb\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Informatikai partner\",\n        \"type\": \"Contact\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Social Media Links\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Payment Icons\",\n        \"type\": \"Footer\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Aktuális ajánlataink\",\n        \"type\": \"Articles\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Webáruház Information\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Piktor boltok Information\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Footer - Infoartnet\",\n        \"type\": \"Footer\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Piktor.hu Categories\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Cookie Consent\",\n        \"type\": \"Other\"\n      }\n    ],\n    \"products\": []\n  },\n  {\n    \"metadata\": {\n      \"title\": \"Festék webáruház lakásfelújításhoz - Cégadatok\",\n      \"description\": \"Piktor Kft. 9023 Győr, Mészáros Lőrinc út 1.\",\n      \"keywords\": null,\n      \"viewport\": \"width=device-width, initial-scale=1.0, maximum-scale=1.0\",\n      \"canonical\": \"https://piktor.hu/cegadatok\",\n      \"lang\": \"hu\",\n      \"is_https\": true\n    },\n    \"headings\": {\n      \"h1\": [\n        \"Cégadatok\"\n      ],\n      \"h2\": [\n        \"Piktor\",\n        \"Keresés\",\n        \"Minibasket V24\",\n        \"\"\n      ],\n      \"h3\": [\n        \"\",\n        \"Cégadatok - Piktor Kft.\",\n        \"Aktuális ajánlataink\"\n      ]\n    },\n    \"images\": [\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/favicon.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_76x76.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_70x70.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_150x150.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_310x150.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_310x310.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/site/icon_fb.svg\",\n        \"alt\": \"Facebook\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/site/icon_in.svg\",\n        \"alt\": \"Insta\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/site/icon_yt.svg\",\n        \"alt\": \"YouTube\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/site/icon_tt.svg\",\n        \"alt\": \"TikTok\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/site/icon_nl.svg\",\n        \"alt\": \"Newsletter\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/user/logo_maestro_h60.svg\",\n        \"alt\": \"Maestro\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/user/logo_mastercard_h60.svg\",\n        \"alt\": \"Mastercard\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/user/logo_visa_h60.svg\",\n        \"alt\": \"Visa\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/user/logo_applepay_h60.svg\",\n        \"alt\": \"Apple Pay\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/ujsag/2026/Piktor-ujsag-414x414px-2026-junus-web.webp\",\n        \"alt\": \"Aktuális ajánlataink\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/gfx/logo_infoartnet.svg\",\n        \"alt\": \"Infoartnet Kft.\"\n      }\n    ],\n    \"links\": [\n      {\n        \"href\": \"https://piktor.hu/\",\n        \"text\": \"\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/login_piktor\",\n        \"text\": \"Bejelentkezés\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/basket\",\n        \"text\": \"Kosár\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/basket\",\n        \"text\": \"Kosár\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/basket/checkoutlink\",\n        \"text\": \"Pénztár\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/\",\n        \"text\": \"Információk\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/\",\n        \"text\": \"Piktor boltok\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/cegadatok\",\n        \"text\": \"Cégadatok\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"http://twitter.com/share?url=https://piktor.hu/cegadatok\",\n        \"text\": \"Twitter\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://www.facebook.com/PiktorFestekboltGyor/\",\n        \"text\": \"Facebook\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://www.instagram.com/piktorfestekgyor/\",\n        \"text\": \"Insta\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://www.youtube.com/@piktorvideo465\",\n        \"text\": \"YouTube\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://www.tiktok.com/@piktor.hu\",\n        \"text\": \"TikTok\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://piktor.hu/feliratkozas\",\n        \"text\": \"Newsletter\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/aktualis-ajanlataink\",\n        \"text\": \"Aktuális ajánlataink\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/aktualis-ajanlataink\",\n        \"text\": \"Tovább\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/extra-kedvezmenyeink\",\n        \"text\": \"Extra kedvezmények\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/szallitas-es-fizetes\",\n        \"text\": \"Szállítás és fizetés\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/atveteli-pontok\",\n        \"text\": \"Átvételi pontok\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/garancialis-feltetelek\",\n        \"text\": \"Garanciális feltételek\",\n        \"is_external\": false\n      }\n    ],\n    \"sections\": [\n      {\n        \"id\": null,\n        \"title\": \"Header\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Breadcrumb\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Cégadatok\",\n        \"type\": \"Contact\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Social Media Links\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Payment Icons\",\n        \"type\": \"Footer\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Aktuális ajánlataink\",\n        \"type\": \"Articles\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Webáruház Information\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Piktor boltok Information\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Footer - Infoartnet\",\n        \"type\": \"Footer\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Piktor.hu Categories\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Cookie Consent\",\n        \"type\": \"Other\"\n      }\n    ],\n    \"products\": []\n  },\n  {\n    \"metadata\": {\n      \"title\": \"Piktor webshop - Online festékbolt, kert és autós részleggel\",\n      \"description\": \"Rendelj festéket otthonról, kényelmesen! Több ezer termék házfelújításhoz, autóápoláshoz, kerti munkákhoz, dekoráláshoz országos házhoz szállítással. \",\n      \"keywords\": null,\n      \"viewport\": \"width=device-width, initial-scale=1.0, maximum-scale=1.0\",\n      \"canonical\": \"https://piktor.hu/kezdolap\",\n      \"lang\": \"hu\",\n      \"is_https\": true\n    },\n    \"headings\": {\n      \"h1\": [\n        \"Piktor\"\n      ],\n      \"h2\": [\n        \"Keresés\",\n        \"Minibasket V24\",\n        \"\",\n        \"Hatékony fűnyírók, fűkaszák azonnal készletről\",\n        \"Adj új színt a konyhabútorodnak!\",\n        \"Prémium autóápolás\",\n        \"Öntapadó falpanelek\",\n        \"Színes falak pillanatok alatt\",\n        \"Népszerű kategóriák\",\n        \"Kiemelt ajánlatok\",\n        \"Blog\"\n      ],\n      \"h3\": [\n        \"Konyhabútor felújítás festéssel\",\n        \"A szép fű titka a rendszeres gondozás\"\n      ]\n    },\n    \"images\": [\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/favicon.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_76x76.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_70x70.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_150x150.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_310x150.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/device-icons/icon_310x310.png\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/webshop_kepek/poli-farbe/thumbs/001369-inntaler-belteri-diszperzios-falfestek-feher-4l-1.webp\",\n        \"alt\": \"001369-inntaler-belteri-diszperzios-falfestek-feher-4l-1.webp\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/webshop_kepek/poli-farbe/thumbs/089315-inntaler-izolalo-belso-falfestek-1l-2.webp\",\n        \"alt\": \"089315-inntaler-izolalo-belso-falfestek-1l-2.webp\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/webshop_kepek/orange/thumbs/069872-biopin-kertibutor-olaj-szintelen-0-75l-1.webp\",\n        \"alt\": \"069872-biopin-kertibutor-olaj-szintelen-0-75l-1.webp\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/webshop_kepek/hb-body/thumbs/078510-hb-body-770-szilikon-lemoso-aerosol-400ml-1.webp\",\n        \"alt\": \"078510-hb-body-770-szilikon-lemoso-aerosol-400ml-1.webp\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/webshop_kepek/medikemia/thumbs/044467-prevent-klimatisztito-aeroszol-150ml-1.webp\",\n        \"alt\": \"044467-prevent-klimatisztito-aeroszol-150ml-1.webp\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/webshop_kepek/pepo/thumbs/063925-pepo-szunyogriaszto-lampaolaj-citronellaval-1-l-1.webp\",\n        \"alt\": \"063925-pepo-szunyogriaszto-lampaolaj-citronellaval-1-l-1.webp\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/webshop_kepek/pattex/thumbs/071481-pattex-one-for-all-universal-ragaszto-389-g.webp\",\n        \"alt\": \"071481-pattex-one-for-all-universal-ragaszto-389-g.webp\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/webshop_kepek/pattex/thumbs/042587-pattex-fix-express-epitesi-szerelesi-ragaszto-375-g.webp\",\n        \"alt\": \"042587-pattex-fix-express-epitesi-szerelesi-ragaszto-375-g.webp\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/webshop_kepek/am/thumbs/108702-am-legkondicionalo-tisztito-folyadek-belteri-egyseghez-szorofejes-1-l-1.webp\",\n        \"alt\": \"108702-am-legkondicionalo-tisztito-folyadek-belteri-egyseghez-szorofejes-1-l-1.webp\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/webshop_kepek/well-done/thumbs/120930-well-done-grill-tisztito-250-ml-1.webp\",\n        \"alt\": \"120930-well-done-grill-tisztito-250-ml-1.webp\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/Blog/2024/Piktor-WS-konyhabutorfestek-blog-414x414.webp\",\n        \"alt\": \"Konyhabútor felújítás festéssel\"\n      },\n      {\n        \"src\": \"https://piktor.hu/images/Blog/2022/Piktor-WS-Tavaszi-Fuvesites-blogcikk-image-414x414px-2022majus-03.webp\",\n        \"alt\": \"A szép fű titka a rendszeres gondozás\"\n      },\n      {\n        \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/gfx/logo_infoartnet.svg\",\n        \"alt\": \"Infoartnet Kft.\"\n      }\n    ],\n    \"links\": [\n      {\n        \"href\": \"https://piktor.hu/\",\n        \"text\": \"\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/login_piktor\",\n        \"text\": \"Bejelentkezés\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/basket\",\n        \"text\": \"Kosár\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/basket\",\n        \"text\": \"Kosár\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/basket/checkoutlink\",\n        \"text\": \"Pénztár\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/webshop/smartresult/keywords/cHJvbW8yNTAz/keyword_begin/0/page/1\",\n        \"text\": \"Válaszd a megfelelőt!\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/konyhabutorfestek\",\n        \"text\": \"Vásárolok\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/lotus\",\n        \"text\": \"Rendelj most!\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/webshop/smartresult/keywords/ZG1zIGZhbHBhbmVs/keyword_begin/0/page/1\",\n        \"text\": \"Vásárolok\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/szines-falfestek\",\n        \"text\": \"Vásárolok\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/vizi-jarmu\",\n        \"text\": \"Vízi járművekhez\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/peneszeltavolito\",\n        \"text\": \"Penész és algaeltávolító\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/zomancfestek\",\n        \"text\": \"Zománcfestékek\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/lazur\",\n        \"text\": \"Lazúr festékek\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/szerszamok\",\n        \"text\": \"Szerszám, barkácsgép\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/festek-spray\",\n        \"text\": \"Festék spray\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/tisztito-es-takaritoszer\",\n        \"text\": \"Tisztító és takarítószerek\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/autofestek\",\n        \"text\": \"Autófesték\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/belteri-falfestek\",\n        \"text\": \"Beltéri falfestékek\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://piktor.hu/kerti-gep\",\n        \"text\": \"Kerti gépek\",\n        \"is_external\": false\n      }\n    ],\n    \"sections\": [\n      {\n        \"id\": null,\n        \"title\": \"Header\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Slider (Hero)\",\n        \"type\": \"Hero\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Népszerű kategóriák\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Kiemelt ajánlatok\",\n        \"type\": \"Articles\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Blog\",\n        \"type\": \"Articles\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Social Media Links\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Payment Icons\",\n        \"type\": \"Footer\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Aktuális ajánlataink\",\n        \"type\": \"Articles\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Webáruház Information\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Piktor boltok Information\",\n        \"type\": \"Navigation\"\n      }\n    ],\n    \"products\": [\n      {\n        \"name\": \"Inntaler beltéri diszperziós falfesték fehér 4 l\",\n        \"price\": \"5 850 Ft\",\n        \"brand\": \"Inntaler\",\n        \"description\": \"\",\n        \"page_url\": \"https://piktor.hu/001369-inntaler-belteri-diszperzios-falfestek-feher-4l\"\n      },\n      {\n        \"name\": \"Inntaler izoláló belső falfesték fehér 1 l\",\n        \"price\": \"6 550 Ft\",\n        \"brand\": \"Inntaler\",\n        \"description\": \"\",\n        \"page_url\": \"https://piktor.hu/089315-inntaler-izolalo-belso-falfestek-1l\"\n      },\n      {\n        \"name\": \"Biopin kertibútor olaj színtelen 0,75 l\",\n        \"price\": \"7 650 Ft\",\n        \"brand\": \"Biopin\",\n        \"description\": \"\",\n        \"page_url\": \"https://piktor.hu/069872-biopin-kertibutor-olaj-szintelen-0-75l\"\n      },\n      {\n        \"name\": \"HB Body 770 szilikon lemosó aerosol 400 ml\",\n        \"price\": \"2 990 Ft\",\n        \"brand\": \"HB Body\",\n        \"description\": \"\",\n        \"page_url\": \"https://piktor.hu/078510-hb-body-770-szilikon-lemoso-aerosol-400ml\"\n      },\n      {\n        \"name\": \"Prevent klímatisztító aeroszol 150 ml\",\n        \"price\": \"2 150 Ft\",\n        \"brand\": \"Prevent\",\n        \"description\": \"\",\n        \"page_url\": \"https://piktor.hu/044467-prevent-klimatisztito-aeroszol-150ml\"\n      },\n      {\n        \"name\": \"Pepo szúnyogriasztó lámpaolaj citronellával 1 l\",\n        \"price\": \"3 290 Ft\",\n        \"brand\": \"Pepo\",\n        \"description\": \"\",\n        \"page_url\": \"https://piktor.hu/063925-pepo-szunyogriaszto-lampaolaj-citronellaval-1-l\"\n      },\n      {\n        \"name\": \"Pattex One For All Universal ragasztó és tömítő, kartusos 389 g\",\n        \"price\": \"2 990 Ft\",\n        \"brand\": \"Pattex\",\n        \"description\": \"\",\n        \"page_url\": \"https://piktor.hu/071481-pattex-one-for-all-universal-ragaszto-389-g\"\n      },\n      {\n        \"name\": \"Pattex Fix Express építési-szerelési ragasztó 375 g\",\n        \"price\": \"2 950 Ft\",\n        \"brand\": \"Pattex\",\n        \"description\": \"\",\n        \"page_url\": \"https://piktor.hu/042587-pattex-fix-express-epitesi-szerelesi-ragaszto-375-g\"\n      },\n      {\n        \"name\": \"AM Légkondicionáló tisztító folyadék beltéri egységhez szórófejes 1 l\",\n        \"price\": \"3 690 Ft\",\n        \"brand\": \"AM\",\n        \"description\": \"\",\n        \"page_url\": \"https://piktor.hu/108702-am-legkondicionalo-tisztito-folyadek-belteri-egyseghez-szorofejes-1-l\"\n      },\n      {\n        \"name\": \"Well Done Grill tisztító 250 ml\",\n        \"price\": \"950 Ft\",\n        \"brand\": \"Well Done\",\n        \"description\": \"\",\n        \"page_url\": \"https://piktor.hu/120930-well-done-grill-tisztito-250-ml\"\n      }\n    ]\n  }\n]",
+  "url": "https://wwww.audi.hu/",
+  "scraper_json": "[\n  {\n    \"metadata\": {\n      \"title\": \"Termékbiztonsági információk\",\n      \"description\": \"\",\n      \"keywords\": null,\n      \"viewport\": \"width=device-width, initial-scale=1\",\n      \"canonical\": \"https://wwww.audi.hu/termekbiztonsagi-informaciok\",\n      \"lang\": null,\n      \"is_https\": true\n    },\n    \"headings\": {\n      \"h1\": [],\n      \"h2\": [\n        \"Termékbiztonsági információk\"\n      ],\n      \"h3\": []\n    },\n    \"images\": [\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/4157dbb0ae5206a93967b891cca17fa5f1758cb4/901f4bd3210d91f4f6ba79a099286e68/9cd155ea-b0b9-4c01-8c2f-db5fda7df781/crop:SMART/resize:3840:3840/smfacebook\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/a2ead99918c745b7e24b3e1ae0b708b2a32d1066/c0c5a32e8a3ca0011eb46040874f02a3/e1bcecc0-0532-49b9-a1a2-0eeb78a73289/crop:SMART/resize:3840:3840/smyoutube\",\n        \"alt\": \"\"\n      }\n    ],\n    \"links\": [\n      {\n        \"href\": \"https://wwww.audi.hu/termekbiztonsagi-informaciok#mainContent\",\n        \"text\": \"Skip to main content\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/termekbiztonsagi-informaciok#mainSearch\",\n        \"text\": \"Skip to main search\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/termekbiztonsagi-informaciok#footer\",\n        \"text\": \"Skip to footer\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/\",\n        \"text\": \"\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/modellek/osszes-modell-megtekintese\",\n        \"text\": \"Modellek\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/szerviz-es-tartozek\",\n        \"text\": \"Szerviz és tartozék\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/innovacio\",\n        \"text\": \"Innováció\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://www.dasweltauto.hu/s/audi\",\n        \"text\": \"Használtautó\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/elmenyvilag\",\n        \"text\": \"Élményvilág\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/finanszirozas\",\n        \"text\": \"Finanszírozás\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/stories-of-progress-hirek\",\n        \"text\": \"Stories of Progress\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://shop.audi.hu/\",\n        \"text\": \"Audi E-Shop\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"mailto:kundenbetreuung@audi.de\",\n        \"text\": \"kundenbetreuung@audi.de\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://groupcms-services-api.porsche-holding.com/urls/svn/A/hu?\",\n        \"text\": \"Azonnal elvihető modellek\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/wltp\",\n        \"text\": \"WLTP\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/szerviz-es-tartozek/szerviz\",\n        \"text\": \"Szerviz\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"http://audi.hamuesgyemant.hu/\",\n        \"text\": \"Audi Magazin\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/markakereskedok\",\n        \"text\": \"Márkakereskedések\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://my.audi.com/\",\n        \"text\": \"myAudi\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/audi-gyarto-uzemek-termelesi-tajekoztatoja\",\n        \"text\": \"Audi gyártó üzemek termelési tájékoztatója\",\n        \"is_external\": false\n      }\n    ],\n    \"sections\": [\n      {\n        \"id\": null,\n        \"title\": \"Navigation\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Termékbiztonsági információk\",\n        \"type\": \"Articles\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Footer\",\n        \"type\": \"Footer\"\n      }\n    ],\n    \"products\": [\n      {\n        \"name\": \"Járművek (Product safety information)\",\n        \"price\": \"N/A\",\n        \"brand\": \"AUDI AG\",\n        \"description\": \"Gyártói információk az itt kínált összes járműre vonatkoznak. Kapcsolattartási e-mail: kundenbetreuung@audi.de\",\n        \"page_url\": \"https://wwww.audi.hu/termekbiztonsagi-informaciok\"\n      }\n    ]\n  },\n  {\n    \"metadata\": {\n      \"title\": \"Képi és szenzoros járműadatok gyűjtése\",\n      \"description\": \"\",\n      \"keywords\": null,\n      \"viewport\": \"width=device-width, initial-scale=1\",\n      \"canonical\": \"https://wwww.audi.hu/adatvedelem-es-adatkezeles/kepi-es-szenzoros-jarmuadatok-gyujtese\",\n      \"lang\": null,\n      \"is_https\": true\n    },\n    \"headings\": {\n      \"h1\": [],\n      \"h2\": [\n        \"Adatkezelési tájékoztató a közlekedés biztonságának javítását célzó vezetési rendszerek fejlesztésével összefüggő adatkezelésekről\"\n      ],\n      \"h3\": []\n    },\n    \"images\": [\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/4157dbb0ae5206a93967b891cca17fa5f1758cb4/901f4bd3210d91f4f6ba79a099286e68/9cd155ea-b0b9-4c01-8c2f-db5fda7df781/crop:SMART/resize:3840:3840/smfacebook\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/a2ead99918c745b7e24b3e1ae0b708b2a32d1066/c0c5a32e8a3ca0011eb46040874f02a3/e1bcecc0-0532-49b9-a1a2-0eeb78a73289/crop:SMART/resize:3840:3840/smyoutube\",\n        \"alt\": \"\"\n      }\n    ],\n    \"links\": [\n      {\n        \"href\": \"https://wwww.audi.hu/termekbiztonsagi-informaciok#mainContent\",\n        \"text\": \"Skip to main content\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/termekbiztonsagi-informaciok#mainSearch\",\n        \"text\": \"Skip to main search\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/termekbiztonsagi-informaciok#footer\",\n        \"text\": \"Skip to footer\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/\",\n        \"text\": \"\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/modellek/osszes-modell-megtekintese\",\n        \"text\": \"Modellek\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/szerviz-es-tartozek\",\n        \"text\": \"Szerviz és tartozék\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/innovacio\",\n        \"text\": \"Innováció\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://www.dasweltauto.hu/s/audi\",\n        \"text\": \"Használtautó\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/elmenyvilag\",\n        \"text\": \"Élményvilág\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/finanszirozas\",\n        \"text\": \"Finanszírozás\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/stories-of-progress-hirek\",\n        \"text\": \"Stories of Progress\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://shop.audi.hu/\",\n        \"text\": \"Audi E-Shop\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/adatvedelem-es-adatkezeles\",\n        \"text\": \"Adatvédelem és adatkezelés\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://www.audi.com/en/legal-notice/\",\n        \"text\": \"https://www.audi.com/en/legal-notice/\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://data-subject-rights.audi.com/\",\n        \"text\": \"https://data-subject-rights.audi.com/\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"mailto:datenschutz@audi.de\",\n        \"text\": \"datenschutz@audi.de\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://groupcms-services-api.porsche-holding.com/urls/svn/A/hu?\",\n        \"text\": \"Azonnal elvihető modellek\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/wltp\",\n        \"text\": \"WLTP\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/szerviz-es-tartozek/szerviz\",\n        \"text\": \"Szerviz\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"http://audi.hamuesgyemant.hu/\",\n        \"text\": \"Audi Magazin\",\n        \"is_external\": true\n      }\n    ],\n    \"sections\": [\n      {\n        \"id\": null,\n        \"title\": \"Navigation\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Adatkezelési tájékoztató\",\n        \"type\": \"Articles\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Footer\",\n        \"type\": \"Footer\"\n      }\n    ],\n    \"products\": [\n      {\n        \"name\": \"Adatkezelési tájékoztató a közlekedés biztonságának javítását célzó vezetési rendszerek fejlesztésével összefüggő adatkezelésekről\",\n        \"price\": \"N/A\",\n        \"brand\": \"AUDI AG\",\n        \"description\": \"Ezzel az adatvédelmi tájékoztatóval Önt, mint érintettet – azaz gyalogost, közlekedőt vagy más személyt, akit az Audi járművei releváns közlekedési helyzetekben rögzíthetnek – tájékoztatjuk arról, hogy az AUDI AG (luxusautók gyártója, székhelye: Auto-Union-Straße 1, 85057 Ingolstadt, Németország; a továbbiakban: „mi\\\" vagy „Audi\\\") hogyan kezeli automatizált, elektronikus módon az Önről gyűjtött adatokat. Az adatkezelés célja vezetőasszisztens rendszerek és automatizált vezetési funkciók fejlesztése, valamint az általános közlekedésbiztonság javítása. Adatvédelmi tisztviselő e-mail: datenschutz@audi.de\",\n        \"page_url\": \"https://wwww.audi.hu/adatvedelem-es-adatkezeles/kepi-es-szenzoros-jarmuadatok-gyujtese\"\n      }\n    ]\n  },\n  {\n    \"metadata\": {\n      \"title\": \"Kapcsolat\",\n      \"description\": \"\",\n      \"keywords\": null,\n      \"viewport\": \"width=device-width, initial-scale=1\",\n      \"canonical\": \"https://wwww.audi.hu/kapcsolat\",\n      \"lang\": null,\n      \"is_https\": true\n    },\n    \"headings\": {\n      \"h1\": [\n        \"Kapcsolat & márkakereskedők\"\n      ],\n      \"h2\": [\n        \"Továbbra is elérhetőek vagyunk!\",\n        \"Márkakereskedés-kereső\",\n        \"Új autó kereső\",\n        \"Audi finanszírozás\",\n        \"Audi szervizajánlatok\"\n      ],\n      \"h3\": []\n    },\n    \"images\": [\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/e7a5a2c7bee118347c3e1b482690181857fbdef3/39e21e59ad6fc29252b0773abd445092/018612a3-b26a-4ed3-a3f1-4a040c29aa41/crop:SMART/resize:3840:2160/audi-kontakt-stage\",\n        \"alt\": \"AUDI modell nyitott teraszon mellette egy nő ül\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/fd37c2cb3cff7d9a6cb30ba4ca9d4ec4f52038d8/3f02e76b13cb08c3cf0e7a9fd5d3885b/594d4316-8efb-4aff-b040-907399608f59/crop:SMART/resize:3840:2160/audi-markakereskedok\",\n        \"alt\": \"Férfi ül egy gép előtt és dolgozik\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/56b6b5aaee2f4cfe4f4f69aa5ad9241f627d6fd2/8051511c0b4173879b5bad2053634613/32592e2d-8b85-4608-a99d-16c82acefcde/crop:SMART/resize:3840:2160/audi-uj-autok\",\n        \"alt\": \"AUDI Q modell fehér épület előtt\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/92e26f0c29ef7cd9ceed07835864cac91aea4418/28d278d3488825b63de08ba094adedea/8b8f26aa-04ab-4384-94e1-830d7fa58446/crop:SMART/resize:3840:2160/audi-lizing\",\n        \"alt\": \"Két férfi tárgyal egy irodában\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/910b2624c624c8ef33b5ae31ffe3607453b4dd2e/ff64a509078dd7c58c2175c7331e3f90/6e4a8085-7edb-47ee-8b52-dd697a6f5e40/crop:SMART/resize:3840:2160/audi-szerviz\",\n        \"alt\": \"Férfi szerelő \"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/4157dbb0ae5206a93967b891cca17fa5f1758cb4/901f4bd3210d91f4f6ba79a099286e68/9cd155ea-b0b9-4c01-8c2f-db5fda7df781/crop:SMART/resize:3840:3840/smfacebook\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/a2ead99918c745b7e24b3e1ae0b708b2a32d1066/c0c5a32e8a3ca0011eb46040874f02a3/e1bcecc0-0532-49b9-a1a2-0eeb78a73289/crop:SMART/resize:3840:3840/smyoutube\",\n        \"alt\": \"\"\n      }\n    ],\n    \"links\": [\n      {\n        \"href\": \"https://wwww.audi.hu/termekbiztonsagi-informaciok#mainContent\",\n        \"text\": \"Skip to main content\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/termekbiztonsagi-informaciok#mainSearch\",\n        \"text\": \"Skip to main search\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/termekbiztonsagi-informaciok#footer\",\n        \"text\": \"Skip to footer\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/\",\n        \"text\": \"\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/modellek/osszes-modell-megtekintese\",\n        \"text\": \"Modellek\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/szerviz-es-tartozek\",\n        \"text\": \"Szerviz és tartozék\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/innovacio\",\n        \"text\": \"Innováció\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://www.dasweltauto.hu/s/audi\",\n        \"text\": \"Használtautó\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/elmenyvilag\",\n        \"text\": \"Élményvilág\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/finanszirozas\",\n        \"text\": \"Finanszírozás\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/stories-of-progress-hirek\",\n        \"text\": \"Stories of Progress\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://shop.audi.hu/\",\n        \"text\": \"Audi E-Shop\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/markakereskedok\",\n        \"text\": \"Tovább a márkakereskedésekhez\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/szerviz-es-tartozek/szerviz/szezonalis-ajanlatok\",\n        \"text\": \"További info\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://groupcms-services-api.porsche-holding.com/urls/svn/A/hu?\",\n        \"text\": \"Azonnal elvihető modellek\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/wltp\",\n        \"text\": \"WLTP\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/szerviz-es-tartozek/szerviz\",\n        \"text\": \"Szerviz\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"http://audi.hamuesgyemant.hu/\",\n        \"text\": \"Audi Magazin\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://my.audi.com/\",\n        \"text\": \"myAudi\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/audi-gyarto-uzemek-termelesi-tajekoztatoja\",\n        \"text\": \"Audi gyártó üzemek termelési tájékoztatója\",\n        \"is_external\": false\n      }\n    ],\n    \"sections\": [\n      {\n        \"id\": null,\n        \"title\": \"Navigation\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Contact Hero\",\n        \"type\": \"Hero\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Contact Information\",\n        \"type\": \"Contact\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Services\",\n        \"type\": \"Services\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Footer\",\n        \"type\": \"Footer\"\n      }\n    ],\n    \"products\": [\n      {\n        \"name\": \"Márkakereskedés-kereső\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"Találja meg az Önhöz legközelebbi Audi márkakereskedéseket.\",\n        \"page_url\": \"https://wwww.audi.hu/kapcsolat\"\n      },\n      {\n        \"name\": \"Új autó kereső\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"Találja meg álmai Audi modelljét.\",\n        \"page_url\": \"https://wwww.audi.hu/kapcsolat\"\n      },\n      {\n        \"name\": \"Audi finanszírozás\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"Tudjon meg többet a finanszírozási lehetőségekről.\",\n        \"page_url\": \"https://wwww.audi.hu/kapcsolat\"\n      },\n      {\n        \"name\": \"Audi szervizajánlatok\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"Tekintse meg szezonális szervizajánlatainka\",\n        \"page_url\": \"https://wwww.audi.hu/kapcsolat\"\n      }\n    ]\n  },\n  {\n    \"metadata\": {\n      \"title\": \"Főoldal | AUDI Magyarország\",\n      \"description\": \"Az Audi Magyarország hivatalos weboldala ➔ minden információ a modellekről ✓ promóciók és ajánlatok ✓ innovációk ✓ szolgáltatások ✓ és még sok más. ➔ Fedezze fel az Audit!\",\n      \"keywords\": null,\n      \"viewport\": \"width=device-width, initial-scale=1\",\n      \"canonical\": \"https://wwww.audi.hu\",\n      \"lang\": null,\n      \"is_https\": true\n    },\n    \"headings\": {\n      \"h1\": [\n        \"Audi Nuvolari\",\n        \"Az új Q4 e-tron\",\n        \"Az új Audi RS 3\",\n        \"Új Audi RS 5 modellek\",\n        \"We race for progress.\",\n        \"Elegancia az utakon\",\n        \"Az új Audi S6 Avant e-tron\"\n      ],\n      \"h2\": [\n        \"Az új Audi Q7\",\n        \"Az új Audi A3 Sportback TFSI e\",\n        \"Azonnal elvihető modellek\"\n      ],\n      \"h3\": []\n    },\n    \"images\": [\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/da04b97481ba8419a5e4d6f9158220e57a5faed5/dedf2bf4cd8b9e9d19433ef6229eac3a/b45fc51b-9605-4d40-9e86-3bd3eb53dd1b/crop:SMART/resize:3840:7680/Q7_2026_8583-L\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/072ea65242eeb81da6c8154628cb05c0de983c46/dedf2bf4cd8b9e9d19433ef6229eac3a/b45fc51b-9605-4d40-9e86-3bd3eb53dd1b/crop:100:100:CENTER:0:0/resize:3840:2160/Q7_2026_8583-L\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/09834714913efb59b2a333a30797a09076572757/201e1b8646713ca0a747686365881a46/a57f3eeb-20b6-4a99-80ef-d98b3bfe5c92/crop:100:91:CENTER:0:0/resize:3840:7680/16x9_Nuvolari_A263143_01\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/09834714913efb59b2a333a30797a09076572757/201e1b8646713ca0a747686365881a46/a57f3eeb-20b6-4a99-80ef-d98b3bfe5c92/crop:100:91:CENTER:0:0/resize:3840:2160/16x9_Nuvolari_A263143_01\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/86d3d40e9906225775eca6b76ce3e10eb7731fbc/f4ea7ab9fb85bfc32f08dccf3963366e/01515974-66bd-4448-ae9c-2ef57606c183/crop:SMART/resize:3840:7680/Q4e_r_2026_8428\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/80069ea149d24a97dfd9cbfbbe7be97bb3189720/f4ea7ab9fb85bfc32f08dccf3963366e/01515974-66bd-4448-ae9c-2ef57606c183/crop:100:85:CENTER:0:15.077774024717877/resize:3840:2160/Q4e_r_2026_8428\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/1e561e77b2667b7a830b0207b54984ff44f59488/5b5b61dfb6111632f5c371529cd6f349/f5530698-1d56-49b5-807d-84255740efc4/crop:SMART/resize:3840:7680/RS3_comp_2026_9080-(original)\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/789c022de6b506f80738994c12152ba9c590a2e4/5b5b61dfb6111632f5c371529cd6f349/f5530698-1d56-49b5-807d-84255740efc4/crop:100:77:CENTER:0:15.795032679738563/resize:3840:2160/RS3_comp_2026_9080-(original)\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/f784ea6533e938f1aaff65409a9248fb7036af41/4b29b32f6b30b983e296e5e676d2bf29/1963997f-7acc-4928-86e6-064d6b304716/crop:SMART/resize:3840:7680/RS5_r_2025_8277_original\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/80a5f08fbe8a869bb16fdbdbc03fee7c3d2ed702/4b29b32f6b30b983e296e5e676d2bf29/1963997f-7acc-4928-86e6-064d6b304716/crop:86:56:CENTER:7.436095254788673:12.045241428289746/resize:3840:2160/RS5_r_2025_8277_original\",\n        \"alt\": \"\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/821e89cf7656b1ed3f392c333e4d0faa04496609/17445d05606844f6c2e07b2aaee29853/63d6e003-c722-473c-b200-903b7a2659c1/crop:SMART/resize:3840:7680/F1_2026_9159_BOR-S\",\n        \"alt\": \"Frontansicht des Audi R26.\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/6412af9ac9bfe4efb2edbe40440b04de18c8b0b8/1db4602551d2132b6d20e1cf2c165bfd/de0a8323-08fd-41fe-bb55-4b09f21aeca4/crop:SMART/resize:3840:2160/F1_2026_9155_BOR-L\",\n        \"alt\": \"Oldalnézet az Audi R26ról\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/37b84376a68866db8ac4c1ee9361d519ff0cefd8/9728e3b970098254669f6ff423ea9df7/9e93cf96-61fb-46b3-9620-41ae3ba976a3/crop:100:100:CENTER:0:0/resize:3840:7680/q5_homepage\",\n        \"alt\": \"Zöld Audi Q5 oldalról a naplementében\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/1fa4607c793e1f052f17dd7450e02cf18d4f9ecf/05bb8a4285207a60b0fafec5126b34f6/39caac39-10bf-45d4-8862-97208f5f5794/crop:100:100:SOUTHWEST:0:0/resize:3840:7680/s6-avant-e-tron-homepage\",\n        \"alt\": \"Audi S6 Avant e-tron elölről mozgásban\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/fde4c5956676daffabd34359359e30fe4d8b6b9e/06fdf3ba002ed4d6b23d547f56a5e56f/2b45461a-77d2-4082-9ab1-98ae9f70b6b6/crop:100:100:CENTER:0:0/resize:3840:3840/a3-sb-tfsie-homepage-stage\",\n        \"alt\": \"Audi A3 Sportback TFSI e oldalról töltés közben\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/d34f63271c2140754010366c3779b79f60e5329b/7b3287ab83ff229d0b8c140970a63d23/0c063595-44f3-44c3-ab37-f5548cc63fb9/crop:100:100:SOUTHWEST:0:0/resize:3840:3840/sq833-copy1\",\n        \"alt\": \"Audi SQ8 erdei úton\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/32020cb1e1e034fe8ba62d47d3c16f5ead5dc2b7/28de0eae21bec7ec117afc8e1ecaffed/d0d3f11e-cbc0-4f29-954f-8abe11d4f01d/crop:SMART/resize:3840:2160/konfigurator-fooldal\",\n        \"alt\": \"Audi Q3 oldalról\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/92937517d74e3221be7edaf7751a4cd58abe8adc/b6578d0f038bcf32b0f12c01e407d605/2abf359e-5779-47b4-9d4f-24c44cd75a50/crop:SMART/resize:3840:2160/ade-kitzbuehel-01-2025_kalender\",\n        \"alt\": \"Audi RS3 driftel a hóban\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/95329a245accf38a80d6eb4c80c416a1419d37ae/55f2ba3aa17e4244f56b296a90eda18b/c475a05a-767d-46bf-a3b0-14eb9be15f88/crop:SMART/resize:3840:2160/myaudi\",\n        \"alt\": \"Szemüveges férfi telefonnal a kezében\"\n      },\n      {\n        \"src\": \"https://wwww.audi.hu/dam/images/35f5e6fe24af76abf3649802d89787717b72bd90/7fe17794455f147e790e381d9417699a/0caced44-5fc6-41f7-9047-4c9d7f4f549b/crop:SMART/resize:3840:2160/ismertetovideok-1\",\n        \"alt\": \"Nő a volán mögött használja az infotainment rendszert\"\n      }\n    ],\n    \"links\": [\n      {\n        \"href\": \"https://wwww.audi.hu/termekbiztonsagi-informaciok#mainContent\",\n        \"text\": \"Skip to main content\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/termekbiztonsagi-informaciok#mainSearch\",\n        \"text\": \"Skip to main search\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/termekbiztonsagi-informaciok#footer\",\n        \"text\": \"Skip to footer\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/\",\n        \"text\": \"\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/modellek/osszes-modell-megtekintese\",\n        \"text\": \"Modellek\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/szerviz-es-tartozek\",\n        \"text\": \"Szerviz és tartozék\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/innovacio\",\n        \"text\": \"Innováció\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://www.dasweltauto.hu/s/audi\",\n        \"text\": \"Használtautó\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/elmenyvilag\",\n        \"text\": \"Élményvilág\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/finanszirozas\",\n        \"text\": \"Finanszírozás\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/stories-of-progress-hirek\",\n        \"text\": \"Stories of Progress\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://shop.audi.hu/\",\n        \"text\": \"Audi E-Shop\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/q7/q7-suv/attekintes\",\n        \"text\": \"Q7 SUV\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://groupcms-services-api.porsche-holding.com/urls/cc/A/hu?\",\n        \"text\": \"Konfigurátor\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://gpt-live.porsche.co.at/hu/brand/A\",\n        \"text\": \"Audi árlisták\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://groupcms-services-api.porsche-holding.com/urls/svn/A/hu?\",\n        \"text\": \"Azonnal elvihető járművek\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/markakereskedok\",\n        \"text\": \"Márkakereskedések\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://groupcms-services-api.porsche-holding.com/urls/svn/A/hu?testDrive=true\",\n        \"text\": \"Tesztvezetés\",\n        \"is_external\": true\n      },\n      {\n        \"href\": \"https://wwww.audi.hu/audi-nuvolari\",\n        \"text\": \"Fedezze fel\",\n        \"is_external\": false\n      },\n      {\n        \"href\": \"https://groupcms-services-api.porsche-holding.com/urls/cc/A/hu?modelCode=357\",\n        \"text\": \"Q4 SB e-tron\",\n        \"is_external\": true\n      }\n    ],\n    \"sections\": [\n      {\n        \"id\": null,\n        \"title\": \"Navigation\",\n        \"type\": \"Navigation\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Audi Q7\",\n        \"type\": \"Hero\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Audi Nuvolari\",\n        \"type\": \"Articles\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Audi Q4 e-tron\",\n        \"type\": \"Articles\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Audi RS 3\",\n        \"type\": \"Articles\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Audi RS 5\",\n        \"type\": \"Articles\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Audi F1\",\n        \"type\": \"Articles\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Audi Q5 Sportback\",\n        \"type\": \"Articles\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Audi S6 Avant e-tron\",\n        \"type\": \"Articles\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Audi A3 Sportback TFSI e\",\n        \"type\": \"Articles\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Azonnal elvihető modellek\",\n        \"type\": \"Services\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Konfigurátor\",\n        \"type\": \"Services\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Audi driving experience\",\n        \"type\": \"Services\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"myAudi\",\n        \"type\": \"Services\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Audi ismertető videók\",\n        \"type\": \"Services\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"E-mobilitás az Audi-tól\",\n        \"type\": \"Services\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Audi collection\",\n        \"type\": \"Services\"\n      },\n      {\n        \"id\": null,\n        \"title\": \"Footer\",\n        \"type\": \"Footer\"\n      }\n    ],\n    \"products\": [\n      {\n        \"name\": \"Audi Q7 SUV\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"Nagyobb tér annak, ami igazán fontos.\",\n        \"page_url\": \"https://wwww.audi.hu/q7/q7-suv/attekintes\"\n      },\n      {\n        \"name\": \"Audi Nuvolari\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"Az Audi első hibrid-szupersportautója. Limitált széria: mindössze 499 példány elérhető.\",\n        \"page_url\": \"https://wwww.audi.hu/audi-nuvolari\"\n      },\n      {\n        \"name\": \"Q4 SB e-tron\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"N/A\",\n        \"page_url\": \"https://groupcms-services-api.porsche-holding.com/urls/cc/A/hu?modelCode=357\"\n      },\n      {\n        \"name\": \"Q4 SUV e-tron\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"N/A\",\n        \"page_url\": \"https://groupcms-services-api.porsche-holding.com/urls/cc/A/hu?modelCode=352\"\n      },\n      {\n        \"name\": \"Audi RS 3\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"N/A\",\n        \"page_url\": \"https://wwww.audi.hu/a3/rs-3-sportback/attekintes\"\n      },\n      {\n        \"name\": \"RS 5 Avant\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"Most rendelhető\",\n        \"page_url\": \"https://wwww.audi.hu/a5/rs-5-avant/attekintes\"\n      },\n      {\n        \"name\": \"RS 5 Limousine\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"Most rendelhető\",\n        \"page_url\": \"https://wwww.audi.hu/a5/rs-5-limousine/attekintes\"\n      },\n      {\n        \"name\": \"Q5 Sportback\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"Az új Q5 Sportback generáció\",\n        \"page_url\": \"https://wwww.audi.hu/q5/q5-sportback/attekintes\"\n      },\n      {\n        \"name\": \"SQ5 Sportback\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"Az új Q5 Sportback generáció\",\n        \"page_url\": \"https://wwww.audi.hu/q5/sq5-sportback/attekintes\"\n      },\n      {\n        \"name\": \"Audi S6 Avant e-tron\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"Elektromos vezetési élmény minden nap\",\n        \"page_url\": \"https://wwww.audi.hu/a6-e-tron/s6-avant-e-tron/attekintes\"\n      },\n      {\n        \"name\": \"Audi A3 Sportback TFSI e\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"Két meghajtás, rengeteg előny\",\n        \"page_url\": \"https://wwww.audi.hu/a3/a3-sportback-tfsi-e/attekintes\"\n      },\n      {\n        \"name\": \"Azonnal elvihető modellek\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"Fedezze fel azonnal elvihető járműveinket!\",\n        \"page_url\": \"https://groupcms-services-api.porsche-holding.com/urls/svn/A/hu?stockCar=false\"\n      },\n      {\n        \"name\": \"Konfigurátor\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"N/A\",\n        \"page_url\": \"https://groupcms-services-api.porsche-holding.com/urls/cc/A/hu?\"\n      },\n      {\n        \"name\": \"Audi driving experience\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"N/A\",\n        \"page_url\": \"https://wwww.audi.hu/elmenyvilag/audi-driving-experience\"\n      },\n      {\n        \"name\": \"myAudi\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"N/A\",\n        \"page_url\": \"https://my.audi.com/\"\n      },\n      {\n        \"name\": \"Audi ismertető videók\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"N/A\",\n        \"page_url\": \"https://wwww.audi.hu/innovacio/audi-ismerteto-videok\"\n      },\n      {\n        \"name\": \"E-mobilitás az Audi-tól\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"N/A\",\n        \"page_url\": \"https://wwww.audi.hu/innovacio/e-mobilitas\"\n      },\n      {\n        \"name\": \"Audi collection\",\n        \"price\": \"N/A\",\n        \"brand\": \"Audi\",\n        \"description\": \"N/A\",\n        \"page_url\": \"https://wwww.audi.hu/elmenyvilag/audi-collection\"\n      }\n    ]\n  }\n]",
   "products": [
     {
-      "name": "Inntaler beltéri diszperziós falfesték fehér 4 l",
-      "price": "5 850 Ft",
-      "brand": "Inntaler",
-      "description": "",
-      "page_url": "https://piktor.hu/001369-inntaler-belteri-diszperzios-falfestek-feher-4l"
+      "name": "Járművek (Product safety information)",
+      "price": "N/A",
+      "brand": "AUDI AG",
+      "description": "Gyártói információk az itt kínált összes járműre vonatkoznak. Kapcsolattartási e-mail: kundenbetreuung@audi.de",
+      "page_url": "https://wwww.audi.hu/termekbiztonsagi-informaciok"
     },
     {
-      "name": "Inntaler izoláló belső falfesték fehér 1 l",
-      "price": "6 550 Ft",
-      "brand": "Inntaler",
-      "description": "",
-      "page_url": "https://piktor.hu/089315-inntaler-izolalo-belso-falfestek-1l"
+      "name": "Adatkezelési tájékoztató a közlekedés biztonságának javítását célzó vezetési rendszerek fejlesztésével összefüggő adatkezelésekről",
+      "price": "N/A",
+      "brand": "AUDI AG",
+      "description": "Ezzel az adatvédelmi tájékoztatóval Önt, mint érintettet – azaz gyalogost, közlekedőt vagy más személyt, akit az Audi járművei releváns közlekedési helyzetekben rögzíthetnek – tájékoztatjuk arról, hogy az AUDI AG (luxusautók gyártója, székhelye: Auto-Union-Straße 1, 85057 Ingolstadt, Németország; a továbbiakban: „mi\" vagy „Audi\") hogyan kezeli automatizált, elektronikus módon az Önről gyűjtött adatokat. Az adatkezelés célja vezetőasszisztens rendszerek és automatizált vezetési funkciók fejlesztése, valamint az általános közlekedésbiztonság javítása. Adatvédelmi tisztviselő e-mail: datenschutz@audi.de",
+      "page_url": "https://wwww.audi.hu/adatvedelem-es-adatkezeles/kepi-es-szenzoros-jarmuadatok-gyujtese"
     },
     {
-      "name": "Biopin kertibútor olaj színtelen 0,75 l",
-      "price": "7 650 Ft",
-      "brand": "Biopin",
-      "description": "",
-      "page_url": "https://piktor.hu/069872-biopin-kertibutor-olaj-szintelen-0-75l"
+      "name": "Márkakereskedés-kereső",
+      "price": "N/A",
+      "brand": "Audi",
+      "description": "Találja meg az Önhöz legközelebbi Audi márkakereskedéseket.",
+      "page_url": "https://wwww.audi.hu/kapcsolat"
     },
     {
-      "name": "HB Body 770 szilikon lemosó aerosol 400 ml",
-      "price": "2 990 Ft",
-      "brand": "HB Body",
-      "description": "",
-      "page_url": "https://piktor.hu/078510-hb-body-770-szilikon-lemoso-aerosol-400ml"
+      "name": "Új autó kereső",
+      "price": "N/A",
+      "brand": "Audi",
+      "description": "Találja meg álmai Audi modelljét.",
+      "page_url": "https://wwww.audi.hu/kapcsolat"
     },
     {
-      "name": "Prevent klímatisztító aeroszol 150 ml",
-      "price": "2 150 Ft",
-      "brand": "Prevent",
-      "description": "",
-      "page_url": "https://piktor.hu/044467-prevent-klimatisztito-aeroszol-150ml"
+      "name": "Audi finanszírozás",
+      "price": "N/A",
+      "brand": "Audi",
+      "description": "Tudjon meg többet a finanszírozási lehetőségekről.",
+      "page_url": "https://wwww.audi.hu/kapcsolat"
     },
     {
-      "name": "Pepo szúnyogriasztó lámpaolaj citronellával 1 l",
-      "price": "3 290 Ft",
-      "brand": "Pepo",
-      "description": "",
-      "page_url": "https://piktor.hu/063925-pepo-szunyogriaszto-lampaolaj-citronellaval-1-l"
+      "name": "Audi szervizajánlatok",
+      "price": "N/A",
+      "brand": "Audi",
+      "description": "Tekintse meg szezonális szervizajánlatainka",
+      "page_url": "https://wwww.audi.hu/kapcsolat"
     },
     {
-      "name": "Pattex One For All Universal ragasztó és tömítő, kartusos 389 g",
-      "price": "2 990 Ft",
-      "brand": "Pattex",
-      "description": "",
-      "page_url": "https://piktor.hu/071481-pattex-one-for-all-universal-ragaszto-389-g"
+      "name": "Audi Q7 SUV",
+      "price": "N/A",
+      "brand": "Audi",
+      "description": "Nagyobb tér annak, ami igazán fontos.",
+      "page_url": "https://wwww.audi.hu/q7/q7-suv/attekintes"
     },
     {
-      "name": "Pattex Fix Express építési-szerelési ragasztó 375 g",
-      "price": "2 950 Ft",
-      "brand": "Pattex",
-      "description": "",
-      "page_url": "https://piktor.hu/042587-pattex-fix-express-epitesi-szerelesi-ragaszto-375-g"
+      "name": "Audi Nuvolari",
+      "price": "N/A",
+      "brand": "Audi",
+      "description": "Az Audi első hibrid-szupersportautója. Limitált széria: mindössze 499 példány elérhető.",
+      "page_url": "https://wwww.audi.hu/audi-nuvolari"
     },
     {
-      "name": "AM Légkondicionáló tisztító folyadék beltéri egységhez szórófejes 1 l",
-      "price": "3 690 Ft",
-      "brand": "AM",
-      "description": "",
-      "page_url": "https://piktor.hu/108702-am-legkondicionalo-tisztito-folyadek-belteri-egyseghez-szorofejes-1-l"
+      "name": "Q4 SB e-tron",
+      "price": "N/A",
+      "brand": "Audi",
+      "description": "N/A",
+      "page_url": "https://groupcms-services-api.porsche-holding.com/urls/cc/A/hu?modelCode=357"
     },
     {
-      "name": "Well Done Grill tisztító 250 ml",
-      "price": "950 Ft",
-      "brand": "Well Done",
-      "description": "",
-      "page_url": "https://piktor.hu/120930-well-done-grill-tisztito-250-ml"
+      "name": "Q4 SUV e-tron",
+      "price": "N/A",
+      "brand": "Audi",
+      "description": "N/A",
+      "page_url": "https://groupcms-services-api.porsche-holding.com/urls/cc/A/hu?modelCode=352"
     }
   ],
   "contacts": {
     "emails": [
-      "piktor@piktor.hu"
+      "kundenbetreuung@audi.de",
+      "etreuung@audi.de",
+      "datenschutz@audi.de",
+      "ndataprotection@porsche.al",
+      "nzastita.podataka@porschebh.ba",
+      "ninfo@porscheleasing.me",
+      "dataprivacy@volkswagen.de",
+      "zastita.podataka@porschescg.rs",
+      "info@porscheleasing.me"
     ],
     "phone_numbers": [
-      "+36 96/ 511 860"
+      "+49841 890"
     ],
     "addresses": [
-      "9023 Győr, Mészáros Lőrinc út 1."
+      "Auto-Union-Str. 1, 85057 Ingolstadt, Deutschland",
+      "DSGVO-Betroffenenrechte, 85045 Ingolstadt, Németország",
+      "Adatvédelmi tisztviselő, 85045 Ingolstadt, Németország"
     ],
-    "company_name": "Piktor Kft.",
-    "tax_number": "13067025-2-08",
-    "registration_number": "08-09-011325",
-    "facebook": "https://www.facebook.com/PiktorFestekboltGyor/",
-    "instagram": "https://www.instagram.com/piktorfestekgyor/",
+    "company_name": "AUDI AG",
+    "tax_number": "DE811115368",
+    "registration_number": "1",
+    "facebook": "https://www.facebook.com/AUDI.Magyarorszag",
+    "instagram": null,
     "linkedin": null,
-    "youtube": "https://www.youtube.com/@piktorvideo465",
-    "tiktok": "https://www.tiktok.com/@piktor.hu",
-    "twitter": "http://twitter.com/share?url=https://piktor.hu:443/ugyfelszolgalat",
+    "youtube": "https://www.youtube.com/channel/UCWmvJktyULGR0Y-GB0YCbbw",
+    "tiktok": null,
+    "twitter": null,
     "x": null,
     "pinterest": null,
     "snapchat": null,
@@ -120,399 +130,446 @@
     "soundcloud": null
   },
   "seo": {
-    "score": 75,
-    "title": "Piktor webshop - Online festékbolt, kert és autós részleggel",
-    "description": "Rendelj festéket otthonról, kényelmesen! Több ezer termék házfelújításhoz, autóápoláshoz, kerti munkákhoz, dekoráláshoz országos házhoz szállítással.",
-    "h1_count": 1,
-    "h2_count": 13,
-    "h3_count": 4,
-    "total_images": 35,
-    "missing_alt": 0,
-    "total_links": 128,
-    "internal_links": 50,
-    "external_links": 78,
+    "score": 10,
+    "title": "Főoldal | AUDI Magyarország",
+    "description": "Az Audi Magyarország hivatalos weboldala ➔ minden információ a modellekről ✓ promóciók és ajánlatok ✓ innovációk ✓ szolgáltatások ✓ és még sok más. ➔ Fedezze fel az Audit!",
+    "h1_count": 7,
+    "h2_count": 3,
+    "h3_count": 0,
+    "total_images": 54,
+    "missing_alt": 12,
+    "total_links": 140,
+    "internal_links": 111,
+    "external_links": 29,
     "has_viewport": true,
     "is_https": true,
-    "has_schema": true,
+    "has_schema": false,
     "has_robots": true,
     "has_sitemap": true,
     "has_lang": true,
     "lang_val": "hu",
     "deductions": [
-      "Több meta description hossza nem optimális (pl. 40 karakter: 'Piktor Kft. 9023 Győr, Mészáros Lőrinc út 1.').",
-      "Több oldalon is üres H2 és H3 címkék találhatók (pl. H2: '', H3: ''), illetve generikus szövegek (pl. 'Piktor', 'Keresés') H2-ként való használata megtöri a logikus tartalmi hierarchiát.",
-      "A szerver válaszidő (TTFB) lassú (916ms)."
+      "A meta cím hossza nem optimális (27 karakter): 'Főoldal | AUDI Magyarország'.",
+      "A meta leírás hossza nem optimális (181 karakter): 'Az Audi Magyarország hivatalos weboldala ➔ minden információ a modellekről ✓ promóciók és ajánlatok ✓ innovációk ✓ szolgáltatások ✓ és még sok más. ➔ Fedezze fel az Audit!'.",
+      "A főoldalon több H1 címsor található (7 darab). Példák: 'Audi Nuvolari', 'Az új Q4 e-tron'. A 'Termékbiztonsági információk' és 'Képi és szenzoros járműadatok gyűjtése' oldalakon teljesen hiányzik az H1.",
+      "Több oldalon is hiányzik az H1 címsor (pl. 'Termékbiztonsági információk', 'Képi és szenzoros járműadatok gyűjtése'), vagy több H1 címsor is szerepel (főoldal), ami megtöri a logikai hierarchiát.",
+      "12 képnél hiányzik a helyettesítő (alt) szöveg (összesen 54 képből).",
+      "Hiányzik a JSON-LD strukturált adat / séma jelölés a weboldalon."
     ],
     "deductions_detail": [
       {
-        "criterion": "Meta Cím",
-        "status": "good",
-        "points": 15,
-        "reason": "A 'Festék webáruház lakásfelújításhoz - Ügyfélszolgálat' és a többi oldalcím hossza megfelelő (átlagosan 54 karakter).",
-        "recommendation": "Nem szükséges beavatkozás."
-      },
-      {
-        "criterion": "Meta Leírás",
+        "criterion": "Meta Cím hossza",
         "status": "bad",
         "points": -5,
-        "reason": "Több meta description hossza nem optimális (pl. 40 karakter: 'Piktor Kft. 9023 Győr, Mészáros Lőrinc út 1.').",
-        "recommendation": "Optimalizálja a meta leírásokat 110-160 karakter közé, hogy vonzóbbá tegye a keresőtalálatokat és pontosabban tükrözze az oldal tartalmát."
+        "reason": "A meta cím hossza nem optimális (27 karakter): 'Főoldal | AUDI Magyarország'.",
+        "recommendation": "Javasolt a meta cím hosszának optimalizálása 40-70 karakter közé, hogy relevánsabb és kattintásbarátabb legyen a keresőtalálatokban."
       },
       {
-        "criterion": "H1 Fejlécek",
-        "status": "good",
-        "points": 15,
-        "reason": "Minden vizsgált oldalon pontosan 1 H1 fejléc található (pl. 'Ügyfélszolgálat', 'Piktor').",
-        "recommendation": "Nem szükséges beavatkozás."
-      },
-      {
-        "criterion": "Fejléc Hierarchia (H2-H3)",
+        "criterion": "Meta Leírás hossza",
         "status": "bad",
         "points": -5,
-        "reason": "Több oldalon is üres H2 és H3 címkék találhatók (pl. H2: '', H3: ''), illetve generikus szövegek (pl. 'Piktor', 'Keresés') H2-ként való használata megtöri a logikus tartalmi hierarchiát.",
-        "recommendation": "Ellenőrizze és javítsa a H2 és H3 címkék használatát, hogy azok releváns és leíró módon strukturálják a tartalmat, elkerülve az üres vagy funkcionális elemek fejlécbe illesztését."
+        "reason": "A meta leírás hossza nem optimális (181 karakter): 'Az Audi Magyarország hivatalos weboldala ➔ minden információ a modellekről ✓ promóciók és ajánlatok ✓ innovációk ✓ szolgáltatások ✓ és még sok más. ➔ Fedezze fel az Audit!'.",
+        "recommendation": "Optimalizálja a meta leírás hosszát 110-160 karakter közé a jobb olvashatóság és a keresőmotorok általi megértés érdekében."
+      },
+      {
+        "criterion": "H1 Címsorok",
+        "status": "bad",
+        "points": -10,
+        "reason": "A főoldalon több H1 címsor található (7 darab). Példák: 'Audi Nuvolari', 'Az új Q4 e-tron'. A 'Termékbiztonsági információk' és 'Képi és szenzoros járműadatok gyűjtése' oldalakon teljesen hiányzik az H1.",
+        "recommendation": "Minden oldalon pontosan egy H1 címsort használjon, amely az oldal fő témáját tükrözi. A többi fontos tartalmat rendezze H2 és H3 tagokkal."
+      },
+      {
+        "criterion": "Címsor hierarchia H2-H3",
+        "status": "bad",
+        "points": -5,
+        "reason": "Több oldalon is hiányzik az H1 címsor (pl. 'Termékbiztonsági információk', 'Képi és szenzoros járműadatok gyűjtése'), vagy több H1 címsor is szerepel (főoldal), ami megtöri a logikai hierarchiát.",
+        "recommendation": "Gondoskodjon a címsorok logikus és következetes hierarchiájáról (H1-H2-H3) a tartalom jobb strukturálása érdekében."
       },
       {
         "criterion": "HTTPS Biztonság",
         "status": "good",
         "points": 15,
-        "reason": "A weboldal HTTPS protokollt használ ('true').",
+        "reason": "A weboldal HTTPS protokollt használ.",
         "recommendation": "Nem szükséges beavatkozás."
       },
       {
-        "criterion": "Mobilbarát Nézet (Viewport)",
+        "criterion": "Mobilbarát nézet (Viewport)",
         "status": "good",
         "points": 15,
-        "reason": "A viewport tag megfelelően konfigurált ('width=device-width, initial-scale=1.0, maximum-scale=1.0').",
+        "reason": "A viewport tag megfelelően van konfigurálva: 'width=device-width, initial-scale=1'.",
         "recommendation": "Nem szükséges beavatkozás."
       },
       {
-        "criterion": "Kanonikus Link",
+        "criterion": "Kanonikus link",
         "status": "good",
         "points": 5,
-        "reason": "Minden vizsgált oldalon található canonical tag (pl. 'https://piktor.hu/ugyfelszolgalat').",
+        "reason": "A kanonikus link tag jelen van.",
         "recommendation": "Nem szükséges beavatkozás."
       },
       {
-        "criterion": "Tartalom Szószám",
+        "criterion": "Tartalmi szólista",
         "status": "good",
         "points": 5,
-        "reason": "A tartalom szószám megfelelő (504 szó).",
-        "recommendation": "A mélyebb, részletesebb tartalom (600+ szó) további +5 pontot érhetne a keresőoptimalizálás szempontjából. Fontolja meg az oldalak bővítését releváns információkkal."
+        "reason": "A weboldal szólistája 325 szó, ami eléri a 300 szót.",
+        "recommendation": "Fontolja meg a tartalom további bővítését 600 szó fölé, hogy átfogóbb és értékesebb információkat nyújtson."
       },
       {
-        "criterion": "Képek Alt Attribútumai",
-        "status": "good",
-        "points": 10,
-        "reason": "Az összes kép rendelkezik alt attribútummal (Images Missing Alt text: 0).",
-        "recommendation": "Bár minden kép rendelkezik alt attribútummal, érdemes ellenőrizni az üres (alt=\"\") és a fájlnév alapú alt szövegeket (pl. '001369-inntaler-belteri-diszperzios-falfestek-feher-4l-1.webp'), és informatívabb, kulcsszavakat tartalmazó leírásokat adni nekik, ahol releváns, a jobb akadálymentesség és SEO érdekében."
+        "criterion": "Képek Helyettesítő szövege (Alt Attribútum)",
+        "status": "bad",
+        "points": -10,
+        "reason": "12 képnél hiányzik a helyettesítő (alt) szöveg (összesen 54 képből).",
+        "recommendation": "Adjon meg rövid, kifejező alt attribútumot minden képnél az akadálymentesség és a képkereső optimalizálás javításához."
       },
       {
         "criterion": "Szerver Válaszidő (TTFB)",
-        "status": "bad",
-        "points": -10,
-        "reason": "A szerver válaszidő (TTFB) lassú (916ms).",
-        "recommendation": "Optimalizálja a szerver és az oldal teljesítményét a TTFB csökkentése érdekében (cél <300ms). Ezt elérheti szerveroldali gyorsítótárazással, képoptimalizálással, kódminimalizálással és hatékonyabb adatbázis-kezeléssel."
+        "status": "good",
+        "points": 5,
+        "reason": "A szerver válaszideje (TTFB) 408ms, ami 600ms alatt van.",
+        "recommendation": "Törekedjen a további optimalizálásra, hogy a TTFB 300ms alá csökkenjen a még gyorsabb felhasználói élmény érdekében."
       },
       {
         "criterion": "Robots.txt és Sitemap.xml",
         "status": "good",
         "points": 5,
-        "reason": "A robots.txt és a sitemap.xml fájlok is megtalálhatók a domainen (Robots.txt Present: True, Sitemap.xml Present: True).",
+        "reason": "Mind a robots.txt, mind a sitemap.xml fájl megtalálható a domainen.",
         "recommendation": "Nem szükséges beavatkozás."
       },
       {
-        "criterion": "Strukturált Adatok (Schema Markup)",
-        "status": "good",
-        "points": 5,
-        "reason": "Az oldal JSON-LD strukturált adatokat/sémajelölést tartalmaz (JSON-LD Structured Data / Schema Markup Present: True).",
-        "recommendation": "Nem szükséges beavatkozás."
+        "criterion": "Strukturált Adatok / Séma jelölés",
+        "status": "bad",
+        "points": -5,
+        "reason": "Hiányzik a JSON-LD strukturált adat / séma jelölés a weboldalon.",
+        "recommendation": "Implementáljon releváns JSON-LD séma jelöléseket (pl. Organization, Product, BreadcrumbList), hogy a keresőmotorok jobban megértsék az oldal tartalmát és gazdag találatokat jeleníthessenek meg."
       },
       {
         "criterion": "Nyelv Deklaráció",
         "status": "good",
         "points": 5,
-        "reason": "A <html> tag rendelkezik érvényes 'lang' attribútummal ('hu').",
+        "reason": "Az <html> tag érvényes 'lang' attribútumot tartalmaz ('hu').",
         "recommendation": "Nem szükséges beavatkozás."
       }
     ]
   },
   "visuals": {
     "top_colors": [
-      "#ffffff",
-      "#66b31c",
-      "#187fc0",
+      "#d9d9d9",
+      "#333333",
       "#000000",
-      "#b70808"
+      "#808080",
+      "#b3b3b3"
     ],
     "top_colors_detail": [
       {
-        "hex": "#ffffff",
-        "pct": 26.3
+        "hex": "#d9d9d9",
+        "pct": 56.0
       },
       {
-        "hex": "#66b31c",
-        "pct": 18.4
-      },
-      {
-        "hex": "#187fc0",
-        "pct": 13.2
+        "hex": "#333333",
+        "pct": 16.0
       },
       {
         "hex": "#000000",
-        "pct": 10.5
+        "pct": 12.0
       },
       {
-        "hex": "#b70808",
-        "pct": 7.9
+        "hex": "#808080",
+        "pct": 4.0
+      },
+      {
+        "hex": "#b3b3b3",
+        "pct": 4.0
       }
     ],
     "image_colors": [
-      "#c4c4c4",
-      "#000000",
+      "#ffb447",
+      "#a25f34",
+      "#4d5c60",
+      "#c08139",
+      "#8ba0ab",
+      "#3a2d21",
       "#ffffff",
-      "#d2a769",
-      "#a07d4c",
-      "#e4002b",
-      "#002d5c"
+      "#9ca0a4",
+      "#363a3c"
     ],
-    "warm_pct": 15.8,
-    "cool_pct": 13.2,
-    "neutral_pct": 71.1,
+    "warm_pct": 0.0,
+    "cool_pct": 0.0,
+    "neutral_pct": 100.0,
     "visual_tone": "Kiegyensúlyozott / Neutrális",
-    "visual_style_description": "A weboldal vizuális stílusa modern és letisztult, hangsúlyt fektet a termékfotókra és a kategóriák áttekinthetőségére. A festékboltra jellemző élénk színek a termékekben, de az oldal alapvetően professzionális és funkcionális elrendezést mutat, ami a könnyű navigációt és a vásárlási élményt szolgálja."
+    "visual_style_description": "A vizuális stílus elegáns és modern, letisztult dizájnnal, ami a prémium autóipari márkákra jellemző. A képek magas minőségűek, gyakran dinamikus beállításokkal ábrázolva az autókat, miközben a terek tágasak és rendezettek. Az összhang a vizuális elemek és a márka presztízse között egyértelműen érzékelhető, kiemelve az innovációt és az esztétikát, ezzel erősítve a márkaképet."
   },
   "content": {
-    "word_count": 504,
-    "business_category": "Festék Webáruház",
-    "tone": "Professzionális, Tényfeltáró",
-    "summary": "A Piktor egy online festék webáruház, amely lakásfelújításhoz, autóápoláshoz és kerti munkákhoz kínál termékeket, országos házhoz szállítással. Az oldal ügyfélszolgálati információkat, cégadatokat és informatikai partneri adatokat is tartalmaz, valamint blogbejegyzésekkel és aktuális ajánlatokkal segíti a vásárlókat.",
-    "seo_advice": "A kulcsszó-optimalizálás és a tartalomfejlesztés szempontjából javasolt a kevésbé optimális meta leírások bővítése, hogy vonzóbbá váljanak a keresőtalálatokban és több releváns információt nyújtsanak. A H2 és H3 címkék tartalmát is érdemes felülvizsgálni, hogy kizárólag a tartalmat strukturáló, releváns és kulcsszavakat tartalmazó címek szerepeljenek bennük, elkerülve az üres vagy generikus kifejezéseket. A blogbejegyzések (pl. 'Konyhabútor felújítás festéssel', 'A szép fű titka a rendszeres gondozás') kiváló lehetőséget biztosítanak a long-tail kulcsszavak célzására, ezeket érdemes rendszeresen frissíteni és releváns belső linkekkel ellátni. A termékleírások bővítése további tematikus kulcsszavakkal és felhasználói kérdések megválaszolásával javíthatja a relevanciát és a konverziót.",
+    "word_count": 325,
+    "business_category": "Autóipari gyártó, Autókereskedés",
+    "tone": "Professzionális, Információs, Kritikus",
+    "summary": "Az Audi Magyarország hivatalos weboldala átfogó információkat nyújt a modellekről, promóciókról, innovációkról és szolgáltatásokról. Célja az érdeklődők tájékoztatása és az ügyfelek elkötelezettségének növelése a márka iránt, bemutatva a márka prémium pozícióját és jövőbe mutató megoldásait.",
+    "seo_advice": "A weboldal jelenlegi tartalma javítható a kulcsszavak optimalizálása szempontjából. A 'Termékbiztonsági információk' és 'Képi és szenzoros járműadatok gyűjtése' oldalakon hiányzó meta leírások és túl rövid meta címek SEO szempontból hátrányosak. Javasolt a meta címek és leírások bővítése releváns kulcsszavakkal, hogy jobban tükrözzék az oldal tartalmát és növeljék a kattintási arányt. A főoldalon található sok H1 címsor zavaró lehet a keresőmotorok számára; optimalizálja ezt egyetlen fő H1 címsorra, a többi tartalom hierarchikus rendszerezésével H2 és H3 tagokkal. A szöveges tartalom bővítése is kulcsfontosságú, különösen a termékleírásoknál és a tematikus cikkeknél, hogy részletesebb és értékesebb információkat nyújtson a felhasználóknak és a keresőmotoroknak egyaránt. Érdemes kutatást végezni a célközönség által használt kulcsszavakra, és ezeket természetes módon beépíteni a tartalomba, ezzel növelve az organikus láthatóságot.",
     "global_improvements": [
-      "Optimalizálja a meta leírásokat 110-160 karakter közé a magasabb átkattintási arány érdekében.",
-      "Javítsa a szerver válaszidejét (TTFB) a felhasználói élmény és a Google rangsorolás javítása céljából.",
-      "Strukturálja át a H2 és H3 címkék tartalmát a logikusabb hierarchia és a jobb kulcsszavas relevancia érdekében, elkerülve az üres vagy navigációs elemeket."
+      "Optimalizálja a meta címeket és leírásokat minden oldalon, figyelembe véve a javasolt karakterhosszúságot és a releváns kulcsszavakat.",
+      "Egységesítse a címsorok (H1-H3) használatát: minden oldalon pontosan egy H1 címsor szerepeljen, a többi tartalmat pedig logikusan rendezze H2 és H3 tagokkal.",
+      "Pótolja a hiányzó alt attribútumokat a képeken, hogy javítsa az akadálymentességet és a képkereső optimalizálást.",
+      "Implementáljon JSON-LD alapú strukturált adatokat (pl. Product, Organization, BreadcrumbList schema) a keresőmotorok jobb megértése és a gazdag találatok (rich snippets) elérése érdekében.",
+      "Bővítse a szöveges tartalmat az alacsony szólistájú oldalakon, hogy mélyebb és átfogóbb információkat nyújtson."
     ],
-    "word_style_analysis": "Az oldal szóhasználata professzionális és termékfókuszú, ami a festék és lakásfelújítási szektorban elvárható. A marketinges és promóciós elemek mellett megjelennek az informatív, tanácsadó jellegű szövegek is a blogbejegyzésekben, kiegyensúlyozottan ötvözve az értékesítési és edukatív tartalmakat.",
+    "word_style_analysis": "A weboldal nyelvezete professzionális és tájékoztató jellegű, hangsúlyt fektetve az Audi márkára jellemző innovációra és élményre. A technikai kifejezések és a modern marketingnyelv keveredik, ami a luxusautó-piacra jellemző, de néhol a tartalom rövidsége miatt felületesnek tűnhet, ami hátráltathatja a mélyebb elköteleződést.",
     "detected_posts": [
       {
-        "title": "Aktuális ajánlataink",
-        "placement": "Kiemelt",
+        "title": "Audi Nuvolari",
+        "placement": "Kiemelt hír a főoldalon",
+        "inferred_popularity": "Kiemelkedő",
+        "words": [
+          "Audi",
+          "Nuvolari",
+          "hibrid-szupersportautó",
+          "limitált széria"
+        ],
+        "style": "Érdeklődést felkeltő",
+        "category": "Autómodell bemutató"
+      },
+      {
+        "title": "Az új Q4 e-tron",
+        "placement": "Kiemelt ajánlat a főoldalon",
         "inferred_popularity": "Magas",
         "words": [
-          "aktuális",
-          "ajánlatok",
-          "akció"
-        ],
-        "style": "Promóciós",
-        "category": "Akciók"
-      },
-      {
-        "title": "Konyhabútor felújítás festéssel",
-        "placement": "Blog",
-        "inferred_popularity": "Átlagos",
-        "words": [
-          "konyhabútor",
-          "felújítás",
-          "festés",
-          "ötletek"
+          "Q4",
+          "e-tron",
+          "elektromos",
+          "modell"
         ],
         "style": "Informatív",
-        "category": "Lakásfelújítás"
+        "category": "Elektromos autó"
       },
       {
-        "title": "A szép fű titka a rendszeres gondozás",
-        "placement": "Blog",
+        "title": "Az új Audi RS 3",
+        "placement": "Kiemelt ajánlat a főoldalon",
+        "inferred_popularity": "Magas",
+        "words": [
+          "Audi",
+          "RS3",
+          "sportautó",
+          "modell"
+        ],
+        "style": "Izgalmas",
+        "category": "Autómodell bemutató"
+      },
+      {
+        "title": "We race for progress.",
+        "placement": "Fő tartalom a főoldalon",
         "inferred_popularity": "Átlagos",
         "words": [
-          "fűnyírás",
-          "fűápolás",
-          "kert",
-          "gondozás"
+          "progress",
+          "verseny",
+          "innováció",
+          "fejlődés"
         ],
-        "style": "Tanácsadó",
-        "category": "Kert"
+        "style": "Inspiráló",
+        "category": "Márkaüzenet"
+      },
+      {
+        "title": "Márkakereskedés-kereső",
+        "placement": "Szolgáltatás a Kapcsolat oldalon",
+        "inferred_popularity": "Magas",
+        "words": [
+          "márkakereskedés",
+          "kereső",
+          "eladó",
+          "üzlet"
+        ],
+        "style": "Praktikus",
+        "category": "Szolgáltatás"
+      },
+      {
+        "title": "Audi szervizajánlatok",
+        "placement": "Szolgáltatás a Kapcsolat oldalon",
+        "inferred_popularity": "Átlagos",
+        "words": [
+          "szerviz",
+          "ajánlatok",
+          "karbantartás",
+          "javítás"
+        ],
+        "style": "Praktikus",
+        "category": "Szerviz"
       }
     ],
     "images_analysis": [
       {
-        "src": "https://piktor.hu/images/webshop_kepek/revco/thumbs/110739-revco-deco-glitter-max-120-g-1.webp",
-        "alt": "110739-revco-deco-glitter-max-120-g-1.webp",
-        "description": "A képen egy modern, tiszta stílusú stúdiófotón egy átlátszó műanyag tégelyben lévő ezüst csillámpor látható, fekete címkékkel a fedelén és az oldalán.",
+        "src": "https://wwww.audi.hu/dam/images/da04b97481ba8419a5e4d6f9158220e57a5faed5/dedf2bf4cd8b9e9d19433ef6229eac3a/b45fc51b-9605-4d40-9e86-3bd3eb53dd1b/crop:SMART/resize:3840:7680/Q7_2026_8583-L",
+        "alt": "",
+        "description": "A képen egy modern autó látható, amint egy földúton száguld a naplementében, egy dinamikus, mozgást sugalló fotó stílusban.",
         "dominant_colors": [
-          "#c4c4c4",
-          "#000000",
-          "#ffffff"
+          "#ffb447",
+          "#a25f34",
+          "#4d5c60"
         ],
         "status": "success"
       },
       {
-        "src": "https://piktor.hu/images/webshop_kepek/greenline/thumbs/097630-greenline-rez-csap-1-2--1.webp",
-        "alt": "097630-greenline-rez-csap-1-2--1.webp",
-        "description": "A képen egy valósághű fotón egy régi stílusú, fényes sárgaréz kerti csap látható, fehér háttér előtt.",
+        "src": "https://wwww.audi.hu/dam/images/072ea65242eeb81da6c8154628cb05c0de983c46/dedf2bf4cd8b9e9d19433ef6229eac3a/b45fc51b-9605-4d40-9e86-3bd3eb53dd1b/crop:100:100:CENTER:0:0/resize:3840:2160/Q7_2026_8583-L",
+        "alt": "",
+        "description": "Egy modern, szürke SUV látható egy dinamikus fotón, amint egy földúton halad naplemente idején, hátulról és oldalról fényképezve.",
         "dominant_colors": [
-          "#FFFFFF",
-          "#D2A769",
-          "#A07D4C"
+          "#c08139",
+          "#8ba0ab",
+          "#3a2d21"
         ],
         "status": "success"
       },
       {
-        "src": "https://piktor.hu/images/webshop_kepek/ferrokemia/thumbs/005779-korant-rozsdaatalakito-500-ml-1.webp",
-        "alt": "005779-korant-rozsdaatalakito-500-ml-1.webp",
-        "description": "A képen egy letisztult termékfotó látható, amely egy fehér, piros kupakos palackot ábrázol, rajta a 'Korant' vizes bázisú rozsdaátalakító festék címkéjével.",
+        "src": "https://groupcms-services-api.porsche-holding.com/dam/images/68aeb345388ac0fb8dee1427dfc5e4d76a7d8eb8/e8d8ef66171abbab44d016fad3d59b94/f80bf9ba-e868-4d5e-9e89-295584adf5e2/crop:SMART/resize:3840:1649/a1",
+        "alt": "A1",
+        "description": "Egy modern és minimalista stílusú fotó látható, amely egy fehér Audi A1 típusú autót ábrázol oldalnézetből, tiszta fehér háttér előtt.",
         "dominant_colors": [
           "#FFFFFF",
-          "#E4002B",
-          "#002D5C"
+          "#9CA0A4",
+          "#363A3C"
         ],
         "status": "success"
       }
     ]
   },
   "marketing_audit": {
-    "marketing_score": 0,
-    "value_proposition_evaluation": "A főcím (H1) csupán a márkanév, „Piktor”, ami önmagában nem közvetít egyértelmű, egyedi vagy előny-orientált értékajánlatot. Habár a meta leírás tartalmaz egy erős értékajánlatot („Rendelj festéket otthonról, kényelmesen! Több ezer termék házfelújításhoz, autóápoláshoz, kerti munkákhoz, dekoráláshoz országos házhoz szállítással.”), ez nem a fő oldalon kiemelt, szembeötlő szöveg. Az egyes szekciók H2 címei (pl. „Hatékony fűnyírók, fűkaszák azonnal készletről”, „Adj új színt a konyhabútorodnak!”) szegmentáltan kínálnak értéket, de egy átfogó, fő vonzóerő hiányzik az oldal elején.",
+    "marketing_score": 30,
+    "value_proposition_evaluation": "A főoldal több H1 címsort is tartalmaz, mint például az 'Audi Nuvolari', 'Az új Q4 e-tron', 'Az új Audi RS 3' és 'Elegancia az utakon'. Ezek egyedi termékeket és kampányokat emelnek ki, de nem alkotnak egyetlen, átfogó, márka szintű, előny-alapú értékajánlatot vagy horgot a teljes weboldalra vonatkozóan. Inkább termékbemutatóként funkcionálnak, ami szétaprózhatja az üzenetet. A meta leírás ('Az Audi Magyarország hivatalos weboldala ➔ minden információ a modellekről... ➔ Fedezze fel az Audit!') inkább egy áttekintést ad, mint egy erős, emocionális horgot.",
     "frameworks_analysis": {
-      "pas_alignment": "A PAS (Probléma, Fokozás, Megoldás) keretrendszer nem követhető egyértelműen egy narratív ívben az egész oldalon. Azonban az egyes szekciókban implicit módon megjelenik a problémafelvetés és a megoldás kínálása. Például a „Adj új színt a konyhabútorodnak!” felveti a „régi/unalmas konyhabútor” problémáját, és a festék vásárlását kínálja megoldásként, anélkül, hogy a problémát különösebben fokozná. A „Hatékony fűnyírók, fűkaszák azonnal készletről” szintén egy felmerülő igényre kínál azonnali megoldást.",
-      "aida_alignment": "Az AIDA (Figyelem, Érdeklődés, Vágy, Cselekvés) elemei jobban felismerhetők az oldalon, különösen a meta adatokban és a szekciók felépítésében. A cím („Piktor webshop - Online festékbolt, kert és autós részleggel”) és a meta leírás („Rendelj festéket otthonról, kényelmesen! Több ezer termék házfelújításhoz...”) felkelti a figyelmet. Az „Adj új színt a konyhabútorodnak!” vagy a „Prémium autóápolás” H2-k érdeklődést és vágyat keltenek. A terméklisták és az „Aktuális ajánlataink” tovább erősítik a vágyat. A cselekvésre ösztönző gombok (pl. „Rendelj most!”, „Vásárolok”) a folyamat utolsó lépései, bár ezek hatékonysága vegyes."
+      "pas_alignment": "A PAS (Probléma, Agitáció, Megoldás) keretrendszer kevésbé érvényesül a főoldalon, amely elsősorban új modellek és szolgáltatások bemutatására szolgál, nem pedig egy konkrét problémára adott megoldás részletezésére. Bár egyes termékleírások (pl. a 'Q7 SUV' esetében a 'Nagyobb tér annak, ami igazán fontos.') utalnak a felhasználói igényekre, nem épül fel köréjük teljes PAS narratíva.",
+      "aida_alignment": "Az AIDA (Figyelem, Érdeklődés, Vágy, Cselekvés) elemei jól felismerhetők az egyes termékszekciókban. A vizuálisan lenyűgöző képek és a dinamikus H1 címsorok, mint 'Az új Q4 e-tron', felkeltik a figyelmet. Az olyan leírások, mint az 'Az Audi első hibrid-szupersportautója. Limitált széria: mindössze 499 példány elérhető.' érdeklődést és vágyat keltenek. Az olyan CTA-k, mint a 'Fedezze fel' vagy 'Konfigurátor' pedig cselekvésre ösztönöznek. Azonban az egész oldalt átfogó, egységes AIDA struktúra helyett több, egymástól elkülönülő AIDA ciklus található, termékenként."
     },
-    "cta_evaluation": "A cselekvésre ösztönző gombok (CTA) meggyőző ereje és specifikussága vegyes. A „Rendelj most!” kifejezetten akcióorientált és jó. Azonban számos CTA passzív vagy túl általános. A „Vásárolok” például gyenge, mert azt állítja, amit a felhasználó tenni fog, ahelyett, hogy cselekvésre ösztönözne. A „Válaszd a megfelelőt!” és a „Tovább” szintén általános és kevésbé meggyőző. A sok passzív vagy generikus CTA gyengíti az oldal konverziós potenciálját.",
-    "credibility_evaluation": "Az oldalon kevés közvetlen társadalmi bizonyíték vagy hitelességi jel található. A láblécben megjelenő fizetési módok ikonjai (Maestro, Mastercard, Visa, Apple Pay) alapvető bizalmat sugallnak, de nincsenek prominensen kiemelve, és nem minősülnek erős társadalmi bizonyítéknak. Ügyfélvélemények, értékelések, esettanulmányok, tanúsítványok, partnerek logói (az Infoartnet Kft. IT partner logóján kívül) vagy elégedettségi garanciák hiányoznak, ami gyengíti az oldal általános hitelességét.",
+    "cta_evaluation": "A főoldalon található CTA-k általában jól megfogalmazottak és cselekvésre ösztönzőek. Például, a 'Konfigurátor', 'Audi árlisták', 'Azonnal elvihető járművek' és 'Tesztvezetés' nagyon világosan és specifikusan jelzik a következő lépést a felhasználó számára. A 'Fedezze fel' gombok is megfelelőek a tartalom további felfedezésére. A 'Q7 SUV' link szöveg egy termékoldalra navigál, ami funkcionális, bár lehetne még specifikusabb (pl. 'Tudjon meg többet a Q7 SUV-ról'). Összességében a CTA-k relevánsak és jól elhelyezettek.",
+    "credibility_evaluation": "Az Audi márka inherent presztízse és hírneve önmagában erős hitelességi faktor. Azonban az elemzett főoldali adatokban nincsenek feltüntetve konkrét társadalmi bizonyítékok, mint például vásárlói vélemények, értékelések, esettanulmányok, partnerlogók (a márka logóján kívül), tanúsítványok vagy elégedettségi garanciák. A 'Termékbiztonsági információk' és az 'Adatkezelési tájékoztató' oldalak jogi és információs jellegűek, nem marketing célú hitelességi elemek.",
     "copy_recommendations": [
-      "A főcím (H1) átfogalmazása, hogy egyértelmű, előny-orientált értékajánlatot kommunikáljon a márkanév helyett. Például: „Piktor: Az online festékbolt, ahol a lakásfelújítás, kert és autóápolás egyszerűvé válik – Rendelj kényelmesen, házhoz szállítással!”",
-      "A cselekvésre ösztönző gombok (CTA-k) szövegének specifikusabbá és akcióközpontúbbá tétele. A „Vásárolok” helyett használjunk felszólító módot, például: „Vásárold meg most!”, „Fedezd fel a konyhabútor festékeket!”, a „Tovább” helyett pedig relevánsabb szöveget, például: „Tekintsd meg az aktuális ajánlatainkat!” vagy „Ismerd meg a termékeket!”.",
-      "Társadalmi bizonyítékok, például ügyfélvélemények, termékértékelések vagy esettanulmányok bevezetése. Egy dedikált „Ügyfeleink mondták” szekció, vagy a termékoldalakra integrált csillagos értékelések jelentősen növelnék a látogatók bizalmát.",
-      "A főoldalon egy kiemelt, átfogó értékajánlat szekció elhelyezése (nem csak a meta leírásban), amely összefoglalja a Piktor egyedi előnyeit (pl. széles választék, kényelmes online rendelés, gyors országos szállítás, szakértői támogatás).",
-      "A termékleírások (amennyiben az oldalon léteznek, de a scraped adatok nem tartalmazzák) optimalizálása a felhasználói előnyök és a problémamegoldó képességek kiemelésével, ahelyett, hogy pusztán a technikai jellemzőkre fókuszálna."
+      "Formuláljon meg egy átfogó, márka szintű értékajánlatot, amely a főoldal tetején (lehetőleg az első látható H1 mellett) azonnal kommunikálja az Audi Magyarország egyedi előnyeit és a látogató számára nyújtott fő értéket, a jelenlegi, termék specifikus H1-ek helyett vagy mellett.",
+      "Integráljon releváns társadalmi bizonyítékokat a főoldalba, például kiemelt ügyfélvéleményeket, szakértői elismeréseket vagy az Audi driving experience résztvevőinek rövid visszajelzéseit, hogy erősítse a bizalmat és a márka hitelességét. Ezáltal a látogatók könnyebben azonosulhatnak a márka értékeivel és termékeivel.",
+      "Finomítsa az 'Azonnal elvihető modellek' és 'Tesztvezetés' típusú CTA-kat, hogy még sürgetőbbé vagy exkluzívabbá tegye őket, például 'Nézze meg azonnal elérhető modelljeinket!' vagy 'Kérjen tesztvezetést még ma!'. Fontolja meg, hogy minden termékszekció alá kerüljön egy világos, közvetlen CTA."
     ]
   },
   "brand_personality": {
-    "brand_archetype": "Átlagember (Everyman)",
-    "brand_archetype_reasoning": "A Piktor a mindennapi, praktikus megoldásokra fókuszál, mint például a lakásfelújítás, kertápolás és autókarbantartás. Az üzenetei (pl. 'Rendelj festéket otthonról, kényelmesen!') a hozzáférhetőséget, a megbízhatóságot és az egyszerűséget hangsúlyozzák, ami az Átlagember archetípusra jellemző. A márka célja, hogy mindenki számára elérhetővé tegye a szükséges termékeket, stresszmentessé téve az otthoni és kerti munkákat, ezzel erősítve a 'hétköznapi hős' érzést és a 'mi is tudjuk' szemléletet.",
+    "brand_archetype": "Alkotó (Creator)",
+    "brand_archetype_reasoning": "Az Audi Magyarország márka archetipusa az Alkotó, mivel folyamatosan hangsúlyozza az innovációt és a technológiai fejlődést, mint például az első hibrid-szupersportautó (Audi Nuvolari) és az elektromos járművek (Q4 e-tron) bemutatásával. A márka arra törekszik, hogy új kategóriákat teremtsen, kifinomult mérnöki munkával és designnal emelkedjen ki, folyamatosan megújulva és a tökéletességre törekedve az autógyártásban. A termékek exkluzivitása és a limitált szériák is ezt a vágyat tükrözik, hogy egyedi és kiemelkedő alkotásokat nyújtsanak.",
     "brand_voice": [
-      "praktikus",
-      "közvetlen",
-      "megbízható",
-      "segítőkész"
+      "innovatív",
+      "prémium",
+      "dinamikus",
+      "precíz",
+      "inspiráló"
     ],
-    "alignment_score": 75,
-    "alignment_reasoning": "A vizuális elemek (tiszta termékfotók, funkcionális színpaletta nagy arányú semleges színekkel, zöld és kék kiemelésekkel) jól illeszkednek a szövegezésben megjelenő praktikus, megoldásorientált és széles termékkínálatot hangsúlyozó üzenetekhez. Nincs jelentős disszonancia a letisztult, termékközpontú képek és a kényelmes, célorientált szövegek között. Bár a vizuális dizájn nem kiemelkedően innovatív vagy érzelmes, de hatékonyan támogatja a márka funkcionális és megbízható imázsát.",
-    "target_audience": "Otthonfelújítók, DIY-rajongók, háztulajdonosok és mindazok, akik kényelmesen, online szeretnének beszerezni festékeket, kertészeti és autóápolási termékeket. Értékelik a széles választékot, a praktikus megoldásokat és az otthonról történő vásárlás kényelmét, anélkül, hogy feltétlenül prémium vagy luxus termékeket keresnének.",
-    "personality_summary": "A Piktor egy praktikus, hozzáférhető és megbízható online áruház, amely széles választékban kínál termékeket otthonfelújításhoz, kertápoláshoz és autókarbantartáshoz. A márka hangvétele közvetlen és funkcionális, a mindennapi problémákra (pl. konyhabútor felújítása, kert gondozása) kínál kényelmes megoldásokat. Bár a vizuális elemek letisztultak és termékközpontúak, a márka összességében a funkcionalitásra és az egyszerűségre törekszik, egyértelműen az átlagfogyasztókat célozva, akik gondtalan vásárlási élményt keresnek a praktikus termékek terén.",
+    "alignment_score": 88,
+    "alignment_reasoning": "A vizuális elemek (modern, dinamikus autóképek, elegáns és letisztult design, magas minőségű fotók) tökéletesen illeszkednek a copywriting által közvetített prémium, innovatív és teljesítményközpontú üzenetekhez. Bár a weboldalon SEO szempontból vannak hiányosságok a címek hierarchiájában, az egyes termékszekciókban az AIDA keretrendszer jól érvényesül, és a képek vizuálisan erősítik a szöveges tartalom által keltett vágyat és érdeklődést. A semleges színekkel kiegészített, néhol meleg tónusú képek az eleganciát és a professzionalizmust sugározzák.",
+    "target_audience": "Magasabb jövedelmű, technológia iránt érdeklődő egyének és családok, akik értékelik az innovációt, a prémium minőséget, az eleganciát, a teljesítményt és a státuszt az autóiparban. Különösen vonzza őket a modern design, a legújabb technológiai megoldások és a fenntartható mobilitási lehetőségek. Ezek a vásárlók nemcsak egy autót keresnek, hanem egy életérzést, egy presztízst és egy olyan járművet, amely tükrözi a sikert és a jövőorientált gondolkodást.",
+    "personality_summary": "Az Audi Magyarország egy kifinomult, technológiavezérelt és exkluzív márka, amely az innovációt, a precíziót és az eleganciát testesíti meg. Bár a weboldal technikai SEO és marketing struktúrája fejlesztésre szorul az egységes márkaüzenet kommunikációja terén, az alapvető márkaarculat a luxus, a teljesítmény és a folyamatos megújulás érzetét közvetíti. A vizuálisan lenyűgöző autóképek, a modern design és a részletgazdag termékleírások mind a márka prémium pozícióját és az Alkotó archetipusra jellemző tökéletességre való törekvését tükrözik, magabiztos, mégis visszafogott stílusban.",
     "brand_coordinates": {
       "tone": {
-        "formal_vs_casual": 60,
-        "rational_vs_emotional": 20,
-        "modern_vs_traditional": 40,
-        "simple_vs_technical": 30,
-        "authority_vs_peer": 40
+        "formal_vs_casual": 25,
+        "rational_vs_emotional": 40,
+        "modern_vs_traditional": 5,
+        "simple_vs_technical": 60,
+        "authority_vs_peer": 10
       },
       "business": {
-        "price_segment_score": 50,
-        "price_segment_label": "Közepes",
-        "b2b_vs_b2c": 100,
-        "product_vs_service": 0
+        "price_segment_score": 100,
+        "price_segment_label": "Luxus",
+        "b2b_vs_b2c": 95,
+        "product_vs_service": 10
       },
       "visual": {
-        "minimalist_vs_decorative": 20,
-        "warmth_vs_coolness": 50,
-        "vibrancy": 60,
+        "minimalist_vs_decorative": 15,
+        "warmth_vs_coolness": 70,
+        "vibrancy": 65,
         "visual_style_tags": [
-          "clean product photography",
-          "functional e-commerce",
-          "bright studio lighting",
-          "simple layout",
-          "practical focus",
-          "realistic imagery"
+          "luxurious automotive photography",
+          "sleek modern design",
+          "dynamic motion blur",
+          "minimalist product presentation",
+          "high contrast imagery"
         ]
       },
       "content": {
-        "primary_industry": "Festék és Háztartási Termékek",
+        "primary_industry": "Autóipar",
         "key_content_themes": [
-          "Lakásfelújítás",
-          "Kertápolás",
-          "Autóápolás",
-          "Ragasztás és rögzítés",
-          "Tisztítószerek"
+          "Prémium autók",
+          "Elektromos mobilitás",
+          "Innováció és technológia",
+          "Exkluzivitás és teljesítmény",
+          "Finanszírozás és szolgáltatások"
         ],
         "humor_level": 0,
-        "storytelling_level": 10,
-        "educational_level": 50,
-        "promotional_level": 80
+        "storytelling_level": 30,
+        "educational_level": 60,
+        "promotional_level": 90
       },
       "engagement": {
-        "cta_aggressiveness": 50,
+        "cta_aggressiveness": 70,
         "emoji_usage": 0,
         "hashtag_density": 0,
-        "post_length_preference": 60,
+        "post_length_preference": 50,
         "interaction_asking": 0
       }
     },
     "addressing": {
-      "mode": "te",
+      "mode": "ön",
       "confidence": 95,
       "evidence": [
-        "Rendelj festéket otthonról, kényelmesen!",
-        "Adj új színt a konyhabútorodnak!"
+        "Fedezze fel az Audit!",
+        "Tudjon meg többet a finanszírozási lehetőségekről.",
+        "Tekintse meg szezonális szervizajánlatainkat."
       ]
     },
     "cta_library": {
       "primary_ctas": [
-        "Rendelj most!",
-        "Kosárba teszem",
-        "Vásárolok",
-        "Keresem"
+        "Konfigurátor",
+        "Audi árlisták",
+        "Azonnal elvihető járművek",
+        "Tesztvezetés"
       ],
       "secondary_ctas": [
-        "Tovább",
-        "Válaszd a megfelelőt!",
-        "Tudj meg többet",
-        "Nézd meg"
+        "Fedezze fel",
+        "Tudjon meg többet",
+        "Márkakereskedés-kereső",
+        "Audi szervizajánlatok"
       ],
       "slogans": [
-        "A felújítás festék és eszköz specialistája online.",
-        "Minden, ami otthonra, kertbe és autóra kell."
+        "We race for progress."
       ],
-      "tagline": "Minőségi festék és kiegészítők otthonra, kertbe, autóra – kényelmesen."
+      "tagline": "We race for progress."
     },
     "brand_dont": {
       "tone_restrictions": [
-        "Ne használj szlenget vagy túlzottan informális nyelvezetet.",
-        "Ne légy szentimentális vagy drámai, a humor_level 0.",
-        "Ne írj túl bonyolult szakmai zsargont, maradj érthető.",
-        "Ne használj lekicsinylő vagy arrogáns hangnemet."
+        "Ne használjon szlenget vagy túlzottan informális nyelvezetet.",
+        "Kerülje a humor használatát.",
+        "Ne alkalmazzon túlzottan érzelmes vagy szenzációhajhász hangnemet.",
+        "Ne legyen felületes vagy pontatlan az információátadásban.",
+        "Kerülje az udvariatlan vagy tiszteletlen megszólítást (pl. 'te')."
       ],
       "content_restrictions": [
-        "Ne közölj ellenőrizetlen vagy téves információkat.",
-        "Ne írj más nyelven, csak magyarul.",
-        "Ne reklámozz luxus vagy prémium termékeket, amelyek nem illeszkednek a célközönséghez.",
-        "Ne ossz meg irreális elvárásokat a termékekkel kapcsolatban."
+        "Ne térjen el az autóiparhoz és az Audi márkához kapcsolódó témáktól.",
+        "Ne tegyen politikai vagy társadalmilag megosztó kijelentéseket.",
+        "Ne használjon más nyelvet, mint a magyar.",
+        "Ne terjesszen ellenőrizetlen információkat vagy feltételezéseket.",
+        "Ne hirdessen versenytárs termékeket vagy szolgáltatásokat."
       ],
       "visual_restrictions": [
-        "Ne használj művészi, elvont vagy túlzottan stilizált képeket.",
-        "Ne alkalmazz zsúfolt, rossz minőségű vagy amatőr fotókat.",
-        "Ne használj irreális vagy túlzottan retusált 'lifestyle' képeket.",
-        "Ne alkalmazz szöveget képeken, hacsak nem elengedhetetlen a termékinformációhoz."
+        "Ne használjon alacsony felbontású vagy rossz minőségű képeket.",
+        "Kerülje a zsúfolt, kaotikus vizuális elemeket.",
+        "Ne alkalmazzon a márka eleganciájától eltérő, olcsó hatású grafikákat.",
+        "Ne használjon inkonzisztens vagy a márka vizuális identitásához nem illeszkedő színeket és betűtípusokat."
       ]
     },
     "hashtag_strategy": {
       "brand_hashtags": [
-        "#Piktor",
-        "#PiktorHu",
-        "#PiktorWebáruház"
+        "#Audi",
+        "#AudiHungary",
+        "#WeRaceForProgress"
       ],
       "industry_hashtags": [
-        "#FestékWebáruház",
-        "#Lakásfelújítás",
-        "#DIYOtthon",
-        "#Kertápolás",
-        "#Autóápolás",
-        "#OtthonProjekt",
-        "#SzínekOtthonra",
-        "#Barkácsolás",
-        "#FestésTippek",
-        "#OnlineFesték"
+        "#Autóipar",
+        "#PrémiumAutó",
+        "#ElektromosAutó",
+        "#Innováció",
+        "#FenntarthatóMobilitás",
+        "#Sportautó",
+        "#LuxusAutó",
+        "#JövőMobilitás",
+        "#Technológia",
+        "#Autózás"
       ],
       "campaign_hashtags": [],
       "max_per_platform": {
@@ -523,62 +580,62 @@
     },
     "content_pillars": [
       {
-        "name": "Promóciók és Ajánlatok",
+        "name": "Innováció és Új Modellek",
         "ratio": 40,
-        "description": "Kiemelt akciók, szezonális kedvezmények és újdonságok bemutatása, amelyek azonnali vásárlásra ösztönöznek.",
-        "example_title": "Őszi Festékvásár: Ne maradj le a kedvezményekről!"
+        "description": "Az Audi legújabb fejlesztéseinek, technológiai innovációinak és frissen bemutatott modelljeinek bemutatása, hangsúlyozva a márka úttörő szellemiségét és a jövőbe mutató megoldásokat.",
+        "example_title": "Fedezze fel az Audi Nuvolari lenyűgöző világát!"
       },
       {
-        "name": "DIY és Otthoni Tippek",
+        "name": "Márkaélmény és Teljesítmény",
         "ratio": 30,
-        "description": "Gyakorlatias útmutatók és inspiráló ötletek lakásfelújításhoz, bútorfestéshez, vagy kisebb otthoni projektekhez, segítve a célközönséget a saját kezű munkában.",
-        "example_title": "Így újítsd fel konyhabútorodat egy hétvége alatt!"
+        "description": "A prémium életérzés, a vezetési élmény, az elegancia és a sportos teljesítmény kiemelése, bemutatva, hogy az Audi nem csupán egy autó, hanem egy presztízs és életstílus.",
+        "example_title": "Az új Audi RS 3: A sportos elegancia megtestesítője."
       },
       {
-        "name": "Termékismeret és Útmutatók",
+        "name": "Szolgáltatások és Elérhetőség",
         "ratio": 20,
-        "description": "Részletes információk a termékekről, azok helyes használatáról és alkalmazási területeiről, segítve a felhasználókat a megfelelő választásban és a hibátlan végeredmény elérésében.",
-        "example_title": "Milyen festéket válassz a tökéletes falhoz?"
+        "description": "Információk a márkakereskedésekről, szervizajánlatokról, finanszírozási lehetőségekről és tesztvezetési programokról, segítve az ügyfeleket a márka termékeihez és szolgáltatásaihoz való hozzáférésben.",
+        "example_title": "Találja meg az Önhöz legközelebbi Audi márkakereskedést!"
       },
       {
-        "name": "Kert- és Autóápolási Tanácsok",
+        "name": "Fenntartható Jövő",
         "ratio": 10,
-        "description": "Szakértői tippek és tanácsok a kert gondozásához, növényvédelemhez, valamint az autó tisztán tartásához és ápolásához, bővítve a márka relevanciáját a mindennapi életben.",
-        "example_title": "A szép gyep titka: a rendszeres és helyes gondozás."
+        "description": "Az elektromos mobilitás (e-tron modellek) és a fenntartható megoldások bemutatása, hangsúlyozva az Audi elkötelezettségét a környezetbarát technológiák és a jövő mobilitása iránt.",
+        "example_title": "Az új Q4 e-tron: A jövő elektromos mobilitása."
       }
     ],
     "platform_rules": {
       "instagram": {
-        "active": true,
-        "tone_modifier": "Legyen vizuálisan inspiráló és közvetlen, kiemelve a projektek előnyeit és esztétikai eredményeit.",
+        "active": false,
+        "tone_modifier": "",
         "emoji_allowed": true,
         "max_hashtags": 15,
-        "preferred_format": "carousel",
+        "preferred_format": "image_with_text",
         "optimal_post_length": "150-300 karakter"
       },
       "facebook": {
         "active": true,
-        "tone_modifier": "Maradjon praktikus és segítőkész, de engedélyezzen hosszabb leírásokat és közösségi interakciót.",
-        "emoji_allowed": true,
+        "tone_modifier": "Professionális és informatív, de interaktívabb hangnem, amely ösztönzi a közösségi párbeszédet és megosztásokat.",
+        "emoji_allowed": false,
         "max_hashtags": 5,
         "preferred_format": "image_with_text",
         "optimal_post_length": "200-500 karakter"
       },
       "tiktok": {
-        "active": true,
-        "tone_modifier": "Legyen dinamikus, gyors tempójú és vizuálisan megkapó, rövid, lényegre törő tippekkel.",
+        "active": false,
+        "tone_modifier": "",
         "emoji_allowed": true,
-        "max_hashtags": 7,
+        "max_hashtags": 5,
         "preferred_format": "short_video_script",
-        "optimal_post_length": "50-100 karakter"
+        "optimal_post_length": "50-150 karakter"
       },
       "youtube": {
         "active": true,
-        "tone_modifier": "Legyen alapos, informatív és professzionális, részletes útmutatókkal és termékbemutatókkal.",
+        "tone_modifier": "Vizuális történetmesélés, inspiráló és dinamikus, a termékek mozgásban történő bemutatására, technológiai részletekre és márkaüzenetekre fókuszálva.",
         "emoji_allowed": false,
-        "max_hashtags": 3,
-        "preferred_format": "tutorial_description",
-        "optimal_post_length": "500-1000 karakter"
+        "max_hashtags": 5,
+        "preferred_format": "short_video_script",
+        "optimal_post_length": "100-200 karakter (videó leírás)"
       },
       "linkedin": {
         "active": false,
@@ -591,79 +648,87 @@
     },
     "visual_recipe": {
       "color_palette": {
-        "primary": "#66b31c",
-        "secondary": "#187fc0",
-        "accent": "#b70808",
-        "background": "#ffffff",
+        "primary": "#333333",
+        "secondary": "#808080",
+        "accent": "#c08139",
+        "background": "#d9d9d9",
         "text_color": "#000000"
       },
-      "photography_style": "product_studio",
-      "lighting": "bright_even",
-      "composition": "centered_clean",
-      "background_type": "solid_white",
-      "mood": "clean professional minimalist",
-      "image_prompt_prefix": "Professional studio product photography, bright even lighting, clean solid white background, centered composition, high detail, commercial quality.",
-      "image_prompt_suffix": "neutral color palette, realistic, sharp focus, 8k quality",
-      "negative_prompt": "text, watermark, logo, blurry, oversaturated, cartoon, illustration, people, hands, low quality, distorted, artifacts, noise, busy background, clutter, poor lighting, grainy"
+      "photography_style": "editorial",
+      "lighting": "high_contrast",
+      "composition": "dynamic_diagonal",
+      "background_type": "contextual",
+      "mood": "Sleek, Dynamic, Premium",
+      "image_prompt_prefix": "Editorial automotive photography, sleek and modern aesthetic, high-contrast lighting, dynamic diagonal composition with subtle motion blur, commercial quality.",
+      "image_prompt_suffix": "Sophisticated neutral color palette with warm accents, ultra-realistic, sharp focus, 8k quality, professional retouching.",
+      "negative_prompt": "text, watermark, logo, blurry, oversaturated, cartoon, illustration, people, hands, low quality, distorted, artifacts, noise, pixelated, amateur, cluttered background, dull colors, unrealistic proportions"
     },
     "linguistic_fingerprint": {
       "sentence_metrics": {
         "avg_sentence_length": "medium",
-        "question_ratio": "low",
+        "question_ratio": "none",
         "exclamation_ratio": "low",
-        "imperative_ratio": "high"
+        "imperative_ratio": "low"
       },
       "vocabulary_profile": {
         "brand_specific_terms": [
-          "Piktor",
-          "Piktor.hu",
-          "webáruház",
-          "festék",
-          "felújítás",
-          "kert",
-          "autóápolás"
+          "Audi",
+          "e-tron",
+          "Nuvolari",
+          "RS 3",
+          "Q4",
+          "Q7"
         ],
         "power_words": [
-          "praktikus",
-          "megbízható",
-          "egyszerű",
-          "minőségi",
-          "gyors",
-          "kedvezmény",
-          "segítség",
-          "tipp",
-          "akció"
+          "innovatív",
+          "prémium",
+          "dinamikus",
+          "precíz",
+          "inspiráló",
+          "elegancia",
+          "teljesítmény",
+          "státusz",
+          "jövőorientált",
+          "technológia",
+          "exkluzív",
+          "progress",
+          "luxus",
+          "fenntartható"
         ],
         "avoided_words": [
-          "luxus",
-          "exkluzív",
-          "bonyolult",
-          "drága",
-          "elit",
-          "komplikált"
+          "olcsó",
+          "akció",
+          "szenzáció",
+          "probléma",
+          "hétköznapi",
+          "régi",
+          "unalmas",
+          "gagyi",
+          "felületes",
+          "közönséges"
         ]
       },
       "rhetoric_patterns": {
         "opening_patterns": [
-          "Kezdj bele még ma:",
-          "Tudtad, hogy...",
-          "Érdekel, hogyan...",
-          "Nézd meg ezt a tippet:",
-          "Fedezd fel a legújabb..."
+          "Fedezze fel az új...",
+          "Ismerje meg a...",
+          "Bemutatjuk a...",
+          "Merüljön el az Audi világában...",
+          "Az Audi büszkén mutatja be..."
         ],
         "closing_patterns": [
-          "Látogass el webáruházunkba!",
-          "Vásárolj most!",
-          "Kérdésed van? Segítünk!",
-          "Alkosd meg álmaid otthonát!",
-          "Kezdd el projektjeidet még ma!"
+          "Tudjon meg többet a...",
+          "Látogasson el márkakereskedésünkbe.",
+          "Kérjen tesztvezetést.",
+          "Élvezze a...",
+          "A jövő az Öné."
         ],
-        "persuasion_style": "rational"
+        "persuasion_style": "rational_and_authority"
       },
       "post_style_examples": [
-        "A tökéletes falfesték kiválasztása nem bonyolult. Mutatjuk, mire figyelj, hogy tartós és esztétikus eredményt érj el otthonodban.",
-        "Ne halogasd tovább a kerti munkákat! Fedezd fel webáruházunkban a legjobb fűápolási termékeket, és élvezd a buja zöld gyepet.",
-        "Konyhabútorod új festést kaphat! Lépésről lépésre megmutatjuk, hogyan adhatsz modern megjelenést régi bútorodnak költséghatékonyan."
+        "Fedezze fel az Audi Nuvolari hibrid-szupersportautó lélegzetelállító teljesítményét és exkluzív formavilágát, amely limitált szériában kapható.",
+        "Az új Audi Q4 e-tron modell a fenntartható mobilitás jövőjét testesíti meg, a prémium technológia és a kényelem harmonikus ötvözetével.",
+        "A 'We race for progress.' szlogenünk nem csupán egy mondat, hanem egy elkötelezettség az innováció és a folyamatos fejlődés iránt, amelyet minden egyes modellünkben megtestesítünk."
       ]
     }
   }

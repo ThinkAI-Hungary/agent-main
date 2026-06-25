@@ -65,14 +65,110 @@ import type { BrandKit, PostCreative, SystemLog } from '../types';
 import { fixImageUrl } from '../types';
 import { showToast } from '../../../../components/ui/Toast';
 
+// ─── Platform / Channel Specifications ────────────────────────────────────────
+const CHANNEL_SPECS = {
+  instagram: {
+    label: 'Instagram',
+    color: '#e1306c',
+    icon: '📸',
+    formats: [
+      { id: 'feed-square',    label: 'Feed négyzet',     ar: '1:1',  w: 1080, h: 1080, default: false, desc: 'Klasszikus feed poszt' },
+      { id: 'feed-portrait',  label: 'Feed álló',        ar: '4:5',  w: 1080, h: 1350, default: true,  desc: 'Legjobb organikus elérés' },
+      { id: 'feed-landscape', label: 'Feed fekvő',       ar: '1.91:1', w: 1080, h: 566, default: false, desc: 'Széles látványkép' },
+      { id: 'story-reel',     label: 'Story / Reel',    ar: '9:16', w: 1080, h: 1920, default: false, desc: 'Teljes képernyős függőleges' },
+    ],
+    limits: {
+      captionChars: 2200,
+      hashtagCount: 30,
+      hashtagRecommended: 5,
+      altTextChars: 100,
+      ctaTextChars: 40,
+    },
+    postingRules: [
+      'Caption: max 2 200 karakter',
+      'Hashtag: max 30 db (ajánlott 3–5)',
+      'Kép min. 150×150px, max 8MB (JPEG/PNG)',
+      'Alt szöveg: max 100 karakter',
+      'Feed: 1.91:1 – 4:5 arány elfogadott',
+      'Story/Reel: 9:16 kötelező',
+      'Carousel: 2–10 kép (1:1 vagy 4:5)',
+    ],
+  },
+  facebook: {
+    label: 'Facebook',
+    color: '#1877f2',
+    icon: '📘',
+    formats: [
+      { id: 'feed-landscape', label: 'Feed fekvő',   ar: '1.91:1', w: 1200, h: 630,  default: true,  desc: 'Legszélesebb elérés' },
+      { id: 'feed-square',    label: 'Feed négyzet', ar: '1:1',    w: 1080, h: 1080, default: false, desc: 'Kiemelkedő feed pozíció' },
+      { id: 'feed-portrait',  label: 'Feed álló',    ar: '4:5',    w: 1080, h: 1350, default: false, desc: 'Mobilon teljes szélességű' },
+      { id: 'story',          label: 'Story',        ar: '9:16',   w: 1080, h: 1920, default: false, desc: 'Teljes képernyős' },
+    ],
+    limits: {
+      captionChars: 63206,
+      hashtagCount: 30,
+      hashtagRecommended: 3,
+      altTextChars: 255,
+      ctaTextChars: 25,
+    },
+    postingRules: [
+      'Caption: technikailag korlátlan (ajánlott < 500 kar.)',
+      'Kép: 1200×630px ajánlott, max 10MB (JPEG/PNG/GIF)',
+      'Hashtag: max 30 (ajánlott max 3)',
+      'Link preview automatikus URL-ből',
+      'Feed: 1.91:1 – 1:1 – 4:5 mind elfogadott',
+      'CTA gomb szöveg: max 25 karakter',
+    ],
+  },
+  'meta-ads': {
+    label: 'Meta Ads',
+    color: '#0081fb',
+    icon: '🎯',
+    formats: [
+      { id: 'single-image',   label: 'Single Image',   ar: '1:1',    w: 1080, h: 1080, default: true,  desc: 'Legjobb multi-placement' },
+      { id: 'landscape',      label: 'Landscape',      ar: '1.91:1', w: 1200, h: 628,  default: false, desc: 'Feed + Right Column' },
+      { id: 'portrait',       label: 'Portrait',       ar: '4:5',    w: 1080, h: 1350, default: false, desc: 'Mobile feed domináns' },
+      { id: 'story-reels',    label: 'Story / Reels',  ar: '9:16',   w: 1080, h: 1920, default: false, desc: 'Immersive fullscreen' },
+      { id: 'carousel-card',  label: 'Carousel kártya',ar: '1:1',    w: 1080, h: 1080, default: false, desc: '2–10 kártyás hirdetés' },
+    ],
+    limits: {
+      captionChars: 125,
+      hashtagCount: 5,
+      hashtagRecommended: 0,
+      altTextChars: 255,
+      ctaTextChars: 25,
+    },
+    postingRules: [
+      'Primary text: max 125 karakter (csonkítás fölötte)',
+      'Headline: max 40 karakter',
+      'Description: max 30 karakter',
+      'Kép: min 1080×1080px, max 30MB, JPEG/PNG',
+      'Szöveg arány kép területén: max 20% (Meta iránymutatás)',
+      'CTA gomb: kötelező kiválasztani (Vásárlás, Tudj meg többet, stb.)',
+      '1:1 – legjobb multi-placement lefedettség',
+      'Carousel: 2–10 kártya, min 600×600px',
+    ],
+  },
+} as const;
+
+type ChannelKey = keyof typeof CHANNEL_SPECS;
+
 interface ProdCalendarViewProps {
   activeBrandKit: BrandKit;
   auditResult: any;
+  posts: PostCreative[];
+  setPosts: React.Dispatch<React.SetStateAction<PostCreative[]>>;
+  bypassOnboarding: boolean;
+  setBypassOnboarding: (val: boolean) => void;
 }
 
 export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
   activeBrandKit,
-  auditResult
+  auditResult,
+  posts,
+  setPosts,
+  bypassOnboarding,
+  setBypassOnboarding
 }) => {
   // Navigation
   const [activeTab, setActiveTab] = useState<'calendar' | 'timeline'>('calendar');
@@ -92,9 +188,6 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
   const [progressPercent, setProgressPercent] = useState(0);
   const [progressLogs, setProgressLogs] = useState<string[]>([]);
   const logsEndRef = useRef<HTMLDivElement | null>(null);
-
-  // Screen 3: Calendar Data State
-  const [posts, setPosts] = useState<PostCreative[]>([]);
   const [selectedPost, setSelectedPost] = useState<PostCreative | null>(null);
 
   // Screen 5: Batch Operations State
@@ -112,6 +205,48 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
   const [createCta, setCreateCta] = useState('');
   const [createScheduledDate, setCreateScheduledDate] = useState('');
   const [isGeneratingAdhoc, setIsGeneratingAdhoc] = useState(false);
+
+  // Uploaded product image state for ad-hoc modal
+  const [adhocProductImage, setAdhocProductImage] = useState<string | null>(null);
+  const [adhocPreprocessedUrl, setAdhocPreprocessedUrl] = useState<string | null>(null);
+  const [adhocOriginalUrl, setAdhocOriginalUrl] = useState<string | null>(null);
+  const [adhocProductFileName, setAdhocProductFileName] = useState('');
+  const [adhocIsPreprocessing, setAdhocIsPreprocessing] = useState(false);
+  const [adhocPreprocessError, setAdhocPreprocessError] = useState('');
+  const adhocFileInputRef = useRef<HTMLInputElement>(null);
+
+  const handleAdhocFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setAdhocProductFileName(file.name);
+    setAdhocPreprocessedUrl(null);
+    setAdhocOriginalUrl(null);
+    setAdhocPreprocessError('');
+
+    const reader = new FileReader();
+    reader.onload = async (ev) => {
+      const base64 = ev.target?.result as string;
+      setAdhocProductImage(base64);
+      setAdhocIsPreprocessing(true);
+      try {
+        const resp = await fetch('http://localhost:3001/api/image/preprocess', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: base64 }),
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        const data = await resp.json();
+        setAdhocPreprocessedUrl(data.url);
+        setAdhocOriginalUrl(data.originalUrl || null);
+      } catch (err: any) {
+        console.error(err);
+        setAdhocPreprocessError(`Hiba: ${err.message}`);
+      } finally {
+        setAdhocIsPreprocessing(false);
+      }
+    };
+    reader.readAsDataURL(file);
+  };
 
   // Modal Editing State (Screen 4)
   const [editingText, setEditingText] = useState('');
@@ -207,6 +342,14 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
     setCreateColorVariation('default');
     setCreateLogoVariant('dark');
     setCreateCta('');
+
+    // Reset adhoc product image states
+    setAdhocProductImage(null);
+    setAdhocPreprocessedUrl(null);
+    setAdhocOriginalUrl(null);
+    setAdhocProductFileName('');
+    setAdhocPreprocessError('');
+    if (adhocFileInputRef.current) adhocFileInputRef.current.value = '';
     
     // Default scheduled date is either the clicked date (plus 9:00 AM) or tomorrow 9:00 AM
     if (dateStr) {
@@ -236,7 +379,9 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
           templateId: createTemplateId,
           colorVariation: createColorVariation,
           logoVariant: createLogoVariant,
-          cta: createCta
+          cta: createCta,
+          productImageUrl: adhocOriginalUrl || adhocProductImage,
+          preprocessedImageUrl: adhocPreprocessedUrl
         })
       });
 
@@ -1185,7 +1330,7 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
       )}
 
       {/* Screen 1: Parameter Panel when empty */}
-      {posts.length === 0 && !isGenerating ? (
+      {(posts.length === 0 && !bypassOnboarding) && !isGenerating ? (
         <div className="prod-onboarding-panel glass-panel" style={{ maxWidth: 800, margin: '40px auto', padding: 32, borderRadius: 16 }}>
           <div className="text-center" style={{ marginBottom: 28 }}>
             <div className="spark-wrapper" style={{ margin: '0 auto 16px', width: 48, height: 48, borderRadius: '50%', background: 'rgba(139, 92, 246, 0.1)', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center' }}>
@@ -1313,12 +1458,29 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
             >
               <Sparkles size={16} /> Éles Tartalomterv Generálása
             </button>
+            <button
+              onClick={() => {
+                // Belépés generálás nélkül — üres naptár, manuális feltöltésre
+                setPosts([]);
+                setBypassOnboarding(true);
+              }}
+              style={{
+                display: 'inline-flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                background: 'transparent', color: 'var(--text-muted)',
+                border: '1.5px solid var(--border)', borderRadius: 12, padding: '12px 22px', fontSize: 13, fontWeight: 600,
+                cursor: 'pointer', marginTop: 12, transition: 'all 0.2s',
+              }}
+              onMouseEnter={e => { e.currentTarget.style.borderColor = '#8b5cf6'; e.currentTarget.style.color = '#c4b5fd'; }}
+              onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-muted)'; }}
+            >
+              <CalendarIcon size={15} /> Belépés generálás nélkül
+            </button>
           </div>
         </div>
       ) : null}
 
       {/* Main Workspace (Visible once posts exist) */}
-      {posts.length > 0 && !isGenerating && (
+      {(posts.length > 0 || bypassOnboarding) && !isGenerating && (
         <div className="prod-calendar-workspace animate-slide-up">
           {/* Header Row */}
           <div className="workspace-header glass-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderRadius: 16, marginBottom: 20, flexWrap: 'wrap', gap: 16 }}>
@@ -1356,7 +1518,7 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
                 📄 PDF
               </button>
 
-              <button className="btn-reset-calendar" onClick={() => { if(confirm('Biztosan törölni szeretnéd a teljes naptárt?')) setPosts([]); }}>
+              <button className="btn-reset-calendar" onClick={() => { if(confirm('Biztosan törölni szeretnéd a teljes naptárt?')) { setPosts([]); setBypassOnboarding(false); } }}>
                 Törlés
               </button>
             </div>
@@ -1445,6 +1607,80 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
               />
             </div>
           )}
+
+          {/* ─── Célcsatornák Specifikáció Panel (állandó, naptár alatt) ─── */}
+          <div style={{ marginTop: 24 }}>
+            <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em', marginBottom: 14, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <span>📡</span> Célcsatornák — Platform Specifikációk
+            </div>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 14 }}>
+              {(Object.entries(CHANNEL_SPECS) as [ChannelKey, typeof CHANNEL_SPECS[ChannelKey]][]).map(([key, spec]) => (
+                <div key={key} style={{
+                  borderRadius: 14, padding: 16,
+                  border: `2px solid ${spec.color}30`,
+                  background: `${spec.color}08`,
+                }}>
+                  {/* Header */}
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 14 }}>
+                    <span style={{ fontSize: 20 }}>{spec.icon}</span>
+                    <div>
+                      <div style={{ fontSize: 13, fontWeight: 800, color: spec.color }}>{spec.label}</div>
+                      <div style={{ fontSize: 9, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em', marginTop: 1 }}>Célcsatorna</div>
+                    </div>
+                  </div>
+
+                  {/* Format tiles */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Képformátumok</div>
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 5 }}>
+                      {spec.formats.map((fmt: any) => (
+                        <div key={fmt.id} title={fmt.desc} style={{
+                          padding: '5px 8px', borderRadius: 7, fontSize: 10,
+                          border: `1.5px solid ${fmt.default ? spec.color : 'rgba(255,255,255,0.1)'}`,
+                          background: fmt.default ? `${spec.color}18` : 'rgba(255,255,255,0.03)',
+                          color: fmt.default ? spec.color : 'var(--text-muted)',
+                        }}>
+                          <div style={{ fontWeight: 800, lineHeight: 1.2 }}>{fmt.label}</div>
+                          <div style={{ fontSize: 8.5, marginTop: 1, opacity: 0.85 }}>{fmt.ar} · {fmt.w}×{fmt.h}</div>
+                          {fmt.default && <div style={{ fontSize: 7.5, marginTop: 2, fontWeight: 800, textTransform: 'uppercase' }}>✓ Default</div>}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Limits quick ref */}
+                  <div style={{ marginBottom: 12 }}>
+                    <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Korlátok</div>
+                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 5 }}>
+                      {[
+                        { label: 'Caption', val: `max ${(spec.limits as any).captionChars.toLocaleString()} kar.` },
+                        { label: 'Hashtag', val: `max ${(spec.limits as any).hashtagCount} db · aj. ${(spec.limits as any).hashtagRecommended}` },
+                        { label: 'CTA', val: `max ${(spec.limits as any).ctaTextChars} kar.` },
+                        { label: 'Alt text', val: `max ${(spec.limits as any).altTextChars} kar.` },
+                      ].map(l => (
+                        <div key={l.label} style={{ padding: '4px 7px', borderRadius: 6, background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.07)' }}>
+                          <div style={{ fontSize: 8.5, fontWeight: 800, color: spec.color, textTransform: 'uppercase', letterSpacing: '0.03em' }}>{l.label}</div>
+                          <div style={{ fontSize: 9, color: 'var(--text-muted)', marginTop: 1 }}>{l.val}</div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  {/* Posting rules */}
+                  <details>
+                    <summary style={{ fontSize: 9.5, fontWeight: 700, color: spec.color, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em', userSelect: 'none' }}>
+                      📋 Szabályok ({(spec.postingRules as any[]).length} db)
+                    </summary>
+                    <ul style={{ margin: '6px 0 0', padding: '0 0 0 12px', listStyle: 'disc' }}>
+                      {(spec.postingRules as string[]).map((r: string, i: number) => (
+                        <li key={i} style={{ fontSize: 9.5, color: 'var(--text-muted)', marginBottom: 2.5, lineHeight: 1.4 }}>{r}</li>
+                      ))}
+                    </ul>
+                  </details>
+                </div>
+              ))}
+            </div>
+          </div>
 
           {/* Tab 2: Timeline list view (Screen 5 checkboxes here) */}
           {activeTab === 'timeline' && (
@@ -1566,7 +1802,7 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
                             {/* Label badge */}
                             <div style={{
                               position: 'absolute', top: 6, left: 6, zIndex: 20,
-                              background: 'rgba(109,40,217,0.92)', backdropFilter: 'blur(6px)',
+                              background: 'rgba(80,20,200,0.92)',
                               borderRadius: 6, padding: '3px 8px',
                               fontSize: 9, fontWeight: 800, color: '#fff',
                               display: 'flex', alignItems: 'center', gap: 4
@@ -1627,7 +1863,6 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
                         <div style={{
                           position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
                           background: `rgba(0,0,0,${editingOverlayOpacity})`,
-                          backdropFilter: 'blur(5px)',
                           pointerEvents: 'none', zIndex: 2
                         }} />
                       ) : selectedPost.templateId === 'quote' ? (
@@ -1661,7 +1896,7 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
                         gap: 6,
                         padding: '4px 10px',
                         background: editingLogoVariant === 'light' ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.75)',
-                        backdropFilter: 'blur(4px)',
+                        backdropFilter: 'none',
                         color: editingLogoVariant === 'light' ? '#fff' : activeBrandKit.colors.primary,
                         borderRadius: 4,
                         fontSize: 10,
@@ -1869,6 +2104,113 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
                     style={{ width: '100%', padding: '10px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12.5, fontFamily: 'inherit', lineHeight: 1.5 }}
                   />
                 </div>
+
+                {/* ─── Csatorna Specifikáció Panel ─────────────────────────── */}
+                {(() => {
+                  const ch = (selectedPost.platform || 'instagram') as ChannelKey;
+                  const spec = CHANNEL_SPECS[ch] || CHANNEL_SPECS['instagram'];
+                  const captionLen = editingText.length;
+                  const hashtagCount = editingHashtags.split(/\s+/).filter(t => t.startsWith('#')).length;
+                  const ctaLen = editingCta.length;
+                  const altLen = editingAltText.length;
+                  const capPct = Math.min(100, Math.round(captionLen / spec.limits.captionChars * 100));
+                  const htPct  = Math.min(100, Math.round(hashtagCount / spec.limits.hashtagCount * 100));
+                  const ctaPct = Math.min(100, Math.round(ctaLen / spec.limits.ctaTextChars * 100));
+
+                  const barColor = (pct: number) => pct > 90 ? '#ef4444' : pct > 70 ? '#f59e0b' : '#10b981';
+
+                  return (
+                    <div style={{ padding: '16px', borderRadius: 12, border: `2px solid ${spec.color}33`, background: `${spec.color}08`, marginBottom: 16 }}>
+                      {/* Header + platform switcher */}
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                          <span style={{ fontSize: 16 }}>{spec.icon}</span>
+                          <span style={{ fontSize: 13, fontWeight: 800, color: spec.color }}>{spec.label} — Csatorna Spec</span>
+                        </div>
+                        <div style={{ display: 'flex', gap: 4 }}>
+                          {(['instagram', 'facebook', 'meta-ads'] as ChannelKey[]).map(p => {
+                            const ps = CHANNEL_SPECS[p];
+                            const isActive = (selectedPost.platform || 'instagram') === p;
+                            return (
+                              <button key={p}
+                                title={ps.label}
+                                onClick={() => {
+                                  setPosts(prev => prev.map(post => post.id === selectedPost.id ? { ...post, platform: p as PostCreative['platform'] } : post));
+                                  setSelectedPost(prev => prev ? { ...prev, platform: p as PostCreative['platform'] } : null);
+                                }}
+                                style={{
+                                  padding: '4px 10px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer',
+                                  border: `1.5px solid ${isActive ? ps.color : 'var(--border)'}`,
+                                  background: isActive ? `${ps.color}22` : 'var(--bg3)',
+                                  color: isActive ? ps.color : 'var(--text-muted)',
+                                  transition: 'all 0.12s'
+                                }}
+                              >{ps.icon} {ps.label}</button>
+                            );
+                          })}
+                        </div>
+                      </div>
+
+                      {/* Format cards (aspect ratios) */}
+                      <div style={{ marginBottom: 14 }}>
+                        <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>
+                          Képformátumok &amp; Arányok
+                        </div>
+                        <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
+                          {spec.formats.map(fmt => (
+                            <div key={fmt.id} title={fmt.desc}
+                              style={{
+                                padding: '6px 10px', borderRadius: 8, fontSize: 11,
+                                border: `1.5px solid ${fmt.default ? spec.color : 'var(--border)'}`,
+                                background: fmt.default ? `${spec.color}15` : 'var(--bg3)',
+                                color: fmt.default ? spec.color : 'var(--text-muted)',
+                                cursor: 'default',
+                              }}
+                            >
+                              <div style={{ fontWeight: 800 }}>{fmt.label}</div>
+                              <div style={{ fontSize: 9, opacity: 0.8 }}>{fmt.ar} · {fmt.w}×{fmt.h}</div>
+                              {fmt.default && <div style={{ fontSize: 8, marginTop: 2, fontWeight: 700, textTransform: 'uppercase', opacity: 0.9 }}>✓ Default</div>}
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+
+                      {/* Limit meters */}
+                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 10, marginBottom: 14 }}>
+                        {[
+                          { label: 'Caption', current: captionLen, max: spec.limits.captionChars, pct: capPct, unit: 'kar.' },
+                          { label: 'Hashtag', current: hashtagCount, max: spec.limits.hashtagCount, pct: htPct, unit: `db (aj. ${spec.limits.hashtagRecommended})` },
+                          { label: 'CTA szöveg', current: ctaLen, max: spec.limits.ctaTextChars, pct: ctaPct, unit: 'kar.' },
+                          { label: 'Alt szöveg', current: altLen, max: spec.limits.altTextChars, pct: Math.min(100, Math.round(altLen / spec.limits.altTextChars * 100)), unit: 'kar.' },
+                        ].map(m => (
+                          <div key={m.label}>
+                            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-muted)', marginBottom: 3 }}>
+                              <span style={{ fontWeight: 700 }}>{m.label}</span>
+                              <span style={{ color: m.pct > 90 ? '#ef4444' : 'var(--text-muted)' }}>
+                                {m.current} / {m.max} {m.unit}
+                              </span>
+                            </div>
+                            <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
+                              <div style={{ height: '100%', width: `${m.pct}%`, background: barColor(m.pct), borderRadius: 2, transition: 'width 0.2s' }} />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+
+                      {/* Posting rules */}
+                      <details style={{ marginTop: 4 }}>
+                        <summary style={{ fontSize: 10, fontWeight: 700, color: spec.color, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                          📋 Platform szabályok ({spec.postingRules.length} db)
+                        </summary>
+                        <ul style={{ margin: '8px 0 0', padding: '0 0 0 14px', listStyle: 'disc' }}>
+                          {spec.postingRules.map((r, i) => (
+                            <li key={i} style={{ fontSize: 10.5, color: 'var(--text-muted)', marginBottom: 3, lineHeight: 1.4 }}>{r}</li>
+                          ))}
+                        </ul>
+                      </details>
+                    </div>
+                  );
+                })()}
 
                 {/* Hashtag editor */}
                 <div className="form-group">
@@ -2389,6 +2731,103 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
                 </div>
               </div>
 
+              {/* Product Image Upload */}
+              <div style={{ padding: '16px 20px', borderRadius: 12, background: 'var(--bg3, rgba(255,255,255,0.03))', border: '1.5px solid var(--border)' }}>
+                <label style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10, display: 'block' }}>
+                  📷 Termék fotó feltöltése (opcionális, háttér-eltávolítással)
+                </label>
+                
+                <div 
+                  onClick={() => !adhocIsPreprocessing && adhocFileInputRef.current?.click()}
+                  style={{
+                    border: '2px dashed var(--border)',
+                    borderRadius: 10,
+                    padding: '20px 14px',
+                    textAlign: 'center',
+                    cursor: adhocIsPreprocessing ? 'not-allowed' : 'pointer',
+                    background: 'rgba(0,0,0,0.2)',
+                    transition: 'all 0.15s ease',
+                    position: 'relative',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    gap: 8,
+                  }}
+                  onMouseEnter={e => { if(!adhocIsPreprocessing) e.currentTarget.style.borderColor = activeBrandKit?.colors?.primary || '#8b5cf6'; }}
+                  onMouseLeave={e => { if(!adhocIsPreprocessing) e.currentTarget.style.borderColor = 'var(--border)'; }}
+                >
+                  {adhocPreprocessedUrl || adhocProductImage ? (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%' }}>
+                      <div style={{ position: 'relative', width: 56, height: 56, borderRadius: 8, overflow: 'hidden', background: 'rgba(0,0,0,0.5)', border: '1px solid var(--border)' }}>
+                        <img 
+                          src={adhocPreprocessedUrl || adhocProductImage || ''} 
+                          alt="Termék előnézet" 
+                          style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
+                        />
+                      </div>
+                      <div style={{ flex: 1, textAlign: 'left' }}>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)', wordBreak: 'break-all' }}>{adhocProductFileName}</div>
+                        <div style={{ display: 'flex', gap: 8, marginTop: 4, alignItems: 'center' }}>
+                          {adhocIsPreprocessing && (
+                            <span style={{ fontSize: 11, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 4 }}>
+                              <Loader size={12} className="spinner" />
+                              Háttér eltávolítása...
+                            </span>
+                          )}
+                          {adhocPreprocessedUrl && <span style={{ fontSize: 11, color: '#10b981', fontWeight: 700 }}>✓ Háttér sikeresen eltávolítva</span>}
+                          {adhocPreprocessError && <span style={{ fontSize: 11, color: '#ef4444' }}>{adhocPreprocessError}</span>}
+                        </div>
+                      </div>
+                      <button 
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setAdhocProductImage(null);
+                          setAdhocPreprocessedUrl(null);
+                          setAdhocOriginalUrl(null);
+                          setAdhocProductFileName('');
+                          setAdhocPreprocessError('');
+                          if (adhocFileInputRef.current) adhocFileInputRef.current.value = '';
+                        }}
+                        style={{
+                          padding: '5px 10px',
+                          borderRadius: 8,
+                          background: 'rgba(239, 68, 68, 0.1)',
+                          border: '1px solid rgba(239, 68, 68, 0.25)',
+                          color: '#ef4444',
+                          fontSize: 11,
+                          fontWeight: 700,
+                          cursor: 'pointer',
+                        }}
+                      >
+                        Eltávolítás
+                      </button>
+                    </div>
+                  ) : (
+                    <>
+                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.6 }}>
+                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                        <polyline points="17 8 12 3 7 8"/>
+                        <line x1="12" y1="3" x2="12" y2="15"/>
+                      </svg>
+                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
+                        Kattints vagy húzz ide egy képet
+                      </div>
+                      <div style={{ fontSize: 9.5, color: 'var(--text-dim)' }}>
+                        PNG, JPG · Háttér automatikus levágása
+                      </div>
+                    </>
+                  )}
+                </div>
+                <input 
+                  type="file" 
+                  ref={adhocFileInputRef} 
+                  onChange={handleAdhocFileUpload} 
+                  accept="image/*" 
+                  style={{ display: 'none' }} 
+                />
+              </div>
+
               {/* Schedule Date */}
               <div>
                 <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Időzítés Dátuma és Időpontja:</label>
@@ -2619,18 +3058,17 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
           transform: translateY(-0.5px);
         }
 
-        /* Detailed Modal */
+        /* Detailed Modal — no backdrop-filter to avoid flicker */
         .preview-modal-overlay {
           position: fixed;
           top: 0; left: 0; right: 0; bottom: 0;
-          background: rgba(0,0,0,0.5);
-          backdrop-filter: blur(10px);
-          -webkit-backdrop-filter: blur(10px);
+          background: rgba(0,0,0,0.75);
           z-index: 1500;
           display: flex;
           align-items: center;
           justify-content: center;
-          animation: fadeIn 0.2s ease;
+          animation: fadeIn 0.18s ease;
+          will-change: opacity;
         }
         .preview-modal-card {
           width: 900px;
@@ -2638,9 +3076,13 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
           background: var(--card, #1c1936);
           border: 1px solid var(--border);
           border-radius: 18px;
-          box-shadow: 0 24px 90px rgba(0,0,0,0.4);
+          box-shadow: 0 24px 90px rgba(0,0,0,0.55);
           overflow: hidden;
           animation: modalSlideUp 0.22s cubic-bezier(.2,.9,.3,1);
+          will-change: transform;
+          contain: layout;
+          backdrop-filter: none !important;
+          -webkit-backdrop-filter: none !important;
         }
         .close-modal-btn {
           background: transparent;
