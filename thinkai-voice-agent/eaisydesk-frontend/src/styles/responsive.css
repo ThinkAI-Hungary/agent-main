@@ -526,22 +526,25 @@
         height: 16px !important;
       }
 
-      /* Todo summary cards — 3 columns + hide "Összes" */
+      /* Todo summary cards — 2 columns on mobile */
       .todo-summary-grid {
-        grid-template-columns: repeat(3, 1fr) !important;
-        gap: 8px !important;
+        grid-template-columns: repeat(2, 1fr) !important;
+        gap: 10px !important;
       }
       .todo-summary-grid > div:last-child {
-        display: none !important;
+        display: flex !important;
       }
       /* Summary card sizing */
       .todo-summary-grid > div {
-        padding: 12px 10px !important;
+        padding: 14px 14px !important;
       }
-      .todo-summary-grid > div > div:last-child {
-        font-size: 22px !important;
+      .todo-summary-num-today,
+      .todo-summary-num-overdue,
+      .todo-summary-num-done,
+      .todo-summary-num-all {
+        font-size: 24px !important;
       }
-      .todo-summary-grid > div > div:first-child > span:last-child {
+      .todo-summary-desc {
         font-size: 11px !important;
       }
 
@@ -1078,12 +1081,9 @@
        EXTRA SMALL MOBILE (≤420px) — iPhone SE / 375px devices
        ═══════════════════════════════════════════════════════════════════ */
     @media (max-width: 420px) {
-      /* Dashboard — summary cards 2 columns, hide 3rd */
+      /* Dashboard — summary cards 2 columns */
       .todo-summary-grid {
         grid-template-columns: repeat(2, 1fr) !important;
-      }
-      .todo-summary-grid > div:nth-child(3) {
-        display: none !important;
       }
 
       /* Dashboard — even smaller text */

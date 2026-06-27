@@ -3,7 +3,6 @@
  * Rendered as inline overlay within ClientsPage or InteractionsPage.
  */
 import { useState, useMemo, useCallback, useEffect } from 'react';
-import { useApproval } from '../../context/ApprovalContext';
 import { parseCustomData, type ClientRecord } from '../../helpers/clientResolvers';
 import { fmtDt } from '../../helpers/formatters';
 import { authFetch } from '../../api/client';
@@ -65,7 +64,6 @@ interface InteractionRowDetail {
 }
 
 export default function ClientDetailView({ client, clientsMap, sessions, events, source, onBack, onRefresh }: Props) {
-  const { openApproval } = useApproval();
   const [notes, setNotes] = useState(() => {
     const cd = parseCustomData(client.raw.custom_data);
     return (cd?.notes as string) || (cd?.megjegyzes as string) || '';
@@ -532,30 +530,8 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                   <td className="int-td"><span className="cd-ugytipus">{r.ugyTipus}</span></td>
                   <td className="int-td"><EredmenyBadge value={r.eredmeny} /></td>
                   <td className="int-td"><StatuszBadge value={r.statusz} /></td>
-                  <td className="int-td" onClick={(e) => e.stopPropagation()}>
-                    {r.teendo === 'Válasz jóváhagyása szükséges' || r.teendo === 'Jóváhagyásra vár' ? (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openApproval({
-                            interactionId: r.interactionId,
-                            sessionId: r.sessionId,
-                            clientName: client.name,
-                            channel: r.channel,
-                            date: r.date,
-                            topic: r.topic,
-                            summary: r.summary,
-                            aiDraftResponse: r.ai_draft_response || undefined,
-                            approvalStatus: r.approval_status || undefined,
-                          });
-                        }}
-                        className="btn btn-warning"
-                      >
-                        Válasz jóváhagyása szükséges
-                      </button>
-                    ) : (
-                      <span className="cd-teendo-muted">{r.teendo}</span>
-                    )}
+                  <td className="int-td">
+                    <span className={r.teendo === 'Válasz jóváhagyása szükséges' || r.teendo === 'Jóváhagyásra vár' ? 'int-teendo-text' : 'cd-teendo-muted'}>{r.teendo}</span>
                   </td>
                 </tr>
               ))}
@@ -599,30 +575,8 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                   <td className="int-td"><span className="cd-ugytipus">{r.ugyTipus}</span></td>
                   <td className="int-td"><EredmenyBadge value={r.eredmeny} /></td>
                   <td className="int-td"><StatuszBadge value={r.statusz} /></td>
-                  <td className="int-td" onClick={(e) => e.stopPropagation()}>
-                    {r.teendo === 'Válasz jóváhagyása szükséges' || r.teendo === 'Jóváhagyásra vár' ? (
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          openApproval({
-                            interactionId: r.interactionId,
-                            sessionId: r.sessionId,
-                            clientName: client.name,
-                            channel: r.channel,
-                            date: r.date,
-                            topic: r.topic,
-                            summary: r.summary,
-                            aiDraftResponse: r.ai_draft_response || undefined,
-                            approvalStatus: r.approval_status || undefined,
-                          });
-                        }}
-                        className="btn btn-warning"
-                      >
-                        Válasz jóváhagyása szükséges
-                      </button>
-                    ) : (
-                      <span className="cd-teendo-muted">{r.teendo}</span>
-                    )}
+                  <td className="int-td">
+                    <span className={r.teendo === 'Válasz jóváhagyása szükséges' || r.teendo === 'Jóváhagyásra vár' ? 'int-teendo-text' : 'cd-teendo-muted'}>{r.teendo}</span>
                   </td>
                   <td className="int-td" onClick={(e) => e.stopPropagation()}>
                     <button

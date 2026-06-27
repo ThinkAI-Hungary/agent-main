@@ -243,7 +243,7 @@ export default function InteractionsPage() {
         const searchable = [r.channel, r.client, r.direction, r.ugyTipus, r.eredmeny, r.statusz, r.teendo, r.summary].join(' ');
         if (!cleanStr(searchable).includes(q)) return false;
       }
-      if (filterUgyTipus.size > 0 && !filterUgyTipus.has(r.ugyTipus)) return false;
+      if (filterUgyTipus.size > 0 && !r.ugyTipus.split(', ').some(t => filterUgyTipus.has(t))) return false;
       if (filterCsatorna.size > 0 && !filterCsatorna.has(r.channel)) return false;
       if (filterIrany.size > 0 && !filterIrany.has(r.direction)) return false;
       if (filterStatusz.size > 0 && !filterStatusz.has(r.statusz)) return false;

@@ -348,7 +348,7 @@ export default function MemberDashboardPage() {
         const searchable = [r.channel, r.client, r.direction, r.ugyTipus, r.eredmeny, r.statusz, r.teendo, r.summary].join(' ');
         if (!cleanStr(searchable).includes(q)) return false;
       }
-      if (filterUgyTipus.size > 0 && !filterUgyTipus.has(r.ugyTipus)) return false;
+      if (filterUgyTipus.size > 0 && !r.ugyTipus.split(', ').some(t => filterUgyTipus.has(t))) return false;
       if (filterCsatorna.size > 0 && !filterCsatorna.has(r.channel)) return false;
       if (filterIrany.size > 0 && !filterIrany.has(r.direction)) return false;
       if (filterStatusz.size > 0 && !filterStatusz.has(r.statusz)) return false;
@@ -476,13 +476,6 @@ export default function MemberDashboardPage() {
         <div className="m-kpi-card">
           <div className="m-kpi-header">
             <div className="m-kpi-label">Hozzám rendelt ügyfelek</div>
-            <div className="m-kpi-icon m-kpi-icon--teal">
-              <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" />
-                <circle cx="9" cy="7" r="4" />
-                <path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" />
-              </svg>
-            </div>
           </div>
           <div className="m-kpi-value m-kpi-value--accent">{clientCount}</div>
           <div className="m-kpi-sub">aktív ügyfél</div>
@@ -491,14 +484,6 @@ export default function MemberDashboardPage() {
         <div className="m-kpi-card">
           <div className="m-kpi-header">
             <div className="m-kpi-label">Következő időpont</div>
-            <div className="m-kpi-icon m-kpi-icon--purple">
-              <svg fill="none" stroke="#8b5cf6" strokeWidth="2" viewBox="0 0 24 24">
-                <rect x="3" y="4" width="18" height="18" rx="2" ry="2" />
-                <line x1="16" y1="2" x2="16" y2="6" />
-                <line x1="8" y1="2" x2="8" y2="6" />
-                <line x1="3" y1="10" x2="21" y2="10" />
-              </svg>
-            </div>
           </div>
           <div className="m-kpi-value m-kpi-value--sm">{nextAppointment.text}</div>
           <div className="m-kpi-sub">{nextAppointment.sub}</div>
@@ -509,11 +494,6 @@ export default function MemberDashboardPage() {
       <div className="m-card todo-section card-container--overflow-visible">
         <div className="todo-section-header">
           <div className="todo-section-title">
-            <div className="m-card-title-icon m-card-title-icon--amber">
-              <svg fill="none" stroke="#f59e0b" strokeWidth="2" viewBox="0 0 24 24">
-                <path d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
-              </svg>
-            </div>
             Teendők
             <span className="todo-section-count">{counts.all}</span>
           </div>
@@ -535,28 +515,24 @@ export default function MemberDashboardPage() {
         <div className="todo-summary-grid">
           <div className={`todo-summary-card todo-summary-card--today${dashboardFilter === 'today' ? ' active' : ''}`} onClick={() => setDashboardFilter('today')}>
             <div className="todo-summary-row">
-              <span className="todo-summary-emoji">📋</span>
               <span className="todo-summary-lbl-today">Mai teendők</span>
             </div>
             <div className="todo-summary-num-today">{counts.today}</div>
           </div>
           <div className={`todo-summary-card todo-summary-card--overdue${dashboardFilter === 'overdue' ? ' active' : ''}`} onClick={() => setDashboardFilter('overdue')}>
             <div className="todo-summary-row">
-              <span className="todo-summary-emoji">🔴</span>
               <span className="todo-summary-lbl-overdue">Lejárt teendők</span>
             </div>
             <div className="todo-summary-num-overdue">{counts.overdue}</div>
           </div>
           <div className={`todo-summary-card todo-summary-card--done${dashboardFilter === 'completed' ? ' active' : ''}`} onClick={() => setDashboardFilter('completed')}>
             <div className="todo-summary-row">
-              <span className="todo-summary-emoji">✅</span>
               <span className="todo-summary-lbl-done">Lezárt teendők</span>
             </div>
             <div className="todo-summary-num-done">{counts.completed}</div>
           </div>
           <div className={`todo-summary-card todo-summary-card--all${dashboardFilter === 'all' ? ' active' : ''}`} onClick={() => setDashboardFilter('all')}>
             <div className="todo-summary-row">
-              <span className="todo-summary-lbl-all-bullet">●</span>
               <span className="todo-summary-lbl-all">Összes aktív</span>
             </div>
             <div className="todo-summary-num-all">{counts.all}</div>

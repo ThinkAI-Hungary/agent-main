@@ -257,6 +257,10 @@ export function detectStatusz(r: {
 
   if (isClosed) {
     if (erList.includes('Panasz rögzítve')) {
+      // If the complaint was approved/handled AND handover_reason doesn't indicate ongoing urgency, mark as resolved
+      if (!hr.includes('sürgős') && !hr.includes('urgent')) {
+        return 'Lezárt';
+      }
       return 'Sürgős';
     }
     if (erList.includes('Időpont előkészítve')) {
@@ -310,6 +314,10 @@ export function detectTeendo(r: {
 
   if (isClosed) {
     if (erList.includes('Panasz rögzítve')) {
+      const hr = (r.handover_reason || '').toLowerCase();
+      if (!hr.includes('sürgős') && !hr.includes('urgent')) {
+        return 'Nincs további teendő';
+      }
       return 'Azonnali beavatkozás';
     }
     if (erList.includes('Időpont előkészítve')) {

@@ -467,7 +467,7 @@ Ha egyik sem releváns, legyen üres lista [].
         # Mentsük Kanban "uj" oszlopba
         cols = db.get_kanban_columns()
         first_col = cols[0]["id"] if cols else "uj"
-        db.upsert_client(custom_data=details, additional_log=log_szoveg, status=first_col)
+        email_client_id = db.upsert_client(custom_data=details, additional_log=log_szoveg, status=first_col)
         logger.info(f"Ügyfél mentve/frissítve a Kanban táblában: {name}")
         
     created_event_id = None
@@ -623,7 +623,8 @@ Ha egyik sem releváns, legyen üres lista [].
             alert_tags=alert_tags if isinstance(alert_tags, list) else [],
             handover_reason=handover_reason,
             approval_status="pending",
-            ai_draft_response=draft_json
+            ai_draft_response=draft_json,
+            client_id=email_client_id if email_client_id else None
         )
 
         if isinstance(alert_tags, list) and "kiemelt" in alert_tags:
@@ -897,7 +898,7 @@ async def reminder_worker_loop():
                             tool_name="reminder_worker",
                             session_id=session_id,
                             direction="outbound",
-                            funnel_stage="relevans"
+                            funnel_stage="relevant"
                         )
                         
         except Exception as e:
@@ -1255,7 +1256,7 @@ async def automation_worker_loop():
                             tool_name="automation_worker",
                             session_id=session_id,
                             direction="outbound",
-                            funnel_stage="relevans",
+                            funnel_stage="relevant",
                             approval_status="pending",
                             ai_draft_response=draft_json,
                         )
