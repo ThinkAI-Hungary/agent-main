@@ -10,14 +10,20 @@ interface UseClientsReturn {
   refetch: () => Promise<void>;
 }
 
+// ── Module-level cache so data is instantly available across components ──
+let _cachedClients: ClientRecord[] = [];
+let _cachedClientsMap: Record<string, ClientRecord> = {};
+let _cacheReady = false;
+
 export function useClients(): UseClientsReturn {
-  const [clients, setClients] = useState<ClientRecord[]>([]);
-  const [clientsMap, setClientsMap] = useState<Record<string, ClientRecord>>({});
-  const [loading, setLoading] = useState(true);
+  const [clients, setClients] = useState<ClientRecord[]>(_cachedClients);
+  const [clientsMap, setClientsMap] = useState<Record<string, ClientRecord>>(_cachedClientsMap);
+  const [loading, setLoading] = useState(!_cacheReady);
   const [error, setError] = useState<string | null>(null);
 
   const fetchClients = useCallback(async () => {
-    setLoading(true);
+    // Only show loading spinner if there is no cached data yet
+    if (!_cacheReady) setLoading(true);
     setError(null);
     try {
       const res = await authFetch('/admin/api/clients');
@@ -26,11 +32,17 @@ export function useClients(): UseClientsReturn {
       const rawList = data?.clients || data;
 
       const list: ClientRecord[] = Array.isArray(rawList) ? rawList : [];
-      setClients(list);
       const map: Record<string, ClientRecord> = {};
       list.forEach((c) => {
         map[String(c.id)] = c;
       });
+
+      // Update module-level cache
+      _cachedClients = list;
+      _cachedClientsMap = map;
+      _cacheReady = true;
+
+      setClients(list);
       setClientsMap(map);
     } catch (e) {
       setError('Hiba az ügyfelek betöltésekor');

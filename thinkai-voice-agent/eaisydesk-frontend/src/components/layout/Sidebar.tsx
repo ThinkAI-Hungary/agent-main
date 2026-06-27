@@ -120,6 +120,12 @@ export default function Sidebar() {
     setCollapsed((prev) => {
       const next = !prev;
       localStorage.setItem('digidesk_sidebar_collapsed', next ? '1' : '0');
+      // Szinkronban frissítjük a body class-t — nincs lag a layout-ban
+      if (next) {
+        document.body.classList.add('sidebar-collapsed');
+      } else {
+        document.body.classList.remove('sidebar-collapsed');
+      }
       return next;
     });
   }, []);
@@ -160,14 +166,15 @@ export default function Sidebar() {
     return () => document.body.classList.remove('sidebar-mobile-open');
   }, [mobileOpen]);
 
-  // Sync collapsed state to body class for CSS layout
+  // Sync collapsed state to body class — initial mount + cleanup
   useEffect(() => {
     if (collapsed) {
       document.body.classList.add('sidebar-collapsed');
     } else {
       document.body.classList.remove('sidebar-collapsed');
     }
-  }, [collapsed]);
+    return () => document.body.classList.remove('sidebar-collapsed');
+  }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   function toggleGroup(groupId: string) {
     setOpenGroups((prev) => {
