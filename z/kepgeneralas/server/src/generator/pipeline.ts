@@ -4,40 +4,43 @@ import { orchestrateOverlayVariants } from './orchestrator';
 import { renderVariant } from './archetypes';
 import { renderPolotnoJSON } from '../renderer';
 
-// ── Flux 2 Pro helper (BFL Direct API) ───────────────────────────────────────
+// ── Flux 2 Flex helper (BFL Direct API) — matches index.ts generateWithFluxFlex ─
 async function generateWithFlux2(prompt: string, width: number, height: number): Promise<string> {
   const bflKey = process.env.BFL_API_KEY;
   if (!bflKey) throw new Error('BFL_API_KEY is not configured in .env');
 
-  console.log(`[FLUX2] Submitting to BFL Flux 2 Pro — ${width}x${height}`);
+  console.log(`[FLUX2-FLEX] Submitting to BFL Flux 2 Flex — ${width}x${height} with safety_tolerance=5`);
 
   const submitResponse = await axios.post(
-    'https://api.bfl.ai/v1/flux-2-pro',
-    { prompt, width, height, output_format: 'jpeg', safety_tolerance: 2 },
+    'https://api.bfl.ai/v1/flux-2-flex',
+    { prompt, width, height, aspect_ratio: '2:3', output_format: 'jpeg', safety_tolerance: 5, guidance: 4.5, steps: 50 },
     { headers: { 'X-Key': bflKey, 'Content-Type': 'application/json' }, timeout: 30000 }
   );
 
   const taskId = submitResponse.data?.id;
   const pollingUrl = submitResponse.data?.polling_url;
-  if (!taskId || !pollingUrl) throw new Error(`BFL submit failed: ${JSON.stringify(submitResponse.data)}`);
-  console.log(`[FLUX2] Task submitted: ${taskId}`);
+  if (!taskId || !pollingUrl) throw new Error(`BFL Flex submit failed: ${JSON.stringify(submitResponse.data)}`);
+  console.log(`[FLUX2-FLEX] Task submitted: ${taskId}`);
 
   const pollStart = Date.now();
   while (Date.now() - pollStart < 120000) {
     await new Promise(r => setTimeout(r, 2000));
     const statusResp = await axios.get(pollingUrl, { headers: { 'X-Key': bflKey }, timeout: 10000 });
     const { status, result } = statusResp.data;
-    console.log(`[FLUX2] Poll: ${status} (${((Date.now() - pollStart) / 1000).toFixed(0)}s)`);
+    console.log(`[FLUX2-FLEX] Poll: ${status} (${((Date.now() - pollStart) / 1000).toFixed(0)}s)`);
     if (status === 'Ready') {
       const url = result?.sample;
       if (!url) throw new Error('BFL returned Ready but no sample URL');
       return url;
     } else if (status === 'Failed') {
-      throw new Error(`BFL Flux 2 failed: ${JSON.stringify(statusResp.data?.error || statusResp.data)}`);
+      throw new Error(`BFL Flex 2 failed: ${JSON.stringify(statusResp.data?.error || statusResp.data)}`);
+    } else if (status && typeof status === 'string' && status.toLowerCase().includes('moderated')) {
+      throw new Error(`BFL request was moderated/blocked by safety filters.`);
     }
   }
-  throw new Error('BFL Flux 2 timed out after 2 minutes');
+  throw new Error('BFL Flux 2 Flex timed out after 2 minutes');
 }
+
 
 // Helper to pick a high-quality stock photo URL based on keywords
 function getStockImageUrl(query: string = ''): string {

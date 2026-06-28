@@ -192,6 +192,8 @@ export interface PostCreative {
   publishedAt?: string;
   instagramUrl?: string;
   failureReason?: string;
+  generationModel?: string;
+  generationTime?: number;
 }
 
 export interface Brief {

@@ -3,6 +3,7 @@ import type { BrandKit, PostCreative } from '../types';
 import { fixImageUrl } from '../types';
 import { buildLayerTemplates, type LayerTemplate } from '../layerTemplates';
 import { Layers, Loader } from 'lucide-react';
+import ImageSlotUploader, { type ImageSlot, buildCompositePayload } from './ImageSlotUploader';
 
 // ─── Icons (inline SVG) ───────────────────────────────────────────────────────
 const Zap     = ({ size = 18 }: { size?: number }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
@@ -21,6 +22,8 @@ interface QuickPostResult {
   style: string;
   variations: string[];
   rawImages: string[];
+  generationModel?: string;
+  generationTime?: number;
 }
 
 interface QuickPostViewProps {
@@ -76,14 +79,10 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
   const [copied, setCopied]           = useState(false);
   const [saved, setSaved]             = useState(false);
 
-  // Uploaded product image state
-  const [productImage, setProductImage] = useState<string | null>(null);
-  const [preprocessedUrl, setPreprocessedUrl] = useState<string | null>(null);
-  const [originalUrl, setOriginalUrl] = useState<string | null>(null);
-  const [productFileName, setProductFileName] = useState('');
-  const [isPreprocessing, setIsPreprocessing] = useState(false);
-  const [preprocessError, setPreprocessError] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Multi-slot image upload (replaces single productImage/preprocessedUrl)
+  const [imageSlots, setImageSlots] = useState<ImageSlot[]>([]);
+  const isPreprocessing = imageSlots.some(s => s.preprocessLoading || s.analysisLoading || s.upscaleLoading);
+
 
   // Layer Template state
   const [selectedLayerTemplateId, setSelectedLayerTemplateId] = useState<string | null>(null);
@@ -403,38 +402,7 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
     applyTemplateToVariant(activeVariant, templateId);
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setProductFileName(file.name);
-    setPreprocessedUrl(null);
-    setOriginalUrl(null);
-    setPreprocessError('');
 
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const base64 = ev.target?.result as string;
-      setProductImage(base64);
-      setIsPreprocessing(true);
-      try {
-        const resp = await fetch('http://localhost:3001/api/image/preprocess', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: base64 }),
-        });
-        if (!resp.ok) throw new Error(await resp.text());
-        const data = await resp.json();
-        setPreprocessedUrl(data.url);
-        setOriginalUrl(data.originalUrl || null);
-      } catch (err: any) {
-        console.error(err);
-        setPreprocessError(`Hiba: ${err.message}`);
-      } finally {
-        setIsPreprocessing(false);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
 
   // Products from audit
   const products: { name: string; page_url?: string }[] = auditResult?.products || [];
@@ -475,52 +443,77 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
         brandName && `Márka: ${brandName}`,
       ].filter(Boolean).join('. ');
 
-      // Call the existing generate-adhoc endpoint
-      const resp = await fetch('http://localhost:3001/api/generate-adhoc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          brief,
-          brandKit: activeBrandKit,
-          templateId: 'product',
-          colorVariation: 'default',
-          logoVariant: 'dark',
-          productImageUrl: originalUrl || productImage,
-          preprocessedImageUrl: preprocessedUrl
-        }),
-      });
+      // Call composite-generate if multiple slots, or generate-adhoc for single slot
+      let rawMain: string;
+      let captionText: string;
+      let hashtagsText: string;
+      let genModel = '';
+      let genTime = 0;
+
+      if (imageSlots.length > 1) {
+        // Multi-slot composite generation
+        const compositeResp = await fetch('http://localhost:3001/api/image/composite-generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildCompositePayload(imageSlots, brief, activeBrandKit)),
+        });
+        if (!compositeResp.ok) throw new Error(await compositeResp.text());
+        const compositeData = await compositeResp.json();
+        rawMain = compositeData.imageUrl?.startsWith('http') ? compositeData.imageUrl : `http://localhost:3001${compositeData.imageUrl}`;
+        captionText = `${subject}\n\n${brandName} — ${style}`;
+        hashtagsText = `#${brandName.replace(/\s+/g, '')} #social #marketing`;
+        genModel = compositeData.generationModel;
+        genTime = compositeData.generationTime;
+      } else {
+        // Single slot or no image — standard adhoc
+        const primarySlot = imageSlots[0];
+        const resp = await fetch('http://localhost:3001/api/generate-adhoc', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            brief,
+            brandKit: activeBrandKit,
+            templateId: 'product',
+            colorVariation: 'default',
+            logoVariant: 'dark',
+            productImageUrl: primarySlot?.originalUrl || null,
+            preprocessedImageUrl: primarySlot?.upscaledUrl || primarySlot?.preprocessedUrl || null,
+          }),
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        const data = await resp.json();
+        const rawMainUrl = data.originalImageUrl || data.imageUrl;
+        rawMain = rawMainUrl?.startsWith('http') ? rawMainUrl : `http://localhost:3001${rawMainUrl}`;
+        captionText = data.text || `${subject}\n\n${brandName} — ${style}`;
+        hashtagsText = (data.hashtags || []).join(' ') || `#${brandName.replace(/\s+/g, '')} #social #marketing`;
+        genModel = data.generationModel;
+        genTime = data.generationTime;
+      }
+
 
       clearInterval(timerRef.current!);
 
-      if (!resp.ok) throw new Error(await resp.text());
-      const data = await resp.json();
-
-      // Build 3 image variations (main + 2 seeds)
-      // Always generate the image itself without the layer by using the raw original image initially
-      const rawMainUrl = data.originalImageUrl || data.imageUrl;
-      const rawMain = rawMainUrl?.startsWith('http') ? rawMainUrl : `http://localhost:3001${rawMainUrl}`;
-      const var2    = makePlaceholderUrl(`${subject}-v2`, 1080, 1350);
-      const var3    = makePlaceholderUrl(`${subject}-v3`, 1080, 1350);
-
-      // Build caption
-      const caption = data.text || `${subject}\n\n${brandName} — ${style}`;
-      const hashtags = (data.hashtags || []).join(' ') || `#${brandName.replace(/\s+/g, '')} #social #marketing`;
+      // Build 3 image variations
+      const var2 = makePlaceholderUrl(`${subject}-v2`, 1080, 1350);
+      const var3 = makePlaceholderUrl(`${subject}-v3`, 1080, 1350);
 
       setResult({
         imageUrl:   rawMain,
-        caption,
-        hashtags,
+        caption:    captionText,
+        hashtags:   hashtagsText,
         platform,
         style,
         variations: [rawMain, var2, var3],
-        rawImages: [rawMain, var2, var3],
+        rawImages:  [rawMain, var2, var3],
+        generationModel: genModel || undefined,
+        generationTime: genTime || undefined,
       });
-      setEditCaption(caption);
-      setEditHashtags(hashtags);
+      setEditCaption(captionText);
+      setEditHashtags(hashtagsText);
       setActiveVariant(0);
 
-      // Initialize the layer customization values
-      setEditingText(caption);
+      // Initialize layer customization
+      setEditingText(captionText);
       setEditingCta(selectedProduct ? 'Megnézem' : 'Érdekel');
       setEditingLogoPosition(activeBrandKit.logoPosition || 'top-left');
       setEditingLogoVariant('dark');
@@ -625,6 +618,8 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
         hashtags: editHashtags.split(/\s+/).filter(t => t.startsWith('#')),
         createdAt: new Date().toISOString(),
         scheduledAt: new Date(Date.now() + 86400000).toISOString(),
+        generationModel: result.generationModel,
+        generationTime: result.generationTime,
       };
       if (onSavePost) {
         onSavePost(postToSave);
@@ -771,91 +766,15 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
               </div>
             )}
 
-            {/* 4.5. Product Image Upload */}
+            {/* 4.5. Multi-image slot uploader */}
             <div style={{ padding: '20px 24px', borderRadius: 14, background: 'var(--bg3, rgba(255,255,255,0.03))', border: '1.5px solid var(--border)' }}>
-              <label style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 12, display: 'block' }}>
-                📷 Termék fotó feltöltése (opcionális, háttér-eltávolítással)
-              </label>
-              
-              <div 
-                onClick={() => !isPreprocessing && fileInputRef.current?.click()}
-                style={{
-                  border: '2px dashed var(--border)',
-                  borderRadius: 12,
-                  padding: '24px 16px',
-                  textAlign: 'center',
-                  cursor: isPreprocessing ? 'not-allowed' : 'pointer',
-                  background: 'rgba(0,0,0,0.2)',
-                  transition: 'all 0.15s ease',
-                  position: 'relative',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  justifyContent: 'center',
-                  gap: 8,
-                }}
-                onMouseEnter={e => { if(!isPreprocessing) e.currentTarget.style.borderColor = primaryColor; }}
-                onMouseLeave={e => { if(!isPreprocessing) e.currentTarget.style.borderColor = 'var(--border)'; }}
-              >
-                {preprocessedUrl || productImage ? (
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 16, width: '100%' }}>
-                    <div style={{ position: 'relative', width: 64, height: 64, borderRadius: 8, overflow: 'hidden', background: 'rgba(0,0,0,0.5)', border: '1px solid var(--border)' }}>
-                      <img 
-                        src={preprocessedUrl || productImage || ''} 
-                        alt="Termék előnézet" 
-                        style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
-                      />
-                    </div>
-                    <div style={{ flex: 1, textAlign: 'left' }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', wordBreak: 'break-all' }}>{productFileName}</div>
-                      <div style={{ display: 'flex', gap: 8, marginTop: 4, alignItems: 'center' }}>
-                        {isPreprocessing && (
-                          <span style={{ fontSize: 11, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 4 }}>
-                            <svg className="qp-spin" width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="4.93" y1="4.93" x2="7.76" y2="7.76"/><line x1="16.24" y1="16.24" x2="19.07" y2="19.07"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/><line x1="4.93" y1="19.07" x2="7.76" y2="16.24"/><line x1="16.24" y1="7.76" x2="19.07" y2="4.93"/></svg>
-                            Háttér eltávolítása...
-                          </span>
-                        )}
-                        {preprocessedUrl && <span style={{ fontSize: 11, color: '#10b981', fontWeight: 700 }}>✓ Háttér sikeresen eltávolítva</span>}
-                        {preprocessError && <span style={{ fontSize: 11, color: '#ef4444' }}>{preprocessError}</span>}
-                      </div>
-                    </div>
-                    <button 
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setProductImage(null);
-                        setPreprocessedUrl(null);
-                        setOriginalUrl(null);
-                        setProductFileName('');
-                        setPreprocessError('');
-                        if (fileInputRef.current) fileInputRef.current.value = '';
-                      }}
-                      style={{
-                        padding: '6px 12px',
-                        borderRadius: 8,
-                        background: 'rgba(239, 68, 68, 0.1)',
-                        border: '1px solid rgba(239, 68, 68, 0.25)',
-                        color: '#ef4444',
-                        fontSize: 11,
-                        fontWeight: 700,
-                        cursor: 'pointer',
-                      }}
-                    >
-                      Eltávolítás
-                    </button>
-                  </div>
-                ) : (
-                  <>
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.6 }}>
-                      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                      <polyline points="17 8 12 3 7 8"/>
-                      <line x1="12" y1="3" x2="12" y2="15"/>
-                    </svg>
-                    <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--text-muted)' }}>Kattints ide a termék fotó feltöltéséhez</span>
-                    <span style={{ fontSize: 10.5, color: 'var(--text-dim)' }}>PNG, JPG (a háttér automatikusan le lesz vágva)</span>
-                  </>
-                )}
-              </div>
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} style={{ display: 'none' }} />
+              <ImageSlotUploader
+                slots={imageSlots}
+                onChange={setImageSlots}
+                maxSlots={3}
+                disabled={false}
+                label="Képek csatolása (opcionális)"
+              />
             </div>
 
             {/* Generate button */}
@@ -1345,6 +1264,20 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
                   </div>
                 </div>
               </div>
+
+              {/* Generation Info Badge */}
+              {result.generationModel && (
+                <div style={{
+                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
+                  padding: '6px 12px', borderRadius: 8, background: 'rgba(255, 255, 255, 0.03)',
+                  border: '1px solid rgba(255, 255, 255, 0.08)', fontSize: 11, fontWeight: 600,
+                  color: 'var(--text-muted)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px'
+                }}>
+                  <span>⚡ Modell: <strong style={{ color: '#a78bfa', fontWeight: 800 }}>{result.generationModel}</strong></span>
+                  <span style={{ color: 'rgba(255,255,255,0.2)' }}>|</span>
+                  <span>Generálási idő: <strong style={{ color: '#34d399', fontWeight: 800 }}>{result.generationTime ? `${result.generationTime.toFixed(1)}s` : 'N/A'}</strong></span>
+                </div>
+              )}
 
               {/* 3 variation thumbnails */}
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>

@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import type { BrandKit, SystemLog, Campaign, CampaignItem, PostCreative, ABTestVariant, CampaignPhase } from '../types';
 import { fixImageUrl } from '../types';
 import { buildLayerTemplates } from '../layerTemplates';
+import ImageSlotUploader, { type ImageSlot, buildCompositePayload } from './ImageSlotUploader';
 import {
   Sparkles,
   UploadCloud,
@@ -39,9 +40,11 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
   const [briefText, setBriefText] = useState('Prémium világos pörkölésű etióp kávénk bevezetése a tavaszi szezonban.');
   const [stylePreset, setStylePreset] = useState('Tavaszi terasz');
   const [dragActive, setDragActive] = useState(false);
-  const [_rawProductImage, setRawProductImage] = useState<string | null>(null);
-  const [productImageUrl, setProductImageUrl] = useState<string | null>(null);
-  const [isPreprocessing, setIsPreprocessing] = useState(false);
+  // Multi-slot image upload (replaces single productImageUrl)
+  const [imageSlots, setImageSlots] = useState<ImageSlot[]>([]);
+  // Derived backward-compat: first product slot's upscaledUrl, preprocessedUrl or originalUrl
+  const productImageUrl = imageSlots[0]?.upscaledUrl || imageSlots[0]?.preprocessedUrl || imageSlots[0]?.originalUrl || null;
+  const isPreprocessing = imageSlots.some(s => s.preprocessLoading || s.analysisLoading || s.upscaleLoading);
   const [preprocessWarning, setPreprocessWarning] = useState<string | null>(null);
 
   // Flow 3 new fields
@@ -124,87 +127,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
     { title: 'Logó renderelés', desc: 'Playwright: logó watermark ráhelyezése.', icon: CheckCircle },
   ];
 
-  // Drag and Drop files upload handler
-  const handleDrag = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    if (e.type === "dragenter" || e.type === "dragover") {
-      setDragActive(true);
-    } else if (e.type === "dragleave") {
-      setDragActive(false);
-    }
-  };
 
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    e.stopPropagation();
-    setDragActive(false);
-
-    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
-      processSelectedFile(e.dataTransfer.files[0]);
-    }
-  };
-
-  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    if (e.target.files && e.target.files[0]) {
-      processSelectedFile(e.target.files[0]);
-    }
-    // Reset input so the same file can be re-selected
-    e.target.value = '';
-  };
-
-
-
-  const processSelectedFile = (file: File) => {
-    // Validate file type
-    if (!file.type.startsWith('image/')) {
-      alert('Csak képfájlokat fogadunk el (PNG, JPG, WEBP).');
-      return;
-    }
-    // Validate file size (max 10MB)
-    if (file.size > 10 * 1024 * 1024) {
-      alert('A fájl túl nagy. Maximum 10 MB méretű képet tölthetsz fel.');
-      return;
-    }
-
-    setPreprocessWarning(null);
-
-    // Immediately show preview via object URL
-    const objectUrl = URL.createObjectURL(file);
-    setProductImageUrl(objectUrl);
-
-    const reader = new FileReader();
-    reader.readAsDataURL(file);
-    reader.onloadend = async () => {
-      const base64 = reader.result as string;
-      setRawProductImage(base64);
-      
-      // Attempt background removal via Bria AI
-      setIsPreprocessing(true);
-      try {
-        const response = await fetch('http://localhost:3001/api/image/preprocess', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: base64 })
-        });
-
-        if (!response.ok) {
-          throw new Error(await response.text());
-        }
-
-        const data = await response.json();
-        // Replace preview with the background-removed version
-        URL.revokeObjectURL(objectUrl);
-        setProductImageUrl(fixImageUrl(data.url));
-      } catch (err: any) {
-        console.error('[PREPROCESS]', err);
-        // Keep the raw objectUrl as fallback — user can still proceed
-        setPreprocessWarning('Hatter eltavolitas sikertelen — eredeti kep hasznalata. (' + (err.message || err) + ')');
-      } finally {
-        setIsPreprocessing(false);
-      }
-    };
-  };
 
   const goalTypeLabels: Record<string, string> = {
     'product-launch': '🚀 Termékbevezető',
@@ -976,42 +899,19 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
             {/* Right Column: Drag & Drop Product File */}
             <div className="landing-right-col">
               <div className="form-group">
-                <label>Termékfotó feltöltése (Bria AI háttér-eltávolítással):</label>
-                <div
-                  className={`file-drop-area ${dragActive ? 'active' : ''} ${productImageUrl ? 'has-image' : ''}`}
-                  onDragEnter={handleDrag}
-                  onDragOver={handleDrag}
-                  onDragLeave={handleDrag}
-                  onDrop={handleDrop}
-                >
-                  {isPreprocessing ? (
-                    <div className="drop-loader">
-                      <Loader size={36} className="spinner" />
-                      <span>Termék kivágása a háttérből...</span>
-                    </div>
-                  ) : productImageUrl ? (
-                    <div className="isolated-preview-container">
-                      <div className="checkerboard-bg">
-                        <img src={productImageUrl} alt="Isolated product" className="isolated-img" />
-                      </div>
-                      {preprocessWarning && (
-                        <div className="preprocess-warning-badge">
-                          ⚠️ {preprocessWarning}
-                        </div>
-                      )}
-                      <button className="remove-img-btn" onClick={() => { setProductImageUrl(null); setRawProductImage(null); setPreprocessWarning(null); }}>
-                        Törlés és Új feltöltés
-                      </button>
-                    </div>
-                  ) : (
-                    <label className="drop-label">
-                      <UploadCloud size={38} className="upload-icon" />
-                      <span className="title">Húzd ide a termékfotót, vagy kattints a tallózáshoz</span>
-                      <span className="sub">PNG, JPG formátum támogatott</span>
-                      <input type="file" onChange={handleFileChange} accept="image/*" className="hidden-file-input" />
-                    </label>
-                  )}
-                </div>
+                <label>Képek csatolása (Claude Vision elemzéssel, termékhűség-védelemmel):</label>
+                <ImageSlotUploader
+                  slots={imageSlots}
+                  onChange={setImageSlots}
+                  maxSlots={3}
+                  disabled={isGenerating}
+                  label="Termékfotó és kontextus képek"
+                />
+                {preprocessWarning && (
+                  <div className="preprocess-warning-badge" style={{ marginTop: 6 }}>
+                    ⚠️ {preprocessWarning}
+                  </div>
+                )}
               </div>
 
               <button

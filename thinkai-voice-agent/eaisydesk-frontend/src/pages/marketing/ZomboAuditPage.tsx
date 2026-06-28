@@ -975,6 +975,10 @@ export default function ZomboAuditPage() {
         let targetOrigin = '';
         try { targetOrigin = new URL(d?.url || '').origin; } catch { targetOrigin = d?.url || ''; }
         const h1s = seo.h1_texts || [];
+        // FIX: Canonical — ha a boolean hiányzik/hamis, de a deductions_detail szerint mégis megvan, azt vesszük figyelembe
+        const canonicalFromDetail = seo.deductions_detail?.find(dd => dd.criterion?.toLowerCase().includes('kanonikus') || dd.criterion?.toLowerCase().includes('canonical'));
+        const hasCanonical = seo.has_canonical || (canonicalFromDetail ? canonicalFromDetail.points > 0 : false);
+        const canonicalUrl = canonicalFromDetail?.reason?.match(/https?:\/\/[^\s'"]+/)?.[0] || '';
 
         return (
           <>
@@ -982,14 +986,10 @@ export default function ZomboAuditPage() {
             {/* KPI Cards */}
             <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(220px, 1fr))', gap: 16, marginBottom: 24 }}>
               <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 20 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SEO Audit Pontszam</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>SEO Audit Pontszám</div>
                 <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', marginTop: 8, display: 'flex', alignItems: 'center', gap: 8 }}>
                   {seo.score}/100 <ScoreBadge score={seo.score} />
                 </div>
-              </div>
-              <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 20 }}>
-                <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Szavak száma</div>
-                <div style={{ fontSize: 24, fontWeight: 700, color: 'var(--text)', marginTop: 8 }}>{d?.content?.word_count ?? '—'} szó</div>
               </div>
               <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 14, padding: 20 }}>
                 <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Vizuális hangulat</div>
@@ -1003,11 +1003,11 @@ export default function ZomboAuditPage() {
                 <tbody>
                   <InfoRow label="Meta Title">
                     <div style={{ fontWeight: 600, marginBottom: 2 }}>"{seo.title || 'Nincs megadva'}"</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Hosszusag: {(seo.title || '').length} karakter (ajanlott: 40-70)</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Hosszúság: {[...(seo.title || '')].length} karakter (ajánlott: 50-60)</div>
                   </InfoRow>
                   <InfoRow label="Meta Description">
                     <div style={{ lineHeight: 1.4, marginBottom: 2 }}>"{seo.description || 'Nincs megadva'}"</div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Hosszusag: {(seo.description || '').length} karakter (ajanlott: 110-160)</div>
+                    <div style={{ fontSize: 11, color: 'var(--text-muted)' }}>Hosszúság: {[...(seo.description || '')].length} karakter (ajánlott: 150-160)</div>
                   </InfoRow>
                   <InfoRow label="Címsorok (H1-H3)">
                     <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', marginBottom: 6 }}>
@@ -1018,7 +1018,9 @@ export default function ZomboAuditPage() {
                     <div style={{ fontSize: 11, fontWeight: 600, marginTop: 8, color: 'var(--text-muted)' }}>Megtalált H1 címsorok:</div>
                     {h1s.length > 0 ? h1s.map((h, i) => (
                       <div key={i} style={{ fontFamily: 'monospace', background: 'var(--bg3)', padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', marginTop: 4, fontSize: 11, color: 'var(--text)' }}>{h}</div>
-                    )) : <div style={{ color: '#ef4444', fontSize: 11, marginTop: 2 }}>Nincs H1 címsor az oldalon!</div>}
+                    )) : seo.h1_count > 0
+                        ? <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2, fontStyle: 'italic' }}>A backend {seo.h1_count} db H1-et talált, de a szövegek részletezése nem érhető el.</div>
+                        : <div style={{ color: '#ef4444', fontSize: 11, marginTop: 2 }}>Nincs H1 címsor az oldalon!</div>}
                   </InfoRow>
                   <InfoRow label="Képek">
                     <div>Összesen: {seo.total_images} kép</div>
@@ -1059,9 +1061,12 @@ export default function ZomboAuditPage() {
                       : <span style={{ color: '#ef4444', fontWeight: 600 }}>Nincs strukturált adat (JSON-LD)</span>}
                   </InfoRow>
                   <InfoRow label="Canonical Link">
-                    {seo.has_canonical
-                      ? <span style={{ color: '#22c55e', fontWeight: 600 }}>Canonical tag megaltalva</span>
-                      : <span style={{ color: '#ef4444', fontWeight: 600 }}>Hianyzo canonical tag</span>}
+                    {hasCanonical
+                      ? <>
+                          <span style={{ color: '#22c55e', fontWeight: 600 }}>Canonical tag megtalálva</span>
+                          {canonicalUrl && <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-muted)', marginTop: 2, wordBreak: 'break-all' }}>{canonicalUrl}</div>}
+                        </>
+                      : <span style={{ color: '#ef4444', fontWeight: 600 }}>Hiányzó canonical tag</span>}
                   </InfoRow>
                   <InfoRow label="Mobilbarát">
                     {seo.has_viewport
@@ -1259,6 +1264,19 @@ export default function ZomboAuditPage() {
           <>
           <CategoryEvalButton tabId="content" />
           <SectionCard title="AI Tartalom Elemzés" icon="">
+            {/* Word count KPI */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 24, padding: '12px 16px', background: 'var(--bg3)', borderRadius: 10, border: '1px solid var(--border)', marginBottom: 20 }}>
+              <div>
+                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-dim)', letterSpacing: '0.5px' }}>Szavak száma</div>
+                <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginTop: 2 }}>{c.word_count ?? '—'} <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>szó</span></div>
+              </div>
+              <div style={{ width: 1, height: 36, background: 'var(--border)' }} />
+              <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                {(c.word_count ?? 0) < 300 && <span style={{ color: '#ef4444' }}>⚠ Alacsony szószám — ajánlott legalább 500 szó.</span>}
+                {(c.word_count ?? 0) >= 300 && (c.word_count ?? 0) < 600 && <span style={{ color: '#f59e0b' }}>Közepes szószám — fejleszthető.</span>}
+                {(c.word_count ?? 0) >= 600 && <span style={{ color: '#22c55e' }}>Jó tartalommennyiség.</span>}
+              </div>
+            </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
               <div style={{ padding: 16, background: 'var(--bg3)', borderRadius: 12, border: '1px solid var(--border)' }}>
                 <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-dim)', letterSpacing: '0.5px' }}>Üzleti Kategória</div>
@@ -1274,7 +1292,7 @@ export default function ZomboAuditPage() {
               <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7, padding: '12px 16px', background: 'var(--bg3)', borderRadius: 10, border: '1px solid var(--border)' }}>{c.summary || '—'}</div>
             </div>
             <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>SEO Tanács</div>
+              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Tartalmi &amp; SEO Javaslatok</div>
               <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7, padding: '12px 16px', background: 'var(--bg3)', borderRadius: 10, border: '1px solid var(--border)' }}>{c.seo_advice || '—'}</div>
             </div>
 
@@ -1314,10 +1332,13 @@ export default function ZomboAuditPage() {
                         {dp.inferred_popularity && <span style={{ fontSize: 10, padding: '2px 7px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', borderRadius: 5, fontWeight: 700 }}>{dp.inferred_popularity}</span>}
                       </div>
                     </div>
-                    {dp.words && dp.words.length > 0 && (
+                    {dp.words && dp.words.length > 0 ? (
                       <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                        {dp.words.slice(0, 8).map((w, j) => <Tag key={j} color="#6366f1">{w}</Tag>)}
+                        {dp.words.slice(0, 12).map((w, j) => <Tag key={j} color="#6366f1">{w}</Tag>)}
+                        {dp.words.length > 12 && <Tag color="#94a3b8">+{dp.words.length - 12} további</Tag>}
                       </div>
+                    ) : (
+                      <div style={{ fontSize: 11, color: 'var(--text-dim)', fontStyle: 'italic' }}>Nincs kiegészítő kulcsszó.</div>
                     )}
                   </div>
                 ))}
@@ -1331,17 +1352,38 @@ export default function ZomboAuditPage() {
               <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
                 {c.images_analysis.map((img, i) => (
                   <div key={i} style={{ padding: 14, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 12 }}>
-                    {img.url && (
-                      <img src={img.url} alt={img.alt_text || `Kep ${i+1}`}
-                        style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 8, marginBottom: 10, border: '1px solid var(--border)' }}
-                        onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                    {img.url ? (
+                      <>
+                        <img src={img.url} alt={img.alt_text || `Kep ${i+1}`}
+                          style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 8, marginBottom: 10, border: '1px solid var(--border)' }}
+                          onError={e => {
+                            const el = e.target as HTMLImageElement;
+                            el.style.display = 'none';
+                            const next = el.nextElementSibling as HTMLElement | null;
+                            if (next) next.style.display = 'flex';
+                          }} />
+                        <div style={{ display: 'none', alignItems: 'center', gap: 6, height: 40, marginBottom: 10, padding: '6px 10px', background: 'var(--bg)', borderRadius: 6, border: '1px dashed var(--border)' }}>
+                          <span style={{ fontSize: 16 }}>🖼️</span>
+                          <span style={{ fontSize: 10, color: 'var(--text-muted)', wordBreak: 'break-all', fontFamily: 'monospace', flex: 1 }}>{img.url.length > 60 ? '...' + img.url.slice(-50) : img.url}</span>
+                        </div>
+                      </>
+                    ) : (
+                      <div style={{ height: 40, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', borderRadius: 6, border: '1px dashed var(--border)' }}>
+                        <span style={{ fontSize: 11, color: 'var(--text-dim)', fontStyle: 'italic' }}>Nincs kép URL</span>
+                      </div>
                     )}
                     {img.dominant_colors && img.dominant_colors.length > 0 && (
-                      <div style={{ display: 'flex', gap: 5, marginBottom: 8 }}>
+                      <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
                         {img.dominant_colors.map((col, j) => (
                           <div key={j} title={col} style={{ width: 20, height: 20, borderRadius: 4, background: col, border: '1.5px solid rgba(0,0,0,0.15)', cursor: 'pointer' }}
                             onClick={() => { navigator.clipboard.writeText(col); showToast('Szín másolva: ' + col); }} />
                         ))}
+                        <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 2 }}>domináns színek</span>
+                      </div>
+                    )}
+                    {img.alt_text && (
+                      <div style={{ fontSize: 10, fontStyle: 'italic', color: 'var(--text-dim)', marginBottom: 4 }}>
+                        alt: "{img.alt_text}"
                       </div>
                     )}
                     {img.visual_description && (
@@ -1987,6 +2029,24 @@ export default function ZomboAuditPage() {
               })}
             </div>
 
+            {/* ── Globális Modell Info Sáv ── */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 14px', marginBottom: 16, background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.18)', borderRadius: 10, flexWrap: 'wrap' }}>
+              <span style={{ fontSize: 11, color: 'var(--text-dim)' }}>Képgenerálás:</span>
+              <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 9px', background: 'rgba(139,92,246,0.14)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 6, fontSize: 10, fontWeight: 700, color: '#a78bfa' }}>
+                ⚡ BFL Flux 2 Flex
+              </span>
+              <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>•</span>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>aspect: 2:3</span>
+              <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>•</span>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>guidance: 4.5</span>
+              <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>•</span>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>steps: 50</span>
+              <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>•</span>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>safety: 1</span>
+              <span style={{ fontSize: 10, color: 'var(--text-dim)' }}>•</span>
+              <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>1024×1536 px</span>
+            </div>
+
             {/* Sub-tab Content Area */}
             <div className="zombo-studio-content" style={{ background: 'var(--bg-main)', backgroundImage: 'var(--bg-gradient)', borderRadius: 16, border: '1px solid var(--panel-border)', padding: 24, minHeight: '60vh' }}>
 
@@ -2071,8 +2131,11 @@ export default function ZomboAuditPage() {
                         <div style={{ fontSize: 18, fontWeight: 700, color: 'var(--text)', display: 'flex', alignItems: 'center', gap: 8 }}>
                           🤖 AI Social Media Manager
                         </div>
-                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4 }}>
-                          10 poszt + kép, kizárólag a kinyert brand DNA alapján • Flux 2 Pro
+                        <div style={{ fontSize: 12, color: 'var(--text-muted)', marginTop: 4, display: 'flex', alignItems: 'center', gap: 8 }}>
+                          10 poszt + kép, kizárólag a kinyert brand DNA alapján
+                          <span style={{ display: 'inline-flex', alignItems: 'center', gap: 4, padding: '2px 8px', background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 6, fontSize: 10, fontWeight: 700, color: '#a78bfa', letterSpacing: '0.3px' }}>
+                            ⚡ Flux 2 Flex &bull; 1024×1024 &bull; guidance 4.5
+                          </span>
                         </div>
                       </div>
                       <button

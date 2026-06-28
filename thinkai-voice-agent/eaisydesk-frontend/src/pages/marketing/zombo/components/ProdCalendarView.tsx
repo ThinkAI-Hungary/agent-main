@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { buildLayerTemplates, type LayerTemplate } from '../layerTemplates';
+import ImageSlotUploader, { type ImageSlot, buildCompositePayload } from './ImageSlotUploader';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -206,47 +207,9 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
   const [createScheduledDate, setCreateScheduledDate] = useState('');
   const [isGeneratingAdhoc, setIsGeneratingAdhoc] = useState(false);
 
-  // Uploaded product image state for ad-hoc modal
-  const [adhocProductImage, setAdhocProductImage] = useState<string | null>(null);
-  const [adhocPreprocessedUrl, setAdhocPreprocessedUrl] = useState<string | null>(null);
-  const [adhocOriginalUrl, setAdhocOriginalUrl] = useState<string | null>(null);
-  const [adhocProductFileName, setAdhocProductFileName] = useState('');
-  const [adhocIsPreprocessing, setAdhocIsPreprocessing] = useState(false);
-  const [adhocPreprocessError, setAdhocPreprocessError] = useState('');
-  const adhocFileInputRef = useRef<HTMLInputElement>(null);
+  // Multi-slot image upload for ad-hoc modal (replaces single adhocProductImage)
+  const [adhocImageSlots, setAdhocImageSlots] = useState<ImageSlot[]>([]);
 
-  const handleAdhocFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setAdhocProductFileName(file.name);
-    setAdhocPreprocessedUrl(null);
-    setAdhocOriginalUrl(null);
-    setAdhocPreprocessError('');
-
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const base64 = ev.target?.result as string;
-      setAdhocProductImage(base64);
-      setAdhocIsPreprocessing(true);
-      try {
-        const resp = await fetch('http://localhost:3001/api/image/preprocess', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: base64 }),
-        });
-        if (!resp.ok) throw new Error(await resp.text());
-        const data = await resp.json();
-        setAdhocPreprocessedUrl(data.url);
-        setAdhocOriginalUrl(data.originalUrl || null);
-      } catch (err: any) {
-        console.error(err);
-        setAdhocPreprocessError(`Hiba: ${err.message}`);
-      } finally {
-        setAdhocIsPreprocessing(false);
-      }
-    };
-    reader.readAsDataURL(file);
-  };
 
   // Modal Editing State (Screen 4)
   const [editingText, setEditingText] = useState('');
@@ -343,13 +306,8 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
     setCreateLogoVariant('dark');
     setCreateCta('');
 
-    // Reset adhoc product image states
-    setAdhocProductImage(null);
-    setAdhocPreprocessedUrl(null);
-    setAdhocOriginalUrl(null);
-    setAdhocProductFileName('');
-    setAdhocPreprocessError('');
-    if (adhocFileInputRef.current) adhocFileInputRef.current.value = '';
+    // Reset adhoc image slots
+    setAdhocImageSlots([]);
     
     // Default scheduled date is either the clicked date (plus 9:00 AM) or tomorrow 9:00 AM
     if (dateStr) {
@@ -368,34 +326,54 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
   const handleGenerateAdhoc = async () => {
     setIsGeneratingAdhoc(true);
     try {
-      const response = await fetch('http://localhost:3001/api/generate-adhoc', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          brief: createBrief,
-          brandKit: activeBrandKit,
-          customText: createMode === 'custom' ? createCustomText : undefined,
-          customImagePrompt: createMode === 'custom' ? createCustomImagePrompt : undefined,
+      let newPost: any;
+
+      if (adhocImageSlots.length > 1) {
+        // Multi-slot composite generation
+        const scenePrompt = [createBrief, createMode === 'custom' ? createCustomText : ''].filter(Boolean).join('. ');
+        const compositeResp = await fetch('http://localhost:3001/api/image/composite-generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildCompositePayload(adhocImageSlots, scenePrompt, activeBrandKit)),
+        });
+        if (!compositeResp.ok) throw new Error(await compositeResp.text());
+        const compositeData = await compositeResp.json();
+        newPost = {
+          imageUrl: fixImageUrl(compositeData.imageUrl),
+          originalImageUrl: fixImageUrl(compositeData.imageUrl),
+          text: createBrief,
+          logoPosition: activeBrandKit.logoPosition || 'top-left',
+          id: `adhoc-${Date.now()}`,
+          briefId: 'adhoc',
           templateId: createTemplateId,
-          colorVariation: createColorVariation,
-          logoVariant: createLogoVariant,
-          cta: createCta,
-          productImageUrl: adhocOriginalUrl || adhocProductImage,
-          preprocessedImageUrl: adhocPreprocessedUrl
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error(await response.text());
-      }
-
-      const newPost = await response.json();
-      newPost.imageUrl = fixImageUrl(newPost.imageUrl);
-      if (newPost.originalImageUrl) {
-        newPost.originalImageUrl = fixImageUrl(newPost.originalImageUrl);
-      }
-      if (!newPost.logoPosition) {
-        newPost.logoPosition = activeBrandKit.logoPosition || 'top-left';
+          status: 'draft',
+          generationModel: compositeData.generationModel,
+          generationTime: compositeData.generationTime,
+        };
+      } else {
+        // Single slot or no image — standard adhoc
+        const primarySlot = adhocImageSlots[0];
+        const response = await fetch('http://localhost:3001/api/generate-adhoc', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            brief: createBrief,
+            brandKit: activeBrandKit,
+            customText: createMode === 'custom' ? createCustomText : undefined,
+            customImagePrompt: createMode === 'custom' ? createCustomImagePrompt : undefined,
+            templateId: createTemplateId,
+            colorVariation: createColorVariation,
+            logoVariant: createLogoVariant,
+            cta: createCta,
+            productImageUrl: primarySlot?.originalUrl || null,
+            preprocessedImageUrl: primarySlot?.upscaledUrl || primarySlot?.preprocessedUrl || null,
+          })
+        });
+        if (!response.ok) throw new Error(await response.text());
+        newPost = await response.json();
+        newPost.imageUrl = fixImageUrl(newPost.imageUrl);
+        if (newPost.originalImageUrl) newPost.originalImageUrl = fixImageUrl(newPost.originalImageUrl);
+        if (!newPost.logoPosition) newPost.logoPosition = activeBrandKit.logoPosition || 'top-left';
       }
       
       // Update schedule date to the chosen date
@@ -527,7 +505,9 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
           hashtags: item.hashtags || [],
           altText: item.altText || '',
           createdAt: new Date().toISOString(),
-          scheduledAt: scheduledDate.toISOString()
+          scheduledAt: scheduledDate.toISOString(),
+          generationModel: item.generationModel || undefined,
+          generationTime: item.generationTime || undefined
         };
       });
 
@@ -2731,102 +2711,17 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
                 </div>
               </div>
 
-              {/* Product Image Upload */}
+              {/* Multi-image slot uploader */}
               <div style={{ padding: '16px 20px', borderRadius: 12, background: 'var(--bg3, rgba(255,255,255,0.03))', border: '1.5px solid var(--border)' }}>
-                <label style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 10, display: 'block' }}>
-                  📷 Termék fotó feltöltése (opcionális, háttér-eltávolítással)
-                </label>
-                
-                <div 
-                  onClick={() => !adhocIsPreprocessing && adhocFileInputRef.current?.click()}
-                  style={{
-                    border: '2px dashed var(--border)',
-                    borderRadius: 10,
-                    padding: '20px 14px',
-                    textAlign: 'center',
-                    cursor: adhocIsPreprocessing ? 'not-allowed' : 'pointer',
-                    background: 'rgba(0,0,0,0.2)',
-                    transition: 'all 0.15s ease',
-                    position: 'relative',
-                    display: 'flex',
-                    flexDirection: 'column',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    gap: 8,
-                  }}
-                  onMouseEnter={e => { if(!adhocIsPreprocessing) e.currentTarget.style.borderColor = activeBrandKit?.colors?.primary || '#8b5cf6'; }}
-                  onMouseLeave={e => { if(!adhocIsPreprocessing) e.currentTarget.style.borderColor = 'var(--border)'; }}
-                >
-                  {adhocPreprocessedUrl || adhocProductImage ? (
-                    <div style={{ display: 'flex', alignItems: 'center', gap: 14, width: '100%' }}>
-                      <div style={{ position: 'relative', width: 56, height: 56, borderRadius: 8, overflow: 'hidden', background: 'rgba(0,0,0,0.5)', border: '1px solid var(--border)' }}>
-                        <img 
-                          src={adhocPreprocessedUrl || adhocProductImage || ''} 
-                          alt="Termék előnézet" 
-                          style={{ width: '100%', height: '100%', objectFit: 'contain' }} 
-                        />
-                      </div>
-                      <div style={{ flex: 1, textAlign: 'left' }}>
-                        <div style={{ fontSize: 12.5, fontWeight: 700, color: 'var(--text)', wordBreak: 'break-all' }}>{adhocProductFileName}</div>
-                        <div style={{ display: 'flex', gap: 8, marginTop: 4, alignItems: 'center' }}>
-                          {adhocIsPreprocessing && (
-                            <span style={{ fontSize: 11, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 4 }}>
-                              <Loader size={12} className="spinner" />
-                              Háttér eltávolítása...
-                            </span>
-                          )}
-                          {adhocPreprocessedUrl && <span style={{ fontSize: 11, color: '#10b981', fontWeight: 700 }}>✓ Háttér sikeresen eltávolítva</span>}
-                          {adhocPreprocessError && <span style={{ fontSize: 11, color: '#ef4444' }}>{adhocPreprocessError}</span>}
-                        </div>
-                      </div>
-                      <button 
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setAdhocProductImage(null);
-                          setAdhocPreprocessedUrl(null);
-                          setAdhocOriginalUrl(null);
-                          setAdhocProductFileName('');
-                          setAdhocPreprocessError('');
-                          if (adhocFileInputRef.current) adhocFileInputRef.current.value = '';
-                        }}
-                        style={{
-                          padding: '5px 10px',
-                          borderRadius: 8,
-                          background: 'rgba(239, 68, 68, 0.1)',
-                          border: '1px solid rgba(239, 68, 68, 0.25)',
-                          color: '#ef4444',
-                          fontSize: 11,
-                          fontWeight: 700,
-                          cursor: 'pointer',
-                        }}
-                      >
-                        Eltávolítás
-                      </button>
-                    </div>
-                  ) : (
-                    <>
-                      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="var(--text-muted)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" style={{ opacity: 0.6 }}>
-                        <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
-                        <polyline points="17 8 12 3 7 8"/>
-                        <line x1="12" y1="3" x2="12" y2="15"/>
-                      </svg>
-                      <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>
-                        Kattints vagy húzz ide egy képet
-                      </div>
-                      <div style={{ fontSize: 9.5, color: 'var(--text-dim)' }}>
-                        PNG, JPG · Háttér automatikus levágása
-                      </div>
-                    </>
-                  )}
-                </div>
-                <input 
-                  type="file" 
-                  ref={adhocFileInputRef} 
-                  onChange={handleAdhocFileUpload} 
-                  accept="image/*" 
-                  style={{ display: 'none' }} 
+                <ImageSlotUploader
+                  slots={adhocImageSlots}
+                  onChange={setAdhocImageSlots}
+                  maxSlots={3}
+                  disabled={isGeneratingAdhoc}
+                  label="Képek csatolása (opcionális)"
                 />
               </div>
+
 
               {/* Schedule Date */}
               <div>
@@ -2843,7 +2738,7 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
             {/* Footer */}
             <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 12, padding: '16px 24px', borderTop: '1px solid var(--border)' }}>
               <button className="btn-reset-calendar" style={{ border: 'none' }} onClick={() => setIsCreateModalOpen(false)}>Mégsem</button>
-              <button className="btn-save-modal" onClick={handleGenerateAdhoc} disabled={isGeneratingAdhoc || (createMode === 'ai' ? !createBrief : (!createCustomText || !createCustomImagePrompt))}>
+              <button className="btn-save-modal" onClick={handleGenerateAdhoc} disabled={isGeneratingAdhoc || (createMode === 'ai' ? !createBrief : (!createCustomText || !createCustomImagePrompt)) || adhocImageSlots.some(s => s.preprocessLoading || s.analysisLoading || s.upscaleLoading)}>
                 {isGeneratingAdhoc ? (
                   <><Loader size={13} className="spinner" /> Generálás...</>
                 ) : (

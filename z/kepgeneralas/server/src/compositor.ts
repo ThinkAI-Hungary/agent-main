@@ -181,3 +181,59 @@ export async function harmonizeImage(
   console.error(`[COMPOSITOR/HARMONIZE] ❌ Unexpected response:`, JSON.stringify(response.data).substring(0, 300));
   throw new Error('Failed to harmonize image: ' + JSON.stringify(response.data));
 }
+
+// 5. Mathematically resize a low-res mask to match the upscaled image dimensions and apply it as the alpha channel
+export async function applyLowResMaskToUpscaled(
+  upscaledUrl: string,
+  maskUrl: string,
+  rendersDir: string
+): Promise<string> {
+  console.log(`[COMPOSITOR/MASK] Applying low-res mask to upscaled image`);
+  console.log(`[COMPOSITOR/MASK]   Upscaled: ${upscaledUrl.substring(0, 80)}...`);
+  console.log(`[COMPOSITOR/MASK]   Mask URL: ${maskUrl.substring(0, 80)}...`);
+  const start = Date.now();
+
+  const tempUpscaledPath = path.join(rendersDir, `temp-up-${Date.now()}.png`);
+  const tempMaskPath = path.join(rendersDir, `temp-mask-${Date.now()}.png`);
+  const outPath = path.join(rendersDir, `masked-upscaled-${Date.now()}.png`);
+
+  try {
+    if (!fs.existsSync(rendersDir)) {
+      fs.mkdirSync(rendersDir, { recursive: true });
+    }
+
+    console.log(`[COMPOSITOR/MASK] Downloading upscaled image...`);
+    await downloadImage(upscaledUrl, tempUpscaledPath);
+    console.log(`[COMPOSITOR/MASK] Downloading mask image...`);
+    await downloadImage(maskUrl, tempMaskPath);
+
+    const upscaledMetadata = await sharp(tempUpscaledPath).metadata();
+    const width = upscaledMetadata.width || 2048;
+    const height = upscaledMetadata.height || 2048;
+    console.log(`[COMPOSITOR/MASK] Upscaled dimensions: ${width}x${height}`);
+
+    const resizedMaskBuffer = await sharp(tempMaskPath)
+      .ensureAlpha()
+      .extractChannel('alpha')
+      .resize(width, height, { fit: 'fill' })
+      .toBuffer();
+
+    await sharp(tempUpscaledPath)
+      .removeAlpha()
+      .joinChannel(resizedMaskBuffer)
+      .png()
+      .toFile(outPath);
+
+    const outSize = fs.statSync(outPath).size;
+    console.log(`[COMPOSITOR/MASK] ✅ Mask applied successfully in ${Date.now() - start}ms → ${outPath} (${(outSize / 1024).toFixed(1)} KB)`);
+    return outPath;
+  } finally {
+    if (fs.existsSync(tempUpscaledPath)) {
+      try { fs.unlinkSync(tempUpscaledPath); } catch {}
+    }
+    if (fs.existsSync(tempMaskPath)) {
+      try { fs.unlinkSync(tempMaskPath); } catch {}
+    }
+  }
+}
+

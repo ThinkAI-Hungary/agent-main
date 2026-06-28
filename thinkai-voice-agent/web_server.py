@@ -6215,13 +6215,16 @@ Output ONLY valid JSON array of exactly 10 objects, in the order of the content 
                         enriched_prompt = " ".join(enriched_parts)
 
                         submit_resp = await http.post(
-                            "https://api.bfl.ai/v1/flux-2-pro",
+                            "https://api.bfl.ai/v1/flux-2-flex",
                             json={
                                 "prompt":           enriched_prompt[:1500],
                                 "width":            1024,
-                                "height":           1024,
+                                "height":           1536,
+                                "aspect_ratio":     "2:3",
                                 "output_format":    "jpeg",
-                                "safety_tolerance": 2,
+                                "safety_tolerance": 1,
+                                "guidance":         4.5,
+                                "steps":            50,
                             },
                             headers={"X-Key": bfl_key, "Content-Type": "application/json"},
                         )
@@ -6276,7 +6279,7 @@ Output ONLY valid JSON array of exactly 10 objects, in the order of the content 
                         "keywords":        key_themes[:5] if key_themes else [],
                         "target_platforms": [primary_platform] if primary_platform else ["instagram"],
                         "status":          "ai_draft",
-                        "ai_model":        "gemini-2.5-flash+flux-2-pro",
+                        "ai_model":        "gemini-2.5-flash+flux-2-flex",
                         "created_by":      "social_batch",
                     })
                 except Exception as _db_err:

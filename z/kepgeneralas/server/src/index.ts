@@ -5,6 +5,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import axios from 'axios';
 import Anthropic from '@anthropic-ai/sdk';
+import { fal } from '@fal-ai/client';
 
 import { scrapeWebsite } from './scraper.js';
 import {
@@ -17,8 +18,9 @@ import {
 import { renderPost, renderPolotnoJSON } from './renderer.js';
 import { runOverlayPipeline } from './generator/pipeline.js';
 import { BrandKit, PostCreative, Campaign, CampaignItem } from './types.js';
-import { uploadToFal, removeBackground, compositeProduct, harmonizeImage } from './compositor.js';
+import { uploadToFal, removeBackground, compositeProduct, harmonizeImage, applyLowResMaskToUpscaled } from './compositor.js';
 import fs from 'fs';
+import sharp from 'sharp';
 // OpenAI import removed — using Bria Product Shot via fal.ai
 
 // ═══════════════════════════════════════════════════════════════════════════════
@@ -26,44 +28,151 @@ import fs from 'fs';
 // Defaults: safety_tolerance=1, guidance=4.5, steps=50
 // ═══════════════════════════════════════════════════════════════════════════════
 
+function promptContainsTextRequest(prompt: string): boolean {
+  const lowercase = prompt.toLowerCase();
+  // Check for quotes containing at least 2 characters (e.g. "SALE")
+  const hasQuotes = /["'][a-zA-Z0-9\sáéíóöőúüűÁÉÍÓÖŐÚÜŰ]{2,}["']/.test(prompt);
+  const keywords = ['felirat', 'szöveg', 'kiírva', 'writing', ' label ', ' sign ', 'text ', 'write '];
+  const hasKeywords = keywords.some(kw => lowercase.includes(kw));
+  return hasQuotes || hasKeywords;
+}
+
+function clampBflProDimensions(width: number, height: number, maxLimit = 1440): { width: number; height: number } {
+  let w = width;
+  let h = height;
+  if (w > maxLimit || h > maxLimit) {
+    const ratio = w / h;
+    if (w > h) {
+      w = maxLimit;
+      h = Math.round(maxLimit / ratio);
+    } else {
+      h = maxLimit;
+      w = Math.round(maxLimit * ratio);
+    }
+  }
+  // Snapping to multiple of 16
+  w = Math.round(w / 16) * 16;
+  h = Math.round(h / 16) * 16;
+
+  // Snapping checks to keep within [256, 1440]
+  w = Math.max(256, Math.min(maxLimit, w));
+  h = Math.max(256, Math.min(maxLimit, h));
+  return { width: w, height: h };
+}
+
 async function generateWithFluxFlex(
   prompt: string,
   width: number,
   height: number,
-  opts?: { safetyTolerance?: number; guidance?: number; steps?: number; aspectRatio?: string; inputImage?: string; inputImage2?: string }
-): Promise<string> {
+  opts?: { safetyTolerance?: number; guidance?: number; steps?: number; aspectRatio?: string; inputImage?: string; inputImage2?: string; backgroundPrompt?: string }
+): Promise<{ imageUrl: string; model: string; generationTime: number }> {
   const bflKey = process.env.BFL_API_KEY;
   if (!bflKey) throw new Error('BFL_API_KEY is not configured in .env');
 
-  const safetyTol = opts?.safetyTolerance ?? 1;
+  if (opts?.inputImage) {
+    console.log(`[BFL-ROUTER] Input image present. Routing to Bria Product Shot for pixel-perfect integration.`);
+    const startBria = Date.now();
+    try {
+      const briaImageUrl = (opts.inputImage2 && opts.inputImage2 !== opts.inputImage && (opts.inputImage2.includes('preprocessed') || opts.inputImage2.includes('fal.media')))
+        ? opts.inputImage2
+        : opts.inputImage;
+
+      console.log(`[BFL-ROUTER] Calling Bria Product Shot with image: ${briaImageUrl.substring(0, 80)}...`);
+      const briaResponse = await axios.post(
+        'https://fal.run/fal-ai/bria/product-shot',
+        {
+          image_url: briaImageUrl,
+          scene_description: prompt,
+          placement_type: 'automatic',
+          optimize_description: true,
+          num_results: 1,
+        },
+        {
+          headers: {
+            'Authorization': `Key ${process.env.FAL_KEY}`,
+            'Content-Type': 'application/json',
+          },
+          timeout: 120000,
+        }
+      );
+
+      const imageUrl = briaResponse.data?.images?.[0]?.url || briaResponse.data?.image?.url || '';
+      if (!imageUrl) throw new Error('No image URL returned from Bria Product Shot');
+
+      const totalTime = Number(((Date.now() - startBria) / 1000).toFixed(1));
+      console.log(`[BFL-ROUTER] Bria Product Shot success in ${totalTime}s → ${imageUrl}`);
+      return {
+        imageUrl,
+        model: 'Bria Product Shot',
+        generationTime: totalTime
+      };
+    } catch (briaErr: any) {
+      const detail = briaErr.response?.data?.detail || '';
+      console.error(`[BFL-ROUTER] Bria Product Shot failed: ${briaErr.message}. Detail: ${JSON.stringify(briaErr.response?.data || {})}`);
+      if (detail.includes('Exhausted balance') || detail.includes('User is locked') || briaErr.response?.status === 403) {
+        throw new Error(`FAL_KEY egyenleg elfogyott vagy zárolva van. Kérjük, töltsd fel az egyenlegedet a fal.ai oldalon! Részlet: ${detail}`);
+      }
+      console.log(`[BFL-ROUTER] Falling back to standard direct BFL Flex.`);
+    }
+  }
+
+  // Hybrid Compositing & Harmonization pipeline bypassed as per user request.
+  // Standard single-pass BFL Flex generation will be used to ensure natural shadows, lighting, and reflections.
+
+  const hasReferenceImage = !!(opts?.inputImage || opts?.inputImage2);
+  const containsText = promptContainsTextRequest(prompt);
+
+  // Router logic:
+  // Route to Flex (Direction A) if there is an input reference image OR if the prompt contains a text generation request.
+  // Otherwise, route to FLUX 1.1 Pro (Direction B) for flagship quality at a flat-rate $0.04.
+  const isFlex = hasReferenceImage || containsText;
+  const endpoint = isFlex ? 'https://api.bfl.ai/v1/flux-2-flex' : 'https://api.bfl.ai/v1/flux-pro-1.1';
+  const modelName = isFlex ? 'FLUX.2 Flex' : 'FLUX 1.1 Pro';
+
+  console.log(`\n[BFL-ROUTER] Routing image generation request:`);
+  console.log(`[BFL-ROUTER]   Has reference image: ${hasReferenceImage}`);
+  console.log(`[BFL-ROUTER]   Prompt contains text request: ${containsText}`);
+  console.log(`[BFL-ROUTER]   Selected Model: ${modelName}`);
+  console.log(`[BFL-ROUTER]   Endpoint: ${endpoint}`);
+
+  const safetyTol = opts?.safetyTolerance ?? 5;
   const guidance  = opts?.guidance ?? 4.5;
   const steps     = opts?.steps ?? 50;
   const ar        = opts?.aspectRatio ?? '2:3';
 
-  console.log(`[FLEX] Submitting to BFL FLUX.2 [flex] — ${width}x${height} | guidance=${guidance} steps=${steps}`);
-  console.log(`[FLEX] Prompt: "${prompt.substring(0, 100)}..."`);
+  console.log(`[BFL-ROUTER] Submitting task — ${width}x${height} | guidance=${guidance} steps=${steps}`);
+  console.log(`[BFL-ROUTER] Prompt: "${prompt.substring(0, 100)}..."`);
 
   const payload: any = {
     prompt,
-    aspect_ratio: ar,
-    width,
-    height,
     output_format: 'jpeg',
     safety_tolerance: safetyTol,
-    guidance,
-    steps,
   };
 
-  if (opts?.inputImage) {
-    payload.input_image = opts.inputImage;
-    if (opts.inputImage2) {
-      payload.input_image_2 = opts.inputImage2;
+  if (isFlex) {
+    payload.aspect_ratio = ar;
+    payload.guidance = guidance;
+    payload.steps = steps;
+    payload.width = width;
+    payload.height = height;
+
+    if (opts?.inputImage) {
+      payload.input_image = opts.inputImage;
+      if (opts.inputImage2) {
+        payload.input_image_2 = opts.inputImage2;
+      }
     }
+  } else {
+    // Pro endpoint expects width and height
+    const clamped = clampBflProDimensions(width, height);
+    payload.width = clamped.width;
+    payload.height = clamped.height;
+    console.log(`[BFL-ROUTER] Clamped Pro dimensions: original ${width}x${height} -> clamped ${clamped.width}x${clamped.height}`);
   }
 
   // Step 1: Submit generation task
   const submitResponse = await axios.post(
-    'https://api.bfl.ai/v1/flux-2-flex',
+    endpoint,
     payload,
     {
       headers: { 'X-Key': bflKey, 'Content-Type': 'application/json' },
@@ -76,7 +185,7 @@ async function generateWithFluxFlex(
   if (!taskId || !pollingUrl) {
     throw new Error(`BFL submit failed: ${JSON.stringify(submitResponse.data)}`);
   }
-  console.log(`[FLEX] Task submitted: ${taskId}`);
+  console.log(`[BFL-ROUTER] Task submitted: ${taskId}`);
 
   // Step 2: Poll until Ready
   const pollStart = Date.now();
@@ -91,19 +200,22 @@ async function generateWithFluxFlex(
     });
 
     const { status, result } = statusResp.data;
-    console.log(`[FLEX] Poll: ${status} (${((Date.now() - pollStart) / 1000).toFixed(0)}s)`);
+    console.log(`[BFL-ROUTER] Poll: ${status} (${((Date.now() - pollStart) / 1000).toFixed(0)}s)`);
 
     if (status === 'Ready') {
       const imageUrl = result?.sample;
       if (!imageUrl) throw new Error('BFL returned Ready but no sample URL');
-      console.log(`[FLEX] ✅ Done in ${((Date.now() - pollStart) / 1000).toFixed(1)}s → ${imageUrl.substring(0, 80)}...`);
-      return imageUrl;
+      const generationTime = Number(((Date.now() - pollStart) / 1000).toFixed(1));
+      console.log(`[BFL-ROUTER] ✅ Done in ${generationTime}s → ${imageUrl.substring(0, 80)}...`);
+      return { imageUrl, model: modelName, generationTime };
+    } else if (status && typeof status === 'string' && status.toLowerCase().includes('moderated')) {
+      throw new Error('BFL request was moderated/blocked by safety filters.');
     } else if (status === 'Failed') {
-      throw new Error(`BFL Flex task failed: ${JSON.stringify(statusResp.data?.error || statusResp.data)}`);
+      throw new Error(`BFL task failed: ${JSON.stringify(statusResp.data?.error || statusResp.data)}`);
     }
   }
 
-  throw new Error('BFL Flex task timed out after 2 minutes');
+  throw new Error('BFL task timed out after 2 minutes');
 }
 
 // Backwards-compat alias
@@ -114,6 +226,10 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
+
+if (process.env.FAL_KEY) {
+  fal.config({ credentials: process.env.FAL_KEY });
+}
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY || '',
@@ -214,11 +330,16 @@ app.post('/api/generate', async (req, res) => {
       
       // 1. Generate image with Flux 2 Pro (BFL direct API)
       let imageUrl = '';
+      let genModel = '';
+      let genTime = 0;
       if (process.env.BFL_API_KEY) {
         try {
           const fullPrompt = `${variant.imagePrompt}, visual style matching rules: ${brandKit.visualRules.join(', ')}`;
-          imageUrl = await generateWithFlux2(fullPrompt, 768, 960, { aspectRatio: '4:5', safetyTolerance: 1, guidance: 4.5, steps: 50 });
-          console.log(`[FLUX2] Image generated for variant ${idx+1}: ${imageUrl}`);
+          const genResult = await generateWithFlux2(fullPrompt, 768, 960, { aspectRatio: '4:5', safetyTolerance: 1, guidance: 4.5, steps: 50 });
+          imageUrl = genResult.imageUrl;
+          genModel = genResult.model;
+          genTime = genResult.generationTime;
+          console.log(`[FLUX2] Image generated for variant ${idx+1}: ${imageUrl} using ${genModel} in ${genTime}s`);
         } catch (imageErr: any) {
           console.error(`[FLUX2] Image generation failed for variant ${idx+1}:`, imageErr.message);
           // Fallback image url if generator fails
@@ -246,7 +367,9 @@ app.post('/api/generate', async (req, res) => {
         imagePrompt: variant.imagePrompt,
         colorVariation: variant.colorVariation,
         logoVariant: variant.logoVariant,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        generationModel: genModel || undefined,
+        generationTime: genTime || undefined
       };
 
       creatives.push(postCreative);
@@ -288,18 +411,24 @@ app.post('/api/generate-adhoc', async (req, res) => {
 
     // 2. Generate image using Flux 2 Pro
     let imageUrl = '';
+    let genModel = '';
+    let genTime = 0;
     if (process.env.BFL_API_KEY) {
       try {
         const fullPrompt = `${postImagePrompt}, visual style matching rules: ${brandKit.visualRules.join(', ')}`;
-        imageUrl = await generateWithFlux2(fullPrompt, 768, 960, {
+        const genResult = await generateWithFlux2(fullPrompt, 768, 960, {
           aspectRatio: '4:5',
           safetyTolerance: 1,
           guidance: 4.5,
           steps: 50,
           inputImage: preprocessedImageUrl || productImageUrl,
-          inputImage2: preprocessedImageUrl ? productImageUrl : undefined
+          inputImage2: preprocessedImageUrl ? productImageUrl : undefined,
+          backgroundPrompt: brief || undefined
         });
-        console.log(`[ADHOC-FLUX2] Image generated: ${imageUrl}`);
+        imageUrl = genResult.imageUrl;
+        genModel = genResult.model;
+        genTime = genResult.generationTime;
+        console.log(`[ADHOC-FLUX2] Image generated: ${imageUrl} using ${genModel} in ${genTime}s`);
       } catch (imageErr: any) {
         console.error(`[ADHOC-FLUX2] Image generation failed:`, imageErr.message);
         imageUrl = getFallbackImage(brandKit);
@@ -334,7 +463,9 @@ app.post('/api/generate-adhoc', async (req, res) => {
       imagePrompt: postImagePrompt,
       colorVariation: postColorVariation,
       logoVariant: postLogoVariant,
-      createdAt: new Date().toISOString()
+      createdAt: new Date().toISOString(),
+      generationModel: genModel || undefined,
+      generationTime: genTime || undefined
     };
 
     res.json(postCreative);
@@ -394,6 +525,495 @@ app.post('/api/render-polotno', async (req, res) => {
 });
 
 
+function sniffMediaType(buffer: Buffer): string {
+  if (buffer.length >= 4 && buffer[0] === 0x89 && buffer[1] === 0x50 && buffer[2] === 0x4E && buffer[3] === 0x47) {
+    return 'image/png';
+  }
+  if (buffer.length >= 3 && buffer[0] === 0xFF && buffer[1] === 0xD8 && buffer[2] === 0xFF) {
+    return 'image/jpeg';
+  }
+  if (buffer.length >= 12 && buffer.toString('ascii', 0, 4) === 'RIFF' && buffer.toString('ascii', 8, 12) === 'WEBP') {
+    return 'image/webp';
+  }
+  if (buffer.length >= 3 && buffer[0] === 0x47 && buffer[1] === 0x49 && buffer[2] === 0x46) {
+    return 'image/gif';
+  }
+  return 'image/jpeg'; // default fallback
+}
+
+async function fetchImageAsClaudeBlock(imageUrl: string): Promise<{
+  type: 'image';
+  source: {
+    type: 'base64';
+    media_type: 'image/jpeg';
+    data: string;
+  };
+}> {
+  console.log(`[IMAGE-FETCH] Fetching image from URL: ${imageUrl}`);
+  const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 15000 });
+  const rawBuffer = Buffer.from(imageResponse.data);
+  
+  console.log(`[IMAGE-FETCH] Original size: ${(rawBuffer.length / 1024).toFixed(1)} KB. Processing with sharp...`);
+  
+  let processedBuffer: Buffer;
+  try {
+    const imagePipeline = sharp(rawBuffer);
+    const metadata = await imagePipeline.metadata();
+    
+    // Resize if any dimension exceeds 1600px
+    if ((metadata.width && metadata.width > 1600) || (metadata.height && metadata.height > 1600)) {
+      imagePipeline.resize(1600, 1600, { fit: 'inside', withoutEnlargement: true });
+    }
+    
+    // Convert to jpeg: flatten transparency on a white background, output standard JPEG
+    processedBuffer = await imagePipeline
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .jpeg({ quality: 85 })
+      .toBuffer();
+      
+    console.log(`[IMAGE-FETCH] Processed size: ${(processedBuffer.length / 1024).toFixed(1)} KB`);
+  } catch (err: any) {
+    console.warn(`[IMAGE-FETCH] Sharp processing failed, falling back to raw buffer: ${err.message}`);
+    processedBuffer = rawBuffer;
+  }
+  
+  const base64Data = processedBuffer.toString('base64');
+  
+  return {
+    type: 'image',
+    source: {
+      type: 'base64',
+      media_type: 'image/jpeg',
+      data: base64Data,
+    },
+  };
+}
+
+function condenseDescription(desc: string): string {
+  let cleaned = desc.replace(/\b(featuring|with a|small|large|a |an |the )\b/gi, '').trim();
+  const commaIdx = cleaned.indexOf(',');
+  if (commaIdx !== -1) {
+    cleaned = cleaned.substring(0, commaIdx);
+  }
+  const withIdx = cleaned.toLowerCase().indexOf(' with');
+  if (withIdx !== -1) {
+    cleaned = cleaned.substring(0, withIdx);
+  }
+  const featIdx = cleaned.toLowerCase().indexOf(' featuring');
+  if (featIdx !== -1) {
+    cleaned = cleaned.substring(0, featIdx);
+  }
+  return cleaned.replace(/\s+/g, ' ').trim();
+}
+
+async function getStyleTags(rules: string[]): Promise<string> {
+  const geminiKey = process.env.GEMINI_API_KEY || process.env.GOOGLE_API_KEY;
+  if (!geminiKey || !rules || rules.length === 0) {
+    return '';
+  }
+
+  const rulesText = rules.join(', ');
+  const systemPrompt = `You are an expert design director. Convert the given brand style rules and guidelines into a concise list of 3-6 English style keywords/tags separated by commas.
+Examples of output format: "clean, minimalist, warm lighting, high-end photography"
+DO NOT output full sentences, markdown, or explanations. Only output the comma-separated keywords in English.`;
+
+  try {
+    const response = await axios.post(
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`,
+      {
+        contents: [{ role: 'user', parts: [{ text: `Convert these rules to style keywords:\n\n${rulesText}` }] }],
+        systemInstruction: { parts: [{ text: systemPrompt }] },
+        generationConfig: { maxOutputTokens: 100, temperature: 0.2 }
+      },
+      { headers: { 'Content-Type': 'application/json' }, timeout: 10000 }
+    );
+    const result = response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
+    console.log(`[STYLE-TAGS] Rules summarized: "${result}"`);
+    return result;
+  } catch (err: any) {
+    console.error('[STYLE-TAGS] Gemini error:', err.message);
+    return '';
+  }
+}
+
+async function intelligentComposePrompt(
+  scenePrompt: string,
+  slotSubjects: string[],
+  brandRules: string[]
+): Promise<string> {
+  const systemPrompt = `You are an expert AI prompt engineer. Your job is to compose a single, highly detailed, unified English prompt for image generation (FLUX) by combining a user's scene description with the foreground subjects from uploaded image slots.
+
+Inputs:
+- User's scene description (in Hungarian or English): "${scenePrompt}"
+- Foreground subjects: ${JSON.stringify(slotSubjects)}
+- Brand rules: ${JSON.stringify(brandRules)}
+
+CRITICAL RULES:
+1. REMOVE ALL BRAND NAMES, TRADEMARKS, COMPANY NAMES, AND MODEL DESIGNATIONS (e.g. Audi, BMW, Mercedes, Poli-Farbe, PoliFarbe, A8, etc.). Replace them with high-quality generic equivalents (e.g. "luxury sedan car" instead of "Audi car", "bucket of paint" instead of "Poli-Farbe paint").
+2. INTEGRATE THE SUBJECTS NATURALLY. Instead of just listing "featuring a car and a paint bucket", describe how they are arranged. For example, if the scene prompt implies paint on/with a car, describe the paint bucket sitting on the roof or next to the car with natural integration, and describe the scene elements (beach, sunset, road etc.).
+3. KEEP THE FOREGROUND OBJECTS FULLY IN FRAME & DOMINANT. Specify that the foreground subjects (such as the luxury sedan car, the paint bucket, etc.) must dominate the image, be fully visible within the frame, well-composed, and never cropped out, cut off, or clipped at the borders of the image. Always describe them as fully in frame and dominating the scene (e.g. "the entire car is fully visible in the frame, dominating the composition", "the paint bucket is shown completely without being cut off, placed prominently").
+4. ENSURE SHARP AND LEGIBLE TEXT/LABELS WITH REAL UTF-8 CHARACTERS. If any foreground subject contains text, writing, labels, or logos (such as a paint bucket label), describe the text/label as extremely sharp, clear, high-contrast, and 100% legible, matching the hyper-realistic photographic quality of the rest of the image. Specifically instruct the generator that the text must be rendered using standard, existing UTF-8 characters and actual typography, with clean letterforms and crisp, well-defined glyphs. Specify that no character should ever appear as a blob, spot, abstract shape, or distorted artifact (paca), and that all text must be perfectly spelled and readable.
+5. DO NOT output split-screen, multiple panels, or collages. The prompt must describe a single unified photo or scene.
+6. Output ONLY the composed English prompt. Do not write markdown, code blocks, or explanations.`;
+
+  try {
+    const model = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+    const response = await anthropic.messages.create({
+      model,
+      max_tokens: 600,
+      temperature: 0.3,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: [{ type: 'text', text: `Compose the final prompt.` }] }]
+    });
+
+    const result = (response.content[0].type === 'text' ? response.content[0].text : '').trim() || '';
+    console.log(`[COMPOSE] Composed prompt via Claude: "${result}"`);
+    return result;
+  } catch (err: any) {
+    console.error('[COMPOSE] Claude error:', err.message);
+    return `${scenePrompt} featuring ${slotSubjects.join(', ')}`;
+  }
+}
+
+async function checkGeneratedImage(
+  imageUrl: string,
+  prompt: string
+): Promise<{ passed: boolean; score: number; issues: string[]; explanation: string; suggestedPromptAdjustment: string }> {
+  console.log(`[CHECKUP] Checking generated image: ${imageUrl}`);
+  const start = Date.now();
+
+  try {
+    const imageContentBlock = await fetchImageAsClaudeBlock(imageUrl);
+
+    const systemPrompt = `You are a visual quality inspector AI. Your job is to check the generated image for composition errors, layouts that look like collages, split-screen layouts, picture-in-picture frames, photo-in-photo insets, duplicate floating objects, artificial-looking text cards, cropped/cut-off subjects, or blurry/illegible labels.
+Evaluate the image against the prompt: "${prompt}"
+
+We want a single, natural, integrated photograph or cohesive scene.
+CRITICAL CHECKS:
+- Verify if any main subjects or focal points of the prompt (such as the product, vehicle, paint bucket, animal, person, or any key object described in the prompt) are partially cut off, cropped, or clipped at the borders of the image frame. For example, if the prompt describes a gorilla, its feet, hands, head, or body must not be cut off or cropped by the edge of the image; the entire subject must be fully contained within the frame. If any key subject is cut off or cropped by the edge of the image, the check must FAIL (passed = false).
+- Verify if any text, writing, labels, or logos on the products (e.g. on the paint bucket label) are blurry, garbled, distorted, illegible, or contain abstract shapes/blobs (pacák) instead of real, well-formed UTF-8 characters. The text on product labels must be sharp, clear, and readable. If the text is illegible, garbled, or contains abstract spots/blobs instead of actual readable characters, the check must FAIL (passed = false).
+- Verify spelling of Hungarian text on the labels! The label text must match the expected Hungarian branding exactly. Check for letter swaps or misspelled variations (such as "IZOALILÓ" or "IZOALILO", which should be "IZOLÁLÓ", or other spelling errors). If there are obvious spelling mistakes in the main label texts, the check must FAIL (passed = false).
+
+Analyze the image and return a JSON object with the following fields:
+- "passed": boolean (true if the image is a cohesive, single-frame scene without collage/cutout/split-screen visual glitches, all main subjects/focal points (such as products, animals, persons, or key objects described in the prompt) are fully visible inside the frame without being cut off or cropped, AND all labels/text on products are sharp, readable, spelled correctly, and consist of well-formed characters; false otherwise).
+- "score": number (visual quality score from 0 to 100, where 100 is perfect and below 70 usually means it should fail).
+- "issues": string[] (list of specific problems found, e.g. ["kollázs elrendezés", "osztott képernyő", "duplikált tárgyak", "keret a képben", "levágott tárgy/kilógó termék", "olvashatatlan felirat/homályos szöveg/karakter paca", "helyesírási hiba a feliraton"], should be in Hungarian).
+- "explanation": string (brief explanation of what is wrong, in Hungarian, e.g., "a festékes vödör feliratában a 'izoláló' szó hibásan 'izoaliló'-ként szerepel").
+- "suggestedPromptAdjustment": string (English prompt instructions or negative tags to guide the generator in the retry, e.g., "correct the spelling on the paint bucket label to be exactly 'IZOLÁLÓ' instead of 'IZOALILÓ', ensuring perfectly formed letters and correct spelling").
+
+You MUST return ONLY the JSON object. Do not include markdown formatting or explanations outside the JSON.`;
+
+    const userPrompt = `Perform visual checkup on this generated image.`;
+
+    const modelName = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+    const response = await anthropic.messages.create({
+      model: modelName,
+      max_tokens: 800,
+      temperature: 0.1,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: [imageContentBlock, { type: 'text', text: userPrompt }] }],
+    });
+
+    const textContent = response.content[0].type === 'text' ? response.content[0].text : '';
+    console.log(`[CHECKUP] Claude checkup response:`, textContent);
+
+    const cleanJson = extractJsonStr(textContent);
+    const parsed = JSON.parse(cleanJson);
+
+    console.log(`[CHECKUP] Finished in ${Date.now() - start}ms: passed=${parsed.passed}, score=${parsed.score}`);
+    return {
+      passed: parsed.passed === true,
+      score: typeof parsed.score === 'number' ? parsed.score : 80,
+      issues: Array.isArray(parsed.issues) ? parsed.issues : [],
+      explanation: parsed.explanation || '',
+      suggestedPromptAdjustment: parsed.suggestedPromptAdjustment || '',
+    };
+  } catch (err: any) {
+    console.error(`[CHECKUP] Error during checkup:`, err.message);
+    return {
+      passed: true,
+      score: 100,
+      issues: [],
+      explanation: `Checkup error: ${err.message}`,
+      suggestedPromptAdjustment: '',
+    };
+  }
+}
+
+// Helper to refine and correct analyzed image descriptions using DeepSeek Chat API
+async function optimizeAnalysisWithDeepSeek(analysisResult: any): Promise<any> {
+  const apiKey = process.env.Deepseek_KEY;
+  if (!apiKey) {
+    console.log('[DEEPSEEK] Deepseek_KEY is not configured in .env, skipping optimization.');
+    return analysisResult;
+  }
+
+  console.log('[DEEPSEEK] Optimizing image analysis descriptions using DeepSeek chat...');
+  const start = Date.now();
+
+  const systemPrompt = `You are a professional Hungarian copywriter, proofreader, and translation expert.
+You will be given a JSON object containing details from an image analysis.
+Your task is to refine and correct all Hungarian and English descriptions, resolving any OCR typos or spelling mistakes.
+
+CRITICAL TYPO RULES:
+- Correct the spelling of Hungarian labels on containers: transcribe "koromfoltokra" (meaning soot spots) with an 'o', NEVER as "körömfoltokra" (nail spots) or "köromfoltokra".
+- Verify and polish the generic foreground description in "subject" and "altText" (both in English), ensuring NO specific brand names (e.g. use "luxury sedan car", "can of interior paint" instead of "Audi", "Poli-Farbe", etc.).
+- Ensure "extractedText" transcribes the exact text on the image with perfect spelling (but preserving proper brand names like "Poli-Farbe" or "Audi").
+- Ensure "textPlacement" has a polished, natural Hungarian description of the text location.
+
+Output ONLY a valid JSON object matching the input structure exactly. Do not output markdown backticks (like \`\`\`json), explanations, or trailing commas.`;
+
+  try {
+    const response = await axios.post(
+      'https://api.deepseek.com/chat/completions',
+      {
+        model: 'deepseek-chat',
+        messages: [
+          { role: 'system', content: systemPrompt },
+          { role: 'user', content: JSON.stringify(analysisResult, null, 2) }
+        ],
+        temperature: 0.1
+      },
+      {
+        headers: {
+          'Authorization': `Bearer ${apiKey}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 20000
+      }
+    );
+
+    const content = response.data?.choices?.[0]?.message?.content;
+    if (!content) {
+      throw new Error('Empty response from DeepSeek API');
+    }
+
+    console.log(`[DEEPSEEK] Raw response:`, content.substring(0, 300));
+    const cleanJson = extractJsonStr(content);
+    const optimized = JSON.parse(cleanJson);
+    console.log(`[DEEPSEEK] ✅ Optimization complete in ${Date.now() - start}ms`);
+    return {
+      ...analysisResult,
+      ...optimized
+    };
+  } catch (err: any) {
+    console.error('[DEEPSEEK] ❌ Optimization failed:', err.message);
+    return analysisResult;
+  }
+}
+
+// Route: Image analysis using Claude Vision
+app.post('/api/image/analyze', async (req, res) => {
+  const { imageUrl } = req.body;
+  if (!imageUrl) {
+    return res.status(400).json({ error: 'imageUrl is required.' });
+  }
+
+  console.log(`[ANALYZE] Request received for image: ${imageUrl}`);
+  const start = Date.now();
+
+  try {
+    const imageContentBlock = await fetchImageAsClaudeBlock(imageUrl);
+
+    const systemPrompt = `You are a professional image analysis AI. You must analyze the uploaded image and return a JSON object containing the subject, type, text analysis, and changeability rules.
+You MUST output ONLY a valid JSON object matching the format below. Do not output markdown backticks (like \`\`\`json), explanations, or trailing commas.
+
+CRITICAL RULES:
+1. DO NOT output specific brand names, company names, logos, or model names in the "subject" or "altText" (e.g. NEVER use "Audi", "A8", "Poli-Farbe", "PoliFarbe", "BMW", etc.). Instead, use generic descriptions (e.g. "luxury sedan car", "bucket of paint", "beverage bottle").
+2. However, for "extractedText", write the EXACT letters/text written on the object, even if it contains brand names, so we know what is on the original image (e.g. "Poli-Farbe" or "Audi").
+3. COMPLETELY IGNORE the background or environment of the image. Only describe and analyze the foreground subject (e.g. if there is a car on a road in front of trees, ignore the road and trees, focus entirely on the car itself).
+4. For Hungarian paint buckets, ensure correct spelling of labels: transcribe "koromfoltokra" (with an 'o', meaning soot spots), NEVER "körömfoltokra" or "köromfoltokra" (nail spots).
+
+JSON format:
+{
+  "imageType": "product" | "model" | "scene" | "logo" | "lifestyle" | "mixed",
+  "subject": "Precise generic English description of the foreground subject. NO brand names.",
+  "altText": "A detailed descriptive alt text of the subject.",
+  "dominantColors": ["color1", "color2"],
+  "hasText": boolean,
+  "extractedText": "The exact text written on the object, preserving exact branding/letters.",
+  "textPlacement": "Hungarian description of where the text is located on the object, e.g. 'a vödör oldalán lévő fehér címkén'.",
+  "textLegibility": "clear" | "blurry" | "illegible",
+  "changeabilityRules": {
+    "canChangeBackground": true,
+    "canChangeColors": true,
+    "canChangeShape": true,
+    "canChangeTexture": true,
+    "mustPreserveExactly": ["exact details to preserve"],
+    "allowedModifications": ["details that can be modified"]
+  },
+  "fluxPromptSuffix": "vivid, photographic style, realistic details, high resolution",
+  "fluxNegativeSuffix": "blurry, low quality, stylized, drawing",
+  "confidence": 0.95
+}`;
+
+    const userPrompt = `Analyze this image and return the JSON object following the strict rules.`;
+
+    const modelName = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+    console.log(`[ANALYZE] Invoking Anthropic Claude Vision: ${modelName}`);
+
+    const response = await anthropic.messages.create({
+      model: modelName,
+      max_tokens: 1000,
+      temperature: 0.2,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: [imageContentBlock, { type: 'text', text: userPrompt }] }],
+    });
+
+    const textContent = response.content[0].type === 'text' ? response.content[0].text : '';
+    console.log(`[ANALYZE] Claude response:`, textContent);
+
+    const cleanJson = extractJsonStr(textContent);
+    const parsed = JSON.parse(cleanJson);
+
+    // Normalize and enrich changeability rules based on type
+    const imageType = parsed.imageType || 'product';
+    let locked = parsed.locked !== undefined ? parsed.locked : false;
+
+    if (imageType === 'product' || imageType === 'logo') {
+      locked = true;
+      if (!parsed.changeabilityRules) parsed.changeabilityRules = {};
+      parsed.changeabilityRules.canChangeBackground = true;
+      parsed.changeabilityRules.canChangeColors = false;
+      parsed.changeabilityRules.canChangeShape = false;
+      parsed.changeabilityRules.canChangeTexture = false;
+    } else if (imageType === 'model') {
+      locked = false;
+      if (!parsed.changeabilityRules) parsed.changeabilityRules = {};
+      parsed.changeabilityRules.canChangeBackground = true;
+      parsed.changeabilityRules.canChangeColors = true;
+      parsed.changeabilityRules.canChangeShape = false;
+      parsed.changeabilityRules.canChangeTexture = false;
+    }
+
+    let analysisResult = {
+      ...parsed,
+      imageType,
+      locked,
+    };
+
+    // Optimize descriptions using DeepSeek if available
+    analysisResult = await optimizeAnalysisWithDeepSeek(analysisResult);
+
+    console.log(`[ANALYZE] ✅ Analysis complete in ${Date.now() - start}ms`, analysisResult);
+    res.json({ results: [analysisResult] });
+  } catch (err: any) {
+    console.error(`[ANALYZE] Error analyzing image:`, err);
+    res.status(500).json({ error: 'Failed to analyze image', details: err.message });
+  }
+});
+
+// Route: Composite image generation
+app.post('/api/image/composite-generate', async (req, res) => {
+  const { slots, scenePrompt, brandKit, aspectRatio, width, height, previewOnly } = req.body;
+  if (!slots || !Array.isArray(slots) || slots.length === 0) {
+    return res.status(400).json({ error: 'slots array is required.' });
+  }
+
+  const start = Date.now();
+  console.log(`\n[COMPOSITE-GENERATE] Starting composite generation/preview with ${slots.length} slots.`);
+
+  try {
+    const slotSubjects = slots.map(s => {
+      let desc = s.userEditedDescription || s.analysis?.shortSubject || s.analysis?.subject || s.role || 'object';
+      desc = condenseDescription(desc);
+      desc = desc.replace(/\b(audi|polifarbe|poli-farbe|bmw|mercedes)\b/gi, '').replace(/\s+/g, ' ').trim();
+      return desc;
+    });
+
+    const brandRules = brandKit?.visualRules || [];
+
+    // Intelligently compose, translate and merge scene prompt with slot contents (and strip brand names)
+    let activePrompt = await intelligentComposePrompt(scenePrompt.trim(), slotSubjects, brandRules);
+    
+    if (brandRules.length > 0) {
+      const styleTags = await getStyleTags(brandRules);
+      if (styleTags) {
+        activePrompt += `, style: ${styleTags}`;
+      } else {
+        const { translated } = await translateToEnglish(brandRules.join(', '));
+        activePrompt += `, style: ${translated}`;
+      }
+    }
+
+    // Final safety regex filter to guarantee no brand names are present
+    activePrompt = activePrompt
+      .replace(/\b(audi|polifarbe|poli-farbe|bmw|mercedes|porsche|ferrari|lamborghini|ford|toyota|honda)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+
+    if (previewOnly) {
+      console.log(`[COMPOSITE-GENERATE] Preview only requested. Composed prompt: "${activePrompt}"`);
+      return res.json({ prompt: activePrompt });
+    }
+
+    const inputImage = slots[0]?.originalUrl || slots[0]?.preprocessedUrl || undefined;
+    const inputImage2 = slots[0]?.preprocessedUrl && slots[0]?.preprocessedUrl !== slots[0]?.originalUrl 
+      ? slots[0]?.preprocessedUrl 
+      : (slots[1]?.originalUrl || slots[1]?.preprocessedUrl || undefined);
+
+    let imageUrl = '';
+    let genModel = '';
+    let genTime = 0;
+    let checkupResult: any = null;
+    let attempts = 0;
+    const w = width ? Number(width) : 1024;
+    const h = height ? Number(height) : 1536;
+    const ar = aspectRatio || '2:3';
+
+    while (attempts < 2) {
+      attempts++;
+      console.log(`[COMPOSITE-GENERATE] Attempt ${attempts} prompt: "${activePrompt}"`);
+
+      const genResult = await generateWithFluxFlex(activePrompt, w, h, {
+        aspectRatio: ar,
+        safetyTolerance: 5,
+        guidance: 4.5,
+        steps: 50,
+        inputImage,
+        inputImage2,
+        backgroundPrompt: scenePrompt || undefined
+      });
+      imageUrl = genResult.imageUrl;
+      genModel = genResult.model;
+      genTime = genResult.generationTime;
+
+      console.log(`[COMPOSITE-GENERATE] Image generated, running checkup...`);
+      checkupResult = await checkGeneratedImage(imageUrl, activePrompt);
+
+      if (checkupResult.passed || attempts >= 2) {
+        break;
+      }
+
+      console.log(`[COMPOSITE-GENERATE] Checkup FAILED (score: ${checkupResult.score}). Issues: ${checkupResult.issues.join(', ')}`);
+      console.log(`[COMPOSITE-GENERATE] Suggested adjustment: "${checkupResult.suggestedPromptAdjustment}"`);
+
+      activePrompt = `${activePrompt}. ${checkupResult.suggestedPromptAdjustment}`;
+      activePrompt += `. Ensure single unified photographic frame, merge background seamlessly, remove picture-in-picture, avoid multiple copies.`;
+    }
+
+    const elapsed = Date.now() - start;
+    console.log(`[COMPOSITE-GENERATE] ✅ Complete in ${elapsed}ms -> ${imageUrl}`);
+
+    res.json({
+      imageUrl,
+      prompt: activePrompt,
+      elapsed,
+      generationModel: genModel,
+      generationTime: genTime,
+      checkup: {
+        ...checkupResult,
+        attempts
+      }
+    });
+
+  } catch (err: any) {
+    console.error(`[COMPOSITE-GENERATE] Error during composite generation:`, err);
+    res.status(500).json({ error: 'Composite generation failed', details: err.message });
+  }
+});
+
+
 // Route 4: Image upload & background removal (preprocess)
 app.post('/api/image/preprocess', async (req, res) => {
   const { image } = req.body;
@@ -434,6 +1054,74 @@ app.post('/api/image/preprocess', async (req, res) => {
   }
 });
 
+// Route 4.5: Image upscaling (drct-super-resolution for sharp details and text)
+app.post('/api/image/upscale', async (req, res) => {
+  const { imageUrl, maskUrl } = req.body;
+  if (!imageUrl) {
+    return res.status(400).json({ error: 'imageUrl is required.' });
+  }
+
+  const start = Date.now();
+  console.log(`\n[UPSCALE] Starting upscale using fal-ai/drct-super-resolution for image: ${imageUrl.substring(0, 80)}...`);
+
+  try {
+    const result = await fal.subscribe('fal-ai/drct-super-resolution', {
+      input: {
+        image_url: imageUrl,
+        upscale_factor: 4
+      }
+    });
+
+    const data = result.data as any;
+    if (!data || !data.image || !data.image.url) {
+      throw new Error('No image URL returned in upscale response');
+    }
+
+    const upscaledUrl = data.image.url;
+    console.log(`[UPSCALE] DRCT success in ${Date.now() - start}ms → ${upscaledUrl.substring(0, 80)}...`);
+
+    // If maskUrl (preprocessed transparent URL) is provided, apply it mathematically to preserve 100% of text quality
+    if (maskUrl) {
+      console.log(`[UPSCALE] maskUrl provided, applying low-res mask to upscaled image`);
+      const maskedLocalPath = await applyLowResMaskToUpscaled(upscaledUrl, maskUrl, rendersDir);
+      const finalCdnUrl = await uploadToFal(maskedLocalPath);
+      
+      // Clean up local file
+      if (fs.existsSync(maskedLocalPath)) {
+        fs.unlinkSync(maskedLocalPath);
+      }
+      
+      console.log(`[UPSCALE] ✅ Masked upscale success in ${Date.now() - start}ms → ${finalCdnUrl.substring(0, 80)}...`);
+      return res.json({ url: finalCdnUrl });
+    }
+
+    return res.json({ url: upscaledUrl });
+  } catch (err: any) {
+    console.error(`[UPSCALE] ❌ Failed after ${Date.now() - start}ms: ${err.message}`);
+    res.status(500).json({ error: 'Failed to upscale image', details: err.message });
+  }
+});
+
+// Route 4.6: Remove background from an existing image URL
+app.post('/api/image/remove-background', async (req, res) => {
+  const { imageUrl } = req.body;
+  if (!imageUrl) {
+    return res.status(400).json({ error: 'imageUrl is required.' });
+  }
+
+  const start = Date.now();
+  console.log(`\n[REMOVE-BG] Removing background for image: ${imageUrl.substring(0, 80)}...`);
+
+  try {
+    const url = await removeBackground(imageUrl);
+    console.log(`[REMOVE-BG] ✅ Success in ${Date.now() - start}ms → ${url.substring(0, 80)}...`);
+    res.json({ url });
+  } catch (err: any) {
+    console.error(`[REMOVE-BG] ❌ Failed after ${Date.now() - start}ms: ${err.message}`);
+    res.status(500).json({ error: 'Failed to remove background', details: err.message });
+  }
+});
+
 // Route 5: Direct image generation test (Bria, Flux+IP, or BFL)
 app.post('/api/test-image', async (req, res) => {
   const { productImageUrl, preprocessedImageUrl, scenePrompt, model, ipStrength, cnStrength, guidanceScale, numSteps,
@@ -451,285 +1139,315 @@ app.post('/api/test-image', async (req, res) => {
   try {
     let imageUrl = '';
     let usedModel = model || 'bria';
-    
-    if (model && model.startsWith('bfl-')) {
-      // === BLACK FOREST LABS (BFL) DIRECT API CALL ===
-      const bflKey = process.env.BFL_API_KEY;
-      if (!bflKey) {
-        throw new Error('BFL_API_KEY is not configured in .env');
-      }
+    let activePrompt = scenePrompt;
+    if (!productImageUrl && !preprocessedImageUrl) {
+      activePrompt = `${scenePrompt.trim()}, prompt subject dominates the image, fully visible, fully in frame, no cropped parts, well-composed`;
+    }
+    let checkupResult: any = null;
+    let attempts = 0;
 
-      const isFlex = model === 'bfl-flux-2-flex';
-      const isUltra = model === 'bfl-flux-pro-1.1-ultra';
-      const endpoint = model === 'bfl-flux-2-max'
-        ? 'https://api.bfl.ai/v1/flux-2-max'
-        : isFlex
-        ? 'https://api.bfl.ai/v1/flux-2-flex'
-        : isUltra
-        ? 'https://api.bfl.ai/v1/flux-pro-1.1-ultra'
-        : 'https://api.bfl.ai/v1/flux-2-pro';
+    while (attempts < 2) {
+      attempts++;
+      console.log(`[TEST-IMAGE] Generation attempt ${attempts} with prompt: "${activePrompt}"`);
 
-      console.log(`[TEST-IMAGE] [BFL] Direct API call using endpoint: ${endpoint}`);
-
-      let bflPayload: any = {
-        prompt: scenePrompt,
-        output_format: 'jpeg',
-        safety_tolerance: safetyTolerance !== undefined ? Number(safetyTolerance) : 1
-      };
-
-      if (isFlex) {
-        // FLUX.2 [flex] — BFL's recommended model for label/packaging/typography
-        bflPayload.aspect_ratio = aspectRatio || bflAspectRatio || '2:3';
-        bflPayload.guidance = guidance !== undefined ? Number(guidance) : 4.5;
-        bflPayload.steps = steps !== undefined ? Math.min(50, Math.max(1, Number(steps))) : 50;
-        if (width) bflPayload.width = Number(width);
-        if (height) bflPayload.height = Number(height);
-        // Image referencing for Flex
-        if (preprocessedImageUrl) {
-          bflPayload.input_image = preprocessedImageUrl;
-          if (productImageUrl) bflPayload.input_image_2 = productImageUrl;
-        } else if (productImageUrl) {
-          bflPayload.input_image = productImageUrl;
+      if (model === 'auto' || model === 'flux-auto') {
+        console.log(`[TEST-IMAGE] [ROUTER] Routing via generateWithFluxFlex`);
+        const genResult = await generateWithFluxFlex(activePrompt, width ? Number(width) : 1024, height ? Number(height) : 1536, {
+          aspectRatio: aspectRatio || bflAspectRatio || '2:3',
+          safetyTolerance: safetyTolerance !== undefined ? Number(safetyTolerance) : 5,
+          guidance: guidance !== undefined ? Number(guidance) : 4.5,
+          steps: steps !== undefined ? Number(steps) : 50,
+          inputImage: productImageUrl || preprocessedImageUrl || undefined,
+          inputImage2: preprocessedImageUrl && preprocessedImageUrl !== productImageUrl ? preprocessedImageUrl : undefined,
+          backgroundPrompt: scenePrompt || undefined
+        });
+        imageUrl = genResult.imageUrl;
+        usedModel = genResult.model;
+      } else if (model && model.startsWith('bfl-')) {
+        // === BLACK FOREST LABS (BFL) DIRECT API CALL ===
+        const bflKey = process.env.BFL_API_KEY;
+        if (!bflKey) {
+          throw new Error('BFL_API_KEY is not configured in .env');
         }
-      } else if (isUltra) {
-        bflPayload.aspect_ratio = bflAspectRatio || '2:3';
-        bflPayload.raw = bflRaw === true;
-        if (preprocessedImageUrl || productImageUrl) {
-          bflPayload.image_prompt = preprocessedImageUrl || productImageUrl;
-          bflPayload.image_prompt_strength = imagePromptStrength !== undefined ? Number(imagePromptStrength) : 0.1;
+
+        const isFlex = model === 'bfl-flux-2-flex';
+        const isUltra = model === 'bfl-flux-pro-1.1-ultra';
+        const endpoint = model === 'bfl-flux-2-max'
+          ? 'https://api.bfl.ai/v1/flux-2-max'
+          : isFlex
+          ? 'https://api.bfl.ai/v1/flux-2-flex'
+          : isUltra
+          ? 'https://api.bfl.ai/v1/flux-pro-1.1-ultra'
+          : 'https://api.bfl.ai/v1/flux-2-pro';
+
+        console.log(`[TEST-IMAGE] [BFL] Direct API call using endpoint: ${endpoint}`);
+
+        let bflPayload: any = {
+          prompt: activePrompt,
+          output_format: 'jpeg',
+          safety_tolerance: safetyTolerance !== undefined ? Number(safetyTolerance) : 5
+        };
+
+        if (isFlex) {
+          bflPayload.aspect_ratio = aspectRatio || bflAspectRatio || '2:3';
+          bflPayload.guidance = guidance !== undefined ? Number(guidance) : 4.5;
+          bflPayload.steps = steps !== undefined ? Math.min(50, Math.max(1, Number(steps))) : 50;
+          if (width) bflPayload.width = Number(width);
+          if (height) bflPayload.height = Number(height);
+          bflPayload.input_image = productImageUrl || preprocessedImageUrl || undefined;
+          if (preprocessedImageUrl && preprocessedImageUrl !== productImageUrl) {
+            bflPayload.input_image_2 = preprocessedImageUrl;
+          }
+        } else if (isUltra) {
+          bflPayload.aspect_ratio = bflAspectRatio || '2:3';
+          bflPayload.raw = bflRaw === true;
+          if (preprocessedImageUrl || productImageUrl) {
+            bflPayload.image_prompt = preprocessedImageUrl || productImageUrl;
+            bflPayload.image_prompt_strength = imagePromptStrength !== undefined ? Number(imagePromptStrength) : 0.1;
+          }
+        } else {
+          const finalW = width ? Number(width) : 1024;
+          const finalH = height ? Number(height) : 1536;
+          const clamped = clampBflProDimensions(finalW, finalH);
+          bflPayload.width = clamped.width;
+          bflPayload.height = clamped.height;
+          console.log(`[TEST-IMAGE] [BFL] Clamped direct Pro/Max dimensions: original ${finalW}x${finalH} -> clamped ${clamped.width}x${clamped.height}`);
+          bflPayload.input_image = productImageUrl || preprocessedImageUrl || undefined;
+          if (preprocessedImageUrl && preprocessedImageUrl !== productImageUrl) {
+            bflPayload.input_image_2 = preprocessedImageUrl;
+          }
         }
-      } else {
-        // Pro / Max: fixed width + height
-        bflPayload.width = width ? Number(width) : 1024;
-        bflPayload.height = height ? Number(height) : 1536;
-        if (preprocessedImageUrl) {
-          bflPayload.input_image = preprocessedImageUrl;
-          if (productImageUrl) bflPayload.input_image_2 = productImageUrl;
-        } else if (productImageUrl) {
-          bflPayload.input_image = productImageUrl;
-        }
-      }
 
-      console.log(`[TEST-IMAGE] [BFL] Sending payload to BFL:`, JSON.stringify(bflPayload, null, 2));
+        console.log(`[TEST-IMAGE] [BFL] Sending payload to BFL:`, JSON.stringify(bflPayload, null, 2));
 
-      // Step 1: Submit generation task
-      const submitResponse = await axios.post(
-        endpoint,
-        bflPayload,
-        {
-          headers: {
-            'X-Key': bflKey,
-            'Content-Type': 'application/json'
-          },
-          timeout: 30000
-        }
-      );
-
-      const taskId = submitResponse.data?.id;
-      const pollingUrl = submitResponse.data?.polling_url;
-      if (!taskId || !pollingUrl) {
-        throw new Error(`Failed to submit task to BFL: ${JSON.stringify(submitResponse.data)}`);
-      }
-      console.log(`[TEST-IMAGE] [BFL] Task submitted successfully. Task ID: ${taskId}, Polling URL: ${pollingUrl}`);
-
-      // Step 2: Poll status
-      let resultUrl = '';
-      const pollStart = Date.now();
-      const maxPollMs = 180000; // 3 minutes max
-
-      while (Date.now() - pollStart < maxPollMs) {
-        await new Promise(r => setTimeout(r, 2000)); // Poll every 2s
-
-        const statusResp = await axios.get(
-          pollingUrl,
+        const submitResponse = await axios.post(
+          endpoint,
+          bflPayload,
           {
             headers: {
-              'X-Key': bflKey
+              'X-Key': bflKey,
+              'Content-Type': 'application/json'
             },
-            timeout: 10000
+            timeout: 30000
           }
         );
 
-        const statusData = statusResp.data;
-        console.log(`[TEST-IMAGE] [BFL] Poll: ${statusData.status} (${((Date.now() - pollStart) / 1000).toFixed(0)}s)`);
-
-        if (statusData.status === 'Ready') {
-          resultUrl = statusData.result?.sample;
-          break;
-        } else if (statusData.status === 'Failed') {
-          throw new Error(`BFL task failed: ${JSON.stringify(statusData.error || statusData)}`);
+        const taskId = submitResponse.data?.id;
+        const pollingUrl = submitResponse.data?.polling_url;
+        if (!taskId || !pollingUrl) {
+          throw new Error(`Failed to submit task to BFL: ${JSON.stringify(submitResponse.data)}`);
         }
-      }
+        console.log(`[TEST-IMAGE] [BFL] Task submitted successfully. Task ID: ${taskId}, Polling URL: ${pollingUrl}`);
 
-      if (!resultUrl) {
-        throw new Error('BFL task timed out or returned no sample URL');
-      }
+        let resultUrl = '';
+        const pollStart = Date.now();
+        const maxPollMs = 180000;
 
-      imageUrl = resultUrl;
-      usedModel = model;
+        while (Date.now() - pollStart < maxPollMs) {
+          await new Promise(r => setTimeout(r, 2000));
 
-    } else if (model === 'flux-harmonize' && productImageUrl) {
-      // === FLUX HARMONIZE (Deterministic Composition + Low-strength img2img) ===
-      console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Model: ${model}, Product: ${productImageUrl ? 'yes' : 'no'}`);
-      
-      // Step 1: Generate background image using Flux 2 Pro
-      console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Step 1/3: Generating background using Flux 2 Pro...`);
-      const generatedBgUrl = await generateWithFlux2(scenePrompt, 1024, 1536, { aspectRatio: '2:3', safetyTolerance: 1, guidance: 4.5, steps: 50 });
-      console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Background generated: ${generatedBgUrl}`);
-      
-      // Step 2: Composite product onto background
-      console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Step 2/3: Compositing product onto background...`);
-      const compositedLocalPath = await compositeProduct(generatedBgUrl, preprocessedImageUrl || productImageUrl, 'feed', rendersDir);
-      console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Composited local path: ${compositedLocalPath}`);
-      
-      // Upload composited image to Fal.ai CDN
-      const compositedCdnUrl = await uploadToFal(compositedLocalPath);
-      if (fs.existsSync(compositedLocalPath)) fs.unlinkSync(compositedLocalPath);
-      console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Composited CDN URL: ${compositedCdnUrl}`);
-      
-      // Step 3: Harmonize the composited image using Flux Dev img2img
-      console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Step 3/3: Harmonizing image...`);
-      imageUrl = await harmonizeImage(compositedCdnUrl, scenePrompt, '');
-      usedModel = 'flux-harmonize';
-      
-    } else if (model === 'flux-ip' && productImageUrl) {
-      // === FLUX + IP-Adapter + ControlNet (queue mode — sync times out) ===
-      console.log(`[TEST-IMAGE] [FLUX-IP] IP:${ipStrength} CN:${cnStrength} G:${guidanceScale} S:${numSteps}`);
-      
-      const payload = {
-        prompt: `${scenePrompt}, professional product photography, the product is naturally integrated into the scene with matching lighting and shadows`,
-        image_size: { width: 1024, height: 1536 },
-        num_images: 1,
-        num_inference_steps: numSteps || 28,
-        guidance_scale: guidanceScale || 3.5,
-        strength: 0.85,
-        enable_safety_checker: true,
-        ip_adapters: [{
-          path: 'XLabs-AI/flux-ip-adapter',
-          image_encoder_path: 'openai/clip-vit-large-patch14',
-          image_url: productImageUrl, // Original image with background for color/details
-          scale: ipStrength !== undefined ? Number(ipStrength) : 0.85,
-          weight_name: 'ip_adapter.safetensors',
-        }],
-        controlnets: [{
-          path: 'Shakker-Labs/FLUX.1-dev-ControlNet-Depth',
-          control_image_url: preprocessedImageUrl || productImageUrl, // Background-removed image for geometry
-          conditioning_scale: cnStrength !== undefined ? Number(cnStrength) : 0.7,
-        }],
-      };
-      
-      console.log(`[TEST-IMAGE] [FLUX-IP] Sending payload:`, JSON.stringify(payload, null, 2));
-      
-      // Step 1: Submit to queue
-      const submitResponse = await axios.post(
-        'https://queue.fal.run/fal-ai/flux-general',
-        payload,
-        {
-          headers: {
-            'Authorization': `Key ${process.env.FAL_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: 30000,
-        }
-      );
-      
-      const requestId = submitResponse.data?.request_id;
-      if (!requestId) throw new Error('No request_id from queue submit');
-      console.log(`[TEST-IMAGE] [FLUX-IP] Queued: ${requestId}`);
-      
-      // Step 2: Poll for completion
-      let result: any = null;
-      const pollStart = Date.now();
-      const maxPollMs = 360000; // 6 minutes max (to accommodate cold-start model downloads)
-      
-      while (Date.now() - pollStart < maxPollMs) {
-        await new Promise(r => setTimeout(r, 2000)); // Poll every 2s
-        
-        const statusResp = await axios.get(
-          `https://queue.fal.run/fal-ai/flux-general/requests/${requestId}/status`,
-          { headers: { 'Authorization': `Key ${process.env.FAL_KEY}` }, timeout: 10000 }
-        );
-        
-        const status = statusResp.data?.status;
-        console.log(`[TEST-IMAGE] [FLUX-IP] Poll: ${status} (${((Date.now() - pollStart) / 1000).toFixed(0)}s)`);
-        
-        if (status === 'COMPLETED') {
-          // Fetch result
-          const resultResp = await axios.get(
-            `https://queue.fal.run/fal-ai/flux-general/requests/${requestId}`,
-            { headers: { 'Authorization': `Key ${process.env.FAL_KEY}` }, timeout: 30000 }
+          const statusResp = await axios.get(
+            pollingUrl,
+            {
+              headers: {
+                'X-Key': bflKey
+              },
+              timeout: 10000
+            }
           );
-          result = resultResp.data;
-          break;
-        } else if (status === 'FAILED') {
-          throw new Error(`Flux queue job failed: ${JSON.stringify(statusResp.data)}`);
+
+          const statusData = statusResp.data;
+          console.log(`[TEST-IMAGE] [BFL] Poll: ${statusData.status} (${((Date.now() - pollStart) / 1000).toFixed(0)}s)`);
+
+          if (statusData.status === 'Ready') {
+            resultUrl = statusData.result?.sample;
+            break;
+          } else if (statusData.status && typeof statusData.status === 'string' && statusData.status.toLowerCase().includes('moderated')) {
+            throw new Error('BFL request was moderated/blocked by safety filters.');
+          } else if (statusData.status === 'Failed') {
+            throw new Error(`BFL task failed: ${JSON.stringify(statusData.error || statusData)}`);
+          }
         }
-      }
-      
-      if (!result) throw new Error('Flux queue job timed out after 6 minutes');
-      
-      imageUrl = result?.images?.[0]?.url || result?.image?.url || '';
-      usedModel = 'flux-ip-adapter';
-      
-    } else {
-      // === BRIA PRODUCT SHOT (or Flux schnell if no product) ===
-      if (productImageUrl) {
-        const placement = briaPlacement || 'automatic';
-        console.log(`[TEST-IMAGE] [BRIA] Product shot mode — placement:${placement}, fast:${briaFast !== false}, optimize:${briaOptimize !== false}`);
+
+        if (!resultUrl) {
+          throw new Error('BFL task timed out or returned no sample URL');
+        }
+
+        imageUrl = resultUrl;
+        usedModel = model;
+
+      } else if (model === 'flux-harmonize' && productImageUrl) {
+        console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Model: ${model}, Product: ${productImageUrl ? 'yes' : 'no'}`);
         
-        const briaBody: any = {
-          image_url: productImageUrl,
-          scene_description: scenePrompt,
-          placement_type: placement,
-          optimize_description: briaOptimize !== false,
-          fast: briaFast !== false,
-          num_results: 1,
+        console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Step 1/3: Generating background using Flux 2 Pro...`);
+        const generatedBgUrl = await generateWithFlux2(activePrompt, 1024, 1536, { aspectRatio: '2:3', safetyTolerance: 5, guidance: 4.5, steps: 50 });
+        console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Background generated: ${generatedBgUrl}`);
+        
+        console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Step 2/3: Compositing product onto background...`);
+        const compositedLocalPath = await compositeProduct(generatedBgUrl, preprocessedImageUrl || productImageUrl, 'feed', rendersDir);
+        console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Composited local path: ${compositedLocalPath}`);
+        
+        const compositedCdnUrl = await uploadToFal(compositedLocalPath);
+        if (fs.existsSync(compositedLocalPath)) fs.unlinkSync(compositedLocalPath);
+        console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Composited CDN URL: ${compositedCdnUrl}`);
+        
+        console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Step 3/3: Harmonizing image...`);
+        imageUrl = await harmonizeImage(compositedCdnUrl, activePrompt, '');
+        usedModel = 'flux-harmonize';
+        
+      } else if (model === 'flux-ip' && productImageUrl) {
+        console.log(`[TEST-IMAGE] [FLUX-IP] IP:${ipStrength} CN:${cnStrength} G:${guidanceScale} S:${numSteps}`);
+        
+        const payload = {
+          prompt: `${activePrompt}, professional product photography, the product is naturally integrated into the scene with matching lighting and shadows`,
+          image_size: { width: 1024, height: 1536 },
+          num_images: 1,
+          num_inference_steps: numSteps || 28,
+          guidance_scale: guidanceScale || 3.5,
+          strength: 0.85,
+          enable_safety_checker: true,
+          ip_adapters: [{
+            path: 'XLabs-AI/flux-ip-adapter',
+            image_encoder_path: 'openai/clip-vit-large-patch14',
+            image_url: productImageUrl,
+            scale: ipStrength !== undefined ? Number(ipStrength) : 0.85,
+            weight_name: 'ip_adapter.safetensors',
+          }],
+          controlnets: [{
+            path: 'Shakker-Labs/FLUX.1-dev-ControlNet-Depth',
+            control_image_url: preprocessedImageUrl || productImageUrl,
+            conditioning_scale: cnStrength !== undefined ? Number(cnStrength) : 0.7,
+          }],
         };
         
-        // Add shot_size if provided
-        if (briaShotSize && Array.isArray(briaShotSize) && briaShotSize.length === 2) {
-          briaBody.shot_size = briaShotSize;
-        }
+        console.log(`[TEST-IMAGE] [FLUX-IP] Sending payload:`, JSON.stringify(payload, null, 2));
         
-        // Add manual_placement_selection if manual placement
-        if (placement === 'manual_placement' && briaPositions && briaPositions.length > 0) {
-          briaBody.manual_placement_selection = briaPositions;
-        }
-        
-        const briaResponse = await axios.post(
-          'https://fal.run/fal-ai/bria/product-shot',
-          briaBody,
+        const submitResponse = await axios.post(
+          'https://queue.fal.run/fal-ai/flux-general',
+          payload,
           {
             headers: {
               'Authorization': `Key ${process.env.FAL_KEY}`,
               'Content-Type': 'application/json',
             },
-            timeout: 120000,
+            timeout: 30000,
           }
         );
         
-        imageUrl = briaResponse.data?.images?.[0]?.url || briaResponse.data?.image?.url || '';
-        usedModel = 'bria-product-shot';
+        const requestId = submitResponse.data?.request_id;
+        if (!requestId) throw new Error('No request_id from queue submit');
+        console.log(`[TEST-IMAGE] [FLUX-IP] Queued: ${requestId}`);
+        
+        let result: any = null;
+        const pollStart = Date.now();
+        const maxPollMs = 360000;
+        
+        while (Date.now() - pollStart < maxPollMs) {
+          await new Promise(r => setTimeout(r, 2000));
+          
+          const statusResp = await axios.get(
+            `https://queue.fal.run/fal-ai/flux-general/requests/${requestId}/status`,
+            { headers: { 'Authorization': `Key ${process.env.FAL_KEY}` }, timeout: 10000 }
+          );
+          
+          const status = statusResp.data?.status;
+          console.log(`[TEST-IMAGE] [FLUX-IP] Poll: ${status} (${((Date.now() - pollStart) / 1000).toFixed(0)}s)`);
+          
+          if (status === 'COMPLETED') {
+            const resultResp = await axios.get(
+              `https://queue.fal.run/fal-ai/flux-general/requests/${requestId}`,
+              { headers: { 'Authorization': `Key ${process.env.FAL_KEY}` }, timeout: 30000 }
+            );
+            result = resultResp.data;
+            break;
+          } else if (status === 'FAILED') {
+            throw new Error(`Flux queue job failed: ${JSON.stringify(statusResp.data)}`);
+          }
+        }
+        
+        if (!result) throw new Error('Flux queue job timed out after 6 minutes');
+        
+        imageUrl = result?.images?.[0]?.url || result?.image?.url || '';
+        usedModel = 'flux-ip-adapter';
+        
       } else {
-        console.log(`[TEST-IMAGE] [FLUX2] Scene-only mode — Flux 2 Pro`);
-        imageUrl = await generateWithFlux2(scenePrompt, width ? Number(width) : 1024, height ? Number(height) : 1536, {
-          aspectRatio: aspectRatio || '2:3',
-          safetyTolerance: safetyTolerance !== undefined ? Number(safetyTolerance) : 1,
-          guidance: guidance !== undefined ? Number(guidance) : 4.5,
-          steps: steps !== undefined ? Math.min(50, Math.max(1, Number(steps))) : 50
-        });
-        usedModel = 'flux-2-pro';
+        if (productImageUrl) {
+          const placement = briaPlacement || 'automatic';
+          console.log(`[TEST-IMAGE] [BRIA] Product shot mode — placement:${placement}, fast:${briaFast !== false}, optimize:${briaOptimize !== false}`);
+          
+          const briaBody: any = {
+            image_url: productImageUrl,
+            scene_description: activePrompt,
+            placement_type: placement,
+            optimize_description: briaOptimize !== false,
+            fast: briaFast !== false,
+            num_results: 1,
+          };
+          
+          if (briaShotSize && Array.isArray(briaShotSize) && briaShotSize.length === 2) {
+            briaBody.shot_size = briaShotSize;
+          }
+          
+          if (placement === 'manual_placement' && briaPositions && briaPositions.length > 0) {
+            briaBody.manual_placement_selection = briaPositions;
+          }
+          
+          const briaResponse = await axios.post(
+            'https://fal.run/fal-ai/bria/product-shot',
+            briaBody,
+            {
+              headers: {
+                'Authorization': `Key ${process.env.FAL_KEY}`,
+                'Content-Type': 'application/json',
+              },
+              timeout: 120000,
+            }
+          );
+          
+          imageUrl = briaResponse.data?.images?.[0]?.url || briaResponse.data?.image?.url || '';
+          usedModel = 'bria-product-shot';
+        } else {
+          console.log(`[TEST-IMAGE] [FLUX2] Scene-only mode — Flux 2 Pro`);
+          imageUrl = await generateWithFlux2(activePrompt, width ? Number(width) : 1024, height ? Number(height) : 1536, {
+            aspectRatio: aspectRatio || '2:3',
+            safetyTolerance: safetyTolerance !== undefined ? Number(safetyTolerance) : 5,
+            guidance: guidance !== undefined ? Number(guidance) : 4.5,
+            steps: steps !== undefined ? Math.min(50, Math.max(1, Number(steps))) : 50
+          });
+          usedModel = 'flux-2-pro';
+        }
       }
+
+      if (!imageUrl) {
+        throw new Error('No image URL in response');
+      }
+
+      console.log(`[TEST-IMAGE] Running checkup on generated image...`);
+      checkupResult = await checkGeneratedImage(imageUrl, activePrompt);
+
+      if (checkupResult.passed || attempts >= 2) {
+        break;
+      }
+
+      console.log(`[TEST-IMAGE] Checkup FAILED (score: ${checkupResult.score}). Issues: ${checkupResult.issues.join(', ')}`);
+      console.log(`[TEST-IMAGE] Suggested adjustment: "${checkupResult.suggestedPromptAdjustment}"`);
+
+      activePrompt = `${activePrompt}. ${checkupResult.suggestedPromptAdjustment}`;
+      activePrompt += `. Ensure single unified photographic/illustration frame, the prompt subject dominates the image, is fully visible, fully in frame, not cut off or cropped at the borders.`;
     }
-    
+
     const elapsed = Date.now() - start;
     console.log(`[TEST-IMAGE] ✅ ${usedModel} ${elapsed}ms → ${imageUrl?.substring(0, 60)}...`);
-    
-    if (!imageUrl) {
-      throw new Error('No image URL in response');
-    }
-    
-    res.json({ imageUrl, model: usedModel, elapsed });
+
+    res.json({
+      imageUrl,
+      model: usedModel,
+      elapsed,
+      checkup: {
+        ...checkupResult,
+        attempts
+      }
+    });
   } catch (err: any) {
     const elapsed = Date.now() - start;
     console.error(`[TEST-IMAGE] ❌ ${elapsed}ms: ${err.message}`);
@@ -742,16 +1460,30 @@ app.post('/api/test-image', async (req, res) => {
 
 // Helper for extracting JSON block from LLM responses
 function extractJsonStr(text: string): string {
-  const jsonStart = text.indexOf('[');
-  const jsonEnd = text.lastIndexOf(']');
-  if (jsonStart !== -1 && jsonEnd !== -1) {
-    return text.substring(jsonStart, jsonEnd + 1);
-  }
   const objStart = text.indexOf('{');
   const objEnd = text.lastIndexOf('}');
+  const arrStart = text.indexOf('[');
+  const arrEnd = text.lastIndexOf(']');
+
+  // If both exist, check which starts first to determine outer-most wrapper
+  if (objStart !== -1 && arrStart !== -1) {
+    if (objStart < arrStart) {
+      return text.substring(objStart, objEnd + 1);
+    } else {
+      return text.substring(arrStart, arrEnd + 1);
+    }
+  }
+
+  // If only object braces exist
   if (objStart !== -1 && objEnd !== -1) {
     return text.substring(objStart, objEnd + 1);
   }
+
+  // If only array brackets exist
+  if (arrStart !== -1 && arrEnd !== -1) {
+    return text.substring(arrStart, arrEnd + 1);
+  }
+
   return text;
 }
 
@@ -766,25 +1498,7 @@ app.post('/api/ai/suggest-layers', async (req, res) => {
     let imageContentBlock: any = null;
     if (imageUrl) {
       try {
-        console.log(`[SUGGEST-LAYERS] Downloading image: ${imageUrl}`);
-        const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 15000 });
-        const contentType = imageResponse.headers['content-type'] || 'image/jpeg';
-        const base64Data = Buffer.from(imageResponse.data, 'binary').toString('base64');
-        
-        let mediaType = 'image/jpeg';
-        if (contentType.includes('png')) mediaType = 'image/png';
-        else if (contentType.includes('gif')) mediaType = 'image/gif';
-        else if (contentType.includes('webp')) mediaType = 'image/webp';
-        
-        imageContentBlock = {
-          type: 'image',
-          source: {
-            type: 'base64',
-            media_type: mediaType as any,
-            data: base64Data,
-          },
-        };
-        console.log(`[SUGGEST-LAYERS] Image successfully downloaded and converted. Size: ${(base64Data.length/1024).toFixed(1)} KB`);
+        imageContentBlock = await fetchImageAsClaudeBlock(imageUrl);
       } catch (imageErr: any) {
         console.warn(`[SUGGEST-LAYERS] Failed to fetch image, falling back to text-only mode: ${imageErr.message}`);
       }
@@ -1095,12 +1809,6 @@ app.post('/api/campaign/generate', async (req, res) => {
 // ═══════════════════════════════════════════════════════════════════════════════
 
 async function translateToEnglish(text: string, brandContext?: any): Promise<{ translated: string; wasTranslated: boolean }> {
-  const geminiKey = process.env.GEMINI_API_KEY;
-  if (!geminiKey) {
-    console.warn('[TRANSLATE] No GEMINI_API_KEY — skipping translation');
-    return { translated: text, wasTranslated: false };
-  }
-
   // Quick heuristic: if >60% ASCII printable chars and no Hungarian diacritics → skip
   const huChars = (text.match(/[áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/g) || []).length;
   const nonAscii = (text.match(/[^\x00-\x7F]/g) || []).length;
@@ -1117,23 +1825,24 @@ Rules:
 - Output ONLY the translated English prompt, nothing else
 - Keep brand names, product names, and proper nouns unchanged
 - Preserve technical photography terms (f/2.8, 35mm, bokeh etc.)
-- Make the English natural and vivid for AI image generation${brandHint}`;
+- Make the English natural and vivid for AI image generation${brandHint}
+DO NOT output any explanations, formatting, or introduction. Just output the translation itself.`;
 
   try {
-    const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${geminiKey}`,
-      {
-        contents: [{ role: 'user', parts: [{ text: `Translate this image prompt to English:\n\n${text}` }] }],
-        systemInstruction: { parts: [{ text: systemPrompt }] },
-        generationConfig: { maxOutputTokens: 500, temperature: 0.2 }
-      },
-      { headers: { 'Content-Type': 'application/json' }, timeout: 15000 }
-    );
-    const translated = response.data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || text;
-    console.log(`[TRANSLATE] HU→EN: "${text.substring(0, 60)}" → "${translated.substring(0, 60)}"`);
+    const model = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+    const response = await anthropic.messages.create({
+      model,
+      max_tokens: 500,
+      temperature: 0.2,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: [{ type: 'text', text: `Translate this image prompt to English:\n\n${text}` }] }]
+    });
+
+    const translated = (response.content[0].type === 'text' ? response.content[0].text : '').trim() || text;
+    console.log(`[TRANSLATE] HU→EN via Claude: "${text.substring(0, 60)}" → "${translated.substring(0, 60)}"`);
     return { translated, wasTranslated: true };
   } catch (err: any) {
-    console.error('[TRANSLATE] Gemini error:', err.message);
+    console.error('[TRANSLATE] Claude error:', err.message);
     return { translated: text, wasTranslated: false };
   }
 }

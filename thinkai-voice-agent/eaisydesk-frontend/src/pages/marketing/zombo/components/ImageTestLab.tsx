@@ -2,6 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Upload, Sparkles, Image as ImageIcon, Loader2, Download, RotateCcw, Zap, Eye, EyeOff, Wand2, Layers, Languages, Type, Square, Trash, Save, X, RefreshCw, LayoutTemplate, GripVertical } from 'lucide-react';
 import type { BrandKit } from '../types';
 import { fixImageUrl } from '../types';
+import ImageSlotUploader, { type ImageSlot, buildCompositePayload } from './ImageSlotUploader';
 
 interface VisualStrategy {
   business_understood?: string;
@@ -46,20 +47,24 @@ interface ImageTestLabProps {
 }
 
 export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps) {
-  const [productImage, setProductImage] = useState<string | null>(null);
-  const [productFileName, setProductFileName] = useState('');
+  const [imageSlots, setImageSlots] = useState<ImageSlot[]>([]);
+  // Derived backward-compat vars from first slot
+  const productImage = imageSlots[0]?.originalUrl || imageSlots[0]?.rawBase64 || null;
+  const preprocessedUrl = imageSlots[0]?.upscaledUrl || imageSlots[0]?.preprocessedUrl || null;
+  const originalUrl = imageSlots[0]?.originalUrl || null;
+  const isPreprocessing = imageSlots.some(s => s.preprocessLoading || s.analysisLoading || s.upscaleLoading);
+  const productFileName = imageSlots[0]?.fileName || '';
+
+
   const [scenePrompt, setScenePrompt] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
-  const [isPreprocessing, setIsPreprocessing] = useState(false);
-  const [preprocessedUrl, setPreprocessedUrl] = useState<string | null>(null);
-  const [originalUrl, setOriginalUrl] = useState<string | null>(null);
+  const [composedPromptPreview, setComposedPromptPreview] = useState('');
+  const [isPreviewLoading, setIsPreviewLoading] = useState(false);
   const [results, setResults] = useState<Array<{ url: string; prompt: string; elapsed: number; model: string; params?: Record<string, any> }>>([]);
   const [error, setError] = useState('');
   const [statusMsg, setStatusMsg] = useState('');
   const [logs, setLogs] = useState<string[]>([]);
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Translation
   const [autoTranslate, setAutoTranslate] = useState(true);
   const [isTranslating, setIsTranslating] = useState(false);
   const [translatedPrompt, setTranslatedPrompt] = useState('');
@@ -87,7 +92,7 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
 
   // BFL model + params — global defaults: Flex / safety=1 / guidance=4.5 / steps=50
   const [safetyTolerance, setSafetyTolerance] = useState(1);
-  const [bflModel, setBflModel] = useState<'bfl-flux-2-pro' | 'bfl-flux-2-max' | 'bfl-flux-2-flex'>('bfl-flux-2-flex');
+  const [bflModel, setBflModel] = useState<'bfl-flux-2-pro' | 'bfl-flux-2-max' | 'bfl-flux-2-flex' | 'auto'>('auto');
   const [bflWidth, setBflWidth] = useState(1024);
   const [bflHeight, setBflHeight] = useState(1536);
   const [flexAspectRatio, setFlexAspectRatio] = useState('2:3');
@@ -179,56 +184,82 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
     return text;
   };
 
-  // File upload
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    setProductFileName(file.name);
-    setPreprocessedUrl(null); setOriginalUrl(null); setError(''); setLogs([]);
-    addLog(`Fajl kivalasztva: ${file.name}`, 'info');
-    const reader = new FileReader();
-    reader.onload = async (ev) => {
-      const base64 = ev.target?.result as string;
-      setProductImage(base64);
-      setIsPreprocessing(true);
-      setStatusMsg('Hatter eltavolitas...');
-      addLog('POST /api/image/preprocess...', 'info');
-      try {
-        const resp = await fetch('http://localhost:3001/api/image/preprocess', {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ image: base64 }),
+  const handlePreviewPrompt = async () => {
+    if (!scenePrompt.trim()) { setError('Adj meg egy jelenet leírást!'); return; }
+    setIsPreviewLoading(true); setError(''); setComposedPromptPreview('');
+
+    try {
+      if (imageSlots.length >= 1) {
+        const payload = buildCompositePayload(imageSlots, scenePrompt, activeBrandKit);
+        const resp = await fetch('http://localhost:3001/api/image/composite-generate', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ ...payload, previewOnly: true }),
         });
         if (!resp.ok) throw new Error(await resp.text());
         const data = await resp.json();
-        setPreprocessedUrl(data.url);
-        setOriginalUrl(data.originalUrl || null);
-        setStatusMsg('Hatter eltavolitva');
-        addLog(`Hatter eltavolitva: ${data.url}`, 'success');
-      } catch (err: any) {
-        addLog(`Hatter eltavolitasi hiba: ${err.message}`, 'error');
-        setError(`Hatter eltavolitasi hiba: ${err.message}`);
-        setStatusMsg('');
-      } finally { setIsPreprocessing(false); }
-    };
-    reader.readAsDataURL(file);
+        setComposedPromptPreview(data.prompt || '');
+      } else {
+        const translated = autoTranslate ? await handleTranslate(scenePrompt) : scenePrompt;
+        let finalPrompt = translated;
+        if (bflModel === 'flux-ip' && (originalUrl || preprocessedUrl)) {
+          finalPrompt = `${translated}, professional product photography, the product is naturally integrated into the scene with matching lighting and shadows`;
+        }
+        // Final safety brand strip on frontend
+        finalPrompt = finalPrompt
+          .replace(/\b(audi|polifarbe|poli-farbe|bmw|mercedes|porsche|ferrari|lamborghini|ford|toyota|honda)\b/gi, '')
+          .replace(/\s+/g, ' ')
+          .trim();
+        setComposedPromptPreview(finalPrompt);
+      }
+    } catch (err: any) {
+      setError('Előnézet hiba: ' + err.message);
+    } finally {
+      setIsPreviewLoading(false);
+    }
   };
 
   // Generate
   const handleGenerate = async () => {
     if (!scenePrompt.trim()) { setError('Adj meg egy jelenet leirast!'); return; }
     setIsGenerating(true); setError(''); setLogs([]);
-    let finalPrompt = scenePrompt;
-    if (autoTranslate) { addLog('Magyar -> angol forditas...', 'info'); finalPrompt = await handleTranslate(scenePrompt); }
-    addLog(`Generalas inditasa: BFL ${bflModel}...`, 'info');
-    setStatusMsg(`${bflModel} generalas...`);
     const start = Date.now();
+
     try {
-      const isFlexModel = bflModel === 'bfl-flux-2-flex';
+      // Composition mode (1+ image slots present)
+      if (imageSlots.length >= 1) {
+        addLog('Composite-generate inditasa...', 'info');
+        setStatusMsg('Composite Flux Flex generalas...');
+        const resp = await fetch('http://localhost:3001/api/image/composite-generate', {
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(buildCompositePayload(imageSlots, scenePrompt, activeBrandKit)),
+        });
+        if (!resp.ok) throw new Error(await resp.text());
+        const data = await resp.json();
+        const elapsed = Date.now() - start;
+        addLog(`Kesz! (${(elapsed / 1000).toFixed(1)}s)`, 'success');
+        setResults(prev => [{ url: data.imageUrl, prompt: data.prompt || scenePrompt, elapsed, model: 'bfl-flux-2-flex (composite)', params: { slots: imageSlots.length } }, ...prev]);
+        setStatusMsg(`Kesz! (${(elapsed / 1000).toFixed(1)}s)`);
+        return;
+      }
+
+      // Scene only (0 slots) — standard test-image flow
+      let finalPrompt = scenePrompt;
+      if (autoTranslate) { addLog('Magyar -> angol forditas...', 'info'); finalPrompt = await handleTranslate(scenePrompt); }
+      // Final safety brand strip
+      finalPrompt = finalPrompt
+        .replace(/\b(audi|polifarbe|poli-farbe|bmw|mercedes|porsche|ferrari|lamborghini|ford|toyota|honda)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      addLog(`Generalas inditasa: BFL ${bflModel}...`, 'info');
+      setStatusMsg(`${bflModel} generalas...`);
+      const isFlexModel = bflModel === 'bfl-flux-2-flex' || bflModel === 'auto';
       const resp = await fetch('http://localhost:3001/api/test-image', {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          productImageUrl: originalUrl || preprocessedUrl || null,
-          preprocessedImageUrl: preprocessedUrl || null,
+          productImageUrl: null,
+          preprocessedImageUrl: null,
           scenePrompt: finalPrompt,
           model: bflModel,
           safetyTolerance,
@@ -247,6 +278,7 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
       addLog(`Kesz! (${(elapsed / 1000).toFixed(1)}s)`, 'success');
       setResults(prev => [{ url: data.imageUrl, prompt: finalPrompt, elapsed, model: data.model || bflModel, params: isFlexModel ? { aspectRatio: flexAspectRatio, size: `${flexWidth}x${flexHeight}`, guidance: flexGuidance, steps: flexSteps, safety: safetyTolerance } : { size: `${bflWidth}x${bflHeight}`, safety: safetyTolerance } }, ...prev]);
       setStatusMsg(`Kesz! (${(elapsed / 1000).toFixed(1)}s)`);
+
     } catch (err: any) {
       addLog(`Hiba: ${err.message}`, 'error');
       try { const parsed = JSON.parse(err.message); setError(parsed.error || parsed.message || err.message); }
@@ -1197,32 +1229,21 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
         <div className="lab-controls">
           {/* Product Upload */}
           <div className="lab-card glass-panel">
-            <h3><Upload size={16} /> Termek Kep</h3>
-            <div className={`upload-zone ${productImage ? 'has-image' : ''}`} onClick={() => fileInputRef.current?.click()}>
-              {productImage ? (
-                <div className="upload-preview-row">
-                  <img src={fixImageUrl(preprocessedUrl || productImage)} alt="Product" className="upload-thumb" />
-                  <div className="upload-meta">
-                    <span className="upload-filename">{productFileName}</span>
-                    {isPreprocessing && <span className="preprocessing-badge"><Loader2 size={12} className="spin" /> BG removal...</span>}
-                    {preprocessedUrl && <span className="done-badge">BG eltavolitva</span>}
-                  </div>
-                </div>
-              ) : (
-                <div className="upload-placeholder">
-                  <Upload size={24} />
-                  <span>Kattints vagy huzd ide a termek fotot</span>
-                  <span className="upload-hint">PNG, JPG — max 10MB</span>
-                </div>
-              )}
-              <input ref={fileInputRef} type="file" accept="image/*" onChange={handleFileUpload} style={{ display: 'none' }} />
-            </div>
-            {productImage && (
-              <button className="btn-clear" onClick={() => { setProductImage(null); setPreprocessedUrl(null); setOriginalUrl(null); setProductFileName(''); if (fileInputRef.current) fileInputRef.current.value = ''; }}>
-                <RotateCcw size={12} /> Torles
-              </button>
+            <h3><Upload size={16} /> Képek csatolása</h3>
+            <ImageSlotUploader
+              slots={imageSlots}
+              onChange={setImageSlots}
+              maxSlots={3}
+              disabled={isGenerating}
+              label="Termék / modell / jelenet képek"
+            />
+            {imageSlots.length > 1 && (
+              <div style={{ marginTop: 8, padding: '6px 10px', borderRadius: 8, background: 'rgba(139,92,246,0.12)', border: '1px solid rgba(139,92,246,0.3)', fontSize: 11, color: '#c4b5fd', fontWeight: 600 }}>
+                ⚡ Composite mód — {imageSlots.length} kép összefésülése Flux Flex-szel
+              </div>
             )}
           </div>
+
 
           {/* Brand DNA Products */}
           {(brandProducts.length > 0 || brandColors.length > 0) && (
@@ -1333,8 +1354,17 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
             <h3 style={{ color: '#f97316', marginBottom: 14 }}>BFL FLUX.2 — Model & Params</h3>
 
             {/* Model selector cards */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 14 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(180px, 1fr))', gap: 8, marginBottom: 14 }}>
               {([
+                {
+                  id: 'auto' as const,
+                  name: 'Automata (Router)',
+                  badge: '🤖 Automata',
+                  color: '#a78bfa',
+                  desc: 'Okos irányítás: Ha nincs a promptban felirat vagy bemeneti kép, Pro-val ($0.04) generál a drágább Flex ($0.055) helyett.',
+                  tags: ['Ajánlott', 'Intelligens', 'Költséghatékony'],
+                  recommended: true,
+                },
                 {
                   id: 'bfl-flux-2-pro' as const,
                   name: 'FLUX.2 [pro]',
@@ -1356,9 +1386,8 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
                   name: 'FLUX.2 [flex]',
                   badge: '🏷️ Flex',
                   color: '#10b981',
-                  desc: 'BFL ajánlott eszköze label/csomagolás szövegekhez: összetevőlista, nutrition panel, pontos feliratozás.',
+                  desc: 'BFL ajánlott eszköze label/csomagolás szövegekhez: nutrition panel, pontos feliratozás.',
                   tags: ['Label/Packaging', 'Tipográfia', 'Szöveg-pontos'],
-                  recommended: true,
                 },
               ]).map(m => (
                 <div
@@ -1457,12 +1486,66 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
             </div>
           </div>
 
-          {/* Generate */}
-          <div className="generate-buttons">
-            <button className={`btn-generate ${isGenerating ? 'generating' : ''}`} onClick={handleGenerate} disabled={isGenerating || isPreprocessing}>
-              {isGenerating ? <><Loader2 size={18} className="spin" /> Generalas...</> : <><Zap size={18} /> FLUX.2 Generalas</>}
+          {/* Generate & Preview */}
+          <div className="generate-buttons" style={{ display: 'flex', gap: 10 }}>
+            <button className={`btn-generate ${isGenerating ? 'generating' : ''}`} onClick={handleGenerate} disabled={isGenerating || isPreprocessing || isPreviewLoading}>
+              {isGenerating ? <><Loader2 size={18} className="spin" /> Generálás...</> : <><Zap size={18} /> FLUX.2 Generálás</>}
+            </button>
+            <button 
+              className="btn-preview-prompt"
+              onClick={handlePreviewPrompt}
+              disabled={isGenerating || isPreprocessing || isPreviewLoading}
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 8,
+                padding: '14px 20px',
+                borderRadius: '10px',
+                fontSize: '14px',
+                fontWeight: 700,
+                border: '1px solid rgba(139, 92, 246, 0.4)',
+                cursor: 'pointer',
+                background: 'rgba(139, 92, 246, 0.1)',
+                color: '#c4b5fd',
+                transition: 'all 0.2s ease',
+                fontFamily: 'inherit',
+                flex: 1
+              }}
+            >
+              {isPreviewLoading ? <><Loader2 size={18} className="spin" /> Összeállítás...</> : <><Eye size={18} /> Prompt előnézet</>}
             </button>
           </div>
+
+          {composedPromptPreview && (
+            <div className="lab-card glass-panel" style={{ marginTop: 12, border: '1px solid rgba(139, 92, 246, 0.3)', background: 'rgba(13, 9, 23, 0.45)', display: 'flex', flexDirection: 'column', gap: 8, animation: 'fadeInPreview 0.2s ease-out' }}>
+              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <span style={{ fontSize: 11, fontWeight: 700, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.05em', display: 'flex', alignItems: 'center', gap: 4 }}><Sparkles size={12} /> Generálóba menő prompt</span>
+                <button 
+                  onClick={() => {
+                    navigator.clipboard.writeText(composedPromptPreview);
+                    alert('Prompt másolva a vágólapra!');
+                  }}
+                  style={{
+                    background: 'rgba(139, 92, 246, 0.15)',
+                    border: '1px solid rgba(139, 92, 246, 0.3)',
+                    color: '#c4b5fd',
+                    padding: '3px 8px',
+                    borderRadius: 4,
+                    fontSize: 10,
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    transition: 'all 0.15s ease'
+                  }}
+                >
+                  Másolás
+                </button>
+              </div>
+              <div style={{ fontSize: 12, color: '#ddd6fe', lineHeight: 1.5, background: 'rgba(0,0,0,0.3)', padding: 12, borderRadius: 6, border: '1px solid rgba(255,255,255,0.04)', whiteSpace: 'pre-wrap', wordBreak: 'break-word', fontFamily: 'monospace' }}>
+                {composedPromptPreview}
+              </div>
+            </div>
+          )}
 
           {statusMsg && <div className="status-msg">{statusMsg}</div>}
           {error && <div className="error-msg">Hiba: {error}</div>}
@@ -1608,6 +1691,8 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
         .btn-generate:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 6px 25px rgba(139,92,246,0.4); }
         .btn-generate:disabled { opacity: 0.6; cursor: not-allowed; }
         .btn-generate.generating { background: linear-gradient(135deg, #6d28d9 0%, #4c1d95 100%); }
+        .btn-preview-prompt:hover:not(:disabled) { background: rgba(139, 92, 246, 0.2) !important; border-color: rgba(139, 92, 246, 0.7) !important; color: #fff !important; transform: translateY(-1px); }
+        .btn-preview-prompt:disabled { opacity: 0.6; cursor: not-allowed; }
 
         .status-msg { font-size: 12px; color: #10b981; text-align: center; padding: 4px; }
         .error-msg { font-size: 12px; color: #ef4444; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: 8px; padding: 10px; }

@@ -229,6 +229,11 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
           <span className={`status-badge badge-${post.status}`}>
             {post.status.toUpperCase()}
           </span>
+          {post.generationModel && (
+            <span className="generation-info-badge" title={`Generálva: ${post.generationModel} (${post.generationTime ? `${post.generationTime.toFixed(1)}s` : ''})`}>
+              ⚡ {post.generationModel} • {post.generationTime ? `${post.generationTime.toFixed(1)}s` : ''}
+            </span>
+          )}
           <span className="template-type">
             Sablon: {post.templateId}
           </span>
@@ -577,6 +582,19 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
         .template-type {
           font-size: 10px;
           color: var(--text-muted);
+        }
+        .generation-info-badge {
+          font-size: 9px;
+          font-weight: 700;
+          padding: 3px 8px;
+          border-radius: 4px;
+          background: rgba(255, 255, 255, 0.05);
+          color: rgba(255, 255, 255, 0.7);
+          border: 1px solid rgba(255, 255, 255, 0.08);
+          display: inline-flex;
+          align-items: center;
+          gap: 4px;
+          letter-spacing: 0.2px;
         }
         .text-display-row {
           display: flex;
