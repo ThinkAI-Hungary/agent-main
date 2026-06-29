@@ -5,7 +5,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useClients } from '../../hooks/useClients';
-import { useCalendarEvents } from '../../hooks/useCalendarEvents';
+
 import { parseCustomData, bestClientName } from '../../helpers/clientResolvers';
 import { authFetch } from '../../api/client';
 import { showToast } from '../ui/Toast';
@@ -88,56 +88,27 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
     return Array.from(tags);
   }, [clients]);
 
-  // Enriched clients for picker
-  // Calendar events for Új/Visszatérő/Inaktív detection (same logic as old HTML)
-  const { events: calendarEvents } = useCalendarEvents();
-
+  // Enriched clients for picker — status from client record directly
   const enrichedClients = useMemo(() => {
-    const INACTIVITY_DAYS = 60;
-    const now = Date.now();
-
-    // Pre-count appointments per client matching old HTML logic
-    function countAppointments(clientName: string, clientEmail: string): number {
-      const cN = (clientName || '').toLowerCase().replace(/\s+/g, ' ').trim();
-      const cE = (clientEmail || '').toLowerCase().trim();
-      let count = 0;
-      calendarEvents.forEach((ev) => {
-        const eE = (ev.attendee_email || '').toLowerCase().trim();
-        const eA = (ev.attendee || '').toLowerCase().trim();
-        const eT = (ev.title || '').toLowerCase().trim();
-        let match = false;
-        if (cE) { if (eE && cE === eE) match = true; if (eA && eA.includes(cE)) match = true; }
-        if (cN) { if (eA && eA.includes(cN)) match = true; if (eT && eT.includes(cN)) match = true; }
-        if (match) count++;
-      });
-      return count;
-    }
-
     return clients.map(c => {
       const cd = parseCustomData(c.custom_data);
       const name = bestClientName(c) || c.name || 'Névtelen';
       const email = (cd?.email as string) || c.email || '';
       const phone = (cd?.telefonszam as string) || (cd?.phone as string) || c.phone || '';
       const tags: string[] = (cd?.tags as string[]) || [];
-      
-      // Determine client type matching old HTML logic exactly:
-      // - aptCount > 1 → VISSZATÉRŐ
-      // - daysSince > INACTIVITY_DAYS && no appointments → INAKTÍV
-      // - else → ÚJ ÜGYFÉL
-      const createdAt = c.created_at ? new Date(c.created_at).getTime() : 0;
-      const daysSinceCreated = createdAt ? (now - createdAt) / (1000 * 60 * 60 * 24) : 999;
-      const aptCount = countAppointments(name, email);
-      
+
+      // Típus közvetlenül a kliens rekord status mezőjéből
+      const rawStatus = (c.status || 'uj').toLowerCase();
       let clientType: 'new' | 'returning' | 'inactive' = 'new';
-      if (daysSinceCreated > INACTIVITY_DAYS && aptCount === 0) {
+      if (rawStatus === 'inaktiv' || rawStatus === 'inactive') {
         clientType = 'inactive';
-      } else if (aptCount > 1) {
+      } else if (rawStatus === 'visszatero' || rawStatus === 'returning') {
         clientType = 'returning';
       }
-      
+
       return { id: String(c.id), name, email, phone, tags, clientType };
     });
-  }, [clients, calendarEvents]);
+  }, [clients]);
 
   // Filtered client list for picker
   const filteredPickerClients = useMemo(() => {

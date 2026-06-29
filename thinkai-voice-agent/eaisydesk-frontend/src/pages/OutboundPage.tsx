@@ -392,12 +392,16 @@ export default function OutboundPage() {
   const handleDeleteCampaign = useCallback(async (id: number) => {
     const ok = await confirm('Biztosan törlöd ezt a kampányt?', { title: 'Kampány törlése', danger: true });
     if (!ok) return;
+    // Optimista törlés: azonnal eltávolítjuk a UI-ból
+    const prev = campaigns;
+    setCampaigns(c => c.filter(x => x.id !== id));
+    setSelectedIds(s => { const n = new Set(s); n.delete(id); return n; });
+    showToast('Kampány törölve');
     try {
       const res = await authFetch(`/admin/api/campaigns/${id}`, { method: 'DELETE' });
-      if (res.ok) { showToast('Kampány törölve'); setSelectedIds(prev => { const n = new Set(prev); n.delete(id); return n; }); loadCampaigns(); }
-      else showToast('Hiba', 'error');
-    } catch { showToast('Hiba', 'error'); }
-  }, [confirm, loadCampaigns]);
+      if (!res.ok) { setCampaigns(prev); showToast('Törlés sikertelen', 'error'); }
+    } catch { setCampaigns(prev); showToast('Törlés sikertelen', 'error'); }
+  }, [confirm, campaigns]);
 
   const handleScheduleCampaign = useCallback(async (id: number, dateStr: string) => {
     if (!dateStr) { showToast('Válassz dátumot!', 'error'); return; }
@@ -423,17 +427,21 @@ export default function OutboundPage() {
     if (selectedIds.size === 0) return;
     const ok = await confirm(`Biztosan törlöd a kijelölt ${selectedIds.size} kampányt?`, { title: 'Kampányok törlése', danger: true });
     if (!ok) return;
-    let deleted = 0;
-    for (const id of selectedIds) {
+    // Optimista törlés: azonnal eltávolítjuk a UI-ból
+    const prev = campaigns;
+    const idsToDelete = new Set(selectedIds);
+    setCampaigns(c => c.filter(x => !idsToDelete.has(x.id)));
+    setSelectedIds(new Set());
+    showToast(`${idsToDelete.size} kampány törölve`);
+    let failed = 0;
+    for (const id of idsToDelete) {
       try {
         const res = await authFetch(`/admin/api/campaigns/${id}`, { method: 'DELETE' });
-        if (res.ok) deleted++;
-      } catch { /* continue */ }
+        if (!res.ok) failed++;
+      } catch { failed++; }
     }
-    setSelectedIds(new Set());
-    showToast(`${deleted} kampány törölve`);
-    loadCampaigns();
-  }, [selectedIds, confirm, loadCampaigns]);
+    if (failed > 0) { setCampaigns(prev); showToast(`${failed} kampány törlése sikertelen`, 'error'); }
+  }, [selectedIds, confirm, campaigns]);
 
   const toggleSelect = useCallback((id: number) => {
     setSelectedIds(prev => {

@@ -1262,7 +1262,7 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
         triage_rules = db.get_triage_rules()
         if triage_rules:
             rules_text = "\n".join([f"- Szabály ID: {r['id']}, Helyzet: {r['situation']}, Prioritás: {r['priority']}" for r in triage_rules])
-            system_prompt += f"\n\n--- TRIÁZS SZABÁLYOK ---\nKérlek értékeld a páciens problémáját az alábbi szabályok alapján is. Ha egyezik egy 'Sürgős' prioritású szabállyal, KÖTELEZŐ felvenned az 'urgent' tag-et az alert_tags listába. Ha 'Kiemelt', akkor a 'kiemelt' tag-et!\n{rules_text}\n----------------------------------------------------"
+            system_prompt += f"\n\n--- TRIÁZS SZABÁLYOK ---\nKérlek értékeld a páciens problémáját az alábbi szabályok alapján is. Ha egyezik egy 'Sürgős' prioritású szabállyal, KÖTELEZŐ felvenned az 'urgent' tag-et az alert_tags listába!\n{rules_text}\n----------------------------------------------------"
 
         # (A telephelyeket a prompt_utils.py már beletette a system_prompt-ba!)
 
@@ -1621,7 +1621,8 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 handover_reason=None,
                 approval_status="pending",
                 ai_draft_response=draft_json,
-                clinic_id=str(chosen_clinic_id) if chosen_clinic_id else None
+                clinic_id=str(chosen_clinic_id) if chosen_clinic_id else None,
+                client_id=client_id if client_id else None
             )
 
     except Exception as e:
@@ -1655,7 +1656,7 @@ async def meta_webhook_receive(request: Request):
                     print(f"[Meta Webhook] Echo üzenet kiszűrve (sender: {sender_id})")
                     continue
                 # Also skip if sender is our own page ID or IG business account
-                ig_user_id = "26530155976686869"
+                ig_user_id = os.getenv("META_INSTAGRAM_USER_ID", "26530155976686869")
                 if sender_id and (sender_id == page_id or sender_id == ig_user_id):
                     print(f"[Meta Webhook] Saját üzenet kiszűrve (sender: {sender_id})")
                     continue
@@ -3070,7 +3071,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                     if ch == "instagram":
                         # Instagram DM: use META_INSTAGRAM_TOKEN + graph.instagram.com/{ig_user_id}/messages
                         ig_token = os.getenv("META_INSTAGRAM_TOKEN", "")
-                        ig_user_id = "26530155976686869"  # IG business account ID
+                        ig_user_id = os.getenv("META_INSTAGRAM_USER_ID", "26530155976686869")
                         if not ig_token:
                             raise Exception("Hiányzó META_INSTAGRAM_TOKEN")
                         resp = await http_client.post(
@@ -3762,14 +3763,14 @@ async def _run_phone_campaign(campaign: dict):
             session_id = f"campaign_phone_{campaign_id}_{client['id']}"
             db.create_session(session_id=session_id, room_name=f"Kampány hívás: {campaign_name}", participant=client_name)
             db.log_interaction(
-                type="Telefon",
+                type="telefon",
                 topic=f"Kampány: {campaign_name}",
                 summary=f"Kimenő AI telefonhívás – {client_name} ({phone})",
                 result="Hívás indítva",
                 tool_name="phone_campaign_worker",
                 session_id=session_id,
                 direction="outbound",
-                funnel_stage="relevans",
+                funnel_stage="relevant",
                 alert_tags=[],
                 handover_reason=None,
             )

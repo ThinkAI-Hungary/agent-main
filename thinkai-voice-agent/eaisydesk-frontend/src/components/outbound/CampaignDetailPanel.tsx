@@ -3,8 +3,9 @@
  * Extracted from OutboundPage to keep the parent component lean.
  * Only rendered when a campaign is selected (showDetail !== null).
  */
-import { useState, useEffect } from 'react';
-import { authFetch } from '../../api/client';
+import { useMemo } from 'react';
+import { useClients } from '../../hooks/useClients';
+import { parseCustomData, bestClientName } from '../../helpers/clientResolvers';
 
 interface Campaign {
   id: number;
@@ -172,7 +173,7 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
           {/* Recipients */}
           <div className="cpv-section">
             <div className="cpv-section-label">Címzettek ({clientCount})</div>
-            <CampaignRecipients campaignId={c.id} />
+            <CampaignRecipients clientIds={c.client_ids || []} />
           </div>
         </div>
 
@@ -198,35 +199,32 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
   );
 }
 
-// ── Recipients sub-component ──────────────────────────────────────────────────
-interface ClientInfo { name: string; email: string; phone?: string; status: string; }
+// ── Recipients sub-component — uses cached client data, no extra API call ─────
 const AVATAR_COLORS = ['#1ceee0','#2563eb','#0891b2','#059669','#d97706','#dc2626','#6366f1','#8b5cf6'];
 
-function CampaignRecipients({ campaignId }: { campaignId: number }) {
-  const [clients, setClients] = useState<ClientInfo[]>([]);
-  const [loading, setLoading] = useState(true);
+function CampaignRecipients({ clientIds }: { clientIds: number[] }) {
+  const { clients: allClients } = useClients();
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const res = await authFetch(`/admin/api/campaigns/${campaignId}/clients`);
-        if (res.ok && !cancelled) {
-          const data = await res.json();
-          setClients(data.clients || []);
-        }
-      } catch { /* ignore */ }
-      if (!cancelled) setLoading(false);
-    })();
-    return () => { cancelled = true; };
-  }, [campaignId]);
+  const recipients = useMemo(() => {
+    if (!clientIds.length || !allClients.length) return [];
+    const idSet = new Set(clientIds.map(String));
+    return allClients
+      .filter(c => idSet.has(String(c.id)))
+      .map(c => {
+        const cd = parseCustomData(c.custom_data);
+        return {
+          name: bestClientName(c) || c.name || 'Névtelen',
+          email: (cd?.email as string) || c.email || '',
+          phone: (cd?.telefonszam as string) || (cd?.phone as string) || c.phone || '',
+        };
+      });
+  }, [clientIds, allClients]);
 
-  if (loading) return <div className="cpv-recipient-msg">Betöltés...</div>;
-  if (!clients.length) return <div className="cpv-recipient-msg">Nincsenek címzettek</div>;
+  if (!recipients.length) return <div className="cpv-recipient-msg">Nincsenek címzettek</div>;
 
   return (
     <div className="flex-col gap-8">
-      {clients.map((cl, i) => {
+      {recipients.map((cl, i) => {
         const initials = (cl.name || 'N/A').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
         const clColor = AVATAR_COLORS[i % AVATAR_COLORS.length];
         return (

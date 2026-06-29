@@ -262,29 +262,36 @@ export function detectStatusz(r: {
   const hr = (r.handover_reason || '').toLowerCase();
   const isClosed = as === 'approved' || as === 'lezárt' || as === 'rejected';
 
-  const category = detectUgyTipus(r);
+  const categoryStr = detectUgyTipus(r);
   const erStr = detectEredmeny(r);
+  const erList = erStr.split(',').map((s) => s.trim()).filter(Boolean);
 
   if (isClosed) {
-    if (erStr === 'Panasz rögzítve') {
+    if (erList.includes('Panasz rögzítve')) {
+      // If the complaint was approved/handled AND handover_reason doesn't indicate ongoing urgency, mark as resolved
+      if (!hr.includes('sürgős') && !hr.includes('urgent')) {
+        return 'Lezárt';
+      }
       return 'Sürgős';
     }
-    if (erStr === 'Időpont előkészítve') {
+    if (erList.includes('Időpont előkészítve')) {
       return 'Nyitott';
     }
     return 'Lezárt';
   }
 
-  if (category === 'Panasz' || erStr === 'Panasz rögzítve') {
+  if (categoryStr.includes('Panasz') || erList.includes('Panasz rögzítve')) {
     return 'Sürgős';
   }
 
-  if (
-    erStr === 'Megválaszolt kérdés' ||
-    erStr === 'Új időpont' ||
-    erStr === 'Időpont módosítva' ||
-    erStr === 'Időpont törölve'
-  ) {
+  const allResolved = erList.every(
+    (er) =>
+      er === 'Megválaszolt kérdés' ||
+      er === 'Új időpont' ||
+      er === 'Időpont módosítva' ||
+      er === 'Időpont törölve'
+  );
+  if (erList.length > 0 && allResolved) {
     return 'Lezárt';
   }
 
@@ -321,40 +328,47 @@ export function detectTeendo(r: {
 
   const utStr = detectUgyTipus(r);
   const erStr = detectEredmeny(r);
+  const erList = erStr.split(',').map((s) => s.trim()).filter(Boolean);
 
   if (isClosed) {
-    if (erStr === 'Panasz rögzítve') {
+    if (erList.includes('Panasz rögzítve')) {
+      const hr = (r.handover_reason || '').toLowerCase();
+      if (!hr.includes('sürgős') && !hr.includes('urgent')) {
+        return 'Nincs további teendő';
+      }
       return 'Azonnali beavatkozás';
     }
-    if (erStr === 'Időpont előkészítve') {
+    if (erList.includes('Időpont előkészítve')) {
       return 'Időpont véglegesítése';
     }
     return 'Nincs további teendő';
   }
 
-  if (utStr === 'Panasz' || erStr === 'Panasz rögzítve') {
+  if (utStr.includes('Panasz') || erList.includes('Panasz rögzítve')) {
     return 'Azonnali beavatkozás';
   }
 
-  if (
-    erStr === 'Megválaszolt kérdés' ||
-    erStr === 'Új időpont' ||
-    erStr === 'Időpont módosítva' ||
-    erStr === 'Időpont törölve'
-  ) {
+  const allResolved = erList.every(
+    (er) =>
+      er === 'Megválaszolt kérdés' ||
+      er === 'Új időpont' ||
+      er === 'Időpont módosítva' ||
+      er === 'Időpont törölve'
+  );
+  if (erList.length > 0 && allResolved) {
     return 'Nincs további teendő';
   }
 
-  if (erStr === 'Jóváhagyásra vár') {
+  if (erList.includes('Jóváhagyásra vár')) {
     return 'Válasz jóváhagyása szükséges';
   }
-  if (erStr === 'Kérdés rögzítve') {
+  if (erList.includes('Kérdés rögzítve')) {
     return 'Válasz szükséges';
   }
-  if (erStr === 'Időpont előkészítve') {
+  if (erList.includes('Időpont előkészítve')) {
     return 'Időpont véglegesítése';
   }
-  if (erStr === 'Igény rögzítve') {
+  if (erList.includes('Igény rögzítve')) {
     return 'Intézkedés szükséges';
   }
 

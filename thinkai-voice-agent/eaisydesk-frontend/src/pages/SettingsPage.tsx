@@ -743,9 +743,7 @@ export default function SettingsPage() {
                         </td>
                         <td className="int-td">
                           <select className="tt-select" value={r.priority} onChange={e => { const updated = { ...r, priority: e.target.value }; setTriageRules(prev => prev.map((x, j) => j === i ? updated : x)); saveTriageRule(updated, i); }}>
-                            <option value="alacsony">Alacsony</option>
-                            <option value="kozepes">Közepes</option>
-                            <option value="magas">Magas</option>
+                            <option value="altalanos">Általános</option>
                             <option value="surgos">Sürgős</option>
                           </select>
                         </td>

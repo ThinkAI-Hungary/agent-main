@@ -231,7 +231,7 @@ def get_sessions(limit: int = 50) -> list[dict]:
 # INTERACTIONS
 # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
-def log_interaction(type: str, topic: str = "", summary: str = "", result: str = "", tool_name: str = "", session_id: str = "", funnel_stage: str = "relevant", alert_tags: list = None, handover_reason: str = None, direction: str = "inbound", approval_status: str = "pending", ai_draft_response: str = None, clinic_id: int = None, classification: dict = None) -> None:
+def log_interaction(type: str, topic: str = "", summary: str = "", result: str = "", tool_name: str = "", session_id: str = "", funnel_stage: str = "relevant", alert_tags: list = None, handover_reason: str = None, direction: str = "inbound", approval_status: str = "pending", ai_draft_response: str = None, clinic_id: int = None, classification: dict = None, client_id: int = None) -> None:
     if not supabase: return
     try:
         data = {
@@ -249,6 +249,8 @@ def log_interaction(type: str, topic: str = "", summary: str = "", result: str =
             "ai_draft_response": ai_draft_response,
             "clinic_id": clinic_id
         }
+        if client_id is not None:
+            data["client_id"] = client_id
         if classification is not None:
             data["classification"] = classification
         supabase.table("interactions").insert(data).execute()
@@ -443,7 +445,7 @@ def get_alerts_stats(period: str = "month", channel: str = "mind", clinic_id: st
             start_dt = today - timedelta(days=365)
 
         # Fetch interactions with alert_tags, filtered by period
-        all_alerts_query = supabase.table("interactions").select("type, alert_tags, clinic_id").not_.is_("alert_tags", "null").gte("created_at", start_dt.isoformat()).execute()
+        all_alerts_query = supabase.table("interactions").select("type, alert_tags, clinic_id").not_.is_("alert_tags", "null").neq("approval_status", "spam").gte("created_at", start_dt.isoformat()).execute()
         urgent_count = complaint_count = callback_count = recurring_count = 0
         for row in all_alerts_query.data:
             if not _matches_channel(row.get("type"), channel): continue
@@ -457,15 +459,27 @@ def get_alerts_stats(period: str = "month", channel: str = "mind", clinic_id: st
 
         
         # Stuck cases: older than 24 hours and not in a closed status
-        yesterday = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
-        clients_res = supabase.table("clients").select("id, status").lt("created_at", yesterday).execute()
-        
+        # Only count when channel is "mind" (all), otherwise stuck_count is not meaningful per channel
         stuck_count = 0
-        closed_statuses = ["lezarva", "siker", "kuka", "befejezett", "lezart"]
-        for c in clients_res.data:
-            st_lower = str(c.get("status", "")).lower()
-            if not any(k in st_lower for k in closed_statuses):
-                stuck_count += 1
+        if channel == "mind":
+            yesterday = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+            clients_res = supabase.table("clients").select("id, status, custom_data").lt("created_at", yesterday).execute()
+            
+            closed_statuses = ["lezarva", "siker", "kuka", "befejezett", "lezart"]
+            for c in clients_res.data:
+                st_lower = str(c.get("status", "")).lower()
+                if not any(k in st_lower for k in closed_statuses):
+                    # Filter by clinic_id if specified
+                    if clinic_id and clinic_id != "mind":
+                        cd = c.get("custom_data") or {}
+                        if isinstance(cd, str):
+                            try:
+                                import json as _json
+                                cd = _json.loads(cd)
+                            except: cd = {}
+                        if str(cd.get("clinic_id", "")) != str(clinic_id):
+                            continue
+                    stuck_count += 1
                 
         return {
             "urgent_count": urgent_count,
@@ -552,7 +566,8 @@ def save_ai_insights(insights: list[str]) -> bool:
 
 def _matches_channel(type_str: str, channel: str) -> bool:
     if channel == "mind": return True
-    t = (type_str or "telefon").lower()
+    if not type_str: return False  # Unknown type does not match any specific channel filter
+    t = type_str.lower()
     if channel == "telefon":
         return "email" not in t and "whatsapp" not in t and "messenger" not in t and "meta" not in t and "facebook" not in t and "instagram" not in t
     if channel == "email": return "email" in t
@@ -632,7 +647,7 @@ def get_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mi
 
         tasks_res = supabase.table("tasks").select("id", count="exact", head=True).eq("completed", 0).execute()
 
-        all_inters = supabase.table("interactions").select("type, topic, handover_reason, created_at, clinic_id, session_id").gte("created_at", start_dt.isoformat()).execute()
+        all_inters = supabase.table("interactions").select("type, topic, handover_reason, created_at, clinic_id, session_id, approval_status").gte("created_at", start_dt.isoformat()).neq("approval_status", "spam").execute()
         type_counts = {}
         seen_sessions_for_type = set()
         topic_counts = {}
@@ -797,7 +812,7 @@ def get_outbound_stats(period: str = "month", channel: str = "mind", clinic_id: 
         start_dt = today - timedelta(days=365)
 
     try:
-        all_inters = supabase.table("interactions").select("session_id, direction, funnel_stage, handover_reason, created_at, type, clinic_id, topic").gte("created_at", start_dt.isoformat()).execute()
+        all_inters = supabase.table("interactions").select("session_id, direction, funnel_stage, handover_reason, created_at, type, clinic_id, topic").gte("created_at", start_dt.isoformat()).neq("approval_status", "spam").execute()
         
         sessions = {}
         # also count interactions without session_id that are outbound
@@ -898,7 +913,7 @@ def get_funnel_stats(period: str = "month", channel: str = "mind", clinic_id: st
         elif period == "month": start_dt = today.replace(day=1)
         else: start_dt = today - timedelta(days=365)
         
-        res = supabase.table("interactions").select("funnel_stage, type, clinic_id").gte("created_at", start_dt.isoformat()).execute()
+        res = supabase.table("interactions").select("funnel_stage, type, clinic_id").gte("created_at", start_dt.isoformat()).neq("approval_status", "spam").execute()
         stages = []
         for r in res.data:
             if not _matches_channel(r.get("type"), channel): continue
@@ -961,8 +976,8 @@ def _build_session_summary(interactions: list[dict]) -> str:
     label_map = {"email": "email küldés", "foglalás": "időpontfoglalás", "feladat": "feladat rögzítés", "kérdés": "kérdés / tudásbázis", "időjárás": "időjárás lekérdezés"}
     for typ, cnt in type_counts.items():
         label = label_map.get(typ, typ)
-        parts.append(f"{cnt}Ã {label}")
-    summary = "A session során: " + ", ".join(parts) + "." if parts else "Ãltalános beszélgetés."
+        parts.append(f"{cnt}× {label}")
+    summary = ("A session során: " + ", ".join(parts) + ".") if parts else "Általános beszélgetés."
     specific = [t for t in topics if t not in ("Email küldés", "Időpontfoglalás", "Feladat rögzítés")][:3]
     if specific: summary += " Témák: " + "; ".join(specific) + "."
     return summary
