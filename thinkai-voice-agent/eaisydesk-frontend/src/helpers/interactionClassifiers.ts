@@ -78,7 +78,10 @@ export function detectUgyTipus(r: {
   handover_reason?: string | null;
   type?: string | null;
   badge?: string | null;
+  classification?: { ugytipus?: string; eredmeny?: string; statusz?: string; teendo?: string } | null;
 }): string {
+  if (r.classification?.ugytipus) return r.classification.ugytipus;
+
   if (r.type === 'calendar') return 'Időpont';
   if (r.type === 'approval') return 'Kérdés';
 
@@ -96,8 +99,7 @@ export function detectUgyTipus(r: {
     (r.badge || '')
   ).toLowerCase();
 
-  const categories: string[] = [];
-
+  // 1. Panasz (Sürgős)
   if (
     topic.includes('panasz') ||
     topic.includes('reklamáció') ||
@@ -105,27 +107,36 @@ export function detectUgyTipus(r: {
     topic.includes('sürgős') ||
     topic.includes('surgos')
   ) {
-    categories.push('Panasz');
+    return 'Panasz';
   }
+  
+  // 2. Időpont (Naptár)
   if (
     topic.includes('időpont') ||
     topic.includes('foglal') ||
     topic.includes('booking') ||
-    topic.includes('lemondás') ||
+    topic.includes('lemond') ||
+    topic.includes('töröl') ||
     topic.includes('módosít') ||
+    topic.includes('áthelyez') ||
     topic.includes('emlékeztet')
   ) {
-    categories.push('Időpont');
+    return 'Időpont';
   }
+  
+  // 3. Kérés (Intézkedés)
   if (
     topic.includes('kérés') ||
     topic.includes('keres') ||
     topic.includes('igény') ||
     topic.includes('request') ||
-    topic.includes('intézked')
+    topic.includes('intézked') ||
+    topic.includes('visszahívás')
   ) {
-    categories.push('Kérés');
+    return 'Kérés';
   }
+  
+  // 4. Kérdés (Információ)
   if (
     topic.includes('kérdés') ||
     topic.includes('question') ||
@@ -147,14 +158,10 @@ export function detectUgyTipus(r: {
     topic.includes('jóváhagyás') ||
     topic.includes('jovahagyas')
   ) {
-    categories.push('Kérdés');
+    return 'Kérdés';
   }
 
-  if (categories.length === 0) {
-    return 'Egyéb';
-  }
-
-  return categories.join(', ');
+  return 'Egyéb';
 }
 
 /** Detect eredmény (result outcome) from interaction data */
@@ -168,7 +175,10 @@ export function detectEredmeny(r: {
   type?: string | null;
   approval_status?: string | null;
   badge?: string | null;
+  classification?: { ugytipus?: string; eredmeny?: string; statusz?: string; teendo?: string } | null;
 }): string {
+  if (r.classification?.eredmeny) return r.classification.eredmeny;
+
   const fs = (r.funnel_stage || '').toLowerCase();
   const tp = (r.topic || '').toLowerCase();
   const sm = (r.summary || '').toLowerCase();
@@ -180,58 +190,52 @@ export function detectEredmeny(r: {
   const combined = tp + ' ' + sm + ' ' + ds + ' ' + hr + ' ' + rs;
 
   const isClosed = as === 'approved' || as === 'lezárt' || as === 'rejected';
-  const categoryStr = detectUgyTipus(r);
-  const categories = categoryStr.split(',').map((s) => s.trim()).filter(Boolean);
+  const category = detectUgyTipus(r);
 
-  const outcomes: string[] = [];
-
-  categories.forEach((category) => {
-    if (category === 'Panasz') {
-      outcomes.push('Panasz rögzítve');
-    } else if (category === 'Kérés' || category === 'Egyéb') {
-      outcomes.push('Igény rögzítve');
-    } else if (category === 'Időpont') {
-      if (
-        combined.includes('lemond') ||
-        combined.includes('töröl') ||
-        combined.includes('cancel') ||
-        fs === 'cancelled'
-      ) {
-        outcomes.push('Időpont törölve');
-      } else if (
-        combined.includes('módosít') ||
-        combined.includes('áthelyez') ||
-        combined.includes('változtat') ||
-        combined.includes('módosítás')
-      ) {
-        outcomes.push('Időpont módosítva');
-      } else if (
-        fs === 'booked' ||
-        fs === 'foglalt' ||
-        ty === 'foglalás' ||
-        ty === 'calendar' ||
-        rs.includes('lefoglalva')
-      ) {
-        outcomes.push('Új időpont');
-      } else {
-        outcomes.push('Időpont előkészítve');
-      }
-    } else if (category === 'Kérdés') {
-      if (isClosed || rs.includes('megválaszol') || rs.includes('megoldva') || fs === 'valaszolt' || rs.includes('elküld') || rs.includes('sikeres')) {
-        outcomes.push('Megválaszolt kérdés');
-      } else if (as === 'pending' || ty === 'approval' || r.badge === 'jovahagyas') {
-        outcomes.push('Jóváhagyásra vár');
-      } else {
-        outcomes.push('Kérdés rögzítve');
-      }
+  if (category === 'Panasz') {
+    return 'Panasz rögzítve';
+  }
+  
+  if (category === 'Időpont') {
+    if (
+      combined.includes('lemond') ||
+      combined.includes('töröl') ||
+      combined.includes('cancel') ||
+      fs === 'cancelled'
+    ) {
+      return 'Időpont törölve';
     }
-  });
-
-  if (outcomes.length === 0) {
-    return 'Igény rögzítve';
+    if (
+      combined.includes('módosít') ||
+      combined.includes('áthelyez') ||
+      combined.includes('változtat') ||
+      combined.includes('módosítás')
+    ) {
+      return 'Időpont módosítva';
+    }
+    if (
+      fs === 'booked' ||
+      fs === 'foglalt' ||
+      ty === 'foglalás' ||
+      ty === 'calendar' ||
+      rs.includes('lefoglalva')
+    ) {
+      return 'Új időpont';
+    }
+    return 'Időpont előkészítve';
   }
 
-  return Array.from(new Set(outcomes)).join(', ');
+  if (category === 'Kérdés') {
+    if (isClosed || rs.includes('megválaszol') || rs.includes('megoldva') || fs === 'valaszolt' || rs.includes('elküld') || rs.includes('sikeres')) {
+      return 'Megválaszolt kérdés';
+    }
+    if (as === 'pending' || ty === 'approval' || r.badge === 'jovahagyas') {
+      return 'Jóváhagyásra vár';
+    }
+    return 'Kérdés rögzítve';
+  }
+
+  return 'Igény rögzítve';
 }
 
 /** Detect statusz from interaction data */
@@ -246,37 +250,41 @@ export function detectStatusz(r: {
   approval_status?: string | null;
   badge?: string | null;
   alert_tags?: string[] | null;
+  classification?: { ugytipus?: string; eredmeny?: string; statusz?: string; teendo?: string } | null;
 }): string {
   const as = (r.approval_status || '').toLowerCase();
+  if (as === 'pending' || as === 'pending_approval' || as === 'johagyasra_var') {
+    return 'Nyitott';
+  }
+
+  if (r.classification?.statusz) return r.classification.statusz;
+
   const hr = (r.handover_reason || '').toLowerCase();
   const isClosed = as === 'approved' || as === 'lezárt' || as === 'rejected';
 
-  const categoryStr = detectUgyTipus(r);
+  const category = detectUgyTipus(r);
   const erStr = detectEredmeny(r);
-  const erList = erStr.split(',').map((s) => s.trim()).filter(Boolean);
 
   if (isClosed) {
-    if (erList.includes('Panasz rögzítve')) {
+    if (erStr === 'Panasz rögzítve') {
       return 'Sürgős';
     }
-    if (erList.includes('Időpont előkészítve')) {
+    if (erStr === 'Időpont előkészítve') {
       return 'Nyitott';
     }
     return 'Lezárt';
   }
 
-  if (categoryStr.includes('Panasz') || erList.includes('Panasz rögzítve')) {
+  if (category === 'Panasz' || erStr === 'Panasz rögzítve') {
     return 'Sürgős';
   }
 
-  const allResolved = erList.every(
-    (er) =>
-      er === 'Megválaszolt kérdés' ||
-      er === 'Új időpont' ||
-      er === 'Időpont módosítva' ||
-      er === 'Időpont törölve'
-  );
-  if (erList.length > 0 && allResolved) {
+  if (
+    erStr === 'Megválaszolt kérdés' ||
+    erStr === 'Új időpont' ||
+    erStr === 'Időpont módosítva' ||
+    erStr === 'Időpont törölve'
+  ) {
     return 'Lezárt';
   }
 
@@ -300,49 +308,53 @@ export function detectTeendo(r: {
   approval_status?: string | null;
   badge?: string | null;
   alert_tags?: string[] | null;
+  classification?: { ugytipus?: string; eredmeny?: string; statusz?: string; teendo?: string } | null;
 }): string {
   const as = (r.approval_status || '').toLowerCase();
+  if (as === 'pending' || as === 'pending_approval' || as === 'johagyasra_var') {
+    return 'Válasz jóváhagyása szükséges';
+  }
+
+  if (r.classification?.teendo) return r.classification.teendo;
+
   const isClosed = as === 'approved' || as === 'lezárt' || as === 'rejected';
 
   const utStr = detectUgyTipus(r);
   const erStr = detectEredmeny(r);
-  const erList = erStr.split(',').map((s) => s.trim()).filter(Boolean);
 
   if (isClosed) {
-    if (erList.includes('Panasz rögzítve')) {
+    if (erStr === 'Panasz rögzítve') {
       return 'Azonnali beavatkozás';
     }
-    if (erList.includes('Időpont előkészítve')) {
+    if (erStr === 'Időpont előkészítve') {
       return 'Időpont véglegesítése';
     }
     return 'Nincs további teendő';
   }
 
-  if (utStr.includes('Panasz') || erList.includes('Panasz rögzítve')) {
+  if (utStr === 'Panasz' || erStr === 'Panasz rögzítve') {
     return 'Azonnali beavatkozás';
   }
 
-  const allResolved = erList.every(
-    (er) =>
-      er === 'Megválaszolt kérdés' ||
-      er === 'Új időpont' ||
-      er === 'Időpont módosítva' ||
-      er === 'Időpont törölve'
-  );
-  if (erList.length > 0 && allResolved) {
+  if (
+    erStr === 'Megválaszolt kérdés' ||
+    erStr === 'Új időpont' ||
+    erStr === 'Időpont módosítva' ||
+    erStr === 'Időpont törölve'
+  ) {
     return 'Nincs további teendő';
   }
 
-  if (erList.includes('Jóváhagyásra vár')) {
+  if (erStr === 'Jóváhagyásra vár') {
     return 'Válasz jóváhagyása szükséges';
   }
-  if (erList.includes('Kérdés rögzítve')) {
+  if (erStr === 'Kérdés rögzítve') {
     return 'Válasz szükséges';
   }
-  if (erList.includes('Időpont előkészítve')) {
+  if (erStr === 'Időpont előkészítve') {
     return 'Időpont véglegesítése';
   }
-  if (erList.includes('Igény rögzítve')) {
+  if (erStr === 'Igény rögzítve') {
     return 'Intézkedés szükséges';
   }
 

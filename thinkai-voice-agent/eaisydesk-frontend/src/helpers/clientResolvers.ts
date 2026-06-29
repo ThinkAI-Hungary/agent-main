@@ -210,18 +210,35 @@ export function getRowChannel(
 ): string {
   const t = (rType || '').toLowerCase();
   const sRoom = (roomName || '').toLowerCase();
+  const sChan = (sessionChannel || '').toLowerCase();
+
   if (
     t.includes('email') ||
     sRoom.includes('email') ||
+    sChan.includes('email') ||
     (sessionId && sessionId.startsWith('reminder_'))
   )
     return 'Email';
-  if (t.includes('messenger') || sRoom.includes('messenger'))
+  if (
+    t.includes('messenger') ||
+    sRoom.includes('messenger') ||
+    sChan.includes('messenger')
+  )
     return 'Messenger';
-  if (t.includes('instagram') || sRoom.includes('instagram'))
+  if (
+    t.includes('instagram') ||
+    sRoom.includes('instagram') ||
+    sChan.includes('instagram')
+  )
     return 'Instagram';
-  if (t.includes('whatsapp') || sRoom.includes('whatsapp')) return 'WhatsApp';
-  return sessionChannel || 'Telefon';
+  if (
+    t.includes('whatsapp') ||
+    sRoom.includes('whatsapp') ||
+    sChan.includes('whatsapp')
+  )
+    return 'WhatsApp';
+
+  return 'Telefon';
 }
 
 /**

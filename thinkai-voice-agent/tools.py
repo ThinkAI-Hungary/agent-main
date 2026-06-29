@@ -199,6 +199,12 @@ async def send_followup_email(
         tool_name="send_followup_email",
         session_id=_current_session_id,
         funnel_stage=funnel_stage,
+        classification={
+            "ugytipus": "Egyéb",
+            "eredmeny": "Igény rögzítve",
+            "statusz": "Lezárt" if sent_ok else "Nyitott",
+            "teendo": "Nincs további teendő" if sent_ok else "Intézkedés szükséges"
+        }
     )
 
     if recipient_name and _current_session_id:
@@ -264,6 +270,12 @@ async def check_calendar(
         tool_name="check_calendar",
         session_id=_current_session_id,
         funnel_stage=funnel_stage,
+        classification={
+            "ugytipus": "Időpont",
+            "eredmeny": "Időpont előkészítve",
+            "statusz": "Nyitott",
+            "teendo": "Időpont véglegesítése"
+        }
     )
     return result_text
 
@@ -377,6 +389,12 @@ async def book_meeting(
             tool_name="book_meeting",
             session_id=_current_session_id,
             funnel_stage=funnel_stage,
+            classification={
+                "ugytipus": "Időpont",
+                "eredmeny": "Új időpont",
+                "statusz": "Lezárt",
+                "teendo": "Nincs további teendő"
+            }
         )
 
         result = f"Találkozó sikeresen lefoglalva: {title}, {date} {time}-kor, {duration_minutes} perces."
@@ -489,6 +507,12 @@ async def get_weather(
             tool_name="get_weather",
             session_id=_current_session_id,
             funnel_stage=funnel_stage,
+            classification={
+                "ugytipus": "Kérdés",
+                "eredmeny": "Megválaszolt kérdés",
+                "statusz": "Lezárt",
+                "teendo": "Nincs további teendő"
+            }
         )
         return result_str
     except Exception as e:
@@ -521,6 +545,12 @@ async def create_task(
             tool_name="create_task",
             session_id=_current_session_id,
             funnel_stage=funnel_stage,
+            classification={
+                "ugytipus": "Kérés",
+                "eredmeny": "Igény rögzítve",
+                "statusz": "Nyitott",
+                "teendo": "Intézkedés szükséges"
+            }
         )
 
         result = f'Feladat rögzítve: "{task}"'
@@ -649,6 +679,12 @@ async def lookup_info(
         tool_name="lookup_info",
         session_id=_current_session_id,
         funnel_stage=funnel_stage,
+        classification={
+            "ugytipus": "Kérdés",
+            "eredmeny": "Megválaszolt kérdés",
+            "statusz": "Lezárt",
+            "teendo": "Nincs további teendő"
+        }
     )
     return result
 
@@ -755,7 +791,13 @@ async def report_alert(
             tool_name="report_alert",
             session_id=_current_session_id,
             funnel_stage="relevant",
-            alert_tags=valid_tags
+            alert_tags=valid_tags,
+            classification={
+                "ugytipus": "Panasz" if "complaint" in valid_tags or "urgent" in valid_tags else "Kérés",
+                "eredmeny": "Panasz rögzítve" if "complaint" in valid_tags or "urgent" in valid_tags else "Igény rögzítve",
+                "statusz": "Sürgős",
+                "teendo": "Azonnali beavatkozás"
+            }
         )
         
         if "urgent" in valid_tags:

@@ -231,10 +231,10 @@ def get_sessions(limit: int = 50) -> list[dict]:
 # INTERACTIONS
 # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
-def log_interaction(type: str, topic: str = "", summary: str = "", result: str = "", tool_name: str = "", session_id: str = "", funnel_stage: str = "relevant", alert_tags: list = None, handover_reason: str = None, direction: str = "inbound", approval_status: str = "pending", ai_draft_response: str = None, clinic_id: int = None) -> None:
+def log_interaction(type: str, topic: str = "", summary: str = "", result: str = "", tool_name: str = "", session_id: str = "", funnel_stage: str = "relevant", alert_tags: list = None, handover_reason: str = None, direction: str = "inbound", approval_status: str = "pending", ai_draft_response: str = None, clinic_id: int = None, classification: dict = None) -> None:
     if not supabase: return
     try:
-        supabase.table("interactions").insert({
+        data = {
             "session_id": session_id or None,
             "type": type,
             "topic": topic,
@@ -248,9 +248,21 @@ def log_interaction(type: str, topic: str = "", summary: str = "", result: str =
             "approval_status": approval_status,
             "ai_draft_response": ai_draft_response,
             "clinic_id": clinic_id
-        }).execute()
+        }
+        if classification is not None:
+            data["classification"] = classification
+        supabase.table("interactions").insert(data).execute()
     except Exception as e:
         logger.error(f"Error logging interaction: {e}")
+        if classification is not None:
+            logger.info("Attempting fallback log without classification field...")
+            try:
+                if "classification" in data:
+                    del data["classification"]
+                supabase.table("interactions").insert(data).execute()
+                logger.info("Fallback log successful (classification dropped)!")
+            except Exception as fe:
+                logger.error(f"Fallback log failed: {fe}")
 
 # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # CALENDAR
