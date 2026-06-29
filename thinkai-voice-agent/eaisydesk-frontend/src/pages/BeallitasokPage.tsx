@@ -182,10 +182,8 @@ export default function BeallitasokPage() {
       <ConfirmDialog />
 
       {/* Header */}
-      <div className="mb-24">
-        <div className="beal-icon-row">
-          <h1 className="beal-section-title">Beállítások</h1>
-        </div>
+      <div className="page-header">
+        <div className="page-title">Beállítások</div>
       </div>
 
       {/* Pill-style tab bar (legacy match) */}

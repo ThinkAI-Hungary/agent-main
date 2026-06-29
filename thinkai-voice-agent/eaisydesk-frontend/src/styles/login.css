@@ -234,7 +234,7 @@ body.dark .login-input-wrap:focus-within {
   font-size: 14px;
   font-weight: 500;
   color: var(--text);
-  font-family: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
   outline: none;
   transition: none;
 }
@@ -257,7 +257,7 @@ body.dark .login-input:-webkit-autofill:active {
 .login-input:-webkit-autofill:focus,
 .login-input:-webkit-autofill:active {
   -webkit-box-shadow: 0 0 0 1000px rgba(255, 255, 255, 0.95) inset !important;
-  -webkit-text-fill-color: #090b0e !important;
+  -webkit-text-fill-color: #082432 !important;
   border: none !important;
   transition: background-color 5000s ease-in-out 0s;
 }
@@ -279,7 +279,7 @@ body.dark .login-input:-webkit-autofill:active {
   font-weight: 600;
   color: #082432;
   cursor: pointer;
-  font-family: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+  font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
   letter-spacing: 0.2px;
   transition: all 0.25s ease;
   box-shadow: 0 4px 14px rgba(28, 238, 224, 0.25);

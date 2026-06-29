@@ -509,18 +509,8 @@ export default function SettingsPage() {
         {activeTab === 'agent' && (
           <div>
             {/* ── Page Header ── */}
-            <div className="flex-row-between mb-28 mt-10 settings-header-align">
-              <div className="flex-row gap-14">
-                <div className="icon-box-lg">
-                  <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="22" height="22">
-                    <path d="M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2z" />
-                    <circle cx="12" cy="12" r="3" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="page-title">eaisyDesk beállítások</div>
-                </div>
-              </div>
+            <div className="page-header">
+              <div className="page-title">eaisyDesk beállítások</div>
             </div>
 
             {/* ══════ 1. ALAPBEÁLLÍTÁSOK ══════ */}
@@ -776,17 +766,8 @@ export default function SettingsPage() {
         {/* ═══════════ CÉGINFORMÁCIÓK TAB ═══════════ */}
         {activeTab === 'praxis' && (
           <div>
-            <div className="flex-row-between mb-20 settings-header-align">
-              <div className="flex-row gap-16">
-                <div className="icon-box-lg settings-praxis-icon-box">
-                  <svg fill="none" stroke="#1ceee0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="22" height="22">
-                    <path d="M4 19.5A2.5 2.5 0 016.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="page-title settings-praxis-title">Cég- és szolgáltatásinformációk</div>
-                </div>
-              </div>
+            <div className="page-header">
+              <div className="page-title">Cég- és szolgáltatásinformációk</div>
             </div>
 
             {/* Quick-nav pills */}
@@ -1039,17 +1020,8 @@ export default function SettingsPage() {
         {/* ═══════════ SZABÁLYOK TAB ═══════════ */}
         {activeTab === 'szabalyok' && (
           <div>
-            <div className="flex-between settings-header-align mb-20">
-              <div className="flex-row gap-16">
-                <div className="settings-rules-icon">
-                  <svg fill="none" stroke="#1ceee0" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="22" height="22">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="settings-rules-title">Foglalási szabályok</div>
-                </div>
-              </div>
+            <div className="page-header">
+              <div className="page-title">Foglalási szabályok</div>
             </div>
 
             {/* 1. Új/visszatérő ügyfél */}

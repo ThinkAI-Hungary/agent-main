@@ -349,7 +349,7 @@
       background: none;
       width: 100%;
       text-align: left;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
     }
     .flyout-item:hover {
       background: rgba(28, 238, 224, 0.08);

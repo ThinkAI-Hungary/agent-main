@@ -224,7 +224,7 @@ export default function CalendarPage() {
   return (
     <div className="analytics-shell">
       {/* Header */}
-      <div className="page-header mb-18">
+      <div className="page-header">
         <div>
           <div className="page-title">Naptár</div>
 

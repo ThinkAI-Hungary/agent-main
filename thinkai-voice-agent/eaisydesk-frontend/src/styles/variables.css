@@ -20,7 +20,7 @@
       --accent2: #3b82f6;
       --accent-dark: #0D9488;
       --accent-glow: rgba(28, 238, 224, 0.10);
-      --text: #090b0e;
+      --text: #082432;
       --text-muted: #5c6370;
       --text-dim: #94a3b8;
       --green: #22c55e;
@@ -43,7 +43,7 @@
       /* ── Shell pages (keep for compatibility) ────────── */
       --shell-bg: #f5f6f7;
       --shell-border: #e2e4e8;
-      --shell-text: #090b0e;
+      --shell-text: #082432;
       --shell-muted: #5c6370;
 
       /* ── FullCalendar overrides ──────────────────────── */
@@ -60,7 +60,7 @@
       --fc-button-active-bg-color: #f0fffe;
       --fc-button-active-border-color: #1ceee0;
       --fc-today-bg-color: rgba(28, 238, 224, 0.06);
-      --fc-event-text-color: #090b0e;
+      --fc-event-text-color: #082432;
     }
 
     /* ── Dark Mode token overrides (original navy-teal) ── */
@@ -83,9 +83,9 @@
       --shell-muted: #6b8b99;
     }
 
-    /* ── Body defaults (Montserrat) ───────────────────── */
+    /* ── Body defaults (Inter) ───────────────────── */
     body {
-      font-family: 'Montserrat', ui-sans-serif, system-ui, sans-serif;
+      font-family: 'Inter', ui-sans-serif, system-ui, sans-serif;
       font-size: 1rem;
       background: var(--bg);
       color: var(--text);

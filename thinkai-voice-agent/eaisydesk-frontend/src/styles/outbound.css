@@ -96,7 +96,7 @@
       transition: all 0.2s ease;
       background: transparent;
       color: var(--text-muted);
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
     }
     .out-view-btn.active {
       background: var(--accent);
@@ -154,7 +154,7 @@
       gap: 6px;
       box-shadow: 0 4px 12px rgba(28,238,224,0.25);
       transition: all 0.2s;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
     }
     .out-new-campaign-btn:hover {
       transform: translateY(-1px);
@@ -171,7 +171,7 @@
       font-weight: 600;
       color: var(--text);
       cursor: pointer;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       transition: all 0.2s;
     }
     .out-analytics-btn:hover {
@@ -252,7 +252,7 @@
       font-weight: 600;
       color: var(--text-muted);
       cursor: pointer;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       transition: all 0.2s;
       display: flex;
       align-items: center;
@@ -1085,7 +1085,7 @@
       background: rgba(255,255,255,0.04);
       color: var(--text);
       transition: all 0.2s;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
@@ -1117,7 +1117,7 @@
       font-weight: 700;
       cursor: pointer;
       transition: all 0.2s;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       text-transform: uppercase;
       letter-spacing: 0.3px;
     }
@@ -1168,7 +1168,7 @@
       justify-content: center;
       gap: 6px;
       transition: all 0.25s;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       background: rgba(255,255,255,0.04);
       color: var(--text-muted);
     }
@@ -1221,7 +1221,7 @@
     }
     .camp-quill-wrap .ql-toolbar .ql-picker-item { padding: 4px 8px; border-radius: 4px; }
     .camp-quill-wrap .ql-toolbar .ql-picker-item:hover { background: rgba(28,238,224,0.08); }
-    .camp-quill-wrap .ql-container.ql-snow { border: none; font-family: 'Montserrat', Arial, sans-serif; }
+    .camp-quill-wrap .ql-container.ql-snow { border: none; font-family: 'Inter', Arial, sans-serif; }
     .camp-quill-wrap .ql-editor {
       min-height: 180px; max-height: 280px; overflow-y: auto;
       padding: 16px; font-size: 13px; line-height: 1.7; color: var(--text);
@@ -1259,7 +1259,7 @@
       border: 1.5px solid rgba(28,238,224,0.3);
       background: rgba(28,238,224,0.04);
       color: var(--accent); font-size: 11px; font-weight: 600;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       cursor: pointer; transition: all 0.25s;
       margin-top: 8px;
     }
@@ -1366,7 +1366,7 @@
       font-size: 13px;
       font-weight: 600;
       cursor: pointer;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       transition: all 0.2s;
     }
     .camp-float-cancel:hover {
@@ -1382,7 +1382,7 @@
       font-size: 13px;
       font-weight: 700;
       cursor: pointer;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       box-shadow: 0 4px 12px rgba(28,238,224,0.3);
       transition: all 0.2s;
       display: flex;

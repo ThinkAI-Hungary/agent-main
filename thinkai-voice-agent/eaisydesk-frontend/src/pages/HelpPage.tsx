@@ -132,17 +132,8 @@ export default function HelpPage() {
     <div className="page active" id="page-help">
 
       {/* Header */}
-      <div className="flex-row gap-14 mb-6">
-        <div className="icon-box-lg">
-          <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="22" height="22">
-            <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" /><circle cx="12" cy="17" r="0.5" fill="#1ceee0" />
-          </svg>
-        </div>
-        <div>
-          <div className="page-title">
-            Segítség &amp; Dokumentáció
-          </div>
-        </div>
+      <div className="page-header">
+        <div className="page-title">Segítség &amp; Dokumentáció</div>
       </div>
 
       {/* Divider */}

@@ -250,7 +250,7 @@ export default function KanbanPage() {
   if (loading) {
     return (
       <div className="analytics-shell">
-        <div className="page-header mb-18">
+        <div className="page-header">
           <div>
             <div className="page-title">Érdeklődőkezelés</div>
 
@@ -303,7 +303,7 @@ export default function KanbanPage() {
       <ConfirmDialog />
 
       {/* Header */}
-      <div className="page-header mb-18">
+      <div className="page-header">
         <div>
           <div className="page-title">Érdeklődőkezelés</div>
 

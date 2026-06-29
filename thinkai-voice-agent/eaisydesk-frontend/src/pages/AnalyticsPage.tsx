@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
@@ -551,8 +551,8 @@ export default function AnalyticsPage() {
     <div className="page active" id="page-analytics">
       <div className="analytics-shell">
         {/* Page title */}
-        <div className="mb-8">
-          <h1 className="page-title page-title-no-margin">Analitika</h1>
+        <div className="page-header">
+          <div className="page-title">Analitika</div>
         </div>
 
         {/* Filter row */}

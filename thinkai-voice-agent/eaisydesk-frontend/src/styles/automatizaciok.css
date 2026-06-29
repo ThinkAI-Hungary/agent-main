@@ -1,4 +1,4 @@
-﻿/* empty */
+/* empty */
 
 /* ══════════════════════════════════════════════════════
    AutomatizaciokPage — migrated from inline styles
@@ -52,9 +52,13 @@
 /* Section card — matches sectionStyle JS object */
 .auto-section-card {
   background: var(--card);
-  border: 1px solid rgba(255,255,255,0.08);
+  border: 1px solid var(--border);
   border-radius: 14px; overflow: hidden; margin-bottom: 28px;
-  box-shadow: 0 2px 12px rgba(0,0,0,0.15);
+}
+
+/* KPI counters row — right-aligned above content card */
+.auto-kpi-row {
+  display: flex; justify-content: flex-end; gap: 12px; margin-bottom: 16px;
 }
 
 /* Automation row header */

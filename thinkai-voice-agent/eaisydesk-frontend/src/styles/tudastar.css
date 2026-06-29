@@ -21,7 +21,7 @@
       background: none;
       border: none;
       cursor: pointer;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       position: relative;
       transition: color 0.15s;
     }
@@ -69,7 +69,7 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       padding-bottom: 14px;
       border-bottom: 1px solid #e5e7eb;
     }
@@ -90,7 +90,7 @@
       color: var(--text);
       padding: 12px 16px;
       font-size: 13px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       outline: none;
       transition: border-color 0.2s, background 0.2s, box-shadow 0.2s;
       box-sizing: border-box;
@@ -110,7 +110,7 @@
       color: var(--text);
       padding: 14px 16px;
       font-size: 13px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       outline: none;
       resize: vertical;
       min-height: 90px;
@@ -132,7 +132,7 @@
       color: var(--text);
       padding: 12px 16px;
       font-size: 13px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       outline: none;
       cursor: pointer;
       transition: border-color 0.2s, box-shadow 0.2s;
@@ -218,7 +218,7 @@
       color: var(--text);
       padding: 8px 14px;
       font-size: 13px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       outline: none;
     }
 
@@ -242,7 +242,7 @@
       background: none;
       border: none;
       cursor: pointer;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       border-radius: 8px;
       transition: background 0.15s;
       margin-top: 8px;
@@ -329,7 +329,7 @@
       color: var(--text);
       padding: 6px 10px;
       font-size: 13px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       outline: none;
     }
 
@@ -425,7 +425,7 @@
       font-weight: 700;
       padding: 11px 28px;
       cursor: pointer;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       transition: opacity 0.15s, transform 0.1s;
       box-shadow: 0 2px 8px rgba(28, 238, 224, 0.3);
     }
@@ -468,7 +468,7 @@
       color: var(--text);
       padding: 6px 10px;
       font-size: 12px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       outline: none;
       width: 100%;
     }
@@ -485,7 +485,7 @@
       color: var(--text);
       padding: 6px 10px;
       font-size: 12px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       outline: none;
       margin-top: 4px;
     }

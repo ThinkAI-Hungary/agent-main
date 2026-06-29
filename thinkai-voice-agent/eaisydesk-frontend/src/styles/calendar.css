@@ -1,5 +1,5 @@
     .fc {
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
     }
 
     .fc-event {
@@ -28,7 +28,7 @@
 
     .fc-button {
       font-size: 13px !important;
-      font-family: 'Montserrat', sans-serif !important;
+      font-family: 'Inter', sans-serif !important;
     }
 
     /* ── Calendar page layout ──────────────────────────────────── */
@@ -241,7 +241,7 @@
 
     /* ── FullCalendar Premium Overrides ─────────────────────── */
     .fc {
-      font-family: 'Montserrat', Arial, sans-serif !important;
+      font-family: 'Inter', Arial, sans-serif !important;
     }
     .fc .fc-toolbar-title {
       font-size: 18px !important;

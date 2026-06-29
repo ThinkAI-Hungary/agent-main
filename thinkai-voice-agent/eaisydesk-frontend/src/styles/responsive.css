@@ -31,7 +31,7 @@
 
       /* Analytics shell */
       .analytics-shell {
-        padding: 12px !important;
+        padding: 0 !important;
       }
 
       /* Greeting bar */
@@ -1145,7 +1145,7 @@
 
       /* Analytics shell — tighter padding */
       .analytics-shell {
-        padding: 16px 10px !important;
+        padding: 0 !important;
       }
 
       /* Global page content tighter */

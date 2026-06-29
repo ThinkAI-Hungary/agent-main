@@ -470,17 +470,8 @@ export default function OutboundPage() {
       <ConfirmDialog />
 
       {/* Header */}
-      <div className="page-header mb-24">
-        <div className="flex-row">
-          <div className="icon-box-lg icon-box-outbound">
-            <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" className="svg-24">
-              <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-            </svg>
-          </div>
-          <div>
-            <div className="page-title page-title-no-margin">Kampányok</div>
-          </div>
-        </div>
+      <div className="page-header">
+        <div className="page-title">Kampányok</div>
       </div>
 
       {/* Campaigns section */}

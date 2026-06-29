@@ -415,7 +415,7 @@ export default function InteractionsPage() {
       <ConfirmDialog />
 
       {/* Page title — standalone */}
-      <div className="mb-20">
+      <div className="page-header">
         <div className="page-title">Interakciós napló</div>
       </div>
 

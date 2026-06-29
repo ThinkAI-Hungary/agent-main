@@ -161,7 +161,7 @@
       font-size: 12px;
       font-weight: 500;
       cursor: pointer;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       transition: all 0.15s;
     }
 
@@ -375,7 +375,7 @@
       gap: 6px;
       border: none;
       border-radius: var(--radius);
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       font-weight: 600;
       font-size: 13px;
       cursor: pointer;
@@ -590,7 +590,7 @@
       font-size: 13px;
       cursor: pointer;
       padding: 4px 0;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
     }
     .btn-add:hover {
       color: #059669;
@@ -608,7 +608,7 @@
       background: var(--bg3);
       color: var(--text);
       font-size: 13px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       outline: none;
       box-sizing: border-box;
       transition: border-color 0.2s, background 0.2s;
@@ -638,7 +638,7 @@
       background: var(--bg3);
       color: var(--text);
       font-size: 12px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       outline: none;
       box-sizing: border-box;
       transition: border-color 0.2s;
@@ -660,7 +660,7 @@
       background: var(--bg3);
       color: var(--text);
       font-size: 13px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       outline: none;
       box-sizing: border-box;
       cursor: pointer;
@@ -683,7 +683,7 @@
       background: var(--bg3);
       color: var(--text);
       font-size: 13px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       outline: none;
       box-sizing: border-box;
       resize: vertical;
@@ -731,7 +731,7 @@
       font-weight: 600;
       color: var(--text-muted);
       margin-bottom: 6px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
     }
 
     /* Form label bold (section sub-headers) */
@@ -741,7 +741,7 @@
       font-weight: 700;
       color: var(--text);
       margin-bottom: 8px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
     }
 
     /* Helper/description text */
@@ -914,7 +914,7 @@
       font-size: 20px;
       font-weight: 700;
       color: var(--text);
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
     }
 
     /* Section heading (15px bold) */
@@ -922,7 +922,7 @@
       font-size: 15px;
       font-weight: 700;
       color: var(--text);
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
     }
 
     /* Section sub-heading (14px semibold, teal) */
@@ -930,7 +930,7 @@
       font-size: 14px;
       font-weight: 700;
       color: #1ceee0;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
     }
 
     /* Table column header text */
@@ -1008,7 +1008,7 @@
       background: none;
       width: 100%;
       text-align: left;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
     }
     .dropdown-item:hover {
       background: rgba(28, 238, 224, 0.04);
@@ -1192,7 +1192,7 @@
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       transition: border-color 0.15s, color 0.15s, background 0.15s;
       white-space: nowrap;
     }
@@ -1220,7 +1220,7 @@
       background: var(--bg3);
       color: var(--text);
       font-size: 13px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       outline: none;
       transition: border-color 0.2s;
     }
@@ -1322,7 +1322,7 @@
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       transition: all 0.15s;
       white-space: nowrap;
     }
@@ -1387,7 +1387,7 @@
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       transition: border-color 0.15s, color 0.15s, background 0.15s;
       white-space: nowrap;
     }
@@ -1415,7 +1415,7 @@
       background: var(--bg3);
       color: var(--text);
       font-size: 13px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       outline: none;
       transition: border-color 0.2s;
     }
@@ -1517,7 +1517,7 @@
       font-size: 12px;
       font-weight: 600;
       cursor: pointer;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       transition: all 0.15s;
       white-space: nowrap;
     }

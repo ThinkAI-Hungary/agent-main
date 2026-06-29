@@ -126,30 +126,12 @@ export default function AutomatizaciokPage() {
   return (
     <div className="page active" id="page-automatizaciok">
       {/* ── Page Header ── */}
-      <div className="auto-page-header">
-        <div className="flex-row gap-16">
-          <div className="auto-page-icon">
-            <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="22" height="22">
-              <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8" />
-            </svg>
-          </div>
-          <div>
-            <div className="auto-page-title">Automatikus értesítések</div>
-          </div>
-        </div>
-
-        {/* KPI pills */}
-        <div className="flex-row gap-12">
-          <div className="auto-kpi-pill--teal">
-            <div className="auto-kpi-val--teal">{automations.filter(a => a.enabled).length + (reminder.reminder_enabled ? 1 : 0)}</div>
-            <div className="auto-kpi-lbl">AKTÍV SZABÁLY</div>
-          </div>
-          <div className="auto-kpi-pill--purple">
-            <div className="auto-kpi-val--purple">{automations.length + 1}</div>
-            <div className="auto-kpi-lbl">ÖSSZES</div>
-          </div>
-        </div>
+      <div className="page-header">
+        <div className="page-title">Automatikus értesítések</div>
       </div>
+
+
+
 
       {/* ═══════ EGYESÍTETT SZEKCIÓ ═══════ */}
       <div className="auto-section-card">

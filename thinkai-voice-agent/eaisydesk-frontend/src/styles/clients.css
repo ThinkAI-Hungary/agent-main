@@ -25,7 +25,7 @@
       transition: all 0.2s ease;
       background: transparent;
       color: var(--text-muted);
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
     }
 
     body.dark .view-btn {
@@ -281,7 +281,7 @@
       color: #082432;
       font-size: 22px;
       font-weight: 700;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
     }
 
     .ism-meta {
@@ -357,7 +357,7 @@
       border: 1px solid var(--border);
       border-radius: 8px;
       padding: 16px;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       font-size: 13px;
       color: #374151;
       line-height: 1.5;
@@ -585,7 +585,7 @@
       border-radius: 8px;
       font-size: 12px;
       font-weight: 600;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       cursor: pointer;
       transition: all 0.2s;
       background: transparent;
@@ -845,7 +845,7 @@
       color: var(--text-muted);
       font-size: 12px;
       font-weight: 600;
-      font-family: 'Montserrat', Arial, sans-serif;
+      font-family: 'Inter', Arial, sans-serif;
       cursor: pointer;
       transition: all 0.2s;
       position: relative;
