@@ -1348,6 +1348,7 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
         
         booked_meeting = False
         chosen_clinic_id = None
+        client_id = None
 
         # --- ACTION: KANBAN ADATOK MENTÉSE ---
         if kanban:
@@ -1626,7 +1627,9 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             )
 
     except Exception as e:
+        import traceback
         print(f"[Meta AI Process] Hiba: {e}")
+        traceback.print_exc()
 
 
 @app.post("/api/webhook/meta")
