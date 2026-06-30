@@ -1,9 +1,5 @@
     /* ═══ Outbound Page Redesign ═══════════════════════════════ */
     .out-section {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 24px;
       margin-bottom: 24px;
     }
     .out-section-title {
@@ -75,37 +71,51 @@
       letter-spacing: 0.3px;
     }
 
+    /* Content block — white card for tabs + grid */
+    .out-content-block {
+      background: #fff;
+      border: 1px solid #D9D9D9;
+      border-radius: 18px;
+      padding: 28px;
+    }
+
+    /* Page-level CTA toolbar — right-aligned above content */
+    .out-toolbar {
+      display: flex;
+      justify-content: flex-end;
+      margin-bottom: 16px;
+    }
+
     /* View Switcher */
     .out-view-switcher {
       display: flex;
-      gap: 4px;
-      background: var(--bg3);
-      padding: 4px;
-      border-radius: var(--radius);
+      gap: 8px;
+      flex-wrap: wrap;
       width: max-content;
-      border: 1px solid var(--border);
       margin-bottom: 20px;
     }
     .out-view-btn {
       padding: 8px 18px;
-      border: none;
+      border: 1px solid #D9D9D9;
       border-radius: 8px;
       font-weight: 600;
       font-size: 13px;
       cursor: pointer;
       transition: all 0.2s ease;
-      background: transparent;
-      color: var(--text-muted);
+      background: #fff;
+      color: #5F7D95;
       font-family: 'Inter', Arial, sans-serif;
     }
     .out-view-btn.active {
-      background: var(--accent);
-      color: #082432;
-      box-shadow: 0 1px 4px rgba(28,238,224,0.3);
+      background: #082432;
+      color: #fff;
+      border-color: #082432;
+      box-shadow: none;
     }
     .out-view-btn:hover:not(.active) {
-      background: rgba(28,238,224,0.08);
-      color: var(--accent);
+      background: #DFFFFD;
+      border-color: #1CEEE0;
+      color: #082432;
     }
 
     /* Campaign Cards Grid */
@@ -115,29 +125,18 @@
       gap: 16px;
     }
     .out-campaign-card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-lg);
-      padding: 22px;
-      transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+      background: #fff;
+      border: 1px solid #D9D9D9;
+      border-radius: 14px;
+      padding: 20px;
+      transition: box-shadow 0.2s, border-color 0.2s;
       position: relative;
-      overflow: hidden;
-    }
-    .out-campaign-card::before {
-      content: '';
-      position: absolute;
-      top: 0; left: 0; right: 0;
-      height: 3px;
-      background: linear-gradient(90deg, #1ceee0, #3b82f6);
-      opacity: 0;
-      transition: opacity 0.2s;
+      cursor: pointer;
     }
     .out-campaign-card:hover {
-      border-color: var(--accent);
-      box-shadow: 0 8px 32px rgba(28,238,224,0.1);
-      transform: translateY(-2px);
+      border-color: #b0b0b0;
+      box-shadow: 0 4px 16px rgba(0,0,0,0.06);
     }
-    .out-campaign-card:hover::before { opacity: 1; }
 
     /* + ÚJ KAMPÁNY button */
     .out-new-campaign-btn {
@@ -180,7 +179,7 @@
     }
 
     /* Dark mode — outbound redesign */
-    body.dark .out-section { background: var(--card); border-color: var(--border); }
+    body.dark .out-section { }
     body.dark .out-notif-item { background: var(--bg3); border-color: var(--border); }
     body.dark .out-kpi-stat { background: var(--bg3); border-color: rgba(28,238,224,0.15); }
     body.dark .out-kpi-stat:hover { border-color: var(--accent); box-shadow: 0 4px 16px rgba(28,238,224,0.08); }
@@ -2449,7 +2448,7 @@
    ====================================================== */
 
 /* Filter row */
-.out-filter-row { justify-content: space-between; gap: 12px; margin-bottom: 16px; }
+.out-filter-row { justify-content: space-between; gap: 12px; margin-bottom: 36px; }
 
 /* View switcher no margin */
 .out-view-switcher--no-mb { margin-bottom: 0; }
@@ -2615,29 +2614,180 @@
 }
 .camp-ai-generate-btn--disabled { opacity: 0.5; }
 
-/* === Outbound Campaign Card Status Enhancements === */
-.out-campaign-card--tervezet {
-  border: 1px solid #3b82f6 !important;
-}
-.out-campaign-card--aktiv {
-  border: 1px solid #22c55e !important;
-}
-.out-campaign-card--utemezett {
-  border: 1px solid #1ceee0 !important;
-}
-.out-campaign-card--lezart {
-  border: 1px solid #6b7280 !important;
+/* ═══ Campaign Card Redesign ═══════════════════════════════ */
+
+/* --- Status stripe (left 4px bar via border-left) --- */
+.out-card--stripe-tervezet  { border-left: 4px solid #186D98 !important; }
+.out-card--stripe-aktiv     { border-left: 4px solid #32B100 !important; }
+.out-card--stripe-utemezett { border-left: 4px solid #C43284 !important; }
+.out-card--stripe-lezart    { border-left: 4px solid #9D9D9D !important; }
+
+/* --- Top row: checkbox + badges + dots --- */
+.out-card-top {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 14px;
 }
 
-/* Header Avatar and User Info */
-.out-card-avatar {
-  width: 28px;
-  height: 28px;
+/* Badges container */
+.out-card-badges {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1;
+  min-width: 0;
+}
+
+/* Status badge */
+.out-card-status-badge {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+/* Channel badge */
+.out-card-channel-badge {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.3px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  background: #fff;
+  border: 1px solid #082432;
+  color: #082432;
+  white-space: nowrap;
+  line-height: 1.4;
+}
+
+/* --- Three-dot trigger --- */
+.out-card-dots-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+.out-card-dots {
+  background: none;
+  border: none;
+  padding: 4px;
   border-radius: 6px;
+  cursor: pointer;
+  color: #5F7D95;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  transition: background 0.15s, color 0.15s;
+}
+.out-card-dots:hover {
+  background: rgba(107, 139, 153, 0.1);
+  color: #082432;
+}
+
+/* --- Dropdown menu --- */
+.out-card-menu {
+  position: absolute;
+  top: 100%;
+  right: 0;
+  margin-top: 4px;
+  min-width: 180px;
+  background: #082432;
+  border-radius: 14px;
+  padding: 6px;
+  z-index: 100;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.25);
+}
+.out-card-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  border: none;
+  border-radius: 10px;
+  background: transparent;
+  color: rgba(255, 255, 255, 0.9);
+  font-size: 13px;
+  font-weight: 500;
+  font-family: inherit;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+  text-align: left;
+}
+.out-card-menu-item:hover {
+  background: rgba(28, 238, 224, 0.15);
+  color: #1CEEE0;
+}
+.out-card-menu-item--danger {
+  color: rgba(255, 255, 255, 0.7);
+}
+.out-card-menu-item--danger:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+/* --- Title --- */
+.out-card-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: #082432;
+  margin-bottom: 16px;
+  line-height: 1.35;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+/* --- Info row (two compact boxes) --- */
+.out-card-info-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+.out-card-info-box {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid #E5E7EB;
+  border-radius: 10px;
+  background: #F7F8FA;
+  font-size: 12px;
+  font-weight: 600;
+  color: #082432;
+  white-space: nowrap;
+  overflow: hidden;
+}
+.out-card-info-box svg {
+  flex-shrink: 0;
+  color: #5F7D95;
+}
+.out-card-info-box span {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* --- Footer meta --- */
+.out-card-footer {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(217, 217, 217, 0.5);
+}
+.out-card-avatar {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 9px;
   font-weight: 800;
   color: #082432;
   flex-shrink: 0;
@@ -2649,90 +2799,8 @@
 .out-card-avatar--transparent {
   background: transparent;
 }
-.out-card-user-date {
+.out-card-footer-date {
   font-size: 11px;
-  color: var(--text-muted);
-  display: flex;
-  align-items: center;
-  gap: 6px;
+  color: #5F7D95;
+  font-weight: 500;
 }
-.out-card-user {
-  font-weight: 600;
-  color: var(--text);
-}
-.out-card-date-separator {
-  color: var(--border);
-}
-
-/* Centered Title */
-.out-card-name-centered {
-  text-align: center;
-  font-size: 16px;
-  font-weight: 700;
-  color: var(--text);
-  margin-top: 18px;
-  margin-bottom: 18px;
-}
-
-/* Split Layout Box Grid */
-.out-card-split-cards {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 12px;
-  margin-bottom: 20px;
-}
-.out-card-split-box {
-  background: rgba(107, 139, 153, 0.04);
-  border: 1px solid rgba(107, 139, 153, 0.08);
-  border-radius: 8px;
-  padding: 12px 6px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  min-height: 85px;
-}
-body.dark .out-card-split-box {
-  background: rgba(255, 255, 255, 0.02);
-  border-color: rgba(255, 255, 255, 0.05);
-}
-.out-card-split-icon {
-  color: var(--text-muted);
-  margin-bottom: 6px;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-}
-.out-card-split-text-main {
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--text);
-  line-height: 1.25;
-}
-.out-card-split-text-sub {
-  font-size: 9px;
-  color: var(--text-muted);
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  margin-top: 3px;
-}
-
-/* Left-aligned Delete Button */
-.out-delete-btn {
-  background: none;
-  border: 1px solid rgba(239, 68, 68, 0.2);
-  color: #ef4444;
-  padding: 8px;
-  border-radius: 8px;
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s;
-}
-.out-delete-btn:hover {
-  background: rgba(239, 68, 68, 0.08);
-  border-color: #ef4444;
-}
-

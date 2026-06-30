@@ -32,11 +32,11 @@ const CHANNEL_LABELS: Record<string, string> = {
 };
 
 const STATUS_COLORS: Record<string, StatusInfo> = {
-  'Vázlat':     { bg: 'rgba(107,139,153,0.1)', color: 'var(--text-muted)', label: 'Tervezet' },
-  'Aktív':      { bg: 'rgba(34,197,94,0.1)',    color: '#22c55e',           label: 'Aktív' },
-  'Befejezett': { bg: 'rgba(28,238,224,0.1)',   color: 'var(--accent)',     label: 'Elküldött' },
-  'Megállítva': { bg: 'rgba(245,158,11,0.1)',   color: '#f59e0b',          label: 'Megállítva' },
-  'Ütemezett':  { bg: 'rgba(139,92,246,0.1)',   color: '#8b5cf6',          label: 'Ütemezett' },
+  'Vázlat':     { bg: '#186D98',                color: '#fff',              label: 'Tervezet' },
+  'Aktív':      { bg: 'rgba(34,197,94,0.1)',    color: '#32B100',           label: 'Aktív' },
+  'Befejezett': { bg: '#9D9D9D',                color: '#fff',              label: 'Lezárt' },
+  'Megállítva': { bg: '#9D9D9D',                color: '#fff',              label: 'Lezárt' },
+  'Ütemezett':  { bg: 'rgba(139,92,246,0.1)',   color: '#C43284',           label: 'Ütemezett' },
 };
 
 interface Props {
@@ -86,7 +86,19 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
   const isDraft = c.status === 'Vázlat';
   const isActive = c.status === 'Aktív';
   const isFinished = c.status === 'Befejezett';
+  const isLezart = isFinished || c.status === 'Megállítva';
+  const isUtemezett = c.status === 'Ütemezett';
   const hasSentData = delivered > 0 || isFinished;
+
+  // Parse scheduled date from ai_instructions (SCHED:<date>|...)
+  const scheduledDateRaw = (() => {
+    const ai = c.ai_instructions;
+    if (!ai || !ai.startsWith('SCHED:')) return null;
+    const pipeIdx = ai.indexOf('|');
+    if (pipeIdx < 0) return null;
+    return ai.substring(6, pipeIdx);
+  })();
+  const scheduledDate = scheduledDateRaw ? new Date(scheduledDateRaw) : null;
 
   return (
     <div className="cpv-overlay" onClick={onClose}>
@@ -110,13 +122,25 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
             <span className="cpv-header-dot" />
             <span className="cpv-header-info">{clientCount} címzett</span>
           </div>
+          {isLezart && createdDate && (
+            <div className="cpv-launch-date">
+              <span className="cpv-launch-date-label">Indítás dátuma</span>
+              <span className="cpv-launch-date-value">{createdDate.toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            </div>
+          )}
+          {isUtemezett && scheduledDate && (
+            <div className="cpv-launch-date">
+              <span className="cpv-launch-date-label">Indítás dátuma</span>
+              <span className="cpv-launch-date-value">{scheduledDate.toLocaleString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
+            </div>
+          )}
         </div>
 
         {/* ── Body ── */}
         <div className="cpv-body">
 
-          {/* Progress — only if campaign has been started */}
-          {(isActive || hasSentData) && (
+          {/* Progress — only if campaign is actively sending */}
+          {isActive && (
             <div className="cpv-progress-section">
               <div className="cpv-progress-row">
                 <span className="cpv-progress-label">Küldés folyamat</span>
@@ -165,7 +189,7 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
           {/* Content preview */}
           {emailContent && (
             <div className="cpv-section">
-              <div className="cpv-section-label">Tartalom</div>
+              <div className="cpv-section-label">Kampányüzenet</div>
               <div className="cpv-content-preview" dangerouslySetInnerHTML={{ __html: displayHtml }} />
             </div>
           )}
@@ -179,7 +203,31 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
 
         {/* ── Footer ── */}
         <div className="cpv-footer">
-          {(isDraft || c.status === 'Megállítva') && (
+          {/* Delete — secondary for Lezárt, Ütemezett, Tervezet; ghost danger for others */}
+          {(isLezart || isUtemezett || isDraft) ? (
+            <button className="cpv-btn cpv-btn-secondary" onClick={() => { onDelete(c.id); onClose(); }}>
+              Kampány törlése
+            </button>
+          ) : (
+            <button className="cpv-btn cpv-btn-ghost cpv-btn-danger" onClick={() => { onDelete(c.id); onClose(); }}>
+              Törlés
+            </button>
+          )}
+
+          {/* Draft: Ütemezés (secondary) + Kampány indítása (primary) — right-aligned */}
+          {isDraft && (
+            <>
+              <button className="cpv-btn cpv-btn-secondary cpv-btn-close-right" onClick={() => { onSchedule(c.id); onClose(); }}>
+                Ütemezés
+              </button>
+              <button className="cpv-btn cpv-btn-primary" onClick={() => { onStart(c.id); onClose(); }}>
+                Kampány indítása
+              </button>
+            </>
+          )}
+
+          {/* Megállítva: Kampány indítása + Ütemezés */}
+          {c.status === 'Megállítva' && (
             <>
               <button className="cpv-btn cpv-btn-primary" onClick={() => { onStart(c.id); onClose(); }}>
                 Kampány indítása
@@ -189,10 +237,18 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
               </button>
             </>
           )}
-          <button className="cpv-btn cpv-btn-ghost cpv-btn-danger" onClick={() => { onDelete(c.id); onClose(); }}>
-            Törlés
-          </button>
-          <button className="cpv-btn cpv-btn-ghost cpv-btn-close-right" onClick={onClose}>Bezárás</button>
+
+          {/* Ütemezett: Átütemezés right */}
+          {isUtemezett && (
+            <button className="cpv-btn cpv-btn-primary cpv-btn-close-right" onClick={() => { onSchedule(c.id); onClose(); }}>
+              Átütemezés
+            </button>
+          )}
+
+          {/* Bezárás — only for Aktív (all others have dedicated right actions or no Bezárás) */}
+          {isActive && (
+            <button className="cpv-btn cpv-btn-ghost cpv-btn-close-right" onClick={onClose}>Bezárás</button>
+          )}
         </div>
       </div>
     </div>
@@ -223,7 +279,7 @@ function CampaignRecipients({ clientIds }: { clientIds: number[] }) {
   if (!recipients.length) return <div className="cpv-recipient-msg">Nincsenek címzettek</div>;
 
   return (
-    <div className="flex-col gap-8">
+    <div className="cpv-recipients-list flex-col gap-8">
       {recipients.map((cl, i) => {
         const initials = (cl.name || 'N/A').split(' ').map(w => w[0]).join('').substring(0, 2).toUpperCase();
         const clColor = AVATAR_COLORS[i % AVATAR_COLORS.length];

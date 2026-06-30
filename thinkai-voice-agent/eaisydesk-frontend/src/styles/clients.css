@@ -1237,7 +1237,7 @@
 .cl-btn--delete { color: #ef4444; border-color: #ef4444; }
 
 /* Campaign export button */
-.cl-btn--export { color: #1ceee0; border-color: #1ceee0; background: rgba(28,238,224,0.08); font-weight: 600; }
+.cl-btn--export { color: #082432; border-color: #1CEEE0; background: #fff; font-weight: 600; }
 
 /* Column toggle dropdown trigger */
 .cl-col-toggle { display: inline-block; position: relative; }
@@ -1273,6 +1273,7 @@
 /* Client name cell */
 .cl-name-cell { font-weight: 600; font-size: 13px; color: var(--text); }
 .cl-name-id { font-size: 11px; color: var(--text-muted); }
+.cl-td-name { min-width: 180px; }
 
 /* Assignee muted */
 .cl-assignee-muted { color: var(--text-muted); }

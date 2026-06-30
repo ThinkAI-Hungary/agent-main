@@ -57,13 +57,13 @@ const SORT_OPTIONS = [
 
 const CLIENT_COLUMNS = [
   { key: 'name', label: 'Ügyfél' },
-  { key: 'status_badge', label: 'Új / Visszatérő' },
-  { key: 'tags', label: 'Címkék' },
+  { key: 'status_badge', label: 'Ügyfélstátusz' },
   { key: 'phone', label: 'Telefonszám' },
   { key: 'email', label: 'Email' },
-  { key: 'assignee', label: 'Felelős' },
-  { key: 'lastInteraction', label: 'Utolsó interakció' },
+  { key: 'tags', label: 'Címkék' },
   { key: 'sales_status', label: 'Értékesítési státusz' },
+  { key: 'lastInteraction', label: 'Utolsó interakció' },
+  { key: 'assignee', label: 'Felelős' },
 ] as const;
 
 export default function ClientsPage() {
@@ -666,13 +666,19 @@ export default function ClientsPage() {
                       <input type="checkbox" checked={selectedRows.has(String(c.id))} onChange={() => toggleRow(String(c.id))} className="int-checkbox-input" />
                     </td>
                     {visibleCols.has('name') && (
-                      <td className="int-td">
+                      <td className="int-td cl-td-name">
                         <div className="cl-name-cell">{c.name}</div>
                         <div className="cl-name-id">ID: {c.id}</div>
                       </td>
                     )}
                     {visibleCols.has('status_badge') && (
                       <td className="int-td">{statusBadge(c)}</td>
+                    )}
+                    {visibleCols.has('phone') && (
+                      <td className="int-td">{c.phone || '—'}</td>
+                    )}
+                    {visibleCols.has('email') && (
+                      <td className="int-td">{c.email || '—'}</td>
                     )}
                     {visibleCols.has('tags') && (
                       <td className="int-td">
@@ -682,11 +688,13 @@ export default function ClientsPage() {
                         </div>
                       </td>
                     )}
-                    {visibleCols.has('phone') && (
-                      <td className="int-td">{c.phone || '—'}</td>
+                    {visibleCols.has('sales_status') && (
+                      <td className="int-td">
+                        {kanbanNameMap[c.status] || c.status || '—'}
+                      </td>
                     )}
-                    {visibleCols.has('email') && (
-                      <td className="int-td">{c.email || '—'}</td>
+                    {visibleCols.has('lastInteraction') && (
+                      <td className="int-td int-td--date">{c.lastInteraction ? fmtDt(c.lastInteraction) : '—'}</td>
                     )}
                     {visibleCols.has('assignee') && (
                       <td className="int-td" onClick={e => e.stopPropagation()}>
@@ -709,14 +717,6 @@ export default function ClientsPage() {
                         ) : (
                           <span className="cl-assignee-muted">{c.assignee || '—'}</span>
                         )}
-                      </td>
-                    )}
-                    {visibleCols.has('lastInteraction') && (
-                      <td className="int-td int-td--date">{c.lastInteraction ? fmtDt(c.lastInteraction) : '—'}</td>
-                    )}
-                    {visibleCols.has('sales_status') && (
-                      <td className="int-td">
-                        {kanbanNameMap[c.status] || c.status || '—'}
                       </td>
                     )}
 
@@ -766,12 +766,12 @@ function AssigneeDropdown({ value, members, onChange }: { value: string; members
         <div className="role-dd-panel" style={{ minWidth: '100%', left: 0, right: 'auto', zIndex: 9999 }}>
           {options.map(o => (
             <button key={o.value} type="button" onClick={(e) => { e.stopPropagation(); onChange(o.value); setOpen(false); }} className={`role-dd-option ${o.value === value ? 'role-dd-option--active' : 'role-dd-option--idle'}`}>
-              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{o.label}</span>
               {o.value === value && (
-                <svg fill="none" stroke="var(--accent, #1ceee0)" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14" style={{ flexShrink: 0 }}>
+                <svg fill="none" stroke="#1CEEE0" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14" style={{ flexShrink: 0 }}>
                   <polyline points="20 6 9 17 4 12" />
                 </svg>
               )}
+              <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', color: o.value === value ? '#082432' : undefined }}>{o.label}</span>
             </button>
           ))}
         </div>

@@ -3,7 +3,7 @@
  * Extracted from OutboundPage to prevent the full list re-rendering
  * on filter changes, selection toggles, or other parent state updates.
  */
-import { memo, useState, useEffect } from 'react';
+import { memo, useState, useEffect, useRef } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { authFetch } from '../../api/client';
 
@@ -66,6 +66,8 @@ const CampaignCard = memo(function CampaignCard({
 }: CampaignCardProps) {
   const { user } = useAuth();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   const channels = c.channels || (c.channel ? [c.channel] : ['email']);
   const clientCount = c.client_ids?.length || 0;
@@ -78,25 +80,25 @@ const CampaignCard = memo(function CampaignCard({
 
   // Determine status classification:
   let statusKey: 'tervezet' | 'aktiv' | 'utemezett' | 'lezart' = 'tervezet';
-  let borderClass = 'out-campaign-card--tervezet';
-  let badgeLabel = 'Tervezet';
-  let badgeColor = '#3b82f6';
+  let stripeClass = 'out-card--stripe-tervezet';
+  let badgeLabel = 'TERVEZET';
+  let badgeColor = '#186D98';
 
   if (c.status === 'Aktív') {
     statusKey = 'aktiv';
-    borderClass = 'out-campaign-card--aktiv';
-    badgeLabel = 'Aktív';
-    badgeColor = '#22c55e';
+    stripeClass = 'out-card--stripe-aktiv';
+    badgeLabel = 'AKTÍV';
+    badgeColor = '#32B100';
   } else if (c.status === 'Ütemezett') {
     statusKey = 'utemezett';
-    borderClass = 'out-campaign-card--utemezett';
-    badgeLabel = 'Ütemezett';
-    badgeColor = '#1ceee0'; // Consistent cyan theme color
+    stripeClass = 'out-card--stripe-utemezett';
+    badgeLabel = 'ÜTEMEZETT';
+    badgeColor = '#C43284';
   } else if (c.status === 'Befejezett' || c.status === 'Megállítva') {
     statusKey = 'lezart';
-    borderClass = 'out-campaign-card--lezart';
-    badgeLabel = 'Lezárt';
-    badgeColor = '#6b7280';
+    stripeClass = 'out-card--stripe-lezart';
+    badgeLabel = 'LEZÁRT';
+    badgeColor = '#9D9D9D';
   }
 
   const creatorName = c.created_by || user?.fullName || 'Admin';
@@ -118,154 +120,166 @@ const CampaignCard = memo(function CampaignCard({
     return () => { cancelled = true; };
   }, [creatorUsername]);
 
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    const handleClick = (e: MouseEvent) => {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    };
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [menuOpen]);
+
+  // Build menu items based on status
+  const menuItems: { label: string; icon: string; handler: () => void; danger?: boolean }[] = [];
+
+  if (statusKey === 'tervezet') {
+    menuItems.push(
+      { label: 'Indítás', icon: 'play', handler: () => onStart(c.id) },
+      { label: 'Ütemezés', icon: 'calendar', handler: () => onSchedule(c.id) },
+    );
+  } else if (statusKey === 'utemezett') {
+    menuItems.push(
+      { label: 'Indítás most', icon: 'play', handler: () => onStart(c.id) },
+      { label: 'Átütemezés', icon: 'calendar', handler: () => onSchedule(c.id) },
+    );
+  } else if (statusKey === 'aktiv') {
+    menuItems.push(
+      { label: 'Szüneteltetés', icon: 'pause', handler: () => onStop(c.id) },
+      { label: 'Leállítás', icon: 'stop', handler: () => onClose(c.id) },
+    );
+  }
+  // Törlés always last
+  menuItems.push({ label: 'Törlés', icon: 'trash', handler: () => onDelete(c.id), danger: true });
+
+  const renderIcon = (icon: string) => {
+    switch (icon) {
+      case 'play':
+        return (
+          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+            <polygon points="5 3 19 12 5 21 5 3" />
+          </svg>
+        );
+      case 'calendar':
+        return (
+          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
+          </svg>
+        );
+      case 'pause':
+        return (
+          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+            <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
+          </svg>
+        );
+      case 'stop':
+        return (
+          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+            <rect x="3" y="3" width="18" height="18" rx="2" />
+          </svg>
+        );
+      case 'trash':
+        return (
+          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+            <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+        );
+      default: return null;
+    }
+  };
+
   return (
     <div
-      className={`out-campaign-card out-campaign-card--clickable ${borderClass}${isSelected ? ' out-campaign-card--selected' : ''}`}
+      className={`out-campaign-card ${stripeClass}${isSelected ? ' out-campaign-card--selected' : ''}`}
       onClick={() => onOpenDetail(c)}
     >
-      {/* Checkbox */}
-      <div className="out-card-checkbox-wrap" onClick={e => { e.stopPropagation(); onToggleSelect(c.id); }}>
-        <div className={`out-card-checkbox${isSelected ? ' out-card-checkbox--selected' : ''}`}>
-          {isSelected && (
-            <svg fill="none" stroke="#082432" strokeWidth="3" viewBox="0 0 24 24" className="out-card-checkmark">
-              <polyline points="20 6 9 17 4 12" />
-            </svg>
-          )}
-        </div>
-      </div>
-
-      {/* Header Row: Left-aligned creator avatar & name, right-aligned badges */}
-      <div className="flex-between align-center mb-12" style={{ paddingRight: '28px' }}>
-        <div className="flex-row align-center gap-6">
-          <div className={`out-card-avatar ${avatarUrl ? 'out-card-avatar--transparent' : 'out-card-avatar--gradient'}`}>
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" className="member-avatar-img" />
-            ) : (
-              getInitials(creatorName)
+      {/* Top row: checkbox + badges + dots */}
+      <div className="out-card-top">
+        {/* Checkbox */}
+        <div className="out-card-checkbox-wrap" onClick={e => { e.stopPropagation(); onToggleSelect(c.id); }}>
+          <div className={`out-card-checkbox${isSelected ? ' out-card-checkbox--selected' : ''}`}>
+            {isSelected && (
+              <svg fill="none" stroke="#082432" strokeWidth="3" viewBox="0 0 24 24" className="out-card-checkmark">
+                <polyline points="20 6 9 17 4 12" />
+              </svg>
             )}
           </div>
-          <div className="out-card-user-date">
-            <span className="out-card-user">{creatorName}</span>
-            <span className="out-card-date-separator">•</span>
-            <span className="out-card-created-at">
-              {c.created_at ? new Date(c.created_at).toLocaleDateString('hu-HU') : '—'}
-            </span>
-          </div>
         </div>
 
-        <div className="flex-row align-center gap-6">
-          {channels.map((ch) => (
-            <span key={ch} className="out-channel-badge">
-              {CHANNEL_NAMES[ch] || ch}
-            </span>
-          ))}
-          <span className="out-status-badge" style={{ background: `${badgeColor}15`, color: badgeColor, border: `1px solid ${badgeColor}35` }}>
+        {/* Badges */}
+        <div className="out-card-badges">
+          <span className="out-card-status-badge" style={{ background: badgeColor, color: '#fff' }}>
             {badgeLabel}
           </span>
+          {channels.map((ch) => (
+            <span key={ch} className="out-card-channel-badge">
+              {(CHANNEL_NAMES[ch] || ch).toUpperCase()}
+            </span>
+          ))}
         </div>
-      </div>
 
-      {/* Central Bolded Title */}
-      <div className="out-card-name-centered">
-        {c.name}
-      </div>
-
-      {/* Split Layout Cards */}
-      <div className="out-card-split-cards">
-        {/* Left card: Multiple people icon + customer count */}
-        <div className="out-card-split-box">
-          <div className="out-card-split-icon">
-            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: '18px', height: '18px' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
+        {/* Three-dot menu */}
+        <div className="out-card-dots-wrap" ref={menuRef} onClick={e => e.stopPropagation()}>
+          <button
+            className="out-card-dots"
+            onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
+            title="Műveletek"
+          >
+            <svg fill="currentColor" viewBox="0 0 24 24" width="18" height="18">
+              <circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" />
             </svg>
-          </div>
-          <div className="out-card-split-text-main">{clientCount} ügyfél</div>
-          <div className="out-card-split-text-sub">kiválasztva</div>
-        </div>
+          </button>
 
-        {/* Right card: Calendar icon + scheduled text or date */}
-        <div className="out-card-split-box">
-          <div className="out-card-split-icon">
-            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: '18px', height: '18px' }}>
-              <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-            </svg>
-          </div>
-          <div className="out-card-split-text-main">
-            {statusKey === 'tervezet' ? 'Nem ütemezett' : formattedDate}
-          </div>
-          <div className="out-card-split-text-sub">
-            {statusKey === 'tervezet' ? 'ütemezés' : 'ütemezve'}
-          </div>
+          {menuOpen && (
+            <div className="out-card-menu">
+              {menuItems.map((item) => (
+                <button
+                  key={item.label}
+                  className={`out-card-menu-item${item.danger ? ' out-card-menu-item--danger' : ''}`}
+                  onClick={(e) => { e.stopPropagation(); item.handler(); setMenuOpen(false); }}
+                >
+                  {renderIcon(item.icon)}
+                  {item.label}
+                </button>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 
-      {/* Actions */}
-      <div className="flex-between align-center mt-16">
-        <button
-          onClick={(e) => { e.stopPropagation(); onDelete(c.id); }}
-          className="out-delete-btn"
-          title="Törlés"
-        >
-          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" style={{ width: '16px', height: '16px' }}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+      {/* Title */}
+      <div className="out-card-title">{c.name}</div>
+
+      {/* Info boxes */}
+      <div className="out-card-info-row">
+        <div className="out-card-info-box">
+          <svg fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" width="16" height="16">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
           </svg>
-        </button>
+          <span>{clientCount} ügyfél</span>
+        </div>
+        <div className="out-card-info-box">
+          <svg fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" width="16" height="16">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+          </svg>
+          <span>{statusKey === 'tervezet' ? 'Nem ütemezett' : formattedDate}</span>
+        </div>
+      </div>
 
-        <div className="flex-row gap-8">
-          {statusKey === 'tervezet' && (
-            <>
-              <button
-                className="btn btn-outline btn-outline-sm"
-                onClick={(e) => { e.stopPropagation(); onSchedule(c.id); }}
-              >
-                Ütemezés
-              </button>
-              <button
-                className="btn btn-primary btn-primary-sm"
-                onClick={(e) => { e.stopPropagation(); onStart(c.id); }}
-              >
-                Indítás
-              </button>
-            </>
-          )}
-
-          {statusKey === 'aktiv' && (
-            <>
-              <button
-                className="btn btn-outline btn-outline-sm"
-                style={{ borderColor: 'rgba(107, 139, 153, 0.4)', color: 'var(--text-muted)' }}
-                onClick={(e) => { e.stopPropagation(); onStop(c.id); }}
-              >
-                Szüneteltetés
-              </button>
-              <button
-                className="btn btn-primary btn-primary-sm"
-                onClick={(e) => { e.stopPropagation(); onClose(c.id); }}
-              >
-                Leállítás
-              </button>
-            </>
-          )}
-
-          {statusKey === 'lezart' && (
-            <button
-              className="btn btn-primary btn-primary-sm"
-              onClick={(e) => { e.stopPropagation(); onOpenDetail(c); }}
-            >
-              Megtekintés
-            </button>
-          )}
-
-          {statusKey === 'utemezett' && (
-            <button
-              className="btn btn-primary btn-primary-sm"
-              style={{ background: '#1ceee0', color: '#082432', boxShadow: 'none' }}
-              onClick={(e) => { e.stopPropagation(); onStart(c.id); }}
-            >
-              Indítás
-            </button>
+      {/* Footer meta */}
+      <div className="out-card-footer">
+        <div className={`out-card-avatar ${avatarUrl ? 'out-card-avatar--transparent' : 'out-card-avatar--gradient'}`}>
+          {avatarUrl ? (
+            <img src={avatarUrl} alt="Avatar" className="member-avatar-img" />
+          ) : (
+            getInitials(creatorName)
           )}
         </div>
+        <span className="out-card-footer-date">
+          {c.created_at ? new Date(c.created_at).toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
+        </span>
       </div>
     </div>
   );

@@ -49,7 +49,7 @@ interface Campaign {
 
 // ── Module-level constants (never change — no useMemo needed) ─────────────────
 
-const STATUS_FILTERS = ['Összes', 'Tervezet', 'Aktív', 'Ütemezett', 'Lezárt'] as const;
+const STATUS_FILTERS = ['Összes', 'Aktív', 'Ütemezett', 'Tervezet', 'Lezárt'] as const;
 
 const STATUS_MAP: Record<string, string> = {
   'Tervezet': 'Vázlat',
@@ -229,6 +229,18 @@ export default function OutboundPage() {
       kpis: { total, running, closed, targeted },
       analytics: { statusCounts, channelCounts, avgClients, topChannel, successRate, lastCampaign },
     };
+  }, [campaigns]);
+
+  // ── Tab counts ──
+  const tabCounts = useMemo(() => {
+    const counts: Record<string, number> = {
+      'Összes': campaigns.length,
+      'Aktív': campaigns.filter(c => c.status === 'Aktív').length,
+      'Ütemezett': campaigns.filter(c => c.status === 'Ütemezett').length,
+      'Tervezet': campaigns.filter(c => c.status === 'Vázlat').length,
+      'Lezárt': campaigns.filter(c => c.status === 'Befejezett' || c.status === 'Megállítva').length,
+    };
+    return counts;
   }, [campaigns]);
 
   // ── Chart data (only computed when campaigns change) ──
@@ -474,38 +486,18 @@ export default function OutboundPage() {
         <div className="page-title">Kampányok</div>
       </div>
 
+      {/* Page-level CTA — right-aligned above content block */}
+      <div className="out-toolbar">
+        <button onClick={() => setShowNewCampaign(true)} className="out-new-campaign-btn">
+          <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" className="svg-14">
+            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+          </svg>
+          Új kampány
+        </button>
+      </div>
+
       {/* Campaigns section */}
       <div className="out-section">
-        {/* KPI overview */}
-        <div className="mb-24">
-          <div className="flex-between mb-14">
-            <div className="font-semibold text-md section-overview-label">Kampányok áttekintése</div>
-            <button onClick={() => setShowNewCampaign(true)} className="out-new-campaign-btn">
-              <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" className="svg-14">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-              </svg>
-              ÚJ KAMPÁNY
-            </button>
-          </div>
-          <div className="out-kpi-grid">
-            <div className="out-kpi-stat">
-              <div className="out-kpi-value">{kpis.total}</div>
-              <div className="out-kpi-label">Összes kampány</div>
-            </div>
-            <div className="out-kpi-stat">
-              <div className="out-kpi-value out-kpi-value--green">{kpis.running}</div>
-              <div className="out-kpi-label">Futó kampány</div>
-            </div>
-            <div className="out-kpi-stat">
-              <div className="out-kpi-value">{kpis.closed}</div>
-              <div className="out-kpi-label">Lezárt kampány</div>
-            </div>
-            <div className="out-kpi-stat">
-              <div className="out-kpi-value">{kpis.targeted}</div>
-              <div className="out-kpi-label">Összes célzott ügyfél</div>
-            </div>
-          </div>
-        </div>
 
         {/* Analytics Panel — lazy: only mounts when opened */}
         {showAnalytics && (
@@ -703,22 +695,30 @@ export default function OutboundPage() {
           </div>
         )}
 
+        {/* Content block: tabs + grid */}
+        <div className="out-content-block">
+
         {/* Status filter tabs + selection bar */}
-        <div className="flex-row flex-wrap out-filter-row">
+        <div className="flex-row flex-wrap out-filter-row" style={{ justifyContent: 'space-between', alignItems: 'center' }}>
           <div className="out-view-switcher out-view-switcher--no-mb">
-            {STATUS_FILTERS.map((tab) => (
+            {STATUS_FILTERS.map((tab) => {
+              const tabColorMap: Record<string, string> = {
+                'Összes': '#082432', 'Aktív': '#32B100', 'Ütemezett': '#C43284', 'Tervezet': '#186D98', 'Lezárt': '#9D9D9D',
+              };
+              return (
               <button
                 key={tab}
                 className={`out-view-btn ${activeFilter === tab ? 'active' : ''}`}
                 onClick={() => { setActiveFilter(tab); setSelectedIds(new Set()); }}
               >
-                {tab}
+                {tab} <span style={{ color: activeFilter === tab ? undefined : tabColorMap[tab] }}>({tabCounts[tab] ?? 0})</span>
               </button>
-            ))}
+              );
+            })}
           </div>
 
           {/* Selection toolbar */}
-          <div className="flex-row gap-8">
+          <div className="flex-row gap-8" style={{ alignItems: 'center' }}>
             {selectedIds.size > 0 && (
               <>
                 <span className="selection-count-label">{selectedIds.size} kijelölve</span>
@@ -732,9 +732,7 @@ export default function OutboundPage() {
                 </button>
               </>
             )}
-            {selectedIds.size === 0 && filteredCampaigns.length > 0 && (
-              <button className="btn btn-outline-sm" onClick={selectAll}>Összes kijelölése</button>
-            )}
+
           </div>
         </div>
 
@@ -747,7 +745,7 @@ export default function OutboundPage() {
               <path strokeLinecap="round" strokeLinejoin="round" d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
             </svg>
             <p className="empty-state-text">
-              {activeFilter === 'Összes' ? 'Még nincsenek kampányok. Kattints a "+ ÚJ KAMPÁNY" gombra!' : `Nincsenek "${activeFilter}" státuszú kampányok.`}
+              {activeFilter === 'Összes' ? 'Még nincsenek kampányok. Kattints a "+ Új kampány" gombra!' : `Nincsenek "${activeFilter}" státuszú kampányok.`}
             </p>
           </div>
         ) : (
@@ -769,6 +767,8 @@ export default function OutboundPage() {
             ))}
           </div>
         )}
+
+        </div>{/* end .out-content-block */}
       </div>
 
       {/* Campaign Detail Panel — lazy mounted */}

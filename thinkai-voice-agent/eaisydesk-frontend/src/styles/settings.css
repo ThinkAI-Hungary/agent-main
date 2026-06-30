@@ -1845,10 +1845,10 @@
 .role-dd-option {
   width: 100%; padding: 10px 14px; border: none; cursor: pointer;
   font-size: 12px; font-weight: 600; font-family: inherit; text-align: left;
-  display: flex; align-items: center; justify-content: space-between;
+  display: flex; align-items: center; gap: 8px;
   transition: background 0.15s;
 }
-.role-dd-option--active { background: rgba(28,238,224,0.08); color: var(--accent); }
+.role-dd-option--active { background: rgba(28,238,224,0.08); color: #082432; }
 .role-dd-option--idle   { background: transparent; color: var(--text); }
 .role-dd-option--idle:hover { background: rgba(255,255,255,0.06); }
 
