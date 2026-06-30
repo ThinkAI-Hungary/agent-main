@@ -308,30 +308,54 @@ export default function KanbanPage() {
           <div className="page-title">Érdeklődőkezelés</div>
 
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            gap: 6,
-            padding: '8px 16px',
-            fontSize: 13,
-            fontWeight: 600,
-            whiteSpace: 'nowrap',
-            borderRadius: 10,
-            border: '1px solid var(--border)',
-            background: 'var(--card)',
-            color: 'var(--text)',
-            cursor: 'pointer',
-            fontFamily: 'inherit',
-            transition: 'all 0.2s',
-          }}
-        >
-          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="15" height="15">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          Oszlop hozzáadása
-        </button>
+      </div>
+
+      {/* Add column button — right-aligned above board */}
+      <div className="kanban-toolbar">
+        <div className="kanban-add-col-wrap">
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="kanban-add-col-btn"
+          >
+            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="15" height="15">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Oszlop hozzáadása
+          </button>
+
+          {/* Add Column Popover */}
+          {showAddModal && (
+            <>
+              <div className="kanban-popover-backdrop" onClick={() => setShowAddModal(false)} />
+              <div className="kanban-add-popover" onClick={(e) => e.stopPropagation()}>
+                <div className="kanban-add-popover-title">Új oszlop hozzáadása</div>
+                <input
+                  type="text"
+                  className="input"
+                  value={newColName}
+                  onChange={(e) => setNewColName(e.target.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') handleAddColumn(); if (e.key === 'Escape') setShowAddModal(false); }}
+                  placeholder="Pl. Ajánlatkérés, Tárgyalás..."
+                  autoFocus
+                />
+                <div className="kanban-add-popover-actions">
+                  <button
+                    className="kanban-add-col-btn"
+                    onClick={() => { setShowAddModal(false); setNewColName(''); }}
+                  >
+                    Mégse
+                  </button>
+                  <button
+                    className="btn btn-primary"
+                    onClick={handleAddColumn}
+                  >
+                    Hozzáadás
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
       </div>
 
       {/* Kanban Board */}
@@ -341,7 +365,6 @@ export default function KanbanPage() {
           {columns.map((col) => {
             const cards = cardsByColumn[col.id] || [];
             const isOpen = openAccordion === col.id;
-            // Auto-open first column with cards if nothing is open
             if (openAccordion === null && cards.length > 0) {
               setTimeout(() => setOpenAccordion(col.id), 0);
             }
@@ -407,56 +430,6 @@ export default function KanbanPage() {
             {activeCard && <KanbanCard card={activeCard} isDragOverlay />}
           </DragOverlay>
         </DndContext>
-      )}
-
-      {/* Add Column Modal */}
-      {showAddModal && (
-        <div
-          className="modal-overlay"
-          onClick={() => setShowAddModal(false)}
-        >
-          <div
-            className="modal-card modal-card-sm"
-            onClick={(e) => e.stopPropagation()}
-          >
-            <div className="modal-body">
-              <div className="flex-row gap-12 mb-20">
-                <div className="icon-box-lg" style={{ background: 'rgba(28,238,224,0.12)', border: 'none' }}>
-                  <svg fill="none" stroke="var(--accent)" strokeWidth="2" viewBox="0 0 24 24" width="20" height="20">
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M9 17V7m0 10a2 2 0 01-2 2H5a2 2 0 01-2-2V7a2 2 0 012-2h2a2 2 0 012 2m0 10a2 2 0 002 2h2a2 2 0 002-2M9 7a2 2 0 012-2h2a2 2 0 012 2m0 10V7m0 10a2 2 0 002 2h2a2 2 0 002-2V7a2 2 0 00-2-2h-2a2 2 0 00-2 2" />
-                  </svg>
-                </div>
-                <div>
-                  <div className="text-lg font-bold">Új oszlop hozzáadása</div>
-                  <div className="text-sm text-muted">Adj nevet az új kanban oszlopnak</div>
-                </div>
-              </div>
-              <input
-                type="text"
-                className="input"
-                value={newColName}
-                onChange={(e) => setNewColName(e.target.value)}
-                onKeyDown={(e) => { if (e.key === 'Enter') handleAddColumn(); if (e.key === 'Escape') setShowAddModal(false); }}
-                placeholder="Pl. Ajánlatkérés, Tárgyalás..."
-                autoFocus
-              />
-              <div className="flex-row gap-10 justify-end mt-18">
-                <button
-                  className="btn btn-outline"
-                  onClick={() => { setShowAddModal(false); setNewColName(''); }}
-                >
-                  Mégse
-                </button>
-                <button
-                  className="btn btn-primary"
-                  onClick={handleAddColumn}
-                >
-                  Hozzáadás
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
       )}
     </div>
   );

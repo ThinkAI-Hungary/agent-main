@@ -149,3 +149,162 @@
   background: transparent; border: none; color: var(--red);
   cursor: pointer; font-size: 11px; font-family: inherit;
 }
+
+/* ── Toolbar: add-column button row ── */
+.kanban-toolbar {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+.kanban-add-col-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 16px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  cursor: pointer;
+  font-family: inherit;
+  transition: all 0.2s;
+}
+.kanban-add-col-btn:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+/* ── Add-column popover ── */
+.kanban-add-col-wrap {
+  position: relative;
+}
+
+.kanban-popover-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 149;
+}
+
+.kanban-add-popover {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 300px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 20px;
+  z-index: 150;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+  animation: kanbanMenuIn 0.15s ease-out;
+}
+
+.kanban-add-popover-title {
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+
+.kanban-add-popover .input {
+  margin-bottom: 14px;
+}
+
+.kanban-add-popover-actions {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 10px;
+}
+
+/* ── Column title inline count ── */
+.kanban-col-title-text {
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kanban-col-count-inline {
+  font-weight: 400;
+  color: var(--text-muted);
+  margin-left: 2px;
+}
+
+/* ── Three-dot column menu ── */
+.kanban-col-menu-wrap {
+  position: relative;
+  flex-shrink: 0;
+}
+
+.kanban-col-menu-btn {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s;
+}
+.kanban-col-menu-btn:hover,
+.kanban-col-menu-btn.active {
+  background: var(--bg3);
+  border-color: var(--border);
+  color: var(--text);
+}
+
+/* ── Dropdown ── */
+.kanban-col-dropdown {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 170px;
+  background: #0a1f2e;
+  border: 1px solid rgba(28, 238, 224, 0.15);
+  border-radius: 10px;
+  padding: 6px;
+  z-index: 200;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+  animation: kanbanMenuIn 0.15s ease-out;
+}
+
+@keyframes kanbanMenuIn {
+  from { opacity: 0; transform: translateY(-4px) scale(0.96); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.kanban-col-dropdown-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 500;
+  color: #e8edf5;
+  background: transparent;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.kanban-col-dropdown-item:hover {
+  background: rgba(28, 238, 224, 0.08);
+  color: #1ceee0;
+}
+.kanban-col-dropdown-item svg {
+  color: inherit;
+  flex-shrink: 0;
+}
+.kanban-col-dropdown-item--danger:hover {
+  background: rgba(239, 68, 68, 0.1);
+  color: #1ceee0;
+}

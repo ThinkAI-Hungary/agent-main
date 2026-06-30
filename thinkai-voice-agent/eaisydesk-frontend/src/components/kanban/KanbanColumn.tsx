@@ -20,7 +20,9 @@ export default function KanbanColumn({ column, cards, onRename, onDelete, onDele
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(column.name);
+  const [menuOpen, setMenuOpen] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const menuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (editing && inputRef.current) {
@@ -28,6 +30,18 @@ export default function KanbanColumn({ column, cards, onRename, onDelete, onDele
       inputRef.current.select();
     }
   }, [editing]);
+
+  // Close menu on outside click
+  useEffect(() => {
+    if (!menuOpen) return;
+    function handleClick(e: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+    document.addEventListener('mousedown', handleClick);
+    return () => document.removeEventListener('mousedown', handleClick);
+  }, [menuOpen]);
 
   function handleSave() {
     const newName = editName.trim();
@@ -76,38 +90,53 @@ export default function KanbanColumn({ column, cards, onRename, onDelete, onDele
             />
           ) : (
             <span
-              className="cursor-pointer"
+              className="kanban-col-title-text"
               onDoubleClick={() => { setEditName(column.name); setEditing(true); }}
               title="Kattints duplán az átnevezéshez"
             >
-              {column.name}
+              {column.name} <span className="kanban-col-count-inline">({cards.length})</span>
             </span>
           )}
-          <span className="kanban-col-count">{cards.length}</span>
         </div>
-        <div className="flex-row gap-6">
+
+        {/* Three-dot menu */}
+        <div className="kanban-col-menu-wrap" ref={menuRef}>
           <button
-            onClick={() => { setEditName(column.name); setEditing(true); }}
-            style={{ background: 'none', border: 'none', color: 'var(--text-muted)', cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center', opacity: 0.6 }}
-            title="Átnevezés"
+            className={`kanban-col-menu-btn${menuOpen ? ' active' : ''}`}
+            onClick={() => setMenuOpen(!menuOpen)}
+            title="Műveletek"
           >
-            <svg fill="none" height="13" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="13">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <circle cx="12" cy="5" r="2" />
+              <circle cx="12" cy="12" r="2" />
+              <circle cx="12" cy="19" r="2" />
             </svg>
           </button>
-          <button
-            onClick={() => onDelete(column.id)}
-            style={{ background: 'none', border: 'none', color: 'var(--red)', cursor: 'pointer', padding: 2, display: 'flex', alignItems: 'center', opacity: 0.6 }}
-            title="Törlés"
-          >
-            <svg fill="none" height="13" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" viewBox="0 0 24 24" width="13">
-              <polyline points="3 6 5 6 21 6" />
-              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-              <line x1="10" y1="11" x2="10" y2="17" />
-              <line x1="14" y1="11" x2="14" y2="17" />
-            </svg>
-          </button>
+
+          {menuOpen && (
+            <div className="kanban-col-dropdown">
+              <button
+                className="kanban-col-dropdown-item"
+                onClick={() => { setMenuOpen(false); setEditName(column.name); setEditing(true); }}
+              >
+                <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15">
+                  <path d="M12 20h9" />
+                  <path d="M16.5 3.5a2.121 2.121 0 0 1 3 3L7 19l-4 1 1-4L16.5 3.5z" />
+                </svg>
+                Átnevezés
+              </button>
+              <button
+                className="kanban-col-dropdown-item kanban-col-dropdown-item--danger"
+                onClick={() => { setMenuOpen(false); onDelete(column.id); }}
+              >
+                <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15">
+                  <polyline points="3 6 5 6 21 6" />
+                  <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                </svg>
+                Törlés
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
