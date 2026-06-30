@@ -256,13 +256,19 @@ def log_interaction(type: str, topic: str = "", summary: str = "", result: str =
         supabase.table("interactions").insert(data).execute()
     except Exception as e:
         logger.error(f"Error logging interaction: {e}")
-        if classification is not None:
-            logger.info("Attempting fallback log without classification field...")
+        # Fallback: try dropping optional columns that may not exist in the schema
+        dropped = []
+        if client_id is not None and "client_id" in data:
+            del data["client_id"]
+            dropped.append("client_id")
+        if classification is not None and "classification" in data:
+            del data["classification"]
+            dropped.append("classification")
+        if dropped:
+            logger.info(f"Attempting fallback log without {', '.join(dropped)}...")
             try:
-                if "classification" in data:
-                    del data["classification"]
                 supabase.table("interactions").insert(data).execute()
-                logger.info("Fallback log successful (classification dropped)!")
+                logger.info(f"Fallback log successful ({', '.join(dropped)} dropped)!")
             except Exception as fe:
                 logger.error(f"Fallback log failed: {fe}")
 
