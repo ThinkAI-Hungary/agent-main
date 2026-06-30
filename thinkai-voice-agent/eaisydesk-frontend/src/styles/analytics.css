@@ -172,20 +172,21 @@
     }
 
     .int-toolbar-btn {
-      background: var(--card);
-      border: 1px solid var(--border);
+      background: #fff;
+      border: 1px solid #D9D9D9;
       border-radius: 8px;
-      color: var(--text-muted);
+      color: #5F7D95;
       padding: 8px 14px;
       font-size: 13px;
+      font-weight: 400;
       cursor: pointer;
       font-family: 'Inter', Arial, sans-serif;
       transition: all 0.15s;
     }
 
     .int-toolbar-btn:hover {
-      border-color: #1ceee0;
-      color: #1ceee0;
+      background: #DFFFFD;
+      border-color: #1CEEE0;
     }
 
     .int-table-wrapper {

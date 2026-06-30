@@ -161,21 +161,21 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 8px 16px;
+  padding: 10px 20px;
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 500;
   white-space: nowrap;
   border-radius: 10px;
-  border: 1px solid var(--border);
-  background: var(--card);
-  color: var(--text);
+  border: 1px solid #D9D9D9;
+  background: #fff;
+  color: #082432;
   cursor: pointer;
   font-family: inherit;
   transition: all 0.2s;
 }
 .kanban-add-col-btn:hover {
-  border-color: var(--accent);
-  color: var(--accent);
+  background: #DFFFFD;
+  border-color: #1CEEE0;
 }
 
 /* ── Add-column popover ── */
@@ -207,11 +207,19 @@
   font-size: 15px;
   font-weight: 700;
   color: var(--text);
-  margin-bottom: 14px;
+  margin-bottom: 16px;
 }
 
 .kanban-add-popover .input {
-  margin-bottom: 14px;
+  border: 1px solid #1CEEE0;
+  outline: none;
+  box-shadow: none;
+  margin-bottom: 16px;
+}
+.kanban-add-popover .input:focus {
+  border-color: #1CEEE0;
+  outline: none;
+  box-shadow: none;
 }
 
 .kanban-add-popover-actions {
@@ -219,6 +227,23 @@
   justify-content: space-between;
   align-items: center;
   gap: 10px;
+}
+
+/* Primary CTA inside popover */
+.kanban-add-popover .btn-primary {
+  background: #1CEEE0;
+  color: #082432;
+  border: none;
+  font-weight: 500;
+  box-shadow: none;
+  padding: 10px 20px;
+  font-size: 13px;
+  border-radius: 10px;
+  cursor: pointer;
+  font-family: inherit;
+}
+.kanban-add-popover .btn-primary:hover {
+  opacity: 0.9;
 }
 
 /* ── Column title inline count ── */
@@ -266,7 +291,7 @@
   top: calc(100% + 6px);
   right: 0;
   min-width: 170px;
-  background: #0a1f2e;
+  background: #082432;
   border: 1px solid rgba(28, 238, 224, 0.15);
   border-radius: 10px;
   padding: 6px;
@@ -294,17 +319,13 @@
   border-radius: 6px;
   cursor: pointer;
   font-family: inherit;
-  transition: background 0.15s;
+  transition: all 0.15s;
 }
 .kanban-col-dropdown-item:hover {
-  background: rgba(28, 238, 224, 0.08);
+  background: rgba(28, 238, 224, 0.15);
   color: #1ceee0;
 }
 .kanban-col-dropdown-item svg {
   color: inherit;
   flex-shrink: 0;
-}
-.kanban-col-dropdown-item--danger:hover {
-  background: rgba(239, 68, 68, 0.1);
-  color: #1ceee0;
 }

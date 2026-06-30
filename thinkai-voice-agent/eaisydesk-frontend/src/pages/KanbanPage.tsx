@@ -320,7 +320,7 @@ export default function KanbanPage() {
             <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="15" height="15">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
             </svg>
-            Oszlop hozzáadása
+            Új oszlop
           </button>
 
           {/* Add Column Popover */}
@@ -335,7 +335,7 @@ export default function KanbanPage() {
                   value={newColName}
                   onChange={(e) => setNewColName(e.target.value)}
                   onKeyDown={(e) => { if (e.key === 'Enter') handleAddColumn(); if (e.key === 'Escape') setShowAddModal(false); }}
-                  placeholder="Pl. Ajánlatkérés, Tárgyalás..."
+                  placeholder="Ide írd az új oszlop nevét"
                   autoFocus
                 />
                 <div className="kanban-add-popover-actions">

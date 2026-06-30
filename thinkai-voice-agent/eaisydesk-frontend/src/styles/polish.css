@@ -939,7 +939,39 @@ body.dark .beallitasok-tab.active {
 .int-filter-footer { padding: 10px 14px; border-top: 1px solid var(--border); }
 
 /* Filter btn flex */
-.int-filter-btn { flex: 1; padding: 7px 10px; font-size: 12px; border-radius: 8px; }
+.int-filter-btn {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 10px;
+  font-size: 13px;
+  font-weight: 500;
+  border-radius: 8px;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  transition: all 0.15s;
+}
+.int-filter-btn.btn-outline {
+  background: #fff;
+  border: 1px solid #D9D9D9;
+  color: #082432;
+  box-shadow: none;
+}
+.int-filter-btn.btn-outline:hover {
+  background: #DFFFFD;
+  border-color: #1CEEE0;
+}
+.int-filter-btn.btn-primary {
+  background: #1CEEE0;
+  border: none;
+  color: #082432;
+  box-shadow: none;
+}
+.int-filter-btn.btn-primary:hover {
+  opacity: 0.9;
+}
 
 /* Sort dropdown */
 .int-sort-dropdown {
@@ -984,6 +1016,38 @@ body.dark .beallitasok-tab.active {
 .int-empty-state { text-align: center; padding: 40px; }
 
 /* Mobile count label */
+/* Interactions toolbar — transparent row above table */
+.int-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-top: 8px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+/* Search input with icon */
+.int-search-wrap {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+}
+.int-search-icon {
+  position: absolute;
+  left: 10px;
+  pointer-events: none;
+}
+.int-search-wrap .int-toolbar-input {
+  width: 270px;
+  padding-left: 32px;
+}
+.int-search-wrap .int-toolbar-input:focus {
+  border-color: #1CEEE0;
+  outline: none;
+  box-shadow: none;
+}
+
 .int-count-label { font-size: 12px; font-weight: 600; color: var(--text-muted); }
 
 /* Mobile card inner flex */
@@ -1450,10 +1514,35 @@ body.dark .beallitasok-tab.active {
 .int-dropdown-wrap { display: inline-block; }
 
 /* Filter dropdown width */
-.dropdown-menu--filter { width: 280px; }
+.dropdown-menu--filter { width: 360px; }
 
 /* Sort dropdown margin */
 .dropdown-menu--sort { margin-top: 6px; }
+.dropdown-menu--sort .dropdown-item {
+  background: #fff;
+  color: #082432;
+}
+.dropdown-menu--sort .dropdown-item:hover {
+  background: #DFFFFD;
+  color: #082432;
+}
+.dropdown-menu--sort .dropdown-item.active {
+  background: #DFFFFD;
+  color: #082432;
+  font-weight: 600;
+}
+.dropdown-menu--sort .dropdown-item.active .int-sort-check {
+  color: #1CEEE0;
+}
+
+/* Columns dropdown */
+.dropdown-menu--columns {
+  width: 240px;
+  padding: 10px 6px;
+}
+.dropdown-menu--columns .int-col-label {
+  padding: 8px 14px;
+}
 
 /* Date filter inputs flex */
 .int-date-input {

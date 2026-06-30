@@ -71,8 +71,8 @@ const IRANY_OPTIONS = ['Bejövő', 'Kimenő'];
 const STATUSZ_OPTIONS = ['Lezárt', 'Nyitott', 'Sürgős'];
 
 const SORT_OPTIONS = [
-  { value: 'date_desc', label: 'Legújabb elöl' },
-  { value: 'date_asc', label: 'Legrégebbi elöl' },
+  { value: 'date_desc', label: 'Legújabbak elől' },
+  { value: 'date_asc', label: 'Legrégebbiek elől' },
   { value: 'client_asc', label: 'Ügyfélnév szerint A–Z' },
   { value: 'topic_asc', label: 'Ügytípus szerint A–Z' },
 ];
@@ -419,157 +419,162 @@ export default function InteractionsPage() {
         <div className="page-title">Interakciós napló</div>
       </div>
 
-      {/* Table card with integrated toolbar */}
-      <div className="card-container card-container--overflow-visible">
-        {/* Toolbar strip — hidden on mobile (mobile card view has its own) */}
-        {!isMobile && (
-        <div className="toolbar-strip">
-          {/* Left: search + count */}
-          <div className="flex-row gap-12">
+      {/* Desktop toolbar — outside table card */}
+      {!isMobile && (
+      <div className="int-toolbar">
+        {/* Left: result count */}
+        <div className="flex-row gap-12">
+          {filteredRows.length > 0 && (
+            <span className="text-desc font-semibold int-count-label">
+              {filteredRows.length} találat
+            </span>
+          )}
+        </div>
+
+        {/* Right: search + actions */}
+        <div className="flex-row gap-8 flex-wrap">
+          <div className="int-search-wrap">
+            <svg className="int-search-icon" fill="none" stroke="#5F7D95" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
+              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+            </svg>
             <input
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Keresés..."
+              placeholder="Keresés a táblázatban"
               type="text"
-              className="int-toolbar-input int-toolbar-input--w220"
+              className="int-toolbar-input"
             />
-            {filteredRows.length > 0 && (
-              <span className="text-desc font-semibold int-count-label">
-                {filteredRows.length} találat
-              </span>
+          </div>
+
+          {isAdmin && selectedRows.size > 0 && (
+            <button
+              onClick={handleDeleteSelected}
+              className="int-toolbar-btn int-toolbar-btn--danger"
+            >
+              <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
+                <path d="M10 11v6" />
+                <path d="M14 11v6" />
+              </svg>
+              {selectedRows.size} törlése
+            </button>
+          )}
+
+          {/* Filter */}
+          <div className="relative int-dropdown-wrap" ref={filterContainerRef}>
+            <button
+              className="int-toolbar-btn flex-row gap-6"
+              title="Szűrés"
+              onClick={() => setFilterOpen(!filterOpen)}
+            >
+              <svg fill="none" height="14" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14">
+                <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+              </svg>
+              Szűrés
+              {activeFilterCount > 0 && (
+                <span className="int-filter-badge">
+                  {activeFilterCount}
+                </span>
+              )}
+            </button>
+
+            {filterOpen && (
+              <div className="dropdown-menu dropdown-menu--filter">
+                <div className="dropdown-header">Szűrők</div>
+                <div className="int-filter-list">
+                  <FilterSection title="Dátum">
+                    <div className="flex-row gap-8">
+                      <input className="form-date int-date-input" type="date" lang="hu" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
+                      <input className="form-date int-date-input" type="date" lang="hu" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
+                    </div>
+                  </FilterSection>
+                  <FilterSection title="Ügytípus" bordered>
+                    {UGYTIPUS_OPTIONS.map((v) => (
+                      <FilterCheckbox key={v} label={v} checked={filterUgyTipus.has(v)} onChange={() => toggleFilter(filterUgyTipus, v, setFilterUgyTipus)} />
+                    ))}
+                  </FilterSection>
+                  <FilterSection title="Csatorna" bordered>
+                    {CSATORNA_OPTIONS.map((v) => (
+                      <FilterCheckbox key={v} label={v} checked={filterCsatorna.has(v)} onChange={() => toggleFilter(filterCsatorna, v, setFilterCsatorna)} />
+                    ))}
+                  </FilterSection>
+                  <FilterSection title="Irány" bordered>
+                    {IRANY_OPTIONS.map((v) => (
+                      <FilterCheckbox key={v} label={v} checked={filterIrany.has(v)} onChange={() => toggleFilter(filterIrany, v, setFilterIrany)} />
+                    ))}
+                  </FilterSection>
+                  <FilterSection title="Státusz" bordered>
+                    {STATUSZ_OPTIONS.map((v) => (
+                      <FilterCheckbox key={v} label={v} checked={filterStatusz.has(v)} onChange={() => toggleFilter(filterStatusz, v, setFilterStatusz)} />
+                    ))}
+                  </FilterSection>
+                </div>
+                <div className="flex-row gap-8 int-filter-footer">
+                  <button className="btn btn-outline int-filter-btn" onClick={resetFilters}>Visszaállítás</button>
+                  <button className="btn btn-primary int-filter-btn" onClick={() => setFilterOpen(false)}>Alkalmaz</button>
+                </div>
+              </div>
             )}
           </div>
 
-          {/* Right: actions */}
-          <div className="flex-row gap-8 flex-wrap">
-            {isAdmin && selectedRows.size > 0 && (
-              <button
-                onClick={handleDeleteSelected}
-                className="int-toolbar-btn int-toolbar-btn--danger"
-              >
-                <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-                  <polyline points="3 6 5 6 21 6" />
-                  <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
-                  <path d="M10 11v6" />
-                  <path d="M14 11v6" />
-                </svg>
-                {selectedRows.size} törlése
-              </button>
+          {/* Sort */}
+          <div className="relative int-dropdown-wrap" ref={sortDropdownRef}>
+            <button
+              className="int-toolbar-btn flex-row gap-6"
+              onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+            >
+              <svg fill="none" height="14" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14">
+                <path d="M7 15l5 5 5-5" /><path d="M7 9l5-5 5 5" />
+              </svg>
+              Sorrend
+            </button>
+            {sortDropdownOpen && (
+              <div className="dropdown-menu dropdown-menu--sort">
+                {SORT_OPTIONS.map((o) => (
+                  <button
+                    key={o.value}
+                    className={`dropdown-item ${sortBy === o.value ? 'active' : ''}`}
+                    onClick={() => { setSortBy(o.value); setSortDropdownOpen(false); }}
+                  >
+                    {sortBy === o.value && <span className="int-sort-check">✓</span>}
+                    {o.label}
+                  </button>
+                ))}
+              </div>
             )}
+          </div>
 
-            {/* Filter */}
-            <div className="relative int-dropdown-wrap" ref={filterContainerRef}>
-              <button
-                className="int-toolbar-btn flex-row gap-6"
-                title="Szűrés"
-                onClick={() => setFilterOpen(!filterOpen)}
-              >
-                <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                </svg>
-                Szűrés
-                {activeFilterCount > 0 && (
-                  <span className="int-filter-badge">
-                    {activeFilterCount}
-                  </span>
-                )}
-              </button>
-
-              {filterOpen && (
-                <div className="dropdown-menu dropdown-menu--filter">
-                  <div className="dropdown-header">Szűrők</div>
-                  <div className="int-filter-list">
-                    <FilterSection title="Dátum">
-                      <div className="flex-row gap-8">
-                        <input className="form-date int-date-input" type="date" lang="hu" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
-                        <input className="form-date int-date-input" type="date" lang="hu" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
-                      </div>
-                    </FilterSection>
-                    <FilterSection title="Ügytípus" bordered>
-                      {UGYTIPUS_OPTIONS.map((v) => (
-                        <FilterCheckbox key={v} label={v} checked={filterUgyTipus.has(v)} onChange={() => toggleFilter(filterUgyTipus, v, setFilterUgyTipus)} />
-                      ))}
-                    </FilterSection>
-                    <FilterSection title="Csatorna" bordered>
-                      {CSATORNA_OPTIONS.map((v) => (
-                        <FilterCheckbox key={v} label={v} checked={filterCsatorna.has(v)} onChange={() => toggleFilter(filterCsatorna, v, setFilterCsatorna)} />
-                      ))}
-                    </FilterSection>
-                    <FilterSection title="Irány" bordered>
-                      {IRANY_OPTIONS.map((v) => (
-                        <FilterCheckbox key={v} label={v} checked={filterIrany.has(v)} onChange={() => toggleFilter(filterIrany, v, setFilterIrany)} />
-                      ))}
-                    </FilterSection>
-                    <FilterSection title="Státusz" bordered>
-                      {STATUSZ_OPTIONS.map((v) => (
-                        <FilterCheckbox key={v} label={v} checked={filterStatusz.has(v)} onChange={() => toggleFilter(filterStatusz, v, setFilterStatusz)} />
-                      ))}
-                    </FilterSection>
-                  </div>
-                  <div className="flex-row gap-8 int-filter-footer">
-                    <button className="btn btn-outline int-filter-btn" onClick={resetFilters}>Visszaállítás</button>
-                    <button className="btn btn-primary int-filter-btn" onClick={() => setFilterOpen(false)}>Alkalmaz</button>
-                  </div>
-                </div>
-              )}
-            </div>
-
-            {/* Sort */}
-            <div className="relative int-dropdown-wrap" ref={sortDropdownRef}>
-              <button
-                className="int-toolbar-btn flex-row gap-6"
-                onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
-              >
-                <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-                  <path d="M3 6h18M6 12h12M9 18h6" />
-                </svg>
-                {SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Rendezés'}
-              </button>
-              {sortDropdownOpen && (
-                <div className="dropdown-menu dropdown-menu--sort">
-                  {SORT_OPTIONS.map((o) => (
-                    <button
-                      key={o.value}
-                      className={`dropdown-item ${sortBy === o.value ? 'active' : ''}`}
-                      onClick={() => { setSortBy(o.value); setSortDropdownOpen(false); }}
-                    >
-                      {sortBy === o.value && <span className="int-sort-check">✓</span>}
-                      {o.label}
-                    </button>
-                  ))}
-                </div>
-              )}
-            </div>
-
-            {/* Columns */}
-            <div className="relative int-dropdown-wrap" ref={colDropdownRef}>
-              <button
-                className="int-toolbar-btn flex-row gap-6"
-                title="Oszlopok"
-                onClick={() => setColDropdownOpen(!colDropdownOpen)}
-              >
-                <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-                  <rect height="18" rx="2" ry="2" width="18" x="3" y="3" />
-                  <line x1="9" x2="9" y1="3" y2="21" />
-                </svg>
-                Oszlopok
-              </button>
-              {colDropdownOpen && (
-                <div className="dropdown-menu">
-                  <div className="dropdown-header">Látható oszlopok</div>
-                  {ALL_COLUMNS.map((col) => (
-                    <label key={col.key} className="int-col-label">
-                      <input type="checkbox" checked={visibleCols.has(col.key)} onChange={() => toggleCol(col.key)} className="int-col-cb" />
-                      {col.label}
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
+          {/* Columns */}
+          <div className="relative int-dropdown-wrap" ref={colDropdownRef}>
+            <button
+              className="int-toolbar-btn flex-row gap-6"
+              title="Oszlopok"
+              onClick={() => setColDropdownOpen(!colDropdownOpen)}
+            >
+              <svg fill="none" height="14" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14">
+                <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" />
+              </svg>
+              Oszlopok
+            </button>
+            {colDropdownOpen && (
+              <div className="dropdown-menu dropdown-menu--columns">
+                <div className="dropdown-header">Látható oszlopok</div>
+                {ALL_COLUMNS.map((col) => (
+                  <label key={col.key} className="int-col-label">
+                    <input type="checkbox" checked={visibleCols.has(col.key)} onChange={() => toggleCol(col.key)} className="int-col-cb" />
+                    {col.label}
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
         </div>
-        )}
+      </div>
+      )}
 
+      {/* Table card — table only */}
+      <div className="card-container">
 
         {/* ═══ MOBILE: Card view ═══ */}
         {isMobile && (

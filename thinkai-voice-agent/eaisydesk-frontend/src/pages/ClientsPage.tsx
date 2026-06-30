@@ -48,8 +48,8 @@ interface EnrichedClient {
 
 
 const SORT_OPTIONS = [
-  { value: 'date_desc', label: 'Legújabb elöl' },
-  { value: 'date_asc', label: 'Régebbiek elöl' },
+  { value: 'date_desc', label: 'Legújabbak elől' },
+  { value: 'date_asc', label: 'Legrégebbiek elől' },
   { value: 'name_asc', label: 'Név alapján (A-Z)' },
   { value: 'name_desc', label: 'Név alapján (Z-A)' },
   { value: 'interaction_desc', label: 'Utolsó interakció' },
@@ -501,140 +501,147 @@ export default function ClientsPage() {
 
       {/* ═══ DESKTOP: Table view ═══ */}
       {!isMobile && viewMode === 'table' && (
-        <div className="table-card card-container cl-table-wrap">
-          {/* Toolbar strip */}
-          <div className="toolbar-strip">
-            {/* Left: search + count */}
-            <div className="flex-row gap-12">
+        <>
+        {/* Toolbar — outside table card */}
+        <div className="int-toolbar">
+          {/* Left: result count */}
+          <div className="flex-row gap-12">
+            {filteredClients.length > 0 && (
+              <span className="text-desc font-semibold cl-no-wrap">
+                {filteredClients.length} ügyfél
+              </span>
+            )}
+          </div>
+
+          {/* Right: search + actions */}
+          <div className="flex-row gap-8 flex-wrap">
+            <div className="int-search-wrap">
+              <svg className="int-search-icon" fill="none" stroke="#5F7D95" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
+                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
+              </svg>
               <input
                 type="text"
-                className="int-toolbar-input int-toolbar-input--w220"
-                placeholder="Keresés..."
+                className="int-toolbar-input"
+                placeholder="Keresés a táblázatban"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
               />
-              {filteredClients.length > 0 && (
-                <span className="text-desc font-semibold cl-no-wrap">
-                  {filteredClients.length} ügyfél
-                </span>
+            </div>
+
+            {/* Bulk delete */}
+            {isAdmin && selectedRows.size > 0 && (
+              <button className="int-toolbar-btn cl-btn--delete" onClick={handleBulkDelete}>
+                Kijelöltek törlése ({selectedRows.size})
+              </button>
+            )}
+
+            {/* Campaign export */}
+            {selectedRows.size > 0 && (
+              <button
+                className="cl-btn--export int-toolbar-btn"
+                onClick={() => setShowCampaignWizard(true)}
+              >
+                Kampányba exportálás ({selectedRows.size})
+              </button>
+            )}
+
+            {/* Filter */}
+            <div className="relative int-dropdown-wrap" ref={filterDropdownRef}>
+              <button
+                className={`int-toolbar-btn flex-row gap-6 ${activeFilterCount > 0 ? 'active' : ''}`}
+                title="Szűrés"
+                onClick={() => setFilterOpen(!filterOpen)}
+              >
+                <svg fill="none" height="14" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14">
+                  <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+                </svg>
+                Szűrés
+                {activeFilterCount > 0 && <span className="int-filter-badge">{activeFilterCount}</span>}
+              </button>
+              {filterOpen && (
+                <div className="dropdown-menu dropdown-menu--filter">
+                  <div className="dropdown-header">Szűrők</div>
+                  <div className="int-filter-list">
+                    <FilterSection title="Ügyfél kategória" bordered>
+                      {ALL_KATEGORIA.map((v) => (
+                        <FilterCheckbox key={v} label={v} checked={filterKategoria.has(v)} onChange={() => toggleFilter(filterKategoria, v, setFilterKategoria)} />
+                      ))}
+                    </FilterSection>
+                    <FilterSection title="Értékesítési státusz" bordered>
+                      {ALL_ERT_STATUSZ.map((v) => (
+                        <FilterCheckbox key={v} label={v} checked={filterErtStatusz.has(v)} onChange={() => toggleFilter(filterErtStatusz, v, setFilterErtStatusz)} />
+                      ))}
+                    </FilterSection>
+                    <FilterSection title="Felelős" bordered>
+                      {ALL_FELELOS.map((v) => (
+                        <FilterCheckbox key={v} label={v} checked={filterFelelos.has(v)} onChange={() => toggleFilter(filterFelelos, v, setFilterFelelos)} />
+                      ))}
+                    </FilterSection>
+                  </div>
+                  <div className="flex-row gap-8 int-filter-footer">
+                    <button className="btn btn-outline int-filter-btn" onClick={resetFilters}>Visszaállítás</button>
+                    <button className="btn btn-primary int-filter-btn" onClick={() => setFilterOpen(false)}>Alkalmaz</button>
+                  </div>
+                </div>
               )}
             </div>
 
-            {/* Right: actions */}
-            <div className="flex-row gap-8 flex-wrap">
-              {/* Bulk delete */}
-              {isAdmin && selectedRows.size > 0 && (
-                <button className="int-toolbar-btn cl-btn--delete" onClick={handleBulkDelete}>
-                  Kijelöltek törlése ({selectedRows.size})
-                </button>
+            {/* Sort */}
+            <div className="relative int-dropdown-wrap" ref={sortDropdownRef}>
+              <button
+                className="int-toolbar-btn flex-row gap-6"
+                onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
+              >
+                <svg fill="none" height="14" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14">
+                  <path d="M7 15l5 5 5-5" /><path d="M7 9l5-5 5 5" />
+                </svg>
+                Sorrend
+              </button>
+              {sortDropdownOpen && (
+                <div className="dropdown-menu dropdown-menu--sort">
+                  {SORT_OPTIONS.map((o) => (
+                    <button
+                      key={o.value}
+                      className={`dropdown-item ${sortBy === o.value ? 'active' : ''}`}
+                      onClick={() => { setSortBy(o.value); setSortDropdownOpen(false); }}
+                    >
+                      {sortBy === o.value && <span className="int-sort-check">✓</span>}
+                      {o.label}
+                    </button>
+                  ))}
+                </div>
               )}
+            </div>
 
-              {/* Campaign export */}
-              {selectedRows.size > 0 && (
-                <button
-                  className="cl-btn--export int-toolbar-btn"
-                  onClick={() => setShowCampaignWizard(true)}
-                >
-                  Kampányba exportálás ({selectedRows.size})
-                </button>
+            {/* Column toggle */}
+            <div className="relative int-dropdown-wrap" ref={colDropdownRef}>
+              <button
+                className="int-toolbar-btn flex-row gap-6"
+                title="Oszlopok"
+                onClick={() => setColDropdownOpen(!colDropdownOpen)}
+              >
+                <svg fill="none" height="14" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14">
+                  <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" />
+                </svg>
+                Oszlopok
+              </button>
+              {colDropdownOpen && (
+                <div className="dropdown-menu dropdown-menu--columns">
+                  <div className="dropdown-header">Látható oszlopok</div>
+                  {CLIENT_COLUMNS.map((col) => (
+                    <label key={col.key} className="int-col-label">
+                      <input type="checkbox" checked={visibleCols.has(col.key)} onChange={() => toggleCol(col.key)} className="int-col-cb" />
+                      {col.label}
+                    </label>
+                  ))}
+                </div>
               )}
-
-              {/* Filter */}
-              <div className="relative int-dropdown-wrap" ref={filterDropdownRef}>
-                <button
-                  className={`int-toolbar-btn flex-row gap-6 ${activeFilterCount > 0 ? 'active' : ''}`}
-                  title="Szűrés"
-                  onClick={() => setFilterOpen(!filterOpen)}
-                >
-                  <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                  </svg>
-                  Szűrés
-                  {activeFilterCount > 0 && <span className="int-filter-badge">{activeFilterCount}</span>}
-                </button>
-                {filterOpen && (
-                  <div className="dropdown-menu dropdown-menu--filter">
-                    <div className="dropdown-header">Szűrők</div>
-                    <div className="int-filter-list">
-                      <FilterSection title="Ügyfél kategória" bordered>
-                        {ALL_KATEGORIA.map((v) => (
-                          <FilterCheckbox key={v} label={v} checked={filterKategoria.has(v)} onChange={() => toggleFilter(filterKategoria, v, setFilterKategoria)} />
-                        ))}
-                      </FilterSection>
-                      <FilterSection title="Értékesítési státusz" bordered>
-                        {ALL_ERT_STATUSZ.map((v) => (
-                          <FilterCheckbox key={v} label={v} checked={filterErtStatusz.has(v)} onChange={() => toggleFilter(filterErtStatusz, v, setFilterErtStatusz)} />
-                        ))}
-                      </FilterSection>
-                      <FilterSection title="Felelős" bordered>
-                        {ALL_FELELOS.map((v) => (
-                          <FilterCheckbox key={v} label={v} checked={filterFelelos.has(v)} onChange={() => toggleFilter(filterFelelos, v, setFilterFelelos)} />
-                        ))}
-                      </FilterSection>
-                    </div>
-                    <div className="flex-row gap-8 int-filter-footer">
-                      <button className="btn btn-outline int-filter-btn" onClick={resetFilters}>Visszaállítás</button>
-                      <button className="btn btn-primary int-filter-btn" onClick={() => setFilterOpen(false)}>Alkalmaz</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Sort */}
-              <div className="relative int-dropdown-wrap" ref={sortDropdownRef}>
-                <button
-                  className="int-toolbar-btn flex-row gap-6"
-                  onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
-                >
-                  <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-                    <path d="M3 6h18M6 12h12M9 18h6" />
-                  </svg>
-                  {SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Rendezés'}
-                </button>
-                {sortDropdownOpen && (
-                  <div className="dropdown-menu dropdown-menu--sort">
-                    {SORT_OPTIONS.map((o) => (
-                      <button
-                        key={o.value}
-                        className={`dropdown-item ${sortBy === o.value ? 'active' : ''}`}
-                        onClick={() => { setSortBy(o.value); setSortDropdownOpen(false); }}
-                      >
-                        {sortBy === o.value && <span className="int-sort-check">✓</span>}
-                        {o.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Column toggle */}
-              <div className="cl-col-toggle" ref={colDropdownRef}>
-                <button
-                  className="int-toolbar-btn cl-col-toggle-btn"
-                  title="Oszlopok"
-                  onClick={() => setColDropdownOpen(!colDropdownOpen)}
-                >
-                  <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-                    <rect height="18" rx="2" ry="2" width="18" x="3" y="3" />
-                    <line x1="9" x2="9" y1="3" y2="21" />
-                  </svg>
-                  Oszlopok
-                </button>
-                {colDropdownOpen && (
-                  <div className="dropdown-menu">
-                    <div className="dropdown-header">Látható oszlopok</div>
-                    {CLIENT_COLUMNS.map((col) => (
-                      <label key={col.key} className="cl-col-label">
-                        <input type="checkbox" checked={visibleCols.has(col.key)} onChange={() => toggleCol(col.key)} className="cl-col-checkbox" />
-                        {col.label}
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
             </div>
           </div>
+        </div>
 
+        {/* Table card — table only */}
+        <div className="card-container cl-table-wrap">
           {/* Table */}
           <table className="data-table data-table--no-radius int-table-norx">
             <thead className="int-thead">
@@ -719,6 +726,7 @@ export default function ClientsPage() {
             </tbody>
           </table>
         </div>
+        </>
       )}
 
     </div>
