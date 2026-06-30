@@ -1170,7 +1170,7 @@ def is_spam_message(message_text: str) -> bool:
     return False
 
 
-async def process_meta_message(sender_id: str, message_text: str, source_channel: str = "Messenger", phone_number_id: str = None):
+async def process_meta_message(sender_id: str, message_text: str, source_channel: str = "Messenger", phone_number_id: str = None, sender_name: str = None):
     """Aszinkron háttérfeladat a Meta Messenger / Instagram / WhatsApp üzenetek feldolgozására."""
     import asyncio
     import json
@@ -1205,22 +1205,35 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
         
         # Először is elmentjük a bejövő üzenetet a Kanbanba
         client_data = {"messenger_id": sender_id, "forras_csatorna": source_channel}
-        meta_profile = await fetch_meta_user_profile(sender_id, source_channel)
         meta_name = None
-        if meta_profile:
-            if source_channel == "Instagram":
-                meta_name = meta_profile.get("username") or meta_profile.get("name")
+
+        # ── WhatsApp: a nevet a webhook contacts tömbből kapjuk (sender_name param) ──
+        if source_channel == "WhatsApp":
+            # WhatsApp sender_id = telefonszám → mentsük phone-ként is
+            client_data["phone"] = sender_id
+            if sender_name:
+                meta_name = sender_name
+                client_data["name"] = sender_name
+                print(f"[WhatsApp] Feladó neve a webhook contacts-ból: {sender_name}")
             else:
-                meta_name = meta_profile.get("name")
-            if meta_name:
-                client_data["name"] = meta_name
-            profile_pic = meta_profile.get("profile_pic")
-            if profile_pic:
-                client_data["profile_pic_url"] = profile_pic
-            username = meta_profile.get("username")
-            if username:
-                client_data["instagram_username"] = username
-        
+                print(f"[WhatsApp] Feladó neve nem elérhető a webhook-ból, sender_id: {sender_id}")
+        else:
+            # ── Messenger / Instagram: profil lekérdezés a Graph API-ból (változatlan) ──
+            meta_profile = await fetch_meta_user_profile(sender_id, source_channel)
+            if meta_profile:
+                if source_channel == "Instagram":
+                    meta_name = meta_profile.get("username") or meta_profile.get("name")
+                else:
+                    meta_name = meta_profile.get("name")
+                if meta_name:
+                    client_data["name"] = meta_name
+                profile_pic = meta_profile.get("profile_pic")
+                if profile_pic:
+                    client_data["profile_pic_url"] = profile_pic
+                username = meta_profile.get("username")
+                if username:
+                    client_data["instagram_username"] = username
+
         if not meta_name:
             # Fallback: keressük az adatbázisban a nevet
             print(f"[Meta API] Név feloldás sikertelen ({source_channel} {sender_id}), DB fallback...")
@@ -1348,6 +1361,7 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
         
         booked_meeting = False
         chosen_clinic_id = None
+        client_id = None
 
         # --- ACTION: KANBAN ADATOK MENTÉSE ---
         if kanban:
@@ -1626,7 +1640,9 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             )
 
     except Exception as e:
+        import traceback
         print(f"[Meta AI Process] Hiba: {e}")
+        traceback.print_exc()
 
 
 @app.post("/api/webhook/meta")
@@ -1682,14 +1698,26 @@ async def meta_webhook_receive(request: Request):
                 # Check if it's a message event
                 if "messages" in value:
                     phone_number_id = value.get("metadata", {}).get("phone_number_id")
+                    
+                    # ── Extract sender name from contacts array ──
+                    # WhatsApp webhook provides contacts[].profile.name
+                    wa_contacts = value.get("contacts", [])
+                    wa_name_map = {}
+                    for contact in wa_contacts:
+                        wa_id = contact.get("wa_id", "")
+                        profile_name = (contact.get("profile") or {}).get("name", "")
+                        if wa_id and profile_name:
+                            wa_name_map[wa_id] = profile_name
+                    
                     for message in value.get("messages", []):
                         sender_id = message.get("from")
+                        sender_name = wa_name_map.get(sender_id)  # Resolve name from contacts
                         
                         if message.get("type") == "text" and "text" in message:
                             message_text = message["text"].get("body", "")
-                            print(f"[Meta Webhook] Új üzenet feladótól (ID: {sender_id}, Csatorna: WhatsApp): {message_text}")
+                            print(f"[Meta Webhook] Új üzenet feladótól (ID: {sender_id}, Név: {sender_name or 'N/A'}, Csatorna: WhatsApp): {message_text}")
                             
-                            task = asyncio.create_task(process_meta_message(sender_id, message_text, "WhatsApp", phone_number_id))
+                            task = asyncio.create_task(process_meta_message(sender_id, message_text, "WhatsApp", phone_number_id, sender_name=sender_name))
                             background_tasks.add(task)
                             task.add_done_callback(background_tasks.discard)
                             

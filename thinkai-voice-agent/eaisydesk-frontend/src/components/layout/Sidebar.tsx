@@ -271,7 +271,7 @@ export default function Sidebar() {
       {NAV_ITEMS.map((item) => {
         if (item.adminExclusive && !isAdminOnly) return null;
         if (item.adminOnly && !isAdmin) return null;
-        if (item.memberOnly && isAdmin) return null;
+        if (item.memberOnly && isAdminOnly) return null;
         if (item.hidden) return null;
 
         // Group with children
