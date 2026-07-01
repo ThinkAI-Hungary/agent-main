@@ -3,6 +3,10 @@ import fs from 'fs';
 import path from 'path';
 import sharp from 'sharp';
 import { fal } from '@fal-ai/client';
+import { exec } from 'child_process';
+import { promisify } from 'util';
+
+const execPromise = promisify(exec);
 
 // Configure fal client with API key at module load
 if (process.env.FAL_KEY) {
@@ -31,30 +35,75 @@ export async function uploadToFal(filePath: string): Promise<string> {
   return url;
 }
 
-// 2. Call Fal.ai Bria AI to remove background and isolate product
-// Uses the fal SDK subscribe() method instead of raw axios to avoid REST path 404 issues
+// 2. Call local rembg Python script to remove background and isolate product
 export async function removeBackground(imageUrl: string): Promise<string> {
-  if (!process.env.FAL_KEY) {
-    throw new Error('FAL_KEY is not configured.');
-  }
-
-  console.log(`[COMPOSITOR/BRIA] Starting background removal for: ${imageUrl.substring(0, 80)}...`);
+  console.log(`[COMPOSITOR/REMBG] Starting background removal for: ${imageUrl.substring(0, 80)}...`);
   const start = Date.now();
 
-  const result = await fal.subscribe('fal-ai/bria/background/remove', {
-    input: {
-      image_url: imageUrl,
-    },
-  });
-
-  const data = result.data as any;
-  if (data && data.image && data.image.url) {
-    console.log(`[COMPOSITOR/BRIA] ✅ Background removed in ${Date.now() - start}ms → ${data.image.url.substring(0, 80)}...`);
-    return data.image.url;
+  const rendersDir = path.resolve(process.cwd(), 'renders');
+  if (!fs.existsSync(rendersDir)) {
+    fs.mkdirSync(rendersDir, { recursive: true });
   }
-  
-  console.error(`[COMPOSITOR/BRIA] ❌ Unexpected response:`, JSON.stringify(data).substring(0, 200));
-  throw new Error('Failed to remove background: ' + JSON.stringify(data));
+
+  let inputPath = imageUrl;
+  let isTemp = false;
+
+  // Resolve source image path
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    if (imageUrl.includes('/renders/')) {
+      const parts = imageUrl.split('/renders/');
+      const filename = parts[parts.length - 1];
+      inputPath = path.join(rendersDir, filename);
+    } else {
+      // Download remote image to a temp file
+      inputPath = path.join(rendersDir, `downloaded-temp-${Date.now()}.png`);
+      console.log(`[COMPOSITOR/REMBG] Downloading remote image for local processing to: ${inputPath}`);
+      await downloadImage(imageUrl, inputPath);
+      isTemp = true;
+    }
+  } else if (imageUrl.startsWith('/renders/') || imageUrl.startsWith('renders/')) {
+    const filename = path.basename(imageUrl);
+    inputPath = path.join(rendersDir, filename);
+  } else {
+    // Treat as absolute or relative local path directly
+    inputPath = path.resolve(imageUrl);
+  }
+
+  if (!fs.existsSync(inputPath)) {
+    throw new Error(`Input image file not found at: ${inputPath}`);
+  }
+
+  const timestamp = Date.now();
+  const outputFilename = `rembg-${timestamp}.png`;
+  const outputPath = path.join(rendersDir, outputFilename);
+  const scriptPath = path.resolve(process.cwd(), 'remove_bg.py');
+
+  try {
+    const cmd = `python "${scriptPath}" "${inputPath}" "${outputPath}"`;
+    console.log(`[COMPOSITOR/REMBG] Executing local Python rembg script...`);
+    await execPromise(cmd);
+  } catch (err: any) {
+    console.log(`[COMPOSITOR/REMBG] Python execution failed, trying fallback 'py' command...`);
+    const fallbackCmd = `py "${scriptPath}" "${inputPath}" "${outputPath}"`;
+    await execPromise(fallbackCmd);
+  }
+
+  if (!fs.existsSync(outputPath)) {
+    throw new Error('Background removal failed: output file was not created.');
+  }
+
+  // Clean up downloaded temp file if needed
+  if (isTemp && fs.existsSync(inputPath)) {
+    try {
+      fs.unlinkSync(inputPath);
+    } catch (e: any) {
+      console.warn(`[COMPOSITOR/REMBG] Could not remove temp input file: ${e.message}`);
+    }
+  }
+
+  const duration = Date.now() - start;
+  console.log(`[COMPOSITOR/REMBG] ✅ Background removed locally in ${duration}ms → /renders/${outputFilename}`);
+  return `/renders/${outputFilename}`;
 }
 
 // Helper utility to download an image locally
@@ -236,4 +285,125 @@ export async function applyLowResMaskToUpscaled(
     }
   }
 }
+
+// 6. Perform a local high-quality 4x Lanczos upscale as a fallback for Fal.ai
+// 6. Perform a local high-quality 4x AI upscale using Real-ESRGAN-ncnn-vulkan via Python
+export async function localUpscale(imageUrl: string, maskUrl: string | null): Promise<string> {
+  console.log(`[LOCAL-UPSCALE] Starting local 4x AI Real-ESRGAN upscale for: ${imageUrl}`);
+  const start = Date.now();
+  
+  const rendersDir = path.resolve(process.cwd(), 'renders');
+  if (!fs.existsSync(rendersDir)) {
+    fs.mkdirSync(rendersDir, { recursive: true });
+  }
+
+  // Resolve source image path
+  let inputPath = imageUrl;
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    if (imageUrl.includes('/renders/')) {
+      const parts = imageUrl.split('/renders/');
+      const filename = parts[parts.length - 1];
+      inputPath = path.join(rendersDir, filename);
+    } else {
+      inputPath = path.join(rendersDir, `download-temp-up-${Date.now()}.png`);
+      await downloadImage(imageUrl, inputPath);
+    }
+  } else if (imageUrl.startsWith('/renders/') || imageUrl.startsWith('renders/')) {
+    const filename = path.basename(imageUrl);
+    inputPath = path.join(rendersDir, filename);
+  } else {
+    inputPath = path.resolve(imageUrl);
+  }
+
+  if (!fs.existsSync(inputPath)) {
+    throw new Error(`Input image file not found: ${inputPath}`);
+  }
+
+  const timestamp = Date.now();
+  const tempUpscaledFilename = `upscaled-temp-${timestamp}.png`;
+  const tempUpscaledPath = path.join(rendersDir, tempUpscaledFilename);
+  const outputFilename = `upscaled-local-${timestamp}.png`;
+  const outputPath = path.join(rendersDir, outputFilename);
+  const scriptPath = path.resolve(process.cwd(), 'upscale_local.py');
+
+  // Run the local Python upscaler script (which downloads & runs realesrgan-ncnn-vulkan)
+  try {
+    const cmd = `python "${scriptPath}" "${inputPath}" "${tempUpscaledPath}"`;
+    console.log(`[LOCAL-UPSCALE] Executing local Python upscaler script...`);
+    await execPromise(cmd);
+  } catch (err: any) {
+    console.log(`[LOCAL-UPSCALE] Python execution failed, trying fallback 'py' command...`);
+    const fallbackCmd = `py "${scriptPath}" "${inputPath}" "${tempUpscaledPath}"`;
+    await execPromise(fallbackCmd);
+  }
+
+  if (!fs.existsSync(tempUpscaledPath)) {
+    throw new Error('Local AI upscaler script completed but output file was not found.');
+  }
+
+  // If maskUrl (preprocessed transparent cutout) is provided, combine it to retain transparency
+  if (maskUrl) {
+    // Resolve mask path
+    let maskPath = maskUrl;
+    if (maskUrl.startsWith('http://') || maskUrl.startsWith('https://')) {
+      if (maskUrl.includes('/renders/')) {
+        const parts = maskUrl.split('/renders/');
+        const filename = parts[parts.length - 1];
+        maskPath = path.join(rendersDir, filename);
+      } else {
+        maskPath = path.join(rendersDir, `download-temp-mask-${Date.now()}.png`);
+        await downloadImage(maskUrl, maskPath);
+      }
+    } else if (maskUrl.startsWith('/renders/') || maskUrl.startsWith('renders/')) {
+      const filename = path.basename(maskUrl);
+      maskPath = path.join(rendersDir, filename);
+    } else {
+      maskPath = path.resolve(maskUrl);
+    }
+    
+    if (fs.existsSync(maskPath)) {
+      console.log(`[LOCAL-UPSCALE] Applying local mask: ${maskPath}`);
+      // Get dimensions of the upscaled image using sharp
+      const upscaledMetadata = await sharp(tempUpscaledPath).metadata();
+      const width = upscaledMetadata.width || 2048;
+      const height = upscaledMetadata.height || 2048;
+
+      const resizedMaskBuffer = await sharp(maskPath)
+        .ensureAlpha()
+        .extractChannel('alpha')
+        .resize(width, height, { fit: 'fill' })
+        .toBuffer();
+
+      await sharp(tempUpscaledPath)
+        .removeAlpha()
+        .joinChannel(resizedMaskBuffer)
+        .png()
+        .toFile(outputPath);
+        
+      // Clean up downloaded mask if it was temporary
+      if (maskUrl.startsWith('http') && !maskUrl.includes('/renders/') && fs.existsSync(maskPath)) {
+        try { fs.unlinkSync(maskPath); } catch {}
+      }
+    } else {
+      // Just rename/move tempUpscaledPath to outputPath
+      fs.renameSync(tempUpscaledPath, outputPath);
+    }
+  } else {
+    // Just rename/move tempUpscaledPath to outputPath
+    fs.renameSync(tempUpscaledPath, outputPath);
+  }
+
+  // Clean up downloaded input if it was temporary
+  if (imageUrl.startsWith('http') && !imageUrl.includes('/renders/') && fs.existsSync(inputPath)) {
+    try { fs.unlinkSync(inputPath); } catch {}
+  }
+  // Clean up temporary upscaled file if it still exists (in case it wasn't renamed)
+  if (fs.existsSync(tempUpscaledPath)) {
+    try { fs.unlinkSync(tempUpscaledPath); } catch {}
+  }
+
+  console.log(`[LOCAL-UPSCALE] ✅ Local upscale complete in ${Date.now() - start}ms -> /renders/${outputFilename}`);
+  return `/renders/${outputFilename}`;
+}
+
 

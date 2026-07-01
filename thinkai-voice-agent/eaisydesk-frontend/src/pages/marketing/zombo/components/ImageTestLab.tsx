@@ -1,8 +1,9 @@
 import { useState, useRef, useEffect } from 'react';
 import { Upload, Sparkles, Image as ImageIcon, Loader2, Download, RotateCcw, Zap, Eye, EyeOff, Wand2, Layers, Languages, Type, Square, Trash, Save, X, RefreshCw, LayoutTemplate, GripVertical } from 'lucide-react';
 import type { BrandKit } from '../types';
-import { fixImageUrl } from '../types';
+import { fixImageUrl, getBackendUrl } from '../types';
 import ImageSlotUploader, { type ImageSlot, buildCompositePayload } from './ImageSlotUploader';
+import { buildLayerTemplates } from '../layerTemplates';
 
 interface VisualStrategy {
   business_understood?: string;
@@ -80,6 +81,8 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
   const [editingResultIdx, setEditingResultIdx] = useState<number | null>(null);
   const [layerLayout, setLayerLayout] = useState<LayerLayout | null>(null);
   const [selectedLayerIdx, setSelectedLayerIdx] = useState<number | null>(null);
+  const [editingTextIdx, setEditingTextIdx] = useState<number | null>(null);
+  const [canvasResize, setCanvasResize] = useState<{ idx: number; handle: 'r' | 'b' | 'br'; startMX: number; startMY: number; origW: number; origH: number } | null>(null);
   const [isExportingLayer, setIsExportingLayer] = useState(false);
   const [layerSidebarTab, setLayerSidebarTab] = useState<'layers' | 'templates'>('templates');
   const [hoveredTemplateId, setHoveredTemplateId] = useState<string | null>(null);
@@ -172,7 +175,7 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
     if (!text.trim()) return text;
     setIsTranslating(true);
     try {
-      const resp = await fetch('http://localhost:3001/api/translate-prompt', {
+      const resp = await fetch(`${getBackendUrl()}/api/translate-prompt`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ text, brandContext: { products: brandProducts.map(p => p.name) } }),
       });
@@ -191,7 +194,7 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
     try {
       if (imageSlots.length >= 1) {
         const payload = buildCompositePayload(imageSlots, scenePrompt, activeBrandKit);
-        const resp = await fetch('http://localhost:3001/api/image/composite-generate', {
+        const resp = await fetch(`${getBackendUrl()}/api/image/composite-generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ ...payload, previewOnly: true }),
@@ -202,7 +205,7 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
       } else {
         const translated = autoTranslate ? await handleTranslate(scenePrompt) : scenePrompt;
         let finalPrompt = translated;
-        if (bflModel === 'flux-ip' && (originalUrl || preprocessedUrl)) {
+        if ((bflModel as string) === 'flux-ip' && (originalUrl || preprocessedUrl)) {
           finalPrompt = `${translated}, professional product photography, the product is naturally integrated into the scene with matching lighting and shadows`;
         }
         // Final safety brand strip on frontend
@@ -230,7 +233,7 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
       if (imageSlots.length >= 1) {
         addLog('Composite-generate inditasa...', 'info');
         setStatusMsg('Composite Flux Flex generalas...');
-        const resp = await fetch('http://localhost:3001/api/image/composite-generate', {
+        const resp = await fetch(`${getBackendUrl()}/api/image/composite-generate`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(buildCompositePayload(imageSlots, scenePrompt, activeBrandKit)),
         });
@@ -255,7 +258,7 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
       addLog(`Generalas inditasa: BFL ${bflModel}...`, 'info');
       setStatusMsg(`${bflModel} generalas...`);
       const isFlexModel = bflModel === 'bfl-flux-2-flex' || bflModel === 'auto';
-      const resp = await fetch('http://localhost:3001/api/test-image', {
+      const resp = await fetch(`${getBackendUrl()}/api/test-image`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           productImageUrl: null,
@@ -302,7 +305,7 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
     setIsGeneratingAiLayers(true);
     addLog('AI rétegek tervezése a kép alapján...', 'info');
     try {
-      const resp = await fetch('http://localhost:3001/api/ai/suggest-layers', {
+      const resp = await fetch(`${getBackendUrl()}/api/ai/suggest-layers`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -394,446 +397,7 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
   const _primary = activeBrandKit?.colors?.primary || '#1a1a2e';
   const _accent  = activeBrandKit?.colors?.accent  || '#f59e0b';
   const _font    = activeBrandKit?.typography?.fontName || 'Inter';
-
-  const TEMPLATES: Array<{ id: string; name: string; emoji: string; desc: string; layers: LayerChild[] }> = [
-    {
-      id: 'bold-headline', name: 'Bold Headline', emoji: '🔥', desc: 'Nagy cim alul, gradient',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 650, width: 1080, height: 700, fill: `linear-gradient(to top, ${_primary}f5, ${_primary}80, transparent)`, opacity: 1 },
-        { type: 'text', text: 'UJ KOLLEKCIO', x: 60, y: 730, width: 960, fontSize: 28, fontFamily: _font, fontWeight: '700', align: 'left', fill: _accent, opacity: 1 },
-        { type: 'text', text: 'Fedezd fel\na legjobb\nTermekeinket', x: 60, y: 800, width: 960, fontSize: 112, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#ffffff', opacity: 1, textShadow: '0 4px 24px rgba(0,0,0,0.5)', lineHeight: 1.0 },
-        { type: 'figure', subType: 'rect', x: 60, y: 1280, width: 280, height: 5, fill: _accent, opacity: 1 },
-      ],
-    },
-    {
-      id: 'product-callout', name: 'Termek Kiemelő', emoji: '🏷️', desc: 'Ar + badge + CTA gomb',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: 'rgba(0,0,0,0.3)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 60, width: 220, height: 64, fill: _accent, opacity: 1, cornerRadius: 8 },
-        { type: 'text', text: 'UJ!', x: 72, y: 79, width: 196, fontSize: 30, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-        { type: 'text', text: 'Premium\nTermek', x: 60, y: 880, width: 700, fontSize: 110, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#ffffff', opacity: 1, textShadow: '0 4px 20px rgba(0,0,0,0.6)', lineHeight: 1.1 },
-        { type: 'text', text: '4 990 Ft', x: 60, y: 1110, width: 400, fontSize: 72, fontFamily: _font, fontWeight: '800', align: 'left', fill: _accent, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 1220, width: 380, height: 82, fill: _accent, opacity: 1, cornerRadius: 41 },
-        { type: 'text', text: 'RENDELJ MOST', x: 72, y: 1238, width: 356, fontSize: 28, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-      ],
-    },
-    {
-      id: 'promo-badge', name: 'Akcio Badge', emoji: '🏅', desc: 'Nagy % kedvezmeny kozepen',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: `${_primary}dd`, opacity: 1 },
-        { type: 'figure', subType: 'circle', x: 190, y: 280, width: 700, height: 700, fill: _accent, opacity: 0.12 },
-        { type: 'text', text: '50%', x: 60, y: 380, width: 960, fontSize: 300, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#ffffff', opacity: 1, lineHeight: 1.0 },
-        { type: 'text', text: 'KEDVEZMENY', x: 60, y: 720, width: 960, fontSize: 56, fontFamily: _font, fontWeight: '800', align: 'center', fill: _accent, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 100, y: 830, width: 880, height: 2, fill: 'rgba(255,255,255,0.25)', opacity: 1 },
-        { type: 'text', text: 'Ajanlat csak pentekig ervenyes', x: 100, y: 870, width: 880, fontSize: 32, fontFamily: _font, fontWeight: '400', align: 'center', fill: 'rgba(255,255,255,0.65)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 240, y: 1000, width: 600, height: 88, fill: '#ffffff', opacity: 1, cornerRadius: 44 },
-        { type: 'text', text: 'VASARLAS MOST', x: 252, y: 1020, width: 576, fontSize: 36, fontFamily: _font, fontWeight: '800', align: 'center', fill: _primary, opacity: 1 },
-      ],
-    },
-    {
-      id: 'split-card', name: 'Split Card', emoji: '🃏', desc: 'Feher kartya szovegekkel alul',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 820, width: 1080, height: 530, fill: '#ffffff', opacity: 0.96 },
-        { type: 'figure', subType: 'rect', x: 60, y: 858, width: 8, height: 60, fill: _accent, opacity: 1 },
-        { type: 'text', text: 'KIEMELT AJANLAT', x: 88, y: 858, width: 900, fontSize: 22, fontFamily: _font, fontWeight: '700', align: 'left', fill: _accent, opacity: 1 },
-        { type: 'text', text: 'Premium\nMinoseg', x: 60, y: 940, width: 860, fontSize: 108, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#111111', opacity: 1, lineHeight: 1.0 },
-        { type: 'text', text: 'Fedezd fel kollekcionkat es talald meg a tokeletes termeked.', x: 60, y: 1175, width: 740, fontSize: 28, fontFamily: _font, fontWeight: '400', align: 'left', fill: '#555555', opacity: 1, lineHeight: 1.5 },
-        { type: 'figure', subType: 'rect', x: 860, y: 1230, width: 160, height: 60, fill: _primary, opacity: 1, cornerRadius: 30 },
-        { type: 'text', text: 'Tovabb', x: 868, y: 1244, width: 144, fontSize: 28, fontFamily: _font, fontWeight: '700', align: 'center', fill: '#ffffff', opacity: 1 },
-      ],
-    },
-    {
-      id: 'luxury-dark', name: 'Luxury Dark', emoji: '✨', desc: 'Sotet overlay + arany elemek',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: 'rgba(5,3,12,0.72)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 55, y: 55, width: 970, height: 1240, fill: 'transparent', opacity: 1, border: '1px solid rgba(212,175,55,0.35)', cornerRadius: 4 },
-        { type: 'text', text: '--- LUXUS KOLLEKCIO ---', x: 100, y: 190, width: 880, fontSize: 22, fontFamily: 'Playfair Display', fontWeight: '400', align: 'center', fill: '#d4af37', opacity: 1 },
-        { type: 'text', text: 'Idotlen\nElegancia', x: 100, y: 450, width: 880, fontSize: 130, fontFamily: 'Playfair Display', fontWeight: '700', align: 'center', fill: '#ffffff', opacity: 1, lineHeight: 1.1 },
-        { type: 'figure', subType: 'rect', x: 440, y: 790, width: 200, height: 2, fill: '#d4af37', opacity: 1 },
-        { type: 'text', text: 'Premium izles azoknak, akik a kulonlegessegeket keresik.', x: 100, y: 830, width: 880, fontSize: 30, fontFamily: 'Playfair Display', fontWeight: '400', align: 'center', fill: 'rgba(255,255,255,0.65)', opacity: 1, lineHeight: 1.6 },
-        { type: 'figure', subType: 'rect', x: 390, y: 1100, width: 300, height: 70, fill: 'transparent', opacity: 1, border: '1px solid #d4af37', cornerRadius: 35 },
-        { type: 'text', text: 'FELFEDEZES', x: 400, y: 1118, width: 280, fontSize: 26, fontFamily: _font, fontWeight: '600', align: 'center', fill: '#d4af37', opacity: 1 },
-      ],
-    },
-    {
-      id: 'neo-brutal', name: 'Neo-Brutalist', emoji: '⬛', desc: 'Vastag border + kontrasztos blokkok',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: 'rgba(0,0,0,0.55)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 40, y: 40, width: 1000, height: 1270, fill: 'transparent', opacity: 1, border: '6px solid #ffffff' },
-        { type: 'figure', subType: 'rect', x: 40, y: 40, width: 460, height: 200, fill: '#ffffff', opacity: 1 },
-        { type: 'text', text: 'LEGUJABB\nTERMEK', x: 54, y: 55, width: 432, fontSize: 70, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#000000', opacity: 1, lineHeight: 1.05 },
-        { type: 'figure', subType: 'rect', x: 500, y: 40, width: 540, height: 200, fill: _accent, opacity: 1 },
-        { type: 'text', text: '2024', x: 510, y: 88, width: 520, fontSize: 96, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#000000', opacity: 1 },
-        { type: 'text', text: 'Forradalmi termek\amely megvaltoztatja\na gondolkododat', x: 60, y: 880, width: 960, fontSize: 72, fontFamily: _font, fontWeight: '800', align: 'left', fill: '#ffffff', opacity: 1, lineHeight: 1.2 },
-        { type: 'figure', subType: 'rect', x: 40, y: 1215, width: 1000, height: 95, fill: '#ffffff', opacity: 1 },
-        { type: 'text', text: 'VASAROLJ MOST - INGYEN SZALLITAS', x: 50, y: 1238, width: 980, fontSize: 34, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-      ],
-    },
-    {
-      id: 'kicker-title', name: 'Kicker + Cim', emoji: '💬', desc: 'Kis badge fent + nagy cim',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: 'rgba(0,0,0,0.38)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 190, width: 290, height: 58, fill: _accent, opacity: 1, cornerRadius: 29 },
-        { type: 'text', text: '* KIEMELT', x: 72, y: 207, width: 266, fontSize: 24, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-        { type: 'text', text: 'Tedd kulonlegesse\na napod', x: 60, y: 315, width: 960, fontSize: 120, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#ffffff', opacity: 1, textShadow: '0 8px 32px rgba(0,0,0,0.5)', lineHeight: 1.0 },
-        { type: 'figure', subType: 'rect', x: 60, y: 700, width: 100, height: 4, fill: '#ffffff', opacity: 0.45 },
-        { type: 'text', text: 'Minosegi termekek mindenkinek. Probald ki meg ma.', x: 60, y: 745, width: 800, fontSize: 34, fontFamily: _font, fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.78)', opacity: 1, lineHeight: 1.5 },
-      ],
-    },
-    {
-      id: 'testimonial', name: 'Velemeny', emoji: '⭐', desc: 'Idezet + csillagok + nevjegy',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: `${_primary}e8`, opacity: 1 },
-        { type: 'figure', subType: 'circle', x: -150, y: -150, width: 600, height: 600, fill: _accent, opacity: 0.07 },
-        { type: 'figure', subType: 'circle', x: 630, y: 900, width: 600, height: 600, fill: _accent, opacity: 0.07 },
-        { type: 'text', text: '★ ★ ★ ★ ★', x: 100, y: 280, width: 880, fontSize: 56, fontFamily: _font, fontWeight: '400', align: 'center', fill: _accent, opacity: 1 },
-        { type: 'text', text: '"', x: 70, y: 380, width: 180, fontSize: 220, fontFamily: 'Playfair Display', fontWeight: '700', align: 'left', fill: _accent, opacity: 0.35 },
-        { type: 'text', text: 'Fantasztikus termek!\nTeljesen elegedett vagyok,\nmindenkeppen ajanlom.', x: 100, y: 490, width: 880, fontSize: 54, fontFamily: 'Playfair Display', fontWeight: '400', align: 'center', fill: '#ffffff', opacity: 1, lineHeight: 1.5 },
-        { type: 'figure', subType: 'rect', x: 440, y: 990, width: 200, height: 2, fill: _accent, opacity: 0.55 },
-        { type: 'text', text: 'Kovacs Anna', x: 100, y: 1030, width: 880, fontSize: 36, fontFamily: _font, fontWeight: '700', align: 'center', fill: '#ffffff', opacity: 1 },
-        { type: 'text', text: 'Elegedett vasarlo', x: 100, y: 1082, width: 880, fontSize: 26, fontFamily: _font, fontWeight: '400', align: 'center', fill: 'rgba(255,255,255,0.5)', opacity: 1 },
-      ],
-    },
-    {
-      id: 'minimal-brand', name: 'Minimal Brand', emoji: '◎', desc: 'Brand szin sav alul',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: 'rgba(0,0,0,0.12)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 0, y: 1280, width: 1080, height: 70, fill: _primary, opacity: 0.97 },
-        { type: 'figure', subType: 'rect', x: 0, y: 1280, width: 1080, height: 4, fill: _accent, opacity: 1 },
-        { type: 'text', text: 'BRAND NAME', x: 60, y: 60, width: 700, fontSize: 40, fontFamily: _font, fontWeight: '800', align: 'left', fill: '#ffffff', opacity: 1, textShadow: '0 2px 12px rgba(0,0,0,0.6)' },
-        { type: 'figure', subType: 'rect', x: 60, y: 116, width: 60, height: 4, fill: _accent, opacity: 1 },
-        { type: 'text', text: 'www.brand.hu', x: 60, y: 1296, width: 960, fontSize: 28, fontFamily: _font, fontWeight: '600', align: 'center', fill: 'rgba(255,255,255,0.85)', opacity: 1 },
-      ],
-    },
-    {
-      id: 'story-cta', name: 'Story CTA', emoji: '👆', desc: 'Swipe up nyil + CTA szoveg',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 1080, width: 1080, height: 270, fill: 'linear-gradient(to top, rgba(0,0,0,0.88), transparent)', opacity: 1 },
-        { type: 'text', text: '^', x: 490, y: 1090, width: 100, fontSize: 72, fontFamily: _font, fontWeight: '300', align: 'center', fill: '#ffffff', opacity: 0.85 },
-        { type: 'text', text: 'SWIPE UP', x: 290, y: 1190, width: 500, fontSize: 38, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#ffffff', opacity: 1 },
-        { type: 'text', text: 'Kattints a linkre a profilban', x: 190, y: 1258, width: 700, fontSize: 26, fontFamily: _font, fontWeight: '400', align: 'center', fill: 'rgba(255,255,255,0.6)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 60, width: 210, height: 62, fill: _accent, opacity: 1, cornerRadius: 31 },
-        { type: 'text', text: 'UJ *', x: 70, y: 78, width: 190, fontSize: 26, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-      ],
-    },
-
-    // ---- 20 UJ SABLON ----
-    {
-      id: 'countdown-launch', name: 'Countdown', emoji: 'time', desc: 'Visszaszamlalo + hamarosan',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: `linear-gradient(160deg, ${_primary} 0%, #0f0f1a 100%)`, opacity: 0.9 },
-        { type: 'text', text: 'HAMAROSAN', x: 60, y: 120, width: 960, fontSize: 36, fontFamily: _font, fontWeight: '800', align: 'center', fill: _accent, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 185, width: 960, height: 2, fill: _accent, opacity: 0.3 },
-        { type: 'text', text: '03', x: 100, y: 380, width: 200, fontSize: 160, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#ffffff', opacity: 1, lineHeight: 1.0 },
-        { type: 'text', text: 'NAP', x: 100, y: 560, width: 200, fontSize: 24, fontFamily: _font, fontWeight: '700', align: 'center', fill: _accent, opacity: 1 },
-        { type: 'text', text: '14', x: 340, y: 380, width: 200, fontSize: 160, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#ffffff', opacity: 1, lineHeight: 1.0 },
-        { type: 'text', text: 'ORA', x: 340, y: 560, width: 200, fontSize: 24, fontFamily: _font, fontWeight: '700', align: 'center', fill: _accent, opacity: 1 },
-        { type: 'text', text: '22', x: 580, y: 380, width: 200, fontSize: 160, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#ffffff', opacity: 1, lineHeight: 1.0 },
-        { type: 'text', text: 'PERC', x: 580, y: 560, width: 200, fontSize: 24, fontFamily: _font, fontWeight: '700', align: 'center', fill: _accent, opacity: 1 },
-        { type: 'text', text: '07', x: 820, y: 380, width: 200, fontSize: 160, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#ffffff', opacity: 1, lineHeight: 1.0 },
-        { type: 'text', text: 'MP', x: 820, y: 560, width: 200, fontSize: 24, fontFamily: _font, fontWeight: '700', align: 'center', fill: _accent, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 620, width: 960, height: 2, fill: 'rgba(255,255,255,0.1)', opacity: 1 },
-        { type: 'text', text: 'Nagy termekkiadas', x: 60, y: 680, width: 960, fontSize: 80, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#ffffff', opacity: 1, lineHeight: 1.1 },
-        { type: 'text', text: 'Ird be az emailodat az elsok kozott', x: 60, y: 820, width: 960, fontSize: 32, fontFamily: _font, fontWeight: '400', align: 'center', fill: 'rgba(255,255,255,0.6)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 240, y: 920, width: 600, height: 80, fill: _accent, opacity: 1, cornerRadius: 40 },
-        { type: 'text', text: 'ERTESITS ENGEM', x: 252, y: 938, width: 576, fontSize: 30, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-      ],
-    },
-    {
-      id: 'new-arrival', name: 'New Arrival', emoji: 'box', desc: 'Uj termek erkezesi banner',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 420, fill: '#ffffff', opacity: 0.97 },
-        { type: 'text', text: 'NEW', x: 60, y: 60, width: 580, fontSize: 200, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#111111', opacity: 1, lineHeight: 1.0 },
-        { type: 'text', text: 'ARRIVAL', x: 60, y: 240, width: 800, fontSize: 130, fontFamily: _font, fontWeight: '900', align: 'left', fill: _accent, opacity: 1, lineHeight: 1.0 },
-        { type: 'figure', subType: 'rect', x: 0, y: 420, width: 1080, height: 6, fill: _primary, opacity: 1 },
-        { type: 'text', text: 'KULONLEGES AJANLAT', x: 60, y: 800, width: 960, fontSize: 28, fontFamily: _font, fontWeight: '700', align: 'left', fill: '#ffffff', opacity: 0.5 },
-        { type: 'text', text: 'Fedezd fel az uj kollekcionkat es valassz a legujabb termekek kozul.', x: 60, y: 860, width: 800, fontSize: 40, fontFamily: _font, fontWeight: '400', align: 'left', fill: '#ffffff', opacity: 1, lineHeight: 1.4 },
-        { type: 'figure', subType: 'rect', x: 60, y: 1060, width: 320, height: 78, fill: '#ffffff', opacity: 1, cornerRadius: 39 },
-        { type: 'text', text: 'VASARLAS', x: 70, y: 1078, width: 300, fontSize: 30, fontFamily: _font, fontWeight: '800', align: 'center', fill: _primary, opacity: 1 },
-      ],
-    },
-    {
-      id: 'event-invite', name: 'Event Meghivo', emoji: 'calendar', desc: 'Esemeny meghivo karta',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: `${_primary}f0`, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 80, y: 80, width: 920, height: 1190, fill: 'transparent', opacity: 1, border: '1px solid rgba(255,255,255,0.15)', cornerRadius: 12 },
-        { type: 'figure', subType: 'rect', x: 80, y: 80, width: 920, height: 280, fill: _accent, opacity: 1, cornerRadius: 12 },
-        { type: 'figure', subType: 'rect', x: 80, y: 280, width: 920, height: 12, fill: 'rgba(0,0,0,0.1)', opacity: 1 },
-        { type: 'text', text: '22', x: 80, y: 90, width: 920, fontSize: 200, fontFamily: _font, fontWeight: '900', align: 'center', fill: 'rgba(0,0,0,0.15)', opacity: 1, lineHeight: 1.0 },
-        { type: 'text', text: 'JULIUS 2024', x: 80, y: 90, width: 920, fontSize: 36, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-        { type: 'text', text: '22', x: 80, y: 140, width: 920, fontSize: 140, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#000000', opacity: 0.9, lineHeight: 1.0 },
-        { type: 'text', text: 'SZOMBA', x: 80, y: 320, width: 920, fontSize: 28, fontFamily: _font, fontWeight: '700', align: 'center', fill: 'rgba(255,255,255,0.5)', opacity: 1 },
-        { type: 'text', text: 'NAGY\nKIADAS', x: 100, y: 430, width: 880, fontSize: 130, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#ffffff', opacity: 1, lineHeight: 1.0 },
-        { type: 'figure', subType: 'rect', x: 440, y: 740, width: 200, height: 3, fill: _accent, opacity: 1 },
-        { type: 'text', text: '18:00 - 23:00', x: 80, y: 780, width: 920, fontSize: 36, fontFamily: _font, fontWeight: '700', align: 'center', fill: _accent, opacity: 1 },
-        { type: 'text', text: 'Budapest, Andrassy ut 22.', x: 80, y: 840, width: 920, fontSize: 28, fontFamily: _font, fontWeight: '400', align: 'center', fill: 'rgba(255,255,255,0.6)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 240, y: 1000, width: 600, height: 80, fill: _accent, opacity: 1, cornerRadius: 40 },
-        { type: 'text', text: 'REGISZTRACIO', x: 252, y: 1018, width: 576, fontSize: 32, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-      ],
-    },
-    {
-      id: 'food-recipe', name: 'Etlap / Recept', emoji: 'food', desc: 'Etel bemutatasa ingerkeltoen',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 800, width: 1080, height: 550, fill: '#fefce8', opacity: 0.98 },
-        { type: 'figure', subType: 'rect', x: 0, y: 797, width: 1080, height: 6, fill: '#f59e0b', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 835, width: 160, height: 44, fill: '#f59e0b', opacity: 1, cornerRadius: 22 },
-        { type: 'text', text: 'FRISS!', x: 68, y: 847, width: 144, fontSize: 20, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-        { type: 'text', text: 'Hazi Rizs', x: 60, y: 900, width: 960, fontSize: 110, fontFamily: 'Playfair Display', fontWeight: '700', align: 'left', fill: '#111111', opacity: 1, lineHeight: 1.0 },
-        { type: 'text', text: 'Bowl', x: 60, y: 1010, width: 960, fontSize: 110, fontFamily: 'Playfair Display', fontWeight: '700', align: 'left', fill: '#f59e0b', opacity: 1, lineHeight: 1.0 },
-        { type: 'text', text: 'Friss zoldsegekkel, tofuval es szezam-szojaszosszal', x: 60, y: 1150, width: 750, fontSize: 28, fontFamily: _font, fontWeight: '400', align: 'left', fill: '#555555', opacity: 1, lineHeight: 1.4 },
-        { type: 'text', text: '880 Ft/adag', x: 800, y: 1200, width: 220, fontSize: 36, fontFamily: _font, fontWeight: '800', align: 'right', fill: '#111111', opacity: 1 },
-      ],
-    },
-    {
-      id: 'fitness-motivation', name: 'Fitness Motivacio', emoji: 'fire2', desc: 'Motivalos sportos kep',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: 'rgba(0,0,0,0.6)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 8, height: 1350, fill: _accent, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 1072, y: 0, width: 8, height: 1350, fill: _accent, opacity: 1 },
-        { type: 'text', text: 'NO', x: 60, y: 200, width: 960, fontSize: 280, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#ffffff', opacity: 0.08, lineHeight: 1.0 },
-        { type: 'text', text: 'PAIN', x: 60, y: 450, width: 960, fontSize: 280, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#ffffff', opacity: 0.08, lineHeight: 1.0 },
-        { type: 'text', text: 'NO GAIN.', x: 60, y: 300, width: 960, fontSize: 120, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#ffffff', opacity: 1, lineHeight: 1.0, textShadow: '0 4px 20px rgba(0,0,0,0.8)' },
-        { type: 'text', text: 'Az eredmeny ott kezdodik\nahol a komfortzoned vegzodik.', x: 60, y: 540, width: 960, fontSize: 44, fontFamily: _font, fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.75)', opacity: 1, lineHeight: 1.5 },
-        { type: 'figure', subType: 'rect', x: 60, y: 720, width: 200, height: 5, fill: _accent, opacity: 1 },
-        { type: 'text', text: '— EDZZ KEMÉNYEN', x: 60, y: 760, width: 700, fontSize: 28, fontFamily: _font, fontWeight: '700', align: 'left', fill: _accent, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 1200, width: 380, height: 80, fill: _accent, opacity: 1, cornerRadius: 40 },
-        { type: 'text', text: 'CSATL HOZZ', x: 72, y: 1218, width: 356, fontSize: 30, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-      ],
-    },
-    {
-      id: 'fashion-lookbook', name: 'Fashion Lookbook', emoji: 'fashion', desc: 'Divat editorial stilus',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: 'rgba(0,0,0,0.2)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 60, width: 960, height: 1230, fill: 'transparent', opacity: 1, border: '1px solid rgba(255,255,255,0.25)', cornerRadius: 2 },
-        { type: 'text', text: 'SS25', x: 80, y: 100, width: 200, fontSize: 32, fontFamily: _font, fontWeight: '800', align: 'left', fill: '#ffffff', opacity: 0.7 },
-        { type: 'text', text: 'COLLECTION', x: 80, y: 140, width: 600, fontSize: 24, fontFamily: _font, fontWeight: '400', align: 'left', fill: '#ffffff', opacity: 0.5 },
-        { type: 'text', text: 'LOOK\n01', x: 780, y: 100, width: 260, fontSize: 52, fontFamily: _font, fontWeight: '900', align: 'right', fill: '#ffffff', opacity: 0.7, lineHeight: 1.0 },
-        { type: 'text', text: 'TAVASZI\nKOLLEKCIO', x: 80, y: 960, width: 800, fontSize: 100, fontFamily: 'Playfair Display', fontWeight: '700', align: 'left', fill: '#ffffff', opacity: 1, lineHeight: 1.0, textShadow: '0 4px 24px rgba(0,0,0,0.5)' },
-        { type: 'text', text: 'Elegancia minden alkalomra', x: 80, y: 1180, width: 700, fontSize: 30, fontFamily: 'Playfair Display', fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.7)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 80, y: 1240, width: 80, height: 3, fill: '#ffffff', opacity: 0.6 },
-        { type: 'text', text: 'Shop Now', x: 175, y: 1228, width: 200, fontSize: 22, fontFamily: 'Playfair Display', fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.8)', opacity: 1 },
-      ],
-    },
-    {
-      id: 'real-estate', name: 'Ingatlan', emoji: 'house', desc: 'Ingatlan hirdetes karta',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 900, width: 1080, height: 450, fill: '#0f172a', opacity: 0.97 },
-        { type: 'figure', subType: 'rect', x: 0, y: 897, width: 1080, height: 6, fill: _accent, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 935, width: 240, height: 56, fill: _accent, opacity: 1, cornerRadius: 4 },
-        { type: 'text', text: 'ELADO', x: 70, y: 950, width: 220, fontSize: 26, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-        { type: 'text', text: 'Luxus Penthouse\nBudapest, V. ker.', x: 60, y: 1010, width: 800, fontSize: 64, fontFamily: 'Playfair Display', fontWeight: '700', align: 'left', fill: '#ffffff', opacity: 1, lineHeight: 1.1 },
-        { type: 'text', text: '185 m2  |  4 szoba  |  2 furdoszoba', x: 60, y: 1190, width: 800, fontSize: 26, fontFamily: _font, fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.6)', opacity: 1 },
-        { type: 'text', text: '189 000 000 Ft', x: 680, y: 940, width: 360, fontSize: 40, fontFamily: _font, fontWeight: '900', align: 'right', fill: _accent, opacity: 1 },
-        { type: 'text', text: 'info@ingatlan.hu | +36 30 123 4567', x: 60, y: 1260, width: 960, fontSize: 22, fontFamily: _font, fontWeight: '400', align: 'center', fill: 'rgba(255,255,255,0.4)', opacity: 1 },
-      ],
-    },
-    {
-      id: 'music-release', name: 'Zenemuveszet', emoji: 'music', desc: 'Album / szam kiadas',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: `linear-gradient(145deg, #0a0010 0%, ${_primary}cc 50%, #0a0010 100%)`, opacity: 1 },
-        { type: 'figure', subType: 'circle', x: 190, y: 175, width: 700, height: 700, fill: _accent, opacity: 0.06 },
-        { type: 'figure', subType: 'circle', x: 290, y: 275, width: 500, height: 500, fill: _accent, opacity: 0.1 },
-        { type: 'figure', subType: 'circle', x: 390, y: 375, width: 300, height: 300, fill: _accent, opacity: 0.18 },
-        { type: 'text', text: 'MOST\nERHETO EL', x: 60, y: 950, width: 960, fontSize: 96, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#ffffff', opacity: 1, lineHeight: 1.0, textShadow: '0 0 40px rgba(139,92,246,0.5)' },
-        { type: 'text', text: 'feat. Vendeg Muvesz', x: 60, y: 1140, width: 960, fontSize: 30, fontFamily: _font, fontWeight: '400', align: 'center', fill: 'rgba(255,255,255,0.5)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 1220, width: 960, height: 60, fill: 'transparent', opacity: 1, border: `1px solid ${_accent}66`, cornerRadius: 30 },
-        { type: 'text', text: 'Hallgasd meg minden platformon', x: 70, y: 1238, width: 940, fontSize: 26, fontFamily: _font, fontWeight: '600', align: 'center', fill: _accent, opacity: 1 },
-      ],
-    },
-    {
-      id: 'webinar', name: 'Webinar', emoji: 'screen', desc: 'Online esemeny bejelentes',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: `${_primary}ee`, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 440, fill: 'rgba(255,255,255,0.04)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 60, width: 200, height: 56, fill: '#ef4444', opacity: 1, cornerRadius: 28 },
-        { type: 'text', text: 'LIVE', x: 72, y: 76, width: 176, fontSize: 28, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#ffffff', opacity: 1 },
-        { type: 'text', text: 'INGYENES\nWEBINAR', x: 60, y: 160, width: 960, fontSize: 120, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#ffffff', opacity: 1, lineHeight: 1.0 },
-        { type: 'figure', subType: 'rect', x: 60, y: 450, width: 960, height: 2, fill: 'rgba(255,255,255,0.1)', opacity: 1 },
-        { type: 'text', text: 'Hogyan dupland meg a bevetelodet\n6 honap alatt', x: 60, y: 500, width: 960, fontSize: 54, fontFamily: _font, fontWeight: '700', align: 'left', fill: '#ffffff', opacity: 1, lineHeight: 1.3 },
-        { type: 'text', text: 'Elozetes tapasztalat nem szukseges', x: 60, y: 720, width: 960, fontSize: 28, fontFamily: _font, fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.55)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 810, width: 480, height: 80, fill: 'rgba(255,255,255,0.08)', opacity: 1, cornerRadius: 8, border: '1px solid rgba(255,255,255,0.15)' },
-        { type: 'text', text: 'Julius 28. — 14:00', x: 72, y: 828, width: 456, fontSize: 28, fontFamily: _font, fontWeight: '700', align: 'left', fill: '#ffffff', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 930, width: 960, height: 88, fill: _accent, opacity: 1, cornerRadius: 44 },
-        { type: 'text', text: 'REGISZTRALLOK MOST', x: 72, y: 950, width: 936, fontSize: 36, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-      ],
-    },
-    {
-      id: 'before-after', name: 'Elotte / Utana', emoji: 'compare', desc: 'Elotte - utana osszehas',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 540, height: 1350, fill: 'rgba(0,0,0,0.5)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 540, y: 0, width: 540, height: 1350, fill: 'rgba(0,0,0,0.2)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 536, y: 0, width: 8, height: 1350, fill: '#ffffff', opacity: 0.9 },
-        { type: 'text', text: 'ELOTTE', x: 40, y: 80, width: 460, fontSize: 56, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#ffffff', opacity: 0.7 },
-        { type: 'text', text: 'UTANA', x: 580, y: 80, width: 460, fontSize: 56, fontFamily: _font, fontWeight: '900', align: 'left', fill: _accent, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 260, y: 600, width: 560, height: 560, fill: 'transparent', opacity: 1, border: '2px solid #ffffff', cornerRadius: '50%' as any },
-        { type: 'text', text: 'VS', x: 440, y: 640, width: 200, fontSize: 100, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#ffffff', opacity: 1 },
-        { type: 'text', text: 'Latnod kell az eredmenyt', x: 60, y: 1180, width: 960, fontSize: 44, fontFamily: _font, fontWeight: '700', align: 'center', fill: '#ffffff', opacity: 1 },
-      ],
-    },
-    {
-      id: 'app-showcase', name: 'App Showcase', emoji: 'phone', desc: 'Mobil app bemutatasa',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: `linear-gradient(180deg, ${_primary} 0%, #0f0820 100%)`, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 60, width: 280, height: 60, fill: 'rgba(255,255,255,0.08)', opacity: 1, cornerRadius: 30, border: '1px solid rgba(255,255,255,0.15)' },
-        { type: 'text', text: 'UJ FRISSITES', x: 70, y: 78, width: 260, fontSize: 22, fontFamily: _font, fontWeight: '700', align: 'center', fill: 'rgba(255,255,255,0.7)', opacity: 1 },
-        { type: 'text', text: 'Az alkalmazas\namit vartal', x: 60, y: 180, width: 960, fontSize: 100, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#ffffff', opacity: 1, lineHeight: 1.1 },
-        { type: 'text', text: 'Kezelje a vallalkozasat', x: 60, y: 440, width: 960, fontSize: 36, fontFamily: _font, fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.55)', opacity: 1 },
-        { type: 'text', text: 'egyszeruen, barholrol.', x: 60, y: 488, width: 960, fontSize: 36, fontFamily: _font, fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.55)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 580, width: 280, height: 72, fill: _accent, opacity: 1, cornerRadius: 16 },
-        { type: 'text', text: 'LETOLTES', x: 72, y: 598, width: 256, fontSize: 30, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 360, y: 580, width: 280, height: 72, fill: 'transparent', opacity: 1, cornerRadius: 16, border: '2px solid rgba(255,255,255,0.4)' },
-        { type: 'text', text: 'TUDJ MEG TOBBET', x: 372, y: 598, width: 256, fontSize: 24, fontFamily: _font, fontWeight: '600', align: 'center', fill: '#ffffff', opacity: 1 },
-      ],
-    },
-    {
-      id: 'travel', name: 'Utazas', emoji: 'globe', desc: 'Utazas / turizmus banner',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: 'rgba(0,0,0,0.35)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 600, fill: 'linear-gradient(to bottom, rgba(0,0,0,0.5), transparent)', opacity: 1 },
-        { type: 'text', text: 'FEDEZD FEL', x: 60, y: 80, width: 960, fontSize: 28, fontFamily: _font, fontWeight: '700', align: 'left', fill: _accent, opacity: 1 },
-        { type: 'text', text: 'Bali,\nIndonézia', x: 60, y: 120, width: 960, fontSize: 140, fontFamily: 'Playfair Display', fontWeight: '700', align: 'left', fill: '#ffffff', opacity: 1, lineHeight: 1.0, textShadow: '0 4px 24px rgba(0,0,0,0.5)' },
-        { type: 'figure', subType: 'rect', x: 60, y: 430, width: 80, height: 4, fill: _accent, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 0, y: 1050, width: 1080, height: 300, fill: 'linear-gradient(to top, rgba(0,0,0,0.9), transparent)', opacity: 1 },
-        { type: 'text', text: '7 EJ / 8 NAP', x: 60, y: 1100, width: 500, fontSize: 36, fontFamily: _font, fontWeight: '700', align: 'left', fill: '#ffffff', opacity: 1 },
-        { type: 'text', text: '299 000 Ft/fo-tol', x: 60, y: 1155, width: 500, fontSize: 28, fontFamily: _font, fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.6)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 720, y: 1095, width: 320, height: 80, fill: _accent, opacity: 1, cornerRadius: 40 },
-        { type: 'text', text: 'FOGLALOK', x: 732, y: 1113, width: 296, fontSize: 30, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-      ],
-    },
-    {
-      id: 'dark-announcement', name: 'Sötét Bejelentes', emoji: 'announce', desc: 'Dras bejelentes sotet hatteron',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: '#030303', opacity: 0.95 },
-        { type: 'figure', subType: 'circle', x: 240, y: 300, width: 600, height: 600, fill: _accent, opacity: 0.06 },
-        { type: 'figure', subType: 'rect', x: 60, y: 580, width: 960, height: 1, fill: 'rgba(255,255,255,0.08)', opacity: 1 },
-        { type: 'text', text: 'FONTOS', x: 60, y: 180, width: 400, fontSize: 22, fontFamily: _font, fontWeight: '800', align: 'left', fill: _accent, opacity: 1 },
-        { type: 'text', text: 'BEJELENTES', x: 60, y: 200, width: 960, fontSize: 30, fontFamily: _font, fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.3)', opacity: 1 },
-        { type: 'text', text: 'Valami\nNagy\nKözeleg', x: 60, y: 280, width: 960, fontSize: 150, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#ffffff', opacity: 1, lineHeight: 1.0 },
-
-        { type: 'text', text: 'Elokeszitsd magad. 2024 julius 22-en minden megvaltozik.', x: 60, y: 720, width: 960, fontSize: 36, fontFamily: _font, fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.5)', opacity: 1, lineHeight: 1.5 },
-
-        { type: 'figure', subType: 'rect', x: 60, y: 860, width: 4, height: 120, fill: _accent, opacity: 1 },
-        { type: 'text', text: 'Kovesd figyelemmel a kanaleinkat a reszletekert.', x: 88, y: 878, width: 900, fontSize: 28, fontFamily: _font, fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.4)', opacity: 1, lineHeight: 1.5 },
-      ],
-    },
-    {
-      id: 'flash-sale', name: 'Flash Sale', emoji: 'lightning', desc: 'Villam akcios banner',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: '#111111', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 6, fill: '#ef4444', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 0, y: 1344, width: 1080, height: 6, fill: '#ef4444', opacity: 1 },
-        { type: 'text', text: 'FLASH', x: 40, y: 120, width: 1000, fontSize: 220, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#ffffff', opacity: 1, lineHeight: 1.0 },
-        { type: 'text', text: 'SALE', x: 40, y: 330, width: 1000, fontSize: 220, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#ef4444', opacity: 1, lineHeight: 1.0 },
-        { type: 'figure', subType: 'rect', x: 40, y: 555, width: 1000, height: 3, fill: '#ef4444', opacity: 0.4 },
-        { type: 'text', text: 'CSAK MA!', x: 40, y: 600, width: 1000, fontSize: 60, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#ffffff', opacity: 0.7 },
-        { type: 'text', text: '70%', x: 40, y: 680, width: 600, fontSize: 280, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#ffffff', opacity: 1, lineHeight: 1.0 },
-        { type: 'text', text: 'minden termekre', x: 40, y: 1010, width: 700, fontSize: 50, fontFamily: _font, fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.5)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 40, y: 1110, width: 1000, height: 88, fill: '#ef4444', opacity: 1, cornerRadius: 6 },
-        { type: 'text', text: 'VASAROLJ MOST', x: 52, y: 1130, width: 976, fontSize: 40, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#ffffff', opacity: 1 },
-      ],
-    },
-    {
-      id: 'carousel-slide', name: 'Carousel Dia', emoji: 'slides', desc: 'Carousel poszt stilus szam jelzessel',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: `${_primary}f5`, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 10, fill: _accent, opacity: 1 },
-        { type: 'text', text: '01 / 05', x: 60, y: 50, width: 200, fontSize: 24, fontFamily: _font, fontWeight: '700', align: 'left', fill: 'rgba(255,255,255,0.4)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 200, y: 60, width: 820, height: 2, fill: 'rgba(255,255,255,0.1)', opacity: 1 },
-        { type: 'text', text: '5 TIPP', x: 60, y: 200, width: 960, fontSize: 130, fontFamily: _font, fontWeight: '900', align: 'left', fill: '#ffffff', opacity: 1, lineHeight: 1.0 },
-        { type: 'text', text: 'a sikeres\nkezdethéz', x: 60, y: 450, width: 960, fontSize: 80, fontFamily: _font, fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.6)', opacity: 1, lineHeight: 1.2 },
-        { type: 'figure', subType: 'rect', x: 60, y: 660, width: 80, height: 4, fill: _accent, opacity: 1 },
-        { type: 'text', text: 'Nyomd a nyilat', x: 60, y: 700, width: 600, fontSize: 28, fontFamily: _font, fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.4)', opacity: 1 },
-        { type: 'text', text: 'a tovabbi tippekert -->', x: 60, y: 740, width: 700, fontSize: 28, fontFamily: _font, fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.4)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 0, y: 1290, width: 1080, height: 60, fill: 'rgba(0,0,0,0.25)', opacity: 1 },
-        { type: 'text', text: '● ● ● ○ ○', x: 60, y: 1305, width: 960, fontSize: 20, fontFamily: _font, fontWeight: '400', align: 'center', fill: 'rgba(255,255,255,0.6)', opacity: 1 },
-      ],
-    },
-    {
-      id: 'giveaway', name: 'Nyeremeny', emoji: 'gift', desc: 'Giveaway / nyeremeny banner',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: `linear-gradient(135deg, ${_primary} 0%, #1e1060 100%)`, opacity: 1 },
-        { type: 'figure', subType: 'circle', x: -100, y: -100, width: 600, height: 600, fill: _accent, opacity: 0.08 },
-        { type: 'figure', subType: 'circle', x: 580, y: 900, width: 700, height: 700, fill: _accent, opacity: 0.05 },
-        { type: 'text', text: 'GIVEAWAY!', x: 60, y: 120, width: 960, fontSize: 110, fontFamily: _font, fontWeight: '900', align: 'center', fill: _accent, opacity: 1, textShadow: `0 0 40px ${_accent}88` },
-        { type: 'figure', subType: 'rect', x: 60, y: 260, width: 960, height: 2, fill: 'rgba(255,255,255,0.1)', opacity: 1 },
-        { type: 'text', text: 'Nyerj el egy', x: 60, y: 310, width: 960, fontSize: 50, fontFamily: _font, fontWeight: '400', align: 'center', fill: 'rgba(255,255,255,0.6)', opacity: 1 },
-        { type: 'text', text: 'Premium Csomagot', x: 60, y: 370, width: 960, fontSize: 80, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#ffffff', opacity: 1 },
-        { type: 'text', text: '100 000 Ft erteku nyeremeny', x: 60, y: 470, width: 960, fontSize: 36, fontFamily: _font, fontWeight: '700', align: 'center', fill: _accent, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 560, width: 960, height: 2, fill: 'rgba(255,255,255,0.1)', opacity: 1 },
-        { type: 'text', text: 'Hogyan vehetsz reszt:', x: 60, y: 620, width: 960, fontSize: 30, fontFamily: _font, fontWeight: '700', align: 'left', fill: 'rgba(255,255,255,0.5)', opacity: 1 },
-        { type: 'text', text: '1. Kovetd az oldalt', x: 60, y: 680, width: 960, fontSize: 36, fontFamily: _font, fontWeight: '600', align: 'left', fill: '#ffffff', opacity: 1 },
-        { type: 'text', text: '2. Likelj es osszeosszd', x: 60, y: 740, width: 960, fontSize: 36, fontFamily: _font, fontWeight: '600', align: 'left', fill: '#ffffff', opacity: 1 },
-        { type: 'text', text: '3. Jelolj meg 2 baratot', x: 60, y: 800, width: 960, fontSize: 36, fontFamily: _font, fontWeight: '600', align: 'left', fill: '#ffffff', opacity: 1 },
-        { type: 'text', text: 'Sorsolas: Julius 30.', x: 60, y: 920, width: 960, fontSize: 28, fontFamily: _font, fontWeight: '400', align: 'center', fill: 'rgba(255,255,255,0.45)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 200, y: 990, width: 680, height: 80, fill: _accent, opacity: 1, cornerRadius: 40 },
-        { type: 'text', text: 'RESZVETEL', x: 212, y: 1008, width: 656, fontSize: 34, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-      ],
-    },
-    {
-      id: 'quote-card', name: 'Idezet Kartya', emoji: 'quote', desc: 'Inspiralo idezet nagybetukkel',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: '#f8fafc', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 12, height: 1350, fill: _primary, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 12, fill: _primary, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 0, y: 1338, width: 1080, height: 12, fill: _primary, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 1068, y: 0, width: 12, height: 1350, fill: _primary, opacity: 1 },
-        { type: 'text', text: '"', x: 40, y: 120, width: 300, fontSize: 300, fontFamily: 'Playfair Display', fontWeight: '900', align: 'left', fill: _primary, opacity: 0.12, lineHeight: 1.0 },
-        { type: 'text', text: 'A legnagyobb\nkockazat az,\nha nem mersz\nkockazatni.', x: 60, y: 300, width: 960, fontSize: 96, fontFamily: 'Playfair Display', fontWeight: '700', align: 'left', fill: _primary, opacity: 1, lineHeight: 1.15 },
-
-        { type: 'figure', subType: 'rect', x: 60, y: 980, width: 120, height: 5, fill: _accent, opacity: 1 },
-
-        { type: 'text', text: '— Mark Zuckerberg', x: 60, y: 1010, width: 600, fontSize: 32, fontFamily: 'Playfair Display', fontWeight: '400', align: 'left', fill: _primary, opacity: 0.6 },
-        { type: 'text', text: '@brand', x: 820, y: 1280, width: 220, fontSize: 26, fontFamily: _font, fontWeight: '700', align: 'right', fill: _primary, opacity: 0.4 },
-      ],
-    },
-    {
-      id: 'summer-vibes', name: 'Nyari Hangulat', emoji: 'sun', desc: 'Nyari sezonalis banner',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: 'rgba(0,0,0,0.25)', opacity: 1 },
-        { type: 'figure', subType: 'circle', x: 780, y: -80, width: 420, height: 420, fill: '#fbbf24', opacity: 0.25 },
-        { type: 'figure', subType: 'circle', x: 820, y: -40, width: 320, height: 320, fill: '#f97316', opacity: 0.2 },
-        { type: 'text', text: 'NYAR 2024', x: 60, y: 60, width: 700, fontSize: 28, fontFamily: _font, fontWeight: '700', align: 'left', fill: '#fbbf24', opacity: 1 },
-        { type: 'text', text: 'Nyari\nKollekcio', x: 60, y: 800, width: 960, fontSize: 130, fontFamily: 'Playfair Display', fontWeight: '700', align: 'left', fill: '#ffffff', opacity: 1, lineHeight: 1.05, textShadow: '0 4px 24px rgba(0,0,0,0.5)' },
-        { type: 'text', text: 'A nyar minden pillanatara', x: 60, y: 1100, width: 800, fontSize: 36, fontFamily: _font, fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.7)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 1180, width: 300, height: 74, fill: '#fbbf24', opacity: 1, cornerRadius: 37 },
-        { type: 'text', text: 'VASARLAS', x: 72, y: 1198, width: 276, fontSize: 28, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-      ],
-    },
-    {
-      id: 'subscription', name: 'Elofizetes CTA', emoji: 'email', desc: 'Email feliratkozas / newsletter',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: `${_primary}f0`, opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 80, y: 80, width: 920, height: 1190, fill: 'rgba(255,255,255,0.03)', opacity: 1, cornerRadius: 16, border: '1px solid rgba(255,255,255,0.08)' },
-        { type: 'figure', subType: 'circle', x: 440, y: 100, width: 200, height: 200, fill: _accent, opacity: 0.15 },
-        { type: 'text', text: 'Ne maradj le!', x: 60, y: 180, width: 960, fontSize: 36, fontFamily: _font, fontWeight: '400', align: 'center', fill: 'rgba(255,255,255,0.5)', opacity: 1 },
-        { type: 'text', text: 'Iratkozz fel\na hirlevelre', x: 60, y: 350, width: 960, fontSize: 110, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#ffffff', opacity: 1, lineHeight: 1.0 },
-        { type: 'figure', subType: 'rect', x: 440, y: 620, width: 200, height: 3, fill: _accent, opacity: 1 },
-        { type: 'text', text: 'Heti egy email. Semmi spam.\nExkluziv ajanlatok es tippek.', x: 60, y: 660, width: 960, fontSize: 36, fontFamily: _font, fontWeight: '400', align: 'center', fill: 'rgba(255,255,255,0.55)', opacity: 1, lineHeight: 1.5 },
-        { type: 'figure', subType: 'rect', x: 100, y: 820, width: 880, height: 88, fill: 'rgba(255,255,255,0.07)', opacity: 1, cornerRadius: 12, border: '1px solid rgba(255,255,255,0.12)' },
-        { type: 'text', text: 'email@gmail.com', x: 120, y: 844, width: 640, fontSize: 30, fontFamily: _font, fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.25)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 100, y: 950, width: 880, height: 88, fill: _accent, opacity: 1, cornerRadius: 12 },
-        { type: 'text', text: 'FELIRATKOZAS', x: 112, y: 970, width: 856, fontSize: 36, fontFamily: _font, fontWeight: '800', align: 'center', fill: '#000000', opacity: 1 },
-        { type: 'text', text: 'Barmikor leiratkozhatsz. Adataid biztonsagban.', x: 60, y: 1080, width: 960, fontSize: 22, fontFamily: _font, fontWeight: '400', align: 'center', fill: 'rgba(255,255,255,0.3)', opacity: 1 },
-      ],
-    },
-    {
-      id: 'product-grid', name: 'Termek Grid', emoji: 'grid', desc: '4 termek negy mezobe rendezve',
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: '#f1f5f9', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 130, fill: _primary, opacity: 1 },
-        { type: 'text', text: 'LEGJOBB VALASZTEKUNK', x: 60, y: 42, width: 960, fontSize: 42, fontFamily: _font, fontWeight: '900', align: 'center', fill: '#ffffff', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 20, y: 150, width: 510, height: 550, fill: '#ffffff', opacity: 1, cornerRadius: 12 },
-        { type: 'figure', subType: 'rect', x: 550, y: 150, width: 510, height: 550, fill: '#ffffff', opacity: 1, cornerRadius: 12 },
-        { type: 'figure', subType: 'rect', x: 20, y: 720, width: 510, height: 550, fill: '#ffffff', opacity: 1, cornerRadius: 12 },
-        { type: 'figure', subType: 'rect', x: 550, y: 720, width: 510, height: 550, fill: '#ffffff', opacity: 1, cornerRadius: 12 },
-        { type: 'text', text: 'Termek A\n4 990 Ft', x: 40, y: 600, width: 470, fontSize: 32, fontFamily: _font, fontWeight: '700', align: 'left', fill: '#111111', opacity: 1, lineHeight: 1.4 },
-        { type: 'text', text: 'Termek B\n6 490 Ft', x: 570, y: 600, width: 470, fontSize: 32, fontFamily: _font, fontWeight: '700', align: 'left', fill: '#111111', opacity: 1, lineHeight: 1.4 },
-        { type: 'text', text: 'Termek C\n3 990 Ft', x: 40, y: 1170, width: 470, fontSize: 32, fontFamily: _font, fontWeight: '700', align: 'left', fill: '#111111', opacity: 1, lineHeight: 1.4 },
-        { type: 'text', text: 'Termek D\n8 990 Ft', x: 570, y: 1170, width: 470, fontSize: 32, fontFamily: _font, fontWeight: '700', align: 'left', fill: '#111111', opacity: 1, lineHeight: 1.4 },
-      ],
-    },
-
-  ];
+  const TEMPLATES = buildLayerTemplates(_primary, _accent, _font);
 
   const applyTemplate = (tpl: typeof TEMPLATES[0]) => {
     if (!layerLayout) return;
@@ -865,7 +429,7 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
     if (!layerLayout) return;
     setIsExportingLayer(true);
     try {
-      const resp = await fetch('http://localhost:3001/api/render-polotno', {
+      const resp = await fetch(`${getBackendUrl()}/api/render-polotno`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ layoutJson: layerLayout }),
       });
@@ -895,9 +459,51 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
       const child = children[idx];
       setCanvasDrag({ idx, startMX: (e.clientX - rect.left) / scale, startMY: (e.clientY - rect.top) / scale, origX: child.x, origY: child.y });
       setSelectedLayerIdx(idx);
+      setEditingTextIdx(null); // Clear inline editing on drag start
+    };
+
+    const handleHandleMouseDown = (e: React.MouseEvent, idx: number, handle: 'r' | 'b' | 'br') => {
+      if (!canvasRef.current) return;
+      e.stopPropagation();
+      e.preventDefault();
+      const rect = canvasRef.current.getBoundingClientRect();
+      const child = children[idx];
+      setCanvasResize({
+        idx,
+        handle,
+        startMX: (e.clientX - rect.left) / scale,
+        startMY: (e.clientY - rect.top) / scale,
+        origW: child.width,
+        origH: child.height ?? 50,
+      });
+      setSelectedLayerIdx(idx);
+      setEditingTextIdx(null);
     };
 
     const handleCanvasMouseMove = (e: React.MouseEvent) => {
+      if (canvasResize && canvasRef.current) {
+        const rect = canvasRef.current.getBoundingClientRect();
+        const curMX = (e.clientX - rect.left) / scale;
+        const curMY = (e.clientY - rect.top) / scale;
+        const dw = curMX - canvasResize.startMX;
+        const dh = curMY - canvasResize.startMY;
+        const newW = Math.max(20, canvasResize.origW + dw);
+        const newH = Math.max(20, canvasResize.origH + dh);
+
+        setLayerLayout(prev => prev ? updateLayerChildren(prev, ch => ch.map((c, i) => {
+          if (i !== canvasResize.idx) return c;
+          const updated = { ...c };
+          if (canvasResize.handle === 'r' || canvasResize.handle === 'br') {
+            updated.width = Math.round(newW);
+          }
+          if (canvasResize.handle === 'b' || canvasResize.handle === 'br') {
+            updated.height = Math.round(newH);
+          }
+          return updated;
+        })) : prev);
+        return;
+      }
+
       if (!canvasDrag || !canvasRef.current) return;
       const rect = canvasRef.current.getBoundingClientRect();
       const curMX = (e.clientX - rect.left) / scale;
@@ -909,28 +515,108 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
       setLayerLayout(prev => prev ? updateLayerChildren(prev, ch => ch.map((c, i) => i === canvasDrag.idx ? { ...c, x: Math.round(newX), y: Math.round(newY) } : c)) : prev);
     };
 
-    const handleCanvasMouseUp = () => setCanvasDrag(null);
+    const handleCanvasMouseUp = () => {
+      setCanvasDrag(null);
+      setCanvasResize(null);
+    };
 
     const renderChild = (child: LayerChild, idx: number, isPreview = false) => {
       if (!isPreview && child.visible === false) return null;
       const isSelected = !isPreview && selectedLayerIdx === idx;
       const isDraggingThis = canvasDrag?.idx === idx;
+      const isResizingThis = canvasResize?.idx === idx;
       const base: React.CSSProperties = {
         position: 'absolute', left: child.x, top: child.y, width: child.width,
         height: child.height ?? 'auto', opacity: child.opacity ?? 1,
-        cursor: isPreview ? 'default' : isDraggingThis ? 'grabbing' : 'grab',
+        cursor: isPreview ? 'default' : isResizingThis ? 'nwse-resize' : isDraggingThis ? 'grabbing' : 'grab',
         boxSizing: 'border-box',
         outline: isSelected ? '2px dashed #8b5cf6' : 'none',
         outlineOffset: isSelected ? '3px' : '0',
-        zIndex: isDraggingThis ? 500 : isSelected ? 100 : idx + 1,
+        zIndex: isDraggingThis || isResizingThis ? 500 : isSelected ? 100 : idx + 1,
         pointerEvents: isPreview ? 'none' : 'auto',
         userSelect: 'none',
-        transition: isDraggingThis ? 'none' : undefined,
+        transition: isDraggingThis || isResizingThis ? 'none' : undefined,
       };
+
+      const handles = isSelected && !isPreview && (
+        <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none' }}>
+          {/* Right Handle */}
+          <div
+            style={{ position: 'absolute', right: -6, top: '50%', transform: 'translateY(-50%)', width: 12, height: 12, borderRadius: '50%', background: '#8b5cf6', border: '2px solid #fff', cursor: 'ew-resize', pointerEvents: 'auto', zIndex: 1000 }}
+            onMouseDown={e => handleHandleMouseDown(e, idx, 'r')}
+          />
+          {/* Bottom Handle */}
+          <div
+            style={{ position: 'absolute', bottom: -6, left: '50%', transform: 'translateX(-50%)', width: 12, height: 12, borderRadius: '50%', background: '#8b5cf6', border: '2px solid #fff', cursor: 'ns-resize', pointerEvents: 'auto', zIndex: 1000 }}
+            onMouseDown={e => handleHandleMouseDown(e, idx, 'b')}
+          />
+          {/* Bottom-Right Handle */}
+          <div
+            style={{ position: 'absolute', bottom: -6, right: -6, width: 12, height: 12, borderRadius: '50%', background: '#8b5cf6', border: '2px solid #fff', cursor: 'nwse-resize', pointerEvents: 'auto', zIndex: 1000 }}
+            onMouseDown={e => handleHandleMouseDown(e, idx, 'br')}
+          />
+        </div>
+      );
+
       const onMouseDown = (e: React.MouseEvent) => { if (!isPreview) handleChildMouseDown(e, idx); };
-      if (child.type === 'text') return <div key={idx} style={{ ...base, display: 'flex', flexDirection: 'column', wordWrap: 'break-word', whiteSpace: 'pre-wrap', fontFamily: child.fontFamily || 'Inter', fontSize: child.fontSize, lineHeight: child.lineHeight || 1.2, fontWeight: child.fontWeight || 'normal', textAlign: (child.align || 'left') as any, color: child.fill || '#fff', textShadow: child.textShadow || 'none' }} onMouseDown={onMouseDown}>{child.text}</div>;
-      if (child.type === 'image') return <img key={idx} src={fixImageUrl(child.src || '')} alt="" style={{ ...base, objectFit: 'cover' }} onMouseDown={onMouseDown} draggable={false} />;
-      if (child.type === 'figure') return <div key={idx} style={{ ...base, background: child.fill || '#000', borderRadius: child.subType === 'circle' ? '50%' : (child.cornerRadius || 0), border: child.border || 'none' }} onMouseDown={onMouseDown} />;
+      const handleDoubleClick = (e: React.MouseEvent) => {
+        if (isPreview) return;
+        e.stopPropagation();
+        setEditingTextIdx(idx);
+      };
+
+      if (child.type === 'text') {
+        if (editingTextIdx === idx) {
+          return (
+            <textarea
+              key={idx}
+              value={child.text || ''}
+              onChange={e => {
+                const val = e.target.value;
+                setLayerLayout(prev => prev ? updateLayerChildren(prev, ch => ch.map((c, i) => i === idx ? { ...c, text: val } : c)) : prev);
+              }}
+              onBlur={() => setEditingTextIdx(null)}
+              onKeyDown={e => {
+                if (e.key === 'Escape') {
+                  setEditingTextIdx(null);
+                }
+              }}
+              autoFocus
+              style={{
+                ...base,
+                background: 'rgba(0,0,0,0.85)',
+                color: child.fill || '#fff',
+                fontFamily: child.fontFamily || 'Inter',
+                fontSize: `${child.fontSize}px`,
+                lineHeight: child.lineHeight || 1.2,
+                fontWeight: child.fontWeight || 'normal',
+                textAlign: (child.align || 'left') as any,
+                border: '2px solid #8b5cf6',
+                borderRadius: 4,
+                padding: 4,
+                resize: 'none',
+                outline: 'none',
+                overflow: 'hidden',
+                userSelect: 'text',
+              }}
+            />
+          );
+        }
+        return (
+          <div
+            key={idx}
+            style={{ ...base, display: 'flex', flexDirection: 'column', wordWrap: 'break-word', whiteSpace: 'pre-wrap', fontFamily: child.fontFamily || 'Inter', fontSize: child.fontSize, lineHeight: child.lineHeight || 1.2, fontWeight: child.fontWeight || 'normal', textAlign: (child.align || 'left') as any, color: child.fill || '#fff', textShadow: child.textShadow || 'none' }}
+            onMouseDown={onMouseDown}
+            onDoubleClick={handleDoubleClick}
+          >
+            {child.text}
+            {handles}
+          </div>
+        );
+      }
+
+      if (child.type === 'image') return <div key={idx} style={base} onMouseDown={onMouseDown}><img src={fixImageUrl(child.src || '')} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} draggable={false} />{handles}</div>;
+      if (child.type === 'figure') return <div key={idx} style={{ ...base, background: child.fill || '#000', borderRadius: child.subType === 'circle' ? '50%' : (child.cornerRadius || 0), border: child.border || 'none' }} onMouseDown={onMouseDown}>{handles}</div>;
       return null;
     };
 
@@ -1154,33 +840,65 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
                 
                 {/* Opacity control is first */}
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                  <span style={{ fontSize: 10, color: '#9ca3af' }}>OPACITY: {Math.round((sel.opacity ?? 1) * 100)}%</span>
-                  <input type="range" min={0} max={1} step={0.05} value={sel.opacity ?? 1} onChange={e => updateSelectedLayer(c => ({ ...c, opacity: +e.target.value }))} style={{ accentColor: '#8b5cf6' }} />
+                  <span style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>OPACITY</span>
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                    <input type="range" min={0} max={1} step={0.05} value={sel.opacity ?? 1} onChange={e => updateSelectedLayer(c => ({ ...c, opacity: +e.target.value }))} style={{ flex: 1, accentColor: '#8b5cf6', height: 4, cursor: 'pointer' }} />
+                    <input type="number" min={0} max={100} value={Math.round((sel.opacity ?? 1) * 100)} onChange={e => {
+                      const val = Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
+                      updateSelectedLayer(c => ({ ...c, opacity: val / 100 }));
+                    }} style={{ width: 55, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 6px', color: '#fff', fontSize: 11, textAlign: 'right', fontFamily: 'inherit' }} />
+                    <span style={{ fontSize: 10, color: '#6b7280' }}>%</span>
+                  </div>
                 </div>
 
-                {['x','y','width'].map(field => (
-                  <div key={field} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span style={{ fontSize: 10, color: '#9ca3af' }}>{field.toUpperCase()}: {(sel as any)[field] || 0}px</span>
-                    <input type="range" min={0} max={field === 'y' ? lh : lw} value={(sel as any)[field] || 0} onChange={e => updateSelectedLayer(c => ({ ...c, [field]: +e.target.value }))} style={{ accentColor: '#8b5cf6' }} />
-                  </div>
-                ))}
+                {['x','y','width'].map(field => {
+                  const maxVal = field === 'y' ? lh : lw;
+                  const val = (sel as any)[field] || 0;
+                  return (
+                    <div key={field} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
+                      <span style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>{field.toUpperCase()}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                        <input type="range" min={0} max={maxVal} value={val} onChange={e => updateSelectedLayer(c => ({ ...c, [field]: +e.target.value }))} style={{ flex: 1, accentColor: '#8b5cf6', height: 4, cursor: 'pointer' }} />
+                        <input type="number" min={0} max={maxVal} value={val} onChange={e => {
+                          const valNum = Math.max(0, Math.min(maxVal, parseInt(e.target.value) || 0));
+                          updateSelectedLayer(c => ({ ...c, [field]: valNum }));
+                        }} style={{ width: 55, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 6px', color: '#fff', fontSize: 11, textAlign: 'right', fontFamily: 'inherit' }} />
+                        <span style={{ fontSize: 10, color: '#6b7280' }}>px</span>
+                      </div>
+                    </div>
+                  );
+                })}
                 {sel.type !== 'text' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span style={{ fontSize: 10, color: '#9ca3af' }}>HEIGHT: {sel.height || 0}px</span>
-                    <input type="range" min={0} max={lh} value={sel.height || 0} onChange={e => updateSelectedLayer(c => ({ ...c, height: +e.target.value }))} style={{ accentColor: '#8b5cf6' }} />
+                    <span style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>HEIGHT</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input type="range" min={0} max={lh} value={sel.height || 0} onChange={e => updateSelectedLayer(c => ({ ...c, height: +e.target.value }))} style={{ flex: 1, accentColor: '#8b5cf6', height: 4, cursor: 'pointer' }} />
+                      <input type="number" min={0} max={lh} value={sel.height || 0} onChange={e => {
+                        const valNum = Math.max(0, Math.min(lh, parseInt(e.target.value) || 0));
+                        updateSelectedLayer(c => ({ ...c, height: valNum }));
+                      }} style={{ width: 55, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 6px', color: '#fff', fontSize: 11, textAlign: 'right', fontFamily: 'inherit' }} />
+                      <span style={{ fontSize: 10, color: '#6b7280' }}>px</span>
+                    </div>
                   </div>
                 )}
                 {sel.type === 'image' && (
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span style={{ fontSize: 10, color: '#9ca3af' }}>KEP URL (SRC):</span>
+                    <span style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>KEP URL (SRC):</span>
                     <input type="text" value={sel.src || ''} onChange={e => updateSelectedLayer(c => ({ ...c, src: e.target.value }))} placeholder="https://..." style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '6px 8px', color: '#fff', fontFamily: 'inherit', fontSize: 11, boxSizing: 'border-box' }} />
                   </div>
                 )}
                 {sel.type === 'text' && (<>
                   <textarea value={sel.text || ''} onChange={e => updateSelectedLayer(c => ({ ...c, text: e.target.value }))} rows={3} style={{ width: '100%', background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.1)', borderRadius: 6, padding: '8px', color: '#fff', fontFamily: 'inherit', fontSize: 12, resize: 'vertical', boxSizing: 'border-box' }} />
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                    <span style={{ fontSize: 10, color: '#9ca3af' }}>Betumeret: {sel.fontSize}px</span>
-                    <input type="range" min={12} max={300} value={sel.fontSize || 48} onChange={e => updateSelectedLayer(c => ({ ...c, fontSize: +e.target.value }))} style={{ accentColor: '#8b5cf6' }} />
+                    <span style={{ fontSize: 10, color: '#9ca3af', fontWeight: 600 }}>BETUMERET</span>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                      <input type="range" min={12} max={300} value={sel.fontSize || 48} onChange={e => updateSelectedLayer(c => ({ ...c, fontSize: +e.target.value }))} style={{ flex: 1, accentColor: '#8b5cf6', height: 4, cursor: 'pointer' }} />
+                      <input type="number" min={12} max={300} value={sel.fontSize || 48} onChange={e => {
+                        const valNum = Math.max(12, Math.min(300, parseInt(e.target.value) || 12));
+                        updateSelectedLayer(c => ({ ...c, fontSize: valNum }));
+                      }} style={{ width: 55, background: 'rgba(0,0,0,0.4)', border: '1px solid rgba(255,255,255,0.12)', borderRadius: 6, padding: '4px 6px', color: '#fff', fontSize: 11, textAlign: 'right', fontFamily: 'inherit' }} />
+                      <span style={{ fontSize: 10, color: '#6b7280' }}>px</span>
+                    </div>
                   </div>
                   {['400','600','700','800','900'].map(w => (
                     <button key={w} onClick={() => updateSelectedLayer(c => ({ ...c, fontWeight: w }))}

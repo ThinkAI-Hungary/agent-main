@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { PostCreative, SystemLog, BrandKit } from '../types';
+import { getBackendUrl } from '../types';
 import { Sparkles, Play, Cpu, Fingerprint, Brain, Layers, CheckCircle2 } from 'lucide-react';
 
 interface GeneratorSimulatorProps {
@@ -62,7 +63,7 @@ export const GeneratorSimulator: React.FC<GeneratorSimulatorProps> = ({
     onGenerateStart(briefText);
 
     // Call actual backend API in the background
-    fetch('http://localhost:3001/api/generate', {
+    fetch(`${getBackendUrl()}/api/generate`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

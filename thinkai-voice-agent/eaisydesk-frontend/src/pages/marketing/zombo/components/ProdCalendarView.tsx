@@ -63,7 +63,7 @@ const Facebook = ({ size = 24, ...props }: IconProps) => (
   </svg>
 );
 import type { BrandKit, PostCreative, SystemLog } from '../types';
-import { fixImageUrl } from '../types';
+import { fixImageUrl, getBackendUrl } from '../types';
 import { showToast } from '../../../../components/ui/Toast';
 
 // ─── Platform / Channel Specifications ────────────────────────────────────────
@@ -331,7 +331,7 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
       if (adhocImageSlots.length > 1) {
         // Multi-slot composite generation
         const scenePrompt = [createBrief, createMode === 'custom' ? createCustomText : ''].filter(Boolean).join('. ');
-        const compositeResp = await fetch('http://localhost:3001/api/image/composite-generate', {
+        const compositeResp = await fetch(`${getBackendUrl()}/api/image/composite-generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(buildCompositePayload(adhocImageSlots, scenePrompt, activeBrandKit)),
@@ -353,7 +353,7 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
       } else {
         // Single slot or no image — standard adhoc
         const primarySlot = adhocImageSlots[0];
-        const response = await fetch('http://localhost:3001/api/generate-adhoc', {
+        const response = await fetch(`${getBackendUrl()}/api/generate-adhoc`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
@@ -453,7 +453,7 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
       const count = timeframe === 'monthly' ? 6 : 3;
       setProgressLogs(prev => [...prev, `[INFO] ${count} db kreatív elem lekérése és háttér harmonizálása indítva...`]);
       
-      const response = await fetch('http://localhost:3001/api/generate', {
+      const response = await fetch(`${getBackendUrl()}/api/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -590,7 +590,7 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
     try {
       const bgImage = originalAltImages[activeAltIndex] || selectedPost.imageUrl;
 
-      const response = await fetch('http://localhost:3001/api/render-update', {
+      const response = await fetch(`${getBackendUrl()}/api/render-update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -748,7 +748,7 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
         }]
       };
 
-      const response = await fetch('http://localhost:3001/api/render-polotno', {
+      const response = await fetch(`${getBackendUrl()}/api/render-polotno`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ layoutJson })
@@ -783,7 +783,7 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
     try {
       const bgImage = originalAltImages[activeAltIndex] || selectedPost.imageUrl;
 
-      const response = await fetch('http://localhost:3001/api/render-update', {
+      const response = await fetch(`${getBackendUrl()}/api/render-update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -1649,10 +1649,10 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
                   {/* Posting rules */}
                   <details>
                     <summary style={{ fontSize: 9.5, fontWeight: 700, color: spec.color, cursor: 'pointer', textTransform: 'uppercase', letterSpacing: '0.04em', userSelect: 'none' }}>
-                      📋 Szabályok ({(spec.postingRules as any[]).length} db)
+                      📋 Szabályok ({(spec.postingRules as readonly any[]).length} db)
                     </summary>
                     <ul style={{ margin: '6px 0 0', padding: '0 0 0 12px', listStyle: 'disc' }}>
-                      {(spec.postingRules as string[]).map((r: string, i: number) => (
+                      {(spec.postingRules as readonly string[]).map((r: string, i: number) => (
                         <li key={i} style={{ fontSize: 9.5, color: 'var(--text-muted)', marginBottom: 2.5, lineHeight: 1.4 }}>{r}</li>
                       ))}
                     </ul>

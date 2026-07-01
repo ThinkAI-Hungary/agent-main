@@ -225,6 +225,7 @@ export interface CampaignItem {
   targetAudience?: string;
   adObjective?: string;
   imageUrl?: string;
+  originalImageUrl?: string;
   status: 'draft' | 'approved' | 'rejected' | 'scheduled' | 'published';
   scheduledAt?: string;
   publishedAt?: string;
@@ -266,10 +267,27 @@ export interface ABTestVariant {
   score?: number;
 }
 
+export function getBackendUrl(): string {
+  if (typeof window !== 'undefined' && (window as any).__IMAGE_API_URL__) {
+    return (window as any).__IMAGE_API_URL__;
+  }
+  const envUrl = import.meta.env.VITE_IMAGE_API_URL;
+  if (envUrl && envUrl.trim() !== '') {
+    return envUrl;
+  }
+  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
+  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
+  return `${protocol}//${hostname}:3001`;
+}
+
 export function fixImageUrl(url: string | undefined | null): string {
   if (!url) return '';
-  if (url.startsWith('/renders/')) {
-    return `http://localhost:3001${url}`;
+  if (url.startsWith('http://') || url.startsWith('https://') || url.startsWith('data:')) {
+    return url;
+  }
+  if (url.includes('renders/')) {
+    const cleanUrl = url.startsWith('/') ? url : `/${url}`;
+    return `${getBackendUrl()}${cleanUrl}`;
   }
   return url;
 }

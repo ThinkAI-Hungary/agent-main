@@ -1,0 +1,258 @@
+=== OVERLAY COVERAGE ANALYSIS ===
+
+Overlay 1: Bold Headline (bold-headline)
+  - Layer 0 (figure rect) covers 54.2% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: linear-gradient(to top, #1a1a2ef5, #1a1a2e80, transparent), IsTranslucent: true
+  - Layer 0 (figure rect) covers 75.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: linear-gradient(to top, #1a1a2ef5, #1a1a2e80, transparent), IsTranslucent: true
+  - Layer 2 (text ) covers 37.3% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #ffffff, IsTranslucent: false
+
+Overlay 2: Termék Kiemelő (product-callout)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: rgba(0,0,0,0.3), IsTranslucent: true
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: rgba(0,0,0,0.3), IsTranslucent: true
+  - Layer 3 (text ) covers 31.8% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #ffffff, IsTranslucent: false
+
+Overlay 3: Akció Badge (promo-badge)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #1a1a2edd, IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #1a1a2edd, IsTranslucent: false
+  - Layer 1 (figure circle) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 0.12, Fill: #f59e0b, IsTranslucent: false
+  - Layer 1 (figure circle) covers 80.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 0.12, Fill: #f59e0b, IsTranslucent: false
+  - Layer 2 (text ) covers 99.2% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #ffffff, IsTranslucent: false
+  - Layer 2 (text ) covers 80.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #ffffff, IsTranslucent: false
+
+Overlay 4: Split Card (split-card)
+  - Layer 0 (figure rect) covers 46.7% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 0.96, Fill: #ffffff, IsTranslucent: false
+
+Overlay 5: Luxury Dark (luxury-dark)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: rgba(5,3,12,0.72), IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: rgba(5,3,12,0.72), IsTranslucent: false
+  - Layer 1 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: transparent, IsTranslucent: true
+  - Layer 1 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: transparent, IsTranslucent: true
+  - Layer 3 (text ) covers 43.3% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #ffffff, IsTranslucent: false
+  - Layer 3 (text ) covers 35.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #ffffff, IsTranslucent: false
+
+Overlay 6: Neo-Brutalist (neo-brutal)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: rgba(0,0,0,0.55), IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: rgba(0,0,0,0.55), IsTranslucent: false
+  - Layer 1 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: transparent, IsTranslucent: true
+  - Layer 1 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: transparent, IsTranslucent: true
+
+Overlay 7: Kicker + Cím (kicker-title)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: rgba(0,0,0,0.38), IsTranslucent: true
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: rgba(0,0,0,0.38), IsTranslucent: true
+
+Overlay 8: Vélemény (testimonial-layer)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #1a1a2ee8, IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #1a1a2ee8, IsTranslucent: false
+
+Overlay 9: Minimal Brand (minimal-brand)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: rgba(0,0,0,0.12), IsTranslucent: true
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: rgba(0,0,0,0.12), IsTranslucent: true
+
+Overlay 10: Story CTA (story-cta)
+  (No significant product coverage)
+
+Overlay 11: Countdown (countdown-launch)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 0.9, Fill: linear-gradient(160deg, #1a1a2e 0%, #0f0f1a 100%), IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 0.9, Fill: linear-gradient(160deg, #1a1a2e 0%, #0f0f1a 100%), IsTranslucent: false
+
+Overlay 12: New Arrival (new-arrival)
+  (No significant product coverage)
+
+Overlay 13: Event Meghívó (event-invite)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #1a1a2ef0, IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #1a1a2ef0, IsTranslucent: false
+  - Layer 1 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: transparent, IsTranslucent: true
+  - Layer 1 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: transparent, IsTranslucent: true
+  - Layer 7 (text ) covers 43.3% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #ffffff, IsTranslucent: false
+  - Layer 7 (text ) covers 31.7% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #ffffff, IsTranslucent: false
+
+Overlay 14: Étlap / Recept (food-recipe)
+  - Layer 0 (figure rect) covers 50.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 0.98, Fill: #fefce8, IsTranslucent: false
+  - Layer 4 (text ) covers 33.3% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #111111, IsTranslucent: false
+
+Overlay 15: Fitness Motiváció (fitness-motivation)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: rgba(0,0,0,0.6), IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: rgba(0,0,0,0.6), IsTranslucent: false
+  - Layer 3 (text ) covers 64.2% of Centered Product (600x600 at center)
+    Opacity: 0.08, Fill: #ffffff, IsTranslucent: false
+  - Layer 3 (text ) covers 43.3% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 0.08, Fill: #ffffff, IsTranslucent: false
+  - Layer 4 (text ) covers 87.5% of Centered Product (600x600 at center)
+    Opacity: 0.08, Fill: #ffffff, IsTranslucent: false
+  - Layer 4 (text ) covers 85.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 0.08, Fill: #ffffff, IsTranslucent: false
+
+Overlay 16: Fashion Lookbook (fashion-lookbook)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: rgba(0,0,0,0.2), IsTranslucent: true
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: rgba(0,0,0,0.2), IsTranslucent: true
+  - Layer 1 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: transparent, IsTranslucent: true
+  - Layer 1 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: transparent, IsTranslucent: true
+
+Overlay 17: Ingatlan (real-estate)
+  - Layer 0 (figure rect) covers 33.3% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 0.97, Fill: #0f172a, IsTranslucent: false
+
+Overlay 18: Zeneművészet (music-release)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: linear-gradient(145deg, #0a0010 0%, #1a1a2ecc 50%, #0a0010 100%), IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: linear-gradient(145deg, #0a0010 0%, #1a1a2ecc 50%, #0a0010 100%), IsTranslucent: false
+  - Layer 1 (figure circle) covers 83.3% of Centered Product (600x600 at center)
+    Opacity: 0.06, Fill: #f59e0b, IsTranslucent: false
+  - Layer 1 (figure circle) covers 62.5% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 0.06, Fill: #f59e0b, IsTranslucent: false
+  - Layer 2 (figure circle) covers 55.6% of Centered Product (600x600 at center)
+    Opacity: 0.1, Fill: #f59e0b, IsTranslucent: false
+  - Layer 2 (figure circle) covers 38.2% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 0.1, Fill: #f59e0b, IsTranslucent: false
+
+Overlay 19: Webinar (webinar)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #1a1a2eee, IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #1a1a2eee, IsTranslucent: false
+
+Overlay 20: Előtte / Utána (before-after)
+  - Layer 0 (figure rect) covers 50.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: rgba(0,0,0,0.5), IsTranslucent: false
+  - Layer 0 (figure rect) covers 50.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: rgba(0,0,0,0.5), IsTranslucent: false
+  - Layer 1 (figure rect) covers 50.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: rgba(0,0,0,0.2), IsTranslucent: true
+  - Layer 1 (figure rect) covers 50.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: rgba(0,0,0,0.2), IsTranslucent: true
+
+Overlay 21: App Showcase (app-showcase)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: linear-gradient(180deg, #1a1a2e 0%, #0f0820 100%), IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: linear-gradient(180deg, #1a1a2e 0%, #0f0820 100%), IsTranslucent: false
+
+Overlay 22: Utazás (travel)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: rgba(0,0,0,0.35), IsTranslucent: true
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: rgba(0,0,0,0.35), IsTranslucent: true
+  - Layer 1 (figure rect) covers 37.5% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: linear-gradient(to bottom, rgba(0,0,0,0.5), transparent), IsTranslucent: true
+
+Overlay 23: Sötét Bejelentés (dark-announcement)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 0.95, Fill: #030303, IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 0.95, Fill: #030303, IsTranslucent: false
+  - Layer 1 (figure circle) covers 87.5% of Centered Product (600x600 at center)
+    Opacity: 0.06, Fill: #f59e0b, IsTranslucent: false
+  - Layer 1 (figure circle) covers 66.7% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 0.06, Fill: #f59e0b, IsTranslucent: false
+  - Layer 5 (text ) covers 34.2% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #ffffff, IsTranslucent: false
+
+Overlay 24: Flash Sale (flash-sale)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #111111, IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #111111, IsTranslucent: false
+  - Layer 3 (text ) covers 30.8% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #ffffff, IsTranslucent: false
+  - Layer 4 (text ) covers 65.8% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #ef4444, IsTranslucent: false
+  - Layer 4 (text ) covers 45.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #ef4444, IsTranslucent: false
+  - Layer 7 (text ) covers 32.8% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #ffffff, IsTranslucent: false
+  - Layer 7 (text ) covers 46.7% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #ffffff, IsTranslucent: false
+
+Overlay 25: Carousel Dia (carousel-slide)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #1a1a2ef5, IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #1a1a2ef5, IsTranslucent: false
+
+Overlay 26: Nyeremény (giveaway)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: linear-gradient(135deg, #1a1a2e 0%, #1e1060 100%), IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: linear-gradient(135deg, #1a1a2e 0%, #1e1060 100%), IsTranslucent: false
+
+Overlay 27: Idézet Kártya (quote-card)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #f8fafc, IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #f8fafc, IsTranslucent: false
+
+Overlay 28: Nyári Hangulat (summer-vibes)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: rgba(0,0,0,0.25), IsTranslucent: true
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: rgba(0,0,0,0.25), IsTranslucent: true
+  - Layer 4 (text ) covers 43.3% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #ffffff, IsTranslucent: false
+
+Overlay 29: Előfizetés CTA (subscription)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #1a1a2ef0, IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #1a1a2ef0, IsTranslucent: false
+  - Layer 1 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: rgba(255,255,255,0.03), IsTranslucent: true
+  - Layer 1 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: rgba(255,255,255,0.03), IsTranslucent: true
+  - Layer 4 (text ) covers 32.5% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #ffffff, IsTranslucent: false
+
+Overlay 30: Termék Grid (product-grid)
+  - Layer 0 (figure rect) covers 100.0% of Centered Product (600x600 at center)
+    Opacity: 1, Fill: #f1f5f9, IsTranslucent: false
+  - Layer 0 (figure rect) covers 100.0% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #f1f5f9, IsTranslucent: false
+  - Layer 5 (figure rect) covers 30.6% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #ffffff, IsTranslucent: false
+  - Layer 6 (figure rect) covers 30.6% of Lower-Center Product (600x600 at bottom/center)
+    Opacity: 1, Fill: #ffffff, IsTranslucent: false
+

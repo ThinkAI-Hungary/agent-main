@@ -1,5 +1,6 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
+import { fixImageUrl, getBackendUrl } from '../types';
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -10,6 +11,191 @@ export interface ImageChangeabilityRules {
   canChangeTexture: boolean;
   mustPreserveExactly: string[];
   allowedModifications: string[];
+}
+
+// ─── LightingAnalysis — Full physics-based analysis (9 blocks) ────────────────
+// Filled by Claude Vision during /api/image/analyze when productAwareBg=true.
+// All values are directly usable by FLUX prompt builder and Sharp compositor.
+export interface LightingAnalysis {
+  // BLOKK 1: Fényforrás fizika
+  lightSource: {
+    type: 'spot' | 'area' | 'ambient_only' | 'three_point' | 'mixed' | 'backlit';
+    directionAngle: number;        // theta: 90=overhead, 45=side, 30=dramatic
+    directionLabel: 'top' | 'top-left' | 'top-right' | 'left' | 'right' | 'back' | 'front';
+    xPercent: number;              // 0=left 50=center 100=right
+    yPercent: number;              // 0=top (ceiling) 100=bottom
+    temperatureK: number;          // 2700=bulb, 3200=tungsten, 5500=daylight, 6500=cool
+    temperatureLabel: 'warm tungsten' | 'neutral white' | 'cool daylight' | 'very cool';
+    colorCastRgb: [number, number, number]; // RGB shift on white surface
+    intensity: 'hard' | 'medium' | 'soft';
+    sourceSizeLabel: 'point' | 'small_spot' | 'large_area' | 'diffuse';
+    isThreePoint: boolean;
+    keyLightIntensity: number;     // 0-100
+    fillLightIntensity: number;    // 0-100
+    rimLightIntensity: number;     // 0-100
+    fillRatio: number;             // fill/key ratio e.g. 0.33
+    hasVolumetricLight: boolean;   // Tyndall dust/fog effect
+    hasMultipleSourcesIBL: boolean;
+  };
+
+  // BLOKK 2: Árnyék fizika
+  shadow: {
+    hasDropShadow: boolean;        // false if theta >= 85°
+    dropDirection: 'none' | 'front' | 'right' | 'left' | 'back' | 'front-right' | 'front-left';
+    dropLengthRatio: number;       // L/H = 1/tan(theta)
+    dropLengthPx: number;          // obj_height * dropLengthRatio
+    dropOffsetX: number;           // signed px, positive=right
+    dropOffsetY: number;           // signed px, positive=down
+    dropOpacity: number;           // 0.0-1.0
+    dropBlurPx: number;            // penumbra blur
+    dropWidthMultiplier: number;   // shadow width vs object width
+    contactShadow: {
+      widthMultiplier: number;     // obj_W * X, typically 0.68
+      heightMultiplier: number;    // obj_H * X, typically 0.04
+      opacity: number;             // 0.80-0.95
+      blurPx: number;              // 2-5px
+    };
+    aoHalo: {
+      widthMultiplier: number;     // obj_W * X, typically 0.95
+      heightMultiplier: number;    // obj_H * X, typically 0.14
+      opacity: number;             // 0.35-0.55
+      blurPx: number;              // 15-30px
+    };
+    penumbraWidth: 'none' | 'narrow' | 'medium' | 'wide';
+    umbraDarkness: number;         // 0-100
+    formShadowPresent: boolean;
+    formShadowSide: 'left' | 'right' | 'none';
+  };
+
+  // BLOKK 3: Anyag (PBR + SSS + Fresnel)
+  material: {
+    roughness: number;             // 0.0=mirror 1.0=matte
+    metallic: number;              // 0.0=plastic 1.0=metal
+    ior: number;                   // 1.0=air 1.5=plastic 2.5=metal
+    specularIntensity: number;     // 0.0-1.0
+    albedoRgb: [number, number, number];
+    hasSSS: boolean;
+    sssStrength: 'none' | 'weak' | 'medium' | 'strong';
+    sssColorShift: 'warm' | 'neutral' | 'none';
+    fresnelEdgeGlow: boolean;
+    fresnelIntensity: 'subtle' | 'medium' | 'strong';
+    materialType: 'white_plastic' | 'colored_plastic' | 'glossy_plastic' | 'metal_matte' | 'metal_glossy' | 'glass' | 'paper_label' | 'fabric' | 'wood' | 'other';
+    specular: {
+      zoneTopPct: number;          // 0-25 (lid/top zone %)
+      widthMultiplier: number;     // obj_W * X
+      opacity: number;             // 0.0-0.50
+      blurPx: number;              // 3-8px
+      hasSharpGlint: boolean;
+    };
+  };
+
+  // BLOKK 4: Szín és tinting
+  colorThermal: {
+    ambientTintRgb: [number, number, number];
+    ambientTintOpacity: number;    // 0.0-0.25
+    ambientDarkness: number;       // 0-100
+    hasColorBleeding: boolean;
+    bleedingSourceColor: [number, number, number] | null;
+    bleedingOpacity: number;       // 0.0-0.15
+    simultaneousContrastCorrection: boolean;
+    bgDominantColor: [number, number, number];
+    sceneDynamicRange: 'low' | 'medium' | 'high';
+  };
+
+  // BLOKK 5: Compositing rétegek
+  compositing: {
+    rimDarkening: {
+      side: 'left' | 'right' | 'none';
+      widthMultiplier: number;
+      opacity: number;
+      blurPx: number;
+    };
+    formShadowGradient: {
+      enabled: boolean;
+      direction: 'top-to-bottom' | 'side';
+      topBrightness: number;       // 0.8-1.0
+      bottomBrightness: number;    // 0.2-0.5
+      opacity: number;             // 0.15-0.40
+    };
+    rimLight: {
+      side: 'left' | 'right' | 'top' | 'none';
+      widthMultiplier: number;
+      opacity: number;
+      blurPx: number;
+    };
+    lightWrap: {
+      bgBlurPx: number;            // 50-80px
+      expandPx: number;            // 15-30px
+      opacity: number;             // 0.08-0.28
+    };
+    tableReflection: {
+      enabled: boolean;
+      heightMultiplier: number;
+      opacity: number;
+      blurPx: number;
+      surfaceType: 'metal' | 'lacquered_wood' | 'matte_wood' | 'glass' | 'concrete';
+    };
+    overallLayerCount: number;     // 6-12
+  };
+
+  // BLOKK 6: Elhelyezés és kompozíció
+  placement: {
+    cameraAngle: 'eye-level' | 'slightly-above' | 'low-angle' | 'bird-eye';
+    cameraFOV: 'wide' | 'normal' | 'telephoto';
+    perspectiveDistortion: 'none' | 'slight' | 'strong';
+    productTopYPct: number;        // 35-45 optimal
+    productBottomYPct: number;     // 65-80 optimal
+    surfaceYPct: number;           // table top edge
+    headroomPct: number;           // air above product
+    tablespacePct: number;         // table below product
+    productCenterXPct: number;     // 50=center 33=left-third
+    compositionStyle: 'centered' | 'thirds' | 'asymmetric';
+    productScalePct: number;       // product height as % of frame
+  };
+
+  // BLOKK 7: FLUX prompt generálás
+  prompts: {
+    bgLightingPrompt: string;      // FLUX BG prompt suffix
+    bgNegativePrompt: string;      // FLUX negative
+    materialPromptSuffix: string;  // material description
+    volumetricLightPrompt: string; // if hasVolumetricLight
+    sssEdgePrompt: string;         // if hasSSS
+    fresnelPrompt: string;         // if fresnelEdgeGlow
+    threePointPrompt: string;      // if isThreePoint
+    compositionPrompt: string;     // placement instructions
+    fullBgPrompt: string;          // ready-to-use combined BG prompt
+  };
+
+  // BLOKK 8: Checkup validálás
+  checkup: {
+    expectedShadowBehavior: string;
+    expectedSpecularZone: string;
+    expectedGradient: string;
+    expectedAmbientTint: string;
+    activeRisks: Array<{
+      riskId: string;
+      description: string;
+      checkPrompt: string;
+      severity: 'critical' | 'major' | 'minor';
+      autoFixable: boolean;
+    }>;
+    shadowPhysicsMinScore: number; // 0-25
+    integrationMinScore: number;   // 0-25
+    contactShadowMinScore: number; // 0-20
+    specularMinScore: number;      // 0-15
+    placementMinScore: number;     // 0-15
+    totalMinScore: number;         // min 70
+    criticalFailConditions: string[];
+  };
+
+  // BLOKK 9: Meta
+  meta: {
+    analysisVersion: string;       // '2.0'
+    analysisTimestamp: string;
+    claudeConfidence: number;      // 0.0-1.0
+    bookChaptersUsed: string[];
+    lightingScenario: 'overhead_spot' | 'side_45' | 'side_30_dramatic' | 'three_point' | 'backlit' | 'diffuse_ambient' | 'mixed_complex';
+  };
 }
 
 export interface ImageAnalysisResult {
@@ -27,6 +213,7 @@ export interface ImageAnalysisResult {
   extractedText?: string;
   textPlacement?: string;
   textLegibility?: 'clear' | 'blurry' | 'illegible';
+  lightingAnalysis?: LightingAnalysis; // physics-based lighting data (productAwareBg mode)
 }
 
 export interface ImageSlot {
@@ -37,6 +224,7 @@ export interface ImageSlot {
   preprocessedUrl: string | null;
   upscaledUrl?: string | null;
   upscaleLoading?: boolean;
+  suggestUpscale?: boolean;  // true = auto-upscale was recommended but NOT started
   analysis: ImageAnalysisResult | null;
   analysisLoading: boolean;
   preprocessLoading: boolean;
@@ -56,6 +244,7 @@ export function createEmptySlot(): ImageSlot {
     preprocessedUrl: null,
     upscaledUrl: null,
     upscaleLoading: false,
+    suggestUpscale: false,
     analysis: null,
     analysisLoading: false,
     preprocessLoading: false,
@@ -103,7 +292,7 @@ interface PanZoomImageProps {
   onToggleZoom: () => void;
 }
 
-function PanZoomImage({ src, alt, isZoomed, onToggleZoom }: PanZoomImageProps) {
+export function PanZoomImage({ src, alt, isZoomed, onToggleZoom }: PanZoomImageProps) {
   const [scale, setScale] = useState(1);
   const [offset, setOffset] = useState({ x: 0, y: 0 });
   const [isDragging, setIsDragging] = useState(false);
@@ -275,7 +464,7 @@ export default function ImageSlotUploader({
 
     try {
       // Step 1: Upscale the original image
-      const upResp = await fetch('http://localhost:3001/api/image/upscale', {
+      const upResp = await fetch(`${getBackendUrl()}/api/image/upscale`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ 
@@ -291,7 +480,7 @@ export default function ImageSlotUploader({
       let finalUpscaledUrl = rawUpscaledUrl;
       if (ppUrl) {
         console.log('[ImageSlotUploader] Removing background from upscaled image...');
-        const bgResp = await fetch('http://localhost:3001/api/image/remove-background', {
+        const bgResp = await fetch(`${getBackendUrl()}/api/image/remove-background`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ imageUrl: rawUpscaledUrl }),
@@ -306,7 +495,7 @@ export default function ImageSlotUploader({
 
       // Step 3: Re-analyze the upscaled background-removed image
       console.log('[ImageSlotUploader] Re-running Claude Vision analysis on upscaled image...');
-      const anResp = await fetch('http://localhost:3001/api/image/analyze', {
+      const anResp = await fetch(`${getBackendUrl()}/api/image/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageUrl: finalUpscaledUrl }),
@@ -337,6 +526,51 @@ export default function ImageSlotUploader({
       onChange(prev => prev.map(s => s.id === slotId ? { ...s, upscaleLoading: false, error: 'Feljavítási hiba: ' + upErr.message } : s));
     }
   }, [onChange, slots]);
+
+  const triggerBackgroundRemoval = useCallback(async (slotId: string) => {
+    const slot = slots.find(s => s.id === slotId);
+    if (!slot) return;
+
+    onChange(prev => prev.map(s => s.id === slotId
+      ? { ...s, preprocessLoading: true, error: null }
+      : s
+    ));
+
+    try {
+      let preprocessedUrl = '';
+      if (slot.rawBase64) {
+        const ppResp = await fetch(`${getBackendUrl()}/api/image/preprocess`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: slot.rawBase64 }),
+        });
+        if (!ppResp.ok) throw new Error(await ppResp.text());
+        const ppData = await ppResp.json();
+        preprocessedUrl = ppData.url || '';
+      } else if (slot.originalUrl) {
+        const ppResp = await fetch(`${getBackendUrl()}/api/image/remove-background`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ imageUrl: slot.originalUrl }),
+        });
+        if (!ppResp.ok) throw new Error(await ppResp.text());
+        const ppData = await ppResp.json();
+        preprocessedUrl = ppData.url || '';
+      } else {
+        throw new Error('Nincs kiindulási kép a háttérlevételhez.');
+      }
+
+      onChange(prev => prev.map(s => s.id === slotId
+        ? { ...s, preprocessedUrl, preprocessLoading: false }
+        : s
+      ));
+    } catch (e: any) {
+      onChange(prev => prev.map(s => s.id === slotId
+        ? { ...s, preprocessLoading: false, error: 'Háttérlevétel hiba: ' + e.message }
+        : s
+      ));
+    }
+  }, [slots, onChange]);
 
   const processFile = useCallback(async (file: File, slotId: string) => {
     if (!file.type.startsWith('image/')) return;
@@ -376,7 +610,7 @@ export default function ImageSlotUploader({
     let originalUrl = '';
     let preprocessedUrl: string | null = null;
     try {
-      const ppResp = await fetch('http://localhost:3001/api/image/preprocess', {
+      const ppResp = await fetch(`${getBackendUrl()}/api/image/preprocess`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ image: base64 }),
@@ -400,7 +634,7 @@ export default function ImageSlotUploader({
 
     // Step 3: Claude Vision analysis
     try {
-      const anResp = await fetch('http://localhost:3001/api/image/analyze', {
+      const anResp = await fetch(`${getBackendUrl()}/api/image/analyze`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ imageUrl: originalUrl }),
@@ -433,8 +667,10 @@ export default function ImageSlotUploader({
       const isLowRes = width > 0 && height > 0 && (width < 800 || height < 800);
       const isTextUnreadable = !!(analysis?.hasText && (analysis.textLegibility === 'blurry' || analysis.textLegibility === 'illegible'));
 
+      // Auto-upscale DISABLED — feljavítás mindig manuális
+      // Only flag the slot so the button can show a recommendation badge
       if (isLowRes || isTextUnreadable) {
-        await triggerUpscale(slotId, originalUrl, preprocessedUrl);
+        onChange(prev => prev.map(s => s.id === slotId ? { ...s, suggestUpscale: true } : s));
       }
     } catch (e: any) {
       onChange(prev => prev.map(s => s.id === slotId
@@ -517,104 +753,138 @@ export default function ImageSlotUploader({
               if (file) handleReplaceSlot(slot.id, file);
             }}
             style={{
-              width: (slot.upscaledUrl || slot.upscaleLoading) ? 360 : 200, background: 'var(--bg3)',
+              width: (slot.upscaledUrl || slot.upscaleLoading || slot.preprocessedUrl || slot.preprocessLoading) ? 360 : 200, background: 'var(--bg3)',
               border: `1.5px solid ${dragOverIdx === idx ? '#8b5cf6' : 'var(--border)'}`,
               borderRadius: 12, overflow: 'hidden', transition: 'border-color 0.2s', flexShrink: 0,
             }}
           >
             {/* Preview */}
             <div style={{ position: 'relative', height: 140, background: 'var(--bg)', overflow: 'hidden' }}>
-              {slot.preprocessLoading ? (
+              {slot.preprocessLoading && !slot.rawBase64 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 8 }}>
                   <div style={{ width: 22, height: 22, border: '2.5px solid rgba(139,92,246,0.2)', borderTopColor: '#8b5cf6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                   <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>Feltöltés + háttéreltávolítás...</span>
                 </div>
-              ) : slot.analysisLoading ? (
+              ) : slot.analysisLoading && !slot.rawBase64 ? (
                 <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 8 }}>
                   <div style={{ width: 22, height: 22, border: '2.5px solid rgba(167,139,250,0.2)', borderTopColor: '#a78bfa', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
                   <span style={{ fontSize: 9, color: 'var(--text-muted)' }}>Claude Vision elemzés...</span>
                 </div>
-              ) : slot.rawBase64 ? (
-                <div style={{ display: 'flex', width: '100%', height: '100%' }}>
-                  {/* Left part: Original / Preprocessed image */}
-                  <div 
-                    onClick={() => slot.upscaledUrl && setComparisonSlotId(slot.id)}
-                    style={{ 
-                      position: 'relative', 
-                      width: (slot.upscaledUrl || slot.upscaleLoading) ? '50%' : '100%', 
-                      height: '100%', 
-                      borderRight: (slot.upscaledUrl || slot.upscaleLoading) ? '1px solid var(--border)' : 'none', 
-                      cursor: slot.upscaledUrl ? 'zoom-in' : 'default' 
-                    }}
-                  >
-                    <img
-                      src={slot.preprocessedUrl || slot.rawBase64}
-                      alt={slot.analysis?.altText || `Kép ${idx + 1}`}
-                      style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                    />
-                  </div>
+              ) : slot.rawBase64 ? (() => {
+                const hasUpscale = !!(slot.upscaledUrl || slot.upscaleLoading);
+                const hasPreprocess = !!(slot.preprocessedUrl || slot.preprocessLoading);
+                const isSplit = hasUpscale || hasPreprocess;
 
-                  {/* Right part: Upscaled image or Loader */}
-                  {(slot.upscaledUrl || slot.upscaleLoading) && (
+                return (
+                  <div style={{ display: 'flex', width: '100%', height: '100%' }}>
+                    {/* Left part: Original / Preprocessed image */}
                     <div 
-                      onClick={() => slot.upscaledUrl && setComparisonSlotId(slot.id)}
+                      onClick={() => isSplit && setComparisonSlotId(slot.id)}
                       style={{ 
                         position: 'relative', 
-                        width: '50%', 
+                        width: isSplit ? '50%' : '100%', 
                         height: '100%', 
-                        background: 'var(--bg2)',
-                        cursor: slot.upscaledUrl ? 'zoom-in' : 'default'
+                        borderRight: isSplit ? '1px solid var(--border)' : 'none', 
+                        cursor: isSplit ? 'zoom-in' : 'default' 
                       }}
                     >
-                      {slot.upscaleLoading ? (
-                        <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 6 }}>
-                          <div style={{ width: 16, height: 16, border: '2px solid rgba(139,92,246,0.2)', borderTopColor: '#8b5cf6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
-                          <span style={{ fontSize: 8, color: 'var(--text-muted)', textAlign: 'center' }}>Javítás...</span>
+                      <img
+                        src={hasUpscale 
+                          ? (fixImageUrl(slot.preprocessedUrl) || slot.rawBase64) 
+                          : (fixImageUrl(slot.originalUrl) || slot.rawBase64)
+                        }
+                        alt={slot.analysis?.altText || `Kép ${idx + 1}`}
+                        style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                      />
+                      {isSplit && (
+                        <div style={{ position: 'absolute', bottom: 4, left: 4, padding: '2px 4px', background: 'rgba(0,0,0,0.6)', borderRadius: 3, fontSize: 8, color: '#fff', fontWeight: 600, zIndex: 3 }}>
+                          {hasUpscale ? '✂️ Levágott' : 'Eredeti'}
                         </div>
-                      ) : slot.upscaledUrl ? (
-                        <>
-                          <img
-                            src={slot.upscaledUrl}
-                            alt="Feljavított kép"
-                            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-                          />
-                          <div style={{ position: 'absolute', bottom: 4, left: 4, padding: '2px 4px', background: 'rgba(34,197,94,0.85)', borderRadius: 3, fontSize: 8, color: '#fff', fontWeight: 600, zIndex: 3 }}>
-                            ✨ Javított
-                          </div>
-                        </>
-                      ) : null}
+                      )}
                     </div>
-                  )}
 
-                  {slot.locked && (
-                    <div style={{ position: 'absolute', top: 5, left: 5, padding: '2px 6px', background: 'rgba(239,68,68,0.88)', borderRadius: 4, fontSize: 9, fontWeight: 700, color: '#fff', zIndex: 2 }}>
-                      🔒 RÖGZÍTETT
-                    </div>
-                  )}
-                  {slot.analysis && (
-                    <div style={{
-                      position: 'absolute', top: 5, right: 5, padding: '2px 6px',
-                      background: `${IMAGE_TYPE_COLORS[slot.analysis.imageType]}cc`,
-                      borderRadius: 4, fontSize: 9, fontWeight: 700, color: '#fff', zIndex: 2
-                    }}>
-                      {IMAGE_TYPE_LABELS[slot.analysis.imageType]}
-                    </div>
-                  )}
-                  {slot.analysis?.dominantColors && slot.analysis.dominantColors.length > 0 && (
-                    <div style={{ position: 'absolute', bottom: 5, left: (slot.upscaledUrl || slot.upscaleLoading) ? '52%' : 5, display: 'flex', gap: 3, zIndex: 2 }}>
-                      {slot.analysis.dominantColors.slice(0, 4).map((c, i) => (
-                        <div key={i} title={c} style={{ width: 11, height: 11, borderRadius: 3, background: c, border: '1px solid rgba(255,255,255,0.4)' }} />
-                      ))}
-                    </div>
-                  )}
-                  {/* Confidence */}
-                  {slot.analysis?.confidence && (
-                    <div style={{ position: 'absolute', bottom: 5, right: 5, fontSize: 8, color: 'rgba(255,255,255,0.7)', background: 'rgba(0,0,0,0.4)', padding: '1px 4px', borderRadius: 3, zIndex: 2 }}>
-                      {slot.analysis.confidence}%
-                    </div>
-                  )}
-                </div>
-              ) : (
+                    {/* Right part: Upscaled / Preprocessed image or Loader */}
+                    {isSplit && (
+                      <div 
+                        onClick={() => (slot.upscaledUrl || slot.preprocessedUrl) && setComparisonSlotId(slot.id)}
+                        style={{ 
+                          position: 'relative', 
+                          width: '50%', 
+                          height: '100%', 
+                          background: 'var(--bg2)',
+                          cursor: (slot.upscaledUrl || slot.preprocessedUrl) ? 'zoom-in' : 'default'
+                        }}
+                      >
+                        {hasUpscale ? (
+                          slot.upscaleLoading ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 6 }}>
+                              <div style={{ width: 16, height: 16, border: '2px solid rgba(139,92,246,0.2)', borderTopColor: '#8b5cf6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                              <span style={{ fontSize: 8, color: 'var(--text-muted)', textAlign: 'center' }}>Javítás...</span>
+                            </div>
+                          ) : slot.upscaledUrl ? (
+                            <>
+                              <img
+                                src={fixImageUrl(slot.upscaledUrl)}
+                                alt="Feljavított kép"
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                              <div style={{ position: 'absolute', bottom: 4, left: 4, padding: '2px 4px', background: 'rgba(34,197,94,0.85)', borderRadius: 3, fontSize: 8, color: '#fff', fontWeight: 600, zIndex: 3 }}>
+                                ✨ Javított
+                              </div>
+                            </>
+                          ) : null
+                        ) : (
+                          slot.preprocessLoading ? (
+                            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', gap: 6 }}>
+                              <div style={{ width: 16, height: 16, border: '2px solid rgba(139,92,246,0.2)', borderTopColor: '#8b5cf6', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                              <span style={{ fontSize: 8, color: 'var(--text-muted)', textAlign: 'center' }}>Vágás...</span>
+                            </div>
+                          ) : slot.preprocessedUrl ? (
+                            <>
+                              <img
+                                src={fixImageUrl(slot.preprocessedUrl)}
+                                alt="Háttér nélküli kép"
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+                              />
+                              <div style={{ position: 'absolute', bottom: 4, left: 4, padding: '2px 4px', background: 'rgba(139,92,246,0.85)', borderRadius: 3, fontSize: 8, color: '#fff', fontWeight: 600, zIndex: 3 }}>
+                                ✂️ Levágott
+                              </div>
+                            </>
+                          ) : null
+                        )}
+                      </div>
+                    )}
+
+                    {slot.locked && (
+                      <div style={{ position: 'absolute', top: 5, left: 5, padding: '2px 6px', background: 'rgba(239,68,68,0.88)', borderRadius: 4, fontSize: 9, fontWeight: 700, color: '#fff', zIndex: 2 }}>
+                        🔒 RÖGZÍTETT
+                      </div>
+                    )}
+                    {slot.analysis && (
+                      <div style={{
+                        position: 'absolute', top: 5, right: 5, padding: '2px 6px',
+                        background: `${IMAGE_TYPE_COLORS[slot.analysis.imageType]}cc`,
+                        borderRadius: 4, fontSize: 9, fontWeight: 700, color: '#fff', zIndex: 2
+                      }}>
+                        {IMAGE_TYPE_LABELS[slot.analysis.imageType]}
+                      </div>
+                    )}
+                    {slot.analysis?.dominantColors && slot.analysis.dominantColors.length > 0 && (
+                      <div style={{ position: 'absolute', bottom: 5, left: isSplit ? '52%' : 5, display: 'flex', gap: 3, zIndex: 2 }}>
+                        {slot.analysis.dominantColors.slice(0, 4).map((c, i) => (
+                          <div key={i} title={c} style={{ width: 11, height: 11, borderRadius: 3, background: c, border: '1px solid rgba(255,255,255,0.4)' }} />
+                        ))}
+                      </div>
+                    )}
+                    {/* Confidence */}
+                    {slot.analysis?.confidence && (
+                      <div style={{ position: 'absolute', bottom: 5, right: 5, fontSize: 8, color: 'rgba(255,255,255,0.7)', background: 'rgba(0,0,0,0.4)', padding: '1px 4px', borderRadius: 3, zIndex: 2 }}>
+                        {slot.analysis.confidence}%
+                      </div>
+                    )}
+                  </div>
+                );
+              })() : (
                 <label style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', height: '100%', cursor: 'pointer', gap: 6, color: 'var(--text-muted)' }}>
                   <span style={{ fontSize: 22 }}>📎</span>
                   <span style={{ fontSize: 9 }}>Húzd vagy kattints</span>
@@ -707,6 +977,51 @@ export default function ImageSlotUploader({
                   {Object.entries(ROLE_LABELS).map(([v, l]) => <option key={v} value={v}>{l}</option>)}
                 </select>
               </div>
+              {/* Manual background removal button */}
+              {(slot.rawBase64 || slot.originalUrl) && (
+                <div style={{ marginTop: 8 }}>
+                  <button
+                    onClick={() => triggerBackgroundRemoval(slot.id)}
+                    disabled={disabled || slot.preprocessLoading || slot.upscaleLoading || slot.analysisLoading}
+                    style={{
+                      width: '100%',
+                      padding: '5px 8px',
+                      background: slot.preprocessedUrl 
+                        ? 'rgba(34,197,94,0.06)' 
+                        : slot.preprocessLoading 
+                          ? 'rgba(139,92,246,0.04)' 
+                          : 'rgba(139,92,246,0.1)',
+                      border: `1px solid ${
+                        slot.preprocessedUrl 
+                          ? 'rgba(34,197,94,0.3)' 
+                          : 'rgba(139,92,246,0.25)'
+                      }`,
+                      borderRadius: 6,
+                      color: slot.preprocessedUrl ? '#22c55e' : '#a78bfa',
+                      fontSize: 10,
+                      fontWeight: 600,
+                      cursor: (disabled || slot.preprocessLoading) ? 'not-allowed' : 'pointer',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 5,
+                      transition: 'all 0.15s'
+                    }}
+                  >
+                    {slot.preprocessLoading ? (
+                      <>
+                        <div style={{ width: 10, height: 10, border: '1.5px solid rgba(167,139,250,0.2)', borderTopColor: '#a78bfa', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                        Háttérlevétel folyamatban...
+                      </>
+                    ) : slot.preprocessedUrl ? (
+                      <>✓ Háttér eltávolítva (rembg)</>
+                    ) : (
+                      <>✂️ Háttér eltávolítása manuálisan</>
+                    )}
+                  </button>
+                </div>
+              )}
+
               {/* Manual upscale button */}
               {slot.originalUrl && (
                 <div style={{ marginTop: 8 }}>
@@ -716,18 +1031,22 @@ export default function ImageSlotUploader({
                     style={{
                       width: '100%',
                       padding: '5px 8px',
-                      background: slot.upscaledUrl 
-                        ? 'rgba(34,197,94,0.06)' 
-                        : slot.upscaleLoading 
-                          ? 'rgba(139,92,246,0.04)' 
-                          : 'rgba(139,92,246,0.1)',
+                      background: slot.upscaledUrl
+                        ? 'rgba(34,197,94,0.06)'
+                        : slot.upscaleLoading
+                          ? 'rgba(139,92,246,0.04)'
+                          : slot.suggestUpscale
+                            ? 'rgba(245,158,11,0.08)'
+                            : 'rgba(139,92,246,0.1)',
                       border: `1px solid ${
-                        slot.upscaledUrl 
-                          ? 'rgba(34,197,94,0.3)' 
-                          : 'rgba(139,92,246,0.25)'
+                        slot.upscaledUrl
+                          ? 'rgba(34,197,94,0.3)'
+                          : slot.suggestUpscale
+                            ? 'rgba(245,158,11,0.5)'
+                            : 'rgba(139,92,246,0.25)'
                       }`,
                       borderRadius: 6,
-                      color: slot.upscaledUrl ? '#22c55e' : '#a78bfa',
+                      color: slot.upscaledUrl ? '#22c55e' : slot.suggestUpscale ? '#f59e0b' : '#a78bfa',
                       fontSize: 10,
                       fontWeight: 600,
                       cursor: (disabled || slot.upscaleLoading) ? 'not-allowed' : 'pointer',
@@ -745,6 +1064,8 @@ export default function ImageSlotUploader({
                       </>
                     ) : slot.upscaledUrl ? (
                       <>✓ Feljavítva (DRCT 4x)</>
+                    ) : slot.suggestUpscale ? (
+                      <>⚡ Kép feljavítása ajánlott — kattints itt</>
                     ) : (
                       <>✨ Kép feljavítása manuálisan</>
                     )}
@@ -816,7 +1137,10 @@ export default function ImageSlotUploader({
       {/* Large Comparison Modal / Lightbox */}
       {comparisonSlotId && (() => {
         const slot = slots.find(s => s.id === comparisonSlotId);
-        if (!slot || !slot.upscaledUrl) return null;
+        if (!slot) return null;
+        const hasUpscale = !!slot.upscaledUrl;
+        const hasPreprocess = !!slot.preprocessedUrl;
+        if (!hasUpscale && !hasPreprocess) return null;
 
         return createPortal(
           <div 
@@ -851,7 +1175,7 @@ export default function ImageSlotUploader({
               <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '16px 24px', borderBottom: '1px solid var(--border)' }}>
                 <div>
                   <h3 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>
-                    🔍 Kép felbontás összehasonlítás {isZoomed ? '• Görgess a nagyításhoz, húzd a mozgatáshoz' : '(kattints a képre a belenagyításhoz)'}
+                    🔍 {hasUpscale ? 'Kép felbontás összehasonlítás' : 'Háttér eltávolítás összehasonlítás'} {isZoomed ? '• Görgess a nagyításhoz, húzd a mozgatáshoz' : '(kattints a képre a belenagyításhoz)'}
                   </h3>
                   <span style={{ fontSize: 11, color: 'var(--text-muted)' }}>{slot.fileName}</span>
                 </div>
@@ -870,37 +1194,37 @@ export default function ImageSlotUploader({
 
               {/* Body */}
               <div style={{ display: 'flex', gap: 20, padding: 24, overflowY: 'auto', flex: 1 }}>
-                {/* Left Pane (Original) */}
+                {/* Left Pane */}
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-dim)' }}>
-                      Eredeti / Előfeldolgozott kép
+                      {hasUpscale ? 'Eredeti / Előfeldolgozott kép' : 'Eredeti kép'}
                     </span>
                     <span style={{ fontSize: 10.5, padding: '2px 8px', background: 'rgba(255,255,255,0.06)', borderRadius: 4, color: 'var(--text-muted)' }}>
-                      Nincs feljavítva
+                      {hasUpscale ? 'Nincs feljavítva' : 'Eredeti háttérrel'}
                     </span>
                   </div>
                   <PanZoomImage
-                    src={slot.preprocessedUrl || slot.rawBase64}
+                    src={hasUpscale ? (fixImageUrl(slot.preprocessedUrl) || slot.rawBase64) : (fixImageUrl(slot.originalUrl) || slot.rawBase64)}
                     alt="Eredeti kép"
                     isZoomed={isZoomed}
                     onToggleZoom={() => setIsZoomed(!isZoomed)}
                   />
                 </div>
 
-                {/* Right Pane (Upscaled) */}
+                {/* Right Pane */}
                 <div style={{ flex: 1, display: 'flex', flexDirection: 'column', gap: 10 }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: '#22c55e' }}>
-                      ✨ Feljavított (DRCT 4x)
+                    <span style={{ fontSize: 13, fontWeight: 700, color: hasUpscale ? '#22c55e' : '#a78bfa' }}>
+                      {hasUpscale ? '✨ Feljavított (DRCT 4x)' : '✂️ Levágott kép (rembg)'}
                     </span>
-                    <span style={{ fontSize: 10.5, padding: '2px 8px', background: 'rgba(34,197,94,0.15)', borderRadius: 4, color: '#22c55e', fontWeight: 600 }}>
-                      Nagy felbontás + megtartott élek
+                    <span style={{ fontSize: 10.5, padding: '2px 8px', background: hasUpscale ? 'rgba(34,197,94,0.15)' : 'rgba(167,139,250,0.15)', borderRadius: 4, color: hasUpscale ? '#22c55e' : '#c4b5fd', fontWeight: 600 }}>
+                      {hasUpscale ? 'Nagy felbontás + megtartott élek' : 'Háttér sikeresen eltávolítva'}
                     </span>
                   </div>
                   <PanZoomImage
-                    src={slot.upscaledUrl}
-                    alt="Feljavított kép"
+                    src={hasUpscale ? fixImageUrl(slot.upscaledUrl)! : fixImageUrl(slot.preprocessedUrl)!}
+                    alt="Feldolgozott kép"
                     isZoomed={isZoomed}
                     onToggleZoom={() => setIsZoomed(!isZoomed)}
                   />
@@ -968,6 +1292,8 @@ export function buildCompositePayload(slots: ImageSlot[], scenePrompt: string, b
         role: s.role,
         locked: s.locked,
         analysis: s.analysis,
+        // Pass lightingAnalysis separately at top level for easy backend access
+        lightingAnalysis: s.analysis?.lightingAnalysis ?? null,
         userEditedDescription: finalDesc,
       };
     }),

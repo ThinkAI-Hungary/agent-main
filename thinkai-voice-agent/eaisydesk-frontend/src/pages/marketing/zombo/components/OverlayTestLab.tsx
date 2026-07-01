@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { type BrandKit, fixImageUrl } from '../types';
+import { type BrandKit, fixImageUrl, getBackendUrl } from '../types';
 import { 
   Layers, Play, Cpu, Brain, Layers3, ChevronDown, ChevronUp, Copy, Check, 
   Settings, X, Save, Plus, Trash, Upload, Sliders, Type, Image as ImageIcon, 
@@ -101,7 +101,7 @@ export const OverlayTestLab: React.FC<OverlayTestLabProps> = ({ activeBrandKit }
     try {
       setLogs(prev => [...prev, `[${timestamp}] [AI] Claude megtervezi a layout variánsokat (${variantCount} db brief alapján)...`]);
       
-      const response = await fetch('http://localhost:3001/api/overlay/generate', {
+      const response = await fetch(`${getBackendUrl()}/api/overlay/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -346,7 +346,7 @@ export const OverlayTestLab: React.FC<OverlayTestLabProps> = ({ activeBrandKit }
       reader.onload = async () => {
         const base64Data = reader.result as string;
         
-        const response = await fetch('http://localhost:3001/api/image/preprocess', {
+        const response = await fetch(`${getBackendUrl()}/api/image/preprocess`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ image: base64Data })
@@ -386,7 +386,7 @@ export const OverlayTestLab: React.FC<OverlayTestLabProps> = ({ activeBrandKit }
     if (editingIdx === null || !editingLayout) return;
     setIsUpdatingRender(true);
     try {
-      const response = await fetch('http://localhost:3001/api/render-polotno', {
+      const response = await fetch(`${getBackendUrl()}/api/render-polotno`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ layoutJson: editingLayout })

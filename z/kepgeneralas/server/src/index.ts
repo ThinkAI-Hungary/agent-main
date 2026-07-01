@@ -18,7 +18,7 @@ import {
 import { renderPost, renderPolotnoJSON } from './renderer.js';
 import { runOverlayPipeline } from './generator/pipeline.js';
 import { BrandKit, PostCreative, Campaign, CampaignItem } from './types.js';
-import { uploadToFal, removeBackground, compositeProduct, harmonizeImage, applyLowResMaskToUpscaled } from './compositor.js';
+import { uploadToFal, removeBackground, compositeProduct, harmonizeImage, applyLowResMaskToUpscaled, localUpscale } from './compositor.js';
 import fs from 'fs';
 import sharp from 'sharp';
 // OpenAI import removed — using Bria Product Shot via fal.ai
@@ -64,57 +64,13 @@ async function generateWithFluxFlex(
   prompt: string,
   width: number,
   height: number,
-  opts?: { safetyTolerance?: number; guidance?: number; steps?: number; aspectRatio?: string; inputImage?: string; inputImage2?: string; backgroundPrompt?: string }
+  opts?: { safetyTolerance?: number; guidance?: number; steps?: number; aspectRatio?: string; inputImage?: string; inputImage2?: string; backgroundPrompt?: string; forceFlex?: boolean }
 ): Promise<{ imageUrl: string; model: string; generationTime: number }> {
   const bflKey = process.env.BFL_API_KEY;
   if (!bflKey) throw new Error('BFL_API_KEY is not configured in .env');
 
-  if (opts?.inputImage) {
-    console.log(`[BFL-ROUTER] Input image present. Routing to Bria Product Shot for pixel-perfect integration.`);
-    const startBria = Date.now();
-    try {
-      const briaImageUrl = (opts.inputImage2 && opts.inputImage2 !== opts.inputImage && (opts.inputImage2.includes('preprocessed') || opts.inputImage2.includes('fal.media')))
-        ? opts.inputImage2
-        : opts.inputImage;
-
-      console.log(`[BFL-ROUTER] Calling Bria Product Shot with image: ${briaImageUrl.substring(0, 80)}...`);
-      const briaResponse = await axios.post(
-        'https://fal.run/fal-ai/bria/product-shot',
-        {
-          image_url: briaImageUrl,
-          scene_description: prompt,
-          placement_type: 'automatic',
-          optimize_description: true,
-          num_results: 1,
-        },
-        {
-          headers: {
-            'Authorization': `Key ${process.env.FAL_KEY}`,
-            'Content-Type': 'application/json',
-          },
-          timeout: 120000,
-        }
-      );
-
-      const imageUrl = briaResponse.data?.images?.[0]?.url || briaResponse.data?.image?.url || '';
-      if (!imageUrl) throw new Error('No image URL returned from Bria Product Shot');
-
-      const totalTime = Number(((Date.now() - startBria) / 1000).toFixed(1));
-      console.log(`[BFL-ROUTER] Bria Product Shot success in ${totalTime}s → ${imageUrl}`);
-      return {
-        imageUrl,
-        model: 'Bria Product Shot',
-        generationTime: totalTime
-      };
-    } catch (briaErr: any) {
-      const detail = briaErr.response?.data?.detail || '';
-      console.error(`[BFL-ROUTER] Bria Product Shot failed: ${briaErr.message}. Detail: ${JSON.stringify(briaErr.response?.data || {})}`);
-      if (detail.includes('Exhausted balance') || detail.includes('User is locked') || briaErr.response?.status === 403) {
-        throw new Error(`FAL_KEY egyenleg elfogyott vagy zárolva van. Kérjük, töltsd fel az egyenlegedet a fal.ai oldalon! Részlet: ${detail}`);
-      }
-      console.log(`[BFL-ROUTER] Falling back to standard direct BFL Flex.`);
-    }
-  }
+  // Bypassed Bria Product Shot (Fal.ai) as per user request to avoid Fal.ai dependency entirely.
+  // All image generations with reference images will route directly to BFL Direct API (Flux Flex).
 
   // Hybrid Compositing & Harmonization pipeline bypassed as per user request.
   // Standard single-pass BFL Flex generation will be used to ensure natural shadows, lighting, and reflections.
@@ -123,9 +79,9 @@ async function generateWithFluxFlex(
   const containsText = promptContainsTextRequest(prompt);
 
   // Router logic:
-  // Route to Flex (Direction A) if there is an input reference image OR if the prompt contains a text generation request.
+  // Route to Flex (Direction A) if: reference image present, prompt has text request, OR forceFlex is set.
   // Otherwise, route to FLUX 1.1 Pro (Direction B) for flagship quality at a flat-rate $0.04.
-  const isFlex = hasReferenceImage || containsText;
+  const isFlex = hasReferenceImage || containsText || !!(opts?.forceFlex);
   const endpoint = isFlex ? 'https://api.bfl.ai/v1/flux-2-flex' : 'https://api.bfl.ai/v1/flux-pro-1.1';
   const modelName = isFlex ? 'FLUX.2 Flex' : 'FLUX 1.1 Pro';
 
@@ -157,9 +113,9 @@ async function generateWithFluxFlex(
     payload.height = height;
 
     if (opts?.inputImage) {
-      payload.input_image = opts.inputImage;
+      payload.input_image = imageToBflInput(opts.inputImage);
       if (opts.inputImage2) {
-        payload.input_image_2 = opts.inputImage2;
+        payload.input_image_2 = imageToBflInput(opts.inputImage2);
       }
     }
   } else {
@@ -170,15 +126,32 @@ async function generateWithFluxFlex(
     console.log(`[BFL-ROUTER] Clamped Pro dimensions: original ${width}x${height} -> clamped ${clamped.width}x${clamped.height}`);
   }
 
-  // Step 1: Submit generation task
-  const submitResponse = await axios.post(
-    endpoint,
-    payload,
-    {
-      headers: { 'X-Key': bflKey, 'Content-Type': 'application/json' },
-      timeout: 30000,
+  // Step 1: Submit generation task — with retry for transient network errors (ETIMEDOUT etc.)
+  let submitResponse: any;
+  const maxSubmitAttempts = 3;
+  for (let attempt = 1; attempt <= maxSubmitAttempts; attempt++) {
+    try {
+      submitResponse = await axios.post(
+        endpoint,
+        payload,
+        {
+          headers: { 'X-Key': bflKey, 'Content-Type': 'application/json' },
+          timeout: 35000,
+        }
+      );
+      break; // success — exit retry loop
+    } catch (err: any) {
+      const isRetryable = ['ETIMEDOUT', 'ECONNRESET', 'ECONNREFUSED', 'ENOTFOUND'].includes(err.code)
+        || (err.response?.status >= 500);
+      if (isRetryable && attempt < maxSubmitAttempts) {
+        const delayMs = attempt * 3000;
+        console.warn(`[BFL-ROUTER] Attempt ${attempt}/${maxSubmitAttempts} failed (${err.code || err.response?.status}). Retrying in ${delayMs/1000}s...`);
+        await new Promise(r => setTimeout(r, delayMs));
+      } else {
+        throw err; // non-retryable or last attempt — rethrow
+      }
     }
-  );
+  }
 
   const taskId = submitResponse.data?.id;
   const pollingUrl = submitResponse.data?.polling_url;
@@ -258,6 +231,49 @@ app.use(express.json({ limit: '50mb' }));
 // Serve static rendered images
 const rendersDir = path.resolve(__dirname, '../renders');
 app.use('/renders', express.static(rendersDir));
+
+function imageToBflInput(imageUrl: string | undefined): string | undefined {
+  if (!imageUrl) return undefined;
+  
+  if (imageUrl.startsWith('data:image/') || imageUrl.startsWith('data:application/')) {
+    return imageUrl;
+  }
+  
+  if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
+    if (imageUrl.includes('/renders/')) {
+      const parts = imageUrl.split('/renders/');
+      const filename = parts[parts.length - 1];
+      const filePath = path.join(rendersDir, filename);
+      if (fs.existsSync(filePath)) {
+        console.log(`[BFL-BASE64] Converting localhost URL ${imageUrl} to base64`);
+        const buffer = fs.readFileSync(filePath);
+        return buffer.toString('base64');
+      }
+    }
+    return imageUrl;
+  }
+  
+  if (imageUrl.startsWith('/renders/') || imageUrl.startsWith('renders/')) {
+    const filename = path.basename(imageUrl);
+    const filePath = path.join(rendersDir, filename);
+    if (fs.existsSync(filePath)) {
+      console.log(`[BFL-BASE64] Converting relative URL ${imageUrl} to base64`);
+      const buffer = fs.readFileSync(filePath);
+      return buffer.toString('base64');
+    }
+  }
+
+  try {
+    const absPath = path.resolve(imageUrl);
+    if (fs.existsSync(absPath)) {
+      console.log(`[BFL-BASE64] Converting local path ${imageUrl} to base64`);
+      const buffer = fs.readFileSync(absPath);
+      return buffer.toString('base64');
+    }
+  } catch {}
+
+  return imageUrl;
+}
 
 // Route 1: Scrape website and extract Brand Kit (v1)
 app.post('/api/extract', async (req, res) => {
@@ -549,9 +565,44 @@ async function fetchImageAsClaudeBlock(imageUrl: string): Promise<{
     data: string;
   };
 }> {
-  console.log(`[IMAGE-FETCH] Fetching image from URL: ${imageUrl}`);
-  const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 15000 });
-  const rawBuffer = Buffer.from(imageResponse.data);
+  console.log(`[IMAGE-FETCH] Fetching image from URL/path: ${imageUrl}`);
+  
+  let rawBuffer: Buffer;
+  
+  // Detect local relative renders paths, local paths, or relative paths
+  if (imageUrl.startsWith('/renders/') || imageUrl.startsWith('renders/') || (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://') && !imageUrl.startsWith('data:'))) {
+    const filename = path.basename(imageUrl);
+    const filePath = path.join(rendersDir, filename);
+    if (fs.existsSync(filePath)) {
+      console.log(`[IMAGE-FETCH] Reading local file directly from: ${filePath}`);
+      rawBuffer = fs.readFileSync(filePath);
+    } else {
+      const absPath = path.resolve(imageUrl);
+      if (fs.existsSync(absPath)) {
+        console.log(`[IMAGE-FETCH] Reading local file directly from absolute path: ${absPath}`);
+        rawBuffer = fs.readFileSync(absPath);
+      } else {
+        throw new Error(`Local image file not found at: ${filePath} or ${absPath}`);
+      }
+    }
+  } else {
+    // If it's a localhost URL, extract filename and read from rendersDir directly to avoid network loopback issues
+    if (imageUrl.includes('/renders/')) {
+      const parts = imageUrl.split('/renders/');
+      const filename = parts[parts.length - 1];
+      const filePath = path.join(rendersDir, filename);
+      if (fs.existsSync(filePath)) {
+        console.log(`[IMAGE-FETCH] Detected localhost/renders URL. Reading directly from: ${filePath}`);
+        rawBuffer = fs.readFileSync(filePath);
+      } else {
+        const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 15000 });
+        rawBuffer = Buffer.from(imageResponse.data);
+      }
+    } else {
+      const imageResponse = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 15000 });
+      rawBuffer = Buffer.from(imageResponse.data);
+    }
+  }
   
   console.log(`[IMAGE-FETCH] Original size: ${(rawBuffer.length / 1024).toFixed(1)} KB. Processing with sharp...`);
   
@@ -646,24 +697,30 @@ async function intelligentComposePrompt(
 Inputs:
 - User's scene description (in Hungarian or English): "${scenePrompt}"
 - Foreground subjects: ${JSON.stringify(slotSubjects)}
-- Brand rules: ${JSON.stringify(brandRules)}
+- Brand rules (SECONDARY — only use if user didn't specify): ${JSON.stringify(brandRules)}
+
+PRIORITY RULE: The user's scene description is the MASTER. It always wins over brand rules.
+- If the user specifies lighting (e.g. "overhead spotlight") — use that lighting, NOT the brand default.
+- If the user specifies mood (e.g. "messy", "dark", "kupi/cluttered") — KEEP that mood exactly, do not sanitize it to "clean studio".
+- If the user specifies a location — use that location, do not replace it with a generic one.
+- Brand rules only fill in aspects the user DID NOT mention (e.g. if user said nothing about style, then apply brand style).
 
 CRITICAL RULES:
 1. REMOVE ALL BRAND NAMES, TRADEMARKS, COMPANY NAMES, AND MODEL DESIGNATIONS (e.g. Audi, BMW, Mercedes, Poli-Farbe, PoliFarbe, A8, etc.). Replace them with high-quality generic equivalents (e.g. "luxury sedan car" instead of "Audi car", "bucket of paint" instead of "Poli-Farbe paint").
-2. INTEGRATE THE SUBJECTS NATURALLY. Instead of just listing "featuring a car and a paint bucket", describe how they are arranged. For example, if the scene prompt implies paint on/with a car, describe the paint bucket sitting on the roof or next to the car with natural integration, and describe the scene elements (beach, sunset, road etc.).
-3. KEEP THE FOREGROUND OBJECTS FULLY IN FRAME & DOMINANT. Specify that the foreground subjects (such as the luxury sedan car, the paint bucket, etc.) must dominate the image, be fully visible within the frame, well-composed, and never cropped out, cut off, or clipped at the borders of the image. Always describe them as fully in frame and dominating the scene (e.g. "the entire car is fully visible in the frame, dominating the composition", "the paint bucket is shown completely without being cut off, placed prominently").
-4. ENSURE SHARP AND LEGIBLE TEXT/LABELS WITH REAL UTF-8 CHARACTERS. If any foreground subject contains text, writing, labels, or logos (such as a paint bucket label), describe the text/label as extremely sharp, clear, high-contrast, and 100% legible, matching the hyper-realistic photographic quality of the rest of the image. Specifically instruct the generator that the text must be rendered using standard, existing UTF-8 characters and actual typography, with clean letterforms and crisp, well-defined glyphs. Specify that no character should ever appear as a blob, spot, abstract shape, or distorted artifact (paca), and that all text must be perfectly spelled and readable.
+2. INTEGRATE ALL SUBJECTS TOGETHER IN ONE SCENE. You MUST describe the exact physical relationship between every subject. Do NOT place them separately or independently in the scene. If there is a car and a paint bucket, the paint bucket must be placed directly on, in, or immediately next to the car (e.g. "a white paint bucket sitting on the car hood", "a paint bucket leaning against the car door"). If there is a product and a person, the person must be interacting with or holding the product. Every subject must share the same scene, the same ground plane, the same light source. Never describe them as separate elements in different locations.
+3. EVERY SUBJECT MUST BE 100% FULLY INSIDE THE FRAME — NO EXCEPTIONS. This is the most critical rule. You MUST explicitly state in the prompt that every single subject is completely contained within the image boundaries. Use phrases like: "entire vehicle fully visible from front bumper to rear bumper, all four wheels on the ground, no part of the car is cut off or outside the frame", "the paint bucket is shown in its entirety, completely within the frame". If the composition requires a wide shot to show everything, describe a wide-angle or pulled-back camera position. Never describe a close-up if it risks cutting off any subject.
+4. DO NOT REPRODUCE OR ADD TEXT unless the subject clearly has existing text on it. If any foreground subject has text on it (label, logo), describe it as "existing label visible, kept intact and legible". Do NOT invent new text. Do NOT describe re-generating or re-spelling any text. If the scene prompt explicitly suppresses text (no_text), instruct the generator to keep all surfaces clean and text-free.
 5. DO NOT output split-screen, multiple panels, or collages. The prompt must describe a single unified photo or scene.
-6. Output ONLY the composed English prompt. Do not write markdown, code blocks, or explanations.`;
+6. Output ONLY the composed English prompt. Maximum 120 words. Do not write markdown, code blocks, or explanations.`;
 
   try {
     const model = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
     const response = await anthropic.messages.create({
       model,
-      max_tokens: 600,
-      temperature: 0.3,
+      max_tokens: 800,
+      temperature: 0.2,
       system: systemPrompt,
-      messages: [{ role: 'user', content: [{ type: 'text', text: `Compose the final prompt.` }] }]
+      messages: [{ role: 'user', content: [{ type: 'text', text: `Compose the final prompt following ALL rules strictly. Rule 3 (everything fully in frame) and Rule 2 (subjects integrated together) are mandatory — do not skip them.` }] }]
     });
 
     const result = (response.content[0].type === 'text' ? response.content[0].text : '').trim() || '';
@@ -675,7 +732,278 @@ CRITICAL RULES:
   }
 }
 
+// ── Prompt Decomposer ────────────────────────────────────────────────────────
+// Splits the user's raw input into:
+//   - scenePrompt: visual/environmental instructions for FLUX (no promo text)
+//   - layerText:   promotional/headline text for the overlay layer (e.g. "30% KEDVEZMÉNY")
+//   - layerCta:    optional CTA button text (e.g. "VÁSÁROLJ MOST")
+async function decomposeUserPrompt(
+  rawPrompt: string,
+  imageSubjects: string[],
+  brandDna?: string
+): Promise<{ scenePrompt: string; layerText: string | null; layerCta: string | null }> {
+  const systemPrompt = `You are a social media post production AI. Your job is to split a user's raw creative brief into two separate parts:
+
+1. SCENE PROMPT (for AI image generation):
+   - Describes the physical scene, setting, lighting, atmosphere, composition
+   - MUST NOT contain any promotional text, discounts, percentages, prices, or calls-to-action
+   - MUST NOT contain any text that would appear written/overlaid on the image
+   - Keep only: location, lighting, mood, style, product positioning
+   - CRITICAL: PRESERVE all atmosphere/mood descriptors exactly as-is, even informal ones:
+     * "kicsit kupi" → keep as "slightly cluttered/messy" in the scene prompt
+     * "sötét" → keep as "dark"
+     * "hangulatos" → keep as "moody/atmospheric"
+     * "szakadt" → keep as "worn/industrial"
+     * Do NOT upgrade "messy workshop" into "clean professional studio" — keep the requested mood!
+
+2. LAYER TEXT (for graphic overlay):
+   - Short promotional headline or offer text (max 5 words, UPPERCASE in Hungarian)
+   - Examples: "30% KEDVEZMÉNY", "NYÁRI AKCIÓ", "ÚJ TERMÉK", "KORLÁTOZOTT AJÁNLAT"
+   - If the raw prompt contains NO promotional/offer/discount content → return null
+   - This text will be rendered as a graphic layer ON TOP of the image
+
+3. LAYER CTA (optional button text):
+   - Short call-to-action for a button (max 3 words, UPPERCASE in Hungarian)
+   - Examples: "VÁSÁROLJ MOST", "MEGNÉZEM", "RENDELD MEG"
+   - Only include if the content clearly calls for user action
+   - If not applicable → return null
+
+User input: "${rawPrompt}"
+Image subjects: ${JSON.stringify(imageSubjects)}
+Brand DNA context: ${brandDna || 'not provided'}
+
+Return ONLY a JSON object with this exact structure (no markdown, no explanation):
+{
+  "scenePrompt": "...",
+  "layerText": "..." or null,
+  "layerCta": "..." or null
+}`;
+
+  try {
+    const model = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+    const response = await anthropic.messages.create({
+      model,
+      max_tokens: 400,
+      temperature: 0.1,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: 'Decompose the user prompt now.' }]
+    });
+    const text = response.content[0].type === 'text' ? response.content[0].text : '';
+    const cleaned = extractJsonStr(text);
+    const parsed = JSON.parse(cleaned);
+    console.log(`[DECOMPOSE] scenePrompt: "${parsed.scenePrompt}" | layerText: ${parsed.layerText} | layerCta: ${parsed.layerCta}`);
+    return {
+      scenePrompt: parsed.scenePrompt || rawPrompt,
+      layerText: parsed.layerText || null,
+      layerCta: parsed.layerCta || null,
+    };
+  } catch (err: any) {
+    console.error('[DECOMPOSE] Claude error:', err.message);
+    return { scenePrompt: rawPrompt, layerText: null, layerCta: null };
+  }
+}
+
+// ── Layer Selector ────────────────────────────────────────────────────────────
+// After image generation, Claude Vision analyzes the image and selects the
+// best-fitting layer template based on visual properties — NOT keyword matching.
+const LAYER_TEMPLATE_DESCRIPTIONS = [
+  { id: 'bold-headline',    name: 'Bold Headline',    bestUsedFor: 'Dark gradient at bottom, large inspirational text, dramatic scenes, wide compositions' },
+  { id: 'product-callout',  name: 'Termék Kiemelő',   bestUsedFor: 'Product clearly visible, needs price/badge + CTA button, balanced composition' },
+  { id: 'promo-badge',      name: 'Promo Badge',      bestUsedFor: 'Discount/offer/percentage, corner of image is free, image has clear focal product' },
+  { id: 'quote',            name: 'Idézet',           bestUsedFor: 'Atmospheric/lifestyle image, lots of free space, inspirational or emotional tone' },
+  { id: 'testimonial',      name: 'Vélemény',         bestUsedFor: 'Real product photo, credibility-focused content, social proof needed' },
+  { id: 'universal',        name: 'Univerzális',      bestUsedFor: 'Neutral default that works with any image, mixed or unclear content type' },
+  { id: 'none',             name: 'Nincs Layer',      bestUsedFor: 'Clean product photo that should stand alone, no text overlay needed' },
+];
+
+async function selectBestLayerTemplate(
+  imageUrl: string,
+  hasLayerText: boolean,
+  brandTone?: string[],
+  brandVisualRules?: string[]
+): Promise<{ templateId: string; reason: string; confidence: number }> {
+  console.log(`[LAYER-SELECT] Analyzing image for best layer template...`);
+  try {
+    const imageBlock = await fetchImageAsClaudeBlock(imageUrl);
+    const templateList = LAYER_TEMPLATE_DESCRIPTIONS.map(t => `- "${t.id}": ${t.bestUsedFor}`).join('\n');
+
+    const systemPrompt = `You are a social media art director AI. Analyze the provided image and select the single best layer/overlay template for it.
+
+Available templates:
+${templateList}
+
+Context:
+- Has promotional text to show: ${hasLayerText}
+- Brand tone: ${brandTone?.join(', ') || 'not specified'}
+- Brand visual rules: ${brandVisualRules?.join(', ') || 'not specified'}
+
+Selection rules:
+1. If hasLayerText=false AND the image looks clean/complete → prefer "none"
+2. If hasLayerText=true AND image has a dark/moody corner → consider "promo-badge"
+3. If hasLayerText=true AND image has space below or above product → consider "product-callout" or "bold-headline"
+4. Choose based on VISUAL PROPERTIES of the image, not keywords
+5. Consider: image tone (dark/light), free space location, overall mood, product prominence
+
+Return ONLY JSON (no markdown):
+{
+  "templateId": "...",
+  "reason": "short English explanation",
+  "confidence": 0-100
+}`;
+
+    const model = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+    const response = await anthropic.messages.create({
+      model,
+      max_tokens: 300,
+      temperature: 0.1,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: [imageBlock, { type: 'text', text: 'Select the best layer template for this image.' }] }]
+    });
+
+    const text = response.content[0].type === 'text' ? response.content[0].text : '';
+    const cleaned = extractJsonStr(text);
+    const parsed = JSON.parse(cleaned);
+    console.log(`[LAYER-SELECT] Selected: "${parsed.templateId}" (${parsed.confidence}%) — ${parsed.reason}`);
+    return {
+      templateId: parsed.templateId || 'none',
+      reason: parsed.reason || '',
+      confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 70,
+    };
+  } catch (err: any) {
+    console.error('[LAYER-SELECT] Error:', err.message);
+    return { templateId: 'none', reason: 'fallback due to error', confidence: 0 };
+  }
+}
+
+// ── Scene Context Analyzer ────────────────────────────────────────────────────
+// After background generation, Claude Vision analyzes the scene and returns ALL
+// parameters needed for dynamic compositing. Nothing is hardcoded — every effect
+// (size, shadow, warm tint, rim darkening, specular) derives from this context.
+interface SceneContext {
+  // Surface placement
+  surfaceYPercent: number;          // 0-100: top edge of the surface where product base goes
+  surfaceDepthHint: 'close'|'mid'|'far'; // how far the surface extends into the scene
+  availableWidthPercent: number;    // 0-100: how much of image width is free on the surface
+
+  // Product scale (dynamically determined by scene objects and perspective)
+  recommendedScalePercent: number;  // product height as % of bg height (e.g. 35-55%)
+  recommendedXOffsetPercent: number;// -20..+20: shift product left/right from center
+
+  // Lighting
+  lightSourceXPercent: number;      // 0-100: horizontal position of main light
+  lightSourceYPercent: number;      // 0-100: vertical position (0=top, 50=mid)
+  lightTemperatureK: number;        // 2700=warm tungsten, 4000=neutral, 6500=cool daylight
+  lightIntensity: 'soft'|'medium'|'hard'; // determines specular highlight strength
+
+  // Environment
+  ambientDarkness: number;          // 0-100: how dark the background is (drives rim darkening)
+
+  // Meta
+  hasPerspective: boolean;
+  confidence: number;               // 0-100
+}
+
+async function analyzeSceneContext(imageUrl: string): Promise<SceneContext> {
+  const fallback: SceneContext = {
+    surfaceYPercent: 68, surfaceDepthHint: 'mid', availableWidthPercent: 80,
+    recommendedScalePercent: 38, recommendedXOffsetPercent: 0,
+    lightSourceXPercent: 50, lightSourceYPercent: 15, lightTemperatureK: 4000,
+    lightIntensity: 'medium', ambientDarkness: 50,
+    hasPerspective: false, confidence: 0
+  };
+  console.log(`[SCENE-ANALYZE] Analyzing background scene for dynamic compositing parameters...`);
+  try {
+    const imageBlock = await fetchImageAsClaudeBlock(imageUrl);
+    const model = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+    const response = await anthropic.messages.create({
+      model,
+      max_tokens: 400,
+      temperature: 0,
+      system: `You are a professional photo compositing assistant. Analyze the background image and return precise parameters for placing a physical product object into this scene.
+
+Return ONLY a JSON object with these exact fields (no markdown, no explanation):
+{
+  "surfaceYPercent": <number 52-85>,
+  "surfaceDepthHint": <"close"|"mid"|"far">,
+  "availableWidthPercent": <number 30-100>,
+  "recommendedScalePercent": <number 22-55>,
+  "recommendedXOffsetPercent": <number -20 to +20>,
+  "lightSourceXPercent": <number 0-100>,
+  "lightSourceYPercent": <number 0-100>,
+  "lightTemperatureK": <number 2700-6500>,
+  "lightIntensity": <"soft"|"medium"|"hard">,
+  "ambientDarkness": <number 0-100>,
+  "hasPerspective": <boolean>,
+  "confidence": <number 0-100>
+}
+
+FIELD DEFINITIONS:
+
+surfaceYPercent: The Y coordinate (as % of image height from top) of the TOP EDGE of the physical surface where a product would be PLACED and physically REST.
+  - This is where the product's BASE/FEET would TOUCH the surface from above.
+  - The surface is typically a table, workbench, shelf, counter, or floor.
+  - IMPORTANT: The surface is almost always in the LOWER HALF of the image (52-85%).
+  - DO NOT report as surface: the ceiling, the lamp or light fixture, the spotlight beam or cone, any lit area in mid-air, any vertical wall, anything in the upper 50% of the image.
+  - Look for the sharp horizontal edge where the table/workbench top meets the air above it.
+  - If unsure, return 68.
+
+surfaceDepthHint: "close" if the surface fills the lower 40%+ of image (large foreground table), "mid" if 20-40%, "far" if the surface is small/distant.
+
+availableWidthPercent: What % of the image width is unobstructed on the surface (0-100).
+
+recommendedScalePercent: What % of IMAGE HEIGHT should the product be to look naturally sized for this scene. Consider the scale of furniture/objects in the scene. For a typical workbench product photo: 30-45%.
+
+recommendedXOffsetPercent: Should the product shift left (negative) or right (positive) from center? -20 to +20.
+
+lightSourceXPercent: Horizontal position of main light (0=far left, 50=center, 100=far right).
+
+lightSourceYPercent: Vertical position of main light (0=ceiling/top, 50=mid-height, 100=below camera).
+
+lightTemperatureK: Estimated color temperature: 2700=warm orange tungsten, 3200=warm-neutral, 4000=neutral white, 5500=cool, 6500=daylight.
+
+lightIntensity: "soft" for diffuse/cloudy/ambient light, "medium" for standard room light, "hard" for direct spotlight/point source.
+
+ambientDarkness: Overall darkness of background: 0=bright white, 30=well-lit room, 60=dim/moody, 80=very dark workshop/night, 100=pitch black.
+
+hasPerspective: true if vanishing point lines are clearly visible.
+
+confidence: Your confidence in surfaceYPercent accuracy (0-100).`,
+      messages: [{ role: 'user', content: [imageBlock, { type: 'text', text: 'Analyze this background scene for product compositing parameters. Pay special attention to surfaceYPercent — find the physical table/workbench top edge, NOT the lamp or spotlight cone.' }] }]
+    });
+    const text = response.content[0].type === 'text' ? response.content[0].text : '';
+    const parsed = JSON.parse(extractJsonStr(text));
+
+    const result: SceneContext = {
+      surfaceYPercent:          Math.max(52, Math.min(85,  Number(parsed.surfaceYPercent)          || 68)),  // min 52%: surface never in upper half
+      surfaceDepthHint:         (['close','mid','far'].includes(parsed.surfaceDepthHint) ? parsed.surfaceDepthHint : 'mid') as 'close'|'mid'|'far',
+      availableWidthPercent:    Math.max(30, Math.min(100, Number(parsed.availableWidthPercent)    || 80)),
+      recommendedScalePercent:  Math.max(22, Math.min(55,  Number(parsed.recommendedScalePercent)  || 38)),
+      recommendedXOffsetPercent:Math.max(-20,Math.min(20,  Number(parsed.recommendedXOffsetPercent)|| 0)),
+      lightSourceXPercent:      Math.max(0,  Math.min(100, Number(parsed.lightSourceXPercent)      || 50)),
+      lightSourceYPercent:      Math.max(0,  Math.min(100, Number(parsed.lightSourceYPercent)      || 15)),
+      lightTemperatureK:        Math.max(2700,Math.min(6500,Number(parsed.lightTemperatureK)       || 4000)),
+      lightIntensity:           (['soft','medium','hard'].includes(parsed.lightIntensity) ? parsed.lightIntensity : 'medium') as 'soft'|'medium'|'hard',
+      ambientDarkness:          Math.max(0,  Math.min(100, Number(parsed.ambientDarkness)          || 50)),
+      hasPerspective:           Boolean(parsed.hasPerspective),
+      confidence:               Math.max(0,  Math.min(100, Number(parsed.confidence)               || 50)),
+    };
+    console.log(
+      `[SCENE-ANALYZE] surfaceY=${result.surfaceYPercent}% | scale=${result.recommendedScalePercent}% | ` +
+      `xOffset=${result.recommendedXOffsetPercent}% | lightX=${result.lightSourceXPercent}% | ` +
+      `lightTemp=${result.lightTemperatureK}K | intensity=${result.lightIntensity} | ` +
+      `darkness=${result.ambientDarkness} | depth=${result.surfaceDepthHint} | confidence=${result.confidence}%`
+    );
+    return result;
+  } catch (err: any) {
+    console.error('[SCENE-ANALYZE] Error:', err.message, '— using fallback values');
+    return fallback;
+  }
+}
+
+
+
 async function checkGeneratedImage(
+
   imageUrl: string,
   prompt: string
 ): Promise<{ passed: boolean; score: number; issues: string[]; explanation: string; suggestedPromptAdjustment: string }> {
@@ -685,23 +1013,31 @@ async function checkGeneratedImage(
   try {
     const imageContentBlock = await fetchImageAsClaudeBlock(imageUrl);
 
-    const systemPrompt = `You are a visual quality inspector AI. Your job is to check the generated image for composition errors, layouts that look like collages, split-screen layouts, picture-in-picture frames, photo-in-photo insets, duplicate floating objects, artificial-looking text cards, cropped/cut-off subjects, or blurry/illegible labels.
+  const systemPrompt = `You are a strict visual quality inspector AI. Your job is to check the generated image for composition errors.
 Evaluate the image against the prompt: "${prompt}"
 
-We want a single, natural, integrated photograph or cohesive scene.
-CRITICAL CHECKS:
-- Verify if any main subjects or focal points of the prompt (such as the product, vehicle, paint bucket, animal, person, or any key object described in the prompt) are partially cut off, cropped, or clipped at the borders of the image frame. For example, if the prompt describes a gorilla, its feet, hands, head, or body must not be cut off or cropped by the edge of the image; the entire subject must be fully contained within the frame. If any key subject is cut off or cropped by the edge of the image, the check must FAIL (passed = false).
-- Verify if any text, writing, labels, or logos on the products (e.g. on the paint bucket label) are blurry, garbled, distorted, illegible, or contain abstract shapes/blobs (pacák) instead of real, well-formed UTF-8 characters. The text on product labels must be sharp, clear, and readable. If the text is illegible, garbled, or contains abstract spots/blobs instead of actual readable characters, the check must FAIL (passed = false).
-- Verify spelling of Hungarian text on the labels! The label text must match the expected Hungarian branding exactly. Check for letter swaps or misspelled variations (such as "IZOALILÓ" or "IZOALILO", which should be "IZOLÁLÓ", or other spelling errors). If there are obvious spelling mistakes in the main label texts, the check must FAIL (passed = false).
+We want a single, natural, integrated photograph or cohesive scene where ALL subjects are fully visible.
 
-Analyze the image and return a JSON object with the following fields:
-- "passed": boolean (true if the image is a cohesive, single-frame scene without collage/cutout/split-screen visual glitches, all main subjects/focal points (such as products, animals, persons, or key objects described in the prompt) are fully visible inside the frame without being cut off or cropped, AND all labels/text on products are sharp, readable, spelled correctly, and consist of well-formed characters; false otherwise).
-- "score": number (visual quality score from 0 to 100, where 100 is perfect and below 70 usually means it should fail).
-- "issues": string[] (list of specific problems found, e.g. ["kollázs elrendezés", "osztott képernyő", "duplikált tárgyak", "keret a képben", "levágott tárgy/kilógó termék", "olvashatatlan felirat/homályos szöveg/karakter paca", "helyesírási hiba a feliraton"], should be in Hungarian).
-- "explanation": string (brief explanation of what is wrong, in Hungarian, e.g., "a festékes vödör feliratában a 'izoláló' szó hibásan 'izoaliló'-ként szerepel").
-- "suggestedPromptAdjustment": string (English prompt instructions or negative tags to guide the generator in the retry, e.g., "correct the spelling on the paint bucket label to be exactly 'IZOLÁLÓ' instead of 'IZOALILÓ', ensuring perfectly formed letters and correct spelling").
+CRITICAL CHECKS — any single failure = passed: false:
 
-You MUST return ONLY the JSON object. Do not include markdown formatting or explanations outside the JSON.`;
+CHECK 1 — SUBJECTS CUT OFF: Inspect EVERY main subject mentioned in the prompt (vehicle, car, truck, paint bucket, product, person, animal, object). For each one: is ANY part of that subject outside the image boundary (cut off by the edge)? Even a single wheel, bumper, roof corner, handle, or foot being cut off is a FAIL. Be extremely strict — if you can see that the image would need to show more of the subject to be complete, it FAILS. Common failures: car hood/roof/bumper cut off at top or side, product label partially outside frame, person's feet or head cropped.
+
+CHECK 2 — SUBJECTS NOT INTEGRATED: If the prompt describes multiple subjects together (e.g. a car AND a paint bucket), verify they are in the SAME scene together. If the paint bucket is placed on a beach separately from the car, or any subject appears in a completely different location from the others, this FAILS.
+
+CHECK 3 — COLLAGE / SPLIT SCREEN: No split-screen, picture-in-picture, multiple panels, or photo-in-photo layouts.
+
+CHECK 4 — TEXT LEGIBILITY: Any text/labels on products must be sharp, clear, well-formed UTF-8 characters. Blurry, garbled, or abstract character blobs = FAIL.
+
+CHECK 5 — PRODUCT SURFACE CONTACT: Does the main product appear to rest naturally and directly on the surface (table/floor/workbench)? The product must have believable physical contact with the surface. FAIL conditions: the product appears to hover or float above the surface with no visible shadow or contact; an artificial stand, base, or pedestal that was NOT described in the user prompt appears to support the product (making it look like a display prop rather than a real-world scene). IMPORTANT: Background elements like lamps, fixtures, tools, or objects that were part of the requested scene are NOT a fail — only objects that unnaturally affect the product's own placement on the surface count.
+
+Return a JSON object:
+- "passed": boolean
+- "score": number (0-100; below 70 = fail)
+- "issues": string[] in Hungarian (e.g. ["levágott autó", "festékes vödör nincs az autó mellett", "olvashatatlan felirat"])
+- "explanation": string in Hungarian
+- "suggestedPromptAdjustment": string in English — if subjects are cut off, say EXACTLY: "wide angle shot, pull camera back to show the ENTIRE [subject] from [start] to [end], all elements fully inside the frame, do not crop any part of [subject]". If subjects are separate, say: "place [subject1] directly next to/on/with [subject2] in the same location, they must be physically together in one unified scene".
+
+You MUST return ONLY the JSON object.`;
 
     const userPrompt = `Perform visual checkup on this generated image.`;
 
@@ -815,14 +1151,15 @@ app.post('/api/image/analyze', async (req, res) => {
   try {
     const imageContentBlock = await fetchImageAsClaudeBlock(imageUrl);
 
-    const systemPrompt = `You are a professional image analysis AI. You must analyze the uploaded image and return a JSON object containing the subject, type, text analysis, and changeability rules.
-You MUST output ONLY a valid JSON object matching the format below. Do not output markdown backticks (like \`\`\`json), explanations, or trailing commas.
+    // ── Phase 1: Basic analysis (imageType, subject, text, changeability) ──
+    const basicSystemPrompt = `You are a professional image analysis AI. You must analyze the uploaded image and return a JSON object.
+You MUST output ONLY a valid JSON object. Do not output markdown backticks, explanations, or trailing commas.
 
 CRITICAL RULES:
-1. DO NOT output specific brand names, company names, logos, or model names in the "subject" or "altText" (e.g. NEVER use "Audi", "A8", "Poli-Farbe", "PoliFarbe", "BMW", etc.). Instead, use generic descriptions (e.g. "luxury sedan car", "bucket of paint", "beverage bottle").
-2. However, for "extractedText", write the EXACT letters/text written on the object, even if it contains brand names, so we know what is on the original image (e.g. "Poli-Farbe" or "Audi").
-3. COMPLETELY IGNORE the background or environment of the image. Only describe and analyze the foreground subject (e.g. if there is a car on a road in front of trees, ignore the road and trees, focus entirely on the car itself).
-4. For Hungarian paint buckets, ensure correct spelling of labels: transcribe "koromfoltokra" (with an 'o', meaning soot spots), NEVER "körömfoltokra" or "köromfoltokra" (nail spots).
+1. DO NOT output specific brand names, company names, logos, or model names in "subject" or "altText". Use generic descriptions.
+2. For "extractedText", write the EXACT letters/text written on the object, even if it contains brand names.
+3. COMPLETELY IGNORE the background. Only describe and analyze the foreground subject.
+4. For Hungarian paint buckets, ensure correct spelling: "koromfoltokra" (NOT "körömfoltokra").
 
 JSON format:
 {
@@ -832,7 +1169,7 @@ JSON format:
   "dominantColors": ["color1", "color2"],
   "hasText": boolean,
   "extractedText": "The exact text written on the object, preserving exact branding/letters.",
-  "textPlacement": "Hungarian description of where the text is located on the object, e.g. 'a vödör oldalán lévő fehér címkén'.",
+  "textPlacement": "Hungarian description of where the text is located on the object.",
   "textLegibility": "clear" | "blurry" | "illegible",
   "changeabilityRules": {
     "canChangeBackground": true,
@@ -847,29 +1184,24 @@ JSON format:
   "confidence": 0.95
 }`;
 
-    const userPrompt = `Analyze this image and return the JSON object following the strict rules.`;
-
     const modelName = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
-    console.log(`[ANALYZE] Invoking Anthropic Claude Vision: ${modelName}`);
+    console.log(`[ANALYZE] Invoking Claude Vision (basic): ${modelName}`);
 
-    const response = await anthropic.messages.create({
+    const basicResponse = await anthropic.messages.create({
       model: modelName,
       max_tokens: 1000,
       temperature: 0.2,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: [imageContentBlock, { type: 'text', text: userPrompt }] }],
+      system: basicSystemPrompt,
+      messages: [{ role: 'user', content: [imageContentBlock, { type: 'text', text: 'Analyze this image and return the JSON object following the strict rules.' }] }],
     });
 
-    const textContent = response.content[0].type === 'text' ? response.content[0].text : '';
-    console.log(`[ANALYZE] Claude response:`, textContent);
+    const basicText = basicResponse.content[0].type === 'text' ? basicResponse.content[0].text : '';
+    console.log(`[ANALYZE] Basic response:`, basicText);
+    const parsed = JSON.parse(extractJsonStr(basicText));
 
-    const cleanJson = extractJsonStr(textContent);
-    const parsed = JSON.parse(cleanJson);
-
-    // Normalize and enrich changeability rules based on type
+    // Normalize changeability rules based on type
     const imageType = parsed.imageType || 'product';
     let locked = parsed.locked !== undefined ? parsed.locked : false;
-
     if (imageType === 'product' || imageType === 'logo') {
       locked = true;
       if (!parsed.changeabilityRules) parsed.changeabilityRules = {};
@@ -886,16 +1218,245 @@ JSON format:
       parsed.changeabilityRules.canChangeTexture = false;
     }
 
-    let analysisResult = {
-      ...parsed,
-      imageType,
-      locked,
-    };
+    let analysisResult: any = { ...parsed, imageType, locked };
+
+    // ── Phase 2: LightingAnalysis (physics-based, full 9-block JSON) ─────────
+    // Always run for product/model images — used by productAwareBg mode
+    if (imageType === 'product' || imageType === 'model' || imageType === 'lifestyle') {
+      try {
+        console.log(`[ANALYZE] Invoking Claude Vision (LightingAnalysis physics)...`);
+        const lightingSystemPrompt = `You are an expert product photographer and 3D rendering physicist.
+Analyze the product image and return a SINGLE valid JSON object with the key "lightingAnalysis".
+Use physical laws to derive all numeric values. Do NOT invent values — derive them from what you see.
+
+PHYSICS LAWS YOU MUST APPLY:
+- Lambert's Law: I = I0 * cos(theta). At 90deg overhead: top=100%, 60deg=87%, 45deg=50% brightness.
+- Shadow length: L = H / tan(theta). At 90deg: L=0 (no drop shadow). At 45deg: L=H. At 30deg: L=1.73*H.
+- Fresnel: Plastic IOR~1.5, edges brighter than face (grazing angle glow).
+- SSS: White plastic = weak SSS (warm edge glow when backlit). Wax/skin = strong SSS.
+- Kelvin: Look at the white surface color cast. Warm yellow=2700-3200K. Neutral=4500K. Cool blue=6500K+.
+- RGB color cast on white: 2700K=[+35,+12,-28]. 3200K=[+22,+8,-18]. 5500K=[0,0,0]. 6500K=[-12,+2,+20].
+- Contact shadow: ALWAYS present at product base. Width = product_width * 0.68.
+- AO halo: Width = product_width * 0.95. Always blur 15-30px.
+- Drop shadow: Only if theta < 85deg. Direction = OPPOSITE to light.
+
+OUTPUT FORMAT - return ONLY this JSON, no extra text, no markdown:
+{
+  "lightingAnalysis": {
+    "lightSource": {
+      "type": "spot"|"area"|"ambient_only"|"three_point"|"mixed"|"backlit",
+      "directionAngle": <number 0-90, degrees from horizontal — 90=directly above>,
+      "directionLabel": "top"|"top-left"|"top-right"|"left"|"right"|"back"|"front",
+      "xPercent": <number 0-100, horizontal position of light — 50=center>,
+      "yPercent": <number 0-100, 0=ceiling 100=floor>,
+      "temperatureK": <number 1800-10000>,
+      "temperatureLabel": "warm tungsten"|"neutral white"|"cool daylight"|"very cool",
+      "colorCastRgb": [<R_shift -50 to +50>, <G_shift>, <B_shift>],
+      "intensity": "hard"|"medium"|"soft",
+      "sourceSizeLabel": "point"|"small_spot"|"large_area"|"diffuse",
+      "isThreePoint": <boolean>,
+      "keyLightIntensity": <number 0-100>,
+      "fillLightIntensity": <number 0-100>,
+      "rimLightIntensity": <number 0-100>,
+      "fillRatio": <number 0-1, fill/key ratio>,
+      "hasVolumetricLight": <boolean, Tyndall dust/fog beam visible>,
+      "hasMultipleSourcesIBL": <boolean>
+    },
+    "shadow": {
+      "hasDropShadow": <boolean, false if directionAngle >= 85>,
+      "dropDirection": "none"|"front"|"right"|"left"|"back"|"front-right"|"front-left",
+      "dropLengthRatio": <number, L/H = 1/tan(theta). 0 if no drop shadow>,
+      "dropLengthPx": <number, estimated pixels based on object size in image>,
+      "dropOffsetX": <number, signed px: positive=right>,
+      "dropOffsetY": <number, signed px: positive=down>,
+      "dropOpacity": <number 0-1>,
+      "dropBlurPx": <number, penumbra blur. 3=hard 15=medium 30=soft>,
+      "dropWidthMultiplier": <number 1.0-1.5>,
+      "contactShadow": {
+        "widthMultiplier": <number, typically 0.68>,
+        "heightMultiplier": <number, typically 0.04>,
+        "opacity": <number 0.80-0.95>,
+        "blurPx": <number 2-5>
+      },
+      "aoHalo": {
+        "widthMultiplier": <number, typically 0.92-0.98>,
+        "heightMultiplier": <number, typically 0.12-0.18>,
+        "opacity": <number 0.35-0.55>,
+        "blurPx": <number 15-30>
+      },
+      "penumbraWidth": "none"|"narrow"|"medium"|"wide",
+      "umbraDarkness": <number 0-100>,
+      "formShadowPresent": <boolean, is there a darker shadow side on the product itself?>,
+      "formShadowSide": "left"|"right"|"none"
+    },
+    "material": {
+      "roughness": <number 0.0-1.0. 0=mirror, 0.3=glossy plastic, 0.55=white PP, 0.9=paper>,
+      "metallic": <number 0.0=plastic/wood, 1.0=metal>,
+      "ior": <number, 1.0=air, 1.49=white_PP, 1.5=glass, 2.5=metal>,
+      "specularIntensity": <number 0-1, default 0.5 for dielectric>,
+      "albedoRgb": [<R 0-255>, <G 0-255>, <B 0-255>],
+      "hasSSS": <boolean>,
+      "sssStrength": "none"|"weak"|"medium"|"strong",
+      "sssColorShift": "warm"|"neutral"|"none",
+      "fresnelEdgeGlow": <boolean, are the edges brighter than center?>,
+      "fresnelIntensity": "subtle"|"medium"|"strong",
+      "materialType": "white_plastic"|"colored_plastic"|"glossy_plastic"|"metal_matte"|"metal_glossy"|"glass"|"paper_label"|"fabric"|"wood"|"other",
+      "specular": {
+        "zoneTopPct": <number 0-25, specular zone = top X% of product height>,
+        "widthMultiplier": <number, typical 0.45-0.65 of obj_width>,
+        "opacity": <number 0.20-0.50>,
+        "blurPx": <number 3-8>,
+        "hasSharpGlint": <boolean>
+      }
+    },
+    "colorThermal": {
+      "ambientTintRgb": [<R 0-255>, <G 0-255>, <B 0-255>],
+      "ambientTintOpacity": <number 0-0.25, higher in darker scenes>,
+      "ambientDarkness": <number 0-100, 0=bright white studio, 100=very dark moody>,
+      "hasColorBleeding": <boolean>,
+      "bleedingSourceColor": [<R>, <G>, <B>] or null,
+      "bleedingOpacity": <number 0-0.15>,
+      "simultaneousContrastCorrection": <boolean>,
+      "bgDominantColor": [<R>, <G>, <B>],
+      "sceneDynamicRange": "low"|"medium"|"high"
+    },
+    "compositing": {
+      "rimDarkening": {
+        "side": "left"|"right"|"none",
+        "widthMultiplier": <number 0.15-0.25>,
+        "opacity": <number, ambientDarkness * 0.0042>,
+        "blurPx": <number 6-10>
+      },
+      "formShadowGradient": {
+        "enabled": <boolean>,
+        "direction": "top-to-bottom"|"side",
+        "topBrightness": <number 0.8-1.0>,
+        "bottomBrightness": <number 0.2-0.5>,
+        "opacity": <number 0.15-0.40>
+      },
+      "rimLight": {
+        "side": "left"|"right"|"top"|"none",
+        "widthMultiplier": <number 0.12-0.20>,
+        "opacity": <number 0.15-0.50>,
+        "blurPx": <number 3-8>
+      },
+      "lightWrap": {
+        "bgBlurPx": <number 50-80>,
+        "expandPx": <number 15-30>,
+        "opacity": <number 0.08-0.28>
+      },
+      "tableReflection": {
+        "enabled": <boolean>,
+        "heightMultiplier": <number 0.15-0.25>,
+        "opacity": <number 0.05-0.40>,
+        "blurPx": <number 20-40>,
+        "surfaceType": "metal"|"lacquered_wood"|"matte_wood"|"glass"|"concrete"
+      },
+      "overallLayerCount": <number 6-12>
+    },
+    "placement": {
+      "cameraAngle": "eye-level"|"slightly-above"|"low-angle"|"bird-eye",
+      "cameraFOV": "wide"|"normal"|"telephoto",
+      "perspectiveDistortion": "none"|"slight"|"strong",
+      "productTopYPct": <number 0-100, product top position in frame>,
+      "productBottomYPct": <number 0-100, product bottom in frame>,
+      "surfaceYPct": <number 0-100, table/surface top edge in frame>,
+      "headroomPct": <number 0-100, air above product>,
+      "tablespacePct": <number 0-100, table foreground below product>,
+      "productCenterXPct": <number 0-100, horizontal center of product>,
+      "compositionStyle": "centered"|"thirds"|"asymmetric",
+      "productScalePct": <number, product height as % of total frame height>
+    },
+    "prompts": {
+      "bgLightingPrompt": "<10-20 word English phrase describing ideal background lighting to match this product>",
+      "bgNegativePrompt": "<things to avoid in background based on product's lighting>",
+      "materialPromptSuffix": "<material-specific prompt additions for FLUX>",
+      "volumetricLightPrompt": "<only if hasVolumetricLight=true, else empty string>",
+      "sssEdgePrompt": "<only if hasSSS=true, describe edge glow, else empty>",
+      "fresnelPrompt": "<only if fresnelEdgeGlow=true, describe edge highlight, else empty>",
+      "threePointPrompt": "<only if isThreePoint=true, describe setup, else empty>",
+      "compositionPrompt": "product centered at approximately X% horizontally, surface at Y%, generous headroom above",
+      "fullBgPrompt": "<COMPLETE combined background prompt for FLUX, 30-60 words, ready to use directly>"
+    },
+    "checkup": {
+      "expectedShadowBehavior": "<describe what shadow should look like based on physics>",
+      "expectedSpecularZone": "<where specular should appear on product>",
+      "expectedGradient": "<describe expected brightness gradient on product>",
+      "expectedAmbientTint": "<describe expected color cast on white surfaces>",
+      "activeRisks": [
+        {
+          "riskId": "<UPPERCASE_SNAKE_CASE identifier>",
+          "description": "<what could go wrong>",
+          "checkPrompt": "<question to ask Claude during checkup>",
+          "severity": "critical"|"major"|"minor",
+          "autoFixable": <boolean>
+        }
+      ],
+      "shadowPhysicsMinScore": <number 0-25>,
+      "integrationMinScore": <number 0-25>,
+      "contactShadowMinScore": <number 0-20>,
+      "specularMinScore": <number 0-15>,
+      "placementMinScore": <number 0-15>,
+      "totalMinScore": <number, sum of above minimums>,
+      "criticalFailConditions": ["<condition1>", "<condition2>"]
+    },
+    "meta": {
+      "analysisVersion": "2.0",
+      "analysisTimestamp": "<ISO timestamp>",
+      "claudeConfidence": <number 0-1>,
+      "bookChaptersUsed": ["<chapter refs used like 1.2, 2.3, 4.2, 8.1>"],
+      "lightingScenario": "overhead_spot"|"side_45"|"side_30_dramatic"|"three_point"|"backlit"|"diffuse_ambient"|"mixed_complex"
+    }
+  }
+}`;
+
+        const lightingResp = await anthropic.messages.create({
+          model: modelName,
+          max_tokens: 4000,
+          temperature: 0.1,
+          system: lightingSystemPrompt,
+          messages: [{ role: 'user', content: [imageContentBlock, {
+            type: 'text',
+            text: 'Analyze this product image using the physics laws provided. Return ONLY the JSON with lightingAnalysis key. Derive all numbers from what you observe — do not guess randomly.'
+          }] }],
+        });
+
+        const lightingText = lightingResp.content[0].type === 'text' ? lightingResp.content[0].text : '{}';
+        const stopReason = lightingResp.stop_reason;
+        console.log(`[ANALYZE] LightingAnalysis stop_reason=${stopReason} | response length=${lightingText.length} chars (first 300):`, lightingText.slice(0, 300));
+
+        // Truncation-tolerant parse: if stop_reason='max_tokens', the JSON may be incomplete.
+        // Try to recover partial JSON by closing all open braces before parsing.
+        let lightingTextToParse = lightingText;
+        if (stopReason === 'max_tokens') {
+          console.warn(`[ANALYZE] ⚠️ LightingAnalysis response was truncated (max_tokens hit). Attempting partial JSON recovery...`);
+          // Count open vs closed braces and close any unclosed ones
+          let openBraces = 0; let openBrackets = 0; let inString = false; let escape = false;
+          for (const ch of lightingTextToParse) {
+            if (escape) { escape = false; continue; }
+            if (ch === '\\' && inString) { escape = true; continue; }
+            if (ch === '"') { inString = !inString; continue; }
+            if (!inString) { if (ch === '{') openBraces++; else if (ch === '}') openBraces--; else if (ch === '[') openBrackets++; else if (ch === ']') openBrackets--; }
+          }
+          // Close truncated string if needed, then close brackets/braces
+          if (inString) lightingTextToParse += '"';
+          lightingTextToParse += ']'.repeat(Math.max(0, openBrackets)) + '}'.repeat(Math.max(0, openBraces));
+        }
+
+        const lightingParsed = JSON.parse(extractJsonStr(lightingTextToParse));
+        if (lightingParsed.lightingAnalysis) {
+          analysisResult.lightingAnalysis = lightingParsed.lightingAnalysis;
+          console.log(`[ANALYZE] ✅ LightingAnalysis attached — scenario: ${lightingParsed.lightingAnalysis.meta?.lightingScenario} | theta: ${lightingParsed.lightingAnalysis.lightSource?.directionAngle}° | K: ${lightingParsed.lightingAnalysis.lightSource?.temperatureK}K`);
+        }
+      } catch (lightingErr: any) {
+        console.warn(`[ANALYZE] ⚠️ LightingAnalysis phase failed (${lightingErr.message}) — continuing without it`);
+      }
+    }
 
     // Optimize descriptions using DeepSeek if available
     analysisResult = await optimizeAnalysisWithDeepSeek(analysisResult);
 
-    console.log(`[ANALYZE] ✅ Analysis complete in ${Date.now() - start}ms`, analysisResult);
+    console.log(`[ANALYZE] ✅ Analysis complete in ${Date.now() - start}ms`);
     res.json({ results: [analysisResult] });
   } catch (err: any) {
     console.error(`[ANALYZE] Error analyzing image:`, err);
@@ -905,13 +1466,13 @@ JSON format:
 
 // Route: Composite image generation
 app.post('/api/image/composite-generate', async (req, res) => {
-  const { slots, scenePrompt, brandKit, aspectRatio, width, height, previewOnly } = req.body;
+  const { slots, scenePrompt, brandKit, aspectRatio, width, height, previewOnly, preserveOriginal, productAwareBg } = req.body;
   if (!slots || !Array.isArray(slots) || slots.length === 0) {
     return res.status(400).json({ error: 'slots array is required.' });
   }
 
   const start = Date.now();
-  console.log(`\n[COMPOSITE-GENERATE] Starting composite generation/preview with ${slots.length} slots.`);
+  console.log(`\n[COMPOSITE-GENERATE] Starting composite generation/preview with ${slots.length} slots. preserveOriginal=${!!preserveOriginal}`);
 
   try {
     const slotSubjects = slots.map(s => {
@@ -922,11 +1483,36 @@ app.post('/api/image/composite-generate', async (req, res) => {
     });
 
     const brandRules = brandKit?.visualRules || [];
+    const brandTone  = brandKit?.tone || [];
+    // SAFETY: brandKit.brandDna can arrive as string, object, or array depending on frontend version.
+    // Always force to string before any string operations (.match, template literals, etc.)
+    const safeBrandDna: string = (() => {
+      const raw = brandKit?.brandDna;
+      if (!raw) return brandRules.join('; ');
+      if (typeof raw === 'string') return raw;
+      if (Array.isArray(raw)) return (raw as string[]).join('; ');
+      if (typeof raw === 'object') return JSON.stringify(raw);
+      return String(raw);
+    })();
+
+    // ── Step 0: Decompose user prompt into scene vs. layer text ──────────────
+    // This prevents promotional text (e.g. "30% kedvezmény") from entering FLUX
+    const decomposed = await decomposeUserPrompt(
+      scenePrompt.trim(),
+      slotSubjects,
+      safeBrandDna  // always a string now
+    );
+    const effectiveScenePrompt = decomposed.scenePrompt;
+    console.log(`[COMPOSITE-GENERATE] Decomposed — scene: "${effectiveScenePrompt}" | layerText: ${decomposed.layerText} | layerCta: ${decomposed.layerCta}`);
 
     // Intelligently compose, translate and merge scene prompt with slot contents (and strip brand names)
-    let activePrompt = await intelligentComposePrompt(scenePrompt.trim(), slotSubjects, brandRules);
+    let activePrompt = await intelligentComposePrompt(effectiveScenePrompt, slotSubjects, brandRules);
     
-    if (brandRules.length > 0) {
+    // Style tags from DNA — only append if user didn't already specify a style/mood/atmosphere.
+    // If the user's scene prompt contains explicit mood words, DNA style is secondary.
+    const userSpecifiedMood = /\b(dark|moody|messy|cluttered|clean|bright|gritty|rustic|industrial|minimal|dramatic|soft|warm|cold|vintage|modern|elegant)\b/i.test(effectiveScenePrompt);
+    if (brandRules.length > 0 && !userSpecifiedMood) {
+      // User didn't specify a style → use DNA style to fill the gap
       const styleTags = await getStyleTags(brandRules);
       if (styleTags) {
         activePrompt += `, style: ${styleTags}`;
@@ -934,6 +1520,9 @@ app.post('/api/image/composite-generate', async (req, res) => {
         const { translated } = await translateToEnglish(brandRules.join(', '));
         activePrompt += `, style: ${translated}`;
       }
+      console.log(`[COMPOSITE-GENERATE] DNA style appended (user didn't specify mood): userSpecifiedMood=false`);
+    } else if (brandRules.length > 0) {
+      console.log(`[COMPOSITE-GENERATE] DNA style SKIPPED — user specified mood in prompt (userSpecifiedMood=true)`);
     }
 
     // Final safety regex filter to guarantee no brand names are present
@@ -944,27 +1533,1330 @@ app.post('/api/image/composite-generate', async (req, res) => {
 
     if (previewOnly) {
       console.log(`[COMPOSITE-GENERATE] Preview only requested. Composed prompt: "${activePrompt}"`);
-      return res.json({ prompt: activePrompt });
+      return res.json({ prompt: activePrompt, decomposedLayerText: decomposed.layerText, decomposedLayerCta: decomposed.layerCta });
     }
 
-    const inputImage = slots[0]?.originalUrl || slots[0]?.preprocessedUrl || undefined;
-    const inputImage2 = slots[0]?.preprocessedUrl && slots[0]?.preprocessedUrl !== slots[0]?.originalUrl 
-      ? slots[0]?.preprocessedUrl 
-      : (slots[1]?.originalUrl || slots[1]?.preprocessedUrl || undefined);
+    let inputImage: string | undefined = undefined;
+    let inputImage2: string | undefined = undefined;
 
+    if (slots.length > 1) {
+      // Multiple slots: use the best available version of each slot (upscaled > preprocessed > original)
+      inputImage  = slots[0]?.preprocessedUrl || slots[0]?.originalUrl || undefined;
+      inputImage2 = slots[1]?.preprocessedUrl || slots[1]?.originalUrl || undefined;
+    } else {
+      // Single slot:
+      // - inputImage  = preprocessedUrl (the cutout/background-removed image)
+      // - inputImage2 = upscaledUrl (the upscaled version), ONLY if it differs from preprocessedUrl
+      // We do NOT send the originalUrl — it conflicts with the cutout reference and degrades quality.
+      const preprocessed = slots[0]?.preprocessedUrl || undefined;
+      const upscaled = slots[0]?.upscaledUrl || undefined;
+
+      inputImage  = preprocessed || slots[0]?.originalUrl || undefined; // fallback to original only if no cutout
+      inputImage2 = upscaled && upscaled !== preprocessed ? upscaled : undefined;
+    }
+
+    // Shared variables for both generation paths
+    const w = width ? Number(width) : 1024;
+    const h = height ? Number(height) : 1536;
+    const ar = aspectRatio || '2:3';
     let imageUrl = '';
     let genModel = '';
     let genTime = 0;
     let checkupResult: any = null;
-    let attempts = 0;
-    const w = width ? Number(width) : 1024;
-    const h = height ? Number(height) : 1536;
-    const ar = aspectRatio || '2:3';
+    let selectedTemplateId: string | null = null;
+    let debugBgRawUrl: string | null = null;
+    let debugBgHarmonizedUrl: string | null = null;
 
-    while (attempts < 2) {
-      attempts++;
-      console.log(`[COMPOSITE-GENERATE] Attempt ${attempts} prompt: "${activePrompt}"`);
 
+    // ── preserveOriginal: 2-step composite ─────────────────────────────────
+    // Step 1: Generate ONLY the background (no product reference)
+    // Step 2: sharp-composite the rembg cutout on top pixel-perfectly
+    if (preserveOriginal && inputImage) {
+      const rembgImagePath = inputImage; // local path like /renders/rembg-xxxx.png
+
+      // Build a rich, cinematic background prompt — environment-only, no product
+      // Key: must be atmospheric, textured, realistic — NOT clean/sterile/minimal
+      const { translated: userSceneEN } = await translateToEnglish(scenePrompt?.trim() || 'workshop with spotlight');
+
+      // Extract ONLY location keywords from user prompt — NOT lighting type.
+      // RULE: Lighting quality (direction, temperature, intensity) comes from the
+      //       LightingAnalysis JSON (productAwareAddition) which is physics-derived.
+      //       Adding lighting keywords here (e.g. "overhead spotlight") causes FLUX to
+      //       render PHYSICAL light sources (lamps, fixtures) as scene objects.
+      //       The LA fullBgPrompt already describes the lighting atmosphere correctly.
+      let sceneKeywords = '';
+      // Brand DNA default environment — used as fallback when prompt has no location.
+      // PRIORITY: user prompt > Brand DNA. If prompt specifies a place, it wins.
+      // safeBrandDna is already a guaranteed string (defined above in handler scope).
+      const brandDnaEnvMatch = safeBrandDna.match(/(?:environment|scene|location|setting|background|place|space)[:=]?\s*([^,;.\n]{3,40})/i);
+      const brandDnaEnvFallback = brandDnaEnvMatch ? brandDnaEnvMatch[1].trim() : '';
+      try {
+        const kwModel = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+        const kwResp = await anthropic.messages.create({
+          model: kwModel,
+          max_tokens: 80,
+          temperature: 0,
+          system: `Extract ONLY the physical LOCATION/ENVIRONMENT from the user's text as 2-3 comma-separated English keywords. ONLY include the place — NOT lighting, NOT objects, NOT actions. Examples: "workshop" / "kitchen counter" / "outdoor garden" / "dark alley". If the text mentions a lighting type (overhead spotlight, window light, etc.) DO NOT include it — location only. If no clear location is found, output exactly: NO_LOCATION`,
+          messages: [{ role: 'user', content: userSceneEN }]
+        });
+        const kwText = kwResp.content[0].type === 'text' ? kwResp.content[0].text.trim() : '';
+        if (kwText && kwText !== 'NO_LOCATION' && kwText.length > 2) {
+          sceneKeywords = kwText;  // Prompt has explicit location — use it (wins over Brand DNA)
+          console.log(`[COMPOSITE-GENERATE][preserveOriginal] Scene keywords from PROMPT: "${sceneKeywords}"`);
+        } else if (brandDnaEnvFallback) {
+          // Prompt has no location — fall back to Brand DNA preferred environment
+          sceneKeywords = brandDnaEnvFallback;
+          console.log(`[COMPOSITE-GENERATE][preserveOriginal] Scene keywords from BRAND DNA fallback: "${sceneKeywords}"`);
+        } else {
+          sceneKeywords = 'workshop';  // last resort generic
+          console.log(`[COMPOSITE-GENERATE][preserveOriginal] Scene keywords: FALLBACK generic "${sceneKeywords}"`);
+        }
+      } catch {
+        sceneKeywords = brandDnaEnvFallback || userSceneEN.slice(0, 60);
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] Scene keywords: ERROR fallback "${sceneKeywords}"`);
+      }
+
+      // ── SOURCE-OF-TRUTH surface position ─────────────────────────────────────
+      const TARGET_SURFACE_Y_PCT = 75;
+      const surfaceCompositionInstruction =
+        `the surface/table/workbench top edge is positioned at exactly ${TARGET_SURFACE_Y_PCT}% from the top of the image, ` +
+        `the lower ${100 - TARGET_SURFACE_Y_PCT}% of the frame is the physical table surface, ` +
+        `the upper ${TARGET_SURFACE_Y_PCT}% is air and background environment`;
+      // ── PERSPECTIVE CAMERA INSTRUCTION (from perspective_camera_book.md §6.1) ──
+      // CRITICAL: The FLUX BG must use the SAME camera angle (phi) as the product photo.
+      // Without this, FLUX generates a frontal (phi=0°) table — product appears to float.
+      // The placement.cameraAngle + cameraFOV from LightingAnalysis drive this instruction.
+      // Built BEFORE lightingAnalysis is populated — will be reassigned below after LA loads.
+      let perspectiveCameraInstruction = '';
+      // Will be populated after lightingAnalysis is available (see below)
+
+      // ── Product-aware BG analysis — LightingAnalysis JSON v2.0 ─────────────
+      // When productAwareBg=true: use the pre-computed LightingAnalysis JSON
+      // attached to the slot during /api/image/analyze. This contains all
+      // physics-based values derived from the lighting physics book:
+      //   lightSource.* → FLUX BG prompt (fullBgPrompt)
+      //   compositing.* → sceneCtx override (direct numeric values, no heuristics)
+      //   shadow.*      → contact, AO, drop shadow parameters
+      //   colorThermal.* → ambient tint values
+      // If lightingAnalysis is not available (older images), falls back to
+      // the legacy on-the-fly Claude Vision analysis.
+      let productAwareAddition = '';
+      let lightingAnalysis: any = null; // will hold LightingAnalysis JSON if available
+
+      if (productAwareBg && rembgImagePath) {
+        // ── Try to use pre-computed LightingAnalysis from slot ─────────────
+        const primarySlot = slots[0];
+        if (primarySlot?.lightingAnalysis) {
+          lightingAnalysis = primarySlot.lightingAnalysis;
+          // Use the pre-built fullBgPrompt from analyze phase
+          // Strip conflicting clean-white-studio hints from the LA fullBgPrompt.
+        // The bgOnlyPrompt already adds dark atmospheric mood — if the LA JSON
+        // says "clean white seamless studio", it contradicts the mood instruction
+        // and FLUX gets confused → results in plain white wall + industrial lamp mix.
+        let rawAddition = lightingAnalysis.prompts?.fullBgPrompt || '';
+        // RULE: Strip ALL background-type prescriptions — these describe the ORIGINAL product photo
+        // background, not the user's requested scene. They override the user's mood/atmosphere.
+        rawAddition = rawAddition
+          .replace(/clean white seamless studio background[^,.]*/gi, '')
+          .replace(/seamless white background[^,.]*/gi, '')
+          .replace(/white studio[^,.]*/gi, '')
+          .replace(/professional product photography (style|background)[^,.]*/gi, '')
+          .replace(/neutral (clean|white) background[^,.]*/gi, '')
+          .replace(/studio (setting|environment|background)[^,.]*/gi, '')
+          .replace(/,\s*,/g, ',').trim().replace(/^[,.]\s*/, '');
+        // RULE: Strip explicit light-source POSITION phrases.
+        rawAddition = rawAddition
+          .replace(/key light from [^,.;]*/gi, '')
+          .replace(/\blight (source |position )?(from|at|on) (the )?(top-?right|top-?left|right|left|top|bottom)[^,.;]*/gi, '')
+          .replace(/,\s*,/g, ',').trim().replace(/^[,.]\s*/, '');
+        productAwareAddition = rawAddition;
+          console.log(
+            `[COMPOSITE-GENERATE][preserveOriginal] [PRODUCT-AWARE-v2] Using pre-computed LightingAnalysis:` +
+            ` scenario=${lightingAnalysis.meta?.lightingScenario}` +
+            ` theta=${lightingAnalysis.lightSource?.directionAngle}°` +
+            ` K=${lightingAnalysis.lightSource?.temperatureK}K` +
+            ` darkness=${lightingAnalysis.colorThermal?.ambientDarkness}` +
+            ` dropShadow=${lightingAnalysis.shadow?.hasDropShadow}` +
+            ` → BG hint: "${productAwareAddition.slice(0, 80)}..."`
+          );
+        } else {
+          // ── Fallback: legacy on-the-fly Claude Vision analysis ───────────
+          try {
+            console.log(`[COMPOSITE-GENERATE][preserveOriginal] [PRODUCT-AWARE] No pre-computed LightingAnalysis — running legacy quick analysis...`);
+            const productImageBlock = await fetchImageAsClaudeBlock(
+              rembgImagePath.startsWith('/renders/')
+                ? `http://localhost:${port}${rembgImagePath}`
+                : rembgImagePath
+            );
+            const paModel = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+            const paResp = await anthropic.messages.create({
+              model: paModel,
+              max_tokens: 400,
+              temperature: 0,
+              system: `You are a product photography expert. Analyze the product image and return a JSON object.
+Return ONLY JSON, no markdown:
+{
+  "lightDirection": "top"|"top-left"|"top-right"|"left"|"right"|"front",
+  "lightTemperatureDesc": "warm tungsten"|"neutral white"|"cool daylight",
+  "cameraAngle": "eye-level"|"slightly-above"|"low-angle",
+  "shadowStyle": "hard sharp"|"soft diffuse"|"none",
+  "bgMatchHint": "<10-word English phrase describing ideal background atmosphere>",
+  "lightIntensityLevel": "hard"|"medium"|"soft",
+  "ambientDarknessLevel": <integer 0-100>
+}`,
+              messages: [{ role: 'user', content: [productImageBlock, { type: 'text', text: 'Analyze this product image. Return only the JSON.' }] }]
+            });
+            const paText = paResp.content[0].type === 'text' ? paResp.content[0].text : '{}';
+            const paResult = JSON.parse(extractJsonStr(paText));
+            // Build legacy productAwareAddition string
+            productAwareAddition = [
+              paResult.lightDirection ? `lighting from ${paResult.lightDirection}` : '',
+              paResult.lightTemperatureDesc ? `${paResult.lightTemperatureDesc} light color` : '',
+              paResult.cameraAngle ? `${paResult.cameraAngle} camera angle` : '',
+              paResult.shadowStyle ? `${paResult.shadowStyle} shadows` : '',
+              paResult.bgMatchHint || '',
+            ].filter(Boolean).join(', ');
+            // Store as minimal lightingAnalysis for sceneCtx override below
+            lightingAnalysis = {
+              _legacyMode: true,
+              lightSource: {
+                temperatureK: paResult.lightTemperatureDesc?.includes('warm') ? 2900 : paResult.lightTemperatureDesc?.includes('cool') ? 6500 : 4500,
+                xPercent: { 'left': 20, 'top-left': 30, 'top': 50, 'top-right': 70, 'right': 80, 'front': 50 }[paResult.lightDirection] ?? 50,
+                intensity: paResult.lightIntensityLevel || 'medium',
+              },
+              colorThermal: { ambientDarkness: paResult.ambientDarknessLevel ?? sceneCtx.ambientDarkness },
+              shadow: { hasDropShadow: paResult.shadowStyle !== 'none' },
+            };
+            console.log(`[COMPOSITE-GENERATE][preserveOriginal] [PRODUCT-AWARE-legacy] BG hint: "${productAwareAddition}"`);
+          } catch (paErr: any) {
+            console.warn(`[COMPOSITE-GENERATE][preserveOriginal] [PRODUCT-AWARE] Fallback analysis failed: ${paErr.message}`);
+            lightingAnalysis = null;
+          }
+        }
+      }
+
+      // Build cinematic BG prompt — uses LightingAnalysis fullBgPrompt if available
+      // RULE: This prompt describes the ENVIRONMENT ONLY — no product, no foreground objects.
+      // RULE: Light sources are described as ATMOSPHERIC CONDITIONS, not physical objects.
+      //       "warm workshop light" = OK. "a hanging lamp" = NOT OK unless user requested it.
+      //       The sceneKeywords (extracted from user prompt) are the authoritative source of
+      //       what environment elements belong in the scene.
+      // RULE: The productAwareAddition from LightingAnalysis describes lighting QUALITY
+      //       (color temperature, direction) — not background COLOR (no "white studio").
+      // RULE: We always explicitly define the surface position so FLUX places the table
+      //       at a consistent depth, regardless of keyword content.
+      // ── PERSPECTIVE CAMERA INSTRUCTION — built from LA placement data ─────────
+      // Source: perspective_camera_book.md §6.1 — exact FLUX prompt wording per phi angle.
+      // placement.cameraAngle: 'eye-level' | 'slightly-above' | 'low-angle' | 'bird-eye'
+      // placement.cameraFOV:   'wide' | 'normal' | 'telephoto'
+      // placement.perspectiveDistortion: 'none' | 'slight' | 'moderate' | 'strong'
+      const laPlacement = lightingAnalysis?.placement;
+      const pCameraAngle = laPlacement?.cameraAngle ?? 'slightly-above';
+      const pCameraFOV   = laPlacement?.cameraFOV   ?? 'normal';
+      const pPerspDist   = laPlacement?.perspectiveDistortion ?? 'slight';
+
+      // FLUX prompt wording from §6.1 — describes WHAT WE SEE, not math angles
+      const cameraAnglePrompts: Record<string, string> = {
+        'eye-level':
+          'camera at eye level with the product, facing directly forward, ' +
+          'table surface as a thin horizontal band barely visible at the bottom, ' +
+          'product seen straight-on from the side, single-point perspective, ' +
+          'table edges run straight left and right without converging',
+        'slightly-above':
+          'camera slightly elevated approximately 15-20 degrees above horizontal, ' +
+          'small amount of tabletop surface visible in foreground (10-15% of frame height), ' +
+          'product seen mostly from the front with slight downward angle, ' +
+          'top of product slightly visible as a narrow ellipse, ' +
+          'table surface perspective lines converge gently toward sides, ' +
+          'two-point perspective tendency',
+        'low-angle':
+          'camera below eye level, looking upward at product, ' +
+          'table edge visible prominently at the top of table zone, ' +
+          'product appears tall and imposing, bottom of product cropped or near frame edge',
+        'bird-eye':
+          'high angle shot camera pointing steeply downward approximately 45-60 degrees, ' +
+          'dominant tabletop surface visible surrounding product, ' +
+          'product top clearly visible occupying most of visible product area, ' +
+          'strong three-point perspective convergence',
+      };
+      const fovPrompts: Record<string, string> = {
+        'wide':       'wide-angle lens, slight barrel distortion at table edges, strong perspective depth, nearby elements appear larger',
+        'normal':     'standard lens, natural undistorted perspective, proportions appear true to life',
+        'telephoto':  'telephoto compression, background appears closer to product, subtle telephoto flattening, shallow depth of field',
+      };
+      perspectiveCameraInstruction = [
+        cameraAnglePrompts[pCameraAngle] ?? cameraAnglePrompts['slightly-above'],
+        fovPrompts[pCameraFOV] ?? fovPrompts['normal'],
+      ].join(', ');
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] [PERSPECTIVE] cameraAngle=${pCameraAngle} FOV=${pCameraFOV} perspDist=${pPerspDist} → prompt: "${perspectiveCameraInstruction.slice(0, 80)}..."`);
+
+      // compositionPrompt from LA: describes SCENE FRAMING — safe for BG (not product-specific)
+      const laPrompts = lightingAnalysis?.prompts;
+      const laCompositionPrompt = laPrompts?.compositionPrompt || '';
+
+      // Build extra prompt suffixes from LA fields that describe BACKGROUND ENVIRONMENT only.
+      // CRITICAL RULE: Only add prompts that describe SCENE ATMOSPHERE — NOT the product itself.
+      // Fields like materialPromptSuffix, fresnelPrompt, sssEdgePrompt, threePointPrompt describe
+      // the PRODUCT (white PP bucket, cylindrical edges, three-point setup). If these go into
+      // the BG FLUX generation, FLUX hallucinates a ghost bucket in the background and switches
+      // to a sterile white studio look. These product-specific fields are for the compositor only.
+      // SAFE for BG: volumetricLightPrompt (scene atmosphere: fog, haze, god rays).
+      // SAFE for BG: compositionPrompt (scene framing rules, not product description).
+      const bgSafeExtraParts: string[] = [
+        laPrompts?.volumetricLightPrompt  || '',  // scene atmosphere — OK for BG
+        laCompositionPrompt               || '',  // scene framing — OK for BG
+        // laPrompts?.materialPromptSuffix  — PRODUCT description, NOT for BG
+        // laPrompts?.fresnelPrompt         — PRODUCT edge effect, NOT for BG
+        // laPrompts?.sssEdgePrompt         — PRODUCT material, NOT for BG
+        // laPrompts?.threePointPrompt      — PRODUCT lighting setup, NOT for BG
+      ].filter(Boolean);
+      const extraPromptStr = bgSafeExtraParts.join(', ');
+      if (laPrompts?.materialPromptSuffix || laPrompts?.fresnelPrompt || laPrompts?.threePointPrompt) {
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA] Product prompts (compositor-only, NOT in BG): mat="${(laPrompts?.materialPromptSuffix||'').slice(0,40)}" fresnel="${(laPrompts?.fresnelPrompt||'').slice(0,40)}" 3pt="${(laPrompts?.threePointPrompt||'').slice(0,40)}"`);
+      }
+      // ── Build bgOnlyPrompt with user mood FIRST (highest priority to FLUX) ──────
+      // CRITICAL: sceneKeywords only contains the LOCATION (e.g. "workshop") — the
+      // USER ATMOSPHERE ("slightly cluttered", "rustic", "gloomy") is in effectiveScenePrompt.
+      // If we only use sceneKeywords, FLUX defaults to a clean studio interpretation.
+      // Solution: use effectiveScenePrompt as the FIRST token (highest FLUX attention),
+      // then sceneKeywords as a secondary anchor, then technical instructions.
+      const bgMoodPrefix = (() => {
+        if (!effectiveScenePrompt) return sceneKeywords;
+        let mood = effectiveScenePrompt
+          // Strip product-description parts (we only want scene/environment description)
+          .replace(/\bwhite plastic (paint )?bucket[^,.;]*/gi, '')
+          .replace(/\bdark navy blue lid[^,.;]*/gi, '')
+          .replace(/\blabel[^,.;]*/gi, '')
+          .replace(/\bblue and white design[^,.;]*/gi, '')
+          .replace(/\bfeatur(ing|es)[^,.;]*/gi, '')
+          .replace(/close-?up product composition[^,.;]*/gi, '')
+          .replace(/professional style[^,.;]*/gi, '')
+          // Strip orphaned verb phrases left after product noun removal
+          .replace(/\bplaced (directly )?on [^,.;]+/gi, '')
+          .replace(/\bsit(ting|s)? on [^,.;]+/gi, '')
+          .replace(/\b(resting|standing) on [^,.;]+/gi, '')
+          // Clean dangling article fragments: "A ," "An ," "The ,"
+          .replace(/\b(A|An|The)\s*,/g, '')
+          .replace(/,\s*,/g, ',').trim().replace(/^[,. ]+|[,. ]+$/g, '');
+        // If too little remains after stripping, fall back to sceneKeywords
+        if (mood.replace(/[,. ]/g, '').length < 8) return sceneKeywords;
+        return mood;
+      })();
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] [BG-MOOD] Scene mood prefix: "${bgMoodPrefix.slice(0, 120)}"`);
+      const bgOnlyPrompt = [
+        bgMoodPrefix,          // ← USER ATMOSPHERE: highest FLUX attention ("slightly cluttered workshop")
+        sceneKeywords,         // ← location anchor ("workshop, workbench")
+        surfaceCompositionInstruction,
+        perspectiveCameraInstruction,
+        ...(productAwareAddition ? [productAwareAddition] : []),
+        ...(extraPromptStr ? [extraPromptStr] : []),
+        'photorealistic cinematic photography, textured and imperfect surfaces, real environment',
+        'lighting is environmental and atmospheric — scene elements come from the scene description, not added by default',
+        'shallow depth of field, background detail with natural blur',
+        'richly detailed background with authentic atmosphere — NOT sterile, NOT minimal, clutter and imperfections are welcome',
+        // CRITICAL: the table/workbench surface must be completely empty
+        // FLUX tends to hallucinate a bottle/flask/tool in the center of the frame.
+        // These explicit prohibitions prevent that.
+        'THE TABLE SURFACE IS COMPLETELY EMPTY AND BARE — no objects, no bottles, no flasks, no products, no cylinders, no tools, no anything on the table surface',
+        'the workbench top itself is clear with nothing sitting on it — completely bare wooden surface only',
+        'no bottle, no flask, no jar, no container, no object placed on the table or workbench',
+        // Extend prohibition ABOVE table too — FLUX-generated objects extend above their base
+        'the CENTER of the image is completely empty — no object, no product placeholder, no bottle silhouette anywhere in the center vertical zone of the image',
+        'background walls, pegboards, and shelves may have tools and clutter — but the TABLE SURFACE and the AIR ABOVE IT must be completely clear of any objects',
+        'high quality photography',
+      ].join('. ');
+      // bgNegativePrompt from LA — logged for reference (FLUX Flex does not accept neg prompt via API,
+      // but it is injected into harmonizer as avoidance instruction)
+      const laBgNegativePrompt = laPrompts?.bgNegativePrompt || '';
+      if (laBgNegativePrompt) {
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA] bgNegativePrompt: "${laBgNegativePrompt}"`);
+      }
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] Step 1: Generating background-only scene...`);
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] BG prompt: "${bgOnlyPrompt}"`);
+
+      // Generate background using FLUX Flex (forceFlex=true), WITHOUT product reference image
+      const bgGenResult = await generateWithFluxFlex(bgOnlyPrompt, w, h, {
+        aspectRatio: ar,
+        safetyTolerance: 5,
+        guidance: 4.5,
+        steps: 50,
+        inputImage: undefined,
+        inputImage2: undefined,
+        backgroundPrompt: undefined,
+        forceFlex: true       // always use FLUX Flex, not Pro
+      });
+
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] Step 1 done in ${bgGenResult.generationTime}s → ${bgGenResult.imageUrl}`);
+
+      // Step 2: Fetch background image and rembg cutout, then composite with sharp
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] Step 2: Compositing product onto background with sharp...`);
+
+      // Fetch the generated background as buffer
+      const bgResponse = await axios.get(bgGenResult.imageUrl, { responseType: 'arraybuffer', timeout: 30000 });
+      const bgBuffer = Buffer.from(bgResponse.data);
+
+      // Get background dimensions
+      const bgMeta = await sharp(bgBuffer).metadata();
+      const bgW = bgMeta.width || w;
+      const bgH = bgMeta.height || h;
+
+      // ── Analyze background for LIGHTING only (Claude Vision) ──────────────────
+      // surfaceY is NOT taken from Claude — we use TARGET_SURFACE_Y_PCT which we
+      // already told FLUX to use during BG generation. This eliminates the
+      // spotlight-cone / table-edge confusion that caused 200px floating.
+      // Save BG #1 (raw generated BG) — keep for debugging
+      const bgRawFilename = `bg-raw-${Date.now()}.jpg`;
+      const bgRawPath = path.join(rendersDir, bgRawFilename);
+      await fs.promises.writeFile(bgRawPath, bgBuffer);
+      debugBgRawUrl = `http://localhost:${port}/renders/${bgRawFilename}`;
+      console.log(`[DEBUG-IMG] ▶ BG #1 (raw FLUX output): ${debugBgRawUrl}`);
+      const bgAnalyzeFilename = bgRawFilename;
+      const bgAnalyzePath = bgRawPath;
+      const sceneCtx = await analyzeSceneContext(`http://localhost:${port}/renders/${bgAnalyzeFilename}`);
+      // Keep bg-raw file — user uses it to check intermediate results
+
+      // ── Product-aware compositing override — v2.0 (direct numeric values) ─────
+      // When lightingAnalysis is available, override sceneCtx with the pre-computed
+      // physics values. All values are DIRECT NUMBERS — no string-to-number heuristics.
+      // Save BG scene darkness BEFORE any product-aware override — needed for warm tint boost.
+      const bgSceneAnalysisDarkness = sceneCtx.ambientDarkness;  // from SCENE-ANALYZE, unmodified
+      if (productAwareBg && lightingAnalysis) {
+        const origTemp      = sceneCtx.lightTemperatureK;
+        const origXPct      = sceneCtx.lightSourceXPercent;
+        const origIntensity = sceneCtx.lightIntensity;
+        const origDarkness  = sceneCtx.ambientDarkness;
+
+        // Direct numeric override — no string conversion needed
+        if (lightingAnalysis.lightSource?.temperatureK) {
+          sceneCtx.lightTemperatureK = lightingAnalysis.lightSource.temperatureK;
+        }
+        if (lightingAnalysis.lightSource?.xPercent !== undefined) {
+          sceneCtx.lightSourceXPercent = lightingAnalysis.lightSource.xPercent;
+        }
+        if (lightingAnalysis.lightSource?.intensity) {
+          sceneCtx.lightIntensity = lightingAnalysis.lightSource.intensity;
+        }
+        if (lightingAnalysis.colorThermal?.ambientDarkness !== undefined) {
+          sceneCtx.ambientDarkness = lightingAnalysis.colorThermal.ambientDarkness;
+        }
+
+        const isV2 = !lightingAnalysis._legacyMode;
+        console.log(
+          `[COMPOSITE-GENERATE][preserveOriginal] [PRODUCT-AWARE-${isV2 ? 'v2' : 'legacy'}] Compositing override:` +
+          ` lightTemp ${origTemp}K→${sceneCtx.lightTemperatureK}K` +
+          ` lightXPct ${origXPct}%→${sceneCtx.lightSourceXPercent}%` +
+          ` intensity ${origIntensity}→${sceneCtx.lightIntensity}` +
+          ` darkness ${origDarkness}→${sceneCtx.ambientDarkness}` +
+          (isV2 ? ` | dropShadow=${lightingAnalysis.shadow?.hasDropShadow} | scenario=${lightingAnalysis.meta?.lightingScenario}` : '')
+        );
+
+        // CRITICAL BUG FIX: LA shadow directional values (dropOffsetX, dropOffsetY, dropOpacity,
+        // dropLengthPx, dropBlurPx) are derived from the ORIGINAL STUDIO PRODUCT PHOTO.
+        // These studio-specific values do NOT match the workshop/background scene lighting.
+        // Example: studio dropOffsetX=-18px → tiny shift that creates a round disc, not an elongated cast shadow.
+        // Fix: nullify these values so our dynamic scene-based formulas run instead.
+        // Only STRUCTURAL values (hasDropShadow, dropWidthMultiplier, penumbraWidth) are kept.
+        if (lightingAnalysis.shadow) {
+          lightingAnalysis.shadow.dropOffsetX  = undefined;  // use sceneCtx.lightSourceXPercent formula
+          lightingAnalysis.shadow.dropOffsetY  = undefined;  // no y-shift by default
+          lightingAnalysis.shadow.dropOpacity  = undefined;  // use laDarkness formula
+          lightingAnalysis.shadow.dropLengthPx = undefined;  // use finalH * 0.12 formula
+          lightingAnalysis.shadow.dropBlurPx   = undefined;  // use penumbraBlur formula
+          lightingAnalysis.shadow.penumbraWidth = undefined;  // use shadowH-based blur formula (studio penumbra is wrong for scene)
+          console.log(`[COMPOSITE-GENERATE][preserveOriginal] [PRODUCT-AWARE-v2] Studio shadow directionals nullified → dynamic scene-based shadow will be used`);
+        }
+      }
+
+      // surfaceY = derived from our TARGET, not from Claude Vision guess
+      // Claude's surfaceYPercent is logged for reference but NOT used for placement.
+      const surfaceY = Math.round(bgH * (TARGET_SURFACE_Y_PCT / 100));
+      console.log(
+        `[COMPOSITE-GENERATE][preserveOriginal] surfaceY=TARGET ${TARGET_SURFACE_Y_PCT}%=${surfaceY}px` +
+        ` (Claude guessed ${sceneCtx.surfaceYPercent}% — ignored for placement)` +
+        ` | scale=${sceneCtx.recommendedScalePercent}% | lightTemp=${sceneCtx.lightTemperatureK}K | darkness=${sceneCtx.ambientDarkness}` +
+        (productAwareBg && lightingAnalysis ? ' [product-aware override active]' : '')
+      );
+
+
+      // ── Helper: render SVG on explicit transparent RGBA canvas ─────────────
+      // Direct sharp(svgBuffer).png() may leave non-zero alpha in "transparent" areas
+      // causing rectangle artifacts with screen/soft-light blend modes.
+      const svgToTransparentPng = async (svgBuf: Buffer, w: number, h: number): Promise<Buffer> =>
+        sharp({ create: { width: w, height: h, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } } })
+          .composite([{ input: await sharp(svgBuf).png().toBuffer(), blend: 'over' }])
+          .png().toBuffer();
+
+      // Load the rembg cutout (local file, PNG with transparency)
+      // ── Step F: FLUX img2img on BACKGROUND ONLY (before compositing) ────────────
+      // CRITICAL: FLUX runs on the BACKGROUND, NOT on the full composite.
+      // The product label is NEVER touched by FLUX. FLUX only harmonizes the
+      // background lighting/atmosphere before the product is placed on it.
+      // We add a soft placeholder shadow where the product will sit so FLUX
+      // generates natural ground AO and warm light pooling at that location.
+      let harmonizedBgBuffer = bgBuffer;
+      try {
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [F] FLUX BG-only harmonization...`);
+        const phH = Math.round(bgH * (sceneCtx.recommendedScalePercent / 100));
+        const phW = Math.round(phH);
+        const phCenterX = Math.round(bgW / 2);
+        const phSurfaceY = Math.round(bgH * (TARGET_SURFACE_Y_PCT / 100));
+        // NOTE: Placeholder shadow ellipse was REMOVED — it was baking a visible black ring
+        // onto the table surface which FLUX then learned and reproduced in the final image.
+        // Contact shadow is applied by the Sharp compositor after compositing, not here.
+        const bgWithPlaceholder = bgBuffer; // use BG directly, no placeholder overlay
+        const bgPhFilename = `bg-ph-${Date.now()}.jpg`;
+        const bgPhPath = path.join(rendersDir, bgPhFilename);
+        await fs.promises.writeFile(bgPhPath, await sharp(bgWithPlaceholder).jpeg({ quality: 95 }).toBuffer());
+        const bgPhUrl = `http://localhost:${port}/renders/${bgPhFilename}`;
+        // Harmonize prompt RULE SYSTEM:
+        // RULE 1: bgMoodPrefix (user atmosphere) is primary — preserve the scene mood.
+        // RULE 2: LA bgLightingPrompt = lighting QUALITY only (strip BG-type prescriptions).
+        // RULE 3: Harmonizer adjusts AO/contact/light cohesion — not scene content.
+        let harmonizeLightHint = lightingAnalysis?.prompts?.bgLightingPrompt || '';
+        harmonizeLightHint = harmonizeLightHint
+          .replace(/\b(clean\s+)?(white|seamless|studio)\s+(background|wall|surface)[^,.;]*/gi, '')
+          .replace(/professional product photography (style|background)[^,.;]*/gi, '')
+          // Strip studio light SOURCE directions — these cause FLUX to add corner flares
+          .replace(/\bstudio light[^,.;]*/gi, '')
+          .replace(/\bkey light[^,.;]*/gi, '')
+          .replace(/\bfrom (the )?(top-?right|top-?left|right|left|top|bottom)[^,.;]*/gi, '')
+          .replace(/\blight from [^,.;]*/gi, '')
+          .replace(/\bfill (light |from )[^,.;]*/gi, '')
+          .replace(/,\s*,/g, ',').trim().replace(/^[,. ]+/, '');
+        const harmonizeFallback = 'natural shadows and ambient occlusion on surface, cohesive scene lighting';
+        const avoidClause = laBgNegativePrompt ? ` Avoid: ${laBgNegativePrompt}.` : '';
+        // Use bgMoodPrefix (has user atmosphere) instead of bare sceneKeywords
+        const harmonizePrompt =
+          `${bgMoodPrefix}, ${sceneKeywords}. ` +
+          `${harmonizeLightHint || harmonizeFallback}. ` +
+          `Reinforce existing scene atmosphere and mood, enhance surface contact and ambient occlusion. Photorealistic. ` +
+          `No light flare, no bright vignette in corners, no glowing corners, no added light sources. Preserve the exact scene as-is. ` +
+          `IMPORTANT: The table/workbench surface must be completely bare and empty — remove any bottles, flasks, objects, or products from the table surface if present. The table top must have nothing on it.${avoidClause}`;
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [F] Harmonize prompt: "${harmonizePrompt.slice(0, 200)}"`);
+        const harmonizedBgResult = await generateWithFluxFlex(harmonizePrompt, bgW, bgH, {
+          aspectRatio: ar, safetyTolerance: 5, guidance: 2.5, steps: 25,
+          inputImage: bgPhUrl, forceFlex: true,
+        });
+        const harmonizedBgResp = await axios.get(harmonizedBgResult.imageUrl, { responseType: 'arraybuffer', timeout: 30000 });
+        harmonizedBgBuffer = Buffer.from(harmonizedBgResp.data);
+        // Save harmonized BG for debugging — keep file
+        const bgHarmonizedFilename = `bg-harmonized-${Date.now()}.jpg`;
+        const bgHarmonizedPath = path.join(rendersDir, bgHarmonizedFilename);
+        await fs.promises.writeFile(bgHarmonizedPath, harmonizedBgBuffer);
+        debugBgHarmonizedUrl = `http://localhost:${port}/renders/${bgHarmonizedFilename}`;
+        console.log(`[DEBUG-IMG] ▶ BG #2 (harmonized FLUX output): ${debugBgHarmonizedUrl}`);
+        fs.promises.unlink(bgPhPath).catch(() => {}); // delete temp ph file, keep harmonized
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [F] ✅ BG harmonized in ${harmonizedBgResult.generationTime}s — product label untouched`);
+      } catch (bgHarmonizeErr: any) {
+        console.warn(`[COMPOSITE-GENERATE][preserveOriginal] [F] ⚠️ BG harmonize failed (${(bgHarmonizeErr as any).message}) — using original BG`);
+      }
+
+      let rembgBuffer: Buffer;
+      if (rembgImagePath.startsWith('/renders/')) {
+        const localPath = path.join(rendersDir, rembgImagePath.replace('/renders/', ''));
+        rembgBuffer = await fs.promises.readFile(localPath);
+      } else {
+        const rembgResp = await axios.get(rembgImagePath, { responseType: 'arraybuffer', timeout: 15000 });
+        rembgBuffer = Buffer.from(rembgResp.data);
+      }
+
+      // ── Fix #1 (v3): Hard alpha cutoff for white product on dark background ──
+      // Root cause: The white plastic bucket has many semi-transparent pixels (alpha 80-240)
+      // that are near-white (R+G+B > 480). On a dark workshop background, these show as
+      // a visible golden/warm rectangle — NOT a rembg artifact, but a natural consequence
+      // of compositing a white product with antialiased edges onto a dark background.
+      //
+      // Strategy:
+      //   Pass 1: near-white (R+G+B > 480) AND alpha < 120 → 0 (probably background edge)
+      //   Pass 2: near-white (R+G+B > 480) AND alpha 120-240 → 255 (definitely product, boost to solid)
+      //   Pass 3: any alpha < 20 → 0 (general noise)
+      //
+      // Result: No semi-transparent white pixels remain. Product has hard edge.
+      const rembgMetaRaw = await sharp(rembgBuffer).metadata();
+      if (rembgMetaRaw.channels === 4) {
+        const rawBuf = await sharp(rembgBuffer).raw().toBuffer();
+        let pass1Count = 0, pass2Count = 0, pass3Count = 0;
+        for (let i = 0; i < rawBuf.length; i += 4) {
+          const r = rawBuf[i], g = rawBuf[i+1], b = rawBuf[i+2], a = rawBuf[i+3];
+          const rgb = r + g + b;
+          if (rgb > 480 && a > 0 && a < 120) {
+            rawBuf[i+3] = 0;     // near-white, mostly transparent → erase (background residue)
+            pass1Count++;
+          } else if (rgb > 480 && a >= 120 && a < 240) {
+            rawBuf[i+3] = 255;   // near-white, mostly opaque → boost to solid (product body)
+            pass2Count++;
+          } else if (a < 20) {
+            rawBuf[i+3] = 0;     // any very-low-alpha → erase (noise)
+            pass3Count++;
+          }
+        }
+        rembgBuffer = await sharp(rawBuf, {
+          raw: { width: rembgMetaRaw.width!, height: rembgMetaRaw.height!, channels: 4 }
+        }).png().toBuffer();
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [FIX1] rembg alpha: ` +
+          `pass1(white→0)=${pass1Count} pass2(white→255)=${pass2Count} pass3(noise→0)=${pass3Count} | ` +
+          `total modified=${pass1Count+pass2Count+pass3Count}px`);
+      }
+
+
+      // ── TIGHT CROP: Remove transparent margins from rembg PNG ─────────────────
+      // rembg leaves transparent padding around the product (top ~41px, bottom ~31px, sides ~56px).
+      // Since productTop = surfaceY - finalH, the PNG BOTTOM lands on surfaceY.
+      // But the product base is INSIDE the PNG (above the bottom margin) → product floats.
+      // Fix: crop to exact content bounding box so PNG bottom = product base = surfaceY.
+      {
+        const cropMeta = await sharp(rembgBuffer).metadata();
+        const cropW = cropMeta.width!;
+        const cropH = cropMeta.height!;
+        const cropRaw = await sharp(rembgBuffer).raw().toBuffer();
+
+        // Find bounding box of non-transparent pixels
+        let minY = cropH, maxY = 0, minX = cropW, maxX = 0;
+        for (let y = 0; y < cropH; y++) {
+          for (let x = 0; x < cropW; x++) {
+            if (cropRaw[(y * cropW + x) * 4 + 3] > 0) {
+              if (y < minY) minY = y;
+              if (y > maxY) maxY = y;
+              if (x < minX) minX = x;
+              if (x > maxX) maxX = x;
+            }
+          }
+        }
+
+        if (maxY > minY && maxX > minX) {
+          const trimTop = minY, trimBottom = cropH - 1 - maxY;
+          const trimLeft = minX, trimRight = cropW - 1 - maxX;
+          rembgBuffer = await sharp(rembgBuffer)
+            .extract({ left: minX, top: minY, width: maxX - minX + 1, height: maxY - minY + 1 })
+            .png().toBuffer();
+          console.log(`[COMPOSITE-GENERATE][preserveOriginal] Tight-crop: removed margins top=${trimTop}px bottom=${trimBottom}px left=${trimLeft}px right=${trimRight}px → product bottom now exact`);
+        }
+      }
+
+      // ── Product sizing: dynamically from sceneCtx.recommendedScalePercent ──
+      // NOT a hardcoded number — Claude Vision determines the right scale.
+      const productMeta = await sharp(rembgBuffer).metadata();
+      const productAspect = (productMeta.width || 1) / (productMeta.height || 1);
+
+      let productTargetH = Math.round(bgH * (sceneCtx.recommendedScalePercent / 100));
+
+      // ── Fix #2: PHYSICAL SAFETY NET — product top must not float near ceiling ──
+      // Constraint: the product's top edge must be AT LEAST 12% of bgH from the top.
+      // This catches bad surfaceY detections before they produce floating products.
+      const maxProductH = Math.round(surfaceY - bgH * 0.12);
+      if (productTargetH > maxProductH) {
+        const originalPct = sceneCtx.recommendedScalePercent;
+        productTargetH = maxProductH;
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] ⚠ Scale clamped to prevent floating: ${Math.round(originalPct)}% → ${Math.round(productTargetH / bgH * 100)}% (maxH=${maxProductH}px, surfaceY=${surfaceY}px)`);
+      }
+
+      let productTargetW = Math.round(productTargetH * productAspect);
+      if (productTargetW > bgW) { productTargetW = bgW; productTargetH = Math.round(productTargetW / productAspect); }
+      if (productTargetH > bgH) { productTargetH = bgH; productTargetW = Math.round(productTargetH * productAspect); }
+
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] BG: ${bgW}×${bgH} | Product: ${productTargetW}×${productTargetH} (${Math.round(productTargetH/bgH*100)}% of bgH | Claude suggested ${sceneCtx.recommendedScalePercent}%)`);
+
+      const scaledProductBuffer = await sharp(rembgBuffer)
+        .resize(productTargetW, productTargetH, { fit: 'inside', withoutEnlargement: false })
+        .png()
+        .toBuffer();
+
+      // ── Brightness + Environment Integration ─────────────────────────────
+      // Fix #1: The white product body was too bright vs dark moody scenes.
+      // Old: dimAmount 0.88-0.98 (barely noticeable on white plastic)
+      // New: darkScene → stronger dim (0.72-0.95) so white integrates with dark env
+      // Additionally: an environment tint (dark ambient color) is overlaid on the product
+      // so white plastic picks up the scene's darkness/atmosphere color.
+      // ── LightingAnalysis resolver — use pre-computed physics values when available ──
+      // la = lightingAnalysis from the product slot (v2.0 physics pipeline).
+      // When la is available, all compositing parameters come from physics-derived numbers.
+      // When la is null, fall back to sceneCtx heuristic values (legacy mode).
+      const la: any = lightingAnalysis && !lightingAnalysis._legacyMode ? lightingAnalysis : null;
+
+      // Helper: clamp value to range
+      const clamp = (v: number, min: number, max: number) => Math.max(min, Math.min(max, v));
+
+      // dimAmount: from la.colorThermal.ambientDarkness OR sceneCtx fallback
+      const laDarkness = la ? la.colorThermal?.ambientDarkness ?? sceneCtx.ambientDarkness : sceneCtx.ambientDarkness;
+      const dimAmount = Math.max(0.72, 0.95 - (laDarkness / 100) * 0.23);  // 0.72-0.95
+      let productWithEffects = await sharp(scaledProductBuffer)
+        .modulate({ brightness: dimAmount })
+        .png()
+        .toBuffer();
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] dimAmount=${dimAmount.toFixed(3)} (darkness=${laDarkness}${la ? ' [LA-v2]' : ' [sceneCtx]'})`);
+
+      const scaledMeta = await sharp(productWithEffects).metadata();
+      const finalW = scaledMeta.width || productTargetW;
+      const finalH = scaledMeta.height || productTargetH;
+
+      // ── Positioning: from sceneCtx surface + x-offset ──────────────────────
+      const centerX    = Math.round(bgW / 2) + Math.round(bgW * (sceneCtx.recommendedXOffsetPercent / 100));
+      const productLeft = Math.max(0, Math.min(bgW - finalW, centerX - Math.round(finalW / 2)));
+      const productTop  = Math.max(0, Math.min(surfaceY - finalH, bgH - finalH - 5));
+
+      // Sanity check: productTop must be >= 12% of bgH (same constraint as maxProductH)
+      const minProductTop = Math.round(bgH * 0.12);
+      if (productTop < minProductTop) {
+        console.warn(`[COMPOSITE-GENERATE][preserveOriginal] ⚠ productTop=${productTop}px < minProductTop=${minProductTop}px — surfaceY likely wrong, used safety clamp`);
+      }
+
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] Product: left=${productLeft}, top=${productTop} | base Y=${productTop + finalH}px | surfaceY=${surfaceY}px | delta=${(productTop + finalH) - surfaceY}px`);
+
+      // ── Cast shadow: elongated directional shadow from product ──────────────
+      // PHYSICS: A cast shadow from a directional light (e.g. spotlight on right) extends
+      // BEHIND the product AND to the opposite side (left if light is right).
+      // The shadow is ELONGATED — its length-to-width ratio is typically 1:3 to 1:5.
+      // The shadow gradient: darkest near product base, transparent at far end.
+      // Key rule: shadowH (depth into scene) must be >> shadowH was (which was only 4%).
+      const hasDropShadow = la?.shadow?.hasDropShadow !== false;
+      const shadowScaleByDepth = { 'close': 0.75, 'mid': 0.68, 'far': 0.58 }[sceneCtx.surfaceDepthHint] ?? 0.72;
+      const shadowWidthMult = la?.shadow?.dropWidthMultiplier ?? shadowScaleByDepth;
+      const shadowW = Math.round(finalW * Math.min(1.1, shadowWidthMult));
+      // Shadow LENGTH (depth into scene): 10-18% of product height by default.
+      // A directional spotlight creates a longer shadow than a soft box.
+      // LA may give dropLengthPx — scale to canvas size.
+      const rawDropLengthPx = la?.shadow?.dropLengthPx;
+      const shadowH = rawDropLengthPx
+        ? Math.round(Math.max(20, Math.min(finalH * 0.20, rawDropLengthPx * (finalH / 1000))))
+        : Math.round(finalH * 0.12);  // default 12% of product height (was 4%)
+      // Lateral shift: proportional to how far off-center the light is.
+      // Light at 65% right → lightOffsetPct=0.30 → xShift = -finalW * 0.35 * 0.30 = -10.5% of width
+      // Cap at 35% of product width (was 15%)
+      const lightOffsetPct = (sceneCtx.lightSourceXPercent - 50) / 50;   // -1..+1
+      const shadowXShift = la?.shadow?.dropOffsetX !== undefined
+        ? Math.round(Math.max(-finalW * 0.35, Math.min(finalW * 0.35, la.shadow.dropOffsetX)))
+        : Math.round(finalW * 0.35 * (-lightOffsetPct));  // shadow goes opposite to light
+      const shadowYShift = la?.shadow?.dropOffsetY !== undefined
+        ? Math.round(Math.max(-finalH * 0.12, Math.min(finalH * 0.12, la.shadow.dropOffsetY)))
+        : 0;
+      // Position: shadow starts at the product base and extends backward
+      const shadowLeft = productLeft + Math.round((finalW - shadowW) / 2) + shadowXShift;
+      const shadowTop  = Math.min(bgH - shadowH - 1, surfaceY - Math.round(shadowH * 0.15) + shadowYShift);
+      const shadowPad  = Math.round(Math.max(20, shadowH));
+      const shadowCanW = shadowW + shadowPad * 2;
+      const shadowCanH = shadowH + shadowPad * 2;
+      // Opacity: softer for longer shadows (they spread over more surface area)
+      const shadowOpacity = hasDropShadow
+        ? Math.min(0.45, la?.shadow?.dropOpacity ?? Math.max(0.15, 0.20 + (laDarkness / 100) * 0.20))
+        : 0;
+      // Blur: large penumbra for soft cast shadow. Minimum 16px.
+      const penumbraBlurOverride: Record<string,number> = { 'none': 6, 'narrow': 10, 'medium': 18, 'wide': 28 };
+      const penumbraBlur = la?.shadow?.penumbraWidth ? penumbraBlurOverride[la.shadow.penumbraWidth] : undefined;
+      const shadowBlurPx = Math.max(16, la?.shadow?.dropBlurPx ?? penumbraBlur ?? Math.round(shadowH * 0.8));
+      // GRADIENT shadow: cx=50%, cy=10% — gradient center at top of shadow ellipse
+      // (= near product base). Shadow fades toward the far end (cy=100%).
+      // This creates the elongated teardrop look of a real cast shadow.
+      const cxPct = 50;
+      const cyPct = Math.round(shadowPad / shadowCanH * 100) + 5;  // near product base
+      const shadowEllipseSvg = Buffer.from(
+        `<svg width="${shadowCanW}" height="${shadowCanH}" xmlns="http://www.w3.org/2000/svg">` +
+        `<defs><radialGradient id="sg" cx="${cxPct}%" cy="${cyPct}%" r="60%" gradientUnits="objectBoundingBox">` +
+        `<stop offset="0%"   stop-color="black" stop-opacity="${shadowOpacity.toFixed(2)}"/>` +
+        `<stop offset="45%"  stop-color="black" stop-opacity="${(shadowOpacity * 0.40).toFixed(2)}"/>` +
+        `<stop offset="100%" stop-color="black" stop-opacity="0"/>` +
+        `</radialGradient></defs>` +
+        `<ellipse cx="${Math.round(shadowCanW/2)}" cy="${Math.round(shadowCanH/2)}" rx="${Math.round(shadowW/2)}" ry="${Math.round(shadowH/2)}" fill="url(#sg)"/>` +
+        `</svg>`
+      );
+      const shadowBuffer = await sharp({
+        create: { width: shadowCanW, height: shadowCanH, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
+      })
+        .composite([{ input: await sharp(shadowEllipseSvg).png().toBuffer(), blend: 'over' }])
+        .blur(shadowBlurPx)
+        .png()
+        .toBuffer();
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] Cast shadow: opacity=${shadowOpacity.toFixed(2)} hasDropShadow=${hasDropShadow} xShift=${shadowXShift}px yShift=${shadowYShift}px blurPx=${shadowBlurPx} shadowH=${shadowH}px shadowW=${shadowW}px lightX=${sceneCtx.lightSourceXPercent}%`);
+      const shadowLeftAdj = Math.max(0, shadowLeft - shadowPad);
+      const shadowTopAdj  = Math.max(0, shadowTop  - shadowPad);
+
+      // ── Fix #3: Apply rim darkening + warm tint DIRECTLY onto product PNG ──
+      // Reason: multiply/soft-light blend on a full-size overlay buffer (finalW×finalH)
+      // creates a visible rectangle artifact because sharp's premultiplied alpha treats
+      // transparent (alpha=0) pixels as black (0,0,0,0) → multiply darkens non-product area.
+      // Solution: apply these effects ONTO the RGBA product buffer before compositing.
+      // On RGBA PNG, multiply preserves alpha: transparent pixels stay transparent.
+
+      // Warm tint: use la.colorThermal.ambientTintRgb if available, else sceneCtx K-based
+      let warmOpacity: number, warmG: number, warmB: number;
+      if (la?.colorThermal?.ambientTintRgb) {
+        // Direct RGB from LightingAnalysis (physics-derived, exact Kelvin match)
+        const [tR, tG, tB] = la.colorThermal.ambientTintRgb;
+        let baseWarmOpacity = clamp(la.colorThermal.ambientTintOpacity ?? 0.12, 0, 0.28);
+        // BG scene is warm (dark/workshop) → boost tint to at least 0.12 to visually match
+        // The original studio photo's ambient tint (0.06) is too weak for warm BG scenes
+        // Use PRE-OVERRIDE darkness from SCENE-ANALYZE (bgSceneAnalysisDarkness), NOT overridden value
+        if (bgSceneAnalysisDarkness > 35) {
+          // Warm/dark scene: ensure minimum warm tint for product integration
+          baseWarmOpacity = Math.max(0.12, baseWarmOpacity);
+        }
+        warmOpacity = baseWarmOpacity;
+        warmG = Math.round(clamp(tG, 80, 255));
+        warmB = Math.round(clamp(tB, 20, 255));
+        // BONUS: if lightSource.colorCastRgb is available, blend it into the warm tint
+        // colorCastRgb = [R_shift, G_shift, B_shift] relative to neutral (e.g. +22,+8,-18 for 3200K)
+        const castRgb = la.lightSource?.colorCastRgb;
+        if (Array.isArray(castRgb) && castRgb.length === 3) {
+          // Apply shift: the shift tells us how far from neutral the light is
+          // Blend 30% of the cast shift into the warm tint RGB
+          warmG = Math.round(clamp(warmG + castRgb[1] * 0.3, 80, 255));
+          warmB = Math.round(clamp(warmB + castRgb[2] * 0.3, 20, 255));
+        }
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA-v2] Warm tint from LightingAnalysis: rgb(255,${warmG},${warmB}) opacity=${warmOpacity.toFixed(3)} colorCast=${la.lightSource?.colorCastRgb} bgDarkness=${bgSceneDarkness}`);
+      } else {
+        // Legacy heuristic
+        const warmIntensity = Math.max(0, (5000 - sceneCtx.lightTemperatureK) / 2300);
+        warmOpacity = warmIntensity * 0.28;
+        warmG = Math.round(130 + (sceneCtx.lightTemperatureK - 2700) * 0.02);
+        warmB = Math.round(25  + (sceneCtx.lightTemperatureK - 2700) * 0.018);
+      }
+      const warmCoverage = Math.round(finalH * 0.45);
+
+      // Environment integration tint: ambient color cast from the scene onto the product.
+      // PHYSICS FIX: Use la.colorThermal.ambientTintRgb + ambientTintOpacity directly from
+      // LightingAnalysis if available. Claude derives these from the actual product photo,
+      // so they are more accurate than our formula. The old approach (darkness > 40 gate)
+      // was wrong because ambient color bleeding occurs even in bright scenes (e.g. warm
+      // wooden table reflecting onto white plastic base).
+      // Fallback: if no LA, use darkness-derived formula (kept as before for non-LA mode).
+      let envTintOpacity: number;
+      let envR: number, envG: number, envB: number;
+      const laTintRgb = la?.colorThermal?.ambientTintRgb;  // [R, G, B] or undefined
+      const laTintOpacity = la?.colorThermal?.ambientTintOpacity;  // 0-0.25 or undefined
+      if (laTintRgb && Array.isArray(laTintRgb) && laTintOpacity !== undefined && laTintOpacity > 0.005) {
+        // LA-provided: Claude's physics-derived ambient tint (always active regardless of darkness)
+        envR = Math.round(Math.max(0, Math.min(255, laTintRgb[0])));
+        envG = Math.round(Math.max(0, Math.min(255, laTintRgb[1])));
+        envB = Math.round(Math.max(0, Math.min(255, laTintRgb[2])));
+        envTintOpacity = Math.min(0.22, laTintOpacity);  // cap at 0.22 to avoid overdoing it
+      } else {
+        // Fallback: darkness-derived formula for non-LA mode
+        const envTintK = sceneCtx.lightTemperatureK;
+        envR = Math.round(20 + (envTintK - 2700) * 0.005);   // ~20-30
+        envG = Math.round(25 + (envTintK - 2700) * 0.008);   // ~25-40
+        envB = Math.round(40 + (envTintK - 2700) * 0.015);   // ~40-70
+        envTintOpacity = Math.max(0, (laDarkness - 40) / 100) * 0.22;  // 0-0.22, only for dark scenes
+      }
+      if (envTintOpacity > 0.005) {
+        const envTintSvg = Buffer.from(
+          `<svg width="${finalW}" height="${finalH}" xmlns="http://www.w3.org/2000/svg">` +
+          `<rect width="${finalW}" height="${finalH}" fill="rgb(${envR},${envG},${envB})" opacity="${envTintOpacity.toFixed(3)}"/>` +
+          `</svg>`
+        );
+        const envTintBuf = await svgToTransparentPng(envTintSvg, finalW, finalH);
+        productWithEffects = await sharp(productWithEffects)
+          .composite([{ input: envTintBuf, left: 0, top: 0, blend: 'multiply' }])
+          .png().toBuffer();
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] envTint applied: opacity=${envTintOpacity.toFixed(3)} rgb(${envR},${envG},${envB}) ${laTintRgb ? '[LA-direct]' : '[fallback]'}`);
+      }
+
+      if (warmOpacity > 0.01) {
+        const warmTintSvg = Buffer.from(
+          `<svg width="${finalW}" height="${warmCoverage}" xmlns="http://www.w3.org/2000/svg">` +
+          `<defs><linearGradient id="wt" x1="0" y1="0" x2="0" y2="1">` +
+          `<stop offset="0%"   stop-color="rgb(255,${warmG},${warmB})" stop-opacity="${warmOpacity.toFixed(3)}"/>` +
+          `<stop offset="50%"  stop-color="rgb(255,${warmG},${warmB})" stop-opacity="${(warmOpacity*0.45).toFixed(3)}"/>` +
+          `<stop offset="100%" stop-color="rgb(255,${warmG},${warmB})" stop-opacity="0"/>` +
+          `</linearGradient></defs>` +
+          `<rect width="${finalW}" height="${warmCoverage}" fill="url(#wt)"/>` +
+          `</svg>`
+        );
+        // Composite warm tint at (0, 0) of the product PNG — transparent product pixels untouched
+        const warmBuf = await svgToTransparentPng(warmTintSvg, finalW, warmCoverage);
+        productWithEffects = await sharp(productWithEffects)
+          .composite([{ input: warmBuf, left: 0, top: 0, blend: 'soft-light' }])
+          .png().toBuffer();
+      }
+
+      // Rim darkening: use la.compositing.rimDarkening if available
+      let rimOpacity: number, rimSide: 'left' | 'right' | 'both';
+      if (la?.compositing?.rimDarkening) {
+        rimOpacity = clamp(la.compositing.rimDarkening.opacity, 0, 0.55);
+        rimSide = la.compositing.rimDarkening.side === 'none' ? 'both' : la.compositing.rimDarkening.side;
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA-v2] Rim: opacity=${rimOpacity.toFixed(3)} side=${rimSide}`);
+      } else {
+        rimOpacity = (laDarkness / 100) * 0.42;
+        rimSide = 'both';
+      }
+
+      // ── NEW: Lambert form shadow gradient (Fejezet 4.2) ────────────────────
+      // At overhead theta ~80-90°: top=100%, bottom=25% → strong vertical gradient
+      // At side 45°: top=70%, left or right side darkens significantly
+      if (la?.compositing?.formShadowGradient?.enabled) {
+        const fsg = la.compositing.formShadowGradient;
+        const fsgOpacity = clamp(fsg.opacity ?? 0.28, 0.10, 0.45);
+        const topStop   = clamp(1 - (fsg.topBrightness    ?? 0.95), 0, 0.4);   // invert: bright top = low dark overlay
+        const bottomStop = clamp(1 - (fsg.bottomBrightness ?? 0.30), 0.3, 0.8); // invert: dark bottom = high dark overlay
+        const formGradSvg = Buffer.from(
+          `<svg width="${finalW}" height="${finalH}" xmlns="http://www.w3.org/2000/svg">` +
+          `<defs><linearGradient id="fg" x1="0" y1="0" x2="0" y2="1">` +
+          `<stop offset="0%"   stop-color="black" stop-opacity="${(topStop * fsgOpacity).toFixed(3)}"/>` +
+          `<stop offset="30%"  stop-color="black" stop-opacity="${(topStop * fsgOpacity * 0.3).toFixed(3)}"/>` +
+          `<stop offset="65%"  stop-color="black" stop-opacity="${(bottomStop * fsgOpacity * 0.5).toFixed(3)}"/>` +
+          `<stop offset="100%" stop-color="black" stop-opacity="${(bottomStop * fsgOpacity).toFixed(3)}"/>` +
+          `</linearGradient></defs>` +
+          `<rect width="${finalW}" height="${finalH}" fill="url(#fg)"/>` +
+          `</svg>`
+        );
+        const formGradBuf = await svgToTransparentPng(formGradSvg, finalW, finalH);
+        productWithEffects = await sharp(productWithEffects)
+          .composite([{ input: formGradBuf, left: 0, top: 0, blend: 'multiply' }])
+          .png().toBuffer();
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA-v2] Form shadow gradient: opacity=${fsgOpacity.toFixed(3)} topDark=${(topStop*fsgOpacity).toFixed(3)} bottomDark=${(bottomStop*fsgOpacity).toFixed(3)}`);
+      } else {
+        // Fallback: always apply a mild Lambert gradient (25% darkening at base)
+        const defaultGradSvg = Buffer.from(
+          `<svg width="${finalW}" height="${finalH}" xmlns="http://www.w3.org/2000/svg">` +
+          `<defs><linearGradient id="dfg" x1="0" y1="0" x2="0" y2="1">` +
+          `<stop offset="0%"   stop-color="black" stop-opacity="0.00"/>` +
+          `<stop offset="50%"  stop-color="black" stop-opacity="0.04"/>` +
+          `<stop offset="80%"  stop-color="black" stop-opacity="0.14"/>` +
+          `<stop offset="100%" stop-color="black" stop-opacity="0.22"/>` +
+          `</linearGradient></defs>` +
+          `<rect width="${finalW}" height="${finalH}" fill="url(#dfg)"/>` +
+          `</svg>`
+        );
+        const defaultGradBuf = await svgToTransparentPng(defaultGradSvg, finalW, finalH);
+        productWithEffects = await sharp(productWithEffects)
+          .composite([{ input: defaultGradBuf, left: 0, top: 0, blend: 'multiply' }])
+          .png().toBuffer();
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] Form shadow gradient: default Lambert (22% base darkening)`);
+      }
+
+      // ── NEW: Fresnel edge highlight (la.material.fresnelEdgeGlow) ────────────
+      // Physics: dielectric materials (IOR > 1) have brighter edges at grazing angles.
+      // White PP plastic (IOR~1.49): edges 15-25% brighter than center face.
+      // Applied as a soft white screen-blend on the left and right edges.
+      if (la?.material?.fresnelEdgeGlow === true) {
+        const fresnelScale: Record<string,number> = { 'subtle': 0.12, 'medium': 0.22, 'strong': 0.38 };
+        const fresnelOpacity = fresnelScale[la.material.fresnelIntensity ?? 'subtle'] ?? 0.12;
+        const fresnelW = Math.round(finalW * 0.12);  // 12% of product width per edge
+        const fresnelSvg = Buffer.from(
+          `<svg width="${finalW}" height="${finalH}" xmlns="http://www.w3.org/2000/svg">` +
+          `<defs>` +
+          `<linearGradient id="fl" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="white" stop-opacity="${fresnelOpacity.toFixed(2)}"/><stop offset="${(fresnelW/finalW*100).toFixed(1)}%" stop-color="white" stop-opacity="0"/></linearGradient>` +
+          `<linearGradient id="fr" x1="1" y1="0" x2="0" y2="0"><stop offset="0%" stop-color="white" stop-opacity="${fresnelOpacity.toFixed(2)}"/><stop offset="${(fresnelW/finalW*100).toFixed(1)}%" stop-color="white" stop-opacity="0"/></linearGradient>` +
+          `</defs>` +
+          `<rect width="${finalW}" height="${finalH}" fill="url(#fl)"/>` +
+          `<rect width="${finalW}" height="${finalH}" fill="url(#fr)"/>` +
+          `</svg>`
+        );
+        const fresnelBuf = await svgToTransparentPng(fresnelSvg, finalW, finalH);
+        productWithEffects = await sharp(productWithEffects)
+          .composite([{ input: fresnelBuf, left: 0, top: 0, blend: 'screen' }])
+          .png().toBuffer();
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA] Fresnel edge: opacity=${fresnelOpacity.toFixed(2)} intensity=${la.material.fresnelIntensity}`);
+      }
+
+      // ── NEW: Color bleeding (la.colorThermal.hasColorBleeding) ───────────────
+      // Physics: strongly colored nearby surfaces reflect their color onto adjacent white objects.
+      // Applied as a subtle tinted gradient on the side facing the bleeding source.
+      if (la?.colorThermal?.hasColorBleeding && la.colorThermal.bleedingSourceColor && la.colorThermal.bleedingOpacity > 0.005) {
+        const [bR, bG, bB] = la.colorThermal.bleedingSourceColor;
+        const bleedOp = Math.min(0.15, la.colorThermal.bleedingOpacity);
+        // Apply bleeding as a subtle tint across the whole product (the source direction
+        // is usually lateral — we use a simple uniform tint for now)
+        const bleedSvg = Buffer.from(
+          `<svg width="${finalW}" height="${finalH}" xmlns="http://www.w3.org/2000/svg">` +
+          `<rect width="${finalW}" height="${finalH}" fill="rgb(${Math.round(bR)},${Math.round(bG)},${Math.round(bB)})" opacity="${bleedOp.toFixed(3)}"/>` +
+          `</svg>`
+        );
+        const bleedBuf = await svgToTransparentPng(bleedSvg, finalW, finalH);
+        productWithEffects = await sharp(productWithEffects)
+          .composite([{ input: bleedBuf, left: 0, top: 0, blend: 'multiply' }])
+          .png().toBuffer();
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA] Color bleed: rgb(${Math.round(bR)},${Math.round(bG)},${Math.round(bB)}) opacity=${bleedOp.toFixed(3)}`);
+      }
+
+      // ── NEW: SSS edge glow (la.material.hasSSS + sssStrength) ────────────────
+      // Physics: sub-surface scattering creates a warm edge glow when backlit.
+      // Only visible when light comes from behind (backlit scenario) or at high directionAngle.
+      if (la?.material?.hasSSS && la.material.sssStrength !== 'none') {
+        const theta = la.lightSource?.directionAngle ?? 70;
+        const isBacklit = (la.lightSource?.type === 'backlit') || (la.lightSource?.directionLabel === 'back');
+        const isHighAngle = theta >= 70;  // overhead light also causes SSS on rim
+        if (isBacklit || isHighAngle) {
+          const sssScale: Record<string,number> = { 'weak': 0.08, 'medium': 0.18, 'strong': 0.30 };
+          const sssOp = sssScale[la.material.sssStrength ?? 'weak'] ?? 0.08;
+          const sssColor = la.material.sssColorShift === 'warm' ? [255, 210, 150] : [255, 255, 255];
+          const sssW = Math.round(finalW * 0.15);
+          const sssSvg = Buffer.from(
+            `<svg width="${finalW}" height="${finalH}" xmlns="http://www.w3.org/2000/svg">` +
+            `<defs>` +
+            `<linearGradient id="sl" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="rgb(${sssColor[0]},${sssColor[1]},${sssColor[2]})" stop-opacity="${sssOp.toFixed(2)}"/><stop offset="${(sssW/finalW*100).toFixed(1)}%" stop-color="rgb(${sssColor[0]},${sssColor[1]},${sssColor[2]})" stop-opacity="0"/></linearGradient>` +
+            `<linearGradient id="sr" x1="1" y1="0" x2="0" y2="0"><stop offset="0%" stop-color="rgb(${sssColor[0]},${sssColor[1]},${sssColor[2]})" stop-opacity="${sssOp.toFixed(2)}"/><stop offset="${(sssW/finalW*100).toFixed(1)}%" stop-color="rgb(${sssColor[0]},${sssColor[1]},${sssColor[2]})" stop-opacity="0"/></linearGradient>` +
+            `</defs>` +
+            `<rect width="${finalW}" height="${finalH}" fill="url(#sl)"/>` +
+            `<rect width="${finalW}" height="${finalH}" fill="url(#sr)"/>` +
+            `</svg>`
+          );
+          const sssBuf = await svgToTransparentPng(sssSvg, finalW, finalH);
+          productWithEffects = await sharp(productWithEffects)
+            .composite([{ input: sssBuf, left: 0, top: 0, blend: 'screen' }])
+            .png().toBuffer();
+          console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA] SSS edge glow: strength=${la.material.sssStrength} colorShift=${la.material.sssColorShift} opacity=${sssOp.toFixed(2)}`);
+        }
+      }
+
+      // ── NEW: Rim light effect (la.compositing.rimLight) ──────────────────────
+      // Physics: in three-point setups, a back-right or back-left light creates
+      // a bright edge highlight on the opposite side — adds depth and separation.
+      // This is different from rimDarkening: rimLight BRIGHTENS the edge.
+      const rimLightCfg = la?.compositing?.rimLight;
+      if (rimLightCfg && rimLightCfg.side !== 'none' && (rimLightCfg.opacity ?? 0) > 0.02) {
+        const rlOp = clamp(rimLightCfg.opacity, 0, 0.50);
+        const rlW = Math.round(finalW * (rimLightCfg.widthMultiplier ?? 0.15));
+        // Build a gradient on the correct side
+        const isLeft  = rimLightCfg.side === 'left';
+        const isRight = rimLightCfg.side === 'right';
+        const isTop   = rimLightCfg.side === 'top';
+        const rlSvgParts: string[] = [`<svg width="${finalW}" height="${finalH}" xmlns="http://www.w3.org/2000/svg"><defs>`];
+        if (isLeft || !isRight && !isTop) {
+          rlSvgParts.push(`<linearGradient id="rll" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="white" stop-opacity="${rlOp.toFixed(2)}"/><stop offset="${(rlW/finalW*100).toFixed(1)}%" stop-color="white" stop-opacity="0"/></linearGradient>`);
+        }
+        if (isRight || !isLeft && !isTop) {
+          rlSvgParts.push(`<linearGradient id="rlr" x1="1" y1="0" x2="0" y2="0"><stop offset="0%" stop-color="white" stop-opacity="${rlOp.toFixed(2)}"/><stop offset="${(rlW/finalW*100).toFixed(1)}%" stop-color="white" stop-opacity="0"/></linearGradient>`);
+        }
+        if (isTop) {
+          rlSvgParts.push(`<linearGradient id="rlt" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="white" stop-opacity="${rlOp.toFixed(2)}"/><stop offset="${(rlW/finalW*100).toFixed(1)}%" stop-color="white" stop-opacity="0"/></linearGradient>`);
+        }
+        rlSvgParts.push(`</defs>`);
+        if (isLeft  || !isRight && !isTop) rlSvgParts.push(`<rect width="${finalW}" height="${finalH}" fill="url(#rll)"/>`);
+        if (isRight || !isLeft && !isTop)  rlSvgParts.push(`<rect width="${finalW}" height="${finalH}" fill="url(#rlr)"/>`);
+        if (isTop)                          rlSvgParts.push(`<rect width="${finalW}" height="${finalH}" fill="url(#rlt)"/>`);
+        rlSvgParts.push(`</svg>`);
+        const rlBuf = await svgToTransparentPng(Buffer.from(rlSvgParts.join('')), finalW, finalH);
+        productWithEffects = await sharp(productWithEffects)
+          .composite([{ input: rlBuf, left: 0, top: 0, blend: 'screen' }])
+          .png().toBuffer();
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA] Rim light: side=${rimLightCfg.side} opacity=${rlOp.toFixed(2)} widthMult=${rimLightCfg.widthMultiplier}`);
+      }
+
+      if (rimOpacity > 0.02) {
+        const rimW = Math.round(finalW * (la?.compositing?.rimDarkening?.widthMultiplier ?? 0.20));
+        const rimSvg = Buffer.from(
+          `<svg width="${finalW}" height="${finalH}" xmlns="http://www.w3.org/2000/svg">` +
+          `<defs>` +
+          `<linearGradient id="rl" x1="0" y1="0" x2="1" y2="0">` +
+          `<stop offset="0%"             stop-color="black" stop-opacity="${rimOpacity.toFixed(3)}"/>` +
+          `<stop offset="${(rimW/finalW*100).toFixed(1)}%" stop-color="black" stop-opacity="0"/>` +
+          `</linearGradient>` +
+          `<linearGradient id="rr" x1="1" y1="0" x2="0" y2="0">` +
+          `<stop offset="0%"             stop-color="black" stop-opacity="${rimOpacity.toFixed(3)}"/>` +
+          `<stop offset="${(rimW/finalW*100).toFixed(1)}%" stop-color="black" stop-opacity="0"/>` +
+          `</linearGradient>` +
+          `</defs>` +
+          `<rect width="${finalW}" height="${finalH}" fill="url(#rl)"/>` +
+          `<rect width="${finalW}" height="${finalH}" fill="url(#rr)"/>` +
+          `</svg>`
+        );
+        const rimBuf = await svgToTransparentPng(rimSvg, finalW, finalH);
+        productWithEffects = await sharp(productWithEffects)
+          .composite([{ input: rimBuf, left: 0, top: 0, blend: 'multiply' }])
+          .png().toBuffer();
+      }
+
+      // ── CRITICAL: Re-apply original alpha mask after blend effects ────────────
+      // soft-light and multiply blend modes in sharp (libvips) operate on premultiplied
+      // alpha, which causes visible color bleed in transparent (alpha=0) regions of the
+      // product PNG — creating the golden rectangle artifact.
+      // Fix: extract the original alpha from the scaled product (before effects) and re-stamp.
+      {
+        const origAlpha = await sharp(scaledProductBuffer).extractChannel('alpha').raw().toBuffer();
+        const effRaw = await sharp(productWithEffects).raw().toBuffer();
+        const effMeta = await sharp(productWithEffects).metadata();
+        for (let i = 0; i < origAlpha.length; i++) {
+          effRaw[i * 4 + 3] = origAlpha[i];  // restore original alpha from pre-effect product
+        }
+        productWithEffects = await sharp(effRaw, {
+          raw: { width: effMeta.width!, height: effMeta.height!, channels: 4 }
+        }).png().toBuffer();
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] Alpha mask re-applied after effects (rectangle fix)`);
+      }
+
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] Product effects baked in: warmOpacity=${warmOpacity.toFixed(3)} rimOpacity=${rimOpacity.toFixed(3)}`);
+
+      // ── Base composite: FLUX-harmonized BG + shadow + product ─────────────
+      // Use harmonizedBgBuffer: FLUX already added natural shadows/AO to the BG.
+      // The product (with its intact label) is composited on top.
+      const baseComposite = await sharp(harmonizedBgBuffer)
+        .composite([
+          { input: shadowBuffer,        left: shadowLeftAdj, top: shadowTopAdj, blend: 'multiply' },
+          { input: productWithEffects,  left: productLeft,   top: productTop,   blend: 'over' }
+        ])
+        .png()
+        .toBuffer();
+
+      // ── Post-effect #1: Contact shadow (ambient occlusion at base) ─────────
+      // Uses a SINGLE soft radial gradient — no hard core ellipse.
+      // RULE: Contact shadow visibility is determined by the product of opacity × blurPx.
+      //       A small blur radius creates a hard-edged, visible disc → needs lower opacity.
+      //       A large blur radius creates a soft, natural-looking shadow → can have higher opacity.
+      //       Rule: opacity is scaled so that (rawOpacity × blurPx) stays within a perceptual range.
+      //       Perceptual threshold T=6: if rawOpacity × blurPx < T → opacity is fine.
+      //                                 if rawOpacity × blurPx ≥ T → scale opacity down to T/blurPx.
+      //       This means: blur=8px at opacity=0.88 → 0.88×8=7.04 → clamp to 6/8=0.75 (visible)
+      //                   blur=20px at opacity=0.88 → 0.88×20=17.6 → clamp to 6/20=0.30 (soft)
+      //                   blur=3px at opacity=0.88 → 0.88×3=2.64 → fine as-is (T not exceeded)
+      //       Additionally: absolute cap at 0.65 to prevent unrealistically dark shadows.
+      // placement.cameraAngle → affects contactH (telephoto = less perspective = flatter oval)
+      // placement.cameraFOV  → same: 'wide' = more perspective = taller oval
+      const cameraAngle = la?.placement?.cameraAngle ?? 'slightly-above';
+      const cameraFOV   = la?.placement?.cameraFOV   ?? 'normal';
+      const perspDistortion = la?.placement?.perspectiveDistortion ?? 'slight';
+      // Perspective-based scale: eye-level = 0.7×, slightly-above = 1.0×, bird-eye = 1.5×
+      const cameraAngleScale: Record<string,number> = { 'eye-level': 0.70, 'slightly-above': 1.00, 'low-angle': 0.55, 'bird-eye': 1.50 };
+      const cameraFOVScale: Record<string,number>   = { 'wide': 1.20, 'normal': 1.00, 'telephoto': 0.80 };
+      const perspScale = (cameraAngleScale[cameraAngle] ?? 1.0) * (cameraFOVScale[cameraFOV] ?? 1.0);
+      const contactW = Math.round(finalW * (la?.shadow?.contactShadow?.widthMultiplier ?? 0.68));
+      const contactH = Math.round(Math.max(10, finalH * (la?.shadow?.contactShadow?.heightMultiplier ?? 0.025) * perspScale));
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA] Placement: cameraAngle=${cameraAngle} FOV=${cameraFOV} perspDistortion=${perspDistortion} → perspScale=${perspScale.toFixed(2)} contactH=${contactH}px`);
+      const rawContactOpacity = la?.shadow?.contactShadow?.opacity ?? 0.45;
+      // RULE: blur floor at 8px — LA JSON may give very small values (e.g. 3px)
+      //       which create a visually hard disc regardless of opacity. 8px is the minimum
+      //       for a gradient that blends into the surface.
+      const contactBlurPx = Math.max(8, la?.shadow?.contactShadow?.blurPx ?? Math.max(8, Math.round(contactH * 0.6)));
+      // Apply perceptual opacity×blur rule
+      const PERCEPTUAL_THRESHOLD = 6;
+      const contactOpacity = Math.min(0.65, rawContactOpacity * contactBlurPx < PERCEPTUAL_THRESHOLD
+        ? rawContactOpacity
+        : PERCEPTUAL_THRESHOLD / contactBlurPx);
+      const contactLeft = productLeft + Math.round((finalW - contactW) / 2) + shadowXShift;
+      const contactTop  = Math.max(0, surfaceY - Math.round(contactH * 0.65));
+
+      // Single smooth radial gradient contact shadow — no hard edges
+      const contactCoreSvg = Buffer.from(
+        `<svg width="${contactW}" height="${contactH}" xmlns="http://www.w3.org/2000/svg">` +
+        `<defs><radialGradient id="cg" cx="50%" cy="50%" r="50%">` +
+        `<stop offset="0%"   stop-color="black" stop-opacity="${contactOpacity.toFixed(2)}"/>` +
+        `<stop offset="50%"  stop-color="black" stop-opacity="${(contactOpacity * 0.55).toFixed(2)}"/>` +
+        `<stop offset="100%" stop-color="black" stop-opacity="0"/>` +
+        `</radialGradient></defs>` +
+        `<ellipse cx="${Math.round(contactW/2)}" cy="${Math.round(contactH/2)}" rx="${Math.round(contactW/2)}" ry="${Math.round(contactH/2)}" fill="url(#cg)"/>` +
+        `</svg>`
+      );
+      const contactShadowBuffer = await sharp({
+        create: { width: contactW, height: contactH, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
+      })
+        .composite([{ input: await sharp(contactCoreSvg).png().toBuffer(), blend: 'over' }])
+        .blur(contactBlurPx)  // much softer now
+        .png().toBuffer();
+
+      // Halo: wider, softer outer AO spread
+      // RULE: AO halos are physically present only in scenes with diffuse ambient occlusion.
+      //       In hard-spotlight or bright scenes (low darkness), there is no diffuse AO —
+      //       the shadow is a directional drop shadow, not a radial halo.
+      //       PHYSICS FIX: AO halo (ambient occlusion) is a CONTACT phenomenon — it derives
+      //       from the geometry of the object touching the surface (Global Illumination),
+      //       NOT from how dark the scene is. It is always present regardless of darkness.
+      //       The old gate (laDarkness > 25) was wrong: it disabled AO in bright scenes
+      //       (e.g. workshop darkness=12), causing the "floating bucket" visual artifact.
+      //       Fix: AO is always enabled. Opacity is Claude-derived (la.shadow.aoHalo.opacity).
+      //       A small minimum (0.15) ensures ground contact is always visually present.
+      const haloW = Math.round(finalW * (la?.shadow?.aoHalo?.widthMultiplier ?? 0.92));
+      // perspScale also flattens/rounds the AO halo oval based on camera elevation
+      const haloH = Math.round(Math.max(8, finalH * (la?.shadow?.aoHalo?.heightMultiplier ?? 0.030) * perspScale));
+      // PHYSICS: AO halo is a diffuse-ambient phenomenon. The LA JSON derives the correct opacity.
+      // If LA says opacity=0.05 or lower, there is no meaningful AO → skip entirely.
+      // Removed Math.max(0.15) floor: in bright/diffuse outdoor scenes (beach, overcast)
+      // the AO is negligible and forcing 0.15 creates a visible dark ring that doesn't exist.
+      const haloBaseOpacity = la?.shadow?.aoHalo?.opacity ?? 0.30;
+      // Scale by darkness: in brighter scenes (low darkness) → less AO presence
+      const haloOpacityScale = Math.max(0.4, Math.min(1.0, 0.4 + laDarkness / 100));  // 0.4-1.0
+      const haloOpacity = haloBaseOpacity * haloOpacityScale;
+      // AO halo DISABLED: user explicitly does not want the oval halo ring under the product.
+      // It looks unnatural and is NOT needed — the contact shadow already grounds the product.
+      const renderHalo = false;
+      const haloBlurPx  = la?.shadow?.aoHalo?.blurPx   ?? Math.max(4, Math.round(haloH * 0.5));
+      let haloBuffer: Buffer | null = null;
+      if (renderHalo) {
+        const haloLeft = productLeft + Math.round((finalW - haloW) / 2) + shadowXShift;
+        const haloTop  = Math.max(0, surfaceY - Math.round(haloH * 0.5));
+        const haloSvg = Buffer.from(
+          `<svg width="${haloW}" height="${haloH}" xmlns="http://www.w3.org/2000/svg">` +
+          `<defs><radialGradient id="hg" cx="50%" cy="50%" r="50%">` +
+          `<stop offset="0%"   stop-color="black" stop-opacity="${haloOpacity.toFixed(2)}"/>` +
+          `<stop offset="65%"  stop-color="black" stop-opacity="${(haloOpacity * 0.25).toFixed(2)}"/>` +
+          `<stop offset="100%" stop-color="black" stop-opacity="0"/>` +
+          `</radialGradient></defs>` +
+          `<ellipse cx="${Math.round(haloW/2)}" cy="${Math.round(haloH/2)}" rx="${Math.round(haloW/2)}" ry="${Math.round(haloH/2)}" fill="url(#hg)"/>` +
+          `</svg>`
+        );
+        const rawHaloBuf = await sharp({
+          create: { width: haloW, height: haloH, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
+        })
+          .composite([{ input: await sharp(haloSvg).png().toBuffer(), blend: 'over' }])
+          .blur(haloBlurPx)
+          .png().toBuffer();
+        haloBuffer = rawHaloBuf;
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] Contact shadow: w=${contactW} h=${contactH} opacity=${contactOpacity.toFixed(2)} blur=${contactBlurPx}px | Halo: DISABLED`);
+      } else {
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] Contact shadow: w=${contactW} h=${contactH} opacity=${contactOpacity.toFixed(2)} blur=${contactBlurPx}px | Halo: DISABLED`);
+      }
+
+      // ── Post-effect #2: Specular highlight on lid — SMALL TIGHT BUFFER ─────
+      // Fix #2: Specular is now STRICTLY bounded to the TOP 18% of the product.
+      // The halo/sáv on the right edge was caused by the specular SVG buffer being
+      // positioned near the edge and the radial gradient bleeding sideways.
+      // Solution: specBufH capped at top-lid area only, never extends down the sides.
+      // Specular: use la.material.specular values when available (physics-derived zone)
+      let specOpacity: number, specZonePct: number, specWidthMult: number;
+      // HARD CAP: specZonePct max 8% — prevents specular from overlapping product handle/fül area.
+      // PHYSICS: The specular highlight on a cylindrical lid is a narrow crescent on the rim edge,
+      // NOT a full disc covering the top. 8% = top rim only (approx. 2cm of a 25cm lid diameter).
+      // Going above 8% (e.g. 12%) causes the white SVG ellipse to overlap the white handle,
+      // creating a "floating white disc" artifact via screen blend.
+      const SPEC_ZONE_MAX_PCT = 0.08;  // HARD CAP — never exceed 8% of product height
+      if (la?.material?.specular) {
+        specOpacity    = clamp(la.material.specular.opacity ?? 0.40, 0.10, 0.55);  // cap at 0.55 (was 0.65)
+        specZonePct    = Math.min(SPEC_ZONE_MAX_PCT, clamp(la.material.specular.zoneTopPct ?? 8, 4, 8) / 100);
+        specWidthMult  = clamp(la.material.specular.widthMultiplier ?? 0.50, 0.25, 0.65);  // slightly narrower
+        // Overhead light (theta >= 75°): boost specular on lid (top of bucket gets full irradiance)
+        const theta = la.lightSource?.directionAngle ?? 70;
+        if (theta >= 75) {
+          specOpacity = clamp(specOpacity * 1.2, 0.25, 0.55);  // capped lower than before
+        }
+        // material.roughness modulates specular blur: low roughness = tight sharp highlight
+        const roughness = la.material?.roughness ?? 0.5;
+        // specBlurPx from LA (if present) or derived from roughness: 0→2px, 0.5→6px, 1.0→14px
+        const specBlurFromRoughness = Math.round(2 + roughness * 12);
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA-v2] Specular: opacity=${specOpacity.toFixed(2)} zone=top${Math.round(specZonePct*100)}% width=${specWidthMult} roughness=${roughness}→blurPx=${specBlurFromRoughness} [CAPPED at ${SPEC_ZONE_MAX_PCT*100}%]`);
+      } else {
+        specOpacity   = { 'soft': 0.15, 'medium': 0.32, 'hard': 0.50 }[sceneCtx.lightIntensity] ?? 0.32;
+        specZonePct   = 0.06;  // top 6% default (was 18%!!) — safe default that avoids handle
+        specWidthMult = 0.48;
+      }
+      let specularBuffer: Buffer | null = null;
+      let specLeft = productLeft;
+      let specTop  = productTop;
+      if (specOpacity > 0.05) {
+        // Specular zone: top specZonePct of product height — STRICTLY the lid rim (physics-derived)
+        // CRITICAL: specH2 is max 35% of zone height (was 50%) to keep highlight as a thin crescent
+        // and NOT overlap with the product's white handle that sits on top of the lid.
+        const specZoneH = Math.round(finalH * specZonePct);
+        const specW     = Math.round(finalW * specWidthMult);  // physics-derived width
+        const specH2    = Math.round(Math.max(4, specZoneH * 0.35));  // max 35% of zone height (was 50%)
+        // Light offset from sceneCtx (spotlight X position).
+        // PHYSICS: specular highlight center = direction toward light source.
+        // If light is at xPercent=65 (right), highlight shifts RIGHT on the product.
+        // Scale factor 0.40: realistic range for product photography (not too extreme).
+        const specOffX  = Math.round((sceneCtx.lightSourceXPercent - 50) / 100 * finalW * 0.40);
+        const specPad   = Math.round(specH2 * 0.4);
+        const specBufW  = specW + specPad * 2;
+        const specBufH  = specH2 + specPad * 2;
+        specLeft = productLeft + Math.round((finalW - specW) / 2) + specOffX - specPad;
+        specTop  = productTop + Math.round(specZoneH * 0.15);  // top of lid, with small margin
+        // Clamp to image bounds
+        specLeft = Math.max(0, Math.min(bgW - specBufW, specLeft));
+        specTop  = Math.max(0, Math.min(bgH - specBufH, specTop));
+        // Ensure specular bottom never goes beyond 18% mark of product
+        const specBottomMax = productTop + specZoneH;
+        if (specTop + specBufH > specBottomMax) {
+          specTop = Math.max(productTop, specBottomMax - specBufH);
+        }
+        const specularSvg = Buffer.from(
+          `<svg width="${specBufW}" height="${specBufH}" xmlns="http://www.w3.org/2000/svg">` +
+          `<defs><radialGradient id="sp" cx="50%" cy="40%" r="50%">` +
+          `<stop offset="0%"   stop-color="white" stop-opacity="${specOpacity.toFixed(2)}"/>` +
+          `<stop offset="40%"  stop-color="white" stop-opacity="${(specOpacity*0.18).toFixed(2)}"/>` +
+          `<stop offset="100%" stop-color="white" stop-opacity="0"/>` +
+          `</radialGradient></defs>` +
+          `<ellipse cx="${Math.round(specBufW/2)}" cy="${Math.round(specBufH * 0.45)}" rx="${Math.round(specW/2)}" ry="${Math.round(specH2/2)}" fill="url(#sp)"/>` +
+          `</svg>`
+        );
+        // Apply roughness-derived blur to the specular highlight
+        const rawSpecBuf = await svgToTransparentPng(specularSvg, specBufW, specBufH);
+        const specBlurPx = la?.material?.specular?.blurPx ?? specBlurFromRoughness;
+        specularBuffer = specBlurPx > 1
+          ? await sharp(rawSpecBuf).blur(specBlurPx).png().toBuffer()
+          : rawSpecBuf;
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] Specular: zone=top${Math.round(specZonePct*100)}% specW=${specW} specH=${specH2} offX=${specOffX}px opacity=${specOpacity.toFixed(2)}`);
+      }
+
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] Post-effects: warmOp=${warmOpacity.toFixed(3)} rimOp=${rimOpacity.toFixed(3)} specOp=${specOpacity.toFixed(2)} envTint=${envTintOpacity.toFixed(3)}`);
+
+      // ── Final composite: base + contact shadow (core+halo) + specular ──────
+      // (warmTint + rimDarken + envTint + fresnel + colorBleed + SSS + rimLight are baked into productWithEffects)
+      const postEffectLayers: sharp.OverlayOptions[] = [
+        // Halo is conditional — only rendered if la.shadow.aoHalo.opacity >= 0.05
+        ...(haloBuffer && renderHalo ? [{ input: haloBuffer, left: Math.max(0, productLeft + Math.round((finalW - haloW) / 2) + shadowXShift), top: Math.max(0, surfaceY - Math.round(haloH * 0.5)), blend: 'multiply' as sharp.Blend }] : []),
+        { input: contactShadowBuffer, left: Math.max(0, contactLeft), top: Math.max(0, contactTop), blend: 'multiply' },
+        ...(specularBuffer ? [{ input: specularBuffer, left: specLeft, top: specTop, blend: 'screen' as sharp.Blend }] : []),
+      ];
+
+      // ── Post-effect #3: Light wrap (la.compositing.lightWrap) ──────────────
+      // Physics: background light "bleeds" around the product edges, softening the compositing border.
+      // Applied AFTER the final composite so it samples real BG pixels, not the placeholder.
+      // Implementation: blur the harmonized BG heavily, expand outward slightly, apply on product edge.
+      const lightWrapCfg = la?.compositing?.lightWrap;
+      if (lightWrapCfg && (lightWrapCfg.opacity ?? 0) > 0.02) {
+        postEffectLayers.push = postEffectLayers.push; // placeholder — lightWrap is applied post-composite below
+      }
+
+      // ── Step E: Sharp post-processing before FLUX harmonization ──────────────
+
+      // ── Step E1: Reflection — DISABLED ──────────────────────────────────────────
+      // The flip-bottom reflection artifact creates a visible dark oval under the product
+      // on non-polished/non-mirror surfaces (workshop wood, workbench, matte table).
+      // It looks unnatural and is not what photography normally shows.
+      // DISABLED: reflection effect is off. Contact shadow is sufficient for grounding.
+      const sceneIsReflective = false;
+      let reflectionBuffer: Buffer | null = null;
+      const reflLeft = productLeft;
+      const reflTop  = Math.min(bgH - 1, surfaceY);
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] [E1] Reflection: DISABLED (contact shadow is sufficient)`);
+
+      // E2: Color grade — darken product to match scene darkness
+      // A bright studio product in a dark (darkness=72) scene needs dimming
+      const sceneDimFactor = 1.0 - (sceneCtx.ambientDarkness / 100) * 0.18;  // 0.82-1.0
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] [E] Scene dim factor: ${sceneDimFactor.toFixed(3)} (darkness=${sceneCtx.ambientDarkness})`);
+
+      // All E-step layers added to post-effects
+      const ePostLayers: sharp.OverlayOptions[] = [
+        // reflectionBuffer is null when surface is non-reflective (sand, beach, grass...)
+        ...(reflectionBuffer ? [{ input: reflectionBuffer as Buffer, left: reflLeft, top: reflTop, blend: 'multiply' as sharp.Blend }] : []),
+        ...postEffectLayers,
+      ];
+
+      let compositedBuffer = await sharp(baseComposite)
+        .composite(ePostLayers)
+        .modulate({ brightness: sceneDimFactor })  // E2: darken to match scene
+        .jpeg({ quality: 95 })
+        .toBuffer();
+
+      // Save initial sharp composite
+      const compositeFilename = `composite-${Date.now()}.jpg`;
+      const compositePath = path.join(rendersDir, compositeFilename);
+      await fs.promises.writeFile(compositePath, compositedBuffer);
+      imageUrl = `/renders/${compositeFilename}`;
+      genModel = bgGenResult.model;
+      genTime  = bgGenResult.generationTime;
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] [E] Sharp composite saved → ${imageUrl}`);
+
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] ✅ Final composite ready → ${imageUrl}`);
+
+      // Run QA on the composited result
+      // Fix #3: Use a composite-specific evaluation prompt — NOT bgOnlyPrompt (which says
+      // "no products visible anywhere") and NOT activePrompt (which says "clean studio").
+      // The QA must evaluate the COMPOSITE QUALITY: is the product physically integrated?
+      const fullImageUrl = `http://localhost:${port}${imageUrl}`;
+      const compositeCheckPrompt = `A product photo composite: a product placed onto a background scene. ` +
+        `Evaluate ONLY: (1) is the product physically resting ON the surface (not floating above it)? ` +
+        `(2) is there a visible rectangle/box/panel artifact around the product? ` +
+        `(3) does the product look naturally integrated into the scene (not copy-pasted)?`;
+      checkupResult = await checkGeneratedImage(fullImageUrl, compositeCheckPrompt);
+
+      // Run layer selector on the composited image
+      const layerSelection = await selectBestLayerTemplate(
+        fullImageUrl,
+        !!(decomposed.layerText),
+        brandTone,
+        brandRules
+      );
+      selectedTemplateId = layerSelection.templateId !== 'none' ? layerSelection.templateId : null;
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] Layer selector chose: "${selectedTemplateId}" (${layerSelection.confidence}%)`);
+
+    } else {
+      // ── Standard generation (no preserveOriginal) ─────────────────────────
       const genResult = await generateWithFluxFlex(activePrompt, w, h, {
         aspectRatio: ar,
         safetyTolerance: 5,
@@ -976,20 +2868,25 @@ app.post('/api/image/composite-generate', async (req, res) => {
       });
       imageUrl = genResult.imageUrl;
       genModel = genResult.model;
-      genTime = genResult.generationTime;
+      genTime  = genResult.generationTime;
 
-      console.log(`[COMPOSITE-GENERATE] Image generated, running checkup...`);
+      console.log(`[COMPOSITE-GENERATE] Image generated, running QA checkup...`);
       checkupResult = await checkGeneratedImage(imageUrl, activePrompt);
 
-      if (checkupResult.passed || attempts >= 2) {
-        break;
+      if (!checkupResult.passed) {
+        console.log(`[COMPOSITE-GENERATE] ⚠️ QA FAILED (score: ${checkupResult.score}). Issues: ${checkupResult.issues.join(', ')}`);
+        console.log(`[COMPOSITE-GENERATE] Suggested fix for manual retry: "${checkupResult.suggestedPromptAdjustment}"`);
       }
 
-      console.log(`[COMPOSITE-GENERATE] Checkup FAILED (score: ${checkupResult.score}). Issues: ${checkupResult.issues.join(', ')}`);
-      console.log(`[COMPOSITE-GENERATE] Suggested adjustment: "${checkupResult.suggestedPromptAdjustment}"`);
-
-      activePrompt = `${activePrompt}. ${checkupResult.suggestedPromptAdjustment}`;
-      activePrompt += `. Ensure single unified photographic frame, merge background seamlessly, remove picture-in-picture, avoid multiple copies.`;
+      // Run layer selector on the generated image
+      const layerSelection = await selectBestLayerTemplate(
+        imageUrl,
+        !!(decomposed.layerText),
+        brandTone,
+        brandRules
+      );
+      selectedTemplateId = layerSelection.templateId !== 'none' ? layerSelection.templateId : null;
+      console.log(`[COMPOSITE-GENERATE] Layer selector chose: "${selectedTemplateId}" (${layerSelection.confidence}%)`);
     }
 
     const elapsed = Date.now() - start;
@@ -1001,10 +2898,14 @@ app.post('/api/image/composite-generate', async (req, res) => {
       elapsed,
       generationModel: genModel,
       generationTime: genTime,
-      checkup: {
-        ...checkupResult,
-        attempts
-      }
+      checkup: checkupResult,
+      decomposedLayerText: decomposed.layerText,
+      decomposedLayerCta: decomposed.layerCta,
+      selectedTemplateId,
+      debugImages: (debugBgRawUrl || debugBgHarmonizedUrl) ? {
+        bgRaw:        debugBgRawUrl        || null,
+        bgHarmonized: debugBgHarmonizedUrl || null,
+      } : undefined,
     });
 
   } catch (err: any) {
@@ -1030,31 +2931,24 @@ app.post('/api/image/preprocess', async (req, res) => {
     }
 
     const base64Data = image.replace(/^data:image\/\w+;base64,/, "");
-    const tempFile = path.join(rendersDir, `uploaded-${Date.now()}.png`);
-    fs.writeFileSync(tempFile, base64Data, { encoding: 'base64' });
-    const fileSize = fs.statSync(tempFile).size;
-    console.log(`[PREPROCESS] Saved temp file: ${tempFile} (${(fileSize / 1024).toFixed(1)} KB)`);
+    const uploadFilename = `uploaded-${Date.now()}.png`;
+    const uploadFilePath = path.join(rendersDir, uploadFilename);
+    fs.writeFileSync(uploadFilePath, base64Data, { encoding: 'base64' });
+    const fileSize = fs.statSync(uploadFilePath).size;
+    console.log(`[PREPROCESS] Saved uploaded file: ${uploadFilePath} (${(fileSize / 1024).toFixed(1)} KB)`);
 
-    console.log('[PREPROCESS] Step 1/2: Uploading to Fal.ai CDN...');
-    const baseCdnUrl = await uploadToFal(tempFile);
+    console.log('[PREPROCESS] Running local background removal...');
+    const isolatedUrl = await removeBackground(uploadFilePath);
     
-    // Clean up temp file
-    if (fs.existsSync(tempFile)) {
-      fs.unlinkSync(tempFile);
-    }
-
-    console.log('[PREPROCESS] Step 2/2: Bria AI background removal...');
-    const isolatedUrl = await removeBackground(baseCdnUrl);
-    
-    console.log(`[PREPROCESS] ✅ Complete in ${Date.now() - start}ms → ${isolatedUrl.substring(0, 80)}...`);
-    res.json({ url: isolatedUrl, originalUrl: baseCdnUrl });
+    console.log(`[PREPROCESS] ✅ Complete in ${Date.now() - start}ms → ${isolatedUrl}`);
+    res.json({ url: isolatedUrl, originalUrl: `/renders/${uploadFilename}` });
   } catch (err: any) {
     console.error(`[PREPROCESS] ❌ Failed after ${Date.now() - start}ms: ${err.message}`);
     res.status(500).json({ error: 'Failed to preprocess image', details: err.message });
   }
 });
 
-// Route 4.5: Image upscaling (drct-super-resolution for sharp details and text)
+// Route 4.5: Image upscaling (Local Real-ESRGAN AI upscaler)
 app.post('/api/image/upscale', async (req, res) => {
   const { imageUrl, maskUrl } = req.body;
   if (!imageUrl) {
@@ -1062,40 +2956,12 @@ app.post('/api/image/upscale', async (req, res) => {
   }
 
   const start = Date.now();
-  console.log(`\n[UPSCALE] Starting upscale using fal-ai/drct-super-resolution for image: ${imageUrl.substring(0, 80)}...`);
+  console.log(`\n[UPSCALE] Starting local AI upscale for image: ${imageUrl.substring(0, 80)}...`);
 
   try {
-    const result = await fal.subscribe('fal-ai/drct-super-resolution', {
-      input: {
-        image_url: imageUrl,
-        upscale_factor: 4
-      }
-    });
-
-    const data = result.data as any;
-    if (!data || !data.image || !data.image.url) {
-      throw new Error('No image URL returned in upscale response');
-    }
-
-    const upscaledUrl = data.image.url;
-    console.log(`[UPSCALE] DRCT success in ${Date.now() - start}ms → ${upscaledUrl.substring(0, 80)}...`);
-
-    // If maskUrl (preprocessed transparent URL) is provided, apply it mathematically to preserve 100% of text quality
-    if (maskUrl) {
-      console.log(`[UPSCALE] maskUrl provided, applying low-res mask to upscaled image`);
-      const maskedLocalPath = await applyLowResMaskToUpscaled(upscaledUrl, maskUrl, rendersDir);
-      const finalCdnUrl = await uploadToFal(maskedLocalPath);
-      
-      // Clean up local file
-      if (fs.existsSync(maskedLocalPath)) {
-        fs.unlinkSync(maskedLocalPath);
-      }
-      
-      console.log(`[UPSCALE] ✅ Masked upscale success in ${Date.now() - start}ms → ${finalCdnUrl.substring(0, 80)}...`);
-      return res.json({ url: finalCdnUrl });
-    }
-
-    return res.json({ url: upscaledUrl });
+    const localUrl = await localUpscale(imageUrl, maskUrl);
+    console.log(`[UPSCALE] ✅ Local upscale success in ${Date.now() - start}ms → ${localUrl}`);
+    return res.json({ url: localUrl });
   } catch (err: any) {
     console.error(`[UPSCALE] ❌ Failed after ${Date.now() - start}ms: ${err.message}`);
     res.status(500).json({ error: 'Failed to upscale image', details: err.message });
@@ -1194,15 +3060,15 @@ app.post('/api/test-image', async (req, res) => {
           bflPayload.steps = steps !== undefined ? Math.min(50, Math.max(1, Number(steps))) : 50;
           if (width) bflPayload.width = Number(width);
           if (height) bflPayload.height = Number(height);
-          bflPayload.input_image = productImageUrl || preprocessedImageUrl || undefined;
+          bflPayload.input_image = imageToBflInput(productImageUrl || preprocessedImageUrl || undefined);
           if (preprocessedImageUrl && preprocessedImageUrl !== productImageUrl) {
-            bflPayload.input_image_2 = preprocessedImageUrl;
+            bflPayload.input_image_2 = imageToBflInput(preprocessedImageUrl);
           }
         } else if (isUltra) {
           bflPayload.aspect_ratio = bflAspectRatio || '2:3';
           bflPayload.raw = bflRaw === true;
           if (preprocessedImageUrl || productImageUrl) {
-            bflPayload.image_prompt = preprocessedImageUrl || productImageUrl;
+            bflPayload.image_prompt = imageToBflInput(preprocessedImageUrl || productImageUrl);
             bflPayload.image_prompt_strength = imagePromptStrength !== undefined ? Number(imagePromptStrength) : 0.1;
           }
         } else {
@@ -1212,9 +3078,9 @@ app.post('/api/test-image', async (req, res) => {
           bflPayload.width = clamped.width;
           bflPayload.height = clamped.height;
           console.log(`[TEST-IMAGE] [BFL] Clamped direct Pro/Max dimensions: original ${finalW}x${finalH} -> clamped ${clamped.width}x${clamped.height}`);
-          bflPayload.input_image = productImageUrl || preprocessedImageUrl || undefined;
+          bflPayload.input_image = imageToBflInput(productImageUrl || preprocessedImageUrl || undefined);
           if (preprocessedImageUrl && preprocessedImageUrl !== productImageUrl) {
-            bflPayload.input_image_2 = preprocessedImageUrl;
+            bflPayload.input_image_2 = imageToBflInput(preprocessedImageUrl);
           }
         }
 

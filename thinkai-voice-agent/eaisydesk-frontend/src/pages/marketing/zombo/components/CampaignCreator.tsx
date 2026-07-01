@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { BrandKit, SystemLog, Campaign, CampaignItem, PostCreative, ABTestVariant, CampaignPhase } from '../types';
-import { fixImageUrl } from '../types';
+import { fixImageUrl, getBackendUrl } from '../types';
 import { buildLayerTemplates } from '../layerTemplates';
 import ImageSlotUploader, { type ImageSlot, buildCompositePayload } from './ImageSlotUploader';
 import {
@@ -299,7 +299,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
     onGenerateStart(briefText);
 
     try {
-      const response = await fetch('http://localhost:3001/api/campaign/generate', {
+      const response = await fetch(`${getBackendUrl()}/api/campaign/generate`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -446,7 +446,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
       const creative = creatives.find(c => c.id === id);
       if (!creative) return;
 
-      const response = await fetch('http://localhost:3001/api/render-update', {
+      const response = await fetch(`${getBackendUrl()}/api/render-update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({

@@ -1,9 +1,10 @@
 import React, { useState, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import type { BrandKit, PostCreative } from '../types';
-import { fixImageUrl } from '../types';
+import { fixImageUrl, getBackendUrl } from '../types';
 import { buildLayerTemplates, type LayerTemplate } from '../layerTemplates';
 import { Layers, Loader } from 'lucide-react';
-import ImageSlotUploader, { type ImageSlot, buildCompositePayload } from './ImageSlotUploader';
+import ImageSlotUploader, { type ImageSlot, buildCompositePayload, PanZoomImage } from './ImageSlotUploader';
 
 // ─── Icons (inline SVG) ───────────────────────────────────────────────────────
 const Zap     = ({ size = 18 }: { size?: number }) => <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/></svg>;
@@ -51,9 +52,109 @@ const STYLES = [
   { id: 'minimal',      label: '⬜ Minimalista' },
 ];
 
-// ─── Helper: fake image placeholders for variations ───────────────────────────
-const makePlaceholderUrl = (seed: string, w = 1080, h = 1350) =>
-  `https://picsum.photos/seed/${encodeURIComponent(seed)}/${w}/${h}`;
+// ─── Helper: parse subject for viewer-facing text and matching overlay ───────
+function parseSubject(subject: string, brandName: string, selectedProduct: string) {
+  let cleanBrief = subject.trim();
+  let overlayText = '';
+  let matchedTemplateId: string | null = null;
+
+  // 1. Check for quotes (Hungarian „” or English "")
+  const quoteMatch = subject.match(/[„"“'”]([^„"”'”]+)[”"”'”]/);
+  if (quoteMatch) {
+    overlayText = quoteMatch[1].trim();
+    // Remove the quoted part and keywords like "felirattal", "felirat", "szöveggel", "szöveg"
+    cleanBrief = subject.replace(quoteMatch[0], '')
+      .replace(/\b(felirattal|felirat|szöveggel|szöveg|kiírással|kiírás)\b/gi, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  } else {
+    // 2. If no quotes, check if there is a promo phrase using common punctuation separators
+    const separators = /[:–\-|]/;
+    if (separators.test(subject)) {
+      const parts = subject.split(separators);
+      // Find which part contains promotional keywords
+      const promoKeywords = /%|akció|kedvezmény|leárazás|sale|promo|ajánlat|olcsó|vásárlás|rendelés|ingyenes|szállítás|limitált|hamarosan|új|new/i;
+      const promoIndex = parts.findIndex(p => promoKeywords.test(p));
+      if (promoIndex !== -1) {
+        overlayText = parts[promoIndex].trim();
+        // The other parts form the visual description
+        const otherParts = parts.filter((_, idx) => idx !== promoIndex);
+        cleanBrief = otherParts.join(' ').trim();
+      }
+    }
+  }
+
+  // 3. Fallback: if no separator/quotes but contains promo keywords, try to extract a percentage or short phrase
+  if (!overlayText) {
+    const percentMatch = subject.match(/(\d+%\s*(kedvezmény|akció)?)/i);
+    if (percentMatch) {
+      overlayText = percentMatch[1].trim();
+      // CRITICAL: also remove it from cleanBrief so Flux doesn't render it on the image
+      cleanBrief = cleanBrief
+        .replace(percentMatch[0], '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    } else if (subject.toLowerCase().includes('akció')) {
+      overlayText = 'AKCIÓ!';
+      cleanBrief = cleanBrief
+        .replace(/\bakció\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    } else if (subject.toLowerCase().includes('kedvezmény')) {
+      overlayText = 'KEDVEZMÉNY!';
+      cleanBrief = cleanBrief
+        .replace(/\bkedvezmény\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+    }
+  }
+
+  // Check if the overlay text is actually describing a label on the product
+  const lowerOverlay = overlayText.toLowerCase();
+  const lowerSubject = subject.toLowerCase();
+  
+  const isBrandOrProductText = 
+    (brandName && lowerOverlay === brandName.toLowerCase()) ||
+    (selectedProduct && lowerOverlay === selectedProduct.toLowerCase()) ||
+    lowerSubject.includes('terméken') || 
+    lowerSubject.includes('vödrön') || 
+    lowerSubject.includes('címk') || 
+    lowerSubject.includes('doboz');
+
+  if (isBrandOrProductText) {
+    overlayText = '';
+    matchedTemplateId = null;
+    cleanBrief = subject; // Keep full subject so Flux generates the product text
+  } else if (overlayText) {
+    // Determine matching template ID based on keywords
+    if (lowerOverlay.includes('%') || lowerOverlay.includes('kedvezmény') || lowerOverlay.includes('leárazás')) {
+      matchedTemplateId = 'promo-badge';
+    } else if (lowerSubject.includes('vélemény') || lowerSubject.includes('értékelés') || lowerSubject.includes('csillag') || lowerSubject.includes('testimonial')) {
+      matchedTemplateId = 'testimonial-layer';
+    } else if (lowerSubject.includes('hamarosan') || lowerSubject.includes('countdown') || lowerSubject.includes('visszaszámlálás')) {
+      matchedTemplateId = 'countdown-launch';
+    } else if (lowerSubject.includes('luxus') || lowerSubject.includes('prémium') || lowerSubject.includes('luxury') || lowerSubject.includes('elegáns')) {
+      matchedTemplateId = 'luxury-dark';
+    } else if (lowerSubject.includes('új') || lowerSubject.includes('new') || lowerSubject.includes('megjelent') || lowerSubject.includes('bold')) {
+      matchedTemplateId = 'bold-headline';
+    } else {
+      matchedTemplateId = 'product-callout'; // default for general promo text
+    }
+
+    // Final safety: strip all promo keyword fragments from cleanBrief so Flux generates a CLEAN background
+    cleanBrief = cleanBrief
+      .replace(/\b(akció|kedvezmény|leárazás|sale|promo|ajánlat|ingyenes szállítás|limitált|hamarosan|szállítás|felirat|szöveg|kiírás|badge|banner)\b/gi, '')
+      .replace(/\d+%/g, '') // strip any remaining percentages
+      .replace(/\s+/g, ' ')
+      .trim();
+  }
+
+  return {
+    cleanBrief: cleanBrief || subject,
+    overlayText,
+    matchedTemplateId
+  };
+}
 
 // ─── Component ────────────────────────────────────────────────────────────────
 export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, auditResult, onSavePost }) => {
@@ -82,6 +183,16 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
   // Multi-slot image upload (replaces single productImage/preprocessedUrl)
   const [imageSlots, setImageSlots] = useState<ImageSlot[]>([]);
   const isPreprocessing = imageSlots.some(s => s.preprocessLoading || s.analysisLoading || s.upscaleLoading);
+  const [isZoomed, setIsZoomed] = useState(false);
+
+  // "Eredeti kép megtartása" toggle
+  const [preserveOriginal, setPreserveOriginal] = useState(false);
+
+  // "Termékre hangolt háttér" toggle — analyzes product image first, generates matching BG
+  const [productAwareBg, setProductAwareBg] = useState(false);
+
+  // Text-on-image warning modal state
+  const [showTextWarning, setShowTextWarning] = useState(false);
 
 
   // Layer Template state
@@ -115,6 +226,9 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
   const [editingCtaBgColor, setEditingCtaBgColor] = useState('default');
   const [editingCtaYOffset, setEditingCtaYOffset] = useState(0);
   const [editingAltText, setEditingAltText] = useState<string>('');
+
+  // Debug intermediate images (bg-raw, bg-harmonized)
+  const [debugImages, setDebugImages] = useState<{ bgRaw: string | null; bgHarmonized: string | null } | null>(null);
 
   // Map layer template ID to layout category ('product' | 'quote' | 'testimonial' | 'list' | 'universal')
   const getLayoutCategory = (tmplId: string | null): 'product' | 'quote' | 'testimonial' | 'list' | 'universal' => {
@@ -266,7 +380,7 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
     setSavingEdit(true);
     try {
       const bgImage = result.rawImages[activeVariant];
-      const response = await fetch('http://localhost:3001/api/render-update', {
+      const response = await fetch(`${getBackendUrl()}/api/render-update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -330,12 +444,19 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
     }
   };
 
-  const applyTemplateToVariant = async (vIndex: number, templateId: string | null) => {
-    if (!result) return;
-    const rawBgImage = result.rawImages[vIndex];
+  const applyTemplateToVariant = async (
+    vIndex: number,
+    templateId: string | null,
+    customResult?: QuickPostResult,
+    overlayText?: string,
+    ctaText?: string
+  ) => {
+    const activeResult = customResult || result;
+    if (!activeResult) return;
+    const rawBgImage = activeResult.rawImages[vIndex];
     
     if (!templateId) {
-      setResult(prev => {
+      const updateResultState = (prev: QuickPostResult | null) => {
         if (!prev) return null;
         const newVariations = [...prev.variations];
         newVariations[vIndex] = rawBgImage;
@@ -344,19 +465,85 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
           imageUrl: rawBgImage,
           variations: newVariations
         };
-      });
+      };
+      if (customResult) {
+        setResult(updateResultState(activeResult));
+      } else {
+        setResult(updateResultState);
+      }
       return;
     }
 
     setIsApplyingLayerTemplate(true);
     try {
+      // Compute contrast text color from current image slots analysis
+      const dominantColors = imageSlots.flatMap(s => s.analysis?.dominantColors || []).map(c => c.toLowerCase());
+      const lightKw = ['white', 'cream', 'beige', 'ivory', 'light', 'yellow', 'pale', 'silver', 'fehér', 'ezüst', 'sárga'];
+      const darkKw  = ['black', 'navy', 'dark', 'charcoal', 'deep', 'midnight', 'fekete', 'sötét', 'tengerész'];
+      const hasLight = dominantColors.some(c => lightKw.some(k => c.includes(k)));
+      const hasDark  = dominantColors.some(c => darkKw.some(k => c.includes(k)));
+      const contrastColor = hasLight && !hasDark ? '#1a1a1a' : hasDark && !hasLight ? '#ffffff' : '#1a1a1a';
+
       const templates = buildLayerTemplates(
         activeBrandKit.colors.primary,
         activeBrandKit.colors.accent,
-        activeBrandKit.typography?.fontName || 'Inter'
+        activeBrandKit.typography?.fontName || 'Inter',
+        contrastColor
       );
       const template = templates.find(t => t.id === templateId);
       if (!template) throw new Error('Sablon nem található');
+
+      // ── Inject user overlay text into the template layers ─────────────────
+      // Strategy: find ALL content text layers (sorted by fontSize desc),
+      // replace the primary one with overlayText.
+      // For templates like promo-badge, the largest is the "50%" display number.
+      const finalOverlay = overlayText !== undefined ? overlayText : editingText;
+      const finalCta = ctaText !== undefined ? ctaText : editingCta;
+
+      let patchedLayers = template.layers.map(layer => ({ ...layer }));
+
+      if (finalOverlay) {
+        // Get all text layers sorted by fontSize desc, filter out purely decorative (opacity < 0.5)
+        const contentTextLayers = patchedLayers
+          .map((l, i) => ({ l, i }))
+          .filter(({ l }) => l.type === 'text' && (l.fontSize || 0) >= 20 && (l.opacity === undefined || l.opacity >= 0.5))
+          .sort((a, b) => (b.l.fontSize || 0) - (a.l.fontSize || 0));
+
+        if (contentTextLayers.length > 0) {
+          // Replace the primary (largest) content layer with the overlay text
+          const primaryIdx = contentTextLayers[0].i;
+          patchedLayers[primaryIdx] = { ...patchedLayers[primaryIdx], text: finalOverlay };
+
+          // If there's a second large text layer (>= 48px) AND overlay text has multiple parts,
+          // replace it with an empty string to avoid showing the old placeholder
+          if (contentTextLayers.length > 1 && (contentTextLayers[1].l.fontSize || 0) >= 48) {
+            const secondaryIdx = contentTextLayers[1].i;
+            // Only blank it out if it's different content from what we already set
+            if (secondaryIdx !== primaryIdx) {
+              patchedLayers[secondaryIdx] = { ...patchedLayers[secondaryIdx], text: '' };
+            }
+          }
+        }
+      }
+
+      if (finalCta) {
+        // Find button/CTA text layers: small text inside a rect button
+        // Heuristic: text layer with fontSize < 44, containing typical CTA words
+        const ctaKeywords = ['VÁSÁRL', 'RENDEL', 'MEGNÉZ', 'ÉRDEKEL', 'LETÖLT', 'FOGLAL',
+                             'REGISZT', 'TOVÁBB', 'SHOP', 'BUY', 'ORDER', 'LEARN', 'FELIRATKOZ',
+                             'ÉRTESÍT', 'RÉSZVÉTEL', 'FELFEDEZ'];
+        const ctaLayers = patchedLayers
+          .map((l, i) => ({ l, i }))
+          .filter(({ l }) => l.type === 'text' && (l.fontSize || 0) < 44)
+          .filter(({ l }) => {
+            const t = (l.text || '').toUpperCase();
+            return ctaKeywords.some(kw => t.includes(kw));
+          });
+        if (ctaLayers.length > 0) {
+          const lastCta = ctaLayers[ctaLayers.length - 1];
+          patchedLayers[lastCta.i] = { ...patchedLayers[lastCta.i], text: finalCta.toUpperCase() };
+        }
+      }
 
       const bgLayer = { type: 'image' as const, src: rawBgImage, x: 0, y: 0, width: 1080, height: 1350, opacity: 1 };
       
@@ -365,11 +552,11 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
         height: 1350,
         pages: [{
           background: '#000000',
-          children: [bgLayer, ...template.layers]
+          children: [bgLayer, ...patchedLayers]
         }]
       };
 
-      const response = await fetch('http://localhost:3001/api/render-polotno', {
+      const response = await fetch(`${getBackendUrl()}/api/render-polotno`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ layoutJson })
@@ -379,7 +566,7 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
       const data = await response.json();
       const newImageUrl = fixImageUrl(data.imageUrl);
 
-      setResult(prev => {
+      const updateResultState = (prev: QuickPostResult | null) => {
         if (!prev) return null;
         const newVariations = [...prev.variations];
         newVariations[vIndex] = newImageUrl;
@@ -388,7 +575,13 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
           imageUrl: newImageUrl,
           variations: newVariations
         };
-      });
+      };
+
+      if (customResult) {
+        setResult(updateResultState(activeResult));
+      } else {
+        setResult(updateResultState);
+      }
     } catch (err: any) {
       console.error(err);
       alert('Sikertelen sablon alkalmazás: ' + (err.message || err));
@@ -399,7 +592,7 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
 
   const handleApplyLayerTemplate = (templateId: string | null) => {
     setSelectedLayerTemplateId(templateId);
-    applyTemplateToVariant(activeVariant, templateId);
+    applyTemplateToVariant(activeVariant, templateId, undefined, editingText, editingCta);
   };
 
 
@@ -409,6 +602,57 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
   const primaryColor = activeBrandKit?.colors?.primary || '#8b5cf6';
   const brandName    = activeBrandKit?.name || 'Márka';
 
+  // ── Build brand style context (same as ImageTestLab) ──────────────────────
+  const buildBrandStyleContext = () => {
+    const brandStyleContext: string[] = [];
+    const bp = activeBrandKit?.brandProfile;
+    const dna = activeBrandKit?.brandDna;
+    const colors = activeBrandKit?.colors;
+    if (bp?.visual_style_tags?.length) brandStyleContext.push(...bp.visual_style_tags);
+    if (dna?.warmth_vs_coolness !== undefined) {
+      if (dna.warmth_vs_coolness >= 60) brandStyleContext.push('warm lighting');
+      else if (dna.warmth_vs_coolness <= 40) brandStyleContext.push('cool neutral lighting');
+    }
+    if (dna?.minimalist_vs_decorative !== undefined) {
+      if (dna.minimalist_vs_decorative <= 35) brandStyleContext.push('minimalist composition');
+      else if (dna.minimalist_vs_decorative >= 65) brandStyleContext.push('decorative rich composition');
+    }
+    if (dna?.vibrancy !== undefined) {
+      if (dna.vibrancy >= 65) brandStyleContext.push(`vibrant colors, accent: ${colors?.accent || ''}`);
+      else brandStyleContext.push('muted tones');
+    }
+    if (colors?.primary) brandStyleContext.push(`primary color ${colors.primary}`);
+    if (bp?.brand_archetype) brandStyleContext.push(`${bp.brand_archetype} archetype atmosphere`);
+    if (activeBrandKit?.visualRules?.length) brandStyleContext.push(...activeBrandKit.visualRules);
+    return brandStyleContext;
+  };
+
+  const buildNegativePrompt = () => {
+    const neg: string[] = [];
+    const bp = activeBrandKit?.brandProfile;
+    if (activeBrandKit?.negativePrompt) neg.push(activeBrandKit.negativePrompt);
+    if (bp?.brand_dont?.avoid_topics?.length) neg.push(...bp.brand_dont.avoid_topics);
+    if (bp?.brand_dont?.avoid_tones?.length) neg.push(...bp.brand_dont.avoid_tones);
+    return neg;
+  };
+
+  // ── Translate prompt via backend (same as ImageTestLab) ────────────────────
+  const translatePrompt = async (text: string): Promise<string> => {
+    try {
+      const products: string[] = (auditResult?.products || []).map((p: any) => p.name || p.title || '').filter(Boolean);
+      const resp = await fetch(`${getBackendUrl()}/api/translate-prompt`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text, brandContext: { products } }),
+      });
+      if (!resp.ok) return text;
+      const data = await resp.json();
+      return data.wasTranslated ? data.translated : text;
+    } catch {
+      return text;
+    }
+  };
+
   // ── Start generation ────────────────────────────────────────────────────────
   const handleGenerate = async () => {
     if (!subject.trim()) return;
@@ -416,11 +660,12 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
     setProgress(0);
 
     const steps = [
-      { pct: 15, label: '🤖 AI prompt felépítése...' },
-      { pct: 35, label: '🎨 FLUX.2 [flex] képgenerálás indul...' },
-      { pct: 60, label: '🖼️ Kép renderelése folyamatban...' },
-      { pct: 80, label: '✍️ Caption & hashtag generálás...' },
-      { pct: 95, label: '🔀 3 variáció összeállítása...' },
+      { pct: 10, label: '🌐 Prompt fordítása...' },
+      { pct: 25, label: '🤖 AI prompt felépítése...' },
+      { pct: 45, label: '🎨 FLUX.2 [flex] képgenerálás indul...' },
+      { pct: 70, label: '🖼️ Kép renderelése folyamatban...' },
+      { pct: 88, label: '✍️ Caption & hashtag generálás...' },
+      { pct: 97, label: '🔀 Variáció összeállítása...' },
     ];
 
     let stepIdx = 0;
@@ -435,85 +680,146 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
     }, 1600);
 
     try {
-      // Build the brief from subject + brand context
-      const brief = [
-        subject.trim(),
+      const { cleanBrief, overlayText: parsedOverlayText, matchedTemplateId: parsedMatchedTemplateId } = parseSubject(subject, brandName, selectedProduct);
+      let overlayText: string | null = parsedOverlayText;
+      let matchedTemplateId: string | null = parsedMatchedTemplateId;
+      let cta: string | null = null;
+
+
+      // Build the visual description (no viewer-facing text — that goes to overlay)
+      let brief = [
+        cleanBrief.trim(),
         style && `Stílus: ${style}`,
         selectedProduct && `Termék: ${selectedProduct}`,
         brandName && `Márka: ${brandName}`,
       ].filter(Boolean).join('. ');
 
-      // Call composite-generate if multiple slots, or generate-adhoc for single slot
+      // Translate Hungarian → English (same as ImageTestLab)
+      setProgressLabel('🌐 Magyar → angol fordítás...');
+      brief = await translatePrompt(brief);
+
+      // Final safety brand strip
+      brief = brief
+        .replace(/\b(audi|polifarbe|poli-farbe|bmw|mercedes|porsche|ferrari|lamborghini|ford|toyota|honda)\b/gi, '')
+        .replace(/\s+/g, ' ')
+        .trim();
+
+      // ── If there IS viewer-facing overlay text, instruct Flux to produce a CLEAN background ──
+      // The overlay will carry all text — the background image must NOT have any embedded text.
+      if (overlayText) {
+        brief = brief + ', clean product photography background, absolutely no text, no stickers, no price tags, no numbers, no labels, no overlays, no watermarks, no badges, no typography';
+      }
+
+      // 🔍 DEBUG: log exactly what goes into the image generator
+      console.log('%c[QuickPost → Flux Prompt]', 'background:#7c3aed;color:#fff;padding:2px 6px;border-radius:3px;font-weight:700');
+      console.log('  Input subject :', subject);
+      console.log('  cleanBrief    :', cleanBrief);
+      console.log('  overlayText   :', overlayText || '(none)');
+      console.log('  matchedTmplId :', matchedTemplateId || '(none)');
+      console.log('  Final brief → Flux:', brief);
+
+
+      // Build brand style context
+      const brandStyleContext = buildBrandStyleContext();
+      const brandNegativePrompt = buildNegativePrompt();
+
+      // Always add text-avoidance negatives
+      const noTextNegatives = 'text, letters, numbers, words, stickers, labels, price tags, watermarks, overlays, badges, typography, font, caption, subtitle';
+      brandNegativePrompt.push(noTextNegatives);
+
+      // Call composite-generate if image slots present, or test-image for scene-only
       let rawMain: string;
       let captionText: string;
       let hashtagsText: string;
       let genModel = '';
       let genTime = 0;
 
-      if (imageSlots.length > 1) {
-        // Multi-slot composite generation
-        const compositeResp = await fetch('http://localhost:3001/api/image/composite-generate', {
+      if (imageSlots.length >= 1) {
+        // Composite generation (same as ImageTestLab)
+        const payload = buildCompositePayload(imageSlots, brief, activeBrandKit);
+        // Attach preserveOriginal and productAwareBg flags so backend can use them
+        (payload as any).preserveOriginal = preserveOriginal;
+        (payload as any).productAwareBg = productAwareBg;
+        const compositeResp = await fetch(`${getBackendUrl()}/api/image/composite-generate`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(buildCompositePayload(imageSlots, brief, activeBrandKit)),
+          body: JSON.stringify(payload),
         });
         if (!compositeResp.ok) throw new Error(await compositeResp.text());
         const compositeData = await compositeResp.json();
-        rawMain = compositeData.imageUrl?.startsWith('http') ? compositeData.imageUrl : `http://localhost:3001${compositeData.imageUrl}`;
+        rawMain = compositeData.imageUrl?.startsWith('http') ? compositeData.imageUrl : `${getBackendUrl()}${compositeData.imageUrl}`;
         captionText = `${subject}\n\n${brandName} — ${style}`;
         hashtagsText = `#${brandName.replace(/\s+/g, '')} #social #marketing`;
-        genModel = compositeData.generationModel;
-        genTime = compositeData.generationTime;
+        genModel = compositeData.generationModel || 'bfl-flux-2-flex';
+        genTime = compositeData.generationTime || 0;
+        // Use backend-decomposed layer text and auto-selected template
+        if (compositeData.decomposedLayerText) overlayText = compositeData.decomposedLayerText;
+        if (compositeData.decomposedLayerCta)  cta = compositeData.decomposedLayerCta;
+        if (compositeData.selectedTemplateId)  matchedTemplateId = compositeData.selectedTemplateId;
+        // Store debug intermediate images
+        if (compositeData.debugImages) {
+          setDebugImages(compositeData.debugImages);
+        } else {
+          setDebugImages(null);
+        }
       } else {
-        // Single slot or no image — standard adhoc
-        const primarySlot = imageSlots[0];
-        const resp = await fetch('http://localhost:3001/api/generate-adhoc', {
+        // Scene-only — use /api/test-image just like ImageTestLab (Flex model, 2:3 aspect)
+        const resp = await fetch(`${getBackendUrl()}/api/test-image`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            brief,
-            brandKit: activeBrandKit,
-            templateId: 'product',
-            colorVariation: 'default',
-            logoVariant: 'dark',
-            productImageUrl: primarySlot?.originalUrl || null,
-            preprocessedImageUrl: primarySlot?.upscaledUrl || primarySlot?.preprocessedUrl || null,
+            productImageUrl: null,
+            preprocessedImageUrl: null,
+            scenePrompt: brief,
+            model: 'auto',
+            safetyTolerance: 1,
+            aspectRatio: '2:3',
+            guidance: 4.5,
+            steps: 50,
+            width: 1024,
+            height: 1536,
+            brandStyle: brandStyleContext.length > 0 ? brandStyleContext.join(', ') : undefined,
+            negativePrompt: brandNegativePrompt.length > 0 ? brandNegativePrompt.join(', ') : undefined,
+            brandKit: activeBrandKit ? {
+              colors: activeBrandKit.colors,
+              tone: activeBrandKit.tone,
+              visualRules: activeBrandKit.visualRules,
+              brandDna: activeBrandKit.brandDna,
+              brandProfile: activeBrandKit.brandProfile
+            } : undefined,
           }),
         });
         if (!resp.ok) throw new Error(await resp.text());
         const data = await resp.json();
-        const rawMainUrl = data.originalImageUrl || data.imageUrl;
-        rawMain = rawMainUrl?.startsWith('http') ? rawMainUrl : `http://localhost:3001${rawMainUrl}`;
-        captionText = data.text || `${subject}\n\n${brandName} — ${style}`;
-        hashtagsText = (data.hashtags || []).join(' ') || `#${brandName.replace(/\s+/g, '')} #social #marketing`;
-        genModel = data.generationModel;
-        genTime = data.generationTime;
+        const rawMainUrl = data.imageUrl;
+        rawMain = rawMainUrl?.startsWith('http') ? rawMainUrl : `${getBackendUrl()}${rawMainUrl}`;
+        captionText = `${subject}\n\n${brandName} — ${style}`;
+        hashtagsText = `#${brandName.replace(/\s+/g, '')} #social #marketing`;
+        genModel = data.model || 'bfl-flux-2-flex';
+        genTime = data.elapsed ? data.elapsed / 1000 : 0;
       }
-
 
       clearInterval(timerRef.current!);
 
-      // Build 3 image variations
-      const var2 = makePlaceholderUrl(`${subject}-v2`, 1080, 1350);
-      const var3 = makePlaceholderUrl(`${subject}-v3`, 1080, 1350);
-
-      setResult({
+      const newResult: QuickPostResult = {
         imageUrl:   rawMain,
         caption:    captionText,
         hashtags:   hashtagsText,
         platform,
         style,
-        variations: [rawMain, var2, var3],
-        rawImages:  [rawMain, var2, var3],
+        variations: [rawMain],
+        rawImages:  [rawMain],
         generationModel: genModel || undefined,
         generationTime: genTime || undefined,
-      });
+      };
+
+      setResult(newResult);
       setEditCaption(captionText);
       setEditHashtags(hashtagsText);
       setActiveVariant(0);
 
       // Initialize layer customization
-      setEditingText(captionText);
+      setEditingText(overlayText || captionText);
       setEditingCta(selectedProduct ? 'Megnézem' : 'Érdekel');
       setEditingLogoPosition(activeBrandKit.logoPosition || 'top-left');
       setEditingLogoVariant('dark');
@@ -537,6 +843,24 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
       setEditingCtaYOffset(0);
       setEditingAltText('');
 
+      // Apply layer: use backend-selected template (Claude Vision), fallback to keyword matchedTemplateId
+      // User can override everything manually on screen 3
+      // IMPORTANT: wrapped in try-catch so template-render failure does NOT crash the generation!
+      const templateToApply = matchedTemplateId || null;
+      if (templateToApply) {
+        setSelectedLayerTemplateId(templateToApply);
+        const ctaDefault = cta || (selectedProduct ? 'MEGNÉZEM' : 'ÉRDEKEL');
+        try {
+          await applyTemplateToVariant(0, templateToApply, newResult, overlayText || undefined, ctaDefault);
+        } catch (tmplErr: any) {
+          // Template rendering failed — non-fatal, the raw image is still in newResult.
+          console.error('[QuickPost] Template apply failed (non-fatal):', tmplErr?.message || tmplErr);
+          setSelectedLayerTemplateId(null);
+        }
+      } else {
+        setSelectedLayerTemplateId(null);
+      }
+
       setProgress(100);
       setProgressLabel('✅ Kész!');
 
@@ -545,7 +869,8 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
 
     } catch (err: any) {
       clearInterval(timerRef.current!);
-      setProgressLabel(`❌ Hiba: ${err.message}`);
+      console.error('[QuickPost] Generation error:', err?.message || err);
+      setProgressLabel(`❌ Hiba: ${err.message || 'Ismeretlen hiba'}`);
       setProgress(0);
       setTimeout(() => setScreen(1), 3000);
     }
@@ -558,6 +883,7 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
     setSaved(false);
     setCopied(false);
     setSelectedLayerTemplateId(null);
+    setIsZoomed(false);
   };
 
   // ── Copy caption + hashtags ─────────────────────────────────────────────────
@@ -775,12 +1101,156 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
                 disabled={false}
                 label="Képek csatolása (opcionális)"
               />
+
+              {/* Preserve original toggle — only shown when at least 1 image uploaded */}
+                {imageSlots.length > 0 && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginTop: 14 }}>
+                  {/* Eredeti kép megtartása toggle */}
+                  <div
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 10,
+                      padding: '12px 14px', borderRadius: 10,
+                      background: preserveOriginal ? 'rgba(139,92,246,0.1)' : 'rgba(255,255,255,0.03)',
+                      border: `1.5px solid ${preserveOriginal ? '#8b5cf640' : 'var(--border)'}`,
+                      cursor: 'pointer', transition: 'all 0.15s',
+                      userSelect: 'none',
+                    }}
+                    onClick={() => setPreserveOriginal(v => !v)}
+                  >
+                    <div style={{
+                      width: 38, height: 20, borderRadius: 10, flexShrink: 0,
+                      background: preserveOriginal ? '#8b5cf6' : 'rgba(255,255,255,0.12)',
+                      position: 'relative', transition: 'background 0.2s',
+                    }}>
+                      <div style={{
+                        position: 'absolute', top: 3, left: preserveOriginal ? 20 : 3,
+                        width: 14, height: 14, borderRadius: '50%', background: '#fff',
+                        transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                      }} />
+                    </div>
+                    <div>
+                      <div style={{ fontSize: 12.5, fontWeight: 700, color: preserveOriginal ? '#a78bfa' : 'var(--text)' }}>
+                        🔒 Eredeti kép megtartása
+                      </div>
+                      <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                        {preserveOriginal
+                          ? 'A termék változatlan marad — csak a háttér generálódik újra'
+                          : 'Kikapcsolva — az AI szabadon értelmezi a terméket'
+                        }
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Termékre hangolt háttér toggle — only visible when preserveOriginal is ON */}
+                  {preserveOriginal && (
+                    <div
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: 10,
+                        padding: '12px 14px', borderRadius: 10,
+                        background: productAwareBg ? 'rgba(16,185,129,0.1)' : 'rgba(255,255,255,0.03)',
+                        border: `1.5px solid ${productAwareBg ? '#10b98140' : 'var(--border)'}`,
+                        cursor: 'pointer', transition: 'all 0.15s',
+                        userSelect: 'none',
+                      }}
+                      onClick={() => setProductAwareBg(v => !v)}
+                    >
+                      <div style={{
+                        width: 38, height: 20, borderRadius: 10, flexShrink: 0,
+                        background: productAwareBg ? '#10b981' : 'rgba(255,255,255,0.12)',
+                        position: 'relative', transition: 'background 0.2s',
+                      }}>
+                        <div style={{
+                          position: 'absolute', top: 3, left: productAwareBg ? 20 : 3,
+                          width: 14, height: 14, borderRadius: '50%', background: '#fff',
+                          transition: 'left 0.2s', boxShadow: '0 1px 4px rgba(0,0,0,0.3)',
+                        }} />
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 12.5, fontWeight: 700, color: productAwareBg ? '#34d399' : 'var(--text)' }}>
+                          🎯 Termékre hangolt háttér
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 2 }}>
+                          {productAwareBg
+                            ? 'A háttér ÉS az effektek (fény, árnyék, tónus) a termék fotójához igazodnak'
+                            : 'Kikapcsolva — általános háttér generálódik'
+                          }
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
+
+            {/* Text-on-image warning — shown before generation when text detected */}
+            {showTextWarning && (
+              <div style={{
+                padding: '16px 18px', borderRadius: 12,
+                background: 'rgba(245,158,11,0.08)',
+                border: '1.5px solid rgba(245,158,11,0.4)',
+                display: 'flex', flexDirection: 'column', gap: 10,
+              }}>
+                <div style={{ display: 'flex', alignItems: 'flex-start', gap: 10 }}>
+                  <span style={{ fontSize: 20, flexShrink: 0 }}>⚠️</span>
+                  <div>
+                    <div style={{ fontSize: 13, fontWeight: 700, color: '#f59e0b', marginBottom: 4 }}>
+                      Szöveg vagy felirat a feltöltött képen
+                    </div>
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.55 }}>
+                      A feltöltött képen szöveg, felirat vagy márkanév látható. A FLUX diffúziós
+                      modell <b>nem képes pontosan másolni a betűket</b> — az újragenerálás során
+                      az apró szövegek <b>megváltozhatnak, elmosódhatnak vagy értelmetlen
+                      karakterekre cserélődhetnek</b>.
+                      <br /><br />
+                      <b>Ajánlott:</b> kapcsold be a „🔒 Eredeti kép megtartása" opciót fent.
+                    </div>
+                  </div>
+                </div>
+                <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                  <button
+                    onClick={() => setShowTextWarning(false)}
+                    style={{
+                      padding: '8px 16px', borderRadius: 8, border: '1.5px solid rgba(255,255,255,0.15)',
+                      background: 'transparent', color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer',
+                    }}
+                  >
+                    Mégse
+                  </button>
+                  <button
+                    onClick={() => { setShowTextWarning(false); handleGenerate(); }}
+                    style={{
+                      padding: '8px 16px', borderRadius: 8, border: 'none',
+                      background: '#f59e0b', color: '#000', fontSize: 12, fontWeight: 800, cursor: 'pointer',
+                    }}
+                  >
+                    Értem, generálás →
+                  </button>
+                </div>
+              </div>
+            )}
 
             {/* Generate button */}
             <button
-              onClick={handleGenerate}
+              onClick={() => {
+                const hasTextSlot = imageSlots.some(s =>
+                  (s as any).analysisResult?.hasText ||
+                  (s as any).hasText ||
+                  (s as any).analysis?.hasText
+                );
+                // Skip warning if preserveOriginal is on — user already chose safe mode
+                if (hasTextSlot && !showTextWarning && !preserveOriginal) {
+                  setShowTextWarning(true);
+                  return;
+                }
+                setShowTextWarning(false);
+                handleGenerate();
+              }}
               disabled={!subject.trim() || isPreprocessing}
+              title={
+                isPreprocessing ? 'A kép feldolgozása még folyamatban van – kérlek várj...' :
+                !subject.trim() ? 'Írj be egy témát a generáláshoz' :
+                'Poszt generálása'
+              }
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
                 padding: '17px 32px', borderRadius: 14, border: 'none', cursor: (subject.trim() && !isPreprocessing) ? 'pointer' : 'not-allowed',
@@ -793,7 +1263,13 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
                 transition: 'all 0.2s',
               }}
             >
-              <Zap size={20} /> Poszt Generálása ⚡
+              {isPreprocessing ? (
+                <><Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> Kép feldolgozása...</>
+              ) : !subject.trim() ? (
+                <><Zap size={20} /> Írj be témát a generáláshoz</>
+              ) : (
+                <><Zap size={20} /> Poszt Generálása ⚡</>
+              )}
             </button>
 
           </div>
@@ -885,7 +1361,7 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
           {/* Main layout: image + editor */}
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24 }}>
 
-            {/* Left: Image + 3 variations */}
+            {/* Left: Image + post preview + variations */}
             <div>
               {/* Main image / Interactive preview canvas */}
               <div style={{
@@ -894,6 +1370,7 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
                 marginBottom: 12,
               }}>
                 <div 
+                  onClick={() => setIsZoomed(true)}
                   style={{ 
                     position: 'relative', 
                     width: '300px', 
@@ -906,11 +1383,13 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
                     justifyContent: (selectedLayerTemplateId === 'quote' || selectedLayerTemplateId === 'testimonial') ? 'center' : 'flex-end',
                     alignItems: (selectedLayerTemplateId === 'quote' || selectedLayerTemplateId === 'testimonial') ? 'center' : 'stretch',
                     border: '1.5px solid var(--border)',
+                    cursor: 'zoom-in',
                   }}
+                  title="Kattints a belenagyításhoz"
                 >
-                  {result.rawImages[activeVariant] ? (
+                  {result.variations[activeVariant] ? (
                     <img 
-                      src={result.rawImages[activeVariant]} 
+                      src={result.variations[activeVariant]} 
                       alt="" 
                       style={{ 
                         width: '100%', 
@@ -928,11 +1407,13 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
                     <div style={{ width: '100%', height: '100%', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--text-muted)', fontSize: 32 }}>🖼️</div>
                   )}
 
-                  {/* Hover/Active Template Layers Preview */}
+                  {/* Hover Template Layers Preview — only when hovering a DIFFERENT template */}
                   {(() => {
+                    // Only show CSS preview when HOVERING a template that is DIFFERENT from selected
+                    // (the selected template is already baked into variations[activeVariant] via polotno render)
                     const activeTmplId = hoveredLayerTemplateId === 'clean'
                       ? null
-                      : (hoveredLayerTemplateId || selectedLayerTemplateId);
+                      : (hoveredLayerTemplateId && hoveredLayerTemplateId !== selectedLayerTemplateId ? hoveredLayerTemplateId : null);
 
                     if (!activeTmplId) return null;
 
@@ -1008,13 +1489,15 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
                     );
                   })()}
 
-                  {/* Real-time Content Panel Overlays */}
+
+                  {/* Real-time Content Panel Overlays — only during hover of a different template */}
                   {(() => {
                     const activeTmplId = hoveredLayerTemplateId === 'clean'
                       ? null
-                      : (hoveredLayerTemplateId || selectedLayerTemplateId);
+                      : (hoveredLayerTemplateId && hoveredLayerTemplateId !== selectedLayerTemplateId ? hoveredLayerTemplateId : null);
 
                     if (!activeTmplId || activeTmplId === 'universal') return null;
+
 
                     const panelStyle = getPanelStyle();
                     const textStyle = getTextStyle();
@@ -1161,11 +1644,11 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
                     return null;
                   })()}
 
-                  {/* Dynamic Background Gradient Overlay — template-specific */}
+                  {/* Dynamic Background Gradient Overlay — only during hover of a different template */}
                   {(() => {
                     const activeTmplId = hoveredLayerTemplateId === 'clean'
                       ? null
-                      : (hoveredLayerTemplateId || selectedLayerTemplateId);
+                      : (hoveredLayerTemplateId && hoveredLayerTemplateId !== selectedLayerTemplateId ? hoveredLayerTemplateId : null);
 
                     if (activeTmplId === 'testimonial') {
                       return (
@@ -1245,75 +1728,193 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
                     <span>{activeBrandKit.name || 'Márka'}</span>
                   </div>
 
-                  {/* Platform badge */}
-                  <div style={{
-                    position: 'absolute', top: 10, left: 10,
-                    background: 'rgba(0,0,0,0.72)', borderRadius: 7,
-                    padding: '4px 10px', fontSize: 10, fontWeight: 700, color: '#fff',
-                    zIndex: 13
-                  }}>
-                    {PLATFORMS.find(p => p.id === result.platform)?.icon} {result.platform}
-                  </div>
-                  <div style={{
-                    position: 'absolute', top: 10, right: 10,
-                    background: 'rgba(0,0,0,0.72)', borderRadius: 7,
-                    padding: '4px 10px', fontSize: 10, fontWeight: 700, color: '#a78bfa',
-                    zIndex: 13
-                  }}>
-                    Variáció {activeVariant + 1}/3
-                  </div>
+                  {/* Variation badge only — platform removed from image */}
+                  {result.variations.length > 1 && (
+                    <div style={{
+                      position: 'absolute', top: 10, right: 10,
+                      background: 'rgba(0,0,0,0.72)', borderRadius: 7,
+                      padding: '4px 10px', fontSize: 10, fontWeight: 700, color: '#a78bfa',
+                      zIndex: 13
+                    }}>
+                      Variáció {activeVariant + 1}/{result.variations.length}
+                    </div>
+                  )}
+
+                  {/* Zoom overlay button */}
+                  <button
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setIsZoomed(true);
+                    }}
+                    style={{
+                      position: 'absolute',
+                      bottom: 10,
+                      right: 10,
+                      background: 'rgba(0,0,0,0.75)',
+                      backdropFilter: 'blur(4px)',
+                      border: '1px solid rgba(255, 255, 255, 0.15)',
+                      borderRadius: 8,
+                      width: 28,
+                      height: 28,
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer',
+                      zIndex: 14,
+                      color: '#a78bfa',
+                      transition: 'all 0.15s ease',
+                    }}
+                    title="Nagyítás"
+                    onMouseEnter={e => {
+                      e.currentTarget.style.background = 'rgba(139, 92, 246, 0.9)';
+                      e.currentTarget.style.color = '#fff';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.background = 'rgba(0,0,0,0.75)';
+                      e.currentTarget.style.color = '#a78bfa';
+                    }}
+                  >
+                    🔍
+                  </button>
                 </div>
               </div>
 
-              {/* Generation Info Badge */}
-              {result.generationModel && (
+              {/* Debug: Intermediate BG Images */}
+              {debugImages && (debugImages.bgRaw || debugImages.bgHarmonized) && (
                 <div style={{
-                  display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8,
-                  padding: '6px 12px', borderRadius: 8, background: 'rgba(255, 255, 255, 0.03)',
-                  border: '1px solid rgba(255, 255, 255, 0.08)', fontSize: 11, fontWeight: 600,
-                  color: 'var(--text-muted)', marginBottom: 12, textTransform: 'uppercase', letterSpacing: '0.5px'
+                  background: 'rgba(139,92,246,0.06)',
+                  border: '1px solid rgba(139,92,246,0.2)',
+                  borderRadius: 12,
+                  padding: '10px 12px',
+                  marginBottom: 10,
                 }}>
-                  <span>⚡ Modell: <strong style={{ color: '#a78bfa', fontWeight: 800 }}>{result.generationModel}</strong></span>
-                  <span style={{ color: 'rgba(255,255,255,0.2)' }}>|</span>
-                  <span>Generálási idő: <strong style={{ color: '#34d399', fontWeight: 800 }}>{result.generationTime ? `${result.generationTime.toFixed(1)}s` : 'N/A'}</strong></span>
-                </div>
-              )}
-
-              {/* 3 variation thumbnails */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8 }}>
-                {result.variations.map((url, i) => (
-                  <div
-                    key={i}
-                    onClick={async () => {
-                      setActiveVariant(i);
-                      if (selectedLayerTemplateId) {
-                        await applyTemplateToVariant(i, selectedLayerTemplateId);
-                      }
-                    }}
-                    style={{
-                      aspectRatio: '4/5', borderRadius: 10, overflow: 'hidden', cursor: 'pointer',
-                      border: `2.5px solid ${activeVariant === i ? '#8b5cf6' : 'rgba(255,255,255,0.08)'}`,
-                      background: 'rgba(255,255,255,0.04)', transition: 'border-color 0.15s',
-                      position: 'relative',
-                    }}
-                  >
-                    <img src={url} alt={`Variáció ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: activeVariant === i ? 1 : 0.65 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
-                    <div style={{ position: 'absolute', bottom: 4, right: 5, fontSize: 9, fontWeight: 800, color: '#fff', background: 'rgba(0,0,0,0.6)', borderRadius: 4, padding: '1px 5px' }}>V{i + 1}</div>
-                    {activeVariant === i && (
-                      <div style={{ position: 'absolute', top: 4, right: 4, width: 16, height: 16, borderRadius: '50%', background: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                        <Check size={9} />
+                  <div style={{ fontSize: 10, fontWeight: 700, color: '#a78bfa', marginBottom: 8, letterSpacing: '0.5px', textTransform: 'uppercase' }}>
+                    🔬 Generálási lépések (debug)
+                  </div>
+                  <div style={{ display: 'flex', gap: 8 }}>
+                    {debugImages.bgRaw && (
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 600 }}>BG #1 — nyers FLUX</div>
+                        <a href={debugImages.bgRaw} target="_blank" rel="noreferrer">
+                          <img
+                            src={debugImages.bgRaw}
+                            alt="BG raw"
+                            style={{ width: '100%', borderRadius: 8, border: '1px solid rgba(139,92,246,0.3)', display: 'block', cursor: 'pointer' }}
+                          />
+                        </a>
+                      </div>
+                    )}
+                    {debugImages.bgHarmonized && (
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontSize: 9, color: 'var(--text-muted)', marginBottom: 4, fontWeight: 600 }}>BG #2 — harmonizált</div>
+                        <a href={debugImages.bgHarmonized} target="_blank" rel="noreferrer">
+                          <img
+                            src={debugImages.bgHarmonized}
+                            alt="BG harmonized"
+                            style={{ width: '100%', borderRadius: 8, border: '1px solid rgba(139,92,246,0.3)', display: 'block', cursor: 'pointer' }}
+                          />
+                        </a>
                       </div>
                     )}
                   </div>
-                ))}
+                </div>
+              )}
+
+              {/* Instagram-like post preview — caption below image */}
+              <div style={{
+                background: 'var(--bg3, rgba(255,255,255,0.03))',
+                border: '1px solid var(--border)',
+                borderRadius: 14,
+                overflow: 'hidden',
+                marginBottom: 12,
+              }}>
+                {/* Post header */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '10px 12px' }}>
+                  <div style={{
+                    width: 32, height: 32, borderRadius: '50%',
+                    background: `linear-gradient(135deg, ${activeBrandKit.colors.primary}, ${activeBrandKit.colors.accent || '#8b5cf6'})`,
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    fontSize: 13, fontWeight: 800, color: '#fff', flexShrink: 0
+                  }}>
+                    {(activeBrandKit.name || 'B')[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{activeBrandKit.name || 'Márka'}</div>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', gap: 4 }}>
+                      {PLATFORMS.find(p => p.id === result.platform)?.icon}
+                      <span style={{ textTransform: 'capitalize' }}>{result.platform}</span>
+                    </div>
+                  </div>
+                </div>
+                {/* Caption text */}
+                <div style={{ padding: '0 12px 10px', fontSize: 12, color: 'var(--text)', lineHeight: 1.55, whiteSpace: 'pre-wrap', wordBreak: 'break-word' }}>
+                  <span style={{ fontWeight: 700 }}>{activeBrandKit.name || 'Márka'} </span>
+                  {editCaption}
+                </div>
+                {/* Hashtags */}
+                {editHashtags && (
+                  <div style={{ padding: '0 12px 10px', fontSize: 11.5, color: '#60a5fa', lineHeight: 1.5, wordBreak: 'break-word' }}>
+                    {editHashtags}
+                  </div>
+                )}
+                {/* Generation info mini */}
+                {result.generationModel && (
+                  <div style={{ padding: '6px 12px', borderTop: '1px solid var(--border)', fontSize: 10, color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
+                    <span>⚡ {result.generationModel}</span>
+                    {result.generationTime && <span>· {result.generationTime.toFixed(1)}s</span>}
+                  </div>
+                )}
               </div>
+
+              {/* 3 variation thumbnails */}
+              {result.variations.length > 1 && (
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginBottom: 12 }}>
+                  {result.variations.map((url, i) => (
+                    <div
+                      key={i}
+                      onClick={async () => {
+                        setActiveVariant(i);
+                        if (selectedLayerTemplateId) {
+                          await applyTemplateToVariant(i, selectedLayerTemplateId);
+                        }
+                      }}
+                      style={{
+                        aspectRatio: '4/5', borderRadius: 10, overflow: 'hidden', cursor: 'pointer',
+                        border: `2.5px solid ${activeVariant === i ? '#8b5cf6' : 'rgba(255,255,255,0.08)'}`,
+                        background: 'rgba(255,255,255,0.04)', transition: 'border-color 0.15s',
+                        position: 'relative',
+                      }}
+                    >
+                      <img src={url} alt={`Variáció ${i + 1}`} style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block', opacity: activeVariant === i ? 1 : 0.65 }} onError={e => { (e.target as HTMLImageElement).style.display = 'none'; }} />
+                      <div style={{ position: 'absolute', bottom: 4, right: 5, fontSize: 9, fontWeight: 800, color: '#fff', background: 'rgba(0,0,0,0.6)', borderRadius: 4, padding: '1px 5px' }}>V{i + 1}</div>
+                      {activeVariant === i && (
+                        <div style={{ position: 'absolute', top: 4, right: 4, width: 16, height: 16, borderRadius: '50%', background: '#8b5cf6', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                          <Check size={9} />
+                        </div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* Layer Template Picker */}
               {(() => {
+                // Smart contrast color: pick text color based on dominant image colors from analysis
+                const dominantColors = imageSlots.flatMap(s => s.analysis?.dominantColors || []).map(c => c.toLowerCase());
+                const lightKeywords = ['white', 'cream', 'beige', 'ivory', 'light', 'yellow', 'pale', 'silver', 'fehér', 'ezüst', 'sárga'];
+                const darkKeywords  = ['black', 'navy', 'dark', 'charcoal', 'deep', 'midnight', 'fekete', 'sötét', 'tengerész'];
+                const hasLight = dominantColors.some(c => lightKeywords.some(k => c.includes(k)));
+                const hasDark  = dominantColors.some(c => darkKeywords.some(k => c.includes(k)));
+                // If first (most dominant) color is light → dark text; if dark → light text; mixed → prefer readable dark
+                const contrastTextColor = hasLight && !hasDark ? '#1a1a1a'
+                  : hasDark && !hasLight ? '#ffffff'
+                  : '#1a1a1a'; // default to dark for white-dominant (like paint bucket)
+
                 const layerTemplates = buildLayerTemplates(
                   activeBrandKit.colors.primary,
                   activeBrandKit.colors.accent,
-                  activeBrandKit.typography?.fontName || 'Inter'
+                  activeBrandKit.typography?.fontName || 'Inter',
+                  contrastTextColor
                 );
                 return (
                   <div style={{ borderTop: '1px solid var(--border)', marginTop: 20, paddingTop: 16 }}>
@@ -1441,10 +2042,7 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
                 </div>
                 <textarea
                   value={editCaption}
-                  onChange={e => {
-                    setEditCaption(e.target.value);
-                    setEditingText(e.target.value);
-                  }}
+                  onChange={e => setEditCaption(e.target.value)}
                   rows={7}
                   style={{
                     width: '100%', boxSizing: 'border-box',
@@ -1546,6 +2144,22 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
                   {/* Column 3: Typography & Text */}
                   <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                     <span style={{ fontSize: 10.5, fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', marginBottom: 2 }}>Szöveg & Betű</span>
+                    <div>
+                      <label style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 3, display: 'block' }}>Overlay Szövege:</label>
+                      <textarea
+                        value={editingText}
+                        onChange={e => setEditingText(e.target.value)}
+                        rows={2}
+                        placeholder="Overlay felirat szövege"
+                        style={{
+                          width: '100%', boxSizing: 'border-box',
+                          padding: '5px 7px', borderRadius: 6,
+                          border: '1.5px solid var(--border)', background: 'var(--bg)',
+                          color: 'var(--text)', outline: 'none', fontSize: 11,
+                          fontFamily: 'inherit', resize: 'vertical', lineHeight: 1.4,
+                        }}
+                      />
+                    </div>
                     <div>
                       <label style={{ fontSize: 10, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 3, display: 'block' }}>Szöveg Igazítás:</label>
                       <select value={editingTextAlignment} onChange={e => setEditingTextAlignment(e.target.value as any)} style={{ width: '100%', padding: '5px 7px', borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 11 }}>
@@ -1716,11 +2330,104 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
         </div>
       )}
 
+      {isZoomed && result && createPortal(
+        <div 
+          onClick={() => setIsZoomed(false)}
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(5, 3, 12, 0.95)',
+            backdropFilter: 'blur(8px)',
+            zIndex: 9999,
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: '24px',
+            animation: 'qp-fade-in 0.2s ease',
+          }}
+        >
+          {/* Close button */}
+          <button
+            onClick={() => setIsZoomed(false)}
+            style={{
+              position: 'absolute',
+              top: '20px',
+              right: '20px',
+              background: 'rgba(255, 255, 255, 0.08)',
+              border: '1.5px solid rgba(255, 255, 255, 0.15)',
+              color: '#fff',
+              borderRadius: '50%',
+              width: '40px',
+              height: '40px',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              cursor: 'pointer',
+              fontSize: '18px',
+              fontWeight: 'bold',
+              transition: 'all 0.15s ease',
+              zIndex: 10005,
+            }}
+            onMouseEnter={e => {
+              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.8)';
+              e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.9)';
+            }}
+            onMouseLeave={e => {
+              e.currentTarget.style.background = 'rgba(255, 255, 255, 0.08)';
+              e.currentTarget.style.borderColor = 'rgba(255, 255, 255, 0.15)';
+            }}
+          >
+            ✕
+          </button>
+
+          {/* Main Zoom Image Container */}
+          <div 
+            style={{
+              width: '100%',
+              maxWidth: '900px',
+              height: '80vh',
+              display: 'flex',
+              flexDirection: 'column',
+              justifyContent: 'center',
+              position: 'relative',
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <PanZoomImage
+              src={result.variations[activeVariant]}
+              alt="Nagyított kép"
+              isZoomed={true}
+              onToggleZoom={() => setIsZoomed(false)}
+            />
+            <div style={{
+              textAlign: 'center',
+              color: '#a78bfa',
+              fontSize: '12px',
+              fontWeight: 600,
+              marginTop: '12px',
+              pointerEvents: 'none',
+              textShadow: '0 2px 4px rgba(0,0,0,0.5)',
+            }}>
+              Görgess a nagyításhoz • Húzd a mozgatáshoz • Kattints a képbe a bezáráshoz
+            </div>
+          </div>
+        </div>,
+        document.body
+      )}
+
       {/* CSS Animations */}
       <style>{`
         @keyframes qp-slide-in {
           from { opacity: 0; transform: translateY(14px); }
           to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes qp-fade-in {
+          from { opacity: 0; }
+          to   { opacity: 1; }
         }
         @keyframes qp-pulse {
           0%, 100% { box-shadow: 0 0 24px rgba(139,92,246,0.4); }
