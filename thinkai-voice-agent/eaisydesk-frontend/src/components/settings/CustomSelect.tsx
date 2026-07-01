@@ -32,7 +32,7 @@ export default function CustomSelect({ value, onChange, options }: Props) {
         onClick={() => setOpen(!open)}
         className="custom-select-trigger"
         style={{
-          border: open ? '1.5px solid var(--accent)' : '1.5px solid rgba(255,255,255,0.1)',
+          border: open ? '1.5px solid var(--accent)' : '1.5px solid var(--border)',
           ...(open ? { boxShadow: '0 0 0 3px rgba(28,238,224,0.12)' } : {}),
         }}
       >

@@ -5,70 +5,25 @@ from loguru import logger
 import database
 
 THIS_DIR = Path(__file__).resolve().parent
-DATA_DIR = Path("/app/data")
-if not DATA_DIR.exists():
-    DATA_DIR = THIS_DIR
 
-PROMPT_FILE      = THIS_DIR / "system_prompt.md"
-PRAXISINFO_FILE  = DATA_DIR / "praxisinfo.json"
-SETTINGS_FILE    = DATA_DIR / "agent_settings.json"
-KNOWLEDGE_JSON   = DATA_DIR / "knowledge.json"
-KNOWLEDGE_MD     = DATA_DIR / "knowledge.md"
+# PROMPT_FILE kept only as a legacy seed source for initial Supabase population
+PROMPT_FILE = THIS_DIR / "system_prompt.md"
 
-def init_config_files():
-    """Copy default configuration files to the persistent volume data directory if they don't exist."""
-    if DATA_DIR != THIS_DIR:
-        try:
-            DATA_DIR.mkdir(parents=True, exist_ok=True)
-            for filename in ["praxisinfo.json", "agent_settings.json", "knowledge.json", "knowledge.md"]:
-                src = THIS_DIR / filename
-                dst = DATA_DIR / filename
-                if src.exists() and not dst.exists():
-                    dst.write_text(src.read_text(encoding="utf-8"), encoding="utf-8")
-        except Exception as e:
-            logger.warning(f"Could not initialize config files in persistent volume: {e}")
-
-# Run config initialization on module import
-init_config_files()
 
 def load_agent_settings() -> dict:
-    """Load agent_settings.json — override .env values at runtime."""
-    if SETTINGS_FILE.exists():
-        try:
-            return json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
-        except Exception as e:
-            logger.warning(f"Could not read agent_settings.json: {e}")
-    return {}
+    """Load agent settings from Supabase."""
+    return database.get_agent_settings()
 
 def _load_praxisinfo() -> dict:
-    """Load praxisinfo.json — practice metadata managed from admin UI."""
-    if PRAXISINFO_FILE.exists():
-        try:
-            return json.loads(PRAXISINFO_FILE.read_text(encoding="utf-8"))
-        except Exception as e:
-            logger.warning(f"Could not read praxisinfo.json: {e}")
-    return {}
+    """Load practice info from Supabase."""
+    return database.get_business_info()
 
 def _load_knowledge(settings: dict) -> str:
-    """Read knowledge content directly from disk based on configuration."""
-    fmt = settings.get("knowledge_format", "json")
-    if fmt == "md":
-        return KNOWLEDGE_MD.read_text(encoding="utf-8") if KNOWLEDGE_MD.exists() else ""
-    else:
-        return KNOWLEDGE_JSON.read_text(encoding="utf-8") if KNOWLEDGE_JSON.exists() else "{}"
+    """Read knowledge content from Supabase."""
+    k = database.get_knowledge_base()
+    return k.get("content", "{}")
 
-def _format_doctors() -> str:
-    doctors = database.get_doctors()
-    if not doctors:
-        return "Nincs megadva"
-    lines = []
-    for d in doctors:
-        name = d.get("name", "")
-        spec = d.get("specialty", "")
-        line = name
-        if spec: line += f" ({spec})"
-        if line: lines.append(line)
-    return "\n".join(f"- {l}" for l in lines) if lines else "Nincs megadva"
+
 
 def _format_services() -> str:
     services = database.get_services()
@@ -77,12 +32,14 @@ def _format_services() -> str:
     lines = []
     for s in services:
         name = s.get("service_name", "")
+        desc = s.get("description", "")
         dur = s.get("duration_minutes", 30)
-        doc = s.get("doctors")
-        doc_name = doc.get("name") if isinstance(doc, dict) else "Bárki (Mind)"
+        assigned = s.get("assigned_to", "")
         note = s.get("note", "")
         
-        line = f"- {name} ({dur} perc) – Orvos: {doc_name}"
+        line = f"- {name} ({dur} perc)"
+        if desc: line += f" — {desc}"
+        if assigned: line += f" – Felelős: {assigned}"
         if note: line += f" [Megjegyzés: {note}]"
         lines.append(line)
     return "\n".join(lines) if lines else "Nincs megadva"
@@ -223,10 +180,14 @@ def get_system_prompt(channel: str = None) -> str:
                  If provided and not 'voice'/'telefon', the language setting is injected.
                  Voice agent always stays Hungarian.
     """
-    if not PROMPT_FILE.exists():
-        return "Te egy segítőkész AI vagy."
-        
-    template = PROMPT_FILE.read_text(encoding="utf-8")
+    # Read system prompt template: Supabase first, local file as fallback/seed
+    template = database.get_text_config("system_prompt")
+    if not template:
+        if PROMPT_FILE.exists():
+            template = PROMPT_FILE.read_text(encoding="utf-8")
+            database.update_text_config("system_prompt", template)
+        else:
+            return "Te egy segítőkész AI vagy."
     pi       = _load_praxisinfo()
     settings = load_agent_settings()
     knowledge_content = _load_knowledge(settings)
@@ -271,7 +232,6 @@ def get_system_prompt(channel: str = None) -> str:
         "kulcsszavak":    pi.get("kulcsszavak", ""),
         "megkozelites":   pi.get("megkozelites", ""),
         "price_list":     pi.get("price_list", ""),
-        "doctors":        _format_doctors(),
         "services_list":  _format_services(),
         "campaigns":      _format_campaigns(pi.get("campaigns", [])),
         "exceptions":     _format_exceptions(pi.get("exceptions", [])),

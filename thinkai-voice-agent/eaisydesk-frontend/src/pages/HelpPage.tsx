@@ -48,7 +48,7 @@ const quickSteps = [
   {
     title: 'Tudástár',
     desc: 'Céginformációk, AI szabályok és csapatkezelés — szabályozd az asszisztenst.',
-    path: '/settings/praxis',
+    path: '/settings/basic',
     icon: <><path d="M4 19.5A2.5 2.5 0 016.5 17H20" /><path d="M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z" /></>,
     color: '#1ceee0',
   },

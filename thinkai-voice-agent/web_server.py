@@ -2460,13 +2460,12 @@ def get_emails():
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-DATA_DIR = Path("/app/data")
-if not DATA_DIR.exists():
-    DATA_DIR = THIS_DIR
+# Settings — now backed by Supabase tables (agent_settings, knowledge_base,
+#            business_info, text_configs).  File paths kept only for legacy
+#            fallback / initial seeding.
+# ═══════════════════════════════════════════════════════════════════════════════
 
-SETTINGS_FILE  = DATA_DIR / "agent_settings.json"
-KNOWLEDGE_JSON = DATA_DIR / "knowledge.json"
-KNOWLEDGE_MD   = DATA_DIR / "knowledge.md"
+# Legacy file paths — used only for initial seeding into Supabase on first boot
 SYSTEM_PROMPT_FILE = THIS_DIR / "system_prompt.md"
 WORKFLOW_FILE      = THIS_DIR / "workflow.md"
 
@@ -2475,6 +2474,8 @@ DEFAULT_SETTINGS = {
     "tone": "professional_friendly",
     "tone_custom": "",
     "knowledge_format": "json",
+    "greeting": "",
+    "language": "hu",
     "business_hours": {
         "monday":    {"open": "09:00", "close": "18:00", "enabled": True},
         "tuesday":   {"open": "09:00", "close": "18:00", "enabled": True},
@@ -2488,23 +2489,20 @@ DEFAULT_SETTINGS = {
 
 
 def _read_settings() -> dict:
-    if SETTINGS_FILE.exists():
-        try:
-            return json.loads(SETTINGS_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            pass
+    """Read agent settings from Supabase, fall back to DEFAULT_SETTINGS."""
+    s = db.get_agent_settings()
+    if s:
+        # Merge with defaults so any missing keys get filled
+        merged = dict(DEFAULT_SETTINGS)
+        merged.update({k: v for k, v in s.items() if v is not None})
+        return merged
     return dict(DEFAULT_SETTINGS)
 
 
 def _read_knowledge() -> dict:
-    """Read knowledge content and format from disk."""
-    settings = _read_settings()
-    fmt = settings.get("knowledge_format", "json")
-    if fmt == "md":
-        content = KNOWLEDGE_MD.read_text(encoding="utf-8") if KNOWLEDGE_MD.exists() else ""
-    else:
-        content = KNOWLEDGE_JSON.read_text(encoding="utf-8") if KNOWLEDGE_JSON.exists() else "{}"
-    return {"format": fmt, "content": content}
+    """Read knowledge content from Supabase."""
+    k = db.get_knowledge_base()
+    return {"format": k.get("format", "json"), "content": k.get("content", "{}")}
 
 
 @app.get("/admin/api/settings")
@@ -2532,35 +2530,30 @@ class TextFileRequest(BaseModel):
 
 @app.post("/admin/api/settings")
 async def save_settings(payload: SettingsSaveRequest, username: str = Depends(verify_jwt)):
-    """Save agent settings and knowledge base to disk."""
-    # Save settings (without knowledge content)
+    """Save agent settings and knowledge base to Supabase."""
     print(f"[DEBUG] save_settings received payload: {payload.dict()}", flush=True)
     settings = {
-        "voice_id":        payload.voice_id,
-        "tone":            payload.tone,
-        "tone_custom":     payload.tone_custom,
+        "voice_id":         payload.voice_id,
+        "tone":             payload.tone,
+        "tone_custom":      payload.tone_custom,
         "knowledge_format": payload.knowledge_format,
-        "greeting":        payload.greeting,
-        "language":        payload.language,
-        "business_hours":  payload.business_hours,
+        "greeting":         payload.greeting,
+        "language":         payload.language,
+        "business_hours":   payload.business_hours,
     }
-    try:
-        SETTINGS_FILE.write_text(json.dumps(settings, ensure_ascii=False, indent=2), encoding="utf-8")
-    except Exception as ex:
-        print(f"[DEBUG] Error writing settings file: {ex}", flush=True)
-        raise HTTPException(status_code=500, detail=f"Fájl írási hiba: {ex}")
+    ok = db.update_agent_settings(settings)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Nem sikerült menteni a beállításokat az adatbázisba.")
 
-    # Save knowledge to appropriate file if provided
+    # Save knowledge content
     if payload.knowledge_content:
-        if payload.knowledge_format == "md":
-            KNOWLEDGE_MD.write_text(payload.knowledge_content, encoding="utf-8")
-        else:
+        if payload.knowledge_format != "md":
             try:
-                parsed = json.loads(payload.knowledge_content)
-                KNOWLEDGE_JSON.write_text(json.dumps(parsed, ensure_ascii=False, indent=2), encoding="utf-8")
+                json.loads(payload.knowledge_content)  # validate JSON
             except json.JSONDecodeError as e:
                 print(f"[DEBUG] JSON decode error: {e} | Content: {payload.knowledge_content}", flush=True)
                 raise HTTPException(status_code=400, detail=f"Hibás JSON formátum: {e}")
+        db.update_knowledge_base(payload.knowledge_format, payload.knowledge_content)
 
     return {"ok": True, "message": "Beállítások elmentve. A változtatások a következő hívásnál már érvényesek."}
 
@@ -2569,15 +2562,18 @@ async def save_settings(payload: SettingsSaveRequest, username: str = Depends(ve
 
 @app.get("/admin/api/system-prompt")
 async def get_system_prompt(username: str = Depends(verify_jwt)):
-    """Return the current system prompt (system_prompt.md)."""
-    content = SYSTEM_PROMPT_FILE.read_text(encoding="utf-8") if SYSTEM_PROMPT_FILE.exists() else ""
+    """Return the current system prompt from Supabase (falls back to local file for seeding)."""
+    content = db.get_text_config("system_prompt")
+    if not content and SYSTEM_PROMPT_FILE.exists():
+        content = SYSTEM_PROMPT_FILE.read_text(encoding="utf-8")
+        db.update_text_config("system_prompt", content)
     return {"content": content}
 
 
 @app.post("/admin/api/system-prompt")
 async def save_system_prompt(payload: TextFileRequest, username: str = Depends(verify_jwt)):
-    """Overwrite system_prompt.md."""
-    SYSTEM_PROMPT_FILE.write_text(payload.content, encoding="utf-8")
+    """Save system prompt to Supabase."""
+    db.update_text_config("system_prompt", payload.content)
     return {"ok": True, "message": "System prompt elmentve."}
 
 
@@ -2585,21 +2581,23 @@ async def save_system_prompt(payload: TextFileRequest, username: str = Depends(v
 
 @app.get("/admin/api/workflow")
 async def get_workflow(username: str = Depends(verify_jwt)):
-    """Return the current workflow definition (workflow.md)."""
-    content = WORKFLOW_FILE.read_text(encoding="utf-8") if WORKFLOW_FILE.exists() else ""
+    """Return the current workflow from Supabase (falls back to local file for seeding)."""
+    content = db.get_text_config("workflow")
+    if not content and WORKFLOW_FILE.exists():
+        content = WORKFLOW_FILE.read_text(encoding="utf-8")
+        db.update_text_config("workflow", content)
     return {"content": content}
 
 
 @app.post("/admin/api/workflow")
 async def save_workflow(payload: TextFileRequest, username: str = Depends(verify_jwt)):
-    """Overwrite workflow.md."""
-    WORKFLOW_FILE.write_text(payload.content, encoding="utf-8")
+    """Save workflow to Supabase."""
+    db.update_text_config("workflow", payload.content)
     return {"ok": True, "message": "Workflow elmentve."}
 
 
 
-# ── Praxisinfó ────────────────────────────────────────────────────────────────
-PRAXISINFO_FILE = DATA_DIR / "praxisinfo.json"
+# ── Céginformációk ────────────────────────────────────────────────────────────────
 
 _HU_TO_EN = {
     "hetfo": "monday", "kedd": "tuesday", "szerda": "wednesday",
@@ -2607,7 +2605,7 @@ _HU_TO_EN = {
     "szombat": "saturday", "vasarnap": "sunday",
 }
 
-class PraxisinfoSaveRequest(BaseModel):
+class BusinessInfoSaveRequest(BaseModel):
     practice_name: str = ""
     description:   str = ""
     address:       str = ""
@@ -2617,7 +2615,6 @@ class PraxisinfoSaveRequest(BaseModel):
     megkozelites:  str = ""
     price_list:    str = ""
     price_list_file_meta: dict = {}
-    doctors:  list = []
     campaigns: list = []
     exceptions: list = []
     faq: list = []
@@ -2628,6 +2625,7 @@ class PraxisinfoSaveRequest(BaseModel):
     new_patient_required: str = "Születési dátum, teljes név"
     new_patient_auto_visit: bool = True
     returning_patient_required: str = "Páciens azonosító vagy telefonszám"
+    service_description: str = ""
 
 @app.get("/admin/api/triage_rules")
 def api_get_triage_rules(admin: dict = Depends(verify_jwt)):
@@ -2657,42 +2655,14 @@ def api_delete_triage_rules(rule_id: int, admin: dict = Depends(verify_jwt)):
         return {"ok": True}
     raise HTTPException(status_code=400, detail="Hiba a törléskor")
 
-# ── Orvosok ───────────────────────────────────────────────────────────────────
-
-class DoctorCreate(BaseModel):
-    name: str
-    specialty: str = ""
-    related_services: str = ""
-
-@app.get("/admin/api/doctors")
-def api_get_doctors(admin: dict = Depends(verify_jwt)):
-    return db.get_doctors()
-
-@app.post("/admin/api/doctors")
-def api_post_doctors(doc: DoctorCreate, admin: dict = Depends(verify_jwt)):
-    new_id = db.add_doctor(doc.name, doc.specialty, doc.related_services)
-    if new_id:
-        return {"ok": True, "id": new_id}
-    raise HTTPException(status_code=500, detail="Hiba a létrehozáskor")
-
-@app.put("/admin/api/doctors/{doc_id}")
-def api_put_doctors(doc_id: int, doc: DoctorCreate, admin: dict = Depends(verify_jwt)):
-    if db.update_doctor(doc_id, doc.name, doc.specialty, doc.related_services):
-        return {"ok": True}
-    raise HTTPException(status_code=400, detail="Hiba a frissítéskor")
-
-@app.delete("/admin/api/doctors/{doc_id}")
-def api_delete_doctors(doc_id: int, admin: dict = Depends(verify_jwt)):
-    if db.delete_doctor(doc_id):
-        return {"ok": True}
-    raise HTTPException(status_code=400, detail="Hiba a törléskor")
 
 # ── Szolgáltatások ────────────────────────────────────────────────────────────
 
 class ServiceCreate(BaseModel):
     service_name: str
     duration_minutes: int
-    doctor_id: Optional[int] = None
+    description: str = ""
+    assigned_to: str = ""
     note: str = ""
 
 @app.get("/admin/api/services")
@@ -2701,14 +2671,14 @@ def api_get_services(admin: dict = Depends(verify_jwt)):
 
 @app.post("/admin/api/services")
 def api_post_services(svc: ServiceCreate, admin: dict = Depends(verify_jwt)):
-    new_id = db.add_service(svc.service_name, svc.duration_minutes, svc.doctor_id, svc.note)
+    new_id = db.add_service(svc.service_name, svc.duration_minutes, svc.description, svc.assigned_to, svc.note)
     if new_id:
         return {"ok": True, "id": new_id}
     raise HTTPException(status_code=500, detail="Hiba a létrehozáskor")
 
 @app.put("/admin/api/services/{srv_id}")
 def api_put_services(srv_id: int, svc: ServiceCreate, admin: dict = Depends(verify_jwt)):
-    if db.update_service(srv_id, svc.service_name, svc.duration_minutes, svc.doctor_id, svc.note):
+    if db.update_service(srv_id, svc.service_name, svc.duration_minutes, svc.description, svc.assigned_to, svc.note):
         return {"ok": True}
     raise HTTPException(status_code=400, detail="Hiba a frissítéskor")
 
@@ -2719,19 +2689,14 @@ def api_delete_services(srv_id: int, admin: dict = Depends(verify_jwt)):
     raise HTTPException(status_code=400, detail="Hiba a törléskor")
 
 
-@app.get("/admin/api/praxisinfo")
-async def get_praxisinfo(username: str = Depends(verify_jwt)):
-    """Return saved practice info."""
-    if PRAXISINFO_FILE.exists():
-        try:
-            return json.loads(PRAXISINFO_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            pass
-    return {}
+@app.get("/admin/api/business-info")
+async def get_business_info(username: str = Depends(verify_jwt)):
+    """Return saved practice info from Supabase."""
+    return db.get_business_info()
 
-@app.post("/admin/api/praxisinfo")
-async def save_praxisinfo(payload: PraxisinfoSaveRequest, username: str = Depends(verify_jwt)):
-    """Save practice info. Business hours are managed separately via /admin/api/settings."""
+@app.post("/admin/api/business-info")
+async def save_business_info(payload: BusinessInfoSaveRequest, username: str = Depends(verify_jwt)):
+    """Save practice info to Supabase. Business hours are managed separately via /admin/api/settings."""
     data = {
         "practice_name": payload.practice_name,
         "description":   payload.description,
@@ -2742,7 +2707,6 @@ async def save_praxisinfo(payload: PraxisinfoSaveRequest, username: str = Depend
         "megkozelites":  payload.megkozelites,
         "price_list":    payload.price_list,
         "price_list_file_meta": payload.price_list_file_meta,
-        "doctors":       payload.doctors,
         "campaigns":     payload.campaigns,
         "exceptions":    payload.exceptions,
         "faq":           payload.faq,
@@ -2753,10 +2717,12 @@ async def save_praxisinfo(payload: PraxisinfoSaveRequest, username: str = Depend
         "new_patient_required": payload.new_patient_required,
         "new_patient_auto_visit": payload.new_patient_auto_visit,
         "returning_patient_required": payload.returning_patient_required,
-        "last_updated":  datetime.utcnow().isoformat(),
+        "service_description": payload.service_description,
     }
-    PRAXISINFO_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
-    return {"ok": True, "message": "Praxisinformáció elmentve."}
+    ok = db.update_business_info(data)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Nem sikerült menteni a céginformációt.")
+    return {"ok": True, "message": "Céginformáció elmentve."}
 
 @app.get("/admin/api/prices/template/download")
 async def download_price_template(username: str = Depends(verify_jwt)):
@@ -2851,12 +2817,7 @@ async def upload_prices(file: UploadFile = File(...), username: str = Depends(ve
     if not prices_text.strip():
         raise HTTPException(status_code=400, detail="A fájl üres vagy nem tartalmaz értelmezhető adatot.")
         
-    data = {}
-    if PRAXISINFO_FILE.exists():
-        try:
-            data = json.loads(PRAXISINFO_FILE.read_text(encoding="utf-8"))
-        except:
-            pass
+    data = db.get_business_info()
             
     data["price_list"] = prices_text
     data["price_list_file_meta"] = {
@@ -2864,7 +2825,7 @@ async def upload_prices(file: UploadFile = File(...), username: str = Depends(ve
         "uploaded_at": datetime.now().strftime("%Y. %m. %d.")
     }
     
-    PRAXISINFO_FILE.write_text(json.dumps(data, ensure_ascii=False, indent=2), encoding="utf-8")
+    db.update_business_info(data)
     
     return {
         "ok": True, 

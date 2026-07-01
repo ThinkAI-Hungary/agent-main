@@ -820,6 +820,7 @@
     .grid-2col { display: grid; grid-template-columns: 1fr 1fr; }
     .grid-3col { display: grid; grid-template-columns: 1fr 1fr 1fr; }
     .grid-4col { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; }
+    .grid-5col { display: grid; grid-template-columns: 2fr 2fr 1fr 1.5fr 1.5fr; align-items: center; }
 
     .text-center { text-align: center; }
     .text-right { text-align: right; }
@@ -847,7 +848,7 @@
       width: 28px;
       height: 28px;
       border-radius: 8px;
-      background: rgba(28, 238, 224, 0.1);
+      background: #082432;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -856,6 +857,7 @@
     .icon-box svg {
       width: 14px;
       height: 14px;
+      stroke: #ffffff;
     }
 
     /* Small icon box (24px) */
@@ -1314,26 +1316,27 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 7px 16px;
-      border-radius: 20px;
-      border: 1px solid var(--border);
-      background: none;
-      color: var(--text-muted);
-      font-size: 12px;
-      font-weight: 600;
+      padding: 9px 18px;
+      border-radius: 8px;
+      border: 1px solid #D9D9D9;
+      background: #ffffff;
+      color: #082432;
+      font-size: 13px;
+      font-weight: 500;
       cursor: pointer;
       font-family: 'Inter', Arial, sans-serif;
       transition: all 0.15s;
       white-space: nowrap;
     }
     .pill-tab:hover {
-      border-color: var(--accent);
-      color: var(--accent);
+      background: #DFFFFD;
+      border-color: #1CEEE0;
+      color: #082432;
     }
     .pill-tab.active {
-      background: rgba(28, 238, 224, 0.10);
-      border-color: var(--accent);
-      color: var(--accent);
+      background: #DFFFFD;
+      border-color: #1CEEE0;
+      color: #082432;
     }
 
 
@@ -1509,26 +1512,27 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      padding: 7px 16px;
-      border-radius: 20px;
-      border: 1px solid var(--border);
-      background: none;
-      color: var(--text-muted);
-      font-size: 12px;
-      font-weight: 600;
+      padding: 9px 18px;
+      border-radius: 8px;
+      border: 1px solid #D9D9D9;
+      background: #ffffff;
+      color: #082432;
+      font-size: 13px;
+      font-weight: 500;
       cursor: pointer;
       font-family: 'Inter', Arial, sans-serif;
       transition: all 0.15s;
       white-space: nowrap;
     }
     .pill-tab:hover {
-      border-color: var(--accent);
-      color: var(--accent);
+      background: #DFFFFD;
+      border-color: #1CEEE0;
+      color: #082432;
     }
     .pill-tab.active {
-      background: rgba(28, 238, 224, 0.10);
-      border-color: var(--accent);
-      color: var(--accent);
+      background: #DFFFFD;
+      border-color: #1CEEE0;
+      color: #082432;
     }
 
 

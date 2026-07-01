@@ -299,7 +299,7 @@ JSON STRUKTÃRA:
         "date": "YYYY-MM-DD",
         "time": "HH:MM",
         "duration_minutes": 30,
-        "doctor": "Az orvos neve (ha releváns), pl. Dr. Szabó Júlia, különben null"
+        "assigned_to": "A felelős munkatárs neve (ha releváns), különben null"
     },
     "action_modify_meeting": {
         "event_title_to_modify": "A módosítandó esemény címe vagy része",
@@ -437,8 +437,8 @@ Ha egyik sem releváns, legyen üres lista [].
         if kanban.get("jarmu_modell"):
             details["jarmu_modell"] = kanban["jarmu_modell"]
             
-        if meeting and meeting.get("doctor"):
-            details["doctor"] = meeting.get("doctor")
+        if meeting and meeting.get("assigned_to"):
+            details["assigned_to"] = meeting.get("assigned_to")
             
         if isinstance(alert_tags, list) and "urgent" in alert_tags:
             details["prioritas"] = "Sürgős"

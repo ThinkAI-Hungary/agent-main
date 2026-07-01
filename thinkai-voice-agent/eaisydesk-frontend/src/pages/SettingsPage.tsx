@@ -1,6 +1,6 @@
 /**
  * SettingsPage (Tudástár) – Full 1:1 port of legacy page-settings.html
- * 3 tabs: eaisyDesk beállítások (agent), Céginformációk (praxis), Szabályok (rules)
+ * 3 tabs: eaisyDesk beállítások (agent), Céginformációk (basic), Szabályok (rules)
  * All reads/writes directly to Supabase.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
@@ -15,7 +15,7 @@ import { SettingsSkeleton } from '../components/ui/Skeleton';
 // ── Tab definitions ──
 const _TABS = [
   { id: 'agent', label: 'eaisyDesk beállítások', icon: 'M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.07 1.18 2 2 0 012.07 0h3a2 2 0 012 1.72c.12.8.3 1.6.56 2.37a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.77.25 1.57.44 2.37.56A2 2 0 0122 14.92z' },
-  { id: 'praxis', label: 'Céginformációk', icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2zM9 22V12h6v10' },
+  { id: 'basic', label: 'Céginformációk', icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2zM9 22V12h6v10' },
   { id: 'szabalyok', label: 'Szabályok', icon: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8' },
 ] as const;
 
@@ -32,7 +32,7 @@ interface AgentSettings {
   business_hours: Record<string, { open: string; close: string; enabled: boolean }>;
 }
 
-interface PraxisInfo {
+interface BusinessInfo {
   practice_name: string;
   markanev: string;
   szakterulet: string;
@@ -53,8 +53,7 @@ interface PraxisInfo {
 
 interface CartesiaVoice { id: string; name: string; language?: string; }
 interface Clinic { id?: number; name_and_address: string; access_info: string; }
-interface Doctor { id?: number; name: string; specialty: string; related_services: string; }
-interface Service { id?: number; service_name: string; duration_minutes: number; doctor_id?: number | null; note: string; }
+interface Service { id?: number; service_name: string; description: string; duration_minutes: number; assigned_to: string; note: string; }
 interface TriageRule { id?: number; situation: string; priority: string; escalation_email: string; }
 interface ReminderSettings { id?: number; reminder_enabled: boolean; reminder_hours: number; reminder_template: string; }
 interface OutboundAutomation { id: number; name: string; trigger_type: string; enabled: boolean; delay_hours: number; message_template: string; }
@@ -110,7 +109,7 @@ const defaultAgent: AgentSettings = {
   business_hours: Object.fromEntries(DAY_KEYS.map(d => [d, { open: '08:00', close: '17:00', enabled: d !== 'saturday' && d !== 'sunday' }])),
 };
 
-const defaultPraxis: PraxisInfo = {
+const defaultBusiness: BusinessInfo = {
   practice_name: '', markanev: '', szakterulet: '', service_description: '', kulcsszavak: '',
   faq: [], campaigns: [], exceptions: [],
   modositas_eng: 'igen', lemondas_24h: 'figyelmeztetoSzoveggel',
@@ -129,7 +128,7 @@ const defaultReminder: ReminderSettings = {
 export default function SettingsPage() {
   const { isAdminOnly } = useAuth();
   const location = useLocation();
-  const validTabs = ['agent', 'praxis', 'szabalyok'];
+  const validTabs = ['agent', 'basic', 'szabalyok'];
   const tabFromUrl = location.pathname.split('/').pop() || '';
   const activeTab = validTabs.includes(tabFromUrl) ? tabFromUrl : 'agent';
   const [loading, setLoading] = useState(true);
@@ -137,9 +136,8 @@ export default function SettingsPage() {
 
   // Data states
   const [agent, setAgent] = useState<AgentSettings>(defaultAgent);
-  const [praxis, setPraxis] = useState<PraxisInfo>(defaultPraxis);
+  const [business, setBusiness] = useState<BusinessInfo>(defaultBusiness);
   const [clinics, setClinics] = useState<Clinic[]>([]);
-  const [doctors, setDoctors] = useState<Doctor[]>([]);
   const [services, setServices] = useState<Service[]>([]);
   const [triageRules, setTriageRules] = useState<TriageRule[]>([]);
   const [reminder, setReminder] = useState<ReminderSettings>(defaultReminder);
@@ -155,7 +153,7 @@ export default function SettingsPage() {
   const [lastSavedAt, setLastSavedAt] = useState<string>('');
 
   const openPriceModal = useCallback(() => {
-    const pl = (praxis as Record<string, unknown>).price_list;
+    const pl = (business as Record<string, unknown>).price_list;
     if (typeof pl === 'string' && pl.trim()) {
       const rows = pl.split('\n').filter(l => l.trim()).map(line => {
         const parts = line.split(' - ');
@@ -172,7 +170,7 @@ export default function SettingsPage() {
       setPriceRows([{ category: '', service: '', price: '', currency: 'HUF', note: '' }]);
     }
     setShowPriceModal(true);
-  }, [praxis]);
+  }, [business]);
 
   const savePriceRows = useCallback(async () => {
     setPriceSaving(true);
@@ -181,15 +179,15 @@ export default function SettingsPage() {
         .filter(r => r.service.trim() || r.category.trim())
         .map(r => [r.category, r.service, r.price, r.currency, r.note].filter(Boolean).join(' - '))
         .join('\n');
-      const updatedPraxis = { ...praxis, price_list: priceText };
-      const res = await authFetch('/admin/api/praxisinfo', {
+      const updatedBusiness = { ...business, price_list: priceText };
+      const res = await authFetch('/admin/api/business-info', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(updatedPraxis),
+        body: JSON.stringify(updatedBusiness),
       });
       if (res.ok) {
-        const newPraxis = { ...praxis, price_list: priceText } as PraxisInfo;
-        setPraxis(newPraxis);
+        const newBusiness = { ...business, price_list: priceText } as BusinessInfo;
+        setBusiness(newBusiness);
         showToast('Árlista mentve!');
         setShowPriceModal(false);
       } else {
@@ -199,7 +197,7 @@ export default function SettingsPage() {
       showToast('Mentési hiba', 'error');
     }
     setPriceSaving(false);
-  }, [priceRows, praxis]);
+  }, [priceRows, business]);
 
 
   // ── Load Cartesia voices from FastAPI ──
@@ -228,11 +226,10 @@ export default function SettingsPage() {
   const loadAll = useCallback(async () => {
     setLoading(true);
     try {
-      const [settingsRes, praxisRes, clinicsRes, doctorsRes, servicesRes, triageRes, reminderRes, autoRes] = await Promise.all([
+      const [settingsRes, businessRes, clinicsRes, servicesRes, triageRes, reminderRes, autoRes] = await Promise.all([
         authFetch('/admin/api/settings'),
-        authFetch('/admin/api/praxisinfo'),
+        authFetch('/admin/api/business-info'),
         authFetch('/admin/api/clinics'),
-        authFetch('/admin/api/doctors'),
         authFetch('/admin/api/services'),
         authFetch('/admin/api/triage_rules'),
         authFetch('/admin/api/settings/reminder'),
@@ -240,9 +237,8 @@ export default function SettingsPage() {
       ]);
 
       const settingsData = await settingsRes.json();
-      const praxisData = await praxisRes.json();
+      const businessData = await businessRes.json();
       const clinicsData = await clinicsRes.json();
-      const doctorsData = await doctorsRes.json();
       const servicesData = await servicesRes.json();
       const triageData = await triageRes.json();
       const reminderData = await reminderRes.json();
@@ -260,9 +256,9 @@ export default function SettingsPage() {
           business_hours: v.business_hours || prev.business_hours,
         }));
       }
-      if (praxisData && !praxisData.error) {
-        const p = praxisData;
-        setPraxis(prev => ({
+      if (businessData && !businessData.error) {
+        const p = businessData;
+        setBusiness(prev => ({
           ...prev,
           practice_name: p.practice_name || p.nev || '',
           markanev: p.markanev || '',
@@ -284,7 +280,6 @@ export default function SettingsPage() {
         }));
       }
       const cl = clinicsData?.clinics || clinicsData; if (Array.isArray(cl)) setClinics(cl);
-      const dc = doctorsData?.doctors || doctorsData; if (Array.isArray(dc)) setDoctors(dc);
       const sv = servicesData?.services || servicesData; if (Array.isArray(sv)) setServices(sv);
       const tr = triageData?.rules || triageData; if (Array.isArray(tr)) setTriageRules(tr);
       if (reminderData && !reminderData.error) setReminder(reminderData as ReminderSettings);
@@ -318,13 +313,13 @@ export default function SettingsPage() {
     setSaving(false);
   }, [agent]);
 
-  const savePraxis = useCallback(async () => {
+  const saveBusiness = useCallback(async () => {
     setSaving(true);
     try {
-      const res = await authFetch('/admin/api/praxisinfo', {
+      const res = await authFetch('/admin/api/business-info', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(praxis),
+        body: JSON.stringify(business),
       });
       if (res.ok) {
         showToast('Céginformációk mentve!', 'success');
@@ -334,34 +329,34 @@ export default function SettingsPage() {
       }
     } catch { showToast('Hiba a mentésnél', 'error'); }
     setSaving(false);
-  }, [praxis]);
+  }, [business]);
 
   // ── Praxis auto-save (debounced, only when data actually changed) ──
-  const praxisLoaded = useRef(false);
-  const praxisTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const praxisSavedRef = useRef<string>('');
+  const businessLoaded = useRef(false);
+  const businessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const businessSavedRef = useRef<string>('');
 
   useEffect(() => {
     if (!loading) {
       const t = setTimeout(() => {
-        praxisLoaded.current = true;
-        praxisSavedRef.current = JSON.stringify(praxis);
+        businessLoaded.current = true;
+        businessSavedRef.current = JSON.stringify(business);
       }, 500);
       return () => clearTimeout(t);
     }
   }, [loading]);
 
   useEffect(() => {
-    if (!praxisLoaded.current) return;
-    const currentJson = JSON.stringify(praxis);
-    if (currentJson === praxisSavedRef.current) return;
-    if (praxisTimerRef.current) clearTimeout(praxisTimerRef.current);
-    praxisTimerRef.current = setTimeout(() => {
-      savePraxis();
-      praxisSavedRef.current = currentJson;
+    if (!businessLoaded.current) return;
+    const currentJson = JSON.stringify(business);
+    if (currentJson === businessSavedRef.current) return;
+    if (businessTimerRef.current) clearTimeout(businessTimerRef.current);
+    businessTimerRef.current = setTimeout(() => {
+      saveBusiness();
+      businessSavedRef.current = currentJson;
     }, 1500);
-    return () => { if (praxisTimerRef.current) clearTimeout(praxisTimerRef.current); };
-  }, [praxis, savePraxis]);
+    return () => { if (businessTimerRef.current) clearTimeout(businessTimerRef.current); };
+  }, [business, saveBusiness]);
 
   // ── Agent auto-save (debounced, only when data actually changed) ──
   const agentSavedRef = useRef<string>('');
@@ -413,34 +408,14 @@ export default function SettingsPage() {
     showToast('Telephely törölve');
   }, []);
 
-  const saveDoctor = useCallback(async (doc: Doctor, idx: number) => {
-    try {
-      if (doc.id) {
-        await authFetch(`/admin/api/doctors/${doc.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: doc.name, specialty: doc.specialty, related_services: doc.related_services }) });
-      } else {
-        const res = await authFetch('/admin/api/doctors', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ name: doc.name, specialty: doc.specialty, related_services: doc.related_services }) });
-        if (res.ok) { const data = await res.json(); if (data.id) setDoctors(prev => prev.map((d, i) => i === idx ? { ...doc, id: data.id } : d)); }
-      }
-      showToast('Orvos mentve');
-    } catch { showToast('Hiba', 'error'); }
-  }, []);
 
-  const deleteDoctor = useCallback(async (id: number | undefined, idx: number) => {
-    if (id) {
-      try {
-        await authFetch(`/admin/api/doctors/${id}`, { method: 'DELETE' });
-      } catch { /* ignore */ }
-    }
-    setDoctors(prev => prev.filter((_, i) => i !== idx));
-    showToast('Orvos törölve');
-  }, []);
 
   const saveService = useCallback(async (svc: Service, idx: number) => {
     try {
       if (svc.id) {
-        await authFetch(`/admin/api/services/${svc.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ service_name: svc.service_name, duration_minutes: svc.duration_minutes, doctor_id: svc.doctor_id, note: svc.note }) });
+        await authFetch(`/admin/api/services/${svc.id}`, { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ service_name: svc.service_name, duration_minutes: svc.duration_minutes, description: svc.description, assigned_to: svc.assigned_to, note: svc.note }) });
       } else {
-        const res = await authFetch('/admin/api/services', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ service_name: svc.service_name, duration_minutes: svc.duration_minutes, doctor_id: svc.doctor_id, note: svc.note }) });
+        const res = await authFetch('/admin/api/services', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ service_name: svc.service_name, duration_minutes: svc.duration_minutes, description: svc.description, assigned_to: svc.assigned_to, note: svc.note }) });
         if (res.ok) { const data = await res.json(); if (data.id) setServices(prev => prev.map((s, i) => i === idx ? { ...svc, id: data.id } : s)); }
       }
       showToast('Szolgáltatás mentve');
@@ -518,14 +493,12 @@ export default function SettingsPage() {
               <div className="flex-row-between gap-8 mb-16">
                 <div className="flex-row gap-8">
                   <div className="icon-box">
-                    <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
+                    <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
                       <circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
                     </svg>
                   </div>
                   <span className="section-heading">Alapbeállítások</span>
-                  <div className="info-tooltip" title="Az AI válaszgenerálás nyelve (messenger, email, WhatsApp, Instagram csatornákra). A telefonos voice agent fix magyar marad.">
-                    <span>i</span>
-                  </div>
+
                 </div>
                 <button className="btn btn-settings-save btn-settings-save-upper" onClick={handleSave} disabled={saving}>
                   {saving ? 'Mentés...' : 'Változtatások mentése'}
@@ -536,12 +509,7 @@ export default function SettingsPage() {
                   {/* Nyelv beállítása — csak admin */}
                   {isAdminOnly && (
                   <div>
-                    <div className="flex-row gap-8 mb-12">
-                      <div className="icon-box-sm">
-                        <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13"><path d="M5 8l6 10M4 14h6M2 5h12M7 2v3M11 2a17 17 0 010 18M13 18h9M22 22l-4-4M17 13l5 9" /></svg>
-                      </div>
-                      <span className="section-subheading">Nyelv beállítása</span>
-                    </div>
+                    <label className="tt-label">Nyelv beállítása</label>
                     <div className="relative">
                       <div
                         onClick={() => setShowLangDropdown(!showLangDropdown)}
@@ -576,7 +544,7 @@ export default function SettingsPage() {
                                 {l.label}
                               </span>
                               {agent.language === l.code && (
-                                <svg fill="none" stroke="#1ceee0" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14" className="settings-lang-check">
+                                <svg fill="none" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14" className="settings-lang-check">
                                   <polyline points="20 6 9 17 4 12" />
                                 </svg>
                               )}
@@ -590,12 +558,7 @@ export default function SettingsPage() {
                   )}
                   {/* Kommunikációs stílus */}
                   <div>
-                    <div className="flex-row gap-8 mb-12">
-                      <div className="icon-box-sm">
-                        <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
-                      </div>
-                      <span className="section-subheading">Kommunikációs stílus kiválasztása</span>
-                    </div>
+                    <label className="tt-label">Kommunikációs stílus kiválasztása</label>
                     <div className="settings-tone-select-wrap">
                       <CustomSelect
                         value={agent.tone}
@@ -622,22 +585,15 @@ export default function SettingsPage() {
             <div className="mb-24">
               <div className="flex-row gap-8 mb-16">
                 <div className="icon-box">
-                  <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
+                  <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
                     <path d="M12 1a3 3 0 00-3 3v8a3 3 0 006 0V4a3 3 0 00-3-3zM19 10v2a7 7 0 01-14 0v-2M12 19v4M8 23h8" />
                   </svg>
                 </div>
                 <span className="section-heading">Voice Agent beállításai</span>
-                <div className="info-tooltip" title="A telefonos voice agent hangja. Ez határozza meg, hogy milyen hanggal beszéljen az AI a hívások során.">
-                  <span>i</span>
-                </div>
+
               </div>
               <div className="settings-section p-24">
-                <div className="flex-row gap-8 mb-18">
-                  <div className="icon-box-sm">
-                    <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13"><path d="M11 5L6 9H2v6h4l5 4V5zM19.07 4.93a10 10 0 010 14.14M15.54 8.46a5 5 0 010 7.07" /></svg>
-                  </div>
-                  <span className="section-subheading">Voice Agent kiválasztása</span>
-                </div>
+
                 <div className="flex-col gap-10">
                   {VOICE_AGENTS.map(va => {
                     const isSelected = agent.voice_id === va.id;
@@ -680,7 +636,7 @@ export default function SettingsPage() {
             <div className="mb-24">
               <div className="flex-row gap-8 mb-16">
                 <div className="icon-box">
-                  <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
+                  <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
                     <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z" />
                   </svg>
                 </div>
@@ -709,7 +665,7 @@ export default function SettingsPage() {
             <div className="mb-24">
               <div className="flex-row gap-8 mb-16">
                 <div className="icon-box">
-                  <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
+                  <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
                     <path d="M22 12h-4l-3 9-6-18-3 9H2" />
                   </svg>
                 </div>
@@ -733,8 +689,8 @@ export default function SettingsPage() {
                         </td>
                         <td className="int-td">
                           <select className="tt-select" value={r.priority} onChange={e => { const updated = { ...r, priority: e.target.value }; setTriageRules(prev => prev.map((x, j) => j === i ? updated : x)); saveTriageRule(updated, i); }}>
-                            <option value="altalanos">Általános</option>
-                            <option value="surgos">Sürgős</option>
+                            <option value="altalanos">Normál</option>
+                            <option value="surgos">Magas</option>
                           </select>
                         </td>
                         <td className="int-td">
@@ -764,7 +720,7 @@ export default function SettingsPage() {
         )}
 
         {/* ═══════════ CÉGINFORMÁCIÓK TAB ═══════════ */}
-        {activeTab === 'praxis' && (
+        {activeTab === 'basic' && (
           <div>
             <div className="page-header">
               <div className="page-title">Cég- és szolgáltatásinformációk</div>
@@ -791,10 +747,10 @@ export default function SettingsPage() {
             <div id="sec-cegadatok" className="scroll-anchor" />
             <SectionCard title="Cégadatok" svgPath="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2zM9 22V12h6v10">
               <div className="grid-2col gap-16 mb-20">
-                <LabelInput label="Cég neve" value={praxis.practice_name} onChange={v => setPraxis({ ...praxis, practice_name: v })} placeholder="pl. Rivergate Bútoráruház Kft." />
-                <LabelInput label="Cég rövid (hivatkozási) neve" value={praxis.markanev} onChange={v => setPraxis({ ...praxis, markanev: v })} placeholder="pl. Rivergate" />
-                <LabelInput label="Szakterület" value={praxis.szakterulet} onChange={v => setPraxis({ ...praxis, szakterulet: v })} placeholder="pl. Fogászat, szájsebészet" />
-                <LabelInput label="Fő profil" value={praxis.kulcsszavak} onChange={v => setPraxis({ ...praxis, kulcsszavak: v })} placeholder="pl. Bútor kis-és nagykereskedés" />
+                <LabelInput label="Cég neve" value={business.practice_name} onChange={v => setBusiness({ ...business, practice_name: v })} placeholder="pl. Rivergate Bútoráruház Kft." />
+                <LabelInput label="Cég rövid (hivatkozási) neve" value={business.markanev} onChange={v => setBusiness({ ...business, markanev: v })} placeholder="pl. Rivergate" />
+                <LabelInput label="Szakterület" value={business.szakterulet} onChange={v => setBusiness({ ...business, szakterulet: v })} placeholder="pl. IT tanácsadás, marketing" />
+                <LabelInput label="Fő profil" value={business.kulcsszavak} onChange={v => setBusiness({ ...business, kulcsszavak: v })} placeholder="pl. Bútor kis-és nagykereskedés" />
               </div>
               <div className="settings-section-divider">
                 <div className="form-label font-semibold mb-12 settings-form-label-bold">Telephelyek</div>
@@ -823,28 +779,37 @@ export default function SettingsPage() {
                     <span className="settings-info-circle-i">i</span>
                   </div>
                 </div>
-                <textarea className="tt-textarea settings-textarea--desc" value={praxis.service_description || ''} onChange={e => setPraxis({ ...praxis, service_description: e.target.value })} placeholder="Írja le részletesen a cég fő szolgáltatásait..." />
+                <textarea className="tt-textarea settings-textarea--desc" value={business.service_description || ''} onChange={e => setBusiness({ ...business, service_description: e.target.value })} placeholder="Írja le részletesen a cég fő szolgáltatásait..." />
               </div>
 
-              {/* Orvosok / Szolgáltatások lista */}
+              {/* Szolgáltatások */}
               <div className="settings-svc-divider">
                 <div className="flex-row gap-8 mb-12">
                   <div className="settings-icon-24">
-                    <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="12" height="12"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8z" /></svg>
+                    <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="12" height="12"><path d="M2 7h20v14a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" /></svg>
                   </div>
                   <span className="font-semibold text-md settings-section-text">Szolgáltatások</span>
                 </div>
-                {doctors.map((d, i) => (
-                  <div className="sett-list-item">
-                    <div className="grid-3col gap-12 flex-1">
-                      <input className="tt-input" value={d.name} onChange={e => setDoctors(prev => prev.map((x, j) => j === i ? { ...x, name: e.target.value } : x))} placeholder="Név" onBlur={() => saveDoctor(d, i)} />
-                      <input className="tt-input" value={d.specialty || ''} onChange={e => setDoctors(prev => prev.map((x, j) => j === i ? { ...x, specialty: e.target.value } : x))} placeholder="Szakterület" onBlur={() => saveDoctor(d, i)} />
-                      <input className="tt-input" value={d.related_services || ''} onChange={e => setDoctors(prev => prev.map((x, j) => j === i ? { ...x, related_services: e.target.value } : x))} placeholder="Szolgáltatások" onBlur={() => saveDoctor(d, i)} />
+                <div className="grid-5col gap-8 mb-6" style={{ paddingLeft: 4, paddingRight: 36 }}>
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)', letterSpacing: '0.03em' }}>Szolgáltatás</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)', letterSpacing: '0.03em' }}>Leírás</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)', letterSpacing: '0.03em' }}>Időtartam (perc)</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)', letterSpacing: '0.03em' }}>Felelős</span>
+                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)', letterSpacing: '0.03em' }}>Megjegyzés</span>
+                </div>
+                {services.map((s, i) => (
+                  <div key={s.id || i} className="sett-list-item">
+                    <div className="grid-5col gap-8 flex-1">
+                      <input className="tt-input" value={s.service_name} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, service_name: e.target.value } : x))} placeholder="Szolgáltatás neve" onBlur={() => saveService(s, i)} />
+                      <input className="tt-input" value={s.description || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder="Leírás" onBlur={() => saveService(s, i)} />
+                      <input className="tt-input" type="number" value={s.duration_minutes} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, duration_minutes: Number(e.target.value) } : x))} placeholder="Perc" onBlur={() => saveService(s, i)} />
+                      <input className="tt-input" value={s.assigned_to || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, assigned_to: e.target.value } : x))} placeholder="Felelős (opcionális)" onBlur={() => saveService(s, i)} />
+                      <input className="tt-input" value={s.note || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, note: e.target.value } : x))} placeholder="Megjegyzés" onBlur={() => saveService(s, i)} />
                     </div>
-                    <DeleteBtn onClick={() => deleteDoctor(d.id, i)} />
+                    <DeleteBtn onClick={() => deleteService(s.id, i)} />
                   </div>
                 ))}
-                <AddBtn label="Hozzáadás" onClick={() => setDoctors(prev => [...prev, { name: '', specialty: '', related_services: '' }])} />
+                <AddBtn label="Szolgáltatás hozzáadása" onClick={() => setServices(prev => [...prev, { service_name: '', description: '', duration_minutes: 30, assigned_to: '', note: '' }])} />
               </div>
             </SectionCard>
 
@@ -898,7 +863,7 @@ export default function SettingsPage() {
             <SectionCard title="Árak" svgPath="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6">
               <div className="text-desc mb-16">Az aktuális árlista itt szerkeszthető és tekinthető meg.</div>
               {(() => {
-                const pl = (praxis as Record<string, unknown>).price_list;
+                const pl = (business as Record<string, unknown>).price_list;
                 const rows = typeof pl === 'string' ? pl.split('\n').filter(r => r.trim()).map(r => {
                   const parts = r.split(' - ');
                   return {
@@ -913,7 +878,7 @@ export default function SettingsPage() {
                   <>
                     {rows.length === 0 && (
                       <div className="grid-2col gap-12 mb-16">
-                        <button className="btn-settings-save settings-upload-btn" onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv,.xlsx'; input.onchange = async (e: any) => { const file = e.target.files?.[0]; if (!file) return; const formData = new FormData(); formData.append('file', file); try { const res = await authFetch('/admin/api/upload_prices', { method: 'POST', body: formData }); if (res.ok) { const data = await res.json(); showToast('Árlista feltöltve!', 'success'); if (data.price_list) { setPraxis({ ...praxis, price_list: data.price_list, price_list_file_meta: data.price_list_file_meta }); } } else { const errData = await res.json().catch(() => null); showToast(errData?.detail || 'Feltöltési hiba', 'error'); } } catch { showToast('Feltöltési hiba', 'error'); } }; input.click(); }}>
+                        <button className="btn-settings-save settings-upload-btn" onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv,.xlsx'; input.onchange = async (e: any) => { const file = e.target.files?.[0]; if (!file) return; const formData = new FormData(); formData.append('file', file); try { const res = await authFetch('/admin/api/upload_prices', { method: 'POST', body: formData }); if (res.ok) { const data = await res.json(); showToast('Árlista feltöltve!', 'success'); if (data.price_list) { setBusiness({ ...business, price_list: data.price_list, price_list_file_meta: data.price_list_file_meta }); } } else { const errData = await res.json().catch(() => null); showToast(errData?.detail || 'Feltöltési hiba', 'error'); } } catch { showToast('Feltöltési hiba', 'error'); } }; input.click(); }}>
                           Új árlista feltöltése
                         </button>
                         <button className="btn btn-accent-outline settings-download-btn" onClick={async () => { try { const res = await authFetch('/admin/api/prices/template/download'); if (res.ok) { const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'arlista_minta.xlsx'; a.click(); URL.revokeObjectURL(url); } else { showToast('Letöltési hiba', 'error'); } } catch { showToast('Letöltési hiba', 'error'); } }}>
@@ -925,7 +890,7 @@ export default function SettingsPage() {
                       initialRows={rows}
                       onSave={(updatedRows) => {
                         const newPl = updatedRows.map(r => `${r.category} - ${r.service} - ${r.price} - ${r.currency} - ${r.note}`).join('\n');
-                        setPraxis({ ...praxis, price_list: newPl });
+                        setBusiness({ ...business, price_list: newPl });
                       }}
                     />
                   </>
@@ -937,14 +902,14 @@ export default function SettingsPage() {
             <div id="sec-kedvezmenyek" className="scroll-anchor" />
             <SectionCard title="Akciók, kedvezmények" svgPath="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z">
 
-              {(praxis.campaigns || []).map((c: { active: boolean; text: string, name?: string }, i: number) => (
+              {(business.campaigns || []).map((c: { active: boolean; text: string, name?: string }, i: number) => (
                 <div key={i} className="campaign-card">
                   <div className="campaign-card-header">
                     <div className="campaign-card-title">KEDVEZMÉNY #{i + 1}</div>
                     <div className="campaign-card-actions">
-                      <DeleteBtn onClick={() => { const campaigns = (praxis.campaigns || []).filter((_: unknown, j: number) => j !== i); setPraxis({ ...praxis, campaigns }); }} />
+                      <DeleteBtn onClick={() => { const campaigns = (business.campaigns || []).filter((_: unknown, j: number) => j !== i); setBusiness({ ...business, campaigns }); }} />
                       <label className="tt-toggle" style={{ margin: 0 }}>
-                        <input type="checkbox" checked={c.active !== false} onChange={e => { const campaigns = [...(praxis.campaigns || [])]; campaigns[i] = { ...campaigns[i], active: e.target.checked }; setPraxis({ ...praxis, campaigns }); }} />
+                        <input type="checkbox" checked={c.active !== false} onChange={e => { const campaigns = [...(business.campaigns || [])]; campaigns[i] = { ...campaigns[i], active: e.target.checked }; setBusiness({ ...business, campaigns }); }} />
                         <span className="tt-toggle-slider" />
                       </label>
                     </div>
@@ -952,11 +917,11 @@ export default function SettingsPage() {
                   <div className="campaign-card-body">
                     <div className="campaign-field">
                       <label className="campaign-label">Kedvezmény neve</label>
-                      <input className="tt-input" style={{ width: '100%' }} value={c.name || ''} onChange={e => { const campaigns = [...(praxis.campaigns || [])]; campaigns[i] = { ...campaigns[i], name: e.target.value }; setPraxis({ ...praxis, campaigns }); }} placeholder="pl. Nyári 10% akció" />
+                      <input className="tt-input" style={{ width: '100%' }} value={c.name || ''} onChange={e => { const campaigns = [...(business.campaigns || [])]; campaigns[i] = { ...campaigns[i], name: e.target.value }; setBusiness({ ...business, campaigns }); }} placeholder="pl. Nyári 10% akció" />
                     </div>
                     <div className="campaign-field mt-16">
                       <label className="campaign-label">Kedvezmény leírása</label>
-                      <textarea className="tt-input" style={{ width: '100%', resize: 'vertical' }} value={c.text || ''} onChange={e => { const campaigns = [...(praxis.campaigns || [])]; campaigns[i] = { ...campaigns[i], text: e.target.value }; setPraxis({ ...praxis, campaigns }); }} placeholder="Írd ide a kedvezmény részleteit..." rows={3} />
+                      <textarea className="tt-input" style={{ width: '100%', resize: 'vertical' }} value={c.text || ''} onChange={e => { const campaigns = [...(business.campaigns || [])]; campaigns[i] = { ...campaigns[i], text: e.target.value }; setBusiness({ ...business, campaigns }); }} placeholder="Írd ide a kedvezmény részleteit..." rows={3} />
                     </div>
                   </div>
                 </div>
@@ -964,7 +929,7 @@ export default function SettingsPage() {
               <div className="mt-16">
                 <button 
                   className="campaign-add-btn"
-                  onClick={() => setPraxis({ ...praxis, campaigns: [...(praxis.campaigns || []), { active: true, name: '', text: '' }] })}
+                  onClick={() => setBusiness({ ...business, campaigns: [...(business.campaigns || []), { active: true, name: '', text: '' }] })}
                 >
                   <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
                   Kedvezmény hozzáadása
@@ -975,7 +940,7 @@ export default function SettingsPage() {
             {/* ══════ 6. Gyakori Kérdések ══════ */}
             <div id="sec-gyik" className="scroll-anchor" />
             <SectionCard title="Gyakori Kérdések" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01">
-              {(praxis.faq || []).length === 0 && (
+              {(business.faq || []).length === 0 && (
                 <div className="settings-faq-empty">
                   <svg fill="none" stroke="var(--text-muted)" strokeWidth="1.5" viewBox="0 0 24 24" width="36" height="36" className="settings-faq-empty-icon">
                     <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" /><circle cx="12" cy="17" r="0.5" fill="currentColor" />
@@ -985,7 +950,7 @@ export default function SettingsPage() {
                 </div>
               )}
               <div className="flex-col gap-16">
-                {(praxis.faq || []).map((f, i) => (
+                {(business.faq || []).map((f, i) => (
                   <div key={i} className="settings-faq-card">
                     {/* ── Question section ── */}
                     <div className="settings-faq-question">
@@ -993,17 +958,17 @@ export default function SettingsPage() {
                       <div className="settings-faq-q-col">
                         <span className="settings-faq-label">Kérdés</span>
                         <input className="tt-input settings-faq-q-input" value={f.question}
-                          onChange={e => { const faq = [...(praxis.faq || [])]; faq[i] = { ...faq[i], question: e.target.value }; setPraxis({ ...praxis, faq }); }}
+                          onChange={e => { const faq = [...(business.faq || [])]; faq[i] = { ...faq[i], question: e.target.value }; setBusiness({ ...business, faq }); }}
                           placeholder="Írd be a kérdést..."
                         />
                       </div>
-                      <DeleteBtn onClick={() => { const faq = (praxis.faq || []).filter((_, j) => j !== i); setPraxis({ ...praxis, faq }); }} />
+                      <DeleteBtn onClick={() => { const faq = (business.faq || []).filter((_, j) => j !== i); setBusiness({ ...business, faq }); }} />
                     </div>
                     {/* ── Answer section ── */}
                     <div className="settings-faq-answer">
                       <span className="settings-faq-a-label">Válasz</span>
                       <textarea className="tt-textarea settings-faq-a-textarea" value={f.answer}
-                        onChange={e => { const faq = [...(praxis.faq || [])]; faq[i] = { ...faq[i], answer: e.target.value }; setPraxis({ ...praxis, faq }); }}
+                        onChange={e => { const faq = [...(business.faq || [])]; faq[i] = { ...faq[i], answer: e.target.value }; setBusiness({ ...business, faq }); }}
                         placeholder="Írd be a választ..."
                         ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
                         onInput={e => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }}
@@ -1012,7 +977,7 @@ export default function SettingsPage() {
                   </div>
                 ))}
               </div>
-              <AddBtn label="Kérdés hozzáadása" onClick={() => setPraxis({ ...praxis, faq: [...(praxis.faq || []), { question: '', answer: '' }] })} />
+              <AddBtn label="Kérdés hozzáadása" onClick={() => setBusiness({ ...business, faq: [...(business.faq || []), { question: '', answer: '' }] })} />
             </SectionCard>
           </div>
         )}
@@ -1027,32 +992,17 @@ export default function SettingsPage() {
             {/* 1. Új/visszatérő ügyfél */}
             <SectionCard title="Új és visszatérő ügyfelek kezelése" svgPath="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75">
               <div className="settings-clients-grid">
-                <LabelInput label="Ügyfél beazonosítását szolgáló kérdés" value={praxis.pacient_id_question} onChange={v => setPraxis({ ...praxis, pacient_id_question: v })} />
-                <LabelInput label="Új ügyfél -- kötelezően bekérendő adat" value={praxis.new_patient_required} onChange={v => setPraxis({ ...praxis, new_patient_required: v })} />
+                <LabelInput label="Ügyfél beazonosítását szolgáló kérdés" value={business.pacient_id_question} onChange={v => setBusiness({ ...business, pacient_id_question: v })} />
+                <LabelInput label="Új ügyfél -- kötelezően bekérendő adat" value={business.new_patient_required} onChange={v => setBusiness({ ...business, new_patient_required: v })} />
                 <div className="flex-row gap-12">
                   <label className="tt-label settings-label-nowrap">Új ügyfélnek automatikus első találkozó</label>
                   <label className="tt-toggle">
-                    <input type="checkbox" checked={praxis.new_patient_auto_visit} onChange={e => setPraxis({ ...praxis, new_patient_auto_visit: e.target.checked })} />
+                    <input type="checkbox" checked={business.new_patient_auto_visit} onChange={e => setBusiness({ ...business, new_patient_auto_visit: e.target.checked })} />
                     <span className="tt-toggle-slider" />
                   </label>
                 </div>
-                <LabelInput label="Visszatérő ügyfél -- kötelező szabály" value={praxis.returning_patient_required} onChange={v => setPraxis({ ...praxis, returning_patient_required: v })} />
+                <LabelInput label="Visszatérő ügyfél -- kötelező szabály" value={business.returning_patient_required} onChange={v => setBusiness({ ...business, returning_patient_required: v })} />
               </div>
-            </SectionCard>
-
-            {/* 2. Szolgáltatások */}
-            <SectionCard title="Szolgáltatások és időtartamok" svgPath="M2 7h20v14a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16">
-              {services.map((s, i) => (
-                <div key={s.id || i} className="sett-list-item">
-                  <div className="sett-svc-grid">
-                    <input className="tt-input" value={s.service_name} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, service_name: e.target.value } : x))} placeholder="Szolgáltatás neve" onBlur={() => saveService(s, i)} />
-                    <input className="tt-input" type="number" value={s.duration_minutes} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, duration_minutes: Number(e.target.value) } : x))} placeholder="Perc" onBlur={() => saveService(s, i)} />
-                    <input className="tt-input" value={s.note || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, note: e.target.value } : x))} placeholder="Megjegyzés" onBlur={() => saveService(s, i)} />
-                  </div>
-                  <DeleteBtn onClick={() => deleteService(s.id, i)} />
-                </div>
-              ))}
-              <AddBtn label="Szolgáltatás hozzáadása" onClick={() => setServices(prev => [...prev, { service_name: '', duration_minutes: 30, note: '' }])} />
             </SectionCard>
 
             {/* 3. Kivételek + Lemondás */}
@@ -1060,18 +1010,18 @@ export default function SettingsPage() {
               {/* Kivételek */}
               <SectionCard title="Kivételek kezelése" svgPath="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01">
                 <p className="settings-exceptions-p">Helyzetek, amikor az eaisyDesk nem foglalhat automatikusan.</p>
-                {(praxis.exceptions || []).map((ex, i) => (
+                {(business.exceptions || []).map((ex, i) => (
                   <div key={i} className="sett-list-item sett-list-item--mb6">
-                    <input className="tt-input flex-1" value={ex} onChange={e => { const exceptions = [...(praxis.exceptions || [])]; exceptions[i] = e.target.value; setPraxis({ ...praxis, exceptions }); }} />
-                    <DeleteBtn onClick={() => { const exceptions = (praxis.exceptions || []).filter((_, j) => j !== i); setPraxis({ ...praxis, exceptions }); }} />
+                    <input className="tt-input flex-1" value={ex} onChange={e => { const exceptions = [...(business.exceptions || [])]; exceptions[i] = e.target.value; setBusiness({ ...business, exceptions }); }} />
+                    <DeleteBtn onClick={() => { const exceptions = (business.exceptions || []).filter((_, j) => j !== i); setBusiness({ ...business, exceptions }); }} />
                   </div>
                 ))}
-                {(!praxis.exceptions || praxis.exceptions.length === 0) && (
+                {(!business.exceptions || business.exceptions.length === 0) && (
                   <div className="settings-exceptions-empty">
                     Még nincsenek kivételek megadva.
                   </div>
                 )}
-                <AddBtn label="Kivétel hozzáadása" onClick={() => setPraxis({ ...praxis, exceptions: [...(praxis.exceptions || []), ''] })} />
+                <AddBtn label="Kivétel hozzáadása" onClick={() => setBusiness({ ...business, exceptions: [...(business.exceptions || []), ''] })} />
               </SectionCard>
 
               {/* Lemondás */}
@@ -1079,21 +1029,21 @@ export default function SettingsPage() {
                 <div className="flex-col settings-cancel-col">
                   <div>
                     <label className="tt-label">Időpont módosításának engedélyezése</label>
-                    <select className="tt-select" value={praxis.modositas_eng} onChange={e => setPraxis({ ...praxis, modositas_eng: e.target.value })}>
+                    <select className="tt-select" value={business.modositas_eng} onChange={e => setBusiness({ ...business, modositas_eng: e.target.value })}>
                       <option value="igen">Igen</option>
                       <option value="nem">Nem</option>
                     </select>
                   </div>
                   <div>
                     <label className="tt-label">24 órán belüli lemondás kezelése</label>
-                    <select className="tt-select" value={praxis.lemondas_24h} onChange={e => setPraxis({ ...praxis, lemondas_24h: e.target.value })}>
+                    <select className="tt-select" value={business.lemondas_24h} onChange={e => setBusiness({ ...business, lemondas_24h: e.target.value })}>
                       <option value="elfogadhato">Elfogadható</option>
                       <option value="figyelmeztetoSzoveggel">Elfogadható figyelmeztető szöveggel</option>
                       <option value="eloAtadas">Élő átadás szükséges</option>
                     </select>
                   </div>
-                  {praxis.lemondas_24h === 'figyelmeztetoSzoveggel' && (
-                    <textarea className="tt-textarea" value={praxis.figyelmezteto_szoveg} onChange={e => setPraxis({ ...praxis, figyelmezteto_szoveg: e.target.value })} />
+                  {business.lemondas_24h === 'figyelmeztetoSzoveggel' && (
+                    <textarea className="tt-textarea" value={business.figyelmezteto_szoveg} onChange={e => setBusiness({ ...business, figyelmezteto_szoveg: e.target.value })} />
                   )}
                 </div>
               </SectionCard>
@@ -1130,7 +1080,7 @@ function _SettingsField({ label, svgPath, children }: { label: string; svgPath: 
     <div>
       <div className="settings-section-title mb-10">
         <div className="icon-box">
-          <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><path d={svgPath} /></svg>
+          <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><path d={svgPath} /></svg>
         </div>
         {label}
       </div>
@@ -1144,7 +1094,7 @@ function SectionCard({ title, svgPath, children }: { title: string; svgPath: str
     <div className="tt-section">
       <div className="tt-section-title mb-16">
         <div className="icon-box">
-          <svg fill="none" stroke="#1ceee0" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><path d={svgPath} /></svg>
+          <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><path d={svgPath} /></svg>
         </div>
         {title}
       </div>
@@ -1222,7 +1172,7 @@ function PriceListModal({
         {/* Header */}
         <div className="price-modal-header">
           <div className="price-modal-icon">
-            <svg fill="none" stroke="#1ceee0" strokeWidth="1.5" viewBox="0 0 24 24" width="22" height="22">
+            <svg fill="none" strokeWidth="1.5" viewBox="0 0 24 24" width="22" height="22">
               <path d="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6" />
             </svg>
           </div>

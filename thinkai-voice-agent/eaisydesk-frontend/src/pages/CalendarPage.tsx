@@ -229,7 +229,7 @@ export default function CalendarPage() {
           <div className="page-title">Naptár</div>
 
         </div>
-        <div className="flex-row gap-10">
+        <div className="flex-row gap-10" style={{ paddingRight: 48 }}>
           {/* View toggle */}
           <div className="flex-row gap-4 cal-view-toggle">
             <button

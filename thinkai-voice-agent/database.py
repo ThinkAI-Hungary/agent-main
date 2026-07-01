@@ -1292,9 +1292,9 @@ def delete_kanban_column(col_id: str) -> bool:
     except Exception:
         return False
 
-# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# ════════════════════════════════════════════════════════════════════════════
 # TRIAGE RULES
-# âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
+# ════════════════════════════════════════════════════════════════════════════
 
 def get_triage_rules() -> list[dict]:
     if not supabase: return []
@@ -1338,65 +1338,24 @@ def delete_triage_rule(rule_id: int) -> bool:
         return False
 
 # ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-# DOCTORS & SERVICES
-# ââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
-
-def get_doctors() -> list[dict]:
-    if not supabase: return []
-    try:
-        res = supabase.table("doctors").select("*").order("id", desc=False).execute()
-        return res.data
-    except Exception:
-        return []
-
-def add_doctor(name: str, specialty: str, related_services: str = "") -> int:
-    if not supabase: return 0
-    try:
-        res = supabase.table("doctors").insert({
-            "name": name,
-            "specialty": specialty,
-            "related_services": related_services
-        }).execute()
-        return res.data[0]["id"] if res.data else 0
-    except Exception as e:
-        logger.error(f"Add doctor error: {e}")
-        return 0
-
-def update_doctor(doc_id: int, name: str, specialty: str, related_services: str = "") -> bool:
-    if not supabase: return False
-    try:
-        supabase.table("doctors").update({
-            "name": name,
-            "specialty": specialty,
-            "related_services": related_services
-        }).eq("id", doc_id).execute()
-        return True
-    except Exception:
-        return False
-
-def delete_doctor(doc_id: int) -> bool:
-    if not supabase: return False
-    try:
-        supabase.table("doctors").delete().eq("id", doc_id).execute()
-        return True
-    except Exception:
-        return False
+# SERVICES
 
 def get_services() -> list[dict]:
     if not supabase: return []
     try:
-        res = supabase.table("services").select("*, doctors(name)").order("id", desc=False).execute()
+        res = supabase.table("services").select("*").order("id", desc=False).execute()
         return res.data
     except Exception:
         return []
 
-def add_service(service_name: str, duration_minutes: int, doctor_id: int = None, note: str = "") -> int:
+def add_service(service_name: str, duration_minutes: int, description: str = "", assigned_to: str = "", note: str = "") -> int:
     if not supabase: return 0
     try:
         res = supabase.table("services").insert({
             "service_name": service_name,
             "duration_minutes": duration_minutes,
-            "doctor_id": doctor_id,
+            "description": description,
+            "assigned_to": assigned_to,
             "note": note
         }).execute()
         return res.data[0]["id"] if res.data else 0
@@ -1404,13 +1363,14 @@ def add_service(service_name: str, duration_minutes: int, doctor_id: int = None,
         logger.error(f"Add service error: {e}")
         return 0
 
-def update_service(srv_id: int, service_name: str, duration_minutes: int, doctor_id: int = None, note: str = "") -> bool:
+def update_service(srv_id: int, service_name: str, duration_minutes: int, description: str = "", assigned_to: str = "", note: str = "") -> bool:
     if not supabase: return False
     try:
         supabase.table("services").update({
             "service_name": service_name,
             "duration_minutes": duration_minutes,
-            "doctor_id": doctor_id,
+            "description": description,
+            "assigned_to": assigned_to,
             "note": note
         }).eq("id", srv_id).execute()
         return True
@@ -1502,6 +1462,119 @@ def save_clinics(clinics: list[dict]) -> bool:
         return True
     except Exception as e:
         logger.error(f"Save clinics error: {e}")
+        return False
+
+
+# ── Settings persistence (Supabase) ───────────────────────────────────────────
+
+def get_agent_settings() -> dict:
+    """Read agent_settings row (id=1) from Supabase."""
+    if not supabase: return {}
+    try:
+        res = supabase.table("agent_settings").select("*").eq("id", 1).execute()
+        if res.data:
+            row = res.data[0]
+            row.pop("id", None)
+            row.pop("updated_at", None)
+            return row
+        return {}
+    except Exception as e:
+        logger.error(f"Error reading agent_settings: {e}")
+        return {}
+
+
+def update_agent_settings(data: dict) -> bool:
+    """Upsert agent_settings row (id=1) in Supabase."""
+    if not supabase: return False
+    try:
+        data["id"] = 1
+        data["updated_at"] = "now()"
+        supabase.table("agent_settings").upsert(data).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Error updating agent_settings: {e}")
+        return False
+
+
+def get_business_info() -> dict:
+    """Read praxis_info row (id=1) from Supabase."""
+    if not supabase: return {}
+    try:
+        res = supabase.table("business_info").select("*").eq("id", 1).execute()
+        if res.data:
+            row = res.data[0]
+            row.pop("id", None)
+            row.pop("updated_at", None)
+            return row
+        return {}
+    except Exception as e:
+        logger.error(f"Error reading praxis_info: {e}")
+        return {}
+
+
+def update_business_info(data: dict) -> bool:
+    """Upsert praxis_info row (id=1) in Supabase."""
+    if not supabase: return False
+    try:
+        data["id"] = 1
+        data["updated_at"] = "now()"
+        supabase.table("business_info").upsert(data).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Error updating business_info: {e}")
+        return False
+
+
+def get_knowledge_base() -> dict:
+    """Read knowledge_base row (id=1) from Supabase. Returns {format, content}."""
+    if not supabase: return {"format": "json", "content": "{}"}
+    try:
+        res = supabase.table("knowledge_base").select("*").eq("id", 1).execute()
+        if res.data:
+            row = res.data[0]
+            return {"format": row.get("format", "json"), "content": row.get("content", "{}")}
+        return {"format": "json", "content": "{}"}
+    except Exception as e:
+        logger.error(f"Error reading knowledge_base: {e}")
+        return {"format": "json", "content": "{}"}
+
+
+def update_knowledge_base(fmt: str, content: str) -> bool:
+    """Upsert knowledge_base row (id=1) in Supabase."""
+    if not supabase: return False
+    try:
+        supabase.table("knowledge_base").upsert({
+            "id": 1, "format": fmt, "content": content, "updated_at": "now()"
+        }).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Error updating knowledge_base: {e}")
+        return False
+
+
+def get_text_config(key: str) -> str:
+    """Read a text_configs row by key. Returns content string."""
+    if not supabase: return ""
+    try:
+        res = supabase.table("text_configs").select("content").eq("key", key).execute()
+        if res.data:
+            return res.data[0].get("content", "")
+        return ""
+    except Exception as e:
+        logger.error(f"Error reading text_config '{key}': {e}")
+        return ""
+
+
+def update_text_config(key: str, content: str) -> bool:
+    """Upsert a text_configs row by key."""
+    if not supabase: return False
+    try:
+        supabase.table("text_configs").upsert({
+            "key": key, "content": content, "updated_at": "now()"
+        }).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Error updating text_config '{key}': {e}")
         return False
 
 

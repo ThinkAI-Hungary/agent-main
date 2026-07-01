@@ -69,7 +69,7 @@ const NAV_ITEMS: NavItem[] = [
     adminOnly: true,
     children: [
       { id: 'settings-agent', label: 'eaisyDesk beállítások', path: '/settings/agent' },
-      { id: 'settings-praxis', label: 'Céginformációk', path: '/settings/praxis' },
+      { id: 'settings-basic', label: 'Céginformációk', path: '/settings/basic' },
       { id: 'settings-szabalyok', label: 'Szabályok', path: '/settings/szabalyok' },
     ],
   },

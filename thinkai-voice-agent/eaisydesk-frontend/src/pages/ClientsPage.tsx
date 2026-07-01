@@ -103,7 +103,7 @@ export default function ClientsPage() {
   const sortDropdownRef = useRef<HTMLDivElement>(null);
   const [sortBy, setSortBy] = useState('date_desc');
 
-  const ALL_KATEGORIA = ['Új beteg', 'Visszatérő', 'Inaktív'];
+  const ALL_KATEGORIA = ['Új ügyfél', 'Visszatérő', 'Inaktív'];
   
   const activeFilterCount = filterKategoria.size + filterErtStatusz.size + filterFelelos.size;
   const resetFilters = () => {
@@ -232,7 +232,7 @@ export default function ClientsPage() {
       result = result.filter(c => {
         let katMatch = true;
         if (filterKategoria.size > 0) {
-          const kateg = c.isInactive ? 'Inaktív' : (c.isNew ? 'Új beteg' : 'Visszatérő');
+          const kateg = c.isInactive ? 'Inaktív' : (c.isNew ? 'Új ügyfél' : 'Visszatérő');
           if (!filterKategoria.has(kateg)) katMatch = false;
         }
         
@@ -562,7 +562,7 @@ export default function ClientsPage() {
                 <div className="dropdown-menu dropdown-menu--filter">
                   <div className="dropdown-header">Szűrők</div>
                   <div className="int-filter-list">
-                    <FilterSection title="Ügyfél kategória" bordered>
+                    <FilterSection title="Ügyfél kategória">
                       {ALL_KATEGORIA.map((v) => (
                         <FilterCheckbox key={v} label={v} checked={filterKategoria.has(v)} onChange={() => toggleFilter(filterKategoria, v, setFilterKategoria)} />
                       ))}

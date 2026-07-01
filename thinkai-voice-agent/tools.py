@@ -295,12 +295,12 @@ async def book_meeting(
     attendee_email: Annotated[str, "A meghívott ügyfél email címe (kötelező bekérni)"],
     duration_minutes: Annotated[int, "A meeting hossza percben"] = 30,
     service_name: Annotated[str, "A kért szolgáltatás neve (ha megadta az ügyfél, különben 'Általános')"] = "Általános",
-    doctor_name: Annotated[str, "A kért orvos neve (ha megadta az ügyfél, különben 'Bármelyik orvos')"] = "Bármelyik orvos",
+    assigned_to: Annotated[str, "A felelős munkatárs neve (ha megadta az ügyfél, különben üres string)"] = "",
     additional_info: Annotated[str, "Bármely egyéb kiegészítő adat JSON szövegként (pl. cégnév, lakcím). Hagyd üresen '{}' ha nincsen egyéb."] = "{}",
     funnel_stage: Annotated[str, "A beszélgetés állapota: 'irrelevant', 'relevant', 'valaszolt', 'ajanlat', 'foglalt'"] = "foglalt",
 ) -> str:
     """Találkozó foglalása a naptárba."""
-    logger.info(f"Booking meeting: {title} on {date} at {time}, attendee={attendee}, email={attendee_email}, service={service_name}, doctor={doctor_name}")
+    logger.info(f"Booking meeting: {title} on {date} at {time}, attendee={attendee}, email={attendee_email}, service={service_name}, assigned_to={assigned_to}")
 
     try:
         parsed_date = _parse_hungarian_date(date)
@@ -361,7 +361,7 @@ async def book_meeting(
             "forras_csatorna": "Voice Agent",
             "booked_datetime": f"{parsed_date} {parsed_time}",
             "service": service_name,
-            "doctor": doctor_name,
+            "assigned_to": assigned_to,
             "reminder_sent_at": now_str  # Az azonnali visszaigazoló email ideje
         }
         
@@ -566,18 +566,19 @@ async def create_task(
 # 6. KNOWLEDGE LOOKUP (structured ThinkAI info)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-# ── Knowledge base path ──────────────────────────────────────────────────────
-KNOWLEDGE_FILE = THIS_DIR / "knowledge.json"
+# ── Knowledge base ────────────────────────────────────────────────────────
 
 
 def _load_knowledge() -> dict:
-    """Load knowledge base from JSON file."""
-    if KNOWLEDGE_FILE.exists():
-        try:
-            return json.loads(KNOWLEDGE_FILE.read_text(encoding="utf-8"))
-        except Exception:
-            return {}
-    return {}
+    """Load knowledge base from Supabase."""
+    try:
+        k = db.get_knowledge_base()
+        content = k.get("content", "{}")
+        if isinstance(content, str):
+            return json.loads(content) if content.strip() else {}
+        return content if isinstance(content, dict) else {}
+    except Exception:
+        return {}
 
 
 _TOPIC_ALIASES = {
