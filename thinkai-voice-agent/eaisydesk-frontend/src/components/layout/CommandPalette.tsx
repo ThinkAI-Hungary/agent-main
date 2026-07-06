@@ -25,9 +25,9 @@ function useStaticCommands(navigate: ReturnType<typeof useNavigate>): CmdItem[] 
     { id: 'nav-calendar', title: 'Naptár', desc: 'Időpontok és foglalások', icon: '📅', type: 'nav' as const, action: () => navigate('/calendar'), keywords: 'calendar naptár foglalás időpont' },
     { id: 'nav-outbound', title: 'Kampányok', desc: 'Kimenő kommunikáció és kampányok', icon: '📤', type: 'nav' as const, action: () => navigate('/outbound'), keywords: 'outbound kampány campaign kimenő email' },
     { id: 'nav-automations', title: 'Automatikus értesítések', desc: 'Automatikus munkafolyamatok', icon: '⚡', type: 'nav' as const, action: () => navigate('/automatizaciok'), keywords: 'automations automatizáció workflow' },
-    { id: 'nav-settings-agent', title: 'eaisyDesk beállítások', desc: 'AI asszisztens konfigurálás', icon: '🤖', type: 'nav' as const, action: () => navigate('/settings/agent'), keywords: 'settings beállítások agent ai' },
+
     { id: 'nav-settings-praxis', title: 'Céginformációk', desc: 'Céges adatok kezelése', icon: '🏢', type: 'nav' as const, action: () => navigate('/settings/basic'), keywords: 'basic cég company info' },
-    { id: 'nav-settings-rules', title: 'Szabályok', desc: 'Üzleti szabályok és logika', icon: '📝', type: 'nav' as const, action: () => navigate('/settings/szabalyok'), keywords: 'rules szabályok business logic' },
+    { id: 'nav-settings-rules', title: 'Ügykezelési és foglalási szabályok', desc: 'Ügytípusok, foglalási és kezelési szabályok', icon: '📝', type: 'nav' as const, action: () => navigate('/settings/szabalyok'), keywords: 'rules szabályok business logic ügykezelés foglalás' },
     { id: 'nav-help', title: 'Segítség', desc: 'Dokumentáció és útmutatók', icon: '❓', type: 'nav' as const, action: () => navigate('/help'), keywords: 'help segítség docs' },
     { id: 'nav-marketing', title: 'EAISY Marketing', desc: 'Marketing automatizáció modul', icon: '🎯', type: 'nav' as const, action: () => { window.location.href = '/admin/marketing'; }, keywords: 'marketing automation modul' },
 

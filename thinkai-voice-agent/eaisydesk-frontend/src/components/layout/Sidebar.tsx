@@ -68,7 +68,6 @@ const NAV_ITEMS: NavItem[] = [
     icon: 'M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2zM8 7h8M8 11h6',
     adminOnly: true,
     children: [
-      { id: 'settings-agent', label: 'eaisyDesk beállítások', path: '/settings/agent' },
       { id: 'settings-basic', label: 'Céginformációk', path: '/settings/basic' },
       { id: 'settings-szabalyok', label: 'Szabályok', path: '/settings/szabalyok' },
     ],

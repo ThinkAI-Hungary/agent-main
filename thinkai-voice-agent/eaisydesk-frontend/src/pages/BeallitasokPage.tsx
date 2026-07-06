@@ -13,6 +13,7 @@ import Spinner from '../components/ui/Spinner';
 import ProfileAvatarUpload from '../components/settings/ProfileAvatarUpload';
 import SessionTimeoutSetting from '../components/settings/SessionTimeoutSetting';
 import GdprSection from '../components/settings/GdprSection';
+import CustomSelect from '../components/settings/CustomSelect';
 
 
 interface User {
@@ -27,6 +28,7 @@ interface User {
 const TABS = [
   { id: 'profil', label: 'Profil', icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z' },
   { id: 'csapat', label: 'Csapat', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75' },
+  { id: 'eaisydesk', label: 'eaisyDesk beállítások', icon: 'M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2zM12 15a3 3 0 100-6 3 3 0 000 6z' },
   { id: 'biztonsag', label: 'Biztonság', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
 ] as const;
 
@@ -56,7 +58,10 @@ export default function BeallitasokPage() {
   const isAdminOnly = user?.role === 'admin';
 
   const visibleTabs = useMemo(() => {
-    return TABS.filter(tab => tab.id !== 'csapat' || isAdmin);
+    return TABS.filter(tab => {
+      if (tab.id === 'csapat' || tab.id === 'eaisydesk') return isAdmin;
+      return true;
+    });
   }, [isAdmin]);
 
   useEffect(() => {
@@ -228,9 +233,6 @@ export default function BeallitasokPage() {
             </div>
             <button className="beallitasok-save-btn" onClick={handleSaveProfile}>Profil mentése</button>
           </div>
-
-          {/* ── CSATORNÁK SECTION ── */}
-          <ChannelsSection />
           </>
         )}
 
@@ -293,6 +295,14 @@ export default function BeallitasokPage() {
               )}
             </div>
           </div>
+        )}
+
+        {/* ── EAISYDESK BEÁLLÍTÁSOK TAB ── */}
+        {activeTab === 'eaisydesk' && isAdmin && (
+          <>
+            <CommunicationSettingsSection />
+            <ChannelsSection />
+          </>
         )}
 
         {/* ── BIZTONSÁG TAB ── */}
@@ -456,6 +466,197 @@ function Modal({ title, subtitle, children, onClose }: { title: string; subtitle
 // ProfileAvatarUpload extracted to src/components/settings/ProfileAvatarUpload.tsx
 
 
+// ── Communication settings (eaisyDesk beállítások tab) ──────────────────────
+
+// SVG Flag components
+const COMM_FLAGS: Record<string, React.ReactNode> = {
+  hu: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="36" height="8" fill="#cd2a3e" /><rect y="8" width="36" height="8" fill="#fff" /><rect y="16" width="36" height="8" fill="#436f4d" /></svg>,
+  en: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="36" height="24" fill="#012169" /><path d="M0 0L36 24M36 0L0 24" stroke="#fff" strokeWidth="4" /><path d="M0 0L36 24M36 0L0 24" stroke="#C8102E" strokeWidth="2.5" /><path d="M18 0v24M0 12h36" stroke="#fff" strokeWidth="6" /><path d="M18 0v24M0 12h36" stroke="#C8102E" strokeWidth="3.5" /></svg>,
+  de: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="36" height="8" fill="#000" /><rect y="8" width="36" height="8" fill="#D00" /><rect y="16" width="36" height="8" fill="#FFCE00" /></svg>,
+  sk: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="36" height="8" fill="#fff" /><rect y="8" width="36" height="8" fill="#0B4EA2" /><rect y="16" width="36" height="8" fill="#EE1C25" /><path d="M5 4v16c0 3 4 5 7 6 3-1 7-3 7-6V4z" fill="#EE1C25" stroke="#fff" strokeWidth="1" /></svg>,
+  ro: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="12" height="24" fill="#002B7F" /><rect x="12" width="12" height="24" fill="#FCD116" /><rect x="24" width="12" height="24" fill="#CE1126" /></svg>,
+  sr: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="36" height="8" fill="#C6363C" /><rect y="8" width="36" height="8" fill="#0C4076" /><rect y="16" width="36" height="8" fill="#fff" /></svg>,
+  hr: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="36" height="8" fill="#FF0000" /><rect y="8" width="36" height="8" fill="#fff" /><rect y="16" width="36" height="8" fill="#171796" /></svg>,
+  fr: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="12" height="24" fill="#002395" /><rect x="12" width="12" height="24" fill="#fff" /><rect x="24" width="12" height="24" fill="#ED2939" /></svg>,
+  es: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="36" height="6" fill="#c60b1e" /><rect y="6" width="36" height="12" fill="#ffc400" /><rect y="18" width="36" height="6" fill="#c60b1e" /></svg>,
+  it: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="12" height="24" fill="#009246" /><rect x="12" width="12" height="24" fill="#fff" /><rect x="24" width="12" height="24" fill="#CE2B37" /></svg>,
+};
+
+const COMM_LANGUAGE_OPTIONS = [
+  { code: 'hu', label: 'magyar' },
+  { code: 'en', label: 'angol' },
+  { code: 'de', label: 'német' },
+  { code: 'sk', label: 'szlovák' },
+  { code: 'ro', label: 'román' },
+  { code: 'sr', label: 'szerb' },
+  { code: 'hr', label: 'horvát' },
+  { code: 'fr', label: 'francia' },
+  { code: 'es', label: 'spanyol' },
+  { code: 'it', label: 'olasz' },
+];
+
+function CommunicationSettingsSection() {
+  const [lang, setLang] = useState('hu');
+  const [tone, setTone] = useState('professional_friendly');
+  const [toneCustom, setToneCustom] = useState('');
+  const [greeting, setGreeting] = useState('');
+  const [showLangDropdown, setShowLangDropdown] = useState(false);
+  const [showGreetingInfo, setShowGreetingInfo] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [loaded, setLoaded] = useState(false);
+
+  // Load current settings
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await authFetch('/admin/api/settings');
+        const data = await res.json();
+        if (data && !data.error) {
+          setLang(data.language || 'hu');
+          setTone(data.tone || 'professional_friendly');
+          setToneCustom(data.tone_custom || '');
+          setGreeting(data.greeting || '');
+        }
+      } catch { /* ignore */ }
+      setLoaded(true);
+    })();
+  }, []);
+
+  // Explicit save — read-modify-write
+  const handleSave = useCallback(async () => {
+    setSaving(true);
+    try {
+      // Read current full settings to preserve voice_id, business_hours, etc.
+      const getRes = await authFetch('/admin/api/settings');
+      const existing = await getRes.json();
+      const merged = { ...existing, language: lang, tone, tone_custom: toneCustom, greeting };
+      delete merged.error; // safety: don't send back error field if it existed
+      const postRes = await authFetch('/admin/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(merged),
+      });
+      if (postRes.ok) {
+        showToast('Kommunikációs beállítások mentve!', 'success');
+      } else {
+        showToast('Hiba a mentésnél', 'error');
+      }
+    } catch { showToast('Hiba a mentésnél', 'error'); }
+    setSaving(false);
+  }, [lang, tone, toneCustom, greeting]);
+
+  if (!loaded) return null;
+
+  return (
+    <>
+      {/* Save button row */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <button className="beallitasok-save-btn" onClick={handleSave} disabled={saving}>
+          {saving ? 'Mentés...' : 'Változtatások mentése'}
+        </button>
+      </div>
+
+      <div className="beallitasok-card">
+        <div className="beal-subtitle-16 mb-16">Kommunikáció beállításai</div>
+
+        <div className="beal-grid-2 mb-24">
+          {/* Nyelv */}
+          <div>
+            <label className="tt-label">Nyelv</label>
+            <div className="relative">
+              <div
+                onClick={() => setShowLangDropdown(!showLangDropdown)}
+                className="settings-lang-trigger"
+              >
+                <div className="settings-flag-wrap">
+                  {COMM_FLAGS[lang] || COMM_FLAGS.hu}
+                </div>
+                <span className="flex-1 text-md font-medium settings-lang-text">
+                  {COMM_LANGUAGE_OPTIONS.find(l => l.code === lang)?.label || 'magyar'}
+                </span>
+                <svg fill="none" stroke="var(--text-muted)" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14" className={`settings-lang-chevron ${showLangDropdown ? 'settings-lang-chevron--open' : 'settings-lang-chevron--closed'}`}>
+                  <path d="M6 9l6 6 6-6" />
+                </svg>
+              </div>
+              {showLangDropdown && (
+                <>
+                  <div className="dropdown-backdrop" onClick={() => setShowLangDropdown(false)} />
+                  <div className="settings-lang-dropdown">
+                    {COMM_LANGUAGE_OPTIONS.map(l => (
+                      <div
+                        key={l.code}
+                        onClick={() => { setLang(l.code); setShowLangDropdown(false); }}
+                        className={`settings-lang-option ${lang === l.code ? 'settings-lang-option--active' : 'settings-lang-option--idle'}`}
+                        onMouseEnter={e => { if (lang !== l.code) (e.currentTarget as HTMLDivElement).style.background = 'rgba(28,238,224,0.04)'; }}
+                        onMouseLeave={e => { if (lang !== l.code) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
+                      >
+                        <div className="settings-flag-wrap">
+                          {COMM_FLAGS[l.code]}
+                        </div>
+                        <span className={`${lang === l.code ? 'settings-lang-option-text--active' : 'settings-lang-option-text--idle'}`}>
+                          {l.label}
+                        </span>
+                        {lang === l.code && (
+                          <svg fill="none" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14" className="settings-lang-check">
+                            <polyline points="20 6 9 17 4 12" />
+                          </svg>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+
+          {/* Kommunikációs stílus */}
+          <div>
+            <label className="tt-label">Kommunikációs stílus</label>
+            <div className="settings-tone-select-wrap">
+              <CustomSelect
+                value={tone}
+                onChange={(v) => setTone(v)}
+                options={[
+                  { value: 'professional_friendly', label: 'Professzionális, segítőkész' },
+                  { value: 'formal', label: 'Formális, tárgyszerű' },
+                  { value: 'informal', label: 'Informális, közvetlen' },
+                  { value: 'empathetic', label: 'Empatikus, támogató' },
+                  { value: 'custom', label: 'Egyedi leírás...' },
+                ]}
+              />
+            </div>
+            {tone === 'custom' && (
+              <textarea className="settings-textarea settings-textarea--mt" value={toneCustom} onChange={(e) => setToneCustom(e.target.value)} placeholder="Írd le a kívánt kommunikációs stílust..." />
+            )}
+          </div>
+        </div>
+
+        {/* Üdvözlőszöveg */}
+        <div>
+          <div className="flex-row gap-6 mb-6">
+            <label className="tt-label" style={{ marginBottom: 0 }}>Üdvözlőszöveg beállítása (Voice Agent)</label>
+            <div onClick={() => setShowGreetingInfo(!showGreetingInfo)} className={`info-tooltip ${showGreetingInfo ? 'info-tooltip--active' : 'info-tooltip--idle'}`}>
+              <span className={showGreetingInfo ? 'info-tooltip-i--active' : ''}>í</span>
+            </div>
+          </div>
+          {showGreetingInfo && (
+            <div className="settings-greeting-info">
+              Az üdvözlőszöveg legyen rövid, természetes és egyértelmű. A Voice Agentet nevezheted egyszerűen virtuális asszisztensnek és/vagy adhatsz neki nevet is. Kerüld a túl hosszú vagy túl információsűrű megfogalmazást. Érdemes rögtön felkínálni a segítséget — a cél az, hogy a beszélgetés gyorsan és gördülékenyen elinduljon.
+            </div>
+          )}
+          <textarea
+            className="settings-textarea settings-textarea--greeting"
+            value={greeting}
+            onChange={(e) => setGreeting(e.target.value)}
+            placeholder="Írd ide az üdvözlőszöveget..."
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
+
 // ── Channel settings (frontend-only, localStorage) ──────────────────────────
 
 interface ChannelConfig {
@@ -560,9 +761,6 @@ function ChannelsSection() {
   return (
     <div className="beallitasok-card channels-card">
       <div className="channels-header">
-        <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="20" height="20">
-          <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z" />
-        </svg>
         <div className="channels-title">Csatornák</div>
       </div>
       <div className="channels-desc">Kommunikációs csatornák kezelése</div>

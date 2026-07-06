@@ -110,18 +110,18 @@
       padding: 11px 30px;
       border-radius: var(--radius);
       border: none;
-      background: #0dbcb4;
-      color: #fff;
+      background: #1CEEE0;
+      color: #082432;
       font-size: 14px;
       font-weight: 600;
       font-family: 'Inter', Arial, sans-serif;
       cursor: pointer;
       transition: all 0.2s;
-      box-shadow: 0 2px 8px rgba(13, 188, 180, 0.25);
+      box-shadow: 0 2px 8px rgba(28, 238, 224, 0.25);
     }
     .beallitasok-save-btn:hover {
-      background: #0a9e97;
-      box-shadow: 0 4px 12px rgba(13, 188, 180, 0.35);
+      background: #17d4c8;
+      box-shadow: 0 4px 12px rgba(28, 238, 224, 0.35);
       transform: translateY(-1px);
     }
 
@@ -2000,3 +2000,200 @@ body.dark .campaign-card {
   height: 16px;
 }
 
+
+/* ── Issue Handling Rules (Figma-aligned layout) ──────────────── */
+
+/* Subsection title row: turquoise icon + label + info icon */
+.ih-subsection-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 14px;
+  margin-top: 28px;
+  font-family: 'Inter', Arial, sans-serif;
+}
+.ih-subsection-title:first-child {
+  margin-top: 0;
+}
+
+/* Small turquoise rounded-square icon for subsection headings */
+.ih-subsection-icon {
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  background: rgba(28, 238, 224, 0.12);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+}
+.ih-subsection-icon svg {
+  width: 13px;
+  height: 13px;
+  stroke: #1ceee0;
+  fill: none;
+  stroke-width: 2;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+
+/* Info icon (circle-i) next to subsection title */
+.ih-info-icon {
+  width: 15px;
+  height: 15px;
+  color: var(--text-muted);
+  opacity: 0.4;
+  cursor: help;
+  flex-shrink: 0;
+  margin-left: 2px;
+}
+
+/* Column labels above form rows */
+.ih-col-labels {
+  display: grid;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+.ih-col-labels-3 {
+  grid-template-columns: 2fr 1.5fr 1.2fr;
+}
+.ih-col-labels-3-del {
+  grid-template-columns: 2fr 1.5fr 1.2fr 32px;
+}
+.ih-col-labels-2 {
+  grid-template-columns: 1.2fr 1fr;
+}
+.ih-col-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-family: 'Inter', Arial, sans-serif;
+}
+
+/* Form row — grid of inputs/fields */
+.ih-row {
+  display: grid;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+.ih-row-3 {
+  grid-template-columns: 2fr 1.5fr 1.2fr;
+}
+.ih-row-3-del {
+  grid-template-columns: 2fr 1.5fr 1.2fr 32px;
+}
+.ih-row-2 {
+  grid-template-columns: 1.2fr 1fr;
+}
+
+/* Read-only field — looks like tt-input but non-interactive */
+.ih-readonly {
+  background: #f0f3f7;
+  border: 1.5px solid transparent;
+  border-radius: var(--radius);
+  color: var(--text);
+  padding: 12px 16px;
+  font-size: 13px;
+  font-family: 'Inter', Arial, sans-serif;
+  cursor: default;
+  user-select: text;
+  box-sizing: border-box;
+}
+body.dark .ih-readonly {
+  background: rgba(255,255,255,0.06);
+  color: var(--text);
+}
+
+/* Scoped turquoise add button (does not affect global .btn-add) */
+.ih-add-btn {
+  background: none;
+  border: none;
+  color: #1ceee0;
+  font-weight: 600;
+  font-size: 13px;
+  cursor: pointer;
+  padding: 8px 0 0;
+  font-family: 'Inter', Arial, sans-serif;
+  transition: opacity 0.15s;
+}
+.ih-add-btn:hover {
+  opacity: 0.7;
+}
+
+/* Delete button alignment in grid rows */
+.ih-delete-cell {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Info banner (inline, below subsection title) ── */
+.ih-info-banner {
+  display: flex;
+  align-items: flex-start;
+  gap: 14px;
+  background: #DFFFFD;
+  border: 1.5px solid #1ceee0;
+  border-radius: 12px;
+  padding: 18px 20px;
+  margin-bottom: 18px;
+  animation: ih-banner-in 0.2s ease-out;
+}
+
+@keyframes ih-banner-in {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+.ih-info-banner-icon {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  color: #186D98;
+}
+.ih-info-banner-icon svg {
+  width: 28px;
+  height: 28px;
+}
+
+.ih-info-banner-content {
+  flex: 1;
+  min-width: 0;
+}
+
+.ih-info-banner-title {
+  font-size: 14px;
+  font-weight: 700;
+  color: #082432;
+  margin-bottom: 6px;
+  font-family: 'Inter', Arial, sans-serif;
+}
+
+.ih-info-banner-body {
+  font-size: 13px;
+  color: #5F7D95;
+  line-height: 1.55;
+  font-family: 'Inter', Arial, sans-serif;
+}
+
+.ih-info-banner-close {
+  flex-shrink: 0;
+  background: none;
+  border: none;
+  color: #082432;
+  cursor: pointer;
+  padding: 2px;
+  opacity: 0.6;
+  transition: opacity 0.15s;
+}
+.ih-info-banner-close:hover {
+  opacity: 1;
+}
+.ih-info-banner-close svg {
+  width: 18px;
+  height: 18px;
+}

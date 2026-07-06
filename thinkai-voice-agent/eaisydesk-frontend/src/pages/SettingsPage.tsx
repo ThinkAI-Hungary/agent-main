@@ -4,7 +4,7 @@
  * All reads/writes directly to Supabase.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { authFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import CustomSelect from '../components/settings/CustomSelect';
@@ -14,9 +14,8 @@ import { SettingsSkeleton } from '../components/ui/Skeleton';
 
 // ── Tab definitions ──
 const _TABS = [
-  { id: 'agent', label: 'eaisyDesk beállítások', icon: 'M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07A19.5 19.5 0 013.07 9.81 19.79 19.79 0 01.07 1.18 2 2 0 012.07 0h3a2 2 0 012 1.72c.12.8.3 1.6.56 2.37a2 2 0 01-.45 2.11L6.09 7.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.77.25 1.57.44 2.37.56A2 2 0 0122 14.92z' },
   { id: 'basic', label: 'Céginformációk', icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2zM9 22V12h6v10' },
-  { id: 'szabalyok', label: 'Szabályok', icon: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8' },
+  { id: 'szabalyok', label: 'Ügykezelési és foglalási szabályok', icon: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8' },
 ] as const;
 
 const DAYS = ['Hétfő', 'Kedd', 'Szerda', 'Csütörtök', 'Péntek', 'Szombat', 'Vasárnap'];
@@ -57,6 +56,28 @@ interface Service { id?: number; service_name: string; description: string; dura
 interface TriageRule { id?: number; situation: string; priority: string; escalation_email: string; }
 interface ReminderSettings { id?: number; reminder_enabled: boolean; reminder_hours: number; reminder_template: string; }
 interface OutboundAutomation { id: number; name: string; trigger_type: string; enabled: boolean; delay_hours: number; message_template: string; }
+
+// ── Fixed core issue types for Ügykezelési szabályok ──
+const CORE_ISSUE_TYPES: TriageRule[] = [
+  { situation: 'Kérdés',          priority: 'onallo',     escalation_email: '' },
+  { situation: 'Kérés',           priority: 'ember',      escalation_email: '' },
+  { situation: 'Időpont',         priority: 'onallo',     escalation_email: '' },
+  { situation: 'Panasz',          priority: 'ember',      escalation_email: 'vezeto@mintaklinika.hu' },
+  { situation: 'Egyéb',           priority: 'ember',      escalation_email: '' },
+  { situation: 'Vegyes ügytípus', priority: 'jovahagyas', escalation_email: '' },
+];
+
+function normalizePriority(raw: string, fallback: string): string {
+  const v = raw.toLowerCase().trim();
+  if (['onallo'].includes(v)) return 'onallo';
+  if (['jovahagyas'].includes(v)) return 'jovahagyas';
+  if (['ember'].includes(v)) return 'ember';
+  // Map old normal/default/medium values → onallo
+  if (['altalanos', 'normal', 'normál', 'kozepes', 'közepes'].includes(v)) return 'onallo';
+  // Map old high/urgent values → ember
+  if (['surgos', 'sürgős', 'high', 'magas'].includes(v)) return 'ember';
+  return fallback;
+}
 
 const _TRIGGER_LABELS: Record<string, { label: string; desc: string }> = {
   'no_show': { label: 'No-show utáni üzenet', desc: 'Automatikus email küldése no-show címke esetén' },
@@ -127,10 +148,18 @@ const defaultReminder: ReminderSettings = {
 
 export default function SettingsPage() {
   const { isAdminOnly } = useAuth();
+  const navigate = useNavigate();
   const location = useLocation();
-  const validTabs = ['agent', 'basic', 'szabalyok'];
+  const validTabs = ['basic', 'szabalyok'];
   const tabFromUrl = location.pathname.split('/').pop() || '';
-  const activeTab = validTabs.includes(tabFromUrl) ? tabFromUrl : 'agent';
+  const activeTab = validTabs.includes(tabFromUrl) ? tabFromUrl : 'szabalyok';
+
+  // Redirect obsolete /settings/agent to active page
+  useEffect(() => {
+    if (tabFromUrl === 'agent') {
+      navigate('/settings/szabalyok', { replace: true });
+    }
+  }, [tabFromUrl, navigate]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
@@ -146,7 +175,7 @@ export default function SettingsPage() {
   const [_automations, setAutomations] = useState<OutboundAutomation[]>([]);
   const [_inactivityDays, setInactivityDays] = useState(60);
   const [showGreetingInfo, setShowGreetingInfo] = useState(false);
-  const [showLangDropdown, setShowLangDropdown] = useState(false);
+  const [_showLangDropdown, setShowLangDropdown] = useState(false);
   const [showPriceModal, setShowPriceModal] = useState(false);
   const [priceRows, setPriceRows] = useState<{ category: string; service: string; price: string; currency: string; note: string }[]>([]);
   const [priceSaving, setPriceSaving] = useState(false);
@@ -281,7 +310,18 @@ export default function SettingsPage() {
       }
       const cl = clinicsData?.clinics || clinicsData; if (Array.isArray(cl)) setClinics(cl);
       const sv = servicesData?.services || servicesData; if (Array.isArray(sv)) setServices(sv);
-      const tr = triageData?.rules || triageData; if (Array.isArray(tr)) setTriageRules(tr);
+      const tr = triageData?.rules || triageData;
+      if (Array.isArray(tr)) {
+        const apiMap = new Map(tr.map((r: TriageRule) => [r.situation, r]));
+        const merged = CORE_ISSUE_TYPES.map(core => {
+          const db = apiMap.get(core.situation);
+          if (db) return { ...db, priority: normalizePriority(db.priority, core.priority) };
+          return { ...core };
+        });
+        setTriageRules(merged);
+      } else {
+        setTriageRules(CORE_ISSUE_TYPES.map(c => ({ ...c })));
+      }
       if (reminderData && !reminderData.error) setReminder(reminderData as ReminderSettings);
       if (Array.isArray(autoData)) setAutomations(autoData);
 
@@ -440,7 +480,7 @@ export default function SettingsPage() {
         const res = await authFetch('/admin/api/triage_rules', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ situation: rule.situation, priority: rule.priority, escalation_email: rule.escalation_email }) });
         if (res.ok) { const data = await res.json(); if (data.id) setTriageRules(prev => prev.map((r, i) => i === idx ? { ...rule, id: data.id } : r)); }
       }
-      showToast('Triázs szabály mentve');
+      showToast('Ügykezelési szabály mentve');
     } catch { showToast('Hiba', 'error'); }
   }, []);
 
@@ -488,99 +528,8 @@ export default function SettingsPage() {
               <div className="page-title">eaisyDesk beállítások</div>
             </div>
 
-            {/* ══════ 1. ALAPBEÁLLÍTÁSOK ══════ */}
-            <div className="mb-24">
-              <div className="flex-row-between gap-8 mb-16">
-                <div className="flex-row gap-8">
-                  <div className="icon-box">
-                    <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
-                      <circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
-                    </svg>
-                  </div>
-                  <span className="section-heading">Alapbeállítások</span>
 
-                </div>
-                <button className="btn btn-settings-save btn-settings-save-upper" onClick={handleSave} disabled={saving}>
-                  {saving ? 'Mentés...' : 'Változtatások mentése'}
-                </button>
-              </div>
-              <div className="settings-section p-24">
-                <div className={`gap-32 ${isAdminOnly ? 'sett-agent-grid-2' : 'sett-agent-grid-1'}`}>
-                  {/* Nyelv beállítása — csak admin */}
-                  {isAdminOnly && (
-                  <div>
-                    <label className="tt-label">Nyelv beállítása</label>
-                    <div className="relative">
-                      <div
-                        onClick={() => setShowLangDropdown(!showLangDropdown)}
-                        className="settings-lang-trigger"
-                      >
-                        <div className="settings-flag-wrap">
-                          {FLAGS[agent.language] || FLAGS.hu}
-                        </div>
-                        <span className="flex-1 text-md font-medium settings-lang-text">
-                          {LANGUAGE_OPTIONS.find(l => l.code === agent.language)?.label || 'magyar'}
-                        </span>
-                        <svg fill="none" stroke="var(--text-muted)" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14" className={`settings-lang-chevron ${showLangDropdown ? 'settings-lang-chevron--open' : 'settings-lang-chevron--closed'}`}>
-                          <path d="M6 9l6 6 6-6" />
-                        </svg>
-                      </div>
-                      {showLangDropdown && (
-                        <>
-                          <div className="dropdown-backdrop" onClick={() => setShowLangDropdown(false)} />
-                          <div className="settings-lang-dropdown">
-                            {LANGUAGE_OPTIONS.map(l => (
-                              <div
-                                key={l.code}
-                                onClick={() => { setAgent({ ...agent, language: l.code }); setShowLangDropdown(false); }}
-                               className={`settings-lang-option ${agent.language === l.code ? 'settings-lang-option--active' : 'settings-lang-option--idle'}`}
-                              onMouseEnter={e => { if (agent.language !== l.code) (e.currentTarget as HTMLDivElement).style.background = 'rgba(28,238,224,0.04)'; }}
-                              onMouseLeave={e => { if (agent.language !== l.code) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
-                            >
-                              <div className="settings-flag-wrap">
-                                {FLAGS[l.code]}
-                              </div>
-                              <span className={`${agent.language === l.code ? 'settings-lang-option-text--active' : 'settings-lang-option-text--idle'}`}>
-                                {l.label}
-                              </span>
-                              {agent.language === l.code && (
-                                <svg fill="none" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14" className="settings-lang-check">
-                                  <polyline points="20 6 9 17 4 12" />
-                                </svg>
-                              )}
-                              </div>
-                            ))}
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                  )}
-                  {/* Kommunikációs stílus */}
-                  <div>
-                    <label className="tt-label">Kommunikációs stílus kiválasztása</label>
-                    <div className="settings-tone-select-wrap">
-                      <CustomSelect
-                        value={agent.tone}
-                        onChange={(v) => setAgent({ ...agent, tone: v })}
-                        options={[
-                          { value: 'professional_friendly', label: 'Professzionális, segítőkész' },
-                          { value: 'formal', label: 'Formális, tárgyszerű' },
-                          { value: 'informal', label: 'Informális, közvetlen' },
-                          { value: 'empathetic', label: 'Empatikus, támogató' },
-                          { value: 'custom', label: 'Egyedi leírás...' },
-                        ]}
-                      />
-                    </div>
-                    {agent.tone === 'custom' && (
-                      <textarea className="settings-textarea settings-textarea--mt" value={agent.tone_custom} onChange={(e) => setAgent({ ...agent, tone_custom: e.target.value })} placeholder="Írd le a kívánt kommunikációs stílust..." />
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            {/* ══════ 2. VOICE AGENT BEÁLLÍTÁSAI — csak admin ══════ */}
+            {/* ══════ 1. VOICE AGENT BEÁLLÍTÁSAI — csak admin ══════ */}
             {isAdminOnly && (
             <div className="mb-24">
               <div className="flex-row gap-8 mb-16">
@@ -632,36 +581,8 @@ export default function SettingsPage() {
             </div>
             )}
 
-            {/* ══════ 3. ÜDVÖZLŐSZÖVEG BEÁLLÍTÁSA ══════ */}
-            <div className="mb-24">
-              <div className="flex-row gap-8 mb-16">
-                <div className="icon-box">
-                  <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
-                    <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2M12 3a4 4 0 100 8 4 4 0 000-8z" />
-                  </svg>
-                </div>
-                <span className="section-heading">Üdvözlőszöveg beállítása</span>
-                <div onClick={() => setShowGreetingInfo(!showGreetingInfo)} className={`info-tooltip ${showGreetingInfo ? 'info-tooltip--active' : 'info-tooltip--idle'}`}>
-                  <span className={showGreetingInfo ? 'info-tooltip-i--active' : ''}>í</span>
-                </div>
-              </div>
-              <div className="settings-section p-24">
-                {/* Info box - toggle */}
-                {showGreetingInfo && (
-                  <div className="settings-greeting-info">
-                    Az üdvözlőszöveg legyen rövid, természetes és egyértelmű. A Voice Agentet nevezheted egyszerűen virtuális asszisztensnek és/vagy adhatsz neki nevet is. Kerüld a túl hosszú vagy túl információsűrű megfogalmazást. Érdemes rögtön felkínálni a segítséget — a cél az, hogy a beszélgetés gyorsan és gördülékenyen elinduljon.
-                  </div>
-                )}
-                <textarea
-                  className="settings-textarea settings-textarea--greeting"
-                  value={agent.greeting}
-                  onChange={(e) => setAgent({ ...agent, greeting: e.target.value })}
-                  placeholder="Írd ide az üdvözlőszöveget..."
-                />
-              </div>
-            </div>
 
-            {/* ══════ 4. TRIÁZS SZABÁLYOK ══════ */}
+            {/* ══════ 3. ÜGYKEZELÉSI SZABÁLYOK ══════ */}
             <div className="mb-24">
               <div className="flex-row gap-8 mb-16">
                 <div className="icon-box">
@@ -669,43 +590,45 @@ export default function SettingsPage() {
                     <path d="M22 12h-4l-3 9-6-18-3 9H2" />
                   </svg>
                 </div>
-                <span className="section-heading">Prioritási szabályok</span>
+                <span className="section-heading">Ügykezelési szabályok</span>
               </div>
+              <p className="tt-label" style={{ marginBottom: 12, fontWeight: 400, maxWidth: 620 }}>
+                Állítsd be, hogy az eaisyDesk az egyes ügytípusokat önállóan kezelheti-e,
+                jóváhagyásra készítse elő, vagy embernek adja tovább.
+              </p>
               <div className="settings-section p-24">
                 <table className="data-table">
                   <thead className="int-thead">
                     <tr>
-                      <th className="sett-th sett-th--w30">Helyzet</th>
-                      <th className="sett-th sett-th--w25">Prioritás</th>
-                      <th className="sett-th sett-th--w30">Eszkalációs e-mail</th>
-                      <th className="sett-th sett-th--w15"></th>
+                      <th className="sett-th sett-th--w30">Ügytípus</th>
+                      <th className="sett-th sett-th--w30">eaisyDesk eljárás</th>
+                      <th className="sett-th sett-th--w40">Értesítendő</th>
                     </tr>
                   </thead>
                   <tbody>
                     {triageRules.map((r, i) => (
-                      <tr key={r.id || i} className="int-row">
+                      <tr key={i} className="int-row">
                         <td className="int-td">
-                          <input className="tt-input" value={r.situation} onChange={e => setTriageRules(prev => prev.map((x, j) => j === i ? { ...x, situation: e.target.value } : x))} onBlur={() => saveTriageRule(r, i)} />
+                          <span className="font-medium text-md">{r.situation}</span>
                         </td>
                         <td className="int-td">
-                          <select className="tt-select" value={r.priority} onChange={e => { const updated = { ...r, priority: e.target.value }; setTriageRules(prev => prev.map((x, j) => j === i ? updated : x)); saveTriageRule(updated, i); }}>
-                            <option value="altalanos">Normál</option>
-                            <option value="surgos">Magas</option>
+                          <select className="tt-select" value={r.priority} onChange={e => { const updated = { ...r, priority: e.target.value, escalation_email: e.target.value === 'onallo' ? '' : r.escalation_email }; setTriageRules(prev => prev.map((x, j) => j === i ? updated : x)); saveTriageRule(updated, i); }}>
+                            <option value="onallo">Önállóan kezelhető</option>
+                            <option value="jovahagyas">Jóváhagyást igényel</option>
+                            <option value="ember">Embernek továbbítandó</option>
                           </select>
                         </td>
                         <td className="int-td">
-                          <input className="tt-input" value={r.escalation_email || ''} onChange={e => setTriageRules(prev => prev.map((x, j) => j === i ? { ...x, escalation_email: e.target.value } : x))} placeholder="email@example.com" onBlur={() => saveTriageRule(r, i)} />
-                        </td>
-                        <td className="int-td int-td--center">
-                          <DeleteBtn onClick={() => deleteTriageRule(r.id, i)} />
+                          {r.priority === 'onallo' ? (
+                            <span className="text-desc" style={{ opacity: 0.5 }}>Nincs értesítés</span>
+                          ) : (
+                            <input className="tt-input" value={r.escalation_email || ''} onChange={e => setTriageRules(prev => prev.map((x, j) => j === i ? { ...x, escalation_email: e.target.value } : x))} placeholder="Alapértelmezett cím" onBlur={() => saveTriageRule(r, i)} />
+                          )}
                         </td>
                       </tr>
                     ))}
                   </tbody>
                 </table>
-                <div className="settings-triage-add">
-                  <AddBtn label="Új szabály hozzáadása" onClick={() => setTriageRules(prev => [...prev, { situation: '', priority: 'kozepes', escalation_email: '' }])} />
-                </div>
               </div>
             </div>
 
@@ -986,7 +909,20 @@ export default function SettingsPage() {
         {activeTab === 'szabalyok' && (
           <div>
             <div className="page-header">
-              <div className="page-title">Foglalási szabályok</div>
+              <div className="page-title">Ügykezelési és foglalási szabályok</div>
+            </div>
+
+            {/* ── ÜGYKEZELÉSI SZABÁLYOK ── */}
+            <IssueHandlingRulesSection />
+
+            {/* ── FOGLALÁSI SZABÁLYOK ── */}
+            <div className="tt-section-title mb-16" style={{ marginTop: 32 }}>
+              <div className="icon-box">
+                <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
+                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><path d="M16 2v4M8 2v4M3 10h18" />
+                </svg>
+              </div>
+              Foglalási szabályok
             </div>
 
             {/* 1. Új/visszatérő ügyfél */}
@@ -1068,7 +1004,275 @@ export default function SettingsPage() {
   );
 }
 
-// ── Shared styles ──
+
+// ── localStorage key for issue handling rules (frontend-only persistence) ──
+const ISSUE_RULES_LS_KEY = 'eaisydesk_issue_handling_rules';
+
+interface IssueHandlingState {
+  defaultRequestNotify: string;   // Adminisztratív → Átadás embernek
+  defaultComplaintNotify: string; // Reklamáció → Sürgős átadás embernek
+  writtenBehavior: string;
+  customRules: { desc: string; behavior: string; notify: string }[];
+}
+
+const ISSUE_HANDLING_DEFAULTS: IssueHandlingState = {
+  defaultRequestNotify: '',
+  defaultComplaintNotify: '',
+  writtenBehavior: 'autonomous',
+  customRules: [
+    { desc: 'Fájdalom, duzzanat, vérzés említése', behavior: 'urgent', notify: '' },
+    { desc: 'Nagyértékű kezeléssel kapcsolatos érdeklődés', behavior: 'handoff', notify: '' },
+  ],
+};
+
+function loadIssueHandlingState(): IssueHandlingState {
+  try {
+    const raw = localStorage.getItem(ISSUE_RULES_LS_KEY);
+    if (raw) {
+      const parsed = JSON.parse(raw);
+      // Migrate old key names if present
+      if (parsed.defaultNotify1 !== undefined && parsed.defaultRequestNotify === undefined) {
+        parsed.defaultRequestNotify = parsed.defaultNotify2 || '';  // old notify2 was Adminisztratív
+        parsed.defaultComplaintNotify = parsed.defaultNotify1 || ''; // old notify1 was Reklamáció
+        delete parsed.defaultNotify1;
+        delete parsed.defaultNotify2;
+      }
+      return { ...ISSUE_HANDLING_DEFAULTS, ...parsed };
+    }
+  } catch { /* ignore */ }
+  return { ...ISSUE_HANDLING_DEFAULTS, customRules: ISSUE_HANDLING_DEFAULTS.customRules.map(r => ({ ...r })) };
+}
+
+/* Info circle SVG — reusable inline icon */
+const InfoIcon = ({ onClick }: { onClick?: () => void }) => (
+  <svg className="ih-info-icon" onClick={onClick} style={onClick ? { cursor: 'pointer' } : undefined}
+    viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" />
+  </svg>
+);
+
+/* Inline info banner matching Figma reference */
+function IhInfoBanner({ title, body, onClose }: { title: string; body: string; onClose: () => void }) {
+  return (
+    <div className="ih-info-banner">
+      <div className="ih-info-banner-icon">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" />
+        </svg>
+      </div>
+      <div className="ih-info-banner-content">
+        <div className="ih-info-banner-title">{title}</div>
+        <div className="ih-info-banner-body">{body}</div>
+      </div>
+      <button className="ih-info-banner-close" onClick={onClose}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M18 6L6 18M6 6l12 12" />
+        </svg>
+      </button>
+    </div>
+  );
+}
+
+function IssueHandlingRulesSection() {
+  const [state, setState] = useState<IssueHandlingState>(loadIssueHandlingState);
+  const [openInfo, setOpenInfo] = useState<string | null>(null);
+  const toggleInfo = (id: string) => setOpenInfo(prev => prev === id ? null : id);
+
+  const handleSave = useCallback(() => {
+    localStorage.setItem(ISSUE_RULES_LS_KEY, JSON.stringify(state));
+    showToast('Ügykezelési szabályok mentve', 'success');
+  }, [state]);
+
+  const updateCustomRule = (idx: number, field: string, value: string) => {
+    setState(prev => {
+      const customRules = prev.customRules.map((r, i) => i === idx ? { ...r, [field]: value } : r);
+      return { ...prev, customRules };
+    });
+  };
+
+  const addCustomRule = () => {
+    setState(prev => ({
+      ...prev,
+      customRules: [...prev.customRules, { desc: '', behavior: 'handoff', notify: '' }],
+    }));
+  };
+
+  const deleteCustomRule = (idx: number) => {
+    setState(prev => ({
+      ...prev,
+      customRules: prev.customRules.filter((_, i) => i !== idx),
+    }));
+  };
+
+  return (
+    <>
+      {/* Save button row */}
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <button className="beallitasok-save-btn" onClick={handleSave}>
+          Változtatások mentése
+        </button>
+      </div>
+
+      <div className="tt-section">
+        {/* ── Card title row ── */}
+        <div className="tt-section-title mb-16">
+          <div className="icon-box">
+            <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
+              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" />
+            </svg>
+          </div>
+          Ügykezelési szabályok
+        </div>
+
+        {/* ══════ § 1. Alapértelmezett szabályok ══════ */}
+        <div className="ih-subsection-title">
+          <div className="ih-subsection-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+          </div>
+          Alapértelmezett szabályok
+          <InfoIcon onClick={() => toggleInfo('defaults')} />
+        </div>
+        {openInfo === 'defaults' && (
+          <IhInfoBanner
+            title="Nem automatizálható ügyek"
+            body="Olyan ügytípusok, amelyeknél az eaisyDesk nem adhat végleges választ vagy nem hajthat végre önálló intézkedést. Az ügyet rögzíti és embernek továbbítja, mert adminisztratív, fizikai, jogi vagy felelősségi döntést igényelhet."
+            onClose={() => setOpenInfo(null)}
+          />
+        )}
+
+        {/* Column labels */}
+        <div className="ih-col-labels ih-col-labels-3">
+          <span className="ih-col-label">Ügytípus</span>
+          <span className="ih-col-label">eaisyDesk eljárás</span>
+          <span className="ih-col-label">Értesítendő</span>
+        </div>
+
+        {/* Row 1: Adminisztratív → Átadás embernek */}
+        <div className="ih-row ih-row-3">
+          <div className="ih-readonly">Adminisztratív, vagy fizikai akciót kívánó kérés, igény</div>
+          <div className="ih-readonly">Átadás embernek</div>
+          <input
+            className="tt-input"
+            type="text"
+            value={state.defaultRequestNotify}
+            onChange={e => setState(prev => ({ ...prev, defaultRequestNotify: e.target.value }))}
+            placeholder="pl. vezeto@klinika.hu"
+          />
+        </div>
+
+        {/* Row 2: Reklamáció → Sürgős átadás embernek */}
+        <div className="ih-row ih-row-3" style={{ marginBottom: 0 }}>
+          <div className="ih-readonly">Reklamáció, hiba, elégedetlenség, sérelem, konfliktus</div>
+          <div className="ih-readonly">Sürgős átadás embernek</div>
+          <input
+            className="tt-input"
+            type="text"
+            value={state.defaultComplaintNotify}
+            onChange={e => setState(prev => ({ ...prev, defaultComplaintNotify: e.target.value }))}
+            placeholder="pl. vezeto@klinika.hu"
+          />
+        </div>
+
+        {/* ══════ § 2. Írásos kommunikáció beállításai ══════ */}
+        <div className="ih-subsection-title">
+          <div className="ih-subsection-icon">
+            <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+          </div>
+          Írásos kommunikáció beállításai
+          <InfoIcon onClick={() => toggleInfo('written')} />
+        </div>
+        {openInfo === 'written' && (
+          <IhInfoBanner
+            title="Küldés előtti jóváhagyás"
+            body="Az írásos megkereséseknél beállítható, hogy az eaisyDesk önállóan válaszoljon-e a tudástár alapján, vagy csak jóváhagyásra készítsen elő választervet."
+            onClose={() => setOpenInfo(null)}
+          />
+        )}
+
+        {/* Column labels */}
+        <div className="ih-col-labels ih-col-labels-2">
+          <span className="ih-col-label">Ügytípus</span>
+          <span className="ih-col-label">eaisyDesk eljárás</span>
+        </div>
+
+        {/* Row: Written comm */}
+        <div className="ih-row ih-row-2" style={{ marginBottom: 0 }}>
+          <div className="ih-readonly">Kérdéskezelés a feltöltött cég- és kínálati információk alapján</div>
+          <select
+            className="tt-select"
+            value={state.writtenBehavior}
+            onChange={e => setState(prev => ({ ...prev, writtenBehavior: e.target.value }))}
+          >
+            <option value="autonomous">Önállóan válaszolhat</option>
+            <option value="approval">Jóváhagyás szükséges</option>
+          </select>
+        </div>
+
+        {/* ══════ § 3. Egyedi korlátozó szabályok ══════ */}
+        <div className="ih-subsection-title">
+          <div className="ih-subsection-icon">
+            <svg viewBox="0 0 24 24"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" /><path d="M12 6v6l4 2" /></svg>
+          </div>
+          Egyedi korlátozó szabályok
+          <InfoIcon onClick={() => toggleInfo('custom')} />
+        </div>
+        {openInfo === 'custom' && (
+          <IhInfoBanner
+            title="Speciális helyzetek kezelése"
+            body="Olyan speciális helyzetek, amikor az eaisyDesk nem válaszolhat vagy intézkedhet önállóan."
+            onClose={() => setOpenInfo(null)}
+          />
+        )}
+
+        {/* Column labels */}
+        <div className="ih-col-labels ih-col-labels-3-del">
+          <span className="ih-col-label">Ügytípus</span>
+          <span className="ih-col-label">eaisyDesk eljárás</span>
+          <span className="ih-col-label">Értesítendő</span>
+          <span></span>
+        </div>
+
+        {/* Editable custom rule rows */}
+        {state.customRules.map((rule, i) => (
+          <div className="ih-row ih-row-3-del" key={i}>
+            <input
+              className="tt-input"
+              type="text"
+              value={rule.desc}
+              onChange={e => updateCustomRule(i, 'desc', e.target.value)}
+              placeholder="Ügytípus leírása..."
+            />
+            <select
+              className="tt-select"
+              value={rule.behavior}
+              onChange={e => updateCustomRule(i, 'behavior', e.target.value)}
+            >
+              <option value="handoff">Átadás embernek</option>
+              <option value="urgent">Sürgős átadás embernek</option>
+            </select>
+            <input
+              className="tt-input"
+              type="text"
+              value={rule.notify}
+              onChange={e => updateCustomRule(i, 'notify', e.target.value)}
+              placeholder="pl. vezeto@klinika.hu"
+            />
+            <div className="ih-delete-cell">
+              <DeleteBtn onClick={() => deleteCustomRule(i)} />
+            </div>
+          </div>
+        ))}
+
+        {/* Add rule button — scoped turquoise style */}
+        <button className="ih-add-btn" onClick={addCustomRule}>
+          + Szabály hozzáadása
+        </button>
+      </div>
+    </>
+  );
+}
+
+
 const thStyle: React.CSSProperties = { padding: '12px 16px', fontWeight: 600, textAlign: 'left', color: 'var(--text-muted)', fontSize: 12 };
 const tdStyle: React.CSSProperties = { padding: '8px 12px', borderBottom: '1px solid var(--border)' };
 const timeInput: React.CSSProperties = { padding: '8px 10px', border: '1px solid var(--border)', borderRadius: 8, fontSize: 13, background: 'rgba(255,255,255,0.04)', color: 'var(--text)', fontFamily: 'inherit', width: '100%', boxSizing: 'border-box' };
