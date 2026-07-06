@@ -645,17 +645,18 @@ export default function SettingsPage() {
         {/* ═══════════ CÉGINFORMÁCIÓK TAB ═══════════ */}
         {activeTab === 'basic' && (
           <div>
-            <div className="page-header" style={{ marginBottom: '24px' }}>
+            <div className="page-header" style={{ marginBottom: '16px' }}>
               <div className="page-title">Cég- és szolgáltatásinformációk</div>
-              <div className="ih-save-row" style={{ marginBottom: 0 }}>
-                <button className="beallitasok-save-btn" onClick={saveBusiness}>
-                  Változtatások mentése
-                </button>
-              </div>
+            </div>
+
+            <div className="ih-save-row" style={{ marginBottom: '16px' }}>
+              <button className="beallitasok-save-btn" onClick={saveBusiness}>
+                Változtatások mentése
+              </button>
             </div>
 
             {/* Quick-nav pills */}
-            <div className="flex-row gap-8 mb-32 flex-wrap">
+            <div className="flex-row gap-8 mb-16 flex-wrap">
               {[
                 { id: 'sec-cegadatok', label: 'Cégadatok' },
                 { id: 'sec-szolgaltatasok', label: 'Szolgáltatás leírása' },
