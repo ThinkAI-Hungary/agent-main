@@ -1,0 +1,114 @@
+﻿{
+    "geoframe":  {
+                     "id":  "geoframe",
+                     "label":  "Geometrikus Keret",
+                     "files":  [
+                                   "/overlays/geoframe/geoframe-01.png",
+                                   "/overlays/geoframe/geoframe-02.png",
+                                   "/overlays/geoframe/geoframe-03.png",
+                                   "/overlays/geoframe/geoframe-04.png",
+                                   "/overlays/geoframe/geoframe-05.png",
+                                   "/overlays/geoframe/geoframe-06.png",
+                                   "/overlays/geoframe/geoframe-07.png",
+                                   "/overlays/geoframe/geoframe-08.png",
+                                   "/overlays/geoframe/geoframe-09.png",
+                                   "/overlays/geoframe/geoframe-10.png"
+                               ]
+                 },
+    "badge":  {
+                  "id":  "badge",
+                  "label":  "Sale Badge",
+                  "files":  [
+                                "/overlays/badge/badge-01.png",
+                                "/overlays/badge/badge-02.png",
+                                "/overlays/badge/badge-03.png",
+                                "/overlays/badge/badge-04.png",
+                                "/overlays/badge/badge-05.png",
+                                "/overlays/badge/badge-06.png",
+                                "/overlays/badge/badge-07.png",
+                                "/overlays/badge/badge-08.png",
+                                "/overlays/badge/badge-09.png",
+                                "/overlays/badge/badge-10.png"
+                            ]
+              },
+    "ribbon":  {
+                   "id":  "ribbon",
+                   "label":  "Szalag (Ribbon)",
+                   "files":  [
+                                 "/overlays/ribbon/ribbon-01.png",
+                                 "/overlays/ribbon/ribbon-02.png",
+                                 "/overlays/ribbon/ribbon-03.png",
+                                 "/overlays/ribbon/ribbon-04.png",
+                                 "/overlays/ribbon/ribbon-05.png",
+                                 "/overlays/ribbon/ribbon-06.png",
+                                 "/overlays/ribbon/ribbon-07.png",
+                                 "/overlays/ribbon/ribbon-08.png",
+                                 "/overlays/ribbon/ribbon-09.png",
+                                 "/overlays/ribbon/ribbon-10.png"
+                             ]
+               },
+    "sticker":  {
+                    "id":  "sticker",
+                    "label":  "Matrica (Sticker)",
+                    "files":  [
+                                  "/overlays/sticker/sticker-01.png",
+                                  "/overlays/sticker/sticker-02.png",
+                                  "/overlays/sticker/sticker-03.png",
+                                  "/overlays/sticker/sticker-04.png",
+                                  "/overlays/sticker/sticker-05.png",
+                                  "/overlays/sticker/sticker-06.png",
+                                  "/overlays/sticker/sticker-07.png",
+                                  "/overlays/sticker/sticker-08.png",
+                                  "/overlays/sticker/sticker-09.png",
+                                  "/overlays/sticker/sticker-10.png"
+                              ]
+                },
+    "banner":  {
+                   "id":  "banner",
+                   "label":  "Promoosav (Banner)",
+                   "files":  [
+                                 "/overlays/banner/banner-01.png",
+                                 "/overlays/banner/banner-02.png",
+                                 "/overlays/banner/banner-03.png",
+                                 "/overlays/banner/banner-04.png",
+                                 "/overlays/banner/banner-05.png",
+                                 "/overlays/banner/banner-06.png",
+                                 "/overlays/banner/banner-07.png",
+                                 "/overlays/banner/banner-08.png",
+                                 "/overlays/banner/banner-09.png",
+                                 "/overlays/banner/banner-10.png"
+                             ]
+               },
+    "label":  {
+                  "id":  "label",
+                  "label":  "Arcedula (Label)",
+                  "files":  [
+                                "/overlays/label/label-01.png",
+                                "/overlays/label/label-02.png",
+                                "/overlays/label/label-03.png",
+                                "/overlays/label/label-04.png",
+                                "/overlays/label/label-05.png",
+                                "/overlays/label/label-06.png",
+                                "/overlays/label/label-07.png",
+                                "/overlays/label/label-08.png",
+                                "/overlays/label/label-09.png",
+                                "/overlays/label/label-10.png"
+                            ]
+              },
+    "frame_deco":  {
+                       "id":  "frame_deco",
+                       "label":  "Diszito Keret",
+                       "files":  [
+                                     "/overlays/frame_deco/frame_deco-01.png",
+                                     "/overlays/frame_deco/frame_deco-02.png",
+                                     "/overlays/frame_deco/frame_deco-03.png",
+                                     "/overlays/frame_deco/frame_deco-04.png",
+                                     "/overlays/frame_deco/frame_deco-05.png",
+                                     "/overlays/frame_deco/frame_deco-06.png",
+                                     "/overlays/frame_deco/frame_deco-07.png",
+                                     "/overlays/frame_deco/frame_deco-08.png",
+                                     "/overlays/frame_deco/frame_deco-09.png",
+                                     "/overlays/frame_deco/frame_deco-10.png"
+                                 ]
+                   }
+}

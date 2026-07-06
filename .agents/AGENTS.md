@@ -1,11 +1,25 @@
-# Projekt Szabályok
+﻿## KOTELEZO: Minden session elejen, elso valasz ELOTT
 
-## Kódmódosítási Határ
+### 1. Hub betoltese -- ELSO lepeskent, MINDIG
 
-**SZIGORÚ SZABÁLY**: Kizárólag a Zombo audit oldal alá tartozó fájlokban szabad kódot módosítani.
+Olvasd be:
+C:\Users\Zombo\Desktop\Antigrav\!SKILLS\thinkai-skills\skills\thinkai-hub\SKILL.md
 
-A Zombo audit oldal fájljai:
-- `thinkai-voice-agent/eaisydesk-frontend/src/pages/marketing/zombo/` — teljes könyvtár és almappái
-- `thinkai-voice-agent/eaisydesk-frontend/src/pages/marketing/ZomboAuditPage.tsx` — a fő audit oldal komponens
+### 2. Zero Discretion Policy
 
-Minden egyéb fájlhoz (backend, más frontend oldalak, képgenerálás szerver, stb.) **NEM SZABAD NYÚLNI**, kivéve ha a felhasználó ezt explicit kérésként fogalmazza meg.
+NE kezdj el kodolni, fajlt modositani, vagy barmilyen muvelet vegezni
+mielott a Hub pipeline aktiv es a Pipeline Manifest elkeszult.
+
+Nincs 'gyors fix'. Nincs 'trivialis kivetel'. Minden keresen atmegy a Hub-on.
+
+### 3. Error Memory konzultacio
+
+Az aktualis feladat domainjeben kerdezd le az Error Memory-t mielott kodolsz.
+
+### 4. Kivetel
+
+Ha a user /nohub-ot ir: mindket lepest skip.
+
+---
+
+Ha ezt kihagyod -> ERR-004 (vakrepules, nincs checkpoint, nincs retry loop).

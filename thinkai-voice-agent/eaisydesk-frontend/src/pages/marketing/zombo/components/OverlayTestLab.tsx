@@ -745,7 +745,7 @@ export const OverlayTestLab: React.FC<OverlayTestLabProps> = ({ activeBrandKit }
                   flex: 1, 
                   fontFamily: 'monospace', 
                   fontSize: '11px', 
-                  background: '#040306', 
+                  background: 'var(--bg)', 
                   border: '1px solid var(--panel-border)', 
                   borderRadius: '6px', 
                   color: '#a78bfa',
@@ -2321,7 +2321,7 @@ export const OverlayTestLab: React.FC<OverlayTestLabProps> = ({ activeBrandKit }
 
         /* Active Layers List */
         .layers-list-container {
-          background: rgba(0,0,0,0.1);
+          background: var(--bg3);
           border: 1px solid var(--panel-border);
           border-radius: 8px;
           padding: 10px;
@@ -2443,7 +2443,7 @@ export const OverlayTestLab: React.FC<OverlayTestLabProps> = ({ activeBrandKit }
         }
 
         .text-edit-area {
-          background: rgba(0,0,0,0.2);
+          background: var(--bg3);
           border: 1px solid var(--panel-border);
           border-radius: 6px;
           color: #fff;
@@ -2461,7 +2461,7 @@ export const OverlayTestLab: React.FC<OverlayTestLabProps> = ({ activeBrandKit }
           display: grid;
           grid-template-columns: 1fr 1fr 1fr;
           gap: 4px;
-          background: rgba(0,0,0,0.15);
+          background: var(--bg2);
           padding: 3px;
           border-radius: 6px;
           border: 1px solid var(--panel-border);
@@ -2483,7 +2483,7 @@ export const OverlayTestLab: React.FC<OverlayTestLabProps> = ({ activeBrandKit }
           display: grid;
           grid-template-columns: 1fr 1fr;
           gap: 6px;
-          background: rgba(0,0,0,0.1);
+          background: var(--bg3);
           padding: 3px;
           border-radius: 6px;
           border: 1px solid var(--panel-border);

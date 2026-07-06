@@ -1,0 +1,51 @@
+
+      <svg width="1080" height="1350" viewBox="0 0 1080 1350" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <filter id="shadow" x="-20%" y="-20%" width="140%" height="140%">
+            <feGaussianBlur in="SourceAlpha" stdDeviation="15" />
+            <feOffset dx="0" dy="10" result="offsetblur" />
+            <feComponentTransfer>
+              <feFuncA type="linear" slope="0.5" />
+            </feComponentTransfer>
+            <feMerge>
+              <feMergeNode />
+              <feMergeNode in="SourceGraphic" />
+            </feMerge>
+          </filter>
+        </defs>
+        
+        <!-- Background Card -->
+        <rect 
+          x="60" 
+          y="1065.2" 
+          width="581.6" 
+          height="204.8" 
+          fill="#10b981" 
+          rx="12" 
+          filter="url(#shadow)"
+          fill-opacity="0.95"
+        />
+        
+        <!-- Accent Line -->
+        <rect 
+          x="60" 
+          y="1065.2" 
+          width="8" 
+          height="204.8" 
+          fill="#34d399" 
+          rx="4"
+        />
+
+        <!-- Text content -->
+        <text 
+          x="100" 
+          y="1143.6000000000001" 
+          font-family="Inter, sans-serif" 
+          font-size="48" 
+          font-weight="900" 
+          fill="#ffffff"
+        >
+          <tspan x="100" dy="0">Teszt Szöveg Satori</tspan><tspan x="100" dy="62.400000000000006">Motorral</tspan>
+        </text>
+      </svg>
+    

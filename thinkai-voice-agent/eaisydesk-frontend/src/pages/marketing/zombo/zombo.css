@@ -24,38 +24,65 @@
 
 
 :root {
-  --bg-main: #0a0813;
-  --bg-gradient: radial-gradient(circle at 50% 0%, #17122c 0%, #08060f 70%);
-  --panel-bg: rgba(20, 16, 38, 0.6);
-  --panel-bg-hover: rgba(28, 23, 54, 0.75);
-  --panel-border: rgba(255, 255, 255, 0.08);
-  --panel-border-glow: rgba(139, 92, 246, 0.35);
+  /* Dark mode defaults (Zombo style) */
+  --zombo-bg-main: #0a0813;
+  --zombo-bg-gradient: radial-gradient(circle at 50% 0%, #17122c 0%, #08060f 70%);
+  --zombo-panel-bg: rgba(20, 16, 38, 0.6);
+  --zombo-panel-bg-hover: rgba(28, 23, 54, 0.75);
+  --zombo-panel-border: rgba(255, 255, 255, 0.08);
   
-  --text-main: #f3f1fa;
-  --text-muted: #948fa8;
-  --text-dark: #1e1b29;
-  
-  --primary-neon: #8b5cf6;
-  --primary-glow: rgba(139, 92, 246, 0.5);
-  --accent-pink: #ec4899;
-  --accent-pink-glow: rgba(236, 72, 153, 0.4);
-  --accent-amber: #f59e0b;
-  --accent-emerald: #10b981;
-  --accent-rose: #ef4444;
-
-  --font-ui: 'Inter', sans-serif;
-  --font-heading: 'Outfit', sans-serif;
-
-  --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-  --glass-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.5);
-  --glow-shadow: 0 0 20px rgba(139, 92, 246, 0.15);
+  /* Light mode defaults */
+  --zombo-light-bg: #f8f9fa;
+  --zombo-light-panel: #ffffff;
+  --zombo-light-border: #e2e8f0;
+  --zombo-light-text: #1a202c;
+  --zombo-light-text-muted: #4a5568;
 }
 
 .zombo-creative-studio {
   font-family: var(--font-ui);
-  color: var(--text-main);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* ── Default variables (Light Mode) ─────────────────────────────────────── */
+  --bg-main:     var(--zombo-light-bg);
+  --bg-gradient: none;
+  --panel-bg:    var(--zombo-light-panel);
+  --panel-border:var(--zombo-light-border);
+  --text-main:   var(--zombo-light-text);
+  --text-muted:  var(--zombo-light-text-muted);
+
+  --bg:        var(--zombo-light-bg);
+  --bg2:       #edf2f7;
+  --bg3:       rgba(0,0,0,0.04);
+  --card:      var(--zombo-light-panel);
+  --border:    var(--zombo-light-border);
+  --text:      var(--zombo-light-text);
+  --text-muted:var(--zombo-light-text-muted);
+  --text-dim:  #718096;
+
+  color: var(--text-main);
+
+  /* ── Dark theme token overrides ─────────────────────────────────────────── */
+  &.dark, .dark & {
+    --bg-main: #0a0813;
+    --bg-gradient: radial-gradient(circle at 50% 0%, #17122c 0%, #08060f 70%);
+    --panel-bg: rgba(20, 16, 38, 0.6);
+    --panel-border: rgba(255, 255, 255, 0.08);
+    --text-main: #f3f1fa;
+    --text-muted: #948fa8;
+
+    --bg:        #0d0b16;
+    --bg2:       #13101f;
+    --bg3:       rgba(255,255,255,0.04);
+    --card:      rgba(20,16,38,0.6);
+    --border:    rgba(255,255,255,0.1);
+    --text:      #f3f1fa;
+    --text-muted:#948fa8;
+    --text-dim:  #4a4560;
+
+    color: var(--text-main);
+  }
 
   * {
     box-sizing: border-box;

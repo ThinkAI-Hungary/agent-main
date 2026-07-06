@@ -723,7 +723,7 @@ export function renderA5(content: CreativeContent, brandKit: GeneratorBrandKit, 
 }
 
 // ----------------------------------------------------
-// A6: Big Number / Badge (Sales / Discount)
+// A6: number (5), headline (32), terms (60)
 // ----------------------------------------------------
 export function renderA6(
   content: CreativeContent,
@@ -786,18 +786,31 @@ export function renderA6(
   });
   
   const numberText = content.number || '-30%';
+  const numberFit = autoFit(
+    numberText,
+    radius * 1.5,
+    radius * 1.5,
+    'display',
+    'headline',
+    1
+  );
+
   children.push({
     type: 'text',
+    id: 'badge-text-a6',
+    ownerId: 'badge-circle-a6',
+    adaptiveScaling: true,
     x: badgeX,
-    y: badgeY + (radius * 2 - 160) / 2 - 10,
+    y: badgeY + (radius - numberFit.height / 2) - 5,
     width: radius * 2,
     text: numberText,
     fontFamily: brandKit.typography.fontName,
-    fontSize: 140,
-    fontWeight: 'bold',
+    fontSize: numberFit.fontSize,
+    lineHeight: 1.0,
+    fontWeight: '900',
     align: 'center',
     fill: roles.surface,
-    letterSpacing: '-0.065em'
+    letterSpacing: '-0.05em'
   });
   
   const headlineText = content.headline || 'Tavaszi Akció';

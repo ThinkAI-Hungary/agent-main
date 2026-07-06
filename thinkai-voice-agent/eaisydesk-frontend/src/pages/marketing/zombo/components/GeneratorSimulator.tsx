@@ -377,7 +377,8 @@ export const GeneratorSimulator: React.FC<GeneratorSimulatorProps> = ({
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(5, 3, 10, 0.85);
+          background: var(--bg-main);
+          opacity: 0.95;
           backdrop-filter: blur(10px);
           display: flex;
           align-items: center;
@@ -389,8 +390,8 @@ export const GeneratorSimulator: React.FC<GeneratorSimulatorProps> = ({
           width: 100%;
           max-width: 580px;
           padding: 24px;
-          background: rgba(15, 12, 30, 0.95);
-          border-color: rgba(139, 92, 246, 0.3);
+          background: var(--panel-bg);
+          border: 1px solid var(--panel-border);
           display: flex;
           flex-direction: column;
           gap: 16px;
@@ -410,7 +411,7 @@ export const GeneratorSimulator: React.FC<GeneratorSimulatorProps> = ({
           display: flex;
           flex-direction: column;
           gap: 10px;
-          background: rgba(0,0,0,0.2);
+          background: var(--bg3);
           padding: 16px;
           border-radius: 12px;
           border: 1px solid rgba(255,255,255,0.03);
@@ -496,7 +497,7 @@ export const GeneratorSimulator: React.FC<GeneratorSimulatorProps> = ({
           }
         }
         .simulation-console {
-          background: #050308;
+          background: var(--bg);
           border-radius: 8px;
           border: 1px solid var(--panel-border);
           padding: 12px;

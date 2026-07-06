@@ -8,8 +8,8 @@ export function wrapText(
   maxWidth: number,
   fontSize: number
 ): string[] {
-  // Proportional character width factor (approx 0.52 of font size for sans-serifs)
-  const charWidth = fontSize * 0.52;
+  // Proportional character width factor (approx 0.55 of font size for modern sans-serifs)
+  const charWidth = fontSize * 0.55;
   const maxCharsPerLine = Math.max(1, Math.floor(maxWidth / charWidth));
   
   // Split by explicit newlines first

@@ -3,6 +3,7 @@
  * Ported from elemzes.html to React with tabbed layout.
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useTheme } from '../../context/ThemeContext';
 import { getToken } from '../../api/client';
 import { showToast } from '../../components/ui/Toast';
 
@@ -575,6 +576,11 @@ export default function ZomboAuditPage() {
   // Hoisted Prod Calendar / Quick Post states
   const [prodPosts, setProdPosts] = useState<ZomboPostCreative[]>([]);
   const [prodBypassOnboarding, setProdBypassOnboarding] = useState(false);
+
+  const { isDark } = useTheme();
+
+  // ── No longer forcing dark mode — we now respect the global isDark state ────
+  // from ThemeContext. The zombo.css takes care of token overrides.
 
   const addLog = useCallback((message: string, level: 'info' | 'warn' | 'error' | 'success', step?: 'queue' | 'orchestrator' | 'renderer' | 'meta-api') => {
     const newLog: ZomboSystemLog = {
@@ -2422,7 +2428,7 @@ export default function ZomboAuditPage() {
 
       /* ──────── PROD CALENDAR VIEW ──────── */
       case 'prod': {
-        const activeKit = brandKits.find(k => k.id === activeKitId) || brandKits[brandKits.length - 1];
+        const activeKit = brandKits.find(k => k.id === activeKitId) || brandKits[brandKits.length - 1] || INITIAL_BRAND_KITS[0];
         return (
           <ProdCalendarView
             activeBrandKit={activeKit}
@@ -2437,7 +2443,7 @@ export default function ZomboAuditPage() {
 
       /* ──────── QUICK POST (Flow 4) ──────── */
       case 'quick-post': {
-        const activeKit = brandKits.find(k => k.id === activeKitId) || brandKits[brandKits.length - 1];
+        const activeKit = brandKits.find(k => k.id === activeKitId) || brandKits[brandKits.length - 1] || INITIAL_BRAND_KITS[0];
         return (
           <QuickPostView
             activeBrandKit={activeKit}
@@ -2477,7 +2483,7 @@ export default function ZomboAuditPage() {
 
   /* ══════════════════════════════ MAIN RETURN ══════════════════════════════ */
   return (
-    <div className="page active">
+    <div className={`page active zombo-creative-studio ${isDark ? 'dark' : ''}`} style={{ background: 'var(--bg-main)', color: 'var(--text-main)', minHeight: '100%' }}>
       {/* Header */}
       <div className="mkt-page-header">
         <div className="mkt-page-header-icon" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.15), rgba(109,40,217,0.15))' }}>

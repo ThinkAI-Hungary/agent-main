@@ -70,10 +70,15 @@ You do NOT design layouts or output coordinates. You make semantic choices that 
 - A3: headline (32), body (160)
 - A4: headline (48), subhead (32), cta (16)
 - A5: footer_text (80)
-- A6: number (6), headline (36), terms (80)
-- A7: quote (180), author (40)
-- A8: title (40), items (60 each)
-- A9: headline (48), subhead (60), cta (18)
+- A6: number (5), headline (32), terms (60)
+- A7: quote (160), author (30)
+- A8: title (36), items (50 each)
+- A9: headline (44), subhead (50), cta (18)
+
+# LINGUISTIC RULES
+- Use concise Hungarian. Prefer "Akció" over "Nagy tavaszi árleszállítás".
+- Avoid breaking words. If a word is long (12+ chars), pick a shorter synonym.
+- For A6 'number' slot: MUST be like "-30%", "2024", or "MOST". Max 5 chars.
 
 # INPUT CONTEXT
 Format: ${format}

@@ -56,3 +56,5 @@ thinkai-voice-agent/cloudflared.exe
 figma/
 node_modules/
 **/node_modules/
+
+thinkai-voice-agent/eaisydesk-frontend/scratch/

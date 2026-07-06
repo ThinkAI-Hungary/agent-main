@@ -4,6 +4,26 @@
   <meta charset="UTF-8">
   <title>Polotno Renderer</title>
   <style>
+    @font-face {
+      font-family: 'Inter';
+      font-weight: 400;
+      src: url('file:///C:/Users/Zombo/Desktop/Antigrav/agentmain_digidesk/agent-main/z/kepgeneralas/server/fonts/inter-regular.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Inter';
+      font-weight: 700;
+      src: url('file:///C:/Users/Zombo/Desktop/Antigrav/agentmain_digidesk/agent-main/z/kepgeneralas/server/fonts/inter-700.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Inter';
+      font-weight: 800;
+      src: url('file:///C:/Users/Zombo/Desktop/Antigrav/agentmain_digidesk/agent-main/z/kepgeneralas/server/fonts/inter-700.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Inter';
+      font-weight: 900;
+      src: url('file:///C:/Users/Zombo/Desktop/Antigrav/agentmain_digidesk/agent-main/z/kepgeneralas/server/fonts/inter-900.woff2') format('woff2');
+    }
     * {
       box-sizing: border-box;
       margin: 0;
@@ -186,64 +206,21 @@
       
       children.forEach((child, index) => {
         if (child.visible === false) return;
-        // Handle texture-preserving duotone rendering
-        if (child.type === 'image' && child.filter === 'duotone' && child.duotoneColors) {
-          const container = document.createElement('div');
-          container.className = 'element';
-          if (child.premiumShadow) {
-            container.className += ' premium-shadow';
-          }
-          container.style.left = child.x + 'px';
-          container.style.top = child.y + 'px';
-          container.style.width = child.width + 'px';
-          container.style.height = child.height + 'px';
-          container.style.position = 'absolute';
-          container.style.overflow = 'hidden';
-          
-          // Original image underneath (100% opacity)
-          const baseImg = document.createElement('img');
-          baseImg.src = child.src;
-          baseImg.className = 'image-element';
-          baseImg.style.width = '100%';
-          baseImg.style.height = '100%';
-          baseImg.style.position = 'absolute';
-          baseImg.style.top = '0';
-          baseImg.style.left = '0';
-          container.appendChild(baseImg);
-          
-          // Duotone color-mapped image on top (85% opacity, blends original textures)
-          const duoImg = document.createElement('img');
-          duoImg.src = child.src;
-          duoImg.className = 'image-element';
-          duoImg.style.width = '100%';
-          duoImg.style.height = '100%';
-          duoImg.style.position = 'absolute';
-          duoImg.style.top = '0';
-          duoImg.style.left = '0';
-          duoImg.style.opacity = '0.85'; 
-          
-          const filterId = `duotone-filter-${index}`;
-          createDuotoneFilter(child.duotoneColors[0], child.duotoneColors[1], filterId);
-          duoImg.style.filter = `url(#${filterId})`;
-          
-          container.appendChild(duoImg);
-          canvas.appendChild(container);
-          
-          const p1 = new Promise((resolve) => {
-            baseImg.onload = resolve;
-            baseImg.onerror = resolve;
-          });
-          const p2 = new Promise((resolve) => {
-            duoImg.onload = resolve;
-            duoImg.onerror = resolve;
-          });
-          imagePromises.push(p1, p2);
-          return;
-        }
-
+        // Skip empty text layers
+        if (child.type === 'text' && (!child.text || child.text.trim() === '')) return;
+        
         const isImage = child.type === 'image';
         const el = document.createElement(isImage ? 'img' : 'div');
         el.className = 'element';
+        
+        // Inject metadata for adaptive scaling pass
+        el.dataset.child = JSON.stringify(child);
+        if (child.type === 'text') {
+            el.className += ' text-element';
+            if (child.ownerId) el.setAttribute('data-owner-id', child.ownerId);
+        }
+        if (child.id) el.id = child.id;
+        
         el.style.left = child.x + 'px';
         el.style.top = child.y + 'px';
         el.style.width = child.width + 'px';
@@ -264,8 +241,6 @@
         }
         
         if (child.type === 'text') {
-          el.className += ' text-element';
-          
           // Support rendering small diamond shape separators
           if (child.text === '◆') {
             const sep = document.createElement('span');
@@ -294,13 +269,21 @@
             el.style.textTransform = 'uppercase';
           }
           
-          // Text shadow for readability
           if (child.textShadow) {
             el.style.textShadow = child.textShadow;
           }
+          
+          // Ensure overflow measurement works
+          el.style.overflow = 'visible';
+          el.style.whiteSpace = 'pre-wrap';
+          el.style.wordBreak = 'keep-all';
+          el.style.overflowWrap = 'break-word';
         } else if (child.type === 'image') {
           el.className += ' image-element';
           el.src = child.src;
+          if (child.objectFit) {
+            el.style.objectFit = child.objectFit;
+          }
           
           const p = new Promise((resolve) => {
             el.onload = () => resolve(true);
@@ -317,7 +300,6 @@
               el.style.borderRadius = child.cornerRadius + 'px';
             }
           }
-          // Border mapping support
           if (child.border) {
             el.style.border = child.border;
           }
@@ -329,6 +311,98 @@
       await Promise.all(imagePromises);
       await document.fonts.ready;
       console.log('Premium rendering complete.');
+    };
+
+    window.finalizeLayout = async () => {
+      console.log('[FINALIZE] Starting measurement pass...');
+      const textElements = document.querySelectorAll('.text-element');
+      let adjustments = 0;
+
+      textElements.forEach((el) => {
+        const htmlEl = el;
+        const childData = JSON.parse(htmlEl.dataset.child || '{}');
+        
+        const containerHeight = parseFloat(htmlEl.style.height) || 0;
+        const containerWidth = parseFloat(htmlEl.style.width) || 1080;
+        
+        let currentFontSize = parseFloat(htmlEl.style.fontSize);
+        const minFontSize = 20;
+        const maxFontSize = 180;
+
+        if (containerHeight > 0) {
+          while (htmlEl.scrollHeight > containerHeight && currentFontSize > minFontSize) {
+            currentFontSize -= 1;
+            htmlEl.style.fontSize = currentFontSize + 'px';
+            adjustments++;
+          }
+        }
+
+        while (htmlEl.scrollWidth > htmlEl.clientWidth && currentFontSize > minFontSize) {
+          currentFontSize -= 1;
+          htmlEl.style.fontSize = currentFontSize + 'px';
+          adjustments++;
+        }
+
+        // 3. UNDERFLOW Check (Scale UP) - Only if adaptiveScaling is enabled
+        if (childData.adaptiveScaling) {
+            // Guardrail: If text is already quite long (many characters), don't scale up too much
+            // This prevents the "overlap" issue seen in A6 badges where it wraps
+            const charCount = (htmlEl.innerText || '').length;
+            const maxGrowthSize = charCount > 6 ? 90 : 180;
+
+            let canGrow = true;
+            while (canGrow && currentFontSize < maxGrowthSize) {
+                const nextSize = currentFontSize + 2;
+                htmlEl.style.fontSize = nextSize + 'px';
+                
+                // Use a tighter check for horizontal overflow in circular/badge contexts
+                const hasVOverflow = containerHeight > 0 && htmlEl.scrollHeight > (containerHeight * 0.85); 
+                const hasHOverflow = htmlEl.scrollWidth > (htmlEl.clientWidth * 0.85);
+                
+                if (hasVOverflow || hasHOverflow) {
+                    htmlEl.style.fontSize = currentFontSize + 'px';
+                    canGrow = false;
+                } else {
+                    currentFontSize = nextSize;
+                    adjustments++;
+                }
+            }
+        }
+      });
+
+      const containerElements = document.querySelectorAll('.element[id]');
+      containerElements.forEach((container) => {
+          const containerEl = container;
+          const containerId = containerEl.id;
+          const containerData = JSON.parse(containerEl.dataset.child || '{}');
+          if (!containerData.adaptivePadding) return;
+
+          const ownedText = document.querySelector(`.text-element[data-owner-id="${containerId}"]`);
+          if (ownedText) {
+              const textEl = ownedText;
+              const padding = containerData.adaptivePadding;
+              const originalDisplay = textEl.style.display;
+              textEl.style.display = 'inline-block';
+              textEl.style.width = 'auto';
+              const rect = textEl.getBoundingClientRect();
+              const newWidth = rect.width + (padding * 2);
+              const newHeight = rect.height + (padding * 2);
+              const centerX = parseFloat(containerEl.style.left) + parseFloat(containerEl.style.width) / 2;
+              const centerY = parseFloat(containerEl.style.top) + parseFloat(containerEl.style.height) / 2;
+              containerEl.style.width = newWidth + 'px';
+              containerEl.style.height = newHeight + 'px';
+              containerEl.style.left = (centerX - newWidth / 2) + 'px';
+              containerEl.style.top = (centerY - newHeight / 2) + 'px';
+              textEl.style.display = originalDisplay;
+              textEl.style.width = newWidth + 'px';
+              textEl.style.left = containerEl.style.left;
+              textEl.style.top = (centerY - rect.height / 2) + 'px';
+              adjustments++;
+          }
+      });
+
+      console.log(`[FINALIZE] Layout pass complete. Applied ${adjustments} adjustments.`);
+      return { adjustments };
     };
   </script>
 </body>

@@ -133,13 +133,27 @@ export async function renderPost(
         
         const ctaSlot = document.getElementById('cta-slot');
         if (ctaSlot) {
-          if (variant.cta) {
+          if (variant.cta && variant.cta.trim().length > 0) {
             ctaSlot.innerText = variant.cta;
             ctaSlot.style.display = '';
           } else {
             ctaSlot.style.display = 'none';
+            // ERR-005: Pass 0 Cleanup — hide parent/sibling figure elements if CTA is empty
+            const parentPanel = ctaSlot.closest('.content-panel, .info-panel');
+            if (parentPanel && !variant.text) {
+              (parentPanel as HTMLElement).style.display = 'none';
+            }
           }
         }
+
+        // ERR-005: Pass 0 — remove all empty figure/shape elements that serve as backgrounds for non-existent text
+        document.querySelectorAll('.info-panel, .content-panel, .badge-bg, .accent-shape').forEach(el => {
+          const hasText = el.textContent && el.textContent.trim().length > 0;
+          const hasImage = el.querySelector('img');
+          if (!hasText && !hasImage && !variant.text && !variant.cta) {
+            (el as HTMLElement).style.display = 'none';
+          }
+        });
 
         // 6. Apply Layer Editor adjustments dynamically
         const customImg = document.getElementById('image-slot');
@@ -205,6 +219,14 @@ export async function renderPost(
           if (variant.panelRadius !== undefined) {
             panelEl.style.borderRadius = variant.panelRadius + "px";
           }
+
+          // Apply global text contrast improvement (text-shadow)
+          // This ensures text is readable even on complex backgrounds without heavy panels
+          const textElements = panelEl.querySelectorAll('p, h1, h2, h3, .quote-text, .list-text, .testimonial-text');
+          textElements.forEach(el => {
+            (el as HTMLElement).style.textShadow = '0 2px 4px rgba(0,0,0,0.3), 0 0 20px rgba(0,0,0,0.1)';
+            (el as HTMLElement).style.webkitFontSmoothing = 'antialiased';
+          });
 
           const posY = variant.textYOffset || 0;
           const posX = variant.textXOffset || 0;
@@ -366,8 +388,15 @@ export async function renderPolotnoJSON(json: any): Promise<string> {
       await (window as any).renderPolotno(polotnoData);
     }, json);
 
+    // BEST PRACTICE: Run measurement pass to fix text overflow/clipping
+    console.log(`[RENDERER] Running layout finalization (measurement pass)...`);
+    const layoutStats = await page.evaluate(async () => {
+      return await (window as any).finalizeLayout();
+    });
+    console.log(`[RENDERER] Layout finalized: ${layoutStats.adjustments} font adjustments made.`);
+
     // Give a buffer time for any rendering to settle
-    await page.waitForTimeout(200);
+    await page.waitForTimeout(100);
 
     const filename = `overlay-render-${Date.now()}-${Math.floor(Math.random() * 10000)}.png`;
     const outputPath = path.join(RENDER_DIR, filename);

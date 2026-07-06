@@ -1325,7 +1325,7 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
 
                   {/* Inline Layer Editor */}
                   {editingResultIdx === i && layerLayout && (
-                    <div style={{ marginTop: 8, background: 'rgba(17,24,39,0.97)', border: '1px solid rgba(139,92,246,0.3)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden', width: '100%', boxSizing: 'border-box' }}>
+                    <div style={{ marginTop: 8, background: 'var(--bg-main)', border: '1px solid var(--panel-border)', borderRadius: 12, padding: 16, display: 'flex', flexDirection: 'column', gap: 12, overflow: 'hidden', width: '100%', boxSizing: 'border-box' }}>
                       <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                         <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                           <Layers size={16} style={{ color: '#a78bfa' }} />
@@ -1388,15 +1388,15 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
         .btn-clear { background: transparent; border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); padding: 6px 12px; border-radius: 6px; font-size: 11px; cursor: pointer; display: flex; align-items: center; gap: 4px; align-self: flex-start; }
         .btn-clear:hover { border-color: rgba(255,255,255,0.2); color: var(--text-main); }
 
-        .scene-textarea { width: 100%; background: rgba(0,0,0,0.3); border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; padding: 12px; color: var(--text-main); font-size: 13px; font-family: inherit; resize: vertical; line-height: 1.5; box-sizing: border-box; }
-        .scene-textarea:focus { outline: none; border-color: rgba(139,92,246,0.5); }
+        .scene-textarea { width: 100%; background: var(--bg3); border: 1px solid var(--border); border-radius: 8px; padding: 12px; color: var(--text-main); font-size: 13px; font-family: inherit; resize: vertical; line-height: 1.5; box-sizing: border-box; }
+        .scene-textarea:focus { outline: none; border-color: var(--primary-neon); }
 
         .preset-grid { display: flex; flex-wrap: wrap; gap: 6px; }
         .preset-chip { background: rgba(255,255,255,0.05); border: 1px solid rgba(255,255,255,0.1); color: var(--text-muted); padding: 5px 10px; border-radius: 16px; font-size: 12px; cursor: pointer; transition: var(--transition-smooth); font-family: inherit; }
         .preset-chip:hover { background: rgba(139,92,246,0.15); border-color: rgba(139,92,246,0.3); color: var(--text-main); }
         .preset-chip.active { background: rgba(139,92,246,0.2); border-color: rgba(139,92,246,0.4); color: #c4b5fd; }
 
-        .flux-params { display: flex; flex-direction: column; gap: 10px; padding: 12px; background: rgba(0,0,0,0.2); border-radius: 8px; border: 1px solid rgba(255,255,255,0.05); }
+        .flux-params { display: flex; flex-direction: column; gap: 10px; padding: 12px; background: var(--bg2); border-radius: 8px; border: 1px solid var(--border); }
         .param-row { display: flex; flex-direction: column; gap: 3px; }
         .param-row label { font-size: 11px; font-weight: 600; color: var(--text-muted); display: flex; align-items: center; gap: 6px; }
         .param-val { color: #c4b5fd; font-weight: 700; margin-left: auto; }
@@ -1415,7 +1415,7 @@ export function ImageTestLab({ activeBrandKit, auditResult }: ImageTestLabProps)
         .status-msg { font-size: 12px; color: #10b981; text-align: center; padding: 4px; }
         .error-msg { font-size: 12px; color: #ef4444; background: rgba(239,68,68,0.1); border: 1px solid rgba(239,68,68,0.2); border-radius: 8px; padding: 10px; }
 
-        .console-panel { background: #050308; border: 1px solid var(--panel-border); border-radius: 8px; padding: 10px; font-family: monospace; font-size: 10px; height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
+        .console-panel { background: var(--bg); border: 1px solid var(--panel-border); border-radius: 8px; padding: 10px; font-family: monospace; font-size: 10px; height: 140px; overflow-y: auto; display: flex; flex-direction: column; gap: 4px; }
         .console-panel h6 { color: var(--primary-neon); font-weight: 700; margin: 0 0 4px; }
         .log-lines { display: flex; flex-direction: column; gap: 3px; }
         .log-line { color: var(--text-muted); white-space: pre-wrap; word-break: break-all; }

@@ -329,7 +329,8 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
           flex-direction: column;
           gap: 12px;
           border-radius: 12px;
-          background: rgba(25, 20, 48, 0.4);
+          background: var(--bg2);
+          border: 1px solid var(--border);
         }
         .aspect-ratio-box {
           position: relative;
@@ -337,7 +338,8 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
           aspect-ratio: 4 / 5; /* 1080x1350 pixel layout representation */
           border-radius: 8px;
           overflow: hidden;
-          background: #000;
+          background: var(--bg);
+          border: 1px solid var(--border);
         }
 
         /* Rendering state spinner */
@@ -347,7 +349,7 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
           left: 0;
           right: 0;
           bottom: 0;
-          background: rgba(10, 8, 19, 0.85);
+          background: var(--panel-bg);
           backdrop-filter: blur(4px);
           display: flex;
           flex-direction: column;
@@ -602,10 +604,10 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
           align-items: flex-start;
           gap: 8px;
           cursor: pointer;
-          background: rgba(0,0,0,0.15);
+          background: var(--bg3);
           padding: 8px;
           border-radius: 6px;
-          border: 1px solid transparent;
+          border: 1px solid var(--border);
           transition: var(--transition-smooth);
         }
         .text-display-row:hover {
@@ -730,8 +732,8 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
           left: 0;
           right: 0;
           margin-bottom: 8px;
-          background: rgba(15, 12, 30, 0.95);
-          border-color: rgba(139, 92, 246, 0.3);
+          background: var(--panel-bg);
+          border: 1px solid var(--panel-border);
           padding: 12px;
           border-radius: 8px;
           display: flex;

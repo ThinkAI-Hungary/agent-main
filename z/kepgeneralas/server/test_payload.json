@@ -1,0 +1,11 @@
+{
+  "baseImageUrl": "http://localhost:3001/renders/uploaded-1783205663390.png",
+  "text": "Teszt Szoveg Satori",
+  "cta": "Vásárolj Most",
+  "brandColors": {
+    "primary": "#10b981",
+    "secondary": "#059669",
+    "accent": "#34d399"
+  },
+  "fontFamily": "Inter"
+}

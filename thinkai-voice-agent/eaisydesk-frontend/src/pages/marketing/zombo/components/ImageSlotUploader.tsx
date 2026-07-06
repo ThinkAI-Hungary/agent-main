@@ -203,6 +203,11 @@ export interface ImageAnalysisResult {
   subject: string;
   altText: string;
   dominantColors: string[];
+  backgroundBrightness?: 'dark' | 'light' | 'mixed';
+  /** Where the main subject sits in the frame */
+  subjectPosition?: 'left' | 'right' | 'center' | 'top' | 'bottom' | 'top-left' | 'top-right' | 'bottom-left' | 'bottom-right' | 'full';
+  /** Where there is clear/empty space suitable for text overlay */
+  negativeSpaceZone?: 'left' | 'right' | 'top' | 'bottom' | 'none';
   changeabilityRules: ImageChangeabilityRules;
   fluxPromptSuffix: string;
   fluxNegativeSuffix: string;
@@ -232,6 +237,7 @@ export interface ImageSlot {
   userEditedDescription: string;
   alternativeTextDescription?: string;
   locked: boolean;
+  isDefault?: boolean;
   error: string | null;
 }
 
@@ -252,6 +258,7 @@ export function createEmptySlot(): ImageSlot {
     userEditedDescription: '',
     alternativeTextDescription: '',
     locked: false,
+    isDefault: false,
     error: null,
   };
 }
@@ -426,6 +433,7 @@ export function PanZoomImage({ src, alt, isZoomed, onToggleZoom }: PanZoomImageP
 interface ImageSlotUploaderProps {
   slots: ImageSlot[];
   onChange: (updater: (prev: ImageSlot[]) => ImageSlot[]) => void;
+  onSetDefault?: (slot: ImageSlot) => void;
   maxSlots?: number;
   disabled?: boolean;
   label?: string;
@@ -436,6 +444,7 @@ interface ImageSlotUploaderProps {
 export default function ImageSlotUploader({
   slots,
   onChange,
+  onSetDefault,
   maxSlots = 3,
   disabled = false,
   label = 'Képek feltöltése',
@@ -606,9 +615,12 @@ export default function ImageSlotUploader({
       : s
     ));
 
+
+
     // Step 2: Preprocess (CDN + background removal)
     let originalUrl = '';
     let preprocessedUrl: string | null = null;
+    let preprocessSkipped = false;
     try {
       const ppResp = await fetch(`${getBackendUrl()}/api/image/preprocess`, {
         method: 'POST',
@@ -620,17 +632,44 @@ export default function ImageSlotUploader({
       originalUrl = ppData.originalUrl || '';
       preprocessedUrl = ppData.url || null;
     } catch (e: any) {
-      onChange(prev => prev.map(s => s.id === slotId
-        ? { ...s, preprocessLoading: false, error: 'Előfeldolgozás hiba: ' + e.message }
-        : s
-      ));
-      return;
+      const isNetworkError = e.message?.toLowerCase().includes('fetch') || e.message?.toLowerCase().includes('network') || e.message?.toLowerCase().includes('connect');
+      if (isNetworkError) {
+        // Backend not running — use base64 directly as fallback, skip preprocessing
+        // The image will still work for overlay preview (cover crop handles any aspect ratio)
+        originalUrl = base64;  // data:image/... URL works directly
+        preprocessedUrl = null;
+        preprocessSkipped = true;
+        console.warn('[ImageSlot] Preprocessing skipped (backend unavailable), using raw image');
+      } else {
+        onChange(prev => prev.map(s => s.id === slotId
+          ? { ...s, preprocessLoading: false, error: 'Előfeldolgozás hiba: ' + e.message }
+          : s
+        ));
+        return;
+      }
     }
 
     onChange(prev => prev.map(s => s.id === slotId
-      ? { ...s, originalUrl, preprocessedUrl, preprocessLoading: false, analysisLoading: true }
+      ? {
+          ...s,
+          originalUrl,
+          preprocessedUrl,
+          preprocessLoading: false,
+          analysisLoading: !preprocessSkipped,  // skip analysis if backend was offline
+          ...(preprocessSkipped ? { error: null } : {}),  // clear error — image is usable
+        }
       : s
     ));
+
+    // If backend was offline, skip analysis and mark slot as ready with warning
+    if (preprocessSkipped) {
+      onChange(prev => prev.map(s => s.id === slotId
+        ? { ...s, analysisLoading: false, role: 'auto' }
+        : s
+      ));
+      console.warn('[ImageSlot] Analysis skipped — backend offline. Image usable for overlay preview.');
+      return;
+    }
 
     // Step 3: Claude Vision analysis
     try {
@@ -961,6 +1000,28 @@ export default function ImageSlotUploader({
                     {slot.analysis.changeabilityRules.mustPreserveExactly.slice(0, 2).map((m, i) => (
                       <span key={i} style={{ fontSize: 7.5, padding: '1px 5px', background: 'rgba(239,68,68,0.09)', color: '#ef4444', borderRadius: 4 }}>🔒 {m}</span>
                     ))}
+                  </div>
+
+                  {/* Default toggle */}
+                  <div 
+                    onClick={() => onSetDefault && onSetDefault(slot)}
+                    style={{
+                      marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+                      padding: '6px 8px', borderRadius: 8, background: slot.isDefault ? 'rgba(139,92,246,0.1)' : 'rgba(0,0,0,0.15)',
+                      border: `1px solid ${slot.isDefault ? '#8b5cf6' : 'rgba(255,255,255,0.1)'}`,
+                      transition: 'all 0.2s'
+                    }}
+                  >
+                    <div style={{
+                      width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${slot.isDefault ? '#8b5cf6' : 'var(--text-muted)'}`,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: slot.isDefault ? '#8b5cf6' : 'transparent'
+                    }}>
+                      {slot.isDefault && <Check size={10} color="#fff" />}
+                    </div>
+                    <span style={{ fontSize: 9, fontWeight: 700, color: slot.isDefault ? '#a78bfa' : 'var(--text-muted)' }}>
+                      Alapértelmezett kép
+                    </span>
                   </div>
                 </>
               )}

@@ -19,6 +19,7 @@ import { renderPost, renderPolotnoJSON } from './renderer.js';
 import { runOverlayPipeline } from './generator/pipeline.js';
 import { BrandKit, PostCreative, Campaign, CampaignItem } from './types.js';
 import { uploadToFal, removeBackground, compositeProduct, harmonizeImage, applyLowResMaskToUpscaled, localUpscale } from './compositor.js';
+import { SatoriRenderer } from './SatoriRenderer.js';
 import fs from 'fs';
 import sharp from 'sharp';
 // OpenAI import removed — using Bria Product Shot via fal.ai
@@ -2202,6 +2203,13 @@ Return ONLY JSON, no markdown:
 
       console.log(`[COMPOSITE-GENERATE][preserveOriginal] Product: left=${productLeft}, top=${productTop} | base Y=${productTop + finalH}px | surfaceY=${surfaceY}px | delta=${(productTop + finalH) - surfaceY}px`);
 
+      // Perspective-based scale: eye-level = 0.7×, slightly-above = 1.0×, bird-eye = 1.5×
+      const cameraAngle = la?.placement?.cameraAngle ?? 'slightly-above';
+      const cameraFOV = la?.placement?.cameraFOV ?? 'normal';
+      const cameraAngleScale: Record<string, number> = { 'eye-level': 0.70, 'slightly-above': 1.00, 'low-angle': 0.55, 'bird-eye': 1.50 };
+      const cameraFOVScale: Record<string, number> = { 'wide': 1.20, 'normal': 1.00, 'telephoto': 0.80 };
+      const perspScale = (cameraAngleScale[cameraAngle] ?? 1.0) * (cameraFOVScale[cameraFOV] ?? 1.0);
+
       // ── Cast shadow: elongated directional shadow from product ──────────────
       // PHYSICS: A cast shadow from a directional light (e.g. spotlight on right) extends
       // BEHIND the product AND to the opposite side (left if light is right).
@@ -2212,13 +2220,23 @@ Return ONLY JSON, no markdown:
       const shadowScaleByDepth = { 'close': 0.75, 'mid': 0.68, 'far': 0.58 }[sceneCtx.surfaceDepthHint] ?? 0.72;
       const shadowWidthMult = la?.shadow?.dropWidthMultiplier ?? shadowScaleByDepth;
       const shadowW = Math.round(finalW * Math.min(1.1, shadowWidthMult));
-      // Shadow LENGTH (depth into scene): 10-18% of product height by default.
-      // A directional spotlight creates a longer shadow than a soft box.
-      // LA may give dropLengthPx — scale to canvas size.
+      // Shadow LENGTH (depth into scene): based on physics L = H / tan(theta)
+      // theta = 90 (overhead) -> L=0
+      // theta = 45 -> L=H
+      // theta = 30 -> L=1.73H
+      // We map lightSourceYPercent (0=top, 50=eye-level) to theta (90..10)
+      const lightTheta = la?.lightSource?.directionAngle ?? (90 - Math.min(80, (sceneCtx.lightSourceYPercent ?? 15) * 1.5));
+      const rad = (lightTheta * Math.PI) / 180;
+      const lOverH = Math.abs(Math.tan(rad)) > 0.05 ? 1 / Math.tan(rad) : 0;
+      
+      // Perspective adjustment: shadows receding into distance appear shorter on 2D canvas
+      // unless it's a bird-eye view.
+      const groundPerspectiveFactor = cameraAngle === 'bird-eye' ? 1.0 : 0.65;
+      
       const rawDropLengthPx = la?.shadow?.dropLengthPx;
       const shadowH = rawDropLengthPx
-        ? Math.round(Math.max(20, Math.min(finalH * 0.20, rawDropLengthPx * (finalH / 1000))))
-        : Math.round(finalH * 0.12);  // default 12% of product height (was 4%)
+        ? Math.round(rawDropLengthPx * (finalH / 1000) * perspScale)
+        : Math.round(finalH * lOverH * groundPerspectiveFactor * perspScale);
       // Lateral shift: proportional to how far off-center the light is.
       // Light at 65% right → lightOffsetPct=0.30 → xShift = -finalW * 0.35 * 0.30 = -10.5% of width
       // Cap at 35% of product width (was 15%)
@@ -2227,12 +2245,12 @@ Return ONLY JSON, no markdown:
         ? Math.round(Math.max(-finalW * 0.35, Math.min(finalW * 0.35, la.shadow.dropOffsetX)))
         : Math.round(finalW * 0.35 * (-lightOffsetPct));  // shadow goes opposite to light
       const shadowYShift = la?.shadow?.dropOffsetY !== undefined
-        ? Math.round(Math.max(-finalH * 0.12, Math.min(finalH * 0.12, la.shadow.dropOffsetY)))
-        : 0;
+        ? Math.round(Math.max(-finalH * 0.15, Math.min(finalH * 0.15, la.shadow.dropOffsetY)))
+        : 0; // Physics fix: shadow must start AT the base. Default shift 0 (was 5% finalH).
       // Position: shadow starts at the product base and extends backward
       const shadowLeft = productLeft + Math.round((finalW - shadowW) / 2) + shadowXShift;
-      const shadowTop  = Math.min(bgH - shadowH - 1, surfaceY - Math.round(shadowH * 0.15) + shadowYShift);
-      const shadowPad  = Math.round(Math.max(20, shadowH));
+      const shadowTop = Math.min(bgH - shadowH - 1, surfaceY - Math.round(shadowH * 0.15) + shadowYShift);
+      const shadowPad = Math.round(Math.max(80, shadowH * 1.5)); // Increased pad to prevent edge cutoff
       const shadowCanW = shadowW + shadowPad * 2;
       const shadowCanH = shadowH + shadowPad * 2;
       // Opacity: softer for longer shadows (they spread over more surface area)
@@ -2258,7 +2276,7 @@ Return ONLY JSON, no markdown:
         `<ellipse cx="${Math.round(shadowCanW/2)}" cy="${Math.round(shadowCanH/2)}" rx="${Math.round(shadowW/2)}" ry="${Math.round(shadowH/2)}" fill="url(#sg)"/>` +
         `</svg>`
       );
-      const shadowBuffer = await sharp({
+      const shadowBufferFull = await sharp({
         create: { width: shadowCanW, height: shadowCanH, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
       })
         .composite([{ input: await sharp(shadowEllipseSvg).png().toBuffer(), blend: 'over' }])
@@ -2266,8 +2284,25 @@ Return ONLY JSON, no markdown:
         .png()
         .toBuffer();
       console.log(`[COMPOSITE-GENERATE][preserveOriginal] Cast shadow: opacity=${shadowOpacity.toFixed(2)} hasDropShadow=${hasDropShadow} xShift=${shadowXShift}px yShift=${shadowYShift}px blurPx=${shadowBlurPx} shadowH=${shadowH}px shadowW=${shadowW}px lightX=${sceneCtx.lightSourceXPercent}%`);
-      const shadowLeftAdj = Math.max(0, shadowLeft - shadowPad);
-      const shadowTopAdj  = Math.max(0, shadowTop  - shadowPad);
+      // ── CRITICAL: Shadow buffer may be larger than bg or have negative offsets. ──
+      // Sharp throws 'Image to composite must have same dimensions or smaller' if the
+      // overlay extends outside the base. We must extract only the visible intersection.
+      let shadowLeftAdj = shadowLeft - shadowPad;
+      let shadowTopAdj  = shadowTop  - shadowPad;
+      // Crop region inside the full shadow canvas that overlaps with bg
+      const cropLeft   = Math.max(0, -shadowLeftAdj);
+      const cropTop    = Math.max(0, -shadowTopAdj);
+      const cropRight  = Math.min(shadowCanW, bgW - shadowLeftAdj);
+      const cropBottom = Math.min(shadowCanH, bgH - shadowTopAdj);
+      const cropW = Math.max(1, cropRight - cropLeft);
+      const cropH = Math.max(1, cropBottom - cropTop);
+      // Extract the visible portion only
+      const shadowBuffer = (cropLeft > 0 || cropTop > 0 || cropW < shadowCanW || cropH < shadowCanH)
+        ? await sharp(shadowBufferFull).extract({ left: cropLeft, top: cropTop, width: cropW, height: cropH }).png().toBuffer()
+        : shadowBufferFull;
+      // Adjust placement to match the crop
+      shadowLeftAdj = Math.max(0, shadowLeftAdj + cropLeft);
+      shadowTopAdj  = Math.max(0, shadowTopAdj  + cropTop);
 
       // ── Fix #3: Apply rim darkening + warm tint DIRECTLY onto product PNG ──
       // Reason: multiply/soft-light blend on a full-size overlay buffer (finalW×finalH)
@@ -2284,8 +2319,8 @@ Return ONLY JSON, no markdown:
         let baseWarmOpacity = clamp(la.colorThermal.ambientTintOpacity ?? 0.12, 0, 0.28);
         // BG scene is warm (dark/workshop) → boost tint to at least 0.12 to visually match
         // The original studio photo's ambient tint (0.06) is too weak for warm BG scenes
-        // Use PRE-OVERRIDE darkness from SCENE-ANALYZE (bgSceneAnalysisDarkness), NOT overridden value
-        if (bgSceneAnalysisDarkness > 35) {
+        // Use PRE-OVERRIDE darkness from SCENE-ANALYZE (laDarkness), NOT overridden value
+        if (laDarkness > 35) {
           // Warm/dark scene: ensure minimum warm tint for product integration
           baseWarmOpacity = Math.max(0.12, baseWarmOpacity);
         }
@@ -2301,7 +2336,7 @@ Return ONLY JSON, no markdown:
           warmG = Math.round(clamp(warmG + castRgb[1] * 0.3, 80, 255));
           warmB = Math.round(clamp(warmB + castRgb[2] * 0.3, 20, 255));
         }
-        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA-v2] Warm tint from LightingAnalysis: rgb(255,${warmG},${warmB}) opacity=${warmOpacity.toFixed(3)} colorCast=${la.lightSource?.colorCastRgb} bgDarkness=${bgSceneDarkness}`);
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA-v2] Warm tint from LightingAnalysis: rgb(255,${warmG},${warmB}) opacity=${warmOpacity.toFixed(3)} colorCast=${la.lightSource?.colorCastRgb} bgDarkness=${laDarkness}`);
       } else {
         // Legacy heuristic
         const warmIntensity = Math.max(0, (5000 - sceneCtx.lightTemperatureK) / 2300);
@@ -2578,10 +2613,14 @@ Return ONLY JSON, no markdown:
       // ── Base composite: FLUX-harmonized BG + shadow + product ─────────────
       // Use harmonizedBgBuffer: FLUX already added natural shadows/AO to the BG.
       // The product (with its intact label) is composited on top.
+      // CRITICAL: Clamp all layer placements to BG bounds before compositing.
+      // Sharp throws if any overlay extends outside the base image.
+      const safeProductLeft = Math.max(0, Math.min(bgW - 1, productLeft));
+      const safeProductTop  = Math.max(0, Math.min(bgH - 1, productTop));
       const baseComposite = await sharp(harmonizedBgBuffer)
         .composite([
           { input: shadowBuffer,        left: shadowLeftAdj, top: shadowTopAdj, blend: 'multiply' },
-          { input: productWithEffects,  left: productLeft,   top: productTop,   blend: 'over' }
+          { input: productWithEffects,  left: safeProductLeft, top: safeProductTop, blend: 'over' }
         ])
         .png()
         .toBuffer();
@@ -2600,13 +2639,7 @@ Return ONLY JSON, no markdown:
       //       Additionally: absolute cap at 0.65 to prevent unrealistically dark shadows.
       // placement.cameraAngle → affects contactH (telephoto = less perspective = flatter oval)
       // placement.cameraFOV  → same: 'wide' = more perspective = taller oval
-      const cameraAngle = la?.placement?.cameraAngle ?? 'slightly-above';
-      const cameraFOV   = la?.placement?.cameraFOV   ?? 'normal';
       const perspDistortion = la?.placement?.perspectiveDistortion ?? 'slight';
-      // Perspective-based scale: eye-level = 0.7×, slightly-above = 1.0×, bird-eye = 1.5×
-      const cameraAngleScale: Record<string,number> = { 'eye-level': 0.70, 'slightly-above': 1.00, 'low-angle': 0.55, 'bird-eye': 1.50 };
-      const cameraFOVScale: Record<string,number>   = { 'wide': 1.20, 'normal': 1.00, 'telephoto': 0.80 };
-      const perspScale = (cameraAngleScale[cameraAngle] ?? 1.0) * (cameraFOVScale[cameraFOV] ?? 1.0);
       const contactW = Math.round(finalW * (la?.shadow?.contactShadow?.widthMultiplier ?? 0.68));
       const contactH = Math.round(Math.max(10, finalH * (la?.shadow?.contactShadow?.heightMultiplier ?? 0.025) * perspScale));
       console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA] Placement: cameraAngle=${cameraAngle} FOV=${cameraFOV} perspDistortion=${perspDistortion} → perspScale=${perspScale.toFixed(2)} contactH=${contactH}px`);
@@ -2634,12 +2667,26 @@ Return ONLY JSON, no markdown:
         `<ellipse cx="${Math.round(contactW/2)}" cy="${Math.round(contactH/2)}" rx="${Math.round(contactW/2)}" ry="${Math.round(contactH/2)}" fill="url(#cg)"/>` +
         `</svg>`
       );
-      const contactShadowBuffer = await sharp({
+      // ── CRITICAL: Contact shadow may extend outside bg bounds. Extract visible intersection. ──
+      const contactShadowFull = await sharp({
         create: { width: contactW, height: contactH, channels: 4, background: { r: 0, g: 0, b: 0, alpha: 0 } }
       })
         .composite([{ input: await sharp(contactCoreSvg).png().toBuffer(), blend: 'over' }])
-        .blur(contactBlurPx)  // much softer now
+        .blur(contactBlurPx)
         .png().toBuffer();
+      let contactLeftAdj = contactLeft;
+      let contactTopAdj  = contactTop;
+      const ccCropLeft   = Math.max(0, -contactLeftAdj);
+      const ccCropTop    = Math.max(0, -contactTopAdj);
+      const ccCropRight  = Math.min(contactW, bgW - contactLeftAdj);
+      const ccCropBottom = Math.min(contactH, bgH - contactTopAdj);
+      const ccCropW = Math.max(1, ccCropRight - ccCropLeft);
+      const ccCropH = Math.max(1, ccCropBottom - ccCropTop);
+      const contactShadowBuffer = (ccCropLeft > 0 || ccCropTop > 0 || ccCropW < contactW || ccCropH < contactH)
+        ? await sharp(contactShadowFull).extract({ left: ccCropLeft, top: ccCropTop, width: ccCropW, height: ccCropH }).png().toBuffer()
+        : contactShadowFull;
+      contactLeftAdj = Math.max(0, contactLeftAdj + ccCropLeft);
+      contactTopAdj  = Math.max(0, contactTopAdj  + ccCropTop);
 
       // Halo: wider, softer outer AO spread
       // RULE: AO halos are physically present only in scenes with diffuse ambient occlusion.
@@ -2699,7 +2746,7 @@ Return ONLY JSON, no markdown:
       // positioned near the edge and the radial gradient bleeding sideways.
       // Solution: specBufH capped at top-lid area only, never extends down the sides.
       // Specular: use la.material.specular values when available (physics-derived zone)
-      let specOpacity: number, specZonePct: number, specWidthMult: number;
+      let specOpacity: number, specZonePct: number, specWidthMult: number, specBlurFromRoughness: number;
       // HARD CAP: specZonePct max 8% — prevents specular from overlapping product handle/fül area.
       // PHYSICS: The specular highlight on a cylindrical lid is a narrow crescent on the rim edge,
       // NOT a full disc covering the top. 8% = top rim only (approx. 2cm of a 25cm lid diameter).
@@ -2717,13 +2764,13 @@ Return ONLY JSON, no markdown:
         }
         // material.roughness modulates specular blur: low roughness = tight sharp highlight
         const roughness = la.material?.roughness ?? 0.5;
-        // specBlurPx from LA (if present) or derived from roughness: 0→2px, 0.5→6px, 1.0→14px
-        const specBlurFromRoughness = Math.round(2 + roughness * 12);
+        specBlurFromRoughness = Math.round(2 + roughness * 12);
         console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA-v2] Specular: opacity=${specOpacity.toFixed(2)} zone=top${Math.round(specZonePct*100)}% width=${specWidthMult} roughness=${roughness}→blurPx=${specBlurFromRoughness} [CAPPED at ${SPEC_ZONE_MAX_PCT*100}%]`);
       } else {
         specOpacity   = { 'soft': 0.15, 'medium': 0.32, 'hard': 0.50 }[sceneCtx.lightIntensity] ?? 0.32;
         specZonePct   = 0.06;  // top 6% default (was 18%!!) — safe default that avoids handle
         specWidthMult = 0.48;
+        specBlurFromRoughness = 6; // fallback
       }
       let specularBuffer: Buffer | null = null;
       let specLeft = productLeft;
@@ -2778,8 +2825,8 @@ Return ONLY JSON, no markdown:
       // (warmTint + rimDarken + envTint + fresnel + colorBleed + SSS + rimLight are baked into productWithEffects)
       const postEffectLayers: sharp.OverlayOptions[] = [
         // Halo is conditional — only rendered if la.shadow.aoHalo.opacity >= 0.05
-        ...(haloBuffer && renderHalo ? [{ input: haloBuffer, left: Math.max(0, productLeft + Math.round((finalW - haloW) / 2) + shadowXShift), top: Math.max(0, surfaceY - Math.round(haloH * 0.5)), blend: 'multiply' as sharp.Blend }] : []),
-        { input: contactShadowBuffer, left: Math.max(0, contactLeft), top: Math.max(0, contactTop), blend: 'multiply' },
+        ...(haloBuffer && renderHalo ? [{ input: haloBuffer, left: productLeft + Math.round((finalW - haloW) / 2) + shadowXShift, top: surfaceY - Math.round(haloH * 0.5), blend: 'multiply' as sharp.Blend }] : []),
+        { input: contactShadowBuffer, left: contactLeftAdj, top: contactTopAdj, blend: 'multiply' },
         ...(specularBuffer ? [{ input: specularBuffer, left: specLeft, top: specTop, blend: 'screen' as sharp.Blend }] : []),
       ];
 
@@ -3712,6 +3759,78 @@ DO NOT output any explanations, formatting, or introduction. Just output the tra
     return { translated: text, wasTranslated: false };
   }
 }
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROUTE: /api/image/satori-render
+// Applies a Satori SVG overlay style to a base image (product photo or generated BG).
+// Called by the frontend Satori Layer Editor when user selects a Quick Style.
+// ═══════════════════════════════════════════════════════════════════════════════
+app.post('/api/image/satori-render', async (req, res) => {
+  const {
+    baseImageUrl,
+    text = '',
+    cta = '',
+    satoriStyleId = 'gradient-bottom',
+    brandColors,
+    fontFamily = 'Inter',
+    width = 1080,
+    height = 1350,
+    textLayers,
+    textOpts,
+    ctaOpts,
+    shapeOpts,
+  } = req.body;
+
+  if (!baseImageUrl) {
+    return res.status(400).json({ error: 'baseImageUrl is required' });
+  }
+
+  const start = Date.now();
+  console.log(`[SATORI-RENDER] styleId=${satoriStyleId} text="${text.substring(0, 40)}" base=${baseImageUrl.substring(0, 80)}`);
+
+  try {
+    // 1. Fetch the base image (may be a local /renders/... path or absolute URL)
+    let baseImageBuffer: Buffer;
+    if (baseImageUrl.startsWith('http')) {
+      const resp = await axios.get(baseImageUrl, { responseType: 'arraybuffer' });
+      baseImageBuffer = Buffer.from(resp.data);
+    } else {
+      // Local path: strip query string, resolve to file
+      const cleanPath = baseImageUrl.split('?')[0];
+      const localPath = cleanPath.startsWith('/renders/')
+        ? path.join(rendersDir, path.basename(cleanPath))
+        : path.join(path.dirname(fileURLToPath(import.meta.url)), '..', cleanPath);
+      baseImageBuffer = await fs.promises.readFile(localPath);
+    }
+
+    // 2. Render with SatoriRenderer
+    const resultBuffer = await SatoriRenderer.renderToBuffer(baseImageBuffer, {
+      width,
+      height,
+      text,
+      cta,
+      satoriStyleId,
+      colors: brandColors || { primary: '#8b5cf6', secondary: '#ffffff', accent: '#ec4899' },
+      fontFamily,
+      textLayers: textLayers || [],
+      textOpts: textOpts || {},
+      ctaOpts: ctaOpts || {},
+      shapeOpts: shapeOpts || {},
+    });
+
+    // 3. Save and return URL
+    const filename = `overlay-render-${Date.now()}-${Math.floor(Math.random() * 9999)}.png`;
+    const outPath = path.join(rendersDir, filename);
+    await fs.promises.writeFile(outPath, resultBuffer);
+    const imageUrl = `/renders/${filename}`;
+
+    console.log(`[SATORI-RENDER] Done in ${Date.now() - start}ms → ${imageUrl}`);
+    res.json({ imageUrl, elapsed: Date.now() - start });
+  } catch (err: any) {
+    console.error('[SATORI-RENDER] Error:', err.message);
+    res.status(500).json({ error: 'Satori render failed', details: err.message });
+  }
+});
 
 // Route: Translate prompt
 app.post('/api/translate-prompt', async (req, res) => {
