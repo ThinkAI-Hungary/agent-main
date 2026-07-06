@@ -31,6 +31,7 @@ import asyncio
 
 import database as db
 import email_processor
+from classifier import classify_interaction
 from anthropic import AsyncAnthropic
 
 THIS_DIR = Path(__file__).resolve().parent
@@ -1621,12 +1622,19 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 
             combined_tags = list(set(tags_from_ai + tags_from_task))
             
+            # ── KLASSZIFIKÁCIÓ ──
+            classification = await classify_interaction(
+                message_text=message_text,
+                channel=source_channel.lower(),
+                tool_calls=["book_meeting"] if booked_meeting else []
+            )
+
             # Logolás az interactions táblába + approval
             db.log_interaction(
                 type=source_channel.lower(),
                 topic=f"{source_channel} AI válasz - {message_text[:200]}",
-                summary=summary or message_text[:200],
-                result="Várakozik jóváhagyásra",
+                summary=classification.get("osszefoglalas") or summary or message_text[:200],
+                result=classification.get("eredmeny", "Várakozik jóváhagyásra"),
                 tool_name="process_meta_message",
                 session_id=session_id,
                 direction="inbound",
@@ -1636,7 +1644,8 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 approval_status="pending",
                 ai_draft_response=draft_json,
                 clinic_id=str(chosen_clinic_id) if chosen_clinic_id else None,
-                client_id=client_id if client_id else None
+                client_id=client_id if client_id else None,
+                classification=classification
             )
 
     except Exception as e:

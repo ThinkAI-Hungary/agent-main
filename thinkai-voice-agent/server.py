@@ -29,6 +29,7 @@ from livekit.agents import (
 )
 from livekit.plugins import noise_cancellation, silero
 from livekit.plugins.google import realtime
+from classifier import classify_interaction
 
 # ── Import tools ──────────────────────────────────────────────────────────────
 sys.path.insert(0, str(THIS_DIR))
@@ -321,6 +322,28 @@ SZABÁLYOK:
     finally:
         # Record session end + duration
         db.close_session(session_id)
+        
+        # ── Start Session Classification (Async Background Task) ──
+        async def _run_classification():
+            try:
+                # Get interactions to build full transcript
+                res = db.supabase.table("interactions").select("topic, tool_name").eq("session_id", session_id).execute()
+                full_text = " ".join([r.get("topic") or "" for r in res.data])
+                tools = [r.get("tool_name") for r in res.data if r.get("tool_name")]
+                
+                if full_text.strip():
+                    classification = await classify_interaction(
+                        message_text=full_text,
+                        channel="telefon",
+                        tool_calls=tools
+                    )
+                    # Update all interactions of this session with the classification
+                    db.supabase.table("interactions").update({"classification": classification}).eq("session_id", session_id).execute()
+                    logger.info(f"✅ Voice session {session_id} classified.")
+            except Exception as e:
+                logger.error(f"Failed to classify voice session {session_id}: {e}")
+
+        asyncio.create_task(_run_classification())
         logger.info(f"Session closed and duration saved: {session_id}")
 
 

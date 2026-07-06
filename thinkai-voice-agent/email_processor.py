@@ -24,6 +24,7 @@ from google import genai
 from google.genai import types
 
 import database as db
+from classifier import classify_interaction
 
 THIS_DIR = Path(__file__).resolve().parent
 load_dotenv(THIS_DIR / ".env")
@@ -278,21 +279,21 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
     # Utasítás a strukturált JSON outputra
     json_instruction = """
 TE FELADATOD:
-Ãrtékeld a beérkezett e-mailt a Tudásbázis és a Rendszer Prompt alapján.
-A kimeneted KIZÁRÃLAG egyetlen valid JSON objektum legyen, minden további markdown formázás (pl. ```json) NÃLKÃL.
-A válaszlevélt (email_reply) te fogalmazod meg, barátságos, segítőkész hangnemben. Ha releváns autókról vagy projektből van szó, mentsd el a Kanban adatokat is.
+Értékeld a beérkezett e-mailt a Tudásbázis és a Rendszer Prompt alapján.
+A kimeneted KIZÁRÓLAG egyetlen valid JSON objektum legyen, minden további markdown formázás (pl. ```json) NÉLKÜL.
+A válaszlevélt (email_reply) te fogalmazod meg, barátságos, segítőkész hangnemben.
 
-JSON STRUKTÃRA:
+JSON STRUKTÚRA:
 {
     "is_relevant": true|false,
     "email_reply": "A pontos válaszlevél szövege (TILOS HTML TAGEKET HASZNÁLNI! Listákhoz kötőjelet, sortöréshez \n-t használj)",
     "beszelgetes_naplobejegyzes": "A bejövő levél és a válaszod tömör összefoglalója 1 mondatban (későbbi kontextushoz).",
     "kanban_data": {
-        "name": "Ãgyfél neve (ha tudod, különben az e-mailből)",
-        "email": "Ãgyfél e-mailje",
+        "name": "Ügyfél neve (ha tudod, különben az e-mailből)",
+        "email": "Ügyfél e-mailje",
         "phone": "Telefonszám (ha megadta, különben üres string)",
-        "jarmu_tipusa": "autó / hajó / motor / stb. (opcionális)",
-        "jarmu_modell": "pontos modell (opcionális)"
+        "clinic_id": "A kiválasztott telephely ID-ja (ha releváns)",
+        "szolgaltatas": "A kért szolgáltatás megnevezése (opcionális)"
     },
     "meeting": {
         "title": "Találkozó címe (KIZÁRÓLAG akkor töltsd ki ezt a meeting objektumot, ha az ügyfél konkrét dátumot és konkrét időpontot/idősávot jelölt meg a foglaláshoz! Ha csak általánosságban kérdez szabad időpontokról vagy kér időpontot konkrét nap és óra megjelölése nélkül, a meeting értéke KÖTELEZŐEN null kell legyen!)",
@@ -621,11 +622,18 @@ Ha egyik sem releváns, legyen üres lista [].
         if meeting:
             f_stage = "foglalt"
             
+        # ── KLASSZIFIKÁCIÓ ──
+        classification = await classify_interaction(
+            message_text=text_content,
+            channel="email",
+            tool_calls=["book_meeting"] if meeting else []
+        )
+            
         db.log_interaction(
             type="email",
             topic=f"Email AI válasz - {subject}: {text_content[:200]}",
-            summary=f"Bejövő e-mail {from_email} címről",
-            result="Várakozik jóváhagyásra",
+            summary=classification.get("osszefoglalas") or f"Bejövő e-mail {from_email} címről",
+            result=classification.get("eredmeny", "Várakozik jóváhagyásra"),
             tool_name="imap_worker_ai",
             session_id=session_id,
             funnel_stage=f_stage,
@@ -633,7 +641,8 @@ Ha egyik sem releváns, legyen üres lista [].
             handover_reason=handover_reason,
             approval_status="pending",
             ai_draft_response=draft_json,
-            client_id=email_client_id if email_client_id else None
+            client_id=email_client_id if email_client_id else None,
+            classification=classification
         )
 
         if isinstance(alert_tags, list) and "kiemelt" in alert_tags:
