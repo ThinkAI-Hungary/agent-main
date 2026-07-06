@@ -8,6 +8,7 @@ from email.header import decode_header
 from pathlib import Path
 from datetime import datetime, timedelta
 from zoneinfo import ZoneInfo
+from charset_normalizer import from_bytes
 
 BUDAPEST_TZ = ZoneInfo("Europe/Budapest")
 
@@ -34,50 +35,28 @@ _FALLBACK_CHARSETS = ['iso-8859-2', 'windows-1250', 'latin-1', 'iso-8859-1', 'cp
 
 
 def _decode_payload(raw_payload: bytes | None, declared_charset: str) -> str:
-    """Decode email payload with robust charset fallback for Hungarian content.
-    
-    Strategy:
-    1. First, try decoding as UTF-8 (strict) regardless of declared charset.
-       If the payload is valid UTF-8, it is almost certainly the correct decoding.
-    2. Try the declared charset (strict)
-    3. Try common Hungarian/Central European fallbacks (strict)
-    4. Last resort: declared charset with replace, then utf-8 with replace
-    """
+    """Decode email payload with universal charset detection using charset-normalizer."""
     if raw_payload is None:
         return ""
 
-    # 1. Try decoding as UTF-8 (strict) first
+    # 1. First, try decoding as UTF-8 (strict)
     try:
-        result = raw_payload.decode('utf-8')
-        if '\ufffd' not in result:
-            return result
+        return raw_payload.decode('utf-8')
     except UnicodeDecodeError:
         pass
 
-    # 2. Try the declared charset (strict)
-    if declared_charset and declared_charset.lower() != 'utf-8':
-        try:
-            result = raw_payload.decode(declared_charset)
-            if '\ufffd' not in result:
-                return result
-        except (LookupError, UnicodeDecodeError):
-            pass
+    # 2. Use charset-normalizer for intelligent detection
+    try:
+        detection = from_bytes(raw_payload).best()
+        if detection:
+            return str(detection)
+    except Exception:
+        pass
 
-    # 3. Try common Central European encodings (strict mode)
-    for charset in _FALLBACK_CHARSETS:
-        if charset.lower() == 'utf-8' or (declared_charset and charset.lower() == declared_charset.lower()):
-            continue
-        try:
-            result = raw_payload.decode(charset)
-            if '\ufffd' not in result:
-                return result
-        except (LookupError, UnicodeDecodeError):
-            continue
-
-    # 4. Last resort: declared charset with replace, then utf-8 with replace
+    # 3. Fallback to declared charset or utf-8 with replacement
     try:
         return raw_payload.decode(declared_charset or 'utf-8', errors='replace')
-    except (LookupError, UnicodeDecodeError):
+    except Exception:
         return raw_payload.decode('utf-8', errors='replace')
 
 
@@ -359,6 +338,12 @@ Ha egyik sem releváns, legyen üres lista [].
         logger.error(f"Hiba az előzmények lekérdezésekor: {e}")
 
     user_content = history_text + f"--- ÚJ BEJÖVŐ E-MAIL ---\nFeladó: {from_name} <{from_email}>\nTárgy: {subject}\nÜzenet:\n{text_content}\n"
+    
+    # Reinforce the correct institution name dynamically from the database
+    current_bi = db.get_business_info()
+    db_practice_name = current_bi.get('practice_name')
+    if db_practice_name:
+        sys_prompt += f"\n\nSZIGORÚ UTASÍTÁS: Az intézmény jelenlegi hivatalos neve: '{db_practice_name}'. Az Előző üzenetekben (history) esetlegesen szereplő BÁRMILYEN más nevet tekintsd elavultnak vagy hibásnak, és hagyd figyelmen kívül! A válaszodban KIZÁRÓLAG a '{db_practice_name}' nevet használd azonosításra és elköszönéshez!\n"
         
     triage_rules = db.get_triage_rules()
     if triage_rules:

@@ -250,57 +250,41 @@ export function detectStatusz(r: {
   approval_status?: string | null;
   badge?: string | null;
   alert_tags?: string[] | null;
-  classification?: { ugytipus?: string; eredmeny?: string; statusz?: string; teendo?: string } | null;
+  classification?: { statusz?: string } | null;
 }): string {
   const as = (r.approval_status || '').toLowerCase();
-  if (as === 'pending' || as === 'pending_approval' || as === 'johagyasra_var') {
-    return 'Nyitott';
-  }
-  if (as === 'lezárt') {
-    return 'Lezárt';
-  }
-
+  const isClosed = as === 'approved' || as === 'lezárt' || as === 'rejected';
+  
+  if (as === 'lezárt') return 'Lezárt';
   if (r.classification?.statusz) return r.classification.statusz;
 
   const hr = (r.handover_reason || '').toLowerCase();
-  const isClosed = as === 'approved' || as === 'lezárt' || as === 'rejected';
-
+  const tags = r.alert_tags || [];
   const categoryStr = detectUgyTipus(r);
   const erStr = detectEredmeny(r);
-  const erList = erStr.split(',').map((s) => s.trim()).filter(Boolean);
+  const isUrgent = categoryStr.includes('Panasz') || 
+                   erStr.includes('Panasz rögzítve') || 
+                   hr.includes('sürgős') || 
+                   hr.includes('urgent') || 
+                   tags.includes('urgent');
 
+  // 1. URGENT cases (unless explicitly closed)
+  if (isUrgent) {
+    if (isClosed && !hr.includes('sürgős') && !hr.includes('urgent')) {
+      return 'Lezárt';
+    }
+    return 'Sürgős';
+  }
+
+  // 2. CLOSED cases
   if (isClosed) {
-    if (erList.includes('Panasz rögzítve')) {
-      // If the complaint was approved/handled AND handover_reason doesn't indicate ongoing urgency, mark as resolved
-      if (!hr.includes('sürgős') && !hr.includes('urgent')) {
-        return 'Lezárt';
-      }
-      return 'Sürgős';
-    }
-    if (erList.includes('Időpont előkészítve')) {
-      return 'Nyitott';
-    }
+    if (erStr.includes('Időpont előkészítve')) return 'Nyitott';
     return 'Lezárt';
   }
 
-  if (categoryStr.includes('Panasz') || erList.includes('Panasz rögzítve')) {
-    return 'Sürgős';
-  }
-
-  const allResolved = erList.every(
-    (er) =>
-      er === 'Megválaszolt kérdés' ||
-      er === 'Új időpont' ||
-      er === 'Időpont módosítva' ||
-      er === 'Időpont törölve'
-  );
-  if (erList.length > 0 && allResolved) {
-    return 'Lezárt';
-  }
-
-  const tags = r.alert_tags || [];
-  if (hr.includes('sürgős') || hr.includes('urgent') || tags.includes('urgent')) {
-    return 'Sürgős';
+  // 3. PENDING cases (Open)
+  if (as === 'pending' || as === 'pending_approval' || as === 'johagyasra_var') {
+    return 'Nyitott';
   }
 
   return 'Nyitott';
@@ -318,47 +302,42 @@ export function detectTeendo(r: {
   approval_status?: string | null;
   badge?: string | null;
   alert_tags?: string[] | null;
-  classification?: { ugytipus?: string; eredmeny?: string; statusz?: string; teendo?: string } | null;
+  classification?: { teendo?: string } | null;
 }): string {
   const as = (r.approval_status || '').toLowerCase();
+  const isClosed = as === 'approved' || as === 'lezárt' || as === 'rejected';
+  
+  if (r.classification?.teendo) return r.classification.teendo;
+
+  const utStr = detectUgyTipus(r);
+  const erStr = detectEredmeny(r);
+  const hr = (r.handover_reason || '').toLowerCase();
+  const tags = r.alert_tags || [];
+  const erList = erStr.split(',').map((s) => s.trim()).filter(Boolean);
+  
+  const isUrgent = utStr.includes('Panasz') || 
+                   erStr.includes('Panasz rögzítve') || 
+                   hr.includes('sürgős') || 
+                   hr.includes('urgent') || 
+                   tags.includes('urgent');
+
+  // 1. URGENT action priority
+  if (isUrgent) {
+    if (isClosed && !hr.includes('sürgős') && !hr.includes('urgent')) {
+      return 'Nincs további teendő';
+    }
+    return 'Azonnali beavatkozás';
+  }
+
+  // 2. PENDING action priority
   if (as === 'pending' || as === 'pending_approval' || as === 'johagyasra_var') {
     return 'Válasz jóváhagyása szükséges';
   }
 
-  if (r.classification?.teendo) return r.classification.teendo;
-
-  const isClosed = as === 'approved' || as === 'lezárt' || as === 'rejected';
-
-  const utStr = detectUgyTipus(r);
-  const erStr = detectEredmeny(r);
-  const erList = erStr.split(',').map((s) => s.trim()).filter(Boolean);
-
   if (isClosed) {
-    if (erList.includes('Panasz rögzítve')) {
-      const hr = (r.handover_reason || '').toLowerCase();
-      if (!hr.includes('sürgős') && !hr.includes('urgent')) {
-        return 'Nincs további teendő';
-      }
-      return 'Azonnali beavatkozás';
-    }
     if (erList.includes('Időpont előkészítve')) {
       return 'Időpont véglegesítése';
     }
-    return 'Nincs további teendő';
-  }
-
-  if (utStr.includes('Panasz') || erList.includes('Panasz rögzítve')) {
-    return 'Azonnali beavatkozás';
-  }
-
-  const allResolved = erList.every(
-    (er) =>
-      er === 'Megválaszolt kérdés' ||
-      er === 'Új időpont' ||
-      er === 'Időpont módosítva' ||
-      er === 'Időpont törölve'
-  );
-  if (erList.length > 0 && allResolved) {
     return 'Nincs további teendő';
   }
 
