@@ -2214,6 +2214,38 @@ def admin_delete_interactions(req: BulkDeleteInteractionsRequest, username: str 
     return {"deleted_interactions": deleted_interactions, "deleted_sessions": deleted_sessions}
 
 
+class InteractionStatusUpdateRequest(BaseModel):
+    status: str
+
+@app.patch("/admin/api/interactions/{id}/status")
+def update_interaction_status(id: int, req: InteractionStatusUpdateRequest, username: str = Depends(verify_jwt)):
+    """Safe status update that handles both approval_status and classification override."""
+    if req.status != "lezárt":
+        raise HTTPException(status_code=400, detail="Érvénytelen státusz érték. Csak a 'lezárt' támogatott.")
+    
+    try:
+        if not db.supabase:
+            raise Exception("Database connection not available")
+
+        updates = {"approval_status": "lezárt"}
+        
+        # Fetch existing classification to avoid overriding other fields (ugytipus, eredmeny, etc.)
+        res = db.supabase.table("interactions").select("classification").eq("id", id).execute()
+        if res.data and len(res.data) > 0:
+            cls = res.data[0].get("classification")
+            if isinstance(cls, dict):
+                # Update the inner statusz field which detectStatusz prioritizes
+                cls["statusz"] = "Lezárt"
+                updates["classification"] = cls
+        
+        db.supabase.table("interactions").update(updates).eq("id", id).execute()
+        logger.info(f"Interaction {id} marked as lezárt by {username}")
+        return {"status": "success", "message": "Interakció lezárva"}
+    except Exception as e:
+        logger.error(f"Status update error for interaction {id}: {e}")
+        raise HTTPException(status_code=500, detail="Hiba a státusz frissítésekor az adatbázisban")
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # CLIENTS (KANBAN) API
 # ═══════════════════════════════════════════════════════════════════════════════

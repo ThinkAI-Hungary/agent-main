@@ -256,6 +256,9 @@ export function detectStatusz(r: {
   if (as === 'pending' || as === 'pending_approval' || as === 'johagyasra_var') {
     return 'Nyitott';
   }
+  if (as === 'lezárt') {
+    return 'Lezárt';
+  }
 
   if (r.classification?.statusz) return r.classification.statusz;
 

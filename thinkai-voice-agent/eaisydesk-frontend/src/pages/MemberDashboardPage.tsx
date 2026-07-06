@@ -44,6 +44,7 @@ const ALL_COLUMNS = [
   { key: 'eredmeny', label: 'Eredmény' },
   { key: 'statusz', label: 'Státusz' },
   { key: 'teendo', label: 'Teendő' },
+  { key: 'done', label: 'Elvégezve' },
 ] as const;
 
 // ── Filter options ──
@@ -83,6 +84,27 @@ export default function MemberDashboardPage() {
   useEffect(() => {
     registerOnApproved(refetchSessions);
   }, [registerOnApproved, refetchSessions]);
+
+  const handleMarkDone = async (e: React.MouseEvent, row: InteractionRow) => {
+    e.stopPropagation();
+    if (row.statusz === 'Lezárt') return;
+
+    try {
+      const response = await authFetch(`/admin/api/interactions/${row.interactionId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'lezárt' }),
+      });
+
+      if (!response.ok) throw new Error('Failed to update status');
+      
+      showToast('Interakció lezárva', 'success');
+      refetchSessions();
+    } catch (err) {
+      console.error('Error marking done:', err);
+      showToast('Hiba a lezárás során', 'error');
+    }
+  };
 
   // UI state
   const [searchQuery, setSearchQuery] = useState('');
@@ -906,6 +928,23 @@ export default function MemberDashboardPage() {
                       {visibleCols.has('teendo') && (
                         <td className="int-td int-td--truncate" title={r.teendo}>
                           <span className="int-teendo-text">{r.teendo}</span>
+                        </td>
+                      )}
+                      {visibleCols.has('done') && (
+                        <td className="int-td" style={{ textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={r.statusz === 'Lezárt'}
+                            disabled={r.statusz === 'Lezárt'}
+                            onChange={() => {}}
+                            onClick={(e) => handleMarkDone(e, r)}
+                            style={{ 
+                              cursor: r.statusz === 'Lezárt' ? 'default' : 'pointer',
+                              width: '18px',
+                              height: '18px',
+                              accentColor: '#1ceee0'
+                            }}
+                          />
                         </td>
                       )}
                     </tr>
