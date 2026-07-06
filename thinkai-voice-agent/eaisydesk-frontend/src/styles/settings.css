@@ -1488,7 +1488,7 @@
 
     /* Price input (accent color + right-align) */
     .price-modal-input--price {
-      color: #1ceee0;
+      color: #186D98;
       font-weight: 700;
       text-align: right;
     }
@@ -1970,24 +1970,25 @@ body.dark .campaign-card {
 
 .campaign-label {
   display: block;
-  font-size: 11px;
+  font-family: 'Inter', Arial, sans-serif;
+  font-size: 12px;
   font-weight: 600;
-  color: var(--text-muted);
+  color: #5F7D95;
   margin-bottom: 6px;
 }
 
 .campaign-add-btn {
   background: none;
   border: none;
-  color: var(--primary, #1ceee0);
+  color: #186D98;
   font-size: 13px;
   font-weight: 700;
   display: inline-flex;
   align-items: center;
-  gap: 6px;
+  gap: 4px;
   cursor: pointer;
   padding: 0;
-  font-family: inherit;
+  font-family: 'Inter', Arial, sans-serif;
   transition: opacity 0.2s;
 }
 
@@ -1995,9 +1996,34 @@ body.dark .campaign-card {
   opacity: 0.8;
 }
 
-.campaign-add-btn svg {
-  width: 16px;
-  height: 16px;
+/* Campaign card footer: delete action at bottom-right */
+.campaign-card-footer {
+  display: flex;
+  justify-content: flex-end;
+  align-items: center;
+  gap: 12px;
+  margin-top: 12px;
+}
+
+/* Scoped input styling inside Akciók card */
+.ci-camp-card .tt-input {
+  height: 40px;
+  padding: 0 16px;
+  background: #FFFFFF;
+  border: 1px solid #D9D9D9;
+  font-family: 'Inter', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: #082432;
+}
+.ci-camp-card .tt-input:focus {
+  border-color: var(--accent);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(28, 238, 224, 0.15);
+}
+.ci-camp-card textarea.tt-input {
+  height: auto;
+  padding: 10px 16px;
 }
 
 
@@ -2057,14 +2083,12 @@ body.dark .campaign-card {
   gap: 12px;
   margin-bottom: 6px;
 }
-.ih-col-labels-3 {
-  grid-template-columns: 2fr 1.5fr 1.2fr;
-}
+.ih-col-labels-3,
 .ih-col-labels-3-del {
-  grid-template-columns: 2fr 1.5fr 1.2fr 32px;
+  grid-template-columns: 1.4fr 1fr 0.8fr;
 }
 .ih-col-labels-2 {
-  grid-template-columns: 1.2fr 1fr;
+  grid-template-columns: 1fr 1fr;
 }
 .ih-col-label {
   font-size: 12px;
@@ -2080,24 +2104,29 @@ body.dark .campaign-card {
   align-items: center;
   margin-bottom: 10px;
 }
-.ih-row-3 {
-  grid-template-columns: 2fr 1.5fr 1.2fr;
+.ih-row-3,
+.ih-row-3-del {
+  grid-template-columns: 1.4fr 1fr 0.8fr;
 }
 .ih-row-3-del {
-  grid-template-columns: 2fr 1.5fr 1.2fr 32px;
+  position: relative;
 }
 .ih-row-2 {
-  grid-template-columns: 1.2fr 1fr;
+  grid-template-columns: 1fr 1fr;
 }
 
 /* Read-only field — looks like tt-input but non-interactive */
 .ih-readonly {
-  background: #f0f3f7;
-  border: 1.5px solid transparent;
+  background: #F5F5F5;
+  border: 1px solid #D9D9D9;
   border-radius: var(--radius);
-  color: var(--text);
-  padding: 12px 16px;
+  color: #5F7D95;
+  padding: 0 16px;
+  height: 40px;
+  display: flex;
+  align-items: center;
   font-size: 13px;
+  font-weight: 400;
   font-family: 'Inter', Arial, sans-serif;
   cursor: default;
   user-select: text;
@@ -2108,7 +2137,7 @@ body.dark .ih-readonly {
   color: var(--text);
 }
 
-/* Scoped turquoise add button (does not affect global .btn-add) */
+/* Scoped add button */
 .ih-add-btn {
   background: none;
   border: none;
@@ -2124,11 +2153,146 @@ body.dark .ih-readonly {
   opacity: 0.7;
 }
 
-/* Delete button alignment in grid rows */
+/* ── Scoped refinements inside IssueHandlingRulesSection (.ih-card) ── */
+
+/* Subsection spacing and typography */
+.ih-card .ih-subsection-title,
+.br-card .ih-subsection-title {
+  margin-top: 42px;
+  font-size: 14px;
+  font-weight: 600;
+  color: #082432;
+}
+
+/* Subsection icons: pale teal bg, dark teal stroke */
+.ih-card .ih-subsection-icon,
+.br-card .ih-subsection-icon {
+  background: #DFFFFD;
+}
+.ih-card .ih-subsection-icon svg,
+.br-card .ih-subsection-icon svg {
+  stroke: #186D98;
+}
+
+/* Column labels: 12px semibold, muted */
+.ih-card .ih-col-label,
+.br-card .ih-col-label {
+  font-size: 12px;
+  font-weight: 600;
+  color: #5F7D95;
+}
+
+/* Add button: dark teal, bold */
+.ih-card .ih-add-btn,
+.br-card .btn-add {
+  color: #186D98;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Editable inputs inside polished cards */
+.ih-card .tt-input,
+.br-card .tt-input,
+.ci-card .tt-input,
+.ci-faq-card .tt-input {
+  height: 40px;
+  padding: 0 16px;
+  background: #FFFFFF;
+  border: 1px solid #D9D9D9;
+  font-size: 13px;
+  font-weight: 400;
+  color: #082432;
+}
+.ih-card .tt-input:focus,
+.br-card .tt-input:focus,
+.ci-card .tt-input:focus,
+.ci-faq-card .tt-input:focus {
+  border-color: var(--accent);
+  background: #FFFFFF;
+  box-shadow: 0 0 0 3px rgba(28, 238, 224, 0.15);
+}
+
+/* Selects inside polished cards */
+.ih-card .tt-select,
+.br-card .tt-select,
+.ci-card .tt-select {
+  height: 40px;
+  padding: 0 36px 0 16px;
+  background: #FFFFFF;
+  border: 1px solid #D9D9D9;
+  font-size: 13px;
+  font-weight: 400;
+  color: #082432;
+  box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.15);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%23082432' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 16px center;
+  background-size: 12px;
+}
+.ih-card .tt-select:focus,
+.br-card .tt-select:focus,
+.ci-card .tt-select:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(28, 238, 224, 0.15);
+}
+
+/* Textarea inside polished cards */
+.br-card .tt-textarea,
+.ci-faq-card .tt-textarea {
+  background: #FFFFFF;
+  border: 1px solid #D9D9D9;
+  font-family: 'Inter', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: #082432;
+  width: 100%;
+  resize: vertical;
+  padding: 10px 16px;
+  box-sizing: border-box;
+  min-height: 80px;
+}
+.br-card .tt-textarea:focus,
+.ci-faq-card .tt-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(28, 238, 224, 0.15);
+}
+
+/* Labels inside polished cards */
+.br-card .tt-label,
+.ci-card .tt-label,
+.ci-faq-card .tt-label {
+  font-family: 'Inter', Arial, sans-serif;
+  font-size: 12px;
+  font-weight: 600;
+  color: #5F7D95;
+  display: block;
+  margin-bottom: 6px;
+}
+
+/* Add button inside ci-card / ci-faq-card */
+.ci-card .btn-add,
+.ci-faq-card .btn-add {
+  color: #186D98;
+  font-size: 13px;
+  font-weight: 700;
+}
+
+/* Subtle indentation for subsection content */
+.ih-section-inner {
+  padding-left: 16px;
+  padding-right: 44px;
+}
+
+/* Delete button — positioned outside the grid */
 .ih-delete-cell {
+  position: absolute;
+  right: -44px;
+  top: 50%;
+  transform: translateY(-50%);
   display: flex;
   align-items: center;
   justify-content: center;
+  width: 32px;
 }
 
 /* ── Info banner (inline, below subsection title) ── */
@@ -2196,4 +2360,161 @@ body.dark .ih-readonly {
 .ih-info-banner-close svg {
   width: 18px;
   height: 18px;
+}
+
+/* 2-column grid for bottom booking subsections (inside the Foglalási szabályok card) */
+.br-bottom-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 32px;
+  margin-top: 28px;
+}
+
+/* Right-aligned save button row */
+.ih-save-row {
+  display: flex;
+  justify-content: flex-end;
+  margin-bottom: 16px;
+}
+
+/* ── Booking rules layout classes ────────────────────────── */
+
+/* § 1: Two-column layout for new/returning client fields */
+.br-clients-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
+}
+
+/* § 2: 4-column service grid */
+.br-grid-4col {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 0.5fr 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+/* § 2: 4-column label header for services */
+.br-col-labels-4 {
+  display: grid;
+  grid-template-columns: 1fr 1.5fr 0.5fr 1fr;
+  gap: 12px;
+  margin-bottom: 6px;
+  padding-right: 36px;
+}
+
+/* Booking section inner padding for delete icons */
+.br-section-inner {
+  padding-left: 16px;
+  padding-right: 16px;
+}
+
+/* Strip inner card borders from rows inside booking card */
+.br-card .sett-list-item {
+  border: none;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  gap: 12px;
+  margin-bottom: 10px;
+}
+
+/* ── Céginformációk: Cégadatok card ────────────────────── */
+
+/* Clinic row label header — matches settings-clinic-row grid */
+.settings-clinic-labels {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  gap: 12px;
+  margin-bottom: 6px;
+}
+
+/* ── Céginformációk: Szolgáltatás leírása card ─────────── */
+
+.ci-desc-card .tt-textarea {
+  width: 100%;
+  min-height: 120px;
+  max-height: 320px;
+  overflow-y: auto;
+  resize: vertical;
+  background: #FFFFFF;
+  border: 1px solid #D9D9D9;
+  font-family: 'Inter', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  color: #082432;
+  box-sizing: border-box;
+}
+.ci-desc-card .tt-textarea:focus {
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px rgba(28, 238, 224, 0.15);
+}
+
+/* ── Céginformációk: Navigation pills ──────────────────── */
+.ci-pill-tab {
+  background: #FFFFFF;
+  border: 1px solid #186D98;
+  color: #186D98;
+  font-family: 'Inter', Arial, sans-serif;
+  font-size: 13px;
+  font-weight: 400;
+  border-radius: 8px;
+  padding: 9px 18px;
+  transition: all 0.2s;
+}
+
+.ci-pill-tab:hover {
+  background: #f0f9ff;
+  border-color: #186D98;
+  color: #186D98;
+}
+
+.ci-pill-tab.active {
+  background: #DFFFFD;
+  border-color: #186D98;
+  color: #082432;
+  font-weight: 500;
+}
+
+/* ── Céginformációk: GYIK section ──────────────────────── */
+
+.faq-item-card {
+  padding: 20px 0;
+  background: transparent;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.2s;
+}
+
+.faq-item-card:first-child {
+  padding-top: 0;
+}
+
+.faq-item-card:last-child {
+  border-bottom: none;
+}
+
+.faq-item-card:hover {
+  background: rgba(28, 238, 224, 0.04);
+}
+
+.faq-item-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.faq-item-title {
+  font-family: 'Inter', Arial, sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  color: #5F7D95;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+
+.faq-2col {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px;
 }

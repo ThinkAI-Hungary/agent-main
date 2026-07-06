@@ -645,109 +645,74 @@ export default function SettingsPage() {
         {/* ═══════════ CÉGINFORMÁCIÓK TAB ═══════════ */}
         {activeTab === 'basic' && (
           <div>
-            <div className="page-header">
+            <div className="page-header" style={{ marginBottom: '24px' }}>
               <div className="page-title">Cég- és szolgáltatásinformációk</div>
+              <div className="ih-save-row" style={{ marginBottom: 0 }}>
+                <button className="beallitasok-save-btn" onClick={saveBusiness}>
+                  Változtatások mentése
+                </button>
+              </div>
             </div>
 
             {/* Quick-nav pills */}
-            <div className="flex-row gap-8 mb-24 flex-wrap">
-              <div className="flex-row gap-8 flex-wrap flex-1">
+            <div className="flex-row gap-8 mb-32 flex-wrap">
               {[
-                { id: 'sec-cegadatok', label: 'Cég fő adatai' },
+                { id: 'sec-cegadatok', label: 'Cégadatok' },
                 { id: 'sec-szolgaltatasok', label: 'Szolgáltatás leírása' },
                 { id: 'sec-nyitvatartas', label: 'Nyitvatartás' },
                 { id: 'sec-arak', label: 'Árak' },
                 { id: 'sec-kedvezmenyek', label: 'Kedvezmények' },
                 { id: 'sec-gyik', label: 'GYIK' },
               ].map(s => (
-                <button key={s.id} className="btn pill-tab" onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
+                <button key={s.id} className="btn ci-pill-tab" onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
                 >{s.label}</button>
               ))}
-              </div>
             </div>
 
             {/* ══════ 1. Cégadatok ══════ */}
             <div id="sec-cegadatok" className="scroll-anchor" />
-            <SectionCard title="Cégadatok" svgPath="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2zM9 22V12h6v10">
+            <SectionCard title="Cégadatok" svgPath="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2zM9 22V12h6v10" className="ci-card">
               <div className="grid-2col gap-16 mb-20">
                 <LabelInput label="Cég neve" value={business.practice_name} onChange={v => setBusiness({ ...business, practice_name: v })} placeholder="pl. Rivergate Bútoráruház Kft." />
                 <LabelInput label="Cég rövid (hivatkozási) neve" value={business.markanev} onChange={v => setBusiness({ ...business, markanev: v })} placeholder="pl. Rivergate" />
                 <LabelInput label="Szakterület" value={business.szakterulet} onChange={v => setBusiness({ ...business, szakterulet: v })} placeholder="pl. IT tanácsadás, marketing" />
                 <LabelInput label="Fő profil" value={business.kulcsszavak} onChange={v => setBusiness({ ...business, kulcsszavak: v })} placeholder="pl. Bútor kis-és nagykereskedés" />
               </div>
-              <div className="settings-section-divider">
-                <div className="form-label font-semibold mb-12 settings-form-label-bold">Telephelyek</div>
-                {clinics.map((c, i) => (
-                  <div key={c.id || i} className="settings-clinic-row">
-                    <input className="tt-input" value={c.name_and_address} onChange={e => setClinics(prev => prev.map((x, j) => j === i ? { ...x, name_and_address: e.target.value } : x))} placeholder="Telephely / üzlet címe" onBlur={() => saveClinic(c, i)} />
-                    <input className="tt-input" value={c.access_info || ''} onChange={e => setClinics(prev => prev.map((x, j) => j === i ? { ...x, access_info: e.target.value } : x))} placeholder="Megközelítés (opcionális)" onBlur={() => saveClinic(c, i)} />
-                    <DeleteBtn onClick={() => deleteClinic(c.id, i)} />
-                  </div>
-                ))}
-                <AddBtn label="Telephely hozzáadása" onClick={() => setClinics(prev => [...prev, { name_and_address: '', access_info: '' }])} />
+              {/* Telephely column labels */}
+              <div className="settings-clinic-labels">
+                <span className="tt-label">Telephely</span>
+                <span className="tt-label">Megközelítés</span>
+                <span></span>
               </div>
+              {clinics.map((c, i) => (
+                <div key={c.id || i} className="settings-clinic-row">
+                  <input className="tt-input" value={c.name_and_address} onChange={e => setClinics(prev => prev.map((x, j) => j === i ? { ...x, name_and_address: e.target.value } : x))} placeholder="Telephely / üzlet címe" onBlur={() => saveClinic(c, i)} />
+                  <input className="tt-input" value={c.access_info || ''} onChange={e => setClinics(prev => prev.map((x, j) => j === i ? { ...x, access_info: e.target.value } : x))} placeholder="Megközelítés (opcionális)" onBlur={() => saveClinic(c, i)} />
+                  <DeleteBtn onClick={() => deleteClinic(c.id, i)} />
+                </div>
+              ))}
+              <AddBtn label="Telephely hozzáadása" onClick={() => setClinics(prev => [...prev, { name_and_address: '', access_info: '' }])} />
             </SectionCard>
 
             {/* ══════ 2. Szolgáltatással kapcsolatos információk ══════ */}
             <div id="sec-szolgaltatasok" className="scroll-anchor" />
-            <SectionCard title="Szolgáltatással kapcsolatos információk" svgPath="M16 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M8.5 3a4 4 0 100 8 4 4 0 000-8zM20 8v6M23 11h-6">
-              {/* Szolgáltatás leírása */}
-              <div className="mb-20">
-                <div className="flex-row gap-8 mb-10">
-                  <div className="icon-box-sm settings-icon-sm-teal">
-                    <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="12" height="12"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" /></svg>
-                  </div>
-                  <span className="font-semibold text-md settings-section-text">Szolgáltatás leírása</span>
-                  <div className="settings-info-circle" title="Ide írd le részletesen, milyen szolgáltatásokat kínál a cég. Ez segíti az AI-t a pontos tájékoztatásban.">
-                    <span className="settings-info-circle-i">i</span>
-                  </div>
+            <div className="tt-section ci-desc-card">
+              <div className="tt-section-title mb-16">
+                <div className="icon-box">
+                  <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" /></svg>
                 </div>
-                <textarea className="tt-textarea settings-textarea--desc" value={business.service_description || ''} onChange={e => setBusiness({ ...business, service_description: e.target.value })} placeholder="Írja le részletesen a cég fő szolgáltatásait..." />
+                Szolgáltatás leírása
+                <div className="settings-info-circle" title={"Mire használja az eaisyDesk?\n\nItt adható meg a cég működésének, kínálatának és fő profiljának rövid, összefüggő leírása. Az eaisyDesk ezt a szöveget háttérinformációként használja az általános érdeklődések megválaszolásához."}>
+                  <span className="settings-info-circle-i">i</span>
+                </div>
               </div>
-
-              {/* Szolgáltatások */}
-              <div className="settings-svc-divider">
-                <div className="flex-row gap-8 mb-12">
-                  <div className="settings-icon-24">
-                    <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="12" height="12"><path d="M2 7h20v14a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" /></svg>
-                  </div>
-                  <span className="font-semibold text-md settings-section-text">Szolgáltatások</span>
-                </div>
-                <div className="grid-5col gap-8 mb-6" style={{ paddingLeft: 4, paddingRight: 36 }}>
-                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)', letterSpacing: '0.03em' }}>Szolgáltatás</span>
-                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)', letterSpacing: '0.03em' }}>Leírás</span>
-                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)', letterSpacing: '0.03em' }}>Időtartam (perc)</span>
-                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)', letterSpacing: '0.03em' }}>Felelős</span>
-                  <span className="text-xs font-medium" style={{ color: 'var(--text-muted)', letterSpacing: '0.03em' }}>Megjegyzés</span>
-                </div>
-                {services.map((s, i) => (
-                  <div key={s.id || i} className="sett-list-item">
-                    <div className="grid-5col gap-8 flex-1">
-                      <input className="tt-input" value={s.service_name} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, service_name: e.target.value } : x))} placeholder="Szolgáltatás neve" onBlur={() => saveService(s, i)} />
-                      <input className="tt-input" value={s.description || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder="Leírás" onBlur={() => saveService(s, i)} />
-                      <input className="tt-input" type="number" value={s.duration_minutes} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, duration_minutes: Number(e.target.value) } : x))} placeholder="Perc" onBlur={() => saveService(s, i)} />
-                      <input className="tt-input" value={s.assigned_to || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, assigned_to: e.target.value } : x))} placeholder="Felelős (opcionális)" onBlur={() => saveService(s, i)} />
-                      <input className="tt-input" value={s.note || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, note: e.target.value } : x))} placeholder="Megjegyzés" onBlur={() => saveService(s, i)} />
-                    </div>
-                    <DeleteBtn onClick={() => deleteService(s.id, i)} />
-                  </div>
-                ))}
-                <AddBtn label="Szolgáltatás hozzáadása" onClick={() => setServices(prev => [...prev, { service_name: '', description: '', duration_minutes: 30, assigned_to: '', note: '' }])} />
-              </div>
-            </SectionCard>
+              <textarea className="tt-textarea" value={business.service_description || ''} onChange={e => setBusiness({ ...business, service_description: e.target.value })} placeholder="Írja le részletesen a cég fő szolgáltatásait..." />
+            </div>
 
             {/* ══════ 3. Nyitvatartás ══════ */}
             <div id="sec-nyitvatartas" className="scroll-anchor" />
             <SectionCard title="Nyitvatartás" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM12 6v6l4 2">
               <table className="data-table">
-                <thead className="int-thead">
-                  <tr>
-                    <th className="sett-th">Nap</th>
-                    <th className="sett-th">Nyitás</th>
-                    <th className="sett-th">Zárás</th>
-                    <th className="sett-th sett-th--center"></th>
-                  </tr>
-                </thead>
                 <tbody>
                   {DAY_KEYS.map((key, i) => {
                     const raw = agent.business_hours[key] || { open: '08:00', close: '17:00', enabled: true };
@@ -783,8 +748,8 @@ export default function SettingsPage() {
 
             {/* ══════ 4. Árak ══════ */}
             <div id="sec-arak" className="scroll-anchor" />
-            <SectionCard title="Árak" svgPath="M12 1v22M17 5H9.5a3.5 3.5 0 000 7h5a3.5 3.5 0 010 7H6">
-              <div className="text-desc mb-16">Az aktuális árlista itt szerkeszthető és tekinthető meg.</div>
+            <SectionCard title="Árak" svgPath="M12 2C6.48 2 2 4.02 2 6.5v11C2 19.98 6.48 22 12 22s10-2.02 10-4.5v-11C22 4.02 17.52 2 12 2zM2 11c0 2.48 4.48 4.5 10 4.5s10-2.02 10-4.5">
+
               {(() => {
                 const pl = (business as Record<string, unknown>).price_list;
                 const rows = typeof pl === 'string' ? pl.split('\n').filter(r => r.trim()).map(r => {
@@ -823,19 +788,16 @@ export default function SettingsPage() {
 
             {/* ══════ 5. Akciók, kedvezmények ══════ */}
             <div id="sec-kedvezmenyek" className="scroll-anchor" />
-            <SectionCard title="Akciók, kedvezmények" svgPath="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z">
+            <SectionCard title="Akciók, kedvezmények" svgPath="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" className="ci-camp-card">
 
               {(business.campaigns || []).map((c: { active: boolean; text: string, name?: string }, i: number) => (
                 <div key={i} className="campaign-card">
                   <div className="campaign-card-header">
                     <div className="campaign-card-title">KEDVEZMÉNY #{i + 1}</div>
-                    <div className="campaign-card-actions">
-                      <DeleteBtn onClick={() => { const campaigns = (business.campaigns || []).filter((_: unknown, j: number) => j !== i); setBusiness({ ...business, campaigns }); }} />
-                      <label className="tt-toggle" style={{ margin: 0 }}>
-                        <input type="checkbox" checked={c.active !== false} onChange={e => { const campaigns = [...(business.campaigns || [])]; campaigns[i] = { ...campaigns[i], active: e.target.checked }; setBusiness({ ...business, campaigns }); }} />
-                        <span className="tt-toggle-slider" />
-                      </label>
-                    </div>
+                    <label className="tt-toggle" style={{ margin: 0 }}>
+                      <input type="checkbox" checked={c.active !== false} onChange={e => { const campaigns = [...(business.campaigns || [])]; campaigns[i] = { ...campaigns[i], active: e.target.checked }; setBusiness({ ...business, campaigns }); }} />
+                      <span className="tt-toggle-slider" />
+                    </label>
                   </div>
                   <div className="campaign-card-body">
                     <div className="campaign-field">
@@ -847,22 +809,24 @@ export default function SettingsPage() {
                       <textarea className="tt-input" style={{ width: '100%', resize: 'vertical' }} value={c.text || ''} onChange={e => { const campaigns = [...(business.campaigns || [])]; campaigns[i] = { ...campaigns[i], text: e.target.value }; setBusiness({ ...business, campaigns }); }} placeholder="Írd ide a kedvezmény részleteit..." rows={3} />
                     </div>
                   </div>
+                  <div className="campaign-card-footer">
+                    <DeleteBtn onClick={() => { const campaigns = (business.campaigns || []).filter((_: unknown, j: number) => j !== i); setBusiness({ ...business, campaigns }); }} />
+                  </div>
                 </div>
               ))}
               <div className="mt-16">
-                <button 
+                <button
                   className="campaign-add-btn"
                   onClick={() => setBusiness({ ...business, campaigns: [...(business.campaigns || []), { active: true, name: '', text: '' }] })}
                 >
-                  <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
-                  Kedvezmény hozzáadása
+                  + Kedvezmény hozzáadása
                 </button>
               </div>
             </SectionCard>
 
             {/* ══════ 6. Gyakori Kérdések ══════ */}
             <div id="sec-gyik" className="scroll-anchor" />
-            <SectionCard title="Gyakori Kérdések" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01">
+            <SectionCard title="Gyakori Kérdések" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" className="ci-faq-card">
               {(business.faq || []).length === 0 && (
                 <div className="settings-faq-empty">
                   <svg fill="none" stroke="var(--text-muted)" strokeWidth="1.5" viewBox="0 0 24 24" width="36" height="36" className="settings-faq-empty-icon">
@@ -873,34 +837,28 @@ export default function SettingsPage() {
                 </div>
               )}
               <div className="flex-col gap-16">
-                {(business.faq || []).map((f, i) => (
-                  <div key={i} className="settings-faq-card">
-                    {/* ── Question section ── */}
-                    <div className="settings-faq-question">
-                      <div className="settings-faq-num">{i + 1}</div>
-                      <div className="settings-faq-q-col">
-                        <span className="settings-faq-label">Kérdés</span>
-                        <input className="tt-input settings-faq-q-input" value={f.question}
-                          onChange={e => { const faq = [...(business.faq || [])]; faq[i] = { ...faq[i], question: e.target.value }; setBusiness({ ...business, faq }); }}
-                          placeholder="Írd be a kérdést..."
-                        />
-                      </div>
-                      <DeleteBtn onClick={() => { const faq = (business.faq || []).filter((_, j) => j !== i); setBusiness({ ...business, faq }); }} />
+                {(business.faq || []).map((f: { question: string; answer: string }, i: number) => (
+                  <div key={i} className="faq-item-card">
+                    <div className="faq-item-header">
+                      <div className="faq-item-title">Kérdés-válasz #{i + 1}</div>
+                      <DeleteBtn onClick={() => { const faq = (business.faq || []).filter((_: unknown, j: number) => j !== i); setBusiness({ ...business, faq }); }} />
                     </div>
-                    {/* ── Answer section ── */}
-                    <div className="settings-faq-answer">
-                      <span className="settings-faq-a-label">Válasz</span>
-                      <textarea className="tt-textarea settings-faq-a-textarea" value={f.answer}
-                        onChange={e => { const faq = [...(business.faq || [])]; faq[i] = { ...faq[i], answer: e.target.value }; setBusiness({ ...business, faq }); }}
-                        placeholder="Írd be a választ..."
-                        ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
-                        onInput={e => { const t = e.target as HTMLTextAreaElement; t.style.height = 'auto'; t.style.height = t.scrollHeight + 'px'; }}
-                      />
+                    <div className="faq-2col">
+                      <div>
+                        <label className="tt-label">Kérdés</label>
+                        <textarea className="tt-textarea" value={f.question} onChange={e => { const faq = [...(business.faq || [])]; faq[i] = { ...faq[i], question: e.target.value }; setBusiness({ ...business, faq }); }} placeholder="Írd be a kérdést..." rows={3} />
+                      </div>
+                      <div>
+                        <label className="tt-label">Válasz</label>
+                        <textarea className="tt-textarea" value={f.answer} onChange={e => { const faq = [...(business.faq || [])]; faq[i] = { ...faq[i], answer: e.target.value }; setBusiness({ ...business, faq }); }} placeholder="Írd be a választ..." rows={3} />
+                      </div>
                     </div>
                   </div>
                 ))}
               </div>
-              <AddBtn label="Kérdés hozzáadása" onClick={() => setBusiness({ ...business, faq: [...(business.faq || []), { question: '', answer: '' }] })} />
+              <div style={{ paddingTop: '20px' }}>
+                <AddBtn label="Kérdés hozzáadása" onClick={() => setBusiness({ ...business, faq: [...(business.faq || []), { question: '', answer: '' }] })} />
+              </div>
             </SectionCard>
           </div>
         )}
@@ -916,74 +874,124 @@ export default function SettingsPage() {
             <IssueHandlingRulesSection />
 
             {/* ── FOGLALÁSI SZABÁLYOK ── */}
-            <div className="tt-section-title mb-16" style={{ marginTop: 32 }}>
-              <div className="icon-box">
-                <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
-                  <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><path d="M16 2v4M8 2v4M3 10h18" />
-                </svg>
+            <div className="tt-section br-card" style={{ marginTop: 32 }}>
+              <div className="tt-section-title mb-16">
+                <div className="icon-box">
+                  <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
+                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><path d="M16 2v4M8 2v4M3 10h18" />
+                  </svg>
+                </div>
+                Foglalási szabályok
               </div>
-              Foglalási szabályok
+
+              <div className="br-section-inner">
+
+              {/* § 1. Új és visszatérő ügyfelek kezelése */}
+              <div className="ih-subsection-title">
+                <div className="ih-subsection-icon">
+                  <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></svg>
+                </div>
+                Új és visszatérő ügyfelek kezelése
+              </div>
+              <div className="mb-12">
+                <label className="tt-label">Új ügyfelek beazonosítását szolgáló kérdés</label>
+                <input className="tt-input" value={business.pacient_id_question || ''} onChange={e => setBusiness({ ...business, pacient_id_question: e.target.value })} placeholder="pl. Járt már nálunk korábban?" />
+              </div>
+              <div className="br-clients-2col">
+                <div>
+                  <label className="tt-label">Új ügyféltől bekérendő adat</label>
+                  <input className="tt-input" value={business.new_patient_required || ''} onChange={e => setBusiness({ ...business, new_patient_required: e.target.value })} placeholder="pl. Név, email cím" />
+                </div>
+                <div>
+                  <label className="tt-label">Visszatérő ügyféltől bekérendő adat</label>
+                  <input className="tt-input" value={business.returning_patient_required || ''} onChange={e => setBusiness({ ...business, returning_patient_required: e.target.value })} placeholder="pl. Név, születési év" />
+                </div>
+              </div>
+
+              {/* § 2. Foglalható szolgáltatások, kollégák */}
+              <div className="ih-subsection-title">
+                <div className="ih-subsection-icon">
+                  <svg viewBox="0 0 24 24"><path d="M2 7h20v14a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" /></svg>
+                </div>
+                Foglalható szolgáltatások, kollégák
+              </div>
+              <div className="br-col-labels-4">
+                <span className="ih-col-label">Szolgáltatás neve</span>
+                <span className="ih-col-label">Leírás</span>
+                <span className="ih-col-label">Időtartam (perc)</span>
+                <span className="ih-col-label">Kolléga</span>
+              </div>
+              {services.map((s, i) => (
+                <div key={s.id || i} className="sett-list-item">
+                  <div className="br-grid-4col flex-1">
+                    <input className="tt-input" value={s.service_name} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, service_name: e.target.value } : x))} placeholder="Szolgáltatás neve" onBlur={() => saveService(s, i)} />
+                    <input className="tt-input" value={s.description || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder="Leírás" onBlur={() => saveService(s, i)} />
+                    <input className="tt-input" type="number" value={s.duration_minutes} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, duration_minutes: Number(e.target.value) } : x))} placeholder="Perc" onBlur={() => saveService(s, i)} />
+                    <input className="tt-input" value={s.assigned_to || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, assigned_to: e.target.value } : x))} placeholder="Kolléga" onBlur={() => saveService(s, i)} />
+                  </div>
+                  <DeleteBtn onClick={() => deleteService(s.id, i)} />
+                </div>
+              ))}
+              <AddBtn label="Szolgáltatás hozzáadása" onClick={() => setServices(prev => [...prev, { service_name: '', description: '', duration_minutes: 30, assigned_to: '', note: '' }])} />
+
+              {/* § 3. Kivételek kezelése */}
+              <div className="ih-subsection-title">
+                <div className="ih-subsection-icon">
+                  <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" /></svg>
+                </div>
+                Kivételek kezelése
+              </div>
+              {(business.exceptions || []).map((ex: string, i: number) => (
+                <div key={i} className="sett-list-item sett-list-item--mb6">
+                  <input className="tt-input flex-1" value={ex} onChange={e => { const exceptions = [...(business.exceptions || [])]; exceptions[i] = e.target.value; setBusiness({ ...business, exceptions }); }} placeholder="Kivétel leírása..." />
+                  <DeleteBtn onClick={() => { const exceptions = (business.exceptions || []).filter((_: string, j: number) => j !== i); setBusiness({ ...business, exceptions }); }} />
+                </div>
+              ))}
+              <AddBtn label="Kivétel hozzáadása" onClick={() => setBusiness({ ...business, exceptions: [...(business.exceptions || []), ''] })} />
+
+              {/* § 4. Időpont módosítása és lemondása */}
+              <div className="ih-subsection-title">
+                <div className="ih-subsection-icon">
+                  <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM15 9l-6 6M9 9l6 6" /></svg>
+                </div>
+                Időpont módosítása és lemondása
+              </div>
+
+              {/* Column labels */}
+              <div className="ih-col-labels ih-col-labels-2">
+                <span className="ih-col-label">Ügytípus</span>
+                <span className="ih-col-label">eaisyDesk eljárás</span>
+              </div>
+
+              {/* Row 1: Időpont módosítása / lemondása */}
+              <div className="ih-row ih-row-2">
+                <div className="ih-readonly">Időpont módosítása / lemondása</div>
+                <select className="tt-select" value={(() => { const v = business.modositas_eng; if (v === 'igen') return 'onalloKezeles'; if (v === 'nem') return 'handoff'; return v || 'onalloKezeles'; })()} onChange={e => setBusiness({ ...business, modositas_eng: e.target.value })}>
+                  <option value="onalloKezeles">Önállóan kezelheti</option>
+                  <option value="handoff">Átadás embernek</option>
+                  <option value="urgent">Sürgős átadás embernek</option>
+                </select>
+              </div>
+
+              {/* Row 2: 24 órán belüli */}
+              <div className="ih-row ih-row-2" style={{ marginBottom: 0 }}>
+                <div className="ih-readonly">24 órán belüli módosítás / lemondás kezelése</div>
+                <select className="tt-select" value={(() => { const v = business.lemondas_24h; if (v === 'elfogadhato' || v === 'figyelmeztetoSzoveggel') return 'onalloKezeles'; if (v === 'eloAtadas') return 'handoff'; return v || 'onalloKezeles'; })()} onChange={e => setBusiness({ ...business, lemondas_24h: e.target.value })}>
+                  <option value="onalloKezeles">Önállóan kezelheti</option>
+                  <option value="handoff">Átadás embernek</option>
+                  <option value="urgent">Sürgős átadás embernek</option>
+                </select>
+              </div>
+
+              {/* Warning textarea — always visible */}
+              <div className="mt-16">
+                <label className="tt-label">Figyelmeztetés 24 órán belüli módosítás / lemondás esetén</label>
+                <textarea className="tt-textarea" value={business.figyelmezteto_szoveg || ''} onChange={e => setBusiness({ ...business, figyelmezteto_szoveg: e.target.value })} placeholder="Tájékoztatjuk, hogy 24 órán belül történő lemondás vagy módosítás esetén rendelőnk rendelkezésre állási díjat számíthat fel." />
+              </div>
+
+              </div>
             </div>
 
-            {/* 1. Új/visszatérő ügyfél */}
-            <SectionCard title="Új és visszatérő ügyfelek kezelése" svgPath="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75">
-              <div className="settings-clients-grid">
-                <LabelInput label="Ügyfél beazonosítását szolgáló kérdés" value={business.pacient_id_question} onChange={v => setBusiness({ ...business, pacient_id_question: v })} />
-                <LabelInput label="Új ügyfél -- kötelezően bekérendő adat" value={business.new_patient_required} onChange={v => setBusiness({ ...business, new_patient_required: v })} />
-                <div className="flex-row gap-12">
-                  <label className="tt-label settings-label-nowrap">Új ügyfélnek automatikus első találkozó</label>
-                  <label className="tt-toggle">
-                    <input type="checkbox" checked={business.new_patient_auto_visit} onChange={e => setBusiness({ ...business, new_patient_auto_visit: e.target.checked })} />
-                    <span className="tt-toggle-slider" />
-                  </label>
-                </div>
-                <LabelInput label="Visszatérő ügyfél -- kötelező szabály" value={business.returning_patient_required} onChange={v => setBusiness({ ...business, returning_patient_required: v })} />
-              </div>
-            </SectionCard>
-
-            {/* 3. Kivételek + Lemondás */}
-            <div className="settings-rules-2col">
-              {/* Kivételek */}
-              <SectionCard title="Kivételek kezelése" svgPath="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01">
-                <p className="settings-exceptions-p">Helyzetek, amikor az eaisyDesk nem foglalhat automatikusan.</p>
-                {(business.exceptions || []).map((ex, i) => (
-                  <div key={i} className="sett-list-item sett-list-item--mb6">
-                    <input className="tt-input flex-1" value={ex} onChange={e => { const exceptions = [...(business.exceptions || [])]; exceptions[i] = e.target.value; setBusiness({ ...business, exceptions }); }} />
-                    <DeleteBtn onClick={() => { const exceptions = (business.exceptions || []).filter((_, j) => j !== i); setBusiness({ ...business, exceptions }); }} />
-                  </div>
-                ))}
-                {(!business.exceptions || business.exceptions.length === 0) && (
-                  <div className="settings-exceptions-empty">
-                    Még nincsenek kivételek megadva.
-                  </div>
-                )}
-                <AddBtn label="Kivétel hozzáadása" onClick={() => setBusiness({ ...business, exceptions: [...(business.exceptions || []), ''] })} />
-              </SectionCard>
-
-              {/* Lemondás */}
-              <SectionCard title="Lemondás és módosítás" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM15 9l-6 6M9 9l6 6">
-                <div className="flex-col settings-cancel-col">
-                  <div>
-                    <label className="tt-label">Időpont módosításának engedélyezése</label>
-                    <select className="tt-select" value={business.modositas_eng} onChange={e => setBusiness({ ...business, modositas_eng: e.target.value })}>
-                      <option value="igen">Igen</option>
-                      <option value="nem">Nem</option>
-                    </select>
-                  </div>
-                  <div>
-                    <label className="tt-label">24 órán belüli lemondás kezelése</label>
-                    <select className="tt-select" value={business.lemondas_24h} onChange={e => setBusiness({ ...business, lemondas_24h: e.target.value })}>
-                      <option value="elfogadhato">Elfogadható</option>
-                      <option value="figyelmeztetoSzoveggel">Elfogadható figyelmeztető szöveggel</option>
-                      <option value="eloAtadas">Élő átadás szükséges</option>
-                    </select>
-                  </div>
-                  {business.lemondas_24h === 'figyelmeztetoSzoveggel' && (
-                    <textarea className="tt-textarea" value={business.figyelmezteto_szoveg} onChange={e => setBusiness({ ...business, figyelmezteto_szoveg: e.target.value })} />
-                  )}
-                </div>
-              </SectionCard>
-            </div>
 
 
           </div>
@@ -1107,13 +1115,13 @@ function IssueHandlingRulesSection() {
   return (
     <>
       {/* Save button row */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+      <div className="ih-save-row">
         <button className="beallitasok-save-btn" onClick={handleSave}>
           Változtatások mentése
         </button>
       </div>
 
-      <div className="tt-section">
+      <div className="tt-section ih-card">
         {/* ── Card title row ── */}
         <div className="tt-section-title mb-16">
           <div className="icon-box">
@@ -1124,6 +1132,7 @@ function IssueHandlingRulesSection() {
           Ügykezelési szabályok
         </div>
 
+        <div className="ih-section-inner">
         {/* ══════ § 1. Alapértelmezett szabályok ══════ */}
         <div className="ih-subsection-title">
           <div className="ih-subsection-icon">
@@ -1225,11 +1234,10 @@ function IssueHandlingRulesSection() {
         )}
 
         {/* Column labels */}
-        <div className="ih-col-labels ih-col-labels-3-del">
+        <div className="ih-col-labels ih-col-labels-3">
           <span className="ih-col-label">Ügytípus</span>
           <span className="ih-col-label">eaisyDesk eljárás</span>
           <span className="ih-col-label">Értesítendő</span>
-          <span></span>
         </div>
 
         {/* Editable custom rule rows */}
@@ -1267,6 +1275,7 @@ function IssueHandlingRulesSection() {
         <button className="ih-add-btn" onClick={addCustomRule}>
           + Szabály hozzáadása
         </button>
+        </div>
       </div>
     </>
   );
@@ -1293,9 +1302,9 @@ function _SettingsField({ label, svgPath, children }: { label: string; svgPath: 
   );
 }
 
-function SectionCard({ title, svgPath, children }: { title: string; svgPath: string; children: React.ReactNode }) {
+function SectionCard({ title, svgPath, children, className }: { title: string; svgPath: string; children: React.ReactNode; className?: string }) {
   return (
-    <div className="tt-section">
+    <div className={`tt-section${className ? ` ${className}` : ''}`}>
       <div className="tt-section-title mb-16">
         <div className="icon-box">
           <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><path d={svgPath} /></svg>
@@ -1539,6 +1548,10 @@ function InlinePriceEditor({ initialRows, onSave }: { initialRows: { category: s
 
   return (
     <div className="price-inline-editor">
+      {/* Active item count */}
+      <div style={{ fontSize: '13px', color: 'var(--text-muted)', marginBottom: '12px' }}>
+        {rows.filter(r => r.service.trim() || r.category.trim()).length} aktív tétel
+      </div>
       {/* Table header */}
       <div className="price-modal-thead">
         {['KATEGÓRIA', 'SZOLGÁLTATÁS', 'ÁR', 'PÉNZNEM', 'MEGJEGYZÉS', ''].map((h, i) => (
@@ -1608,35 +1621,29 @@ function InlinePriceEditor({ initialRows, onSave }: { initialRows: { category: s
         ))}
       </div>
       
-      {/* Add row / Clear all buttons */}
-      <div style={{ padding: '0 0 16px 0', display: 'flex', gap: '24px', alignItems: 'center' }}>
+      {/* Add row button */}
+      <div style={{ padding: '0 0 16px 0' }}>
         <button onClick={addRow} className="price-modal-add-btn"
-          style={{ width: 'auto', margin: 0, padding: 0, color: '#1ceee0', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer' }}
+          style={{ width: 'auto', margin: 0, padding: '0 0 0 4px', color: '#186D98', display: 'flex', alignItems: 'center', gap: '6px', fontSize: '13px', fontWeight: 700, border: 'none', background: 'transparent', cursor: 'pointer' }}
           onMouseEnter={e => e.currentTarget.style.opacity = '1'}
           onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
         >
-          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
-            <circle cx="12" cy="12" r="10" /><path d="M12 8v8M8 12h8" />
-          </svg>
-          Új tétel hozzáadása
+          + Új tétel hozzáadása
         </button>
-        <button onClick={clearAllRows} className="price-modal-clear-btn"
-          style={{ width: 'auto', margin: 0, padding: 0, color: '#ff5050', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer', opacity: 0.7 }}
+      </div>
+
+      {/* Footer */}
+      <div className="price-modal-footer" style={{ borderTop: '1px solid var(--border)', paddingTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+        <button onClick={clearAllRows}
+          style={{ margin: 0, padding: 0, color: '#ff5050', display: 'flex', alignItems: 'center', gap: '8px', fontSize: '13px', fontWeight: 600, border: 'none', background: 'transparent', cursor: 'pointer', opacity: 0.7 }}
           onMouseEnter={e => e.currentTarget.style.opacity = '1'}
           onMouseLeave={e => e.currentTarget.style.opacity = '0.7'}
         >
           <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
             <path d="M3 6h18M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2M10 11v6M14 11v6" />
           </svg>
-          Teljes árlista törlése
+          Árlista törlése
         </button>
-      </div>
-
-      {/* Footer */}
-      <div className="price-modal-footer" style={{ borderTop: '1px solid var(--border)', paddingTop: '20px', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-        <div className="price-modal-count" style={{ color: 'var(--text-muted)', fontSize: '13px' }}>
-          {rows.filter(r => r.service.trim() || r.category.trim()).length} aktív tétel
-        </div>
         <div className="flex-row gap-10">
           <button onClick={handleCancel} className="price-modal-cancel" style={{ padding: '10px 20px', borderRadius: '6px', border: '1px solid var(--border)', background: '#fff', fontSize: '14px', fontWeight: 600, cursor: 'pointer', color: '#082432' }}
             onMouseEnter={e => { e.currentTarget.style.borderColor = 'var(--text-muted)'; }}
@@ -1648,7 +1655,7 @@ function InlinePriceEditor({ initialRows, onSave }: { initialRows: { category: s
             {saving ? (
               <><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" className="spin-anim"><path d="M12 2v4M12 18v4M4.93 4.93l2.83 2.83M16.24 16.24l2.83 2.83M2 12h4M18 12h4M4.93 19.07l2.83-2.83M16.24 7.76l2.83-2.83" /></svg> Mentés...</>
             ) : (
-              <><svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14"><polyline points="20 6 9 17 4 12" /></svg> Változtatások mentése</>
+              <>Változtatások mentése</>
             )}
           </button>
         </div>
