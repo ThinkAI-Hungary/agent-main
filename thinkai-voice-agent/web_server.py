@@ -2660,6 +2660,7 @@ class BusinessInfoSaveRequest(BaseModel):
     exceptions: list = []
     faq: list = []
     modositas_eng: str = "igen"
+    modositas_szoveg: str = ""
     lemondas_24h: str = "figyelmeztetoSzoveggel"
     figyelmezteto_szoveg: str = ""
     pacient_id_question: str = "Korábban járt már a rendelőnkben?"
@@ -2754,6 +2755,7 @@ async def save_business_info(payload: BusinessInfoSaveRequest, username: str = D
         "exceptions":    payload.exceptions,
         "faq":           payload.faq,
         "modositas_eng": payload.modositas_eng,
+        "modositas_szoveg": payload.modositas_szoveg,
         "lemondas_24h":  payload.lemondas_24h,
         "figyelmezteto_szoveg": payload.figyelmezteto_szoveg,
         "pacient_id_question": payload.pacient_id_question,

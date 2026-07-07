@@ -41,6 +41,7 @@ interface BusinessInfo {
   campaigns: { active: boolean; text: string; name?: string }[];
   exceptions: string[];
   modositas_eng: string;
+  modositas_szoveg: string;
   lemondas_24h: string;
   figyelmezteto_szoveg: string;
   pacient_id_question: string;
@@ -135,7 +136,7 @@ const defaultAgent: AgentSettings = {
 const defaultBusiness: BusinessInfo = {
   practice_name: '', markanev: '', szakterulet: '', service_description: '', kulcsszavak: '',
   faq: [], campaigns: [], exceptions: [],
-  modositas_eng: 'igen', lemondas_24h: 'figyelmeztetoSzoveggel',
+  modositas_eng: 'igen', modositas_szoveg: '', lemondas_24h: 'figyelmeztetoSzoveggel',
   figyelmezteto_szoveg: 'Tájékoztatjuk, hogy 24 órán belüli lemondás esetén külön szabályzatunk lehet érvényben.',
   pacient_id_question: 'Volt már korábban ügyfelünk?',
   new_patient_required: 'Születési dátum, teljes név',
@@ -1000,6 +1001,14 @@ export default function SettingsPage() {
                   <option value="urgent">Sürgős átadás embernek</option>
                 </select>
               </div>
+
+              {/* Modification policy textarea — only when enabled */}
+              {(() => { const v = business.modositas_eng; return v === 'igen' || v === 'onalloKezeles'; })() && (
+                <div className="mt-16">
+                  <label className="tt-label">Tájékoztató szöveg időpont módosítás esetén</label>
+                  <textarea className="tt-textarea" value={business.modositas_szoveg || ''} onChange={e => setBusiness({ ...business, modositas_szoveg: e.target.value })} placeholder="pl. Időpont módosítására az időpont előtti 48 órával van lehetőség." />
+                </div>
+              )}
 
               {/* Row 2: 24 órán belüli */}
               <div className="ih-row ih-row-2" style={{ marginBottom: 0 }}>
