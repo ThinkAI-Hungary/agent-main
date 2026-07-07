@@ -232,6 +232,7 @@ def get_system_prompt(channel: str = None) -> str:
         "kulcsszavak":    pi.get("kulcsszavak", ""),
         "megkozelites":   pi.get("megkozelites", ""),
         "price_list":     pi.get("price_list", ""),
+        "service_description": pi.get("service_description", ""),
         "services_list":  _format_services(),
         "campaigns":      _format_campaigns(pi.get("campaigns", [])),
         "exceptions":     _format_exceptions(pi.get("exceptions", [])),
