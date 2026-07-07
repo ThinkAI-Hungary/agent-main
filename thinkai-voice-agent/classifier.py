@@ -184,7 +184,7 @@ async def _detect_intent_llm(message_text: str) -> dict:
 
     try:
         response = client.models.generate_content(
-            model="gemini-1.5-flash", 
+            model="gemini-2.5-flash", 
             config=types.GenerateContentConfig(
                 response_mime_type="application/json"
             ),
@@ -208,19 +208,18 @@ def _detect_intent_keyword(message_text: str) -> dict:
     if any(w in t for w in ("panasz", "reklamáció", "elégedetlen", "complaint", "kifogás", "probléma volt", "rossz tapasztalat", "fáj", "elviselhetetlen", "nem vagyok elégedett", "baj van")):
         ugytipus = "Panasz"
 
-    # Időpont
-    if any(w in t for w in ("időpont", "foglal", "booking", "naptár", "idöpont")):
-        if ugytipus != "Panasz" or any(w in t for w in ("szeretnék", "új", "időpontot")):
-            ugytipus = "Időpont"
-            if any(w in t for w in ("lemond", "töröl", "cancel", "nem tudok menni", "mégsem", "törölne")):
-                idopont_altipus = "Lemondás"
-            elif any(w in t for w in ("módosít", "áthelyez", "változtat", "átrak", "máshova", "máskor")):
-                idopont_altipus = "Módosítás"
-            else:
-                idopont_altipus = "Új"
+    # Időpont (check subtypes BEFORE setting main type to avoid priority issues)
+    elif any(w in t for w in ("időpont", "foglal", "booking", "naptár", "idöpont", "lemond")):
+        ugytipus = "Időpont"
+        if any(w in t for w in ("lemond", "töröl", "cancel", "nem tudok menni", "mégsem", "törölne", "le szeretném")):
+            idopont_altipus = "Lemondás"
+        elif any(w in t for w in ("módosít", "áthelyez", "változtat", "átrak", "máshova", "máskor")):
+            idopont_altipus = "Módosítás"
+        else:
+            idopont_altipus = "Új"
 
     # Kérés
-    elif any(w in t for w in ("szeretnék kérni", "kérem küldjék", "küldjenek", "visszahívás", "intézkedj", "küldjék el", "szükségem lenne")):
+    elif any(w in t for w in ("szeretnék kérni", "kérem küldjék", "küldjenek", "visszahívás", "hívjanak vissza", "intézkedj", "küldjék el", "szükségem lenne", "kérem")):
         ugytipus = "Kérés"
 
     # Kérdés
