@@ -124,7 +124,7 @@ def _parse_hungarian_time(raw: str) -> str:
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 1. SEND FOLLOW-UP EMAIL (Brevo Transactional API) — also logs to emails.json
+# 1. SEND FOLLOW-UP EMAIL (Brevo Transactional API)
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @function_tool(description="Follow-up email küldése egy érdeklődőnek vagy ügyfélnek. Használd, ha a felhasználó emailt szeretne küldeni valakinek.")
@@ -133,7 +133,7 @@ async def send_followup_email(
     recipient_name: Annotated[str, "A címzett neve"],
     recipient_email: Annotated[str, "A címzett email címe"],
     message: Annotated[str, "Az email szövegtörzse (rövid, barátságos, szakmai)"],
-    subject: Annotated[str, "Az email tárgya"] = "ThinkAI — Köszönjük érdeklődését!",
+    subject: Annotated[str, "Az email tárgya"] = "",
     funnel_stage: Annotated[str, "A beszélgetés állapota: 'irrelevant', 'relevant', 'valaszolt', 'ajanlat', 'foglalt'"] = "valaszolt",
 ) -> str:
     """Follow-up email küldése egy érdeklődőnek."""
@@ -152,6 +152,13 @@ async def send_followup_email(
     logger.info(f"Brevo key starts with: {api_key[:12]}...")
     logger.info(f"Sending follow-up email to {recipient_name} <{recipient_email}>")
 
+    # ── Sender from DB ──
+    bi = db.get_business_info()
+    sender_name = bi.get("sender_name") or bi.get("practice_name", "Virtuális Asszisztens")
+    sender_email = bi.get("sender_email") or os.getenv("BREVO_SENDER_EMAIL", "noreply@example.com")
+    if not subject:
+        subject = f"{bi.get('practice_name', 'Értesítés')} — Köszönjük érdeklődését!"
+
     # ── ÉLES MÓD: Brevo e-mail küldés ──────────────────────
     sent_ok = False
     error_msg = ""
@@ -163,7 +170,7 @@ async def send_followup_email(
                 "https://api.brevo.com/v3/smtp/email",
                 headers={"api-key": api_key, "Content-Type": "application/json"},
                 json={
-                    "sender": {"name": "EAISY Marketing", "email": "hello@thinkai.hu"},
+                    "sender": {"name": sender_name, "email": sender_email},
                     "to": [{"email": recipient_email, "name": recipient_name}],
                     "subject": subject,
                     "htmlContent": f"""
@@ -563,7 +570,7 @@ async def create_task(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
-# 6. KNOWLEDGE LOOKUP (structured ThinkAI info)
+# 6. KNOWLEDGE LOOKUP
 # ═══════════════════════════════════════════════════════════════════════════════
 
 # ── Knowledge base ────────────────────────────────────────────────────────
@@ -581,39 +588,13 @@ def _load_knowledge() -> dict:
         return {}
 
 
-_TOPIC_ALIASES = {
-    # Hungarian terms → knowledge.json key
-    "árazás": "pricing", "árak": "pricing", "ár": "pricing", "mennyibe": "pricing",
-    "audit": "audit", "átvilágítás": "audit",
-    "technológia": "tech_stack", "tech": "tech_stack", "eszközök": "tech_stack",
-    "csapat": "team", "csapattagok": "team", "munkatársak": "team", "kik vagytok": "team",
-    "eaisy": "eaisy",
-    "garancia": "guarantee", "pénzvisszafizetés": "guarantee",
-    "pillér": "pillerek", "pillérek": "pillerek", "szolgáltatások": "pillerek",
-    "hogyan dolgoztok": "hogyan_dolgozunk", "módszer": "modszerunk", "módszertan": "modszerunk", "folyamat": "hogyan_dolgozunk",
-    "szektor": "szektorok", "szektorok": "szektorok", "iparág": "szektorok",
-    "sikertörténet": "sikertortenetek", "referencia": "sikertortenetek", "projekt": "sikertortenetek",
-    "kapcsolat": "kapcsolat", "elérhetőség": "kapcsolat", "email cím": "kapcsolat",
-    "pénzügy": "penzugy", "számvitel": "penzugy",
-    "webshop": "ecommerce", "e-kereskedelem": "ecommerce", "ecommerce": "ecommerce",
-    "marketing": "marketing", "sales": "marketing", "értékesítés": "marketing",
-    "listamester": "listamester",
-    "hungarorisk": "hungarorisk", "biztosítás": "hungarorisk",
-    "könyvelés": "konyvelesai", "könyvelés ai": "konyvelesai",
-    "pályázat": "palyazat", "dimop": "palyazat", "támogatás": "palyazat",
-    "pályázati feltételek": "palyazat_feltetelek",
-    "ügyfélszolgálat": "ai_ugyfelszolgalat", "ai ügyfélszolgálat": "ai_ugyfelszolgalat",
-    "rólunk": "rolunk", "cég": "rolunk", "bemutatkozás": "rolunk",
-}
-
-
-@function_tool(description="ThinkAI belső tudásbázis lekérdezése. Használd, ha a felhasználó bármilyen részletes információt kér a cégről, árazásról, csapatról, szolgáltatásokról, pályázatokról, sikertörténetekről vagy bármi másról. Bármilyen témát megadhatsz szabadon, a rendszer megtalálja a megfelelő információt.")
+@function_tool(description="Belső tudásbázis lekérdezése. Használd, ha a felhasználó bármilyen részletes információt kér a cégről, szolgáltatásokról, árazásról, csapatról, vagy bármi másról, ami a tudásbázisban lehet. Bármilyen témát megadhatsz szabadon.")
 async def lookup_info(
     ctx: RunContext,
-    topic: Annotated[str, "A keresett téma szabadon megadva, pl: 'csapat', 'árazás', 'pályázat', 'garancia', 'ügyfélszolgálat', 'sikertörténetek'"],
+    topic: Annotated[str, "A keresett téma szabadon megadva, pl: 'szolgáltatások', 'árazás', 'nyitvatartás', 'csapat'"],
     funnel_stage: Annotated[str, "A beszélgetés állapota: 'irrelevant', 'relevant', 'valaszolt', 'ajanlat', 'foglalt'"] = "valaszolt",
 ) -> str:
-    """ThinkAI tudásbázis lekérdezése."""
+    """Tudásbázis lekérdezése."""
     kb = _load_knowledge()
     topic_lower = topic.lower().strip()
     logger.info(f"Knowledge lookup: {topic_lower}")
@@ -624,43 +605,28 @@ async def lookup_info(
     if topic_lower in kb:
         result = kb[topic_lower]
 
-    # 2. Hungarian aliases
-    if not result:
-        for alias, key in _TOPIC_ALIASES.items():
-            if alias in topic_lower or topic_lower in alias:
-                if key in kb:
-                    result = kb[key]
-                    break
-
-    # 3. Fuzzy key match
+    # 2. Fuzzy key match
     if not result:
         for key, value in kb.items():
             if key in topic_lower or topic_lower in key:
                 result = value
                 break
 
-    # 4. Full-text value search
+    # 3. Full-text value search
     if not result:
         for key, value in kb.items():
-            if topic_lower in value.lower():
+            if isinstance(value, str) and topic_lower in value.lower():
                 result = value
                 break
 
-    # 5. Multi-word
+    # 4. Multi-word fuzzy
     if not result:
         words = topic_lower.split()
         for word in words:
             if len(word) < 3:
                 continue
-            for alias, key in _TOPIC_ALIASES.items():
-                if word in alias or alias in word:
-                    if key in kb:
-                        result = kb[key]
-                        break
-            if result:
-                break
             for key, value in kb.items():
-                if word in key or word in value.lower():
+                if word in key or (isinstance(value, str) and word in value.lower()):
                     result = value
                     break
             if result:
@@ -669,7 +635,7 @@ async def lookup_info(
     if not result:
         result = (
             "Erről a témáról nincs részletes információm a tudásbázisban. "
-            "Részletesebb információért keresd a csapatot a hello@thinkai.hu címen!"
+            "Kérlek kérdezz valami mást, vagy ajánlom, hogy vedd fel velünk a kapcsolatot közvetlenül!"
         )
 
     db.log_interaction(
@@ -688,6 +654,7 @@ async def lookup_info(
         }
     )
     return result
+
 
 
 

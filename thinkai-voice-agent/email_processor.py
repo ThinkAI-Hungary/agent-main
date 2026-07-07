@@ -28,6 +28,14 @@ import database as db
 from classifier import classify_interaction
 
 THIS_DIR = Path(__file__).resolve().parent
+
+
+def _get_sender() -> dict:
+    """Return dynamic sender dict from business_info (Supabase)."""
+    bi = db.get_business_info()
+    name = bi.get("sender_name") or bi.get("practice_name", "Virtuális Asszisztens")
+    email_addr = bi.get("sender_email") or os.getenv("BREVO_SENDER_EMAIL", "noreply@example.com")
+    return {"name": name, "email": email_addr}
 load_dotenv(THIS_DIR / ".env")
 from prompt_utils import get_system_prompt
 # Common encodings for Hungarian emails, tried in order of likelihood
@@ -779,7 +787,7 @@ async def send_escalation_email_to_staff(to_email: str, patient_name: str, patie
                 <td style="padding: 8px 0; border-bottom: 1px solid #eee;">{problem_description}</td>
             </tr>
         </table>
-        <p style="color: #666; font-size: 12px; margin-top: 20px;">Ez egy automatikusan generált üzenet a ThinkAI Voice Agent rendszerből.</p>
+        <p style="color: #666; font-size: 12px; margin-top: 20px;">Ez egy automatikusan generált üzenet.</p>
     </div>
     """
 
@@ -789,7 +797,7 @@ async def send_escalation_email_to_staff(to_email: str, patient_name: str, patie
                 "https://api.brevo.com/v3/smtp/email",
                 headers={"api-key": api_key, "Content-Type": "application/json"},
                 json={
-                    "sender": {"name": "ThinkAI Riasztás", "email": "hello@thinkai.hu"},
+                    "sender": _get_sender(),
                     "to": [{"email": to_email}],
                     "subject": f"[{priority}] Riasztás: {patient_name}",
                     "htmlContent": html_content,
@@ -826,7 +834,7 @@ async def send_reminder_email(to_email: str, subject: str, html_content: str) ->
                 'https://api.brevo.com/v3/smtp/email',
                 headers={'api-key': api_key, 'Content-Type': 'application/json'},
                 json={
-                    'sender': {'name': 'Időpont Emlékeztető', 'email': 'hello@thinkai.hu'},
+                    'sender': _get_sender(),
                     'to': [{'email': to_email}],
                     'subject': subject,
                     'htmlContent': html_content
@@ -1010,7 +1018,7 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
             return
 
         email_payload = {
-            "sender": {"name": "ThinkAI Virtuális Asszisztens", "email": "hello@thinkai.hu"},
+            "sender": _get_sender(),
             "to": [{"email": attendee_email, "name": attendee}],
             "subject": "Időpont visszaigazolás",
             "htmlContent": html_content,
@@ -1118,7 +1126,7 @@ async def send_modification_confirmation_email(attendee: str, attendee_email: st
                 "https://api.brevo.com/v3/smtp/email",
                 headers={"api-key": api_key, "Content-Type": "application/json"},
                 json={
-                    "sender": {"name": "ThinkAI Virtuális Asszisztens", "email": "hello@thinkai.hu"},
+                    "sender": _get_sender(),
                     "to": [{"email": attendee_email, "name": attendee}],
                     "subject": f"Időpont módosítás visszaigazolás - {title}",
                     "htmlContent": html_content,

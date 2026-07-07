@@ -212,10 +212,11 @@ SZABÁLYOK:
     if campaign_data and campaign_data.get("script"):
         call_type = campaign_data.get("type", "campaign_call")
         client_name = campaign_data.get("client_name", "")
+        practice = db.get_business_info().get("practice_name", "a rendelő")
         if call_type == "outbound_script_call":
-            greeting_text = f"Szia {client_name}! Itt a rendelő virtuális asszisztense. Van egy pillanatod?" if client_name else "Szia! Itt a rendelő virtuális asszisztense. Van egy pillanatod?"
+            greeting_text = f"Szia {client_name}! Itt a {practice} virtuális asszisztense. Van egy pillanatod?" if client_name else f"Szia! Itt a {practice} virtuális asszisztense. Van egy pillanatod?"
         else:
-            greeting_text = f"Szia {client_name}! Itt a rendelő virtuális asszisztense. Van egy pillanatod? Szeretnék mesélni egy aktuális ajánlatunkról." if client_name else "Szia! Itt a rendelő virtuális asszisztense. Van egy pillanatod? Szeretnék mesélni egy aktuális ajánlatunkról."
+            greeting_text = f"Szia {client_name}! Itt a {practice} virtuális asszisztense. Van egy pillanatod? Szeretnék mesélni egy aktuális ajánlatunkról." if client_name else f"Szia! Itt a {practice} virtuális asszisztense. Van egy pillanatod? Szeretnék mesélni egy aktuális ajánlatunkról."
     else:
         greeting_text = settings.get("greeting", "Szia! Miben segíthetek?")
 

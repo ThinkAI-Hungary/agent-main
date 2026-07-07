@@ -736,7 +736,7 @@ SZABÁLYOK:
 - Adj releváns hashtag javaslatokat (5-15 db)
 - Adj kép leírást (milyen képet kellene hozzá használni)
 - A hangnem legyen: {tone}
-- Feladó: EAISY / ThinkAI brand
+- Feladó: A cég/márka nevében
 
 JSON STRUKTÚRA:
 {{
@@ -2667,6 +2667,8 @@ class BusinessInfoSaveRequest(BaseModel):
     new_patient_auto_visit: bool = True
     returning_patient_required: str = "Páciens azonosító vagy telefonszám"
     service_description: str = ""
+    sender_name: str = ""
+    sender_email: str = ""
 
 @app.get("/admin/api/triage_rules")
 def api_get_triage_rules(admin: dict = Depends(verify_jwt)):
@@ -2759,6 +2761,8 @@ async def save_business_info(payload: BusinessInfoSaveRequest, username: str = D
         "new_patient_auto_visit": payload.new_patient_auto_visit,
         "returning_patient_required": payload.returning_patient_required,
         "service_description": payload.service_description,
+        "sender_name": payload.sender_name,
+        "sender_email": payload.sender_email,
     }
     ok = db.update_business_info(data)
     if not ok:
@@ -3061,11 +3065,13 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                         import email_processor
                         html_body += email_processor.get_cancellation_html(send_draft.get("event_id"))
 
+                    bi = db.get_business_info()
+                    _sender = {"name": bi.get("sender_name") or bi.get("practice_name", "Virtuális Asszisztens"), "email": bi.get("sender_email") or os.getenv("BREVO_SENDER_EMAIL", "noreply@example.com")}
                     resp = await http_client.post(
                         "https://api.brevo.com/v3/smtp/email",
                         headers={"api-key": api_key, "Content-Type": "application/json"},
                         json={
-                            "sender": {"name": "EAISY Marketing", "email": "hello@thinkai.hu"},
+                            "sender": _sender,
                             "to": [{"email": send_draft.get("to_email"), "name": send_draft.get("to_name", "")}],
                             "subject": send_draft.get("subject", "Re:"),
                             "htmlContent": html_body,
@@ -3663,11 +3669,13 @@ async def _run_campaign(campaign: dict, active_channels: list[str]):
             html_body = f'<div style="font-family: Arial, sans-serif;">{body.replace(chr(10), "<br>")}</div>'
 
             try:
+                bi = db.get_business_info()
+                _sender = {"name": bi.get("sender_name") or bi.get("practice_name", "Virtuális Asszisztens"), "email": bi.get("sender_email") or os.getenv("BREVO_SENDER_EMAIL", "noreply@example.com")}
                 resp = await http_client.post(
                     "https://api.brevo.com/v3/smtp/email",
                     headers={"api-key": api_key, "Content-Type": "application/json"},
                     json={
-                        "sender": {"name": "EAISY Marketing", "email": "hello@thinkai.hu"},
+                        "sender": _sender,
                         "to": [{"email": client_email, "name": client_name}],
                         "subject": subject,
                         "htmlContent": html_body,
