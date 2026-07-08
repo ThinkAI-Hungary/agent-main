@@ -1413,6 +1413,40 @@ def update_approval_status(interaction_id: int, status: str, new_draft: str = No
         updates = {'approval_status': status}
         if new_draft is not None:
             updates['ai_draft_response'] = new_draft
+            
+        if status == 'approved':
+            # Fetch existing interaction to determine how to update classification
+            res = supabase.table('interactions').select('classification, result').eq('id', interaction_id).execute()
+            if res.data:
+                row = res.data[0]
+                classification = row.get('classification') or {}
+                
+                # Determine ugytipus
+                ugytipus = classification.get('ugytipus') or 'Kérdés'
+                idopont_altipus = classification.get('idopont_altipus')
+                
+                # Determine new outcome
+                new_result = 'Megválaszolt kérdés'
+                if ugytipus == 'Kérés':
+                    new_result = 'Igény rögzítve'
+                elif ugytipus == 'Időpont':
+                    if idopont_altipus == 'Lemondás':
+                        new_result = 'Időpont törölve'
+                    elif idopont_altipus == 'Módosítás':
+                        new_result = 'Időpont módosítva'
+                    else:
+                        new_result = 'Új időpont'
+                elif ugytipus == 'Panasz':
+                    new_result = 'Panasz rögzítve'
+                
+                # Update classification JSON
+                classification['eredmeny'] = new_result
+                classification['statusz'] = 'Lezárt'
+                classification['teendo'] = 'Nincs további teendő'
+                
+                updates['classification'] = classification
+                updates['result'] = new_result
+                
         supabase.table('interactions').update(updates).eq('id', interaction_id).execute()
         return True
     except Exception as e:

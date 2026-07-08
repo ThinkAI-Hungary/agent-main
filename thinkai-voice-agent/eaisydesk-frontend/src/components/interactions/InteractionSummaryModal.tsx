@@ -155,7 +155,15 @@ export default function InteractionSummaryModal({
         if (match) cData = parseCustomData(match.custom_data);
       }
 
-      const fullLog = (cData.beszelgetes_naplo as string) || '';
+      let fullLog = (cData.beszelgetes_naplo as string) || '';
+      if (!fullLog && row.result && row.result.trim()) {
+        if (row.result.trim().startsWith('[')) {
+          fullLog = row.result;
+        } else {
+          const dateStr = row.date ? row.date.replace('T', ' ').slice(0, 16) : new Date().toISOString().replace('T', ' ').slice(0, 16);
+          fullLog = `[${dateStr}]\n${row.result}`;
+        }
+      }
 
       // ── Parse the full log into timestamped entries ──
       interface LogEntry {

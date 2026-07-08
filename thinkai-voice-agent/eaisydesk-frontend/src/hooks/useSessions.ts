@@ -15,6 +15,12 @@ export interface SessionInteraction {
   ai_draft_response?: string;
   alert_tags?: string[];
   funnel_stage?: string;
+  classification?: {
+    ugytipus?: string;
+    eredmeny?: string;
+    statusz?: string;
+    teendo?: string;
+  } | null;
 }
 
 export interface SessionSummary {
@@ -91,6 +97,7 @@ export function useSessions(limit = 100): UseSessionsReturn {
           ai_draft_response: row.ai_draft_response,
           alert_tags: row.alert_tags,
           funnel_stage: row.funnel_stage,
+          classification: row.classification,
         });
       }
 

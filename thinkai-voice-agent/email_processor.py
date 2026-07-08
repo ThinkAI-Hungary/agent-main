@@ -616,10 +616,12 @@ Ha egyik sem releváns, legyen üres lista [].
             f_stage = "foglalt"
             
         # ── KLASSZIFIKÁCIÓ ──
+        ai_answered = bool(email_reply and not handover_reason)
         classification = await classify_interaction(
             message_text=text_content,
             channel="email",
-            tool_calls=["book_meeting"] if meeting else []
+            tool_calls=["book_meeting"] if meeting else [],
+            kb_answered=ai_answered
         )
             
         db.log_interaction(

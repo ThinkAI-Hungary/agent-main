@@ -138,13 +138,13 @@ def _apply_decision_tree(
     # ── KÉRÉS ──
     if ugytipus == "Kérés":
         if restriction == "urgent":
-            return {"eredmeny": "Kérés rögzítve", "statusz": "Sürgős", "teendo": "Azonnali intézkedés"}
-        return {"eredmeny": "Kérés rögzítve", "statusz": "Nyitott", "teendo": "Ügyintézés szükséges"}
+            return {"eredmeny": "Igény rögzítve", "statusz": "Sürgős", "teendo": "Azonnali beavatkozás"}
+        return {"eredmeny": "Igény rögzítve", "statusz": "Nyitott", "teendo": "Intézkedés"}
 
     # ── EGYÉB / FALLBACK ──
     if restriction == "urgent":
-        return {"eredmeny": "Interakció rögzítve", "statusz": "Sürgős", "teendo": "Átnézés szükséges"}
-    return {"eredmeny": "Interakció rögzítve", "statusz": "Nyitott", "teendo": "Intézkedés szükséges"}
+        return {"eredmeny": "Igény rögzítve", "statusz": "Sürgős", "teendo": "Azonnali beavatkozás"}
+    return {"eredmeny": "Igény rögzítve", "statusz": "Nyitott", "teendo": "Intézkedés"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -242,6 +242,7 @@ async def classify_interaction(
     channel: str,
     tool_calls: list[str] | None = None,
     handover_reason: str = "",
+    kb_answered: bool | None = None,
 ) -> dict:
     """
     Az interakció klasszifikációja.
@@ -251,6 +252,7 @@ async def classify_interaction(
         channel: A csatorna (email, whatsapp, messenger, instagram, telefon, widget).
         tool_calls: A hívás során használt eszközök nevei (opcionális).
         handover_reason: Az átadás oka (opcionális).
+        kb_answered: Explicit jelzés, hogy a KB alapján megválaszolásra került-e (opcionális).
         
     Returns: {
         ugytipus, idopont_altipus, 
@@ -271,12 +273,12 @@ async def classify_interaction(
     # 2. Szándék detektálás (LLM vagy keyword fallback)
     intent = await _detect_intent_llm(message_text)
     
-    # 3. KB-megválaszolhatóság detektálása (tool calls alapján)
-    # Ha volt lookup_info, akkor a KB tudott rá válaszolni
-    kb_answered = False
-    if tool_calls:
-        if any(tc in ("lookup_info", "book_meeting") for tc in tool_calls):
-            kb_answered = True
+    # 3. KB-megválaszolhatóság detektálása (tool calls alapján, ha nincs explicit megadva)
+    if kb_answered is None:
+        kb_answered = False
+        if tool_calls:
+            if any(tc in ("lookup_info", "book_meeting") for tc in tool_calls):
+                kb_answered = True
             
     # 4. Korlátozások meghatározása
     restriction = _determine_restriction(channel, triage_rules, message_text, handover_reason)

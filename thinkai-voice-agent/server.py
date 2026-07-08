@@ -7,6 +7,7 @@ import asyncio
 import json
 import os
 import sys
+from datetime import datetime
 from pathlib import Path
 from dotenv import load_dotenv
 from loguru import logger
@@ -288,6 +289,78 @@ SZABÁLYOK:
 
         room_input_opts = RoomInputOptions(noise_cancellation=nc_option) if nc_option else None
 
+        transcript_list = []
+
+        @session.on("user_input_transcribed")
+        def _on_user_transcript(event):
+            try:
+                transcript = getattr(event, "transcript", "")
+                is_final = getattr(event, "is_final", True)
+                if is_final and transcript.strip():
+                    text = transcript.strip()
+                    if text and text != ".":
+                        entry = f"Felhasználó: {text}"
+                        # Check last 3 entries to de-duplicate
+                        if not any(text in item for item in transcript_list[-3:]):
+                            transcript_list.append(entry)
+                            logger.info(f"🎤 User (STT): {text}")
+            except Exception as e:
+                logger.warning(f"Error in user_input_transcribed: {e}")
+
+        @session.on("conversation_item_added")
+        def _on_item_added(event):
+            try:
+                # event is ConversationItemAddedEvent, message details inside event.item
+                item = getattr(event, "item", None)
+                if not item:
+                    item = event  # fallback if it's the raw item
+                
+                role = getattr(item, "role", "")
+                # Extract text content safely
+                text = ""
+                if hasattr(item, "text_content") and item.text_content:
+                    text = item.text_content
+                elif hasattr(item, "content") and item.content:
+                    if isinstance(item.content, str):
+                        text = item.content
+                    elif isinstance(item.content, list):
+                        parts = []
+                        for p in item.content:
+                            if isinstance(p, str):
+                                parts.append(p)
+                            elif hasattr(p, "text") and p.text:
+                                parts.append(p.text)
+                            elif isinstance(p, dict) and p.get("text"):
+                                parts.append(p["text"])
+                        text = " ".join(parts)
+                
+                text = text.strip()
+                if text and text != ".":
+                    role_name = "Felhasználó" if role == "user" else "AI Válasz"
+                    entry = f"{role_name}: {text}"
+                    # Check last 3 entries to de-duplicate
+                    if not any(text in x for x in transcript_list[-3:]):
+                        transcript_list.append(entry)
+                        logger.info(f"💬 Chat item: {role_name}: {text}")
+            except Exception as ex:
+                logger.warning(f"Error in conversation_item_added event handler: {ex}")
+
+        @session.on("agent_speech_committed")
+        @session.on("agent_speech_interrupted")
+        def _on_agent_speech(msg):
+            try:
+                content = getattr(msg, "content", "")
+                if content and isinstance(content, str):
+                    text = content.strip()
+                    if text and text != ".":
+                        entry = f"AI Válasz: {text}"
+                        # Check last 3 entries to de-duplicate
+                        if not any(text in item for item in transcript_list[-3:]):
+                            transcript_list.append(entry)
+                            logger.info(f"🤖 Agent (Speech): {text}")
+            except Exception as e:
+                logger.warning(f"Error in agent speech event: {e}")
+
         await session.start(
             agent=ThinkAIAgent(room_name=ctx.room.name, campaign_data=campaign_data, instructions=system_instruction),
             room=ctx.room,
@@ -309,6 +382,7 @@ SZABÁLYOK:
                             _gt.LiveClientContent(
                                 turns=[_gt.Content(parts=[_gt.Part(text=".")], role="user")],
                                 turn_complete=True,
+                                # sync_transcription is configured on the model level
                             )
                         )
                         logger.info("Greeting trigger sent to Gemini realtime session")
@@ -327,20 +401,129 @@ SZABÁLYOK:
         # ── Start Session Classification (Async Background Task) ──
         async def _run_classification():
             try:
-                # Get interactions to build full transcript
+                # 1. Build full transcript from session chat history (tries internal context first, then events)
+                final_turns = []
+                chat_context = None
+                llm_node = getattr(session, "_llm", None)
+                if llm_node:
+                    if hasattr(llm_node, "chat_ctx"):
+                        chat_context = llm_node.chat_ctx
+                    elif hasattr(llm_node, "_chat_ctx"):
+                        chat_context = llm_node._chat_ctx
+                
+                if chat_context:
+                    try:
+                        msgs = chat_context.messages() if callable(getattr(chat_context, "messages", None)) else getattr(chat_context, "messages", [])
+                        for msg in msgs:
+                            if msg.role in ("user", "assistant"):
+                                role = "Felhasználó" if msg.role == "user" else "AI Válasz"
+                                text = ""
+                                if isinstance(msg.content, str):
+                                    text = msg.content
+                                elif isinstance(msg.content, list):
+                                    parts = []
+                                    for p in msg.content:
+                                        if isinstance(p, str):
+                                            parts.append(p)
+                                        elif hasattr(p, "text") and p.text:
+                                            parts.append(p.text)
+                                        elif isinstance(p, dict) and p.get("text"):
+                                            parts.append(p["text"])
+                                    text = " ".join(parts)
+                                text = text.strip()
+                                if text and text != ".":
+                                    final_turns.append(f"{role}: {text}")
+                    except Exception as ex:
+                        logger.warning(f"Failed to read from Gemini internal chat context: {ex}")
+                
+                # Fallback to event-populated transcript_list if internal context was empty
+                if not final_turns:
+                    logger.info("Gemini internal context transcript was empty, falling back to event-based transcript_list")
+                    final_turns = transcript_list
+                else:
+                    logger.info("Successfully loaded transcript from Gemini internal context")
+                    
+                # Format each turn with a timestamp block so the frontend parser can split them into bubbles
+                now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+                formatted_turns = []
+                for turn in final_turns:
+                    formatted_turns.append(f"[{now_str}]\n{turn}")
+                
+                transcript = "\n\n".join(formatted_turns)
+                logger.info(f"Final transcript built ({len(final_turns)} turns) for session {session_id}")
+                
+                # Get interactions to build fallback transcript if needed
                 res = db.supabase.table("interactions").select("topic, tool_name").eq("session_id", session_id).execute()
                 full_text = " ".join([r.get("topic") or "" for r in res.data])
                 tools = [r.get("tool_name") for r in res.data if r.get("tool_name")]
                 
-                if full_text.strip():
+                classification_text = transcript if transcript.strip() else full_text
+                
+                classification = {}
+                summary_text = "Néma/rövid hívás, nem történt érdemi beszélgetés."
+                
+                if classification_text.strip():
                     classification = await classify_interaction(
-                        message_text=full_text,
+                        message_text=classification_text,
                         channel="telefon",
                         tool_calls=tools
                     )
-                    # Update all interactions of this session with the classification
-                    db.supabase.table("interactions").update({"classification": classification}).eq("session_id", session_id).execute()
-                    logger.info(f"✅ Voice session {session_id} classified.")
+                    summary_text = classification.get("osszefoglalas") or "AI telefonos beszélgetés"
+                    
+                # 2. Extract phone number from participants or room name to associate with client details
+                phone_number = ""
+                # Check remote participants first (SIP caller identity is usually the phone number or phone-...)
+                if hasattr(ctx, "room") and ctx.room and hasattr(ctx.room, "remote_participants"):
+                    for p in list(ctx.room.remote_participants.values()):
+                        identity = p.identity or ""
+                        # Clean prefix mapping
+                        clean_id = identity.replace("phone-", "").replace("user-", "").replace("sip_", "").strip()
+                        # If it starts with + or is a long numeric, it's our caller's phone number
+                        if clean_id.startswith("+") or (clean_id.isdigit() and len(clean_id) >= 9):
+                            phone_number = clean_id
+                            break
+                            
+                # Fallback to room name if participants check yielded nothing
+                if not phone_number:
+                    parts = room_name.split("-")
+                    if parts:
+                        last_part = parts[-1]
+                        if last_part.isdigit() and len(last_part) >= 9:
+                            phone_number = last_part
+                        
+                # 3. Log a MAIN interaction with the transcript in the result field
+                client_id = None
+                if phone_number:
+                    try:
+                        # Save to client details (appends transcript to their history log in custom_data)
+                        client_id = db.upsert_client_by_contact(
+                            custom_data={
+                                "phone": phone_number,
+                                "problem_description": summary_text
+                            },
+                            additional_log=transcript if transcript.strip() else "Hívás történt.",
+                            status="aktiv"
+                        )
+                    except Exception as ce:
+                        logger.error(f"Failed to upsert client by contact: {ce}")
+                        
+                db.log_interaction(
+                    type="telefon",
+                    topic=f"Telefonhívás leirata - {room_name}",
+                    summary=summary_text,
+                    result=transcript if transcript.strip() else "Nincs rögzített hanganyag.",
+                    session_id=session_id,
+                    funnel_stage="relevant",
+                    direction="outbound" if is_outbound_call else "inbound",
+                    approval_status="approved", # calls don't need approval
+                    classification=classification,
+                    client_id=client_id
+                )
+                
+                # Update all tool call interactions of this session with the classification
+                if classification:
+                    db.supabase.table("interactions").update({"classification": classification}).eq("session_id", session_id).neq("topic", f"Telefonhívás leirata - {room_name}").execute()
+                logger.info(f"✅ Voice session {session_id} classified and transcript logged.")
             except Exception as e:
                 logger.error(f"Failed to classify voice session {session_id}: {e}")
 
