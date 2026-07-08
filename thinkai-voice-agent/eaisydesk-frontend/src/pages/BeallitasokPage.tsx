@@ -299,10 +299,7 @@ export default function BeallitasokPage() {
 
         {/* ── EAISYDESK BEÁLLÍTÁSOK TAB ── */}
         {activeTab === 'eaisydesk' && isAdmin && (
-          <>
-            <CommunicationSettingsSection />
-            <ChannelsSection />
-          </>
+          <EaisyDeskSettingsTab />
         )}
 
         {/* ── BIZTONSÁG TAB ── */}
@@ -465,6 +462,319 @@ function Modal({ title, subtitle, children, onClose }: { title: string; subtitle
 
 // ProfileAvatarUpload extracted to src/components/settings/ProfileAvatarUpload.tsx
 
+function EaisyDeskSettingsTab() {
+  const [lang, setLang] = useState('hu');
+  const [tone, setTone] = useState('professional_friendly');
+  const [toneCustom, setToneCustom] = useState('');
+  const [greeting, setGreeting] = useState('');
+  const [senderName, setSenderName] = useState('');
+  const [senderEmail, setSenderEmail] = useState('');
+  const [channels, setChannels] = useState<ChannelConfig[]>(loadChannels);
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const [settRes, busRes] = await Promise.all([
+          authFetch('/admin/api/settings'),
+          authFetch('/admin/api/business-info')
+        ]);
+        const sett = await settRes.json();
+        const bus = await busRes.json();
+        if (sett && !sett.error) {
+          setLang(sett.language || 'hu');
+          setTone(sett.tone || 'professional_friendly');
+          setToneCustom(sett.tone_custom || '');
+          setGreeting(sett.greeting || '');
+        }
+        if (bus && !bus.error) {
+          setSenderName(bus.sender_name || '');
+          setSenderEmail(bus.sender_email || '');
+        }
+      } catch { /* ignore */ }
+      setLoading(false);
+    })();
+  }, []);
+
+  const handleSaveAll = useCallback(async () => {
+    setSaving(true);
+    try {
+      const settGet = await authFetch('/admin/api/settings');
+      const settExisting = await settGet.json();
+      const settMerged = { ...settExisting, language: lang, tone, tone_custom: toneCustom, greeting };
+      delete settMerged.error;
+
+      const busGet = await authFetch('/admin/api/business-info');
+      const busExisting = await busGet.json();
+      const busMerged = { ...busExisting, sender_name: senderName, sender_email: senderEmail };
+      delete busMerged.error;
+
+      await Promise.all([
+        authFetch('/admin/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settMerged) }),
+        authFetch('/admin/api/business-info', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(busMerged) })
+      ]);
+
+      saveChannels(channels);
+      showToast('Összes beállítás mentve!', 'success');
+    } catch { showToast('Hiba a mentésnél', 'error'); }
+    setSaving(false);
+  }, [lang, tone, toneCustom, greeting, senderName, senderEmail, channels]);
+
+  if (loading) return <div className="beal-empty-center"><Spinner /></div>;
+
+  return (
+    <div className="ed-settings-container">
+      <style>{`
+        .ed-settings-container {
+          font-family: 'Inter', sans-serif;
+        }
+        .ed-card {
+          background: #FFFFFF;
+          border: 1px solid #D9D9D9;
+          border-radius: 12px;
+          padding: 32px 40px;
+          margin-bottom: 24px;
+        }
+        .ed-card-header {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          margin-bottom: 24px;
+        }
+        .ed-icon-box {
+          width: 30px;
+          height: 30px;
+          border-radius: 6px;
+          background: #082432;
+          color: #FFFFFF;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          flex-shrink: 0;
+        }
+        .ed-icon-box svg {
+          width: 16px;
+          height: 16px;
+          stroke-width: 1px !important;
+        }
+        .ed-card-title {
+          font-size: 18px;
+          font-weight: 700;
+          color: #082432;
+          line-height: 1.2;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+        }
+        .ed-label {
+          font-size: 12px;
+          font-weight: 600;
+          color: #5F7D95;
+          line-height: 1.2;
+          margin-bottom: 8px;
+          display: block;
+        }
+        .ed-input {
+          height: 40px;
+          background: #FFFFFF;
+          border: 1px solid #D9D9D9;
+          border-radius: 8px;
+          padding: 0 14px;
+          font-size: 13px;
+          font-weight: 400;
+          color: #082432;
+          width: 100%;
+          outline: none;
+          transition: all 0.2s;
+        }
+        .ed-input:focus {
+          border-color: #186D98;
+          box-shadow: 0 0 0 2px rgba(24, 109, 152, 0.08);
+        }
+        .ed-select-refined {
+          height: 40px;
+          outline: none;
+          position: relative;
+        }
+        .ed-textarea {
+          min-height: 96px;
+          max-height: 320px;
+          background: #FFFFFF;
+          border: 1px solid #D9D9D9;
+          border-radius: 8px;
+          padding: 12px 14px;
+          font-size: 13px;
+          font-weight: 400;
+          color: #082432;
+          line-height: 1.5;
+          width: 100%;
+          outline: none;
+          resize: vertical;
+          transition: all 0.2s;
+        }
+        .ed-textarea:focus {
+          border-color: #1CEEE0;
+          box-shadow: 0 0 0 3px rgba(28, 238, 224, 0.15);
+        }
+        .ed-grid-2 {
+          display: grid;
+          grid-template-columns: 1fr 1fr;
+          gap: 20px 16px;
+        }
+        .ed-info-icon {
+          width: 18px;
+          height: 18px;
+          border-radius: 50%;
+          border: 1px solid #8CA0AF;
+          color: #5F7D95;
+          font-size: 12px;
+          font-weight: 600;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          cursor: help;
+        }
+        /* Refined Select Styling — Exactly matching legacy rules page */
+        .ed-settings-container .settings-lang-trigger,
+        .ed-settings-container .custom-select-trigger {
+          height: 40px !important;
+          background: #FFFFFF !important;
+          border: 1px solid #D9D9D9 !important;
+          border-radius: 8px !important;
+          padding: 0 14px !important;
+          font-family: 'Inter', sans-serif !important;
+          font-size: 13px !important;
+          font-weight: 400 !important;
+          color: #082432 !important;
+          box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.15) !important;
+          outline: none !important;
+          display: flex !important;
+          align-items: center !important;
+          justify-content: space-between !important;
+          width: 100% !important;
+          transition: all 0.2s ease-out !important;
+        }
+
+        /* Focus / Pressed / Open State */
+        .ed-settings-container .settings-lang-trigger:focus-within,
+        .ed-settings-container .custom-select-trigger:focus,
+        .ed-settings-container .settings-lang-trigger--open,
+        .ed-settings-container .custom-select-trigger--open {
+          border-color: #1CEEE0 !important;
+          background: #FFFFFF !important;
+          box-shadow: 0 0 0 3px rgba(28, 238, 224, 0.15), 0 1px 4px 0 rgba(0, 0, 0, 0.15) !important;
+        }
+
+        .ed-settings-container .custom-select-chevron,
+        .ed-settings-container .settings-lang-chevron {
+          color: #082432 !important;
+          stroke: #082432 !important;
+          transition: transform 0.2s ease-out !important;
+        }
+        
+        .ed-textarea {
+          background: #FFFFFF !important;
+          border: 1px solid #D9D9D9 !important;
+          color: #082432 !important;
+        }
+
+        /* Channels Section Restoration */
+        .channels-list {
+          display: flex;
+          flex-direction: column;
+          gap: 4px;
+        }
+        .channels-row {
+          display: flex;
+          align-items: center;
+          gap: 16px;
+          padding: 12px 20px;
+          border-radius: 12px;
+          transition: background 0.2s;
+        }
+        .channels-row--even {
+          background: #F3F4F6;
+        }
+        .channels-row--odd {
+          background: #FFFFFF;
+        }
+        .channels-icon {
+          width: 32px;
+          height: 32px;
+          border-radius: 50%;
+          background: #E5E7EB;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: #5F7D95;
+          flex-shrink: 0;
+        }
+        .channels-label {
+          width: 140px;
+          font-weight: 600;
+          color: #082432;
+          font-size: 14px;
+        }
+        .channels-toggle {
+          display: flex;
+          align-items: center;
+          margin-right: 8px;
+        }
+        .channels-input {
+          flex: 1;
+          height: 36px;
+          background: #F9FAFB;
+          border: none;
+          border-radius: 6px;
+          padding: 0 12px;
+          font-size: 13px;
+          color: #4B5563;
+          outline: none;
+        }
+        .toggle-pill {
+          width: 36px;
+          height: 20px;
+          border-radius: 10px;
+          border: none;
+          padding: 2px;
+          cursor: pointer;
+          transition: background 0.2s;
+          display: flex;
+          align-items: center;
+        }
+        .toggle-pill--on {
+          background: #1CEEE0;
+        }
+        .toggle-pill--off {
+          background: #D1D5DB;
+        }
+        .toggle-circle {
+          width: 16px;
+          height: 16px;
+          background: white;
+          border-radius: 50%;
+          transition: transform 0.2s;
+        }
+        .toggle-circle--on {
+          transform: translateX(16px);
+        }
+        .toggle-circle--off {
+          transform: translateX(0);
+        }
+      `}</style>
+
+      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
+        <button className="beallitasok-save-btn" onClick={handleSaveAll} disabled={saving}>
+          {saving ? 'Mentés...' : 'Változtatások mentése'}
+        </button>
+      </div>
+      <CommunicationSettingsSection lang={lang} setLang={setLang} tone={tone} setTone={setTone} toneCustom={toneCustom} setToneCustom={setToneCustom} greeting={greeting} setGreeting={setGreeting} />
+      <EmailSenderSettingsSection senderName={senderName} setSenderName={setSenderName} senderEmail={senderEmail} setSenderEmail={setSenderEmail} />
+      <ChannelsSection channels={channels} setChannels={setChannels} />
+    </div>
+  );
+}
 
 // ── Communication settings (eaisyDesk beállítások tab) ──────────────────────
 
@@ -495,164 +805,108 @@ const COMM_LANGUAGE_OPTIONS = [
   { code: 'it', label: 'olasz' },
 ];
 
-function CommunicationSettingsSection() {
-  const [lang, setLang] = useState('hu');
-  const [tone, setTone] = useState('professional_friendly');
-  const [toneCustom, setToneCustom] = useState('');
-  const [greeting, setGreeting] = useState('');
+function CommunicationSettingsSection({ lang, setLang, tone, setTone, toneCustom, setToneCustom, greeting, setGreeting }: any) {
   const [showLangDropdown, setShowLangDropdown] = useState(false);
   const [showGreetingInfo, setShowGreetingInfo] = useState(false);
-  const [saving, setSaving] = useState(false);
-  const [loaded, setLoaded] = useState(false);
-
-  // Load current settings
-  useEffect(() => {
-    (async () => {
-      try {
-        const res = await authFetch('/admin/api/settings');
-        const data = await res.json();
-        if (data && !data.error) {
-          setLang(data.language || 'hu');
-          setTone(data.tone || 'professional_friendly');
-          setToneCustom(data.tone_custom || '');
-          setGreeting(data.greeting || '');
-        }
-      } catch { /* ignore */ }
-      setLoaded(true);
-    })();
-  }, []);
-
-  // Explicit save — read-modify-write
-  const handleSave = useCallback(async () => {
-    setSaving(true);
-    try {
-      // Read current full settings to preserve voice_id, business_hours, etc.
-      const getRes = await authFetch('/admin/api/settings');
-      const existing = await getRes.json();
-      const merged = { ...existing, language: lang, tone, tone_custom: toneCustom, greeting };
-      delete merged.error; // safety: don't send back error field if it existed
-      const postRes = await authFetch('/admin/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(merged),
-      });
-      if (postRes.ok) {
-        showToast('Kommunikációs beállítások mentve!', 'success');
-      } else {
-        showToast('Hiba a mentésnél', 'error');
-      }
-    } catch { showToast('Hiba a mentésnél', 'error'); }
-    setSaving(false);
-  }, [lang, tone, toneCustom, greeting]);
-
-  if (!loaded) return null;
 
   return (
-    <>
-      {/* Save button row */}
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <button className="beallitasok-save-btn" onClick={handleSave} disabled={saving}>
-          {saving ? 'Mentés...' : 'Változtatások mentése'}
-        </button>
+    <div className="ed-card">
+      <div className="ed-card-header">
+        <div className="ed-icon-box">
+          <svg fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16" height="16"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
+        </div>
+        <div className="ed-card-title">Kommunikáció beállításai</div>
       </div>
 
-      <div className="beallitasok-card">
-        <div className="beal-subtitle-16 mb-16">Kommunikáció beállításai</div>
-
-        <div className="beal-grid-2 mb-24">
-          {/* Nyelv */}
-          <div>
-            <label className="tt-label">Nyelv</label>
-            <div className="relative">
-              <div
-                onClick={() => setShowLangDropdown(!showLangDropdown)}
-                className="settings-lang-trigger"
-              >
-                <div className="settings-flag-wrap">
-                  {COMM_FLAGS[lang] || COMM_FLAGS.hu}
+      <div className="ed-grid-2 mb-24">
+        {/* Nyelv */}
+        <div>
+          <label className="ed-label">Nyelv</label>
+          <div className="relative ed-select-refined">
+            <div 
+              onClick={() => setShowLangDropdown(!showLangDropdown)} 
+              className={`settings-lang-trigger ${showLangDropdown ? 'settings-lang-trigger--open' : ''}`}
+            >
+              <div className="settings-flag-wrap">{COMM_FLAGS[lang] || COMM_FLAGS.hu}</div>
+              <span className="flex-1 text-md font-medium settings-lang-text">{COMM_LANGUAGE_OPTIONS.find(l => l.code === lang)?.label || 'magyar'}</span>
+              <svg fill="none" stroke="#082432" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14" className={`settings-lang-chevron ${showLangDropdown ? 'settings-lang-chevron--open' : 'settings-lang-chevron--closed'}`}><path d="M6 9l6 6 6-6" /></svg>
+            </div>
+            {showLangDropdown && (
+              <>
+                <div className="dropdown-backdrop" onClick={() => setShowLangDropdown(false)} />
+                <div className="settings-lang-dropdown">
+                  {COMM_LANGUAGE_OPTIONS.map(l => (
+                    <div key={l.code} onClick={() => { setLang(l.code); setShowLangDropdown(false); }} className={`settings-lang-option ${lang === l.code ? 'settings-lang-option--active' : 'settings-lang-option--idle'}`}>
+                      <div className="settings-flag-wrap">{COMM_FLAGS[l.code]}</div>
+                      <span className={`${lang === l.code ? 'settings-lang-option-text--active' : 'settings-lang-option-text--idle'}`}>{l.label}</span>
+                      {lang === l.code && <svg fill="none" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14" className="settings-lang-check"><polyline points="20 6 9 17 4 12" /></svg>}
+                    </div>
+                  ))}
                 </div>
-                <span className="flex-1 text-md font-medium settings-lang-text">
-                  {COMM_LANGUAGE_OPTIONS.find(l => l.code === lang)?.label || 'magyar'}
-                </span>
-                <svg fill="none" stroke="var(--text-muted)" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14" className={`settings-lang-chevron ${showLangDropdown ? 'settings-lang-chevron--open' : 'settings-lang-chevron--closed'}`}>
-                  <path d="M6 9l6 6 6-6" />
-                </svg>
-              </div>
-              {showLangDropdown && (
-                <>
-                  <div className="dropdown-backdrop" onClick={() => setShowLangDropdown(false)} />
-                  <div className="settings-lang-dropdown">
-                    {COMM_LANGUAGE_OPTIONS.map(l => (
-                      <div
-                        key={l.code}
-                        onClick={() => { setLang(l.code); setShowLangDropdown(false); }}
-                        className={`settings-lang-option ${lang === l.code ? 'settings-lang-option--active' : 'settings-lang-option--idle'}`}
-                        onMouseEnter={e => { if (lang !== l.code) (e.currentTarget as HTMLDivElement).style.background = 'rgba(28,238,224,0.04)'; }}
-                        onMouseLeave={e => { if (lang !== l.code) (e.currentTarget as HTMLDivElement).style.background = 'transparent'; }}
-                      >
-                        <div className="settings-flag-wrap">
-                          {COMM_FLAGS[l.code]}
-                        </div>
-                        <span className={`${lang === l.code ? 'settings-lang-option-text--active' : 'settings-lang-option-text--idle'}`}>
-                          {l.label}
-                        </span>
-                        {lang === l.code && (
-                          <svg fill="none" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14" className="settings-lang-check">
-                            <polyline points="20 6 9 17 4 12" />
-                          </svg>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          </div>
-
-          {/* Kommunikációs stílus */}
-          <div>
-            <label className="tt-label">Kommunikációs stílus</label>
-            <div className="settings-tone-select-wrap">
-              <CustomSelect
-                value={tone}
-                onChange={(v) => setTone(v)}
-                options={[
-                  { value: 'professional_friendly', label: 'Professzionális, segítőkész' },
-                  { value: 'formal', label: 'Formális, tárgyszerű' },
-                  { value: 'informal', label: 'Informális, közvetlen' },
-                  { value: 'empathetic', label: 'Empatikus, támogató' },
-                  { value: 'custom', label: 'Egyedi leírás...' },
-                ]}
-              />
-            </div>
-            {tone === 'custom' && (
-              <textarea className="settings-textarea settings-textarea--mt" value={toneCustom} onChange={(e) => setToneCustom(e.target.value)} placeholder="Írd le a kívánt kommunikációs stílust..." />
+              </>
             )}
           </div>
         </div>
 
-        {/* Üdvözlőszöveg */}
+        {/* Kommunikációs stílus */}
         <div>
-          <div className="flex-row gap-6 mb-6">
-            <label className="tt-label" style={{ marginBottom: 0 }}>Üdvözlőszöveg beállítása (Voice Agent)</label>
-            <div onClick={() => setShowGreetingInfo(!showGreetingInfo)} className={`info-tooltip ${showGreetingInfo ? 'info-tooltip--active' : 'info-tooltip--idle'}`}>
-              <span className={showGreetingInfo ? 'info-tooltip-i--active' : ''}>í</span>
-            </div>
+          <label className="ed-label">Kommunikációs stílus</label>
+          <div className="settings-tone-select-wrap ed-select-refined">
+            <CustomSelect value={tone} onChange={(v) => setTone(v)} options={[
+              { value: 'professional_friendly', label: 'Professzionális, segítőkész' },
+              { value: 'formal', label: 'Formális, tárgyszerű' },
+              { value: 'informal', label: 'Informális, közvetlen' },
+              { value: 'empathetic', label: 'Empatikus, támogató' },
+              { value: 'custom', label: 'Egyedi leírás...' },
+            ]} />
           </div>
-          {showGreetingInfo && (
-            <div className="settings-greeting-info">
-              Az üdvözlőszöveg legyen rövid, természetes és egyértelmű. A Voice Agentet nevezheted egyszerűen virtuális asszisztensnek és/vagy adhatsz neki nevet is. Kerüld a túl hosszú vagy túl információsűrű megfogalmazást. Érdemes rögtön felkínálni a segítséget — a cél az, hogy a beszélgetés gyorsan és gördülékenyen elinduljon.
-            </div>
-          )}
-          <textarea
-            className="settings-textarea settings-textarea--greeting"
-            value={greeting}
-            onChange={(e) => setGreeting(e.target.value)}
-            placeholder="Írd ide az üdvözlőszöveget..."
-          />
+          {tone === 'custom' && <textarea className="ed-textarea" style={{ marginTop: 12 }} value={toneCustom} onChange={(e) => setToneCustom(e.target.value)} placeholder="Írd le a kívánt kommunikációs stílust..." />}
         </div>
       </div>
-    </>
+
+      {/* Üdvözlőszöveg */}
+      <div>
+        <div className="flex-row gap-8 mb-8">
+          <label className="ed-label" style={{ marginBottom: 0 }}>Üdvözlőszöveg beállítása (Voice Agent)</label>
+          <div onClick={() => setShowGreetingInfo(!showGreetingInfo)} className="ed-info-icon" title="Súgó">i</div>
+        </div>
+        {showGreetingInfo && (
+          <div className="settings-greeting-info" style={{ marginBottom: 12, background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '12px', borderRadius: '8px', fontSize: '13px', color: '#475569' }}>
+            Az üdvözlőszöveg legyen rövid, természetes és egyértelmű. A Voice Agentet nevezheted egyszerűen virtuális asszisztensnek és/vagy adhatsz neki nevet is. Kerüld a túl hosszú vagy túl információsűrű megfogalmazást.
+          </div>
+        )}
+        <textarea className="ed-textarea" value={greeting} onChange={(e) => setGreeting(e.target.value)} placeholder="Írd ide az üdvözlőszöveget..." />
+      </div>
+    </div>
+  );
+}
+
+
+
+function EmailSenderSettingsSection({ senderName, setSenderName, senderEmail, setSenderEmail }: any) {
+  return (
+    <div className="ed-card">
+      <div className="ed-card-header">
+        <div className="ed-icon-box">
+          <svg fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16" height="16"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
+        </div>
+        <div className="ed-card-title">
+          E-mail feladó beállítások
+          <div className="ed-info-icon" style={{ marginLeft: 4 }} title={"Az e-mail értesítések feladójaként megjelenő név és e-mail cím.\n\nFontos: A feladó e-mail címnek a Brevo-ban hitelesítve kell lennie!"}>i</div>
+        </div>
+      </div>
+
+      <div className="ed-grid-2">
+        <div>
+          <label className="ed-label">Feladó neve</label>
+          <input className="ed-input" value={senderName} onChange={e => setSenderName(e.target.value)} placeholder="pl. RiverGate Dental Asszisztens" />
+        </div>
+        <div>
+          <label className="ed-label">Feladó e-mail</label>
+          <input className="ed-input" type="email" value={senderEmail} onChange={e => setSenderEmail(e.target.value)} placeholder="pl. info@rivergate.hu" />
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -747,39 +1001,39 @@ function saveChannels(channels: ChannelConfig[]) {
   localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
 }
 
-function ChannelsSection() {
-  const [channels, setChannels] = useState<ChannelConfig[]>(loadChannels);
-
+function ChannelsSection({ channels, setChannels }: any) {
   const update = useCallback((id: string, patch: Partial<ChannelConfig>) => {
-    setChannels(prev => {
-      const next = prev.map(ch => ch.id === id ? { ...ch, ...patch } : ch);
-      saveChannels(next);
-      return next;
-    });
-  }, []);
+    setChannels((prev: ChannelConfig[]) => prev.map(ch => ch.id === id ? { ...ch, ...patch } : ch));
+  }, [setChannels]);
 
   return (
-    <div className="beallitasok-card channels-card">
-      <div className="channels-header">
-        <div className="channels-title">Csatornák</div>
+    <div className="mb-24">
+      <div style={{ marginBottom: 16 }}>
+        <h3 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 4px 0', color: '#082432' }}>Csatornák</h3>
+        <div style={{ fontSize: '13px', color: '#5F7D95' }}>Kommunikációs csatornák kezelése</div>
       </div>
-      <div className="channels-desc">Kommunikációs csatornák kezelése</div>
+      
       <div className="channels-list">
-        {channels.map((ch, i) => (
+        {channels.map((ch: ChannelConfig, i: number) => (
           <div key={ch.id} className={`channels-row ${i % 2 === 0 ? 'channels-row--even' : 'channels-row--odd'}`}>
-            <div className={`channels-icon ${ch.enabled ? 'channels-icon--on' : 'channels-icon--off'}`}>
+            <div className="channels-icon">
               {ch.icon}
             </div>
-            <div className={`channels-label ${ch.enabled ? 'channels-label--on' : 'channels-label--off'}`}>
-              {ch.label}
+            <div className="channels-label">{ch.label}</div>
+            <div className="channels-toggle">
+              <button
+                onClick={() => update(ch.id, { enabled: !ch.enabled })}
+                className={`toggle-pill ${ch.enabled ? 'toggle-pill--on' : 'toggle-pill--off'}`}
+              >
+                <div className={`toggle-circle ${ch.enabled ? 'toggle-circle--on' : 'toggle-circle--off'}`} />
+              </button>
             </div>
-            <label className="toggle">
-              <input type="checkbox" checked={ch.enabled} onChange={e => update(ch.id, { enabled: e.target.checked })} />
-              <span className="toggle-slider" />
-            </label>
-            <div className="channels-input-wrap">
-              <input type="text" className="beallitasok-input" placeholder={ch.placeholder} value={ch.value} onChange={e => update(ch.id, { value: e.target.value })} disabled={!ch.enabled} />
-            </div>
+            <input
+              className="channels-input"
+              value={ch.value}
+              onChange={(e) => update(ch.id, { value: e.target.value })}
+              placeholder={ch.placeholder}
+            />
           </div>
         ))}
       </div>

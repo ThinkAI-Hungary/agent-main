@@ -715,29 +715,6 @@ export default function SettingsPage() {
               <textarea className="tt-textarea" value={business.service_description || ''} onChange={e => setBusiness({ ...business, service_description: e.target.value })} placeholder="Írja le részletesen a cég fő szolgáltatásait..." />
             </div>
 
-            {/* ── E-mail feladó beállítások ── */}
-            <div className="tt-section ci-desc-card">
-              <div className="tt-section-title mb-16">
-                <div className="icon-box">
-                  <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
-                </div>
-                E-mail feladó beállítások
-                <div className="settings-info-circle" title={"Az e-mail értesítések (visszaigazolás, emlékeztető, riasztás) feladójaként megjelenő név és e-mail cím.\n\nFontos: A feladó e-mail címnek a Brevo-ban hitelesítve kell lennie!"}>
-                  <span className="settings-info-circle-i">i</span>
-                </div>
-              </div>
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-                <div>
-                  <label className="tt-label">Feladó neve</label>
-                  <input className="tt-input" value={business.sender_name || ''} onChange={e => setBusiness({ ...business, sender_name: e.target.value })} placeholder="pl. RiverGate Dental Asszisztens" />
-                </div>
-                <div>
-                  <label className="tt-label">Feladó e-mail</label>
-                  <input className="tt-input" type="email" value={business.sender_email || ''} onChange={e => setBusiness({ ...business, sender_email: e.target.value })} placeholder="pl. info@rivergate.hu" />
-                </div>
-              </div>
-            </div>
-
             {/* ══════ 3. Nyitvatartás ══════ */}
             <div id="sec-nyitvatartas" className="scroll-anchor" />
             <SectionCard title="Nyitvatartás" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM12 6v6l4 2">

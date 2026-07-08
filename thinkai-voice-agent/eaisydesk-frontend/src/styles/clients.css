@@ -1077,7 +1077,7 @@
 
 /* Tag chip */
 .cd-tag-chip {
-  background: rgba(28,238,224,0.15); color: #0d9488; font-size: 12px; font-weight: 600;
+  font-size: 12px; font-weight: 600;
   padding: 4px 10px; border-radius: 9999px; display: inline-flex; align-items: center; gap: 4px;
 }
 
@@ -1092,7 +1092,7 @@
 
 /* Tag add button */
 .cd-tag-add-btn {
-  background: transparent; border: none; color: var(--accent); font-size: 12px;
+  background: transparent; border: none; color: #186D98; font-size: 12px;
   font-weight: 600; text-align: left; cursor: pointer; padding: 0; font-family: inherit;
 }
 

@@ -401,6 +401,7 @@ export const DIRECTION_COLORS: Record<string, { bg: string; color: string }> = {
 
 export const TAG_COLORS: Record<string, { bg: string; color: string }> = {
   árkérdés: { bg: '#fce4ec', color: '#c62828' },
+  kampánylead: { bg: '#e8f5e9', color: '#2e7d32' },
   'kampány lead': { bg: '#e8f5e9', color: '#2e7d32' },
   ajánlatkérés: { bg: '#fff3e0', color: '#e65100' },
   'törölt időpont': { bg: '#fce4ec', color: '#c62828' },

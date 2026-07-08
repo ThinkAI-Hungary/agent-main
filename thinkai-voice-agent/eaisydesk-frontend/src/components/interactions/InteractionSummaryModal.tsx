@@ -565,8 +565,6 @@ export default function InteractionSummaryModal({
     return (cd?.notification_email as string) || (cd?.email as string) || '';
   })();
 
-  // "Korábbi üzenetek" channel label
-  const earlierMessagesLabel = `Korábbi ${channel} üzenetek`;
 
   // Does this interaction have appointment result?
   const showCalendarButton = isAppointmentType && appointmentInfo && appointmentInfo.date !== '-';
@@ -870,30 +868,6 @@ export default function InteractionSummaryModal({
                   </>
                 )}
 
-                {/* Earlier messages link */}
-                {chatBlocks.length > 0 && channel !== 'Telefon' && (
-                  <button 
-                    className="ism-earlier-link"
-                    onClick={() => {
-                      if (row.clientId && onClientClick) {
-                        onClose();
-                        onClientClick(String(row.clientId));
-                      }
-                    }}
-                  >
-                    {earlierMessagesLabel}
-                    <svg
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2.5"
-                      viewBox="0 0 24 24"
-                      width="14"
-                      height="14"
-                    >
-                      <polyline points="9 18 15 12 9 6" />
-                    </svg>
-                  </button>
-                )}
               </div>
             )}
           </div>

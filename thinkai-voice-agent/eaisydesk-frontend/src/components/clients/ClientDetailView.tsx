@@ -14,6 +14,7 @@ import {
   detectEredmeny,
   detectStatusz,
   detectTeendo,
+  getTagColor,
 } from '../../helpers/interactionClassifiers';
 import { EredmenyBadge, StatuszBadge, DirectionBadge } from '../ui/Badge';
 import InteractionSummaryModal from '../interactions/InteractionSummaryModal';
@@ -328,20 +329,21 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
   const regDate = client.created_at ? new Date(client.created_at).toLocaleDateString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit' }).replace(/\//g, '. ') : 'N/A';
 
   const PREDEFINED_TAGS: { label: string; bg: string; color: string }[] = [
-    { label: 'árkérdés', bg: '#fed7aa', color: '#c2410c' },
-    { label: 'kampány lead', bg: '#e5e7eb', color: '#374151' },
-    { label: 'ajánlatkérés', bg: '#a7f3d0', color: '#065f46' },
-    { label: 'törölt időpont', bg: '#fecaca', color: '#b91c1c' },
-    { label: 'no-show', bg: '#99f6e4', color: '#0f766e' },
-    { label: 'VIP', bg: '#e9d5ff', color: '#7c3aed' },
-  ];
+    { label: 'árkérdés' },
+    { label: 'kampánylead' },
+    { label: 'ajánlatkérés' },
+    { label: 'törölt időpont' },
+    { label: 'no-show' },
+    { label: 'VIP' },
+  ].map(t => ({ ...t, ...getTagColor(t.label) }));
 
   return (
     <div className="analytics-shell">
       {/* Back button */}
       <div className="flex-between mb-20">
         <button
-          className="btn btn-ghost btn-ghost--accent"
+          className="btn btn-ghost"
+          style={{ color: '#186D98', padding: 0 }}
           onClick={onBack}
         >
           <span>← </span>
@@ -398,7 +400,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             className="btn btn-ghost"
             onClick={() => setShowProfileEdit(true)}
           >
-            <svg fill="none" height="16" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16">
+            <svg fill="none" height="16" stroke="#186D98" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16">
               <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
               <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
             </svg>
@@ -421,12 +423,15 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           <h3 className="cd-section-title">Címkék</h3>
           <div className="flex-row flex-wrap gap-8">
             {((cd?.tags as string[]) || []).length === 0 && <span className="cd-empty-tag">Nincs címke</span>}
-            {((cd?.tags as string[]) || []).map((t) => (
-              <span key={t} className="cd-tag-chip">
-                {t}
-                <button onClick={() => removeTag(t)} className="cd-tag-remove">×</button>
-              </span>
-            ))}
+            {((cd?.tags as string[]) || []).map((t) => {
+              const c = getTagColor(t);
+              return (
+                <span key={t} className="cd-tag-chip" style={{ background: c.bg, color: c.color }}>
+                  {t}
+                  <button onClick={() => removeTag(t)} className="cd-tag-remove" style={{ color: 'inherit' }}>×</button>
+                </span>
+              );
+            })}
           </div>
           <div className="cd-tag-picker-wrap">
             <button onClick={() => setShowTagPicker(!showTagPicker)} className="cd-tag-add-btn">+ Címke hozzáadása</button>

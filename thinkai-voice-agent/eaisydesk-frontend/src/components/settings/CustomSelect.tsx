@@ -30,11 +30,7 @@ export default function CustomSelect({ value, onChange, options }: Props) {
       <button
         type="button"
         onClick={() => setOpen(!open)}
-        className="custom-select-trigger"
-        style={{
-          border: open ? '1.5px solid var(--accent)' : '1.5px solid var(--border)',
-          ...(open ? { boxShadow: '0 0 0 3px rgba(28,238,224,0.12)' } : {}),
-        }}
+        className={`custom-select-trigger${open ? ' custom-select-trigger--open' : ''}`}
       >
         {current?.label || value}
         <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14" className={`custom-select-chevron${open ? ' custom-select-chevron--open' : ''}`}>
