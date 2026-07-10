@@ -1498,8 +1498,17 @@ app.post('/api/image/composite-generate', async (req, res) => {
 
     // ── Step 0: Decompose user prompt into scene vs. layer text ──────────────
     // This prevents promotional text (e.g. "30% kedvezmény") from entering FLUX
+    // SCENE OVERRIDE: prefix signals that the scenario is absolute priority — strip it before processing
+    const sceneOverrideMode = scenePrompt.trim().startsWith('SCENE OVERRIDE:');
+    const rawSceneForDecompose = sceneOverrideMode
+      ? scenePrompt.trim().replace(/^SCENE OVERRIDE:\s*/i, '')
+      : scenePrompt.trim();
+    if (sceneOverrideMode) {
+      console.log(`[COMPOSITE-GENERATE] SCENE OVERRIDE mode active → DNA style will be SUPPRESSED regardless of mood keywords`);
+    }
+
     const decomposed = await decomposeUserPrompt(
-      scenePrompt.trim(),
+      rawSceneForDecompose,
       slotSubjects,
       safeBrandDna  // always a string now
     );
@@ -1511,7 +1520,8 @@ app.post('/api/image/composite-generate', async (req, res) => {
     
     // Style tags from DNA — only append if user didn't already specify a style/mood/atmosphere.
     // If the user's scene prompt contains explicit mood words, DNA style is secondary.
-    const userSpecifiedMood = /\b(dark|moody|messy|cluttered|clean|bright|gritty|rustic|industrial|minimal|dramatic|soft|warm|cold|vintage|modern|elegant)\b/i.test(effectiveScenePrompt);
+    // SCENE OVERRIDE mode: DNA style ALWAYS suppressed — scenario wins completely.
+    const userSpecifiedMood = sceneOverrideMode || /\b(dark|moody|messy|cluttered|clean|bright|gritty|rustic|industrial|minimal|dramatic|soft|warm|cold|vintage|modern|elegant|snowy|mountain|forest|beach|outdoor|indoor|studio|kitchen|garden|rain|snow|fog|sunset|sunrise)\b/i.test(effectiveScenePrompt);
     if (brandRules.length > 0 && !userSpecifiedMood) {
       // User didn't specify a style → use DNA style to fill the gap
       const styleTags = await getStyleTags(brandRules);
@@ -1523,7 +1533,7 @@ app.post('/api/image/composite-generate', async (req, res) => {
       }
       console.log(`[COMPOSITE-GENERATE] DNA style appended (user didn't specify mood): userSpecifiedMood=false`);
     } else if (brandRules.length > 0) {
-      console.log(`[COMPOSITE-GENERATE] DNA style SKIPPED — user specified mood in prompt (userSpecifiedMood=true)`);
+      console.log(`[COMPOSITE-GENERATE] DNA style SKIPPED — ${sceneOverrideMode ? 'SCENE OVERRIDE active' : 'user specified mood in prompt'} (userSpecifiedMood=true)`);
     }
 
     // Final safety regex filter to guarantee no brand names are present
@@ -2250,17 +2260,21 @@ Return ONLY JSON, no markdown:
       // Position: shadow starts at the product base and extends backward
       const shadowLeft = productLeft + Math.round((finalW - shadowW) / 2) + shadowXShift;
       const shadowTop = Math.min(bgH - shadowH - 1, surfaceY - Math.round(shadowH * 0.15) + shadowYShift);
-      const shadowPad = Math.round(Math.max(80, shadowH * 1.5)); // Increased pad to prevent edge cutoff
+      // shadowPad: limit to 120px max — shadowH*1.5 was creating 400px pads that exploded canvas sizes
+      const shadowPad = Math.round(Math.min(120, Math.max(60, shadowH * 0.4)));
       const shadowCanW = shadowW + shadowPad * 2;
       const shadowCanH = shadowH + shadowPad * 2;
-      // Opacity: softer for longer shadows (they spread over more surface area)
+      // Opacity: strong enough to be visible.
+      // Old formula gave 0.22 which made shadows nearly invisible.
+      // New: base 0.38 + darkness-scaled addition, capped at 0.65.
       const shadowOpacity = hasDropShadow
-        ? Math.min(0.45, la?.shadow?.dropOpacity ?? Math.max(0.15, 0.20 + (laDarkness / 100) * 0.20))
+        ? Math.min(0.65, la?.shadow?.dropOpacity ?? Math.max(0.30, 0.38 + (laDarkness / 100) * 0.25))
         : 0;
-      // Blur: large penumbra for soft cast shadow. Minimum 16px.
-      const penumbraBlurOverride: Record<string,number> = { 'none': 6, 'narrow': 10, 'medium': 18, 'wide': 28 };
+      // Blur: FIXED range 22-42px — old formula (shadowH*0.8 = 213px) made shadows invisible.
+      // Penumbra should be a fixed photographic soft-shadow, not scaled by shadow length.
+      const penumbraBlurOverride: Record<string,number> = { 'none': 6, 'narrow': 14, 'medium': 24, 'wide': 38 };
       const penumbraBlur = la?.shadow?.penumbraWidth ? penumbraBlurOverride[la.shadow.penumbraWidth] : undefined;
-      const shadowBlurPx = Math.max(16, la?.shadow?.dropBlurPx ?? penumbraBlur ?? Math.round(shadowH * 0.8));
+      const shadowBlurPx = Math.min(42, Math.max(22, la?.shadow?.dropBlurPx ?? penumbraBlur ?? 28));
       // GRADIENT shadow: cx=50%, cy=10% — gradient center at top of shadow ellipse
       // (= near product base). Shadow fades toward the far end (cy=100%).
       // This creates the elongated teardrop look of a real cast shadow.
@@ -2857,12 +2871,43 @@ Return ONLY JSON, no markdown:
       const sceneDimFactor = 1.0 - (sceneCtx.ambientDarkness / 100) * 0.18;  // 0.82-1.0
       console.log(`[COMPOSITE-GENERATE][preserveOriginal] [E] Scene dim factor: ${sceneDimFactor.toFixed(3)} (darkness=${sceneCtx.ambientDarkness})`);
 
+      // ── Form shadow: directional darkening of the product's shadow-facing side ──
+      // Physics: when light comes from the right (lightX > 50%), the LEFT side of the
+      // product should be darker. We add a linear gradient overlay that transitions from
+      // black (opacity ~35%) on the shadow side to transparent on the light side.
+      // This grounds the product and gives it 3D weight without touching the base image.
+      let formShadowBuffer: Buffer | null = null;
+      const lightXPct = sceneCtx.lightSourceXPercent ?? 65; // 0=far left, 100=far right
+      const lightIsFromRight = lightXPct > 52;
+      const formShadowOpacity = Math.min(0.42, Math.max(0.20, Math.abs(lightXPct - 50) / 100 * 1.4));
+      if (formShadowOpacity > 0.12 && finalW > 0 && finalH > 0) {
+        // Gradient goes from shadow side (dark) to light side (transparent)
+        // x1/y1 = shadow side start, x2/y2 = light side end
+        const x1 = lightIsFromRight ? '0%' : '100%';
+        const x2 = lightIsFromRight ? '70%' : '30%';
+        const formShadowSvg = Buffer.from(
+          `<svg width="${finalW}" height="${finalH}" xmlns="http://www.w3.org/2000/svg">` +
+          `<defs><linearGradient id="fg" x1="${x1}" y1="60%" x2="${x2}" y2="100%">` +
+          `<stop offset="0%"   stop-color="black" stop-opacity="${formShadowOpacity.toFixed(2)}"/>` +
+          `<stop offset="55%"  stop-color="black" stop-opacity="${(formShadowOpacity * 0.30).toFixed(2)}"/>` +
+          `<stop offset="100%" stop-color="black" stop-opacity="0"/>` +
+          `</linearGradient></defs>` +
+          `<rect x="0" y="0" width="${finalW}" height="${finalH}" fill="url(#fg)"/>` +
+          `</svg>`
+        );
+        formShadowBuffer = await sharp(formShadowSvg).png().toBuffer();
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] Form shadow: direction=${lightIsFromRight ? 'left' : 'right'} opacity=${formShadowOpacity.toFixed(2)} lightX=${lightXPct}%`);
+      }
+
       // All E-step layers added to post-effects
       const ePostLayers: sharp.OverlayOptions[] = [
         // reflectionBuffer is null when surface is non-reflective (sand, beach, grass...)
         ...(reflectionBuffer ? [{ input: reflectionBuffer as Buffer, left: reflLeft, top: reflTop, blend: 'multiply' as sharp.Blend }] : []),
         ...postEffectLayers,
+        // Form shadow: applied AFTER contact shadow so it sits on top of the product
+        ...(formShadowBuffer ? [{ input: formShadowBuffer, left: productLeft, top: productTop, blend: 'multiply' as sharp.Blend }] : []),
       ];
+
 
       let compositedBuffer = await sharp(baseComposite)
         .composite(ePostLayers)
@@ -3829,6 +3874,479 @@ app.post('/api/image/satori-render', async (req, res) => {
   } catch (err: any) {
     console.error('[SATORI-RENDER] Error:', err.message);
     res.status(500).json({ error: 'Satori render failed', details: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROUTE: /api/image/satori-auto-layout
+// Generates an AI-suggested Satori overlay layout based on prompt and Brand DNA.
+// ═══════════════════════════════════════════════════════════════════════════════
+app.post('/api/image/satori-auto-layout', async (req, res) => {
+  const { prompt = '', brandDna, subject = '' } = req.body;
+
+  // Try to load local brand_dna.json if it exists
+  let localBrandDna: any = null;
+  try {
+    const brandDnaPath = path.join(__dirname, '..', '..', '..', 'thinkai-voice-agent', 'brand_dna.json');
+    if (fs.existsSync(brandDnaPath)) {
+      const raw = fs.readFileSync(brandDnaPath, 'utf8');
+      localBrandDna = JSON.parse(raw);
+      console.log('[SATORI-AUTO-LAYOUT] Loaded brand_dna.json from thinkai-voice-agent folder');
+    }
+  } catch (loadErr: any) {
+    console.log('[SATORI-AUTO-LAYOUT] Optional brand_dna.json load skipped:', loadErr.message);
+  }
+
+  const brandKit = brandDna || localBrandDna || {};
+  const companyName = brandKit.company?.name || 'Piktor Kft.';
+  const visualRecipe = brandKit.visual_recipe || {};
+  const colors = visualRecipe.color_palette || { primary: '#187fc0', secondary: '#333333', accent: '#c32226', background: '#ffffff', text_color: '#000000' };
+
+  console.log(`[SATORI-AUTO-LAYOUT] generating for subject="${subject}" prompt="${prompt.substring(0, 40)}..."`);
+
+  const systemPrompt = `You are a marketing layout assistant for an automated graphic editor.
+Analyze the image generation prompt/context, the subject, and the brand identity to propose the perfect overlay layout using the Satori engine.
+
+SATORI ENGINE SPECIFICATIONS:
+We compose an overlay on a 1080x1350 vertical image.
+Available Style IDs:
+1. 'gradient-bottom' - dark gradient at the bottom with white text. Great for general product shots.
+2. 'gradient-left' - dark gradient on the left. Great if the product is on the right side of the image.
+3. 'white-card' - full-width solid white banner card at the bottom with dark text. Highly legible.
+4. 'glass-card' - frosted glass transparent bottom card. Modern, elegant.
+5. 'luxury-frame' - golden thin border frame with elegant serif font. Best for premium or premium-tier products.
+6. 'neo-brutal' - high-contrast black border, bold colors, sticker feel. Young, vibrant, aggressive marketing.
+7. 'ribbon-top' - a solid bar at the top of the image in the accent color. Great for announcements.
+8. 'circle-badge' - a centered round badge with a border. High focus on central text.
+9. 'promo-accent' - bottom gradient + a top-right coupon/promo badge. Best for sales.
+10. 'full-dark' - darkens the entire image with a central text. Cinematic, moody.
+11. 'minimal-bar' - a small centered pill/bar at the bottom in the primary color. Minimalist.
+12. 'diagonal-split' - a modern diagonal slash dividing the product and a white solid area at the bottom.
+13. 'feature-list' - a rounded card designed for a bulleted list of 2-3 items. Ideal for listing product specs/benefits.
+14. 'retro-sticker' - a tilted badge with a thick black drop shadow. Energetic, bold callouts.
+15. 'side-panel' - a vertical sidebar panel occupying the left 38% of the image.
+16. 'minimal-corner' - a tiny elegant card in the bottom-right corner. Minimal disruption to the photo.
+17. 'modern-minimal-border' - thin elegant frame. Text top left, CTA bottom right.
+18. 'asymmetric-split' - vertical sidebar on the right column (covers X from 600 to 1080).
+19. 'badge-ticker' - continuously repeating promo marquee ribbon at the top or bottom.
+20. 'comic-speech' - speech bubble/cloud style card.
+21. 'bold-kicker' - bold category kicker + huge title + accent separator line.
+22. 'social-proof-rating' - small testimonial/rating box at the top right.
+23. 'polaroid-frame' - wraps the image in a white Polaroid frame with text at the bottom.
+24. 'tailwind-cta' - premium card layout (light gray rounded container with shadow, left accent stripe) with title, subtitle, and primary/secondary action buttons.
+
+DESIGN SYSTEM POSITIONING GUIDELINES (1080x1350 canvas, X=0, Y=0 is center):
+Text layers (textLayers) and CTA must follow these strict rules to fit the layout zones. DO NOT just place text at x:0, y:0:
+
+1. 'gradient-bottom' -> Text bottom center: x: 0, y: 200 to 400. Align: center. Text Color: White/Light.
+2. 'gradient-left' -> Text left middle: x: -350 to -250, y: -200 to 100. Align: left. Text Color: White/Light.
+3. 'white-card' -> Text bottom left: x: -400 to -200, y: 350 to 450. Align: left. Text Color: Brand Dark/Charcoal.
+4. 'glass-card' -> Text bottom left: x: -400 to -200, y: 320 to 420. Align: left. Text Color: White/Light.
+5. 'luxury-frame' -> Text bottom center: x: 0, y: 250 to 350. Align: center. Text Color: Gold (#c9a96e) or White.
+6. 'neo-brutal' -> Text bottom left: x: -400 to -200, y: 300 to 400. Align: left. Text Color: White/Fluorescent.
+7. 'ribbon-top' -> Text top center: x: 0, y: -580 to -500. Align: center. Text Color: High contrast with ribbon.
+8. 'circle-badge' -> Text exact center: x: 0, y: -100 to 100. Align: center. Text Color: High contrast inside circle.
+9. 'promo-accent' -> Text bottom left: x: -400 to -200, y: 250 to 380. Align: left. Text Color: White/Light.
+10. 'full-dark' -> Text center: x: 0, y: -100 to 100. Align: center. Text Color: White/Light.
+11. 'minimal-bar' -> Text bottom center: x: 0, y: 350 to 420. Align: center. Text Color: White/Light.
+12. 'diagonal-split' -> Text bottom left: x: -400 to -200, y: 300 to 420. Align: left. Text Color: Brand Dark/Charcoal.
+13. 'feature-list' -> Text bottom left inside card: x: -400 to -200, y: 220 to 380. Align: left. Text Color: White/Light. MUST use bullet points: "• Pont 1\n• Pont 2".
+14. 'retro-sticker' -> Text centered inside badge: x: 250, y: 350 (bottom-right) OR x: -250, y: -350 (top-left). Align: center. Text Color: Black on Yellow/Orange.
+15. 'side-panel' -> Text left column: x: -380 to -280, y: -250 to 100. Align: left. Text Color: White/Light.
+16. 'minimal-corner' -> Text bottom right card: x: 250 to 380, y: 320 to 420. Align: left. Text Color: Brand Dark/Charcoal.
+17. 'modern-minimal-border' -> Text top left: x: -400, y: -500. Align: left. CTA bottom right: x: 300, y: 500. Text Color: White/Gold.
+18. 'asymmetric-split' -> Text right column: x: 200 to 380, y: -250 to 100. Align: left. Text Color: White or primary brand color.
+19. 'badge-ticker' -> Continuously repeating marquee text: x: 0, y: -580 (top) or y: 580 (bottom). Align: center. Text Color: High contrast.
+20. 'comic-speech' -> Speach bubble card. Text center: x: -100 to 200, y: 0 to 200. Align: center. Text Color: Charcoal (#1a1a1a).
+21. 'bold-kicker' -> Text left middle: x: -400 to -200, y: -100 to 200. Align: left. Text Color: White. (Provide 2 text layers: layer 1 for Kicker (smaller size, accent color), layer 2 for Headline (big size, white)).
+22. 'social-proof-rating' -> Testimonial box. Text top-right: x: 200 to 380, y: -450 to -300. Align: left. Text Color: Charcoal or White.
+23. 'polaroid-frame' -> Polaroid frame text bottom center: x: 0, y: 500 to 580. Align: center. Text Color: Charcoal (#1a1a1a).
+24. 'tailwind-cta' -> Card text left: x: -400 to -200, y: 300 to 400. Align: left. Text Color: dark charcoal (#111827).
+
+RULES FOR OUTPUT CONFIGURATION:
+- Return valid JSON matching the schema below.
+- Select the best 'satoriStyleId' based on the product type and scene prompt.
+- Formulate the text layers in HUNGARIAN. Keep them short, punchy, and marketing-focused. HUNGARIAN ACCENTS ARE MANDATORY! You MUST use proper Hungarian accents (á, é, í, ó, ö, ő, ú, ü, ű). NEVER write text without proper Hungarian accents (e.g. use "szépség", never "szepseg"; "különleges", never "kulonleges"; "Győr", never "Gyor"). Double acute accents (ő, ű) are extremely important.
+- Align the colors with the brand color palette provided.
+- Segment textLayers into semantically distinct layers with specific IDs: "brandName", "productName", "spec", "price", or "headline". Set "visible": true for each.
+- Add root-level visibility options: "showBorder": true, "showCta": true, "showBadge": true.
+
+JSON SCHEMA:
+{
+  "satoriStyleId": "gradient-bottom",
+  "text": "Inntaler Matt Fehér",
+  "textLayers": [
+    {
+      "id": "brandName",
+      "text": "PIKTOR KFT.",
+      "fontSize": 24,
+      "color": "#c9a96e",
+      "opacity": 100,
+      "x": 0,
+      "y": 240,
+      "textAlign": "center",
+      "visible": true
+    },
+    {
+      "id": "productName",
+      "text": "Inntaler Matt Fehér",
+      "fontSize": 48,
+      "color": "#ffffff",
+      "opacity": 100,
+      "x": 0,
+      "y": 300,
+      "textAlign": "center",
+      "visible": true
+    },
+    {
+      "id": "spec",
+      "text": "Kiadósság: 10m²/l",
+      "fontSize": 24,
+      "color": "#e5e7eb",
+      "opacity": 100,
+      "x": 0,
+      "y": 370,
+      "textAlign": "center",
+      "visible": true
+    }
+  ],
+  "cta": "Vásárlás",
+  "ctaOpts": {
+    "color": "#ffffff",
+    "bgColor": "#c32226"
+  },
+  "showBorder": true,
+  "showCta": true,
+  "showBadge": true
+}
+
+Respond ONLY with the raw JSON object. Do not include markdown formatting or explanation.`;
+
+  const userContent = `Subject: ${subject}
+Image Prompt/Scene Context: ${prompt}
+Brand Name: ${companyName}
+Brand Colors: ${JSON.stringify(colors)}
+Brand DNA Context: ${brandKit.company?.summary || ''}
+Visual Mood: ${visualRecipe.mood || ''}`;
+
+  try {
+    const model = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+    const response = await anthropic.messages.create({
+      model,
+      max_tokens: 1000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userContent }]
+    });
+
+    const rawText = (response.content[0].type === 'text') ? response.content[0].text : '';
+    console.log('[SATORI-AUTO-LAYOUT] Raw response from Claude:', rawText);
+
+    let parsedConfig;
+    try {
+      const jsonMatch = rawText.match(/\{[\s\S]*\}/);
+      parsedConfig = JSON.parse(jsonMatch ? jsonMatch[0] : rawText);
+    } catch (parseErr) {
+      throw new Error(`Failed to parse Claude output as JSON. Raw text: ${rawText}`);
+    }
+
+    // Force tailwind-cta as requested by the user
+    if (parsedConfig) {
+      parsedConfig.satoriStyleId = 'tailwind-cta';
+    }
+
+    res.json(parsedConfig);
+  } catch (err: any) {
+    console.error('[SATORI-AUTO-LAYOUT] Error:', err.message);
+    res.status(500).json({ error: 'AI Auto layout generation failed', details: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROUTE: /api/image/pin-test-image
+// Elmenti a kepet a perzisztens renders/pinned/ mappaba (tesztkep.png).
+// Szerver restart utan is megmarad -- a frontend ezt az URL-t menti.
+// ═══════════════════════════════════════════════════════════════════════════════
+app.post('/api/image/pin-test-image', async (req, res) => {
+  const { imageUrl } = req.body;
+  if (!imageUrl) return res.status(400).json({ error: 'imageUrl is required' });
+
+  try {
+    const pinnedDir = path.join(rendersDir, 'pinned');
+    await fs.promises.mkdir(pinnedDir, { recursive: true });
+    const outPath = path.join(pinnedDir, 'tesztkep.png');
+
+    let buf: Buffer;
+    if (imageUrl.startsWith('http')) {
+      const resp = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 30000 });
+      buf = Buffer.from(resp.data);
+    } else {
+      const cleanPath = imageUrl.split('?')[0];
+      const localPath = cleanPath.startsWith('/renders/')
+        ? path.join(rendersDir, cleanPath.replace('/renders/', ''))
+        : path.join(path.dirname(fileURLToPath(import.meta.url)), '..', cleanPath);
+      buf = await fs.promises.readFile(localPath);
+    }
+
+    await fs.promises.writeFile(outPath, buf);
+    console.log(`[PIN-TEST-IMAGE] Saved → ${outPath} (${Math.round(buf.length / 1024)}KB)`);
+    res.json({ imageUrl: '/renders/pinned/tesztkep.png', saved: true });
+  } catch (err: any) {
+    console.error('[PIN-TEST-IMAGE] Error:', err.message);
+    res.status(500).json({ error: 'Pin failed', details: err.message });
+  }
+});
+
+// ═══════════════════════════════════════════════════════════════════════════════
+// ROUTE: /api/image/text-preserve-regen
+// Text-Preserve Regeneration Mode:
+//   1. Detects text/label zones on the product using Claude Vision
+//   2. Generates a binary inpainting mask (black=preserve, white=regenerate)
+//   3. Calls BFL FLUX Fill Pro to regenerate product body + background in ONE pass
+//      while keeping all label/text areas pixel-perfectly intact
+// Called when user clicks the "Szöveg megőrzés" button
+// ═══════════════════════════════════════════════════════════════════════════════
+app.post('/api/image/text-preserve-regen', async (req, res) => {
+  const {
+    productImageUrl,  // The rembg'd isolated product (preprocessedUrl from frontend)
+    scenePrompt = '', // Optional: user-specified scene/background context
+    brandContext,     // Optional: brand name, colors, style
+    width = 1080,
+    height = 1350,
+  } = req.body;
+
+  if (!productImageUrl) {
+    return res.status(400).json({ error: 'productImageUrl is required' });
+  }
+
+  const start = Date.now();
+  const bflKey = process.env.BFL_API_KEY;
+  if (!bflKey) return res.status(500).json({ error: 'BFL_API_KEY not configured' });
+
+  console.log(`[TEXT-PRESERVE-REGEN] Starting for: ${productImageUrl.substring(0, 80)}`);
+
+  try {
+    // ── Step 1: Fetch the product image ─────────────────────────────────────
+    let productBuffer: Buffer;
+    if (productImageUrl.startsWith('http')) {
+      const resp = await axios.get(productImageUrl, { responseType: 'arraybuffer' });
+      productBuffer = Buffer.from(resp.data);
+    } else {
+      const cleanPath = productImageUrl.split('?')[0];
+      const localPath = cleanPath.startsWith('/renders/')
+        ? path.join(rendersDir, path.basename(cleanPath))
+        : path.join(path.dirname(fileURLToPath(import.meta.url)), '..', cleanPath);
+      productBuffer = await fs.promises.readFile(localPath);
+    }
+
+    // Get actual image dimensions
+    const meta = await sharp(productBuffer).metadata();
+    const imgW = meta.width || width;
+    const imgH = meta.height || height;
+
+    // ── Step 2: Claude Vision — detect text/label bounding boxes ─────────────
+    console.log(`[TEXT-PRESERVE-REGEN] Step 2: Detecting text zones via Claude Vision...`);
+    const base64Image = productBuffer.toString('base64');
+    const mimeType = (meta.format === 'jpeg' || meta.format === 'jpg') ? 'image/jpeg' : 'image/png';
+
+    const textDetectResponse = await anthropic.messages.create({
+      model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
+      max_tokens: 1024,
+      messages: [{
+        role: 'user',
+        content: [
+          {
+            type: 'image',
+            source: { type: 'base64', media_type: mimeType, data: base64Image }
+          },
+          {
+            type: 'text',
+            text: `You are analyzing a product image to identify ONLY the printed text and logo areas that must be preserved pixel-perfectly during image regeneration.
+
+DETECT ONLY:
+- Brand names and logos (the actual printed characters/graphics)
+- Product names (printed text)
+- Specification text (e.g. "1L", "8 m²/L", percentages)
+- Marketing text printed on labels
+- Printed icons/badges that are part of the label design
+
+DO NOT DETECT (these will be regenerated to match the new scene):
+- The product body, lid, cap, handle (physical 3D structure)
+- Background or shadows
+- Reflections or glossy highlights on the product surface
+- Transparent or empty areas
+
+Use TIGHT bounding boxes — minimal pixel coverage of the actual text/logo characters only.
+Group nearby text elements into single zones where logical.
+Do NOT add extra margin — just the actual character bounds.
+
+Return JSON array ONLY (no explanation, no markdown):
+[
+  { "label": "brand logo", "x1": 15, "y1": 22, "x2": 55, "y2": 35 },
+  { "label": "product name", "x1": 10, "y1": 38, "x2": 85, "y2": 52 }
+]
+x1,y1 = top-left (0-100%), x2,y2 = bottom-right (0-100%). If NO text: return []`
+          }
+        ]
+      }]
+    });
+
+    let textZones: Array<{ label: string; x1: number; y1: number; x2: number; y2: number }> = [];
+    const rawText = (textDetectResponse.content[0].type === 'text') ? textDetectResponse.content[0].text : '';
+    try {
+      const jsonMatch = rawText.match(/\[[\s\S]*\]/);
+      if (jsonMatch) textZones = JSON.parse(jsonMatch[0]);
+    } catch {
+      console.warn('[TEXT-PRESERVE-REGEN] Claude text zone parsing failed, using empty zones');
+    }
+    console.log(`[TEXT-PRESERVE-REGEN] Step 2 done — detected ${textZones.length} text zones:`, textZones.map(z => z.label));
+
+    // ── Step 3: Convert product image: flatten alpha → JPEG + resize ───────────
+    // rembg images are RGBA PNGs — BFL Fill doesn't handle transparency well.
+    // Flatten to white background, convert to JPEG, resize to max 1024px
+    // (BFL Fill has a ~1MB payload limit for base64)
+    console.log(`[TEXT-PRESERVE-REGEN] Step 3a: Flattening alpha + resizing for BFL compatibility...`);
+    const flatProductBuffer = await sharp(productBuffer)
+      .flatten({ background: { r: 255, g: 255, b: 255 } })
+      .resize({ width: 1024, height: 1024, fit: 'inside', withoutEnlargement: true })
+      .jpeg({ quality: 90 })
+      .toBuffer();
+
+    // Get actual dimensions after resize (for mask generation)
+    const flatMeta = await sharp(flatProductBuffer).metadata();
+    const flatW = flatMeta.width || imgW;
+    const flatH = flatMeta.height || imgH;
+
+    // ── Step 3b: Generate inpainting mask ────────────────────────────────────
+    // BFL Fill convention: WHITE = inpaint (regenerate), BLACK = preserve (keep)
+    // Mask must match EXACT dimensions of the (resized) input image
+    console.log(`[TEXT-PRESERVE-REGEN] Step 3b: Generating inpainting mask (${flatW}x${flatH})...`);
+
+    let maskSvgRects = '';
+    if (textZones.length > 0) {
+      for (const zone of textZones) {
+        // 2% margin only — tight preservation of text pixels only.
+        // Product body, lid, handle remain WHITE (regeneratable) to adapt to the new scene.
+        const marginPct = 2;
+        const px1 = Math.max(0, zone.x1 - marginPct);
+        const py1 = Math.max(0, zone.y1 - marginPct);
+        const px2 = Math.min(100, zone.x2 + marginPct);
+        const py2 = Math.min(100, zone.y2 + marginPct);
+        const x = Math.round(flatW * px1 / 100);
+        const y = Math.round(flatH * py1 / 100);
+        const w = Math.round(flatW * (px2 - px1) / 100);
+        const h = Math.round(flatH * (py2 - py1) / 100);
+        maskSvgRects += `<rect x="${x}" y="${y}" width="${w}" height="${h}" fill="black"/>`;
+      }
+    }
+
+    // BFL Fill: WHITE=inpaint everything, BLACK rects=preserve text zones
+    const maskSvg = Buffer.from(
+      `<svg width="${flatW}" height="${flatH}" xmlns="http://www.w3.org/2000/svg">` +
+      `<rect width="${flatW}" height="${flatH}" fill="white"/>` +  // white = regenerate everything
+      maskSvgRects +                                                  // black = preserve text zones
+      `</svg>`
+    );
+    const maskBuffer = await sharp(maskSvg).png().toBuffer();
+
+    // Save mask for debugging
+    const maskFilename = `mask-tpr-${Date.now()}.png`;
+    await fs.promises.writeFile(path.join(rendersDir, maskFilename), maskBuffer);
+    console.log(`[TEXT-PRESERVE-REGEN] Mask saved → /renders/${maskFilename} (${textZones.length} preserved zones, size: ${maskBuffer.length} bytes)`);
+
+    // ── Step 4: BFL FLUX Fill Pro inpainting ─────────────────────────────────
+    // BFL Fill API expects RAW base64 strings (NOT data URLs with data: prefix)
+    // Image and mask must have identical dimensions
+    const brandName = brandContext?.name || '';
+    // Fill prompt: explicitly instructs BFL to regenerate the product BODY and BACKGROUND
+    // to match the new scene, while the preserved text zones (black mask) stay pixel-perfect.
+    // CRITICAL: do NOT mention table/surface unless the user asked for it.
+    const sceneContext = scenePrompt.trim() || 'clean professional product photography';
+    const fillPrompt = [
+      sceneContext,
+      brandName ? `${brandName} product` : 'professional product',
+      'the product body, packaging material, lid, and handle are fully regenerated to naturally fit this scene',
+      'appropriate lighting, shadows, and reflections matching the scene environment',
+      'the product looks as if it was actually photographed in this setting',
+      'photorealistic, high quality product photography, seamless integration with the scene',
+      'no white studio background, no artificial cutout look',
+    ].filter(Boolean).join('. ');
+
+    console.log(`[TEXT-PRESERVE-REGEN] Step 4: BFL FLUX Fill Pro — image: ${flatProductBuffer.length} bytes, mask: ${maskBuffer.length} bytes`);
+    console.log(`[TEXT-PRESERVE-REGEN] Prompt: "${fillPrompt.substring(0, 100)}..."`);
+
+    // RAW base64 (no data: prefix) — BFL API requirement
+    const productBase64 = flatProductBuffer.toString('base64');
+    const maskBase64    = maskBuffer.toString('base64');
+
+    const fillPayload = {
+      prompt: fillPrompt,
+      image: productBase64,
+      mask:  maskBase64,
+      safety_tolerance: 5,
+      output_format: 'jpeg',
+    };
+
+    let submitResp;
+    try {
+      submitResp = await axios.post(
+        'https://api.bfl.ai/v1/flux-pro-1.0-fill',
+        fillPayload,
+        { headers: { 'X-Key': bflKey, 'Content-Type': 'application/json' }, timeout: 35000 }
+      );
+    } catch (bflErr: any) {
+      const bflDetail = bflErr.response?.data;
+      console.error('[TEXT-PRESERVE-REGEN] BFL Fill submit error:', JSON.stringify(bflDetail));
+      throw new Error(`BFL Fill submit HTTP ${bflErr.response?.status}: ${JSON.stringify(bflDetail)}`);
+    }
+
+    const taskId = submitResp.data?.id;
+    const pollingUrl = submitResp.data?.polling_url;
+    if (!taskId || !pollingUrl) throw new Error(`BFL Fill submit failed: ${JSON.stringify(submitResp.data)}`);
+    console.log(`[TEXT-PRESERVE-REGEN] BFL Fill task submitted: ${taskId}`);
+
+    // ── Step 5: Poll for result ───────────────────────────────────────────────
+    const pollStart = Date.now();
+    const maxPollMs = 120000;
+    let resultImageUrl = '';
+
+    while (Date.now() - pollStart < maxPollMs) {
+      await new Promise(r => setTimeout(r, 2000));
+      const statusResp = await axios.get(pollingUrl, {
+        headers: { 'X-Key': bflKey }, timeout: 10000
+      });
+      const { status, result: pollResult } = statusResp.data;
+      console.log(`[TEXT-PRESERVE-REGEN] Poll: ${status} (${((Date.now() - pollStart)/1000).toFixed(0)}s)`);
+
+      if (status === 'Ready') {
+        resultImageUrl = pollResult?.sample;
+        break;
+      } else if (status === 'Failed') {
+        throw new Error(`BFL Fill task failed: ${JSON.stringify(statusResp.data?.error || statusResp.data)}`);
+      }
+    }
+    if (!resultImageUrl) throw new Error('BFL Fill timed out after 2 minutes');
+
+    // ── Step 6: Download + save result ───────────────────────────────────────
+    const resultResp = await axios.get(resultImageUrl, { responseType: 'arraybuffer' });
+    const resultBuffer = Buffer.from(resultResp.data);
+    const resultFilename = `text-preserve-regen-${Date.now()}.jpg`;
+    const resultPath = path.join(rendersDir, resultFilename);
+    await fs.promises.writeFile(resultPath, resultBuffer);
+    const finalUrl = `/renders/${resultFilename}`;
+
+    const elapsed = Date.now() - start;
+    console.log(`[TEXT-PRESERVE-REGEN] Done in ${(elapsed/1000).toFixed(1)}s → ${finalUrl}`);
+    res.json({
+      imageUrl: finalUrl,
+      elapsed,
+      textZonesDetected: textZones.length,
+      maskDebugUrl: `/renders/${maskFilename}`,
+      textZones,
+    });
+
+  } catch (err: any) {
+    console.error('[TEXT-PRESERVE-REGEN] Error:', err.message);
+    res.status(500).json({ error: 'Text-preserve regeneration failed', details: err.message });
   }
 });
 

@@ -3,6 +3,7 @@
  * Ported from elemzes.html to React with tabbed layout.
  */
 import { useState, useCallback, useRef, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { getToken } from '../../api/client';
 import { showToast } from '../../components/ui/Toast';
@@ -513,6 +514,7 @@ function saveResult(data: AuditResult | null, url: string, tab: string) {
 /* ════════════════════════════════ Component ════════════════════════════════ */
 
 export default function ZomboAuditPage() {
+  const navigate = useNavigate();
   const [url, setUrl] = useState(() => sessionStorage.getItem(STORAGE_KEY_URL) || '');
   const [limit, setLimit] = useState(10);
   const [loading, setLoading] = useState(false);
@@ -2443,19 +2445,34 @@ export default function ZomboAuditPage() {
 
       /* ──────── QUICK POST (Flow 4) ──────── */
       case 'quick-post': {
-        const activeKit = brandKits.find(k => k.id === activeKitId) || brandKits[brandKits.length - 1] || INITIAL_BRAND_KITS[0];
         return (
-          <QuickPostView
-            activeBrandKit={activeKit}
-            auditResult={result}
-            onSavePost={(post) => {
-              setProdPosts(prev => {
-                if (prev.some(p => p.id === post.id)) return prev;
-                return [...prev, post];
-              });
-              setProdBypassOnboarding(true);
-            }}
-          />
+          <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 32px', gap: 24, textAlign: 'center' }}>
+            <div style={{
+              width: 80, height: 80, borderRadius: 24, fontSize: 40,
+              display: 'flex', alignItems: 'center', justifyContent: 'center',
+              background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+              boxShadow: '0 0 50px rgba(139,92,246,0.3)',
+            }}>
+              ⚡
+            </div>
+            <div>
+              <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 8 }}>Quick Post Generator</div>
+              <div style={{ fontSize: 13, color: 'var(--text-muted)', maxWidth: 380 }}>
+                A Quick Post teljesen izolalt, kulonallo oldalon mukodik a megbizhatobb mukodes erdekeben.
+              </div>
+            </div>
+            <button
+              onClick={() => navigate('/marketing/zombo/quickpost')}
+              style={{
+                padding: '14px 32px', borderRadius: 12, border: 'none',
+                background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+                color: '#fff', fontSize: 15, fontWeight: 800, cursor: 'pointer',
+                boxShadow: '0 4px 20px rgba(139,92,246,0.4)',
+              }}
+            >
+              Megnyitas kulonallo oldalon
+            </button>
+          </div>
         );
       }
 

@@ -207,9 +207,15 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
   // "Feltöltött kép használata" toggle — skips FLUX entirely, uses original uploaded image as background
   const [useOriginalImage, setUseOriginalImage] = useState(false);
 
+  // "Szöveg-megőrzéses regenerálás" mode — rembg + text zone detection + BFL Fill Pro in one pass
+  const [textPreserveMode, setTextPreserveMode] = useState(false);
+
   // Text-on-image warning modal state
   const [showTextWarning, setShowTextWarning] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  // Text-Preserve Regeneration state
+  const [isTextPreserveLoading, setIsTextPreserveLoading] = useState(false);
 
   // Overlay-only preview state (no FLUX needed)
   const [overlayPreviewLoading, setOverlayPreviewLoading] = useState(false);
@@ -932,6 +938,84 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
   };
 
   /** Satori style card click: calls API directly with the chosen styleId and manual control values */
+  // ── Text-Preserve Regeneration ─────────────────────────────────────────────
+  // Detects text/label zones on the isolated product image, generates a mask,
+  // then calls BFL FLUX Fill Pro to regenerate product body + background in one
+  // pass while keeping all label text pixel-perfectly intact.
+  const handleTextPreserveRegen = async () => {
+    // This is a PRIMARY generation mode — works from Screen 1 even without a prior result
+    if (isTextPreserveLoading) return;
+    const slot = imageSlots.find(s => s.preprocessedUrl || s.originalUrl);
+    if (!slot) {
+      showToast({ title: 'Hiba', message: 'Nincs feltöltött termékkép.', type: 'error' });
+      return;
+    }
+    const productImageUrl = slot.preprocessedUrl || slot.originalUrl || '';
+    if (!productImageUrl) {
+      showToast({ title: 'Hiba', message: 'A termékkép URL nem elérhető.', type: 'error' });
+      return;
+    }
+
+    setIsTextPreserveLoading(true);
+    setScreen(2); // Show loading screen
+    setError(null);
+
+    try {
+      const API_BASE = import.meta.env.VITE_KEPGENERALAS_API_URL || 'http://localhost:3001';
+      const resp = await fetch(`${API_BASE}/api/image/text-preserve-regen`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          productImageUrl: productImageUrl.startsWith('http')
+            ? productImageUrl
+            : `${API_BASE}${productImageUrl}`,
+          scenePrompt: subject || '',
+          brandContext: {
+            name: brandKit?.name || '',
+            colors: brandKit?.colors,
+          },
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.error) throw new Error(data.error || data.details || 'Ismeretlen hiba');
+
+      const fullImageUrl = data.imageUrl.startsWith('http')
+        ? data.imageUrl
+        : `${API_BASE}${data.imageUrl}`;
+
+      // Build or update the result object
+      const newResult: QuickPostResult = {
+        imageUrl: fullImageUrl,
+        caption: result?.caption || `${subject || 'Termék'} — prémium fotó`,
+        hashtags: result?.hashtags || '',
+        platform: result?.platform || 'instagram',
+        style: result?.style || 'modern',
+        variations: [fullImageUrl],
+        rawImages: [fullImageUrl],
+        generationModel: 'BFL FLUX Fill Pro',
+        generationTime: data.elapsed ? data.elapsed / 1000 : undefined,
+      };
+      setResult(newResult);
+      setActiveVariant(0);
+      setScreen(3); // Navigate to result screen
+
+      showToast({
+        title: 'Szöveg-megőrzéses regen kész!',
+        message: `${data.textZonesDetected} szövegzóna megőrizve. ${(data.elapsed / 1000).toFixed(1)}s`,
+        type: 'success'
+      });
+      console.log('[TEXT-PRESERVE-REGEN] Done:', data);
+    } catch (err: any) {
+      console.error('[TEXT-PRESERVE-REGEN] Error:', err);
+      setError(err.message || 'Szöveg-megőrzéses regenerálás sikertelen.');
+      // Stay on screen 2 to show error, or go back to 1
+      setScreen(1);
+      showToast({ title: 'Hiba', message: err.message || 'Szöveg-megőrzéses regenerálás sikertelen.', type: 'error' });
+    } finally {
+      setIsTextPreserveLoading(false);
+    }
+  };
+
   const handleSatoriStyleSelect = async (styleId: string, overrides?: any, immediate = false) => {
     setSelectedSatoriStyleId(styleId);
     if (!result) return;
@@ -1370,6 +1454,7 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
       console.error('[QuickPost] Generation error:', err?.message || err);
       setError(err.message || 'Ismeretlen hiba történt a generálás során.');
       setProgress(0);
+      setScreen(1); // FIX: hiba esetén vissza screen 1-re, ne maradjon üres loading screen
     }
   };
 
@@ -1534,10 +1619,10 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
     setCopied(false);
     setSelectedLayerTemplateId(null);
     setSelectedSatoriStyleId(null);
-    setSatoriOpacity(90);
-    setSatoriFs(48);
-    setSatoriY(0);
-    setSatoriX(0);
+    setSatoriShapeOpacity(90);
+    setSatoriTextFs(48);
+    setSatoriTextY(0);
+    setSatoriTextX(0);
     setIsZoomed(false);
   };
 
@@ -1609,21 +1694,24 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
   };
 
   // ─── Image mode radio-button helpers ────────────────────────────────────────
-  const imageMode: 'original' | 'preserve' | 'productaware' | null =
+  const imageMode: 'original' | 'preserve' | 'productaware' | 'textpreserve' | null =
     useOriginalImage ? 'original'
+    : textPreserveMode ? 'textpreserve'
     : productAwareBg ? 'productaware'
     : preserveOriginal ? 'preserve'
     : null;
 
-  const handleModeSelect = (mode: 'original' | 'preserve' | 'productaware' | null) => {
+  const handleModeSelect = (mode: 'original' | 'preserve' | 'productaware' | 'textpreserve' | null) => {
     if (mode === 'original') {
-      setUseOriginalImage(true); setPreserveOriginal(false); setProductAwareBg(false);
+      setUseOriginalImage(true); setPreserveOriginal(false); setProductAwareBg(false); setTextPreserveMode(false);
     } else if (mode === 'preserve') {
-      setUseOriginalImage(false); setPreserveOriginal(true); setProductAwareBg(false);
+      setUseOriginalImage(false); setPreserveOriginal(true); setProductAwareBg(false); setTextPreserveMode(false);
     } else if (mode === 'productaware') {
-      setUseOriginalImage(false); setPreserveOriginal(true); setProductAwareBg(true);
+      setUseOriginalImage(false); setPreserveOriginal(true); setProductAwareBg(true); setTextPreserveMode(false);
+    } else if (mode === 'textpreserve') {
+      setUseOriginalImage(false); setPreserveOriginal(false); setProductAwareBg(false); setTextPreserveMode(true);
     } else {
-      setUseOriginalImage(false); setPreserveOriginal(false); setProductAwareBg(false);
+      setUseOriginalImage(false); setPreserveOriginal(false); setProductAwareBg(false); setTextPreserveMode(false);
     }
   };
 
@@ -1935,6 +2023,35 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
                         </div>
                       )}
                     </div>
+
+                    {/* Mode 3: Szöveg-megőrzéses regenerálás */}
+                    <div
+                      onClick={() => handleModeSelect('textpreserve')}
+                      style={{
+                        display: 'flex', alignItems: 'flex-start', gap: 12, padding: '14px', borderRadius: 12,
+                        background: textPreserveMode ? 'rgba(6,182,212,0.08)' : 'rgba(255,255,255,0.02)',
+                        border: `1.5px solid ${textPreserveMode ? '#06b6d4' : 'var(--border)'}`,
+                        cursor: 'pointer', transition: 'all 0.2s',
+                      }}
+                    >
+                      <div style={{
+                        width: 20, height: 20, borderRadius: '50%', flexShrink: 0, marginTop: 1,
+                        border: `2px solid ${textPreserveMode ? '#06b6d4' : 'var(--text-muted)'}`,
+                        background: textPreserveMode ? '#06b6d4' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      }}>
+                        {textPreserveMode && <div style={{ width: 8, height: 8, borderRadius: '50%', background: '#fff' }} />}
+                      </div>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: textPreserveMode ? '#22d3ee' : 'var(--text)' }}>
+                          Szöveg-megőrzéses regenerálás
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 3, lineHeight: 1.4 }}>
+                          Rembg → szöveg zóna detektálás → BFL Fill Pro generálja a hátteret és a terméket köré, a feliratokat megőrizve
+                        </div>
+                      </div>
+                    </div>
+
                   </div>
                 </div>
               )}
@@ -2029,36 +2146,50 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
                   (s as any).hasText ||
                   (s as any).analysis?.hasText
                 );
-                // Skip warning if preserveOriginal is on — user already chose safe mode
-                if (hasTextSlot && !showTextWarning && !preserveOriginal) {
+                // Skip warning if preserveOriginal or textPreserveMode is on — user already chose safe mode
+                if (hasTextSlot && !showTextWarning && !preserveOriginal && !textPreserveMode) {
                   setShowTextWarning(true);
                   return;
                 }
                 setShowTextWarning(false);
-                handleGenerate();
+                // textPreserveMode: uses BFL Fill Pro pipeline instead of standard composite-generate
+                if (textPreserveMode) {
+                  handleTextPreserveRegen();
+                } else {
+                  handleGenerate();
+                }
               }}
-              disabled={!subject.trim() || isPreprocessing}
+              disabled={!subject.trim() || isPreprocessing || isTextPreserveLoading}
               title={
                 isPreprocessing ? 'A kép feldolgozása még folyamatban van – kérlek várj...' :
                   !subject.trim() ? 'Írj be egy témát a generáláshoz' :
+                    textPreserveMode ? 'Szöveg-megőrzéses regenerálás indítása' :
                     'Poszt generálása'
               }
               style={{
                 display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 10,
-                padding: '17px 32px', borderRadius: 14, border: 'none', cursor: (subject.trim() && !isPreprocessing) ? 'pointer' : 'not-allowed',
-                background: (subject.trim() && !isPreprocessing)
-                  ? 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)'
+                padding: '17px 32px', borderRadius: 14, border: 'none', cursor: (subject.trim() && !isPreprocessing && !isTextPreserveLoading) ? 'pointer' : 'not-allowed',
+                background: (subject.trim() && !isPreprocessing && !isTextPreserveLoading)
+                  ? (textPreserveMode
+                      ? 'linear-gradient(135deg, #06b6d4 0%, #0891b2 100%)'
+                      : 'linear-gradient(135deg, #8b5cf6 0%, #ec4899 100%)')
                   : 'rgba(255,255,255,0.07)',
-                color: (subject.trim() && !isPreprocessing) ? '#fff' : 'var(--text-muted)',
+                color: (subject.trim() && !isPreprocessing && !isTextPreserveLoading) ? '#fff' : 'var(--text-muted)',
                 fontSize: 15, fontWeight: 800, letterSpacing: '0.01em',
-                boxShadow: (subject.trim() && !isPreprocessing) ? '0 6px 24px rgba(139,92,246,0.35)' : 'none',
+                boxShadow: (subject.trim() && !isPreprocessing && !isTextPreserveLoading)
+                  ? (textPreserveMode ? '0 6px 24px rgba(6,182,212,0.35)' : '0 6px 24px rgba(139,92,246,0.35)')
+                  : 'none',
                 transition: 'all 0.2s',
               }}
             >
-              {isPreprocessing ? (
+              {isTextPreserveLoading ? (
+                <><Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> Szöveg zónák detektálása...</>
+              ) : isPreprocessing ? (
                 <><Loader size={18} style={{ animation: 'spin 1s linear infinite' }} /> Kép feldolgozása...</>
               ) : !subject.trim() ? (
                 <><Zap size={20} /> Írj be témát a generáláshoz</>
+              ) : textPreserveMode ? (
+                <><Zap size={20} /> Szöveg-megőrzéses Regen ⚡</>
               ) : (
                 <><Zap size={20} /> Poszt Generálása ⚡</>
               )}
@@ -2084,15 +2215,28 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
       {screen === 2 && (
         <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', padding: '80px 32px', animation: 'qp-slide-in 0.22s ease' }}>
           {/* Animated logo */}
-          <div style={{ width: 72, height: 72, borderRadius: 20, background: 'linear-gradient(135deg, #8b5cf6, #ec4899)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34, marginBottom: 28, boxShadow: '0 0 40px rgba(139,92,246,0.4)', animation: 'qp-pulse 1.5s ease-in-out infinite' }}>
-            ⚡
+          <div style={{
+            width: 72, height: 72, borderRadius: 20,
+            background: isTextPreserveLoading
+              ? 'linear-gradient(135deg, #06b6d4, #0891b2)'
+              : 'linear-gradient(135deg, #8b5cf6, #ec4899)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: 34, marginBottom: 28,
+            boxShadow: isTextPreserveLoading
+              ? '0 0 40px rgba(6,182,212,0.45)'
+              : '0 0 40px rgba(139,92,246,0.4)',
+            animation: 'qp-pulse 1.5s ease-in-out infinite'
+          }}>
+            {isTextPreserveLoading ? '🔍' : '⚡'}
           </div>
 
           <h3 style={{ fontSize: 22, fontWeight: 800, color: error ? '#ef4444' : 'var(--text)', margin: '0 0 8px' }}>
-            {error ? 'Hiba történt' : 'Poszt generálása...'}
+            {error ? 'Hiba történt' : isTextPreserveLoading ? 'Szöveg-megőrzéses generálás...' : 'Poszt generálása...'}
           </h3>
           <p style={{ fontSize: 13, color: 'var(--text-muted)', margin: '0 0 36px', textAlign: 'center', maxWidth: 380 }}>
-            {error ? error : 'FLUX.2 [flex] & Brand DNA alapján, ~5–15 másodperc'}
+            {error ? error : isTextPreserveLoading
+              ? 'Claude Vision detektálja a felirat zónákat → BFL Fill Pro egybefüggő háttér + termék generálás (~20-40 mp)'
+              : 'FLUX.2 [flex] & Brand DNA alapján, ~5–15 másodperc'}
           </p>
 
           {error ? (
@@ -2107,6 +2251,34 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
             >
               OK, Vissza
             </button>
+          ) : isTextPreserveLoading ? (
+            /* Text-preserve mode: simple spinner steps */
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, width: '100%', maxWidth: 480 }}>
+              <div style={{ display: 'flex', gap: 24 }}>
+                {[
+                  { icon: '🔍', label: 'Szöveg detektálás' },
+                  { icon: '🎭', label: 'Maszk generálás' },
+                  { icon: '✨', label: 'BFL Fill Pro' },
+                  { icon: '💾', label: 'Mentés' },
+                ].map((step, i) => (
+                  <div key={i} style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6 }}>
+                    <div style={{
+                      width: 40, height: 40, borderRadius: 12, fontSize: 18,
+                      display: 'flex', alignItems: 'center', justifyContent: 'center',
+                      background: 'rgba(6,182,212,0.15)',
+                      border: '1.5px solid rgba(6,182,212,0.35)',
+                      animation: `qp-pulse ${1 + i * 0.3}s ease-in-out infinite`,
+                    }}>
+                      {step.icon}
+                    </div>
+                    <span style={{ fontSize: 9, color: 'rgba(6,182,212,0.8)', fontWeight: 600, textAlign: 'center', maxWidth: 70 }}>{step.label}</span>
+                  </div>
+                ))}
+              </div>
+              <div style={{ width: '100%', height: 4, background: 'rgba(6,182,212,0.15)', borderRadius: 4, overflow: 'hidden' }}>
+                <div style={{ height: '100%', borderRadius: 4, background: 'linear-gradient(90deg, #06b6d4, #0891b2)', animation: 'qp-progress-indeterminate 2s ease-in-out infinite' }} />
+              </div>
+            </div>
           ) : (
             <>
               {/* Progress bar */}
@@ -2253,6 +2425,7 @@ export const QuickPostView: React.FC<QuickPostViewProps> = ({ activeBrandKit, au
                   Alapértelmezett képként mentem
                 </span>
               </div>
+
             </div>
 
             {/* Right Col: Editor */}

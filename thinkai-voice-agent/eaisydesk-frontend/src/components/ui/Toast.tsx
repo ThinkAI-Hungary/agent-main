@@ -9,9 +9,25 @@ interface ToastMessage {
 let toastId = 0;
 let addToastFn: ((text: string, type?: 'success' | 'error' | 'info') => void) | null = null;
 
-/** Show a toast notification from anywhere */
-export function showToast(text: string, type: 'success' | 'error' | 'info' = 'success') {
-  if (addToastFn) addToastFn(text, type);
+/** Show a toast notification from anywhere.
+ *  Supports both:
+ *    showToast('message', 'error')
+ *    showToast({ title: 'Hiba', message: 'részletek', type: 'error' })
+ */
+export function showToast(
+  textOrObj: string | { title?: string; message?: string; text?: string; type?: 'success' | 'error' | 'info' },
+  type: 'success' | 'error' | 'info' = 'success'
+) {
+  if (!addToastFn) return;
+  if (typeof textOrObj === 'string') {
+    addToastFn(textOrObj, type);
+  } else {
+    // Object form: { title, message, type }
+    const text = [textOrObj.title, textOrObj.message || textOrObj.text]
+      .filter(Boolean)
+      .join(': ') || 'Értesítés';
+    addToastFn(text, textOrObj.type || type);
+  }
 }
 
 /** Toast container – render once at the app root */

@@ -2,6 +2,13 @@ import React, { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { fixImageUrl, getBackendUrl } from '../types';
 
+// Inline Check ikon -- lucide-react Check nincs importalva ebben a fajlban
+const CheckIcon = ({ size = 10, color = 'currentColor' }: { size?: number; color?: string }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke={color} strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+    <polyline points="20 6 9 17 4 12"/>
+  </svg>
+);
+
 // ─── Types ────────────────────────────────────────────────────────────────────
 
 export interface ImageChangeabilityRules {
@@ -1002,27 +1009,30 @@ export default function ImageSlotUploader({
                     ))}
                   </div>
 
-                  {/* Default toggle */}
-                  <div 
-                    onClick={() => onSetDefault && onSetDefault(slot)}
-                    style={{
-                      marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
-                      padding: '6px 8px', borderRadius: 8, background: slot.isDefault ? 'rgba(139,92,246,0.1)' : 'rgba(0,0,0,0.15)',
-                      border: `1px solid ${slot.isDefault ? '#8b5cf6' : 'rgba(255,255,255,0.1)'}`,
-                      transition: 'all 0.2s'
-                    }}
-                  >
-                    <div style={{
-                      width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${slot.isDefault ? '#8b5cf6' : 'var(--text-muted)'}`,
-                      display: 'flex', alignItems: 'center', justifyContent: 'center',
-                      background: slot.isDefault ? '#8b5cf6' : 'transparent'
-                    }}>
-                      {slot.isDefault && <Check size={10} color="#fff" />}
+                  {/* Default toggle -- csak ha mar AI feldolgozta (preprocessedUrl letezik) */}
+                  {slot.preprocessedUrl && (
+                    <div
+                      onClick={() => onSetDefault && onSetDefault(slot)}
+                      title="Csak AI altal feldolgozott kep allitható alapértelmezettre"
+                      style={{
+                        marginTop: 10, display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer',
+                        padding: '6px 8px', borderRadius: 8, background: slot.isDefault ? 'rgba(139,92,246,0.1)' : 'rgba(0,0,0,0.15)',
+                        border: `1px solid ${slot.isDefault ? '#8b5cf6' : 'rgba(255,255,255,0.1)'}`,
+                        transition: 'all 0.2s'
+                      }}
+                    >
+                      <div style={{
+                        width: 14, height: 14, borderRadius: 3, border: `1.5px solid ${slot.isDefault ? '#8b5cf6' : 'var(--text-muted)'}`,
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        background: slot.isDefault ? '#8b5cf6' : 'transparent'
+                      }}>
+                        {slot.isDefault && <CheckIcon size={10} color="#fff" />}
+                      </div>
+                      <span style={{ fontSize: 9, fontWeight: 700, color: slot.isDefault ? '#a78bfa' : 'var(--text-muted)' }}>
+                        Alapértelmezett kép
+                      </span>
                     </div>
-                    <span style={{ fontSize: 9, fontWeight: 700, color: slot.isDefault ? '#a78bfa' : 'var(--text-muted)' }}>
-                      Alapértelmezett kép
-                    </span>
-                  </div>
+                  )}
                 </>
               )}
 
