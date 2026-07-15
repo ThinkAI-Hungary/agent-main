@@ -1,9 +1,28 @@
 /**
  * Interaction classification helpers.
- * Maps cases, results, statuses, and todos according to the approved CSV matrix.
+ * EAISY-241 — szinkronizálva a backend classifier.py + triage_rules.routing
+ * döntési mátrixszal. A detect* függvények először a backend által küldött
+ * r.classification.* mezőket használják (strukturált adat); csak ha az üres,
+ * fut a heurisztikus fallback.
+ *
+ * Címkeszótár (backend = frontend, harmonizálva):
+ *   ügytípus:   Kérdés | Kérés | Panasz | Időpont | Egyéb
+ *   eredmény:   Megválaszolt kérdés | Válasz előkészítve | Kérdés rögzítve |
+ *               Igény rögzítve | Panasz rögzítve |
+ *               Új időpont | Foglalási szándék rögzítve |
+ *               Módosítási szándék rögzítve | Lemondási szándék rögzítve
+ *   státusz:    Lezárt | Nyitott | Sürgős
+ *   teendő:     Nincs további teendő | Válasz jóváhagyása szükséges |
+ *               Válasz/visszahívás szükséges | Intézkedés szükséges |
+ *               Időpont véglegesítése | Azonnali beavatkozás
+ *
+ * Vegyes ügytípus prioritás (EAISY-241 §2.2): Panasz > Időpont > Kérés > Kérdés > Egyéb
  */
 
-// ── Relation Matrix definitions ──
+// ── EAISY-241 §2.2 vegyes ügytípus prioritás (legmagasabb → legalacsonyabb) ──
+export const TYPE_PRIORITY = ['Panasz', 'Időpont', 'Kérés', 'Kérdés', 'Egyéb'] as const;
+
+// ── Relation Matrix definitions (szinkron a backend migrate_decision_matrix.sql seed-del) ──
 const RELATION_MATRIX: Record<
   string, // Ügytípus
   Record<
@@ -13,11 +32,18 @@ const RELATION_MATRIX: Record<
 > = {
   'Kérdés': {
     'Megválaszolt kérdés': { statusz: 'Lezárt', teendo: 'Nincs további teendő' },
+    'Válasz előkészítve': { statusz: 'Nyitott', teendo: 'Válasz jóváhagyása szükséges' },
+    'Kérdés rögzítve': { statusz: 'Nyitott', teendo: 'Válasz/visszahívás szükséges' },
+    // back-compat régi címke
     'Jóváhagyásra vár': { statusz: 'Nyitott', teendo: 'Válasz jóváhagyása szükséges' },
-    'Kérdés rögzítve': { statusz: 'Nyitott', teendo: 'Válasz szükséges' },
   },
   'Időpont': {
+    // EAISY-241 új címkék (altípus-szintű szándék-rögzítés)
     'Új időpont': { statusz: 'Lezárt', teendo: 'Nincs további teendő' },
+    'Foglalási szándék rögzítve': { statusz: 'Nyitott', teendo: 'Időpont véglegesítése' },
+    'Módosítási szándék rögzítve': { statusz: 'Nyitott', teendo: 'Időpont véglegesítése' },
+    'Lemondási szándék rögzítve': { statusz: 'Nyitott', teendo: 'Időpont véglegesítése' },
+    // back-compat régi címkék
     'Időpont módosítva': { statusz: 'Lezárt', teendo: 'Nincs további teendő' },
     'Időpont törölve': { statusz: 'Lezárt', teendo: 'Nincs további teendő' },
     'Időpont előkészítve': { statusz: 'Nyitott', teendo: 'Időpont véglegesítése' },
@@ -43,11 +69,10 @@ export function lookupRelation(ugyTipus: string, eredmeny: string): { statusz: s
   else if (u === 'PANASZ') keyUgyTipus = 'Panasz';
 
   let keyEredmeny = eredmeny || '';
-  if (keyEredmeny === 'Válasz előkészítve') {
-    keyEredmeny = 'Jóváhagyásra vár';
-  } else if (keyEredmeny === 'Rögzítve' || !keyEredmeny) {
+  // back-compat: régi 'Válasz előkészítve' / 'Jóváhagyásra vár' cserék már a mátrixban vannak
+  if (keyEredmeny === 'Rögzítve' || !keyEredmeny) {
     if (keyUgyTipus === 'Kérdés') keyEredmeny = 'Megválaszolt kérdés';
-    else if (keyUgyTipus === 'Időpont') keyEredmeny = 'Időpont előkészítve';
+    else if (keyUgyTipus === 'Időpont') keyEredmeny = 'Foglalási szándék rögzítve';
     else if (keyUgyTipus === 'Kérés') keyEredmeny = 'Igény rögzítve';
     else if (keyUgyTipus === 'Panasz') keyEredmeny = 'Panasz rögzítve';
     else keyEredmeny = 'Igény rögzítve';
@@ -66,7 +91,7 @@ export function lookupRelation(ugyTipus: string, eredmeny: string): { statusz: s
   } else if (keyUgyTipus === 'Kérés' || keyUgyTipus === 'Egyéb') {
     return { statusz: 'Nyitott', teendo: 'Intézkedés szükséges' };
   } else {
-    return { statusz: 'Nyitott', teendo: 'Válasz szükséges' };
+    return { statusz: 'Nyitott', teendo: 'Válasz/visszahívás szükséges' };
   }
 }
 
@@ -78,7 +103,7 @@ export function detectUgyTipus(r: {
   handover_reason?: string | null;
   type?: string | null;
   badge?: string | null;
-  classification?: { ugytipus?: string; eredmeny?: string; statusz?: string; teendo?: string } | null;
+  classification?: { ugytipus?: string; detected_types?: string[] | null; eredmeny?: string; statusz?: string; teendo?: string } | null;
 }): string {
   if (r.classification?.ugytipus) return r.classification.ugytipus;
 
@@ -360,14 +385,21 @@ export function detectTeendo(r: {
 // ── Color maps ──
 
 export const EREDMENY_COLORS: Record<string, { bg: string; color: string }> = {
+  // Időpont — EAISY-241 új címkék (szándék-rögzítés)
   'Új időpont': { bg: '#dcfce7', color: '#166534' },
+  'Foglalási szándék rögzítve': { bg: '#fef9c3', color: '#854d0e' },
+  'Módosítási szándék rögzítve': { bg: '#fef9c3', color: '#854d0e' },
+  'Lemondási szándék rögzítve': { bg: '#fef9c3', color: '#854d0e' },
+  // Időpont — back-compat régi címkék
   'Időpont módosítva': { bg: '#dbeafe', color: '#1e40af' },
   'Időpont törölve': { bg: '#f3f4f6', color: '#6b7280' },
   'Időpont előkészítve': { bg: '#fef9c3', color: '#854d0e' },
+  // Kérdés
   'Megválaszolt kérdés': { bg: '#dcfce7', color: '#166534' },
   'Válasz előkészítve': { bg: '#fef9c3', color: '#854d0e' },
   'Jóváhagyásra vár': { bg: '#fef9c3', color: '#854d0e' },
   'Kérdés rögzítve': { bg: '#dbeafe', color: '#1e40af' },
+  // Kérés / Panasz / Egyéb
   'Igény rögzítve': { bg: '#fef9c3', color: '#854d0e' },
   'Panasz rögzítve': { bg: '#fee2e2', color: '#b91c1c' },
 };

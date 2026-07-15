@@ -17,9 +17,14 @@ export interface SessionInteraction {
   funnel_stage?: string;
   classification?: {
     ugytipus?: string;
+    idopont_altipus?: string | null;
+    detected_types?: string[] | null;   // EAISY-241 §2.2 — összes felismert típus (badge-ekhez)
     eredmeny?: string;
     statusz?: string;
     teendo?: string;
+    osszefoglalas?: string;
+    autonomous?: boolean;               // EAISY-241 §1.1.2 — jóváhagyás UI gate
+    restriction?: string;
   } | null;
 }
 

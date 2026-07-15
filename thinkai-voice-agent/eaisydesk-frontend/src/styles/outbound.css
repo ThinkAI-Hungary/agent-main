@@ -2804,3 +2804,39 @@
   color: #5F7D95;
   font-weight: 500;
 }
+
+/* ═══ EAISY-241 §1.6.4: piros trash ikon gomb ═══ */
+.cpv-trash-btn {
+  background: #fff; border: 1px solid #fecdd3; border-radius: 8px;
+  padding: 8px 10px; cursor: pointer; display: inline-flex; align-items: center;
+  justify-content: center; transition: background 0.15s, border-color 0.15s;
+}
+.cpv-trash-btn:hover { background: #fff1f2; border-color: #e11d48; }
+
+/* ═══ EAISY-241 §1.6.5: Ütemezés CTA — szürke vékony border, fehér bg, sötétkék szöveg ═══ */
+.cpv-btn-schedule {
+  background: #fff; border: 1px solid #cbd5e1; color: #1a3a5c;
+  font-weight: 600; padding: 10px 18px; border-radius: 8px; cursor: pointer;
+  font-family: inherit; font-size: 13px; transition: background 0.15s, border-color 0.15s, color 0.15s;
+}
+.cpv-btn-schedule:hover { background: #f8fafc; border-color: #1a3a5c; color: #0f2942; }
+
+/* ═══ EAISY-241 §1.6.2: kampányüzenet szerkesztő ═══ */
+.cpv-edit-toggle {
+  background: none; border: none; color: #186D98; cursor: pointer; font-size: 12px;
+  font-weight: 600; padding: 2px 6px; font-family: inherit;
+}
+.cpv-edit-toggle:hover { color: #134d6e; text-decoration: underline; }
+.cpv-edit-wrap { display: flex; flex-direction: column; gap: 8px; }
+.cpv-edit-subject {
+  padding: 8px 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;
+  font-family: inherit; outline: none; color: #082432;
+}
+.cpv-edit-subject:focus { border-color: #186D98; }
+.cpv-edit-textarea {
+  padding: 12px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 13px;
+  font-family: inherit; outline: none; color: #082432; resize: vertical; line-height: 1.6;
+}
+.cpv-edit-textarea:focus { border-color: #186D98; }
+.cpv-edit-actions { display: flex; justify-content: flex-end; gap: 10px; }
+.cpv-empty { color: #9ca3af; font-style: italic; font-size: 13px; padding: 12px 0; }

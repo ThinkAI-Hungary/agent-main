@@ -415,6 +415,18 @@ Ha egyik sem releváns, legyen üres lista [].
     if email_reply:
         log_szoveg += f"\n\nAI Válasz:\n{email_reply}"
 
+    # EAISY-241: email_client_id inicializálása — korábban csak az is_relevant/meeting
+    # ágon belül lett beállítva, így nem-releváns email-nél a client_id null maradt.
+    email_client_id = None
+    # Ha a feladó email-je már létezik a kliensek között, beállítjuk az ID-t
+    # függetlenül a relevanciától — így minden interakció össze lesz kötve az ügyféllel.
+    try:
+        existing_client = db.find_client_by_contact(email=from_email)
+        if existing_client:
+            email_client_id = existing_client.get("id")
+    except Exception as e:
+        logger.error(f"Email client lookup hiba: {e}")
+
     # Ha releváns lead vagy időpontot foglalt, felvesszük a Kanbanba
     if is_relevant or meeting:
         kanban = kanban or {}
@@ -623,7 +635,34 @@ Ha egyik sem releváns, legyen üres lista [].
             tool_calls=["book_meeting"] if meeting else [],
             kb_answered=ai_answered
         )
-            
+
+        # EAISY-241: Ha az ügytípus eljárása „Önállóan kezelhető" (autonomous + none),
+        # és az eaisyDesk tud válaszolni (KB / system prompt alapján), akkor a válasz
+        # azonnal kikerül Brevo-n. Státusz: Lezárt, eredmény: ügytípustól függő
+        # (Megválaszolt kérdés / Új időpont / stb.), teendő: Nincs további teendő.
+        # Ellenkező esetben a státusz NEM lehet Lezárt (Nyitott vagy Sürgős),
+        # és az interakció pending marad (emberi beavatkozás szükséges).
+        is_autonomous_email = (
+            bool(classification.get("autonomous"))
+            and classification.get("restriction") == "none"
+            and ai_answered
+        )
+        send_ok = False
+        if is_autonomous_email and email_reply:
+            try:
+                send_ok = await _send_autonomous_email(
+                    to_email=from_email,
+                    to_name=from_name or "",
+                    subject=f"Re: {subject}",
+                    body=email_reply,
+                )
+            except Exception as send_err:
+                logger.error(f"Auto-send email hiba: {send_err}")
+                send_ok = False
+
+        email_approval = "approved" if (is_autonomous_email and send_ok) else "pending"
+        email_funnel = "valaszolt" if (is_autonomous_email and send_ok) else f_stage
+
         db.log_interaction(
             type="email",
             topic=f"Email AI válasz - {subject}: {text_content[:200]}",
@@ -631,14 +670,22 @@ Ha egyik sem releváns, legyen üres lista [].
             result=classification.get("eredmeny", "Várakozik jóváhagyásra"),
             tool_name="imap_worker_ai",
             session_id=session_id,
-            funnel_stage=f_stage,
+            funnel_stage=email_funnel,
             alert_tags=alert_tags if isinstance(alert_tags, list) else [],
             handover_reason=handover_reason,
-            approval_status="pending",
+            approval_status=email_approval,
             ai_draft_response=draft_json,
             client_id=email_client_id if email_client_id else None,
             classification=classification
         )
+
+        if is_autonomous_email and send_ok:
+            logger.info(f"✅ Autonóm email válasz kiküldve: {from_email} — {classification.get('eredmeny','')}")
+            # Frissítjük az email_log status-t is 'sent'-re
+            try:
+                db.supabase.table("email_logs").update({"status": "sent"}).eq("session_id", session_id).execute()
+            except Exception:
+                pass
 
         if isinstance(alert_tags, list) and "kiemelt" in alert_tags:
             email_to_send = None
@@ -728,6 +775,54 @@ def check_imap_sync():
         logger.error(f"IMAP csatlakozási hiba: {e}")
         
     return emails_to_process
+
+
+async def _send_autonomous_email(to_email: str, to_name: str, subject: str, body: str) -> bool:
+    """
+    EAISY-241 — Autonóm email válasz küldése Brevo-n keresztül.
+    Akkor használjuk, amikor az ügytípus eljárása „Önállóan kezelhető" és a
+    klasszifikáció autonomous=true. A válasz azonnal kikerül, nem vár jóváhagyásra.
+    """
+    brevo_key = os.getenv('BREVO_API_KEY', '')
+    api_key = brevo_key
+    if brevo_key and not brevo_key.startswith('xkeysib-'):
+        try:
+            import base64 as b64module
+            decoded = b64module.b64decode(brevo_key).decode()
+            parsed = json.loads(decoded)
+            api_key = parsed.get('api_key', brevo_key)
+        except Exception:
+            pass
+    if not api_key:
+        logger.error('Nincs BREVO_API_KEY az autonóm email küldéshez.')
+        return False
+    bi = db.get_business_info()
+    sender = bi.get("sender_name") or bi.get("practice_name", "Virtuális Asszisztens")
+    sender_email = bi.get("sender_email") or os.getenv("BREVO_SENDER_EMAIL", "noreply@example.com")
+    html_body = f'<div style="font-family: Arial, sans-serif;">{body.replace(chr(10), "<br>")}</div>'
+    import httpx
+    try:
+        async with httpx.AsyncClient() as client:
+            resp = await client.post(
+                'https://api.brevo.com/v3/smtp/email',
+                headers={'api-key': api_key, 'Content-Type': 'application/json'},
+                json={
+                    'sender': {'name': sender, 'email': sender_email},
+                    'to': [{'email': to_email, 'name': to_name}],
+                    'subject': subject,
+                    'htmlContent': html_body,
+                },
+                timeout=15.0,
+            )
+            if resp.status_code in [200, 201, 202]:
+                logger.info(f'Autonóm email kiküldve: {to_email}')
+                return True
+            logger.error(f'Brevo autonóm küldés hiba: {resp.status_code} - {resp.text}')
+            return False
+    except Exception as e:
+        logger.error(f'Hiba az autonóm email küldésekor: {e}')
+        return False
+
 
 async def email_worker_loop():
     """Háttérfolyamat, ami percenként hívja az IMAP-et és feldolgozza azt."""

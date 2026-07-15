@@ -29,6 +29,7 @@ SZIGORÚ SZABÁLY: Kizárólag a nyitvatartási időn belülre foglalhatsz időp
 
 ## Szolgáltatások és időtartamok
 A rendelő az alábbi szolgáltatásokat nyújtja. Időpontfoglaláskor ezeket az időtartamokat vedd figyelembe, és a hozzárendelt orvos naptárába foglalj (ha nincs megadva specifikus orvos, bárkihez foglalhatsz):
+{service_description}
 {services_list}
 
 ## Új és visszatérő páciensek kezelése (Azonosítás)

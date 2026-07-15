@@ -325,7 +325,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
     } finally {
       setIsCreating(false);
     }
-  }, [campaignName, selectedChannels, messageMode, messageContent, aiResult, selectedClientIds, onCreated, onClose]);
+  }, [campaignName, selectedChannels, messageMode, messageSubject, messageContent, aiResult, selectedClientIds, onCreated, onClose]);
 
   // Navigation
   const nextStep = () => {
@@ -731,20 +731,39 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                           value={aiPrompt}
                           onChange={e => setAiPrompt(e.target.value)}
                           placeholder="Fogalmazd meg, miről szóljon a kampány..."
-                          style={{ 
-                            width: '100%', 
-                            height: '240px', 
-                            padding: '24px', 
-                            border: 'none', 
-                            resize: 'none', 
-                            outline: 'none', 
-                            fontSize: '14px', 
+                          style={{
+                            width: '100%',
+                            height: '240px',
+                            padding: '24px',
+                            border: 'none',
+                            resize: 'none',
+                            outline: 'none',
+                            fontSize: '14px',
                             color: '#082432',
                             lineHeight: '1.6'
                           }}
                         />
                       ) : (
                         <div style={{ display: 'flex', flexDirection: 'column', minHeight: '240px' }}>
+                          {/* EAISY-241 §1.6.3: AI prompt szerkeszthető mező — mindig látható,
+                              hogy a user módosíthassa és újragenerálhassa az üzenetet. */}
+                          <div style={{ padding: '12px 16px', borderBottom: '1px solid rgba(28,238,224,0.2)', background: 'rgba(28,238,224,0.04)' }}>
+                            <label style={{ fontSize: '11px', fontWeight: 700, color: '#0f766e', textTransform: 'uppercase', letterSpacing: '0.04em', display: 'block', marginBottom: 4 }}>
+                              Kampány brief (szerkeszthető)
+                            </label>
+                            <textarea
+                              value={aiPrompt}
+                              onChange={e => setAiPrompt(e.target.value)}
+                              placeholder="Fogalmazd meg, miről szóljon a kampány..."
+                              style={{
+                                width: '100%', height: 70, padding: '8px 10px',
+                                border: '1px solid rgba(28,238,224,0.3)', borderRadius: 6,
+                                resize: 'vertical', outline: 'none', fontSize: '13px',
+                                color: '#082432', lineHeight: '1.5', fontFamily: 'inherit',
+                                background: '#fff'
+                              }}
+                            />
+                          </div>
                           <div style={{ opacity: aiGenerating ? 0.4 : 1, pointerEvents: aiGenerating ? 'none' : 'auto', transition: 'all 0.2s' }}>
                             <EditorToolbar activeFormats={activeFormats} execCommand={execCommand} />
                           </div>

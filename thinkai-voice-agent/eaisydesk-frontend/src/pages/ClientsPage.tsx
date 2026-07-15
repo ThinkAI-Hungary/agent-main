@@ -11,7 +11,7 @@ import { useClients } from '../hooks/useClients';
 import { useSessions } from '../hooks/useSessions';
 import { useCalendarEvents, type CalendarEvent } from '../hooks/useCalendarEvents';
 import { parseCustomData, bestClientName, isAssignedToMe, type ClientRecord } from '../helpers/clientResolvers';
-import { fmtDt, cleanStr } from '../helpers/formatters';
+import { fmtDt, cleanStr, formatPhoneHu } from '../helpers/formatters';
 import { TagBadge } from '../components/ui/Badge';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { useConfirm } from '../components/ui/ConfirmDialog';
@@ -134,8 +134,14 @@ export default function ClientsPage() {
   }, []);
 
   // ── Enrich clients ──
+  // EAISY-241 §1.3.3: demo módban a default felelős mindig „Kis Béla".
   const enrichedClients = useMemo<EnrichedClient[]>(() => {
-    const defaultMunkatars = members.find(m => (m.role || '').toLowerCase().includes('munkat') || m.role === 'worker' || m.role === 'member');
+    // Először „Kis Béla"-t keresünk; ha nincs, az első member/worker
+    const kisBela = members.find(m => {
+      const n = ((m.full_name || m.username || '') + '').toLowerCase();
+      return n.includes('kis bél') || n.includes('kis bel');
+    });
+    const defaultMunkatars = kisBela || members.find(m => (m.role || '').toLowerCase().includes('munkat') || m.role === 'worker' || m.role === 'member');
     const defaultAssigneeName = defaultMunkatars ? (defaultMunkatars.full_name || defaultMunkatars.username) : '';
 
     return clients.map((c) => {
@@ -160,10 +166,29 @@ export default function ClientsPage() {
       });
 
       // Last interaction
+      // EAISY-241 §1.3.1/2: gazdagabb matching — a korábbi csak a pontos név-egyezést
+      // és az email-t session_id-ben nézte. Most: client_id, messenger_id, phone, email
+      // és session_id voice-minták is. Így a voice-agent interakciók is hozzájárulnak.
+      const clientPhoneDigits = phone.replace(/[^\d]/g, '');
       let lastInteraction = '';
       for (const s of sessions) {
         const participant = (s.participant || s.client_name || '').toLowerCase().trim();
-        if (participant === clientNameLower || (clientEmailLower && s.session_id?.includes(clientEmailLower))) {
+        const sid = (s.session_id || '').toLowerCase();
+        let match = false;
+        // 1. Pontos név-egyezés
+        if (participant && participant === clientNameLower) match = true;
+        // 2. Email a session_id-ben
+        if (!match && clientEmailLower && sid.includes(clientEmailLower)) match = true;
+        // 3. Phone (session_id participant-ként vagy beleértve)
+        if (!match && clientPhoneDigits.length >= 6) {
+          const partDigits = participant.replace(/[^\d]/g, '');
+          if (partDigits && (partDigits.endsWith(clientPhoneDigits) || clientPhoneDigits.endsWith(partDigits))) match = true;
+          if (sid.includes(clientPhoneDigits)) match = true;
+        }
+        // 4. messenger_id / instagram_id session_id prefix
+        const messengerId = ((cd?.messenger_id as string) || (cd?.messenger_psid as string) || '').toString();
+        if (!match && messengerId && (sid.includes(messengerId) || sid.includes(`messenger_${messengerId}`))) match = true;
+        if (match) {
           if (!lastInteraction || (s.started_at || '') > lastInteraction) {
             lastInteraction = s.started_at || '';
           }
@@ -462,7 +487,7 @@ export default function ClientsPage() {
                           <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13">
                             <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" />
                           </svg>
-                          <span>{c.phone}</span>
+                          <span>{formatPhoneHu(c.phone)}</span>
                         </div>
                       )}
                       {c.email && (
@@ -675,7 +700,7 @@ export default function ClientsPage() {
                       <td className="int-td">{statusBadge(c)}</td>
                     )}
                     {visibleCols.has('phone') && (
-                      <td className="int-td">{c.phone || '—'}</td>
+                      <td className="int-td">{c.phone ? formatPhoneHu(c.phone) : '—'}</td>
                     )}
                     {visibleCols.has('email') && (
                       <td className="int-td">{c.email || '—'}</td>

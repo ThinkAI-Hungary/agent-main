@@ -455,7 +455,7 @@ def get_alerts_stats(period: str = "month", channel: str = "mind", clinic_id: st
         urgent_count = complaint_count = callback_count = recurring_count = 0
         for row in all_alerts_query.data:
             if not _matches_channel(row.get("type"), channel): continue
-            if clinic_id and clinic_id != "mind" and str(row.get("clinic_id")) != str(clinic_id): continue
+            if clinic_id and clinic_id != "mind" and row.get("clinic_id") is not None and str(row.get("clinic_id")) != str(clinic_id): continue
             tags = row.get("alert_tags", [])
             if not tags or tags == []:  continue  # Skip empty tag lists
             if "urgent" in tags: urgent_count += 1
@@ -483,7 +483,7 @@ def get_alerts_stats(period: str = "month", channel: str = "mind", clinic_id: st
                                 import json as _json
                                 cd = _json.loads(cd)
                             except: cd = {}
-                        if str(cd.get("clinic_id", "")) != str(clinic_id):
+                        if cd.get("clinic_id") and str(cd.get("clinic_id", "")) != str(clinic_id):
                             continue
                     stuck_count += 1
                 
@@ -671,7 +671,7 @@ def get_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mi
         for i in all_inters.data:
             if not _matches_channel(i.get("type"), channel):
                 continue
-            if clinic_id and clinic_id != "mind" and str(i.get("clinic_id")) != str(clinic_id):
+            if clinic_id and clinic_id != "mind" and i.get("clinic_id") is not None and str(i.get("clinic_id")) != str(clinic_id):
                 continue
             t_raw = (i.get("type") or "Telefon").lower()
             if "email" in t_raw:
@@ -836,7 +836,7 @@ def get_outbound_stats(period: str = "month", channel: str = "mind", clinic_id: 
         for i in all_inters.data:
             if not _matches_channel(i.get("type"), channel):
                 continue
-            if clinic_id and clinic_id != "mind" and str(i.get("clinic_id")) != str(clinic_id):
+            if clinic_id and clinic_id != "mind" and i.get("clinic_id") is not None and str(i.get("clinic_id")) != str(clinic_id):
                 continue
             d = i.get("direction", "inbound") or "inbound"
             if d == "outbound":
@@ -923,7 +923,7 @@ def get_funnel_stats(period: str = "month", channel: str = "mind", clinic_id: st
         stages = []
         for r in res.data:
             if not _matches_channel(r.get("type"), channel): continue
-            if clinic_id and clinic_id != "mind" and str(r.get("clinic_id")) != str(clinic_id): continue
+            if clinic_id and clinic_id != "mind" and r.get("clinic_id") is not None and str(r.get("clinic_id")) != str(clinic_id): continue
             stages.append(r.get("funnel_stage") or "relevant")
         
         relevant_count = len([s for s in stages if s not in ("irrelevant", "spam")])
@@ -1057,7 +1057,7 @@ def add_client(custom_data: dict, status: str = "uj") -> int:
         logger.error(f"Add client error: {e}")
         return 0
 
-def find_client_by_contact(email: str = "", phone: str = "", messenger_id: str = "") -> dict | None:
+def find_client_by_contact(email: str = "", phone: str = "", messenger_id: str = "", name: str = "") -> dict | None:
     if not supabase: return None
     try:
         if messenger_id:
@@ -1071,7 +1071,14 @@ def find_client_by_contact(email: str = "", phone: str = "", messenger_id: str =
             res = supabase.table("clients").select("*").eq("phone", phone).order("id", desc=True).limit(1).execute()
         else:
             res = None
-        return res.data[0] if res and res.data else None
+        if res and res.data:
+            return res.data[0]
+        # EAISY-241: név-alapú keresés (case-insensitive) — ha phone/email nem talált
+        if name and name.strip():
+            res = supabase.table("clients").select("*").ilike("name", f"%{name.strip()}%").order("id", desc=True).limit(1).execute()
+            if res.data:
+                return res.data[0]
+        return None
     except Exception as e:
         logger.error(f"Find client error: {e}")
         return None
@@ -1327,6 +1334,76 @@ def update_triage_rule(rule_id: int, situation: str, priority: str, escalation_e
         }).eq("id", rule_id).execute()
         return True
     except Exception:
+        return False
+
+# ── EAISY-241: Döntési mátrix (routing JSONB a triage_rules táblán) ───────────
+# A routing tartalmazza a kimeneteket (eredmeny/statusz/teendo) korlátozásonként,
+# valamint a kb_required / autonomous_allowed / subtypes jelzőket. A classifier.py
+# ebből olvassa a routing döntéseket, hardkódolt if/elif helyett.
+# Lásd: migrate_decision_matrix.sql
+
+def get_triage_rule_by_situation(situation: str) -> dict | None:
+    """Pontos egyezésre keres (case-insensitive). Hasznos a classifiernek."""
+    if not supabase or not situation:
+        return None
+    try:
+        res = supabase.table("triage_rules").select("*").ilike("situation", situation).execute()
+        return res.data[0] if res.data else None
+    except Exception as e:
+        logger.error(f"get_triage_rule_by_situation error: {e}")
+        return None
+
+def get_decision_matrix() -> dict:
+    """
+    A teljes döntési mátrixot ügytípus (situation) szerint indexelve adja vissza.
+    { situation: { id, priority, escalation_email, routing{...} } }
+    A classifier ezt tölti be egyszer és cached formában használja.
+    """
+    if not supabase: return {}
+    try:
+        rules = get_triage_rules()
+        return {r["situation"]: r for r in rules if r.get("situation")}
+    except Exception as e:
+        logger.error(f"get_decision_matrix error: {e}")
+        return {}
+
+def upsert_triage_rule(situation: str, priority: str, escalation_email: str = "", routing: dict = None) -> int:
+    """
+    Beszúr vagy frissít egy triage szabályt a teljes routing-tal együtt.
+    situation alapján upsert. Visszaadja az id-t.
+    """
+    if not supabase or not situation:
+        return 0
+    try:
+        payload = {
+            "situation": situation,
+            "priority": priority,
+            "escalation_email": escalation_email or None,
+        }
+        if routing is not None:
+            payload["routing"] = routing
+        # Megnézzük létezik-e már
+        existing = supabase.table("triage_rules").select("id").ilike("situation", situation).execute()
+        if existing.data:
+            rule_id = existing.data[0]["id"]
+            supabase.table("triage_rules").update(payload).eq("id", rule_id).execute()
+            return rule_id
+        else:
+            res = supabase.table("triage_rules").insert(payload).execute()
+            return res.data[0]["id"] if res.data else 0
+    except Exception as e:
+        logger.error(f"upsert_triage_rule error: {e}")
+        return 0
+
+def update_triage_rule_routing(rule_id: int, routing: dict) -> bool:
+    """Csak a routing JSONB mezőt frissíti egy meglévő szabályon."""
+    if not supabase or not routing:
+        return False
+    try:
+        supabase.table("triage_rules").update({"routing": routing}).eq("id", rule_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"update_triage_rule_routing error: {e}")
         return False
 
 def delete_triage_rule(rule_id: int) -> bool:
@@ -1713,6 +1790,28 @@ def update_campaign_status(campaign_id: int, status: str, processed_count: int =
         return True
     except Exception as e:
         logger.error(f"Error updating campaign status: {e}")
+        return False
+
+def update_campaign_content(campaign_id: int, ai_instructions: str, subject: str = "") -> bool:
+    """
+    EAISY-241 §1.6.2 — Kampány üzenet (ai_instructions) + subject szerkesztése.
+    A subject-et prefix-ként kódolja (SUBJECT:...|), ahogy a create/schedule is teszi.
+    Csak Tervezet/Ütemezett státuszú kampányoknál értelmes (élő kampányt nem módosítunk).
+    """
+    if not supabase: return False
+    try:
+        # Ha van subject, prefix-ként tesszük az ai_instructions elé (a _run_campaign
+        # majd lecsipkedi). Ha nincs subject, csak az ai_instructions-t mentjük.
+        if subject and subject.strip():
+            final_instructions = f"SUBJECT:{subject.strip()}|{ai_instructions}"
+        else:
+            final_instructions = ai_instructions
+        supabase.table("campaigns").update({
+            "ai_instructions": final_instructions
+        }).eq("id", campaign_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Error updating campaign content: {e}")
         return False
 
 def delete_campaign(campaign_id: int) -> bool:

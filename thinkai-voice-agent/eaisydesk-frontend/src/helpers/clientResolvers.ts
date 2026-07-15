@@ -130,6 +130,17 @@ export function resolveClientName(
   }
   if (directId && !searchValues.includes(directId))
     searchValues.push(directId);
+  // EAISY-241 §1.2.5: Voice session (call_ / call-out- / room name) — a participant
+  // gyakran telefonszám. Adjuk hozzá a keresési értékekhez, hogy a 3. ág megtalálja
+  // az ügyfelet telefonszám (vagy név) alapján. Csak ha még nincs benne.
+  const isVoiceSession = /^(call[-_]|voice[-_]|phone[-_])/i.test(sid) ||
+    /^call-out-camp-/i.test(sid);
+  if (isVoiceSession) {
+    const partVal = (session.participant || '').trim();
+    if (partVal && !searchValues.includes(partVal.toLowerCase())) {
+      searchValues.push(partVal.toLowerCase());
+    }
+  }
 
   // Try all search values against all clients
   for (const searchVal of searchValues) {
@@ -161,14 +172,18 @@ export function resolveClientName(
         .toLowerCase()
         .trim();
       if (em && em === searchVal) return true;
-      // Match by phone
+      // Match by phone — EAISY-241 §1: digit-only normalizáció, hogy a
+      // +36/06/0036 prefix-elt és formázott számok is egyezzenek.
       const ph = (
         (cd?.phone as string) ||
         (cd?.telefon as string) ||
         c.phone ||
         ''
-      ).replace(/\s/g, '');
-      if (ph && ph === searchVal.replace(/\s/g, '')) return true;
+      );
+      const phDigits = ph.replace(/\D/g, '');
+      const svDigits = searchVal.replace(/\D/g, '');
+      if (phDigits && svDigits && (phDigits === svDigits ||
+          phDigits.endsWith(svDigits) || svDigits.endsWith(phDigits))) return true;
       return false;
     });
     if (match) {

@@ -311,6 +311,10 @@ export default function SettingsPage() {
           returning_patient_required: p.returning_patient_required || prev.returning_patient_required,
           price_list: p.price_list || '',
           price_list_file_meta: p.price_list_file_meta || null,
+          // EAISY-241: sender_email/sender_name betöltése — eddig hiányzott,
+          // így a SettingsPage mentése felülírta üresre a BeallitasokPage-ben beállított értéket.
+          sender_name: p.sender_name || '',
+          sender_email: p.sender_email || '',
         }));
       }
       const cl = clinicsData?.clinics || clinicsData; if (Array.isArray(cl)) setClinics(cl);
@@ -1100,8 +1104,31 @@ function IssueHandlingRulesSection() {
   const [openInfo, setOpenInfo] = useState<string | null>(null);
   const toggleInfo = (id: string) => setOpenInfo(prev => prev === id ? null : id);
 
+  useEffect(() => {
+    // EAISY-241: written_behavior betöltése a backend-ről mount-kor
+    authFetch('/admin/api/written-behavior')
+      .then(res => res.json())
+      .then(data => {
+        if (data && data.content) {
+          setState(prev => {
+            const nextState = { ...prev, writtenBehavior: data.content };
+            localStorage.setItem(ISSUE_RULES_LS_KEY, JSON.stringify(nextState));
+            return nextState;
+          });
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   const handleSave = useCallback(() => {
     localStorage.setItem(ISSUE_RULES_LS_KEY, JSON.stringify(state));
+    // EAISY-241: written_behavior mentése a backend-be is (text_configs),
+    // hogy a classifier lássa (override-ként működik a triage_rules felett).
+    authFetch('/admin/api/written-behavior', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ content: state.writtenBehavior }),
+    }).catch(() => {});
     showToast('Ügykezelési szabályok mentve', 'success');
   }, [state]);
 

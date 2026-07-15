@@ -980,8 +980,9 @@
 /* Top card content */
 .cd-top-card-full {
   display: flex; justify-content: space-between; align-items: stretch;
-  background: linear-gradient(135deg, rgba(28,238,224,0.12) 0%, rgba(20,184,173,0.08) 100%);
-  border: 1px solid rgba(28,238,224,0.15);
+  /* EAISY-241 §1.4.1: név/kontakt háttérkártya #DFFFFD */
+  background: #DFFFFD;
+  border: 1px solid rgba(28,238,224,0.25);
   padding: 24px 32px; border-radius: 6px; margin-bottom: 24px;
 }
 
@@ -1032,7 +1033,8 @@
 /* Registration date card */
 .cd-regdate-card {
   background: var(--card); padding: 12px 20px; border-radius: 6px;
-  display: flex; flex-direction: column; align-items: center;
+  /* EAISY-241 §3: horizontális elrendezés — egy sorban a label + dátum */
+  display: flex; flex-direction: row; align-items: center; gap: 6px;
   min-width: 120px; border: 1px solid var(--border);
 }
 
@@ -1043,10 +1045,15 @@
 }
 
 /* Reg date value */
-.cd-regdate-value { font-size: 16px; font-weight: bold; color: var(--text); margin-top: 4px; }
+.cd-regdate-value { font-size: 16px; font-weight: bold; color: var(--text); }
 
 /* Middle grid */
 .cd-middle-grid-inner { display: grid; gap: 20px; margin-bottom: 24px; }
+/* EAISY-241 §1.4.4: négykártyás summary sor — első kártya szélesebb */
+.cd-middle-grid-inner.cd-summary-row { grid-template-columns: 1.6fr 1fr 1fr 1fr; }
+@media (max-width: 1100px) {
+  .cd-middle-grid-inner.cd-summary-row { grid-template-columns: 1fr 1fr; }
+}
 
 /* Inner card */
 .cd-inner-card {
@@ -1271,7 +1278,9 @@
 .td-p-fs13 { padding: 12px 16px; font-size: 13px; }
 
 /* Client name cell */
-.cl-name-cell { font-weight: 600; font-size: 13px; color: var(--text); }
+/* EAISY-241 §1.3.4: ügyfél-név linkesített, #186D98 szín */
+.cl-name-cell { font-weight: 600; font-size: 13px; color: #186D98; cursor: pointer; }
+.cl-name-cell:hover { color: #134d6e; }
 .cl-name-id { font-size: 11px; color: var(--text-muted); }
 .cl-td-name { min-width: 180px; }
 
@@ -1288,3 +1297,45 @@
 .cd-avatar-placeholder--hidden { display: none !important; }
 .cd-date-primary { font-weight: 500; }
 .cd-date-time { font-size: 11px; color: #9ca3af; }
+
+/* ═══ EAISY-241 §1.4.2: hárompontos overflow menu ═══ */
+.cd-overflow-btn {
+  background: none; border: 1px solid rgba(24,109,152,0.25); border-radius: 50%;  /* EAISY-241 §3: kör */
+  padding: 8px; width: 36px; height: 36px; cursor: pointer; color: #186D98; display: inline-flex;
+  align-items: center; justify-content: center; transition: background 0.15s, border-color 0.15s;
+}
+.cd-overflow-btn:hover { background: rgba(24,109,152,0.08); border-color: #186D98; }
+.cd-overflow-menu {
+  background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.14);
+  padding: 6px; display: flex; flex-direction: column; gap: 2px;
+}
+.cd-overflow-menu button {
+  background: none; border: none; text-align: left; padding: 10px 14px; cursor: pointer;
+  font-size: 13px; color: #1f2937; border-radius: 6px; font-family: inherit; white-space: nowrap;
+}
+.cd-overflow-menu button:hover { background: #f3f4f6; color: #186D98; }
+
+/* ═══ EAISY-241 §1.4.4: négykártyás summary sor ═══ */
+.cd-summary-row { align-items: stretch; }
+.cd-summary-row .cd-inner-card,
+.cd-summary-row .cd-inner-card--appt,
+.cd-summary-row .cd-inner-card--notes {
+  min-height: 180px; display: flex; flex-direction: column;
+}
+.cd-summary-card { /* interakció-összegző [szélesebb] */ }
+.cd-summary-int-row {
+  display: flex; gap: 8px; align-items: center; font-size: 12px;
+  padding: 4px 0; border-bottom: 1px solid #f1f5f9;
+}
+.cd-summary-date { color: #64748b; min-width: 78px; }
+.cd-summary-channel { color: #186D98; font-weight: 600; min-width: 70px; }
+.cd-summary-eredmeny { color: #1f2937; flex: 1; }
+
+/* Időpont-kártya felosztás: Következő (#DFFFFD) + Korábbi (szürke) */
+.cd-appt-next {
+  background: #DFFFFD; border-radius: 8px; padding: 10px 12px; margin-bottom: 10px;
+}
+.cd-appt-next-label { font-size: 11px; text-transform: uppercase; color: #0f766e; font-weight: 700; margin-bottom: 4px; }
+.cd-appt-next-value { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #082432; font-weight: 600; }
+.cd-appt-empty-next { font-style: italic; color: #9ca3af; font-size: 12px; }
+.cd-appt-past { background: #f8fafc; border-radius: 8px; padding: 10px 12px; flex: 1; }

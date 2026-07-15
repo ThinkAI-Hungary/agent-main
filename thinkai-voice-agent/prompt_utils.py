@@ -118,6 +118,24 @@ def _format_patient_rules(pi: dict) -> str:
     # Email bekérése kötelező
     rules.append("4. IDŐPONTFOGLALÁS ESETÉN: Szigorúan kötelező elkérned az ügyfél e-mail címét a foglalás véglegesítése előtt. Tájékoztasd őt róla, hogy erre az e-mail címre fogjuk küldeni a hivatalos visszaigazolást, ami tartalmazza a naptárfájlt és az esetleges lemondáshoz szükséges linket is!")
 
+    # EAISY-241 §7 — Időpontfoglalási beszélgetés szabályai (lépésenkénti)
+    rules.append("""5. BESZÉLGETÉS VEZETÉSE IDŐPONTFOGLALÁSKOR (SZIGORÚ!):
+   - Egyszerre CSAK EGY kérdést tegyél fel. SOHA ne sorolj fel több adatot egy mondatban (pl. ne kérdezd egyszerre a szolgáltatást, telefonszámot és e-mailt).
+   - Egy megszólalás legfeljebb KÉT rövid mondatból álljon.
+   - Mindig várd meg a páciens válaszát, mielőtt továbblépsz.
+   - Ha a páciens már megadott egy adatot, NE kérdezd meg újra.
+   - A beszélgetés hangzon PÁRBESZÉDNEK, ne adatfelvételi űrlapnak.
+   - LÉPÉSEK SORRENDJE:
+     a) „Járt már korábban nálunk?" → várd a választ.
+     b) Ha IGEN: „Milyen néven találom meg?" → szükség esetén egy azonosító (egyszerre egyet!).
+        Ha NEM: „Milyen néven rögzíthetem az időpontot?"
+     c) „Milyen szolgáltatásra/időpontra gondolt?" (a szolgáltatás és nap külön-külön, ne egyszerre).
+     d) Időpont pontosítása fokozatosan: „Melyik nap?" → „Délelőtt vagy délután?" → max 2-3 konkrét javaslat.
+     e) Kapcsolattartási adatok EGYESENKÉNT (csak az időpont után): telefonszám, majd e-mail.
+     f) Visszaellenőrzés: röviden foglald össze az egyeztetett adatokat, és csak az összefoglalás után véglegesítsd a foglalást.""")
+    rules.append("""6. SZOLGÁLTATÁS PONTOSÍTÁSA: Ha a páciens nem mond konkrét szolgáltatást, NE sorolj fel több kérdést. Egyetlen rövid kérdés: 'Röviden elmondaná, milyen problémával vagy céllal szeretne érkezni?' — a válasz alapján ajánld fel a megfelelő, foglalható szolgáltatást.""")
+    rules.append("""7. AZONOSÍTÁSI BIZTONSÁG: A hívószám PSTN-en triviálisan hamisítható — érzékeny adat (betegadat) előtt MINDIG kérj egy második azonosítót (születési dátum, TAJ, vagy a rendszerben tárolt adat).""")
+
     return "\n".join(rules)
 
 def _format_faq(faq: list) -> str:
@@ -265,4 +283,66 @@ def get_system_prompt(channel: str = None) -> str:
             lang_instruction = f"STRICT RULE: You MUST respond ONLY in {lang_name}. NEVER reply in Hungarian!"
         result = f"[LANGUAGE OVERRIDE] {lang_instruction}\n\n{result}"
 
+    # ── EAISY-241 §1.1.1/§2 — Eljárás-szabályok injektálása a promptba ────────
+    # Dinamikusan felépíti a „mit tehet önállóan / mit nem" szabályokat a triage_rules
+    # eljárás értékeiből, hogy a hang-agent betartsa a brief non-autonomy követelményeit.
+    result += _format_eljaras_rules()
+
     return result
+
+
+def _format_eljaras_rules() -> str:
+    """
+    EAISY-241 — A triage_rules eljárás (onallo/jovahagyas/ember) értékeiből
+    felépít egy explicit szabály-blokkot a rendszerprompt számára.
+    """
+    try:
+        rules = database.get_triage_rules()
+    except Exception as e:
+        logger.error(f"Error loading triage rules for eljaras: {e}")
+        return ""
+
+    if not rules:
+        return ""
+
+    # Típus → eljárás megjelenítendő név
+    ELJARAS_LABEL = {
+        "onallo": "önállóan kezelhető",
+        "jovahagyas": "jóváhagyást igényel",
+        "ember": "embernek továbbítandó",
+    }
+
+    lines = ["", "--- EAISY-241 ELJÁRÁS SZABÁLYOK (Szigorú!) ---",
+             "Az ügytípusok kezelésének módja a rendszer beállításai szerint:"]
+    non_autonomous = []
+    for r in rules:
+        situation = (r.get("situation") or "").strip()
+        priority = (r.get("priority") or "").lower()
+        if situation in ("Kérdés", "Kérés", "Panasz", "Időpont", "Egyéb", "Vegyes ügytípus"):
+            label = ELJARAS_LABEL.get(priority, priority)
+            lines.append(f"- {situation}: {label}")
+            if priority in ("ember", "jovahagyas"):
+                non_autonomous.append(situation)
+
+    lines.append("")
+    lines.append("SZIGORÚ SZABÁLYOK AZ AUTONÓMIAHOZ:")
+    if non_autonomous:
+        lines.append(
+            "- A következő ügytípusoknál SOHA ne adj végleges választ és SOHA ne "
+            "intézkedj önállóan (pl. ne foglalj időpontot, ne küldj emailt): "
+            + ", ".join(non_autonomous)
+            + ". Ezeket az eseteket RÖGZÍTSD (report_alert ha panasz/sürgős), "
+            "tájékoztasd az ügyfelet, hogy egy kolléga hamarosan felveszi vele a "
+            "kapcsolatot, és adjátok át a beszélgetést embernek."
+        )
+    lines.append(
+        "- PANASZ esetén MINDIG: ne vitatkozz, ne adj ígéreteket, fogadd el a "
+        "panaszt, kérj bocsánatot, és azonnal jelezd report_alert('complaint') "
+        "címkével, majd add át embernek."
+    )
+    lines.append(
+        "- KÉRÉS esetén (pl. visszahívás, lelet küldése, módosítás): ne teljesítsd "
+        "önállóan — rögzítsd és jelezd, hogy egy kolléga intézkedik."
+    )
+    lines.append("----------------------------------------------------")
+    return "\n".join(lines)

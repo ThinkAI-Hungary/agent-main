@@ -34,7 +34,7 @@ from classifier import classify_interaction
 
 # ── Import tools ──────────────────────────────────────────────────────────────
 sys.path.insert(0, str(THIS_DIR))
-from tools import ALL_TOOLS, set_session_id
+from tools import ALL_TOOLS, set_session_id, reset_session_alerts, set_caller_phone, get_caller_phone
 import database as db
 
 # ── Google credentials setup (still needed for Gemini LLM) ───────────────────
@@ -106,6 +106,7 @@ async def entrypoint(ctx: JobContext):
     db.init_db()
     db.create_session(session_id=session_id, room_name=room_name)
     set_session_id(session_id)
+    reset_session_alerts()  # EAISY-241: tiszta kontextus minden új sessionnél
 
     # Log call type + detect campaign calls
     is_outbound_call = room_name.startswith("call-out-")
@@ -367,6 +368,37 @@ SZABÁLYOK:
             room_input_options=room_input_opts,
         )
 
+        # ── EAISY-241 §6: Hívó telefonszámának kinyerése a session.start() UTÁN. ──
+        # A LiveKit SIP participant attributes-ben adja vissza (sip.phoneNumber).
+        # Az identity/name is tartalmazhatja, de az attribútum a hivatalos forrás.
+        # FIGYELEM: a wait_for_participant() a session.start() ELŐTT "room not connected"
+        # hibát dobna; ezért itt, a start után végezzük. Ha a dispatch rule-ban a
+        # HidePhoneNumber be van kapcsolva, az attribútum üres lesz.
+        try:
+            caller_phone = ""
+            if hasattr(ctx, "room") and ctx.room:
+                # Várjuk a SIP participant-et (legfeljebb 5s)
+                for p in list(ctx.room.remote_participants.values()):
+                    attrs = getattr(p, "attributes", None) or {}
+                    sip_phone = attrs.get("sip.phoneNumber") or attrs.get("sip.phoneNumber".lower())
+                    if sip_phone:
+                        caller_phone = sip_phone
+                        break
+                    # Fallback: identity / name tartalmazza a számot
+                    ident = (p.identity or "")
+                    import re as _re_ph2
+                    m = _re_ph2.search(r'\+?\d{9,15}', ident)
+                    if m:
+                        caller_phone = m.group(0)
+                        break
+            if caller_phone:
+                logger.info(f"📞 Hívó telefonszáma (SIP attribute): {caller_phone}")
+                set_caller_phone(caller_phone)
+            else:
+                logger.info("Hívó telefonszáma nem elérhető (lehet HidePhoneNumber engedélyezve)")
+        except Exception as e:
+            logger.warning(f"Hívó telefonszám kinyerése sikertelen: {e}")
+
         # Trigger the greeting by sending a user turn directly to the Gemini
         # realtime session. generate_reply() is blocked for 3.1 models, but
         # the underlying mechanism still works — we replicate it here.
@@ -470,42 +502,69 @@ SZABÁLYOK:
                     )
                     summary_text = classification.get("osszefoglalas") or "AI telefonos beszélgetés"
                     
-                # 2. Extract phone number from participants or room name to associate with client details
-                phone_number = ""
-                # Check remote participants first (SIP caller identity is usually the phone number or phone-...)
-                if hasattr(ctx, "room") and ctx.room and hasattr(ctx.room, "remote_participants"):
-                    for p in list(ctx.room.remote_participants.values()):
-                        identity = p.identity or ""
-                        # Clean prefix mapping
-                        clean_id = identity.replace("phone-", "").replace("user-", "").replace("sip_", "").strip()
-                        # If it starts with + or is a long numeric, it's our caller's phone number
-                        if clean_id.startswith("+") or (clean_id.isdigit() and len(clean_id) >= 9):
-                            phone_number = clean_id
-                            break
-                            
-                # Fallback to room name if participants check yielded nothing
+                # 2. EAISY-241 §6: telefonszám a korábban kinyert SIP-attribútumból.
+                # Ha az üres (pl. HidePhoneNumber), fallback a participant/room regex-re.
+                import re as _re_phone
+                phone_number = get_caller_phone()
                 if not phone_number:
-                    parts = room_name.split("-")
-                    if parts:
-                        last_part = parts[-1]
-                        if last_part.isdigit() and len(last_part) >= 9:
-                            phone_number = last_part
+                    # Fallback: participant identity / name / room_name regex
+                    if hasattr(ctx, "room") and ctx.room and hasattr(ctx.room, "remote_participants"):
+                        for p in list(ctx.room.remote_participants.values()):
+                            identity = p.identity or ""
+                            clean_id = identity.replace("phone-", "").replace("user-", "").replace("sip_", "").strip()
+                            if clean_id.startswith("+") or (clean_id.isdigit() and len(clean_id) >= 9):
+                                phone_number = clean_id
+                                break
+                            pname = (getattr(p, "name", "") or "").strip()
+                            if pname and (pname.startswith("+") or (pname.isdigit() and len(pname) >= 9)):
+                                phone_number = pname
+                                break
+                if not phone_number:
+                    m = _re_phone.search(r'\+?\d{9,15}', room_name or "")
+                    if m:
+                        phone_number = m.group(0)
                         
                 # 3. Log a MAIN interaction with the transcript in the result field
+                # EAISY-241 §6: a hívó telefonszámának automatikus rögzítése és
+                # az interakció client_id-jának beállítása.
+                # A hívó NEVÉT a klasszifikációból nyerjük ki (client_name mező).
                 client_id = None
-                if phone_number:
+                caller_name = classification.get("client_name") or ""
+                if phone_number or caller_name:
                     try:
-                        # Save to client details (appends transcript to their history log in custom_data)
-                        client_id = db.upsert_client_by_contact(
-                            custom_data={
-                                "phone": phone_number,
-                                "problem_description": summary_text
-                            },
-                            additional_log=transcript if transcript.strip() else "Hívás történt.",
-                            status="aktiv"
-                        )
+                        # Először megkeressük a meglévő klienst telefonszám vagy név alapján
+                        existing = None
+                        if phone_number:
+                            existing = db.find_client_by_contact(phone=phone_number)
+                        if not existing and caller_name:
+                            existing = db.find_client_by_contact(name=caller_name)
+                        if existing:
+                            client_id = existing.get("id")
+                            # Frissítjük a phone + name adatokat ha újak lettek megadva
+                            update_data = {"forras_csatorna": "Voice Agent"}
+                            if phone_number:
+                                update_data["phone"] = phone_number
+                            if caller_name:
+                                update_data["name"] = caller_name
+                            db.upsert_client(
+                                custom_data=update_data,
+                                additional_log=transcript if transcript.strip() else "Hívás történt.",
+                                status=existing.get("status") or "aktiv"
+                            )
+                        else:
+                            # Új kliens létrehozása — a név a klasszifikációból, ha van
+                            client_id = db.upsert_client(
+                                custom_data={
+                                    "name": caller_name or "Ismeretlen hívó",
+                                    "phone": phone_number or "",
+                                    "forras_csatorna": "Voice Agent",
+                                    "problem_description": summary_text,
+                                },
+                                additional_log=transcript if transcript.strip() else "Hívás történt.",
+                                status="aktiv"
+                            )
                     except Exception as ce:
-                        logger.error(f"Failed to upsert client by contact: {ce}")
+                        logger.error(f"Failed to upsert client by phone: {ce}")
                         
                 db.log_interaction(
                     type="telefon",

@@ -16,7 +16,7 @@ import {
   detectTeendo,
 } from '../helpers/interactionClassifiers';
 import { fmtDt, cleanStr } from '../helpers/formatters';
-import { EredmenyBadge, StatuszBadge, DirectionBadge } from '../components/ui/Badge';
+import { EredmenyBadge, StatuszBadge } from '../components/ui/Badge';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
@@ -50,14 +50,27 @@ export interface InteractionRow {
   approval_status: string | null;
   aiDraftResponse?: string | null;
   approvalStatus?: string | null;
+  // EAISY-241 — strukturált klasszifikáció a backend classifier.py-től
+  classification?: {
+    ugytipus?: string;
+    idopont_altipus?: string | null;
+    detected_types?: string[] | null;
+    eredmeny?: string;
+    statusz?: string;
+    teendo?: string;
+    osszefoglalas?: string;
+    autonomous?: boolean;
+    restriction?: string;
+  } | null;
 }
 
 // ── Column visibility keys ──
+// EAISY-241 §1.2.4: 'direction' (Irány) oszlop eltávolítva — a kimenő kommunikáció
+// elrejtése a listanézetből. A Kimenő sorokat a filter is kizárja (l. myRows).
 const ALL_COLUMNS = [
   { key: 'date', label: 'Időpont' },
   { key: 'client', label: 'Ügyfél' },
   { key: 'channel', label: 'Csatorna' },
-  { key: 'direction', label: 'Irány' },
   { key: 'ugyTipus', label: 'Ügytípus' },
   { key: 'eredmeny', label: 'Eredmény' },
   { key: 'statusz', label: 'Státusz' },
@@ -67,7 +80,6 @@ const ALL_COLUMNS = [
 // ── Filter options ──
 const UGYTIPUS_OPTIONS = ['Időpont', 'Kérdés', 'Kérés', 'Panasz', 'Egyéb'];
 const CSATORNA_OPTIONS = ['Messenger', 'Telefon', 'Email', 'Instagram', 'WhatsApp'];
-const IRANY_OPTIONS = ['Bejövő', 'Kimenő'];
 const STATUSZ_OPTIONS = ['Lezárt', 'Nyitott', 'Sürgős'];
 
 const SORT_OPTIONS = [
@@ -109,7 +121,6 @@ export default function InteractionsPage() {
   // Filters
   const [filterUgyTipus, setFilterUgyTipus] = useState<Set<string>>(new Set());
   const [filterCsatorna, setFilterCsatorna] = useState<Set<string>>(new Set());
-  const [filterIrany, setFilterIrany] = useState<Set<string>>(new Set());
   const [filterStatusz, setFilterStatusz] = useState<Set<string>>(new Set());
   const [filterDateFrom, setFilterDateFrom] = useState('');
   const [filterDateTo, setFilterDateTo] = useState('');
@@ -135,56 +146,31 @@ export default function InteractionsPage() {
     return () => document.removeEventListener('click', handleClick);
   }, []);
 
-  // ── Build flat interaction rows (1:1 from legacy buildFlatInteractionRows) ──
+  // ── Build interaction rows (EAISY-241 §1.2.1: egy interakció = egy sor) ──
+  // Korábban minden session.interactions külön sor volt — egy voice hívás 2+ sort
+  // eredményezett (végösszegzés + minden tool-hívás). Most session-enként EGYETLEN
+  // reprezentatív sort építünk: a leginformatívabb interakciót vesszük alapul, és
+  // az összes eredményt badge-ként gyűjtjük. Státuszból a legmagasabb prioritású
+  // (Lezárt < Nyitott < Sürgős) jelenik meg (brief §1.2.1).
+  const STATUSZ_PRIORITY: Record<string, number> = { Lezárt: 1, Nyitott: 2, Sürgős: 3 };
+
+  function pickStatusz(statuses: string[]): string {
+    if (!statuses.length) return 'Nyitott';
+    return statuses.reduce((top, s) =>
+      (STATUSZ_PRIORITY[s] ?? 0) > (STATUSZ_PRIORITY[top] ?? 0) ? s : top
+    , statuses[0]);
+  }
+
   const allRows = useMemo<InteractionRow[]>(() => {
     const rows: InteractionRow[] = [];
     sessions.forEach((s: SessionSummary) => {
       const sessionDate = s.started_at || '';
       const sRoom = (s.room_name || '').toLowerCase();
-      // const _sessionClientName = s.participant || s.client_name || 'Ismeretlen';
+      // Skip spam a session szintjén
+      const interactions = (s.interactions || []).filter((r) => r.approval_status !== 'spam');
 
-      if (s.interactions && s.interactions.length > 0) {
-        s.interactions.forEach((r: SessionInteraction) => {
-          // Skip spam interactions — users should never see these
-          if (r.approval_status === 'spam') return;
-
-          const clientInfo = resolveClientName(
-            r,
-            { session_id: s.session_id, participant: s.participant, client_name: s.client_name },
-            clientsMap,
-            clients
-          );
-
-          let clientTags: string[] = [];
-          if (clientInfo.id && clientsMap[String(clientInfo.id)]) {
-            const cd = parseCustomData(clientsMap[String(clientInfo.id)].custom_data);
-            clientTags = (cd?.tags as string[]) || [];
-          }
-
-          rows.push({
-            date: r.created_at || sessionDate,
-            channel: getRowChannel(r.type || '', sRoom, s.session_id || '', s.channel),
-            client: clientInfo.name,
-            clientId: clientInfo.id,
-            clientStatus: clientInfo.status,
-            clientCreatedAt: clientInfo.created_at,
-            direction: (r.direction || 'inbound').toLowerCase() === 'outbound' ? 'Kimenő' : 'Bejövő',
-            ugyTipus: detectUgyTipus(r),
-            eredmeny: detectEredmeny(r),
-            statusz: detectStatusz(r),
-            teendo: detectTeendo(r),
-            tags: clientTags,
-            type: r.type || '-',
-            topic: r.topic || '-',
-            summary: r.summary || '-',
-            result: r.result || '',
-            interactionId: r.id || null,
-            sessionId: s.session_id || null,
-            ai_draft_response: r.ai_draft_response || null,
-            approval_status: r.approval_status || null,
-          });
-        });
-      } else {
+      if (interactions.length === 0) {
+        // Session interakciók nélkül (régóta létező ág)
         const clientInfo = resolveClientName(
           {},
           { session_id: s.session_id, participant: s.participant, client_name: s.client_name },
@@ -213,7 +199,64 @@ export default function InteractionsPage() {
           ai_draft_response: null,
           approval_status: null,
         });
+        return;
       }
+
+      // ── EAISY-241 §1.2.1: session interakcióinak összevonása egy sorba ──
+      // Reprezentatív interakció választása: preferáljuk azt, ami a leggazdagabb
+      // (van classification/summary/draft). Voice-nál a 'telefon' végösszegzés a jó.
+      const representative = interactions.reduce((best: SessionInteraction, r: SessionInteraction) => {
+        const score = (r: SessionInteraction): number =>
+          (r.classification ? 3 : 0) + (r.summary && r.summary !== '-' ? 2 : 0) +
+          (r.ai_draft_response ? 1 : 0) + (r.type === 'telefon' ? 1 : 0);
+        return score(r) > score(best) ? r : best;
+      }, interactions[0]);
+
+      // Ügyfél-feloldás a reprezentatív interakcióra
+      const clientInfo = resolveClientName(
+        representative,
+        { session_id: s.session_id, participant: s.participant, client_name: s.client_name },
+        clientsMap,
+        clients
+      );
+      let clientTags: string[] = [];
+      if (clientInfo.id && clientsMap[String(clientInfo.id)]) {
+        const cd = parseCustomData(clientsMap[String(clientInfo.id)].custom_data);
+        clientTags = (cd?.tags as string[]) || [];
+      }
+
+      // EAISY-241 §1: az eredmeny csak a REPREZENTATÍV interakció saját eredménye
+      // (korábban az egész session tool-hívásainak eredményeit gyűjtöttük össze —
+      // a brief szerint egy interakcióhoz kizárólag a saját eredménye tartozik).
+      const repEredmeny = detectEredmeny(representative);
+      // Státusz: a legmagasabb prioritású az összes interakció közül
+      const allStatusz = interactions.map((r) => detectStatusz(r));
+      const finalStatusz = pickStatusz(allStatusz);
+
+      rows.push({
+        date: representative.created_at || sessionDate,
+        channel: getRowChannel(representative.type || '', sRoom, s.session_id || '', s.channel),
+        client: clientInfo.name,
+        clientId: clientInfo.id,
+        clientStatus: clientInfo.status,
+        clientCreatedAt: clientInfo.created_at,
+        direction: (representative.direction || 'inbound').toLowerCase() === 'outbound' ? 'Kimenő' : 'Bejövő',
+        ugyTipus: detectUgyTipus(representative),
+        // EAISY-241 §1: CSAK a reprezentatív interakció saját eredménye (nem a session összesé)
+        eredmeny: repEredmeny,
+        statusz: finalStatusz,
+        teendo: detectTeendo(representative),
+        tags: clientTags,
+        type: representative.type || '-',
+        topic: representative.topic || '-',
+        summary: representative.summary || '-',
+        result: representative.result || '',
+        interactionId: representative.id || null,
+        sessionId: s.session_id || null,
+        ai_draft_response: representative.ai_draft_response || null,
+        approval_status: representative.approval_status || null,
+        classification: representative.classification || null,  // EAISY-241
+      });
     });
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     return rows;
@@ -239,13 +282,14 @@ export default function InteractionsPage() {
   const filteredRows = useMemo(() => {
     const q = cleanStr(searchQuery);
     const rows = myRows.filter((r) => {
+      // EAISY-241 §1.2.4: kimenő (outbound) kommunikáció elrejtése a listanézetből
+      if (r.direction === 'Kimenő') return false;
       if (q) {
         const searchable = [r.channel, r.client, r.direction, r.ugyTipus, r.eredmeny, r.statusz, r.teendo, r.summary].join(' ');
         if (!cleanStr(searchable).includes(q)) return false;
       }
       if (filterUgyTipus.size > 0 && !r.ugyTipus.split(', ').some(t => filterUgyTipus.has(t))) return false;
       if (filterCsatorna.size > 0 && !filterCsatorna.has(r.channel)) return false;
-      if (filterIrany.size > 0 && !filterIrany.has(r.direction)) return false;
       if (filterStatusz.size > 0 && !filterStatusz.has(r.statusz)) return false;
       if (filterDateFrom || filterDateTo) {
         const rd = (r.date || '').slice(0, 10);
@@ -264,12 +308,12 @@ export default function InteractionsPage() {
     });
 
     return rows;
-  }, [myRows, searchQuery, sortBy, filterUgyTipus, filterCsatorna, filterIrany, filterStatusz, filterDateFrom, filterDateTo]);
+  }, [myRows, searchQuery, sortBy, filterUgyTipus, filterCsatorna, filterStatusz, filterDateFrom, filterDateTo]);
 
   // Reset selection when data changes
   useEffect(() => setSelectedRows(new Set()), [filteredRows]);
 
-  const activeFilterCount = filterUgyTipus.size + filterCsatorna.size + filterIrany.size + filterStatusz.size + (filterDateFrom ? 1 : 0) + (filterDateTo ? 1 : 0);
+  const activeFilterCount = filterUgyTipus.size + filterCsatorna.size + filterStatusz.size + (filterDateFrom ? 1 : 0) + (filterDateTo ? 1 : 0);
 
   // ── Checkbox handlers ──
   const toggleRow = useCallback((idx: number) => {
@@ -351,7 +395,6 @@ export default function InteractionsPage() {
   function resetFilters() {
     setFilterUgyTipus(new Set());
     setFilterCsatorna(new Set());
-    setFilterIrany(new Set());
     setFilterStatusz(new Set());
     setFilterDateFrom('');
     setFilterDateTo('');
@@ -499,11 +542,6 @@ export default function InteractionsPage() {
                       <FilterCheckbox key={v} label={v} checked={filterCsatorna.has(v)} onChange={() => toggleFilter(filterCsatorna, v, setFilterCsatorna)} />
                     ))}
                   </FilterSection>
-                  <FilterSection title="Irány" bordered>
-                    {IRANY_OPTIONS.map((v) => (
-                      <FilterCheckbox key={v} label={v} checked={filterIrany.has(v)} onChange={() => toggleFilter(filterIrany, v, setFilterIrany)} />
-                    ))}
-                  </FilterSection>
                   <FilterSection title="Státusz" bordered>
                     {STATUSZ_OPTIONS.map((v) => (
                       <FilterCheckbox key={v} label={v} checked={filterStatusz.has(v)} onChange={() => toggleFilter(filterStatusz, v, setFilterStatusz)} />
@@ -631,7 +669,6 @@ export default function InteractionsPage() {
                           </FilterSection>
                           <FilterSection title="Ügytípus" bordered>{UGYTIPUS_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterUgyTipus.has(v)} onChange={() => toggleFilter(filterUgyTipus, v, setFilterUgyTipus)} />))}</FilterSection>
                           <FilterSection title="Csatorna" bordered>{CSATORNA_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterCsatorna.has(v)} onChange={() => toggleFilter(filterCsatorna, v, setFilterCsatorna)} />))}</FilterSection>
-                          <FilterSection title="Irány" bordered>{IRANY_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterIrany.has(v)} onChange={() => toggleFilter(filterIrany, v, setFilterIrany)} />))}</FilterSection>
                           <FilterSection title="Státusz" bordered>{STATUSZ_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterStatusz.has(v)} onChange={() => toggleFilter(filterStatusz, v, setFilterStatusz)} />))}</FilterSection>
                         </div>
                         <div className="flex-row gap-8 int-filter-footer">
@@ -725,7 +762,6 @@ export default function InteractionsPage() {
                           <div className="mobile-card-detail-row">
                             <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
                             <span>{r.channel}</span>
-                            <DirectionBadge value={r.direction} />
                           </div>
                           <div className="mobile-card-detail-row">
                             <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
@@ -758,7 +794,7 @@ export default function InteractionsPage() {
                 </th>
                 )}
                 {ALL_COLUMNS.map((col) =>
-                  visibleCols.has(col.key) ? <th key={col.key}>{col.label === 'Időpont' ? 'Interakció időpontja' : col.label === 'Irány' ? 'Interakció iránya' : col.label}</th> : null
+                  visibleCols.has(col.key) ? <th key={col.key}>{col.label === 'Időpont' ? 'Interakció időpontja' : col.label}</th> : null
                 )}
               </tr>
             </thead>
@@ -804,8 +840,8 @@ export default function InteractionsPage() {
                             className="int-client-link"
                             title="Ugrás az ügyfél adatlapjára"
                             onClick={(e) => { e.stopPropagation(); setSelectedClientId(String(r.clientId)); }}
-                            onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = '#0d9488'; e.currentTarget.style.color = '#0f766e'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.color = '#0d9488'; }}
+                            onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = '#186D98'; e.currentTarget.style.color = '#134d6e'; }}
+                            onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.color = '#186D98'; }}
                           >
                             {r.client}
                           </button>
@@ -816,11 +852,6 @@ export default function InteractionsPage() {
                     )}
                     {visibleCols.has('channel') && (
                       <td className="int-td int-td--channel">{r.channel}</td>
-                    )}
-                    {visibleCols.has('direction') && (
-                      <td className="int-td">
-                        <DirectionBadge value={r.direction} />
-                      </td>
                     )}
                     {visibleCols.has('ugyTipus') && (
                       <td className="int-td">

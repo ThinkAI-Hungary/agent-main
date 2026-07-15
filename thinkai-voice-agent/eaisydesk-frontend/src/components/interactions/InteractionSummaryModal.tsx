@@ -18,6 +18,7 @@ import { parseCustomData, type ClientRecord } from '../../helpers/clientResolver
 import { authFetch } from '../../api/client';
 import { showToast } from '../ui/Toast';
 import { EredmenyBadge, StatuszBadge } from '../ui/Badge';
+import { useAuth } from '../../context/AuthContext';
 import type { InteractionRow } from '../../pages/InteractionsPage';
 import './InteractionSummaryModal.css';
 
@@ -49,12 +50,19 @@ export default function InteractionSummaryModal({
   onApproved,
 }: Props) {
   const navigate = useNavigate();
+  // EAISY-241 §1.2.3 — CTA gombok jogosultság-kezelése
+  const { isAdminOnly } = useAuth();  // true = csak admin (nem manager/member)
   const rawDraft = row.ai_draft_response || row.aiDraftResponse || null;
   const approvalStatus = row.approval_status || row.approvalStatus || null;
-  const isPendingApproval =
+  // EAISY-241 §1.1.2 — Ha az ügytípus eljárása „Önállóan kezelhető" (autonomous),
+  // a jóváhagyási/szerkesztési UI nem jelenik meg (a válasz már auto-kiküldésre került).
+  // Ez true ha approval folyamat szükséges ÉS nem autonóm.
+  const isAutonomous = row.classification?.autonomous === true || approvalStatus === 'approved';
+  const isPendingApproval = !isAutonomous && (
     row.teendo === 'Jóváhagyásra vár' ||
     row.teendo === 'Válasz jóváhagyása szükséges' ||
-    approvalStatus === 'pending';
+    approvalStatus === 'pending'
+  );
   const [showDetails, setShowDetails] = useState(!!autoExpandApproval);
   const [chatBlocks, setChatBlocks] = useState<ChatBlock[]>([]);
   const [summaryText, setSummaryText] = useState('');
@@ -335,8 +343,17 @@ export default function InteractionSummaryModal({
       }
 
       // ── Set summary text ──
+      // EAISY-241 §1.2.2: az összefoglalás CSAK az adott interakcióra vonatkozzon.
+      // Korábban cData.problem_description (kliens-szintű, felülírt) jött először,
+      // ami összekeverte az előző interakciók adataival. Most a sorrend:
+      // 1. strukturált classification.osszefoglalas (a legpontosabb, AI által generált)
+      // 2. row.summary (az adott interakció saját összefoglalója)
+      // 3. row.result (eredmény szöveg)
       const baseSummary =
-        (cData.problem_description as string) || row.summary || '';
+        (row.classification?.osszefoglalas as string) ||
+        row.summary ||
+        row.result ||
+        '';
 
       // ── Calendar lookup for appointment data ──
       let apptDate = '';
@@ -622,7 +639,7 @@ export default function InteractionSummaryModal({
           {/* Summary + Status Box */}
           <div className="ism-summary-row">
             <div className="ism-summary-content">
-              <div className="ism-section-label">Összefoglaló</div>
+              <div className="ism-section-label">ÖSSZEFOGLALÁS</div>
               <div className="ism-summary-text">
                 {summaryText ||
                   'Az asszisztens rögzítette az interakció adatait.'}
@@ -815,6 +832,33 @@ export default function InteractionSummaryModal({
                     )}
 
                     {/* ── Pending Approval Draft ── */}
+                    {/* EAISY-241 §2.2b — „Önállóan válaszolhat" mód: Kiküldött válasz, gombok nélkül */}
+                    {isAutonomous && draftText && !isPendingApproval && (
+                      <div className="ism-draft-section">
+                        <div className="ism-draft-header">
+                          <svg className="ism-draft-icon" fill="none" stroke="#22c55e" strokeWidth="2" viewBox="0 0 24 24">
+                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                          </svg>
+                          <span className="ism-draft-label">Kiküldött válasz</span>
+                          <span style={{ fontSize: 11, color: '#22c55e', marginLeft: 'auto' }}>✓ automatikus</span>
+                        </div>
+                        <div className="ism-draft-box">{draftText}</div>
+                      </div>
+                    )}
+
+                    {/* EAISY-241 §2.2c — Sürgős (panasz): mutatjuk a választ/átadási szöveget, gombok nélkül */}
+                    {!isAutonomous && !isPendingApproval && (row.statusz === 'Sürgős' || row.statusz === 'SÜRGŐS') && draftText && (
+                      <div className="ism-draft-section">
+                        <div className="ism-draft-header">
+                          <svg className="ism-draft-icon" fill="none" stroke="#ef4444" strokeWidth="2" viewBox="0 0 24 24">
+                            <path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" />
+                          </svg>
+                          <span className="ism-draft-label">eaisyDesk válasz (sürgős átadás)</span>
+                        </div>
+                        <div className="ism-draft-box">{draftText}</div>
+                      </div>
+                    )}
+
                     {isPendingApproval && draftText && (
                       <div className="ism-draft-section" ref={approvalRef}>
                         <div className="ism-draft-header">
@@ -848,6 +892,7 @@ export default function InteractionSummaryModal({
                         <div className="ism-draft-actions">
                           <button
                             className="ism-btn-edit"
+                            // EAISY-241 §2.1: Szerkesztés gomb aktív minden jogosultságnál
                             onClick={() => {
                               setIsEditing(!isEditing);
                               if (!isEditing) {
@@ -897,9 +942,13 @@ export default function InteractionSummaryModal({
           </button>
           <button
             className={`ism-footer-btn ${showCalendarButton ? 'ism-footer-btn--calendar' : 'ism-footer-btn--solid'}`}
+            // EAISY-241 §2.5: „Ugrás teendőkre" inaktív admin-nál; „Ugrás naptárra" AKTÍV mindenkinél.
+            disabled={isAdminOnly && !showCalendarButton}
+            style={(isAdminOnly && !showCalendarButton) ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
             onClick={() => {
+              if (isAdminOnly && !showCalendarButton) return;
               onClose();
-              navigate(showCalendarButton ? '/calendar' : '/kanban');
+              navigate(showCalendarButton ? '/calendar' : '/dashboard');
             }}
           >
             {showCalendarButton ? 'Ugrás naptárra' : 'Ugrás teendőkre'}

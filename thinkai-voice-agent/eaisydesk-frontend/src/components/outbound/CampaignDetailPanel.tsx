@@ -3,9 +3,11 @@
  * Extracted from OutboundPage to keep the parent component lean.
  * Only rendered when a campaign is selected (showDetail !== null).
  */
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useClients } from '../../hooks/useClients';
 import { parseCustomData, bestClientName } from '../../helpers/clientResolvers';
+import { authFetch } from '../../api/client';
+import { showToast } from '../ui/Toast';
 
 interface Campaign {
   id: number;
@@ -55,8 +57,9 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
   const progressPct = total > 0 ? Math.round((delivered / total) * 100) : 0;
   const sc = STATUS_COLORS[c.status] || STATUS_COLORS['Vázlat'];
 
-  // Parse email content — strip SCHED: and MODE: prefixes
+  // Parse email content — strip SCHED:, SUBJECT:, MODE: prefixes; SUBJECT értékét is kinyerjük
   let emailContent = c.ai_instructions || c.content || c.body_html || '';
+  let parsedSubject = '';
   let changed = true;
   while (changed) {
     changed = false;
@@ -66,12 +69,36 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
     }
     if (emailContent.startsWith('SUBJECT:')) {
       const pipeIdx = emailContent.indexOf('|');
-      if (pipeIdx >= 0) { emailContent = emailContent.substring(pipeIdx + 1); changed = true; }
+      if (pipeIdx >= 0) {
+        parsedSubject = emailContent.substring(8, pipeIdx).trim();
+        emailContent = emailContent.substring(pipeIdx + 1); changed = true;
+      }
     }
     if (emailContent.startsWith('MODE:')) {
       const colonIdx = emailContent.indexOf(':', 5);
       if (colonIdx >= 0) { emailContent = emailContent.substring(colonIdx + 1); changed = true; }
     }
+  }
+
+  // EAISY-241 §1.6.2: szerkesztő mód állapota (csak Tervezet/Ütemezett/Megállítva)
+  const canEdit = c.status === 'Vázlat' || c.status === 'Ütemezett' || c.status === 'Tervezet' || c.status === 'Megállítva';
+  const [isEditingContent, setIsEditingContent] = useState(false);
+  const [editContent, setEditContent] = useState(emailContent);
+  const [editSubject, setEditSubject] = useState(parsedSubject || c.subject || c.email_subject || '');
+  const [savingContent, setSavingContent] = useState(false);
+
+  async function saveContent() {
+    setSavingContent(true);
+    try {
+      const res = await authFetch(`/admin/api/campaigns/${c.id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ ai_instructions: editContent, subject: editSubject }),
+      });
+      if (res.ok) { showToast('Kampányüzenet mentve'); setIsEditingContent(false); onClose(); }
+      else { const d = await res.json().catch(() => ({})); showToast(d.detail || 'Hiba a mentéskor', 'error'); }
+    } catch { showToast('Hiba', 'error'); }
+    finally { setSavingContent(false); }
   }
   emailContent = emailContent.trim();
 
@@ -186,13 +213,45 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
             </div>
           )}
 
-          {/* Content preview */}
-          {emailContent && (
-            <div className="cpv-section">
-              <div className="cpv-section-label">Kampányüzenet</div>
-              <div className="cpv-content-preview" dangerouslySetInnerHTML={{ __html: displayHtml }} />
+          {/* Content preview / editor (EAISY-241 §1.6.2: szerkeszthető Tervezet/Ütemezett/Megállítva) */}
+          <div className="cpv-section">
+            <div className="cpv-section-label" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <span>Kampányüzenet</span>
+              {canEdit && !isEditingContent && (
+                <button className="cpv-edit-toggle" onClick={() => setIsEditingContent(true)}>✎ Szerkesztés</button>
+              )}
             </div>
-          )}
+            {isEditingContent && canEdit ? (
+              <div className="cpv-edit-wrap">
+                <input
+                  className="cpv-edit-subject"
+                  value={editSubject}
+                  onChange={e => setEditSubject(e.target.value)}
+                  placeholder="Tárgy"
+                />
+                <textarea
+                  className="cpv-edit-textarea"
+                  value={editContent}
+                  onChange={e => setEditContent(e.target.value)}
+                  rows={10}
+                />
+                <div className="cpv-edit-actions">
+                  <button className="cpv-btn-schedule" onClick={() => { setIsEditingContent(false); setEditContent(emailContent); }} disabled={savingContent}>
+                    Mégse
+                  </button>
+                  <button className="cpv-btn cpv-btn-primary" onClick={saveContent} disabled={savingContent || !editContent.trim()}>
+                    {savingContent ? 'Mentés...' : 'Mentés'}
+                  </button>
+                </div>
+              </div>
+            ) : (
+              emailContent ? (
+                <div className="cpv-content-preview" dangerouslySetInnerHTML={{ __html: displayHtml }} />
+              ) : (
+                <div className="cpv-empty">Nincs üzenet</div>
+              )
+            )}
+          </div>
 
           {/* Recipients */}
           <div className="cpv-section">
@@ -203,21 +262,22 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
 
         {/* ── Footer ── */}
         <div className="cpv-footer">
-          {/* Delete — secondary for Lezárt, Ütemezett, Tervezet; ghost danger for others */}
-          {(isLezart || isUtemezett || isDraft) ? (
-            <button className="cpv-btn cpv-btn-secondary" onClick={() => { onDelete(c.id); onClose(); }}>
-              Kampány törlése
-            </button>
-          ) : (
-            <button className="cpv-btn cpv-btn-ghost cpv-btn-danger" onClick={() => { onDelete(c.id); onClose(); }}>
-              Törlés
-            </button>
-          )}
+          {/* EAISY-241 §1.6.4: törlés piros trash ikonként (minden státusznál) */}
+          <button
+            className="cpv-trash-btn"
+            title="Kampány törlése"
+            aria-label="Kampány törlése"
+            onClick={() => { onDelete(c.id); onClose(); }}
+          >
+            <svg fill="none" stroke="#e11d48" strokeWidth="2" viewBox="0 0 24 24" width="18" height="18">
+              <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+            </svg>
+          </button>
 
-          {/* Draft: Ütemezés (secondary) + Kampány indítása (primary) — right-aligned */}
+          {/* Draft: Ütemezés (schedule CTA) + Kampány indítása (primary) — right-aligned */}
           {isDraft && (
             <>
-              <button className="cpv-btn cpv-btn-secondary cpv-btn-close-right" onClick={() => { onSchedule(c.id); onClose(); }}>
+              <button className="cpv-btn-schedule cpv-btn-close-right" onClick={() => { onSchedule(c.id); onClose(); }}>
                 Ütemezés
               </button>
               <button className="cpv-btn cpv-btn-primary" onClick={() => { onStart(c.id); onClose(); }}>
@@ -232,7 +292,7 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
               <button className="cpv-btn cpv-btn-primary" onClick={() => { onStart(c.id); onClose(); }}>
                 Kampány indítása
               </button>
-              <button className="cpv-btn cpv-btn-ghost cpv-btn-schedule" onClick={() => { onSchedule(c.id); onClose(); }}>
+              <button className="cpv-btn-schedule" onClick={() => { onSchedule(c.id); onClose(); }}>
                 Ütemezés
               </button>
             </>
@@ -240,7 +300,7 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
 
           {/* Ütemezett: Átütemezés right */}
           {isUtemezett && (
-            <button className="cpv-btn cpv-btn-primary cpv-btn-close-right" onClick={() => { onSchedule(c.id); onClose(); }}>
+            <button className="cpv-btn-schedule cpv-btn-close-right" onClick={() => { onSchedule(c.id); onClose(); }}>
               Átütemezés
             </button>
           )}

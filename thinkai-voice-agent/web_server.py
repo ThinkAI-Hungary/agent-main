@@ -1171,6 +1171,63 @@ def is_spam_message(message_text: str) -> bool:
     return False
 
 
+async def _send_channel_message(source_channel: str, sender_id: str, text: str, phone_number_id: str = None) -> bool:
+    """
+    EAISY-241 §1.1.2 — Meta csatornára (Messenger/Instagram/WhatsApp) küldő helper.
+    Az autonóm válasz (restriction == 'none') azonnali kiküldéséhez használjuk.
+    Visszatér True-val ha sikeres, False ha hiba.
+    A logika az approve_approval_api-ból van extractálva (web_server.py:~3110).
+    """
+    import httpx
+    ch = (source_channel or "").lower()
+    try:
+        async with httpx.AsyncClient() as http_client:
+            if ch == "whatsapp":
+                wa_token = os.getenv("WHATSAPP_TOKEN", os.getenv("META_PAGE_ACCESS_TOKEN", ""))
+                wa_phone_id = phone_number_id or os.getenv("WHATSAPP_PHONE_ID", "")
+                if not wa_token or not wa_phone_id:
+                    return False
+                resp = await http_client.post(
+                    f"https://graph.facebook.com/v21.0/{wa_phone_id}/messages",
+                    headers={"Authorization": f"Bearer {wa_token}"},
+                    json={"messaging_product": "whatsapp", "to": sender_id, "type": "text", "text": {"body": text}},
+                    timeout=20,
+                )
+                resp.raise_for_status()
+                return True
+            elif ch == "instagram":
+                ig_token = os.getenv("META_INSTAGRAM_TOKEN", "")
+                ig_user_id = os.getenv("META_INSTAGRAM_USER_ID", "26530155976686869")
+                if not ig_token:
+                    return False
+                resp = await http_client.post(
+                    f"https://graph.instagram.com/v21.0/{ig_user_id}/messages",
+                    headers={"Authorization": f"Bearer {ig_token}", "Content-Type": "application/json"},
+                    json={"recipient": {"id": sender_id}, "message": {"text": text}},
+                    timeout=20,
+                )
+                resp.raise_for_status()
+                return True
+            elif ch == "messenger":
+                page_access_token = os.getenv("META_PAGE_ACCESS_TOKEN", "")
+                if not page_access_token:
+                    return False
+                resp = await http_client.post(
+                    "https://graph.facebook.com/v21.0/me/messages",
+                    headers={"Authorization": f"Bearer {page_access_token}", "Content-Type": "application/json"},
+                    json={"recipient": {"id": sender_id}, "message": {"text": text}},
+                    timeout=20,
+                )
+                resp.raise_for_status()
+                return True
+            # email: a Brevo küldés külön logika (az autonóm email-válasz ritka;
+            # biztonság kedvéért itt nem küldünk auto-emailt, csak Messenger/IG/WA).
+            return False
+    except Exception as e:
+        print(f"[Auto-send] {source_channel} küldési hiba: {e}")
+        return False
+
+
 async def process_meta_message(sender_id: str, message_text: str, source_channel: str = "Messenger", phone_number_id: str = None, sender_name: str = None):
     """Aszinkron háttérfeladat a Meta Messenger / Instagram / WhatsApp üzenetek feldolgozására."""
     import asyncio
@@ -1629,6 +1686,24 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 tool_calls=["book_meeting"] if booked_meeting else []
             )
 
+            # EAISY-241 §1.1.2 — Ha az ügytípus eljárása „Önállóan kezelhető"
+            # (restriction == 'none' / autonomous), a válasz AZONNAL kiküldésre
+            # kerül, nem pedig pending draft-ként. Egyébként pending (jóváhagyásra vár).
+            is_autonomous = bool(classification.get("autonomous")) and classification.get("restriction") == "none"
+            send_ok = False
+            if is_autonomous:
+                try:
+                    send_ok = await _send_channel_message(
+                        source_channel, sender_id, final_text,
+                        phone_number_id=phone_number_id,
+                    )
+                except Exception as send_err:
+                    print(f"[Meta AI Process] Auto-send hiba ({source_channel}): {send_err}")
+                    send_ok = False
+
+            approval_status = "approved" if (is_autonomous and send_ok) else "pending"
+            funnel_stage_final = "valaszolt" if (is_autonomous and send_ok) else f_stage
+
             # Logolás az interactions táblába + approval
             db.log_interaction(
                 type=source_channel.lower(),
@@ -1638,10 +1713,10 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 tool_name="process_meta_message",
                 session_id=session_id,
                 direction="inbound",
-                funnel_stage=f_stage,
+                funnel_stage=funnel_stage_final,
                 alert_tags=combined_tags,
                 handover_reason=None,
-                approval_status="pending",
+                approval_status=approval_status,
                 ai_draft_response=draft_json,
                 clinic_id=str(chosen_clinic_id) if chosen_clinic_id else None,
                 client_id=client_id if client_id else None,
@@ -2637,6 +2712,22 @@ async def save_workflow(payload: TextFileRequest, username: str = Depends(verify
     return {"ok": True, "message": "Workflow elmentve."}
 
 
+# ── Written behavior (íráos kommunikáció beállítás: autonomous/approval) ──────
+
+@app.get("/admin/api/written-behavior")
+async def get_written_behavior(username: str = Depends(verify_jwt)):
+    """EAISY-241 — Return the written communication behavior setting."""
+    content = db.get_text_config("written_behavior") or "autonomous"
+    return {"content": content}
+
+
+@app.post("/admin/api/written-behavior")
+async def save_written_behavior(payload: TextFileRequest, username: str = Depends(verify_jwt)):
+    """EAISY-241 — Save the written communication behavior setting."""
+    db.update_text_config("written_behavior", payload.content)
+    return {"ok": True, "message": "Írásos kommunikáció beállítása elmentve."}
+
+
 
 # ── Céginformációk ────────────────────────────────────────────────────────────────
 
@@ -3417,6 +3508,27 @@ def delete_campaign_api(campaign_id: int, username: str = Depends(verify_jwt)):
     if success:
         return {"status": "success"}
     raise HTTPException(status_code=500, detail="Törlés sikertelen")
+
+@app.put("/admin/api/campaigns/{campaign_id}")
+async def update_campaign_content_api(campaign_id: int, request: Request, username: str = Depends(verify_jwt)):
+    """EAISY-241 §1.6.2 — Kampány üzenet + subject szerkesztése (csak Tervezet/Ütemezett)."""
+    data = await request.json()
+    ai_instructions = (data.get("ai_instructions") or "").strip()
+    subject = (data.get("subject") or "").strip()
+    if not ai_instructions:
+        raise HTTPException(status_code=400, detail="Az üzenet tartalma kötelező")
+
+    campaign = db.get_campaign(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Kampány nem található")
+    # Csak nem-indult kampányok szerkeszthetők
+    if campaign.get("status") not in ("Vázlat", "Ütemezett", "Tervezet", "Megállítva"):
+        raise HTTPException(status_code=409, detail="Csak tervezet/ütemezett/megállított kampány szerkeszthető")
+
+    success = db.update_campaign_content(campaign_id, ai_instructions, subject)
+    if success:
+        return {"status": "success"}
+    raise HTTPException(status_code=500, detail="Mentés sikertelen")
 
 @app.post("/admin/api/campaigns/{campaign_id}/schedule")
 async def schedule_campaign_api(campaign_id: int, request: Request, username: str = Depends(verify_jwt)):

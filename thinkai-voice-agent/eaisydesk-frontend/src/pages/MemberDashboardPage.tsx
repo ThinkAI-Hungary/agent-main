@@ -255,9 +255,14 @@ export default function MemberDashboardPage() {
     return rows;
   }, [hookSessions, hookClients, clientsMap]);
 
-  // ── Filter to ONLY assigned (dashboard logic) ──
+  // ── EAISY-241 §4: Minden nyitott/sürgős ügy bekerül, felelőstől függetlenül.
+  // Lezárt ügyeknél marad az assignee-szűrés (azokat csak a saját klienseidnél látod).
   const myRows = useMemo(() => {
     return allRows.filter(r => {
+      const sz = (r.statusz || '').toLowerCase();
+      const isOpenOrUrgent = sz === 'nyitott' || sz === 'sürgős' || sz === 'surgos';
+      if (isOpenOrUrgent) return true;   // minden nyitott/sürgős ügy — felelőstől függetlenül
+      // Lezáttaknál assignee-szűrés
       if (!r.clientId) return false;
       const client = clientsMap[String(r.clientId)];
       if (!client) return false;

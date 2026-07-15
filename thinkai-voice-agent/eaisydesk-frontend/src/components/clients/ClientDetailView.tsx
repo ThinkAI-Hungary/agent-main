@@ -2,9 +2,10 @@
  * ClientDetailView â€“ 1:1 port of legacy openClientDetails() / view-client-details
  * Rendered as inline overlay within ClientsPage or InteractionsPage.
  */
-import { useState, useMemo, useCallback, useEffect } from 'react';
+import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { parseCustomData, type ClientRecord } from '../../helpers/clientResolvers';
-import { fmtDt } from '../../helpers/formatters';
+import { fmtDt, formatPhoneHu } from '../../helpers/formatters';
 import { authFetch } from '../../api/client';
 import { showToast } from '../ui/Toast';
 import type { SessionSummary } from '../../hooks/useSessions';
@@ -65,6 +66,7 @@ interface InteractionRowDetail {
 }
 
 export default function ClientDetailView({ client, clientsMap, sessions, events, source, onBack, onRefresh }: Props) {
+  const navigate = useNavigate();
   const [notes, setNotes] = useState(() => {
     const cd = parseCustomData(client.raw.custom_data);
     return (cd?.notes as string) || (cd?.megjegyzes as string) || '';
@@ -73,6 +75,19 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [customTag, setCustomTag] = useState('');
   const [showProfileEdit, setShowProfileEdit] = useState(false);
+  // EAISY-241 §1.4.2: hárompontos overflow menu a profil-műveletekhez
+  const [showOverflowMenu, setShowOverflowMenu] = useState(false);
+  const overflowRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showOverflowMenu) return;
+    function handle(e: MouseEvent) {
+      if (overflowRef.current && !overflowRef.current.contains(e.target as Node)) {
+        setShowOverflowMenu(false);
+      }
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [showOverflowMenu]);
   const [summaryModalRow, setSummaryModalRow] = useState<InteractionRowDetail | null>(null);
   const [editName, setEditName] = useState(client.name);
   const [editEmail, setEditEmail] = useState(client.email);
@@ -318,10 +333,33 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     finally { setSaving(false); }
   }, [cd, client.id, editName, editEmail, editPhone, editNotes, onRefresh]);
 
+  // EAISY-241 §1.4.5: „Elvégezve" checkbox — interakció státusz „Lezárt"-ra,
+  // sor átkerül az „Aktuális ügyek"-ből a „Korábbi interakciók"-ba.
+  const handleMarkDone = useCallback(async (e: React.MouseEvent, interactionId: number | null) => {
+    e.stopPropagation();
+    if (!interactionId) { showToast('Nem azonosítható interakció', 'error'); return; }
+    try {
+      const res = await authFetch(`/admin/api/interactions/${interactionId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'lezárt' }),
+      });
+      if (res.ok) {
+        showToast('Interakció lezárva');
+        onRefresh();
+      } else {
+        showToast('Hiba a lezáráskor', 'error');
+      }
+    } catch {
+      showToast('Hiba', 'error');
+    }
+  }, [onRefresh]);
+
   // Status
   function statusLabel() {
     if (client.isInactive) return { text: 'INAKTÍV', bg: '#f3f4f6', color: '#9ca3af' };
-    if (client.isNew) return { text: 'ÚJ ÜGYFÉL', bg: '#082432', color: '#fff' };
+    // EAISY-241 §1.4.1: „Új ügyfél" badge #60C5FF háttérrel
+    if (client.isNew) return { text: 'ÚJ ÜGYFÉL', bg: '#60C5FF', color: '#fff' };
     return { text: 'VISSZATÉRŐ', bg: '#dcfce7', color: '#166534' };
   }
   const sl = statusLabel();
@@ -374,14 +412,14 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
               <span className="cd-status-badge" style={{ background: sl.bg, color: sl.color }}>{sl.text}</span>
             </div>
             <div className="cd-client-sub">
-              Eaisydesk azonosító: {client.id}
+              eaisyDesk azonosító: {client.id}
             </div>
             <div className="cd-info-contact cd-contact-info">
               <div className="flex-row gap-8">
                 <svg fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" className="cd-contact-icon">
                   <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6 19.79 19.79 0 0 1-3.07-8.67A2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />
                 </svg>
-                <span className="cd-contact-value">{displayPhone || 'Nincs megadva'}</span>
+                <span className="cd-contact-value">{displayPhone ? formatPhoneHu(displayPhone) : 'Nincs megadva'}</span>
               </div>
               <div className="flex-row gap-8">
                 <svg fill="none" height="16" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="16" className="cd-contact-icon">
@@ -394,22 +432,49 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           </div>
         </div>
 
-        {/* Right: Profile Edit & Registration Date */}
+        {/* Right: Profile actions overflow menu (EAISY-241 §1.4.2) & Registration Date */}
         <div className="cd-right-panel cd-right-panel-inner">
-          <button
-            className="btn btn-ghost"
-            onClick={() => setShowProfileEdit(true)}
-          >
-            <svg fill="none" height="16" stroke="#186D98" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16">
-              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" />
-              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" />
-            </svg>
-            Profil módosítása
-          </button>
+          <div className="cd-overflow-wrap" ref={overflowRef} style={{ position: 'relative', display: 'inline-block' }}>
+            <button
+              className="cd-overflow-btn"
+              onClick={() => setShowOverflowMenu(!showOverflowMenu)}
+              title="Műveletek"
+              aria-label="Műveletek"
+            >
+              <svg fill="currentColor" viewBox="0 0 24 24" width="20" height="20">
+                <circle cx="12" cy="5" r="1.6" />
+                <circle cx="12" cy="12" r="1.6" />
+                <circle cx="12" cy="19" r="1.6" />
+              </svg>
+            </button>
+            {showOverflowMenu && (
+              <div className="cd-overflow-menu" style={{ position: 'absolute', right: 0, top: '100%', zIndex: 50, minWidth: 220, marginTop: 4 }}>
+                <button onClick={() => { setShowOverflowMenu(false); setShowProfileEdit(true); }}>
+                  Profil módosítása
+                </button>
+                <button onClick={() => {
+                  setShowOverflowMenu(false);
+                  // EAISY-241 §1.4.2: Felvétel Érdeklődőkezelésbe → Kanban/CRM
+                  navigate('/kanban');
+                  onBack();
+                }}>
+                  Felvétel Érdeklődőkezelésbe
+                </button>
+                <button onClick={() => {
+                  setShowOverflowMenu(false);
+                  // EAISY-241 §1.4.2: Kimenő kommunikáció indítása → Outbound
+                  navigate('/outbound');
+                  onBack();
+                }}>
+                  Kimenő kommunikáció indítása
+                </button>
+              </div>
+            )}
+          </div>
           <div className="cd-regdate-card">
             <div className="cd-regdate-label">
               <svg fill="none" height="12" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-              Regisztrálva:
+              Regisztráció időpontja:
             </div>
             <div className="cd-regdate-value">{regDate}</div>
           </div>
@@ -417,8 +482,66 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       </div>
 
       {/* ââ€˘Âââ€˘Âââ€˘Â Middle Cards: Tags, Appointments, Notes ââ€˘Âââ€˘Âââ€˘Â */}
-      <div className="cd-middle-grid cd-middle-grid-inner">
-        {/* Tags */}
+      <div className="cd-middle-grid cd-middle-grid-inner cd-summary-row">
+        {/* EAISY-241 §1.4.4 (1): Interakció-összegző kártya [szélesebb] */}
+        <div className="cd-inner-card cd-summary-card">
+          <h3 className="cd-section-title">Interakciók</h3>
+          <div className="flex-col gap-8">
+            {clientInteractions.length === 0 && <span className="cd-appt-empty">Nincs interakció.</span>}
+            {clientInteractions.slice(0, 3).map((r, i) => (
+              <div key={i} className="cd-summary-int-row">
+                <span className="cd-summary-date">{r.date ? new Date(r.date).toLocaleDateString('hu-HU') : '-'}</span>
+                <span className="cd-summary-channel">{r.channel}</span>
+                <span className="cd-summary-eredmeny">{r.eredmeny}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* (2) Időpontok — Következő (#DFFFFD) + Korábbi (szürke) */}
+        <div className="cd-inner-card--appt">
+          <div className="cd-appt-next">
+            <div className="cd-appt-next-label">Következő időpont</div>
+            {(() => {
+              const upcoming = clientAppointments.filter(ev => ev.start_dt && new Date(ev.start_dt) >= new Date())
+                .sort((a, b) => (a.start_dt || '').localeCompare(b.start_dt || ''));
+              if (upcoming.length === 0) {
+                return <span className="cd-appt-empty-next">Nincs megjeleníthető időpont</span>;
+              }
+              const next = upcoming[0];
+              return (
+                <div className="cd-appt-next-value">
+                  <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                  {next.start_dt ? fmtDt(next.start_dt) : '—'}
+                </div>
+              );
+            })()}
+          </div>
+          <div className="cd-appt-past">
+            <h3 className="cd-section-title">Korábbi időpontok</h3>
+            <div className="flex-col gap-8">
+              {(() => {
+                const past = clientAppointments.filter(ev => ev.start_dt && new Date(ev.start_dt) < new Date());
+                if (past.length === 0) return <span className="cd-appt-empty">Nincs korábbi foglalás.</span>;
+                return (
+                  <>
+                    {past.slice(0, 3).map((ev, i) => (
+                      <div key={i} className="flex-row gap-8 cd-appt-row">
+                        <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
+                        {ev.start_dt ? fmtDt(ev.start_dt) : '—'}
+                      </div>
+                    ))}
+                    {past.length > 3 && (
+                      <div className="cd-appt-showmore">Összes időpont ({past.length})</div>
+                    )}
+                  </>
+                );
+              })()}
+            </div>
+          </div>
+        </div>
+
+        {/* (3) Címkék */}
         <div className="cd-inner-card">
           <h3 className="cd-section-title">Címkék</h3>
           <div className="flex-row flex-wrap gap-8">
@@ -458,33 +581,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           </div>
         </div>
 
-        {/* Previous Appointments */}
-        <div className="cd-inner-card--appt">
-          <h3 className="cd-section-title">Korábbi időpontok</h3>
-          <div className="flex-col gap-8">
-            {(() => {
-              const past = clientAppointments.filter(ev => ev.start_dt && new Date(ev.start_dt) < new Date());
-              if (past.length === 0) return <span className="cd-appt-empty">Nincs korábbi foglalás.</span>;
-              return (
-                <>
-                  {past.slice(0, 3).map((ev, i) => (
-                    <div key={i} className="flex-row gap-8 cd-appt-row">
-                      <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14"><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></svg>
-                      {ev.start_dt ? fmtDt(ev.start_dt) : 'â€”'}
-                    </div>
-                  ))}
-                  {past.length > 3 && (
-                    <div className="cd-appt-showmore">
-                      Összes időpont ({past.length})
-                    </div>
-                  )}
-                </>
-              );
-            })()}
-          </div>
-        </div>
-
-        {/* Notes */}
+        {/* (4) Notes */}
         <div className="cd-inner-card--notes">
           <textarea
             value={notes}
@@ -503,7 +600,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
 
       {/* ═══ Aktuális Ügyek Table ═══ */}
       <div className="mb-32">
-        <h3 className="form-label form-label--uppercase">Aktuális ügyek</h3>
+        <h3 className="form-label form-label--uppercase">Beavatkozást igénylő interakciók</h3>
         <div className="table-card">
           <table className="data-table int-table-norx">
             <thead className="int-thead">
@@ -515,11 +612,13 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                 <th>Eredmény</th>
                 <th>Státusz</th>
                 <th>Teendő</th>
+                {/* EAISY-241 §1.4.5: „Elvégezve" checkbox oszlop */}
+                <th style={{ width: 40 }}>✓</th>
               </tr>
             </thead>
             <tbody>
               {openInteractions.length === 0 ? (
-                <tr><td colSpan={7} className="empty-state no-data">Nincs aktuális ügy</td></tr>
+                <tr><td colSpan={8} className="empty-state no-data">Nincs beavatkozást igénylő interakció</td></tr>
               ) : openInteractions.map((r, i) => (
                 <tr
                   key={i}
@@ -538,6 +637,16 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                   <td className="int-td">
                     <span className={r.teendo === 'Válasz jóváhagyása szükséges' || r.teendo === 'Jóváhagyásra vár' ? 'int-teendo-text' : 'cd-teendo-muted'}>{r.teendo}</span>
                   </td>
+                  {/* EAISY-241 §1.4.5: Elvégezve checkbox */}
+                  <td className="int-td" onClick={(e) => e.stopPropagation()}>
+                    <input
+                      type="checkbox"
+                      className="int-checkbox-input"
+                      title="Elvégezve — interakció lezárása"
+                      checked={false}
+                      onChange={(e) => handleMarkDone(e as unknown as React.MouseEvent, r.interactionId)}
+                    />
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -547,7 +656,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
 
       {/* ── Korábbi Interakciók Table ── */}
       <div className="mb-32">
-        <h3 className="form-label form-label--uppercase">Korábbi interakciók</h3>
+        <h3 className="form-label form-label--uppercase">Lezárt interakciók</h3>
         <div className="table-card table-card--dim">
           <table className="data-table int-table-norx">
             <thead className="int-thead">
@@ -559,12 +668,12 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                 <th>Eredmény</th>
                 <th>Státusz</th>
                 <th>Teendő</th>
-                <th>Napló</th>
+                {/* EAISY-241 §1.4.6: „Napló" oszlop eltávolítva; a sor kattintható marad */}
               </tr>
             </thead>
             <tbody>
               {closedInteractions.length === 0 ? (
-                <tr><td colSpan={8} className="empty-state no-data">Nincs korábbi interakció</td></tr>
+                <tr><td colSpan={7} className="empty-state no-data">Nincs lezárt interakció</td></tr>
               ) : closedInteractions.slice(0, 20).map((r, i) => (
                 <tr
                   key={i}
@@ -583,14 +692,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                   <td className="int-td">
                     <span className={r.teendo === 'Válasz jóváhagyása szükséges' || r.teendo === 'Jóváhagyásra vár' ? 'int-teendo-text' : 'cd-teendo-muted'}>{r.teendo}</span>
                   </td>
-                  <td className="int-td" onClick={(e) => e.stopPropagation()}>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setSummaryModalRow(r); }}
-                      className="btn btn-teal-sm"
-                    >
-                      Megtekintés
-                    </button>
-                  </td>
+                  {/* EAISY-241 §1.4.6: Napló/Megtekintés cella törölve; sor kattintható marad */}
                 </tr>
               ))}
             </tbody>
@@ -630,12 +732,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                 <label className="form-label">Email cím</label>
                 <input className="input" value={editEmail} onChange={e => setEditEmail(e.target.value)} placeholder="email@példa.hu" />
               </div>
-              <div className="form-group">
-                <label className="form-label">Megjegyzés</label>
-                <textarea value={editNotes} onChange={e => setEditNotes(e.target.value)} placeholder="Adminisztrációs megjegyzések..." rows={4}
-                  className="input cd-textarea"
-                />
-              </div>
+              {/* EAISY-241 §1.4.3: Megjegyzés mező eltávolítva az edit popupból */}
             </div>
 
             {/* Footer */}

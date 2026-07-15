@@ -39,6 +39,77 @@ def set_session_id(sid: str):
     _current_session_id = sid
 
 
+# EAISY-241 §6: Hívó telefonszáma (SIP attribute-ból kinyerve, l. server.py).
+# A book_meeting ezt használja alapértelmezett attendee_phone-ként, ha a hívó
+# nem mond mást; a hívás végén a client upsert is ebből dolgozik.
+_current_caller_phone: str = ""
+
+def set_caller_phone(phone: str):
+    global _current_caller_phone
+    _current_caller_phone = phone or ""
+
+def get_caller_phone() -> str:
+    return _current_caller_phone
+
+
+# ── EAISY-241: Voice-agent gating helpers ────────────────────────────────────
+# Ezek a függvények biztosítják, hogy a hang-agent NE cselekedjen önállóan olyan
+# ügytípusoknál, amelyeknél a brief (EAISY-241 §1.1.1/§2) szerint emberi beavatkozás
+# szükséges. A triage_rules.routing konfigurációból olvassák a döntést.
+#
+# Kontextus-flag-ek: a beszélgetés során (pl. report_alert tool) beállítható, hogy
+# az ügyfél panaszt tett / kérést intézett. Ezek megakadályozzák az autonóm
+# foglalást / intézkedést.
+_current_session_alerts: set[str] = set()  # {"complaint", "urgent", "request", ...}
+
+
+def flag_session_alert(alert_type: str):
+    """Jelzi, hogy a beszélgetés során panasz/kérés/urgent hangzott el.
+    A book_meeting és más autonóm tool-ok ezt ellenőrzik."""
+    _current_session_alerts.add(alert_type)
+
+
+def reset_session_alerts():
+    """Új session / új beszélgetés elején törli a kontextus-flag-eket."""
+    _current_session_alerts.clear()
+
+
+def _is_autonomous_allowed(ugytipus: str, idopont_altipus: str = None) -> bool:
+    """
+    Ellenőrzi a triage_rules.routing alapján, hogy az adott ügytípus
+    autonóm módon kezelhető-e a hang-agent által.
+
+    EAISY-241 §2 — Kérés/Panasz SOSEM autonóm; Időpont Módosítás/Lemondás sosem.
+    """
+    try:
+        rules = db.get_triage_rules()
+        for rule in rules:
+            if (rule.get("situation") or "").strip().lower() == (ugytipus or "").strip().lower():
+                routing = rule.get("routing") or {}
+                if isinstance(routing, str):
+                    try:
+                        routing = json.loads(routing)
+                    except Exception:
+                        routing = {}
+                # Időpont: altípus-specifikus
+                if ugytipus == "Időpont" and idopont_altipus and routing.get("subtypes"):
+                    sub = routing["subtypes"].get(idopont_altipus, {})
+                    return bool(sub.get("autonomous_allowed", routing.get("autonomous_allowed", True)))
+                return bool(routing.get("autonomous_allowed", True))
+    except Exception as e:
+        logger.warning(f"_is_autonomous_allowed error (fallback True): {e}")
+    # Ha nincs szabály, konzervatív: Kérés/Panasz sosem, egyébként igen
+    if ugytipus in ("Kérés", "Panasz"):
+        return False
+    return True
+
+
+def _session_has_complaint_or_request() -> bool:
+    """Visszaadja, hogy a jelenlegi beszélgetés során panasz/kérés hangzott-e el.
+    Ezek blokkolják az autonóm cselekvést (brief §1.1.1)."""
+    return bool(_current_session_alerts & {"complaint", "request", "urgent"})
+
+
 # ── Hungarian date/time parsing ─────────────────────────────────────────────
 _HU_MONTHS = {
     "január": 1, "jan": 1,
@@ -303,11 +374,51 @@ async def book_meeting(
     duration_minutes: Annotated[int, "A meeting hossza percben"] = 30,
     service_name: Annotated[str, "A kért szolgáltatás neve (ha megadta az ügyfél, különben 'Általános')"] = "Általános",
     assigned_to: Annotated[str, "A felelős munkatárs neve (ha megadta az ügyfél, különben üres string)"] = "",
-    additional_info: Annotated[str, "Bármely egyéb kiegészítő adat JSON szövegként (pl. cégnév, lakcím). Hagyd üresen '{}' ha nincsen egyéb."] = "{}",
+    additional_info: Annotated[str, "Bármér egyéb kiegészítő adat JSON szövegként (pl. cégnév, lakcím). Hagyd üresen '{}' ha nincsen egyéb."] = "{}",
     funnel_stage: Annotated[str, "A beszélgetés állapota: 'irrelevant', 'relevant', 'valaszolt', 'ajanlat', 'foglalt'"] = "foglalt",
 ) -> str:
     """Találkozó foglalása a naptárba."""
+    # EAISY-241 §5: email-normalizáció — a beszédben kimondott "kukac" → "@",
+    # szóközök eltávolítása, kisbetűsítés. A LLM gyakran hibásan írja át a
+    # hallott email-t; ez a normalizáció + validáció segít.
+    def _normalize_email(raw: str) -> str:
+        if not raw:
+            return ""
+        e = raw.strip().lower().replace("kukac", "@").replace("(kukac)", "@").replace(" [at] ", "@").replace(" at ", "@")
+        e = e.replace(" pont ", ".").replace(" pont.", ".").replace(" ", "")
+        # Ha több @ van, csak az első marad
+        if e.count("@") > 1:
+            parts = e.split("@")
+            e = parts[0] + "@" + "@".join(parts[1:])
+        return e
+
+    attendee_email = _normalize_email(attendee_email)
+
+    # EAISY-241 §6: ha a hívó nem mondott telefonszámot (üres), de a rendszer
+    # kinyerte a SIP-ből (sip.phoneNumber), azt használjuk alapértelmezettként.
+    if not attendee_phone.strip():
+        attendee_phone = get_caller_phone() or "Nincs megadva"
     logger.info(f"Booking meeting: {title} on {date} at {time}, attendee={attendee}, email={attendee_email}, service={service_name}, assigned_to={assigned_to}")
+
+    # ── EAISY-241 §1.1.1 / §2 — Autonómia guard ───────────────────────────────
+    # Ha a beszélgetés során panasz/kérés hangzott el (report_alert flag), vagy
+    # az Időpont eljárása nem enged autonóm foglalást, akkor az AI NEM foglal
+    # önállóan — kéri az ügyfelet, hogy vegye fel a kapcsolatot munkatárssal,
+    # és az interakciót embernek továbbítja.
+    if _session_has_complaint_or_request():
+        logger.info("EAISY-241: booking blocked — complaint/request flagged in session")
+        return (
+            "Megértettem a helyzetet. Sajnálom, hogy ezt tapasztalta. "
+            "Ezt az ügyet egy kollégának kell lekezelnie — rögzítettem a kérését, "
+            "és hamarosan felveszik Önnel a kapcsolatot. Van még esetleg más, amiben segíthetek?"
+        )
+    if not _is_autonomous_allowed("Időpont", "Új"):
+        logger.info("EAISY-241: booking blocked — Időpont not autonomous in triage config")
+        return (
+            "Köszönöm, nagyon szívesen segítek az időpont egyeztetésben! "
+            "A foglalás véglegesítéséhez át kell adnom a kérést egy kollégának, "
+            "aki rögzíti és visszaigazolja. Fel tudná írni a nevét és elérhetőségét?"
+        )
 
     try:
         parsed_date = _parse_hungarian_date(date)
@@ -361,6 +472,27 @@ async def book_meeting(
 
         # ── Add to Kanban (Clients Database) ───────────────────────────
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+        # EAISY-241 §1.5.1: ha nincs megadva felelős, beállítunk egy defaultot,
+        # hogy a naptár member-filter megtalálja a foglalást (különben a tagok
+        # nem látják a voice-agent foglalásokat). Először „Kis Béla"-t keresünk.
+        effective_assigned_to = assigned_to.strip() if assigned_to else ""
+        if not effective_assigned_to:
+            try:
+                members = db.supabase.table("admin_users").select("username,full_name,role").execute()
+                for m in (members.data or []):
+                    full = (m.get("full_name") or m.get("username") or "").lower()
+                    if "kis bél" in full or "kis bel" in full:
+                        effective_assigned_to = m.get("full_name") or m.get("username")
+                        break
+                if not effective_assigned_to and members.data:
+                    # fallback: első member
+                    for m in members.data:
+                        if (m.get("role") or "") in ("member", "manager"):
+                            effective_assigned_to = m.get("full_name") or m.get("username")
+                            break
+            except Exception as e:
+                logger.warning(f"Default assignee lookup failed: {e}")
+
         custom_data = {
             "name": attendee,
             "email": attendee_email,
@@ -368,10 +500,11 @@ async def book_meeting(
             "forras_csatorna": "Voice Agent",
             "booked_datetime": f"{parsed_date} {parsed_time}",
             "service": service_name,
-            "assigned_to": assigned_to,
+            "assigned_to": effective_assigned_to,
+            "felelos": effective_assigned_to,
             "reminder_sent_at": now_str  # Az azonnali visszaigazoló email ideje
         }
-        
+
         # Merge additional info safely if provided
         try:
             extra = json.loads(additional_info)
@@ -379,7 +512,7 @@ async def book_meeting(
                 custom_data.update(extra)
         except Exception:
             pass
-            
+
         columns = db.get_kanban_columns()
         first_col_id = columns[0]['id'] if columns else 'uj'
         db.upsert_client(custom_data, additional_log=f"Hangasszisztens időpontot foglalt: {date} {time}", status=first_col_id)
@@ -749,7 +882,15 @@ async def report_alert(
     """Riasztási címke rögzítése az adatbázisba."""
     logger.info(f"Reporting alert tags: {tags} - Reason: {reason}")
     valid_tags = [t for t in tags if t in ("urgent", "complaint", "callback", "recurring")]
-    
+
+    # EAISY-241 — kontextus-flag beállítása, hogy a későbbi autonóm tool-ok
+    # (pl. book_meeting) tudják: panasz/kérés hangzott el → nem cselekszenek önállóan.
+    if valid_tags:
+        for t in valid_tags:
+            flag_session_alert(t)
+        if "complaint" in valid_tags or "urgent" in valid_tags:
+            flag_session_alert("complaint")
+
     if valid_tags:
         db.log_interaction(
             type="voice_alert",
