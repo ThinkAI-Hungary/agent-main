@@ -11,6 +11,8 @@ import LoyaltyPage from './LoyaltyPage';
 import CompetitorPage from './CompetitorPage';
 import ZomboAuditPage from './ZomboAuditPage';
 import ZomboQuickPostPage from './zombo/components/ZomboQuickPostPage';
+import ZomboCalendarPage from './zombo/components/ZomboCalendarPage';
+import ZomboLayerReviewPage from './zombo/components/ZomboLayerReviewPage';
 
 export default function MarketingPage() {
   return (
@@ -25,6 +27,8 @@ export default function MarketingPage() {
       <Route path="competitor" element={<CompetitorPage />} />
       {/* Zombo sub-routes */}
       <Route path="zombo/quickpost" element={<ZomboQuickPostPage />} />
+      <Route path="zombo/calendar" element={<ZomboCalendarPage />} />
+      <Route path="zombo/layer-review" element={<ZomboLayerReviewPage />} />
       <Route path="zombo" element={<ZomboAuditPage />} />
       <Route path="*" element={<Navigate to="/admin/marketing" replace />} />
     </Routes>

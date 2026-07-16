@@ -7,6 +7,16 @@ import { showToast } from '../../../../components/ui/Toast';
 
 const API = (import.meta as any).env?.VITE_KEPGENERALAS_API_URL || 'http://localhost:3001';
 
+let BRAND_DNA_COLORS = {
+  primary: '#187fc0',   // Piktor Kék
+  secondary: '#333333', // Sötétszürke
+  accent: '#c32226',    // Piktor Piros
+  background: '#ffffff',
+  text: '#000000',
+  white: '#ffffff',
+  grey: '#a1a1aa'
+};
+
 const LayersIcon = ({ size = 14 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 17 22 12"/>
@@ -58,30 +68,64 @@ const EyeOffIcon = ({ size = 12 }: { size?: number }) => (
 );
 
 const SATORI_STYLES = [
-  { id: 'tailwind-cta',     name: 'Tailwind Kártya', thumbGrad: 'linear-gradient(135deg, #4f46e5 0%, #6366f1 100%)' },
-  { id: 'gradient-bottom', name: 'Gradient Alul',  thumbGrad: 'linear-gradient(to top, #000 0%, rgba(0,0,0,0) 55%)' },
-  { id: 'gradient-left',   name: 'Gradient Bal',   thumbGrad: 'linear-gradient(to right, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0) 55%)' },
-  { id: 'circle-badge',    name: 'Kör Badge',       thumbGrad: 'radial-gradient(circle at center, rgba(139,92,246,0.85) 0%, rgba(0,0,0,0.5) 60%)' },
-  { id: 'promo-accent',    name: 'Promo Accent',    thumbGrad: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0) 48%)' },
-  { id: 'full-dark',       name: 'Full Dark',        thumbGrad: 'rgba(0,0,0,0.7)' },
-  { id: 'white-card',      name: 'Fehér Kártya',    thumbGrad: 'linear-gradient(to top, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0.97) 35%, rgba(255,255,255,0) 65%)' },
-  { id: 'luxury-frame',    name: 'Luxury Keret',     thumbGrad: 'rgba(5,3,12,0.87)' },
-  { id: 'neo-brutal',      name: 'Neo Brutal',        thumbGrad: 'rgba(0,0,0,0.56)' },
-  { id: 'ribbon-top',      name: 'Ribbon Felül',      thumbGrad: 'linear-gradient(to bottom, rgba(139,92,246,0.9) 0%, rgba(139,92,246,0.9) 22%, rgba(0,0,0,0.5) 22%)' },
-  { id: 'minimal-bar',     name: 'Minimál Sáv',       thumbGrad: 'rgba(0,0,0,0.14)' },
-  { id: 'glass-card',      name: 'Glass Card',        thumbGrad: 'linear-gradient(to top, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.22) 38%, rgba(255,255,255,0) 60%)' },
-  { id: 'diagonal-split',  name: 'Átlós Split',       thumbGrad: 'linear-gradient(135deg, #fff 48%, rgba(0,0,0,0.88) 48%)' },
-  { id: 'feature-list',    name: 'Felsorolás',     thumbGrad: 'linear-gradient(to bottom, #1e1b4b 0%, #1e1b4b 100%)' },
-  { id: 'retro-sticker',   name: 'Retro Matrica',  thumbGrad: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)' },
-  { id: 'side-panel',      name: 'Oldalsáv',       thumbGrad: 'linear-gradient(to right, #1e3a8a 0%, #1e3a8a 38%, rgba(0,0,0,0) 38%)' },
-  { id: 'minimal-corner',  name: 'Sarok Kártya',   thumbGrad: 'radial-gradient(circle at bottom right, #ffffff 0%, rgba(255,255,255,0) 70%)' },
-  { id: 'modern-minimal-border', name: 'Minimál Keret', thumbGrad: 'linear-gradient(135deg, #1e1b4b 0%, #1e1b4b 100%)' },
-  { id: 'asymmetric-split', name: 'Aszimmetrikus', thumbGrad: 'linear-gradient(to left, #1e3a8a 0%, #1e3a8a 38%, rgba(0,0,0,0) 38%)' },
-  { id: 'badge-ticker',     name: 'Marquee Szalag', thumbGrad: 'linear-gradient(to bottom, #f59e0b 0%, #f59e0b 20%, rgba(0,0,0,0) 20%, rgba(0,0,0,0) 80%, #f59e0b 80%)' },
-  { id: 'comic-speech',     name: 'Képregény Buborék', thumbGrad: 'radial-gradient(circle at center, #ffffff 0%, #ffffff 50%, rgba(0,0,0,0) 55%)' },
-  { id: 'bold-kicker',      name: 'Kicker Cím',     thumbGrad: 'linear-gradient(135deg, #10b981 0%, #059669 100%)' },
-  { id: 'social-proof-rating', name: 'Értékelés',     thumbGrad: 'linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%)' },
-  { id: 'polaroid-frame',   name: 'Polaroid Keret', thumbGrad: 'linear-gradient(to bottom, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.2) 80%, #ffffff 80%)' }
+  // 30 Premium Tailwind Styles at the front
+  { id: 'tailwind-cta',             name: 'Tailwind 1',  thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #3da2e3 100%)', category: 'tailwind-basic' },
+  { id: 'tailwind-gradient-bottom', name: 'Tailwind 2',  thumbGrad: 'linear-gradient(to top, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
+  { id: 'tailwind-gradient-left',   name: 'Tailwind 3',  thumbGrad: 'linear-gradient(to right, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
+  { id: 'tailwind-luxury-frame',    name: 'Tailwind 4',  thumbGrad: 'rgba(15,23,42,0.95)', category: 'tailwind-basic' },
+  { id: 'tailwind-neo-brutal',      name: 'Tailwind 5',  thumbGrad: 'linear-gradient(135deg, #ffffff 0%, #c32226 100%)', category: 'tailwind-basic' },
+  { id: 'tailwind-ribbon-top',      name: 'Tailwind 6',  thumbGrad: 'linear-gradient(to bottom, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
+  { id: 'tailwind-circle-badge',    name: 'Tailwind 7',  thumbGrad: 'radial-gradient(circle, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
+  { id: 'tailwind-feature-list',    name: 'Tailwind 8',  thumbGrad: 'linear-gradient(to bottom, #0f172a 0%, #020617 100%)', category: 'tailwind-basic' },
+  { id: 'tailwind-side-panel',      name: 'Tailwind 9',  thumbGrad: 'linear-gradient(to right, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
+  { id: 'tailwind-minimal-corner',  name: 'Tailwind 10', thumbGrad: 'radial-gradient(circle at bottom right, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
+  
+  { id: 'modernist-split',          name: 'Tailwind 11', thumbGrad: 'linear-gradient(to right, rgba(0,0,0,0) 50%, #111827 50%)', category: 'tailwind-custom' },
+  { id: 'magazine-cover',           name: 'Tailwind 12', thumbGrad: 'rgba(0,0,0,0.3)', category: 'tailwind-custom' },
+  { id: 'minimalist-editorial',     name: 'Tailwind 13', thumbGrad: '#ffffff', category: 'tailwind-custom' },
+  { id: 'glow-dark',                name: 'Tailwind 14', thumbGrad: 'radial-gradient(circle at center, #187fc0 0%, #0b0f19 100%)', category: 'tailwind-custom' },
+  { id: 'bold-slant',               name: 'Tailwind 15', thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #3da2e3 100%)', category: 'tailwind-custom' },
+  { id: 'duotone-overlay',          name: 'Tailwind 16', thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #c32226 100%)', category: 'tailwind-custom' },
+  { id: 'neon-sign',                name: 'Tailwind 17', thumbGrad: 'radial-gradient(circle, #c32226 0%, #05050a 100%)', category: 'tailwind-custom' },
+  { id: 'glass-list',               name: 'Tailwind 18', thumbGrad: 'linear-gradient(to bottom, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 100%)', category: 'tailwind-custom' },
+  { id: 'brushed-metal',            name: 'Tailwind 19', thumbGrad: 'linear-gradient(to right, #334155 0%, #1e293b 100%)', category: 'tailwind-custom' },
+  { id: 'cyberpunk-hud',            name: 'Tailwind 20', thumbGrad: 'radial-gradient(circle, #187fc0 0%, #030712 100%)', category: 'tailwind-custom' },
+  
+  { id: 'stripe-card',              name: 'Tailwind 21', thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #c32226 100%)', category: 'tailwind-internet' },
+  { id: 'linear-board',             name: 'Tailwind 22', thumbGrad: 'linear-gradient(to bottom, #121214 0%, #18181b 100%)', category: 'tailwind-internet' },
+  { id: 'apple-spec',               name: 'Tailwind 23', thumbGrad: '#000000', category: 'tailwind-internet' },
+  { id: 'netflix-billboard',        name: 'Tailwind 24', thumbGrad: 'linear-gradient(to top, #000000 0%, rgba(0,0,0,0) 100%)', category: 'tailwind-internet' },
+  { id: 'airbnb-card',              name: 'Tailwind 25', thumbGrad: '#ffffff', category: 'tailwind-internet' },
+  { id: 'spotify-lyrics',           name: 'Tailwind 26', thumbGrad: 'radial-gradient(circle, #1ed760 0%, #000000 100%)', category: 'tailwind-internet' },
+  { id: 'notion-board',             name: 'Tailwind 27', thumbGrad: '#ffffff', category: 'tailwind-internet' },
+  { id: 'figma-canvas',             name: 'Tailwind 28', thumbGrad: 'linear-gradient(to bottom, #f1f1f1 0%, #ffffff 100%)', category: 'tailwind-internet' },
+  { id: 'github-readme',            name: 'Tailwind 29', thumbGrad: '#ffffff', category: 'tailwind-internet' },
+  { id: 'tesla-minimal',            name: 'Tailwind 30', thumbGrad: '#f4f4f5', category: 'tailwind-internet' },
+
+  // Original non-tailwind styles follow
+  { id: 'gradient-bottom', name: 'Gradient Alul',  thumbGrad: 'linear-gradient(to top, #000 0%, rgba(0,0,0,0) 55%)', category: 'legacy' },
+  { id: 'gradient-left',   name: 'Gradient Bal',   thumbGrad: 'linear-gradient(to right, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0) 55%)', category: 'legacy' },
+  { id: 'circle-badge',    name: 'Kör Badge',       thumbGrad: 'radial-gradient(circle at center, rgba(24,127,192,0.85) 0%, rgba(0,0,0,0.5) 60%)', category: 'legacy' },
+  { id: 'promo-accent',    name: 'Promo Accent',    thumbGrad: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0) 48%)', category: 'legacy' },
+  { id: 'full-dark',       name: 'Full Dark',        thumbGrad: 'rgba(0,0,0,0.7)', category: 'legacy' },
+  { id: 'white-card',      name: 'Fehér Kártya',    thumbGrad: 'linear-gradient(to top, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0.97) 35%, rgba(255,255,255,0) 65%)', category: 'legacy' },
+  { id: 'luxury-frame',    name: 'Luxury Keret',     thumbGrad: 'rgba(5,3,12,0.87)', category: 'legacy' },
+  { id: 'neo-brutal',      name: 'Neo Brutal',        thumbGrad: 'rgba(0,0,0,0.56)', category: 'legacy' },
+  { id: 'ribbon-top',      name: 'Ribbon Felül',      thumbGrad: 'linear-gradient(to bottom, rgba(24,127,192,0.9) 0%, rgba(24,127,192,0.9) 22%, rgba(0,0,0,0.5) 22%)', category: 'legacy' },
+  { id: 'minimal-bar',     name: 'Minimál Sáv',       thumbGrad: 'rgba(0,0,0,0.14)', category: 'legacy' },
+  { id: 'glass-card',      name: 'Glass Card',        thumbGrad: 'linear-gradient(to top, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.22) 38%, rgba(255,255,255,0) 60%)', category: 'legacy' },
+  { id: 'diagonal-split',  name: 'Átlós Split',       thumbGrad: 'linear-gradient(135deg, #fff 48%, rgba(0,0,0,0.88) 48%)', category: 'legacy' },
+  { id: 'feature-list',    name: 'Felsorolás',     thumbGrad: 'linear-gradient(to bottom, #1e1b4b 0%, #1e1b4b 100%)', category: 'legacy' },
+  { id: 'retro-sticker',   name: 'Retro Matrica',  thumbGrad: 'linear-gradient(135deg, #ffffff 0%, #c32226 100%)', category: 'legacy' },
+  { id: 'side-panel',      name: 'Oldalsáv',       thumbGrad: 'linear-gradient(to right, #187fc0 0%, #187fc0 38%, rgba(0,0,0,0) 38%)', category: 'legacy' },
+  { id: 'minimal-corner',  name: 'Sarok Kártya',   thumbGrad: 'radial-gradient(circle at bottom right, #ffffff 0%, rgba(255,255,255,0) 70%)', category: 'legacy' },
+  { id: 'modern-minimal-border', name: 'Minimál Keret', thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #187fc0 100%)', category: 'legacy' },
+  { id: 'asymmetric-split', name: 'Aszimmetrikus', thumbGrad: 'linear-gradient(to left, #187fc0 0%, #187fc0 38%, rgba(0,0,0,0) 38%)', category: 'legacy' },
+  { id: 'badge-ticker',     name: 'Marquee Szalag', thumbGrad: 'linear-gradient(to bottom, #c32226 0%, #c32226 20%, rgba(0,0,0,0) 20%, rgba(0,0,0,0) 80%, #c32226 80%)', category: 'legacy' },
+  { id: 'comic-speech',     name: 'Képregény Buborék', thumbGrad: 'radial-gradient(circle at center, #ffffff 0%, #ffffff 50%, rgba(0,0,0,0) 55%)', category: 'legacy' },
+  { id: 'bold-kicker',      name: 'Kicker Cím',     thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #105e8f 100%)', category: 'legacy' },
+  { id: 'social-proof-rating', name: 'Értékelés',     thumbGrad: 'linear-gradient(135deg, #c32226 0%, #9c1b1e 100%)', category: 'legacy' },
+  { id: 'polaroid-frame',   name: 'Polaroid Keret', thumbGrad: 'linear-gradient(to bottom, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.2) 80%, #ffffff 80%)', category: 'legacy' }
 ];
 
 const STYLE_PRESETS: Record<string, { name: string; text: string; cta: string }[]> = {
@@ -90,6 +134,7 @@ const STYLE_PRESETS: Record<string, { name: string; text: string; cta: string }[
     { name: 'Adatok', text: '• Kiadósság: 10m²/l\n• Száradás: 2 óra\n• Beltéri glettvakolat', cta: 'Részletek' }
   ],
   'retro-sticker': [
+    { name: '📢 Új Termék Sticker', text: 'Megérkezett a legújabb\nkollekciónk!', cta: 'Felfedezem' },
     { name: 'Új Termék', text: 'ÚJ TERMÉK!', cta: 'Kipróbálom' },
     { name: 'Akció', text: '-20% KEDVEZMÉNY', cta: 'Megveszem' }
   ],
@@ -118,37 +163,205 @@ const STYLE_PRESETS: Record<string, { name: string; text: string; cta: string }[
     { name: 'Kicker Címke', text: 'FALFESTÉK\nINNTALER MATT', cta: 'Vásárlás' }
   ],
   'social-proof-rating': [
-    { name: 'Vásárlói Vélemény', text: '„Csodás színek, gyors száradás. Csak ajánlani tudom!”', cta: 'Vélemények' }
+    { name: '💬 Vásárlói Értékelés', text: '„Csodás színek, gyors száradás és rendkívül kedves kiszolgálás a győri üzletben. Csak ajánlani tudom!”', cta: 'Vélemények' }
   ],
   'polaroid-frame': [
     { name: 'Polaroid Fotó', text: 'Győri üzletünk kínálata', cta: 'Térkép' }
   ],
   'tailwind-cta': [
     { name: 'Tailwind Kártya', text: 'READY TO DIVE IN?\nStart your free trial today.', cta: 'Get started' }
+  ],
+  'bold-slant': [
+    { name: '🔥 Szuper Akció', text: '30% NYÁRI AKCIÓ\nMINDEN TERMÉKRE', cta: 'Megnézem' }
+  ],
+  'apple-spec': [
+    { name: '🍏 Apple Specifikáció', text: '• Rendkívüli fedőképesség\n• Illatosított formula\n• Mosható, kopásálló felület', cta: 'Megrendelem' }
+  ],
+  'tailwind-luxury-frame': [
+    { name: '🏆 Exclusive Luxus', text: 'Különleges & Tartós', cta: 'Ajánlatkérés' }
+  ],
+  'minimalist-editorial': [
+    { name: '📖 Editorial Cikk', text: 'Hogyan válaszd ki a tökéletes színt a nappalidba?', cta: 'Elolvasom' }
   ]
 };
+
+interface GlobalPreset {
+  name: string;
+  description: string;
+  styleId: string;
+  textLayers: { id: string; text: string; fontSize?: number; color?: string; visible?: boolean }[];
+  cta: string;
+  ctaColor: string;
+  ctaBgColor: string;
+  showBorder: boolean;
+  showBadge: boolean;
+  showCta: boolean;
+}
+
+const GLOBAL_PRESETS: GlobalPreset[] = [
+  {
+    name: '🔥 Szuper Akció',
+    description: 'Nyári leárazás vagy szezonális akció kiemelése bold, ferde elemekkel.',
+    styleId: 'bold-slant',
+    textLayers: [
+      { id: 'brandName', text: 'PIKTOR KFT.', fontSize: 24, color: BRAND_DNA_COLORS.accent, visible: true },
+      { id: 'productName', text: '30% NYÁRI AKCIÓ\nMINDEN TERMÉKRE', fontSize: 44, color: BRAND_DNA_COLORS.white, visible: true },
+      { id: 'spec', text: 'Kuponkód: NYAR30 | Győri és soproni üzleteinkben', fontSize: 22, color: '#e2e8f0', visible: true }
+    ],
+    cta: 'Megnézem',
+    ctaColor: BRAND_DNA_COLORS.white,
+    ctaBgColor: BRAND_DNA_COLORS.accent,
+    showBorder: true,
+    showBadge: true,
+    showCta: true
+  },
+  {
+    name: '🍏 Apple Specifikáció',
+    description: 'Minimalista termék előnyök és technikai adatok listázása prémium sötét kártyán.',
+    styleId: 'apple-spec',
+    textLayers: [
+      { id: 'brandName', text: 'INNTALER MATT', fontSize: 24, color: BRAND_DNA_COLORS.grey, visible: true },
+      { id: 'productName', text: 'Prémium beltéri falfesték', fontSize: 48, color: BRAND_DNA_COLORS.white, visible: true },
+      { id: 'spec', text: '• Rendkívüli fedőképesség\n• Illatosított formula\n• Mosható, kopásálló felület', fontSize: 28, color: BRAND_DNA_COLORS.white, visible: true }
+    ],
+    cta: 'Megrendelem',
+    ctaColor: BRAND_DNA_COLORS.text,
+    ctaBgColor: BRAND_DNA_COLORS.white,
+    showBorder: true,
+    showBadge: true,
+    showCta: true
+  },
+  {
+    name: '🏆 Exclusive Luxus',
+    description: 'Arany keretes és elegáns arculati megjelenés prémium termékekhez.',
+    styleId: 'tailwind-luxury-frame',
+    textLayers: [
+      { id: 'brandName', text: 'PIKTOR EXCLUSIVE', fontSize: 24, color: BRAND_DNA_COLORS.primary, visible: true },
+      { id: 'productName', text: 'Különleges & Tartós', fontSize: 42, color: BRAND_DNA_COLORS.white, visible: true },
+      { id: 'spec', text: 'Prémium minőségű luxus falfestékek a falak szépségéért.', fontSize: 22, color: '#f4f4f5', visible: true }
+    ],
+    cta: 'Ajánlatkérés',
+    ctaColor: BRAND_DNA_COLORS.white,
+    ctaBgColor: BRAND_DNA_COLORS.primary,
+    showBorder: true,
+    showBadge: true,
+    showCta: true
+  },
+  {
+    name: '💬 Vásárlói Értékelés',
+    description: 'Bizalmat építő testimonial és csillagos értékelés a kép felső részén.',
+    styleId: 'social-proof-rating',
+    textLayers: [
+      { id: 'brandName', text: 'Kovács Péter • Vásárló', fontSize: 22, color: BRAND_DNA_COLORS.grey, visible: true },
+      { id: 'productName', text: '„Csodás színek, gyors száradás és rendkívül kedves kiszolgálás a győri üzletben. Csak ajánlani tudom!”', fontSize: 24, color: BRAND_DNA_COLORS.white, visible: true }
+    ],
+    cta: 'Vélemények',
+    ctaColor: BRAND_DNA_COLORS.white,
+    ctaBgColor: BRAND_DNA_COLORS.accent,
+    showBorder: true,
+    showBadge: true,
+    showCta: true
+  },
+  {
+    name: '📢 Új Termék Sticker',
+    description: 'Neo-brutalista matrica és vastag fekete árnyékok a kiemelkedő figyelemfelkeltésért.',
+    styleId: 'retro-sticker',
+    textLayers: [
+      { id: 'brandName', text: 'ÚJ TERMÉK!', fontSize: 26, color: BRAND_DNA_COLORS.text, visible: true },
+      { id: 'productName', text: 'Megérkezett a legújabb\nkollekciónk!', fontSize: 38, color: BRAND_DNA_COLORS.white, visible: true }
+    ],
+    cta: 'Felfedezem',
+    ctaColor: BRAND_DNA_COLORS.white,
+    ctaBgColor: BRAND_DNA_COLORS.primary,
+    showBorder: true,
+    showBadge: true,
+    showCta: true
+  },
+  {
+    name: '📖 Editorial Cikk',
+    description: 'Letisztult, magazin-szerű elrendezés blogbejegyzések és tippek megosztásához.',
+    styleId: 'minimalist-editorial',
+    textLayers: [
+      { id: 'brandName', text: 'TIPIKUS HIBÁK ELKERÜLÉSE', fontSize: 22, color: BRAND_DNA_COLORS.secondary, visible: true },
+      { id: 'productName', text: 'Hogyan válaszd ki a tökéletes színt a nappalidba?', fontSize: 40, color: BRAND_DNA_COLORS.text, visible: true },
+      { id: 'spec', text: 'Szakértői tippek és trükkök a Piktor Kft. festőmestereitől.', fontSize: 24, color: BRAND_DNA_COLORS.secondary, visible: true }
+    ],
+    cta: 'Elolvasom',
+    ctaColor: BRAND_DNA_COLORS.white,
+    ctaBgColor: BRAND_DNA_COLORS.secondary,
+    showBorder: true,
+    showBadge: true,
+    showCta: true
+  }
+];
 
 interface TextLayer {
   id: string; text: string; fontSize: number; color: string;
   opacity: number; x: number; y: number; textAlign: 'left' | 'center' | 'right';
   visible?: boolean;
 }
+const getPromoTextFromPrompt = (rawPrompt: string): string => {
+  if (!rawPrompt) return '';
+  const trimmed = rawPrompt.trim();
+  if (trimmed.includes('\n')) {
+    return trimmed.split('\n')[0].trim();
+  }
+  const sentences = trimmed.split(/(?<=[.!?])\s+/);
+  if (sentences.length > 1) {
+    return sentences[0].trim();
+  }
+  if (trimmed.split(/\s+/).length <= 8) {
+    return trimmed;
+  }
+  return '';
+};
+
 interface Props {
   baseImageUrl: string;
   onRendered?: (url: string) => void;
   prompt?: string;
   subject?: string;
+  decomposedLayerText?: string;
+  decomposedLayerCta?: string;
+  initialSuggestedStyles?: { styleId: string; reason: string }[];
 }
 
-export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subject = '' }: Props) {
+export function SatoriEditorPanel({
+  baseImageUrl,
+  onRendered,
+  prompt = '',
+  subject = '',
+  decomposedLayerText = '',
+  decomposedLayerCta = '',
+  initialSuggestedStyles
+}: Props) {
+  // Dynamically update the colors from sessionStorage to handle SPA navigation and site changes
+  try {
+    const raw = sessionStorage.getItem('zombo_audit_result');
+    if (raw) {
+      const data = JSON.parse(raw);
+      const colorList = data.colors?.top_colors_detail || data.visuals?.top_colors_detail || [];
+      if (colorList[0]?.hex) BRAND_DNA_COLORS.primary = colorList[0].hex;
+      if (colorList[1]?.hex) BRAND_DNA_COLORS.secondary = colorList[1].hex;
+      if (colorList[2]?.hex) BRAND_DNA_COLORS.accent = colorList[2].hex;
+    }
+  } catch (e) {
+    console.error('[SatoriEditorPanel] Failed to update brand colors:', e);
+  }
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>('tailwind-cta');
-  const [textLayers, setTextLayers] = useState<TextLayer[]>([
-    { id: '1', text: 'READY TO DIVE IN?\nStart your free trial today.', fontSize: 42, color: '#111827', opacity: 100, x: 0, y: 150, textAlign: 'left', visible: true }
-  ]);
+  const [styleTab, setStyleTab] = useState<'all' | 'tailwind-basic' | 'tailwind-custom' | 'tailwind-internet' | 'legacy'>('all');
+  const [textLayers, setTextLayers] = useState<TextLayer[]>(() => {
+    const defaultText = decomposedLayerText || getPromoTextFromPrompt(prompt) || prompt || 'READY TO DIVE IN?\nStart your free trial today.';
+    return [
+      { id: 'brandName', text: subject || 'Piktor Kft.', fontSize: 20, color: BRAND_DNA_COLORS.accent, opacity: 100, x: 0, y: 0, textAlign: 'left', visible: true },
+      { id: 'productName', text: defaultText, fontSize: 44, color: BRAND_DNA_COLORS.white, opacity: 100, x: 0, y: 0, textAlign: 'left', visible: true }
+    ];
+  });
   const [activeLayerIdx, setActiveLayerIdx] = useState(0);
-  const [ctaText,   setCtaText]   = useState('Get started');
-  const [ctaColor,  setCtaColor]  = useState('#ffffff');
-  const [ctaBgColor,setCtaBgColor]= useState('#4f46e5');
+  const [suggestedStyles, setSuggestedStyles] = useState<{ styleId: string; reason: string }[]>(initialSuggestedStyles || []);
+  const [ctaText,   setCtaText]   = useState(decomposedLayerCta || 'Válaszd a megfelelőt!');
+  const [ctaColor,  setCtaColor]  = useState(BRAND_DNA_COLORS.white);
+  const [ctaBgColor,setCtaBgColor]= useState(BRAND_DNA_COLORS.primary);
   
   const [showBorder, setShowBorder] = useState(true);
   const [showCta, setShowCta] = useState(true);
@@ -156,10 +369,35 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
 
   const [localPrompt, setLocalPrompt] = useState(prompt || '');
 
-  const [activeSection, setActiveSection] = useState<'ai' | 'styles' | 'layers' | 'cta'>('styles');
+  const [activeSection, setActiveSection] = useState<'ai' | 'styles' | 'layers' | 'cta' | 'presets'>('styles');
   const [isRendering, setIsRendering] = useState(false);
   const [isGeneratingAI, setIsGeneratingAI] = useState(false);
   const [renderedUrl, setRenderedUrl] = useState<string | null>(null);
+  const [previewMode, setPreviewMode] = useState<'full' | 'phone'>('full');
+  const [exactTextOnly, setExactTextOnly] = useState(false);
+
+  // States to hold the last extracted/decomposed promo text and CTA text
+  const [extractedPromoText, setExtractedPromoText] = useState<string>(decomposedLayerText || getPromoTextFromPrompt(prompt || localPrompt) || '');
+  const [extractedCtaText, setExtractedCtaText] = useState<string>(decomposedLayerCta || 'Ajánlatok megtekintése');
+
+  // Sync with prop changes (e.g. after background generation completes)
+  useEffect(() => {
+    if (decomposedLayerText) {
+      setExtractedPromoText(decomposedLayerText);
+      setTextLayers(prev => prev.map(l => 
+        (l.id === 'productName' || l.id === 'headline' || l.id === '1') 
+          ? { ...l, text: decomposedLayerText } 
+          : l
+      ));
+    }
+  }, [decomposedLayerText]);
+
+  useEffect(() => {
+    if (decomposedLayerCta) {
+      setExtractedCtaText(decomposedLayerCta);
+      setCtaText(decomposedLayerCta);
+    }
+  }, [decomposedLayerCta]);
 
   const stateRef = useRef({ selectedStyleId, textLayers, ctaText, ctaColor, ctaBgColor, baseImageUrl, showBorder, showCta, showBadge });
   useEffect(() => {
@@ -169,8 +407,17 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
   useEffect(() => {
     if (prompt) {
       setLocalPrompt(prompt);
+      if (!decomposedLayerText) {
+        const fallback = getPromoTextFromPrompt(prompt);
+        setExtractedPromoText(fallback || prompt);
+        setTextLayers(prev => prev.map(l => 
+          (l.id === 'productName' || l.id === 'headline' || l.id === '1') 
+            ? { ...l, text: fallback || prompt } 
+            : l
+        ));
+      }
     }
-  }, [prompt]);
+  }, [prompt, decomposedLayerText]);
 
   const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
   const renderingRef = useRef(false);
@@ -181,7 +428,7 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
     if (!sid || !biu) return;
     if (renderingRef.current) return;
 
-    const primaryText = tl.find(l => l.text.trim())?.text || '';
+    const primaryText = tl.find(l => l.visible !== false && l.text.trim())?.text || '';
     const payload = {
       baseImageUrl: biu,
       satoriStyleId: sid,
@@ -190,6 +437,7 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
       showBorder: sb,
       showCta: sc,
       showBadge: sba,
+      brandColors: { primary: BRAND_DNA_COLORS.primary, secondary: BRAND_DNA_COLORS.secondary, accent: BRAND_DNA_COLORS.accent },
       textLayers: tl.filter(l => l.text.trim()).map(l => ({
         id: l.id, text: l.text, fontSize: l.fontSize, color: l.color,
         opacity: l.opacity, x: l.x, y: l.y, textAlign: l.textAlign,
@@ -221,31 +469,56 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
     }
   }, [onRendered]);
 
+  const prevBaseImageUrlRef = useRef<string | null>(null);
+
   useEffect(() => {
-    if (baseImageUrl) {
-      handleRender();
+    console.log('[SatoriPanel Loop Debug] useEffect hook triggered.', {
+      baseImageUrl,
+      prevBaseImageUrl: prevBaseImageUrlRef.current,
+      isDifferent: baseImageUrl !== prevBaseImageUrlRef.current,
+      decomposedLayerText,
+      initialSuggestedStylesLength: initialSuggestedStyles?.length
+    });
+    if (baseImageUrl && baseImageUrl !== prevBaseImageUrlRef.current) {
+      prevBaseImageUrlRef.current = baseImageUrl;
+      const defaultText = decomposedLayerText || getPromoTextFromPrompt(prompt) || prompt || 'READY TO DIVE IN?\nStart your free trial today.';
+      const initial = [
+        { id: 'brandName', text: subject || 'Piktor Kft.', fontSize: 20, color: '#fbbf24', opacity: 100, x: 0, y: 0, textAlign: 'left' as const, visible: true },
+        { id: 'productName', text: defaultText, fontSize: 44, color: '#ffffff', opacity: 100, x: 0, y: 0, textAlign: 'left' as const, visible: true }
+      ];
+      setTextLayers(initial);
+      stateRef.current.textLayers = initial;
+      setSuggestedStyles(initialSuggestedStyles || []);
+      setTimeout(() => handleRender(), 100);
     }
-  }, [baseImageUrl, handleRender]);
+  }, [baseImageUrl, prompt, subject, handleRender, decomposedLayerText, initialSuggestedStyles]);
 
   const selectStyle = (id: string) => {
     setSelectedStyleId(id);
     stateRef.current = { ...stateRef.current, selectedStyleId: id };
     
     // Get the current text typed by the user to preserve it
-    const currentText = textLayers[0]?.text || '';
+    const currentText = textLayers.find(l => l.id === 'productName' || l.id === 'headline' || l.id === '1')?.text || textLayers[0]?.text || '';
     
+    const activeBrief = localPrompt.trim() || prompt.trim();
+    const promptFallback = getPromoTextFromPrompt(activeBrief);
+    const promoTextToUse = extractedPromoText || promptFallback || currentText || 'Szöveg';
+
     // Always compute and apply default layers (coordinates and sizes) for the new style
-    const updatedLayers = getDefaultLayersForStyle(id, currentText || 'Szöveg');
+    const updatedLayers = getDefaultLayersForStyle(id, promoTextToUse);
     setTextLayers(updatedLayers);
     setActiveLayerIdx(0);
 
     const presets = STYLE_PRESETS[id];
-    let newCta = ctaText;
+    let newCta = extractedCtaText || ctaText;
     if (presets && presets[0]) {
-      newCta = presets[0].cta;
+      newCta = extractedCtaText || presets[0].cta;
       setCtaText(newCta);
-      // If the user's text was empty or default, load the preset text
-      if (!currentText || currentText === 'Szöveg') {
+      // If we have an extracted/fallback promo text, ALWAYS use it!
+      // Otherwise, if the user's text was empty or default, load the preset text.
+      if (promoTextToUse && promoTextToUse !== 'Szöveg') {
+        updatedLayers[0].text = promoTextToUse;
+      } else if (!currentText || currentText === 'Szöveg') {
         updatedLayers[0].text = presets[0].text;
       }
     }
@@ -258,6 +531,77 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
     };
 
     setTimeout(() => handleRender(id), 100);
+  };
+
+  const applyGlobalPreset = (preset: GlobalPreset) => {
+    setSelectedStyleId(preset.styleId);
+    const defaultLayers = getDefaultLayersForStyle(preset.styleId, 'Szöveg');
+    const defaults = defaultLayers[0];
+    const productNameLayer = preset.textLayers.find(l => l.id === 'productName');
+
+    const activeBrief = localPrompt.trim() || prompt.trim();
+    const promptFallback = getPromoTextFromPrompt(activeBrief);
+    const promoTextToUse = extractedPromoText || promptFallback || '';
+
+    const productNameText = promoTextToUse || productNameLayer?.text || '';
+    const productNameLines = productNameText.split('\n').length;
+
+    const newLayers: TextLayer[] = preset.textLayers.map(l => {
+      let yOffset = 0;
+      let fontSize = l.fontSize || defaults.fontSize;
+      
+      let textVal = l.text;
+      if ((l.id === 'productName' || l.id === 'headline' || l.id === '1') && promoTextToUse) {
+        textVal = promoTextToUse;
+      }
+
+      if (l.id === 'brandName') {
+        yOffset = -50;
+        fontSize = l.fontSize || 22;
+      } else if (l.id === 'spec') {
+        yOffset = 85 + (productNameLines - 1) * 45;
+        fontSize = l.fontSize || 24;
+      } else if (l.id === 'productName') {
+        yOffset = 0;
+        fontSize = l.fontSize || Math.max(36, defaults.fontSize);
+      }
+
+      return {
+        id: l.id,
+        text: textVal,
+        fontSize,
+        color: l.color || defaults.color,
+        opacity: 100,
+        x: defaults.x,
+        y: defaults.y + yOffset,
+        textAlign: defaults.textAlign,
+        visible: l.visible !== false
+      };
+    });
+
+    const finalCta = extractedCtaText || preset.cta;
+    setTextLayers(newLayers);
+    setActiveLayerIdx(0);
+    setCtaText(finalCta);
+    setCtaColor(preset.ctaColor);
+    setCtaBgColor(preset.ctaBgColor);
+    setShowBorder(preset.showBorder);
+    setShowBadge(preset.showBadge);
+    setShowCta(preset.showCta);
+    
+    stateRef.current = {
+      selectedStyleId: preset.styleId,
+      textLayers: newLayers,
+      ctaText: finalCta,
+      ctaColor: preset.ctaColor,
+      ctaBgColor: preset.ctaBgColor,
+      baseImageUrl,
+      showBorder: preset.showBorder,
+      showBadge: preset.showBadge,
+      showCta: preset.showCta
+    };
+
+    setTimeout(() => handleRender(preset.styleId), 100);
   };
 
   const getDefaultLayersForStyle = (styleId: string, text: string): TextLayer[] => {
@@ -402,12 +746,202 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
         textAlign = 'left';
         break;
       case 'tailwind-cta':
-        fontSize = 42;
+        fontSize = 38;
         color = '#111827';
         x = 0;
-        y = 150;
+        y = 0;
         textAlign = 'left';
         break;
+
+      // 9 Tailwind Card Variants
+      case 'tailwind-gradient-bottom':
+        fontSize = 44;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'tailwind-gradient-left':
+        fontSize = 42;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'tailwind-luxury-frame':
+        fontSize = 38;
+        color = '#c9a96e';
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'tailwind-neo-brutal':
+        fontSize = 42;
+        color = '#1a1a1a';
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'tailwind-ribbon-top':
+        fontSize = 32;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'tailwind-circle-badge':
+        fontSize = 34;
+        x = 0;
+        y = 0;
+        textAlign = 'center';
+        break;
+      case 'tailwind-feature-list':
+        fontSize = 38;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'tailwind-side-panel':
+        fontSize = 42;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'tailwind-minimal-corner':
+        fontSize = 34;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+
+      // 10 Custom Styles
+      case 'modernist-split':
+        fontSize = 42;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'magazine-cover':
+        fontSize = 80;
+        x = 0;
+        y = 0;
+        textAlign = 'center';
+        break;
+      case 'minimalist-editorial':
+        fontSize = 42;
+        color = '#1f2937';
+        x = 0;
+        y = 0;
+        textAlign = 'center';
+        break;
+      case 'glow-dark':
+        fontSize = 44;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'bold-slant':
+        fontSize = 46;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'duotone-overlay':
+        fontSize = 54;
+        x = 0;
+        y = 0;
+        textAlign = 'center';
+        break;
+      case 'neon-sign':
+        fontSize = 46;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'glass-list':
+        fontSize = 32;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'brushed-metal':
+        fontSize = 42;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'cyberpunk-hud':
+        fontSize = 36;
+        color = '#00ffcc';
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+
+      // 10 Internet-Inspired Styles
+      case 'stripe-card':
+        fontSize = 42;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'linear-board':
+        fontSize = 38;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'apple-spec':
+        fontSize = 64;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'netflix-billboard':
+        fontSize = 54;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'airbnb-card':
+        fontSize = 32;
+        color = '#222222';
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'spotify-lyrics':
+        fontSize = 48;
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'notion-board':
+        fontSize = 34;
+        color = '#37352f';
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'figma-canvas':
+        fontSize = 38;
+        color = '#1e293b';
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'github-readme':
+        fontSize = 34;
+        color = '#24292f';
+        x = 0;
+        y = 0;
+        textAlign = 'left';
+        break;
+      case 'tesla-minimal':
+        fontSize = 60;
+        color = '#171a20';
+        x = 0;
+        y = 0;
+        textAlign = 'center';
+        break;
+
       default:
         fontSize = 48;
         x = 0;
@@ -422,16 +956,20 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
   };
 
   const applyPreset = (styleId: string, preset: { text: string; cta: string }) => {
-    const updatedLayers = getDefaultLayersForStyle(styleId, preset.text);
+    const activeBrief = localPrompt.trim() || prompt.trim();
+    const promptFallback = getPromoTextFromPrompt(activeBrief);
+    const textToUse = extractedPromoText || promptFallback || preset.text;
+    const ctaToUse = extractedCtaText || preset.cta;
+    const updatedLayers = getDefaultLayersForStyle(styleId, textToUse);
     setTextLayers(updatedLayers);
-    setCtaText(preset.cta);
+    setCtaText(ctaToUse);
     setActiveLayerIdx(0);
 
     stateRef.current = {
       ...stateRef.current,
       selectedStyleId: styleId,
       textLayers: updatedLayers,
-      ctaText: preset.cta
+      ctaText: ctaToUse
     };
 
     setTimeout(() => handleRender(styleId), 100);
@@ -446,6 +984,14 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
     setTextLayers(prev => {
       const next = prev.map((l, i) => i === idx ? { ...l, ...patch } : l);
       stateRef.current = { ...stateRef.current, textLayers: next };
+      
+      const activeLayer = next[idx];
+      if (activeLayer && (activeLayer.id === 'productName' || activeLayer.id === 'headline' || activeLayer.id === '1')) {
+        if (patch.text !== undefined) {
+          setExtractedPromoText(patch.text);
+        }
+      }
+      
       return next;
     });
     debounceRender();
@@ -461,7 +1007,11 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
   };
 
   const updateCta = (field: 'ctaText' | 'ctaColor' | 'ctaBgColor', value: string) => {
-    if (field === 'ctaText')   { setCtaText(value);    stateRef.current = { ...stateRef.current, ctaText: value }; }
+    if (field === 'ctaText')   { 
+      setCtaText(value);    
+      stateRef.current = { ...stateRef.current, ctaText: value }; 
+      setExtractedCtaText(value);
+    }
     if (field === 'ctaColor')  { setCtaColor(value);   stateRef.current = { ...stateRef.current, ctaColor: value }; }
     if (field === 'ctaBgColor'){ setCtaBgColor(value); stateRef.current = { ...stateRef.current, ctaBgColor: value }; }
     debounceRender();
@@ -495,7 +1045,7 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
     a.href = url; a.download = `satori-${Date.now()}.png`; a.click();
   };
 
-  const handleAILayout = async () => {
+  const handleAILayout = async (isRefresh = false) => {
     const activePrompt = localPrompt.trim() || prompt.trim();
     if (!activePrompt) {
       showToast({ title: 'Hiányzó leírás', message: 'Kérjük írj be egy leírást a prompt mezőbe a generáláshoz!', type: 'info' });
@@ -506,12 +1056,17 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
       const resp = await fetch(`${API}/api/image/satori-auto-layout`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt: activePrompt, subject })
+        body: JSON.stringify({ prompt: activePrompt, subject, exactTextOnly, imageUrl: baseImageUrl, refresh: isRefresh })
       });
       if (!resp.ok) throw new Error(await resp.text());
       const data = await resp.json();
 
       setSelectedStyleId(data.satoriStyleId);
+      if (data.suggestedStyles) {
+        setSuggestedStyles(data.suggestedStyles);
+      } else {
+        setSuggestedStyles([]);
+      }
       if (data.textLayers && data.textLayers.length > 0) {
         setTextLayers(data.textLayers.map((l: any) => ({ ...l, visible: l.visible !== false })));
       } else if (data.text) {
@@ -520,6 +1075,13 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
       if (data.cta) setCtaText(data.cta);
       if (data.ctaOpts?.color) setCtaColor(data.ctaOpts.color);
       if (data.ctaOpts?.bgColor) setCtaBgColor(data.ctaOpts.bgColor);
+
+      const promoText = data.textLayers?.find((l: any) => l.id === 'productName' || l.id === 'headline' || l.id === '1')?.text 
+        || data.text 
+        || '';
+      const finalCta = data.cta || '';
+      if (promoText) setExtractedPromoText(promoText);
+      if (finalCta) setExtractedCtaText(finalCta);
 
       const sb = typeof data.showBorder === 'boolean' ? data.showBorder : true;
       const sc = typeof data.showCta === 'boolean' ? data.showCta : true;
@@ -555,22 +1117,105 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
   const inp: React.CSSProperties = { width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: 12, outline: 'none', boxSizing: 'border-box' };
   const lbl: React.CSSProperties = { fontSize: 10, fontWeight: 800, textTransform: 'uppercase' as const, letterSpacing: '0.06em', color: 'var(--text-muted)', display: 'block', marginBottom: 5 };
   const al = textLayers[activeLayerIdx];
+  const brandNameIdx = textLayers.findIndex(l => l.id === 'brandName');
+  const showBrandName = brandNameIdx !== -1 ? textLayers[brandNameIdx].visible !== false : false;
+  const firstVisibleText = textLayers.find(l => l.id !== 'brandName' && l.visible !== false && l.text.trim())?.text 
+    || textLayers.find(l => l.visible !== false && l.text.trim())?.text 
+    || 'Különleges ajánlatunk!';
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
 
-      {/* Preview area */}
-      <div style={{ borderRadius: 14, overflow: 'hidden', border: '2px solid var(--border)', background: 'var(--bg3)', position: 'relative' }}>
-        <img src={renderedUrl || baseImageUrl} alt="preview" style={{ width: '100%', display: 'block' }} />
-        {isRendering && (
-          <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
-            <div style={{ textAlign: 'center', color: '#fff' }}>
-              <div style={{ width: 32, height: 32, border: '3px solid rgba(255,255,255,0.3)', borderTopColor: '#a78bfa', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 8px' }} />
-              <div style={{ fontSize: 12, fontWeight: 700 }}>Satori render...</div>
+      {/* Preview Mode Selector */}
+      <div style={{ display: 'flex', background: 'rgba(255,255,255,0.02)', padding: 3, borderRadius: 10, border: '1.5px solid var(--border)', width: 'fit-content', alignSelf: 'center' }}>
+        <button onClick={() => setPreviewMode('full')}
+          style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: previewMode === 'full' ? 'rgba(251,191,36,0.15)' : 'transparent', color: previewMode === 'full' ? '#fbbf24' : 'var(--text-muted)', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}>
+          Teljes Kép
+        </button>
+        <button onClick={() => setPreviewMode('phone')}
+          style={{ padding: '6px 14px', borderRadius: 8, border: 'none', background: previewMode === 'phone' ? 'rgba(251,191,36,0.15)' : 'transparent', color: previewMode === 'phone' ? '#fbbf24' : 'var(--text-muted)', fontSize: 11, fontWeight: 800, cursor: 'pointer', transition: 'all 0.2s' }}>
+          Mobil Poszt Nézet
+        </button>
+      </div>
+
+      {previewMode === 'full' ? (
+        /* Preview area */
+        <div style={{ borderRadius: 14, overflow: 'hidden', border: '2px solid var(--border)', background: 'var(--bg3)', position: 'relative' }}>
+          <img src={renderedUrl || baseImageUrl} alt="preview" style={{ width: '100%', display: 'block' }} />
+          {isRendering && (
+            <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+              <div style={{ textAlign: 'center', color: '#fff' }}>
+                <div style={{ width: 32, height: 32, border: '3px solid rgba(255,255,255,0.3)', borderTopColor: '#a78bfa', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 8px' }} />
+                <div style={{ fontSize: 12, fontWeight: 700 }}>Satori render...</div>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        /* Premium Mobile Phone Frame */
+        <div style={{ width: '100%', maxWidth: 360, margin: '0 auto', border: '10px solid #1e293b', borderRadius: 36, overflow: 'hidden', background: '#090d16', boxShadow: '0 25px 50px -12px rgba(0,0,0,0.6)', position: 'relative', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif' }}>
+          {/* Status Bar */}
+          <div style={{ height: 32, display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '0 18px', background: '#000', color: '#fff', fontSize: 11, fontWeight: 600 }}>
+            <span>9:41</span>
+            {/* Notch */}
+            <div style={{ width: 110, height: 18, background: '#000', borderBottomLeftRadius: 12, borderBottomRightRadius: 12, position: 'absolute', top: 0, left: '50%', transform: 'translateX(-50%)' }} />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <span style={{ fontSize: 9 }}>📶</span>
+              <span style={{ fontSize: 9 }}>🔋</span>
             </div>
           </div>
-        )}
-      </div>
+
+          {/* Social Media Header */}
+          {showBrandName && (
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', padding: '10px 12px', borderBottom: '1px solid #1e293b' }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                {/* Mock Brand Avatar */}
+                <div style={{ width: 30, height: 30, borderRadius: '50%', background: 'linear-gradient(135deg, #fbbf24, #d97706)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#fff', fontSize: 12, fontWeight: 900 }}>
+                  {subject ? subject.substring(0, 1).toUpperCase() : 'P'}
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column' }}>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#f8fafc' }}>{subject || 'Piktor Kft.'}</span>
+                  <span style={{ fontSize: 9, color: '#94a3b8' }}>Szponzorált • Közösségi Média Poszt</span>
+                </div>
+              </div>
+              <span style={{ color: '#94a3b8', fontSize: 16, cursor: 'pointer' }}>•••</span>
+            </div>
+          )}
+
+          {/* Rendered Post Image */}
+          <div style={{ position: 'relative', width: '100%', background: '#000' }}>
+            <img src={renderedUrl || baseImageUrl} alt="Instagram Post Mock" style={{ width: '100%', display: 'block' }} />
+            {isRendering && (
+              <div style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)' }}>
+                <div style={{ textAlign: 'center', color: '#fff' }}>
+                  <div style={{ width: 28, height: 28, border: '3px solid rgba(255,255,255,0.3)', borderTopColor: '#fbbf24', borderRadius: '50%', animation: 'spin 0.8s linear infinite', margin: '0 auto 8px' }} />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Action Bar */}
+          <div style={{ display: 'flex', justifyContent: 'space-between', padding: '12px 12px 6px', color: '#f8fafc', fontSize: 18 }}>
+            <div style={{ display: 'flex', gap: 14 }}>
+              <span style={{ cursor: 'pointer' }}>❤️</span>
+              <span style={{ cursor: 'pointer' }}>💬</span>
+              <span style={{ cursor: 'pointer' }}>✈️</span>
+            </div>
+            <span style={{ cursor: 'pointer' }}>📥</span>
+          </div>
+
+          {/* Social Caption */}
+          <div style={{ padding: '0 12px 16px', fontSize: 11, color: '#cbd5e1', lineHeight: 1.4 }}>
+            <div style={{ marginBottom: 4 }}>
+              {showBrandName && <span style={{ fontWeight: 800, color: '#f8fafc', marginRight: 5 }}>{subject || 'Piktor Kft.'}</span>}
+              {firstVisibleText.split('\n')[0]}
+            </div>
+            <div style={{ color: '#fbbf24', fontWeight: 600 }}>
+              {showBrandName ? '#piktorkft #akcio #marketing' : '#akcio #marketing'}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Download + Refresh */}
       <div style={{ display: 'flex', gap: 8 }}>
@@ -593,6 +1238,10 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
             style={{ width: 34, height: 34, borderRadius: 8, border: 'none', background: activeSection === 'ai' ? 'rgba(139,92,246,0.2)' : 'transparent', color: activeSection === 'ai' ? '#a78bfa' : 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <RobotIcon size={16} />
           </button>
+          <button onClick={() => setActiveSection('presets')} title="Campaign Presets"
+            style={{ width: 34, height: 34, borderRadius: 8, border: 'none', background: activeSection === 'presets' ? 'rgba(236,72,153,0.2)' : 'transparent', color: activeSection === 'presets' ? '#f472b6' : 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <span style={{ fontSize: 13, fontWeight: 900 }}>⭐</span>
+          </button>
           <button onClick={() => setActiveSection('styles')} title="Styles & Templates"
             style={{ width: 34, height: 34, borderRadius: 8, border: 'none', background: activeSection === 'styles' ? 'rgba(34,197,94,0.2)' : 'transparent', color: activeSection === 'styles' ? '#4ade80' : 'var(--text-muted)', cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <PalIcon size={16} />
@@ -610,6 +1259,34 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
         {/* Right Settings Inspector Pane */}
         <div style={{ flex: 1, minWidth: 0, paddingLeft: 4, overflowY: 'auto', maxHeight: 420 }}>
           
+          {/* PRESETS SECTION */}
+          {activeSection === 'presets' && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+              <div style={{ fontSize: 11, fontWeight: 800, color: '#ec4899', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Kampany Sablon Presetek</div>
+              <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
+                Valassz az elore elkeszitett, professzionalis elrendezesek es mintaszovegek kozul egy kattintassal.
+              </p>
+              
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 330, overflowY: 'auto', paddingRight: 4 }}>
+                {GLOBAL_PRESETS.map((preset, idx) => {
+                  const isCurrentStyle = selectedStyleId === preset.styleId;
+                  return (
+                    <button key={idx} onClick={() => applyGlobalPreset(preset)}
+                      style={{ width: '100%', padding: '10px 12px', borderRadius: 10, border: `1.5px solid ${isCurrentStyle ? 'rgba(236,72,153,0.5)' : 'var(--border)'}`, background: isCurrentStyle ? 'rgba(236,72,153,0.06)' : 'var(--bg2)', color: 'var(--text)', textAlign: 'left', cursor: 'pointer', transition: 'all 0.15s', display: 'flex', flexDirection: 'column', gap: 4 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                        <span style={{ fontSize: 12, fontWeight: 800, color: isCurrentStyle ? '#f472b6' : 'var(--text)' }}>{preset.name}</span>
+                        <span style={{ fontSize: 9, padding: '2px 6px', borderRadius: 4, background: 'var(--border)', color: 'var(--text-muted)', fontWeight: 700 }}>
+                          {preset.styleId.replace('tailwind-', 'TW ').toUpperCase()}
+                        </span>
+                      </div>
+                      <span style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.3 }}>{preset.description}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
           {/* AI SECTION */}
           {activeSection === 'ai' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -628,8 +1305,21 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
                   style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }}
                 />
               </div>
+              
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 6px 0' }}>
+                <input
+                  type="checkbox"
+                  id="exactTextOnly"
+                  checked={exactTextOnly}
+                  onChange={e => setExactTextOnly(e.target.checked)}
+                  style={{ cursor: 'pointer', width: 15, height: 15, accentColor: '#8b5cf6' }}
+                />
+                <label htmlFor="exactTextOnly" style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)', cursor: 'pointer', userSelect: 'none' }}>
+                  Csak a megadott szöveg használata (szigorú mód)
+                </label>
+              </div>
 
-              <button onClick={handleAILayout} disabled={isGeneratingAI || isRendering}
+              <button onClick={() => handleAILayout(false)} disabled={isGeneratingAI || isRendering}
                 style={{ width: '100%', padding: '12px', borderRadius: 9, border: 'none', background: 'linear-gradient(135deg,#8b5cf6,#ec4899)', color: '#fff', fontSize: 12, fontWeight: 800, cursor: 'pointer', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
                 {isGeneratingAI ? (
                   <>
@@ -642,6 +1332,88 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
                   </>
                 )}
               </button>
+
+              {suggestedStyles && suggestedStyles.length > 0 && (
+                <div style={{ marginTop: 14, display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(255,255,255,0.03)', border: '1px solid var(--border)', borderRadius: 10, padding: 10 }}>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 2 }}>
+                    <div style={{ fontSize: 10, fontWeight: 800, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      ✨ AI Által Javasolt Elrendezések:
+                    </div>
+                    <button
+                      onClick={() => handleAILayout(true)}
+                      disabled={isGeneratingAI || isRendering}
+                      title="Újragondolás / Frissítés"
+                      style={{
+                        background: 'none',
+                        border: 'none',
+                        color: isGeneratingAI ? 'var(--text-muted)' : '#c084fc',
+                        cursor: 'pointer',
+                        fontSize: 10,
+                        fontWeight: 700,
+                        display: 'flex',
+                        alignItems: 'center',
+                        gap: 4,
+                        padding: '2px 6px',
+                        borderRadius: 4,
+                        backgroundColor: 'rgba(192,132,252,0.1)'
+                      }}
+                    >
+                      <RefreshIcon size={10} /> Újragondolás
+                    </button>
+                  </div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 6, maxHeight: 180, overflowY: 'auto', paddingRight: 2 }}>
+                    {suggestedStyles.map((item, idx) => {
+                      let matchedStyle = SATORI_STYLES.find(s => s.id === item.styleId);
+                      if (!matchedStyle) {
+                        matchedStyle = {
+                          id: item.styleId,
+                          name: item.styleId.split('-').map((w: string) => w.charAt(0).toUpperCase() + w.slice(1)).join(' '),
+                          thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #c32226 100%)',
+                          category: 'Satori'
+                        };
+                      }
+                      const isSel = selectedStyleId === item.styleId;
+                      return (
+                        <button
+                          key={idx}
+                          onClick={() => selectStyle(item.styleId)}
+                          style={{
+                            width: '100%',
+                            padding: '8px 10px',
+                            borderRadius: 8,
+                            border: `1.5px solid ${isSel ? '#a78bfa' : 'transparent'}`,
+                            background: isSel ? 'rgba(167,139,250,0.1)' : 'rgba(255,255,255,0.02)',
+                            color: 'var(--text)',
+                            textAlign: 'left',
+                            cursor: 'pointer',
+                            transition: 'all 0.15s',
+                            display: 'flex',
+                            flexDirection: 'column',
+                            gap: 4
+                          }}
+                        >
+                          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', width: '100%' }}>
+                            <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                              <div style={{ width: 14, height: 14, borderRadius: 3, background: matchedStyle.thumbGrad }} />
+                              <span style={{ fontSize: 11, fontWeight: 800, color: isSel ? '#c084fc' : 'var(--text)' }}>
+                                {matchedStyle.name}
+                              </span>
+                            </div>
+                            <span style={{ fontSize: 8, padding: '2px 5px', borderRadius: 4, background: 'rgba(255,255,255,0.08)', color: 'var(--text-muted)', fontWeight: 700 }}>
+                              {matchedStyle.category.replace('tailwind-', 'TW ').toUpperCase()}
+                            </span>
+                          </div>
+                          {item.reason && (
+                            <span style={{ fontSize: 9, color: 'var(--text-muted)', lineHeight: 1.3 }}>
+                              {item.reason}
+                            </span>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
             </div>
           )}
 
@@ -649,8 +1421,29 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
           {activeSection === 'styles' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Satori Stilusok</div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6 }}>
-                {SATORI_STYLES.map(s => {
+              
+              {/* Category tabs */}
+              <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 4, borderBottom: '1.5px solid var(--border)' }}>
+                {(['all', 'tailwind-basic', 'tailwind-custom', 'tailwind-internet', 'legacy'] as const).map(tab => {
+                  const getTabLabel = (t: string) => {
+                    if (t === 'all') return 'Összes';
+                    if (t === 'tailwind-basic') return 'TW Alap';
+                    if (t === 'tailwind-custom') return 'TW Egyedi';
+                    if (t === 'tailwind-internet') return 'TW Web';
+                    return 'Eredeti';
+                  };
+                  const isSel = styleTab === tab;
+                  return (
+                    <button key={tab} onClick={() => setStyleTab(tab)}
+                      style={{ padding: '4px 8px', borderRadius: 6, border: 'none', background: isSel ? 'rgba(74,222,128,0.15)' : 'transparent', color: isSel ? '#4ade80' : 'var(--text-muted)', fontSize: 10, fontWeight: 800, cursor: 'pointer', whiteSpace: 'nowrap', transition: 'all 0.15s' }}>
+                      {getTabLabel(tab)}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 6, maxHeight: 220, overflowY: 'auto', paddingRight: 2 }}>
+                {SATORI_STYLES.filter(s => styleTab === 'all' || s.category === styleTab).map(s => {
                   const isSel = selectedStyleId === s.id;
                   return (
                     <button key={s.id} onClick={() => selectStyle(s.id)}
@@ -682,6 +1475,10 @@ export function SatoriEditorPanel({ baseImageUrl, onRendered, prompt = '', subje
               <div style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={lbl}>Látható Elemek</div>
                 <div style={{ display: 'flex', flexWrap: 'wrap', gap: 10 }}>
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: 'var(--text)', cursor: 'pointer' }}>
+                    <input type="checkbox" checked={showBrandName} onChange={() => { if (brandNameIdx !== -1) toggleLayerVisibility(brandNameIdx); }} style={{ cursor: 'pointer' }} />
+                    Márkamegnevezés
+                  </label>
                   <label style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 11, fontWeight: 700, color: 'var(--text)', cursor: 'pointer' }}>
                     <input type="checkbox" checked={showBorder} onChange={e => { setShowBorder(e.target.checked); stateRef.current.showBorder = e.target.checked; handleRender(); }} style={{ cursor: 'pointer' }} />
                     Keret

@@ -1,0 +1,731 @@
+{
+  "preset_id": 248,
+  "title": "Creative Tech",
+  "cover": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/presets/248.jpg",
+  "tags": [
+    "Open Graph",
+    "Article"
+  ],
+  "canvas": {
+    "id": "0",
+    "type": "canvas",
+    "name": "element-7517",
+    "opacity": 100,
+    "meta": {
+      "title": "Creative Tech"
+    },
+    "editor": {
+      "canChangeAspectRatio": false,
+      "show_in_form": true
+    },
+    "fields": {
+      "background": {
+        "field": true,
+        "type": "image",
+        "content": {
+          "imageSrc": "upload",
+          "imageUrl": null,
+          "imageId": null,
+          "browserViewport": {
+            "width": 1280,
+            "height": 800
+          }
+        },
+        "display": {
+          "borderRadius": 0,
+          "backgroundSize": "cover",
+          "backgroundPositionVertical": "center",
+          "backgroundPositionHorizontal": "center"
+        }
+      },
+      "backgroundColor": {
+        "field": true,
+        "type": "color",
+        "content": {
+          "color": {
+            "rgba": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 1
+            },
+            "hex": "#FFFFFF"
+          }
+        },
+        "display": {
+          "displayType": "color"
+        }
+      }
+    },
+    "canvasHeight": 630,
+    "canvasWidth": 1200,
+    "transparent": false
+  },
+  "items": [
+    {
+      "id": "vzom0bw5",
+      "type": "rectangle",
+      "version": 3,
+      "name": "bg",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 0,
+          "top": 0
+        },
+        "rotation": 0,
+        "size": {
+          "width": 1200,
+          "height": 630
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "rectangleStyle": "default",
+            "borderRadius": 0,
+            "borderWidth": 1
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 27,
+                "g": 235,
+                "b": 187,
+                "a": 1
+              },
+              "hex": "#1BEBBB",
+              "hex8": "#1BEBBBFF"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 9
+    },
+    {
+      "id": "9lvwrrjz",
+      "type": "rectangle",
+      "version": 3,
+      "name": "pattern-globe",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 594,
+          "top": 34
+        },
+        "rotation": 0,
+        "size": {
+          "width": 562,
+          "height": 562
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": false,
+        "show_in_form": false
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "rectangleStyle": "default",
+            "borderRadius": 562,
+            "borderWidth": 1
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 245,
+                "g": 245,
+                "b": 245,
+                "a": 1
+              },
+              "hex": "#f5f5f5"
+            }
+          },
+          "display": {
+            "displayType": "gradient_linear"
+          },
+          "linearGradientAngle": 292,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": [
+            {
+              "color_hex": "#FFFFFF80",
+              "stop": 0
+            },
+            {
+              "color_hex": "#00000000",
+              "stop": 80
+            }
+          ]
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 8,
+      "effects": []
+    },
+    {
+      "id": "dplpqk3r",
+      "type": "picture",
+      "version": 3,
+      "name": "pattern-x",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 0,
+          "top": 437
+        },
+        "rotation": 0,
+        "size": {
+          "width": 350,
+          "height": 350
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": false,
+        "show_in_form": false
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 800
+            },
+            "imageUUID": "df2c367c-c925-4432-9a57-389a4ba05003"
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "zIndex": 7
+    },
+    {
+      "id": "sqnvz3ur",
+      "type": "rectangle",
+      "version": 3,
+      "name": "button",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 475,
+          "top": 454
+        },
+        "rotation": 0,
+        "size": {
+          "width": 250,
+          "height": 80
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "rectangleStyle": "default",
+            "borderRadius": 250,
+            "borderWidth": 1
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 36,
+                "g": 34,
+                "b": 34,
+                "a": 1
+              },
+              "hex": "#242222",
+              "hex8": "#242222FF"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 6,
+      "has_boxshadow": false,
+      "boxShadow": [
+        {
+          "inset": false,
+          "drop": false,
+          "offsetX": 0,
+          "offsetY": 0,
+          "blurRadius": 30,
+          "spread": 0,
+          "color": {
+            "r": 255,
+            "g": 255,
+            "b": 255,
+            "a": 0.1
+          }
+        }
+      ]
+    },
+    {
+      "id": "gyprq2ph",
+      "type": "text",
+      "version": 3,
+      "name": "button text",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 502,
+          "top": 466
+        },
+        "rotation": 0,
+        "size": {
+          "width": 196,
+          "height": 55
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "Discover now"
+          },
+          "display": {
+            "wordBreak": "normal",
+            "textTransform": "none",
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "22",
+            "lineHeight": 28.6,
+            "lineHeightMode": "normal",
+            "letterSpacing": 0,
+            "fontWeight": 400,
+            "style": "fitty",
+            "fontFamily": "spacemono-bold",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textShadow": []
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "hex8": "#FFFFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 5,
+      "has_textshadow": true
+    },
+    {
+      "id": "gir6o1s3",
+      "type": "text",
+      "version": 3,
+      "name": "title",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 125,
+          "top": 160
+        },
+        "rotation": 0,
+        "size": {
+          "width": 950,
+          "height": 260
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "5 techniques for teachers to encourage creative thinking"
+          },
+          "display": {
+            "wordBreak": "normal",
+            "textTransform": "none",
+            "textAlign": "center",
+            "verticalAlign": "top",
+            "fontSize": "70",
+            "lineHeight": 82,
+            "lineHeightMode": "custom",
+            "letterSpacing": 0,
+            "fontWeight": 400,
+            "style": "fitty",
+            "fontFamily": "spacemono-bold",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textShadow": []
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "hex8": "#FFFFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 4,
+      "has_textshadow": false
+    },
+    {
+      "id": "dky54xwd",
+      "type": "text",
+      "version": 3,
+      "name": "subline",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 125,
+          "top": 105
+        },
+        "rotation": 0,
+        "size": {
+          "width": 950,
+          "height": 45
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "Learning Behaviours"
+          },
+          "display": {
+            "wordBreak": "normal",
+            "textTransform": "uppercase",
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "22",
+            "lineHeight": 28.6,
+            "lineHeightMode": "normal",
+            "letterSpacing": 0,
+            "fontWeight": 400,
+            "style": "fitty",
+            "fontFamily": "spacemono-bold",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textShadow": []
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "hex8": "#FFFFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 3,
+      "has_textshadow": false
+    }
+  ],
+  "snippet": "<!-- Open Graph Image - Add to <head>-->\n<meta property=\"og:image\" content=\"https://api.placid.app/u/fytygupokp5qf?bg=%24DEFAULT%24&pattern-globe=%24DEFAULT%24&pattern-x=%24DEFAULT%24&button=%24DEFAULT%24&button+text=%24DEFAULT%24&title=%24DEFAULT%24&subline=%24DEFAULT%24\"/>\n<meta property=\"og:image:height\" content=\"630\"/>\n<meta property=\"og:image:width\" content=\"1200\"/>\n\n<!-- Twitter Card Image - Add to <head> -->\n<meta property=\"twitter:image\" content=\"https://api.placid.app/u/fytygupokp5qf?bg=%24DEFAULT%24&pattern-globe=%24DEFAULT%24&pattern-x=%24DEFAULT%24&button=%24DEFAULT%24&button+text=%24DEFAULT%24&title=%24DEFAULT%24&subline=%24DEFAULT%24\"/>\n<meta name=\"twitter:card\" content=\"summary_large_image\">\n\n<!-- (Hidden) Pinterest Image - Add wherever you want in your content-->\n<img style=\"display:none\" src=\"https://api.placid.app/u/fytygupokp5qf?bg=%24DEFAULT%24&pattern-globe=%24DEFAULT%24&pattern-x=%24DEFAULT%24&button=%24DEFAULT%24&button+text=%24DEFAULT%24&title=%24DEFAULT%24&subline=%24DEFAULT%24\" data-pin-description=\"Pin Description\" data-pin-url=\"http://yourposturl.com\"/>\n"
+}

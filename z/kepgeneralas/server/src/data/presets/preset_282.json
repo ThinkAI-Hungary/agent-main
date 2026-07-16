@@ -1,0 +1,575 @@
+{
+  "preset_id": 282,
+  "title": "Meshy Quote",
+  "cover": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/presets/282.jpg",
+  "tags": [
+    "Feed Square",
+    "Quote"
+  ],
+  "canvas": {
+    "id": "0",
+    "type": "canvas",
+    "name": "element-5473",
+    "opacity": 100,
+    "meta": {
+      "title": "Meshy Quote"
+    },
+    "editor": {
+      "canChangeAspectRatio": false,
+      "show_in_form": true
+    },
+    "fields": {
+      "background": {
+        "field": true,
+        "type": "image",
+        "content": {
+          "imageSrc": "upload",
+          "imageUrl": null,
+          "imageId": null,
+          "browserViewport": {
+            "width": 1280,
+            "height": 800
+          }
+        },
+        "display": {
+          "borderRadius": 0,
+          "backgroundSize": "cover",
+          "backgroundPositionVertical": "center",
+          "backgroundPositionHorizontal": "center"
+        }
+      },
+      "backgroundColor": {
+        "field": true,
+        "type": "color",
+        "content": {
+          "color": {
+            "rgba": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 1
+            },
+            "hex": "#FFFFFF",
+            "hex8": "#FFFFFFFF"
+          }
+        },
+        "display": {
+          "displayType": "color"
+        },
+        "linearGradientAngle": 0,
+        "radialPositionHorizontal": "50%",
+        "radialPositionVertical": "50%",
+        "segments": []
+      }
+    },
+    "canvasHeight": 1200,
+    "canvasWidth": 1200,
+    "transparent": false
+  },
+  "items": [
+    {
+      "id": "8y4m8t08",
+      "type": "picture",
+      "version": 3,
+      "name": "bg img",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 0,
+          "top": 0
+        },
+        "rotation": 0,
+        "size": {
+          "width": 1200,
+          "height": 1200
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": false
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 800
+            },
+            "imageUUID": "9d061d3d-bc4c-4ede-b6ab-2444e114e74a"
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "zIndex": 5
+    },
+    {
+      "id": "3ur5m8vm",
+      "type": "rectangle",
+      "version": 3,
+      "name": "frame",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 100,
+          "top": 140
+        },
+        "rotation": 0,
+        "size": {
+          "width": 1000,
+          "height": 920
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": false
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "rectangleStyle": "default",
+            "borderRadius": 0,
+            "borderWidth": "5"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 0,
+                "g": 0,
+                "b": 0,
+                "a": 0
+              },
+              "hex": "#000000",
+              "hex8": "#00000000"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 36,
+                "g": 36,
+                "b": 36,
+                "a": 1
+              },
+              "hex": "#242424",
+              "hex8": "#242424"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        }
+      },
+      "has_border": true,
+      "zIndex": 3
+    },
+    {
+      "id": "oej1ytdn",
+      "type": "rectangle",
+      "version": 3,
+      "name": "titlebar",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 100,
+          "top": 140
+        },
+        "rotation": 0,
+        "size": {
+          "width": 1000,
+          "height": 100
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": false
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "rectangleStyle": "default",
+            "borderRadius": 0,
+            "borderWidth": "5"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 0,
+                "g": 0,
+                "b": 0,
+                "a": 0
+              },
+              "hex": "#000000",
+              "hex8": "#00000000"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 36,
+                "g": 36,
+                "b": 36,
+                "a": 1
+              },
+              "hex": "#242424",
+              "hex8": "#242424"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        }
+      },
+      "has_border": true,
+      "zIndex": 2
+    },
+    {
+      "id": "9jb9qkdr",
+      "type": "text",
+      "version": 3,
+      "name": "quote",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 190,
+          "top": 330
+        },
+        "rotation": 0,
+        "size": {
+          "width": 820,
+          "height": 630
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "You are not a drop in the ocean. You are the entire ocean, in a drop.\n"
+          },
+          "display": {
+            "wordBreak": "normal",
+            "textTransform": "none",
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "70",
+            "lineHeight": 91,
+            "lineHeightMode": "normal",
+            "letterSpacing": 0,
+            "fontWeight": 400,
+            "style": "fitty",
+            "fontFamily": "spacemono-bold",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textShadow": []
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 36,
+                "g": 36,
+                "b": 36,
+                "a": 1
+              },
+              "hex": "#242424",
+              "hex8": "#242424FF"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 1,
+      "has_textshadow": false
+    },
+    {
+      "id": "a513xxtx",
+      "type": "picture",
+      "version": 3,
+      "name": "x",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 1015,
+          "top": 160
+        },
+        "rotation": 0,
+        "size": {
+          "width": 60,
+          "height": 60
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": false,
+        "show_in_form": false
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 800
+            },
+            "imageUUID": "d7c5b09f-9240-47a4-b850-32c03fce507d"
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      }
+    },
+    {
+      "id": "99ascnhg",
+      "type": "text",
+      "version": 3,
+      "name": "author",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 135,
+          "top": 160
+        },
+        "rotation": 0,
+        "size": {
+          "width": 400,
+          "height": 55
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "—Rumi"
+          },
+          "display": {
+            "wordBreak": "normal",
+            "textTransform": "none",
+            "textAlign": "left",
+            "verticalAlign": "middle",
+            "fontSize": "30",
+            "lineHeight": 39,
+            "lineHeightMode": "normal",
+            "letterSpacing": 0,
+            "fontWeight": 400,
+            "style": "fitty",
+            "fontFamily": "spacemono-bold",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textShadow": []
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 36,
+                "g": 36,
+                "b": 36,
+                "a": 1
+              },
+              "hex": "#242424",
+              "hex8": "#242424FF"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 1,
+      "has_textshadow": false
+    }
+  ],
+  "snippet": "<!-- Open Graph Image - Add to <head>-->\n<meta property=\"og:image\" content=\"https://api.placid.app/u/f61en7qej52c7?bg+img=%24DEFAULT%24&frame=%24DEFAULT%24&titlebar=%24DEFAULT%24&quote=%24DEFAULT%24&x=%24DEFAULT%24&author=%24DEFAULT%24\"/>\n<meta property=\"og:image:height\" content=\"1200\"/>\n<meta property=\"og:image:width\" content=\"1200\"/>\n\n<!-- Twitter Card Image - Add to <head> -->\n<meta property=\"twitter:image\" content=\"https://api.placid.app/u/f61en7qej52c7?bg+img=%24DEFAULT%24&frame=%24DEFAULT%24&titlebar=%24DEFAULT%24&quote=%24DEFAULT%24&x=%24DEFAULT%24&author=%24DEFAULT%24\"/>\n<meta name=\"twitter:card\" content=\"summary_large_image\">\n\n<!-- (Hidden) Pinterest Image - Add wherever you want in your content-->\n<img style=\"display:none\" src=\"https://api.placid.app/u/f61en7qej52c7?bg+img=%24DEFAULT%24&frame=%24DEFAULT%24&titlebar=%24DEFAULT%24&quote=%24DEFAULT%24&x=%24DEFAULT%24&author=%24DEFAULT%24\" data-pin-description=\"Pin Description\" data-pin-url=\"http://yourposturl.com\"/>\n"
+}

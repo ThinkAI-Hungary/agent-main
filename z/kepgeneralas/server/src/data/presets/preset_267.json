@@ -1,0 +1,650 @@
+{
+  "preset_id": 267,
+  "title": "Real Estate - Romantic",
+  "cover": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/presets/267.jpg",
+  "tags": [
+    "Story",
+    "Real Estate"
+  ],
+  "canvas": {
+    "id": "0",
+    "type": "canvas",
+    "name": "element-3775",
+    "opacity": 100,
+    "meta": {
+      "title": "Real Estate - Romantic"
+    },
+    "editor": {
+      "canChangeAspectRatio": false,
+      "show_in_form": true
+    },
+    "fields": {
+      "background": {
+        "field": true,
+        "type": "image",
+        "content": {
+          "imageSrc": "upload",
+          "imageUrl": null,
+          "imageId": null,
+          "browserViewport": {
+            "width": 1280,
+            "height": 800
+          }
+        },
+        "display": {
+          "borderRadius": 0,
+          "backgroundSize": "cover",
+          "backgroundPositionVertical": "center",
+          "backgroundPositionHorizontal": "center"
+        }
+      },
+      "backgroundColor": {
+        "field": true,
+        "type": "color",
+        "content": {
+          "color": {
+            "rgba": {
+              "r": 191,
+              "g": 202,
+              "b": 195,
+              "a": 1
+            },
+            "hex": "#BFCAC3",
+            "hex8": "#BFCAC3FF"
+          }
+        },
+        "display": {
+          "displayType": "color"
+        },
+        "linearGradientAngle": 0,
+        "radialPositionHorizontal": "50%",
+        "radialPositionVertical": "50%",
+        "segments": []
+      }
+    },
+    "canvasHeight": 1920,
+    "canvasWidth": 1080,
+    "transparent": false
+  },
+  "items": [
+    {
+      "id": "h2xra4er",
+      "type": "picture",
+      "version": 3,
+      "name": "photo bottom",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 115,
+          "top": 990
+        },
+        "rotation": 0,
+        "size": {
+          "width": 850,
+          "height": 850
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": false,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 800
+            },
+            "imageUUID": "7a1909a3-9e3e-4431-8e0e-14df2f4d8012"
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center",
+            "borderWidth": "4"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "hex8": "#FFFFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        }
+      },
+      "zIndex": 6,
+      "has_border": true
+    },
+    {
+      "id": "lwnx4u3f",
+      "type": "picture",
+      "version": 3,
+      "name": "photo top",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 115,
+          "top": 80
+        },
+        "rotation": 0,
+        "size": {
+          "width": 850,
+          "height": 850
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": false,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 800
+            },
+            "imageUUID": "7d2e9eba-4695-4254-ad92-7f6c20056624"
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center",
+            "borderWidth": "4"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "hex8": "#FFFFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        }
+      },
+      "zIndex": 5,
+      "has_border": true
+    },
+    {
+      "id": "jlh94t4b",
+      "type": "rectangle",
+      "version": 3,
+      "name": "banner",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 190,
+          "top": 825
+        },
+        "rotation": 0,
+        "size": {
+          "width": 700,
+          "height": 270
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": false
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "rectangleStyle": "default",
+            "borderRadius": 0,
+            "borderWidth": 1
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "hex8": "#FFFFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "has_boxshadow": true,
+      "boxShadow": [
+        {
+          "inset": false,
+          "drop": false,
+          "offsetX": 0,
+          "offsetY": 0,
+          "blurRadius": 20,
+          "spread": 0,
+          "color": {
+            "r": 0,
+            "g": 0,
+            "b": 0,
+            "a": 0.1
+          }
+        }
+      ],
+      "zIndex": 4
+    },
+    {
+      "id": "swaxnxhn",
+      "type": "text",
+      "version": 3,
+      "name": "new",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 247,
+          "top": 908
+        },
+        "rotation": 0,
+        "size": {
+          "width": 282,
+          "height": 70
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": false
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "New listing"
+          },
+          "display": {
+            "wordBreak": "normal",
+            "textTransform": "uppercase",
+            "textAlign": "left",
+            "verticalAlign": "middle",
+            "fontSize": "40",
+            "lineHeight": 52,
+            "lineHeightMode": "normal",
+            "letterSpacing": 0,
+            "fontWeight": 400,
+            "style": "fitty",
+            "fontFamily": "notosans-bold",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textShadow": []
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 0,
+                "g": 0,
+                "b": 0,
+                "a": 1
+              },
+              "hex": "#000"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 3,
+      "has_textshadow": false
+    },
+    {
+      "id": "f6lo6vkq",
+      "type": "text",
+      "version": 3,
+      "name": "type",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 545,
+          "top": 857
+        },
+        "rotation": 0,
+        "size": {
+          "width": 300,
+          "height": 210
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "for rent"
+          },
+          "display": {
+            "wordBreak": "normal",
+            "textTransform": "none",
+            "textAlign": "left",
+            "verticalAlign": "middle",
+            "fontSize": "120",
+            "lineHeight": 156,
+            "lineHeightMode": "normal",
+            "letterSpacing": 0,
+            "fontWeight": 400,
+            "style": "fitty",
+            "fontFamily": "sacramento-regular",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textShadow": []
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 0,
+                "g": 0,
+                "b": 0,
+                "a": 1
+              },
+              "hex": "#000"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 2,
+      "has_textshadow": false
+    },
+    {
+      "id": "plksu6po",
+      "type": "text",
+      "version": 3,
+      "name": "details",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 245,
+          "top": 966
+        },
+        "rotation": 0,
+        "size": {
+          "width": 267,
+          "height": 40
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "CA 94105  | 2 Bed | 1 Bath"
+          },
+          "display": {
+            "wordBreak": "normal",
+            "textTransform": "uppercase",
+            "textAlign": "left",
+            "verticalAlign": "middle",
+            "fontSize": "20",
+            "lineHeight": 26,
+            "lineHeightMode": "normal",
+            "letterSpacing": 0,
+            "fontWeight": 400,
+            "style": "fitty",
+            "fontFamily": "notosans",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textShadow": []
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 0,
+                "g": 0,
+                "b": 0,
+                "a": 1
+              },
+              "hex": "#000"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 1,
+      "has_textshadow": false
+    }
+  ],
+  "snippet": "<!-- Open Graph Image - Add to <head>-->\n<meta property=\"og:image\" content=\"https://api.placid.app/u/nmx0ybferltdo?photo+bottom=%24DEFAULT%24&photo+top=%24DEFAULT%24&banner=%24DEFAULT%24&new=%24DEFAULT%24&type=%24DEFAULT%24&details=%24DEFAULT%24\"/>\n<meta property=\"og:image:height\" content=\"1920\"/>\n<meta property=\"og:image:width\" content=\"1080\"/>\n\n<!-- Twitter Card Image - Add to <head> -->\n<meta property=\"twitter:image\" content=\"https://api.placid.app/u/nmx0ybferltdo?photo+bottom=%24DEFAULT%24&photo+top=%24DEFAULT%24&banner=%24DEFAULT%24&new=%24DEFAULT%24&type=%24DEFAULT%24&details=%24DEFAULT%24\"/>\n<meta name=\"twitter:card\" content=\"summary_large_image\">\n\n<!-- (Hidden) Pinterest Image - Add wherever you want in your content-->\n<img style=\"display:none\" src=\"https://api.placid.app/u/nmx0ybferltdo?photo+bottom=%24DEFAULT%24&photo+top=%24DEFAULT%24&banner=%24DEFAULT%24&new=%24DEFAULT%24&type=%24DEFAULT%24&details=%24DEFAULT%24\" data-pin-description=\"Pin Description\" data-pin-url=\"http://yourposturl.com\"/>\n"
+}

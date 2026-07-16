@@ -1,0 +1,724 @@
+{
+  "preset_id": 44,
+  "title": "Romantic - Grid",
+  "cover": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/presets/44.jpg",
+  "tags": [
+    "Pinterest",
+    "Article"
+  ],
+  "canvas": {
+    "id": "0",
+    "type": "canvas",
+    "name": "element-9364",
+    "opacity": 100,
+    "meta": {
+      "title": "Romantic - Grid"
+    },
+    "editor": {
+      "canChangeAspectRatio": false
+    },
+    "fields": {
+      "background": {
+        "field": true,
+        "type": "image",
+        "content": {
+          "imageSrc": "upload",
+          "imageUrl": null,
+          "imageId": null,
+          "browserViewport": {
+            "width": 1280,
+            "height": 800
+          }
+        },
+        "display": {
+          "backgroundSize": "cover",
+          "backgroundPositionVertical": "center",
+          "backgroundPositionHorizontal": "center"
+        }
+      },
+      "backgroundColor": {
+        "field": true,
+        "type": "color",
+        "content": {
+          "color": {
+            "rgba": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 1
+            },
+            "hex": "#FFFFFF"
+          }
+        },
+        "display": {
+          "displayType": "color"
+        }
+      }
+    },
+    "canvasHeight": 1500,
+    "canvasWidth": 1000
+  },
+  "items": [
+    {
+      "id": "id-0",
+      "type": "picture",
+      "name": "img-top-left",
+      "opacity": 100,
+      "meta": {
+        "title": "Image Top Left"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 0,
+          "top": 0
+        },
+        "size": {
+          "width": 490,
+          "height": 740
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": false,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            },
+            "imageUUID": "db06933e-0ef7-44ee-bb96-919b1e185343"
+          },
+          "display": {
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center",
+            "borderRadius": 0
+          }
+        }
+      },
+      "version": 3
+    },
+    {
+      "id": "id-2",
+      "type": "picture",
+      "name": "img-top-right",
+      "opacity": 100,
+      "meta": {
+        "title": "Image Top Right"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 510,
+          "top": 0
+        },
+        "size": {
+          "width": 490,
+          "height": 740
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": false,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            },
+            "imageUUID": "8c0507fa-bd22-4bc5-964b-d20d2eebc758"
+          },
+          "display": {
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center",
+            "borderRadius": 0
+          }
+        }
+      },
+      "version": 3
+    },
+    {
+      "id": "id-4",
+      "type": "picture",
+      "name": "img-bottom-left",
+      "opacity": 100,
+      "meta": {
+        "title": "Image Bottom Left"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 0,
+          "top": 760
+        },
+        "size": {
+          "width": 490,
+          "height": 740
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": false,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            },
+            "imageUUID": "6943d135-25c1-49b0-b6ce-ba54ba560cad"
+          },
+          "display": {
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center",
+            "borderRadius": 0
+          }
+        }
+      },
+      "version": 3
+    },
+    {
+      "id": "id-6",
+      "type": "picture",
+      "name": "img-bottom-right",
+      "opacity": 100,
+      "meta": {
+        "title": "Image Bottom Right"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 510,
+          "top": 760
+        },
+        "size": {
+          "width": 490,
+          "height": 740
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": false,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            },
+            "imageUUID": "c3c1e780-5023-4689-8e7e-5f578b4ae9a9"
+          },
+          "display": {
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center",
+            "borderRadius": 0
+          }
+        }
+      },
+      "version": 3
+    },
+    {
+      "id": "id-8",
+      "type": "rectangle",
+      "name": "box",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 110,
+          "top": 525
+        },
+        "size": {
+          "width": 780,
+          "height": 450
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": null
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "borderRadius": 0
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 1,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hsv": {
+                "h": 0,
+                "s": 0,
+                "v": 1,
+                "a": 1
+              },
+              "oldHue": 0,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "version": 3
+    },
+    {
+      "id": "id-10",
+      "type": "text",
+      "name": "title",
+      "opacity": 100,
+      "meta": {
+        "title": "Title"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 200,
+          "top": 600
+        },
+        "size": {
+          "width": 600,
+          "height": 280
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "50 Ideas for a Simple & Natural Wedding Theme"
+          },
+          "display": {
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "70",
+            "lineHeight": 82,
+            "fontWeight": "700",
+            "style": "fitty",
+            "fontFamily": "playfairdisplay-bold",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textTransform": "none",
+            "lineHeightMode": "custom"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 0.1803921568627451,
+                "a": 1
+              },
+              "hex": "#2E2E2E",
+              "rgba": {
+                "r": 46,
+                "g": 46,
+                "b": 46,
+                "a": 1
+              },
+              "hsv": {
+                "h": 0,
+                "s": 0,
+                "v": 0.1803921568627451,
+                "a": 1
+              },
+              "oldHue": 0,
+              "source": "hex",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "version": 3
+    },
+    {
+      "id": "id-12",
+      "type": "rectangle",
+      "name": "box-url",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 350,
+          "top": 1380
+        },
+        "size": {
+          "width": "300",
+          "height": 70
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": null
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "borderRadius": 0
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 1,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hsv": {
+                "h": 0,
+                "s": 0,
+                "v": 1,
+                "a": 1
+              },
+              "oldHue": 0,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "version": 3
+    },
+    {
+      "id": "id-14",
+      "type": "text",
+      "name": "url",
+      "opacity": 100,
+      "meta": {
+        "title": "URL"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 357,
+          "top": 1395
+        },
+        "size": {
+          "width": "285",
+          "height": 35
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "love.ly"
+          },
+          "display": {
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "25",
+            "lineHeight": 26,
+            "fontWeight": 800,
+            "style": "fitty",
+            "fontFamily": "opensans-extrabold",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textTransform": "uppercase"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 0.4196078431372549,
+                "a": 1
+              },
+              "hex": "#6B6B6B",
+              "rgba": {
+                "r": 107,
+                "g": 107,
+                "b": 107,
+                "a": 1
+              },
+              "hsv": {
+                "h": 0,
+                "s": 0,
+                "v": 0.4196078431372549,
+                "a": 1
+              },
+              "oldHue": 0,
+              "source": "hex",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 1,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hsv": {
+                "h": 0,
+                "s": 0,
+                "v": 1,
+                "a": 1
+              },
+              "oldHue": 0,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "version": 3
+    },
+    {
+      "id": "id-16",
+      "type": "watermark",
+      "name": "watermark-0",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "580",
+          "top": "30"
+        },
+        "size": {
+          "width": "185",
+          "height": "70"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": null
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": 256,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            }
+          },
+          "display": {
+            "backgroundSize": "contain",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "version": 3
+    }
+  ],
+  "snippet": "<!-- Open Graph Image - Add to <head>-->\n<meta property=\"og:image\" content=\"https://api.placid.app/u/m0okanlig9pyd?img-top-left=%24DEFAULT%24&img-top-right=%24DEFAULT%24&img-bottom-left=%24DEFAULT%24&img-bottom-right=%24DEFAULT%24&box=%24DEFAULT%24&title=%24DEFAULT%24&box-url=%24DEFAULT%24&url=%24DEFAULT%24\"/>\n<meta property=\"og:image:height\" content=\"1500\"/>\n<meta property=\"og:image:width\" content=\"1000\"/>\n\n<!-- Twitter Card Image - Add to <head> -->\n<meta property=\"twitter:image\" content=\"https://api.placid.app/u/m0okanlig9pyd?img-top-left=%24DEFAULT%24&img-top-right=%24DEFAULT%24&img-bottom-left=%24DEFAULT%24&img-bottom-right=%24DEFAULT%24&box=%24DEFAULT%24&title=%24DEFAULT%24&box-url=%24DEFAULT%24&url=%24DEFAULT%24\"/>\n<meta name=\"twitter:card\" content=\"summary_large_image\">\n\n<!-- (Hidden) Pinterest Image - Add wherever you want in your content-->\n<img style=\"display:none\" src=\"https://api.placid.app/u/m0okanlig9pyd?img-top-left=%24DEFAULT%24&img-top-right=%24DEFAULT%24&img-bottom-left=%24DEFAULT%24&img-bottom-right=%24DEFAULT%24&box=%24DEFAULT%24&title=%24DEFAULT%24&box-url=%24DEFAULT%24&url=%24DEFAULT%24\" data-pin-description=\"Pin Description\" data-pin-url=\"http://yourposturl.com\"/>\n"
+}

@@ -11,6 +11,7 @@ import { useNavigate } from 'react-router-dom';
 import { showToast } from '../../../../components/ui/Toast';
 import ImageSlotUploader, { type ImageSlot } from './ImageSlotUploader';
 import { SatoriEditorPanel } from './SatoriEditorPanel';
+import PlacidEditorPanel from './PlacidEditorPanel';
 import '../zombo.css';
 
 // ── ErrorBoundary: ha a component crashel, megmutatja a hibat (nem fekete kepernyo) ──
@@ -130,6 +131,21 @@ interface Result {
   elapsed?: number;
   mode: ModeId;
   productAnalysis?: string; // smart mode: Claude Vision leiras
+  decomposedLayerText?: string;
+  decomposedLayerCta?: string;
+  suggestedStyles?: { styleId: string; reason: string }[];
+  productPosition?: {
+    left: number;
+    top: number;
+    width: number;
+    height: number;
+    normalized: {
+      xmin: number;
+      xmax: number;
+      ymin: number;
+      ymax: number;
+    };
+  } | null;
 }
 
 const API = (import.meta as any).env?.VITE_KEPGENERALAS_API_URL || 'http://localhost:3001';
@@ -148,12 +164,13 @@ const sInput: React.CSSProperties = {
 };
 
 // ═══════════════════════════════════════════════════════════════════════════════
-function ZomboQuickPostPageInner() {
+function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean }) {
   const navigate = useNavigate();
 
   const [imageSlots, setImageSlots] = useState<ImageSlot[]>([]);
   const [prompt, setPrompt]         = useState('');
   const [mode, setMode]             = useState<ModeId>('standard');
+  const [exactTextOnly, setExactTextOnly] = useState(false);
   const [brandName, setBrandName]   = useState('');
   const [isLoading, setIsLoading]   = useState(false);
   const [statusMsg, setStatusMsg]   = useState('');
@@ -174,6 +191,7 @@ function ZomboQuickPostPageInner() {
     }
   );
   const [pinnedLoaded, setPinnedLoaded] = useState(false); // debug: betoltott-e mar
+  const [editorMode, setEditorMode] = useState<'satori' | 'placid'>('satori');
 
   const isPreprocessing = imageSlots.some(
     s => s.preprocessLoading || s.analysisLoading || s.upscaleLoading
@@ -228,6 +246,7 @@ function ZomboQuickPostPageInner() {
           brandKit: brandName ? { name: brandName, visualRules: [], tone: [] } : undefined,
           preserveOriginal: false,              // KULCS: FLUX teljesen újat generál, NEM paste-el
           productAwareBg: true,                 // Claude Vision elemzi a termeket → fizika-alapú jelenet
+          exactTextOnly,
           aspectRatio: '2:3',
           width: 1024,
           height: 1536,
@@ -245,7 +264,15 @@ function ZomboQuickPostPageInner() {
 
         const smartRaw = smartData.imageUrl || '';
         const smartUrl = smartRaw.startsWith('http') ? smartRaw : `${API}${smartRaw}`;
-        setResult({ imageUrl: smartUrl, elapsed: smartData.generationTime, mode: 'smart' });
+        setResult({
+          imageUrl: smartUrl,
+          elapsed: smartData.generationTime,
+          mode: 'smart',
+          decomposedLayerText: smartData.decomposedLayerText,
+          decomposedLayerCta: smartData.decomposedLayerCta,
+          suggestedStyles: smartData.suggestedStyles,
+          productPosition: smartData.productPosition
+        });
         showToast({ title: 'Kesz!', message: 'Termek-tudatos jelenet generalva. Satori layerekre kesz!', type: 'success' });
 
       } else if (mode === 'textpreserve') {
@@ -291,6 +318,7 @@ function ZomboQuickPostPageInner() {
           brandKit: brandName ? { name: brandName, visualRules: [], tone: [] } : undefined,
           preserveOriginal: true,
           productAwareBg: false,
+          exactTextOnly,
           aspectRatio: '2:3',
           width: 1024,
           height: 1536,
@@ -308,7 +336,16 @@ function ZomboQuickPostPageInner() {
 
         const raw = data.imageUrl || '';
         const imageUrl = raw.startsWith('http') ? raw : `${API}${raw}`;
-        setResult({ imageUrl, caption: data.caption, elapsed: data.generationTime, mode: 'standard' });
+        setResult({
+          imageUrl,
+          caption: data.caption,
+          elapsed: data.generationTime,
+          mode: 'standard',
+          decomposedLayerText: data.decomposedLayerText,
+          decomposedLayerCta: data.decomposedLayerCta,
+          suggestedStyles: data.suggestedStyles,
+          productPosition: data.productPosition
+        });
         showToast({ title: 'Kesz!', message: 'Kep legeneralt.', type: 'success' });
       }
     } catch (err: any) {
@@ -320,7 +357,7 @@ function ZomboQuickPostPageInner() {
       setIsLoading(false);
       setStatusMsg('');
     }
-  }, [imageSlots, prompt, mode, brandName]);
+  }, [imageSlots, prompt, mode, brandName, exactTextOnly]);
 
   const handleDownload = () => {
     if (!result?.imageUrl) return;
@@ -336,6 +373,9 @@ function ZomboQuickPostPageInner() {
     const absUrl = result.imageUrl.startsWith('http')
       ? result.imageUrl
       : `${API}${result.imageUrl}`;
+
+    const activeSlot = imageSlots.find(s => s.preprocessedUrl || s.originalUrl);
+    const activeProductUrl = activeSlot ? (activeSlot.preprocessedUrl || activeSlot.originalUrl) : null;
 
     showToast({ title: 'Mentes folyamatban...', message: 'Kep atmasolasa a perzisztens tarhelyre.', type: 'success' });
 
@@ -353,17 +393,47 @@ function ZomboQuickPostPageInner() {
         const pinnedUrl = `${API}${data.imageUrl}?t=${ts}`;
         localStorage.setItem('qpp_pinned_test_image', data.imageUrl); // relativ ut
         localStorage.setItem('qpp_pinned_ts', ts);
+        if (result.productPosition) {
+          localStorage.setItem('qpp_pinned_test_image_position', JSON.stringify(result.productPosition));
+        } else {
+          localStorage.removeItem('qpp_pinned_test_image_position');
+        }
+        if (activeProductUrl) {
+          localStorage.setItem('qpp_pinned_test_image_product_url', activeProductUrl);
+        } else {
+          localStorage.removeItem('qpp_pinned_test_image_product_url');
+        }
         setSavedTestImage(pinnedUrl);
         showToast({ title: 'Tesztkep elmentve!', message: 'Fajlba mentve -- szerver restart utan is megmarad.', type: 'success' });
       } else {
         // Fallback: URL mentese (regi viselkedes)
         localStorage.setItem('qpp_pinned_test_image', absUrl);
+        if (result.productPosition) {
+          localStorage.setItem('qpp_pinned_test_image_position', JSON.stringify(result.productPosition));
+        } else {
+          localStorage.removeItem('qpp_pinned_test_image_position');
+        }
+        if (activeProductUrl) {
+          localStorage.setItem('qpp_pinned_test_image_product_url', activeProductUrl);
+        } else {
+          localStorage.removeItem('qpp_pinned_test_image_product_url');
+        }
         setSavedTestImage(absUrl);
         showToast({ title: 'Mentve (URL)', message: 'Fajlba mentes sikertelen, URL mentve.', type: 'success' });
       }
     } catch {
       // Fallback: URL mentese
       localStorage.setItem('qpp_pinned_test_image', absUrl);
+      if (result.productPosition) {
+        localStorage.setItem('qpp_pinned_test_image_position', JSON.stringify(result.productPosition));
+      } else {
+        localStorage.removeItem('qpp_pinned_test_image_position');
+      }
+      if (activeProductUrl) {
+        localStorage.setItem('qpp_pinned_test_image_product_url', activeProductUrl);
+      } else {
+        localStorage.removeItem('qpp_pinned_test_image_product_url');
+      }
       setSavedTestImage(absUrl);
       showToast({ title: 'Mentve (URL)', message: 'Fajlba mentes sikertelen, URL mentve.', type: 'success' });
     }
@@ -373,18 +443,236 @@ function ZomboQuickPostPageInner() {
   // Load pinned: betolti a mentett tesztkepert result-ba
   const handleLoadPinned = () => {
     if (!savedTestImage) return;
-    setResult({ imageUrl: savedTestImage, mode: 'standard' });
+    let savedPosition = null;
+    try {
+      const posStr = localStorage.getItem('qpp_pinned_test_image_position');
+      if (posStr) savedPosition = JSON.parse(posStr);
+    } catch (e) {
+      console.error('[QPP] Failed to load pinned test image position:', e);
+    }
+    setResult({ imageUrl: savedTestImage, mode: 'standard', productPosition: savedPosition });
     setError(null);
     setPinnedLoaded(true);
     showToast({ title: 'Tesztkep betoltve', message: 'A mentett kep betoltve layer teszthez.', type: 'success' });
+    
+    if (imageSlots.length === 0) {
+      handleLoadDefaultProduct();
+    }
   };
 
   // Unpin: torli a mentett tesztkepert
   const handleUnpin = () => {
     localStorage.removeItem('qpp_pinned_test_image');
+    localStorage.removeItem('qpp_pinned_test_image_position');
+    localStorage.removeItem('qpp_pinned_test_image_product_url');
     setSavedTestImage(null);
     setPinnedLoaded(false);
     showToast({ title: 'Teszkep torolve', message: '', type: 'success' });
+  };
+
+  const handleLoadDefaultProduct = () => {
+    const defaultSlot = {
+      id: 'default-innentaler-slot',
+      rawBase64: '',
+      fileName: 'innentaler-paint-bucket.png',
+      originalUrl: '/renders/uploaded-1784063008186.png',
+      preprocessedUrl: '/renders/uploaded-1784063008202.png',
+      upscaledUrl: null,
+      upscaleLoading: false,
+      suggestUpscale: false,
+      analysisLoading: false,
+      preprocessLoading: false,
+      role: 'product' as const,
+      userEditedDescription: 'A white plastic paint bucket with a dark navy blue lid and label, 1 liter interior wall paint with isolating properties, matte white finish.',
+      alternativeTextDescription: 'A szöveg a vödör elülső oldalán lévő címkén helyezkedik el: a márkanév felül középen, a terméknév középen nagy betűkkel, a termékleírás és tulajdonságok a jobb oldalon, a fedőképesség és térfogat a bal oldalon található.',
+      locked: true,
+      isDefault: true,
+      error: null,
+      analysis: {
+        imageType: 'product' as const,
+        subject: 'A white plastic paint bucket with a dark navy blue lid and label, 1 liter interior wall paint with isolating properties, matte white finish.',
+        altText: 'A 1-liter white plastic paint bucket with a dark navy blue snap-on lid. The label features a white and navy blue design with teal/cyan accent colors, displaying product name, coverage information, and usage icons including a person painting a wall.',
+        dominantColors: ['#ffffff', '#0c2b5c', '#008ac6'],
+        compositeRole: 'primary' as const,
+        changeabilityRules: {
+          canChangeBackground: true,
+          canChangeColors: false,
+          canChangeShape: false,
+          canChangeTexture: false,
+          mustPreserveExactly: ['navy blue lid color', 'white bucket body'],
+          allowedModifications: ['background color or scene', 'lighting and shadow adjustments']
+        },
+        fluxPromptSuffix: 'a white plastic paint bucket of interior wall paint, dark blue lid, clean label',
+        fluxNegativeSuffix: 'blurry, low quality, distorted text, wrong label spelling',
+        confidence: 96,
+        locked: true,
+        hasText: true,
+        extractedText: 'POLI-FARBE INNTALER IZOLÁLÓ BELSŐ FALFESTÉK MATT FEHÉR 1L FEDŐKÉPESSÉG: LEGFELJEBB 8 m²/L Nikotin- és koromfoltokra Beázás nyomaira Zsíros szennyeződésekre Fedő szálképesség',
+        textPlacement: 'A szöveg a vödör elülső oldalán lévő címkén helyezkedik el: a márkanév felül középen, a terméknév középen nagy betűkkel, a termékleírás és tulajdonságok a jobb oldalon, a fedőképesség és térfogat a bal oldalon található.',
+        textLegibility: 'clear' as const,
+        lightingAnalysis: {
+          lightSource: {
+            type: 'area' as const,
+            directionAngle: 45,
+            directionLabel: 'top-left' as const,
+            xPercent: 25,
+            yPercent: 25,
+            temperatureK: 5500,
+            temperatureLabel: 'neutral white' as const,
+            colorCastRgb: [255, 255, 255] as [number, number, number],
+            intensity: 'soft' as const,
+            sourceSizeLabel: 'large_area' as const,
+            isThreePoint: true,
+            keyLightIntensity: 80,
+            fillLightIntensity: 40,
+            rimLightIntensity: 30,
+            fillRatio: 0.5,
+            hasVolumetricLight: false,
+            hasMultipleSourcesIBL: true
+          },
+          shadow: {
+            hasDropShadow: true,
+            dropDirection: 'back' as const,
+            dropLengthRatio: 0.8,
+            dropLengthPx: 100,
+            dropOffsetX: 20,
+            dropOffsetY: 20,
+            dropOpacity: 0.4,
+            dropBlurPx: 15,
+            dropWidthMultiplier: 1.1,
+            contactShadow: {
+              widthMultiplier: 0.7,
+              heightMultiplier: 0.05,
+              opacity: 0.8,
+              blurPx: 4
+            },
+            aoHalo: {
+              widthMultiplier: 0.95,
+              heightMultiplier: 0.14,
+              opacity: 0.45,
+              blurPx: 20
+            },
+            penumbraWidth: 'medium' as const,
+            umbraDarkness: 75,
+            formShadowPresent: false,
+            formShadowSide: 'none' as const
+          },
+          material: {
+            roughness: 0.4,
+            metallic: 0.0,
+            ior: 1.5,
+            specularIntensity: 0.5,
+            albedoRgb: [240, 240, 240] as [number, number, number],
+            hasSSS: false,
+            sssStrength: 'none' as const,
+            sssColorShift: 'none' as const,
+            fresnelEdgeGlow: false,
+            fresnelIntensity: 'subtle' as const,
+            materialType: 'glossy_plastic' as const,
+            specular: {
+              zoneTopPct: 15,
+              widthMultiplier: 0.5,
+              opacity: 0.3,
+              blurPx: 5,
+              hasSharpGlint: false
+            }
+          },
+          colorThermal: {
+            ambientTintRgb: [255, 255, 255] as [number, number, number],
+            ambientTintOpacity: 0.0,
+            ambientDarkness: 0,
+            hasColorBleeding: false,
+            bleedingSourceColor: null,
+            bleedingOpacity: 0.0,
+            simultaneousContrastCorrection: false,
+            bgDominantColor: [128, 128, 128] as [number, number, number],
+            sceneDynamicRange: 'medium' as const
+          },
+          compositing: {
+            rimDarkening: {
+              side: 'none' as const,
+              widthMultiplier: 0.1,
+              opacity: 0.0,
+              blurPx: 0
+            },
+            formShadowGradient: {
+              enabled: false,
+              direction: 'top-to-bottom' as const,
+              topBrightness: 1.0,
+              bottomBrightness: 1.0,
+              opacity: 0.0
+            },
+            rimLight: {
+              side: 'none' as const,
+              widthMultiplier: 0.1,
+              opacity: 0.0,
+              blurPx: 0
+            },
+            lightWrap: {
+              bgBlurPx: 60,
+              expandPx: 20,
+              opacity: 0.15
+            },
+            tableReflection: {
+              enabled: false,
+              heightMultiplier: 0.0,
+              opacity: 0.0,
+              blurPx: 0,
+              surfaceType: 'concrete' as const
+            },
+            overallLayerCount: 8
+          },
+          placement: {
+            cameraAngle: 'eye-level' as const,
+            cameraFOV: 'normal' as const,
+            perspectiveDistortion: 'slight' as const,
+            productTopYPct: 35,
+            productBottomYPct: 85,
+            surfaceYPct: 85,
+            headroomPct: 35,
+            tablespacePct: 15,
+            productCenterXPct: 50,
+            compositionStyle: 'centered' as const,
+            productScalePct: 50
+          },
+          prompts: {
+            bgLightingPrompt: 'soft studio lighting from the top-left, realistic ambient occlusion',
+            bgNegativePrompt: 'harsh direct sunlight, pitch black shadows',
+            materialPromptSuffix: 'a glossy white plastic bucket',
+            volumetricLightPrompt: '',
+            sssEdgePrompt: '',
+            fresnelPrompt: '',
+            threePointPrompt: 'three-point studio lighting setup',
+            compositionPrompt: 'centered composition, product stands on the surface',
+            fullBgPrompt: 'soft studio lighting from the top-left, three-point studio lighting setup, centered composition, product stands on the surface'
+          },
+          checkup: {
+            expectedShadowBehavior: 'soft drop shadow extending to the back-right',
+            expectedSpecularZone: 'soft specular highlight on the upper-left of the cylinder',
+            expectedGradient: 'smooth light-to-shadow transition across the cylindrical body',
+            expectedAmbientTint: 'neutral ambient tinting',
+            activeRisks: [],
+            shadowPhysicsMinScore: 20,
+            integrationMinScore: 20,
+            contactShadowMinScore: 15,
+            specularMinScore: 12,
+            placementMinScore: 12,
+            totalMinScore: 75,
+            criticalFailConditions: []
+          },
+          meta: {
+            analysisVersion: '2.0',
+            analysisTimestamp: '2026-07-14T23:30:00Z',
+            claudeConfidence: 0.95,
+            bookChaptersUsed: ['Chapter 3: Studio Lighting', 'Chapter 5: Shadow Synthesis'],
+            lightingScenario: 'three_point' as const
+          }
+        }
+      }
+    };
+    setImageSlots([defaultSlot]);
+    setBrandName('Poli-Farbe');
+    showToast({ title: 'Vödör betöltve', message: 'Alapértelmezett Poli-Farbe vödör (rembg cutout és AI adatokkal együtt) sikeresen betöltve!', type: 'success' });
   };
 
   const handleCopy = () => {
@@ -399,61 +687,85 @@ function ZomboQuickPostPageInner() {
     && !isLoading;
 
   return (
-    <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', fontFamily: "'Inter','Outfit',sans-serif" }}>
+    <div style={{ minHeight: inlineMode ? 'auto' : '100vh', background: inlineMode ? 'transparent' : 'var(--bg)', color: 'var(--text)', fontFamily: "'Inter','Outfit',sans-serif" }}>
 
       {/* ── Header ─────────────────────────────────────────────────────── */}
-      <div style={{
-        display: 'flex', alignItems: 'center', gap: 16, padding: '14px 28px',
-        borderBottom: '1px solid var(--border)', background: 'var(--card)',
-        position: 'sticky', top: 0, zIndex: 10,
-      }}>
-        <button
-          onClick={() => navigate('/marketing/zombo')}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
-        >
-          <ArrowLeft size={14} /> Vissza
-        </button>
+      {!inlineMode && (
+        <div style={{
+          display: 'flex', alignItems: 'center', gap: 16, padding: '14px 28px',
+          borderBottom: '1px solid var(--border)', background: 'var(--card)',
+          position: 'sticky', top: 0, zIndex: 10,
+        }}>
+          <button
+            onClick={() => navigate('/marketing/zombo')}
+            style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          >
+            <ArrowLeft size={14} /> Vissza
+          </button>
 
-        <div style={{ width: 1, height: 24, background: 'var(--border)' }} />
+          <div style={{ width: 1, height: 24, background: 'var(--border)' }} />
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-          <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg,#8b5cf6,#06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
-            ⚡
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg,#8b5cf6,#06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
+              ⚡
+            </div>
+            <div>
+              <div style={{ fontSize: 15, fontWeight: 800 }}>Quick Post Generator</div>
+              <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>/admin/marketing/zombo/quickpost</div>
+            </div>
           </div>
-          <div>
-            <div style={{ fontSize: 15, fontWeight: 800 }}>Quick Post Generator</div>
-            <div style={{ fontSize: 10, color: 'var(--text-muted)' }}>/admin/marketing/zombo/quickpost</div>
+
+          <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
+            {result && (
+              <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: 'rgba(16,185,129,0.12)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)' }}>
+                Kesz
+              </span>
+            )}
+            {isLoading && (
+              <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: 'rgba(6,182,212,0.12)', color: '#06b6d4', border: '1px solid rgba(6,182,212,0.25)' }}>
+                Folyamatban...
+              </span>
+            )}
           </div>
         </div>
-
-        <div style={{ marginLeft: 'auto', display: 'flex', gap: 8 }}>
-          {result && (
-            <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: 'rgba(16,185,129,0.12)', color: '#10b981', border: '1px solid rgba(16,185,129,0.25)' }}>
-              Kesz
-            </span>
-          )}
-          {isLoading && (
-            <span style={{ padding: '4px 10px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: 'rgba(6,182,212,0.12)', color: '#06b6d4', border: '1px solid rgba(6,182,212,0.25)' }}>
-              Folyamatban...
-            </span>
-          )}
-        </div>
-      </div>
+      )}
 
       {/* ── Two-column body ──────────────────────────────────────────────── */}
-      <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', minHeight: 'calc(100vh - 65px)' }}>
+      <div style={{ display: 'grid', gridTemplateColumns: '400px 1fr', minHeight: inlineMode ? '600px' : 'calc(100vh - 65px)' }}>
 
         {/* ════ LEFT: INPUT ════ */}
         <div style={{
           padding: '24px 20px', borderRight: '1px solid var(--border)',
           display: 'flex', flexDirection: 'column', gap: 18,
-          overflowY: 'auto', maxHeight: 'calc(100vh - 65px)',
+          overflowY: 'auto', maxHeight: inlineMode ? 'calc(100vh - 200px)' : 'calc(100vh - 65px)',
           background: 'var(--card)',
         }}>
 
           {/* Image */}
           <section>
-            <label style={sLabel}>Termekkep</label>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: 8 }}>
+              <label style={{ ...sLabel, marginBottom: 0 }}>Termekkep</label>
+              <button
+                onClick={handleLoadDefaultProduct}
+                disabled={isLoading}
+                style={{
+                  background: 'rgba(59,130,246,0.1)',
+                  color: '#3b82f6',
+                  border: '1px solid rgba(59,130,246,0.3)',
+                  padding: '3px 8px',
+                  borderRadius: 6,
+                  fontSize: 10,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 4,
+                  transition: 'all 0.2s',
+                }}
+              >
+                💾 Alapértelmezett vödör
+              </button>
+            </div>
             <ImageSlotUploader
               slots={imageSlots}
               onChange={(updater) => {
@@ -492,8 +804,21 @@ function ZomboQuickPostPageInner() {
               placeholder="pl. festekvedro muhely, vilagos hatter"
               rows={3}
               disabled={isLoading}
-              style={{ ...sInput, resize: 'vertical', fontFamily: 'inherit' }}
+              style={{ ...sInput, resize: 'vertical', fontFamily: 'inherit', marginBottom: 8 }}
             />
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0 2px 0' }}>
+              <input
+                type="checkbox"
+                id="exactTextOnlyMain"
+                checked={exactTextOnly}
+                onChange={e => setExactTextOnly(e.target.checked)}
+                disabled={isLoading}
+                style={{ cursor: 'pointer', width: 15, height: 15, accentColor: '#8b5cf6' }}
+              />
+              <label htmlFor="exactTextOnlyMain" style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)', cursor: 'pointer', userSelect: 'none' }}>
+                Csak a megadott szöveg használata (szigorú mód)
+              </label>
+            </div>
           </section>
 
           {/* Mode */}
@@ -697,18 +1022,76 @@ function ZomboQuickPostPageInner() {
                 )}
               </div>
 
-              {/* JOBB: Satori Layer Editor */}
+              {/* JOBB: Layer Editor Sidebar */}
               <div style={{ position: 'sticky', top: 0, overflowY: 'auto', maxHeight: 'calc(100vh - 90px)', paddingRight: 4 }}>
                 <div style={{ padding: '16px', borderRadius: 18, background: 'var(--bg3)', border: '2px solid rgba(139,92,246,0.25)', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
-                  <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
-                    <LayersIcon size={14} />
-                    <span style={{ fontSize: 12, fontWeight: 800, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Satori Layer Szerkeszto</span>
+                  
+                  {/* isolated Editor Switcher */}
+                  <div style={{ display: 'flex', background: 'var(--bg)', padding: 3, borderRadius: 10, border: '1px solid var(--border)', marginBottom: 16 }}>
+                    <button
+                      onClick={() => setEditorMode('satori')}
+                      style={{
+                        flex: 1, padding: '6px 12px', borderRadius: 8, border: 'none',
+                        background: editorMode === 'satori' ? 'linear-gradient(135deg,#8b5cf6,#6d28d9)' : 'transparent',
+                        color: editorMode === 'satori' ? '#fff' : 'var(--text-muted)',
+                        fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
+                      }}
+                    >
+                      Satori
+                    </button>
+                    <button
+                      onClick={() => setEditorMode('placid')}
+                      style={{
+                        flex: 1, padding: '6px 12px', borderRadius: 8, border: 'none',
+                        background: editorMode === 'placid' ? 'linear-gradient(135deg,#8b5cf6,#6d28d9)' : 'transparent',
+                        color: editorMode === 'placid' ? '#fff' : 'var(--text-muted)',
+                        fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
+                      }}
+                    >
+                      Placid
+                    </button>
                   </div>
-                  <SatoriEditorPanel
-                    baseImageUrl={result.imageUrl.startsWith('http') ? result.imageUrl : `${API}${result.imageUrl}`}
-                    prompt={prompt}
-                    subject={brandName}
-                  />
+
+                  {editorMode === 'satori' ? (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                        <LayersIcon size={14} />
+                        <span style={{ fontSize: 12, fontWeight: 800, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Satori Layer Szerkeszto</span>
+                      </div>
+                      <SatoriEditorPanel
+                        baseImageUrl={result.imageUrl.startsWith('http') ? result.imageUrl : `${API}${result.imageUrl}`}
+                        prompt={prompt}
+                        subject={brandName}
+                        decomposedLayerText={result.decomposedLayerText}
+                        decomposedLayerCta={result.decomposedLayerCta}
+                        initialSuggestedStyles={result.suggestedStyles}
+                      />
+                    </>
+                  ) : (
+                    <>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
+                        <LayersIcon size={14} />
+                        <span style={{ fontSize: 12, fontWeight: 800, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Placid Layer Szerkeszto</span>
+                      </div>
+                      <PlacidEditorPanel
+                        baseImageUrl={result.imageUrl.startsWith('http') ? result.imageUrl : `${API}${result.imageUrl}`}
+                        productImageUrl={
+                          (() => {
+                            const slot = imageSlots.find(s => s.preprocessedUrl || s.originalUrl);
+                            if (slot) return slot.preprocessedUrl || slot.originalUrl;
+                            const stored = localStorage.getItem('qpp_pinned_test_image_product_url');
+                            return stored || undefined;
+                          })()
+                        }
+                        productPosition={result.productPosition}
+                        prompt={prompt}
+                        subject={brandName}
+                        decomposedLayerText={result.decomposedLayerText}
+                        decomposedLayerCta={result.decomposedLayerCta}
+                      />
+                    </>
+                  )}
+
                 </div>
               </div>
 
@@ -782,10 +1165,10 @@ function ZomboQuickPostPageInner() {
   );
 }
 
-export default function ZomboQuickPostPage() {
+export default function ZomboQuickPostPage({ inlineMode = false }: { inlineMode?: boolean }) {
   return (
     <QPPErrorBoundary>
-      <ZomboQuickPostPageInner />
+      <ZomboQuickPostPageInner inlineMode={inlineMode} />
     </QPPErrorBoundary>
   );
 }

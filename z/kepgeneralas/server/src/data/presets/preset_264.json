@@ -1,0 +1,245 @@
+{
+  "preset_id": 264,
+  "title": "iPhone Mockup",
+  "cover": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/presets/264.jpg",
+  "tags": [
+    "Mockup"
+  ],
+  "canvas": {
+    "id": "0",
+    "type": "canvas",
+    "name": "element-2135",
+    "opacity": 100,
+    "meta": {
+      "title": "iPhone Mockup"
+    },
+    "editor": {
+      "canChangeAspectRatio": false,
+      "show_in_form": true
+    },
+    "fields": {
+      "background": {
+        "field": true,
+        "type": "image",
+        "content": {
+          "imageSrc": "upload",
+          "imageUrl": null,
+          "imageId": null,
+          "browserViewport": {
+            "width": 1280,
+            "height": 800
+          }
+        },
+        "display": {
+          "borderRadius": 0,
+          "backgroundSize": "cover",
+          "backgroundPositionVertical": "center",
+          "backgroundPositionHorizontal": "center"
+        }
+      },
+      "backgroundColor": {
+        "field": true,
+        "type": "color",
+        "content": {
+          "color": {
+            "rgba": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 1
+            },
+            "hex": "#FFFFFF"
+          }
+        },
+        "display": {
+          "displayType": "color"
+        }
+      }
+    },
+    "canvasHeight": 1200,
+    "canvasWidth": 1800,
+    "transparent": false
+  },
+  "items": [
+    {
+      "id": "45wlx5ta",
+      "type": "picture",
+      "version": 3,
+      "name": "screen",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 808,
+          "top": 220
+        },
+        "rotation": 309.1,
+        "size": {
+          "width": 400,
+          "height": 866
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": false,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageId": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 800
+            }
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "zIndex": 3
+    },
+    {
+      "id": "532zhksp",
+      "type": "rectangle",
+      "version": 3,
+      "name": "overlay",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 809,
+          "top": "221"
+        },
+        "rotation": 309.1,
+        "size": {
+          "width": 399,
+          "height": 864
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": false
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "rectangleStyle": "default",
+            "borderRadius": 0,
+            "borderWidth": 1
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 42,
+                "g": 43,
+                "b": 51,
+                "a": 0.03
+              },
+              "hex": "#2A2B33",
+              "hex8": "#2A2B3308"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 2
+    },
+    {
+      "id": "oe3l8ob7",
+      "type": "picture",
+      "version": 3,
+      "name": "mockup",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 0,
+          "top": 0
+        },
+        "rotation": 0,
+        "size": {
+          "width": 1800,
+          "height": 1200
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": false
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 800
+            },
+            "imageUUID": "4c9c6784-848d-41d8-a4b7-6e21787f7b28"
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "zIndex": 1
+    }
+  ],
+  "snippet": "<!-- Open Graph Image - Add to <head>-->\n<meta property=\"og:image\" content=\"https://api.placid.app/u/ik5stpfq27b87?screen=%24DEFAULT%24&overlay=%24DEFAULT%24&mockup=%24DEFAULT%24\"/>\n<meta property=\"og:image:height\" content=\"1200\"/>\n<meta property=\"og:image:width\" content=\"1800\"/>\n\n<!-- Twitter Card Image - Add to <head> -->\n<meta property=\"twitter:image\" content=\"https://api.placid.app/u/ik5stpfq27b87?screen=%24DEFAULT%24&overlay=%24DEFAULT%24&mockup=%24DEFAULT%24\"/>\n<meta name=\"twitter:card\" content=\"summary_large_image\">\n\n<!-- (Hidden) Pinterest Image - Add wherever you want in your content-->\n<img style=\"display:none\" src=\"https://api.placid.app/u/ik5stpfq27b87?screen=%24DEFAULT%24&overlay=%24DEFAULT%24&mockup=%24DEFAULT%24\" data-pin-description=\"Pin Description\" data-pin-url=\"http://yourposturl.com\"/>\n"
+}

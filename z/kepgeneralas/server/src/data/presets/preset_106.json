@@ -1,0 +1,715 @@
+{
+  "preset_id": 106,
+  "title": "Hotel",
+  "cover": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/presets/106.jpg",
+  "tags": [
+    "Open Graph",
+    "E-Commerce",
+    "Real Estate"
+  ],
+  "canvas": {
+    "id": "0",
+    "type": "canvas",
+    "name": "element-4442",
+    "opacity": 100,
+    "meta": {
+      "title": "Hotel"
+    },
+    "editor": {
+      "canChangeAspectRatio": false
+    },
+    "fields": {
+      "background": {
+        "field": true,
+        "type": "image",
+        "content": {
+          "imageSrc": "upload",
+          "imageUrl": null,
+          "imageId": null,
+          "browserViewport": {
+            "width": 1280,
+            "height": 800
+          }
+        },
+        "display": {
+          "borderRadius": 0,
+          "backgroundSize": "cover",
+          "backgroundPositionVertical": "center",
+          "backgroundPositionHorizontal": "center"
+        }
+      },
+      "backgroundColor": {
+        "field": true,
+        "type": "color",
+        "content": {
+          "color": {
+            "rgba": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 1
+            },
+            "hex": "#FFFFFF"
+          }
+        },
+        "display": {
+          "displayType": "color"
+        }
+      }
+    },
+    "canvasHeight": 630,
+    "canvasWidth": 1200
+  },
+  "items": [
+    {
+      "id": "id-1",
+      "type": "picture",
+      "name": "img",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 0,
+          "top": 0
+        },
+        "size": {
+          "width": "810",
+          "height": 630
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            },
+            "imageUUID": "8e9caee2-0458-4ad5-a83b-405599464b33"
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "zIndex": 1,
+      "version": 3
+    },
+    {
+      "id": "id-3",
+      "type": "rectangle",
+      "name": "text-bg",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "820",
+          "top": "0"
+        },
+        "size": {
+          "width": "380",
+          "height": "630"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "borderRadius": 0
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 0.9822,
+                "a": 1
+              },
+              "hex": "#FAFAFA",
+              "hex8": "#FAFAFAFF",
+              "rgba": {
+                "r": 250,
+                "g": 250,
+                "b": 250,
+                "a": 1
+              },
+              "hsv": {
+                "h": 0,
+                "s": 0,
+                "v": 0.9822,
+                "a": 1
+              },
+              "oldHue": 0,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 2,
+      "version": 3
+    },
+    {
+      "id": "id-5",
+      "type": "text",
+      "name": "feature-3",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "865",
+          "top": "530"
+        },
+        "size": {
+          "width": "290",
+          "height": "40"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "1 Bathroom"
+          },
+          "display": {
+            "textTransform": "none",
+            "textAlign": "left",
+            "verticalAlign": "middle",
+            "fontSize": "24",
+            "lineHeight": 31.2,
+            "fontWeight": "700",
+            "style": "single-line",
+            "fontFamily": "rubik-bold",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "lineHeightMode": "normal"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 0,
+                "g": 0,
+                "b": 0,
+                "a": 1
+              },
+              "hex": "#000"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 3,
+      "version": 3
+    },
+    {
+      "id": "id-4",
+      "type": "text",
+      "name": "feature-2",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "865",
+          "top": "470"
+        },
+        "size": {
+          "width": "290",
+          "height": "40"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "1 Bed"
+          },
+          "display": {
+            "textTransform": "none",
+            "textAlign": "left",
+            "verticalAlign": "middle",
+            "fontSize": "24",
+            "lineHeight": 31.2,
+            "fontWeight": "700",
+            "style": "single-line",
+            "fontFamily": "rubik-bold",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "lineHeightMode": "normal"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 0,
+                "g": 0,
+                "b": 0,
+                "a": 1
+              },
+              "hex": "#000"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 4,
+      "version": 3
+    },
+    {
+      "id": "id-2",
+      "type": "text",
+      "name": "feature-1",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "865",
+          "top": "410"
+        },
+        "size": {
+          "width": "290",
+          "height": 40
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "3 Guests"
+          },
+          "display": {
+            "textTransform": "none",
+            "textAlign": "left",
+            "verticalAlign": "middle",
+            "fontSize": "24",
+            "lineHeight": 31.2,
+            "fontWeight": "700",
+            "style": "single-line",
+            "fontFamily": "rubik-bold",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "lineHeightMode": "normal"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 0,
+                "g": 0,
+                "b": 0,
+                "a": 1
+              },
+              "hex": "#000"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 5,
+      "version": 3
+    },
+    {
+      "id": "id-6",
+      "type": "text",
+      "name": "title",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 870,
+          "top": 55
+        },
+        "size": {
+          "width": "285",
+          "height": 291
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "Seawater Lane Guest House"
+          },
+          "display": {
+            "textTransform": "none",
+            "textAlign": "left",
+            "verticalAlign": "top",
+            "fontSize": "54",
+            "lineHeight": "60",
+            "fontWeight": "400",
+            "style": "fitty",
+            "fontFamily": "rubik-regular",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 0,
+                "g": 0,
+                "b": 0,
+                "a": 1
+              },
+              "hex": "#000"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 6,
+      "version": 3
+    },
+    {
+      "id": "id-7",
+      "type": "picture",
+      "name": "logo",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "40",
+          "top": "40"
+        },
+        "size": {
+          "width": "100",
+          "height": "100"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            },
+            "imageUUID": "17ff9867-0067-43da-a223-0aacbb0e6268"
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "zIndex": 7,
+      "version": 3
+    },
+    {
+      "id": "id-8",
+      "type": "watermark",
+      "name": "watermark-0",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "40",
+          "top": "510"
+        },
+        "size": {
+          "width": "180",
+          "height": 90
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": 993,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            }
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "contain",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "version": 3
+    }
+  ],
+  "snippet": "<!-- Open Graph Image - Add to <head>-->\n<meta property=\"og:image\" content=\"https://api.placid.app/u/ioatuqm8kalwk?img=%24DEFAULT%24&text-bg=%24DEFAULT%24&feature-3=%24DEFAULT%24&feature-2=%24DEFAULT%24&feature-1=%24DEFAULT%24&title=%24DEFAULT%24&logo=%24DEFAULT%24\"/>\n<meta property=\"og:image:height\" content=\"630\"/>\n<meta property=\"og:image:width\" content=\"1200\"/>\n\n<!-- Twitter Card Image - Add to <head> -->\n<meta property=\"twitter:image\" content=\"https://api.placid.app/u/ioatuqm8kalwk?img=%24DEFAULT%24&text-bg=%24DEFAULT%24&feature-3=%24DEFAULT%24&feature-2=%24DEFAULT%24&feature-1=%24DEFAULT%24&title=%24DEFAULT%24&logo=%24DEFAULT%24\"/>\n<meta name=\"twitter:card\" content=\"summary_large_image\">\n\n<!-- (Hidden) Pinterest Image - Add wherever you want in your content-->\n<img style=\"display:none\" src=\"https://api.placid.app/u/ioatuqm8kalwk?img=%24DEFAULT%24&text-bg=%24DEFAULT%24&feature-3=%24DEFAULT%24&feature-2=%24DEFAULT%24&feature-1=%24DEFAULT%24&title=%24DEFAULT%24&logo=%24DEFAULT%24\" data-pin-description=\"Pin Description\" data-pin-url=\"http://yourposturl.com\"/>\n"
+}

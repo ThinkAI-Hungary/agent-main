@@ -1,0 +1,145 @@
+{
+  "templates": [
+    {
+      "uuid": "djsyjxnh5mpxj",
+      "title": "New Template",
+      "thumbnail": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/f44ae12e-3046656/conversions/image-thumbnail.png",
+      "width": 1200,
+      "height": 1200,
+      "layers": []
+    },
+    {
+      "uuid": "lkljzjrdkuwgh",
+      "title": "Energetic",
+      "thumbnail": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/3a54aa1f-3046712/conversions/image-thumbnail.png",
+      "width": 1200,
+      "height": 600,
+      "layers": [
+        {
+          "name": "img",
+          "type": "picture"
+        },
+        {
+          "name": "bg",
+          "type": "rectangle"
+        },
+        {
+          "name": "title",
+          "type": "text"
+        },
+        {
+          "name": "url",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "uuid": "ainshacgalqck",
+      "title": "Bubbly E-Commerce",
+      "thumbnail": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/6cc63e0d-3046715/conversions/image-thumbnail.png",
+      "width": 1200,
+      "height": 1200,
+      "layers": [
+        {
+          "name": "product img",
+          "type": "picture"
+        },
+        {
+          "name": "discount",
+          "type": "text"
+        },
+        {
+          "name": "campaign title",
+          "type": "text"
+        },
+        {
+          "name": "product title",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "uuid": "fp1zjozryfi3s",
+      "title": "Bubbly E-Commerce",
+      "thumbnail": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/5e338e69-3046720/conversions/image-thumbnail.png",
+      "width": 1200,
+      "height": 1200,
+      "layers": [
+        {
+          "name": "product img",
+          "type": "picture"
+        },
+        {
+          "name": "discount",
+          "type": "text"
+        },
+        {
+          "name": "campaign title",
+          "type": "text"
+        },
+        {
+          "name": "product title",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "uuid": "dguudtjx2haro",
+      "title": "Real Estate - Unique",
+      "thumbnail": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/d527a44b-3046722/conversions/image-thumbnail.png",
+      "width": 1200,
+      "height": 1200,
+      "layers": [
+        {
+          "name": "photo",
+          "type": "picture"
+        },
+        {
+          "name": "icon-size",
+          "type": "picture"
+        },
+        {
+          "name": "size",
+          "type": "text"
+        },
+        {
+          "name": "rooms",
+          "type": "text"
+        },
+        {
+          "name": "price",
+          "type": "text"
+        },
+        {
+          "name": "title",
+          "type": "text"
+        }
+      ]
+    },
+    {
+      "uuid": "w2szewj66ugma",
+      "title": "Bubbly E-Commerce",
+      "thumbnail": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/42933db6-3046729/conversions/image-thumbnail.png",
+      "width": 1200,
+      "height": 1200,
+      "layers": [
+        {
+          "name": "product img",
+          "type": "picture"
+        },
+        {
+          "name": "discount",
+          "type": "text"
+        },
+        {
+          "name": "campaign title",
+          "type": "text"
+        },
+        {
+          "name": "product title",
+          "type": "text"
+        }
+      ]
+    }
+  ]
+}

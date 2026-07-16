@@ -1,0 +1,652 @@
+{
+  "preset_id": 138,
+  "title": "Image Quote",
+  "cover": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/presets/138.jpg",
+  "tags": [
+    "Feed Square",
+    "Quote",
+    "Podcast"
+  ],
+  "canvas": {
+    "id": "0",
+    "type": "canvas",
+    "name": "element-3830",
+    "opacity": 100,
+    "meta": {
+      "title": "Image Quote"
+    },
+    "editor": {
+      "canChangeAspectRatio": false
+    },
+    "fields": {
+      "background": {
+        "field": true,
+        "type": "image",
+        "content": {
+          "imageSrc": "upload",
+          "imageUrl": null,
+          "imageId": null,
+          "browserViewport": {
+            "width": 1280,
+            "height": 800
+          }
+        },
+        "display": {
+          "borderRadius": 0,
+          "backgroundSize": "cover",
+          "backgroundPositionVertical": "center",
+          "backgroundPositionHorizontal": "center"
+        }
+      },
+      "backgroundColor": {
+        "field": true,
+        "type": "color",
+        "content": {
+          "color": {
+            "rgba": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 1
+            },
+            "hex": "#FFFFFF"
+          }
+        },
+        "display": {
+          "displayType": "color"
+        }
+      }
+    },
+    "canvasHeight": 1200,
+    "canvasWidth": 1200
+  },
+  "items": [
+    {
+      "id": "id-1",
+      "type": "picture",
+      "name": "bg-img",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "0",
+          "top": "0"
+        },
+        "size": {
+          "width": "1200",
+          "height": "1200"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            },
+            "imageUUID": "41a4adf7-8e39-48bd-b13c-c8d85102069f"
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "version": 3
+    },
+    {
+      "id": "id-2",
+      "type": "rectangle",
+      "name": "overlay",
+      "opacity": "90",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "0",
+          "top": "0"
+        },
+        "size": {
+          "width": "1200",
+          "height": "1200"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "borderRadius": 0
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 240,
+                "s": 0.026315789473684206,
+                "l": 0.14901960784313728,
+                "a": 1
+              },
+              "hex": "#252527",
+              "hex8": "#252527FF",
+              "rgba": {
+                "r": 37,
+                "g": 37,
+                "b": 39,
+                "a": 1
+              },
+              "hsv": {
+                "h": 240,
+                "s": 0.05128205128205128,
+                "v": 0.15294117647058825,
+                "a": 1
+              },
+              "oldHue": 240,
+              "source": "hex",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "version": 3
+    },
+    {
+      "id": "id-3",
+      "type": "picture",
+      "name": "author-img",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 485,
+          "top": "120"
+        },
+        "size": {
+          "width": "230",
+          "height": "230"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            },
+            "imageUUID": "b0a296d4-5d9f-4669-a656-37333fd521ad"
+          },
+          "display": {
+            "borderRadius": 115,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "version": 3
+    },
+    {
+      "id": "id-4",
+      "type": "text",
+      "name": "quote",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 150,
+          "top": "410"
+        },
+        "size": {
+          "width": "900",
+          "height": "500"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "\"The more you love your ideas, the less you need others to approve of them.\""
+          },
+          "display": {
+            "textTransform": "none",
+            "textAlign": "center",
+            "verticalAlign": "top",
+            "fontSize": "90",
+            "lineHeight": "100",
+            "fontWeight": "800",
+            "style": "fitty",
+            "fontFamily": "opensans-extrabold",
+            "bold": true,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 1,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "hex8": "#FFFFFFFF",
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hsv": {
+                "h": 0,
+                "s": 0,
+                "v": 1,
+                "a": 1
+              },
+              "oldHue": 0,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "version": 3
+    },
+    {
+      "id": "id-5",
+      "type": "text",
+      "name": "url",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 250,
+          "top": "1080"
+        },
+        "size": {
+          "width": "700",
+          "height": "50"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "www.worklifepodcast.com"
+          },
+          "display": {
+            "textTransform": "none",
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": 20,
+            "lineHeight": 26,
+            "fontWeight": "400",
+            "style": "single-line",
+            "fontFamily": "opensans-regular",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "lineHeightMode": "normal"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 1,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "hex8": "#FFFFFFFF",
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hsv": {
+                "h": 0,
+                "s": 0,
+                "v": 1,
+                "a": 1
+              },
+              "oldHue": 0,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "version": 3
+    },
+    {
+      "id": "id-6",
+      "type": "text",
+      "name": "subtitle",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 250,
+          "top": "1030"
+        },
+        "size": {
+          "width": "700",
+          "height": "50"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "Podcast Episode #34: Ayşe Seyhan"
+          },
+          "display": {
+            "textTransform": "uppercase",
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": 20,
+            "lineHeight": 26,
+            "fontWeight": "800",
+            "style": "single-line",
+            "fontFamily": "opensans-extrabold",
+            "bold": true,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "lineHeightMode": "normal"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 1,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "hex8": "#FFFFFFFF",
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hsv": {
+                "h": 0,
+                "s": 0,
+                "v": 1,
+                "a": 1
+              },
+              "oldHue": 0,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "version": 3
+    },
+    {
+      "id": "id-7",
+      "type": "watermark",
+      "name": "watermark",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "980",
+          "top": "30"
+        },
+        "size": {
+          "width": "185",
+          "height": "70"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": 855,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            }
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "contain",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "version": 3
+    }
+  ],
+  "snippet": "<!-- Open Graph Image - Add to <head>-->\n<meta property=\"og:image\" content=\"https://api.placid.app/u/xszmwguqvyvqi?bg-img=%24DEFAULT%24&overlay=%24DEFAULT%24&author-img=%24DEFAULT%24&quote=%24DEFAULT%24&url=%24DEFAULT%24&subtitle=%24DEFAULT%24\"/>\n<meta property=\"og:image:height\" content=\"1200\"/>\n<meta property=\"og:image:width\" content=\"1200\"/>\n\n<!-- Twitter Card Image - Add to <head> -->\n<meta property=\"twitter:image\" content=\"https://api.placid.app/u/xszmwguqvyvqi?bg-img=%24DEFAULT%24&overlay=%24DEFAULT%24&author-img=%24DEFAULT%24&quote=%24DEFAULT%24&url=%24DEFAULT%24&subtitle=%24DEFAULT%24\"/>\n<meta name=\"twitter:card\" content=\"summary_large_image\">\n\n<!-- (Hidden) Pinterest Image - Add wherever you want in your content-->\n<img style=\"display:none\" src=\"https://api.placid.app/u/xszmwguqvyvqi?bg-img=%24DEFAULT%24&overlay=%24DEFAULT%24&author-img=%24DEFAULT%24&quote=%24DEFAULT%24&url=%24DEFAULT%24&subtitle=%24DEFAULT%24\" data-pin-description=\"Pin Description\" data-pin-url=\"http://yourposturl.com\"/>\n"
+}

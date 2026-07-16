@@ -1,0 +1,267 @@
+{
+  "preset_id": 278,
+  "title": "MacBook Mockup",
+  "cover": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/presets/278.jpg",
+  "tags": [
+    "Mockup"
+  ],
+  "canvas": {
+    "id": "0",
+    "type": "canvas",
+    "name": "element-6429",
+    "opacity": 100,
+    "meta": {
+      "title": "MacBook Mockup"
+    },
+    "editor": {
+      "canChangeAspectRatio": false,
+      "show_in_form": true
+    },
+    "fields": {
+      "background": {
+        "field": true,
+        "type": "image",
+        "content": {
+          "imageSrc": "upload",
+          "imageUrl": null,
+          "imageId": null,
+          "browserViewport": {
+            "width": 1280,
+            "height": 800
+          }
+        },
+        "display": {
+          "borderRadius": 0,
+          "backgroundSize": "cover",
+          "backgroundPositionVertical": "center",
+          "backgroundPositionHorizontal": "center"
+        }
+      },
+      "backgroundColor": {
+        "field": true,
+        "type": "color",
+        "content": {
+          "color": {
+            "rgba": {
+              "r": 20,
+              "g": 10,
+              "b": 10,
+              "a": 1
+            },
+            "hex": "#140A0A",
+            "hex8": "#140A0AFF"
+          }
+        },
+        "display": {
+          "displayType": "color"
+        },
+        "linearGradientAngle": 0,
+        "radialPositionHorizontal": "50%",
+        "radialPositionVertical": "50%",
+        "segments": []
+      }
+    },
+    "canvasHeight": 1200,
+    "canvasWidth": 1800,
+    "transparent": false
+  },
+  "items": [
+    {
+      "id": "vejd33z6",
+      "type": "picture",
+      "version": 3,
+      "name": "screenshot",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 551,
+          "top": 299
+        },
+        "rotation": 0.1,
+        "size": {
+          "width": 827,
+          "height": 520
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageId": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 800
+            }
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "top",
+            "backgroundPositionHorizontal": "left"
+          }
+        }
+      },
+      "zIndex": 3
+    },
+    {
+      "id": "g75mhj67",
+      "type": "rectangle",
+      "version": 3,
+      "name": "overlay",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": "551",
+          "top": 299
+        },
+        "rotation": 0.1,
+        "size": {
+          "width": 827,
+          "height": 520
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": false
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "rectangleStyle": "default",
+            "borderRadius": 0,
+            "borderWidth": 1
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 44,
+                "g": 47,
+                "b": 49,
+                "a": 0.02
+              },
+              "hex": "#2C2F31",
+              "hex8": "#2C2F3105"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 2
+    },
+    {
+      "id": "h76lsz17",
+      "type": "picture",
+      "version": 3,
+      "name": "mockup",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 0,
+          "top": 0
+        },
+        "rotation": 0,
+        "size": {
+          "width": 1800,
+          "height": 1200
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": false
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 800
+            },
+            "imageUUID": "a7e407ad-0382-470a-8e96-ae11f3474937"
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "zIndex": 1,
+      "has_boxshadow": true,
+      "boxShadow": [
+        {
+          "inset": false,
+          "drop": true,
+          "offsetX": 0,
+          "offsetY": 0,
+          "blurRadius": 1,
+          "spread": 0,
+          "color": {
+            "r": 0,
+            "g": 0,
+            "b": 0,
+            "a": 0.2
+          }
+        }
+      ]
+    }
+  ],
+  "snippet": "<!-- Open Graph Image - Add to <head>-->\n<meta property=\"og:image\" content=\"https://api.placid.app/u/octbtfy27o2mm?screenshot=%24DEFAULT%24&overlay=%24DEFAULT%24&mockup=%24DEFAULT%24\"/>\n<meta property=\"og:image:height\" content=\"1200\"/>\n<meta property=\"og:image:width\" content=\"1800\"/>\n\n<!-- Twitter Card Image - Add to <head> -->\n<meta property=\"twitter:image\" content=\"https://api.placid.app/u/octbtfy27o2mm?screenshot=%24DEFAULT%24&overlay=%24DEFAULT%24&mockup=%24DEFAULT%24\"/>\n<meta name=\"twitter:card\" content=\"summary_large_image\">\n\n<!-- (Hidden) Pinterest Image - Add wherever you want in your content-->\n<img style=\"display:none\" src=\"https://api.placid.app/u/octbtfy27o2mm?screenshot=%24DEFAULT%24&overlay=%24DEFAULT%24&mockup=%24DEFAULT%24\" data-pin-description=\"Pin Description\" data-pin-url=\"http://yourposturl.com\"/>\n"
+}

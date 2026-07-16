@@ -1,0 +1,535 @@
+{
+  "preset_id": 62,
+  "title": "joblist.app Job FB",
+  "cover": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/presets/62.jpg",
+  "tags": [],
+  "canvas": {
+    "id": "0",
+    "type": "canvas",
+    "name": "element-1690",
+    "opacity": 100,
+    "meta": {
+      "title": "joblist.app Job FB"
+    },
+    "editor": {
+      "canChangeAspectRatio": false
+    },
+    "fields": {
+      "background": {
+        "field": true,
+        "type": "image",
+        "content": {
+          "imageSrc": "upload",
+          "imageUrl": null,
+          "imageId": null,
+          "browserViewport": {
+            "width": 1280,
+            "height": 800
+          }
+        },
+        "display": {
+          "backgroundSize": "cover",
+          "backgroundPositionVertical": "center",
+          "backgroundPositionHorizontal": "center"
+        }
+      },
+      "backgroundColor": {
+        "field": true,
+        "type": "color",
+        "content": {
+          "color": {
+            "rgba": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 1
+            },
+            "hex": "#FFFFFF"
+          }
+        },
+        "display": {
+          "displayType": "color"
+        }
+      }
+    },
+    "canvasHeight": "630",
+    "canvasWidth": "1200"
+  },
+  "items": [
+    {
+      "id": "id-0",
+      "type": "rectangle",
+      "name": "rectangle-0",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 0,
+          "top": 0
+        },
+        "size": {
+          "width": "1200",
+          "height": "630"
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "rectangleStyle": "default"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 240,
+                "s": 0.49999999999999994,
+                "l": 0.4,
+                "a": 1
+              },
+              "hex": "#333399",
+              "rgba": {
+                "r": 51,
+                "g": 51,
+                "b": 153,
+                "a": 1
+              },
+              "hsv": {
+                "h": 240,
+                "s": 0.6666666666666666,
+                "v": 0.6,
+                "a": 1
+              },
+              "oldHue": 240,
+              "source": "hex",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "id-4",
+      "type": "text",
+      "name": "location",
+      "opacity": "100",
+      "meta": {
+        "title": "Location"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 65,
+          "top": "530"
+        },
+        "size": {
+          "width": "1070",
+          "height": "30"
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "San Francisco, USA / Remote"
+          },
+          "display": {
+            "textAlign": "center",
+            "verticalAlign": "top",
+            "fontSize": "28",
+            "lineHeight": 26,
+            "fontWeight": 700,
+            "style": "single-line",
+            "fontFamily": "quicksand-bold",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 1,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hsv": {
+                "h": 0,
+                "s": 0,
+                "v": 1,
+                "a": 1
+              },
+              "oldHue": 0,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "id-6",
+      "type": "text",
+      "name": "job",
+      "opacity": "100",
+      "meta": {
+        "title": "Job Title"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 65,
+          "top": "315"
+        },
+        "size": {
+          "width": "1070",
+          "height": "155"
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "Lead Senior Front-End Developer Unicorn Designer"
+          },
+          "display": {
+            "textAlign": "center",
+            "verticalAlign": "top",
+            "fontSize": "60",
+            "lineHeight": "75",
+            "fontWeight": 700,
+            "style": "fitty",
+            "fontFamily": "quicksand-bold",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 1,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hsv": {
+                "h": 0,
+                "s": 0,
+                "v": 1,
+                "a": 1
+              },
+              "oldHue": 0,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "id-8",
+      "type": "text",
+      "name": "company",
+      "opacity": "50",
+      "meta": {
+        "title": "Company"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 65,
+          "top": "270"
+        },
+        "size": {
+          "width": "1070",
+          "height": "33"
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "INTERCOM IS HIRING A"
+          },
+          "display": {
+            "textAlign": "center",
+            "verticalAlign": "top",
+            "fontSize": "30",
+            "lineHeight": "36",
+            "fontWeight": 700,
+            "style": "default",
+            "fontFamily": "quicksand-bold",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 1,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hsv": {
+                "h": 0,
+                "s": 0,
+                "v": 1,
+                "a": 1
+              },
+              "oldHue": 0,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      }
+    },
+    {
+      "id": "id-9",
+      "type": "picture",
+      "name": "logo",
+      "opacity": 100,
+      "meta": {
+        "title": "Logo"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "530",
+          "top": "60"
+        },
+        "size": {
+          "width": "140",
+          "height": "140"
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": 491,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            }
+          },
+          "display": {
+            "borderRadius": "10",
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      }
+    }
+  ],
+  "snippet": "<!-- Open Graph Image - Add to <head>-->\n<meta property=\"og:image\" content=\"https://api.placid.app/u/g8png4fakulb8?rectangle-0=%24DEFAULT%24&location=%24DEFAULT%24&job=%24DEFAULT%24&company=%24DEFAULT%24&logo=%24DEFAULT%24\"/>\n<meta property=\"og:image:height\" content=\"630\"/>\n<meta property=\"og:image:width\" content=\"1200\"/>\n\n<!-- Twitter Card Image - Add to <head> -->\n<meta property=\"twitter:image\" content=\"https://api.placid.app/u/g8png4fakulb8?rectangle-0=%24DEFAULT%24&location=%24DEFAULT%24&job=%24DEFAULT%24&company=%24DEFAULT%24&logo=%24DEFAULT%24\"/>\n<meta name=\"twitter:card\" content=\"summary_large_image\">\n\n<!-- (Hidden) Pinterest Image - Add wherever you want in your content-->\n<img style=\"display:none\" src=\"https://api.placid.app/u/g8png4fakulb8?rectangle-0=%24DEFAULT%24&location=%24DEFAULT%24&job=%24DEFAULT%24&company=%24DEFAULT%24&logo=%24DEFAULT%24\" data-pin-description=\"Pin Description\" data-pin-url=\"http://yourposturl.com\"/>\n"
+}

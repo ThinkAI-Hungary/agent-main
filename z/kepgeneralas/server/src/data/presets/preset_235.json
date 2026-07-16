@@ -1,0 +1,636 @@
+{
+  "preset_id": 235,
+  "title": "Testimonial",
+  "cover": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/presets/235.jpg",
+  "tags": [
+    "Story",
+    "Quote"
+  ],
+  "canvas": {
+    "id": "0",
+    "type": "canvas",
+    "name": "element-3686",
+    "opacity": 100,
+    "meta": {
+      "title": "Testimonial"
+    },
+    "editor": {
+      "canChangeAspectRatio": false,
+      "show_in_form": true
+    },
+    "fields": {
+      "background": {
+        "field": true,
+        "type": "image",
+        "content": {
+          "imageSrc": "upload",
+          "imageUrl": null,
+          "imageId": null,
+          "browserViewport": {
+            "width": 1280,
+            "height": 800
+          }
+        },
+        "display": {
+          "borderRadius": 0,
+          "backgroundSize": "cover",
+          "backgroundPositionVertical": "center",
+          "backgroundPositionHorizontal": "center"
+        }
+      },
+      "backgroundColor": {
+        "field": true,
+        "type": "color",
+        "content": {
+          "color": {
+            "rgba": {
+              "r": 121,
+              "g": 75,
+              "b": 242,
+              "a": 1
+            },
+            "hex": "#794BF2",
+            "hex8": "#794BF2FF"
+          }
+        },
+        "display": {
+          "displayType": "color"
+        },
+        "linearGradientAngle": 0,
+        "radialPositionHorizontal": "50%",
+        "radialPositionVertical": "50%",
+        "segments": []
+      }
+    },
+    "canvasHeight": 1920,
+    "canvasWidth": 1080,
+    "transparent": false
+  },
+  "items": [
+    {
+      "id": "ypin590o",
+      "type": "rectangle",
+      "version": 3,
+      "name": "bg",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 90,
+          "top": 610
+        },
+        "rotation": 0,
+        "size": {
+          "width": 900,
+          "height": 725
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": false
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "rectangleStyle": "default",
+            "borderRadius": 50,
+            "borderWidth": 1
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 121,
+                "g": 75,
+                "b": 242,
+                "a": 1
+              },
+              "hex": "#794BF2",
+              "hex8": "#794BF2FF"
+            }
+          },
+          "display": {
+            "displayType": "gradient_linear"
+          },
+          "linearGradientAngle": 145,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": [
+            {
+              "color_hex": "#6d44da",
+              "stop": 0
+            },
+            {
+              "color_hex": "#8150ff",
+              "stop": 50
+            }
+          ]
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "has_boxshadow": true,
+      "boxShadow": [
+        {
+          "inset": false,
+          "offsetX": 20,
+          "offsetY": 20,
+          "blurRadius": 60,
+          "spread": 0,
+          "color": {
+            "r": 103,
+            "g": 64,
+            "b": 206,
+            "a": 1
+          }
+        },
+        {
+          "inset": false,
+          "offsetX": -20,
+          "offsetY": -20,
+          "blurRadius": 60,
+          "spread": 0,
+          "color": {
+            "r": 139,
+            "g": 86,
+            "b": 255,
+            "a": 1
+          }
+        }
+      ],
+      "zIndex": 7
+    },
+    {
+      "id": "wwhm5t8v",
+      "type": "text",
+      "version": 3,
+      "name": "quote",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 160,
+          "top": 760
+        },
+        "rotation": 0,
+        "size": {
+          "width": 760,
+          "height": 500
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "\"Neo works like a charm! I'd recommend it to anyone looking for an easy-to-use website builder. We get compliments on our website all the time!\""
+          },
+          "display": {
+            "wordBreak": "normal",
+            "textTransform": "none",
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "60",
+            "lineHeight": 72,
+            "lineHeightMode": "custom",
+            "letterSpacing": 0,
+            "fontWeight": 400,
+            "style": "fitty",
+            "fontFamily": "asap-bolditalic",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textShadow": []
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "hex8": "#FFFFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 6,
+      "has_textshadow": false
+    },
+    {
+      "id": "r4yymfzo",
+      "type": "picture",
+      "version": 3,
+      "name": "heart",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 290,
+          "top": 292
+        },
+        "rotation": 0,
+        "size": {
+          "width": 500,
+          "height": 500
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": false,
+        "show_in_form": false
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 800
+            },
+            "imageUUID": "07255d31-c3f4-4cc5-afc1-1fe85f42909b"
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "zIndex": 5
+    },
+    {
+      "id": "dkfip3ir",
+      "type": "text",
+      "version": 3,
+      "name": "tagline",
+      "opacity": 60,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 90,
+          "top": 1430
+        },
+        "rotation": 0,
+        "size": {
+          "width": 534,
+          "height": 60
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "Unlimited possibilities. Zero code."
+          },
+          "display": {
+            "wordBreak": "normal",
+            "textTransform": "none",
+            "textAlign": "left",
+            "verticalAlign": "middle",
+            "fontSize": "30",
+            "lineHeight": 33,
+            "lineHeightMode": "slight",
+            "letterSpacing": 0,
+            "fontWeight": 400,
+            "style": "fitty",
+            "fontFamily": "asap-italic",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textShadow": []
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "hex8": "#FFFFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 2,
+      "has_textshadow": false
+    },
+    {
+      "id": "hm62hldb",
+      "type": "picture",
+      "version": 3,
+      "name": "logo",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 855,
+          "top": 1400
+        },
+        "rotation": 0,
+        "size": {
+          "width": 160,
+          "height": 160
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": false,
+        "show_in_form": false
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 800
+            },
+            "imageUUID": "3a2a7290-7054-4b12-942f-6c6ca3437e9d"
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "zIndex": 1
+    },
+    {
+      "id": "al0nhhuj",
+      "type": "text",
+      "version": 3,
+      "name": "cta",
+      "opacity": 60,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "version": 3,
+        "zIndex": 1,
+        "position": {
+          "left": 90,
+          "top": 1470
+        },
+        "rotation": 0,
+        "size": {
+          "width": 534,
+          "height": 60
+        }
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "Try Neo Builder for free"
+          },
+          "display": {
+            "wordBreak": "normal",
+            "textTransform": "uppercase",
+            "textAlign": "left",
+            "verticalAlign": "middle",
+            "fontSize": "30",
+            "lineHeight": 33,
+            "lineHeightMode": "slight",
+            "letterSpacing": 0,
+            "fontWeight": 400,
+            "style": "fitty",
+            "fontFamily": "asap-bolditalic",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textShadow": []
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "hex8": "#FFFFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          },
+          "linearGradientAngle": 0,
+          "radialPositionHorizontal": "50%",
+          "radialPositionVertical": "50%",
+          "segments": []
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 2,
+      "has_textshadow": false
+    }
+  ],
+  "snippet": "<!-- Open Graph Image - Add to <head>-->\n<meta property=\"og:image\" content=\"https://api.placid.app/u/ad9vlohgxspkg?bg=%24DEFAULT%24&quote=%24DEFAULT%24&heart=%24DEFAULT%24&tagline=%24DEFAULT%24&logo=%24DEFAULT%24&cta=%24DEFAULT%24\"/>\n<meta property=\"og:image:height\" content=\"1920\"/>\n<meta property=\"og:image:width\" content=\"1080\"/>\n\n<!-- Twitter Card Image - Add to <head> -->\n<meta property=\"twitter:image\" content=\"https://api.placid.app/u/ad9vlohgxspkg?bg=%24DEFAULT%24&quote=%24DEFAULT%24&heart=%24DEFAULT%24&tagline=%24DEFAULT%24&logo=%24DEFAULT%24&cta=%24DEFAULT%24\"/>\n<meta name=\"twitter:card\" content=\"summary_large_image\">\n\n<!-- (Hidden) Pinterest Image - Add wherever you want in your content-->\n<img style=\"display:none\" src=\"https://api.placid.app/u/ad9vlohgxspkg?bg=%24DEFAULT%24&quote=%24DEFAULT%24&heart=%24DEFAULT%24&tagline=%24DEFAULT%24&logo=%24DEFAULT%24&cta=%24DEFAULT%24\" data-pin-description=\"Pin Description\" data-pin-url=\"http://yourposturl.com\"/>\n"
+}

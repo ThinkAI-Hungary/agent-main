@@ -1,0 +1,593 @@
+{
+  "preset_id": 171,
+  "title": "Playful",
+  "cover": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/presets/171.jpg",
+  "tags": [
+    "Pinterest",
+    "Quote"
+  ],
+  "canvas": {
+    "id": "0",
+    "type": "canvas",
+    "name": "element-5862",
+    "opacity": 100,
+    "meta": {
+      "title": "Playful"
+    },
+    "editor": {
+      "canChangeAspectRatio": false,
+      "show_in_form": true
+    },
+    "fields": {
+      "background": {
+        "field": true,
+        "type": "image",
+        "content": {
+          "imageSrc": "upload",
+          "imageUrl": null,
+          "imageId": null,
+          "browserViewport": {
+            "width": 1280,
+            "height": 800
+          }
+        },
+        "display": {
+          "borderRadius": 0,
+          "backgroundSize": "cover",
+          "backgroundPositionVertical": "center",
+          "backgroundPositionHorizontal": "center"
+        }
+      },
+      "backgroundColor": {
+        "field": true,
+        "type": "color",
+        "content": {
+          "color": {
+            "rgba": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 1
+            },
+            "hex": "#FFFFFF"
+          }
+        },
+        "display": {
+          "displayType": "color"
+        }
+      }
+    },
+    "canvasHeight": 1500,
+    "canvasWidth": 1000
+  },
+  "items": [
+    {
+      "id": "id-6",
+      "type": "rectangle",
+      "name": "bg",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 0,
+          "top": 0
+        },
+        "rotation": 0,
+        "size": {
+          "width": 1000,
+          "height": 1500
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": false,
+        "show_in_form": true
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "borderRadius": 0,
+            "borderWidth": 1
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 331.8367346938776,
+                "s": 0.7101449275362323,
+                "l": 0.8647058823529412,
+                "a": 1
+              },
+              "hex": "#F5C4DB",
+              "hex8": "#F5C4DBFF",
+              "rgba": {
+                "r": 245,
+                "g": 196,
+                "b": 219,
+                "a": 1
+              },
+              "hsv": {
+                "h": 331.8367346938776,
+                "s": 0.19999999999999998,
+                "v": 0.9607843137254902,
+                "a": 1
+              },
+              "oldHue": 331.8367346938776,
+              "source": "hex",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 1,
+      "version": 3
+    },
+    {
+      "id": "id-3-copy-copy",
+      "type": "text",
+      "name": "quote",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 60,
+          "top": 655
+        },
+        "rotation": 0,
+        "size": {
+          "width": 550,
+          "height": 650
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "You don’t get taken seriously by asking someone to take you seriously."
+          },
+          "display": {
+            "wordBreak": "normal",
+            "textTransform": "uppercase",
+            "textAlign": "left",
+            "verticalAlign": "bottom",
+            "fontSize": "90",
+            "lineHeight": 99,
+            "fontWeight": "700",
+            "style": "fitty",
+            "fontFamily": "opensanscondensed-bold",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textShadow": [],
+            "lineHeightMode": "slight"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 332.1600000000001,
+                "s": 0.6405631472829169,
+                "l": 0.569048085,
+                "a": 1
+              },
+              "hex": "#D84B8C",
+              "hex8": "#D84B8CFF",
+              "rgba": {
+                "r": 216,
+                "g": 75,
+                "b": 140,
+                "a": 1
+              },
+              "hsv": {
+                "h": 332.1600000000001,
+                "s": 0.6533,
+                "v": 0.8451000000000001,
+                "a": 1
+              },
+              "oldHue": 332.1600000000001,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 3,
+      "version": 3
+    },
+    {
+      "id": "id-3-copy",
+      "type": "text",
+      "name": "author",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 60,
+          "top": 1335
+        },
+        "rotation": 0,
+        "size": {
+          "width": 680,
+          "height": 60
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "Sophia Amoruso"
+          },
+          "display": {
+            "wordBreak": "normal",
+            "textTransform": "uppercase",
+            "textAlign": "left",
+            "verticalAlign": "middle",
+            "fontSize": "45",
+            "lineHeight": 58.5,
+            "fontWeight": "700",
+            "style": "fitty",
+            "fontFamily": "opensanscondensed-bold",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textShadow": [],
+            "lineHeightMode": "normal"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 1,
+                "a": 1
+              },
+              "hex": "#FFFFFF",
+              "hex8": "#FFFFFFFF",
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hsv": {
+                "h": 0,
+                "s": 0,
+                "v": 1,
+                "a": 1
+              },
+              "oldHue": 0,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 4,
+      "version": 3
+    },
+    {
+      "id": "id-4",
+      "type": "picture",
+      "name": "pattern",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 0,
+          "top": 0
+        },
+        "rotation": 0,
+        "size": {
+          "width": 710,
+          "height": 494
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": false
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            },
+            "imageUUID": "8b4fc67d-337a-460a-a75e-595545caf0f6"
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "zIndex": 5,
+      "version": 3
+    },
+    {
+      "id": "id-5",
+      "type": "rectangle",
+      "name": "circle",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 600,
+          "top": -615
+        },
+        "rotation": 0,
+        "size": {
+          "width": 2147,
+          "height": 2139
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "borderRadius": 2324,
+            "borderWidth": 1
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 332.16,
+                "s": 0.7763975155279504,
+                "l": 0.6843137254901961,
+                "a": 1
+              },
+              "hex": "#ED70AA",
+              "hex8": "#ED70AAFF",
+              "rgba": {
+                "r": 237,
+                "g": 112,
+                "b": 170,
+                "a": 1
+              },
+              "hsv": {
+                "h": 332.16,
+                "s": 0.5274261603375527,
+                "v": 0.9294117647058824,
+                "a": 1
+              },
+              "oldHue": 332.16,
+              "source": "hex",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 6,
+      "version": 3
+    },
+    {
+      "id": "id-7",
+      "type": "watermark",
+      "name": "watermark-0",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 585,
+          "top": 30
+        },
+        "rotation": 0,
+        "size": {
+          "width": 192,
+          "height": 82
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": 1908,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            }
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "contain",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "version": 3
+    }
+  ],
+  "snippet": "<!-- Open Graph Image - Add to <head>-->\n<meta property=\"og:image\" content=\"https://api.placid.app/u/byzrtinioizud?bg=%24DEFAULT%24&quote=%24DEFAULT%24&author=%24DEFAULT%24&pattern=%24DEFAULT%24&circle=%24DEFAULT%24\"/>\n<meta property=\"og:image:height\" content=\"1500\"/>\n<meta property=\"og:image:width\" content=\"1000\"/>\n\n<!-- Twitter Card Image - Add to <head> -->\n<meta property=\"twitter:image\" content=\"https://api.placid.app/u/byzrtinioizud?bg=%24DEFAULT%24&quote=%24DEFAULT%24&author=%24DEFAULT%24&pattern=%24DEFAULT%24&circle=%24DEFAULT%24\"/>\n<meta name=\"twitter:card\" content=\"summary_large_image\">\n\n<!-- (Hidden) Pinterest Image - Add wherever you want in your content-->\n<img style=\"display:none\" src=\"https://api.placid.app/u/byzrtinioizud?bg=%24DEFAULT%24&quote=%24DEFAULT%24&author=%24DEFAULT%24&pattern=%24DEFAULT%24&circle=%24DEFAULT%24\" data-pin-description=\"Pin Description\" data-pin-url=\"http://yourposturl.com\"/>\n"
+}

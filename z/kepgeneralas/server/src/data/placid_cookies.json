@@ -1,0 +1,62 @@
+[
+  {
+    "name": "__cf_bm",
+    "value": "FpPywSZ6Nk0bpy6MbPZKMK7v46R.qLjxnTv0YQ6Q1Bs-1784135277.2288535-1.0.1.1-UG_sx0Y6NGvvexw8MFo2jaG6VNkBYDcApKPIVUFCRpaHX0z.uvvwCWGE.yD.Oc1JdCEsxiakjEmE2I.ERoA1GpWkTgdYAbzLAoDyLt2esEjMZLAtkFqmDXI9S0R51qRl",
+    "domain": ".paddle.com",
+    "path": "/",
+    "expires": 1784137077.244528,
+    "httpOnly": true,
+    "secure": true,
+    "sameSite": "None"
+  },
+  {
+    "name": "placid_consent",
+    "value": "{%22essential%22:true%2C%22functional%22:true%2C%22banner_accepted%22:true}",
+    "domain": "placid.app",
+    "path": "/",
+    "expires": 1815671277,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Strict"
+  },
+  {
+    "name": "remember_web_59ba36addc2b2f9401580f014c7f58ea4e30989d",
+    "value": "eyJpdiI6IlMvdGg3blA3bnNXTUo0dGNOeWw5c3c9PSIsInZhbHVlIjoiNHBZZ2w1Sk9BM2MwcHVvVGg0aXgzS3BEZ2pTdEtOQTBSS1hsQmd5YXhuMlRGd0Eya0l0OUdvU2M5cUZFdVV2dW1SVERjUXdxWkZPZFE0OW5xSXk0bENmbjhPdjVkZ2l2Rlk3emlzR1BEOVRic2djZTJYYnRkZE9pU3ZRS1d4L3NmMnVlT3BrdU9oNVE2NC8ycFpkZnp5RnZGZ3V3UUdXSXJLTDNianNTakZwbUFqRXZXNEJaSXhKNWpQUm1STDhOMnk4cjdBbHp3NmV2cnZQL2ZZOEM1dm9WK3RKeEt3RmdhczZZQjczUVZuaz0iLCJtYWMiOiJmZDdjZTQ2YmNiOWM0ZDZiYTRjNTM2YmRmZWViNGMzMjE1NGVjN2M3MzA5ZjZmNjEyODIwODZhMjZjMGM4MjY3IiwidGFnIjoiIn0%3D",
+    "domain": "placid.app",
+    "path": "/",
+    "expires": 1818695279.044805,
+    "httpOnly": true,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "spark_token",
+    "value": "eyJpdiI6InpMUzVjelkyWSs0T1U4WTZsVjVTRlE9PSIsInZhbHVlIjoiY2FzTkwwRUtRNmdFQnpvUk5xaVM3bWNWNjRidGh2ZFNwY2dKVmJ6R0FHY2ZzS25ERWJWRldrUlFEMVZ2RU9FRjcvdHUvb3NxOTQ2RjRmd055ZVhUK2RMbVZJcTJ3bEVuVzlGYmpjZkhrSGNwakxBZzFvUVRZQmpsenNKT1lhdTdDSU85d1h1UnB3QzdKckJmbVdZUk92Y1ZlSCtzRjZkWXgzRGtqQnozWDZBTXJYeUo1QjY1Q2tQdDRaemNTcDlwMzhUeWpTZ3VKRUVlejd6UWNpVEZNWE1UcWtrOTJaUGNEbGJraHN0V3JhZmhsVTNic3BpMDRMcnVCMERBREFNTkVhaFgrUkgxV2JBVnhmcitCSjdWNHFoVUJmckd2c2pseWxBZEVEZUFBT2FNUzhBeGNnbElwanpPL2tOWlM5WHoiLCJtYWMiOiIyNTZmYmVlODgyNTFiN2E3ZmIxZWJhN2Y0ZTdkYWE1NjU1Yzc5Njk2MGEzYTc4MWM4YjU0ZTg4OTgwYmYzM2ZmIiwidGFnIjoiIn0%3D",
+    "domain": "placid.app",
+    "path": "/",
+    "expires": 1784135579.721943,
+    "httpOnly": true,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "XSRF-TOKEN",
+    "value": "eyJpdiI6IkZCUC80dzgwVUJNU0ZnU0VYa2ZwYkE9PSIsInZhbHVlIjoibEcyVjdQSTNJOXdUM1BETWd1cTJLWTJhS2xyMEEzSlR6ZFRCbkdKbUQ3YTg5d1JZNUFaZDFnVE1FdHE3eGlHaEVZVzJBdStsZm13allMblhBaFVwQmpiOWk2UHJhY1RSYkVWOTJKcXB3K0lkNkZFdmhodW9RVjJKa09oaFY3cW4iLCJtYWMiOiJhYTk3YjA0YWIwOGYzMGExY2NlZjRjOTM2NWQ1MGY2NjJjMGQ0NzE4YmEzMDhkZTgxOGI5NzU3ZGUxNzUyNjc5IiwidGFnIjoiIn0%3D",
+    "domain": "placid.app",
+    "path": "/",
+    "expires": 1784142479.722003,
+    "httpOnly": false,
+    "secure": false,
+    "sameSite": "Lax"
+  },
+  {
+    "name": "placid_session",
+    "value": "eyJpdiI6ImFwSjBiTUhpRWl3SUpnRjhrc1g1NXc9PSIsInZhbHVlIjoibEY5TzJWd0Nnc0dIM2F2aEg5ZFZGc2VyMlpHMndmWWo0cXRyS3cyM1ZXUlE2cEUwbWdIRkI3anMzRlFFN01RU1RzM0hQQ2dHSjU5VHArSzZ0N1lTMmVXUERzRE1xZVVpQmVRT3AwTXVwblkxMGtYa1NubTdoMk05TElXenBGUmQiLCJtYWMiOiI3YjAzMmNiMzk3MzAxNWIyNmY1M2RhZWU5NjVmN2E1YzY0ZjJjNzdiNjhhZWRiOWEzYmJlODJlODYyZTNlNzM4IiwidGFnIjoiIn0%3D",
+    "domain": "placid.app",
+    "path": "/",
+    "expires": 1784142479.722042,
+    "httpOnly": true,
+    "secure": false,
+    "sameSite": "Lax"
+  }
+]

@@ -259,7 +259,7 @@ const campaignToolSchema = {
           properties: {
             type: { type: "string" as const, enum: ["post", "ad"], description: "post = organikus, ad = fizetett" },
             templateId: { type: "string" as const, enum: ["quote", "product", "testimonial", "list"], description: "Vizuális stílus sablon" },
-            headline: { type: "string" as const, description: "RÖVID szöveg a KÉPEN (max 3-5 szó, nagybetűs, magyar ékezetekkel). Példa: TAVASZI ÍZEK" },
+            headline: { type: "string" as const, description: "Szöveg a KÉPEN (max 5-7 szó, nagybetűs, magyar ékezetekkel). A teljes promóciót/fő üzenetet tartalmazza, pl. kedvezmény mértéke ÉS az érintett termékkör/szezon. Példa: 20% KEDVEZMÉNY MINDEN FALFESTÉKRE NYÁRON" },
             caption: { type: "string" as const, description: "Teljes Instagram/Facebook posztszöveg: bevezető hook, kifejtés, CTA, hashtagek. Ez NEM kerül a képre." },
             imagePrompt: { type: "string" as const, description: "ANGOL GPT Image 2 prompt. Tartalmazza a TELJES jelenetet ÉS a headline szöveget fizikai felületen. Részletes, fotórealisztikus." },
             colorVariation: { type: "string" as const, enum: ["default", "inverted", "accent"], description: "Szín variáció" },
@@ -291,7 +291,7 @@ FONTOS TECHNIKAI KONTEXTUS — GPT IMAGE 2 KÉPGENERÁLÁS:
 A képeket a GPT Image 2 AI generálja, ami kiváló a szöveg renderelésben. A kép EGYBEN tartalmazza a jelenetet ÉS a szöveget — nincs utólagos szöveg-overlay. A headline a képbe van ágyazva fizikai felületen (krétás tábla, cimke, menükártya stb.).
 
 Két szöveges mező van:
-- "headline": RÖVID, kreatív szöveg a KÉPEN (maximum 3-5 szó, nagybetűs). Példák: "TAVASZI ÍZEK", "FRISS PÖRKÖLÉS". FONTOS: Helyes magyar ékezetek (Á, É, Í, Ó, Ö, Ő, Ú, Ü, Ű)!
+- "headline": Szöveg a KÉPEN (maximum 5-7 szó, nagybetűs). A teljes promóciós üzenetet tartalmazza (pl. kedvezmény mértéke ÉS az érintett termékek). Példák: "20% KEDVEZMÉNY MINDEN FALFESTÉKRE", "TAVASZI AKCIÓ KÁVÉINKRA". FONTOS: Helyes magyar ékezetek (Á, É, Í, Ó, Ö, Ő, Ú, Ü, Ű)!
 - "caption": TELJES Instagram/Facebook posztszöveg. Több bekezdés, emojik, hashtagek, CTA. NEM kerül a képre.
 
 A sablon (templateId) a kép vizuális stílusát határozza meg:
@@ -303,7 +303,7 @@ A sablon (templateId) a kép vizuális stílusát határozza meg:
 Szabályok a szövegekhez:
 - Minden caption és headline MAGYAR nyelven íródjon.
 - Hangneme kövesse a márka hangnemét (Tone of Voice: ${brandKit.tone.join(', ')}).
-- A "headline" legyen RÖVID és ÜTŐS — 3-5 szó, nagy betűs.
+- A "headline" legyen a fő üzenetet (kedvezmény + termékek) összefoglaló szöveg — max 5-7 szó, nagy betűs.
 - A "caption" legyen teljes Instagram poszt: bevezető hook, kifejtés, CTA, hashtagek.
 
 Szabályok az imagePrompt-hoz (Bria Product Shot):

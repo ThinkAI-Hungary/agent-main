@@ -1,0 +1,933 @@
+{
+  "preset_id": 145,
+  "title": "Bubble",
+  "cover": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/presets/145.jpg",
+  "tags": [
+    "Story",
+    "Article"
+  ],
+  "canvas": {
+    "id": "0",
+    "type": "canvas",
+    "name": "element-7372",
+    "opacity": 100,
+    "meta": {
+      "title": "Bubble"
+    },
+    "editor": {
+      "canChangeAspectRatio": false,
+      "show_in_form": true
+    },
+    "fields": {
+      "background": {
+        "field": true,
+        "type": "image",
+        "content": {
+          "imageSrc": "upload",
+          "imageUrl": null,
+          "imageId": null,
+          "browserViewport": {
+            "width": 1280,
+            "height": 800
+          }
+        },
+        "display": {
+          "borderRadius": 0,
+          "backgroundSize": "cover",
+          "backgroundPositionVertical": "center",
+          "backgroundPositionHorizontal": "center"
+        }
+      },
+      "backgroundColor": {
+        "field": true,
+        "type": "color",
+        "content": {
+          "color": {
+            "rgba": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 1
+            },
+            "hex": "#FFFFFF"
+          }
+        },
+        "display": {
+          "displayType": "color"
+        }
+      }
+    },
+    "canvasHeight": 1920,
+    "canvasWidth": 1080
+  },
+  "items": [
+    {
+      "id": "id-4",
+      "type": "rectangle",
+      "name": "bg-top",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 0,
+          "top": 0
+        },
+        "size": {
+          "width": 1080,
+          "height": "660"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": false
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "borderRadius": 0,
+            "borderWidth": 1
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 60,
+                "s": 0.3334282147225886,
+                "l": 0.96114447,
+                "a": 1
+              },
+              "hex": "#F8F8F2",
+              "hex8": "#F8F8F2FF",
+              "rgba": {
+                "r": 248,
+                "g": 248,
+                "b": 242,
+                "a": 1
+              },
+              "hsv": {
+                "h": 60,
+                "s": 0.026599999999999985,
+                "v": 0.9741,
+                "a": 1
+              },
+              "oldHue": 60,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 1,
+      "version": 3
+    },
+    {
+      "id": "id-3",
+      "type": "rectangle",
+      "name": "bg-bottom",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "0",
+          "top": "660"
+        },
+        "size": {
+          "width": "1080",
+          "height": "1260"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": false
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "borderRadius": 0,
+            "borderWidth": 1
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 175.75757575757578,
+                "s": 0.6556291390728476,
+                "l": 0.296078431372549,
+                "a": 1
+              },
+              "hex": "#1A7D76",
+              "hex8": "#1A7D76FF",
+              "rgba": {
+                "r": 26,
+                "g": 125,
+                "b": 118,
+                "a": 1
+              },
+              "hsv": {
+                "h": 175.75757575757578,
+                "s": 0.7919999999999999,
+                "v": 0.49019607843137253,
+                "a": 1
+              },
+              "oldHue": 175.75757575757578,
+              "source": "hex",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 2,
+      "version": 3
+    },
+    {
+      "id": "id-2",
+      "type": "rectangle",
+      "name": "img-bg",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 110,
+          "top": 200
+        },
+        "size": {
+          "width": "860",
+          "height": "860"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": false
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "borderRadius": 430,
+            "borderWidth": 1
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 176,
+                "s": 0.6604400166044001,
+                "l": 0.29522295000000004,
+                "a": 1
+              },
+              "hex": "#1A7D76",
+              "hex8": "#1A7D76FF",
+              "rgba": {
+                "r": 26,
+                "g": 125,
+                "b": 118,
+                "a": 1
+              },
+              "hsv": {
+                "h": 176,
+                "s": 0.7955,
+                "v": 0.4902,
+                "a": 1
+              },
+              "oldHue": 176,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 3,
+      "version": 3
+    },
+    {
+      "id": "id-1",
+      "type": "picture",
+      "name": "img",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 130,
+          "top": 220
+        },
+        "size": {
+          "width": "820",
+          "height": "820"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            },
+            "imageUUID": "a313d1d4-7d97-40fd-9c26-da56965c0ef9"
+          },
+          "display": {
+            "borderRadius": 410,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "zIndex": 4,
+      "version": 3
+    },
+    {
+      "id": "id-5",
+      "type": "rectangle",
+      "name": "teaser-bg",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "105",
+          "top": 835
+        },
+        "size": {
+          "width": "260",
+          "height": "260"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": false
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "borderRadius": 130,
+            "borderWidth": 1
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 105.88235294117673,
+                "s": 0.559501438654464,
+                "l": 0.7398402400000001,
+                "a": 1
+              },
+              "hex": "#A9E298",
+              "hex8": "#A9E298FF",
+              "rgba": {
+                "r": 169,
+                "g": 226,
+                "b": 152,
+                "a": 1
+              },
+              "hsv": {
+                "h": 105.88235294117673,
+                "s": 0.3287999999999999,
+                "v": 0.8854000000000001,
+                "a": 1
+              },
+              "oldHue": 105.88235294117673,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "version": 3
+    },
+    {
+      "id": "id-6",
+      "type": "text",
+      "name": "title",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 60,
+          "top": 1230
+        },
+        "size": {
+          "width": 960,
+          "height": 441
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "The Essential Guide to Succulent Care"
+          },
+          "display": {
+            "wordBreak": "normal",
+            "textTransform": "none",
+            "textAlign": "center",
+            "verticalAlign": "top",
+            "fontSize": "140",
+            "lineHeight": "140",
+            "fontWeight": "400",
+            "style": "fitty",
+            "fontFamily": "lilitaone",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textShadow": [
+              {
+                "offsetX": 0,
+                "offsetY": "-1",
+                "blurRadius": "1",
+                "color": {
+                  "r": 255,
+                  "g": 255,
+                  "b": 255,
+                  "a": 1
+                }
+              },
+              {
+                "offsetX": "6",
+                "offsetY": "0",
+                "blurRadius": "0",
+                "color": {
+                  "r": 0,
+                  "g": 0,
+                  "b": 0,
+                  "a": 0.21
+                }
+              }
+            ]
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 60,
+                "s": 0.30000000000000054,
+                "l": 0.9607843137254901,
+                "a": 1
+              },
+              "hex": "#F8F8F2",
+              "hex8": "#F8F8F2FF",
+              "rgba": {
+                "r": 248,
+                "g": 248,
+                "b": 242,
+                "a": 1
+              },
+              "hsv": {
+                "h": 60,
+                "s": 0.0241935483870968,
+                "v": 0.9725490196078431,
+                "a": 1
+              },
+              "oldHue": 60,
+              "source": "hex",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "version": 3,
+      "has_textshadow": true
+    },
+    {
+      "id": "id-8",
+      "type": "text",
+      "name": "teaser",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "120",
+          "top": 895
+        },
+        "size": {
+          "width": "230",
+          "height": "140"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "new post"
+          },
+          "display": {
+            "wordBreak": "normal",
+            "textTransform": "uppercase",
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "70",
+            "lineHeight": "70",
+            "fontWeight": "400",
+            "style": "fitty",
+            "fontFamily": "lilitaone",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textShadow": [
+              {
+                "offsetX": 0,
+                "offsetY": "-1",
+                "blurRadius": "1",
+                "color": {
+                  "r": 255,
+                  "g": 255,
+                  "b": 255,
+                  "a": 1
+                }
+              },
+              {
+                "offsetX": "3",
+                "offsetY": "0",
+                "blurRadius": 0,
+                "color": {
+                  "r": 0,
+                  "g": 0,
+                  "b": 0,
+                  "a": 0.25
+                }
+              }
+            ]
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 60,
+                "s": 0.30000000000000054,
+                "l": 0.9607843137254901,
+                "a": 1
+              },
+              "hex": "#F8F8F2",
+              "hex8": "#F8F8F2FF",
+              "rgba": {
+                "r": 248,
+                "g": 248,
+                "b": 242,
+                "a": 1
+              },
+              "hsv": {
+                "h": 60,
+                "s": 0.0241935483870968,
+                "v": 0.9725490196078431,
+                "a": 1
+              },
+              "oldHue": 60,
+              "source": "hex",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "version": 3,
+      "has_textshadow": true
+    },
+    {
+      "id": "id-9",
+      "type": "text",
+      "name": "subtitle",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 140,
+          "top": 1120
+        },
+        "size": {
+          "width": "800",
+          "height": 90
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "@mygreenheart"
+          },
+          "display": {
+            "wordBreak": "normal",
+            "textTransform": "none",
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "40",
+            "lineHeight": 52,
+            "fontWeight": "400",
+            "style": "single-line",
+            "fontFamily": "lilitaone",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textShadow": [],
+            "lineHeightMode": "normal"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 60,
+                "s": 0.30000000000000054,
+                "l": 0.9607843137254901,
+                "a": 1
+              },
+              "hex": "#F8F8F2",
+              "hex8": "#F8F8F2FF",
+              "rgba": {
+                "r": 248,
+                "g": 248,
+                "b": 242,
+                "a": 1
+              },
+              "hsv": {
+                "h": 60,
+                "s": 0.0241935483870968,
+                "v": 0.9725490196078431,
+                "a": 1
+              },
+              "oldHue": 60,
+              "source": "hex",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "version": 3,
+      "has_textshadow": false
+    },
+    {
+      "id": "id-10",
+      "type": "watermark",
+      "name": "watermark-0",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "800",
+          "top": "185"
+        },
+        "size": {
+          "width": "240",
+          "height": "90"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": 1262,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            }
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "contain",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "version": 3
+    }
+  ],
+  "snippet": "<!-- Open Graph Image - Add to <head>-->\n<meta property=\"og:image\" content=\"https://api.placid.app/u/bmjw28zpcjo4m?bg-top=%24DEFAULT%24&bg-bottom=%24DEFAULT%24&img-bg=%24DEFAULT%24&img=%24DEFAULT%24&teaser-bg=%24DEFAULT%24&title=%24DEFAULT%24&teaser=%24DEFAULT%24&subtitle=%24DEFAULT%24\"/>\n<meta property=\"og:image:height\" content=\"1920\"/>\n<meta property=\"og:image:width\" content=\"1080\"/>\n\n<!-- Twitter Card Image - Add to <head> -->\n<meta property=\"twitter:image\" content=\"https://api.placid.app/u/bmjw28zpcjo4m?bg-top=%24DEFAULT%24&bg-bottom=%24DEFAULT%24&img-bg=%24DEFAULT%24&img=%24DEFAULT%24&teaser-bg=%24DEFAULT%24&title=%24DEFAULT%24&teaser=%24DEFAULT%24&subtitle=%24DEFAULT%24\"/>\n<meta name=\"twitter:card\" content=\"summary_large_image\">\n\n<!-- (Hidden) Pinterest Image - Add wherever you want in your content-->\n<img style=\"display:none\" src=\"https://api.placid.app/u/bmjw28zpcjo4m?bg-top=%24DEFAULT%24&bg-bottom=%24DEFAULT%24&img-bg=%24DEFAULT%24&img=%24DEFAULT%24&teaser-bg=%24DEFAULT%24&title=%24DEFAULT%24&teaser=%24DEFAULT%24&subtitle=%24DEFAULT%24\" data-pin-description=\"Pin Description\" data-pin-url=\"http://yourposturl.com\"/>\n"
+}

@@ -50,7 +50,7 @@ You do NOT design layouts or output coordinates. You make semantic choices that 
 - Choose layout archetypes ONLY from A1–A9 (catalog below).
 - NEVER output colors, sizes or coordinates. Refer to accent emphasis only.
 - Respect the per-slot character budgets exactly. Shorter is better than truncated.
-- Imagery default: source "stock" + mode "duotone". Use "generated" (Flux) ONLY when stock cannot deliver the concept.
+- Imagery default: source "stock" + mode "full-bleed". Use "generated" (Flux) ONLY when stock cannot deliver the concept.
 - Never write text directly INTO the background image. The overlay layout renders text separately.
 
 # ARCHETYPE CATALOG
@@ -99,7 +99,7 @@ You must return a JSON object containing a "variants" array:
         // e.g. for A8: { "title": "3 tipp kávézáshoz", "items": ["Tipp 1", "Tipp 2", "Tipp 3"] }
       },
       "image": {
-        "mode": "solid" | "duotone" | "framed" | "full-bleed",
+        "mode": "solid" | "framed" | "full-bleed",
         "source": "none" | "stock" | "generated",
         "queryOrPrompt": "English search keywords for stock images OR descriptive english prompt for generation"
       },

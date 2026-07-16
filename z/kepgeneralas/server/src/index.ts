@@ -20,6 +20,7 @@ import { runOverlayPipeline } from './generator/pipeline.js';
 import { BrandKit, PostCreative, Campaign, CampaignItem } from './types.js';
 import { uploadToFal, removeBackground, compositeProduct, harmonizeImage, applyLowResMaskToUpscaled, localUpscale } from './compositor.js';
 import { SatoriRenderer } from './SatoriRenderer.js';
+import { renderLocalPlacid } from './LocalPlacidRenderer.js';
 import fs from 'fs';
 import sharp from 'sharp';
 // OpenAI import removed — using Bria Product Shot via fal.ai
@@ -181,7 +182,23 @@ async function generateWithFluxFlex(
       if (!imageUrl) throw new Error('BFL returned Ready but no sample URL');
       const generationTime = Number(((Date.now() - pollStart) / 1000).toFixed(1));
       console.log(`[BFL-ROUTER] ✅ Done in ${generationTime}s → ${imageUrl.substring(0, 80)}...`);
-      return { imageUrl, model: modelName, generationTime };
+      try {
+        const localRendersDir = path.resolve(__dirname, '../renders');
+        if (!fs.existsSync(localRendersDir)) {
+          fs.mkdirSync(localRendersDir, { recursive: true });
+        }
+        const filename = `bfl-gen-${Date.now()}-${Math.floor(Math.random() * 9999)}.jpg`;
+        const localPath = path.join(localRendersDir, filename);
+        console.log(`[BFL-ROUTER] Downloading generated image to local storage: ${localPath}`);
+        const imageResp = await axios.get(imageUrl, { responseType: 'arraybuffer', timeout: 30000 });
+        await fs.promises.writeFile(localPath, Buffer.from(imageResp.data));
+        const localUrl = `/renders/${filename}`;
+        console.log(`[BFL-ROUTER] Saved locally: ${localUrl}`);
+        return { imageUrl: localUrl, model: modelName, generationTime };
+      } catch (saveErr: any) {
+        console.warn(`[BFL-ROUTER] ⚠️ Failed to save image locally (${saveErr.message}), returning remote URL`);
+        return { imageUrl, model: modelName, generationTime };
+      }
     } else if (status && typeof status === 'string' && status.toLowerCase().includes('moderated')) {
       throw new Error('BFL request was moderated/blocked by safety filters.');
     } else if (status === 'Failed') {
@@ -741,9 +758,15 @@ CRITICAL RULES:
 async function decomposeUserPrompt(
   rawPrompt: string,
   imageSubjects: string[],
-  brandDna?: string
+  brandDna?: string,
+  exactTextOnly = false
 ): Promise<{ scenePrompt: string; layerText: string | null; layerCta: string | null }> {
-  const systemPrompt = `You are a social media post production AI. Your job is to split a user's raw creative brief into two separate parts:
+  let strictInstruction = "";
+  if (exactTextOnly) {
+    strictInstruction = "\nCRITICAL STRICT RULE: The user has requested EXACT TEXT ONLY. You MUST NOT summarize, edit, or shorten the promotional text or offer details. Extract the literal promotional phrase exactly as written in the user's input (e.g. if the user wrote '/ Nyáron 30% akció minden falfestékre', extract 'Nyáron 30% akció minden falfestékre' word-for-word, do NOT shorten it to '30% AKCIÓ'). Return this exact text in 'layerText'.";
+  }
+
+  const systemPrompt = `You are a social media post production AI. Your job is to split a user's raw creative brief into two separate parts:${strictInstruction}
 
 1. SCENE PROMPT (for AI image generation):
    - Describes the physical scene, setting, lighting, atmosphere, composition
@@ -804,33 +827,73 @@ Return ONLY a JSON object with this exact structure (no markdown, no explanation
   }
 }
 
-// ── Layer Selector ────────────────────────────────────────────────────────────
-// After image generation, Claude Vision analyzes the image and selects the
-// best-fitting layer template based on visual properties — NOT keyword matching.
 const LAYER_TEMPLATE_DESCRIPTIONS = [
-  { id: 'bold-headline',    name: 'Bold Headline',    bestUsedFor: 'Dark gradient at bottom, large inspirational text, dramatic scenes, wide compositions' },
-  { id: 'product-callout',  name: 'Termék Kiemelő',   bestUsedFor: 'Product clearly visible, needs price/badge + CTA button, balanced composition' },
-  { id: 'promo-badge',      name: 'Promo Badge',      bestUsedFor: 'Discount/offer/percentage, corner of image is free, image has clear focal product' },
-  { id: 'quote',            name: 'Idézet',           bestUsedFor: 'Atmospheric/lifestyle image, lots of free space, inspirational or emotional tone' },
-  { id: 'testimonial',      name: 'Vélemény',         bestUsedFor: 'Real product photo, credibility-focused content, social proof needed' },
-  { id: 'universal',        name: 'Univerzális',      bestUsedFor: 'Neutral default that works with any image, mixed or unclear content type' },
-  { id: 'none',             name: 'Nincs Layer',      bestUsedFor: 'Clean product photo that should stand alone, no text overlay needed' },
+  { id: 'tailwind-cta', idLegacy: 'tailwind-cta', name: 'Tailwind 1', occupiedArea: 'Bottom-left card. X: -450 to 0, Y: 100 to 500. Avoid if subject is bottom-left.' },
+  { id: 'tailwind-gradient-bottom', idLegacy: 'tailwind-gradient-bottom', name: 'Tailwind 2', occupiedArea: 'Bottom bar. X: -540 to 540, Y: 200 to 540. Avoid if subject is bottom center.' },
+  { id: 'tailwind-gradient-left', idLegacy: 'tailwind-gradient-left', name: 'Tailwind 3', occupiedArea: 'Left column. X: -540 to -200, Y: -675 to 675. Avoid if subject is on the left.' },
+  { id: 'tailwind-luxury-frame', idLegacy: 'tailwind-luxury-frame', name: 'Tailwind 4', occupiedArea: 'Outer 10% edges of the image. Text is bottom-left. Minimal cover.' },
+  { id: 'tailwind-neo-brutal', idLegacy: 'tailwind-neo-brutal', name: 'Tailwind 5', occupiedArea: 'Bottom-left card. X: -450 to 0, Y: 150 to 500. Avoid if subject is bottom-left.' },
+  { id: 'tailwind-ribbon-top', idLegacy: 'tailwind-ribbon-top', name: 'Tailwind 6', occupiedArea: 'Top bar ribbon. X: -540 to 540, Y: -675 to -450. Avoid if subject is top center.' },
+  { id: 'tailwind-circle-badge', idLegacy: 'tailwind-circle-badge', name: 'Tailwind 7', occupiedArea: 'Centered circle badge. X: -250 to 250, Y: -150 to 150. Avoid if subject is center.' },
+  { id: 'tailwind-feature-list', idLegacy: 'tailwind-feature-list', name: 'Tailwind 8', occupiedArea: 'Bottom-left list card. X: -450 to 0, Y: 100 to 500. Avoid if subject is bottom-left.' },
+  { id: 'tailwind-side-panel', idLegacy: 'tailwind-side-panel', name: 'Tailwind 9', occupiedArea: 'Left column sidebar. X: -540 to -150, Y: -675 to 675. Avoid if subject is left column.' },
+  { id: 'tailwind-minimal-corner', idLegacy: 'tailwind-minimal-corner', name: 'Tailwind 10', occupiedArea: 'Small card in bottom-right corner. X: 150 to 450, Y: 300 to 540. Avoid if subject is bottom-right.' },
+  { id: 'modernist-split', idLegacy: 'modernist-split', name: 'Tailwind 11', occupiedArea: 'Right column sidebar. X: 150 to 540, Y: -675 to 675. Avoid if subject is right column.' },
+  { id: 'magazine-cover', idLegacy: 'magazine-cover', name: 'Tailwind 12', occupiedArea: 'Centered cover overlay. Text center and bottom. Avoid if subject is center/bottom.' },
+  { id: 'minimalist-editorial', idLegacy: 'minimalist-editorial', name: 'Tailwind 13', occupiedArea: 'Center frame with text below product. X: -400 to 400, Y: 150 to 500. Avoid if subject is bottom center.' },
+  { id: 'glow-dark', idLegacy: 'glow-dark', name: 'Tailwind 14', occupiedArea: 'Bottom-left glowing card. X: -450 to 0, Y: 150 to 500. Avoid if subject is bottom-left.' },
+  { id: 'bold-slant', idLegacy: 'bold-slant', name: 'Tailwind 15', occupiedArea: 'Slanted footer bar. X: -540 to 540, Y: 250 to 540. Avoid if subject is bottom center.' },
+  { id: 'duotone-overlay', idLegacy: 'duotone-overlay', name: 'Tailwind 16', occupiedArea: 'Center text overlay. X: -300 to 300, Y: -100 to 300. Avoid if subject is center.' },
+  { id: 'neon-sign', idLegacy: 'neon-sign', name: 'Tailwind 17', occupiedArea: 'Bottom-left glowing card. X: -450 to 0, Y: 150 to 500. Avoid if subject is bottom-left.' },
+  { id: 'glass-list', idLegacy: 'glass-list', name: 'Tailwind 18', occupiedArea: 'Left column sidebar. X: -540 to -150, Y: -675 to 675. Avoid if subject is left column.' },
+  { id: 'brushed-metal', idLegacy: 'brushed-metal', name: 'Tailwind 19', occupiedArea: 'Bottom-left card. X: -450 to 0, Y: 150 to 500. Avoid if subject is bottom-left.' },
+  { id: 'cyberpunk-hud', idLegacy: 'cyberpunk-hud', name: 'Tailwind 20', occupiedArea: 'Outer HUD frame. Text bottom-left. Minimal cover.' },
+  { id: 'stripe-card', idLegacy: 'stripe-card', name: 'Tailwind 21', occupiedArea: 'Diagonal card at the bottom. X: -450 to 450, Y: 200 to 540. Avoid if subject is bottom.' },
+  { id: 'linear-board', idLegacy: 'linear-board', name: 'Tailwind 22', occupiedArea: 'Bottom-left card. X: -450 to 0, Y: 150 to 500. Avoid if subject is bottom-left.' },
+  { id: 'apple-spec', idLegacy: 'apple-spec', name: 'Tailwind 23', occupiedArea: 'Clean top-left card. X: -450 to 0, Y: -500 to -100. Avoid if subject is top-left.' },
+  { id: 'netflix-billboard', idLegacy: 'netflix-billboard', name: 'Tailwind 24', occupiedArea: 'Bottom gradient billboard. X: -540 to 540, Y: 150 to 540. Avoid if subject is bottom.' },
+  { id: 'airbnb-card', idLegacy: 'airbnb-card', name: 'Tailwind 25', occupiedArea: 'Bottom-left card. X: -450 to 0, Y: 150 to 500. Avoid if subject is bottom-left.' },
+  { id: 'spotify-lyrics', idLegacy: 'spotify-lyrics', name: 'Tailwind 26', occupiedArea: 'Left column text overlay. X: -450 to 0, Y: -300 to 300. Avoid if subject is left.' },
+  { id: 'notion-board', idLegacy: 'notion-board', name: 'Tailwind 27', occupiedArea: 'Bottom-left card. X: -450 to 0, Y: 150 to 500. Avoid if subject is bottom-left.' },
+  { id: 'figma-canvas', idLegacy: 'figma-canvas', name: 'Tailwind 28', occupiedArea: 'Bottom-left card. X: -450 to 0, Y: 150 to 500. Avoid if subject is bottom-left.' },
+  { id: 'github-readme', idLegacy: 'github-readme', name: 'Tailwind 29', occupiedArea: 'Bottom-left card. X: -450 to 0, Y: 150 to 500. Avoid if subject is bottom-left.' },
+  { id: 'tesla-minimal', idLegacy: 'tesla-minimal', name: 'Tailwind 30', occupiedArea: 'Centered top header text. X: -350 to 350, Y: -550 to -350. Avoid if subject is top center.' }
 ];
+
+function loadLayerConstraints(): string {
+  try {
+    const constraintsPath = path.join(__dirname, 'layerConstraints.json');
+    if (fs.existsSync(constraintsPath)) {
+      const constraintsData = JSON.parse(fs.readFileSync(constraintsPath, 'utf8'));
+      if (constraintsData && constraintsData.templates) {
+        return constraintsData.templates.map((t: any) => {
+          const occupied = `Zone: ${t.textZone}. Occupied area bounding box: x=${t.occupiedArea.x}, y=${t.occupiedArea.y}, w=${t.occupiedArea.width}, h=${t.occupiedArea.height}.`;
+          const textCaps = Object.entries(t.textCapacities).map(([k, v]: any) => `${k}: max ${v.maxChars} chars`).join(', ');
+          const suit = `Best for: [${t.suitability.bestFor.join(', ')}]. Avoid for: [${t.suitability.avoidFor.join(', ')}].`;
+          return `- "${t.id}" (${t.name}):\n  * ${occupied}\n  * Text capacity: ${textCaps}\n  * CTA count: ${t.ctaCount}\n  * ${suit}`;
+        }).join('\n');
+      }
+    }
+  } catch (err: any) {
+    console.warn('[LOAD-CONSTRAINTS] Failed to load layerConstraints.json:', err.message);
+  }
+  return LAYER_TEMPLATE_DESCRIPTIONS.map(t => `- "${t.id}": ${t.occupiedArea}`).join('\n');
+}
 
 async function selectBestLayerTemplate(
   imageUrl: string,
   hasLayerText: boolean,
   brandTone?: string[],
   brandVisualRules?: string[]
-): Promise<{ templateId: string; reason: string; confidence: number }> {
+): Promise<{ templateId: string; reason: string; confidence: number; suggestedStyles: { styleId: string; reason: string }[] }> {
   console.log(`[LAYER-SELECT] Analyzing image for best layer template...`);
   try {
     const imageBlock = await fetchImageAsClaudeBlock(imageUrl);
-    const templateList = LAYER_TEMPLATE_DESCRIPTIONS.map(t => `- "${t.id}": ${t.bestUsedFor}`).join('\n');
+    const templateList = loadLayerConstraints();
 
     const systemPrompt = `You are a social media art director AI. Analyze the provided image and select the single best layer/overlay template for it.
 
-Available templates:
+Available templates (and their layout zones and constraints):
 ${templateList}
 
 Context:
@@ -838,16 +901,18 @@ Context:
 - Brand tone: ${brandTone?.join(', ') || 'not specified'}
 - Brand visual rules: ${brandVisualRules?.join(', ') || 'not specified'}
 
-Selection rules:
-1. If hasLayerText=false AND the image looks clean/complete → prefer "none"
-2. If hasLayerText=true AND image has a dark/moody corner → consider "promo-badge"
-3. If hasLayerText=true AND image has space below or above product → consider "product-callout" or "bold-headline"
-4. Choose based on VISUAL PROPERTIES of the image, not keywords
-5. Consider: image tone (dark/light), free space location, overall mood, product prominence
+CRITICAL SELECTION RULE:
+Identify the main subject / product (e.g. paint can, container, chair, person) and any key prompt-requested objects in the image.
+You MUST SELECT and SUGGEST only templates whose layout overlay does NOT overlap with or obscure the main product/subjects.
+Filter the list of 30 templates down to all styles that do not cover the key subjects.
+Propose the single best one in 'templateId', and list ALL matching suitable templates (up to 5-6) in the 'suggestedStyles' array, each with a brief Hungarian explanation of why it fits the empty space.
 
 Return ONLY JSON (no markdown):
 {
-  "templateId": "...",
+  "templateId": "one of the 30 template ids",
+  "suggestedStyles": [
+    { "styleId": "template id", "reason": "rövid magyar indoklás, hogy miért illik a kép üres részére és miért nem takarja ki a terméket" }
+  ],
   "reason": "short English explanation",
   "confidence": 0-100
 }`;
@@ -855,10 +920,10 @@ Return ONLY JSON (no markdown):
     const model = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
     const response = await anthropic.messages.create({
       model,
-      max_tokens: 300,
+      max_tokens: 600,
       temperature: 0.1,
       system: systemPrompt,
-      messages: [{ role: 'user', content: [imageBlock, { type: 'text', text: 'Select the best layer template for this image.' }] }]
+      messages: [{ role: 'user', content: [imageBlock, { type: 'text', text: 'Select the best layer template and list suggestions.' }] }]
     });
 
     const text = response.content[0].type === 'text' ? response.content[0].text : '';
@@ -866,13 +931,14 @@ Return ONLY JSON (no markdown):
     const parsed = JSON.parse(cleaned);
     console.log(`[LAYER-SELECT] Selected: "${parsed.templateId}" (${parsed.confidence}%) — ${parsed.reason}`);
     return {
-      templateId: parsed.templateId || 'none',
+      templateId: parsed.templateId || 'tailwind-cta',
       reason: parsed.reason || '',
       confidence: typeof parsed.confidence === 'number' ? parsed.confidence : 70,
+      suggestedStyles: Array.isArray(parsed.suggestedStyles) ? parsed.suggestedStyles : []
     };
   } catch (err: any) {
     console.error('[LAYER-SELECT] Error:', err.message);
-    return { templateId: 'none', reason: 'fallback due to error', confidence: 0 };
+    return { templateId: 'tailwind-cta', reason: 'fallback due to error', confidence: 0, suggestedStyles: [] };
   }
 }
 
@@ -1074,6 +1140,70 @@ You MUST return ONLY the JSON object.`;
       explanation: `Checkup error: ${err.message}`,
       suggestedPromptAdjustment: '',
     };
+  }
+}
+
+async function detectProductPositionHelper(imageUrl: string): Promise<{ xmin: number; xmax: number; ymin: number; ymax: number } | null> {
+  console.log(`[POSITION-DETECT] Helper detecting product bounds for: ${imageUrl}`);
+  try {
+    const fullUrl = imageUrl.startsWith('http') ? imageUrl : `http://localhost:3001${imageUrl}`;
+    const imageBlock = await fetchImageAsClaudeBlock(fullUrl);
+
+    const systemPrompt = `You are a computer vision AI specialized in detecting the exact bounding box of a product container (such as a paint can, bucket, jar, or box) in an image.
+
+Follow these rules for high-precision detection:
+1. The product container includes its lid, handle, rim, and base. If there is a lid on top (even if dark or matching the character's hands), it IS part of the product. Detect from the very top edge of the lid.
+2. Do NOT include shadows on the ground or floor beneath the product base. The bottom boundary should be the physical bottom edge of the container itself, not the cast shadow.
+3. Do NOT include hands, fingers, or characters touching or holding the product. Cut them off and focus only on the container's physical boundaries.
+4. Return the coordinates as percentage integers (0 to 100) of the image's total width and height.
+
+Return ONLY a JSON object (no markdown, no wrap):
+{
+  "xmin": number (0-100),
+  "xmax": number (0-100),
+  "ymin": number (0-100),
+  "ymax": number (0-100)
+}`;
+
+    const modelName = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+    const response = await anthropic.messages.create({
+      model: modelName,
+      max_tokens: 200,
+      temperature: 0.1,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: [imageBlock, { type: 'text', text: 'Detect the main product bounding box.' }] }]
+    });
+
+    const text = response.content[0].type === 'text' ? response.content[0].text : '';
+    const cleaned = extractJsonStr(text);
+    const parsed = JSON.parse(cleaned);
+    
+    let xmin = typeof parsed.xmin === 'number' ? parsed.xmin : 25;
+    let xmax = typeof parsed.xmax === 'number' ? parsed.xmax : 75;
+    let ymin = typeof parsed.ymin === 'number' ? parsed.ymin : 30;
+    let ymax = typeof parsed.ymax === 'number' ? parsed.ymax : 95;
+
+    // Normalization safeguard: if absolute pixels are returned (values > 100), convert to percent!
+    // Since images are standard 1024x1536, scale based on those dims if they exceed 100.
+    if (ymax > 100 || xmax > 100) {
+      console.log(`[POSITION-DETECT] Detected absolute values (xmin=${xmin}, xmax=${xmax}, ymin=${ymin}, ymax=${ymax}). Converting to percent...`);
+      xmin = Math.round((xmin / 1024) * 100);
+      xmax = Math.round((xmax / 1024) * 100);
+      ymin = Math.round((ymin / 1536) * 100);
+      ymax = Math.round((ymax / 1536) * 100);
+    }
+
+    // Clamp values between 0 and 100
+    xmin = Math.max(0, Math.min(100, xmin));
+    xmax = Math.max(0, Math.min(100, xmax));
+    ymin = Math.max(0, Math.min(100, ymin));
+    ymax = Math.max(0, Math.min(100, ymax));
+
+    console.log(`[POSITION-DETECT] Helper detected: xmin=${xmin}, xmax=${xmax}, ymin=${ymin}, ymax=${ymax}`);
+    return { xmin, xmax, ymin, ymax };
+  } catch (err: any) {
+    console.error('[POSITION-DETECT] Helper error:', err.message);
+    return null;
   }
 }
 
@@ -1467,7 +1597,7 @@ OUTPUT FORMAT - return ONLY this JSON, no extra text, no markdown:
 
 // Route: Composite image generation
 app.post('/api/image/composite-generate', async (req, res) => {
-  const { slots, scenePrompt, brandKit, aspectRatio, width, height, previewOnly, preserveOriginal, productAwareBg } = req.body;
+  const { slots, scenePrompt, brandKit, aspectRatio, width, height, previewOnly, preserveOriginal, productAwareBg, exactTextOnly = false } = req.body;
   if (!slots || !Array.isArray(slots) || slots.length === 0) {
     return res.status(400).json({ error: 'slots array is required.' });
   }
@@ -1510,7 +1640,8 @@ app.post('/api/image/composite-generate', async (req, res) => {
     const decomposed = await decomposeUserPrompt(
       rawSceneForDecompose,
       slotSubjects,
-      safeBrandDna  // always a string now
+      safeBrandDna,
+      exactTextOnly
     );
     const effectiveScenePrompt = decomposed.scenePrompt;
     console.log(`[COMPOSITE-GENERATE] Decomposed — scene: "${effectiveScenePrompt}" | layerText: ${decomposed.layerText} | layerCta: ${decomposed.layerCta}`);
@@ -1575,6 +1706,7 @@ app.post('/api/image/composite-generate', async (req, res) => {
     let genTime = 0;
     let checkupResult: any = null;
     let selectedTemplateId: string | null = null;
+    let suggestedStyles: { styleId: string; reason: string }[] = [];
     let debugBgRawUrl: string | null = null;
     let debugBgHarmonizedUrl: string | null = null;
 
@@ -2609,7 +2741,7 @@ Return ONLY JSON, no markdown:
       // alpha, which causes visible color bleed in transparent (alpha=0) regions of the
       // product PNG — creating the golden rectangle artifact.
       // Fix: extract the original alpha from the scaled product (before effects) and re-stamp.
-      {
+      if (scaledMeta.channels === 4) {
         const origAlpha = await sharp(scaledProductBuffer).extractChannel('alpha').raw().toBuffer();
         const effRaw = await sharp(productWithEffects).raw().toBuffer();
         const effMeta = await sharp(productWithEffects).metadata();
@@ -2945,6 +3077,7 @@ Return ONLY JSON, no markdown:
         brandRules
       );
       selectedTemplateId = layerSelection.templateId !== 'none' ? layerSelection.templateId : null;
+      suggestedStyles = layerSelection.suggestedStyles || [];
       console.log(`[COMPOSITE-GENERATE][preserveOriginal] Layer selector chose: "${selectedTemplateId}" (${layerSelection.confidence}%)`);
 
     } else {
@@ -2978,11 +3111,45 @@ Return ONLY JSON, no markdown:
         brandRules
       );
       selectedTemplateId = layerSelection.templateId !== 'none' ? layerSelection.templateId : null;
+      suggestedStyles = layerSelection.suggestedStyles || [];
       console.log(`[COMPOSITE-GENERATE] Layer selector chose: "${selectedTemplateId}" (${layerSelection.confidence}%)`);
     }
 
     const elapsed = Date.now() - start;
     console.log(`[COMPOSITE-GENERATE] ✅ Complete in ${elapsed}ms -> ${imageUrl}`);
+
+    // Detect actual visual product bounds on final image (after FLUX redraw/shift)
+    let finalProductPosition = null;
+    try {
+      console.log(`[COMPOSITE-GENERATE] Running Claude Vision to detect final visual product bounds...`);
+      const detection = await detectProductPositionHelper(imageUrl);
+      if (detection) {
+        finalProductPosition = {
+          left: Math.round(detection.xmin * 10.24),
+          top: Math.round(detection.ymin * 15.36),
+          width: Math.round((detection.xmax - detection.xmin) * 10.24),
+          height: Math.round((detection.ymax - detection.ymin) * 15.36),
+          normalized: detection
+        };
+      }
+    } catch (err: any) {
+      console.warn(`[COMPOSITE-GENERATE] Bounding box detection failed, falling back to compositing bounds:`, err.message);
+    }
+
+    if (!finalProductPosition && (typeof productLeft === 'number' && typeof productTop === 'number' && typeof finalW === 'number' && typeof finalH === 'number')) {
+      finalProductPosition = {
+        left: productLeft,
+        top: productTop,
+        width: finalW,
+        height: finalH,
+        normalized: {
+          xmin: Math.round((productLeft / bgW) * 100),
+          xmax: Math.round(((productLeft + finalW) / bgW) * 100),
+          ymin: Math.round((productTop / bgH) * 100),
+          ymax: Math.round(((productTop + finalH) / bgH) * 100),
+        }
+      };
+    }
 
     res.json({
       imageUrl,
@@ -2994,6 +3161,8 @@ Return ONLY JSON, no markdown:
       decomposedLayerText: decomposed.layerText,
       decomposedLayerCta: decomposed.layerCta,
       selectedTemplateId,
+      suggestedStyles,
+      productPosition: finalProductPosition,
       debugImages: (debugBgRawUrl || debugBgHarmonizedUrl) ? {
         bgRaw:        debugBgRawUrl        || null,
         bgHarmonized: debugBgHarmonizedUrl || null,
@@ -3837,8 +4006,16 @@ app.post('/api/image/satori-render', async (req, res) => {
     // 1. Fetch the base image (may be a local /renders/... path or absolute URL)
     let baseImageBuffer: Buffer;
     if (baseImageUrl.startsWith('http')) {
-      const resp = await axios.get(baseImageUrl, { responseType: 'arraybuffer' });
-      baseImageBuffer = Buffer.from(resp.data);
+      try {
+        const resp = await axios.get(baseImageUrl, { responseType: 'arraybuffer' });
+        baseImageBuffer = Buffer.from(resp.data);
+      } catch (fetchErr: any) {
+        console.error('[SATORI-RENDER] Failed to fetch remote base image:', fetchErr.message);
+        return res.status(403).json({
+          error: 'Satori render failed',
+          details: 'A generált kép az átmeneti tárolóban elévült (403/409). Kérlek, generáld újra a képet a szerkesztéshez!'
+        });
+      }
     } else {
       // Local path: strip query string, resolve to file
       const cleanPath = baseImageUrl.split('?')[0];
@@ -3873,7 +4050,106 @@ app.post('/api/image/satori-render', async (req, res) => {
     res.json({ imageUrl, elapsed: Date.now() - start });
   } catch (err: any) {
     console.error('[SATORI-RENDER] Error:', err.message);
-    res.status(500).json({ error: 'Satori render failed', details: err.message });
+    if (err.response?.status === 403 || err.response?.status === 404) {
+      res.status(403).json({
+        error: 'Satori render failed',
+        details: 'A generált kép az átmeneti tárolóban elévült. Kérlek, generáld újra a képet a szerkesztéshez!'
+      });
+    } else {
+      res.status(500).json({ error: 'Satori render failed', details: err.message });
+    }
+  }
+});
+
+// ROUTE: /api/image/satori-render-all
+// Renders ALL 30 Satori overlay styles at once to a test-all-styles folder for Visual QA.
+app.post('/api/image/satori-render-all', async (req, res) => {
+  const {
+    baseImageUrl,
+    text = '',
+    cta = '',
+    brandColors,
+    fontFamily = 'Inter',
+    width = 1080,
+    height = 1350,
+    textLayers,
+  } = req.body;
+
+  if (!baseImageUrl) {
+    return res.status(400).json({ error: 'baseImageUrl is required' });
+  }
+
+  const start = Date.now();
+  console.log(`[SATORI-RENDER-ALL] Starting render of all styles. Base image: ${baseImageUrl}`);
+
+  try {
+    let baseImageBuffer: Buffer;
+    if (baseImageUrl.startsWith('http')) {
+      const resp = await axios.get(baseImageUrl, { responseType: 'arraybuffer' });
+      baseImageBuffer = Buffer.from(resp.data);
+    } else {
+      const cleanPath = baseImageUrl.split('?')[0];
+      const localPath = cleanPath.startsWith('/renders/')
+        ? path.join(rendersDir, path.basename(cleanPath))
+        : path.join(path.dirname(fileURLToPath(import.meta.url)), '..', cleanPath);
+      baseImageBuffer = await fs.promises.readFile(localPath);
+    }
+
+    const styles = [
+      'tailwind-cta', 'tailwind-gradient-bottom', 'tailwind-gradient-left',
+      'tailwind-luxury-frame', 'tailwind-neo-brutal', 'tailwind-ribbon-top',
+      'tailwind-circle-badge', 'tailwind-feature-list', 'tailwind-side-panel',
+      'tailwind-minimal-corner', 'modernist-split', 'magazine-cover',
+      'minimalist-editorial', 'glow-dark', 'bold-slant', 'duotone-overlay',
+      'neon-sign', 'glass-list', 'brushed-metal', 'cyberpunk-hud',
+      'stripe-card', 'linear-board', 'apple-spec', 'netflix-billboard',
+      'airbnb-card', 'spotify-lyrics', 'notion-board', 'figma-canvas',
+      'github-readme', 'tesla-minimal'
+    ];
+
+    const testRendersDir = path.join(rendersDir, 'test-all-styles');
+    if (!fs.existsSync(testRendersDir)) {
+      fs.mkdirSync(testRendersDir, { recursive: true });
+    }
+
+    const results: { styleId: string; imageUrl: string }[] = [];
+
+    for (const styleId of styles) {
+      let layersToUse = textLayers;
+      if (!layersToUse || layersToUse.length === 0) {
+        layersToUse = [
+          { id: '1', text, fontSize: 44, color: '#ffffff', opacity: 100, x: 0, y: 0, textAlign: 'left' }
+        ];
+      }
+
+      const resultBuffer = await SatoriRenderer.renderToBuffer(baseImageBuffer, {
+        width,
+        height,
+        text,
+        cta,
+        satoriStyleId: styleId,
+        colors: brandColors || { primary: '#187fc0', secondary: '#ffffff', accent: '#c32226' },
+        fontFamily,
+        textLayers: layersToUse,
+        textOpts: {},
+        ctaOpts: {},
+        shapeOpts: {},
+      });
+
+      const filename = `style-${styleId}.png`;
+      const outPath = path.join(testRendersDir, filename);
+      await fs.promises.writeFile(outPath, resultBuffer);
+      results.push({
+        styleId,
+        imageUrl: `/renders/test-all-styles/${filename}?t=${Date.now()}`
+      });
+    }
+
+    console.log(`[SATORI-RENDER-ALL] Done in ${Date.now() - start}ms`);
+    res.json({ results, elapsed: Date.now() - start });
+  } catch (err: any) {
+    console.error('[SATORI-RENDER-ALL] Error:', err.message);
+    res.status(500).json({ error: 'Satori render-all failed', details: err.message });
   }
 });
 
@@ -3882,7 +4158,7 @@ app.post('/api/image/satori-render', async (req, res) => {
 // Generates an AI-suggested Satori overlay layout based on prompt and Brand DNA.
 // ═══════════════════════════════════════════════════════════════════════════════
 app.post('/api/image/satori-auto-layout', async (req, res) => {
-  const { prompt = '', brandDna, subject = '' } = req.body;
+  const { prompt = '', brandDna, subject = '', exactTextOnly = false, imageUrl = '', refresh = false } = req.body;
 
   // Try to load local brand_dna.json if it exists
   let localBrandDna: any = null;
@@ -3902,70 +4178,58 @@ app.post('/api/image/satori-auto-layout', async (req, res) => {
   const visualRecipe = brandKit.visual_recipe || {};
   const colors = visualRecipe.color_palette || { primary: '#187fc0', secondary: '#333333', accent: '#c32226', background: '#ffffff', text_color: '#000000' };
 
-  console.log(`[SATORI-AUTO-LAYOUT] generating for subject="${subject}" prompt="${prompt.substring(0, 40)}..."`);
+  console.log(`[SATORI-AUTO-LAYOUT] generating for subject="${subject}" prompt="${prompt.substring(0, 40)}..." exactTextOnly=${exactTextOnly} imageUrl=${imageUrl}`);
+
+  let strictInstruction = "";
+  if (exactTextOnly) {
+    strictInstruction = "\nCRITICAL STRICT RULE: The user has requested EXACT TEXT ONLY. You MUST NOT invent any new promotional text, adjectives, or extra titles. Only utilize the literal words provided in the 'Image Prompt/Scene Context' or 'Brand Name' for the text fields. For example, if the prompt has '30% akció mindenre nyáron', use exactly that or parts of that. Do NOT change it to 'Nyári Nagy Akció!' or add words like 'Nagy'. Do not invent extra marketing copy.";
+  }
+
+  const templateList = loadLayerConstraints();
+
+  let visualContextInstructions = "";
+  if (imageUrl) {
+    visualContextInstructions = `
+You are also provided with the actual image. Analyze it visually to detect the position of the product (paint can, bottle, etc.) and any key subjects.
+You MUST SELECT and SUGGEST only templates whose occupied areas do NOT overlap with or obscure the main product/subjects.
+If a creature, character (e.g., "goblin", "dwarf", "elf"), person, or animal is mentioned in the prompt/subject, locate it in the image. You MUST NOT place any text, shapes, or banners over them. If the subject/character is in the center, do not select center-aligned templates (like "quote-card", "testimonial-layer", "luxury-dark", etc.); instead, select templates that place text at the top or bottom margins (like "top-bar-announcement", "caption-bottom-only", etc.).
+Propose the single best template in 'satoriStyleId', and list ALL matching suitable templates (up to 5-6) in the 'suggestedStyles' array, each with a brief Hungarian explanation of why it fits the empty space.`;
+  } else {
+    visualContextInstructions = `
+Evaluate based on the scene prompt and subject context. Select the best style ID in 'satoriStyleId', and list other potentially suitable styles in the 'suggestedStyles' array with brief Hungarian reasons. Avoid overlapping with any prominent character (e.g. "goblin") or product described in the prompt.`;
+  }
+
+  let subjectOverlapRule = "";
+  if (subject && subject.trim().length > 0) {
+    subjectOverlapRule = `\nCRITICAL SUBJECT PROTECTION RULE: The image contains a prominent subject: "${subject}".
+- You MUST NOT select any template that covers, overlaps, or obscures this subject.
+- If the subject is centered (which is typical for character/product generation like "${subject}"), you MUST NOT select any template with Zone "center" or "full" (e.g., "center-circle-promo", "promo-badge", "luxury-dark", "dark-announcement", "quote-card", "stat-big-number").
+- Instead, you MUST select a margin-based template:
+  * "top-bar-announcement" (covers only y: 0 to 200 at the top margin)
+  * "caption-bottom-only" (covers only y: 1100 to 1350 at the bottom margin)
+  * "subtitle-strip" (covers only y: 1200 to 1350 at the bottom margin)
+  * "price-tag-bold" (covers only a small top-left tag)
+  * "percentage-corner" (covers only a small top-right badge)
+  * "watermark-corner" (covers only a small bottom-right corner)`;
+  }
 
   const systemPrompt = `You are a marketing layout assistant for an automated graphic editor.
-Analyze the image generation prompt/context, the subject, and the brand identity to propose the perfect overlay layout using the Satori engine.
+Analyze the image generation prompt/context, the subject, and the brand identity to propose the perfect overlay layout using the Satori engine.${strictInstruction}${visualContextInstructions}${subjectOverlapRule}
 
 SATORI ENGINE SPECIFICATIONS:
 We compose an overlay on a 1080x1350 vertical image.
-Available Style IDs:
-1. 'gradient-bottom' - dark gradient at the bottom with white text. Great for general product shots.
-2. 'gradient-left' - dark gradient on the left. Great if the product is on the right side of the image.
-3. 'white-card' - full-width solid white banner card at the bottom with dark text. Highly legible.
-4. 'glass-card' - frosted glass transparent bottom card. Modern, elegant.
-5. 'luxury-frame' - golden thin border frame with elegant serif font. Best for premium or premium-tier products.
-6. 'neo-brutal' - high-contrast black border, bold colors, sticker feel. Young, vibrant, aggressive marketing.
-7. 'ribbon-top' - a solid bar at the top of the image in the accent color. Great for announcements.
-8. 'circle-badge' - a centered round badge with a border. High focus on central text.
-9. 'promo-accent' - bottom gradient + a top-right coupon/promo badge. Best for sales.
-10. 'full-dark' - darkens the entire image with a central text. Cinematic, moody.
-11. 'minimal-bar' - a small centered pill/bar at the bottom in the primary color. Minimalist.
-12. 'diagonal-split' - a modern diagonal slash dividing the product and a white solid area at the bottom.
-13. 'feature-list' - a rounded card designed for a bulleted list of 2-3 items. Ideal for listing product specs/benefits.
-14. 'retro-sticker' - a tilted badge with a thick black drop shadow. Energetic, bold callouts.
-15. 'side-panel' - a vertical sidebar panel occupying the left 38% of the image.
-16. 'minimal-corner' - a tiny elegant card in the bottom-right corner. Minimal disruption to the photo.
-17. 'modern-minimal-border' - thin elegant frame. Text top left, CTA bottom right.
-18. 'asymmetric-split' - vertical sidebar on the right column (covers X from 600 to 1080).
-19. 'badge-ticker' - continuously repeating promo marquee ribbon at the top or bottom.
-20. 'comic-speech' - speech bubble/cloud style card.
-21. 'bold-kicker' - bold category kicker + huge title + accent separator line.
-22. 'social-proof-rating' - small testimonial/rating box at the top right.
-23. 'polaroid-frame' - wraps the image in a white Polaroid frame with text at the bottom.
-24. 'tailwind-cta' - premium card layout (light gray rounded container with shadow, left accent stripe) with title, subtitle, and primary/secondary action buttons.
-
-DESIGN SYSTEM POSITIONING GUIDELINES (1080x1350 canvas, X=0, Y=0 is center):
-Text layers (textLayers) and CTA must follow these strict rules to fit the layout zones. DO NOT just place text at x:0, y:0:
-
-1. 'gradient-bottom' -> Text bottom center: x: 0, y: 200 to 400. Align: center. Text Color: White/Light.
-2. 'gradient-left' -> Text left middle: x: -350 to -250, y: -200 to 100. Align: left. Text Color: White/Light.
-3. 'white-card' -> Text bottom left: x: -400 to -200, y: 350 to 450. Align: left. Text Color: Brand Dark/Charcoal.
-4. 'glass-card' -> Text bottom left: x: -400 to -200, y: 320 to 420. Align: left. Text Color: White/Light.
-5. 'luxury-frame' -> Text bottom center: x: 0, y: 250 to 350. Align: center. Text Color: Gold (#c9a96e) or White.
-6. 'neo-brutal' -> Text bottom left: x: -400 to -200, y: 300 to 400. Align: left. Text Color: White/Fluorescent.
-7. 'ribbon-top' -> Text top center: x: 0, y: -580 to -500. Align: center. Text Color: High contrast with ribbon.
-8. 'circle-badge' -> Text exact center: x: 0, y: -100 to 100. Align: center. Text Color: High contrast inside circle.
-9. 'promo-accent' -> Text bottom left: x: -400 to -200, y: 250 to 380. Align: left. Text Color: White/Light.
-10. 'full-dark' -> Text center: x: 0, y: -100 to 100. Align: center. Text Color: White/Light.
-11. 'minimal-bar' -> Text bottom center: x: 0, y: 350 to 420. Align: center. Text Color: White/Light.
-12. 'diagonal-split' -> Text bottom left: x: -400 to -200, y: 300 to 420. Align: left. Text Color: Brand Dark/Charcoal.
-13. 'feature-list' -> Text bottom left inside card: x: -400 to -200, y: 220 to 380. Align: left. Text Color: White/Light. MUST use bullet points: "• Pont 1\n• Pont 2".
-14. 'retro-sticker' -> Text centered inside badge: x: 250, y: 350 (bottom-right) OR x: -250, y: -350 (top-left). Align: center. Text Color: Black on Yellow/Orange.
-15. 'side-panel' -> Text left column: x: -380 to -280, y: -250 to 100. Align: left. Text Color: White/Light.
-16. 'minimal-corner' -> Text bottom right card: x: 250 to 380, y: 320 to 420. Align: left. Text Color: Brand Dark/Charcoal.
-17. 'modern-minimal-border' -> Text top left: x: -400, y: -500. Align: left. CTA bottom right: x: 300, y: 500. Text Color: White/Gold.
-18. 'asymmetric-split' -> Text right column: x: 200 to 380, y: -250 to 100. Align: left. Text Color: White or primary brand color.
-19. 'badge-ticker' -> Continuously repeating marquee text: x: 0, y: -580 (top) or y: 580 (bottom). Align: center. Text Color: High contrast.
-20. 'comic-speech' -> Speach bubble card. Text center: x: -100 to 200, y: 0 to 200. Align: center. Text Color: Charcoal (#1a1a1a).
-21. 'bold-kicker' -> Text left middle: x: -400 to -200, y: -100 to 200. Align: left. Text Color: White. (Provide 2 text layers: layer 1 for Kicker (smaller size, accent color), layer 2 for Headline (big size, white)).
-22. 'social-proof-rating' -> Testimonial box. Text top-right: x: 200 to 380, y: -450 to -300. Align: left. Text Color: Charcoal or White.
-23. 'polaroid-frame' -> Polaroid frame text bottom center: x: 0, y: 500 to 580. Align: center. Text Color: Charcoal (#1a1a1a).
-24. 'tailwind-cta' -> Card text left: x: -400 to -200, y: 300 to 400. Align: left. Text Color: dark charcoal (#111827).
+Available Style IDs and their occupied areas:
+${templateList}
 
 RULES FOR OUTPUT CONFIGURATION:
 - Return valid JSON matching the schema below.
-- Select the best 'satoriStyleId' based on the product type and scene prompt.
+- Select the best 'satoriStyleId' based on the product type and scene prompt/image content.
+- CRITICAL BRAND COLOR & CONTRAST RULES:
+  * The template's background type MUST match the background image brightness! If the image is dark (e.g., night scene, volcano, dark studio, etc.), you MUST NOT select a light-background template (like quote-card or polaroid-white). You must select dark-background or any-background templates. Conversely, if the image is very bright, select light-background or any-background templates.
+  * For each text layer, ensure its color contrasts highly with the underlying background image area. If the background behind the text is dark, the text color MUST be light (white '#ffffff' or a light brand accent color). If the background is light, the text color MUST be dark (brand primary/text color, or dark grey/black).
+  * The CTA button background ('ctaOpts.bgColor') and text color ('ctaOpts.color') must contrast highly with each other.
+- CRITICAL TEXT PRESERVATION RULE:
+  * Do NOT omit key details from the input prompt (like target products or seasonal duration). Segment the input text into multiple layers so all information is preserved (e.g., put the main discount/offer in 'headline', and the target products/conditions in 'productName' or 'spec').
 - Formulate the text layers in HUNGARIAN. Keep them short, punchy, and marketing-focused. HUNGARIAN ACCENTS ARE MANDATORY! You MUST use proper Hungarian accents (á, é, í, ó, ö, ő, ú, ü, ű). NEVER write text without proper Hungarian accents (e.g. use "szépség", never "szepseg"; "különleges", never "kulonleges"; "Győr", never "Gyor"). Double acute accents (ő, ű) are extremely important.
 - Align the colors with the brand color palette provided.
 - Segment textLayers into semantically distinct layers with specific IDs: "brandName", "productName", "spec", "price", or "headline". Set "visible": true for each.
@@ -3974,6 +4238,9 @@ RULES FOR OUTPUT CONFIGURATION:
 JSON SCHEMA:
 {
   "satoriStyleId": "gradient-bottom",
+  "suggestedStyles": [
+    { "styleId": "tailwind-ribbon-top", "reason": "A termék alul helyezkedik el, így a felső sáv teljesen szabadon marad." }
+  ],
   "text": "Inntaler Matt Fehér",
   "textLayers": [
     {
@@ -4030,18 +4297,31 @@ Brand DNA Context: ${brandKit.company?.summary || ''}
 Visual Mood: ${visualRecipe.mood || ''}`;
 
   try {
+    let messagesContent: any[] = [];
+    if (imageUrl) {
+      try {
+        const absoluteUrl = imageUrl.startsWith('http') ? imageUrl : `http://localhost:${port}${imageUrl}`;
+        const imageBlock = await fetchImageAsClaudeBlock(absoluteUrl);
+        messagesContent.push(imageBlock);
+      } catch (imgErr: any) {
+        console.warn('[SATORI-AUTO-LAYOUT] Failed to load image block:', imgErr.message);
+      }
+    }
+    messagesContent.push({ type: 'text', text: userContent });
+
     const model = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
     const response = await anthropic.messages.create({
       model,
       max_tokens: 1000,
-      system: systemPrompt,
-      messages: [{ role: 'user', content: userContent }]
+      temperature: refresh ? 0.9 : 0.2,
+      system: systemPrompt + (refresh ? "\n\nCRITICAL REFRESH INSTRUCTION: The user wants to RE-THINK the layout. You MUST suggest a DIFFERENT satoriStyleId and DIFFERENT suggestedStyles than a standard layout. Try to explore alternative margins, corners, and formats, rather than repeating the same default choice." : ""),
+      messages: [{ role: 'user', content: messagesContent }]
     });
 
     const rawText = (response.content[0].type === 'text') ? response.content[0].text : '';
     console.log('[SATORI-AUTO-LAYOUT] Raw response from Claude:', rawText);
 
-    let parsedConfig;
+    let parsedConfig: any;
     try {
       const jsonMatch = rawText.match(/\{[\s\S]*\}/);
       parsedConfig = JSON.parse(jsonMatch ? jsonMatch[0] : rawText);
@@ -4049,9 +4329,40 @@ Visual Mood: ${visualRecipe.mood || ''}`;
       throw new Error(`Failed to parse Claude output as JSON. Raw text: ${rawText}`);
     }
 
-    // Force tailwind-cta as requested by the user
-    if (parsedConfig) {
-      parsedConfig.satoriStyleId = 'tailwind-cta';
+    // Post-validation filter based on subject position zone
+    if (subject && subject.trim().length > 0 && parsedConfig.satoriStyleId) {
+      try {
+        const constraintsPath = path.join(__dirname, 'layerConstraints.json');
+        if (fs.existsSync(constraintsPath)) {
+          const constraintsData = JSON.parse(fs.readFileSync(constraintsPath, 'utf8'));
+          const selectedTemplate = constraintsData.templates?.find((t: any) => t.id === parsedConfig.satoriStyleId);
+          if (selectedTemplate && (selectedTemplate.textZone === 'center' || selectedTemplate.textZone === 'full')) {
+            console.log(`[SATORI-AUTO-LAYOUT] 🚨 Post-validation override: selected template "${parsedConfig.satoriStyleId}" covers the center, but subject "${subject}" is present. Overriding to "caption-bottom-only" as fallback!`);
+            parsedConfig.satoriStyleId = 'caption-bottom-only';
+            
+            // Re-map text layers to fit the new bottom-only layout format
+            parsedConfig.textLayers = [
+              { id: 'productName', text: parsedConfig.text || (parsedConfig.textLayers && parsedConfig.textLayers[0]?.text) || 'Ajánlat', fontSize: 32, color: '#ffffff', opacity: 100, x: 0, y: 0, textAlign: 'center', visible: true }
+            ];
+
+            // Filter suggested styles to exclude center/full templates
+            if (Array.isArray(parsedConfig.suggestedStyles)) {
+              parsedConfig.suggestedStyles = parsedConfig.suggestedStyles.filter((item: any) => {
+                const temp = constraintsData.templates?.find((t: any) => t.id === item.styleId);
+                return temp && temp.textZone !== 'center' && temp.textZone !== 'full';
+              });
+              if (parsedConfig.suggestedStyles.length === 0) {
+                parsedConfig.suggestedStyles = [
+                  { styleId: 'caption-bottom-only', reason: 'Alul elhelyezett felirat, így a kép központi része teljesen szabadon marad.' },
+                  { styleId: 'top-bar-announcement', reason: 'Fent elhelyezett vékony sáv, nem takarja ki a központi témát.' }
+                ];
+              }
+            }
+          }
+        }
+      } catch (err: any) {
+        console.error('[SATORI-AUTO-LAYOUT] Post-validation filter error:', err.message);
+      }
     }
 
     res.json(parsedConfig);
@@ -4359,6 +4670,299 @@ app.post('/api/translate-prompt', async (req, res) => {
     res.json(result);
   } catch (err: any) {
     res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/image/detect-product-position', async (req, res) => {
+  const { imageUrl, productImageUrl } = req.body;
+  if (!imageUrl) return res.status(400).json({ error: 'imageUrl is required' });
+
+  const normalized = await detectProductPositionHelper(imageUrl, productImageUrl);
+  if (normalized) {
+    res.json({
+      success: true,
+      normalized
+    });
+  } else {
+    res.status(500).json({ error: 'Failed to detect position' });
+  }
+});
+
+app.post('/api/image/placid-refine-copy', async (req, res) => {
+  const { text, cta, maxHeadlineLen, maxCtaLen } = req.body;
+  if (!text) {
+    return res.status(400).json({ error: 'text is required.' });
+  }
+
+  const limitH = maxHeadlineLen || 40;
+  const limitC = maxCtaLen || 15;
+
+  console.log(`[REFINE-COPY] Refining text: "${text}" (limit: ${limitH}) and cta: "${cta}" (limit: ${limitC})...`);
+
+  try {
+    const systemPrompt = `You are a professional Hungarian copywriter. Your job is to refine and condense social media ad copy to fit strict character limits.
+Return ONLY a valid JSON object matching this schema:
+{
+  "refinedText": "The condensed Hungarian headline text. Must be strictly <= ${limitH} characters.",
+  "refinedCta": "The condensed Hungarian CTA text. Must be strictly <= ${limitC} characters."
+}
+Strict Rules:
+1. Do not include any chat prefix or markdown formatting (like \`\`\`json). Output only raw JSON.
+2. The output refinedText must be highly punchy and professional Hungarian, and its length in characters must be less than or equal to ${limitH}.
+3. The output refinedCta must be <= ${limitC} characters.
+4. Keep the core promotional message and brand tone intact.`;
+
+    const modelName = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+    const response = await anthropic.messages.create({
+      model: modelName,
+      max_tokens: 400,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: `Please refine this copy. Headline: "${text}". CTA: "${cta || ''}"` }]
+    });
+
+    const rawText = response.content[0].type === 'text' ? response.content[0].text : '';
+    console.log(`[REFINE-COPY] Claude raw response:`, rawText);
+
+    const cleaned = rawText.replace(/```json/g, '').replace(/```/g, '').trim();
+    const result = JSON.parse(cleaned);
+
+    res.json(result);
+  } catch (err: any) {
+    console.error('[REFINE-COPY] Error refining copy:', err.message);
+    res.status(500).json({ error: 'Failed to refine copy', details: err.message });
+  }
+});
+
+app.get('/api/image/placid-templates', async (req, res) => {
+  const customToken = req.query.token as string;
+  const token = customToken || 'placid-tllizj7jfdpmujio-nav7mkoatthmwmjk';
+  console.log('[PLACID-PROXY] Fetching templates from Placid API...');
+  try {
+    const response = await axios.get('https://api.placid.app/api/rest/templates', {
+      headers: {
+        'Authorization': `Bearer ${token}`
+      },
+      timeout: 10000
+    });
+    res.json({ templates: response.data.data || [] });
+  } catch (err: any) {
+    const errMsg = err.response?.data?.message || err.response?.data?.error || err.message;
+    console.error('[PLACID-PROXY] Failed to fetch templates:', errMsg);
+    res.status(err.response?.status || 500).json({ error: errMsg });
+  }
+});
+
+async function uploadLocalImageToPlacid(imageUrl: string, activeToken: string): Promise<string> {
+  const isLocal = imageUrl.includes('/renders/') || imageUrl.startsWith('/renders/') || imageUrl.startsWith('renders/') || imageUrl.includes('localhost:3001');
+  if (!isLocal) {
+    return imageUrl;
+  }
+
+  try {
+    let filename = '';
+    if (imageUrl.includes('/renders/')) {
+      filename = imageUrl.split('/renders/').pop() || '';
+    } else {
+      filename = path.basename(imageUrl);
+    }
+    
+    // Remove query params if any
+    filename = filename.split('?')[0];
+
+    if (!filename) return imageUrl;
+    
+    const filePath = path.join(rendersDir, filename);
+    if (!fs.existsSync(filePath)) {
+      console.warn(`[PLACID-UPLOAD] File not found at local path: ${filePath}`);
+      return imageUrl;
+    }
+
+    console.log(`[PLACID-UPLOAD] Uploading local file ${filePath} to Placid Media API...`);
+    const fileBuffer = fs.readFileSync(filePath);
+    
+    const formData = new FormData();
+    const blob = new Blob([fileBuffer], { type: 'image/png' });
+    formData.append('file', blob, filename);
+
+    const uploadResponse = await axios.post(
+      'https://api.placid.app/api/rest/media',
+      formData,
+      {
+        headers: {
+          'Authorization': `Bearer ${activeToken}`
+        },
+        timeout: 15000
+      }
+    );
+
+    const mediaList = uploadResponse.data.media;
+    if (mediaList && mediaList.length > 0) {
+      const uploadedUrl = mediaList[0].file_id;
+      console.log(`[PLACID-UPLOAD] Successfully uploaded local image. Placid CDN URL: ${uploadedUrl}`);
+      return uploadedUrl;
+    }
+  } catch (err: any) {
+    console.error(`[PLACID-UPLOAD] Failed to upload local image to Placid media:`, err.response?.data || err.message);
+  }
+  return imageUrl;
+}
+
+app.post('/api/image/placid-render', async (req, res) => {
+  const { template, layers, token } = req.body;
+  const activeToken = token || 'placid-tllizj7jfdpmujio-nav7mkoatthmwmjk';
+  console.log(`[PLACID-PROXY] Forwarding template ${template} to Placid API...`);
+  try {
+    // Process layers to upload any local image to Placid media storage first
+    const processedLayers: any = {};
+    for (const key of Object.keys(layers || {})) {
+      const layerData = layers[key];
+      if (layerData && typeof layerData === 'object') {
+        const imgUrl = layerData.image || layerData.image_url;
+        if (imgUrl) {
+          const publicUrl = await uploadLocalImageToPlacid(imgUrl, activeToken);
+          processedLayers[key] = {
+            ...layerData,
+            image: publicUrl
+          };
+          if (processedLayers[key].image_url) {
+            delete processedLayers[key].image_url;
+          }
+        } else {
+          processedLayers[key] = layerData;
+        }
+      } else {
+        processedLayers[key] = layerData;
+      }
+    }
+
+    const response = await axios.post(
+      'https://api.placid.app/api/rest/images',
+      { template_uuid: template, layers: processedLayers },
+      {
+        headers: {
+          'Authorization': `Bearer ${activeToken}`,
+          'Content-Type': 'application/json'
+        },
+        timeout: 20000
+      }
+    );
+
+    const initialData = response.data;
+    if (initialData.image_url) {
+      return res.json(initialData);
+    }
+
+    if (initialData.polling_url || initialData.id) {
+      const pollUrl = initialData.polling_url || `https://api.placid.app/api/rest/images/${initialData.id}`;
+      console.log(`[PLACID-PROXY] Image generation queued. Polling: ${pollUrl}`);
+      
+      let attempts = 0;
+      const maxAttempts = 15;
+      
+      while (attempts < maxAttempts) {
+        attempts++;
+        await new Promise(resolve => setTimeout(resolve, 800));
+        
+        try {
+          const pollResp = await axios.get(pollUrl, {
+            headers: {
+              'Authorization': `Bearer ${activeToken}`
+            },
+            timeout: 5000
+          });
+          
+          const pollData = pollResp.data;
+          console.log(`[PLACID-PROXY] Poll attempt ${attempts}: status = ${pollData.status}`);
+          
+          if (pollData.status === 'finished' && pollData.image_url) {
+            return res.json(pollData);
+          }
+          if (pollData.status === 'error') {
+            return res.status(500).json({ error: 'Placid processing error occurred during generation.' });
+          }
+        } catch (pollErr: any) {
+          console.warn(`[PLACID-PROXY] Poll warning on attempt ${attempts}:`, pollErr.message);
+        }
+      }
+      return res.status(504).json({ error: 'Placid image generation timed out.' });
+    }
+
+    res.json(initialData);
+  } catch (err: any) {
+    const errMsg = err.response?.data?.message || err.response?.data?.error || err.message;
+    console.error('[PLACID-PROXY] Placid error:', errMsg);
+    res.status(err.response?.status || 500).json({ error: errMsg });
+  }
+});
+
+app.post('/api/image/placid-render-local', async (req, res) => {
+  const { width, height, layers, layerValues, baseImageUrl, productImageUrl, useCutoutOnly, imageMappings, productPosition } = req.body;
+  try {
+    const imageUrl = await renderLocalPlacid({
+      width,
+      height,
+      layers,
+      layerValues,
+      baseImageUrl,
+      productImageUrl,
+      useCutoutOnly,
+      imageMappings,
+      productPosition
+    }, port);
+    res.json({ image_url: imageUrl });
+  } catch (err: any) {
+    console.error('[LOCAL-RENDER-ROUTE] Local render error:', err);
+    res.status(500).json({ error: err.message || 'Helyi renderelési hiba történt' });
+  }
+});
+
+app.post('/api/image/parse-requirements', async (req, res) => {
+  const { text } = req.body;
+  if (!text) {
+    return res.json({ success: true, parsed: {} });
+  }
+
+  try {
+    const anthropicClient = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY || '',
+    });
+
+    const modelToUse = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+    console.log(`[PARSE-REQUIREMENTS] Request received. Calling model ${modelToUse}...`);
+
+    const response = await anthropicClient.messages.create({
+      model: modelToUse,
+      max_tokens: 1000,
+      system: `You are an AI assistant that converts Hungarian free-text requirements for image layouts/templates into a structured JSON object of key-value pairs (constraints).
+Ensure keys are descriptive, lowercase, snake_case English words (e.g., 'images_count', 'orientation', 'has_text_overlay', 'background_color').
+Values should be raw types: integers, booleans, or strings.
+Example:
+"Ezen a sablonon 3 különböző képnek kell elhelyezkednie, tehát követelmény hogy 3 képünk legyen" -> {"images_count": 3}
+"A headline szöveg nem lehet több mint 50 karakter és fekvő formátum" -> {"headline_max_chars": 50, "orientation": "landscape"}
+"Csak termékkép és semmi más" -> {"product_image_only": true}
+
+Return ONLY the raw JSON object inside a code block or as a raw string. No other conversational text or markdown explanation.`,
+      messages: [{ role: 'user', content: text }],
+    });
+
+    const reply = response.content[0].type === 'text' ? response.content[0].text : '';
+    console.log('[PARSE-REQUIREMENTS] Claude raw reply:', reply);
+
+    // Extract JSON block
+    let jsonText = reply.trim();
+    if (jsonText.includes('{')) {
+      const startIdx = jsonText.indexOf('{');
+      const endIdx = jsonText.lastIndexOf('}');
+      if (startIdx !== -1 && endIdx !== -1) {
+        jsonText = jsonText.substring(startIdx, endIdx + 1);
+      }
+    }
+
+    const parsed = JSON.parse(jsonText);
+    res.json({ success: true, parsed });
+  } catch (err: any) {
+    console.error('[PARSE-REQUIREMENTS] Error parsing requirements:', err);
+    res.status(500).json({ error: err.message || 'Hiba történt a követelmények értelmezése közben' });
   }
 });
 

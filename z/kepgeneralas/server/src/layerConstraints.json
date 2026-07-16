@@ -1,0 +1,1021 @@
+{
+  "templates": [
+    {
+      "id": "center-circle-promo",
+      "name": "Center Circle",
+      "textZone": "center",
+      "productSafeZone": "margins",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 1,
+      "textCapacities": {
+        "headline": { "maxChars": 6, "maxWords": 2, "recommended": "50% or SALE" },
+        "subtitle": { "maxChars": 20, "maxWords": 4 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 190,
+        "y": 190,
+        "width": 700,
+        "height": 840
+      },
+      "suitability": {
+        "bestFor": ["akcio", "flash sale", "nagy kedvezmeny", "coupon"],
+        "avoidFor": ["termekfoto", "kozponti karakter", "portre", "goblin", "ember", "arc"]
+      }
+    },
+    {
+      "id": "product-callout",
+      "name": "Termek Kiemelő",
+      "textZone": "bottom",
+      "productSafeZone": "center",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 1,
+      "textCapacities": {
+        "headline": { "maxChars": 20, "maxWords": 4 },
+        "subtitle": { "maxChars": 10, "maxWords": 2, "recommended": "Price / Value" },
+        "cta": { "maxChars": 14, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 720,
+        "width": 1080,
+        "height": 630
+      },
+      "suitability": {
+        "bestFor": ["termekfoto", "arkozles", "vasarlasi CTA", "webshop"],
+        "avoidFor": ["szoveges tartalom", "idezet", "hosszu leiras"]
+      }
+    },
+    {
+      "id": "promo-badge",
+      "name": "Akcio Badge",
+      "textZone": "center",
+      "productSafeZone": "margins",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 1,
+      "textCapacities": {
+        "headline": { "maxChars": 4, "maxWords": 1, "recommended": "Discount %" },
+        "subtitle": { "maxChars": 15, "maxWords": 3 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 190,
+        "y": 240,
+        "width": 700,
+        "height": 880
+      },
+      "suitability": {
+        "bestFor": ["kedvezmeny", "szazalekos akcio", "kiarusitas"],
+        "avoidFor": ["termekfoto-centrikus", "portre", "goblin", "ember"]
+      }
+    },
+    {
+      "id": "split-card",
+      "name": "Split Card",
+      "textZone": "bottom",
+      "productSafeZone": "top",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 20, "maxWords": 3 },
+        "headline": { "maxChars": 25, "maxWords": 5 },
+        "subtitle": { "maxChars": 70, "maxWords": 12 },
+        "cta": { "maxChars": 20, "maxWords": 3 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 820,
+        "width": 1080,
+        "height": 530
+      },
+      "suitability": {
+        "bestFor": ["termek leiras", "hosszabb szoveg", "cikk", "premium brand"],
+        "avoidFor": ["csak szam", "flash sale"]
+      }
+    },
+    {
+      "id": "luxury-dark",
+      "name": "Luxury Dark",
+      "textZone": "center",
+      "productSafeZone": "margins",
+      "backgroundType": "dark",
+      "isDynamicPosition": false,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 25, "maxWords": 4 },
+        "headline": { "maxChars": 20, "maxWords": 4 },
+        "subtitle": { "maxChars": 60, "maxWords": 10 },
+        "cta": { "maxChars": 12, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1080,
+        "height": 1350
+      },
+      "suitability": {
+        "bestFor": ["luxus termek", "premium brand", "ekszer", "parfum"],
+        "avoidFor": ["akcios uzenet", "kozponti karakter", "goblin"]
+      }
+    },
+    {
+      "id": "neo-brutal",
+      "name": "Neo-Brutalist",
+      "textZone": "center",
+      "productSafeZone": "margins",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 12, "maxWords": 2 },
+        "headline": { "maxChars": 25, "maxWords": 5 },
+        "cta": { "maxChars": 35, "maxWords": 5 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1080,
+        "height": 1350
+      },
+      "suitability": {
+        "bestFor": ["fiatalos brand", "tech termek", "streetwear"],
+        "avoidFor": ["luxus", "kozponti karakter", "goblin", "elegans"]
+      }
+    },
+    {
+      "id": "kicker-title",
+      "name": "Kicker + Cim",
+      "textZone": "top",
+      "productSafeZone": "bottom",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 0,
+      "textCapacities": {
+        "kicker": { "maxChars": 20, "maxWords": 3 },
+        "headline": { "maxChars": 25, "maxWords": 5 },
+        "subtitle": { "maxChars": 55, "maxWords": 9 }
+      },
+      "occupiedArea": {
+        "x": 60,
+        "y": 190,
+        "width": 960,
+        "height": 700
+      },
+      "suitability": {
+        "bestFor": ["bejelentes", "launch", "szoveges cim", "infotartalom"],
+        "avoidFor": ["ar kiemeles", "flash sale"]
+      }
+    },
+    {
+      "id": "testimonial-layer",
+      "name": "Velemeny",
+      "textZone": "center",
+      "productSafeZone": "top-bottom",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 0,
+      "textCapacities": {
+        "kicker": { "maxChars": 25, "maxWords": 4, "recommended": "Author name" },
+        "headline": { "maxChars": 120, "maxWords": 20, "recommended": "Quote text" },
+        "subtitle": { "maxChars": 20, "maxWords": 3, "recommended": "Role / Company" }
+      },
+      "occupiedArea": {
+        "x": 108,
+        "y": 450,
+        "width": 864,
+        "height": 800
+      },
+      "suitability": {
+        "bestFor": ["velemeny", "idezet", "testimonial", "szemelyes hangvetel"],
+        "avoidFor": ["akcio", "termekkiemelo"]
+      }
+    },
+    {
+      "id": "minimal-brand",
+      "name": "Minimal Brand",
+      "textZone": "bottom",
+      "productSafeZone": "top",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 1,
+      "textCapacities": {
+        "headline": { "maxChars": 25, "maxWords": 5 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 1000,
+        "width": 1080,
+        "height": 350
+      },
+      "suitability": {
+        "bestFor": ["minimalista hirdetes", "tiszta design", "termekfokusz"],
+        "avoidFor": ["sok szoveg", "velemenyek"]
+      }
+    },
+    {
+      "id": "story-cta",
+      "name": "Story CTA",
+      "textZone": "bottom",
+      "productSafeZone": "top-center",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 1,
+      "textCapacities": {
+        "headline": { "maxChars": 15, "maxWords": 3 },
+        "cta": { "maxChars": 12, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 950,
+        "width": 1080,
+        "height": 400
+      },
+      "suitability": {
+        "bestFor": ["story formatum", "swipe up", "meta story CTA"],
+        "avoidFor": ["feed formatum", "sok szoveg"]
+      }
+    },
+    {
+      "id": "countdown-launch",
+      "name": "Countdown",
+      "textZone": "center",
+      "productSafeZone": "margins",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 15, "maxWords": 2 },
+        "headline": { "maxChars": 25, "maxWords": 5 },
+        "subtitle": { "maxChars": 15, "maxWords": 2, "recommended": "Date/Time" },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 108,
+        "y": 300,
+        "width": 864,
+        "height": 800
+      },
+      "suitability": {
+        "bestFor": ["megnyito", "termek launch", "esemeny visszaszamlalo"],
+        "avoidFor": ["altalanos akcio", "velemeny"]
+      }
+    },
+    {
+      "id": "new-arrival",
+      "name": "New Arrival",
+      "textZone": "center",
+      "productSafeZone": "margins",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 15, "maxWords": 2 },
+        "headline": { "maxChars": 25, "maxWords": 5 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 108,
+        "y": 400,
+        "width": 864,
+        "height": 800
+      },
+      "suitability": {
+        "bestFor": ["uj kollekcio", "termekerkezes", "ujdonsagok"],
+        "avoidFor": ["velemenyek", "hosszu szoveg"]
+      }
+    },
+    {
+      "id": "event-invite",
+      "name": "Event Meghivo",
+      "textZone": "center",
+      "productSafeZone": "margins",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 20, "maxWords": 3 },
+        "headline": { "maxChars": 30, "maxWords": 6 },
+        "subtitle": { "maxChars": 45, "maxWords": 8 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 108,
+        "y": 200,
+        "width": 864,
+        "height": 1000
+      },
+      "suitability": {
+        "bestFor": ["meghivo", "esemeny", "konferencia", "webinar"],
+        "avoidFor": ["termek bemutato", "egyszeru akcio"]
+      }
+    },
+    {
+      "id": "food-recipe",
+      "name": "Etlap / Recept",
+      "textZone": "right",
+      "productSafeZone": "left",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 20, "maxWords": 3 },
+        "headline": { "maxChars": 25, "maxWords": 5 },
+        "subtitle": { "maxChars": 100, "maxWords": 18 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 540,
+        "y": 100,
+        "width": 540,
+        "height": 1150
+      },
+      "suitability": {
+        "bestFor": ["gasztronomia", "etel recept", "etlap", "jobb oldali tartalom"],
+        "avoidFor": ["kozepre igazitott termekek", "szazalekos akcio"]
+      }
+    },
+    {
+      "id": "fitness-motivation",
+      "name": "Fitness Motivacio",
+      "textZone": "bottom",
+      "productSafeZone": "top-center",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 15, "maxWords": 2 },
+        "headline": { "maxChars": 30, "maxWords": 6 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 800,
+        "width": 1080,
+        "height": 500
+      },
+      "suitability": {
+        "bestFor": ["sport", "fitness", "motivacios idezetek", "edzoterem"],
+        "avoidFor": ["luxus cikkek", "tul sok szoveg"]
+      }
+    },
+    {
+      "id": "real-estate",
+      "name": "Ingatlan",
+      "textZone": "bottom",
+      "productSafeZone": "top",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 15, "maxWords": 2 },
+        "headline": { "maxChars": 25, "maxWords": 5 },
+        "subtitle": { "maxChars": 40, "maxWords": 7 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 700,
+        "width": 1080,
+        "height": 600
+      },
+      "suitability": {
+        "bestFor": ["ingatlan hirdetes", "hazak", "lakasok", "ugyfel-tajekoztatas"],
+        "avoidFor": ["webshop termek", "flash sale"]
+      }
+    },
+    {
+      "id": "music-release",
+      "name": "Zenemuveszet",
+      "textZone": "center",
+      "productSafeZone": "margins",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 20, "maxWords": 3 },
+        "headline": { "maxChars": 25, "maxWords": 5 },
+        "subtitle": { "maxChars": 30, "maxWords": 5 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 108,
+        "y": 300,
+        "width": 864,
+        "height": 850
+      },
+      "suitability": {
+        "bestFor": ["zene", "album megjelenes", "podcast launch"],
+        "avoidFor": ["akcios vasarlas", "hosszu szovegek"]
+      }
+    },
+    {
+      "id": "webinar",
+      "name": "Webinar",
+      "textZone": "center",
+      "productSafeZone": "margins",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 25, "maxWords": 4 },
+        "headline": { "maxChars": 35, "maxWords": 7 },
+        "subtitle": { "maxChars": 45, "maxWords": 8 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 108,
+        "y": 400,
+        "width": 864,
+        "height": 850
+      },
+      "suitability": {
+        "bestFor": ["online esemeny", "webinar", "eloadas", "kurzus"],
+        "avoidFor": ["fizikai termek", "szazalekos akcio"]
+      }
+    },
+    {
+      "id": "before-after",
+      "name": "Elotte / Utana",
+      "textZone": "bottom",
+      "productSafeZone": "top",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 0,
+      "textCapacities": {
+        "headline": { "maxChars": 30, "maxWords": 6 },
+        "subtitle": { "maxChars": 60, "maxWords": 10 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 900,
+        "width": 1080,
+        "height": 450
+      },
+      "suitability": {
+        "bestFor": ["elotte-utana", "valtozas", "kozmetika", "felujitas"],
+        "avoidFor": ["cta gombos hirdetes", "egyedi termek"]
+      }
+    },
+    {
+      "id": "app-showcase",
+      "name": "App Showcase",
+      "textZone": "right",
+      "productSafeZone": "left",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 15, "maxWords": 2 },
+        "headline": { "maxChars": 25, "maxWords": 5 },
+        "subtitle": { "maxChars": 50, "maxWords": 8 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 540,
+        "y": 100,
+        "width": 540,
+        "height": 1150
+      },
+      "suitability": {
+        "bestFor": ["mobil app", "szoftver bemutato", "jobb oldali szoveg"],
+        "avoidFor": ["teljes meretu termek", "szazalekos akcio"]
+      }
+    },
+    {
+      "id": "travel",
+      "name": "Utazas",
+      "textZone": "bottom",
+      "productSafeZone": "top",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 20, "maxWords": 3 },
+        "headline": { "maxChars": 30, "maxWords": 6 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 800,
+        "width": 1080,
+        "height": 550
+      },
+      "suitability": {
+        "bestFor": ["utazas", "szalloda", "tajkep", "szezonhirdetes"],
+        "avoidFor": ["apró termekek", "tul sok szoveg"]
+      }
+    },
+    {
+      "id": "dark-announcement",
+      "name": "Sotet Bejelentes",
+      "textZone": "center",
+      "productSafeZone": "margins",
+      "backgroundType": "dark",
+      "isDynamicPosition": false,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 20, "maxWords": 3 },
+        "headline": { "maxChars": 25, "maxWords": 5 },
+        "subtitle": { "maxChars": 50, "maxWords": 8 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1080,
+        "height": 1350
+      },
+      "suitability": {
+        "bestFor": ["dramai bejelentes", "sotet hatter", "premium termek launch"],
+        "avoidFor": ["vidam szinek", "vilagos hatterek", "goblin", "karakterek"]
+      }
+    },
+    {
+      "id": "flash-sale",
+      "name": "Flash Sale",
+      "textZone": "center",
+      "productSafeZone": "margins",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 15, "maxWords": 2 },
+        "headline": { "maxChars": 25, "maxWords": 5 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 108,
+        "y": 300,
+        "width": 864,
+        "height": 800
+      },
+      "suitability": {
+        "bestFor": ["villam akcio", "rovid hataridos kedvezmeny", "surgos"],
+        "avoidFor": ["velemenyek", "hosszu termekleiras"]
+      }
+    },
+    {
+      "id": "carousel-slide",
+      "name": "Carousel Dia",
+      "textZone": "bottom",
+      "productSafeZone": "top",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 0,
+      "textCapacities": {
+        "kicker": { "maxChars": 10, "maxWords": 2 },
+        "headline": { "maxChars": 35, "maxWords": 7 },
+        "subtitle": { "maxChars": 60, "maxWords": 10 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 900,
+        "width": 1080,
+        "height": 450
+      },
+      "suitability": {
+        "bestFor": ["lapozhato poszt", "multi-kep", "tippek", "listak"],
+        "avoidFor": ["cta gomb", "egyszeru meta hirdetes"]
+      }
+    },
+    {
+      "id": "giveaway",
+      "name": "Nyeremeny",
+      "textZone": "center",
+      "productSafeZone": "margins",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 15, "maxWords": 2 },
+        "headline": { "maxChars": 25, "maxWords": 5 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 108,
+        "y": 300,
+        "width": 864,
+        "height": 800
+      },
+      "suitability": {
+        "bestFor": ["nyeremenyjatek", "ajandek", "giveaway", "kozossegi jatek"],
+        "avoidFor": ["egyszeru arleszallitas", "premium luxustermekek"]
+      }
+    },
+    {
+      "id": "quote-card",
+      "name": "Idezet Kartya",
+      "textZone": "center",
+      "productSafeZone": "margins",
+      "backgroundType": "light",
+      "isDynamicPosition": false,
+      "ctaCount": 0,
+      "textCapacities": {
+        "headline": { "maxChars": 80, "maxWords": 15, "recommended": "Quote text" },
+        "subtitle": { "maxChars": 20, "maxWords": 3, "recommended": "Author name" }
+      },
+      "occupiedArea": {
+        "x": 108,
+        "y": 375,
+        "width": 864,
+        "height": 600
+      },
+      "suitability": {
+        "bestFor": ["idezetek", "inspiralo szovegek", "feher kartya stilus"],
+        "avoidFor": ["termek hirdetese", "akcio", "goblin", "sotet kepek"]
+      }
+    },
+    {
+      "id": "summer-vibes",
+      "name": "Nyari Hangulat",
+      "textZone": "bottom",
+      "productSafeZone": "top",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 20, "maxWords": 3 },
+        "headline": { "maxChars": 30, "maxWords": 6 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 800,
+        "width": 1080,
+        "height": 550
+      },
+      "suitability": {
+        "bestFor": ["nyari szezon", "strand", "napsuteses hangulat"],
+        "avoidFor": ["teli temak", "szigoru uzleti tartalom"]
+      }
+    },
+    {
+      "id": "subscription",
+      "name": "Elofizetes CTA",
+      "textZone": "bottom",
+      "productSafeZone": "top",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 25, "maxWords": 4 },
+        "headline": { "maxChars": 30, "maxWords": 6 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 800,
+        "width": 1080,
+        "height": 550
+      },
+      "suitability": {
+        "bestFor": ["hirlevel feliratkozas", "klubtagsag", "elofizetes"],
+        "avoidFor": ["egyszeri termek vasarlas", "szazalekos akcio"]
+      }
+    },
+    {
+      "id": "product-grid",
+      "name": "Termek Grid",
+      "textZone": "center",
+      "productSafeZone": "margins",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 0,
+      "textCapacities": {
+        "headline": { "maxChars": 20, "maxWords": 4 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1080,
+        "height": 1350
+      },
+      "suitability": {
+        "bestFor": ["multi-termek", "kollekcio bemutato", "grid elrendezes"],
+        "avoidFor": ["egyedi termekfoto", "hosszu szovegek"]
+      }
+    },
+    {
+      "id": "price-tag-bold",
+      "name": "Artabla",
+      "textZone": "top-left",
+      "productSafeZone": "center-right",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 1,
+      "textCapacities": {
+        "badge": { "maxChars": 10, "maxWords": 2, "recommended": "Price Tag" },
+        "headline": { "maxChars": 20, "maxWords": 4 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 60,
+        "y": 60,
+        "width": 340,
+        "height": 190
+      },
+      "suitability": {
+        "bestFor": ["egyszeru arkiiras", "webshop termek", "tiszta kepek"],
+        "avoidFor": ["hosszu szoveg", "bal oldali fontos tartalom"]
+      }
+    },
+    {
+      "id": "corner-ribbon",
+      "name": "Sarok Szalag",
+      "textZone": "top-left",
+      "productSafeZone": "center-bottom",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 0,
+      "textCapacities": {
+        "badge": { "maxChars": 12, "maxWords": 2, "recommended": "Ribbon text" }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 0,
+        "width": 300,
+        "height": 300
+      },
+      "suitability": {
+        "bestFor": ["akcio jelzes", "sarok badge", "kis kiemeles"],
+        "avoidFor": ["cta gomb", "szoveges cimsor"]
+      }
+    },
+    {
+      "id": "side-stripe-left",
+      "name": "Oldalsó Csik",
+      "textZone": "left",
+      "productSafeZone": "right",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 15, "maxWords": 2 },
+        "headline": { "maxChars": 25, "maxWords": 5 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 0,
+        "width": 450,
+        "height": 1350
+      },
+      "suitability": {
+        "bestFor": ["bal oldali panel", "jobbra igazitott termekek"],
+        "avoidFor": ["bal oldali termekfoto", "szazalekos akcio"]
+      }
+    },
+    {
+      "id": "top-bar-announcement",
+      "name": "Felso Sav",
+      "textZone": "top",
+      "productSafeZone": "center-bottom",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 0,
+      "textCapacities": {
+        "headline": { "maxChars": 35, "maxWords": 7 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1080,
+        "height": 200
+      },
+      "suitability": {
+        "bestFor": ["nyitvatartas", "ingyenes szallitas", "kis bejelentes", "goblin", "kozponti karakter"],
+        "avoidFor": ["cta gomb", "sok szoveg", "hirdetesi cimsor"]
+      }
+    },
+    {
+      "id": "caption-bottom-only",
+      "name": "Also Felirat",
+      "textZone": "bottom",
+      "productSafeZone": "top-center",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 0,
+      "textCapacities": {
+        "headline": { "maxChars": 45, "maxWords": 8 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 1100,
+        "width": 1080,
+        "height": 250
+      },
+      "suitability": {
+        "bestFor": ["egyszeru felirat", "instagram kep hatter", "goblin", "kozponti karakter"],
+        "avoidFor": ["cta gomb", "akcio badge"]
+      }
+    },
+    {
+      "id": "watermark-corner",
+      "name": "Vizjel Sarok",
+      "textZone": "bottom-right",
+      "productSafeZone": "center-left",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 0,
+      "textCapacities": {
+        "badge": { "maxChars": 15, "maxWords": 2, "recommended": "Brand / Logo text" }
+      },
+      "occupiedArea": {
+        "x": 800,
+        "y": 1200,
+        "width": 280,
+        "height": 150
+      },
+      "suitability": {
+        "bestFor": ["logo vizjel", "brand nev sarokban"],
+        "avoidFor": ["reklamszoveg", "cta gomb"]
+      }
+    },
+    {
+      "id": "subtitle-strip",
+      "name": "Felirat Csik",
+      "textZone": "bottom",
+      "productSafeZone": "top-center",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 0,
+      "textCapacities": {
+        "headline": { "maxChars": 45, "maxWords": 8 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 1200,
+        "width": 1080,
+        "height": 150
+      },
+      "suitability": {
+        "bestFor": ["egyszeru also csik", "vizjel helyett", "goblin", "kozponti karakter"],
+        "avoidFor": ["cta gomb", "akcio badge"]
+      }
+    },
+    {
+      "id": "polaroid-white",
+      "name": "Polaroid Keret",
+      "textZone": "bottom",
+      "productSafeZone": "top-center",
+      "backgroundType": "light",
+      "isDynamicPosition": false,
+      "ctaCount": 0,
+      "textCapacities": {
+        "headline": { "maxChars": 35, "maxWords": 6 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 1000,
+        "width": 1080,
+        "height": 350
+      },
+      "suitability": {
+        "bestFor": ["retro hangulat", "polaroid keret", "szemelyes foto"],
+        "avoidFor": ["akcios termek", "sotet kepek", "cta gomb"]
+      }
+    },
+    {
+      "id": "neon-glow-frame",
+      "name": "Neon Keret",
+      "textZone": "border",
+      "productSafeZone": "center",
+      "backgroundType": "dark",
+      "isDynamicPosition": false,
+      "ctaCount": 0,
+      "textCapacities": {
+        "headline": { "maxChars": 20, "maxWords": 4 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 0,
+        "width": 1080,
+        "height": 1350
+      },
+      "suitability": {
+        "bestFor": ["neon stilus", "sotet hatterek", "cyberpunk"],
+        "avoidFor": ["klasszikus/elegans brand", "vilagos kepek"]
+      }
+    },
+    {
+      "id": "vintage-stamp",
+      "name": "Vintage Belyeg",
+      "textZone": "top-right",
+      "productSafeZone": "center-left",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 0,
+      "textCapacities": {
+        "badge": { "maxChars": 15, "maxWords": 3, "recommended": "Stamp text" }
+      },
+      "occupiedArea": {
+        "x": 800,
+        "y": 60,
+        "width": 280,
+        "height": 240
+      },
+      "suitability": {
+        "bestFor": ["vintage brand", "pecset", "sarok badge"],
+        "avoidFor": ["reklamszoveg", "cta gomb"]
+      }
+    },
+    {
+      "id": "stat-big-number",
+      "name": "Nagy Szam / Stat",
+      "textZone": "center",
+      "productSafeZone": "margins",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 0,
+      "textCapacities": {
+        "headline": { "maxChars": 5, "maxWords": 1, "recommended": "Big number (e.g. 100)" },
+        "subtitle": { "maxChars": 45, "maxWords": 8 }
+      },
+      "occupiedArea": {
+        "x": 108,
+        "y": 300,
+        "width": 864,
+        "height": 800
+      },
+      "suitability": {
+        "bestFor": ["infografika", "statisztika", "szammutato"],
+        "avoidFor": ["hosszu reklamszoveg", "termekkiemelo"]
+      }
+    },
+    {
+      "id": "percentage-corner",
+      "name": "% Sarok Badge",
+      "textZone": "top-right",
+      "productSafeZone": "center-left",
+      "backgroundType": "any",
+      "isDynamicPosition": false,
+      "ctaCount": 0,
+      "textCapacities": {
+        "badge": { "maxChars": 6, "maxWords": 1, "recommended": "Discount %" }
+      },
+      "occupiedArea": {
+        "x": 800,
+        "y": 0,
+        "width": 280,
+        "height": 250
+      },
+      "suitability": {
+        "bestFor": ["sarokba kerulo kedvezmeny", "minimalis akcio"],
+        "avoidFor": ["focim", "cta gomb"]
+      }
+    },
+    {
+      "id": "bundle-deal",
+      "name": "Kombo Ajanlat",
+      "textZone": "bottom",
+      "productSafeZone": "top",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 1,
+      "textCapacities": {
+        "kicker": { "maxChars": 15, "maxWords": 2 },
+        "headline": { "maxChars": 30, "maxWords": 6 },
+        "cta": { "maxChars": 15, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 850,
+        "width": 1080,
+        "height": 500
+      },
+      "suitability": {
+        "bestFor": ["bundle deal", "2+1 akcio", "csomagajanlatok"],
+        "avoidFor": ["egyedi termek ar kiiras", "velemenyek"]
+      }
+    },
+    {
+      "id": "flash-promo-minimal",
+      "name": "Mini Promo",
+      "textZone": "bottom",
+      "productSafeZone": "top",
+      "backgroundType": "any",
+      "isDynamicPosition": true,
+      "ctaCount": 1,
+      "textCapacities": {
+        "headline": { "maxChars": 20, "maxWords": 4 },
+        "subtitle": { "maxChars": 15, "maxWords": 3 },
+        "cta": { "maxChars": 12, "maxWords": 2 }
+      },
+      "occupiedArea": {
+        "x": 0,
+        "y": 950,
+        "width": 1080,
+        "height": 400
+      },
+      "suitability": {
+        "bestFor": ["kompakt akcio", "egyszeru promo", "tiszta termekkiemeles", "goblin", "kozponti karakter"],
+        "avoidFor": ["hosszu leiras", "velemenyek"]
+      }
+    }
+  ]
+}

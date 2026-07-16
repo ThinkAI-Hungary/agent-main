@@ -211,8 +211,6 @@ export function renderA2(
     width: width - (imgMargin * 2),
     height: imageH - imgMargin,
     src: imageUrl || 'https://images.unsplash.com/photo-1507133750040-4a8f57021571?auto=format&fit=crop&q=80&w=1080',
-    filter: 'duotone',
-    duotoneColors: [roles.ink, roles.surface],
     premiumShadow: true
   });
   
@@ -368,8 +366,6 @@ export function renderA3(
     width: width - (imgMarginX * 2),
     height: imageH - imgMarginY,
     src: imageUrl || 'https://images.unsplash.com/photo-1507133750040-4a8f57021571?auto=format&fit=crop&q=80&w=1080',
-    filter: 'duotone',
-    duotoneColors: [roles.ink, roles.surface],
     premiumShadow: true
   });
   
@@ -585,6 +581,12 @@ export function renderA4(
   
   const headlineY = textBottom - headFit.height - (subheadText ? spacing.sm + 48 : 0);
   
+  const isSurfaceLight = getLuminance(roles.surface) > 0.5;
+  const textColor = isSurfaceLight ? roles.ink : '#FFFFFF';
+  const textShadow = isSurfaceLight ? undefined : '0 2px 8px rgba(0,0,0,0.3)';
+  const subtextColor = isSurfaceLight ? roles.inkMuted : 'rgba(255, 255, 255, 0.75)';
+  const subtextShadow = isSurfaceLight ? undefined : '0 1px 5px rgba(0,0,0,0.25)';
+  
   // Vertical Anchor Accent Line on the left (4px width is sleeker than 6px)
   const lineH = headFit.height + (subheadText ? spacing.sm + 44 : 0);
   children.push({
@@ -609,8 +611,8 @@ export function renderA4(
     lineHeight: headFit.lineHeight,
     fontWeight: 'bold',
     align: 'left',
-    fill: '#FFFFFF',
-    textShadow: '0 2px 8px rgba(0,0,0,0.3)'
+    fill: textColor,
+    textShadow: textShadow
   });
   
   if (subheadText) {
@@ -625,8 +627,8 @@ export function renderA4(
       lineHeight: typography.subhead.lineHeight,
       fontWeight: 'normal',
       align: 'left',
-      fill: 'rgba(255, 255, 255, 0.75)',
-      textShadow: '0 1px 5px rgba(0,0,0,0.25)'
+      fill: subtextColor,
+      textShadow: subtextShadow
     });
   }
   
@@ -681,9 +683,7 @@ export function renderA5(content: CreativeContent, brandKit: GeneratorBrandKit, 
     y: topBarH,
     width,
     height: imageH,
-    src: imageUrl || 'https://images.unsplash.com/photo-1507133750040-4a8f57021571?auto=format&fit=crop&q=80&w=1080',
-    filter: 'duotone',
-    duotoneColors: [roles.ink, roles.surface]
+    src: imageUrl || 'https://images.unsplash.com/photo-1507133750040-4a8f57021571?auto=format&fit=crop&q=80&w=1080'
   });
   
   const footerBarY = height - topBarH;
@@ -1069,9 +1069,7 @@ export function renderA9(content: CreativeContent, brandKit: GeneratorBrandKit, 
     y: 0,
     width,
     height,
-    src: imageUrl || 'https://images.unsplash.com/photo-1507133750040-4a8f57021571?auto=format&fit=crop&q=80&w=1080',
-    filter: 'duotone',
-    duotoneColors: [roles.ink, roles.surface]
+    src: imageUrl || 'https://images.unsplash.com/photo-1507133750040-4a8f57021571?auto=format&fit=crop&q=80&w=1080'
   });
   
   // Logo

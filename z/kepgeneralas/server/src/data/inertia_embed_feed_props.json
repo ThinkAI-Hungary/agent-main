@@ -1,0 +1,739 @@
+{
+  "tenant": "placid",
+  "isWebflow": false,
+  "isPlacidApp": true,
+  "signupMode": "free_watermark",
+  "signupSettings": {
+    "image_limit": 50
+  },
+  "errors": {},
+  "inertiaAnchor": null,
+  "project": {
+    "id": 71849,
+    "type": "api",
+    "token": "lsmugjlujxtkrk9grvwg1v6enizfznio",
+    "token_webhook": "wczcfvhnfbopvnj74bjgbyphwzjhzooo",
+    "invite_pending_since": null,
+    "invite_uuid": null,
+    "title": "Eaisyboost",
+    "project_logo": "",
+    "url": null,
+    "icon": "https://placid.app/assets/projects/api.png",
+    "actionTypes": [
+      {
+        "id": "url-api-generator",
+        "title": "Image scraper action",
+        "text": "Pre-generate Placid URL API images on your site",
+        "intro": "intro",
+        "icon_image": "https://placid.app/assets/projects/api.png"
+      }
+    ],
+    "hasActions": true,
+    "formIntegration": {
+      "api": {
+        "integration_form": "api",
+        "url_api_signed_only": false
+      },
+      "zapier": null,
+      "ghost": null,
+      "webflow": null,
+      "airtable": null,
+      "studio": [],
+      "integromat": null,
+      "n8n": null,
+      "sdk": null,
+      "ai": null,
+      "mcp": null
+    },
+    "formFields": {
+      "title": "Eaisyboost",
+      "project_logo": null
+    },
+    "is_api": true,
+    "is_wordpress": false,
+    "is_airtable": false,
+    "is_airtable_connected": false,
+    "airtable_needs_oauth": false,
+    "airtable_bases": [],
+    "is_zapier": false,
+    "is_integromat": false,
+    "is_n8n": false,
+    "is_sdk": false,
+    "is_ghost": false,
+    "is_mobile": false,
+    "is_studio": true,
+    "is_openai": false,
+    "is_ai": false,
+    "is_mcp": false,
+    "has_schemas": false,
+    "is_webflow": false,
+    "is_webflow_connected": false,
+    "integrations": [
+      "api",
+      "studio"
+    ],
+    "preview_mode": false,
+    "help_route": null,
+    "display_help": "Setup Guide",
+    "webflow_sites": [],
+    "webflow_site_id": null,
+    "template_count": 6,
+    "webhook": "https://placid.app/ext/webhooks/project/wczcfvhnfbopvnj74bjgbyphwzjhzooo",
+    "webhook_triggered": false,
+    "is_wordpress_lifetime": false,
+    "can": {
+      "template": {
+        "create": true
+      }
+    },
+    "onboarding_completed": false,
+    "onboarding_step1": false,
+    "onboarding_step2": false,
+    "onboarding_step3": false,
+    "onboarding": {
+      "api": {
+        "integration": "api",
+        "onboarding_active": true,
+        "steps": {
+          "step1": true,
+          "step2": true,
+          "step3": true
+        }
+      },
+      "studio": {
+        "integration": "studio",
+        "onboarding_active": true,
+        "steps": {
+          "step1": true,
+          "step2": true,
+          "step3": false
+        }
+      },
+      "onboarding_hidden": false,
+      "updated_at": "2026-07-14T23:29:56+00:00"
+    },
+    "mobile_licenses": []
+  },
+  "templates": [
+    {
+      "id": 187825,
+      "pro": 0,
+      "uuid": "djsyjxnh5mpxj",
+      "type": "image",
+      "is_image": true,
+      "is_video": false,
+      "editor_url": "https://placid.app/app/templates/djsyjxnh5mpxj/edit",
+      "preview_url": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/f44ae12e-3046656/image.png",
+      "is_empty": true,
+      "title": "New Template",
+      "display_dimensions": "1280x800"
+    },
+    {
+      "id": 187833,
+      "pro": 0,
+      "uuid": "lkljzjrdkuwgh",
+      "type": "image",
+      "is_image": true,
+      "is_video": false,
+      "editor_url": "https://placid.app/app/templates/lkljzjrdkuwgh/edit",
+      "preview_url": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/3a54aa1f-3046712/image.png",
+      "is_empty": true,
+      "title": "Energetic",
+      "display_dimensions": "1280x800"
+    },
+    {
+      "id": 187834,
+      "pro": 0,
+      "uuid": "ainshacgalqck",
+      "type": "image",
+      "is_image": true,
+      "is_video": false,
+      "editor_url": "https://placid.app/app/templates/ainshacgalqck/edit",
+      "preview_url": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/6cc63e0d-3046715/image.png",
+      "is_empty": true,
+      "title": "Bubbly E-Commerce",
+      "display_dimensions": "1280x800"
+    },
+    {
+      "id": 187835,
+      "pro": 0,
+      "uuid": "fp1zjozryfi3s",
+      "type": "image",
+      "is_image": true,
+      "is_video": false,
+      "editor_url": "https://placid.app/app/templates/fp1zjozryfi3s/edit",
+      "preview_url": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/5e338e69-3046720/image.png",
+      "is_empty": true,
+      "title": "Bubbly E-Commerce",
+      "display_dimensions": "1280x800"
+    },
+    {
+      "id": 187836,
+      "pro": 0,
+      "uuid": "dguudtjx2haro",
+      "type": "image",
+      "is_image": true,
+      "is_video": false,
+      "editor_url": "https://placid.app/app/templates/dguudtjx2haro/edit",
+      "preview_url": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/d527a44b-3046722/image.png",
+      "is_empty": true,
+      "title": "Real Estate - Unique",
+      "display_dimensions": "1280x800"
+    },
+    {
+      "id": 187837,
+      "pro": 0,
+      "uuid": "w2szewj66ugma",
+      "type": "image",
+      "is_image": true,
+      "is_video": false,
+      "editor_url": "https://placid.app/app/templates/w2szewj66ugma/edit",
+      "preview_url": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/42933db6-3046729/image.png",
+      "is_empty": true,
+      "title": "Bubbly E-Commerce",
+      "display_dimensions": "1280x800"
+    }
+  ],
+  "template_tags": [],
+  "can": {
+    "projects": {
+      "sdk": {
+        "editor": false,
+        "canvas": false,
+        "schemas": false,
+        "settings": true
+      },
+      "templates": true,
+      "actions": true,
+      "studio": true,
+      "studio_create": true,
+      "apitokens": true,
+      "settings": true,
+      "logs": true,
+      "team": true,
+      "fonts": true,
+      "fonts_delete": true,
+      "owner": true,
+      "create": true
+    },
+    "view": {
+      "templates": true
+    },
+    "see": {
+      "beta": false
+    }
+  },
+  "project_role": "owner",
+  "has_legacy_fonts": false,
+  "projects": [
+    {
+      "id": 71849,
+      "type": "api",
+      "token": "lsmugjlujxtkrk9grvwg1v6enizfznio",
+      "token_webhook": "wczcfvhnfbopvnj74bjgbyphwzjhzooo",
+      "invite_pending_since": null,
+      "invite_uuid": null,
+      "title": "Eaisyboost",
+      "project_logo": "",
+      "url": null,
+      "icon": "https://placid.app/assets/projects/api.png",
+      "actionTypes": [
+        {
+          "id": "url-api-generator",
+          "title": "Image scraper action",
+          "text": "Pre-generate Placid URL API images on your site",
+          "intro": "intro",
+          "icon_image": "https://placid.app/assets/projects/api.png"
+        }
+      ],
+      "hasActions": true,
+      "formIntegration": {
+        "api": {
+          "integration_form": "api",
+          "url_api_signed_only": false
+        },
+        "zapier": null,
+        "ghost": null,
+        "webflow": null,
+        "airtable": null,
+        "studio": [],
+        "integromat": null,
+        "n8n": null,
+        "sdk": null,
+        "ai": null,
+        "mcp": null
+      },
+      "formFields": {
+        "title": "Eaisyboost",
+        "project_logo": null
+      },
+      "is_api": true,
+      "is_wordpress": false,
+      "is_airtable": false,
+      "is_airtable_connected": false,
+      "airtable_needs_oauth": false,
+      "airtable_bases": [],
+      "is_zapier": false,
+      "is_integromat": false,
+      "is_n8n": false,
+      "is_sdk": false,
+      "is_ghost": false,
+      "is_mobile": false,
+      "is_studio": true,
+      "is_openai": false,
+      "is_ai": false,
+      "is_mcp": false,
+      "has_schemas": false,
+      "is_webflow": false,
+      "is_webflow_connected": false,
+      "integrations": [
+        "api",
+        "studio"
+      ],
+      "preview_mode": false,
+      "help_route": null,
+      "display_help": "Setup Guide",
+      "webflow_sites": [],
+      "webflow_site_id": null,
+      "template_count": 6,
+      "webhook": "https://placid.app/ext/webhooks/project/wczcfvhnfbopvnj74bjgbyphwzjhzooo",
+      "webhook_triggered": false,
+      "is_wordpress_lifetime": false,
+      "can": {
+        "template": {
+          "create": true
+        }
+      },
+      "onboarding_completed": false,
+      "onboarding_step1": false,
+      "onboarding_step2": false,
+      "onboarding_step3": false,
+      "onboarding": {
+        "api": {
+          "integration": "api",
+          "onboarding_active": true,
+          "steps": {
+            "step1": true,
+            "step2": true,
+            "step3": true
+          }
+        },
+        "studio": {
+          "integration": "studio",
+          "onboarding_active": true,
+          "steps": {
+            "step1": true,
+            "step2": true,
+            "step3": false
+          }
+        },
+        "onboarding_hidden": false,
+        "updated_at": "2026-07-14T23:29:56+00:00"
+      },
+      "mobile_licenses": []
+    }
+  ],
+  "email_confirmed": false,
+  "account_states": {
+    "account_had_no_subscription": true,
+    "account_is_after_trial": false,
+    "account_has_payment_issue": false,
+    "account_is_low_on_credits": false,
+    "account_had_subscription": false,
+    "account_subscription_on_grace_period": false
+  },
+  "notification_banner_error": null,
+  "environment": "production",
+  "editor_legacy": false,
+  "projectCount": 1,
+  "userProjects": [
+    {
+      "id": 71849,
+      "title": "Eaisyboost"
+    }
+  ],
+  "userSharedProjects": [],
+  "user": {
+    "id": 66017,
+    "name": null,
+    "email": "hello@thinkai.hu",
+    "tenant": "placid",
+    "signup_mode": "free_watermark",
+    "mailcoach_subscriber_id": "66642",
+    "operation_mode": "credits",
+    "sdk_mode": "default",
+    "photo_url": "https://www.gravatar.com/avatar/27f79a07bef22b6929b30e1eb3798171.jpg?s=200&d=mm",
+    "uses_two_factor_auth": false,
+    "current_team_id": null,
+    "stripe_id": null,
+    "current_billing_plan": null,
+    "billing_state": null,
+    "vat_id": null,
+    "trial_ends_at": null,
+    "last_read_announcements_at": "2026-07-14 19:18:23",
+    "created_at": "2026-07-14T19:18:23.000000Z",
+    "updated_at": "2026-07-14T23:03:45.000000Z",
+    "force_pro": null,
+    "force_trial_until": "2026-07-21T19:18:23.000000Z",
+    "paddle_cancel_url": null,
+    "paddle_update_url": null,
+    "paddle_subscription_id": null,
+    "paddle_webhook_pending_since": null,
+    "paddle_subscription_plan_id": null,
+    "paddle_subscription_valid_until": null,
+    "paddle_subscription_next_bill_date": null,
+    "paddle_last_successful_payment": null,
+    "paddle_subscription_status": null,
+    "paddle_subscription_failed_at_date": null,
+    "data": {
+      "custom_queue": null,
+      "entry_href": "https://placid.app/designs"
+    },
+    "email_verified_at": null,
+    "api_enabled": null,
+    "onboarding_template_created_at": null,
+    "onboarding_template_tested_at": null,
+    "onboarding_image_created_at": "2026-07-14T22:49:01.000000Z",
+    "usercreatedimages_total": 3,
+    "registration_reference_id": null,
+    "images_24h": null,
+    "images_7d": null,
+    "images_14d": null,
+    "images_30d": null,
+    "affiliate_id": null,
+    "is_beta": 0,
+    "has_versions": 0,
+    "product_updates": 1,
+    "deleted_at": null,
+    "tapfiliate_id": null,
+    "high_resolution_enabled": 0,
+    "google_id": null,
+    "google_avatar_url": null,
+    "can_overdraw_credits": 0,
+    "custom_plan_id": null,
+    "paddle_plan": [],
+    "onboarding_completed": false,
+    "is_pro": true,
+    "paddle_needs_subscription": true,
+    "paddle_subscription_is_active": false,
+    "paddle_subscription_is_on_grace_period": false,
+    "is_sponsored_account": false,
+    "disable_payment_proration": false,
+    "integrations": [],
+    "userinvoices": [],
+    "credit_settings": {
+      "id": 63660,
+      "user_id": 66017,
+      "credits_per_month": 0,
+      "credit_limit": 50,
+      "price_per_interval": "0",
+      "interval": "monthly",
+      "plan_name": "Free",
+      "plan_id": null,
+      "mobile_apps": 0,
+      "created_at": "2026-07-14T19:18:23.000000Z",
+      "updated_at": "2026-07-14T19:18:23.000000Z",
+      "user": {
+        "id": 66017,
+        "name": null,
+        "email": "hello@thinkai.hu",
+        "tenant": "placid",
+        "signup_mode": "free_watermark",
+        "mailcoach_subscriber_id": "66642",
+        "operation_mode": "credits",
+        "sdk_mode": "default",
+        "photo_url": "https://www.gravatar.com/avatar/27f79a07bef22b6929b30e1eb3798171.jpg?s=200&d=mm",
+        "uses_two_factor_auth": false,
+        "current_team_id": null,
+        "stripe_id": null,
+        "current_billing_plan": null,
+        "billing_state": null,
+        "vat_id": null,
+        "trial_ends_at": null,
+        "last_read_announcements_at": "2026-07-14 19:18:23",
+        "created_at": "2026-07-14T19:18:23.000000Z",
+        "updated_at": "2026-07-14T23:03:45.000000Z",
+        "force_pro": null,
+        "force_trial_until": "2026-07-21T19:18:23.000000Z",
+        "paddle_cancel_url": null,
+        "paddle_update_url": null,
+        "paddle_subscription_id": null,
+        "paddle_webhook_pending_since": null,
+        "paddle_subscription_plan_id": null,
+        "paddle_subscription_valid_until": null,
+        "paddle_subscription_next_bill_date": null,
+        "paddle_last_successful_payment": null,
+        "paddle_subscription_status": null,
+        "paddle_subscription_failed_at_date": null,
+        "data": {
+          "custom_queue": null,
+          "entry_href": "https://placid.app/designs"
+        },
+        "email_verified_at": null,
+        "api_enabled": null,
+        "onboarding_template_created_at": null,
+        "onboarding_template_tested_at": null,
+        "onboarding_image_created_at": "2026-07-14T22:49:01.000000Z",
+        "usercreatedimages_total": 3,
+        "registration_reference_id": null,
+        "images_24h": null,
+        "images_7d": null,
+        "images_14d": null,
+        "images_30d": null,
+        "affiliate_id": null,
+        "is_beta": 0,
+        "has_versions": 0,
+        "product_updates": 1,
+        "deleted_at": null,
+        "tapfiliate_id": null,
+        "high_resolution_enabled": 0,
+        "google_id": null,
+        "google_avatar_url": null,
+        "can_overdraw_credits": 0,
+        "custom_plan_id": null,
+        "paddle_plan": [],
+        "onboarding_completed": false,
+        "is_pro": true,
+        "paddle_needs_subscription": true,
+        "paddle_subscription_is_active": false,
+        "paddle_subscription_is_on_grace_period": false,
+        "tax_rate": 0
+      }
+    },
+    "tax_rate": 0
+  },
+  "hasSubscription": true,
+  "hasInvoices": 0,
+  "settings": {
+    "placid_onboarding_enabled": true,
+    "free_image_limit": 50
+  },
+  "session": {
+    "impersonator": null
+  },
+  "constants": {
+    "PROJECT_UNDEFINED": "undefined",
+    "PROJECT_WORDPRESS": "wordpress",
+    "PROJECT_API": "api"
+  },
+  "allProjects": {
+    "api": {
+      "value": 1,
+      "active": true,
+      "id": "api",
+      "title": "API",
+      "icon_image": "https://placid.app/assets/projects/api.png",
+      "text": "Scale the production of images, PDFs and videos via API",
+      "intro": "",
+      "actions": [
+        "App\\Domain\\Actions\\Support\\Actions\\UrlScraperAction"
+      ],
+      "help_label": "Setup Guide",
+      "help_route": null,
+      "width": 33.33,
+      "info_text": null
+    },
+    "ai": {
+      "active": false,
+      "id": "ai",
+      "value": 5,
+      "title": "AI",
+      "icon_image": "https://placid.app/assets/projects/ai.png",
+      "text": null,
+      "intro": "",
+      "actions": [],
+      "width": 50,
+      "info_text": null
+    },
+    "mcp": {
+      "active": true,
+      "id": "mcp",
+      "value": 5,
+      "title": "MCP",
+      "icon_image": "https://placid.app/assets/projects/mcp.png",
+      "text": "Enable AI agents to use Placid templates via MCP",
+      "intro": "",
+      "actions": [],
+      "width": 33.33,
+      "info_text": null
+    },
+    "sdk": {
+      "active": true,
+      "id": "sdk",
+      "value": 10,
+      "title": "SDK",
+      "icon_image": "https://placid.app/assets/projects/sdk.png",
+      "text": "Make creative automation & our editor part of your apps",
+      "intro": "",
+      "actions": [],
+      "width": 33.33,
+      "info_text": null
+    },
+    "integromat": {
+      "value": 19,
+      "active": true,
+      "id": "integromat",
+      "title": "Make",
+      "icon_image": "https://placid.app/assets/projects/make.png",
+      "text": null,
+      "intro": "",
+      "actions": [],
+      "help_label": "Setup Guide",
+      "help_route": "https://placid.app/help/72/id"
+    },
+    "n8n": {
+      "value": 19,
+      "active": true,
+      "id": "n8n",
+      "title": "n8n",
+      "icon_image": "https://placid.app/assets/projects/n8n.png",
+      "text": null,
+      "intro": "",
+      "actions": [],
+      "help_label": "Setup Guide",
+      "help_route": null
+    },
+    "zapier": {
+      "value": 20,
+      "active": true,
+      "id": "zapier",
+      "title": "Zapier",
+      "icon_image": "https://placid.app/assets/projects/zapier.png",
+      "text": null,
+      "intro": "",
+      "help_label": "Setup Guide",
+      "help_route": "https://placid.app/help/66/id"
+    },
+    "wordpress": {
+      "value": 100,
+      "active": true,
+      "id": "wordpress",
+      "title": "WordPress",
+      "icon_image": "https://placid.app/assets/projects/wordpress.png",
+      "text": null,
+      "intro": "",
+      "help_label": "Setup Guide",
+      "help_route": "https://placid.app/help/64/id"
+    },
+    "airtable": {
+      "value": 100,
+      "active": true,
+      "id": "airtable",
+      "title": "Airtable",
+      "icon_image": "https://placid.app/assets/projects/airtable.png",
+      "text": null,
+      "intro": "",
+      "actions": [
+        "App\\Domain\\Actions\\Support\\Actions\\AirtableAction"
+      ],
+      "help_label": "Setup Guide",
+      "help_route": "https://placid.app/help/63/id"
+    },
+    "ghost": {
+      "value": 100,
+      "active": true,
+      "id": "ghost",
+      "title": "Ghost",
+      "icon_image": "https://placid.app/assets/projects/ghost.png",
+      "text": null,
+      "intro": "",
+      "actions": [
+        "App\\Domain\\Actions\\Support\\Actions\\GhostAction"
+      ],
+      "help_label": "Setup Guide",
+      "help_route": "https://placid.app/help/62/id"
+    },
+    "webflow": {
+      "value": 100,
+      "active": true,
+      "id": "webflow",
+      "title": "Webflow",
+      "icon_image": "https://placid.app/assets/projects/webflow.png",
+      "text": null,
+      "intro": "",
+      "actions": [
+        "App\\Domain\\Actions\\Support\\Actions\\WebflowAction"
+      ],
+      "help_label": "Setup Guide",
+      "help_route": "https://placid.app/help/61/id"
+    },
+    "studio": {
+      "value": 100,
+      "active": false,
+      "id": "studio",
+      "title": "Studio",
+      "icon_image": "https://placid.app/assets/projects/studio.png",
+      "text": null,
+      "intro": "",
+      "actions": [],
+      "help_label": "Setup Guide",
+      "help_route": null
+    },
+    "mobile": {
+      "value": 100,
+      "active": true,
+      "id": "mobile",
+      "title": "Mobile",
+      "icon_image": "https://placid.app/assets/projects/mobile.png",
+      "text": null,
+      "intro": "",
+      "actions": [],
+      "help_label": "Setup Guide",
+      "help_route": null
+    },
+    "openai": {
+      "value": 100,
+      "active": true,
+      "id": "openai",
+      "title": "OpenAi",
+      "icon_image": "https://placid.app/assets/projects/openai.png",
+      "text": null,
+      "intro": "",
+      "actions": [],
+      "help_label": "",
+      "help_route": null
+    }
+  },
+  "signupModeFreeWaterMarkImages": 3,
+  "dashboard": {
+    "images_last_30_days": null,
+    "currently_queued": null,
+    "queue_time_remaining": 0,
+    "average_seconds_per_image": null,
+    "items": []
+  },
+  "is_developer": false,
+  "has_versions": true,
+  "uses_credits": true,
+  "credits": {
+    "period": {
+      "start": "2026-07-14T19:18:23.000000Z",
+      "start_string": "2026-07-14",
+      "start_balance": 50,
+      "end": "2026-08-14T23:42:09.159169Z",
+      "end_string": "2026-08-14",
+      "end_balance": 47,
+      "credits_used": 3,
+      "today_balance": 47,
+      "percentage_free": 94,
+      "percentage_used": 6
+    },
+    "plan_name": "Free",
+    "mobile_apps": 0,
+    "mobile_apps_left": 0,
+    "plan_name_display": "Placid Free (monthly)",
+    "plan_description_display": "You are subscribed to Placid Free (monthly). The next billing date is .",
+    "interval": "monthly",
+    "credits_per_month": 0,
+    "price_per_interval": "0",
+    "balance": 47,
+    "next_billing_period_date": null,
+    "next_credit_booking": null,
+    "plan_id": null,
+    "plan": {}
+  },
+  "access_token": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3ODQxNTg5MzAsImlhdCI6MTc4NDA3MjUzMCwic2RrX3Rva2VuIjoicGxhY2lkLWFyamFnZXA2d2o1dGtqOGotdHVxcXVmZWl5ZnVxNG52NCIsInVzZXIiOiIzMDIwNTNjMS1kODY4LTQ4ZmItOTRiNi1mODNjODkxYThkZGEiLCJzY29wZXMiOlsidGVtcGxhdGVzIl0sImVkaXRvcl9vcHRpb25zIjpbXSwidGVtcGxhdGVfb3B0aW9ucyI6W119.pAzWvcl15c7ndhQovN6zUYz_wNXsXGcs93kNsVWFjls",
+  "embed_detail_id": null,
+  "template": null,
+  "apiToken": "placid-tllizj7jfdpmujio-nav7mkoatthmwmjk"
+}

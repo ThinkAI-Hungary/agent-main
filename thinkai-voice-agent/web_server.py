@@ -4688,6 +4688,50 @@ async def api_zombo_scrape(req: ZomboScrapeRequest):
                     run_product_agent()
                 )
 
+            # Recalculate mood percentages including image colors
+            image_colors = []
+            seen_img_cols = set()
+            if images_analysis:
+                for img in images_analysis:
+                    if img and "dominant_colors" in img:
+                        for col in img["dominant_colors"]:
+                            c_hex = col.strip().lower()
+                            if re.match(r'^#[0-9a-f]{6}$', c_hex):
+                                if c_hex not in seen_img_cols:
+                                    seen_img_cols.add(c_hex)
+                                    image_colors.append(c_hex)
+
+            # Combine CSS colors and Image colors
+            mood_colors = list(standardized_colors) + list(image_colors)
+            if not mood_colors:
+                mood_colors = ["#3b82f6", "#10b981", "#ef4444", "#f59e0b", "#6b7280"]
+
+            warm_count = 0
+            cool_count = 0
+            neutral_count = 0
+            for col in mood_colors:
+                rgb = hex_to_rgb(col)
+                if rgb:
+                    _, warmth = get_hue_and_warmth(*rgb)
+                    if warmth == 'warm':
+                        warm_count += 1
+                    elif warmth == 'cool':
+                        cool_count += 1
+                    else:
+                        neutral_count += 1
+
+            total_mood_cols = len(mood_colors)
+            warm_pct = round((warm_count / total_mood_cols) * 100, 1) if total_mood_cols > 0 else 40.0
+            cool_pct = round((cool_count / total_mood_cols) * 100, 1) if total_mood_cols > 0 else 40.0
+            neutral_pct = round((neutral_count / total_mood_cols) * 100, 1) if total_mood_cols > 0 else 20.0
+
+            if warm_pct > cool_pct + 10:
+                visual_tone = "Meleg és Barátságos"
+            elif cool_pct > warm_pct + 10:
+                visual_tone = "Hideg és Professzionális"
+            else:
+                visual_tone = "Kiegyensúlyozott / Neutrális"
+
             # Extract final SEO scores from Agent
             score = ai_analysis["score"]
             deductions_detail = ai_analysis["deductions_detail"]
@@ -5169,17 +5213,7 @@ async def api_zombo_scrape(req: ZomboScrapeRequest):
             
             extracted_products = extracted_products[:10]
 
-            image_colors = []
-            seen_img_cols = set()
-            if images_analysis:
-                for img in images_analysis:
-                    if img and "dominant_colors" in img:
-                        for col in img["dominant_colors"]:
-                            c_hex = col.strip().lower()
-                            if re.match(r'^#[0-9a-f]{6}$', c_hex):
-                                if c_hex not in seen_img_cols:
-                                    seen_img_cols.add(c_hex)
-                                    image_colors.append(c_hex)
+            # image_colors is already populated earlier after the gather call
 
             result = {
                 "status": "success",
@@ -5279,6 +5313,91 @@ async def api_zombo_scrape(req: ZomboScrapeRequest):
             yield _json.dumps({"step": "error", "message": f"Hiba a weboldal beolvasása közben: {str(e)}"}) + "\n"
 
     return StreamingResponse(generate(), media_type="application/x-ndjson")
+
+
+class ZomboEvaluateCategoryRequest(BaseModel):
+    url: str
+    category: str
+
+@app.post("/marketing/api/zombo/evaluate-category")
+async def api_zombo_evaluate_category(req: ZomboEvaluateCategoryRequest):
+    import json as _json
+    import os
+    from urllib.parse import urlparse, urlunparse
+
+    target_url = req.url.strip()
+    if not target_url.startswith('http://') and not target_url.startswith('https://'):
+        target_url = 'https://' + target_url
+
+    try:
+        parsed = urlparse(target_url)
+        target_url = urlunparse((parsed.scheme, parsed.netloc, parsed.path, '', '', ''))
+    except Exception as parse_err:
+        print(f"[Zombo Evaluate] Error cleaning URL: {parse_err}")
+
+    # Check history or latest result for cached audit
+    cached_result = None
+    
+    # 1. Check latest_audit_result.json first
+    latest_file = "latest_audit_result.json"
+    if os.path.exists(latest_file):
+        try:
+            with open(latest_file, "r", encoding="utf-8") as f:
+                data = _json.load(f)
+                if data.get("url") == target_url or data.get("url", "").replace("http://", "https://") == target_url:
+                    cached_result = data
+        except Exception as le:
+            print(f"[Zombo Evaluate] Error reading latest_audit_result.json: {le}")
+
+    # 2. Check zombo_audit_history.json if not found in latest
+    if not cached_result:
+        history_file = "zombo_audit_history.json"
+        if os.path.exists(history_file):
+            try:
+                with open(history_file, "r", encoding="utf-8") as f:
+                    history_data = _json.load(f)
+                    if isinstance(history_data, list):
+                        # Search from the end (most recent)
+                        for entry in reversed(history_data):
+                            res = entry.get("result")
+                            if res and (res.get("url") == target_url or res.get("url", "").replace("http://", "https://") == target_url):
+                                cached_result = res
+                                break
+            except Exception as he:
+                print(f"[Zombo Evaluate] Error reading zombo_audit_history.json: {he}")
+
+    if not cached_result:
+        raise HTTPException(
+            status_code=400,
+            detail="Nem található előzetes audit ehhez a weboldalhoz. Kérlek futtass egy teljes elemzést előbb!"
+        )
+
+    category = req.category.strip().lower()
+    
+    # Extract the requested category data structure
+    response_data = {}
+    if category == 'seo':
+        response_data = {"seo": cached_result.get("seo")}
+    elif category == 'visual':
+        response_data = {"visuals": cached_result.get("visuals")}
+    elif category == 'content':
+        response_data = {"content": cached_result.get("content")}
+    elif category == 'marketing':
+        response_data = {"marketing_audit": cached_result.get("marketing_audit")}
+    elif category == 'brand':
+        response_data = {"brand_personality": cached_result.get("brand_personality")}
+    elif category == 'contact':
+        response_data = {"contacts": cached_result.get("contacts")}
+    elif category == 'products':
+        response_data = {"products": cached_result.get("products")}
+    else:
+        # Fallback to full result if unknown
+        response_data = cached_result
+
+    return {
+        "status": "success",
+        "data": response_data
+    }
 
 
 # ─── Brand DNA Content Generation Endpoints ───────────────────────────

@@ -161,7 +161,7 @@ export function buildLayerTemplates(
       id: 'luxury-dark', name: 'Luxury Dark', emoji: '\u2728', desc: 'Sotet overlay + arany elemek',
       meta: { bestFor: ['luxus termek','premium brand','ekszer','parfum'], avoidFor: ['sportos tartalom','akciaras uzenet'], headlineMaxChars: 20, bodyMaxChars: 60, ctaMaxChars: 12, textZone: 'center', productSafeZone: 'center', backgroundType: 'dark', imageComposition: ['product-centered','portrait','abstract'], aiHint: 'Use for premium/luxury products; dark overlay and gold frame.' },
       layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: 'rgba(5,3,12,0.85)', opacity: 1 },
+        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: scrimFill, opacity: 0.85 },
         { type: 'figure', subType: 'rect', x: 55, y: 55, width: 970, height: 1240, fill: 'transparent', opacity: 1, border: `1px solid ${accent}55`, cornerRadius: 4 },
         { type: 'text', role: 'kicker', text: '', x: 108, y: 190, width: 864, fontSize: 22, fontFamily: 'Playfair Display', fontWeight: '400', align: 'center', fill: accent, opacity: 1 },
         { type: 'text', role: 'headline', text: '', x: 108, y: 450, width: 864, fontSize: 130, fontFamily: 'Playfair Display', fontWeight: '700', align: 'center', fill: textColor('#ffffff'), opacity: 1, lineHeight: 1.1 },
@@ -319,21 +319,6 @@ export function buildLayerTemplates(
         { type: 'text', role: 'kicker', text: '', x: 108, y: 760, width: 700, fontSize: 28, fontFamily: font, fontWeight: '700', align: 'left', fill: accent, opacity: 1 },
         { type: 'figure', role: 'cta', subType: 'rect', x: 60, y: 1200, width: 380, height: 80, fill: accent, opacity: 1, cornerRadius: 40 },
         { type: 'text', role: 'cta', text: '', x: 72, y: 1218, width: 356, fontSize: 30, fontFamily: font, fontWeight: '800', align: 'center', fill: textColor('#000000'), opacity: 1 },
-      ],
-    },
-    {
-      id: 'fashion-lookbook', name: 'Fashion Lookbook', emoji: '\uD83D\uDC57', desc: 'Divat editorial stilus',
-      meta: { bestFor: ['divat','ruha','kollekcio','editorial'], avoidFor: ['tech termek','etel'], headlineMaxChars: 20, bodyMaxChars: 30, ctaMaxChars: 10, textZone: 'bottom', productSafeZone: 'center', backgroundType: 'any', imageComposition: ['portrait','landscape','any'], aiHint: 'Use for fashion brands; elegant editorial with season/collection labels.' },
-      layers: [
-        { type: 'figure', subType: 'rect', x: 0, y: 0, width: 1080, height: 1350, fill: 'rgba(0,0,0,0.2)', opacity: 1 },
-        { type: 'figure', subType: 'rect', x: 60, y: 60, width: 960, height: 1230, fill: 'transparent', opacity: 1, border: '1px solid rgba(255,255,255,0.25)', cornerRadius: 2 },
-        { type: 'text', role: 'kicker', text: '', x: 80, y: 100, width: 200, fontSize: 32, fontFamily: font, fontWeight: '800', align: 'left', fill: textColor('#ffffff'), opacity: 0.7 },
-        { type: 'text', role: 'badge', text: '', x: 108, y: 140, width: 600, fontSize: 24, fontFamily: font, fontWeight: '400', align: 'left', fill: textColor('#ffffff'), opacity: 0.5 },
-        { type: 'text', role: 'decoration', text: 'LOOK\n01', x: 780, y: 100, width: 260, fontSize: 52, fontFamily: font, fontWeight: '900', align: 'right', fill: textColor('#ffffff'), opacity: 0.7, lineHeight: 1.0 },
-        { type: 'text', role: 'headline', text: '', x: 108, y: 960, width: 800, fontSize: 100, fontFamily: 'Playfair Display', fontWeight: '700', align: 'left', fill: textColor('#ffffff'), opacity: 1, lineHeight: 1.0, textShadow: '0 4px 24px rgba(0,0,0,0.5)' },
-        { type: 'text', role: 'subtitle', text: '', x: 108, y: 1180, width: 700, fontSize: 30, fontFamily: 'Playfair Display', fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.7)', opacity: 1 },
-        { type: 'figure', role: 'cta', subType: 'rect', x: 80, y: 1240, width: 80, height: 3, fill: '#ffffff', opacity: 0.6 },
-        { type: 'text', role: 'cta', text: '', x: 175, y: 1228, width: 200, fontSize: 22, fontFamily: 'Playfair Display', fontWeight: '400', align: 'left', fill: 'rgba(255,255,255,0.8)', opacity: 1 },
       ],
     },
     {

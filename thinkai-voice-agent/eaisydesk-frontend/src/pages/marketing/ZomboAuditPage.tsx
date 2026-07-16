@@ -25,7 +25,7 @@ import { CampaignCreator } from './zombo/components/CampaignCreator';
 import { ImageTestLab } from './zombo/components/ImageTestLab';
 import { OverlayTestLab } from './zombo/components/OverlayTestLab';
 import { ProdCalendarView } from './zombo/components/ProdCalendarView';
-import { QuickPostView }    from './zombo/components/QuickPostView';
+import ZomboQuickPostPage from './zombo/components/ZomboQuickPostPage';
 import './zombo/zombo.css';
 
 // Lucide icons for generator sidebar
@@ -112,7 +112,7 @@ interface ProductData {
   type?: string; category?: string;
 }
 
-interface AuditResult {
+export interface AuditResult {
   url: string;
   seo: SeoData;
   visuals: VisualsData;
@@ -335,15 +335,33 @@ const TABS = [
   { id: 'contact', label: 'Kontakt' },
   { id: 'products', label: 'Termékek' },
   { id: 'generate', label: 'AI Generálás' },
-  { id: 'prod',        label: 'Éles Naptár (Prod)' },
-  { id: 'quick-post',  label: '⚡ Quick Post' },
+  { id: 'prod', label: 'Éles Naptár (Prod)' },
+  { id: 'quick-post', label: '⚡ Quick Post' },
+  { id: 'raw', label: '{ } JSON' },
+];
+
+const EVAL_SUB_TABS = [
+  { id: 'seo', label: 'SEO Audit' },
+  { id: 'visual', label: 'Vizuális' },
+  { id: 'content', label: 'Tartalom' },
+  { id: 'marketing', label: 'Marketing' },
+  { id: 'brand', label: 'Brand DNA' },
+  { id: 'contact', label: 'Kontakt' },
+  { id: 'products', label: 'Termékek' },
+];
+
+const MAIN_TABS = [
+  { id: 'evaluation', label: 'Oldal kiértékelése' },
+  { id: 'quick-post', label: '⚡ Quick Post' },
+  { id: 'layer-review', label: '🔍 Layer Review' },
+  { id: 'prod', label: 'Éles Naptár (Prod)' },
   { id: 'raw', label: '{ } JSON' },
 ];
 
 /* ═══════════════════ SessionStorage persistence helpers ═══════════════════ */
 const STORAGE_KEY_RESULT = 'zombo_audit_result';
-const STORAGE_KEY_URL    = 'zombo_audit_url';
-const STORAGE_KEY_TAB    = 'zombo_audit_tab';
+const STORAGE_KEY_URL = 'zombo_audit_url';
+const STORAGE_KEY_TAB = 'zombo_audit_tab';
 
 function loadStoredResult(): AuditResult | null {
   try {
@@ -352,7 +370,7 @@ function loadStoredResult(): AuditResult | null {
   } catch { return null; }
 }
 
-function deriveBrandKitFromAudit(data: AuditResult, version: number): ZomboBrandKit {
+export function deriveBrandKitFromAudit(data: AuditResult, version: number): ZomboBrandKit {
   const bp = data.brand_personality;
   const coords = bp?.brand_coordinates;
   const lf = data.linguistic_fingerprint as Record<string, any> | undefined;
@@ -360,38 +378,38 @@ function deriveBrandKitFromAudit(data: AuditResult, version: number): ZomboBrand
 
   /* ── Numeric DNA coordinates ── */
   const mappedDna = coords ? {
-    formal_vs_casual:       coords.tone?.formal_vs_casual ?? 50,
-    rational_vs_emotional:  coords.tone?.rational_vs_emotional ?? 50,
-    modern_vs_traditional:  coords.tone?.modern_vs_traditional ?? 50,
-    simple_vs_technical:    coords.tone?.simple_vs_technical ?? 50,
-    authority_vs_peer:      coords.tone?.authority_vs_peer ?? 50,
-    price_segment_score:    coords.business?.price_segment_score ?? 50,
-    b2b_vs_b2c:             coords.business?.b2b_vs_b2c ?? 50,
-    product_vs_service:     coords.business?.product_vs_service ?? 50,
+    formal_vs_casual: coords.tone?.formal_vs_casual ?? 50,
+    rational_vs_emotional: coords.tone?.rational_vs_emotional ?? 50,
+    modern_vs_traditional: coords.tone?.modern_vs_traditional ?? 50,
+    simple_vs_technical: coords.tone?.simple_vs_technical ?? 50,
+    authority_vs_peer: coords.tone?.authority_vs_peer ?? 50,
+    price_segment_score: coords.business?.price_segment_score ?? 50,
+    b2b_vs_b2c: coords.business?.b2b_vs_b2c ?? 50,
+    product_vs_service: coords.business?.product_vs_service ?? 50,
     minimalist_vs_decorative: coords.visual?.minimalist_vs_decorative ?? 50,
-    warmth_vs_coolness:     coords.visual?.warmth_vs_coolness ?? 50,
-    vibrancy:               coords.visual?.vibrancy ?? 50,
-    humor_level:            coords.content?.humor_level ?? 50,
-    storytelling_level:     coords.content?.storytelling_level ?? 50,
-    educational_level:      coords.content?.educational_level ?? 50,
-    promotional_level:      coords.content?.promotional_level ?? 50,
-    cta_aggressiveness:     coords.engagement?.cta_aggressiveness ?? 50,
-    emoji_usage:            coords.engagement?.emoji_usage ?? 50,
-    hashtag_density:        coords.engagement?.hashtag_density ?? 50,
-    interaction_asking:     coords.engagement?.interaction_asking ?? 50,
+    warmth_vs_coolness: coords.visual?.warmth_vs_coolness ?? 50,
+    vibrancy: coords.visual?.vibrancy ?? 50,
+    humor_level: coords.content?.humor_level ?? 50,
+    storytelling_level: coords.content?.storytelling_level ?? 50,
+    educational_level: coords.content?.educational_level ?? 50,
+    promotional_level: coords.content?.promotional_level ?? 50,
+    cta_aggressiveness: coords.engagement?.cta_aggressiveness ?? 50,
+    emoji_usage: coords.engagement?.emoji_usage ?? 50,
+    hashtag_density: coords.engagement?.hashtag_density ?? 50,
+    interaction_asking: coords.engagement?.interaction_asking ?? 50,
     post_length_preference: coords.engagement?.post_length_preference,
   } : undefined;
 
   /* ── Colors & basic fields ── */
   const colorList = data.visuals?.top_colors_detail || [];
-  const primary   = colorList[0]?.hex || '#1a1a2e';
+  const primary = colorList[0]?.hex || '#1a1a2e';
   const secondary = colorList[1]?.hex || '#f8f8f8';
-  const accent    = colorList[2]?.hex || '#8b5cf6';
-  const tone      = bp?.brand_voice || [];
+  const accent = colorList[2]?.hex || '#8b5cf6';
+  const tone = bp?.brand_voice || [];
   const colorRules = data.visuals?.visual_style_description || '';
 
-  const avoidTones  = bp?.brand_dont?.avoid_tones?.join(', ') || '';
-  const avoidWords  = bp?.brand_dont?.avoid_words?.join(', ') || '';
+  const avoidTones = bp?.brand_dont?.avoid_tones?.join(', ') || '';
+  const avoidWords = bp?.brand_dont?.avoid_words?.join(', ') || '';
   const avoidTopics = bp?.brand_dont?.avoid_topics || [];
   const toneExampleBad = [
     avoidTones && `Kerülendő hangnemek: ${avoidTones}.`,
@@ -399,79 +417,79 @@ function deriveBrandKitFromAudit(data: AuditResult, version: number): ZomboBrand
   ].filter(Boolean).join(' ') || '';
 
   /* ── Full brand profile (forwarded verbatim to AI generators) ── */
-  const psych    = (lf?.psychological_markers   || {}) as Record<string, any>;
-  const rhetoric = (lf?.rhetorical_patterns     || {}) as Record<string, any>;
-  const vocabP   = (lf?.vocabulary_profile      || {}) as Record<string, any>;
-  const emotions = (lf?.emotional_architecture  || {}) as Record<string, any>;
-  const sentenceM = (lf?.sentence_metrics       || {}) as Record<string, any>;
+  const psych = (lf?.psychological_markers || {}) as Record<string, any>;
+  const rhetoric = (lf?.rhetorical_patterns || {}) as Record<string, any>;
+  const vocabP = (lf?.vocabulary_profile || {}) as Record<string, any>;
+  const emotions = (lf?.emotional_architecture || {}) as Record<string, any>;
+  const sentenceM = (lf?.sentence_metrics || {}) as Record<string, any>;
 
   const brandProfile = {
     /* Identity */
-    brand_archetype:          bp?.brand_archetype,
-    alignment_score:          bp?.alignment_score,
+    brand_archetype: bp?.brand_archetype,
+    alignment_score: bp?.alignment_score,
     brand_archetype_reasoning: bp?.brand_archetype_reasoning,
-    alignment_reasoning:      bp?.alignment_reasoning,
-    target_audience:          bp?.target_audience,
-    personality_summary:      bp?.personality_summary,
-    brand_voice:              bp?.brand_voice,
+    alignment_reasoning: bp?.alignment_reasoning,
+    target_audience: bp?.target_audience,
+    personality_summary: bp?.personality_summary,
+    brand_voice: bp?.brand_voice,
 
     /* Market positioning */
-    price_segment_label:      coords?.business?.price_segment_label,
-    primary_industry:         coords?.content?.primary_industry,
+    price_segment_label: coords?.business?.price_segment_label,
+    primary_industry: coords?.content?.primary_industry,
 
     /* Visual */
-    visual_style_tags:        coords?.visual?.visual_style_tags,
+    visual_style_tags: coords?.visual?.visual_style_tags,
 
     /* Content strategy */
-    key_content_themes:       coords?.content?.key_content_themes,
+    key_content_themes: coords?.content?.key_content_themes,
 
     /* Addressing */
     addressing: bp?.addressing ? {
-      mode:       bp.addressing.mode,
+      mode: bp.addressing.mode,
       confidence: bp.addressing.confidence,
-      evidence:   bp.addressing.evidence,
+      evidence: bp.addressing.evidence,
     } : undefined,
 
     /* CTA library */
     cta_library: bp?.cta_library ? {
-      primary_ctas:   bp.cta_library.primary_ctas,
+      primary_ctas: bp.cta_library.primary_ctas,
       secondary_ctas: bp.cta_library.secondary_ctas,
-      slogans:        bp.cta_library.slogans,
-      tagline:        bp.cta_library.tagline,
+      slogans: bp.cta_library.slogans,
+      tagline: bp.cta_library.tagline,
     } : undefined,
 
     /* Brand Don'ts */
     brand_dont: {
-      avoid_words:  bp?.brand_dont?.avoid_words,
+      avoid_words: bp?.brand_dont?.avoid_words,
       avoid_topics: avoidTopics,
-      avoid_tones:  bp?.brand_dont?.avoid_tones,
+      avoid_tones: bp?.brand_dont?.avoid_tones,
     },
 
     /* Psycholinguistic fingerprint */
     linguistic_fingerprint: lf ? {
-      cognitive_complexity:     Number(psych.cognitive_complexity)    || undefined,
-      emotional_intensity:      Number(psych.emotional_intensity)     || undefined,
-      certainty_language:       Number(psych.certainty_language)      || undefined,
-      authenticity_score:       Number(psych.authenticity_score)      || undefined,
-      clout_score:              Number(psych.clout_score)             || undefined,
-      analytical_thinking:      Number(psych.analytical_thinking)     || undefined,
+      cognitive_complexity: Number(psych.cognitive_complexity) || undefined,
+      emotional_intensity: Number(psych.emotional_intensity) || undefined,
+      certainty_language: Number(psych.certainty_language) || undefined,
+      authenticity_score: Number(psych.authenticity_score) || undefined,
+      clout_score: Number(psych.clout_score) || undefined,
+      analytical_thinking: Number(psych.analytical_thinking) || undefined,
       social_reference_density: Number(psych.social_reference_density) || undefined,
-      temporal_focus:           String(psych.temporal_focus  || ''),
-      primary_persuasion:       String(rhetoric.primary_persuasion || ''),
-      storytelling_structure:   String(rhetoric.storytelling_structure || ''),
-      vocabulary_complexity:    String(vocabP.complexity_level || ''),
-      dominant_emotions:        Array.isArray(emotions.dominant_emotions) ? emotions.dominant_emotions as string[] : undefined,
-      emotional_arc:            String(emotions.emotional_arc || ''),
-      avg_sentence_length:      Number(sentenceM.avg_sentence_length) || undefined,
-      question_ratio:           Number(sentenceM.question_ratio)      || undefined,
-      exclamation_ratio:        Number(sentenceM.exclamation_ratio)   || undefined,
+      temporal_focus: String(psych.temporal_focus || ''),
+      primary_persuasion: String(rhetoric.primary_persuasion || ''),
+      storytelling_structure: String(rhetoric.storytelling_structure || ''),
+      vocabulary_complexity: String(vocabP.complexity_level || ''),
+      dominant_emotions: Array.isArray(emotions.dominant_emotions) ? emotions.dominant_emotions as string[] : undefined,
+      emotional_arc: String(emotions.emotional_arc || ''),
+      avg_sentence_length: Number(sentenceM.avg_sentence_length) || undefined,
+      question_ratio: Number(sentenceM.question_ratio) || undefined,
+      exclamation_ratio: Number(sentenceM.exclamation_ratio) || undefined,
       sentence_length_variance: String(sentenceM.sentence_length_variance || ''),
-      brand_specific_terms:     Array.isArray(vocabP.brand_specific_terms) ? vocabP.brand_specific_terms as string[] : undefined,
-      power_words:              Array.isArray(vocabP.power_words)  ? vocabP.power_words  as string[] : undefined,
-      avoided_words:            Array.isArray(vocabP.avoided_words) ? vocabP.avoided_words as string[] : undefined,
-      opening_patterns:         Array.isArray(rhetoric.opening_patterns) ? rhetoric.opening_patterns as string[] : undefined,
-      closing_patterns:         Array.isArray(rhetoric.closing_patterns) ? rhetoric.closing_patterns as string[] : undefined,
-      transition_phrases:       Array.isArray(rhetoric.transition_phrases) ? rhetoric.transition_phrases as string[] : undefined,
+      brand_specific_terms: Array.isArray(vocabP.brand_specific_terms) ? vocabP.brand_specific_terms as string[] : undefined,
+      power_words: Array.isArray(vocabP.power_words) ? vocabP.power_words as string[] : undefined,
+      avoided_words: Array.isArray(vocabP.avoided_words) ? vocabP.avoided_words as string[] : undefined,
+      opening_patterns: Array.isArray(rhetoric.opening_patterns) ? rhetoric.opening_patterns as string[] : undefined,
+      closing_patterns: Array.isArray(rhetoric.closing_patterns) ? rhetoric.closing_patterns as string[] : undefined,
+      transition_phrases: Array.isArray(rhetoric.transition_phrases) ? rhetoric.transition_phrases as string[] : undefined,
     } : undefined,
   };
 
@@ -495,7 +513,7 @@ function deriveBrandKitFromAudit(data: AuditResult, version: number): ZomboBrand
     toneExampleBad,
     visualRules: colorRules ? [colorRules] : [],
     negativePrompt: avoidTopics.join(', '),
-    brandDna:     mappedDna,
+    brandDna: mappedDna,
     brandProfile,
   };
 }
@@ -520,7 +538,19 @@ export default function ZomboAuditPage() {
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState('');
   const [result, setResult] = useState<AuditResult | null>(() => loadStoredResult());
-  const [activeTab, setActiveTab] = useState(() => sessionStorage.getItem(STORAGE_KEY_TAB) || 'seo');
+  const [activeTab, setActiveTab] = useState(() => {
+    const stored = sessionStorage.getItem(STORAGE_KEY_TAB);
+    if (stored === 'prod' || stored === 'raw' || stored === 'quick-post' || stored === 'generate') return 'seo';
+    return stored || 'seo';
+  });
+  const [activeMainTab, setActiveMainTab] = useState<'evaluation' | 'quick-post' | 'layer-review' | 'prod' | 'raw'>(() => {
+    const stored = sessionStorage.getItem(STORAGE_KEY_TAB);
+    if (stored === 'prod') return 'prod';
+    if (stored === 'raw') return 'raw';
+    if (stored === 'quick-post') return 'quick-post';
+    if (stored === 'layer-review') return 'layer-review';
+    return 'evaluation';
+  });
   const [productSearch, setProductSearch] = useState('');
   const [productBrand, setProductBrand] = useState('');
 
@@ -529,7 +559,7 @@ export default function ZomboAuditPage() {
   const [genPostPlatform, setGenPostPlatform] = useState('instagram');
   const [genPostResult, setGenPostResult] = useState('');
   const [genPostLoading, setGenPostLoading] = useState(false);
-  const [consistencyScore, setConsistencyScore] = useState<{overall_score: number; feedback: string} | null>(null);
+  const [consistencyScore, setConsistencyScore] = useState<{ overall_score: number; feedback: string } | null>(null);
   const [genImgPrompt, setGenImgPrompt] = useState('');
   const [genImgContentType, setGenImgContentType] = useState('uj_termek');
   const [genImgFormat, setGenImgFormat] = useState('feed');
@@ -626,7 +656,7 @@ export default function ZomboAuditPage() {
     try {
       const post = creatives.find(c => c.id === id);
       if (!post) return;
-      
+
       const activeKit = brandKits.find(k => k.id === activeKitId) || brandKits[brandKits.length - 1];
       const response = await fetch('http://localhost:3001/api/render-update', {
         method: 'POST',
@@ -637,14 +667,14 @@ export default function ZomboAuditPage() {
           text: newText
         })
       });
-      
+
       if (!response.ok) {
         throw new Error(await response.text());
       }
-      
+
       const updatedPost = await response.json();
       setCreatives(prev => prev.map(p => p.id === id ? updatedPost : p));
-      
+
       addLog(`[RENDER] Playwright újrarenderelés sikeresen befejeződött (ID: ${id.substring(0, 8)}). A javított szöveg érvényesítve.`, 'success', 'renderer');
     } catch (err: any) {
       console.error(err);
@@ -661,13 +691,13 @@ export default function ZomboAuditPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: extractUrl })
       });
-      
+
       if (!response.ok) {
         throw new Error(await response.text());
       }
-      
+
       const scrapedKit = await response.json();
-      
+
       setBrandKits(prev => {
         const nextVer = prev.length + 1;
         const finalKit: ZomboBrandKit = {
@@ -701,7 +731,7 @@ export default function ZomboAuditPage() {
     );
 
     addLog(`[META API] Publikációs folyamat kezdeményezve Meta Graph API-n keresztül (ID: ${id.substring(0, 8)})`, 'info', 'meta-api');
-    
+
     setTimeout(() => {
       addLog(`[META API] Instagram média konténer sikeresen létrehozva. (1/2 lépés kész)`, 'info', 'meta-api');
     }, 800);
@@ -728,8 +758,11 @@ export default function ZomboAuditPage() {
 
   /* ── Persist active tab changes ── */
   useEffect(() => {
-    try { sessionStorage.setItem(STORAGE_KEY_TAB, activeTab); } catch {}
-  }, [activeTab]);
+    try {
+      const persistedValue = activeMainTab === 'evaluation' ? activeTab : activeMainTab;
+      sessionStorage.setItem(STORAGE_KEY_TAB, persistedValue);
+    } catch { }
+  }, [activeTab, activeMainTab]);
 
   /* ── URL Validation ── */
   const isValidUrl = useCallback((v: string) => {
@@ -972,10 +1005,60 @@ export default function ZomboAuditPage() {
     </div>
   );
 
-  const renderTabContent = () => {
-    const d = result;
+  const renderAllSections = () => {
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
+        <div style={{ background: 'var(--bg2)', padding: 24, borderRadius: 16, border: '1px solid var(--border)' }}>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>📊</span> SEO Audit
+          </h3>
+          {renderTabContent('seo')}
+        </div>
+        <div style={{ background: 'var(--bg2)', padding: 24, borderRadius: 16, border: '1px solid var(--border)' }}>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>🎨</span> Vizuális Kiértékelés
+          </h3>
+          {renderTabContent('visual')}
+        </div>
+        <div style={{ background: 'var(--bg2)', padding: 24, borderRadius: 16, border: '1px solid var(--border)' }}>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>📝</span> Tartalom Audit
+          </h3>
+          {renderTabContent('content')}
+        </div>
+        <div style={{ background: 'var(--bg2)', padding: 24, borderRadius: 16, border: '1px solid var(--border)' }}>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>📢</span> Marketing
+          </h3>
+          {renderTabContent('marketing')}
+        </div>
+        <div style={{ background: 'var(--bg2)', padding: 24, borderRadius: 16, border: '1px solid var(--border)' }}>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>🧬</span> Brand DNA
+          </h3>
+          {renderTabContent('brand')}
+        </div>
+        <div style={{ background: 'var(--bg2)', padding: 24, borderRadius: 16, border: '1px solid var(--border)' }}>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>📞</span> Kapcsolati Adatok
+          </h3>
+          {renderTabContent('contact')}
+        </div>
+        <div style={{ background: 'var(--bg2)', padding: 24, borderRadius: 16, border: '1px solid var(--border)' }}>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>🛍️</span> Termékek
+          </h3>
+          {renderTabContent('products')}
+        </div>
+      </div>
+    );
+  };
 
-    switch (activeTab) {
+  const renderTabContent = (overrideTabId?: string) => {
+    const d = result;
+    const currentTab = overrideTabId || activeTab;
+
+    switch (currentTab) {
       /* ──────── SEO AUDIT ──────── */
       case 'seo': {
         if (!d?.seo?.score && !loadingCategory['seo']) return <EmptyTabState tabId="seo" label="SEO" />;
@@ -1027,8 +1110,8 @@ export default function ZomboAuditPage() {
                     {h1s.length > 0 ? h1s.map((h, i) => (
                       <div key={i} style={{ fontFamily: 'monospace', background: 'var(--bg3)', padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', marginTop: 4, fontSize: 11, color: 'var(--text)' }}>{h}</div>
                     )) : seo.h1_count > 0
-                        ? <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2, fontStyle: 'italic' }}>A backend {seo.h1_count} db H1-et talált, de a szövegek részletezése nem érhető el.</div>
-                        : <div style={{ color: '#ef4444', fontSize: 11, marginTop: 2 }}>Nincs H1 címsor az oldalon!</div>}
+                      ? <div style={{ color: 'var(--text-muted)', fontSize: 11, marginTop: 2, fontStyle: 'italic' }}>A backend {seo.h1_count} db H1-et talált, de a szövegek részletezése nem érhető el.</div>
+                      : <div style={{ color: '#ef4444', fontSize: 11, marginTop: 2 }}>Nincs H1 címsor az oldalon!</div>}
                   </InfoRow>
                   <InfoRow label="Képek">
                     <div>Összesen: {seo.total_images} kép</div>
@@ -1071,9 +1154,9 @@ export default function ZomboAuditPage() {
                   <InfoRow label="Canonical Link">
                     {hasCanonical
                       ? <>
-                          <span style={{ color: '#22c55e', fontWeight: 600 }}>Canonical tag megtalálva</span>
-                          {canonicalUrl && <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-muted)', marginTop: 2, wordBreak: 'break-all' }}>{canonicalUrl}</div>}
-                        </>
+                        <span style={{ color: '#22c55e', fontWeight: 600 }}>Canonical tag megtalálva</span>
+                        {canonicalUrl && <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-muted)', marginTop: 2, wordBreak: 'break-all' }}>{canonicalUrl}</div>}
+                      </>
                       : <span style={{ color: '#ef4444', fontWeight: 600 }}>Hiányzó canonical tag</span>}
                   </InfoRow>
                   <InfoRow label="Mobilbarát">
@@ -1270,138 +1353,138 @@ export default function ZomboAuditPage() {
         const c = d?.content || {} as ContentData;
         return (
           <>
-          <CategoryEvalButton tabId="content" />
-          <SectionCard title="AI Tartalom Elemzés" icon="">
-            {/* Word count KPI */}
-            <div style={{ display: 'flex', alignItems: 'center', gap: 24, padding: '12px 16px', background: 'var(--bg3)', borderRadius: 10, border: '1px solid var(--border)', marginBottom: 20 }}>
-              <div>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-dim)', letterSpacing: '0.5px' }}>Szavak száma</div>
-                <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginTop: 2 }}>{c.word_count ?? '—'} <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>szó</span></div>
+            <CategoryEvalButton tabId="content" />
+            <SectionCard title="AI Tartalom Elemzés" icon="">
+              {/* Word count KPI */}
+              <div style={{ display: 'flex', alignItems: 'center', gap: 24, padding: '12px 16px', background: 'var(--bg3)', borderRadius: 10, border: '1px solid var(--border)', marginBottom: 20 }}>
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-dim)', letterSpacing: '0.5px' }}>Szavak száma</div>
+                  <div style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginTop: 2 }}>{c.word_count ?? '—'} <span style={{ fontSize: 13, fontWeight: 400, color: 'var(--text-muted)' }}>szó</span></div>
+                </div>
+                <div style={{ width: 1, height: 36, background: 'var(--border)' }} />
+                <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
+                  {(c.word_count ?? 0) < 300 && <span style={{ color: '#ef4444' }}>⚠ Alacsony szószám — ajánlott legalább 500 szó.</span>}
+                  {(c.word_count ?? 0) >= 300 && (c.word_count ?? 0) < 600 && <span style={{ color: '#f59e0b' }}>Közepes szószám — fejleszthető.</span>}
+                  {(c.word_count ?? 0) >= 600 && <span style={{ color: '#22c55e' }}>Jó tartalommennyiség.</span>}
+                </div>
               </div>
-              <div style={{ width: 1, height: 36, background: 'var(--border)' }} />
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', lineHeight: 1.5 }}>
-                {(c.word_count ?? 0) < 300 && <span style={{ color: '#ef4444' }}>⚠ Alacsony szószám — ajánlott legalább 500 szó.</span>}
-                {(c.word_count ?? 0) >= 300 && (c.word_count ?? 0) < 600 && <span style={{ color: '#f59e0b' }}>Közepes szószám — fejleszthető.</span>}
-                {(c.word_count ?? 0) >= 600 && <span style={{ color: '#22c55e' }}>Jó tartalommennyiség.</span>}
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
+                <div style={{ padding: 16, background: 'var(--bg3)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-dim)', letterSpacing: '0.5px' }}>Üzleti Kategória</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginTop: 6 }}>{c.business_category || '—'}</div>
+                </div>
+                <div style={{ padding: 16, background: 'var(--bg3)', borderRadius: 12, border: '1px solid var(--border)' }}>
+                  <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-dim)', letterSpacing: '0.5px' }}>Hangnem</div>
+                  <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginTop: 6 }}>{c.tone || '—'}</div>
+                </div>
               </div>
-            </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
-              <div style={{ padding: 16, background: 'var(--bg3)', borderRadius: 12, border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-dim)', letterSpacing: '0.5px' }}>Üzleti Kategória</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginTop: 6 }}>{c.business_category || '—'}</div>
-              </div>
-              <div style={{ padding: 16, background: 'var(--bg3)', borderRadius: 12, border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-dim)', letterSpacing: '0.5px' }}>Hangnem</div>
-                <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginTop: 6 }}>{c.tone || '—'}</div>
-              </div>
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Összefoglaló</div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7, padding: '12px 16px', background: 'var(--bg3)', borderRadius: 10, border: '1px solid var(--border)' }}>{c.summary || '—'}</div>
-            </div>
-            <div style={{ marginBottom: 16 }}>
-              <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Tartalmi &amp; SEO Javaslatok</div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7, padding: '12px 16px', background: 'var(--bg3)', borderRadius: 10, border: '1px solid var(--border)' }}>{c.seo_advice || '—'}</div>
-            </div>
-
-            {/* FIX 3: global_improvements */}
-            {c.global_improvements && c.global_improvements.length > 0 && (
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>💡 Globális Fejlesztési Javaslatok</div>
-                <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                  {c.global_improvements.map((imp, i) => (
-                    <div key={i} style={{ padding: '10px 14px', background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.18)', borderLeft: '3px solid #8b5cf6', borderRadius: 8, fontSize: 13, color: 'var(--text)', lineHeight: 1.55 }}>
-                      <strong>{i + 1}.</strong> {imp}
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Összefoglaló</div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7, padding: '12px 16px', background: 'var(--bg3)', borderRadius: 10, border: '1px solid var(--border)' }}>{c.summary || '—'}</div>
+              </div>
+              <div style={{ marginBottom: 16 }}>
+                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Tartalmi &amp; SEO Javaslatok</div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.7, padding: '12px 16px', background: 'var(--bg3)', borderRadius: 10, border: '1px solid var(--border)' }}>{c.seo_advice || '—'}</div>
+              </div>
+
+              {/* FIX 3: global_improvements */}
+              {c.global_improvements && c.global_improvements.length > 0 && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>💡 Globális Fejlesztési Javaslatok</div>
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    {c.global_improvements.map((imp, i) => (
+                      <div key={i} style={{ padding: '10px 14px', background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.18)', borderLeft: '3px solid #8b5cf6', borderRadius: 8, fontSize: 13, color: 'var(--text)', lineHeight: 1.55 }}>
+                        <strong>{i + 1}.</strong> {imp}
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {/* FIX 4: word_style_analysis */}
+              {c.word_style_analysis && (
+                <div style={{ marginBottom: 16 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Szövegstílus Elemzés</div>
+                  <div style={{ fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.7, padding: '12px 16px', background: 'var(--bg3)', borderRadius: 10, border: '1px solid var(--border)', fontStyle: 'italic' }}>{c.word_style_analysis}</div>
+                </div>
+              )}
+            </SectionCard>
+
+            {/* FIX 5: detected_posts */}
+            {c.detected_posts && c.detected_posts.length > 0 && (
+              <SectionCard title="Detekált Oldaltartalom / Posztok" icon="">
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                  {c.detected_posts.map((dp, i) => (
+                    <div key={i} style={{ padding: '12px 16px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
+                        <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', flex: 1 }}>{dp.title || `Tartalom #${i + 1}`}</div>
+                        <div style={{ display: 'flex', gap: 6 }}>
+                          {dp.placement && <span style={{ fontSize: 10, padding: '2px 7px', background: 'rgba(139,92,246,0.1)', color: '#8b5cf6', borderRadius: 5, fontWeight: 700 }}>{dp.placement}</span>}
+                          {dp.inferred_popularity && <span style={{ fontSize: 10, padding: '2px 7px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', borderRadius: 5, fontWeight: 700 }}>{dp.inferred_popularity}</span>}
+                        </div>
+                      </div>
+                      {dp.words && dp.words.length > 0 ? (
+                        <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
+                          {dp.words.slice(0, 12).map((w, j) => <Tag key={j} color="#6366f1">{w}</Tag>)}
+                          {dp.words.length > 12 && <Tag color="#94a3b8">+{dp.words.length - 12} további</Tag>}
+                        </div>
+                      ) : (
+                        <div style={{ fontSize: 11, color: 'var(--text-dim)', fontStyle: 'italic' }}>Nincs kiegészítő kulcsszó.</div>
+                      )}
                     </div>
                   ))}
                 </div>
-              </div>
+              </SectionCard>
             )}
 
-            {/* FIX 4: word_style_analysis */}
-            {c.word_style_analysis && (
-              <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 6 }}>Szövegstílus Elemzés</div>
-                <div style={{ fontSize: 12.5, color: 'var(--text-muted)', lineHeight: 1.7, padding: '12px 16px', background: 'var(--bg3)', borderRadius: 10, border: '1px solid var(--border)', fontStyle: 'italic' }}>{c.word_style_analysis}</div>
-              </div>
-            )}
-          </SectionCard>
-
-          {/* FIX 5: detected_posts */}
-          {c.detected_posts && c.detected_posts.length > 0 && (
-            <SectionCard title="Detekált Oldaltartalom / Posztok" icon="">
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                {c.detected_posts.map((dp, i) => (
-                  <div key={i} style={{ padding: '12px 16px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10 }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', flex: 1 }}>{dp.title || `Tartalom #${i+1}`}</div>
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        {dp.placement && <span style={{ fontSize: 10, padding: '2px 7px', background: 'rgba(139,92,246,0.1)', color: '#8b5cf6', borderRadius: 5, fontWeight: 700 }}>{dp.placement}</span>}
-                        {dp.inferred_popularity && <span style={{ fontSize: 10, padding: '2px 7px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', borderRadius: 5, fontWeight: 700 }}>{dp.inferred_popularity}</span>}
-                      </div>
-                    </div>
-                    {dp.words && dp.words.length > 0 ? (
-                      <div style={{ display: 'flex', gap: 5, flexWrap: 'wrap' }}>
-                        {dp.words.slice(0, 12).map((w, j) => <Tag key={j} color="#6366f1">{w}</Tag>)}
-                        {dp.words.length > 12 && <Tag color="#94a3b8">+{dp.words.length - 12} további</Tag>}
-                      </div>
-                    ) : (
-                      <div style={{ fontSize: 11, color: 'var(--text-dim)', fontStyle: 'italic' }}>Nincs kiegészítő kulcsszó.</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
-          )}
-
-          {/* FIX 6: images_analysis */}
-          {c.images_analysis && c.images_analysis.length > 0 && (
-            <SectionCard title="Kép Elemzés (AI)" icon="">
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
-                {c.images_analysis.map((img, i) => (
-                  <div key={i} style={{ padding: 14, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 12 }}>
-                    {img.url ? (
-                      <>
-                        <img src={img.url} alt={img.alt_text || `Kep ${i+1}`}
-                          style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 8, marginBottom: 10, border: '1px solid var(--border)' }}
-                          onError={e => {
-                            const el = e.target as HTMLImageElement;
-                            el.style.display = 'none';
-                            const next = el.nextElementSibling as HTMLElement | null;
-                            if (next) next.style.display = 'flex';
-                          }} />
-                        <div style={{ display: 'none', alignItems: 'center', gap: 6, height: 40, marginBottom: 10, padding: '6px 10px', background: 'var(--bg)', borderRadius: 6, border: '1px dashed var(--border)' }}>
-                          <span style={{ fontSize: 16 }}>🖼️</span>
-                          <span style={{ fontSize: 10, color: 'var(--text-muted)', wordBreak: 'break-all', fontFamily: 'monospace', flex: 1 }}>{img.url.length > 60 ? '...' + img.url.slice(-50) : img.url}</span>
+            {/* FIX 6: images_analysis */}
+            {c.images_analysis && c.images_analysis.length > 0 && (
+              <SectionCard title="Kép Elemzés (AI)" icon="">
+                <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
+                  {c.images_analysis.map((img, i) => (
+                    <div key={i} style={{ padding: 14, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 12 }}>
+                      {img.url ? (
+                        <>
+                          <img src={img.url} alt={img.alt_text || `Kep ${i + 1}`}
+                            style={{ width: '100%', height: 140, objectFit: 'cover', borderRadius: 8, marginBottom: 10, border: '1px solid var(--border)' }}
+                            onError={e => {
+                              const el = e.target as HTMLImageElement;
+                              el.style.display = 'none';
+                              const next = el.nextElementSibling as HTMLElement | null;
+                              if (next) next.style.display = 'flex';
+                            }} />
+                          <div style={{ display: 'none', alignItems: 'center', gap: 6, height: 40, marginBottom: 10, padding: '6px 10px', background: 'var(--bg)', borderRadius: 6, border: '1px dashed var(--border)' }}>
+                            <span style={{ fontSize: 16 }}>🖼️</span>
+                            <span style={{ fontSize: 10, color: 'var(--text-muted)', wordBreak: 'break-all', fontFamily: 'monospace', flex: 1 }}>{img.url.length > 60 ? '...' + img.url.slice(-50) : img.url}</span>
+                          </div>
+                        </>
+                      ) : (
+                        <div style={{ height: 40, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', borderRadius: 6, border: '1px dashed var(--border)' }}>
+                          <span style={{ fontSize: 11, color: 'var(--text-dim)', fontStyle: 'italic' }}>Nincs kép URL</span>
                         </div>
-                      </>
-                    ) : (
-                      <div style={{ height: 40, marginBottom: 10, display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--bg)', borderRadius: 6, border: '1px dashed var(--border)' }}>
-                        <span style={{ fontSize: 11, color: 'var(--text-dim)', fontStyle: 'italic' }}>Nincs kép URL</span>
-                      </div>
-                    )}
-                    {img.dominant_colors && img.dominant_colors.length > 0 && (
-                      <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
-                        {img.dominant_colors.map((col, j) => (
-                          <div key={j} title={col} style={{ width: 20, height: 20, borderRadius: 4, background: col, border: '1.5px solid rgba(0,0,0,0.15)', cursor: 'pointer' }}
-                            onClick={() => { navigator.clipboard.writeText(col); showToast('Szín másolva: ' + col); }} />
-                        ))}
-                        <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 2 }}>domináns színek</span>
-                      </div>
-                    )}
-                    {img.alt_text && (
-                      <div style={{ fontSize: 10, fontStyle: 'italic', color: 'var(--text-dim)', marginBottom: 4 }}>
-                        alt: "{img.alt_text}"
-                      </div>
-                    )}
-                    {img.visual_description && (
-                      <div style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>{img.visual_description}</div>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </SectionCard>
-          )}
+                      )}
+                      {img.dominant_colors && img.dominant_colors.length > 0 && (
+                        <div style={{ display: 'flex', gap: 5, marginBottom: 8, flexWrap: 'wrap', alignItems: 'center' }}>
+                          {img.dominant_colors.map((col, j) => (
+                            <div key={j} title={col} style={{ width: 20, height: 20, borderRadius: 4, background: col, border: '1.5px solid rgba(0,0,0,0.15)', cursor: 'pointer' }}
+                              onClick={() => { navigator.clipboard.writeText(col); showToast('Szín másolva: ' + col); }} />
+                          ))}
+                          <span style={{ fontSize: 10, color: 'var(--text-dim)', marginLeft: 2 }}>domináns színek</span>
+                        </div>
+                      )}
+                      {img.alt_text && (
+                        <div style={{ fontSize: 10, fontStyle: 'italic', color: 'var(--text-dim)', marginBottom: 4 }}>
+                          alt: "{img.alt_text}"
+                        </div>
+                      )}
+                      {img.visual_description && (
+                        <div style={{ fontSize: 11.5, color: 'var(--text-muted)', lineHeight: 1.5 }}>{img.visual_description}</div>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </SectionCard>
+            )}
           </>
         );
       }
@@ -1412,32 +1495,32 @@ export default function ZomboAuditPage() {
         const m = d?.marketing_audit || {} as MarketingAudit;
         return (
           <>
-          <CategoryEvalButton tabId="marketing" />
-          <SectionCard title="Marketing & Copywriting Audit" icon="">
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
-              <div style={{ fontSize: 32, fontWeight: 800, color: '#8b5cf6' }}>{m.marketing_score || 0}</div>
-              <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>/ 100 Marketing Pontszám</div>
-            </div>
-
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <tbody>
-                <InfoRow label="Értékajánlat">{m.value_proposition_evaluation || '—'}</InfoRow>
-                <InfoRow label="PAS Keretrendszer">{m.frameworks_analysis?.pas_alignment || '—'}</InfoRow>
-                <InfoRow label="AIDA Keretrendszer">{m.frameworks_analysis?.aida_alignment || '—'}</InfoRow>
-                <InfoRow label="CTA Értékelés">{m.cta_evaluation || '—'}</InfoRow>
-                <InfoRow label="Hitelesség">{m.credibility_evaluation || '—'}</InfoRow>
-              </tbody>
-            </table>
-
-            {m.copy_recommendations && m.copy_recommendations.length > 0 && (
-              <div style={{ marginTop: 20 }}>
-                <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Javaslatok</div>
-                <ul style={{ paddingLeft: 20, fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
-                  {m.copy_recommendations.map((r, i) => <li key={i} style={{ marginBottom: 4 }}>{r}</li>)}
-                </ul>
+            <CategoryEvalButton tabId="marketing" />
+            <SectionCard title="Marketing & Copywriting Audit" icon="">
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
+                <div style={{ fontSize: 32, fontWeight: 800, color: '#8b5cf6' }}>{m.marketing_score || 0}</div>
+                <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>/ 100 Marketing Pontszám</div>
               </div>
-            )}
-          </SectionCard>
+
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <tbody>
+                  <InfoRow label="Értékajánlat">{m.value_proposition_evaluation || '—'}</InfoRow>
+                  <InfoRow label="PAS Keretrendszer">{m.frameworks_analysis?.pas_alignment || '—'}</InfoRow>
+                  <InfoRow label="AIDA Keretrendszer">{m.frameworks_analysis?.aida_alignment || '—'}</InfoRow>
+                  <InfoRow label="CTA Értékelés">{m.cta_evaluation || '—'}</InfoRow>
+                  <InfoRow label="Hitelesség">{m.credibility_evaluation || '—'}</InfoRow>
+                </tbody>
+              </table>
+
+              {m.copy_recommendations && m.copy_recommendations.length > 0 && (
+                <div style={{ marginTop: 20 }}>
+                  <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 8 }}>Javaslatok</div>
+                  <ul style={{ paddingLeft: 20, fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                    {m.copy_recommendations.map((r, i) => <li key={i} style={{ marginBottom: 4 }}>{r}</li>)}
+                  </ul>
+                </div>
+              )}
+            </SectionCard>
           </>
         );
       }
@@ -1807,55 +1890,55 @@ export default function ZomboAuditPage() {
         const openHours = ct.opening_hours;
         return (
           <>
-          <CategoryEvalButton tabId="contact" />
-          <SectionCard title="Kontakt & Ceg Adatok" icon="">
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <tbody>
-                <InfoRow label="Cegnev">{(ct.company_name as string) || '\u2014'}</InfoRow>
-                <InfoRow label="Cim">
-                  {ctAddresses.length > 0
-                    ? <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{ctAddresses.map((a, i) => <div key={i}>{a}</div>)}</div>
-                    : '\u2014'}
-                </InfoRow>
-                <InfoRow label="Telefon">
-                  {ctPhones.length > 0
-                    ? <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{ctPhones.map((p, i) => <a key={i} href={`tel:${p}`} style={{ color: '#8b5cf6', textDecoration: 'none', fontWeight: 600 }}>{p}</a>)}</div>
-                    : '\u2014'}
-                </InfoRow>
-                <InfoRow label="Email">
-                  {ctEmails.length > 0
-                    ? <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{ctEmails.map((e, i) => <a key={i} href={`mailto:${e}`} style={{ color: '#8b5cf6', textDecoration: 'none', fontWeight: 600 }}>{e}</a>)}</div>
-                    : '\u2014'}
-                </InfoRow>
-                {ct.tax_number && <InfoRow label="Adoszam">{ct.tax_number as string}</InfoRow>}
-                {ct.registration_number && <InfoRow label="Cegjegyzekszam">{ct.registration_number as string}</InfoRow>}
-                <InfoRow label="Social Linkek">
-                  {Object.keys(socialLinks).length > 0
-                    ? <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+            <CategoryEvalButton tabId="contact" />
+            <SectionCard title="Kontakt & Ceg Adatok" icon="">
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <tbody>
+                  <InfoRow label="Cegnev">{(ct.company_name as string) || '\u2014'}</InfoRow>
+                  <InfoRow label="Cim">
+                    {ctAddresses.length > 0
+                      ? <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{ctAddresses.map((a, i) => <div key={i}>{a}</div>)}</div>
+                      : '\u2014'}
+                  </InfoRow>
+                  <InfoRow label="Telefon">
+                    {ctPhones.length > 0
+                      ? <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{ctPhones.map((p, i) => <a key={i} href={`tel:${p}`} style={{ color: '#8b5cf6', textDecoration: 'none', fontWeight: 600 }}>{p}</a>)}</div>
+                      : '\u2014'}
+                  </InfoRow>
+                  <InfoRow label="Email">
+                    {ctEmails.length > 0
+                      ? <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{ctEmails.map((e, i) => <a key={i} href={`mailto:${e}`} style={{ color: '#8b5cf6', textDecoration: 'none', fontWeight: 600 }}>{e}</a>)}</div>
+                      : '\u2014'}
+                  </InfoRow>
+                  {ct.tax_number && <InfoRow label="Adoszam">{ct.tax_number as string}</InfoRow>}
+                  {ct.registration_number && <InfoRow label="Cegjegyzekszam">{ct.registration_number as string}</InfoRow>}
+                  <InfoRow label="Social Linkek">
+                    {Object.keys(socialLinks).length > 0
+                      ? <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
                         {Object.entries(socialLinks).map(([k, v]) => (
                           <a key={k} href={v} target="_blank" rel="noreferrer" style={{ fontSize: 12, padding: '4px 10px', background: 'rgba(139,92,246,0.08)', color: '#8b5cf6', borderRadius: 8, border: '1px solid rgba(139,92,246,0.15)', fontWeight: 600, textDecoration: 'none' }}>
                             {k}
                           </a>
                         ))}
                       </div>
-                    : '\u2014'}
-                </InfoRow>
-                {openHours && openHours.schedule && openHours.schedule.length > 0 && (
-                  <InfoRow label="Nyitvatartas">
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
-                      {openHours.schedule.map((s, i) => (
-                        <div key={i} style={{ display: 'flex', gap: 12 }}>
-                          <span style={{ fontWeight: 600, minWidth: 120 }}>{s.day}:</span>
-                          <span>{s.hours}</span>
-                        </div>
-                      ))}
-                      {openHours.note && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>{openHours.note}</div>}
-                    </div>
+                      : '\u2014'}
                   </InfoRow>
-                )}
-              </tbody>
-            </table>
-          </SectionCard>
+                  {openHours && openHours.schedule && openHours.schedule.length > 0 && (
+                    <InfoRow label="Nyitvatartas">
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                        {openHours.schedule.map((s, i) => (
+                          <div key={i} style={{ display: 'flex', gap: 12 }}>
+                            <span style={{ fontWeight: 600, minWidth: 120 }}>{s.day}:</span>
+                            <span>{s.hours}</span>
+                          </div>
+                        ))}
+                        {openHours.note && <div style={{ fontSize: 11, color: 'var(--text-muted)', marginTop: 4, fontStyle: 'italic' }}>{openHours.note}</div>}
+                      </div>
+                    </InfoRow>
+                  )}
+                </tbody>
+              </table>
+            </SectionCard>
           </>
         );
       }
@@ -1865,48 +1948,48 @@ export default function ZomboAuditPage() {
         if (!d?.products?.length && !loadingCategory['products']) return <EmptyTabState tabId="products" label="Termékek" />;
         return (
           <>
-          <CategoryEvalButton tabId="products" />
-          <SectionCard title="Termékek & Szolgáltatások" icon="">
-            <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
-              <input
-                value={productSearch} onChange={e => setProductSearch(e.target.value)}
-                placeholder="Keresés termékekben..."
-                style={{ flex: 1, padding: '8px 14px', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 13, fontFamily: "'Inter', sans-serif", color: 'var(--text)', background: 'var(--bg)', outline: 'none' }}
-              />
-              <select value={productBrand} onChange={e => setProductBrand(e.target.value)}
-                style={{ padding: '8px 14px', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 13, fontFamily: "'Inter', sans-serif", color: 'var(--text)', background: 'var(--bg)', outline: 'none' }}>
-                <option value="">Minden márka</option>
-                {productBrands.map(b => <option key={b} value={b}>{b}</option>)}
-              </select>
-            </div>
-            <table style={{ width: '100%', borderCollapse: 'collapse' }}>
-              <thead>
-                <tr>
-                  {['Nev', 'Tipus', 'Marka', 'Ar', 'Leiras', 'Link'].map(h => (
-                    <th key={h} style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', padding: '12px 8px', textAlign: 'left', background: 'var(--bg3)', borderBottom: '1px solid var(--border)' }}>{h}</th>
-                  ))}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredProducts.length === 0 ? (
-                  <td colSpan={6} style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic' }}>Nem talaltunk termeket vagy szolgaltatast.</td>
-                ) : filteredProducts.map((p, i) => (
-                  <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
-                    <td style={{ padding: '12px 8px', fontWeight: 600, color: 'var(--text)' }}>{p.name}</td>
-                    <td style={{ padding: '12px 8px' }}><span style={{ padding: '2px 8px', background: p.type === 'service' ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${p.type === 'service' ? 'rgba(245,158,11,0.2)' : 'rgba(34,197,94,0.2)'}`, borderRadius: 6, fontWeight: 600, fontSize: 11, color: p.type === 'service' ? '#f59e0b' : '#22c55e' }}>{p.type === 'service' ? 'Szolgaltatas' : 'Termek'}</span></td>
-                    <td style={{ padding: '12px 8px' }}><span style={{ padding: '2px 8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6, fontWeight: 600, fontSize: 11, color: 'var(--text)' }}>{p.brand || 'N/A'}</span></td>
-                    <td style={{ padding: '12px 8px', fontWeight: 700, color: '#8b5cf6' }}>{p.price || 'N/A'}</td>
-                    <td style={{ padding: '12px 8px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{p.description || '\u2014'}</td>
-                    <td style={{ padding: '12px 8px' }}>
-                      {p.page_url && p.page_url !== 'N/A'
-                        ? <a href={p.page_url} target="_blank" rel="noreferrer" style={{ color: '#8b5cf6', textDecoration: 'none', fontWeight: 600, fontSize: 11.5 }}>Oldal megnyitása ↗</a>
-                        : '—'}
-                    </td>
+            <CategoryEvalButton tabId="products" />
+            <SectionCard title="Termékek & Szolgáltatások" icon="">
+              <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
+                <input
+                  value={productSearch} onChange={e => setProductSearch(e.target.value)}
+                  placeholder="Keresés termékekben..."
+                  style={{ flex: 1, padding: '8px 14px', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 13, fontFamily: "'Inter', sans-serif", color: 'var(--text)', background: 'var(--bg)', outline: 'none' }}
+                />
+                <select value={productBrand} onChange={e => setProductBrand(e.target.value)}
+                  style={{ padding: '8px 14px', border: '1.5px solid var(--border)', borderRadius: 10, fontSize: 13, fontFamily: "'Inter', sans-serif", color: 'var(--text)', background: 'var(--bg)', outline: 'none' }}>
+                  <option value="">Minden márka</option>
+                  {productBrands.map(b => <option key={b} value={b}>{b}</option>)}
+                </select>
+              </div>
+              <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+                <thead>
+                  <tr>
+                    {['Nev', 'Tipus', 'Marka', 'Ar', 'Leiras', 'Link'].map(h => (
+                      <th key={h} style={{ fontSize: 11, fontWeight: 600, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', padding: '12px 8px', textAlign: 'left', background: 'var(--bg3)', borderBottom: '1px solid var(--border)' }}>{h}</th>
+                    ))}
                   </tr>
-                ))}
-              </tbody>
-            </table>
-          </SectionCard>
+                </thead>
+                <tbody>
+                  {filteredProducts.length === 0 ? (
+                    <td colSpan={6} style={{ padding: 20, textAlign: 'center', color: 'var(--text-muted)', fontStyle: 'italic' }}>Nem talaltunk termeket vagy szolgaltatast.</td>
+                  ) : filteredProducts.map((p, i) => (
+                    <tr key={i} style={{ borderBottom: '1px solid var(--border)' }}>
+                      <td style={{ padding: '12px 8px', fontWeight: 600, color: 'var(--text)' }}>{p.name}</td>
+                      <td style={{ padding: '12px 8px' }}><span style={{ padding: '2px 8px', background: p.type === 'service' ? 'rgba(245,158,11,0.1)' : 'rgba(34,197,94,0.1)', border: `1px solid ${p.type === 'service' ? 'rgba(245,158,11,0.2)' : 'rgba(34,197,94,0.2)'}`, borderRadius: 6, fontWeight: 600, fontSize: 11, color: p.type === 'service' ? '#f59e0b' : '#22c55e' }}>{p.type === 'service' ? 'Szolgaltatas' : 'Termek'}</span></td>
+                      <td style={{ padding: '12px 8px' }}><span style={{ padding: '2px 8px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 6, fontWeight: 600, fontSize: 11, color: 'var(--text)' }}>{p.brand || 'N/A'}</span></td>
+                      <td style={{ padding: '12px 8px', fontWeight: 700, color: '#8b5cf6' }}>{p.price || 'N/A'}</td>
+                      <td style={{ padding: '12px 8px', color: 'var(--text-muted)', lineHeight: 1.4 }}>{p.description || '\u2014'}</td>
+                      <td style={{ padding: '12px 8px' }}>
+                        {p.page_url && p.page_url !== 'N/A'
+                          ? <a href={p.page_url} target="_blank" rel="noreferrer" style={{ color: '#8b5cf6', textDecoration: 'none', fontWeight: 600, fontSize: 11.5 }}>Oldal megnyitása ↗</a>
+                          : '—'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </SectionCard>
           </>
         );
       }
@@ -1952,7 +2035,7 @@ export default function ZomboAuditPage() {
               </div>
               <div style={{ padding: '12px 18px', background: 'rgba(139,92,246,0.05)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: 10 }}>
                 <p style={{ fontSize: '12.5px', color: '#8b5cf6', fontWeight: 600, margin: 0 }}>
-                  Kérjük, futtasson egy weboldal auditot az "SEO Audit" fülön a fenti URL sáv segítségével. 
+                  Kérjük, futtasson egy weboldal auditot az "SEO Audit" fülön a fenti URL sáv segítségével.
                   Az elemzés befejeztével a rendszer automatikusan felépíti a Brand DNA arculatot és betölti az AI-t!
                 </p>
               </div>
@@ -1961,7 +2044,7 @@ export default function ZomboAuditPage() {
         }
 
         const activeKit = brandKits.find(k => k.id === activeKitId) || brandKits[brandKits.length - 1];
-        
+
         const draftCount = creatives.filter(c => c.status === 'draft').length;
         const approvedCount = creatives.filter(c => c.status === 'approved').length;
         const scheduledCount = creatives.filter(c => c.status === 'scheduled').length;
@@ -2093,7 +2176,7 @@ export default function ZomboAuditPage() {
                       const lines = buf.split('\n\n');
                       buf = lines.pop() || '';
                       for (const line of lines) {
-                        const trimmed = line.replace(/^data:\s*/,'').trim();
+                        const trimmed = line.replace(/^data:\s*/, '').trim();
                         if (!trimmed) continue;
                         try {
                           const ev = JSON.parse(trimmed);
@@ -2573,7 +2656,7 @@ export default function ZomboAuditPage() {
                 sessionStorage.removeItem(STORAGE_KEY_RESULT);
                 sessionStorage.removeItem(STORAGE_KEY_URL);
                 sessionStorage.removeItem(STORAGE_KEY_TAB);
-              } catch {}
+              } catch { }
               showToast('Kiértékelések törölve.');
             }}
             style={{
@@ -2605,45 +2688,117 @@ export default function ZomboAuditPage() {
         </div>
       )}
 
-      {/* Tab Nav — always visible */}
-      {!loading && (
+      {/* Welcome / Empty State when no result is present */}
+      {!result && !loading && (
+        <div style={{
+          background: 'var(--card, #1c1936)',
+          border: '1px solid var(--border, rgba(255,255,255,0.08))',
+          borderRadius: 20,
+          padding: '60px 40px',
+          textAlign: 'center',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          justifyContent: 'center',
+          gap: 24,
+          maxWidth: 700,
+          margin: '40px auto',
+          boxShadow: '0 8px 32px 0 rgba(139, 92, 246, 0.05)',
+          borderColor: 'rgba(139, 92, 246, 0.15)'
+        }}>
+          <div style={{
+            width: 80,
+            height: 80,
+            borderRadius: '24px',
+            background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: '#fff',
+            fontSize: 32,
+            boxShadow: '0 0 30px rgba(139, 92, 246, 0.3)'
+          }}>
+            🔍
+          </div>
+          <div>
+            <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)', marginBottom: 12 }}>Zombo Weboldal Audit & Arculat Generátor</h2>
+            <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6', maxWidth: 500, margin: '0 auto' }}>
+              Adj meg egy weboldal URL-t felül a keresősávban a több-ágensű elemzés elindításához.
+              Az elemzés feltérképezi a SEO jellemzőket, kinyeri a márka-színeket, a tipográfiát, a szöveges és képi hangulatot, valamint létrehoz egy azonnal használható Brand DNA arculatot.
+            </p>
+          </div>
+          <div style={{
+            display: 'flex',
+            gap: 16,
+            justifyContent: 'center',
+            flexWrap: 'wrap',
+            marginTop: 8
+          }}>
+            <div style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 12, width: 160 }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#8b5cf6' }}>1. Elemzés</div>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>SEO és tartalom crawling</div>
+            </div>
+            <div style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 12, width: 160 }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#06b6d4' }}>2. Márka DNA</div>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>Szín és stílus audit</div>
+            </div>
+            <div style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 12, width: 160 }}>
+              <div style={{ fontSize: 18, fontWeight: 700, color: '#22c55e' }}>3. Quick Post</div>
+              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>Közösségi média posztok</div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Tab Nav & Content when result is present */}
+      {result && !loading && (
         <>
-          <div style={{ display: 'flex', gap: 4, background: 'var(--bg3)', padding: 4, borderRadius: 12, border: '1px solid var(--border)', marginBottom: 20, flexWrap: 'wrap' }}>
-            {TABS.map(t => {
-              const catKey = CATEGORY_MAP[t.id];
-              const hasData = result && (
-                (t.id === 'seo' && result.seo?.score) ||
-                (t.id === 'visual' && result.visuals?.top_colors_detail?.length) ||
-                (t.id === 'content' && result.content?.summary) ||
-                (t.id === 'marketing' && result.marketing_audit?.marketing_score) ||
-                (t.id === 'brand' && result.brand_personality?.brand_archetype) ||
-                (t.id === 'contact' && (result.contact || result.contacts)) ||
-                (t.id === 'products' && result.products?.length) ||
-                (t.id === 'generate') ||
-                (t.id === 'prod') ||
-                (t.id === 'raw' && result.scraper_json)
-              );
-              const isLoadingCat = loadingCategory[t.id];
+          {/* Main Top-Level Tab Bar */}
+          <div style={{ display: 'flex', gap: 4, background: 'var(--bg3)', padding: 4, borderRadius: 12, border: '1px solid var(--border)', marginBottom: 16, flexWrap: 'wrap' }}>
+            {MAIN_TABS.map(t => {
+              const isActive = (t.id === 'evaluation' && (activeMainTab === 'evaluation' || ['seo', 'visual', 'content', 'marketing', 'brand', 'contact', 'products'].includes(activeTab))) || activeMainTab === t.id;
               return (
-                <button key={t.id} onClick={() => setActiveTab(t.id)}
+                <button
+                  key={t.id}
+                  onClick={() => {
+                    if (t.id === 'evaluation') {
+                      setActiveMainTab('evaluation');
+                      setActiveTab('seo'); // default to seo when opening evaluation
+                    } else if (t.id === 'quick-post') {
+                      navigate('/marketing/zombo/quickpost');
+                    } else if (t.id === 'layer-review') {
+                      navigate('/marketing/zombo/layer-review');
+                    } else if (t.id === 'prod') {
+                      navigate('/marketing/zombo/calendar');
+                    } else if (t.id === 'raw') {
+                      setActiveMainTab('raw');
+                      setActiveTab('raw');
+                    }
+                  }}
                   style={{
-                    padding: '8px 16px', border: 'none', borderRadius: 8, fontWeight: 600, fontSize: 12, cursor: 'pointer',
+                    padding: '10px 20px', border: 'none', borderRadius: 8, fontWeight: 700, fontSize: 13, cursor: 'pointer',
                     transition: 'all 0.2s', fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap',
-                    background: activeTab === t.id ? '#8b5cf6' : 'transparent',
-                    color: activeTab === t.id ? '#fff' : hasData ? 'var(--text)' : 'var(--text-dim)',
-                    boxShadow: activeTab === t.id ? '0 1px 4px rgba(139,92,246,0.3)' : 'none',
-                    opacity: (!hasData && !isLoadingCat && catKey) ? 0.6 : 1,
-                    position: 'relative' as const,
-                  }}>
+                    background: isActive ? 'linear-gradient(135deg, #8b5cf6, #6d28d9)' : 'transparent',
+                    color: isActive ? '#fff' : 'var(--text-muted)',
+                    boxShadow: isActive ? '0 2px 6px rgba(139,92,246,0.25)' : 'none',
+                  }}
+                  onMouseEnter={e => { if (!isActive) e.currentTarget.style.color = 'var(--text)'; }}
+                  onMouseLeave={e => { if (!isActive) e.currentTarget.style.color = 'var(--text-muted)'; }}
+                >
                   {t.label}
-                  {isLoadingCat && <span style={{ position: 'absolute', top: 2, right: 2, width: 6, height: 6, background: '#8b5cf6', borderRadius: '50%', animation: 'spin 1s linear infinite' }} />}
                 </button>
               );
             })}
           </div>
 
-          {/* Tab Content */}
-          {renderTabContent()}
+          {/* Tab Content Rendering */}
+          <div style={{ marginTop: 12 }}>
+            {activeMainTab === 'evaluation' ? (
+              renderAllSections()
+            ) : (
+              renderTabContent() // 'raw' case inside renderTabContent
+            )}
+          </div>
         </>
       )}
 

@@ -1,0 +1,1199 @@
+{
+  "preset_id": 113,
+  "title": "Profile",
+  "cover": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/presets/113.jpg",
+  "tags": [
+    "Twitter Card",
+    "App"
+  ],
+  "canvas": {
+    "id": "0",
+    "type": "canvas",
+    "name": "element-4135",
+    "opacity": 100,
+    "meta": {
+      "title": "Profile"
+    },
+    "editor": {
+      "canChangeAspectRatio": false
+    },
+    "fields": {
+      "background": {
+        "field": true,
+        "type": "image",
+        "content": {
+          "imageSrc": "upload",
+          "imageUrl": null,
+          "imageId": null,
+          "browserViewport": {
+            "width": 1280,
+            "height": 800
+          }
+        },
+        "display": {
+          "borderRadius": 0,
+          "backgroundSize": "cover",
+          "backgroundPositionVertical": "center",
+          "backgroundPositionHorizontal": "center"
+        }
+      },
+      "backgroundColor": {
+        "field": true,
+        "type": "color",
+        "content": {
+          "color": {
+            "rgba": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 1
+            },
+            "hex": "#FFFFFF"
+          }
+        },
+        "display": {
+          "displayType": "color"
+        }
+      }
+    },
+    "canvasHeight": 600,
+    "canvasWidth": 1200
+  },
+  "items": [
+    {
+      "id": "id-12",
+      "type": "rectangle",
+      "name": "circle",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 597,
+          "top": "-72"
+        },
+        "size": {
+          "width": "265",
+          "height": "265"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "borderRadius": 132
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 129.41176470588238,
+                "s": 0.3417000000000004,
+                "l": 0.7278,
+                "a": 1
+              },
+              "hex": "#A2D1A9",
+              "hex8": "#A2D1A9FF",
+              "rgba": {
+                "r": 162,
+                "g": 209,
+                "b": 169,
+                "a": 1
+              },
+              "hsv": {
+                "h": 129.41176470588238,
+                "s": 0.22663139129977777,
+                "v": 0.8208107400000001,
+                "a": 1
+              },
+              "oldHue": 129.41176470588235,
+              "source": "hsl",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 1,
+      "version": 3
+    },
+    {
+      "id": "id-1",
+      "type": "picture",
+      "name": "dots",
+      "opacity": "70",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 354,
+          "top": 115
+        },
+        "size": {
+          "width": "220",
+          "height": "220"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            },
+            "imageUUID": "21dbbdb8-606f-439b-b23d-26bc421b202e"
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center",
+            "BackgroundRepeat": "repeat"
+          }
+        }
+      },
+      "zIndex": 2,
+      "version": 3
+    },
+    {
+      "id": "id-2",
+      "type": "picture",
+      "name": "img",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 500,
+          "top": "40"
+        },
+        "size": {
+          "width": "200",
+          "height": "200"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            },
+            "imageUUID": "8b5b3b55-22b0-45fd-acf0-1f995fe1ac23"
+          },
+          "display": {
+            "borderRadius": 100,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "zIndex": 3,
+      "version": 3
+    },
+    {
+      "id": "id-3",
+      "type": "text",
+      "name": "title",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 100,
+          "top": 255
+        },
+        "size": {
+          "width": 998,
+          "height": 70
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "Christina Haynes"
+          },
+          "display": {
+            "textTransform": "none",
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "60",
+            "lineHeight": 78,
+            "fontWeight": "700",
+            "style": "fitty",
+            "fontFamily": "asap-bolditalic",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "lineHeightMode": "normal"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 0,
+                "g": 0,
+                "b": 0,
+                "a": 1
+              },
+              "hex": "#000"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 5,
+      "version": 3
+    },
+    {
+      "id": "id-4",
+      "type": "text",
+      "name": "subline",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 100,
+          "top": 330
+        },
+        "size": {
+          "width": "1000",
+          "height": "45"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "Lisbon, Portugal"
+          },
+          "display": {
+            "textTransform": "none",
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "30",
+            "lineHeight": 39,
+            "fontWeight": "700",
+            "style": "single-line",
+            "fontFamily": "asap-bolditalic",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "lineHeightMode": "normal"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 0.4177,
+                "a": 1
+              },
+              "hex": "#6B6B6B",
+              "hex8": "#6B6B6BFF",
+              "rgba": {
+                "r": 107,
+                "g": 107,
+                "b": 107,
+                "a": 1
+              },
+              "hsv": {
+                "h": 0,
+                "s": 0,
+                "v": 0.4177,
+                "a": 1
+              },
+              "oldHue": 0,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 6,
+      "version": 3
+    },
+    {
+      "id": "id-5",
+      "type": "text",
+      "name": "stat-1",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 50,
+          "top": 425
+        },
+        "size": {
+          "width": "300",
+          "height": "70"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "34"
+          },
+          "display": {
+            "textTransform": "none",
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "55",
+            "lineHeight": 71.5,
+            "fontWeight": "700",
+            "style": "single-line",
+            "fontFamily": "arvo-bolditalic",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "lineHeightMode": "normal"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 128.93617021276597,
+                "s": 0.3381294964028777,
+                "l": 0.7274509803921568,
+                "a": 1
+              },
+              "hex": "#A2D1A9",
+              "hex8": "#A2D1A9FF",
+              "rgba": {
+                "r": 162,
+                "g": 209,
+                "b": 169,
+                "a": 1
+              },
+              "hsv": {
+                "h": 128.93617021276597,
+                "s": 0.22488038277511962,
+                "v": 0.8196078431372549,
+                "a": 1
+              },
+              "oldHue": 209.12621359223297,
+              "source": "hex",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 7,
+      "version": 3
+    },
+    {
+      "id": "id-6",
+      "type": "text",
+      "name": "stat-1-title",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 50,
+          "top": 490
+        },
+        "size": {
+          "width": "300",
+          "height": "50"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "Products"
+          },
+          "display": {
+            "textTransform": "none",
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "30",
+            "lineHeight": 39,
+            "fontWeight": "700",
+            "style": "single-line",
+            "fontFamily": "arvo-bolditalic",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "lineHeightMode": "normal"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 0,
+                "g": 0,
+                "b": 0,
+                "a": 1
+              },
+              "hex": "#000"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 8,
+      "version": 3
+    },
+    {
+      "id": "id-7",
+      "type": "text",
+      "name": "stat-2",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 450,
+          "top": 425
+        },
+        "size": {
+          "width": "300",
+          "height": "70"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "1.203"
+          },
+          "display": {
+            "textTransform": "none",
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "55",
+            "lineHeight": 71.5,
+            "fontWeight": "700",
+            "style": "single-line",
+            "fontFamily": "arvo-bolditalic",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "lineHeightMode": "normal"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 128.93617021276597,
+                "s": 0.3381294964028777,
+                "l": 0.7274509803921568,
+                "a": 1
+              },
+              "hex": "#A2D1A9",
+              "hex8": "#A2D1A9FF",
+              "rgba": {
+                "r": 162,
+                "g": 209,
+                "b": 169,
+                "a": 1
+              },
+              "hsv": {
+                "h": 128.93617021276597,
+                "s": 0.22488038277511962,
+                "v": 0.8196078431372549,
+                "a": 1
+              },
+              "oldHue": 209.25925925925927,
+              "source": "hex",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 9,
+      "version": 3
+    },
+    {
+      "id": "id-8",
+      "type": "text",
+      "name": "stat-2-title",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 450,
+          "top": 490
+        },
+        "size": {
+          "width": "300",
+          "height": "50"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "Sales"
+          },
+          "display": {
+            "textTransform": "none",
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "30",
+            "lineHeight": 39,
+            "fontWeight": "700",
+            "style": "single-line",
+            "fontFamily": "arvo-bolditalic",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "lineHeightMode": "normal"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 0,
+                "g": 0,
+                "b": 0,
+                "a": 1
+              },
+              "hex": "#000"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 10,
+      "version": 3
+    },
+    {
+      "id": "id-9",
+      "type": "text",
+      "name": "stat-3",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 850,
+          "top": 425
+        },
+        "size": {
+          "width": 300,
+          "height": "70"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "295"
+          },
+          "display": {
+            "textTransform": "none",
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "55",
+            "lineHeight": 71.5,
+            "fontWeight": "700",
+            "style": "single-line",
+            "fontFamily": "arvo-bolditalic",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "lineHeightMode": "normal"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 128.93617021276597,
+                "s": 0.3381294964028777,
+                "l": 0.7274509803921568,
+                "a": 1
+              },
+              "hex": "#A2D1A9",
+              "hex8": "#A2D1A9FF",
+              "rgba": {
+                "r": 162,
+                "g": 209,
+                "b": 169,
+                "a": 1
+              },
+              "hsv": {
+                "h": 128.93617021276597,
+                "s": 0.22488038277511962,
+                "v": 0.8196078431372549,
+                "a": 1
+              },
+              "oldHue": 209.25925925925927,
+              "source": "hex",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 11,
+      "version": 3
+    },
+    {
+      "id": "id-10",
+      "type": "text",
+      "name": "stat-3-title",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "850",
+          "top": "490"
+        },
+        "size": {
+          "width": "300",
+          "height": "50"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "Reviews"
+          },
+          "display": {
+            "textTransform": "none",
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "30",
+            "lineHeight": 39,
+            "fontWeight": "700",
+            "style": "single-line",
+            "fontFamily": "asap-bolditalic",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "lineHeightMode": "normal"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 0,
+                "g": 0,
+                "b": 0,
+                "a": 1
+              },
+              "hex": "#000"
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 12,
+      "version": 3
+    },
+    {
+      "id": "id-13",
+      "type": "watermark",
+      "name": "watermark-0",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "980",
+          "top": "30"
+        },
+        "size": {
+          "width": "180",
+          "height": 90
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": 1022,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            }
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "contain",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "version": 3
+    }
+  ],
+  "snippet": "<!-- Open Graph Image - Add to <head>-->\n<meta property=\"og:image\" content=\"https://api.placid.app/u/piyuwdw0wk21k?circle=%24DEFAULT%24&dots=%24DEFAULT%24&img=%24DEFAULT%24&title=%24DEFAULT%24&subline=%24DEFAULT%24&stat-1=%24DEFAULT%24&stat-1-title=%24DEFAULT%24&stat-2=%24DEFAULT%24&stat-2-title=%24DEFAULT%24&stat-3=%24DEFAULT%24&stat-3-title=%24DEFAULT%24\"/>\n<meta property=\"og:image:height\" content=\"600\"/>\n<meta property=\"og:image:width\" content=\"1200\"/>\n\n<!-- Twitter Card Image - Add to <head> -->\n<meta property=\"twitter:image\" content=\"https://api.placid.app/u/piyuwdw0wk21k?circle=%24DEFAULT%24&dots=%24DEFAULT%24&img=%24DEFAULT%24&title=%24DEFAULT%24&subline=%24DEFAULT%24&stat-1=%24DEFAULT%24&stat-1-title=%24DEFAULT%24&stat-2=%24DEFAULT%24&stat-2-title=%24DEFAULT%24&stat-3=%24DEFAULT%24&stat-3-title=%24DEFAULT%24\"/>\n<meta name=\"twitter:card\" content=\"summary_large_image\">\n\n<!-- (Hidden) Pinterest Image - Add wherever you want in your content-->\n<img style=\"display:none\" src=\"https://api.placid.app/u/piyuwdw0wk21k?circle=%24DEFAULT%24&dots=%24DEFAULT%24&img=%24DEFAULT%24&title=%24DEFAULT%24&subline=%24DEFAULT%24&stat-1=%24DEFAULT%24&stat-1-title=%24DEFAULT%24&stat-2=%24DEFAULT%24&stat-2-title=%24DEFAULT%24&stat-3=%24DEFAULT%24&stat-3-title=%24DEFAULT%24\" data-pin-description=\"Pin Description\" data-pin-url=\"http://yourposturl.com\"/>\n"
+}

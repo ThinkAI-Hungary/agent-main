@@ -1,0 +1,745 @@
+{
+  "templates": [
+    {
+      "uuid": "djsyjxnh5mpxj",
+      "title": "New Template",
+      "thumbnail": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/f44ae12e-3046656/conversions/image-thumbnail.png",
+      "resolution": {
+        "width": 570,
+        "height": 570
+      },
+      "layers": [
+        {
+          "name": "background_layer",
+          "type": "shape",
+          "position": {
+            "xmin": 0,
+            "xmax": 100,
+            "ymin": 0,
+            "ymax": 100
+          },
+          "style": {
+            "backgroundColor": "#ffffff"
+          },
+          "description": "A teljes sablon fehér háttere, amely az alaplap teljes területét lefedi.",
+          "context_instruction": "Ez a réteg a háttérszínt határozza meg. Szükség esetén cseréld le más háttérszínre vagy háttérképre."
+        }
+      ]
+    },
+    {
+      "uuid": "lkljzjrdkuwgh",
+      "title": "Energetic",
+      "thumbnail": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/3a54aa1f-3046712/conversions/image-thumbnail.png",
+      "resolution": {
+        "width": 1200,
+        "height": 600
+      },
+      "layers": [
+        {
+          "name": "background_left",
+          "type": "shape",
+          "position": {
+            "xmin": 0,
+            "xmax": 50,
+            "ymin": 0,
+            "ymax": 100
+          },
+          "style": {
+            "backgroundColor": "#b0bec5"
+          },
+          "description": "A bal oldali háttér réteg, amely egy semleges szürkéskék színt biztosít a kutya fotó mögött.",
+          "context_instruction": "Ez a réteg a bal oldali háttérszínt adja meg. Akkor módosítsd, ha a kép hátterének tónusát szeretnéd megváltoztatni."
+        },
+        {
+          "name": "background_right",
+          "type": "shape",
+          "position": {
+            "xmin": 50,
+            "xmax": 100,
+            "ymin": 0,
+            "ymax": 100
+          },
+          "style": {
+            "backgroundColor": "#f07060"
+          },
+          "description": "A jobb oldali háttér réteg, amely egy élénk lazacpiros/korall színt biztosít a szöveg mögött.",
+          "context_instruction": "Ez a réteg adja meg a jobb oldali panel háttérszínét. Módosítsd, ha a márka színét vagy a szöveg hátterét szeretnéd megváltoztatni."
+        },
+        {
+          "name": "dog_photo",
+          "type": "picture",
+          "position": {
+            "xmin": 0,
+            "xmax": 52,
+            "ymin": 0,
+            "ymax": 100
+          },
+          "style": {
+            "objectFit": "cover",
+            "objectPosition": "center"
+          },
+          "description": "Egy border collie kutya fotója, amely a banner bal oldalát tölti ki, és a vizuális főelemet képviseli.",
+          "context_instruction": "Cseréld ki ezt a képet, ha más kutyafajtát vagy tematikus fotót szeretnél megjeleníteni. A kép mindig a bal oldali panelt töltse ki teljesen."
+        },
+        {
+          "name": "main_title",
+          "type": "text",
+          "position": {
+            "xmin": 52,
+            "xmax": 97,
+            "ymin": 15,
+            "ymax": 75
+          },
+          "style": {
+            "fontSize": "52px",
+            "color": "#ffffff",
+            "fontFamily": "Georgia, serif",
+            "fontWeight": "bold",
+            "textAlign": "center",
+            "lineHeight": "1.3"
+          },
+          "description": "A fő cím szövege, amely a banner jobb oldali piros hátterén jelenik meg félkövér, fehér betűkkel.",
+          "context_instruction": "Módosítsd ezt a réteget, ha a blog bejegyzés vagy tartalom fő címsorát szeretnéd megváltoztatni. A szöveg legyen tömör és figyelemfelkeltő."
+        },
+        {
+          "name": "website_url",
+          "type": "text",
+          "position": {
+            "xmin": 55,
+            "xmax": 97,
+            "ymin": 82,
+            "ymax": 95
+          },
+          "style": {
+            "fontSize": "18px",
+            "color": "#ffffff",
+            "fontFamily": "Arial, sans-serif",
+            "fontWeight": "normal",
+            "textAlign": "right",
+            "opacity": "0.85"
+          },
+          "description": "A weboldal URL-jét tartalmazó szövegréteg, amely a jobb alsó sarokban helyezkedik el.",
+          "context_instruction": "Frissítsd ezt a réteget a saját weboldalad vagy márkád URL-jével. Ez a branding elem azonosítja a tartalom forrását."
+        }
+      ]
+    },
+    {
+      "uuid": "ainshacgalqck",
+      "title": "Bubbly E-Commerce",
+      "thumbnail": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/6cc63e0d-3046715/conversions/image-thumbnail.png",
+      "resolution": {
+        "width": 1200,
+        "height": 1200
+      },
+      "layers": [
+        {
+          "name": "background",
+          "type": "shape",
+          "position": {
+            "xmin": 0,
+            "xmax": 100,
+            "ymin": 0,
+            "ymax": 100
+          },
+          "style": {
+            "backgroundColor": "#e8e8e8"
+          },
+          "description": "A sablon háttere, világosszürke egyszínű alap.",
+          "context_instruction": "Ez a réteg az alap háttérszínt adja. Szükség esetén módosítható a márka színének megfelelően."
+        },
+        {
+          "name": "decoration_circle_top_left",
+          "type": "decoration",
+          "position": {
+            "xmin": -5,
+            "xmax": 25,
+            "ymin": -5,
+            "ymax": 30
+          },
+          "style": {
+            "backgroundColor": "#e05555",
+            "borderRadius": "50%"
+          },
+          "description": "Piros kör alakú dekorációs elem a bal felső sarokban.",
+          "context_instruction": "Dekorációs célú formai elem, amely vizuális dinamikát ad a sablonnak. Színe a márka színéhez igazítható."
+        },
+        {
+          "name": "decoration_circle_bottom_right",
+          "type": "decoration",
+          "position": {
+            "xmin": 75,
+            "xmax": 105,
+            "ymin": 70,
+            "ymax": 105
+          },
+          "style": {
+            "backgroundColor": "#e05555",
+            "borderRadius": "50%"
+          },
+          "description": "Piros kör alakú dekorációs elem a jobb alsó sarokban.",
+          "context_instruction": "Dekorációs célú formai elem, amely szimmetrikus vizuális egyensúlyt alkot a bal felső körrel. Színe módosítható."
+        },
+        {
+          "name": "product_image",
+          "type": "picture",
+          "position": {
+            "xmin": 20,
+            "xmax": 80,
+            "ymin": 8,
+            "ymax": 72
+          },
+          "style": {
+            "objectFit": "contain"
+          },
+          "description": "A termék képe, jelen esetben egy Apple Watch SE okosóra középen elhelyezve.",
+          "context_instruction": "Ez a réteg a promótált termék képét tartalmazza. Cseréld le a saját termékképedre, amely lehetőleg átlátszó vagy fehér hátterű PNG formátumú."
+        },
+        {
+          "name": "tagline_text",
+          "type": "text",
+          "position": {
+            "xmin": 45,
+            "xmax": 95,
+            "ymin": 3,
+            "ymax": 12
+          },
+          "style": {
+            "fontSize": "36px",
+            "color": "#222222",
+            "fontFamily": "Georgia, serif",
+            "textAlign": "right",
+            "fontStyle": "italic"
+          },
+          "description": "Rövid szlogen szöveg a kép jobb felső részén: 'Next on your wishlist'.",
+          "context_instruction": "Ez a szöveg a terméket bevezető rövid szlogen. Szerkeszthető a kampány üzenetének megfelelően, pl. 'Kedvencek listájáról' vagy egyéb promóciós szöveg."
+        },
+        {
+          "name": "discount_badge",
+          "type": "shape",
+          "position": {
+            "xmin": 5,
+            "xmax": 28,
+            "ymin": 72,
+            "ymax": 83
+          },
+          "style": {
+            "backgroundColor": "#e05555",
+            "borderRadius": "50px"
+          },
+          "description": "Piros lekerekített téglalap alakú kedvezmény jelölő badge a bal alsó területen.",
+          "context_instruction": "Ez a badge a kedvezmény mértékét emeli ki vizuálisan. Mérete és színe a szöveggel együtt módosítható."
+        },
+        {
+          "name": "discount_text",
+          "type": "text",
+          "position": {
+            "xmin": 7,
+            "xmax": 26,
+            "ymin": 73,
+            "ymax": 82
+          },
+          "style": {
+            "fontSize": "38px",
+            "color": "#ffffff",
+            "fontFamily": "Inter, sans-serif",
+            "textAlign": "center",
+            "fontWeight": "bold"
+          },
+          "description": "A kedvezmény százalékos értéke a badge-en belül: '-30%'.",
+          "context_instruction": "A kedvezmény mértékét jelző szöveg. Módosítsd az aktuális akció értékének megfelelően, pl. '-20%' vagy '-50%'."
+        },
+        {
+          "name": "product_name_text",
+          "type": "text",
+          "position": {
+            "xmin": 5,
+            "xmax": 90,
+            "ymin": 84,
+            "ymax": 96
+          },
+          "style": {
+            "fontSize": "52px",
+            "color": "#111111",
+            "fontFamily": "Inter, sans-serif",
+            "textAlign": "left",
+            "fontWeight": "bold"
+          },
+          "description": "A termék neve nagy, félkövér betűkkel a kép alján: 'Apple Watch SE'.",
+          "context_instruction": "Ez a szöveg a termék nevét tartalmazza. Cseréld le a promótált termék nevére minden kampánynál."
+        }
+      ]
+    },
+    {
+      "uuid": "fp1zjozryfi3s",
+      "title": "Bubbly E-Commerce",
+      "thumbnail": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/5e338e69-3046720/conversions/image-thumbnail.png",
+      "resolution": {
+        "width": 1200,
+        "height": 1200
+      },
+      "layers": [
+        {
+          "name": "background",
+          "type": "shape",
+          "position": {
+            "xmin": 0,
+            "xmax": 100,
+            "ymin": 0,
+            "ymax": 100
+          },
+          "style": {
+            "backgroundColor": "#e8e8e8"
+          },
+          "description": "A teljes háttér világosszürke alapszíne.",
+          "context_instruction": "Ez az alap háttérréteg, amelyet általában nem kell módosítani, de szükség esetén a háttérszín megváltoztatható."
+        },
+        {
+          "name": "decoration_circle_top_left",
+          "type": "decoration",
+          "position": {
+            "xmin": -5,
+            "xmax": 25,
+            "ymin": -5,
+            "ymax": 28
+          },
+          "style": {
+            "backgroundColor": "#e05555",
+            "borderRadius": "50%"
+          },
+          "description": "Bal felső sarokban lévő piros köríves dekorációs elem.",
+          "context_instruction": "Dekorációs célú formai elem, nem szerkesztendő tartalom. A márkaidentitás színének változtatásakor frissíthető."
+        },
+        {
+          "name": "decoration_circle_bottom_right",
+          "type": "decoration",
+          "position": {
+            "xmin": 75,
+            "xmax": 105,
+            "ymin": 72,
+            "ymax": 102
+          },
+          "style": {
+            "backgroundColor": "#e05555",
+            "borderRadius": "50%"
+          },
+          "description": "Jobb alsó sarokban lévő piros köríves dekorációs elem.",
+          "context_instruction": "Dekorációs célú formai elem, nem szerkesztendő tartalom. A márkaidentitás színének változtatásakor frissíthető."
+        },
+        {
+          "name": "product_image",
+          "type": "picture",
+          "position": {
+            "xmin": 18,
+            "xmax": 82,
+            "ymin": 8,
+            "ymax": 78
+          },
+          "style": {
+            "objectFit": "contain"
+          },
+          "description": "A termék (Apple Watch SE) középre igazított fotója.",
+          "context_instruction": "A termékfotó lecserélhető bármilyen más termékképre. Mindig gondoskodj arról, hogy a kép átlátszó hátterű PNG legyen vagy a háttér egyező legyen az alapháttérrel."
+        },
+        {
+          "name": "tagline_text",
+          "type": "text",
+          "position": {
+            "xmin": 48,
+            "xmax": 95,
+            "ymin": 3,
+            "ymax": 12
+          },
+          "style": {
+            "fontSize": "36px",
+            "color": "#222222",
+            "fontFamily": "Georgia, serif",
+            "textAlign": "right",
+            "fontStyle": "italic"
+          },
+          "description": "A termék felett megjelenő reklámszlogen szöveg: 'Next on your wishlist'.",
+          "context_instruction": "Ez a figyelemfelkeltő szlogen szöveg szabadon módosítható, hogy illeszkedjen az aktuális kampányhoz vagy termékhez."
+        },
+        {
+          "name": "discount_badge",
+          "type": "shape",
+          "position": {
+            "xmin": 5,
+            "xmax": 28,
+            "ymin": 76,
+            "ymax": 88
+          },
+          "style": {
+            "backgroundColor": "#e05555",
+            "borderRadius": "50px"
+          },
+          "description": "Piros lekerekített téglalap alakú kedvezmény-badge háttere.",
+          "context_instruction": "A kedvezmény vizuális kiemelésére szolgáló forma. Akkor jelenítsd meg, ha van aktív promóció, egyébként elrejthető."
+        },
+        {
+          "name": "discount_text",
+          "type": "text",
+          "position": {
+            "xmin": 6,
+            "xmax": 27,
+            "ymin": 77,
+            "ymax": 87
+          },
+          "style": {
+            "fontSize": "38px",
+            "color": "#ffffff",
+            "fontFamily": "Inter, sans-serif",
+            "textAlign": "center",
+            "fontWeight": "bold"
+          },
+          "description": "A kedvezmény mértékét megjelenítő szöveg: '-30%'.",
+          "context_instruction": "A kedvezmény százalékos értékét módosítsd az aktuális promóciónak megfelelően. Ha nincs kedvezmény, a badge-del együtt rejtsd el."
+        },
+        {
+          "name": "product_name_text",
+          "type": "text",
+          "position": {
+            "xmin": 5,
+            "xmax": 90,
+            "ymin": 88,
+            "ymax": 98
+          },
+          "style": {
+            "fontSize": "52px",
+            "color": "#111111",
+            "fontFamily": "Inter, sans-serif",
+            "textAlign": "left",
+            "fontWeight": "bold"
+          },
+          "description": "A termék nevét megjelenítő nagy, félkövér szöveg: 'Apple Watch SE'.",
+          "context_instruction": "Mindig a hirdetett termék nevét tartalmazza. Módosítsd, ha más terméket szeretnél megjeleníteni."
+        }
+      ]
+    },
+    {
+      "uuid": "dguudtjx2haro",
+      "title": "Real Estate - Unique",
+      "thumbnail": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/d527a44b-3046722/conversions/image-thumbnail.png",
+      "resolution": {
+        "width": 1200,
+        "height": 1200
+      },
+      "layers": [
+        {
+          "name": "background",
+          "type": "shape",
+          "position": {
+            "xmin": 0,
+            "xmax": 100,
+            "ymin": 0,
+            "ymax": 100
+          },
+          "style": {
+            "backgroundColor": "#1a1aad",
+            "borderRadius": "0px"
+          },
+          "description": "A teljes sablont lefedő sötétkék háttér réteg.",
+          "context_instruction": "Ez az alap háttérszín réteg, amely mindig a legalsó rétegként marad. Szín módosítható a márkaidentitásnak megfelelően."
+        },
+        {
+          "name": "property_image",
+          "type": "picture",
+          "position": {
+            "xmin": 4,
+            "xmax": 96,
+            "ymin": 4,
+            "ymax": 75
+          },
+          "style": {
+            "borderRadius": "4px",
+            "objectFit": "cover"
+          },
+          "description": "Az ingatlan fő fotója, amely egy modern villát és medencét ábrázol.",
+          "context_instruction": "Ide kell feltölteni az eladó vagy kiadó ingatlan fő fotóját. A kép automatikusan kitölti a keretet, érdemes jó minőségű, széles látószögű képet használni."
+        },
+        {
+          "name": "just_listed_title",
+          "type": "text",
+          "position": {
+            "xmin": 10,
+            "xmax": 96,
+            "ymin": 4,
+            "ymax": 22
+          },
+          "style": {
+            "fontSize": "96px",
+            "color": "#f4a7b9",
+            "fontFamily": "Georgia, serif",
+            "fontStyle": "italic",
+            "textAlign": "right",
+            "fontWeight": "bold"
+          },
+          "description": "Nagy, dőlt betűs 'Just listed' felirat a kép tetején, rózsaszín színnel.",
+          "context_instruction": "Ez a figyelemfelkeltő főcím szövege. Módosítható pl. 'Just sold', 'Open house', 'Price reduced' szövegre az aktuális hirdetés típusától függően."
+        },
+        {
+          "name": "info_bar_background",
+          "type": "shape",
+          "position": {
+            "xmin": 0,
+            "xmax": 100,
+            "ymin": 75,
+            "ymax": 100
+          },
+          "style": {
+            "backgroundColor": "#1a1aad",
+            "borderRadius": "0px"
+          },
+          "description": "Az alsó információs sáv sötétkék háttere, amelyen az ingatlan adatai jelennek meg.",
+          "context_instruction": "Ez a dekoratív háttérsáv az ingatlan részleteinek megjelenítési területe. Általában nem szükséges szerkeszteni, de a háttérszín módosítható."
+        },
+        {
+          "name": "sqm_icon",
+          "type": "decoration",
+          "position": {
+            "xmin": 5,
+            "xmax": 13,
+            "ymin": 78,
+            "ymax": 92
+          },
+          "style": {
+            "color": "#ffffff"
+          },
+          "description": "Négyzetméter mértékegységet jelző ikon (keretes négyzet szimbólum) az alsó sávban.",
+          "context_instruction": "Ez egy dekoratív ikon elem, amely vizuálisan jelzi a terület adatát. Általában nem szerkesztendő, de az ikonkészlet cserélhető."
+        },
+        {
+          "name": "sqm_value",
+          "type": "text",
+          "position": {
+            "xmin": 13,
+            "xmax": 35,
+            "ymin": 79,
+            "ymax": 93
+          },
+          "style": {
+            "fontSize": "32px",
+            "color": "#ffffff",
+            "fontFamily": "Inter, sans-serif",
+            "textAlign": "left",
+            "fontWeight": "normal"
+          },
+          "description": "Az ingatlan alapterületét megjelenítő szöveg, pl. '164 sqm'.",
+          "context_instruction": "Ide kell beírni az ingatlan pontos alapterületét négyzetméterben. A mértékegység ('sqm') módosítható a helyi szokások szerint (pl. 'm²')."
+        },
+        {
+          "name": "rooms_icon",
+          "type": "decoration",
+          "position": {
+            "xmin": 36,
+            "xmax": 44,
+            "ymin": 78,
+            "ymax": 92
+          },
+          "style": {
+            "color": "#ffffff"
+          },
+          "description": "Szobákat jelző ikon (ajtó/épület szimbólum) az alsó sávban.",
+          "context_instruction": "Ez egy dekoratív ikon elem, amely vizuálisan jelzi a szobák számát. Általában nem szerkesztendő."
+        },
+        {
+          "name": "rooms_value",
+          "type": "text",
+          "position": {
+            "xmin": 44,
+            "xmax": 65,
+            "ymin": 79,
+            "ymax": 93
+          },
+          "style": {
+            "fontSize": "32px",
+            "color": "#ffffff",
+            "fontFamily": "Inter, sans-serif",
+            "textAlign": "left",
+            "fontWeight": "normal"
+          },
+          "description": "Az ingatlan szobáinak számát megjelenítő szöveg, pl. '5 Rooms'.",
+          "context_instruction": "Ide kell beírni az ingatlan szobáinak számát. A szöveg formátuma szabadon módosítható (pl. '3 szoba', '4 Bedrooms')."
+        },
+        {
+          "name": "price_icon",
+          "type": "decoration",
+          "position": {
+            "xmin": 66,
+            "xmax": 74,
+            "ymin": 78,
+            "ymax": 92
+          },
+          "style": {
+            "color": "#ffffff"
+          },
+          "description": "Árat jelző euró ikon (ház eurójel szimbólummal) az alsó sávban.",
+          "context_instruction": "Ez egy dekoratív ikon elem, amely vizuálisan jelzi az árat. Az ikon cserélhető más valuta szimbólumra ha szükséges."
+        },
+        {
+          "name": "price_value",
+          "type": "text",
+          "position": {
+            "xmin": 74,
+            "xmax": 97,
+            "ymin": 79,
+            "ymax": 93
+          },
+          "style": {
+            "fontSize": "32px",
+            "color": "#ffffff",
+            "fontFamily": "Inter, sans-serif",
+            "textAlign": "left",
+            "fontWeight": "normal"
+          },
+          "description": "Az ingatlan eladási árát megjelenítő szöveg, pl. '675.0000'.",
+          "context_instruction": "Ide kell beírni az ingatlan pontos vételárát. A formátum és a valutajel szabadon módosítható az aktuális hirdetésnek megfelelően."
+        }
+      ]
+    },
+    {
+      "uuid": "w2szewj66ugma",
+      "title": "Bubbly E-Commerce",
+      "thumbnail": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/42933db6-3046729/conversions/image-thumbnail.png",
+      "resolution": {
+        "width": 1200,
+        "height": 1200
+      },
+      "layers": [
+        {
+          "name": "background",
+          "type": "shape",
+          "position": {
+            "xmin": 0,
+            "xmax": 100,
+            "ymin": 0,
+            "ymax": 100
+          },
+          "style": {
+            "backgroundColor": "#e8e8e8"
+          },
+          "description": "A sablon háttere, világosszürke egyszínű alap.",
+          "context_instruction": "Ez az alaplap, amelyre az összes többi elem kerül. Szín módosítható a márkaidentitáshoz igazodva."
+        },
+        {
+          "name": "decoration_top_left",
+          "type": "decoration",
+          "position": {
+            "xmin": 0,
+            "xmax": 22,
+            "ymin": 0,
+            "ymax": 22
+          },
+          "style": {
+            "backgroundColor": "#e05555",
+            "borderRadius": "50%"
+          },
+          "description": "Piros kör dekorációs elem a bal felső sarokban, részben levágva.",
+          "context_instruction": "Dekoratív sarokelem, általában nem szerkesztendő. Ha a márka színe változik, ezt is frissíteni kell."
+        },
+        {
+          "name": "decoration_bottom_right",
+          "type": "decoration",
+          "position": {
+            "xmin": 78,
+            "xmax": 100,
+            "ymin": 78,
+            "ymax": 100
+          },
+          "style": {
+            "backgroundColor": "#e05555",
+            "borderRadius": "50%"
+          },
+          "description": "Piros kör dekorációs elem a jobb alsó sarokban, részben levágva.",
+          "context_instruction": "Dekoratív sarokelem, tükörszimmetriában a bal felső elemmel. Szín egységesen változtatandó a másik dekorációval együtt."
+        },
+        {
+          "name": "tagline_text",
+          "type": "text",
+          "position": {
+            "xmin": 45,
+            "xmax": 95,
+            "ymin": 4,
+            "ymax": 13
+          },
+          "style": {
+            "fontSize": "36px",
+            "color": "#1a1a1a",
+            "fontFamily": "Georgia, serif",
+            "textAlign": "right"
+          },
+          "description": "A termék kívánságlistához kapcsolódó szlogenje a jobb felső sarokban.",
+          "context_instruction": "Ez a rövid marketingüzenet. Módosítható kampányhoz igazodó szöveggel, például 'Most rendeld meg!' vagy 'Legújabb ajánlatunk'."
+        },
+        {
+          "name": "product_image",
+          "type": "picture",
+          "position": {
+            "xmin": 18,
+            "xmax": 82,
+            "ymin": 8,
+            "ymax": 75
+          },
+          "style": {
+            "objectFit": "contain"
+          },
+          "description": "A promótált termék képe, jelen esetben egy Apple Watch SE okosóra.",
+          "context_instruction": "A fő termékfotó helye. Cseréld le a hirdetett termék képére; lehetőleg fehér vagy átlátszó hátterű, jó minőségű képet használj."
+        },
+        {
+          "name": "discount_badge",
+          "type": "shape",
+          "position": {
+            "xmin": 5,
+            "xmax": 28,
+            "ymin": 72,
+            "ymax": 83
+          },
+          "style": {
+            "backgroundColor": "#e05555",
+            "borderRadius": "50px"
+          },
+          "description": "Piros lekerekített téglalap alakú kedvezmény-jelvény a bal alsó részen.",
+          "context_instruction": "Az akciós badge háttere. Ha nincs akció, elrejthető; ha az akció mértéke változik, a szöveggel együtt frissítendő."
+        },
+        {
+          "name": "discount_text",
+          "type": "text",
+          "position": {
+            "xmin": 6,
+            "xmax": 27,
+            "ymin": 73,
+            "ymax": 82
+          },
+          "style": {
+            "fontSize": "38px",
+            "color": "#ffffff",
+            "fontFamily": "Inter, sans-serif",
+            "textAlign": "center",
+            "fontWeight": "bold"
+          },
+          "description": "A kedvezmény mértékét mutató szöveg a piros jelvényen, pl. '-30%'.",
+          "context_instruction": "Az aktuális kedvezmény százalékos értékét tartalmazza. Módosítsd a valós kedvezménynek megfelelően, pl. '-20%' vagy '-50%'."
+        },
+        {
+          "name": "product_name",
+          "type": "text",
+          "position": {
+            "xmin": 5,
+            "xmax": 90,
+            "ymin": 84,
+            "ymax": 96
+          },
+          "style": {
+            "fontSize": "52px",
+            "color": "#1a1a1a",
+            "fontFamily": "Inter, sans-serif",
+            "textAlign": "left",
+            "fontWeight": "bold"
+          },
+          "description": "A termék neve félkövér, nagy betűmérettel az alsó sávban, pl. 'Apple Watch SE'.",
+          "context_instruction": "A promótált termék megnevezése. Mindig frissítsd az aktuálisan hirdetett termék nevére, röviden és egyértelműen."
+        }
+      ]
+    }
+  ]
+}
