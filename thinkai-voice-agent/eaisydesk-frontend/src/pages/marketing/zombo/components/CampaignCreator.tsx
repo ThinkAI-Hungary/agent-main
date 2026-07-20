@@ -1,8 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
-import type { BrandKit, SystemLog, Campaign, CampaignItem, PostCreative, ABTestVariant, CampaignPhase } from '../types';
-import { fixImageUrl, getBackendUrl } from '../types';
-import { buildLayerTemplates } from '../layerTemplates';
-import ImageSlotUploader, { type ImageSlot, buildCompositePayload } from './ImageSlotUploader';
+import type { BrandKit, SystemLog, Campaign, CampaignItem, PostCreative } from '../types';
+import AppleDateTimePicker from './AppleDateTimePicker';
 import {
   Sparkles,
   UploadCloud,
@@ -17,7 +15,12 @@ import {
   Loader,
   Eye,
   FileImage,
-  Award
+  Award,
+  GitBranch as Split,
+  List,
+  Grid,
+  Download,
+  X
 } from 'lucide-react';
 
 interface CampaignCreatorProps {
@@ -40,28 +43,10 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
   const [briefText, setBriefText] = useState('Prémium világos pörkölésű etióp kávénk bevezetése a tavaszi szezonban.');
   const [stylePreset, setStylePreset] = useState('Tavaszi terasz');
   const [dragActive, setDragActive] = useState(false);
-  // Multi-slot image upload (replaces single productImageUrl)
-  const [imageSlots, setImageSlots] = useState<ImageSlot[]>([]);
-  // Derived backward-compat: first product slot's upscaledUrl, preprocessedUrl or originalUrl
-  const productImageUrl = imageSlots[0]?.upscaledUrl || imageSlots[0]?.preprocessedUrl || imageSlots[0]?.originalUrl || null;
-  const isPreprocessing = imageSlots.some(s => s.preprocessLoading || s.analysisLoading || s.upscaleLoading);
+  const [_rawProductImage, setRawProductImage] = useState<string | null>(null);
+  const [productImageUrl, setProductImageUrl] = useState<string | null>(null);
+  const [isPreprocessing, setIsPreprocessing] = useState(false);
   const [preprocessWarning, setPreprocessWarning] = useState<string | null>(null);
-
-  // Flow 3 new fields
-  const [goalType, setGoalType] = useState<Campaign['goalType']>('product-launch');
-  const [targetAge, setTargetAge] = useState('25–45');
-  const [targetLocation, setTargetLocation] = useState('Magyarország');
-  const [targetInterests, setTargetInterests] = useState('');
-  const [campaignHistory, setCampaignHistory] = useState<Campaign[]>(() => {
-    try { return JSON.parse(localStorage.getItem('campaign_history') || '[]'); }
-    catch { return []; }
-  });
-  const [activeResultTab, setActiveResultTab] = useState<'funnel' | 'ab-test' | 'stats'>('funnel');
-  const [abVariants, setAbVariants] = useState<ABTestVariant[]>([]);
-  const [abWinnerId, setAbWinnerId] = useState<string | null>(null);
-  const [editingStrategy, setEditingStrategy] = useState(false);
-  const [editStrategyAudience, setEditStrategyAudience] = useState('');
-  const [editStrategyBudget, setEditStrategyBudget] = useState('');
   
   // Campaign Generation State (SSE-driven)
   const [isGenerating, setIsGenerating] = useState(false);
@@ -78,34 +63,12 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
   const [showDatePicker, setShowDatePicker] = useState<string | null>(null);
   const [scheduleDate, setScheduleDate] = useState('');
 
-  // Layer Template & Editing States for the active editing item
-  const [editingBgBlur, setEditingBgBlur] = useState(0);
-  const [editingOverlayOpacity, setEditingOverlayOpacity] = useState(0.4);
-  const [editingLogoSize, setEditingLogoSize] = useState(1.0);
-  const [editingLogoPosition, setEditingLogoPosition] = useState<'top-left' | 'top-right' | 'bottom-left' | 'bottom-right'>('top-left');
-  const [editingLogoVariant, setEditingLogoVariant] = useState<'light' | 'dark'>('light');
-
-  const [editingFontSize, setEditingFontSize] = useState(38);
-  const [editingTextAlignment, setEditingTextAlignment] = useState<'left' | 'center' | 'right'>('left');
-  const [editingFontWeight, setEditingFontWeight] = useState('normal');
-  const [editingTextColor, setEditingTextColor] = useState<'default' | 'primary' | 'secondary' | 'accent' | 'white' | 'black'>('default');
-
-  const [editingTextYOffset, setEditingTextYOffset] = useState(0);
-  const [editingTextXOffset, setEditingTextXOffset] = useState(0);
-
-  const [editingPanelBgColor, setEditingPanelBgColor] = useState<'default' | 'primary' | 'secondary' | 'accent' | 'translucent-dark' | 'translucent-light' | 'none'>('default');
-  const [editingPanelPadding, setEditingPanelPadding] = useState(40);
-  const [editingPanelRadius, setEditingPanelRadius] = useState(16);
-  const [editingPanelPosition, setEditingPanelPosition] = useState<'relative' | 'top' | 'center' | 'bottom'>('relative');
-
-  const [editingCtaFontSize, setEditingCtaFontSize] = useState(20);
-  const [editingCtaBgColor, setEditingCtaBgColor] = useState<'default' | 'primary' | 'secondary' | 'accent' | 'white' | 'black'>('default');
-  const [editingCtaYOffset, setEditingCtaYOffset] = useState(0);
-  const [editingCtaRadius, setEditingCtaRadius] = useState(8);
-
-  const [selectedLayerTemplateId, setSelectedLayerTemplateId] = useState<string | null>(null);
-  const [hoveredLayerTemplateId, setHoveredLayerTemplateId] = useState<string | null>(null);
-  const [isApplyingLayerTemplate, setIsApplyingLayerTemplate] = useState(false);
+  // A/B test and Kanban states
+  const [abTestItemId, setAbTestItemId] = useState<string | null>(null);
+  const [abVariations, setAbVariations] = useState<{ [key: string]: CampaignItem[] }>({});
+  const [isGeneratingAb, setIsGeneratingAb] = useState(false);
+  const [abTestFocus, setAbTestFocus] = useState<'szöveg' | 'kép' | 'stílus'>('szöveg');
+  const [viewMode, setViewMode] = useState<'list' | 'kanban'>('list');
 
   const logsRef = useRef<string[]>([]);
   useEffect(() => {
@@ -127,154 +90,86 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
     { title: 'Logó renderelés', desc: 'Playwright: logó watermark ráhelyezése.', icon: CheckCircle },
   ];
 
-
-
-  const goalTypeLabels: Record<string, string> = {
-    'product-launch': '🚀 Termékbevezető',
-    'promo': '🎉 Akciós',
-    'brand-awareness': '🎯 Márkaismertő',
-    'engagement': '💬 Aktíváló',
-    'seasonal': '☀️ Szezonális',
-    'retargeting': '🔄 Retargeting',
-  };
-
-  const DEFAULT_PHASES: CampaignPhase[] = [
-    { name: 'teaser',  label: 'Előzetes',   days: 5,  postCount: 1, focus: 'Kíváncsiság ébresztés' },
-    { name: 'launch',  label: 'Bevetés',    days: 7,  postCount: 2, focus: 'Fő üzenet és konverzió' },
-    { name: 'sustain', label: 'Fenntartás', days: 14, postCount: 2, focus: 'Elkötelezettség növelés' },
-    { name: 'closing', label: 'Lezárás',    days: 4,  postCount: 1, focus: 'Utolsó hívás és CTA' },
-  ];
-
-  const saveCampaignToHistory = (c: Campaign) => {
-    const updated = [c, ...campaignHistory].slice(0, 10);
-    setCampaignHistory(updated);
-    localStorage.setItem('campaign_history', JSON.stringify(updated));
-  };
-
-  const generateABVariants = (campaign: Campaign): ABTestVariant[] => [
-    {
-      id: 'var-a',
-      label: 'A Variáció',
-      differentiator: 'headline',
-      imageUrl: campaign.items[0]?.imageUrl,
-      headline: campaign.items[0]?.headline,
-      cta: campaign.items[0]?.cta,
-      score: Math.floor(Math.random() * 20) + 65,
-    },
-    {
-      id: 'var-b',
-      label: 'B Variáció',
-      differentiator: 'cta',
-      imageUrl: campaign.items[1]?.imageUrl || campaign.items[0]?.imageUrl,
-      headline: campaign.items[1]?.headline,
-      cta: campaign.items[1]?.cta,
-      score: Math.floor(Math.random() * 20) + 60,
-    },
-  ];
-
-  const handleCopyCaptions = () => {
-    if (!activeCampaign) return;
-    const text = activeCampaign.items.map((item, i) =>
-      `=== ${i+1}. ${item.channel.toUpperCase()} ===\n${item.headline}\n\n${item.caption || item.text}${item.cta ? '\n\nCTA: ' + item.cta : ''}`
-    ).join('\n\n---\n\n');
-    navigator.clipboard.writeText(text)
-      .then(() => alert('✅ ' + activeCampaign.items.length + ' caption másolva a vágólapra!'))
-      .catch(() => alert('Másolás nem sikerült'));
-  };
-
-  const handleCloneCampaign = () => {
-    if (!activeCampaign) return;
-    const cloned: Campaign = {
-      ...activeCampaign,
-      id: `clone-${Date.now()}`,
-      title: activeCampaign.title + ' (másolat)',
-      createdAt: new Date().toISOString(),
-      items: activeCampaign.items.map(item => ({ ...item, id: `${item.id}-clone`, status: 'draft' as const, scheduledAt: undefined, publishedAt: undefined })),
-    };
-    setActiveCampaign(cloned);
-    setAbVariants(generateABVariants(cloned));
-    setAbWinnerId(null);
-    saveCampaignToHistory(cloned);
-  };
-
-  const handleSaveStrategyEdit = () => {
-    if (!activeCampaign) return;
-    const updated: Campaign = { ...activeCampaign, targetAudience: editStrategyAudience, adBudgetSplit: editStrategyBudget };
-    setActiveCampaign(updated);
-    saveCampaignToHistory(updated);
-    setEditingStrategy(false);
-  };
-
-  // Export handlers
-  const handleCampaignExportCSV = () => {
-    if (!activeCampaign) return;
-    const header = ['Dátum','Csatorna','Státusz','Headline','Caption','CTA','Kép URL'];
-    const rows = activeCampaign.items.map(i => [
-      i.scheduledAt ? new Date(i.scheduledAt).toLocaleDateString('hu-HU') : '',
-      i.channel, i.status,
-      `"${(i.headline||'').replace(/"/g,'""')}"`,
-      `"${(i.caption||i.text||'').replace(/"/g,'""')}"`,
-      i.cta || '', i.imageUrl || ''
-    ]);
-    const csv = [header, ...rows].map(r => r.join(',')).join('\n');
-    const a = Object.assign(document.createElement('a'), {
-      href: URL.createObjectURL(new Blob(['\uFEFF'+csv], {type:'text/csv;charset=utf-8;'})),
-      download: `kampany_${activeCampaign.id}.csv`
-    });
-    a.click(); URL.revokeObjectURL(a.href);
-  };
-
-  const handleCampaignExportPDF = () => {
-    if (!activeCampaign) return;
-    const html = `<!DOCTYPE html><html lang="hu"><head><meta charset="UTF-8">
-      <title>Kampány Brief — ${activeCampaign.title}</title>
-      <style>
-        body { font-family: 'Segoe UI', sans-serif; padding: 32px; color: #1a1a2e; }
-        h1 { font-size: 22px; font-weight: 800; margin-bottom: 4px; }
-        h2 { font-size: 15px; margin-top: 24px; border-bottom: 2px solid #8b5cf6; padding-bottom: 4px; }
-        .meta { font-size: 11px; color: #666; margin-bottom: 20px; }
-        .item { page-break-inside: avoid; margin-bottom: 12px; padding: 12px 16px; border: 1px solid #e5e7eb; border-radius: 8px; }
-        .channel { display: inline-block; padding: 2px 8px; border-radius: 4px; font-size: 9px; font-weight: 800; background: #8b5cf6; color: #fff; text-transform: uppercase; }
-        @media print { body { padding: 16px; } }
-      </style>
-    </head><body>
-      <h1>📊 Kampány Brief — ${activeCampaign.title}</h1>
-      <p class="meta">Generálva: ${new Date(activeCampaign.createdAt).toLocaleString('hu-HU')}
-        &nbsp;&middot;&nbsp; Cél: ${activeCampaign.targetAudience}
-        &nbsp;&middot;&nbsp; Büdzsé: ${activeCampaign.adBudgetSplit}</p>
-      <h2>Stratégia</h2>
-      <p>${activeCampaign.description}</p>
-      <h2>Kreatívok (${activeCampaign.items.length} db)</h2>
-      ${activeCampaign.items.map((item, i) => `
-        <div class="item">
-          <strong>${i+1}. <span class="channel">${item.channel}</span> &mdash; ${item.type}</strong><br>
-          <em>${item.headline}</em><br>
-          <p style="margin: 6px 0; font-size: 13px; color: #374151;">${item.caption || item.text}</p>
-          ${item.cta ? `<div>CTA: <strong>${item.cta}</strong></div>` : ''}
-        </div>`).join('')}
-    </body></html>`;
-    const win = window.open('', '_blank');
-    if (win) { win.document.write(html); win.document.close(); setTimeout(() => win.print(), 400); }
-  };
-
-  const handleCampaignExportZIP = async () => {
-    if (!activeCampaign) return;
-    if (!(window as any).JSZip) {
-      await new Promise<void>((res, rej) => {
-        const s = document.createElement('script');
-        s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
-        s.onload = () => res(); s.onerror = rej;
-        document.body.appendChild(s);
-      });
+  // Drag and Drop files upload handler
+  const handleDrag = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.type === "dragenter" || e.type === "dragover") {
+      setDragActive(true);
+    } else if (e.type === "dragleave") {
+      setDragActive(false);
     }
-    const zip = new (window as any).JSZip();
-    activeCampaign.items.forEach((item, i) => {
-      const txt = [item.headline, '', item.caption || item.text, '', `CTA: ${item.cta || '—'}`, `Platform: ${item.channel}`, `Kép URL: ${item.imageUrl || ''}`].join('\n');
-      zip.file(`${i+1}_${item.channel}_${item.type}/caption.txt`, txt);
-    });
-    const blob = await zip.generateAsync({ type: 'blob' });
-    const a = Object.assign(document.createElement('a'), { href: URL.createObjectURL(blob), download: `kampany_kreativok_${activeCampaign.id}.zip` });
-    a.click(); URL.revokeObjectURL(a.href);
+  };
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    setDragActive(false);
+
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      processSelectedFile(e.dataTransfer.files[0]);
+    }
+  };
+
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      processSelectedFile(e.target.files[0]);
+    }
+    // Reset input so the same file can be re-selected
+    e.target.value = '';
+  };
+
+
+
+  const processSelectedFile = (file: File) => {
+    // Validate file type
+    if (!file.type.startsWith('image/')) {
+      alert('Csak képfájlokat fogadunk el (PNG, JPG, WEBP).');
+      return;
+    }
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      alert('A fájl túl nagy. Maximum 10 MB méretű képet tölthetsz fel.');
+      return;
+    }
+
+    setPreprocessWarning(null);
+
+    // Immediately show preview via object URL
+    const objectUrl = URL.createObjectURL(file);
+    setProductImageUrl(objectUrl);
+
+    const reader = new FileReader();
+    reader.readAsDataURL(file);
+    reader.onloadend = async () => {
+      const base64 = reader.result as string;
+      setRawProductImage(base64);
+      
+      // Attempt background removal via Bria AI
+      setIsPreprocessing(true);
+      try {
+        const response = await fetch('/api/image/preprocess', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ image: base64 })
+        });
+
+        if (!response.ok) {
+          throw new Error(await response.text());
+        }
+
+        const data = await response.json();
+        // Replace preview with the background-removed version
+        URL.revokeObjectURL(objectUrl);
+        setProductImageUrl(data.url);
+      } catch (err: any) {
+        console.error('[PREPROCESS]', err);
+        // Keep the raw objectUrl as fallback — user can still proceed
+        setPreprocessWarning('Hatter eltavolitas sikertelen — eredeti kep hasznalata. (' + (err.message || err) + ')');
+      } finally {
+        setIsPreprocessing(false);
+      }
+    };
   };
 
   const handleGenerateCampaign = async () => {
@@ -299,17 +194,13 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
     onGenerateStart(briefText);
 
     try {
-      const response = await fetch(`${getBackendUrl()}/api/campaign/generate`, {
+      const response = await fetch('/api/campaign/generate', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           brief: fullBrief,
           brandKit: activeBrandKit,
-          productImageUrl: productImageUrl,
-          goalType,
-          targetAge,
-          targetLocation,
-          targetInterests
+          productImageUrl: productImageUrl
         })
       });
 
@@ -355,22 +246,18 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
               case 'item-complete':
                 setCompletedPreviews(prev => [...prev, { 
                   index: data.index, 
-                  imageUrl: fixImageUrl(data.imageUrl), 
+                  imageUrl: data.imageUrl, 
                   headline: data.headline || '' 
                 }]);
                 setSimulatedLogs(prev => [...prev, `[${ts}] [SUCCESS] ${data.message}`]);
                 break;
 
               case 'complete': {
-                const campaign = { ...data.campaign, goalType, targetAge, targetLocation, targetInterests };
+                const campaign = data.campaign;
                 setIsGenerating(false);
                 setCurrentStep(-1);
                 setCreatives(prev => [...(campaign.items as any), ...prev]);
                 setActiveCampaign(campaign);
-                setActiveResultTab('funnel');
-                const variants = generateABVariants(campaign);
-                setAbVariants(variants);
-                saveCampaignToHistory(campaign);
 
                 const newLogs: SystemLog[] = logsRef.current.map((msg, idx) => ({
                   id: `campaign-log-${idx}-${Date.now()}`,
@@ -411,33 +298,6 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
     setEditingItemId(item.id);
     setEditingText(item.text);
     setEditingCta(item.cta || '');
-
-    setEditingBgBlur((item as any).bgBlur || 0);
-    setEditingOverlayOpacity((item as any).overlayOpacity ?? 0.4);
-    setEditingLogoSize((item as any).logoSize ?? 1.0);
-    setEditingLogoPosition((item as any).logoPosition || 'top-left');
-    setEditingLogoVariant((item as any).logoVariant || 'light');
-
-    setEditingFontSize((item as any).fontSize || 38);
-    setEditingTextAlignment((item as any).textAlignment || 'left');
-    setEditingFontWeight((item as any).fontWeight || 'normal');
-    setEditingTextColor((item as any).textColor || 'default');
-
-    setEditingTextYOffset((item as any).textYOffset || 0);
-    setEditingTextXOffset((item as any).textXOffset || 0);
-
-    setEditingPanelBgColor((item as any).panelBgColor || 'default');
-    setEditingPanelPadding((item as any).panelPadding || 40);
-    setEditingPanelRadius((item as any).panelRadius || 16);
-    setEditingPanelPosition((item as any).panelPosition || 'relative');
-
-    setEditingCtaFontSize((item as any).ctaFontSize || 20);
-    setEditingCtaBgColor((item as any).ctaBgColor || 'default');
-    setEditingCtaYOffset((item as any).ctaYOffset || 0);
-    setEditingCtaRadius((item as any).ctaRadius || 8);
-
-    setSelectedLayerTemplateId(item.templateId || null);
-    setHoveredLayerTemplateId(null);
   };
 
   const handleItemEditSave = async (id: string) => {
@@ -446,34 +306,14 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
       const creative = creatives.find(c => c.id === id);
       if (!creative) return;
 
-      const response = await fetch(`${getBackendUrl()}/api/render-update`, {
+      const response = await fetch('/api/render-update', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           post: {
             ...creative,
             text: editingText,
-            cta: editingCta,
-            templateId: selectedLayerTemplateId || creative.templateId,
-            bgBlur: editingBgBlur,
-            overlayOpacity: editingOverlayOpacity,
-            logoSize: editingLogoSize,
-            logoPosition: editingLogoPosition,
-            logoVariant: editingLogoVariant,
-            fontSize: editingFontSize,
-            textAlignment: editingTextAlignment,
-            fontWeight: editingFontWeight,
-            textColor: editingTextColor,
-            textYOffset: editingTextYOffset,
-            textXOffset: editingTextXOffset,
-            panelBgColor: editingPanelBgColor,
-            panelPadding: editingPanelPadding,
-            panelRadius: editingPanelRadius,
-            panelPosition: editingPanelPosition,
-            ctaFontSize: editingCtaFontSize,
-            ctaBgColor: editingCtaBgColor,
-            ctaYOffset: editingCtaYOffset,
-            ctaRadius: editingCtaRadius
+            cta: editingCta
           },
           brandKit: activeBrandKit,
           text: editingText
@@ -497,29 +337,8 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
             ...item,
             text: editingText,
             cta: editingCta,
-            imageUrl: fixImageUrl(updatedPost.imageUrl),
-            templateId: (selectedLayerTemplateId || item.templateId) as any,
-            bgBlur: editingBgBlur,
-            overlayOpacity: editingOverlayOpacity,
-            logoSize: editingLogoSize,
-            logoPosition: editingLogoPosition,
-            logoVariant: editingLogoVariant,
-            fontSize: editingFontSize,
-            textAlignment: editingTextAlignment,
-            fontWeight: editingFontWeight,
-            textColor: editingTextColor,
-            textYOffset: editingTextYOffset,
-            textXOffset: editingTextXOffset,
-            panelBgColor: editingPanelBgColor,
-            panelPadding: editingPanelPadding,
-            panelRadius: editingPanelRadius,
-            panelPosition: editingPanelPosition,
-            ctaFontSize: editingCtaFontSize,
-            ctaBgColor: editingCtaBgColor,
-            ctaYOffset: editingCtaYOffset,
-            ctaRadius: editingCtaRadius,
-            originalImageUrl: updatedPost.originalImageUrl
-          } as any : item)
+            imageUrl: updatedPost.imageUrl
+          } : item)
         });
       }
       
@@ -575,177 +394,168 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
     alert('A kampány összes eleme jóváhagyva!');
   };
 
-  const getLayoutCategory = (templateId: string | null): 'product' | 'quote' | 'testimonial' | 'list' | 'universal' => {
-    if (!templateId) return 'universal';
-    if (templateId === 'universal' || templateId === 'clean') return 'universal';
-    if (templateId.startsWith('product') || templateId === 'product-callout' || templateId === 'product-showcase' || templateId === 'tag-feature') return 'product';
-    if (templateId.startsWith('quote') || templateId === 'quote-card' || templateId === 'quote-minimal' || templateId === 'quote-bold') return 'quote';
-    if (templateId.startsWith('testimonial') || templateId === 'testimonial-rating' || templateId === 'testimonial-bubble' || templateId === 'review-stars') return 'testimonial';
-    if (templateId.startsWith('list') || templateId === 'numbered-list' || templateId === 'bullet-list' || templateId === 'steps-list') return 'list';
-    
-    const idLower = templateId.toLowerCase();
-    if (idLower.includes('quote')) return 'quote';
-    if (idLower.includes('product') || idLower.includes('feature') || idLower.includes('badge') || idLower.includes('promo')) return 'product';
-    if (idLower.includes('testi') || idLower.includes('review') || idLower.includes('rating')) return 'testimonial';
-    if (idLower.includes('list') || idLower.includes('step')) return 'list';
-    
-    return 'universal';
-  };
+  // A/B test generation logic using the existing /api/generate-adhoc endpoint
+  const handleGenerateAbTest = async (item: CampaignItem, focus: 'szöveg' | 'kép' | 'stílus') => {
+    setIsGeneratingAb(true);
+    try {
+      const bBrief = `A/B Teszt "B" Változat (${focus}): ${item.text.substring(0, 100)}`;
+      const cBrief = `A/B Teszt "C" Változat (${focus}): ${item.text.substring(0, 100)}`;
 
-  const getColorValue = (colorName: string, defaultColor: string) => {
-    if (colorName === 'primary') return activeBrandKit.colors.primary;
-    if (colorName === 'secondary') return activeBrandKit.colors.secondary;
-    if (colorName === 'accent') return activeBrandKit.colors.accent;
-    if (colorName === 'white') return '#FFFFFF';
-    if (colorName === 'black') return '#000000';
-    return defaultColor;
-  };
+      // B változat generálása
+      const resB = await fetch('/api/generate-adhoc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brief: bBrief,
+          brandKit: activeBrandKit,
+          templateId: item.templateId,
+          productImageUrl: productImageUrl,
+          customText: focus === 'szöveg' ? `${item.text} — Fedezd fel még ma a különbséget!` : item.text,
+          cta: item.cta
+        })
+      });
+      if (!resB.ok) throw new Error(await resB.text());
+      const dataB = await resB.json();
 
-  const getPanelStyle = () => {
-    let bgColor = getColorValue(editingPanelBgColor, activeBrandKit.colors.primary);
-    if (editingPanelBgColor === 'none') bgColor = 'transparent';
-    else if (editingPanelBgColor === 'translucent-dark') bgColor = 'rgba(0, 0, 0, 0.65)';
-    else if (editingPanelBgColor === 'translucent-light') bgColor = 'rgba(255, 255, 255, 0.65)';
-    else if (editingPanelBgColor === 'default') {
-      const activeTmplId = hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId);
-      const category = getLayoutCategory(activeTmplId);
-      if (category === 'quote') bgColor = activeBrandKit.colors.primary;
-      else if (category === 'testimonial') bgColor = activeBrandKit.colors.secondary;
-      else bgColor = activeBrandKit.colors.primary;
-    }
+      // C változat generálása
+      const resC = await fetch('/api/generate-adhoc', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          brief: cBrief,
+          brandKit: activeBrandKit,
+          templateId: item.templateId,
+          productImageUrl: productImageUrl,
+          customText: focus === 'szöveg' ? `Unod a megszokottat? ${item.text}` : item.text,
+          cta: item.cta,
+          colorVariation: 'accent' // más szín C-nek
+        })
+      });
+      if (!resC.ok) throw new Error(await resC.text());
+      const dataC = await resC.json();
 
-    const activeTmplId = hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId);
-    const category = getLayoutCategory(activeTmplId);
-    const textColorVal = category === 'testimonial' ? activeBrandKit.colors.primary : activeBrandKit.colors.secondary;
-    
-    const scale = 240 / 1080;
-    const paddingVal = editingPanelPadding * scale;
-    const radiusVal = editingPanelRadius * scale;
-    const posX = editingTextXOffset * scale;
-    const posY = editingTextYOffset * scale;
-
-    let positionStyles: React.CSSProperties = {};
-    if (editingPanelPosition !== 'relative') {
-      positionStyles = {
-        position: 'absolute',
-        left: '50%',
-        width: 'calc(100% - 24px)',
+      const newB: CampaignItem = {
+        id: `ab-B-${Date.now()}`,
+        templateId: item.templateId,
+        channel: item.channel,
+        status: 'draft',
+        text: dataB.text || item.text,
+        cta: dataB.cta || item.cta,
+        imageUrl: dataB.imageUrl || item.imageUrl,
+        scheduledAt: item.scheduledAt
       };
-      if (editingPanelPosition === 'top') {
-        positionStyles.top = `${60 * scale + posY}px`;
-        positionStyles.bottom = 'auto';
-        positionStyles.transform = `translateX(-50%) translateX(${posX}px)`;
-      } else if (editingPanelPosition === 'center') {
-        positionStyles.top = '50%';
-        positionStyles.bottom = 'auto';
-        positionStyles.transform = `translate(-50%, -50%) translate(${posX}px, ${posY}px)`;
-      } else if (editingPanelPosition === 'bottom') {
-        positionStyles.bottom = `${60 * scale + posY}px`;
-        positionStyles.top = 'auto';
-        positionStyles.transform = `translateX(-50%) translateX(${posX}px)`;
-      }
-    } else {
-      positionStyles = {
-        position: 'relative',
-        width: '100%',
-        transform: `translate(${posX}px, ${posY}px)`,
+      
+      const newC: CampaignItem = {
+        id: `ab-C-${Date.now()}`,
+        templateId: item.templateId,
+        channel: item.channel,
+        status: 'draft',
+        text: dataC.text || item.text,
+        cta: dataC.cta || item.cta,
+        imageUrl: dataC.imageUrl || item.imageUrl,
+        scheduledAt: item.scheduledAt
       };
-    }
 
-    return {
-      backgroundColor: bgColor,
-      padding: `${paddingVal}px`,
-      borderRadius: `${radiusVal}px`,
-      color: getColorValue(editingTextColor, textColorVal),
-      ...positionStyles,
-      zIndex: 3,
-      display: 'flex',
-      flexDirection: 'column' as const,
-      boxSizing: 'border-box' as const,
-      transition: 'all 0.15s ease',
-    };
+      setAbVariations(prev => ({
+        ...prev,
+        [item.id]: [
+          { ...item, id: `ab-A-${item.id}` }, // Eredeti "A"-ként
+          newB,
+          newC
+        ]
+      }));
+
+      alert("A/B változatok sikeresen legenerálva!");
+    } catch (err: any) {
+      console.error(err);
+      alert("Sikertelen A/B generálás: " + (err.message || err));
+    } finally {
+      setIsGeneratingAb(false);
+    }
   };
 
-  const getTextStyle = (): React.CSSProperties => {
-    const scale = 240 / 1080;
-    const fontSizeVal = editingFontSize * scale;
-    const activeTmplId = hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId);
-    const category = getLayoutCategory(activeTmplId);
-    let textColorVal = category === 'testimonial' ? activeBrandKit.colors.primary : activeBrandKit.colors.secondary;
+  const handleSelectWinner = (parentItemId: string, winner: CampaignItem) => {
+    if (!activeCampaign) return;
+    setActiveCampaign({
+      ...activeCampaign,
+      items: activeCampaign.items.map(item => {
+        if (item.id === parentItemId) {
+          return {
+            ...item,
+            text: winner.text,
+            cta: winner.cta,
+            imageUrl: winner.imageUrl
+          };
+        }
+        return item;
+      })
+    });
+    setAbTestItemId(null);
+    alert("Győztes változat alkalmazva a kampányra!");
+  };
+
+  const handleSaveAllAbToCalendar = (parentItemId: string) => {
+    const variations = abVariations[parentItemId];
+    if (!variations) return;
     
-    return {
-      fontSize: `${fontSizeVal}px`,
-      fontWeight: editingFontWeight as any,
-      textAlign: editingTextAlignment,
-      color: getColorValue(editingTextColor, textColorVal),
-      fontFamily: activeBrandKit.typography.fontName,
-      lineHeight: 1.45,
-      margin: 0,
-      wordBreak: 'break-word',
-      whiteSpace: 'pre-wrap',
-    };
+    const newCreatives: PostCreative[] = variations.map(v => ({
+      id: `creative-${Math.random().toString(36).substring(2, 9)}`,
+      platform: v.channel as PostCreative['platform'],
+      format: 'feed',
+      text: v.text,
+      imageUrl: v.imageUrl,
+      createdAt: new Date().toISOString(),
+      scheduledAt: v.scheduledAt || new Date().toISOString(),
+      status: 'draft'
+    }));
+
+    setCreatives(prev => [...prev, ...newCreatives]);
+    setAbTestItemId(null);
+    alert("Összes A/B változat hozzáadva külön posztként a naptárhoz!");
   };
 
-  const getCtaStyle = (): React.CSSProperties => {
-    const scale = 240 / 1080;
-    const radiusVal = editingCtaRadius * scale;
-    const fontSizeVal = editingCtaFontSize * scale;
-    const spacingVal = (24 + editingCtaYOffset) * scale;
-
-    const creative = creatives.find(c => c.id === editingItemId);
-    const colorVar = creative?.colorVariation || 'default';
-
-    let bgCol = getColorValue(editingCtaBgColor, activeBrandKit.colors.accent);
-    if (editingCtaBgColor === 'default') {
-      if (colorVar === 'inverted') bgCol = activeBrandKit.colors.secondary;
-      else if (colorVar === 'accent') bgCol = activeBrandKit.colors.primary;
-      else bgCol = activeBrandKit.colors.accent;
-    }
-
-    let textCol = '#FFFFFF';
-    if (editingCtaBgColor === 'white' || editingCtaBgColor === 'secondary' || (editingCtaBgColor === 'default' && colorVar === 'inverted')) {
-      textCol = activeBrandKit.colors.primary;
-    }
-
-    return {
-      backgroundColor: bgCol,
-      color: textCol,
-      padding: `${10 * scale}px ${20 * scale}px`,
-      borderRadius: `${radiusVal}px`,
-      border: 'none',
-      fontWeight: 700,
-      fontSize: `${fontSizeVal}px`,
-      cursor: 'pointer',
-      width: '100%',
-      marginTop: `${spacingVal}px`,
-      boxSizing: 'border-box' as const,
-      textAlign: 'center' as const,
-      fontFamily: activeBrandKit.typography.fontName,
-      transition: 'all 0.15s ease',
-    };
-  };
-
-  const handleApplyLayerTemplate = (template: any) => {
-    setSelectedLayerTemplateId(template.id);
+  const handleExportMetaAds = () => {
+    if (!activeCampaign) return;
     
-    if (template.layoutDefaults) {
-      if (template.layoutDefaults.bgBlur !== undefined) setEditingBgBlur(template.layoutDefaults.bgBlur);
-      if (template.layoutDefaults.overlayOpacity !== undefined) setEditingOverlayOpacity(template.layoutDefaults.overlayOpacity);
-      if (template.layoutDefaults.panelBgColor !== undefined) setEditingPanelBgColor(template.layoutDefaults.panelBgColor as any);
-      if (template.layoutDefaults.panelPosition !== undefined) setEditingPanelPosition(template.layoutDefaults.panelPosition as any);
-      if (template.layoutDefaults.panelPadding !== undefined) setEditingPanelPadding(template.layoutDefaults.panelPadding);
-      if (template.layoutDefaults.panelRadius !== undefined) setEditingPanelRadius(template.layoutDefaults.panelRadius);
-      if (template.layoutDefaults.fontSize !== undefined) setEditingFontSize(template.layoutDefaults.fontSize);
-      if (template.layoutDefaults.textAlignment !== undefined) setEditingTextAlignment(template.layoutDefaults.textAlignment as any);
-      if (template.layoutDefaults.fontWeight !== undefined) setEditingFontWeight(template.layoutDefaults.fontWeight);
-      if (template.layoutDefaults.textColor !== undefined) setEditingTextColor(template.layoutDefaults.textColor as any);
-      if (template.layoutDefaults.textYOffset !== undefined) setEditingTextYOffset(template.layoutDefaults.textYOffset);
-      if (template.layoutDefaults.textXOffset !== undefined) setEditingTextXOffset(template.layoutDefaults.textXOffset);
-      if (template.layoutDefaults.ctaBgColor !== undefined) setEditingCtaBgColor(template.layoutDefaults.ctaBgColor as any);
-      if (template.layoutDefaults.ctaFontSize !== undefined) setEditingCtaFontSize(template.layoutDefaults.ctaFontSize);
-      if (template.layoutDefaults.ctaYOffset !== undefined) setEditingCtaYOffset(template.layoutDefaults.ctaYOffset);
-      if (template.layoutDefaults.ctaRadius !== undefined) setEditingCtaRadius(template.layoutDefaults.ctaRadius);
-    }
+    const metaCampaignData = {
+      campaign_name: activeCampaign.name,
+      objective: activeCampaign.objective,
+      target_audience: activeCampaign.targetAudience,
+      ad_budget_split: activeCampaign.adBudgetSplit,
+      ad_sets: activeCampaign.items
+        .filter(item => item.channel === 'meta-ads' || item.templateId.includes('conversion') || item.templateId.includes('benefit'))
+        .map((item, idx) => ({
+          ad_set_name: `Ad Set ${idx + 1} - ${item.channel.toUpperCase()}`,
+          targeting: {
+            age: "18-65+",
+            location: "Hungary",
+            interests: activeCampaign.targetAudience
+          },
+          ad_creative: {
+            title: `Ad Creative ${idx + 1}`,
+            headline: item.text.substring(0, 40),
+            body_text: item.text,
+            call_to_action: item.cta || 'SHOP_NOW',
+            image_url: item.imageUrl
+          }
+        }))
+    };
+
+    const blob = new Blob([JSON.stringify(metaCampaignData, null, 2)], { type: 'application/json' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `meta-ads-campaign-${activeCampaign.name.toLowerCase().replace(/\s+/g, '-')}.json`;
+    link.click();
+    alert("Meta Ads hirdetési terv sikeresen exportálva JSON formátumban!");
+  };
+
+  const handleMoveKanbanStatus = (itemId: string, newStatus: CampaignItem['status']) => {
+    if (!activeCampaign) return;
+    setActiveCampaign({
+      ...activeCampaign,
+      items: activeCampaign.items.map(item => item.id === itemId ? { ...item, status: newStatus } : item)
+    });
+    setCreatives(prev => prev.map(c => c.id === itemId ? { ...c, status: newStatus } : c));
   };
 
   const getFunnelLabel = (templateId: string, idx: number) => {
@@ -760,66 +570,124 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
     }
   };
 
-  return (
-    <div className="campaign-creator-view animate-slide-up">
-      {!activeCampaign && (
-        <div>
-          {/* Campaign History (Screen 1) */}
-          {campaignHistory.length > 0 && (
-            <div style={{ marginBottom: 24 }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                <h3 style={{ margin: 0, fontSize: 15, fontWeight: 700, color: 'var(--text)' }}>Korábbi kampányok</h3>
-                <button
-                  onClick={() => { setCampaignHistory([]); localStorage.removeItem('campaign_history'); }}
-                  style={{ fontSize: 11, color: 'var(--text-muted)', background: 'none', border: 'none', cursor: 'pointer', padding: '4px 8px' }}
-                >Törlés</button>
+  const renderTimeline = () => {
+    if (!activeCampaign) return null;
+    
+    const phases = [
+      { id: 'attention', label: 'Figyelem (Attention)', color: '#a855f7' },
+      { id: 'interest', label: 'Érdeklődés (Interest)', color: '#ec4899' },
+      { id: 'desire', label: 'Vágyfokozás (Desire)', color: '#3b82f6' },
+      { id: 'action', label: 'Aktivizálás (Action)', color: '#eab308' },
+      { id: 'conversion', label: 'Konverzió (Conversion)', color: '#10b981' }
+    ];
+
+    return (
+      <div className="campaign-timeline-gantt glass-panel" style={{ padding: 16, borderRadius: 12, marginBottom: 24, background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border)' }}>
+        <h4 style={{ margin: '0 0 12px 0', fontSize: 12, fontWeight: 700, color: 'var(--text-muted)' }}>Kampány Fázisok Idővonala</h4>
+        <div style={{ display: 'flex', gap: 4, height: 28, borderRadius: 6, overflow: 'hidden' }}>
+          {phases.map((p, idx) => {
+            const count = activeCampaign.items.filter((item, itemIdx) => {
+              const funnel = getFunnelLabel(item.templateId, itemIdx);
+              return funnel.phase.toLowerCase().includes(p.id) || funnel.phase.toLowerCase().includes(p.label.toLowerCase());
+            }).length;
+
+            const widthPct = (count / activeCampaign.items.length) * 100 || 5;
+
+            return (
+              <div key={p.id} style={{ 
+                width: `${widthPct}%`, 
+                background: p.color, 
+                display: 'flex', 
+                alignItems: 'center', 
+                justifyContent: 'center', 
+                color: '#fff', 
+                fontSize: 10, 
+                fontWeight: 700,
+                textShadow: '0 1px 2px rgba(0,0,0,0.5)',
+                transition: 'width 0.3s ease'
+              }} title={`${p.label}: ${count} poszt`}>
+                {count > 0 && `${idx + 1}. fázis (${count})`}
               </div>
-              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(240px, 1fr))', gap: 10 }}>
-                {campaignHistory.map(c => (
-                  <div
-                    key={c.id}
-                    onClick={() => { setActiveCampaign(c); setAbVariants(generateABVariants(c)); setActiveResultTab('funnel'); }}
-                    style={{
-                      padding: '12px 16px', borderRadius: 12,
-                      border: '1.5px solid var(--border)', background: 'var(--bg2)',
-                      cursor: 'pointer', transition: 'all 0.15s'
-                    }}
-                    onMouseEnter={e => { (e.currentTarget as HTMLDivElement).style.borderColor = '#8b5cf6'; }}
-                    onMouseLeave={e => { (e.currentTarget as HTMLDivElement).style.borderColor = 'var(--border)'; }}
-                  >
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 6 }}>
-                      <span style={{ fontSize: 11, fontWeight: 800, color: '#8b5cf6' }}>
-                        {c.goalType ? goalTypeLabels[c.goalType] : '📊'}
-                      </span>
-                      <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                        {new Date(c.createdAt).toLocaleDateString('hu-HU')}
-                      </span>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
+
+  const renderKanbanBoard = () => {
+    if (!activeCampaign) return null;
+    
+    const statuses: Array<{ id: CampaignItem['status']; label: string; color: string }> = [
+      { id: 'draft', label: 'Vázlatok (Draft)', color: '#94a3b8' },
+      { id: 'approved', label: 'Jóváhagyott (Approved)', color: '#10b981' },
+      { id: 'scheduled', label: 'Ütemezett (Scheduled)', color: '#8b5cf6' },
+      { id: 'published', label: 'Közzétett (Published)', color: '#06b6d4' }
+    ];
+
+    return (
+      <div className="kanban-board-container" style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: 16, marginTop: 24, marginBottom: 24 }}>
+        {statuses.map(col => {
+          const colItems = activeCampaign.items.filter(item => item.status === col.id);
+          return (
+            <div key={col.id} className="kanban-column glass-panel" style={{ padding: 16, borderRadius: 12, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', minHeight: 450, display: 'flex', flexDirection: 'column' }}>
+              <h4 style={{ margin: '0 0 12px 0', fontSize: 13, fontWeight: 700, color: col.color, borderBottom: `2px solid ${col.color}`, paddingBottom: 6 }}>
+                {col.label} ({colItems.length})
+              </h4>
+              <div className="kanban-cards-list" style={{ display: 'flex', flexDirection: 'column', gap: 12, flex: 1, overflowY: 'auto' }}>
+                {colItems.map(item => (
+                  <div key={item.id} className="kanban-card glass-panel" style={{ padding: 12, borderRadius: 8, background: 'var(--bg3)', border: '1px solid var(--border)', fontSize: 12 }}>
+                    <div style={{ display: 'flex', gap: 8, marginBottom: 8 }}>
+                      {item.imageUrl && (
+                        <img src={item.imageUrl} alt="" style={{ width: 44, height: 44, objectFit: 'cover', borderRadius: 4 }} />
+                      )}
+                      <div style={{ flex: 1 }}>
+                        <span className={`badge-channel ${item.channel}`} style={{ fontSize: 9, padding: '1px 4px' }}>{item.channel.toUpperCase()}</span>
+                        <p style={{ margin: '4px 0 0 0', fontWeight: 500, overflow: 'hidden', textOverflow: 'ellipsis', display: '-webkit-box', WebkitLineClamp: 2, WebkitBoxOrient: 'vertical', lineHeight: 1.3 }}>{item.text}</p>
+                      </div>
                     </div>
-                    <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)', marginBottom: 4, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
-                      {c.title}
-                    </div>
-                    <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>
-                      {c.description.substring(0, 70)}...
-                    </div>
-                    <div style={{ marginTop: 8, fontSize: 10, color: 'var(--text-muted)', display: 'flex', gap: 8 }}>
-                      <span>🎨 {c.items.length} kreatív</span>
-                      {c.targetAge && <span>👤 {c.targetAge}</span>}
+                    {/* Controls */}
+                    <div className="kanban-card-actions" style={{ display: 'flex', gap: 4, justifyContent: 'flex-end', marginTop: 8 }}>
+                      {col.id !== 'draft' && (
+                        <button className="btn-secondary btn-xs" style={{ padding: '2px 6px', fontSize: 10, cursor: 'pointer' }} onClick={() => {
+                          const prevStatus = col.id === 'approved' ? 'draft' : col.id === 'scheduled' ? 'approved' : 'scheduled';
+                          handleMoveKanbanStatus(item.id, prevStatus);
+                        }}>◀</button>
+                      )}
+                      {col.id !== 'published' && (
+                        <button className="btn-primary btn-xs" style={{ padding: '2px 6px', fontSize: 10, cursor: 'pointer' }} onClick={() => {
+                          const nextStatus = col.id === 'draft' ? 'approved' : col.id === 'approved' ? 'scheduled' : 'published';
+                          if (nextStatus === 'scheduled') {
+                            setShowDatePicker(item.id);
+                          } else {
+                            handleMoveKanbanStatus(item.id, nextStatus);
+                          }
+                        }}>▶</button>
+                      )}
                     </div>
                   </div>
                 ))}
               </div>
             </div>
-          )}
+          );
+        })}
+      </div>
+    );
+  };
 
-          <div className="creator-landing glass-panel">
-            <div className="landing-header">
-              <div className="spark-wrapper">
-                <Sparkles size={24} className="spark-glow" />
-              </div>
-              <h2>AI Kampány Stúdió & Integrált Termék-beültető</h2>
-              <p>Hozz létre teljes 30 napos AIDA marketing tölcsért és Meta hirdetéseket a terméked fotója alapján.</p>
+  return (
+    <div className="campaign-creator-view animate-slide-up">
+      {!activeCampaign ? (
+        <div className="creator-landing glass-panel">
+          <div className="landing-header">
+            <div className="spark-wrapper">
+              <Sparkles size={24} className="spark-glow" />
             </div>
-            <div className="landing-grid">
+            <h2>AI Kampány Stúdió & Integrált Termék-beültető</h2>
+            <p>Hozz létre teljes 30 napos AIDA marketing tölcsért és Meta hirdetéseket a terméked fotója alapján.</p>
+          </div>
+
+          <div className="landing-grid">
             {/* Left Column: Upload and Presets */}
             <div className="landing-left-col">
               <div className="form-group">
@@ -830,52 +698,6 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                   placeholder="Pl: Új tavaszi specialty kávék és pékáruk promóciója..."
                   rows={4}
                 />
-              </div>
-
-              {/* Goal Type selector */}
-              <div className="form-group">
-                <label>Kampány célja:</label>
-                <div style={{ display: 'flex', gap: 7, flexWrap: 'wrap', marginTop: 6 }}>
-                  {(Object.entries(goalTypeLabels) as [string, string][]).map(([v, l]) => (
-                    <button
-                      key={v}
-                      type="button"
-                      onClick={() => setGoalType(v as Campaign['goalType'])}
-                      style={{
-                        padding: '5px 11px', borderRadius: 8, fontSize: 11.5, fontWeight: 700, cursor: 'pointer',
-                        border: `1.5px solid ${goalType === v ? '#8b5cf6' : 'var(--border)'}`,
-                        background: goalType === v ? 'rgba(139,92,246,0.15)' : 'var(--bg3)',
-                        color: goalType === v ? '#c4b5fd' : 'var(--text-muted)',
-                        transition: 'all 0.12s'
-                      }}
-                    >{l}</button>
-                  ))}
-                </div>
-              </div>
-
-              {/* Target Audience inputs */}
-              <div className="form-group">
-                <label>Célcsoport:</label>
-                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 8, marginTop: 6 }}>
-                  <input
-                    value={targetAge}
-                    onChange={e => setTargetAge(e.target.value)}
-                    placeholder="Korcsoport (pl. 25-45)"
-                    style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12 }}
-                  />
-                  <input
-                    value={targetLocation}
-                    onChange={e => setTargetLocation(e.target.value)}
-                    placeholder="Helyszín"
-                    style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12 }}
-                  />
-                  <input
-                    value={targetInterests}
-                    onChange={e => setTargetInterests(e.target.value)}
-                    placeholder="Érdeklődés (pl. kávé)"
-                    style={{ padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12 }}
-                  />
-                </div>
               </div>
 
               <div className="form-group">
@@ -899,19 +721,42 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
             {/* Right Column: Drag & Drop Product File */}
             <div className="landing-right-col">
               <div className="form-group">
-                <label>Képek csatolása (Claude Vision elemzéssel, termékhűség-védelemmel):</label>
-                <ImageSlotUploader
-                  slots={imageSlots}
-                  onChange={setImageSlots}
-                  maxSlots={3}
-                  disabled={isGenerating}
-                  label="Termékfotó és kontextus képek"
-                />
-                {preprocessWarning && (
-                  <div className="preprocess-warning-badge" style={{ marginTop: 6 }}>
-                    ⚠️ {preprocessWarning}
-                  </div>
-                )}
+                <label>Termékfotó feltöltése (Bria AI háttér-eltávolítással):</label>
+                <div
+                  className={`file-drop-area ${dragActive ? 'active' : ''} ${productImageUrl ? 'has-image' : ''}`}
+                  onDragEnter={handleDrag}
+                  onDragOver={handleDrag}
+                  onDragLeave={handleDrag}
+                  onDrop={handleDrop}
+                >
+                  {isPreprocessing ? (
+                    <div className="drop-loader">
+                      <Loader size={36} className="spinner" />
+                      <span>Termék kivágása a háttérből...</span>
+                    </div>
+                  ) : productImageUrl ? (
+                    <div className="isolated-preview-container">
+                      <div className="checkerboard-bg">
+                        <img src={productImageUrl} alt="Isolated product" className="isolated-img" />
+                      </div>
+                      {preprocessWarning && (
+                        <div className="preprocess-warning-badge">
+                          ⚠️ {preprocessWarning}
+                        </div>
+                      )}
+                      <button className="remove-img-btn" onClick={() => { setProductImageUrl(null); setRawProductImage(null); setPreprocessWarning(null); }}>
+                        Törlés és Új feltöltés
+                      </button>
+                    </div>
+                  ) : (
+                    <label className="drop-label">
+                      <UploadCloud size={38} className="upload-icon" />
+                      <span className="title">Húzd ide a termékfotót, vagy kattints a tallózáshoz</span>
+                      <span className="sub">PNG, JPG formátum támogatott</span>
+                      <input type="file" onChange={handleFileChange} accept="image/*" className="hidden-file-input" />
+                    </label>
+                  )}
+                </div>
               </div>
 
               <button
@@ -934,270 +779,81 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
             </div>
           </div>
         </div>
-      </div>
-      )}
-
-      {activeCampaign && (
+      ) : (
         /* Campaign Result View */
         <div className="campaign-result-workspace">
           {/* Header Row */}
           <div className="workspace-header glass-panel">
             <div className="header-info">
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
-                <span className="badge-new">GENERÁLT KAMPÁNY</span>
-                {activeCampaign.goalType && (
-                  <span style={{ fontSize: 11, fontWeight: 700, color: '#c4b5fd', background: 'rgba(139,92,246,0.15)', padding: '2px 8px', borderRadius: 6 }}>
-                    {goalTypeLabels[activeCampaign.goalType]}
-                  </span>
-                )}
-              </div>
+              <span className="badge-new">GENERÁLT KAMPÁNY</span>
               <h2>{activeCampaign.title}</h2>
               <p className="concept-desc">{activeCampaign.description}</p>
-              {(activeCampaign.targetAge || activeCampaign.targetLocation || activeCampaign.targetInterests) && (
-                <div style={{ display: 'flex', gap: 12, marginTop: 6, fontSize: 11, color: 'var(--text-muted)' }}>
-                  {activeCampaign.targetAge && <span>👤 {activeCampaign.targetAge}</span>}
-                  {activeCampaign.targetLocation && <span>📍 {activeCampaign.targetLocation}</span>}
-                  {activeCampaign.targetInterests && <span>🎯 {activeCampaign.targetInterests}</span>}
-                </div>
-              )}
             </div>
-            <div className="header-actions" style={{ display: 'flex', flexDirection: 'column', gap: 8, alignItems: 'flex-end' }}>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button className="btn-secondary" onClick={() => setActiveCampaign(null)}>Új kampány</button>
-                <button onClick={handleCloneCampaign} title="Kampány klónozása módosításra" style={{ padding: '7px 14px', borderRadius: 8, fontSize: 12, fontWeight: 700, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'var(--bg3)', color: 'var(--text-muted)' }}>
-                  🔁 Klónozás
-                </button>
-                <button className="btn-primary" onClick={handleApproveAll}>
-                  <CheckCircle size={14} /> Jóváhagyás
-                </button>
-              </div>
-              <div style={{ display: 'flex', gap: 6 }}>
-                <button onClick={handleCopyCaptions} title="Összes caption vágólapra"
-                  style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'var(--bg3)', color: 'var(--text-muted)' }}>
-                  📋 Caption
-                </button>
-                <button onClick={handleCampaignExportCSV} title="Kampány CSV export"
-                  style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'var(--bg3)', color: 'var(--text-muted)' }}>
-                  📊 CSV
-                </button>
-                <button onClick={handleCampaignExportPDF} title="Kampány Brief PDF"
-                  style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'var(--bg3)', color: 'var(--text-muted)' }}>
-                  📄 PDF
-                </button>
-                <button onClick={handleCampaignExportZIP} title="Kreatívok ZIP"
-                  style={{ padding: '5px 10px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'var(--bg3)', color: 'var(--text-muted)' }}>
-                  📦 ZIP
-                </button>
-              </div>
+            <div className="header-actions" style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
+              <button className="btn-secondary" onClick={() => setActiveCampaign(null)}>
+                Új kampány indítása
+              </button>
+              <button className="btn-secondary" onClick={handleExportMetaAds} style={{ background: '#0284c7', color: '#fff', display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Download size={16} /> Meta Ads Export
+              </button>
+              <button className="btn-primary" onClick={handleApproveAll}>
+                <CheckCircle size={16} /> Összes jóváhagyása
+              </button>
             </div>
           </div>
 
-          {/* Phase Structure bar + Tab selector */}
-          <div style={{ marginBottom: 18 }}>
-            {/* Phase sav (Screen 4) */}
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr 1fr', gap: 6, marginBottom: 14 }}>
-              {DEFAULT_PHASES.map((phase, i) => (
-                <div key={phase.name} style={{
-                  padding: '9px 14px', borderRadius: 10,
-                  background: (['rgba(139,92,246,0.1)', 'rgba(236,72,153,0.1)', 'rgba(16,185,129,0.1)', 'rgba(245,158,11,0.1)'] as string[])[i],
-                  borderLeft: `3px solid ${(['#8b5cf6', '#ec4899', '#10b981', '#f59e0b'] as string[])[i]}`
-                }}>
-                  <div style={{ fontSize: 9, fontWeight: 800, textTransform: 'uppercase', opacity: 0.65, marginBottom: 2 }}>{phase.days} nap</div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{phase.label}</div>
-                  <div style={{ fontSize: 10, color: 'var(--text-muted)', lineHeight: 1.3 }}>{phase.focus}</div>
-                </div>
-              ))}
+          {/* Strategic stats rows */}
+          <div className="strategy-cards-grid">
+            <div className="strategy-card glass-panel">
+              <div className="card-icon-title">
+                <Target size={20} className="icon-purple" />
+                <h3>Meghatározott Célközönség</h3>
+              </div>
+              <p>{activeCampaign.targetAudience}</p>
             </div>
 
-            {/* Tab gombsor */}
-            <div style={{ display: 'flex', gap: 4, background: 'var(--bg3)', borderRadius: 10, padding: 4, width: 'fit-content' }}>
-              {[
-                { id: 'funnel', label: '📈 AIDA Funnel' },
-                { id: 'ab-test', label: '🧪 A/B Teszt' },
-                { id: 'stats', label: '📊 Statisztika' },
-              ].map(({ id, label }) => (
-                <button
-                  key={id}
-                  onClick={() => setActiveResultTab(id as any)}
-                  style={{
-                    padding: '7px 16px', borderRadius: 7, fontSize: 12, fontWeight: 700, cursor: 'pointer',
-                    border: 'none',
-                    background: activeResultTab === id ? 'var(--bg)' : 'transparent',
-                    color: activeResultTab === id ? 'var(--text)' : 'var(--text-muted)',
-                    boxShadow: activeResultTab === id ? '0 1px 4px rgba(0,0,0,0.2)' : 'none',
-                    transition: 'all 0.15s'
-                  }}
-                >{label}</button>
-              ))}
+            <div className="strategy-card glass-panel">
+              <div className="card-icon-title">
+                <DollarSign size={20} className="icon-pink" />
+                <h3>Hirdetési Büdzsé Felosztás</h3>
+              </div>
+              <p>{activeCampaign.adBudgetSplit}</p>
             </div>
           </div>
 
-          {/* A/B Test Panel */}
-          {activeResultTab === 'ab-test' && (
-            <div style={{ marginBottom: 20 }}>
-              {abWinnerId && (
-                <div style={{ marginBottom: 12, padding: '10px 16px', borderRadius: 10, background: 'rgba(16,185,129,0.12)', border: '1.5px solid #10b981', display: 'flex', alignItems: 'center', gap: 10 }}>
-                  <span style={{ fontSize: 18 }}>🏆</span>
-                  <span style={{ fontSize: 13, fontWeight: 700, color: '#10b981' }}>Győztes: {abVariants.find(v => v.id === abWinnerId)?.label}</span>
-                  <button onClick={() => setAbWinnerId(null)} style={{ marginLeft: 'auto', fontSize: 11, color: '#94a3b8', background: 'none', border: 'none', cursor: 'pointer' }}>Törlés</button>
-                </div>
-              )}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 20 }}>
-                {abVariants.map(v => (
-                  <div key={v.id} onClick={() => setAbWinnerId(v.id)}
-                    style={{ padding: 20, borderRadius: 16, cursor: 'pointer', transition: 'all 0.15s',
-                      border: `2px solid ${abWinnerId === v.id ? '#10b981' : 'var(--border)'}`,
-                      background: abWinnerId === v.id ? 'rgba(16,185,129,0.06)' : 'var(--bg2)'
-                    }}>
-                    <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 14 }}>
-                      <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                        {abWinnerId === v.id && <span style={{ fontSize: 16 }}>🏆</span>}
-                        <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>{v.label}</span>
-                      </div>
-                      <span style={{ background: abWinnerId === v.id ? '#10b981' : '#8b5cf6', color: '#fff', borderRadius: 8, padding: '3px 12px', fontSize: 12, fontWeight: 700 }}>
-                        AI score: {v.score}/100
-                      </span>
-                    </div>
-                    {v.imageUrl && (
-                      <img src={v.imageUrl} alt={v.label} style={{ width: '100%', borderRadius: 10, marginBottom: 12, objectFit: 'cover', maxHeight: 200 }} />
-                    )}
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6, fontSize: 12, color: 'var(--text-muted)' }}>
-                      <div><span style={{ fontWeight: 700, color: 'var(--text)', marginRight: 6 }}>Headline:</span>{v.headline || '—'}</div>
-                      <div><span style={{ fontWeight: 700, color: 'var(--text)', marginRight: 6 }}>CTA:</span>{v.cta || '—'}</div>
-                      <div><span style={{ fontWeight: 700, color: 'var(--text)', marginRight: 6 }}>Tesztelő:</span>{v.differentiator}</div>
-                    </div>
-                    <div style={{ marginTop: 12, height: 6, background: 'var(--border)', borderRadius: 3, overflow: 'hidden' }}>
-                      <div style={{ height: '100%', width: `${v.score}%`, background: abWinnerId === v.id ? 'linear-gradient(90deg,#10b981,#059669)' : 'linear-gradient(90deg, #8b5cf6, #ec4899)', borderRadius: 3, transition: 'width 0.6s ease' }} />
-                    </div>
-                    <div style={{ marginTop: 6, fontSize: 10, color: 'var(--text-muted)', textAlign: 'right' }}>{v.score}% becsült CTR · Kattints a győztes kijelöléséhez</div>
-                  </div>
-                ))}
-              </div>
+          {/* Vizuális fázis timeline */}
+          {renderTimeline()}
+
+          {/* Nézetváltó és vezérlők */}
+          <div className="view-mode-bar glass-panel" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '12px 24px', borderRadius: 12, marginBottom: 20, background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)' }}>
+            <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text-muted)' }}>Megjelenítési Mód:</span>
+            <div className="view-toggle-buttons" style={{ display: 'flex', gap: 8 }}>
+              <button 
+                className={`btn-toggle ${viewMode === 'list' ? 'active btn-primary' : 'btn-secondary'}`} 
+                onClick={() => setViewMode('list')}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '6px 12px', borderRadius: 8, cursor: 'pointer', border: 'none' }}
+              >
+                <List size={14} /> Lista nézet (Roadmap)
+              </button>
+              <button 
+                className={`btn-toggle ${viewMode === 'kanban' ? 'active btn-primary' : 'btn-secondary'}`} 
+                onClick={() => setViewMode('kanban')}
+                style={{ display: 'flex', alignItems: 'center', gap: 6, fontSize: 12, padding: '6px 12px', borderRadius: 8, cursor: 'pointer', border: 'none' }}
+              >
+                <Grid size={14} /> Kanban tábla
+              </button>
             </div>
-          )}
+          </div>
 
-          {/* Stats Panel */}
-          {activeResultTab === 'stats' && (
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: 16, marginBottom: 20 }}>
-              {/* Platform mix */}
-              <div style={{ padding: '16px 20px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'var(--bg2)' }}>
-                <h4 style={{ margin: '0 0 14px', fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>📱 Platform eloszlás</h4>
-                {['instagram', 'facebook', 'meta-ads'].map(ch => {
-                  const count = activeCampaign.items.filter(i => i.channel === ch).length;
-                  const pct = activeCampaign.items.length > 0 ? Math.round(count / activeCampaign.items.length * 100) : 0;
-                  return (
-                    <div key={ch} style={{ marginBottom: 10 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>
-                        <span style={{ textTransform: 'capitalize' }}>{ch}</span><span style={{ fontWeight: 700 }}>{count} db ({pct}%)</span>
-                      </div>
-                      <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${pct}%`, background: ch === 'instagram' ? '#ec4899' : ch === 'facebook' ? '#3b82f6' : '#f59e0b', borderRadius: 2 }} />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Status mix */}
-              <div style={{ padding: '16px 20px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'var(--bg2)' }}>
-                <h4 style={{ margin: '0 0 14px', fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>🔄 Státusz eloszlás</h4>
-                {['draft','approved','scheduled','published'].map(s => {
-                  const count = activeCampaign.items.filter(i => i.status === s).length;
-                  const color: Record<string,string> = { draft:'#94a3b8', approved:'#8b5cf6', scheduled:'#f59e0b', published:'#10b981' };
-                  return (
-                    <div key={s} style={{ display: 'flex', justifyContent: 'space-between', padding: '5px 0', fontSize: 12, borderBottom: '1px solid var(--border)' }}>
-                      <span style={{ color: color[s], fontWeight: 700, textTransform: 'uppercase', fontSize: 10 }}>{s}</span>
-                      <span style={{ fontWeight: 700, color: 'var(--text)' }}>{count} db</span>
-                    </div>
-                  );
-                })}
-              </div>
-
-              {/* Content type */}
-              <div style={{ padding: '16px 20px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'var(--bg2)' }}>
-                <h4 style={{ margin: '0 0 14px', fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>🎨 Tartalom típus</h4>
-                {['post','ad'].map(t => {
-                  const count = activeCampaign.items.filter(i => i.type === t).length;
-                  const pct = activeCampaign.items.length > 0 ? Math.round(count / activeCampaign.items.length * 100) : 0;
-                  return (
-                    <div key={t} style={{ marginBottom: 10 }}>
-                      <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 11, color: 'var(--text-muted)', marginBottom: 3 }}>
-                        <span>{t === 'post' ? '📸 Organikus poszt' : '🎯 Fizetett hird.'}</span>
-                        <span style={{ fontWeight: 700 }}>{count} db</span>
-                      </div>
-                      <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, overflow: 'hidden' }}>
-                        <div style={{ height: '100%', width: `${pct}%`, background: t === 'post' ? '#8b5cf6' : '#ec4899', borderRadius: 2 }} />
-                      </div>
-                    </div>
-                  );
-                })}
-                <div style={{ marginTop: 12, padding: '8px 10px', background: 'rgba(139,92,246,0.08)', borderRadius: 8, fontSize: 11, color: '#c4b5fd' }}>
-                  ℹ️ {activeCampaign.items.length} kreatív &middot; 30 napos kampány
-                </div>
-              </div>
-
-              {/* Strategy cards — editable */}
-              {(activeCampaign.targetAudience || activeCampaign.adBudgetSplit || editingStrategy) && (
-                <div style={{ gridColumn: '1/-1', padding: '16px 20px', borderRadius: 12, border: `1.5px solid ${editingStrategy ? '#8b5cf6' : 'var(--border)'}`, background: 'var(--bg2)', transition: 'border-color 0.15s' }}>
-                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12 }}>
-                    <h4 style={{ margin: 0, fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>🎯 Stratégiai adatok</h4>
-                    {editingStrategy ? (
-                      <div style={{ display: 'flex', gap: 6 }}>
-                        <button onClick={handleSaveStrategyEdit}
-                          style={{ padding: '4px 12px', borderRadius: 7, fontSize: 11, fontWeight: 700, cursor: 'pointer', border: 'none', background: '#8b5cf6', color: '#fff' }}>
-                          Mentés
-                        </button>
-                        <button onClick={() => setEditingStrategy(false)}
-                          style={{ padding: '4px 10px', borderRadius: 7, fontSize: 11, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'none', color: 'var(--text-muted)' }}>
-                          Mégsem
-                        </button>
-                      </div>
-                    ) : (
-                      <button onClick={() => { setEditStrategyAudience(activeCampaign.targetAudience || ''); setEditStrategyBudget(activeCampaign.adBudgetSplit || ''); setEditingStrategy(true); }}
-                        style={{ padding: '4px 10px', borderRadius: 7, fontSize: 11, cursor: 'pointer', border: '1.5px solid var(--border)', background: 'none', color: 'var(--text-muted)' }}>
-                        ✏️ Szerkesztés
-                      </button>
-                    )}
-                  </div>
-                  {editingStrategy ? (
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                      <div>
-                        <label style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Célközönség:</label>
-                        <input value={editStrategyAudience} onChange={e => setEditStrategyAudience(e.target.value)}
-                          style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #8b5cf6', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12 }} />
-                      </div>
-                      <div>
-                        <label style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 4, display: 'block' }}>Büdzsé felosztás:</label>
-                        <input value={editStrategyBudget} onChange={e => setEditStrategyBudget(e.target.value)}
-                          style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid #8b5cf6', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12 }} />
-                      </div>
-                    </div>
-                  ) : (
-                    <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14, fontSize: 12 }}>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Célközönség</span>
-                        <span style={{ color: 'var(--text)' }}>{activeCampaign.targetAudience || '—'}</span>
-                      </div>
-                      <div>
-                        <span style={{ color: 'var(--text-muted)', fontSize: 10, fontWeight: 700, textTransform: 'uppercase', display: 'block', marginBottom: 4 }}>Büdzsé</span>
-                        <span style={{ color: 'var(--text)' }}>{activeCampaign.adBudgetSplit || '—'}</span>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* Funnel Roadmap Timeline display */}
-          {activeResultTab === 'funnel' && (
+          {viewMode === 'kanban' ? renderKanbanBoard() : (
             <div className="funnel-roadmap-container">
               <div className="roadmap-header">
                 <h3>Integrált Marketing Funnel Roadmap</h3>
                 <p className="sub">Az AIDA tölcsér fázisai alapján összeállított organikus posztok és paid hirdetések sorrendje.</p>
               </div>
+
               <div className="funnel-timeline">
-                {activeCampaign.items.map((item, idx) => {
+              {activeCampaign.items.map((item, idx) => {
                 const funnel = getFunnelLabel(item.templateId, idx);
                 const isEditing = editingItemId === item.id;
 
@@ -1216,313 +872,17 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                       <div className="node-grid">
                         {/* Image aspect preview */}
                         <div className="node-image-side">
-                          {isEditing ? (
-                            <div 
-                              className="phone-image-canvas" 
-                              style={{ 
-                                position: 'relative', 
-                                width: '240px', 
-                                height: '300px', 
-                                background: '#000', 
-                                overflow: 'hidden',
-                                display: 'flex',
-                                flexDirection: 'column',
-                                justifyContent: (getLayoutCategory(hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId)) === 'quote' || getLayoutCategory(hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId)) === 'testimonial') ? 'center' : 'flex-end',
-                                alignItems: (getLayoutCategory(hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId)) === 'quote' || getLayoutCategory(hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId)) === 'testimonial') ? 'center' : 'stretch',
-                                borderRadius: '8px',
-                                border: '1px solid var(--panel-border)'
-                              }}
-                            >
-                              <img 
-                                src={item.originalImageUrl || item.imageUrl} 
-                                alt="" 
-                                style={{ 
-                                  width: '100%', 
-                                  height: '100%', 
-                                  objectFit: 'cover',
-                                  filter: editingBgBlur > 0 ? `blur(${editingBgBlur}px)` : 'none',
-                                  transition: 'filter 0.15s ease',
-                                  position: 'absolute',
-                                  top: 0,
-                                  left: 0,
-                                  zIndex: 1
-                                }} 
-                              />
-
-                              {/* Hover Layer Template Preview – CSS overlay on the canvas */}
-                              {hoveredLayerTemplateId && (() => {
-                                const allTmpls = buildLayerTemplates(
-                                  activeBrandKit.colors.primary,
-                                  activeBrandKit.colors.accent,
-                                  activeBrandKit.typography?.fontName || 'Inter'
-                                );
-                                const tmpl = allTmpls.find(t => t.id === hoveredLayerTemplateId);
-                                if (!tmpl) return null;
-                                const scaleX = 240 / 1080;
-                                const scaleY = 300 / 1350;
-                                return (
-                                  <div style={{ position: 'absolute', inset: 0, zIndex: 10, pointerEvents: 'none', overflow: 'hidden', transition: 'opacity 0.2s ease' }}>
-                                    <div style={{
-                                      position: 'absolute', top: 6, left: 6, zIndex: 20,
-                                      background: 'rgba(80,20,200,0.92)',
-                                      borderRadius: 6, padding: '3px 8px',
-                                      fontSize: 9, fontWeight: 800, color: '#fff',
-                                      display: 'flex', alignItems: 'center', gap: 4
-                                    }}>
-                                      <span>{tmpl.emoji}</span>
-                                      <span>ELŐNÉZET: {tmpl.name}</span>
-                                    </div>
-                                    {tmpl.layers.map((layer, li) => {
-                                      const lx = Math.round(layer.x * scaleX);
-                                      const ly = Math.round(layer.y * scaleY);
-                                      const lw = Math.round(layer.width * scaleX);
-                                      const lh = layer.height != null ? Math.round(layer.height * scaleY) : undefined;
-                                      const baseStyle: React.CSSProperties = {
-                                        position: 'absolute',
-                                        left: lx, top: ly, width: lw,
-                                        height: lh,
-                                        opacity: layer.opacity ?? 1,
-                                        boxSizing: 'border-box',
-                                        pointerEvents: 'none'
-                                      };
-                                      if (layer.type === 'figure') {
-                                        return (
-                                          <div key={li} style={{
-                                            ...baseStyle,
-                                            background: layer.fill || 'transparent',
-                                            borderRadius: layer.subType === 'circle' ? '50%' : (layer.cornerRadius ? `${layer.cornerRadius * scaleX}px` : 0),
-                                            border: layer.border || 'none'
-                                          }} />
-                                        );
-                                      }
-                                      if (layer.type === 'text') {
-                                        return (
-                                          <div key={li} style={{
-                                            ...baseStyle,
-                                            fontFamily: layer.fontFamily || 'Inter',
-                                            fontSize: `${(layer.fontSize || 16) * scaleX}px`,
-                                            fontWeight: layer.fontWeight || 'normal',
-                                            color: layer.fill || '#ffffff',
-                                            textAlign: (layer.align || 'left') as any,
-                                            lineHeight: layer.lineHeight || 1.2,
-                                            textShadow: layer.textShadow || 'none',
-                                            whiteSpace: 'pre-wrap',
-                                            wordBreak: 'break-word',
-                                            display: 'flex', flexDirection: 'column', justifyContent: 'flex-start'
-                                          }}>{layer.text}
-                                          </div>
-                                        );
-                                      }
-                                      return null;
-                                    })}
-                                  </div>
-                                );
-                              })()}
-                              
-                              {/* Dynamic Background Gradient Overlay — template-specific */}
-                              {(() => {
-                                const activeTmplId = hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId);
-                                const category = getLayoutCategory(activeTmplId);
-                                if (category === 'testimonial') {
-                                  return (
-                                    <div style={{
-                                      position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                                      background: `rgba(0,0,0,${editingOverlayOpacity})`,
-                                      pointerEvents: 'none', zIndex: 2
-                                    }} />
-                                  );
-                                }
-                                if (category === 'quote') {
-                                  return (
-                                    <>
-                                      <div style={{
-                                        position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                                        background: `linear-gradient(135deg, rgba(0,0,0,${editingOverlayOpacity * 1.2}) 0%, rgba(0,0,0,${editingOverlayOpacity * 0.6}) 60%, rgba(0,0,0,${editingOverlayOpacity}) 100%)`,
-                                        pointerEvents: 'none', zIndex: 2
-                                      }} />
-                                      <div style={{
-                                        position: 'absolute', top: 0, left: 0, bottom: 0, width: '4px',
-                                        backgroundColor: activeBrandKit.colors.accent,
-                                        zIndex: 4, pointerEvents: 'none'
-                                      }} />
-                                    </>
-                                  );
-                                }
-                                return (
-                                  <div style={{
-                                    position: 'absolute', top: 0, left: 0, width: '100%', height: '100%',
-                                    background: `linear-gradient(to bottom, rgba(0,0,0,0.1) 0%, rgba(0,0,0,${editingOverlayOpacity}) 100%)`,
-                                    pointerEvents: 'none', zIndex: 2
-                                  }} />
-                                );
-                              })()}
-
-                              {/* Real-time Logo Overlay */}
-                              <div className="mock-watermark" style={{
-                                position: 'absolute',
-                                display: 'flex',
-                                alignItems: 'center',
-                                gap: 6,
-                                padding: '4px 8px',
-                                background: editingLogoVariant === 'light' ? 'rgba(0,0,0,0.45)' : 'rgba(255,255,255,0.75)',
-                                backdropFilter: 'none',
-                                color: editingLogoVariant === 'light' ? '#fff' : activeBrandKit.colors.primary,
-                                borderRadius: 4,
-                                fontSize: 9,
-                                fontWeight: 700,
-                                textTransform: 'uppercase',
-                                letterSpacing: '0.5px',
-                                zIndex: 10,
-                                transform: `scale(${editingLogoSize})`,
-                                transformOrigin: editingLogoPosition.replace('-', ' '),
-                                transition: 'all 0.15s ease',
-                                ...(editingLogoPosition === 'top-right' ? { top: 10, right: 10 } :
-                                   editingLogoPosition === 'bottom-left' ? { bottom: 10, left: 10 } :
-                                   editingLogoPosition === 'bottom-right' ? { bottom: 10, right: 10 } :
-                                   { top: 10, left: 10 })
-                              }}>
-                                {(() => {
-                                  const brandNameLower = (activeBrandKit.name || '').toLowerCase();
-                                  const isCup = activeBrandKit.logoUrl === 'coffee-cup-minimal' || 
-                                                brandNameLower.includes('kávé') || 
-                                                brandNameLower.includes('coffee') || 
-                                                brandNameLower.includes('cafe') || 
-                                                brandNameLower.includes('latte');
-                                  return isCup ? (
-                                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 2 }}>
-                                      <path d="M17 8h1a4 4 0 1 1 0 8h-1" />
-                                      <path d="M3 8h14v9a4 4 0 0 1-4 4H7a4 4 0 0 1-4-4Z" />
-                                    </svg>
-                                  ) : (
-                                    <svg viewBox="0 0 24 24" width="10" height="10" fill="none" stroke="currentColor" strokeWidth="2" style={{ marginRight: 2 }}>
-                                      <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
-                                    </svg>
-                                  );
-                                })()}
-                                <span>{activeBrandKit.name || 'Márka'}</span>
-                              </div>
-
-                              {/* Real-time Content Panel Overlays */}
-                              {(() => {
-                                const activeTmplId = hoveredLayerTemplateId === 'clean' ? 'universal' : (hoveredLayerTemplateId || selectedLayerTemplateId);
-                                const category = getLayoutCategory(activeTmplId);
-                                if (category === 'universal') return null;
-
-                                const panelStyle = getPanelStyle();
-                                const textStyle = getTextStyle();
-                                const ctaStyle = getCtaStyle();
-                                const scale = 240 / 1080;
-
-                                if (category === 'product') {
-                                  return (
-                                    <div style={{ ...panelStyle, borderTop: `${3 * scale}px solid ${activeBrandKit.colors.accent}` }}>
-                                      <div style={{ width: `${24 * scale}px`, height: `${2 * scale}px`, background: activeBrandKit.colors.accent, marginBottom: `${6 * scale}px`, borderRadius: '1px' }} />
-                                      <p style={textStyle}>{editingText}</p>
-                                      {editingCta && (
-                                        <button style={ctaStyle}>{editingCta}</button>
-                                      )}
-                                    </div>
-                                  );
-                                }
-
-                                if (category === 'quote') {
-                                  return (
-                                    <div style={{
-                                      position: 'absolute',
-                                      top: '50%',
-                                      left: '50%',
-                                      transform: 'translate(-50%, -50%)',
-                                      width: 'calc(100% - 32px)',
-                                      zIndex: 3,
-                                      display: 'flex',
-                                      flexDirection: 'column',
-                                      alignItems: 'center',
-                                      textAlign: 'center',
-                                      gap: `${8 * scale}px`,
-                                      color: activeBrandKit.colors.secondary
-                                    }}>
-                                      <span style={{
-                                        fontSize: `${54 * scale}px`,
-                                        color: activeBrandKit.colors.accent,
-                                        fontFamily: "'Playfair Display', serif",
-                                        lineHeight: 0.1,
-                                        marginBottom: `${-8 * scale}px`
-                                      }}>“</span>
-                                      <p style={{ ...textStyle, fontStyle: 'italic', textAlign: 'center', color: '#fff' }}>{editingText}</p>
-                                      <div style={{ width: `${30 * scale}px`, height: `${2 * scale}px`, background: activeBrandKit.colors.accent, marginTop: `${4 * scale}px` }} />
-                                    </div>
-                                  );
-                                }
-
-                                if (category === 'testimonial') {
-                                  return (
-                                    <div style={panelStyle}>
-                                      <div style={{ display: 'flex', gap: `${3 * scale}px`, color: '#fbbf24', fontSize: `${14 * scale}px`, marginBottom: `${8 * scale}px`, justifyContent: 'center' }}>
-                                        {[...Array(5)].map((_, i) => (
-                                          <span key={i}>★</span>
-                                        ))}
-                                      </div>
-                                      <p style={{ ...textStyle, fontStyle: 'italic', textAlign: 'center' }}>{editingText}</p>
-                                      {editingCta && (
-                                        <p style={{
-                                          fontSize: `${11 * scale}px`,
-                                          fontWeight: 700,
-                                          color: activeBrandKit.colors.accent,
-                                          textTransform: 'uppercase',
-                                          textAlign: 'center',
-                                          margin: `${8 * scale}px 0 0 0`,
-                                          fontFamily: activeBrandKit.typography.fontName
-                                        }}>{editingCta}</p>
-                                      )}
-                                    </div>
-                                  );
-                                }
-
-                                if (category === 'list') {
-                                  const lines = (editingText || '').split('\n');
-                                  const listTitle = lines[0] || '';
-                                  const listItems = lines.slice(1).map(l => l.replace(/^\d+\.\s*/, '')).filter(Boolean).slice(0, 4);
-                                  return (
-                                    <div style={panelStyle}>
-                                      <h4 style={{ ...textStyle, fontSize: `${(editingFontSize + 4) * scale}px`, fontWeight: 800, marginBottom: `${10 * scale}px` }}>{listTitle}</h4>
-                                      <div style={{ display: 'flex', flexDirection: 'column', gap: `${6 * scale}px` }}>
-                                        {listItems.map((itemStr, idx) => (
-                                          <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: `${8 * scale}px` }}>
-                                            <div style={{
-                                              width: `${16 * scale}px`, height: `${16 * scale}px`, borderRadius: '50%',
-                                              backgroundColor: activeBrandKit.colors.accent, color: '#fff',
-                                              display: 'flex', alignItems: 'center', justifyContent: 'center',
-                                              fontSize: `${10 * scale}px`, fontWeight: 'bold', flexShrink: 0, marginTop: `${2 * scale}px`
-                                            }}>{idx + 1}</div>
-                                            <p style={{ ...textStyle, fontSize: `${(editingFontSize - 4) * scale}px`, lineHeight: 1.3 }}>{itemStr}</p>
-                                          </div>
-                                        ))}
-                                      </div>
-                                      {editingCta && (
-                                        <button style={ctaStyle}>{editingCta}</button>
-                                      )}
-                                    </div>
-                                  );
-                                }
-
-                                return null;
-                              })()}
-                            </div>
+                          {item.imageUrl ? (
+                            <img src={item.imageUrl} alt="Rendered template" className="node-preview-img" />
                           ) : (
-                            <>
-                              {item.imageUrl ? (
-                                <img src={fixImageUrl(item.imageUrl)} alt="Rendered template" className="node-preview-img" />
-                              ) : (
-                                <div className="img-placeholder">
-                                  <Loader className="spinner" />
-                                  <span>Háttér betöltése...</span>
-                                </div>
-                              )}
-                              <a href={fixImageUrl(item.imageUrl)} target="_blank" rel="noreferrer" className="zoom-btn" title="Kép megtekintése">
-                                <Eye size={14} /> Nagyítás
-                              </a>
-                            </>
+                            <div className="img-placeholder">
+                              <Loader className="spinner" />
+                              <span>Háttér betöltése...</span>
+                            </div>
                           )}
+                          <a href={item.imageUrl} target="_blank" rel="noreferrer" className="zoom-btn" title="Kép megtekintése">
+                            <Eye size={14} /> Nagyítás
+                          </a>
                         </div>
 
                         {/* Information & Controls */}
@@ -1554,262 +914,31 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
 
                           <div className="node-creative-details">
                             {isEditing ? (
-                              <div className="node-editor-form" style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                              <div className="node-editor-form">
                                 <div className="field-group">
-                                  <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)' }}>Poszt szövege (magyarul):</label>
+                                  <label>Poszt szövege (magyarul):</label>
                                   <textarea
                                     value={editingText}
                                     onChange={(e) => setEditingText(e.target.value)}
                                     rows={4}
-                                    style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12 }}
                                   />
                                 </div>
                                 {item.cta && (
                                   <div className="field-group">
-                                    <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)' }}>CTA felirat:</label>
+                                    <label>CTA felirat:</label>
                                     <input
                                       type="text"
                                       value={editingCta}
                                       onChange={(e) => setEditingCta(e.target.value)}
-                                      style={{ width: '100%', padding: '8px 10px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12 }}
                                     />
                                   </div>
                                 )}
-
-                                {/* Layer Templates picker grid */}
-                                {(() => {
-                                  const layerTemplates = buildLayerTemplates(
-                                    activeBrandKit.colors.primary,
-                                    activeBrandKit.colors.accent,
-                                    activeBrandKit.typography?.fontName || 'Inter'
-                                  );
-                                  return (
-                                    <div style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-                                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 }}>
-                                        <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)', display: 'block' }}>
-                                          <Layers size={13} style={{ marginRight: 5, verticalAlign: 'middle' }} />
-                                          Layer Sablonok ({layerTemplates.length} db) – hover = előnézet, kattintás = renderelés:
-                                        </label>
-                                        {isApplyingLayerTemplate && (
-                                          <span style={{ fontSize: 10, color: '#8b5cf6', display: 'flex', alignItems: 'center', gap: 4 }}>
-                                            <Loader size={10} className="spin-icon" /> Renderelés...
-                                          </span>
-                                        )}
-                                      </div>
-                                      <div style={{
-                                        display: 'grid',
-                                        gridTemplateColumns: 'repeat(3, 1fr)',
-                                        gap: 6,
-                                        maxHeight: 180,
-                                        overflowY: 'auto',
-                                        paddingRight: 4
-                                      }}>
-                                        {layerTemplates.map(tmpl => (
-                                          <button
-                                            key={tmpl.id}
-                                            type="button"
-                                            onClick={() => handleApplyLayerTemplate(tmpl)}
-                                            onMouseEnter={() => setHoveredLayerTemplateId(tmpl.id)}
-                                            onMouseLeave={() => setHoveredLayerTemplateId(null)}
-                                            disabled={isApplyingLayerTemplate}
-                                            style={{
-                                              display: 'flex',
-                                              flexDirection: 'column',
-                                              alignItems: 'flex-start',
-                                              gap: 2,
-                                              padding: '6px 8px',
-                                              borderRadius: 8,
-                                              border: `2px solid ${
-                                                hoveredLayerTemplateId === tmpl.id ? '#a78bfa'
-                                                : selectedLayerTemplateId === tmpl.id ? '#8b5cf6'
-                                                : 'var(--border)'
-                                              }`,
-                                              background: hoveredLayerTemplateId === tmpl.id
-                                                ? 'rgba(167,139,250,0.18)'
-                                                : selectedLayerTemplateId === tmpl.id
-                                                ? 'rgba(139,92,246,0.12)'
-                                                : 'var(--bg3)',
-                                              cursor: isApplyingLayerTemplate ? 'not-allowed' : 'pointer',
-                                              opacity: isApplyingLayerTemplate && selectedLayerTemplateId !== tmpl.id ? 0.5 : 1,
-                                              transition: 'all 0.12s ease',
-                                              textAlign: 'left',
-                                              position: 'relative',
-                                              boxShadow: hoveredLayerTemplateId === tmpl.id ? '0 0 0 3px rgba(167,139,250,0.2)' : 'none'
-                                            }}
-                                          >
-                                            {isApplyingLayerTemplate && selectedLayerTemplateId === tmpl.id && (
-                                              <div style={{
-                                                position: 'absolute', inset: 0, background: 'rgba(139,92,246,0.15)',
-                                                borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center'
-                                              }}>
-                                                <Loader size={14} className="spin-icon" style={{ color: '#8b5cf6' }} />
-                                              </div>
-                                            )}
-                                            <span style={{ fontSize: 14, lineHeight: 1 }}>{tmpl.emoji}</span>
-                                            <span style={{ fontSize: 9.5, fontWeight: 700, color: 'var(--text)', lineHeight: 1.2 }}>{tmpl.name}</span>
-                                            <span style={{ fontSize: 8.5, color: 'var(--text-muted)', lineHeight: 1.3 }}>{tmpl.desc}</span>
-                                          </button>
-                                        ))}
-                                      </div>
-                                    </div>
-                                  );
-                                })()}
-
-                                {/* Custom Sliders panel */}
-                                <div className="layer-editor-panel" style={{ borderTop: '1px solid var(--border)', paddingTop: 12 }}>
-                                  <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 8, display: 'block' }}>Rétegek Testreszabása (Layer Editor):</label>
-                                  
-                                  <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 14 }}>
-                                    {/* Column 1: Layout & Position */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                      <span style={{ fontSize: 9.5, fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', marginBottom: 2 }}>Elrendezés & Pozíció</span>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Kártya Horgony:</label>
-                                        <select value={editingPanelPosition} onChange={e => setEditingPanelPosition(e.target.value as any)} style={{ width: '100%', padding: '4px 6px', borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 10.5 }}>
-                                          <option value="relative">Folyamatos (Relative)</option>
-                                          <option value="top">Fent (Top)</option>
-                                          <option value="center">Középen (Center)</option>
-                                          <option value="bottom">Lent (Bottom)</option>
-                                        </select>
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Vízszintes (X): <span style={{ color: '#8b5cf6', float: 'right' }}>{editingTextXOffset}px</span></label>
-                                        <input type="range" min="-150" max="150" step="5" value={editingTextXOffset} onChange={e => setEditingTextXOffset(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Függőleges (Y): <span style={{ color: '#8b5cf6', float: 'right' }}>{editingTextYOffset}px</span></label>
-                                        <input type="range" min="-300" max="300" step="5" value={editingTextYOffset} onChange={e => setEditingTextYOffset(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
-                                      </div>
-                                    </div>
-
-                                    {/* Column 2: Background & Overlays */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                      <span style={{ fontSize: 9.5, fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', marginBottom: 2 }}>Kártya & Háttér</span>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Kártya Háttér:</label>
-                                        <select value={editingPanelBgColor} onChange={e => setEditingPanelBgColor(e.target.value as any)} style={{ width: '100%', padding: '4px 6px', borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 10.5 }}>
-                                          <option value="default">Alapértelmezett</option>
-                                          <option value="primary">Elsődleges szín</option>
-                                          <option value="secondary">Másodlagos szín</option>
-                                          <option value="accent">Kiemelő szín</option>
-                                          <option value="translucent-dark">Áttetsző sötét</option>
-                                          <option value="translucent-light">Áttetsző világos</option>
-                                          <option value="none">Nincs (Átlátszó)</option>
-                                        </select>
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Belső Margó: <span style={{ color: '#8b5cf6', float: 'right' }}>{editingPanelPadding}px</span></label>
-                                        <input type="range" min="20" max="100" step="5" value={editingPanelPadding} onChange={e => setEditingPanelPadding(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Kártya Lekerekítés: <span style={{ color: '#8b5cf6', float: 'right' }}>{editingPanelRadius}px</span></label>
-                                        <input type="range" min="0" max="40" step="2" value={editingPanelRadius} onChange={e => setEditingPanelRadius(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Háttér Elmosás: <span style={{ color: '#8b5cf6', float: 'right' }}>{editingBgBlur}px</span></label>
-                                        <input type="range" min="0" max="15" step="1" value={editingBgBlur} onChange={e => setEditingBgBlur(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Sötétítő réteg: <span style={{ color: '#8b5cf6', float: 'right' }}>{Math.round(editingOverlayOpacity*100)}%</span></label>
-                                        <input type="range" min="0.1" max="0.9" step="0.05" value={editingOverlayOpacity} onChange={e => setEditingOverlayOpacity(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
-                                      </div>
-                                    </div>
-
-                                    {/* Column 3: Typography & Text */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                      <span style={{ fontSize: 9.5, fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', marginBottom: 2 }}>Szöveg & Betű</span>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Szöveg Igazítás:</label>
-                                        <select value={editingTextAlignment} onChange={e => setEditingTextAlignment(e.target.value as any)} style={{ width: '100%', padding: '4px 6px', borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 10.5 }}>
-                                          <option value="left">Balra</option>
-                                          <option value="center">Középre</option>
-                                          <option value="right">Jobbra</option>
-                                        </select>
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Betű Vastagság:</label>
-                                        <select value={editingFontWeight} onChange={e => setEditingFontWeight(e.target.value)} style={{ width: '100%', padding: '4px 6px', borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 10.5 }}>
-                                          <option value="normal">Normal</option>
-                                          <option value="600">Semi-Bold</option>
-                                          <option value="700">Bold</option>
-                                          <option value="800">Extra-Bold</option>
-                                        </select>
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Szöveg Színe:</label>
-                                        <select value={editingTextColor} onChange={e => setEditingTextColor(e.target.value as any)} style={{ width: '100%', padding: '4px 6px', borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 10.5 }}>
-                                          <option value="default">Alapértelmezett</option>
-                                          <option value="primary">Elsődleges</option>
-                                          <option value="secondary">Másodlagos</option>
-                                          <option value="accent">Kiemelő</option>
-                                          <option value="white">Fehér</option>
-                                          <option value="black">Fekete</option>
-                                        </select>
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Betűméret: <span style={{ color: '#8b5cf6', float: 'right' }}>{editingFontSize}px</span></label>
-                                        <input type="range" min="18" max="64" step="2" value={editingFontSize} onChange={e => setEditingFontSize(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
-                                      </div>
-                                    </div>
-
-                                    {/* Column 4: CTA Button & Logo */}
-                                    <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-                                      <span style={{ fontSize: 9.5, fontWeight: 700, color: '#8b5cf6', textTransform: 'uppercase', marginBottom: 2 }}>CTA Gomb & Logó</span>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Gomb Háttér:</label>
-                                        <select value={editingCtaBgColor} onChange={e => setEditingCtaBgColor(e.target.value as any)} style={{ width: '100%', padding: '4px 6px', borderRadius: 6, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 10.5 }}>
-                                          <option value="default">Alapértelmezett</option>
-                                          <option value="primary">Elsődleges</option>
-                                          <option value="secondary">Másodlagos</option>
-                                          <option value="accent">Kiemelő</option>
-                                          <option value="white">Fehér</option>
-                                          <option value="black">Fekete</option>
-                                        </select>
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Gomb Betűméret: <span style={{ color: '#8b5cf6', float: 'right' }}>{editingCtaFontSize}px</span></label>
-                                        <input type="range" min="12" max="36" step="1" value={editingCtaFontSize} onChange={e => setEditingCtaFontSize(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Gomb Margó Y: <span style={{ color: '#8b5cf6', float: 'right' }}>{editingCtaYOffset}px</span></label>
-                                        <input type="range" min="-50" max="150" step="5" value={editingCtaYOffset} onChange={e => setEditingCtaYOffset(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Gomb Lekerekítés: <span style={{ color: '#8b5cf6', float: 'right' }}>{editingCtaRadius}px</span></label>
-                                        <input type="range" min="0" max="24" step="2" value={editingCtaRadius} onChange={e => setEditingCtaRadius(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
-                                      </div>
-                                      <div>
-                                        <label style={{ fontSize: 9, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 2, display: 'block' }}>Logó Méret: <span style={{ color: '#8b5cf6', float: 'right' }}>{editingLogoSize}x</span></label>
-                                        <input type="range" min="0.6" max="1.6" step="0.1" value={editingLogoSize} onChange={e => setEditingLogoSize(Number(e.target.value))} style={{ width: '100%', accentColor: '#8b5cf6' }} />
-                                      </div>
-                                      <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 4 }}>
-                                        <div>
-                                          <label style={{ fontSize: 8, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 1, display: 'block' }}>Helye:</label>
-                                          <select value={editingLogoPosition} onChange={e => setEditingLogoPosition(e.target.value as any)} style={{ width: '100%', padding: '2px 4px', borderRadius: 4, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 9 }}>
-                                            <option value="top-left">Bal Fent</option>
-                                            <option value="top-right">Jobb Fent</option>
-                                            <option value="bottom-left">Bal Lent</option>
-                                            <option value="bottom-right">Jobb Lent</option>
-                                          </select>
-                                        </div>
-                                        <div>
-                                          <label style={{ fontSize: 8, fontWeight: 600, color: 'var(--text-muted)', marginBottom: 1, display: 'block' }}>Szín:</label>
-                                          <select value={editingLogoVariant} onChange={e => setEditingLogoVariant(e.target.value as any)} style={{ width: '100%', padding: '2px 4px', borderRadius: 4, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 9 }}>
-                                            <option value="light">Világos</option>
-                                            <option value="dark">Sötét</option>
-                                          </select>
-                                        </div>
-                                      </div>
-                                    </div>
-                                  </div>
-                                </div>
-
-                                <div className="editor-controls" style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', marginTop: 8 }}>
-                                  <button type="button" className="btn-secondary btn-sm" onClick={() => setEditingItemId(null)}>
+                                <div className="editor-controls">
+                                  <button className="btn-secondary btn-sm" onClick={() => setEditingItemId(null)}>
                                     Mégse
                                   </button>
-                                  <button type="button" className="btn-primary btn-sm" onClick={() => handleItemEditSave(item.id)} disabled={isUpdatingItem}>
-                                    {isUpdatingItem ? <Loader className="spinner" size={12} /> : 'Kép Újrarenderelése'}
+                                  <button className="btn-primary btn-sm" onClick={() => handleItemEditSave(item.id)} disabled={isUpdatingItem}>
+                                    {isUpdatingItem ? <Loader className="spinner" size={12} /> : 'Mentés és Újrarenderelés'}
                                   </button>
                                 </div>
                               </div>
@@ -1854,9 +983,14 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                           {!isEditing && (
                             <div className="node-actions-footer">
                               {item.status === 'draft' && (
-                                <button className="btn-success-action" onClick={() => handleApproveItem(item.id)}>
-                                  <Check size={14} /> Jóváhagyás
-                                </button>
+                                <div style={{ display: 'flex', gap: 6 }}>
+                                  <button className="btn-success-action" onClick={() => handleApproveItem(item.id)}>
+                                    <Check size={14} /> Jóváhagyás
+                                  </button>
+                                  <button className="btn-secondary" onClick={() => setAbTestItemId(item.id)} style={{ background: '#475569', color: '#fff', display: 'flex', alignItems: 'center', gap: 4 }}>
+                                    <Split size={14} /> A/B Teszt
+                                  </button>
+                                </div>
                               )}
                               {item.status === 'approved' && (
                                 <div className="approved-actions-row">
@@ -1870,14 +1004,13 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                               )}
                               
                               {showDatePicker === item.id && (
-                                <div className="datepicker-popover inline-popover glass-panel">
-                                  <label>Ütemezési dátum és idő:</label>
-                                  <input
-                                    type="datetime-local"
+                                <div className="datepicker-popover inline-popover glass-panel" style={{ width: 280, padding: 12 }}>
+                                  <label style={{ display: 'block', marginBottom: 8, fontSize: 11, fontWeight: 700 }}>Ütemezési dátum és idő:</label>
+                                  <AppleDateTimePicker
                                     value={scheduleDate}
-                                    onChange={(e) => setScheduleDate(e.target.value)}
+                                    onChange={(val) => setScheduleDate(val)}
                                   />
-                                  <div className="popover-actions">
+                                  <div className="popover-actions" style={{ marginTop: 12 }}>
                                     <button className="btn-secondary btn-sm" onClick={() => setShowDatePicker(null)}>
                                       Bezár
                                     </button>
@@ -1909,12 +1042,11 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                   </div>
                 );
               })}
-              </div>
             </div>
+          </div>
           )}
         </div>
       )}
-
 
       {/* Generation Overlay */}
       {isGenerating && (
@@ -1964,13 +1096,94 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
                 <div className="preview-thumbs">
                   {completedPreviews.map((p) => (
                     <div key={p.index} className="preview-thumb">
-                      <img src={fixImageUrl(p.imageUrl)} alt={p.headline} />
+                      <img src={p.imageUrl} alt={p.headline} />
                       <span className="thumb-label">{p.headline}</span>
                     </div>
                   ))}
                 </div>
               </div>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* A/B Tesztelés Modal */}
+      {abTestItemId && (
+        <div className="preview-modal-overlay" style={{ zIndex: 1100, display: 'flex', alignItems: 'center', justifyContent: 'center', position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, background: 'rgba(0,0,0,0.85)', padding: 20 }} onClick={() => setAbTestItemId(null)}>
+          <div className="preview-modal-card glass-panel" style={{ width: 800, maxWidth: '90%', maxHeight: '90vh', overflowY: 'auto', background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16 }} onClick={e => e.stopPropagation()}>
+            <div className="modal-header-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '16px 24px', borderBottom: '1px solid var(--border)' }}>
+              <div>
+                <h4 style={{ margin: 0, fontSize: 16, fontWeight: 700, color: 'var(--text)' }}>A/B Teszt Konfiguráció és Generálás</h4>
+                <span className="sub" style={{ fontSize: 12, color: 'var(--text-muted)' }}>Hozd létre az optimális változatot a hirdetésedhez</span>
+              </div>
+              <button className="close-modal-btn" onClick={() => setAbTestItemId(null)} style={{ border: 'none', background: 'transparent', cursor: 'pointer', color: 'var(--text)' }}><X size={18} /></button>
+            </div>
+
+            <div style={{ padding: 24 }}>
+              {/* Teszt fókusz választó */}
+              {!abVariations[abTestItemId] && !isGeneratingAb && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 16, alignItems: 'center', textAlign: 'center', padding: '40px 0' }}>
+                  <div style={{ fontSize: 40 }}>🔬</div>
+                  <h3 style={{ fontSize: 18, fontWeight: 700, margin: 0, color: 'var(--text)' }}>Válassz A/B teszt fókuszpontot</h3>
+                  <p style={{ color: 'var(--text-muted)', fontSize: 13, maxWidth: 500, margin: 0 }}>
+                    A rendszer a kiválasztott fókusz alapján automatikusan legenerál 2 alternatív változatot a meglévő bejegyzésből a Claude és a Flux segítségével.
+                  </p>
+                  
+                  <div style={{ display: 'flex', gap: 12, marginTop: 12 }}>
+                    <button className="btn-primary" onClick={() => handleGenerateAbTest(activeCampaign!.items.find(x => x.id === abTestItemId)!, 'szöveg')}>
+                      📝 Alternatív Szövegek
+                    </button>
+                    <button className="btn-primary" onClick={() => handleGenerateAbTest(activeCampaign!.items.find(x => x.id === abTestItemId)!, 'kép')}>
+                      🖼️ Alternatív Képek/Színek
+                    </button>
+                  </div>
+                </div>
+              )}
+
+              {isGeneratingAb && (
+                <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 16, padding: '40px 0' }}>
+                  <Loader className="spinner" size={32} />
+                  <span style={{ fontWeight: 600, fontSize: 14, color: 'var(--text)' }}>A/B teszt változatok generálása folyamatban (Claude + Flux v2)...</span>
+                </div>
+              )}
+
+              {/* Egymás melletti összehasonlítás */}
+              {abVariations[abTestItemId] && !isGeneratingAb && (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                  <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: 16 }}>
+                    {abVariations[abTestItemId].map((v, idx) => (
+                      <div key={v.id} className="ab-card glass-panel" style={{ padding: 12, borderRadius: 12, background: 'var(--bg3)', border: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                          <span style={{ fontSize: 12, fontWeight: 800, color: idx === 0 ? '#a855f7' : idx === 1 ? '#3b82f6' : '#ec4899' }}>
+                            {idx === 0 ? 'A Változat (Eredeti)' : idx === 1 ? 'B Változat' : 'C Változat'}
+                          </span>
+                          <span className={`badge-channel ${v.channel}`} style={{ fontSize: 9, padding: '1px 4px' }}>{v.channel.toUpperCase()}</span>
+                        </div>
+                        {v.imageUrl && (
+                          <img src={v.imageUrl} alt="" style={{ width: '100%', height: 180, objectFit: 'cover', borderRadius: 8 }} />
+                        )}
+                        <p style={{ margin: 0, fontSize: 12, lineHeight: 1.4, flex: 1, color: 'var(--text-muted)' }}>{v.text}</p>
+                        
+                        <div style={{ display: 'flex', gap: 6, marginTop: 8 }}>
+                          <button className="btn-primary btn-sm" style={{ flex: 1, fontSize: 11, padding: '6px 10px', borderRadius: 6, border: 'none', cursor: 'pointer' }} onClick={() => handleSelectWinner(abTestItemId!, v)}>
+                            Győztes alkalmazása
+                          </button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  <div style={{ display: 'flex', justifyContent: 'space-between', borderTop: '1px solid var(--border)', paddingTop: 16 }}>
+                    <button className="btn-secondary" style={{ padding: '8px 16px', borderRadius: 8, cursor: 'pointer' }} onClick={() => setAbVariations(prev => { const copy = {...prev}; delete copy[abTestItemId!]; return copy; })}>
+                      Változatok törlése és Újrakezdés
+                    </button>
+                    <button className="btn-primary" onClick={() => handleSaveAllAbToCalendar(abTestItemId!)} style={{ background: '#059669', color: '#fff', padding: '8px 16px', borderRadius: 8, cursor: 'pointer', border: 'none' }}>
+                      Összes változat mentése a naptárba
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
           </div>
         </div>
       )}
@@ -2755,6 +1968,101 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
           font-weight: 700;
           letter-spacing: 0.05em;
           margin-bottom: 6px;
+        }
+
+        /* Premium hover states, active transitions, and responsive adaptations */
+        
+        .strategy-card, .node-content-card, .preset-style-card, .file-drop-area {
+          transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        
+        .strategy-card:hover {
+          transform: translateY(-2px);
+          box-shadow: 0 8px 24px rgba(139, 92, 246, 0.15) !important;
+          border-color: rgba(139, 92, 246, 0.25) !important;
+        }
+        
+        .node-content-card {
+          border: 1px solid rgba(255, 255, 255, 0.03) !important;
+        }
+        .node-content-card:hover {
+          transform: translateY(-3px);
+          background: rgba(25, 20, 48, 0.5) !important;
+          border-color: rgba(139, 92, 246, 0.35) !important;
+          box-shadow: 0 12px 30px rgba(0, 0, 0, 0.5), 0 0 20px rgba(139, 92, 246, 0.15) !important;
+        }
+        
+        .preset-style-card:hover {
+          transform: translateY(-1px) scale(1.02);
+          box-shadow: 0 6px 16px rgba(139, 92, 246, 0.12) !important;
+        }
+        
+        .file-drop-area:hover {
+          box-shadow: 0 0 20px rgba(139, 92, 246, 0.08) !important;
+        }
+        
+        /* Button hovers */
+        .btn-exporter-csv, .btn-exporter-zip, .btn-select-all, .start-campaign-btn, .copy-caption-btn, .zoom-btn, .remove-img-btn {
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+        }
+        
+        .btn-exporter-csv:hover, .btn-exporter-zip:hover, .btn-select-all:hover, .start-campaign-btn:hover, .copy-caption-btn:hover, .zoom-btn:hover {
+          transform: translateY(-1.5px);
+          box-shadow: 0 4px 12px rgba(139, 92, 246, 0.25) !important;
+        }
+        
+        .start-campaign-btn:active, .copy-caption-btn:active {
+          transform: translateY(0);
+        }
+        
+        /* Responsive adjustments */
+        @media (max-width: 768px) {
+          .style-presets-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .approved-actions-row {
+            grid-template-columns: 1fr !important;
+            gap: 12px !important;
+          }
+          .approved-actions-row button {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          .node-meta-row {
+            flex-direction: column !important;
+            align-items: flex-start !important;
+            gap: 10px !important;
+          }
+          .connector-column {
+            display: none !important;
+          }
+          .timeline-node {
+            gap: 0 !important;
+          }
+          .node-content-card {
+            margin-left: 0 !important;
+          }
+          .funnel-timeline {
+            gap: 24px !important;
+          }
+        }
+        
+        @media (max-width: 480px) {
+          .header-actions {
+            width: 100% !important;
+            flex-direction: column !important;
+            gap: 10px !important;
+          }
+          .header-actions button {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+          .creator-landing {
+            padding: 16px !important;
+          }
+          .simulation-card {
+            padding: 16px !important;
+          }
         }
       `}</style>
     </div>

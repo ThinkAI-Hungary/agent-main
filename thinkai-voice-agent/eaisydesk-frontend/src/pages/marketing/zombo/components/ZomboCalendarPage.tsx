@@ -68,19 +68,21 @@ export default function ZomboCalendarPage() {
   return (
     <div style={{ minHeight: '100vh', background: 'var(--bg)', color: 'var(--text)', fontFamily: "'Inter','Outfit',sans-serif" }}>
       {/* Header */}
-      <div style={{
+      <div className="zombo-page-header" style={{
         display: 'flex', alignItems: 'center', gap: 16, padding: '14px 28px',
         borderBottom: '1px solid var(--border)', background: 'var(--card)',
         position: 'sticky', top: 0, zIndex: 10,
+        flexWrap: 'wrap'
       }}>
         <button
           onClick={() => navigate('/marketing/zombo')}
-          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
+          className="back-to-audit-btn"
+          style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s ease' }}
         >
           <ArrowLeft size={14} /> Vissza az auditra
         </button>
 
-        <div style={{ width: 1, height: 24, background: 'var(--border)' }} />
+        <div className="header-divider" style={{ width: 1, height: 24, background: 'var(--border)' }} />
 
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           <div style={{ width: 32, height: 32, borderRadius: 10, background: 'linear-gradient(135deg,#8b5cf6,#06b6d4)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 16 }}>
@@ -92,6 +94,33 @@ export default function ZomboCalendarPage() {
           </div>
         </div>
       </div>
+
+      <style>{`
+        .back-to-audit-btn:hover {
+          border-color: var(--primary-neon, #8b5cf6) !important;
+          color: var(--text) !important;
+          background: rgba(139, 92, 246, 0.05) !important;
+          transform: translateX(-2px);
+        }
+        .back-to-audit-btn:active {
+          transform: translateX(0);
+        }
+        @media (max-width: 580px) {
+          .zombo-page-header {
+            padding: 10px 16px !important;
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+          }
+          .header-divider {
+            display: none !important;
+          }
+          .back-to-audit-btn {
+            width: 100% !important;
+            justify-content: center !important;
+          }
+        }
+      `}</style>
 
       {/* Main Body */}
       <div style={{ padding: '24px 28px' }}>

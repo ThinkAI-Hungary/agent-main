@@ -13,6 +13,8 @@ import ZomboAuditPage from './ZomboAuditPage';
 import ZomboQuickPostPage from './zombo/components/ZomboQuickPostPage';
 import ZomboCalendarPage from './zombo/components/ZomboCalendarPage';
 import ZomboLayerReviewPage from './zombo/components/ZomboLayerReviewPage';
+import CreativeStudioPage from './CreativeStudioPage';
+import ZomboCampaignPage from './zombo/components/ZomboCampaignPage';
 
 export default function MarketingPage() {
   return (
@@ -28,7 +30,9 @@ export default function MarketingPage() {
       {/* Zombo sub-routes */}
       <Route path="zombo/quickpost" element={<ZomboQuickPostPage />} />
       <Route path="zombo/calendar" element={<ZomboCalendarPage />} />
+      <Route path="zombo/campaign" element={<ZomboCampaignPage />} />
       <Route path="zombo/layer-review" element={<ZomboLayerReviewPage />} />
+      <Route path="zombo/creative-studio/*" element={<CreativeStudioPage />} />
       <Route path="zombo" element={<ZomboAuditPage />} />
       <Route path="*" element={<Navigate to="/admin/marketing" replace />} />
     </Routes>

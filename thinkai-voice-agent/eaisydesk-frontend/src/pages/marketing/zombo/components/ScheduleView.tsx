@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import type { PostCreative } from '../types';
-import { fixImageUrl } from '../types';
 import { Grid, Calendar, Compass, Trash2, Globe } from 'lucide-react';
 
 interface ScheduleViewProps {
@@ -92,7 +91,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
                 const isScheduled = post.status === 'scheduled';
                 return (
                   <div key={post.id} className={`grid-item-card ${isScheduled ? 'scheduled-item' : ''}`}>
-                    <img src={fixImageUrl(post.imageUrl)} alt="Instagram Grid Post" className="grid-image" />
+                    <img src={post.imageUrl} alt="Instagram Grid Post" className="grid-image" />
                     
                     {/* Hover Overlay info */}
                     <div className="grid-overlay">
@@ -137,7 +136,7 @@ export const ScheduleView: React.FC<ScheduleViewProps> = ({
                   return (
                     <div key={post.id} className={`timeline-item ${isScheduled ? 'scheduled' : 'published'}`}>
                       <div className="timeline-img-wrapper">
-                        <img src={fixImageUrl(post.imageUrl)} alt="Post preview" />
+                        <img src={post.imageUrl} alt="Post preview" />
                       </div>
                       <div className="timeline-details">
                         <div className="timeline-meta">

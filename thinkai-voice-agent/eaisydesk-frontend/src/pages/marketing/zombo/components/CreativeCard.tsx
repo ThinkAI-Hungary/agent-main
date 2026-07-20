@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import type { PostCreative, BrandKit } from '../types';
-import { fixImageUrl } from '../types';
 import { Check, X, Calendar, Send, Edit3, Loader, Award } from 'lucide-react';
 
 interface CreativeCardProps {
@@ -31,12 +30,7 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
   // Logo rendering based on variant and configuration
   const renderLogo = () => {
     const fill = post.logoVariant === 'light' ? brandKit.colors.secondary : brandKit.colors.primary;
-    const brandNameLower = (brandKit.name || '').toLowerCase();
-    const isCup = brandKit.logoUrl === 'coffee-cup-minimal' || 
-                  brandNameLower.includes('kávé') || 
-                  brandNameLower.includes('coffee') || 
-                  brandNameLower.includes('cafe') || 
-                  brandNameLower.includes('latte');
+    const isCup = brandKit.logoUrl === 'coffee-cup-minimal';
 
     return (
       <div className={`post-logo position-${brandKit.logoPosition}`}>
@@ -49,12 +43,13 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
             <line x1="14" y1="2" x2="14" y2="4" />
           </svg>
         ) : (
-          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke={fill} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2" />
+          <svg viewBox="0 0 24 24" width="24" height="24" fill={fill}>
+            <circle cx="12" cy="12" r="10" fill="none" stroke={fill} strokeWidth="2" />
+            <path d="M12 8c-2.2 0-4 1.8-4 4s1.8 4 4 4 4-1.8 4-4-1.8-4-4-4Zm0 6c-1.1 0-2-.9-2-2s.9-2 2-2 2 .9 2 2-.9 2-2 2Z" />
           </svg>
         )}
         <span className="logo-text" style={{ color: fill, fontFamily: brandKit.typography.fontName }}>
-          {brandKit.name || 'Márka'}
+          ANNA
         </span>
       </div>
     );
@@ -130,7 +125,7 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
 
       case 'product':
         return (
-          <div className="template-product-wrapper" style={{ backgroundImage: `url(${fixImageUrl(post.imageUrl)})` }}>
+          <div className="template-product-wrapper" style={{ backgroundImage: `url(${post.imageUrl})` }}>
             <div className="overlay-dim" />
             {renderLogo()}
             <div className="product-info-panel" style={{ backgroundColor: colors.bg, color: colors.text, borderTop: `2px solid ${colors.accent}` }}>
@@ -148,7 +143,7 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
 
       case 'testimonial':
         return (
-          <div className="template-testimonial-wrapper" style={{ backgroundImage: `url(${fixImageUrl(post.imageUrl)})` }}>
+          <div className="template-testimonial-wrapper" style={{ backgroundImage: `url(${post.imageUrl})` }}>
             <div className="overlay-dim strong" />
             {renderLogo()}
             <div className="testimonial-card shadow-lg" style={{ backgroundColor: brandKit.colors.secondary, color: brandKit.colors.primary }}>
@@ -176,7 +171,7 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
         const listItems = lines.slice(1).map(l => l.replace(/^\d+\.\s*/, ''));
 
         return (
-          <div className="template-list-wrapper" style={{ backgroundImage: `url(${fixImageUrl(post.imageUrl)})` }}>
+          <div className="template-list-wrapper" style={{ backgroundImage: `url(${post.imageUrl})` }}>
             <div className="overlay-dim strong" />
             {renderLogo()}
             <div className="list-content-panel" style={{ backgroundColor: colors.bg, color: colors.text }}>
@@ -229,11 +224,6 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
           <span className={`status-badge badge-${post.status}`}>
             {post.status.toUpperCase()}
           </span>
-          {post.generationModel && (
-            <span className="generation-info-badge" title={`Generálva: ${post.generationModel} (${post.generationTime ? `${post.generationTime.toFixed(1)}s` : ''})`}>
-              ⚡ {post.generationModel} • {post.generationTime ? `${post.generationTime.toFixed(1)}s` : ''}
-            </span>
-          )}
           <span className="template-type">
             Sablon: {post.templateId}
           </span>
@@ -329,8 +319,7 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
           flex-direction: column;
           gap: 12px;
           border-radius: 12px;
-          background: var(--bg2);
-          border: 1px solid var(--border);
+          background: rgba(25, 20, 48, 0.4);
         }
         .aspect-ratio-box {
           position: relative;
@@ -338,8 +327,7 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
           aspect-ratio: 4 / 5; /* 1080x1350 pixel layout representation */
           border-radius: 8px;
           overflow: hidden;
-          background: var(--bg);
-          border: 1px solid var(--border);
+          background: #000;
         }
 
         /* Rendering state spinner */
@@ -349,7 +337,7 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
           left: 0;
           right: 0;
           bottom: 0;
-          background: var(--panel-bg);
+          background: rgba(10, 8, 19, 0.85);
           backdrop-filter: blur(4px);
           display: flex;
           flex-direction: column;
@@ -585,29 +573,16 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
           font-size: 10px;
           color: var(--text-muted);
         }
-        .generation-info-badge {
-          font-size: 9px;
-          font-weight: 700;
-          padding: 3px 8px;
-          border-radius: 4px;
-          background: rgba(255, 255, 255, 0.05);
-          color: rgba(255, 255, 255, 0.7);
-          border: 1px solid rgba(255, 255, 255, 0.08);
-          display: inline-flex;
-          align-items: center;
-          gap: 4px;
-          letter-spacing: 0.2px;
-        }
         .text-display-row {
           display: flex;
           justify-content: space-between;
           align-items: flex-start;
           gap: 8px;
           cursor: pointer;
-          background: var(--bg3);
+          background: rgba(0,0,0,0.15);
           padding: 8px;
           border-radius: 6px;
-          border: 1px solid var(--border);
+          border: 1px solid transparent;
           transition: var(--transition-smooth);
         }
         .text-display-row:hover {
@@ -732,8 +707,8 @@ export const CreativeCard: React.FC<CreativeCardProps> = ({
           left: 0;
           right: 0;
           margin-bottom: 8px;
-          background: var(--panel-bg);
-          border: 1px solid var(--panel-border);
+          background: rgba(15, 12, 30, 0.95);
+          border-color: rgba(139, 92, 246, 0.3);
           padding: 12px;
           border-radius: 8px;
           display: flex;

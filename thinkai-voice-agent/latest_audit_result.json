@@ -1,98 +1,21 @@
 {
   "status": "success",
-  "url": "https://piktor.hu/kezdolap",
-  "scraper_json": "{\n  \"metadata\": {\n    \"title\": \"Piktor webshop - Online festékbolt, kert és autós részleggel\",\n    \"description\": \"Rendelj festéket otthonról, kényelmesen! Több ezer termék házfelújításhoz, autóápoláshoz, kerti munkákhoz, dekoráláshoz országos házhoz szállítással. \",\n    \"keywords\": null,\n    \"viewport\": \"width=device-width, initial-scale=1.0, maximum-scale=1.0\",\n    \"canonical\": \"https://piktor.hu/kezdolap\",\n    \"lang\": \"hu\",\n    \"is_https\": true\n  },\n  \"headings\": {\n    \"h1\": [\n      \"Piktor\",\n      \"Ügyfélszolgálat\",\n      \"Informatikai partner\",\n      \"Cégadatok\"\n    ],\n    \"h2\": [\n      \"Keresés\",\n      \"Minibasket V24\",\n      \"Adj új színt a konyhabútorodnak!\",\n      \"Hatékony fűnyírók, fűkaszák azonnal készletről\",\n      \"Színes falak pillanatok alatt\",\n      \"Bio kert otthon - természetesen\",\n      \"Öntapadó falpanelek\",\n      \"100% természetes\",\n      \"Népszerű kategóriák\",\n      \"Kiemelt ajánlatok\",\n      \"Blog\"\n    ],\n    \"h3\": [\n      \"Infoartnet Kft.\",\n      \"Aktuális ajánlataink\",\n      \"Cégadatok - Piktor Kft.\",\n      \"Konyhabútor felújítás festéssel\"\n    ]\n  },\n  \"images\": [\n    {\n      \"src\": \"https://piktor.hu/images/ujsag/2026/PiktorGyor-ujsag-2026-julius-414x414px-webp.webp\",\n      \"alt\": \"Aktuális ajánlataink\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/webshop_kepek/akzo-nobel/thumbs/058235-dulux-nagyvilag-szinei-2-5l-bambusz-liget-2.webp\",\n      \"alt\": \"058235-dulux-nagyvilag-szinei-2-5l-bambusz-liget-2.webp\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/webshop_kepek/hg/thumbs/064268-hg-muanyag-festett-felulet-es-tapeta-intenziv-tisztitoszer-500-ml-1.webp\",\n      \"alt\": \"064268-hg-muanyag-festett-felulet-es-tapeta-intenziv-tisztitoszer-500-ml-1.webp\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/webshop_kepek/piktor-kert/thumbs/052697-medencejavito-keszlet-1.webp\",\n      \"alt\": \"052697-medencejavito-keszlet-1.webp\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/webshop_kepek/mapei/thumbs/100260-mapei-fuga-fresca-fugafelujito-festek-feher-160-g-2.webp\",\n      \"alt\": \"100260-mapei-fuga-fresca-fugafelujito-festek-feher-160-g-2.webp\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/webshop_kepek/jub/thumbs/076567-jub-decor-glamour-metal-hatasu-falfestek-arany-0-65-l-4.webp\",\n      \"alt\": \"076567-jub-decor-glamour-metal-hatasu-falfestek-arany-0-65-l-4.webp\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/webshop_kepek/al-ko/thumbs/109101-al-ko-benzines-funyiro-classic-5-12-sp-b-onjaro-1.webp\",\n      \"alt\": \"109101-al-ko-benzines-funyiro-classic-5-12-sp-b-onjaro-1.webp\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/webshop_kepek/mapei/thumbs/111569-mapei-adesilex-p9-ragasztohabarcs-feher-5-kg-1.webp\",\n      \"alt\": \"111569-mapei-adesilex-p9-ragasztohabarcs-feher-5-kg-1.webp\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/webshop_kepek/akzo-nobel/thumbs/112831-dulux-csempefestek-csillamlo-halraj-0-75-l-1.webp\",\n      \"alt\": \"112831-dulux-csempefestek-csillamlo-halraj-0-75-l-1.webp\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/webshop_kepek/jovan-ko/thumbs/118826-innova-minimal-viragtarto-tal-kerek-alatettel-antracit-2.webp\",\n      \"alt\": \"118826-innova-minimal-viragtarto-tal-kerek-alatettel-antracit-2.webp\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/webshop_kepek/hg/thumbs/121076-hg-higienikus-pezsgofurdo-tisztito-1-l-1.webp\",\n      \"alt\": \"121076-hg-higienikus-pezsgofurdo-tisztito-1-l-1.webp\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/Blog/2024/Piktor-WS-konyhabutorfestek-blog-414x414.webp\",\n      \"alt\": \"Konyhabútor felújítás festéssel\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/site/icon_fb.svg\",\n      \"alt\": \"Facebook\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/site/icon_in.svg\",\n      \"alt\": \"Insta\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/site/icon_yt.svg\",\n      \"alt\": \"YouTube\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/site/icon_tt.svg\",\n      \"alt\": \"TikTok\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/site/icon_nl.svg\",\n      \"alt\": \"Newsletter\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/user/logo_maestro_h60.svg\",\n      \"alt\": \"Maestro\"\n    },\n    {\n      \"src\": \"https://piktor.hu/images/user/logo_mastercard_h60.svg\",\n      \"alt\": \"Mastercard\"\n    },\n    {\n      \"src\": \"https://piktor.hu/core/templates/piktorws_2024_bel/gfx/logo_infoartnet.svg\",\n      \"alt\": \"Infoartnet Kft.\"\n    }\n  ],\n  \"links\": [\n    {\n      \"href\": \"https://piktor.hu/login_piktor\",\n      \"text\": \"Bejelentkezés\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://piktor.hu/basket\",\n      \"text\": \"Kosár\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://piktor.hu/basket/checkoutlink\",\n      \"text\": \"Pénztár\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://piktor.hu/ugyfelszolgalat\",\n      \"text\": \"Ügyfélszolgálat\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"mailto:piktor@piktor.hu\",\n      \"text\": \"piktor@piktor.hu\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://www.facebook.com/PiktorFestekboltGyor/\",\n      \"text\": \"Facebook\",\n      \"is_external\": true\n    },\n    {\n      \"href\": \"https://piktor.hu/konyhabutorfestek\",\n      \"text\": \"Vásárolok\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://piktor.hu/szines-falfestek\",\n      \"text\": \"Vásárolok\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://piktor.hu/biogazdalkodas\",\n      \"text\": \"Vásárolok\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://piktor.hu/vizi-jarmu\",\n      \"text\": \"Vízi járművekhez\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://piktor.hu/peneszeltavolito\",\n      \"text\": \"Penész és algaeltávolító\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://piktor.hu/zomancfestek\",\n      \"text\": \"Zománcfestékek\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://piktor.hu/lazur\",\n      \"text\": \"Lazúr festékek\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://piktor.hu/058235-dulux-nagyvilag-szinei-2-5l-bambusz-liget\",\n      \"text\": \"Dulux Nagyvilág színei beltéri falfesték bambusz liget 2,5 l\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://piktor.hu/aktualis-ajanlataink\",\n      \"text\": \"Aktuális ajánlataink\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://piktor.hu/konyhabutor-felujitas-festessel\",\n      \"text\": \"Konyhabútor felújítás festéssel\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://piktor.hu/cegadatok\",\n      \"text\": \"Cégadatok\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://piktor.hu/informatikai-partner\",\n      \"text\": \"Informatikai partner\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://piktor.hu/szallitas-es-fizetes\",\n      \"text\": \"Szállítás és fizetés\",\n      \"is_external\": false\n    },\n    {\n      \"href\": \"https://piktor.hu/aszf\",\n      \"text\": \"Általános szerződési feltételek\",\n      \"is_external\": false\n    }\n  ],\n  \"sections\": [\n    {\n      \"id\": null,\n      \"title\": \"Header Navigation\",\n      \"type\": \"Navigation\"\n    },\n    {\n      \"id\": null,\n      \"title\": \"Main Slider/Hero Section\",\n      \"type\": \"Hero\"\n    },\n    {\n      \"id\": null,\n      \"title\": \"Popular Categories\",\n      \"type\": \"Navigation\"\n    },\n    {\n      \"id\": null,\n      \"title\": \"Featured Offers/Products\",\n      \"type\": \"Articles\"\n    },\n    {\n      \"id\": null,\n      \"title\": \"Blog Section\",\n      \"type\": \"Articles\"\n    },\n    {\n      \"id\": null,\n      \"title\": \"Customer Service Contact Information\",\n      \"type\": \"Contact\"\n    },\n    {\n      \"id\": null,\n      \"title\": \"Piktor Kft. Company Data\",\n      \"type\": \"Contact\"\n    },\n    {\n      \"id\": null,\n      \"title\": \"Infoartnet Kft. IT Partner Data\",\n      \"type\": \"Contact\"\n    },\n    {\n      \"id\": null,\n      \"title\": \"Social Media Links\",\n      \"type\": \"Navigation\"\n    },\n    {\n      \"id\": null,\n      \"title\": \"Payment Methods Logos\",\n      \"type\": \"Navigation\"\n    },\n    {\n      \"id\": null,\n      \"title\": \"Footer Navigation\",\n      \"type\": \"Navigation\"\n    },\n    {\n      \"id\": null,\n      \"title\": \"Extended Category Navigation\",\n      \"type\": \"Navigation\"\n    }\n  ],\n  \"products\": [\n    {\n      \"name\": \"Dulux Nagyvilág színei beltéri falfesték bambusz liget 2,5 l\",\n      \"price\": \"6 790 Ft\",\n      \"brand\": \"Dulux\",\n      \"description\": \"N/A\",\n      \"page_url\": \"https://piktor.hu/058235-dulux-nagyvilag-szinei-2-5l-bambusz-liget\"\n    },\n    {\n      \"name\": \"HG Intenzív műanyagtisztító 500 ml\",\n      \"price\": \"2 150 Ft\",\n      \"brand\": \"HG\",\n      \"description\": \"N/A\",\n      \"page_url\": \"https://piktor.hu/064268-hg-muanyag-festett-felulet-es-tapeta-intenziv-tisztitoszer-500-ml\"\n    },\n    {\n      \"name\": \"Pooltrend medencejavító készlet\",\n      \"price\": \"2 490 Ft\",\n      \"brand\": \"Pooltrend\",\n      \"description\": \"N/A\",\n      \"page_url\": \"https://piktor.hu/052697-medencejavito-keszlet\"\n    },\n    {\n      \"name\": \"Mapei UltraCare Fuga Fresca fugafelújító festék fehér 160 g\",\n      \"price\": \"4 250 Ft\",\n      \"brand\": \"Mapei\",\n      \"description\": \"N/A\",\n      \"page_url\": \"https://piktor.hu/100260-mapei-fuga-fresca-fugafelujito-festek-feher-160-g\"\n    },\n    {\n      \"name\": \"JUB Decor Glamour metál hatású falfesték arany 0,65 l\",\n      \"price\": \"11 890 Ft\",\n      \"brand\": \"JUB\",\n      \"description\": \"N/A\",\n      \"page_url\": \"https://piktor.hu/076567-jub-decor-glamour-metal-hatasu-falfestek-arany-0-65-l\"\n    },\n    {\n      \"name\": \"AL-KO benzines fűnyíró Classic 5.12 SP-B önjáró\",\n      \"price\": \"189 990 Ft\",\n      \"brand\": \"AL-KO\",\n      \"description\": \"N/A\",\n      \"page_url\": \"https://piktor.hu/109101-al-ko-benzines-funyiro-classic-5-12-sp-b-onjaro\"\n    },\n    {\n      \"name\": \"Mapei Adesilex P9 ragasztóhabarcs fehér 5 kg\",\n      \"price\": \"3 390 Ft\",\n      \"brand\": \"Mapei\",\n      \"description\": \"N/A\",\n      \"page_url\": \"https://piktor.hu/111569-mapei-adesilex-p9-ragasztohabarcs-feher-5-kg\"\n    },\n    {\n      \"name\": \"Dulux Csempefesték csillámló halraj 0,75 l\",\n      \"price\": \"10 650 Ft\",\n      \"brand\": \"Dulux\",\n      \"description\": \"N/A\",\n      \"page_url\": \"https://piktor.hu/112831-dulux-csempefestek-csillamlo-halraj-0-75-l\"\n    },\n    {\n      \"name\": \"Jován Innova virágtartó tál kerek, alátéttel antracit\",\n      \"price\": \"29 450 Ft\",\n      \"brand\": \"Jován Innova\",\n      \"description\": \"N/A\",\n      \"page_url\": \"https://piktor.hu/118826-innova-minimal-viragtarto-tal-kerek-alatettel-antracit\"\n    },\n    {\n      \"name\": \"HG Higiénikus pezsgőfürdő tisztító 1 l\",\n      \"price\": \"4 490 Ft\",\n      \"brand\": \"HG\",\n      \"description\": \"N/A\",\n      \"page_url\": \"https://piktor.hu/121076-hg-higienikus-pezsgofurdo-tisztito-1-l\"\n    }\n  ]\n}",
-  "products": [
-    {
-      "name": "Dulux Nagyvilág színei beltéri falfesték bambusz liget 2,5 l",
-      "price": "6 790 Ft",
-      "brand": "Dulux",
-      "description": "N/A",
-      "page_url": "https://piktor.hu/058235-dulux-nagyvilag-szinei-2-5l-bambusz-liget"
-    },
-    {
-      "name": "HG Intenzív műanyagtisztító 500 ml",
-      "price": "2 150 Ft",
-      "brand": "HG",
-      "description": "N/A",
-      "page_url": "https://piktor.hu/064268-hg-muanyag-festett-felulet-es-tapeta-intenziv-tisztitoszer-500-ml"
-    },
-    {
-      "name": "Pooltrend medencejavító készlet",
-      "price": "2 490 Ft",
-      "brand": "Pooltrend",
-      "description": "N/A",
-      "page_url": "https://piktor.hu/052697-medencejavito-keszlet"
-    },
-    {
-      "name": "Mapei UltraCare Fuga Fresca fugafelújító festék fehér 160 g",
-      "price": "4 250 Ft",
-      "brand": "Mapei",
-      "description": "N/A",
-      "page_url": "https://piktor.hu/100260-mapei-fuga-fresca-fugafelujito-festek-feher-160-g"
-    },
-    {
-      "name": "JUB Decor Glamour metál hatású falfesték arany 0,65 l",
-      "price": "11 890 Ft",
-      "brand": "JUB",
-      "description": "N/A",
-      "page_url": "https://piktor.hu/076567-jub-decor-glamour-metal-hatasu-falfestek-arany-0-65-l"
-    },
-    {
-      "name": "AL-KO benzines fűnyíró Classic 5.12 SP-B önjáró",
-      "price": "189 990 Ft",
-      "brand": "AL-KO",
-      "description": "N/A",
-      "page_url": "https://piktor.hu/109101-al-ko-benzines-funyiro-classic-5-12-sp-b-onjaro"
-    },
-    {
-      "name": "Mapei Adesilex P9 ragasztóhabarcs fehér 5 kg",
-      "price": "3 390 Ft",
-      "brand": "Mapei",
-      "description": "N/A",
-      "page_url": "https://piktor.hu/111569-mapei-adesilex-p9-ragasztohabarcs-feher-5-kg"
-    },
-    {
-      "name": "Dulux Csempefesték csillámló halraj 0,75 l",
-      "price": "10 650 Ft",
-      "brand": "Dulux",
-      "description": "N/A",
-      "page_url": "https://piktor.hu/112831-dulux-csempefestek-csillamlo-halraj-0-75-l"
-    },
-    {
-      "name": "Jován Innova virágtartó tál kerek, alátéttel antracit",
-      "price": "29 450 Ft",
-      "brand": "Jován Innova",
-      "description": "N/A",
-      "page_url": "https://piktor.hu/118826-innova-minimal-viragtarto-tal-kerek-alatettel-antracit"
-    },
-    {
-      "name": "HG Higiénikus pezsgőfürdő tisztító 1 l",
-      "price": "4 490 Ft",
-      "brand": "HG",
-      "description": "N/A",
-      "page_url": "https://piktor.hu/121076-hg-higienikus-pezsgofurdo-tisztito-1-l"
-    }
-  ],
+  "url": "https://example.com/",
+  "scraper_json": "{\n  \"metadata\": {\n    \"title\": \"Example Domain\",\n    \"description\": \"\",\n    \"keywords\": null,\n    \"viewport\": \"width=device-width, initial-scale=1\",\n    \"canonical\": null,\n    \"lang\": null,\n    \"is_https\": true\n  },\n  \"headings\": {\n    \"h1\": [\n      \"Example Domain\"\n    ],\n    \"h2\": [],\n    \"h3\": []\n  },\n  \"images\": [],\n  \"links\": [\n    {\n      \"href\": \"https://iana.org/domains/example\",\n      \"text\": \"Learn more\",\n      \"is_external\": true\n    }\n  ],\n  \"sections\": [\n    {\n      \"id\": \"body\",\n      \"title\": \"Main Content\",\n      \"type\": \"Articles\"\n    }\n  ],\n  \"products\": []\n}",
+  "products": [],
   "contacts": {
-    "emails": [
-      "piktor@piktor.hu"
-    ],
-    "phone_numbers": [
-      "+36 96/ 511 860"
-    ],
-    "addresses": [
-      "9023 Győr, Mészáros Lőrinc út 1."
-    ],
-    "company_name": "Piktor Kft.",
-    "tax_number": "13067025-2-08",
-    "registration_number": "08-09-011325",
-    "facebook": "https://www.facebook.com/PiktorFestekboltGyor/",
-    "instagram": "https://www.instagram.com/piktorfestekgyor/",
+    "emails": [],
+    "phone_numbers": [],
+    "addresses": [],
+    "company_name": null,
+    "tax_number": null,
+    "registration_number": null,
+    "facebook": null,
+    "instagram": null,
     "linkedin": null,
-    "youtube": "https://www.youtube.com/@piktorvideo465",
-    "tiktok": "https://www.tiktok.com/@piktor.hu",
-    "twitter": "http://twitter.com/share?url=https://piktor.hu:443/ugyfelszolgalat",
+    "youtube": null,
+    "tiktok": null,
+    "twitter": null,
     "x": null,
     "pinterest": null,
     "snapchat": null,
@@ -120,455 +43,297 @@
     "soundcloud": null
   },
   "seo": {
-    "score": 75,
-    "title": "Piktor webshop - Online festékbolt, kert és autós részleggel",
-    "description": "Rendelj festéket otthonról, kényelmesen! Több ezer termék házfelújításhoz, autóápoláshoz, kerti munkákhoz, dekoráláshoz országos házhoz szállítással.",
+    "score": 15,
+    "title": "Example Domain",
+    "description": "",
     "h1_count": 1,
-    "h2_count": 14,
-    "h3_count": 4,
-    "total_images": 35,
+    "h2_count": 0,
+    "h3_count": 0,
+    "total_images": 0,
     "missing_alt": 0,
-    "total_links": 130,
-    "internal_links": 51,
-    "external_links": 79,
+    "total_links": 1,
+    "internal_links": 0,
+    "external_links": 1,
     "has_viewport": true,
     "is_https": true,
-    "has_schema": true,
-    "has_robots": true,
-    "has_sitemap": true,
+    "has_schema": false,
+    "has_robots": false,
+    "has_sitemap": false,
     "has_lang": true,
-    "lang_val": "hu",
+    "lang_val": "en",
     "deductions": [
-      "Több H1 cím is található az oldalon (4 darab): ['Piktor', 'Ügyfélszolgálat', 'Informatikai partner', 'Cégadatok'].",
-      "A H1 címek száma és azok tartalma (pl. 'Ügyfélszolgálat', 'Cégadatok') arra utal, hogy a címsorok hierarchiája nem logikus, és nem megfelelően strukturált H2 és H3 tagokkal. Az alapvető oldalelemek H1 szinten való megjelenése megtöri a tartalmi hierarchiát.",
-      "A szerver válaszidő (TTFB) 982ms, ami lassabb a 600ms-os küszöbnél."
+      "A title tag hossza nem optimális (13 karakter): 'Example Domain'.",
+      "A meta description tag hiányzik.",
+      "Hiányoznak a H2 és H3 címsorok, ami megtöri a logikus címsorhierarchiát.",
+      "A canonical tag hiányzik.",
+      "A szövegtartalom rendkívül vékony (21 szó).",
+      "A robots.txt és sitemap.xml fájlok is hiányoznak a domainről. (Robots.txt Present: False, Sitemap.xml Present: False)",
+      "Hiányzik a JSON-LD strukturált adat / séma jelölés a lapról."
     ],
     "deductions_detail": [
       {
-        "criterion": "Meta Cím hossza",
-        "status": "good",
-        "points": 15,
-        "reason": "A title tag hossza megfelelő (68 karakter): 'Piktor webshop - Online festékbolt, kert és autós részleggel'.",
-        "recommendation": "Nem szükséges beavatkozás."
-      },
-      {
-        "criterion": "Meta Leírás hossza",
-        "status": "good",
-        "points": 15,
-        "reason": "A meta description hossza optimális (153 karakter): 'Rendelj festéket otthonról, kényelmesen! Több ezer termék házfelújításhoz, autóápoláshoz, kerti munkákhoz, dekoráláshoz országos házhoz szállítással. '",
-        "recommendation": "Nem szükséges beavatkozás."
-      },
-      {
-        "criterion": "H1 Címek",
-        "status": "bad",
-        "points": -10,
-        "reason": "Több H1 cím is található az oldalon (4 darab): ['Piktor', 'Ügyfélszolgálat', 'Informatikai partner', 'Cégadatok'].",
-        "recommendation": "Az oldal fő témáját egyetlen H1 címmel jelölje meg. A további fontos szakaszokhoz használjon H2 vagy H3 címeket a megfelelő hierarchia fenntartásához."
-      },
-      {
-        "criterion": "Cím hierarchia (H2-H3)",
+        "criterion": "Meta Cím",
         "status": "bad",
         "points": -5,
-        "reason": "A H1 címek száma és azok tartalma (pl. 'Ügyfélszolgálat', 'Cégadatok') arra utal, hogy a címsorok hierarchiája nem logikus, és nem megfelelően strukturált H2 és H3 tagokkal. Az alapvető oldalelemek H1 szinten való megjelenése megtöri a tartalmi hierarchiát.",
-        "recommendation": "Alakítson ki egy tiszta, logikus címsor hierarchiát (H1 -> H2 -> H3), ahol a H1 az oldal fő témája, a H2 az elsődleges alszakaszok, a H3 pedig a H2 alatti további részletezések címét jelöli."
+        "reason": "A title tag hossza nem optimális (13 karakter): 'Example Domain'.",
+        "recommendation": "Optimalizálja a meta címet 40-70 karakter közé, hogy informatívabb és vonzóbb legyen a keresési eredményekben."
+      },
+      {
+        "criterion": "Meta Leírás",
+        "status": "bad",
+        "points": -15,
+        "reason": "A meta description tag hiányzik.",
+        "recommendation": "Adjon meg egy egyedi, 110-160 karakter hosszú meta leírást, amely összefoglalja az oldal tartalmát és ösztönzi a kattintást."
+      },
+      {
+        "criterion": "H1 Címsorok",
+        "status": "good",
+        "points": 15,
+        "reason": "Pontosan 1 H1 címsor található, melynek tartalma: 'Example Domain'.",
+        "recommendation": "Nem szükséges beavatkozás."
+      },
+      {
+        "criterion": "Címsor Hierarchia (H2-H3)",
+        "status": "bad",
+        "points": -5,
+        "reason": "Hiányoznak a H2 és H3 címsorok, ami megtöri a logikus címsorhierarchiát.",
+        "recommendation": "Használjon H2 és H3 címsorokat a tartalom strukturálásához és a releváns kulcsszavak beépítéséhez."
       },
       {
         "criterion": "HTTPS Biztonság",
         "status": "good",
         "points": 15,
-        "reason": "Az oldal HTTPS protokollon keresztül érhető el.",
+        "reason": "A weboldal HTTPS protokollt használ.",
         "recommendation": "Nem szükséges beavatkozás."
       },
       {
-        "criterion": "Mobilbarát megjelenítés (Viewport)",
+        "criterion": "Mobilbarát Nézet (Viewport)",
         "status": "good",
         "points": 15,
-        "reason": "A viewport meta tag konfigurálva van: 'width=device-width, initial-scale=1.0, maximum-scale=1.0'.",
+        "reason": "A viewport tag megfelelően konfigurált a mobilbarát megjelenítéshez: 'width=device-width, initial-scale=1'.",
         "recommendation": "Nem szükséges beavatkozás."
       },
       {
-        "criterion": "Kanonikus link",
-        "status": "good",
-        "points": 5,
-        "reason": "Kanonikus link tag található az oldalon: 'https://piktor.hu/kezdolap'.",
-        "recommendation": "Nem szükséges beavatkozás."
+        "criterion": "Kanonikus Link",
+        "status": "bad",
+        "points": -5,
+        "reason": "A canonical tag hiányzik.",
+        "recommendation": "Adjon meg egy kanonikus linket a duplikált tartalmi problémák elkerülése és a keresőmotorok számára a preferált URL jelzése érdekében."
       },
       {
-        "criterion": "Tartalom szószáma",
-        "status": "good",
-        "points": 5,
-        "reason": "A tartalom szószáma (532 szó) eléri a legalább 300 szavas határt.",
-        "recommendation": "Fontolja meg a tartalom további bővítését 600 szó fölé a mélyebb és átfogóbb információszolgáltatás érdekében, ami növelheti a kulcsszó-rangsorolási lehetőségeket."
-      },
-      {
-        "criterion": "Képek helyettesítő szövege (Alt attribútumok)",
-        "status": "good",
-        "points": 10,
-        "reason": "Minden kép rendelkezik helyettesítő (alt) szöveggel (35 képből 0 hiányzik).",
-        "recommendation": "Nem szükséges beavatkozás."
-      },
-      {
-        "criterion": "Szerver válaszidő (TTFB)",
+        "criterion": "Szövegtartalom Száma",
         "status": "bad",
         "points": -10,
-        "reason": "A szerver válaszidő (TTFB) 982ms, ami lassabb a 600ms-os küszöbnél.",
-        "recommendation": "Vizsgálja meg a szerver válaszidő lassulásának okait (pl. tárhely, szerverkonfiguráció, adatbázis-lekérdezések, kód optimalizálása) és tegyen lépéseket a TTFB csökkentésére a jobb felhasználói élmény és SEO-teljesítmény érdekében."
+        "reason": "A szövegtartalom rendkívül vékony (21 szó).",
+        "recommendation": "Bővítse az oldal tartalmát releváns, értékes és legalább 300 szó hosszúságú szöveggel."
+      },
+      {
+        "criterion": "Kép Alt Attribútumok",
+        "status": "good",
+        "points": 10,
+        "reason": "Minden kép (0 db) rendelkezik alt attribútummal.",
+        "recommendation": "Nem szükséges beavatkozás."
+      },
+      {
+        "criterion": "Szerver Válaszidő (TTFB)",
+        "status": "good",
+        "points": 5,
+        "reason": "A szerver válaszidő (TTFB) elfogadható (443ms).",
+        "recommendation": "Folyamatosan figyelje a TTFB-t és optimalizálja tovább a 300ms alatti érték elérésére."
       },
       {
         "criterion": "Robots.txt és Sitemap.xml",
-        "status": "good",
-        "points": 5,
-        "reason": "Mind a robots.txt, mind a sitemap.xml fájl jelen van a domainen.",
-        "recommendation": "Nem szükséges beavatkozás."
+        "status": "bad",
+        "points": -5,
+        "reason": "A robots.txt és sitemap.xml fájlok is hiányoznak a domainről. (Robots.txt Present: False, Sitemap.xml Present: False)",
+        "recommendation": "Hozzon létre robots.txt fájlt a feltérképezés szabályozásához és sitemap.xml fájlt a keresőmotorok segítéséhez az oldal szerkezetének megértésében."
       },
       {
-        "criterion": "Strukturált adatok (Schema Markup)",
-        "status": "good",
-        "points": 5,
-        "reason": "JSON-LD strukturált adatok/schema markup található az oldalon.",
-        "recommendation": "Nem szükséges beavatkozás."
+        "criterion": "Strukturált Adatok (Schema Markup)",
+        "status": "bad",
+        "points": -5,
+        "reason": "Hiányzik a JSON-LD strukturált adat / séma jelölés a lapról.",
+        "recommendation": "Implementáljon releváns JSON-LD séma jelöléseket a tartalom típusának (pl. cikk, szervezet) pontosabb értelmezéséhez a keresőmotorok számára."
       },
       {
-        "criterion": "Nyelvi deklaráció",
+        "criterion": "Nyelv Deklaráció",
         "status": "good",
         "points": 5,
-        "reason": "A <html> tag érvényes 'lang' attribútummal rendelkezik: 'hu'.",
+        "reason": "Az <html> tag érvényes 'lang' attribútummal rendelkezik: 'en'.",
         "recommendation": "Nem szükséges beavatkozás."
       }
     ]
   },
   "visuals": {
     "top_colors": [
-      "#ffffff",
-      "#66b31c",
-      "#187fc0",
-      "#000000",
-      "#174cb5"
+      "#eeeeee",
+      "#334488"
     ],
     "top_colors_detail": [
       {
-        "hex": "#ffffff",
-        "pct": 26.1
+        "hex": "#eeeeee",
+        "pct": 50.0
       },
       {
-        "hex": "#66b31c",
-        "pct": 15.2
-      },
-      {
-        "hex": "#187fc0",
-        "pct": 10.9
-      },
-      {
-        "hex": "#000000",
-        "pct": 8.7
-      },
-      {
-        "hex": "#174cb5",
-        "pct": 6.5
+        "hex": "#334488",
+        "pct": 50.0
       }
     ],
-    "image_colors": [
-      "#ffffff",
-      "#0055b2",
-      "#1a1a1a",
-      "#1c448c",
-      "#3c3c3c",
-      "#cccccc",
-      "#000000"
-    ],
-    "warm_pct": 17.0,
-    "cool_pct": 18.9,
-    "neutral_pct": 64.2,
-    "visual_tone": "Kiegyensúlyozott / Neutrális",
-    "visual_style_description": "Az oldal letisztult, rendezett elrendezéssel rendelkezik, amely tipikus egy e-kereskedelmi webhelyre, nagy hangsúlyt fektetve a termékképekre. A közösségi média és fizetési módok ikonjainak használata modern és megbízható márkaimázst sugall. Az általános hangulat praktikus, megoldásokat kínálva az otthoni felújításokhoz és karbantartáshoz."
+    "image_colors": [],
+    "warm_pct": 0.0,
+    "cool_pct": 50.0,
+    "neutral_pct": 50.0,
+    "visual_tone": "Hideg és Professzionális",
+    "visual_style_description": "A vizuális stílus rendkívül egyszerű és funkcionális, mindenféle komplex elrendezés vagy márkaépítési elem nélkül. A design a minimalizmusra és az információmegosztás alapjaira épül, vizuálisan visszafogott és letisztult."
   },
   "content": {
-    "word_count": 532,
-    "business_category": "Online Festékbolt, Kertészeti és Autós Webáruház",
-    "tone": "Professzionális, Praktikus, Segítőkész",
-    "summary": "A Piktor webshop egy online festékbolt, amely széles választékban kínál termékeket házfelújításhoz, autóápoláshoz és kerti munkákhoz. Országos házhozszállítással teszi kényelmesen elérhetővé több ezer termékét a vásárlók számára.",
-    "seo_advice": "Az oldal kulcsszó-optimalizálása erős alapokon nyugszik, különösen a termék- és kategória-specifikus kifejezésekre (pl. 'festék', 'konyhabútor felújítás', 'fűnyírók'). A blogbejegyzések címei ('Konyhabútor felújítás festéssel') is jól rezonálnak a felhasználói keresési szándékokra. A további javítás érdekében javasolt a meglévő termékleírások és blogbejegyzések mélyítése, célzottan a long-tail kulcsszavakra fókuszálva, mint például 'akril falfesték beltéri használatra', 'természetes bio kert ápolás tippek', vagy 'rozsdamentes autófesték választék'. Érdemes lenne további, problémamegoldó jellegű blogcikkeket írni, amelyek a termékek használatával kapcsolatos gyakori kérdéseket válaszolják meg. Biztosítsa, hogy a belső linkek (anchor text-ek) leíróak és kulcsszavakat tartalmaznak, ezzel is segítve a keresőmotorokat a tartalom relevanciájának megértésében.",
+    "word_count": 21,
+    "business_category": "Példa Domain",
+    "tone": "Tényfeltáró, Professzionális",
+    "summary": "Ez az oldal egy alapvető 'példa domain' weboldal, amelyet jellemzően dokumentációs és tesztelési célokra használnak. Nagyon kevés tartalommal és alapvető struktúrával rendelkezik, célja egy webes entitás bemutatása, nem pedig érdemi információk nyújtása.",
+    "seo_advice": "A 'Example Domain' oldal számára a legfontosabb SEO tanács a tartalom kibővítése és optimalizálása. Mivel jelenleg nagyon kevés a szöveg, a keresőmotorok nehezen tudják azonosítani az oldal relevanciáját. Javasolt a kulcsszókutatás elvégzése, és releváns, informatív szöveg létrehozása, amely természetesen illeszti be a célzott kulcsszavakat.  Minden releváns bekezdésben és szakaszban érdemes kulcsszavakat használni, de kerülni kell a kulcsszóhalmozást. A meta cím és meta leírás optimalizálása kulcsfontosságú, hogy tükrözze az oldal tartalmát és ösztönözze a kattintásokat a keresési eredményekben. Fontos továbbá a strukturált adatok (schema markup) bevezetése, amely segíti a keresőmotorokat a tartalom pontosabb megértésében.",
     "global_improvements": [
-      "Javítsa a H1 címek struktúráját: Csak egy H1 címet használjon az oldalon, amely egyértelműen tükrözi az oldal fő témáját. A többi fontos címet H2, H3 stb. tagekkel jelölje a logikus hierarchia fenntartásához.",
-      "Optimalizálja a szerver válaszidejét (TTFB): Vizsgálja meg a lassú TTFB okait (pl. tárhely, szerverkonfiguráció, adatbázis-lekérdezések, képek optimalizálása) és tegyen lépéseket a javítására a felhasználói élmény és a SEO rangsorolás növelése érdekében.",
-      "Bővítse a tartalom mennyiségét és mélységét: Bár a jelenlegi szószám elfogadható, a mélyebb és átfogóbb tartalom (különösen a termékoldalakon és blogbejegyzésekben) segíthet a kulcsszó-rangsorolás javításában és a felhasználók elkötelezettségének növelésében."
+      "Jelentősen bővítse az oldal tartalmát, hogy relevánsabb és értékesebb információkat nyújtson a felhasználóknak.",
+      "Implementálja a hiányzó meta description, canonical link, robots.txt és sitemap.xml fájlokat az alapvető SEO higiénia biztosításához.",
+      "Hozzon létre logikus címsorhierarchiát (H2, H3 címek használatával) a tartalom áttekinthetőségének és strukturáltságának javítására.",
+      "Adjon hozzá JSON-LD strukturált adatokat az oldal tartalmának keresőmotorok általi jobb értelmezéséhez."
     ],
-    "word_style_analysis": "A szóhasználat praktikus és közvetlen, hangsúlyt fektetve a termékleírásokra, cselekvésorientált igékre ('rendelj', 'vásárolok') és előnyökre ('kényelmesen', 'hatékony', 'természetesen'). A hangnem informatív és vásárlóközpontú, célja az otthoni, kerti és autóápolási vásárlások megkönnyítése és megoldások nyújtása.",
+    "word_style_analysis": "Az oldal szöveghasználata rendkívül minimalista és tényközlő, ami egyértelműen utal a tartalom bemutató, példa jellegére, és nem törekszik elkötelező vagy informatív hangnemre.",
     "detected_posts": [
       {
-        "title": "Adj új színt a konyhabútorodnak!",
-        "placement": "Fő tartalom, kiemelt javaslat",
-        "inferred_popularity": "Magas",
+        "title": "Example Domain",
+        "placement": "Fő tartalom",
+        "inferred_popularity": "Alacsony",
         "words": [
-          "konyhabútor",
-          "felújítás",
-          "festék",
-          "szín"
+          "example",
+          "domain"
         ],
-        "style": "Inspiráló, Kézzelfogható",
-        "category": "Lakberendezés, Felújítás"
-      },
-      {
-        "title": "Hatékony fűnyírók, fűkaszák azonnal készletről",
-        "placement": "Fő tartalom, kiemelt ajánlat",
-        "inferred_popularity": "Átlagos",
-        "words": [
-          "fűnyíró",
-          "fűkasza",
-          "készlet"
-        ],
-        "style": "Promóciós, Praktikus",
-        "category": "Kert, Eszközök"
-      },
-      {
-        "title": "Színes falak pillanatok alatt",
-        "placement": "Fő tartalom, kiemelt javaslat",
-        "inferred_popularity": "Magas",
-        "words": [
-          "színes fal",
-          "festés",
-          "gyors"
-        ],
-        "style": "Inspiráló, Praktikus",
-        "category": "Lakberendezés, Felújítás"
-      },
-      {
-        "title": "Bio kert otthon - természetesen",
-        "placement": "Fő tartalom, kiemelt javaslat",
-        "inferred_popularity": "Átlagos",
-        "words": [
-          "bio kert",
-          "otthon",
-          "természetes"
-        ],
-        "style": "Környezettudatos, Tippek",
-        "category": "Kert, Ökológia"
-      },
-      {
-        "title": "Öntapadó falpanelek",
-        "placement": "Fő tartalom, kiemelt javaslat",
-        "inferred_popularity": "Átlagos",
-        "words": [
-          "öntapadó",
-          "falpanel"
-        ],
-        "style": "Termékbemutató, Modern",
-        "category": "Lakberendezés, Dekoráció"
-      },
-      {
-        "title": "100% természetes",
-        "placement": "Fő tartalom, kiemelt javaslat",
-        "inferred_popularity": "Átlagos",
-        "words": [
-          "természetes",
-          "környezetbarát"
-        ],
-        "style": "Környezettudatos, Termékjellemző",
-        "category": "Ökológia, Termékjellemző"
-      },
-      {
-        "title": "Aktuális ajánlataink",
-        "placement": "Kiemelt ajánlatok szekció",
-        "inferred_popularity": "Magas",
-        "words": [
-          "akció",
-          "ajánlat",
-          "kedvezmény"
-        ],
-        "style": "Promóciós, Értékesítési",
-        "category": "Akciók, Kedvezmények"
-      },
-      {
-        "title": "Konyhabútor felújítás festéssel",
-        "placement": "Blog szekció",
-        "inferred_popularity": "Magas",
-        "words": [
-          "konyhabútor",
-          "felújítás",
-          "festés",
-          "tippek"
-        ],
-        "style": "Részletes, Tippek, Oktató",
-        "category": "Felújítás, Blog"
+        "style": "Tényközlő",
+        "category": "Technikai, Példa"
       }
     ],
-    "images_analysis": [
-      {
-        "src": "https://piktor.hu/images/webshop_kepek/am/thumbs/108702-am-legkondicionalo-tisztito-folyadek-belteri-egyseghez-szorofejes-1-l-1.webp",
-        "alt": "108702-am-legkondicionalo-tisztito-folyadek-belteri-egyseghez-szorofejes-1-l-1.webp",
-        "description": "A képen egy fehér flakon látható kék szórófejjel, amelyen 'AIR CONDITIONER CLEANER' felirat és egyéb instrukciók olvashatók, letisztult, termékfotó stílusban.",
-        "dominant_colors": [
-          "#FFFFFF",
-          "#0055B2",
-          "#1A1A1A"
-        ],
-        "status": "success"
-      },
-      {
-        "src": "https://piktor.hu/images/webshop_kepek/poli-farbe/thumbs/030192-inntaler-belteri-diszperzios-falfestek-15l--1.webp",
-        "alt": "030192-inntaler-belteri-diszperzios-falfestek-15l--1.webp",
-        "description": "A képen egy modern stílusú, fehér Poli-Farbe Inntaler falfesték vödör látható, melynek címkéjén kék kanapé és növény illusztrációk, valamint termékinformációk szerepelnek.",
-        "dominant_colors": [
-          "#FFFFFF",
-          "#1C448C",
-          "#3C3C3C"
-        ],
-        "status": "success"
-      },
-      {
-        "src": "https://piktor.hu/images/webshop_kepek/revco/thumbs/110739-revco-deco-glitter-max-120-g-1.webp",
-        "alt": "110739-revco-deco-glitter-max-120-g-1.webp",
-        "description": "A képen egy ezüst színű csillámporral töltött átlátszó műanyag tartály látható, stílusa pedig egy modern, stúdióban készült termékfotó.",
-        "dominant_colors": [
-          "#cccccc",
-          "#000000",
-          "#ffffff"
-        ],
-        "status": "success"
-      }
-    ]
+    "images_analysis": []
   },
   "marketing_audit": {
-    "marketing_score": 10,
-    "value_proposition_evaluation": "A fő címsor (H1: \"Piktor\") önmagában generikus és nem tartalmazza az értékajánlatot, ami rontja az első benyomást és a közvetlen vonzerőt. Emiatt -10 pont jár a H1-re vonatkozó kritérium alapján. Azonban a meta leírás (\"Rendelj festéket otthonról, kényelmesen! Több ezer termék házfelújításhoz, autóápoláshoz, kerti munkákhoz, dekoráláshoz országos házhoz szállítással.\") nagyon erős, világos, előnyorientált és egyértelműen kommunikálja a webshop előnyeit, a kényelmet és a széles választékot. Ez a leírás pótolja a H1 hiányosságát, de a főcímsor gyengesége továbbra is érvényesül.",
+    "marketing_score": 0,
+    "value_proposition_evaluation": "A fő címsor (H1: \"Example Domain\") rendkívül generikus és semmilyen értéket, egyedi előnyt vagy problémamegoldást nem kommunikál. Hiányzik egy világos, benefit-orientált értékajánlat és egy meggyőző \"hook\", ami megragadná a látogató figyelmét. Az \"description\" meta tag is üres, ami tovább rontja az első benyomást és a keresőoptimalizálási potenciált. (-10 pont)",
     "frameworks_analysis": {
-      "pas_alignment": "Az oldal egésze nem követ egyértelműen PAS (Probléma, Agitáció, Megoldás) keretrendszert. Bár egyes H2 címsorok (\"Adj új színt a konyhabútorodnak!\", \"Hatékony fűnyírók, fűkaszák azonnal készletről\") utalnak problémákra vagy vágyakra, és megoldásokat kínálnak, az oldal általános struktúrája inkább termék- és kategória-bemutató jellegű, nem pedig egy koherens probléma-megoldás narratíva. Emiatt a PAS keretrendszer nem érvényesül erősen.",
-      "aida_alignment": "Az AIDA (Figyelem, Érdeklődés, Vágy, Cselekvés) folyamat elemei részlegesen megfigyelhetők az egyes szekciókban. A H2-esek (\"Színes falak pillanatok alatt\", \"Bio kert otthon - természetesen\") felkeltik a figyelmet és vágyat ébresztenek. Azonban az oldal nem épül fel egy teljes, végigvezetett AIDA utat követve. A termékkategóriák és ajánlatok bemutatása inkább az érdeklődés és a vágy felébresztésére fókuszál, de hiányzik egy átfogó, célzott cselekvésre ösztönzés az egész oldal szintjén."
+      "pas_alignment": "A rendelkezésre álló minimális tartalom – mindössze egy H1 (\"Example Domain\") és egy link – miatt a PAS (Probléma, Agitáció, Megoldás) keretrendszer alkalmazása nem azonosítható. Nincsenek szöveges elemek, amelyek egy problémát mutatnának be, azt elmélyítenék, majd megoldást kínálnának rá.",
+      "aida_alignment": "Hasonlóképpen, az AIDA (Figyelem, Érdeklődés, Vágy, Cselekvés) folyamat sem követhető nyomon. A \"Figyelem\" felkeltése hiányzik egy releváns H1 miatt, az \"Érdeklődés\" és a \"Vágy\" építéséhez sincs tartalom, és a \"Cselekvés\" (a \"Learn more\" link) önmagában nem elegendő az AIDA modell teljesítéséhez."
     },
-    "cta_evaluation": "A cselekvésre ösztönző gombok és linkek általánosságban jók és cselekvésorientáltak. Például a \"Vásárolok\" szöveg, amely többször is megjelenik, sokkal jobb, mint a passzívabb \"Bővebben\" vagy \"Kattintson ide\". A \"Bejelentkezés\", \"Kosár\", \"Pénztár\" linkek standard és funkcionálisak. Bár nem kiemelkedően meggyőzőek, mint egy \"Kérem az ingyenes konzultációt\", de egy webshop környezetben egyértelműek és funkcionálisan jól elhelyezettek. Ennek ellenére lehetne rajtuk még finomítani, hogy még specifikusabbak és előnyorientáltabbak legyenek.",
-    "credibility_evaluation": "Az oldalon kevés a prominens társadalmi bizonyíték vagy erős hitelességi jel. Bár a fizetési módok logói (\"Maestro\", \"Mastercard\") és a közösségi média linkek (\"Facebook\", \"Insta\", \"YouTube\", \"TikTok\") némi alapvető bizalmat sugároznak, hiányoznak a hatékonyabb hitelességi elemek, mint például az ügyfélvélemények, értékelések, esettanulmányok, tanúsítványok vagy elégedettségi garanciák. A \"Cégadatok\" és \"Ügyfélszolgálat\" linkek növelik az átláthatóságot, de nem helyettesítik a direkt társadalmi bizonyítékot. Emiatt -10 pontot kap a hitelesség kategóriában.",
+    "cta_evaluation": "Az oldalon található egyetlen cselekvésre ösztönző elem a \"Learn more\" feliratú link. Bár ez egy funkcionális CTA, rendkívül általános és passzív. Nem konkrét, nem utal előnyre, és nem teremt sürgősséget vagy egyértelmű elvárást a kattintás utáni következő lépésről. Nem \"meggyőző, cselekvés-orientált és specifikus\" szövegezésű. (-10 pont)",
+    "credibility_evaluation": "A weboldalon semmilyen társadalmi bizonyíték vagy hitelességi jel nem található. Nincsenek ügyfélvélemények, referenciák, esettanulmányok, partnerlogók, tanúsítványok vagy elégedettségi garanciák. Ez gyengíti a bizalmat és a weboldal hitelességét, mivel nincs semmi, ami alátámasztaná az állítólagos értéket vagy megbízhatóságot. (-10 pont)",
     "copy_recommendations": [
-      "A fő H1 címsort (\"Piktor\") érdemes lenne átgondolni, hogy azonnal egyértelmű és előnyorientált értékajánlatot közvetítsen. Például: 'Piktor – Otthonfelújítás egyszerűen: Festék, Kert, Autó egy helyen, házhoz szállítva!'",
-      "Integráljon erősebb társadalmi bizonyítékokat az oldalra. Gyűjtsön és jelenítsen meg vevői véleményeket, termékértékeléseket, akár rövid esettanulmányokat vagy 'előtte-utána' képeket, különösen a kiemelt termékeknél vagy kategóriáknál. Érdemes lenne feltüntetni az elégedettségi garanciákat vagy partnerek logóit (pl. beszállítók).",
-      "A 'Vásárolok' CTA-kat tegye még specifikusabbá az adott kategória vagy termék előnyével. Például 'Konyhabútor festék vásárlás' vagy 'Színes falfestékek azonnal' helyett a 'Megújítanám a konyhám!' vagy 'Könnyen színeznék!' típusú, vágyat ébresztő hívószavak használata hatékonyabb lehet.",
-      "Bár az egyes H2-k jól működnek, fontolja meg egy átfogóbb AIDA vagy PAS narratíva beépítését a kulcsfontosságú landing oldalakon, különösen azokon, amelyek specifikus problémákat oldanak meg (pl. 'Penészeltávolító' kategória). Ez segíthet a látogatókat jobban végigvezetni a vásárlási folyamaton."
+      "Határozzon meg egy tiszta, benefit-orientált értékajánlatot, és fogalmazza meg azt a H1 címben és az első bekezdésekben. Például: 'Egyszerű és megbízható webhely-hosting minden vállalkozás számára'.",
+      "Strukturálja a tartalomkifejtést a PAS (Probléma, Agitáció, Megoldás) vagy AIDA (Figyelem, Érdeklődés, Vágy, Cselekvés) keretrendszerek szerint, hogy a látogatókat logikus és meggyőző módon vezesse végig az oldalon.",
+      "Tegye specifikusabbá és cselekvés-orientáltabbá a CTA-kat. A \"Learn more\" helyett használjon olyat, mint 'Kérem az ingyenes konzultációt', 'Tekintse meg szolgáltatásainkat' vagy 'Kezdjen bele most'.",
+      "Építsen be társadalmi bizonyítékokat, például ügyfélvéleményeket, referenciákat, esettanulmányokat vagy partnerlogókat, hogy növelje a weboldal hitelességét és a látogatók bizalmát.",
+      "Hozzon létre releváns és olvasmányos tartalmat, amely paragrafusokra van bontva, megfelelő hosszúságú és egységes, a célközönségnek megfelelő hangnemet képvisel. Kerülje a szakzsargont és a hosszú szövegfalakat."
     ]
   },
   "brand_personality": {
-    "brand_archetype": "Alkotó",
-    "brand_archetype_reasoning": "A Piktor márka széles termékválasztékával – festékek, kerti eszközök, autóápolási és dekorációs kellékek – arra ösztönzi és képessé teszi vásárlóit, hogy otthonukat, kertjüket és egyéb környezetüket saját ízlésük és igényeik szerint alakítsák és megújítsák. Az 'Alkotó' archetípus a kreativitást, az innovációt és az önkifejezést támogatja, mely itt a 'csináld magad' (DIY) projektekhez szükséges eszközök biztosításán keresztül valósul meg, segítve az ügyfeleket abban, hogy valóra váltsák elképzeléseiket.",
+    "brand_archetype": "Átlagember (Everyman)",
+    "brand_archetype_reasoning": "A weboldal jelenlegi formájában, mint 'Example Domain', rendkívül generikus és semmilyen egyedi jellemzőt, értéket vagy célt nem kommunikál. Az 'Átlagember' archetípus a közösséghez tartozásra, a megszokottságra és a különlegesség hiányára fókuszál, ami tökéletesen leírja egy ilyen alapértelmezett, identitás nélküli domain állapotát. Nem próbál kiemelkedni, nem céloz meg specifikus közönséget, és nem testesít meg semmilyen ambíciót; egyszerűen csak létezik, mint egy közös nevező.",
     "brand_voice": [
-      "praktikus",
-      "direkt",
-      "segítőkész"
+      "generikus",
+      "semleges",
+      "minimális"
     ],
-    "alignment_score": 65,
-    "alignment_reasoning": "A vizuális stílus (letisztult termékfotók, semleges színek zöld és kék kiemelésekkel) jól tükrözi a márka praktikus és termékközpontú jellegét. Azonban nem erősíti meg kellőképpen a szöveges üzenetekben (meta leírás, H2-k) megfogalmazott kényelem, inspiráció vagy a projektek egyszerűsítésének ígéretét. A vizuális tartalom inkább leíró, mintsem érzelmileg vonzó vagy narratív, így a textuális üzenetek mélységét és vonzerejét nem teljes mértékben erősíti.",
-    "target_audience": "Olyan otthonfelújítók, DIY rajongók és házkörüli teendőket végzők, akik a kényelmet, a széles termékválasztékot és a megbízható online vásárlást értékelik a festékek, kerti és autóápolási termékek terén. Azok az egyének, akik aktívan foglalkoznak otthonuk szépítésével, karbantartásával, és értékelik, ha egy helyen, gyorsan és egyszerűen hozzájuthatnak a szükséges anyagokhoz és eszközökhöz.",
-    "personality_summary": "A Piktor márka karaktere elsősorban praktikus, megoldásorientált és megbízható. Stílusában letisztult és direkt, a termékek széles skálájára és az otthoni projektek kényelmes megvalósítására fókuszál. Hangulata funkcionális és hatékony, arra ösztönzi a vásárlókat, hogy egyszerűen és egy helyen találjanak meg mindent a házfelújításhoz, kertészkedéshez vagy autóápoláshoz. A márka célja, hogy megkönnyítse a 'csináld magad' feladatokat, széles választékot és kényelmes vásárlási élményt biztosítva.",
+    "alignment_score": 0,
+    "alignment_reasoning": "Az igazítási pontszám 0, mivel gyakorlatilag nincs tartalom, sem vizuális, sem szöveges, ami egy koherens márkaüzenetet közvetítene. A 'Example Domain' H1 és a 'Learn more' link annyira generikusak, hogy nem rendelkeznek marketing üzenettel, amit a vizuális elemekhez (két alapvető szín, képek hiánya) lehetne igazítani. Mindkét rész elemi szinten van, így az összehangolás fogalma értelmezhetetlen.",
+    "target_audience": "Nincs egyértelműen meghatározott célközönség, mivel a weboldal jelenlegi formájában csupán egy generikus helykitöltő ('Example Domain') minimális tartalommal és funkcióval. Nem kommunikál semmilyen terméket vagy szolgáltatást, ami egy specifikus demográfiai vagy pszichográfiai csoportot célozna meg. Jelenleg a 'célközönség' legfeljebb a webfejlesztő vagy a domain tulajdonosa lehet, mint egy technikai placeholder.",
+    "personality_summary": "A 'brand' vagy inkább a weboldal, mint helykitöltő, jelenleg nem rendelkezik felismerhető személyiséggel. Teljesen generikus, funkcionális és egyedi jellemzőktől mentes. A minimalista vizuális megjelenése (két alapvető szín, képek hiánya) tökéletesen összhangban van a hasonlóan szűkszavú és információmegosztásra alkalmatlan szöveges tartalommal ('Example Domain', 'Learn more'). Egy befejezetlen, kidolgozatlan és anonim képet vetít előre, hiányzik belőle bármilyen specifikus hangnem, értékajánlat vagy érzelmi kapcsolat. Csupán egy digitális üres vászon.",
     "brand_coordinates": {
       "tone": {
-        "formal_vs_casual": 80,
-        "rational_vs_emotional": 30,
-        "modern_vs_traditional": 35,
-        "simple_vs_technical": 40,
-        "authority_vs_peer": 65
+        "formal_vs_casual": 40,
+        "rational_vs_emotional": 10,
+        "modern_vs_traditional": 30,
+        "simple_vs_technical": 10,
+        "authority_vs_peer": 50
       },
       "business": {
         "price_segment_score": 50,
         "price_segment_label": "Közepes",
-        "b2b_vs_b2c": 100,
-        "product_vs_service": 0
+        "b2b_vs_b2c": 50,
+        "product_vs_service": 50
       },
       "visual": {
-        "minimalist_vs_decorative": 30,
-        "warmth_vs_coolness": 50,
-        "vibrancy": 40,
+        "minimalist_vs_decorative": 0,
+        "warmth_vs_coolness": 75,
+        "vibrancy": 30,
         "visual_style_tags": [
-          "clean product photography",
-          "studio lighting",
+          "minimalist",
+          "clean",
           "functional",
-          "neutral background"
+          "basic"
         ]
       },
       "content": {
-        "primary_industry": "Otthon, kert és felújítás",
+        "primary_industry": "Nem meghatározott",
         "key_content_themes": [
-          "otthonfelújítás",
-          "kertápolás",
-          "autóápolás",
-          "dekoráció"
+          "Nincs tartalom"
         ],
         "humor_level": 0,
-        "storytelling_level": 15,
-        "educational_level": 50,
-        "promotional_level": 80
+        "storytelling_level": 0,
+        "educational_level": 0,
+        "promotional_level": 10
       },
       "engagement": {
-        "cta_aggressiveness": 70,
+        "cta_aggressiveness": 10,
         "emoji_usage": 0,
         "hashtag_density": 0,
-        "post_length_preference": 50,
+        "post_length_preference": 0,
         "interaction_asking": 0
       }
     },
     "addressing": {
-      "mode": "te",
-      "confidence": 95,
+      "mode": "személytelen",
+      "confidence": 100,
       "evidence": [
-        "Rendelj festéket otthonról, kényelmesen!",
-        "Adj új színt a konyhabútorodnak!",
-        "Több ezer termék házfelújításhoz, autóápoláshoz, kerti munkákhoz, dekoráláshoz"
+        "Example Domain",
+        "Learn more"
       ]
     },
     "cta_library": {
-      "primary_ctas": [
-        "Vásárolok",
-        "Kosárba",
-        "Rendeld meg most!",
-        "Keresd az akciós termékeket!"
-      ],
+      "primary_ctas": [],
       "secondary_ctas": [
-        "Bővebben",
-        "Tudj meg többet",
-        "Nézd meg a kínálatot",
-        "Fedezd fel"
+        "Learn more"
       ],
-      "slogans": [
-        "Minden, ami otthonfelújítás, kert és autóápolás, egy helyen.",
-        "Piktor: A te DIY és felújítási partnered.",
-        "Színek, eszközök, tippek – otthonodért."
-      ],
-      "tagline": "Piktor: A te DIY és felújítási partnered."
+      "slogans": [],
+      "tagline": ""
     },
     "brand_dont": {
       "tone_restrictions": [
-        "Ne használj szlenget vagy túlzottan informális kifejezéseket, amelyek aláássák a szakértelmet.",
-        "Kerüld a bizonytalan, passzív megfogalmazásokat és a kétértelműséget.",
-        "Ne légy túlságosan elvont vagy elméleti, maradj mindig gyakorlatias és megoldás-orientált.",
-        "Ne alkalmazz lekicsinylő vagy arrogáns hangnemet."
+        "Ne használj szlenget vagy informális nyelvezetet.",
+        "Ne fejezz ki erős érzelmeket vagy szenvedélyt.",
+        "Ne használj humoros vagy játékos hangnemet.",
+        "Ne szólítsd meg személyesen a közönséget."
       ],
       "content_restrictions": [
-        "Ne írj más nyelven, csak magyarul.",
-        "Kerüld a politikai, vallási vagy más megosztó társadalmi témákat.",
-        "Ne ossz meg hamis vagy megtévesztő információkat a termékek hatékonyságáról vagy felhasználásáról.",
-        "Ne mutass be irreális, gyors és könnyű eredményeket ígérő projekteket, amelyek túlzottan eltérnek a valóságtól."
+        "Ne írj konkrét termékekről vagy szolgáltatásokról.",
+        "Ne generálj kampány-specifikus vagy időérzékeny tartalmat.",
+        "Ne tegyél hiteltelen állításokat vagy ígéreteket.",
+        "Ne hozz létre félrevezető információkat a domainről."
       ],
       "visual_restrictions": [
-        "Ne használj alacsony felbontású, rossz minőségű vagy amatőr hatású képeket.",
-        "Kerüld a zsúfolt, kaotikus vizuális kompozíciókat és az olvashatatlan szöveg-overlay-eket.",
-        "Ne alkalmazz túlzottan stilizált, mesterkélt grafikákat, amelyek nem a termék funkcionalitását hangsúlyozzák.",
-        "Ne használj irreleváns stock fotókat, amelyek nem a termékeket, a felhasználási környezetet vagy a valós eredményeket mutatják be."
+        "Ne használj hivalkodó vagy túldíszített képeket.",
+        "Ne használj élénk, telített színeket vagy bonyolult grafikákat.",
+        "Ne helyezz szöveg-overlay-t a képekre, kivéve ha az funkcionális.",
+        "Ne alkalmazz összetett, bonyolult vizuális elemeket."
       ]
     },
     "hashtag_strategy": {
       "brand_hashtags": [
-        "#Piktor",
-        "#PiktorWebáruház",
-        "#PiktorFesték",
-        "#PiktorDIY"
+        "#ExampleDomain",
+        "#PéldaWeboldal",
+        "#DomainInfo"
       ],
       "industry_hashtags": [
-        "#Otthonfelújítás",
-        "#DIYProjektek",
-        "#Kertápolás",
-        "#Autóápolás",
-        "#Lakberendezés",
-        "#Festékbolt",
-        "#Barkácsolás",
-        "#KertiMunka",
-        "#OnlineFestékbolt",
-        "#TippekÉsTrükkök"
+        "#Webfejlesztés",
+        "#DomainNevek",
+        "#OnlineJelenlét",
+        "#TechnikaiInformációk",
+        "#WebAlapok"
       ],
       "campaign_hashtags": [],
       "max_per_platform": {
@@ -579,62 +344,56 @@
     },
     "content_pillars": [
       {
-        "name": "Otthonfelújítás és Lakberendezés",
-        "ratio": 40,
-        "description": "Inspiráló ötletek, lépésről lépésre útmutatók és termékajánlók a házon belüli projektekhez, mint festés, dekoráció, bútorfelújítás vagy falpanelek felhelyezése.",
-        "example_title": "Adj új színt konyhabútorodnak: Egyszerű festési tippek a tökéletes végeredményért!"
+        "name": "Technikai Információk",
+        "ratio": 60,
+        "description": "Tényalapú, semleges információk megosztása a domainek működéséről és a weboldalak alapvető felépítéséről, a tényközlő, professzionális hangnemben.",
+        "example_title": "Mi az a 'Példa Domain' és miért fontos a weben?"
       },
       {
-        "name": "Kertápolás és Szépítés",
+        "name": "Általános Webes Ismeretek",
         "ratio": 30,
-        "description": "Praktikus tanácsok és termékbemutatók a kert gondozásához, szépítéséhez, a fűnyírástól a bio kert kialakításáig és az ökológiai megoldásokig.",
-        "example_title": "Tökéletes gyep egész nyáron: Válaszd ki a hatékony fűnyírót azonnal készletről!"
+        "description": "Alapszintű, átfogó ismeretek bemutatása az internetről és a weboldalak szerepéről, generikus és minimális stílusban.",
+        "example_title": "Hogyan működik egy weboldal: Az alapoktól a böngészőig"
       },
       {
-        "name": "Termékajánlatok és Akciók",
-        "ratio": 20,
-        "description": "Kiemelt termékek, szezonális akciók és különleges kedvezmények bemutatása, hangsúlyozva az előnyöket, a széles választékot és a gyors elérhetőséget.",
-        "example_title": "Ne maradj le! Aktuális akcióink festékekre, kerti és autóápolási termékekre."
-      },
-      {
-        "name": "Autóápolás és Karbantartás",
+        "name": "Digitális Jelenlét Alapjai",
         "ratio": 10,
-        "description": "Tippek és termékajánlók az autó külső és belső ápolásához, tisztításához és karbantartásához, a könnyű és hatékony eredményekért.",
-        "example_title": "Ragyogó autó pillanatok alatt: A legjobb autóápolási termékek nálunk!"
+        "description": "Minimális, semleges tanácsok nyújtása a digitális jelenlét alapvető elemeiről, általános értelemben, személytelen megközelítésben.",
+        "example_title": "Az online láthatóság első lépései: A domain szerepe"
       }
     ],
     "platform_rules": {
       "instagram": {
-        "active": true,
-        "tone_modifier": "Legyen vizuálisabban vonzó, inspiráló és direkt, miközben megőrzi a praktikus és segítőkész hangnemet. Fókuszálj a vizuális történetmesélésre.",
+        "active": false,
+        "tone_modifier": "",
         "emoji_allowed": true,
         "max_hashtags": 15,
-        "preferred_format": "carousel",
+        "preferred_format": "image_with_text",
         "optimal_post_length": "150-300 karakter"
       },
       "facebook": {
-        "active": true,
-        "tone_modifier": "Maradjon informatív és segítőkész, ösztönözze a közösségi interakciót, kérdéseket és párbeszédet. Hosszabb, de még mindig lényegretörő posztok.",
+        "active": false,
+        "tone_modifier": "",
         "emoji_allowed": true,
         "max_hashtags": 5,
         "preferred_format": "image_with_text",
         "optimal_post_length": "200-500 karakter"
       },
       "tiktok": {
-        "active": true,
-        "tone_modifier": "Legyen dinamikus, gyors és figyelemfelkeltő. A praktikus tippeket rövid, kreatív és trendekre épülő videókban mutasd be, könnyedebb, de mégis professzionális hangnemben.",
+        "active": false,
+        "tone_modifier": "",
         "emoji_allowed": true,
-        "max_hashtags": 10,
+        "max_hashtags": 5,
         "preferred_format": "short_video_script",
         "optimal_post_length": "50-150 karakter"
       },
       "youtube": {
-        "active": true,
-        "tone_modifier": "Fókuszáljon a mélyreható, oktató jellegű tartalmakra, részletes útmutatókkal, termékbemutatókkal és hosszabb projektekkel, professzionális és szakértő hangnemben.",
-        "emoji_allowed": true,
-        "max_hashtags": 8,
+        "active": false,
+        "tone_modifier": "",
+        "emoji_allowed": false,
+        "max_hashtags": 3,
         "preferred_format": "tutorial_description",
-        "optimal_post_length": "500-1000 karakter"
+        "optimal_post_length": "500-1500 karakter"
       },
       "linkedin": {
         "active": false,
@@ -647,83 +406,20 @@
     },
     "visual_recipe": {
       "color_palette": {
-        "primary": "#187fc0",
-        "secondary": "#66b31c",
-        "accent": "#174cb5",
-        "background": "#ffffff",
-        "text_color": "#000000"
+        "primary": "#334488",
+        "secondary": "#eeeeee",
+        "accent": "#334488",
+        "background": "#eeeeee",
+        "text_color": "#334488"
       },
       "photography_style": "product_studio",
       "lighting": "bright_even",
       "composition": "centered_clean",
       "background_type": "solid_white",
-      "mood": "clean professional functional",
-      "image_prompt_prefix": "Professional product photography, studio shot, centered composition, bright even lighting, clean white background, commercial quality, high detail.",
-      "image_prompt_suffix": "Neutral color palette, realistic, sharp focus, 8k quality.",
-      "negative_prompt": "text, watermark, logo, blurry, oversaturated, cartoon, illustration, people, hands, low quality, distorted, artifacts, noise, busy background, messy"
-    },
-    "linguistic_fingerprint": {
-      "sentence_metrics": {
-        "avg_sentence_length": "medium",
-        "question_ratio": "low",
-        "exclamation_ratio": "low",
-        "imperative_ratio": "high"
-      },
-      "vocabulary_profile": {
-        "brand_specific_terms": [
-          "Piktor",
-          "festékbolt",
-          "webáruház",
-          "készletről",
-          "azonnal",
-          "online vásárlás"
-        ],
-        "power_words": [
-          "új szín",
-          "hatékony",
-          "gyorsan",
-          "egyszerűen",
-          "megbízható",
-          "kényelmes",
-          "természetes",
-          "akció",
-          "kedvezmény",
-          "praktikus",
-          "direkt",
-          "segítőkész"
-        ],
-        "avoided_words": [
-          "nehézkes",
-          "bonyolult",
-          "lassú",
-          "passzív",
-          "fölösleges",
-          "komplikált",
-          "általános"
-        ]
-      },
-      "rhetoric_patterns": {
-        "opening_patterns": [
-          "Adj új színt...",
-          "Hatékony megoldások...",
-          "Fedezd fel...",
-          "Itt a megoldás...",
-          "Készülj fel..."
-        ],
-        "closing_patterns": [
-          "Vásárolj most!",
-          "Keresd webáruházunkban!",
-          "Tudj meg többet!",
-          "Rendeld meg online!",
-          "Tekintsd meg kínálatunkat!"
-        ],
-        "persuasion_style": "rational_benefits_and_urgency"
-      },
-      "post_style_examples": [
-        "Adj új színt konyhabútorodnak! Mutatjuk, hogyan fess újra egyszerűen és gyorsan, a tökéletes végeredményért. Nézd meg a tippjeinket!",
-        "Hatékony fűnyírók széles választékban, azonnal készletről! Találd meg a számodra ideális gépet, és élvezd a gondtalan kertgondozást. Vásárolj most!",
-        "Bio kert otthon? Természetesen! Tippjeinkkel könnyedén létrehozhatod saját, környezetbarát oázisodat. Fedezd fel természetes termékeinket!"
-      ]
+      "mood": "clean functional minimalist",
+      "image_prompt_prefix": "Professional product studio photography, bright even lighting, centered clean composition, on a solid white background, with a minimalist, functional, and clean aesthetic.",
+      "image_prompt_suffix": "Limited, subdued blue and off-white color palette, realistic, sharp focus, high detail, 8k quality.",
+      "negative_prompt": "text, watermark, logo, blurry, oversaturated, vibrant colors, complex details, decorative elements, cartoon, illustration, people, hands, low quality, distorted, artifacts, noise, busy background"
     }
   }
 }

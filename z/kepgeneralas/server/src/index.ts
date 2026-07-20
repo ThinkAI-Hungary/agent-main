@@ -4896,7 +4896,7 @@ app.post('/api/image/placid-render', async (req, res) => {
 });
 
 app.post('/api/image/placid-render-local', async (req, res) => {
-  const { width, height, layers, layerValues, baseImageUrl, productImageUrl, useCutoutOnly, imageMappings, productPosition } = req.body;
+  const { width, height, layers, layerValues, baseImageUrl, productImageUrl, useCutoutOnly, imageMappings, productPosition, parsedRequirements } = req.body;
   try {
     const imageUrl = await renderLocalPlacid({
       width,
@@ -4907,7 +4907,8 @@ app.post('/api/image/placid-render-local', async (req, res) => {
       productImageUrl,
       useCutoutOnly,
       imageMappings,
-      productPosition
+      productPosition,
+      parsedRequirements
     }, port);
     res.json({ image_url: imageUrl });
   } catch (err: any) {
@@ -4963,6 +4964,61 @@ Return ONLY the raw JSON object inside a code block or as a raw string. No other
   } catch (err: any) {
     console.error('[PARSE-REQUIREMENTS] Error parsing requirements:', err);
     res.status(500).json({ error: err.message || 'Hiba történt a követelmények értelmezése közben' });
+  }
+});
+
+app.post('/api/image/refine-requirements-json', async (req, res) => {
+  const { currentJson, instruction } = req.body;
+  if (!instruction) {
+    return res.status(400).json({ error: 'Az instruction paraméter kötelező.' });
+  }
+
+  try {
+    const anthropicClient = new Anthropic({
+      apiKey: process.env.ANTHROPIC_API_KEY || '',
+    });
+
+    const modelToUse = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+    console.log(`[REFINE-JSON] Instruction: "${instruction}". Calling model ${modelToUse}...`);
+
+    const response = await anthropicClient.messages.create({
+      model: modelToUse,
+      max_tokens: 1000,
+      system: `You are an AI assistant that updates an existing template requirements JSON configuration based on Hungarian free-text instructions.
+You must parse the instruction and modify the current JSON object.
+Rules:
+1. Update existing keys or add new keys based on the user's intent.
+2. Keep keys descriptive, lowercase, snake_case English words.
+3. Values must be raw types: integers, booleans, or strings.
+4. Support opacity settings, e.g. "xy layer opacityje 20%" should map to {"<layer_name>_opacity": 20} (ensure the layer name matches the layout standard).
+5. Support gradient fade/mask requests, e.g. "első x pixele legyen gradient" or "fade-eljen ki" should map to:
+   - "fade_gradient": true
+   - "fade_pixels": <number of pixels, default 100>
+   - "fade_direction": "top" | "bottom" | "left" | "right" (default is "top")
+6. Return ONLY the raw modified JSON object. Do not include markdown blocks, code blocks, or conversational text.`,
+      messages: [
+        { role: 'user', content: `Current JSON:\n${JSON.stringify(currentJson, null, 2)}\n\nInstruction:\n${instruction}` }
+      ],
+    });
+
+    const reply = response.content[0].type === 'text' ? response.content[0].text : '';
+    console.log('[REFINE-JSON] Claude raw reply:', reply);
+
+    // Extract JSON block
+    let jsonText = reply.trim();
+    if (jsonText.includes('{')) {
+      const startIdx = jsonText.indexOf('{');
+      const endIdx = jsonText.lastIndexOf('}');
+      if (startIdx !== -1 && endIdx !== -1) {
+        jsonText = jsonText.substring(startIdx, endIdx + 1);
+      }
+    }
+
+    const parsed = JSON.parse(jsonText);
+    res.json({ success: true, parsed });
+  } catch (err: any) {
+    console.error('[REFINE-JSON] Error refining JSON:', err);
+    res.status(500).json({ error: err.message || 'Hiba történt a JSON finomítása közben' });
   }
 });
 

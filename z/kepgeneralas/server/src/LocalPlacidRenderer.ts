@@ -44,6 +44,7 @@ interface RenderParams {
     height: number;
     normalized: Box;
   } | null;
+  parsedRequirements?: Record<string, any>;
 }
 
 function kebabCase(str: string): string {
@@ -66,6 +67,45 @@ function resolveImageUrl(url: string, port: number = 3001): string {
   }
   const cleanUrl = url.startsWith('/') ? url : `/${url}`;
   return `http://localhost:${port}${cleanUrl}`;
+}
+
+// Helper function to check if a picture layer is a background layer
+function isBackgroundLayer(layer: PlacidLayer, index: number): boolean {
+  if (layer.type !== 'picture') return false;
+  const nameLower = layer.name.toLowerCase();
+  
+  if (
+    nameLower === 'bg' ||
+    nameLower === 'background' ||
+    nameLower === 'bg_img' ||
+    nameLower === 'bg_image' ||
+    nameLower === 'bg_mesh' ||
+    nameLower === 'background_image' ||
+    nameLower === 'pattern_bg' ||
+    nameLower === 'texture' ||
+    nameLower === 'carton'
+  ) {
+    return true;
+  }
+  
+  const pos = layer.position || {};
+  const isFullScreen = 
+    pos.xmin === 0 && 
+    pos.ymin === 0 && 
+    pos.xmax === 100 && 
+    pos.ymax === 100;
+  if (isFullScreen) {
+    return true;
+  }
+  
+  if (
+    (nameLower === 'img' || nameLower === 'image' || nameLower === 'photo' || nameLower === 'picture' || nameLower === 'main') &&
+    index === 0
+  ) {
+    return true;
+  }
+  
+  return false;
 }
 
 export function parsePlacidFont(fontName: string): { fontFamily: string; fontWeight: string; fontStyle: string } {
@@ -134,7 +174,7 @@ export function parsePlacidFont(fontName: string): { fontFamily: string; fontWei
 }
 
 export async function renderLocalPlacid(params: RenderParams, port: number = 3001): Promise<string> {
-  const { width, height, layers, layerValues, baseImageUrl, productImageUrl, useCutoutOnly, imageMappings, productPosition } = params;
+  const { width, height, layers, layerValues, baseImageUrl, productImageUrl, useCutoutOnly, imageMappings, productPosition, parsedRequirements } = params;
 
   console.log(`[LOCAL-RENDER] Starting local template render: ${width}x${height} with ${layers.length} layers.`);
 
@@ -209,13 +249,32 @@ export async function renderLocalPlacid(params: RenderParams, port: number = 300
       }
 
       const isProduct = mapping === 'product' || (!mapping && (layer.name.includes('product') || layer.name.includes('item')));
-      const objectFit = isProduct ? 'contain' : (layer.style.objectFit || 'cover');
+      const pictureLayers = layers.filter(l => l.type === 'picture');
+      const isSingleImage = pictureLayers.length === 1;
+      const isBg = isBackgroundLayer(layer, layers.indexOf(layer));
+      
+      // Force contain instead of cover if it is the only image OR if it is the background image
+      const objectFit = (isSingleImage || isBg || isProduct) ? 'contain' : (layer.style.objectFit || 'cover');
       
       // Use dynamic crop centering for background cover images to prevent product cutoff
       const objectPosition = isProduct ? 'center' : `${productCenterX}% ${productCenterY}%`;
 
+      // Apply CSS mask for gradient fade if specified in requirements
+      let maskStyle = '';
+      if (parsedRequirements && (parsedRequirements.fade_gradient === true || parsedRequirements.fade_pixels !== undefined)) {
+        const fadePixels = parsedRequirements.fade_pixels ?? 100;
+        const fadeDir = parsedRequirements.fade_direction ?? 'top';
+        let gradDir = 'to bottom';
+        if (fadeDir === 'bottom') gradDir = 'to top';
+        if (fadeDir === 'left') gradDir = 'to right';
+        if (fadeDir === 'right') gradDir = 'to left';
+        
+        const maskVal = `linear-gradient(${gradDir}, transparent, black ${fadePixels}px)`;
+        maskStyle = `-webkit-mask-image: ${maskVal}; mask-image: ${maskVal};`;
+      }
+
       layersHtml += `
-        <div class="layer-item picture-layer" style="position: absolute; left: ${left}; top: ${top}; width: ${w}; height: ${h}; overflow: hidden; ${layerStyleStr}">
+        <div class="layer-item picture-layer" style="position: absolute; left: ${left}; top: ${top}; width: ${w}; height: ${h}; overflow: hidden; ${maskStyle} ${layerStyleStr}">
           ${imgSrc ? `<img src="${imgSrc}" style="width: 100%; height: 100%; object-fit: ${objectFit}; object-position: ${objectPosition}; display: block;" />` : ''}
         </div>
       `;

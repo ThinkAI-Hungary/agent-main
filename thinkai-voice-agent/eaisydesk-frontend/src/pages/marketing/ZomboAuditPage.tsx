@@ -355,6 +355,7 @@ const MAIN_TABS = [
   { id: 'quick-post', label: '⚡ Quick Post' },
   { id: 'layer-review', label: '🔍 Layer Review' },
   { id: 'prod', label: 'Éles Naptár (Prod)' },
+  { id: 'campaign', label: '📢 AI Kampányok / Hirdetések' },
   { id: 'raw', label: '{ } JSON' },
 ];
 
@@ -2770,6 +2771,8 @@ export default function ZomboAuditPage() {
                       navigate('/marketing/zombo/layer-review');
                     } else if (t.id === 'prod') {
                       navigate('/marketing/zombo/calendar');
+                    } else if (t.id === 'campaign') {
+                      navigate('/marketing/zombo/campaign');
                     } else if (t.id === 'raw') {
                       setActiveMainTab('raw');
                       setActiveTab('raw');

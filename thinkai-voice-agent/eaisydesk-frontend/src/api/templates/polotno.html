@@ -1,0 +1,409 @@
+<!DOCTYPE html>
+<html lang="hu">
+<head>
+  <meta charset="UTF-8">
+  <title>Polotno Renderer</title>
+  <style>
+    @font-face {
+      font-family: 'Inter';
+      font-weight: 400;
+      src: url('file:///C:/Users/Zombo/Desktop/Antigrav/agentmain_digidesk/agent-main/z/kepgeneralas/server/fonts/inter-regular.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Inter';
+      font-weight: 700;
+      src: url('file:///C:/Users/Zombo/Desktop/Antigrav/agentmain_digidesk/agent-main/z/kepgeneralas/server/fonts/inter-700.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Inter';
+      font-weight: 800;
+      src: url('file:///C:/Users/Zombo/Desktop/Antigrav/agentmain_digidesk/agent-main/z/kepgeneralas/server/fonts/inter-700.woff2') format('woff2');
+    }
+    @font-face {
+      font-family: 'Inter';
+      font-weight: 900;
+      src: url('file:///C:/Users/Zombo/Desktop/Antigrav/agentmain_digidesk/agent-main/z/kepgeneralas/server/fonts/inter-900.woff2') format('woff2');
+    }
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    body {
+      width: 1080px;
+      height: 1350px;
+      position: relative;
+      overflow: hidden;
+      background-color: #000;
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+    }
+    #canvas {
+      position: relative;
+      width: 1080px;
+      height: 1350px;
+      overflow: hidden;
+    }
+    .element {
+      position: absolute;
+      display: block;
+      box-sizing: border-box;
+    }
+    .text-element {
+      display: flex;
+      flex-direction: column;
+      justify-content: flex-start;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+    .image-element {
+      object-fit: cover;
+    }
+    .figure-rect {
+      display: block;
+    }
+    .figure-circle {
+      border-radius: 50%;
+    }
+    
+    /* Premium visual classes */
+    .premium-shadow {
+      box-shadow: 0 20px 45px rgba(0, 0, 0, 0.22), 0 5px 15px rgba(0, 0, 0, 0.08);
+    }
+    .premium-shadow-soft {
+      box-shadow: 0 10px 30px rgba(0, 0, 0, 0.12), 0 2px 6px rgba(0, 0, 0, 0.04);
+    }
+    .inner-border {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      right: 24px;
+      bottom: 24px;
+      pointer-events: none;
+      z-index: 99;
+      border: 1px solid rgba(255, 255, 255, 0.15);
+    }
+    .inner-border-dark {
+      position: absolute;
+      top: 24px;
+      left: 24px;
+      right: 24px;
+      bottom: 24px;
+      pointer-events: none;
+      z-index: 99;
+      border: 1px solid rgba(0, 0, 0, 0.1);
+    }
+    .diamond-sep {
+      display: inline-block;
+      width: 12px;
+      height: 12px;
+      transform: rotate(45deg);
+      background-color: currentColor;
+    }
+  </style>
+  <svg width="0" height="0" style="position: absolute;">
+    <defs id="svg-filters">
+      <!-- Dynamic SVG filters will be placed here -->
+    </defs>
+  </svg>
+</head>
+<body>
+  <div id="canvas"></div>
+  
+  <script>
+    function hexToRgb(hex) {
+      const cleanHex = hex.replace('#', '');
+      const r = parseInt(cleanHex.substring(0, 2), 16) || 0;
+      const g = parseInt(cleanHex.substring(2, 4), 16) || 0;
+      const b = parseInt(cleanHex.substring(4, 6), 16) || 0;
+      return { r, g, b };
+    }
+
+    function createDuotoneFilter(lightHex, darkHex, filterId) {
+      const defs = document.getElementById('svg-filters');
+      if (!defs) return;
+      if (document.getElementById(filterId)) return;
+      
+      const light = hexToRgb(lightHex);
+      const dark = hexToRgb(darkHex);
+      
+      const rWeight = 0.2126;
+      const gWeight = 0.7152;
+      const bWeight = 0.0722;
+      
+      const rDelta = (light.r - dark.r) / 255;
+      const gDelta = (light.g - dark.g) / 255;
+      const bDelta = (light.b - dark.b) / 255;
+      
+      const rOffset = dark.r / 255;
+      const gOffset = dark.g / 255;
+      const bOffset = dark.b / 255;
+      
+      const matrixValues = [
+        rDelta * rWeight, rDelta * gWeight, rDelta * bWeight, 0, rOffset,
+        gDelta * rWeight, gDelta * gWeight, gDelta * bWeight, 0, gOffset,
+        bDelta * rWeight, bDelta * gWeight, bDelta * bWeight, 0, bOffset,
+        0, 0, 0, 1, 0
+      ].join(' ');
+      
+      const filter = document.createElementNS('http://www.w3.org/2000/svg', 'filter');
+      filter.setAttribute('id', filterId);
+      
+      const feColorMatrix = document.createElementNS('http://www.w3.org/2000/svg', 'feColorMatrix');
+      feColorMatrix.setAttribute('type', 'matrix');
+      feColorMatrix.setAttribute('values', matrixValues);
+      
+      filter.appendChild(feColorMatrix);
+      defs.appendChild(filter);
+    }
+
+    window.renderPolotno = async (json) => {
+      console.log('Rendering Polotno JSON:', json);
+      const canvas = document.getElementById('canvas');
+      canvas.innerHTML = '';
+      
+      const width = json.width || 1080;
+      const height = json.height || 1350;
+      
+      canvas.style.width = width + 'px';
+      canvas.style.height = height + 'px';
+      document.body.style.width = width + 'px';
+      document.body.style.height = height + 'px';
+      
+      // Load Google Fonts or Woff
+      if (json.fonts) {
+        for (const font of json.fonts) {
+          try {
+            const fontFace = new FontFace(font.fontFamily, `url(${font.url})`);
+            const loaded = await fontFace.load();
+            document.fonts.add(loaded);
+          } catch (e) {
+            console.warn(`Fallback stylesheet load for font: ${font.fontFamily}`);
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.href = `https://fonts.googleapis.com/css2?family=${font.fontFamily.replace(/ /g, '+')}:wght@400;600;700;800&display=swap`;
+            document.head.appendChild(link);
+          }
+        }
+      }
+      
+      await document.fonts.ready;
+      
+      const page = json.pages?.[0] || json;
+      if (page.background) {
+        canvas.style.backgroundColor = page.background;
+      }
+      
+      // Check if we need to add a premium outer border frame overlay
+      if (json.premiumBorder) {
+        const borderDiv = document.createElement('div');
+        borderDiv.className = json.premiumBorder === 'dark' ? 'inner-border-dark' : 'inner-border';
+        canvas.appendChild(borderDiv);
+      }
+      
+      const children = page.children || [];
+      const imagePromises = [];
+      
+      children.forEach((child, index) => {
+        if (child.visible === false) return;
+        // Skip empty text layers
+        if (child.type === 'text' && (!child.text || child.text.trim() === '')) return;
+        
+        const isImage = child.type === 'image';
+        const el = document.createElement(isImage ? 'img' : 'div');
+        el.className = 'element';
+        
+        // Inject metadata for adaptive scaling pass
+        el.dataset.child = JSON.stringify(child);
+        if (child.type === 'text') {
+            el.className += ' text-element';
+            if (child.ownerId) el.setAttribute('data-owner-id', child.ownerId);
+        }
+        if (child.id) el.id = child.id;
+        
+        el.style.left = child.x + 'px';
+        el.style.top = child.y + 'px';
+        el.style.width = child.width + 'px';
+        
+        if (child.height) {
+          el.style.height = child.height + 'px';
+        }
+        
+        if (child.opacity !== undefined) {
+          el.style.opacity = child.opacity;
+        }
+        
+        // Add drop shadow if requested
+        if (child.premiumShadow) {
+          el.className += ' premium-shadow';
+        } else if (child.premiumShadowSoft) {
+          el.className += ' premium-shadow-soft';
+        }
+        
+        if (child.type === 'text') {
+          // Support rendering small diamond shape separators
+          if (child.text === '◆') {
+            const sep = document.createElement('span');
+            sep.className = 'diamond-sep';
+            el.appendChild(sep);
+            el.style.alignItems = child.align === 'center' ? 'center' : 'flex-start';
+            el.style.color = child.fill || '#000000';
+          } else {
+            el.innerText = child.text;
+          }
+          
+          el.style.fontFamily = child.fontFamily;
+          el.style.fontSize = child.fontSize + 'px';
+          el.style.lineHeight = child.lineHeight || 1.2;
+          el.style.fontWeight = child.fontWeight || 'normal';
+          el.style.textAlign = child.align || 'left';
+          el.style.color = child.fill || '#000000';
+          
+          // Modern spacing rules
+          if (child.fontSize >= 72) {
+            el.style.letterSpacing = '-0.035em';
+          } else if (child.fontSize >= 36) {
+            el.style.letterSpacing = '-0.02em';
+          } else if (child.fontSize <= 24) {
+            el.style.letterSpacing = '0.04em';
+            el.style.textTransform = 'uppercase';
+          }
+          
+          if (child.textShadow) {
+            el.style.textShadow = child.textShadow;
+          }
+          
+          // Ensure overflow measurement works
+          el.style.overflow = 'visible';
+          el.style.whiteSpace = 'pre-wrap';
+          el.style.wordBreak = 'keep-all';
+          el.style.overflowWrap = 'break-word';
+        } else if (child.type === 'image') {
+          el.className += ' image-element';
+          el.src = child.src;
+          if (child.objectFit) {
+            el.style.objectFit = child.objectFit;
+          }
+          
+          const p = new Promise((resolve) => {
+            el.onload = () => resolve(true);
+            el.onerror = () => resolve(false);
+          });
+          imagePromises.push(p);
+        } else if (child.type === 'figure') {
+          el.style.background = child.fill || '#000000';
+          if (child.subType === 'circle') {
+            el.className += ' figure-circle';
+          } else {
+            el.className += ' figure-rect';
+            if (child.cornerRadius) {
+              el.style.borderRadius = child.cornerRadius + 'px';
+            }
+          }
+          if (child.border) {
+            el.style.border = child.border;
+          }
+        }
+        
+        canvas.appendChild(el);
+      });
+      
+      await Promise.all(imagePromises);
+      await document.fonts.ready;
+      console.log('Premium rendering complete.');
+    };
+
+    window.finalizeLayout = async () => {
+      console.log('[FINALIZE] Starting measurement pass...');
+      const textElements = document.querySelectorAll('.text-element');
+      let adjustments = 0;
+
+      textElements.forEach((el) => {
+        const htmlEl = el;
+        const childData = JSON.parse(htmlEl.dataset.child || '{}');
+        
+        const containerHeight = parseFloat(htmlEl.style.height) || 0;
+        const containerWidth = parseFloat(htmlEl.style.width) || 1080;
+        
+        let currentFontSize = parseFloat(htmlEl.style.fontSize);
+        const minFontSize = 20;
+        const maxFontSize = 180;
+
+        if (containerHeight > 0) {
+          while (htmlEl.scrollHeight > containerHeight && currentFontSize > minFontSize) {
+            currentFontSize -= 1;
+            htmlEl.style.fontSize = currentFontSize + 'px';
+            adjustments++;
+          }
+        }
+
+        while (htmlEl.scrollWidth > htmlEl.clientWidth && currentFontSize > minFontSize) {
+          currentFontSize -= 1;
+          htmlEl.style.fontSize = currentFontSize + 'px';
+          adjustments++;
+        }
+
+        // 3. UNDERFLOW Check (Scale UP) - Only if adaptiveScaling is enabled
+        if (childData.adaptiveScaling) {
+            // Guardrail: If text is already quite long (many characters), don't scale up too much
+            // This prevents the "overlap" issue seen in A6 badges where it wraps
+            const charCount = (htmlEl.innerText || '').length;
+            const maxGrowthSize = charCount > 6 ? 90 : 180;
+
+            let canGrow = true;
+            while (canGrow && currentFontSize < maxGrowthSize) {
+                const nextSize = currentFontSize + 2;
+                htmlEl.style.fontSize = nextSize + 'px';
+                
+                // Use a tighter check for horizontal overflow in circular/badge contexts
+                const hasVOverflow = containerHeight > 0 && htmlEl.scrollHeight > (containerHeight * 0.85); 
+                const hasHOverflow = htmlEl.scrollWidth > (htmlEl.clientWidth * 0.85);
+                
+                if (hasVOverflow || hasHOverflow) {
+                    htmlEl.style.fontSize = currentFontSize + 'px';
+                    canGrow = false;
+                } else {
+                    currentFontSize = nextSize;
+                    adjustments++;
+                }
+            }
+        }
+      });
+
+      const containerElements = document.querySelectorAll('.element[id]');
+      containerElements.forEach((container) => {
+          const containerEl = container;
+          const containerId = containerEl.id;
+          const containerData = JSON.parse(containerEl.dataset.child || '{}');
+          if (!containerData.adaptivePadding) return;
+
+          const ownedText = document.querySelector(`.text-element[data-owner-id="${containerId}"]`);
+          if (ownedText) {
+              const textEl = ownedText;
+              const padding = containerData.adaptivePadding;
+              const originalDisplay = textEl.style.display;
+              textEl.style.display = 'inline-block';
+              textEl.style.width = 'auto';
+              const rect = textEl.getBoundingClientRect();
+              const newWidth = rect.width + (padding * 2);
+              const newHeight = rect.height + (padding * 2);
+              const centerX = parseFloat(containerEl.style.left) + parseFloat(containerEl.style.width) / 2;
+              const centerY = parseFloat(containerEl.style.top) + parseFloat(containerEl.style.height) / 2;
+              containerEl.style.width = newWidth + 'px';
+              containerEl.style.height = newHeight + 'px';
+              containerEl.style.left = (centerX - newWidth / 2) + 'px';
+              containerEl.style.top = (centerY - newHeight / 2) + 'px';
+              textEl.style.display = originalDisplay;
+              textEl.style.width = newWidth + 'px';
+              textEl.style.left = containerEl.style.left;
+              textEl.style.top = (centerY - rect.height / 2) + 'px';
+              adjustments++;
+          }
+      });
+
+      console.log(`[FINALIZE] Layout pass complete. Applied ${adjustments} adjustments.`);
+      return { adjustments };
+    };
+  </script>
+</body>
+</html>

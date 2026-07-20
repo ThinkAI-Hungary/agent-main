@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { buildLayerTemplates, type LayerTemplate } from '../layerTemplates';
 import ImageSlotUploader, { type ImageSlot, buildCompositePayload } from './ImageSlotUploader';
+import AppleDateTimePicker from './AppleDateTimePicker';
 import FullCalendar from '@fullcalendar/react';
 import dayGridPlugin from '@fullcalendar/daygrid';
 import interactionPlugin from '@fullcalendar/interaction';
@@ -418,6 +419,29 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
       return p;
     }));
     showToast(`Kijelöltek dátuma eltolva +1 nappal.`);
+  };
+
+  const handleBatchIcsExport = () => {
+    if (selectedPostIds.length === 0) return;
+    const postsToExport = posts.filter(p => selectedPostIds.includes(p.id));
+    
+    let icsContent = "BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//ThinkAI//Social Media Calendar//HU\n";
+    postsToExport.forEach(p => {
+      const date = new Date(p.scheduledAt || p.createdAt);
+      const dateStr = date.toISOString().replace(/[-:]/g, "").split(".")[0] + "Z";
+      const platformName = p.platform || 'instagram';
+      const title = `[${platformName.toUpperCase()}] ${p.text.substring(0, 30)}`;
+      const description = `${p.text.replace(/\n/g, "\\n")}\\n\\nKep URL: ${p.imageUrl}`;
+      icsContent += `BEGIN:VEVENT\nSUMMARY:${title}\nDESCRIPTION:${description}\nDTSTART:${dateStr}\nDTEND:${dateStr}\nEND:VEVENT\n`;
+    });
+    icsContent += "END:VCALENDAR";
+    
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = URL.createObjectURL(blob);
+    link.download = `social-media-batch-${new Date().toISOString().split('T')[0]}.ics`;
+    link.click();
+    showToast(`${selectedPostIds.length} bejegyzés exportálva Google Calendar (.ics) formátumban!`);
   };
 
   // Drag & drop rescheduling handler (Screen 3)
@@ -1511,6 +1535,7 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
               <div className="batch-buttons">
                 <button className="batch-btn approve" onClick={handleBatchApprove}><Check size={14} /> Jóváhagyás</button>
                 <button className="batch-btn shift" onClick={handleBatchShiftDates}><CalendarIcon size={14} /> +1 nap eltolás</button>
+                <button className="batch-btn export" onClick={handleBatchIcsExport} style={{ background: '#059669', color: '#fff' }}><Download size={14} /> Google Cal Export</button>
                 <button className="batch-btn delete" onClick={handleBatchDelete}><Trash2 size={14} /> Törlés</button>
                 <button className="batch-btn close" onClick={() => setSelectedPostIds([])}><X size={14} /></button>
               </div>
@@ -1577,10 +1602,25 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
                 }}
                 eventContent={(arg) => {
                   const post = arg.event.extendedProps;
+                  const isSelected = selectedPostIds.includes(arg.event.id);
                   return (
-                    <div className="fc-post-event" style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 4px', cursor: 'pointer' }}>
-                      <img src={post.imageUrl} alt="" style={{ width: 22, height: 22, objectFit: 'cover', borderRadius: 4 }} />
-                      <span className="fc-event-title" style={{ fontSize: 11, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{post.text.substring(0, 18)}</span>
+                    <div className={`fc-post-event ${isSelected ? 'selected' : ''}`} style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '2px 4px', cursor: 'pointer', width: '100%' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={isSelected}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          setSelectedPostIds(prev => 
+                            prev.includes(arg.event.id) 
+                              ? prev.filter(x => x !== arg.event.id) 
+                              : [...prev, arg.event.id]
+                          );
+                        }}
+                        onClick={(e) => e.stopPropagation()}
+                        style={{ width: 12, height: 12, accentColor: '#8b5cf6', cursor: 'pointer' }}
+                      />
+                      <img src={post.imageUrl} alt="" style={{ width: 20, height: 20, objectFit: 'cover', borderRadius: 4 }} />
+                      <span className="fc-event-title" style={{ fontSize: 11, fontWeight: 600, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap', flex: 1 }}>{post.text.substring(0, 18)}</span>
                     </div>
                   );
                 }}
@@ -2234,15 +2274,12 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
                   </div>
                   <div>
                     <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Ütemezés Dátuma:</label>
-                    <input
-                      type="datetime-local"
-                      value={selectedPost.scheduledAt ? new Date(new Date(selectedPost.scheduledAt).getTime() - new Date().getTimezoneOffset()*60000).toISOString().substring(0, 16) : ''}
-                      onChange={(e) => {
-                        const newDate = new Date(e.target.value).toISOString();
-                        setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, scheduledAt: newDate } : p));
-                        setSelectedPost(prev => prev ? { ...prev, scheduledAt: newDate } : null);
+                    <AppleDateTimePicker
+                      value={selectedPost.scheduledAt || ''}
+                      onChange={(val) => {
+                        setPosts(prev => prev.map(p => p.id === selectedPost.id ? { ...p, scheduledAt: val } : p));
+                        setSelectedPost(prev => prev ? { ...prev, scheduledAt: val } : null);
                       }}
-                      style={{ width: '100%', padding: '8px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12 }}
                     />
                   </div>
 
@@ -2723,14 +2760,11 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
               </div>
 
 
-              {/* Schedule Date */}
               <div>
                 <label style={{ fontSize: 11.5, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6, display: 'block' }}>Időzítés Dátuma és Időpontja:</label>
-                <input
-                  type="datetime-local"
+                <AppleDateTimePicker
                   value={createScheduledDate}
-                  onChange={e => setCreateScheduledDate(e.target.value)}
-                  style={{ width: '100%', padding: '9px 12px', borderRadius: 8, border: '1.5px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', outline: 'none', fontSize: 12.5 }}
+                  onChange={val => setCreateScheduledDate(val)}
                 />
               </div>
             </div>
@@ -2856,15 +2890,39 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
         }
         .fc-theme-standard td, .fc-theme-standard th {
           border-color: var(--border) !important;
+          background-color: #ffffff !important;
+          color: #1e1b4b !important;
+        }
+        .fc-col-header-cell {
+          background-color: #f3f4f6 !important;
+        }
+        .fc-col-header-cell-cushion {
+          color: #1e1b4b !important;
+          font-weight: 700 !important;
+        }
+        .fc-daygrid-day {
+          transition: all 0.2s ease !important;
+          cursor: pointer !important;
+        }
+        .fc-daygrid-day:hover {
+          background-color: rgba(139, 92, 246, 0.08) !important;
+          box-shadow: inset 0 0 0 2px #8b5cf6 !important;
         }
         .fc-daygrid-day-number {
           font-size: 11px;
           font-weight: 700;
-          color: var(--text-dim);
+          color: #4b5563 !important;
           padding: 6px !important;
         }
+        .fc-day-today {
+          background-color: #e0e7ff !important;
+        }
+        .fc-day-today td {
+          background-color: #e0e7ff !important;
+        }
         .fc-day-today .fc-daygrid-day-number {
-          color: #8b5cf6;
+          color: #4f46e5 !important;
+          font-weight: 800;
         }
 
         /* Timeline / List cards */
@@ -2957,6 +3015,8 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
         .preview-modal-overlay {
           position: fixed;
           top: 0; left: 0; right: 0; bottom: 0;
+          width: 100vw !important;
+          height: 100vh !important;
           background: rgba(0,0,0,0.75);
           z-index: 1500;
           display: flex;
@@ -2964,6 +3024,7 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
           justify-content: center;
           animation: fadeIn 0.18s ease;
           will-change: opacity;
+          overflow: hidden;
         }
         .preview-modal-card {
           width: 900px;
@@ -3176,6 +3237,152 @@ export const ProdCalendarView: React.FC<ProdCalendarViewProps> = ({
         }
         @keyframes spin {
           to { transform: rotate(360deg); }
+        }
+
+        /* Zombo Calendar Premium Design & Responsive Adaptations */
+        
+        .calendar-grid-container {
+          max-width: 100% !important;
+          overflow-x: auto !important;
+        }
+        @media (max-width: 768px) {
+          .calendar-grid-container {
+            padding: 10px !important;
+          }
+        }
+
+        /* Event hover and active interactions */
+        .fc-event {
+          transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1) !important;
+          cursor: pointer !important;
+        }
+        .fc-event:hover {
+          transform: translateY(-2px) scale(1.02);
+          box-shadow: 0 6px 16px rgba(139, 92, 246, 0.35) !important;
+          border-color: var(--primary-neon, #8b5cf6) !important;
+          filter: brightness(1.1);
+        }
+        .fc-event:active {
+          transform: translateY(0) scale(1);
+        }
+
+        /* Filter header flex responsiveness */
+        .workspace-header-actions {
+          display: flex;
+          flex-wrap: wrap;
+          gap: 12px;
+          align-items: center;
+        }
+        
+        /* Media Queries for Tablet and Mobil views */
+        @media (max-width: 992px) {
+          .preview-modal-card {
+            flex-direction: column !important;
+            height: auto !important;
+            max-height: 90vh !important;
+            overflow-y: auto !important;
+          }
+          .modal-layout-split {
+            display: flex;
+            flex-direction: column !important;
+            gap: 24px;
+            padding: 16px !important;
+          }
+          .phone-container {
+            width: 100% !important;
+            max-width: 320px;
+            margin: 0 auto;
+            height: 520px !important;
+          }
+          .modal-sidebar {
+            width: 100% !important;
+            border-left: none !important;
+            border-top: 1px solid var(--border) !important;
+            padding-top: 20px !important;
+          }
+        }
+
+        @media (max-width: 768px) {
+          /* Compact toolbar and smaller text in monthly grid */
+          .fc .fc-toolbar {
+            flex-direction: column;
+            gap: 10px;
+            align-items: stretch;
+          }
+          .fc .fc-toolbar-title {
+            text-align: center;
+            font-size: 13px;
+          }
+          .fc-daygrid-day-number {
+            font-size: 9px !important;
+            padding: 2px !important;
+          }
+          .fc-event-title {
+            font-size: 8.5px !important;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+          }
+          .fc-event {
+            padding: 1px 2px !important;
+          }
+          .calendar-post-checkbox {
+            width: 10px !important;
+            height: 10px !important;
+          }
+          
+          /* Batch action bar layout stack on mobile */
+          .batch-actions-bar {
+            width: 90% !important;
+            bottom: 12px !important;
+            flex-direction: column !important;
+            gap: 12px !important;
+            padding: 12px !important;
+            text-align: center;
+          }
+          .batch-buttons {
+            flex-wrap: wrap;
+            justify-content: center;
+            width: 100%;
+          }
+          .batch-btn {
+            flex: 1;
+            min-width: 100px;
+            justify-content: center;
+            font-size: 10.5px !important;
+            padding: 8px 12px !important;
+          }
+          
+          /* Custom onboarding cards */
+          .strategic-onboarding-grid {
+            grid-template-columns: 1fr !important;
+          }
+          .top-filters-row {
+            flex-direction: column !important;
+            align-items: stretch !important;
+            gap: 12px !important;
+          }
+          .top-filters-row > div {
+            width: 100% !important;
+          }
+        }
+
+        @media (max-width: 480px) {
+          .fc .fc-button {
+            padding: 4px 8px !important;
+            font-size: 10px !important;
+          }
+          .fc-header-toolbar {
+            margin-bottom: 8px !important;
+          }
+          .btn-save-modal, .btn-approve-modal, .btn-publish-modal, .btn-delete-modal {
+            width: 100% !important;
+            justify-content: center;
+          }
+          .modal-actions-row {
+            flex-direction: column;
+            gap: 10px;
+          }
         }
       `}</style>
 

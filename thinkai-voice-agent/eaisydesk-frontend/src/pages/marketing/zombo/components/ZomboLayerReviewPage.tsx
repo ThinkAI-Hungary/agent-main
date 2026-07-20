@@ -146,7 +146,68 @@ function isBackgroundLayer(layer: PlacidLayer, index: number): boolean {
   return false;
 }
 
-export default function ZomboLayerReviewPage() {
+// Helper function to resolve resolution to common aspect ratio labels
+function getAspectRatioString(width: number, height: number): string {
+  const ratio = width / height;
+  
+  // Explicitly check standard landscape and portrait dimensions
+  if (Math.abs(ratio - 1) < 0.02) return '1:1';
+  if (Math.abs(ratio - 0.8) < 0.02) return '4:5';
+  if (Math.abs(ratio - 0.5625) < 0.02) return '9:16';
+  if (Math.abs(ratio - 1.777) < 0.02) return '16:9';
+  if (Math.abs(ratio - 1.904) < 0.02) return '1:1';
+  if (Math.abs(ratio - 2.0) < 0.02) return '2:1';
+  
+  // Mathematical greatest common divisor for custom frames
+  const getGcd = (a: number, b: number): number => b ? getGcd(b, a % b) : a;
+  const divisor = getGcd(width, height);
+  const wReduced = width / divisor;
+  const hReduced = height / divisor;
+  
+  if (wReduced < 20 && hReduced < 20) {
+    return `${wReduced}:${hReduced}`;
+  }
+  return `${width}:${height}`;
+}
+
+interface HardcodedTemplateMeta {
+  is_approved: boolean;
+  layers: Record<string, {
+    opacity?: number;
+    fade_gradient?: boolean;
+    fade_pixels?: number;
+    fade_direction?: 'top' | 'bottom' | 'left' | 'right';
+    is_approved?: boolean;
+  }>;
+}
+
+// Hardcoded template and layer metadata overrides (opacity, fade_gradient, is_approved status)
+const HARDCODED_TEMPLATE_METADATA: Record<string, HardcodedTemplateMeta> = {
+  "preset_123": {
+    is_approved: true,
+    layers: {
+      "title": { opacity: 80, is_approved: true },
+      "subline": { opacity: 90, is_approved: true },
+      "img": { fade_gradient: true, fade_pixels: 120, fade_direction: 'top', is_approved: true }
+    }
+  },
+  "preset_10": {
+    is_approved: true,
+    layers: {
+      "title_layer": { opacity: 70, is_approved: true },
+      "image_layer": { fade_gradient: false, is_approved: true }
+    }
+  },
+  "preset_4": {
+    is_approved: true,
+    layers: {
+      "headline": { opacity: 90, is_approved: true },
+      "img": { fade_gradient: true, fade_pixels: 100, fade_direction: 'top', is_approved: true }
+    }
+  }
+};
+
+function ZomboLayerReviewPage() {
   const navigate = useNavigate();
   const [searchParams, setSearchParams] = useSearchParams();
 
@@ -162,24 +223,44 @@ export default function ZomboLayerReviewPage() {
     return stored ? JSON.parse(stored) : null;
   });
 
-  // State for reviewed templates (saved in LocalStorage)
+  // State for reviewed templates (saved in LocalStorage, fallback to hardcoded meta)
   const [reviewedTemplates, setReviewedTemplates] = useState<Set<string>>(() => {
+    const set = new Set<string>();
+    // 1. Add hardcoded approved templates
+    Object.entries(HARDCODED_TEMPLATE_METADATA).forEach(([uuid, meta]) => {
+      if (meta.is_approved) {
+        set.add(uuid);
+      }
+    });
+    // 2. Add local storage ones
     try {
       const stored = localStorage.getItem('zombo_reviewed_templates');
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch {
-      return new Set();
-    }
+      if (stored) {
+        JSON.parse(stored).forEach((id: string) => set.add(id));
+      }
+    } catch {}
+    return set;
   });
 
-  // State for reviewed individual layers (saved in LocalStorage as 'templateUuid::layerName')
+  // State for reviewed individual layers (saved in LocalStorage as 'templateUuid::layerName', fallback to hardcoded meta)
   const [reviewedLayers, setReviewedLayers] = useState<Set<string>>(() => {
+    const set = new Set<string>();
+    // 1. Add hardcoded approved layers
+    Object.entries(HARDCODED_TEMPLATE_METADATA).forEach(([uuid, meta]) => {
+      Object.entries(meta.layers).forEach(([layerName, layerMeta]) => {
+        if (layerMeta.is_approved) {
+          set.add(`${uuid}::${layerName}`);
+        }
+      });
+    });
+    // 2. Add local storage ones
     try {
       const stored = localStorage.getItem('zombo_reviewed_layers');
-      return stored ? new Set(JSON.parse(stored)) : new Set();
-    } catch {
-      return new Set();
-    }
+      if (stored) {
+        JSON.parse(stored).forEach((key: string) => set.add(key));
+      }
+    } catch {}
+    return set;
   });
 
   // State for template requirements with auto-counted defaults (excluding background image unless only 1 image exists)
@@ -223,6 +304,25 @@ export default function ZomboLayerReviewPage() {
           has_background: bgPics.length > 0 
         };
       }
+
+      // Merge hardcoded layer metadata overrides (opacity, gradient, direction, etc.)
+      const hardcodedMeta = HARDCODED_TEMPLATE_METADATA[t.uuid];
+      if (hardcodedMeta) {
+        Object.entries(hardcodedMeta.layers).forEach(([layerName, layerMeta]) => {
+          if (layerMeta.opacity !== undefined) {
+            defaults[t.uuid][`${layerName}_opacity`] = layerMeta.opacity;
+          }
+          if (layerMeta.fade_gradient !== undefined) {
+            defaults[t.uuid].fade_gradient = layerMeta.fade_gradient;
+          }
+          if (layerMeta.fade_pixels !== undefined) {
+            defaults[t.uuid].fade_pixels = layerMeta.fade_pixels;
+          }
+          if (layerMeta.fade_direction !== undefined) {
+            defaults[t.uuid].fade_direction = layerMeta.fade_direction;
+          }
+        });
+      }
     });
 
     try {
@@ -238,6 +338,27 @@ export default function ZomboLayerReviewPage() {
 
   // Get active template UUID from search parameters, default to first preset
   const selectedTemplateId = searchParams.get('template') || PRESETS[0]?.uuid || '';
+
+  // State for customized layers map (order & styling overrides)
+  const [templateLayersMap, setTemplateLayersMap] = useState<Record<string, PlacidLayer[]>>(() => {
+    try {
+      const stored = localStorage.getItem('zombo_template_layers_map');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  // Layer highlight states
+  const [highlightedLayers, setHighlightedLayers] = useState<Set<string>>(new Set());
+  const [hoveredLayerName, setHoveredLayerName] = useState<string | null>(null);
+
+  // JSON editor states
+  const [jsonText, setJsonText] = useState<string>('');
+  const [jsonError, setJsonError] = useState<string | null>(null);
+
+  const [aiRefineInstruction, setAiRefineInstruction] = useState('');
+  const [isRefiningJson, setIsRefiningJson] = useState(false);
 
   const setSelectedTemplateId = (uuid: string) => {
     setSearchParams(prev => {
@@ -300,22 +421,79 @@ export default function ZomboLayerReviewPage() {
     }
   };
 
-  // Save reviewed status changes
-  useEffect(() => {
-    localStorage.setItem('zombo_reviewed_templates', JSON.stringify(Array.from(reviewedTemplates)));
-  }, [reviewedTemplates]);
+  const handleAiRefineJson = async () => {
+    if (!aiRefineInstruction.trim()) return;
+    setIsRefiningJson(true);
+    try {
+      const response = await fetch(`${API}/api/image/refine-requirements-json`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          currentJson: activeParsedJson,
+          instruction: aiRefineInstruction
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error(`AI módosítás sikertelen: ${response.status}`);
+      }
+      
+      const data = await response.json();
+      if (data.success && data.parsed) {
+        const newJsonText = JSON.stringify(data.parsed, null, 2);
+        setJsonText(newJsonText);
+        setJsonError(null);
+        
+        // Update in-memory parsed values state
+        setParsedRequirements(prev => ({
+          ...prev,
+          [selectedTemplateId]: data.parsed
+        }));
+        
+        setAiRefineInstruction('');
+        showToast({ title: 'AI Módosítás sikeres', message: 'A sablon konfiguráció frissítve lett!', type: 'success' });
+      } else {
+        throw new Error(data.error || 'Ismeretlen hiba történt');
+      }
+    } catch (err: any) {
+      console.error(err);
+      showToast({ title: 'AI Hiba', message: err.message, type: 'error' });
+    } finally {
+      setIsRefiningJson(false);
+    }
+  };
 
-  useEffect(() => {
-    localStorage.setItem('zombo_reviewed_layers', JSON.stringify(Array.from(reviewedLayers)));
-  }, [reviewedLayers]);
+  // Manual global save function triggered by the save button
+  const handleGlobalSave = () => {
+    try {
+      localStorage.setItem('zombo_reviewed_templates', JSON.stringify(Array.from(reviewedTemplates)));
+      localStorage.setItem('zombo_reviewed_layers', JSON.stringify(Array.from(reviewedLayers)));
+      localStorage.setItem('zombo_template_requirements_v4', JSON.stringify(templateRequirements));
+      localStorage.setItem('zombo_template_parsed_requirements_v4', JSON.stringify(parsedRequirements));
+      localStorage.setItem('qpp_pinned_test_image', baseImageUrl);
+      localStorage.setItem('qpp_pinned_test_image_product_url', productImageUrl);
+      localStorage.setItem('zombo_template_layers_map', JSON.stringify(templateLayersMap));
+      
+      showToast({ title: 'Mentés sikeres', message: 'Minden változtatás elmentve a LocalStorage-ba!', type: 'success' });
+    } catch (err: any) {
+      showToast({ title: 'Mentési hiba', message: err.message, type: 'error' });
+    }
+  };
 
-  useEffect(() => {
-    localStorage.setItem('zombo_template_requirements_v4', JSON.stringify(templateRequirements));
-  }, [templateRequirements]);
-
-  useEffect(() => {
-    localStorage.setItem('zombo_template_parsed_requirements_v4', JSON.stringify(parsedRequirements));
-  }, [parsedRequirements]);
+  // JSON change handler that parses typed string dynamically
+  const handleJsonChange = (val: string) => {
+    setJsonText(val);
+    try {
+      const parsed = JSON.parse(val);
+      setJsonError(null);
+      setParsedRequirements(prev => ({
+        ...prev,
+        [selectedTemplateId]: parsed
+      }));
+    } catch (err: any) {
+      setJsonError(err.message);
+    }
+  };
 
   // Calculate product center from normalized position for background crop centering
   let productCenterX = 50;
@@ -329,11 +507,28 @@ export default function ZomboLayerReviewPage() {
   // Initialize values when template changes
   useEffect(() => {
     if (selectedTemplate) {
+      // 1. Ensure customized layers exist for this template in state
+      if (!templateLayersMap[selectedTemplateId]) {
+        setTemplateLayersMap(prev => ({
+          ...prev,
+          [selectedTemplateId]: [...selectedTemplate.layers].map((layer, idx) => ({
+            ...layer,
+            style: {
+              ...layer.style,
+              zIndex: layer.style.zIndex || (idx + 1)
+            }
+          }))
+        }));
+      }
+
+      // 2. Initialize text field inputs
       const initialTexts: Record<string, string> = {};
       const initialImages: Record<string, 'base' | 'product' | 'none'> = {};
-      const pictureLayers = selectedTemplate.layers.filter(l => l.type === 'picture');
+      
+      const layers = templateLayersMap[selectedTemplateId] || selectedTemplate.layers;
+      const pictureLayers = layers.filter(l => l.type === 'picture');
 
-      selectedTemplate.layers.forEach(layer => {
+      layers.forEach(layer => {
         if (layer.type === 'text') {
           initialTexts[layer.name] = layer.text || 'dummy text';
         }
@@ -356,6 +551,11 @@ export default function ZomboLayerReviewPage() {
       });
       setImageMappings(initialImages);
       setRenderedUrl(null);
+
+      // 3. Initialize JSON text
+      const parsed = parsedRequirements[selectedTemplateId] || {};
+      setJsonText(JSON.stringify(parsed, null, 2));
+      setJsonError(null);
     }
   }, [selectedTemplateId]);
 
@@ -386,6 +586,32 @@ export default function ZomboLayerReviewPage() {
     });
   };
 
+  // Reorder layers list up or down, and auto-update zIndex styles dynamically
+  const moveLayer = (index: number, direction: 'up' | 'down') => {
+    const layers = templateLayersMap[selectedTemplateId] || [...(selectedTemplate?.layers || [])];
+    const currentLayers = [...layers];
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    if (targetIndex < 0 || targetIndex >= currentLayers.length) return;
+    
+    // Swap elements
+    const temp = currentLayers[index];
+    currentLayers[index] = currentLayers[targetIndex];
+    currentLayers[targetIndex] = temp;
+
+    // Recalculate sequential zIndex values to force visual stacking
+    currentLayers.forEach((layer, idx) => {
+      layer.style = {
+        ...layer.style,
+        zIndex: idx + 1
+      };
+    });
+
+    setTemplateLayersMap(prev => ({
+      ...prev,
+      [selectedTemplateId]: currentLayers
+    }));
+  };
+
   // Extract all unique parsed requirement keys for dynamic filtering
   const allParsed = Object.values(parsedRequirements) as Record<string, any>[];
   const uniqueFilterKeys = Array.from(new Set(allParsed.flatMap(p => Object.keys(p))));
@@ -401,6 +627,66 @@ export default function ZomboLayerReviewPage() {
       if (typeof a === 'number' && typeof b === 'number') return a - b;
       return String(a).localeCompare(String(b));
     });
+  };
+
+  // Renders a human-readable interpretation of the active JSON config next to the editor
+  const renderHumanReadableDescription = () => {
+    const keys = Object.keys(activeParsedJson);
+    if (keys.length === 0) {
+      return <div style={{ color: 'var(--text-muted)', fontSize: 12 }}>A sablon JSON beállításai jelenleg üresek.</div>;
+    }
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 8, fontSize: 12, color: 'var(--text-dim)', lineHeight: '1.4' }}>
+        {activeParsedJson.images_count !== undefined && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>🖼️</span>
+            <span><strong>Szükséges képek száma:</strong> {activeParsedJson.images_count} db</span>
+          </div>
+        )}
+        {activeParsedJson.has_background !== undefined && (
+          <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+            <span>🌌</span>
+            <span><strong>Háttérkép szükséges:</strong> {activeParsedJson.has_background ? 'Igen' : 'Nem'}</span>
+          </div>
+        )}
+        
+        {/* Opacity settings visualization */}
+        {keys.some(k => k.endsWith('_opacity')) && (
+          <div style={{ marginTop: 6, borderTop: '1px dashed var(--border)', paddingTop: 6 }}>
+            <div style={{ fontWeight: 800, fontSize: 10.5, color: '#8b5cf6', marginBottom: 4, textTransform: 'uppercase' }}>
+              🔆 Áttetszőségi szabályok (Opacity):
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingLeft: 6 }}>
+              {keys.filter(k => k.endsWith('_opacity')).map(k => {
+                const layerName = k.replace('_opacity', '');
+                return (
+                  <div key={k} style={{ fontFamily: 'monospace', fontSize: 11 }}>
+                    • {layerName}: <strong>{activeParsedJson[k]}%</strong>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
+        
+        {/* Other custom rules */}
+        {keys.filter(k => k !== 'images_count' && k !== 'has_background' && !k.endsWith('_opacity')).length > 0 && (
+          <div style={{ marginTop: 6, borderTop: '1px dashed var(--border)', paddingTop: 6 }}>
+            <div style={{ fontWeight: 800, fontSize: 10.5, color: '#06b6d4', marginBottom: 4, textTransform: 'uppercase' }}>
+              ⚙️ Egyéb megadott paraméterek:
+            </div>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 3, paddingLeft: 6 }}>
+              {keys.filter(k => k !== 'images_count' && k !== 'has_background' && !k.endsWith('_opacity')).map(k => (
+                <div key={k} style={{ fontSize: 11 }}>
+                  • <span style={{ fontFamily: 'monospace' }}>{k}</span>: <strong>{String(activeParsedJson[k])}</strong>
+                </div>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    );
   };
 
   // Filter grouped presets
@@ -433,13 +719,18 @@ export default function ZomboLayerReviewPage() {
     return matchesSearch && matchesCat && matchesReview && matchesDynamic;
   });
 
+  const resolution = selectedTemplate?.resolution;
+  const isMappedToSquare = resolution ? getAspectRatioString(resolution.width, resolution.height) === '1:1' : false;
+  const displayWidth = resolution?.width || 1200;
+  const displayHeight = isMappedToSquare ? displayWidth : (resolution?.height || 1200);
+
   // Construct compiled API payload for the schema inspector
   const compiledPayload = {
-    width: selectedTemplate?.resolution?.width || 1200,
-    height: selectedTemplate?.resolution?.height || 1200,
+    width: displayWidth,
+    height: displayHeight,
     requirements: activeRequirements,
     parsedRequirements: activeParsedJson,
-    layers: selectedTemplate?.layers || [],
+    layers: templateLayersMap[selectedTemplateId] || selectedTemplate?.layers || [],
     layerValues: layerValues,
     baseImageUrl: baseImageUrl,
     productImageUrl: productImageUrl || undefined,
@@ -745,91 +1036,124 @@ export default function ZomboLayerReviewPage() {
             </div>
           </div>
 
-          {/* Right Column: Template requirements (notes) card */}
-          <div style={{ background: 'var(--bg2)', border: '1.5px solid #fbbf24', borderRadius: 16, padding: 18, display: 'flex', flexDirection: 'column', gap: 8 }}>
-            <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-              <div style={{ fontSize: 11.5, fontWeight: 800, textTransform: 'uppercase', color: '#fbbf24', letterSpacing: '0.05em' }}>
-                📋 Sablon Működési Követelmények (Requirements)
-              </div>
-              <div style={{ display: 'flex', gap: 8, alignItems: 'center' }}>
-                <button
-                  onClick={handleParseRequirements}
-                  disabled={isParsing || !activeRequirements.trim()}
+          {/* Right Column: Template JSON config and human description */}
+          <div style={{ background: 'var(--bg2)', border: '1.5px solid #fbbf24', borderRadius: 16, padding: 18, display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
+              <span style={{ fontSize: 11.5, fontWeight: 800, textTransform: 'uppercase', color: '#fbbf24', letterSpacing: '0.05em' }}>
+                📋 Sablon Működési Követelmények (JSON Config)
+              </span>
+              <span style={{ fontSize: 9.5, color: jsonError ? '#ef4444' : '#10b981', fontWeight: 800 }}>
+                {jsonError ? '⚠️ Érvénytelen JSON' : '✓ Érvényes JSON'}
+              </span>
+            </div>
+
+            <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16, height: 180 }}>
+              {/* Left Column: JSON Textarea */}
+              <div style={{ display: 'flex', flexDirection: 'column', height: '100%' }}>
+                <textarea
+                  placeholder="Ide jön a sablon JSON konfigurációja..."
+                  value={jsonText}
+                  onChange={e => handleJsonChange(e.target.value)}
                   style={{
-                    padding: '4px 10px',
-                    borderRadius: 6,
-                    border: 'none',
-                    background: 'linear-gradient(135deg, #fbbf24, #d97706)',
-                    color: '#000',
-                    fontSize: 10,
-                    fontWeight: 800,
-                    cursor: 'pointer'
+                    flex: 1,
+                    width: '100%',
+                    padding: '10px 12px',
+                    borderRadius: 8,
+                    border: `1.5px solid ${jsonError ? '#ef4444' : 'var(--border)'}`,
+                    background: 'var(--bg3)',
+                    color: jsonError ? '#f87171' : '#fbbf24',
+                    fontSize: 11.5,
+                    lineHeight: '1.4',
+                    outline: 'none',
+                    fontFamily: 'Consolas, Monaco, monospace',
+                    resize: 'none'
                   }}
-                >
-                  {isParsing ? 'AI Feldolgozás...' : '🪄 JSON Generálása AI-val'}
-                </button>
-                <div style={{ fontSize: 9.5, color: '#10b981', fontWeight: 800 }}>✓ Automatikusan mentve</div>
+                />
+              </div>
+
+              {/* Right Column: Human readable leírás */}
+              <div style={{ 
+                background: '#090d16', 
+                border: '1px solid var(--border)', 
+                borderRadius: 8, 
+                padding: 12, 
+                overflowY: 'auto', 
+                height: '100%' 
+              }}>
+                <div style={{ fontSize: 9.5, fontWeight: 900, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                  Emberileg Olvasható Leírás:
+                </div>
+                {renderHumanReadableDescription()}
               </div>
             </div>
-            <textarea
-              placeholder="Ide írd be a sablon egyedi követelményeit és működési szabályait... (pl. elvárt képek száma, elrendezés specifikáció)"
-              value={activeRequirements}
-              onChange={e => handleRequirementsChange(e.target.value)}
-              style={{
-                flex: 1,
-                width: '100%',
-                padding: '10px 12px',
-                borderRadius: 8,
-                border: '1px solid var(--border)',
-                background: 'var(--bg3)',
-                color: 'var(--text)',
-                fontSize: 12,
-                lineHeight: '1.5',
-                resize: 'none',
-                outline: 'none',
-                fontFamily: 'inherit'
-              }}
-            />
 
-            {/* Structured Categories Display */}
-            {Object.keys(activeParsedJson).length > 0 && (
-              <div style={{ marginTop: 6, background: '#090d16', padding: '8px 10px', borderRadius: 8, border: '1px solid var(--border)' }}>
-                <div style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--text-dim)', marginBottom: 4 }}>
-                  STRUKTURÁLT KATEGÓRIÁK (AI PARSED JSON):
-                </div>
-                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
-                  {Object.entries(activeParsedJson).map(([k, v]) => (
-                    <div 
-                      key={k} 
-                      style={{ 
-                        display: 'flex', 
-                        alignItems: 'center', 
-                        gap: 4, 
-                        background: 'rgba(251,191,36,0.06)', 
-                        border: '1px solid rgba(251,191,36,0.3)', 
-                        borderRadius: 6, 
-                        padding: '3px 8px', 
-                        fontSize: 10.5, 
-                        color: '#fbbf24' 
-                      }}
-                    >
-                      <strong style={{ textTransform: 'capitalize' }}>{k.replace(/_/g, ' ')}:</strong>
-                      <span>{String(v)}</span>
-                    </div>
-                  ))}
-                </div>
+            {/* AI Assistant Refine Section */}
+            <div style={{ borderTop: '1px solid rgba(252, 211, 77, 0.2)', paddingTop: 12, display: 'flex', flexDirection: 'column', gap: 8 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <span style={{ fontSize: 11, fontWeight: 800, color: '#fbbf24' }}>🪄 AI Segéd (Intelligens Módosítás):</span>
+                <span style={{ fontSize: 9.5, color: 'var(--text-muted)' }}>(Írd be pl: "title opacity legyen 50%" vagy "fade_gradient legyen true")</span>
               </div>
-            )}
+              <div style={{ display: 'flex', gap: 10 }}>
+                <input
+                  type="text"
+                  placeholder="Kérj változtatást szabad szavakkal..."
+                  value={aiRefineInstruction}
+                  onChange={e => setAiRefineInstruction(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' && !isRefiningJson) {
+                      handleAiRefineJson();
+                    }
+                  }}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1px solid var(--border)',
+                    background: 'var(--bg3)',
+                    color: 'var(--text)',
+                    fontSize: 11.5
+                  }}
+                />
+                <button
+                  onClick={handleAiRefineJson}
+                  disabled={isRefiningJson || !aiRefineInstruction.trim()}
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 8,
+                    background: 'linear-gradient(135deg, #fbbf24, #d97706)',
+                    color: '#000',
+                    fontWeight: 800,
+                    fontSize: 11.5,
+                    border: 'none',
+                    cursor: isRefiningJson || !aiRefineInstruction.trim() ? 'not-allowed' : 'pointer',
+                    opacity: isRefiningJson || !aiRefineInstruction.trim() ? 0.6 : 1,
+                    display: 'flex',
+                    alignItems: 'center',
+                    gap: 6
+                  }}
+                >
+                  {isRefiningJson ? (
+                    <>
+                      <div style={{ width: 12, height: 12, border: '2px solid rgba(0,0,0,0.2)', borderTopColor: '#000', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                      Módosítás...
+                    </>
+                  ) : (
+                    <>🪄 Futtatás</>
+                  )}
+                </button>
+              </div>
+            </div>
           </div>
-
         </div>
 
         {/* Resolution selector + render control bar */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 16px', flexShrink: 0 }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
             <div>
-              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)' }}>AKTÍV FELBONTÁS: </span>
-              <strong style={{ fontSize: 12, color: 'var(--text)' }}>{selectedTemplate?.resolution?.width}x{selectedTemplate?.resolution?.height}px ({selectedTemplate?.title})</strong>
+              <span style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)' }}>AKTÍV KÉPARÁNY: </span>
+              <strong style={{ fontSize: 12, color: 'var(--text)' }}>
+                {selectedTemplate?.resolution ? getAspectRatioString(selectedTemplate.resolution.width, selectedTemplate.resolution.height) : ''} ({selectedTemplate?.resolution?.width}x{selectedTemplate?.resolution?.height}px - {selectedTemplate?.title})
+              </strong>
             </div>
 
             {/* Template reviewed checkbox status indicator */}
@@ -857,17 +1181,17 @@ export default function ZomboLayerReviewPage() {
                         key={v.uuid}
                         onClick={() => { setSelectedTemplateId(v.uuid); setRenderedUrl(null); }}
                         style={{
-                          padding: '4px 8px',
+                          padding: '4px 10px',
                           borderRadius: 6,
                           border: isSelected ? '1.5px solid #fbbf24' : '1px solid var(--border)',
                           background: isSelected ? 'rgba(251,191,36,0.1)' : 'var(--bg3)',
                           color: isSelected ? '#fbbf24' : 'var(--text-dim)',
-                          fontSize: 9.5,
-                          fontWeight: 700,
+                          fontSize: 10,
+                          fontWeight: 800,
                           cursor: 'pointer'
                         }}
                       >
-                        {v.resolution.width}x{v.resolution.height}
+                        {getAspectRatioString(v.resolution.width, v.resolution.height)}
                       </button>
                     );
                   })}
@@ -912,7 +1236,7 @@ export default function ZomboLayerReviewPage() {
               border: '2px solid var(--border)',
               background: '#090d16',
               position: 'relative',
-              aspectRatio: selectedTemplate?.resolution ? `${selectedTemplate.resolution.width}/${selectedTemplate.resolution.height}` : '1/1',
+              aspectRatio: `${displayWidth}/${displayHeight}`,
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
@@ -940,7 +1264,7 @@ export default function ZomboLayerReviewPage() {
               border: '2px solid var(--border)',
               background: '#090d16',
               position: 'relative',
-              aspectRatio: selectedTemplate?.resolution ? `${selectedTemplate.resolution.width}/${selectedTemplate.resolution.height}` : '1/1',
+              aspectRatio: `${displayWidth}/${displayHeight}`,
               width: '100%',
               containerType: 'inline-size'
             }}>
@@ -949,81 +1273,151 @@ export default function ZomboLayerReviewPage() {
                 {/* Solid white canvas background */}
                 <div style={{ position: 'absolute', inset: 0, backgroundColor: '#ffffff', zIndex: 0 }} />
                 
-                {/* Inject dynamic fonts */}
-                <style dangerouslySetInnerHTML={{ __html: getGoogleFontsImport(selectedTemplate) }} />
+                {/* Inject dynamic fonts and neon blink keyframes */}
+                <style dangerouslySetInnerHTML={{ __html: `
+                  ${getGoogleFontsImport(selectedTemplate)}
+                  @keyframes neonBlinkAnim {
+                    0% { opacity: 0.35; border-color: #00ffff; box-shadow: 0 0 10px #00ffff, inset 0 0 10px #00ffff; }
+                    100% { opacity: 1.0; border-color: #3b82f6; box-shadow: 0 0 25px #3b82f6, inset 0 0 20px #3b82f6; }
+                  }
+                  .neon-blink-border {
+                    animation: neonBlinkAnim 0.6s infinite alternate ease-in-out;
+                  }
+                ` }} />
 
                 {/* Render layers in zIndex sorted order */}
                 {selectedTemplate ? (
                   <>
-                    {[...selectedTemplate.layers].sort((a, b) => (a.style.zIndex || 0) - (b.style.zIndex || 0)).map((layer: PlacidLayer) => {
+                    {(() => {
+                      const layers = templateLayersMap[selectedTemplateId] || selectedTemplate.layers;
+                      return [...layers].sort((a, b) => (a.style.zIndex || 0) - (b.style.zIndex || 0)).map((layer: PlacidLayer) => {
+                        const left = `${layer.position.xmin}%`;
+                        const top = `${layer.position.ymin}%`;
+                        const w = `${layer.position.xmax - layer.position.xmin}%`;
+                        const h = `${layer.position.ymax - layer.position.ymin}%`;
+
+                        const parsedFont = layer.style.fontFamily ? parsePlacidFont(layer.style.fontFamily) : null;
+                        const fontOverrides = parsedFont ? {
+                          fontFamily: parsedFont.fontFamily,
+                          fontWeight: parsedFont.fontWeight,
+                          fontStyle: parsedFont.fontStyle
+                        } : {};
+
+                        const scaledStyle = scaleStyleToCqw({
+                          ...layer.style,
+                          ...fontOverrides
+                        }, displayWidth);
+
+                        // Extract opacity override from JSON
+                        const jsonOpacity = activeParsedJson[`${layer.name}_opacity`];
+                        const opacityVal = jsonOpacity !== undefined ? jsonOpacity / 100 : (layer.style.opacity !== undefined ? layer.style.opacity : 1);
+
+                        const style: React.CSSProperties = {
+                          position: 'absolute', left, top, width: w, height: h,
+                          boxSizing: 'border-box', pointerEvents: 'none',
+                          ...scaledStyle,
+                          opacity: opacityVal
+                        };
+
+                        if (layer.type === 'text') {
+                          const val = layerValues[layer.name] !== undefined ? layerValues[layer.name] : (layer.text || 'dummy text');
+                          
+                          let justifyContent = 'center';
+                          if (layer.style.textAlign === 'left') justifyContent = 'flex-start';
+                          if (layer.style.textAlign === 'right') justifyContent = 'flex-end';
+
+                          return (
+                            <div key={layer.name} style={{ ...style, display: 'flex', alignItems: 'center', justifyContent, padding: '0 8px', wordBreak: 'break-word', overflow: 'hidden' }}>
+                              <div style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', width: '100%', wordWrap: 'break-word', textAlign: 'inherit' }}>
+                                {val}
+                              </div>
+                            </div>
+                          );
+                        }
+
+                        if (layer.type === 'picture') {
+                          let imgSrc = baseImageUrl;
+                          const mapping = imageMappings[layer.name];
+                          if (mapping === 'product') {
+                            imgSrc = productImageUrl;
+                          } else if (mapping === 'none') {
+                            imgSrc = '';
+                          }
+                          
+                          const isProduct = mapping === 'product';
+                          const pictureLayers = layers.filter(l => l.type === 'picture');
+                          const isSingleImage = pictureLayers.length === 1;
+                          const isBg = isBackgroundLayer(layer, layers.indexOf(layer));
+                          
+                          // Force contain instead of cover if it is the only image OR if it is the background image
+                          const objectFit = (isSingleImage || isBg || isProduct) ? 'contain' : (layer.style.objectFit || 'cover');
+                          
+                          // Auto-center background image crop around the detected product
+                          const objectPosition = isProduct ? 'center' : `${productCenterX}% ${productCenterY}%`;
+
+                          // Apply CSS mask for gradient fade if specified in requirements
+                          let maskStyle: React.CSSProperties = {};
+                          if (activeParsedJson.fade_gradient === true || activeParsedJson.fade_pixels !== undefined) {
+                            const fadePixels = activeParsedJson.fade_pixels ?? 100;
+                            const fadeDir = activeParsedJson.fade_direction ?? 'top';
+                            let gradDir = 'to bottom';
+                            if (fadeDir === 'bottom') gradDir = 'to top';
+                            if (fadeDir === 'left') gradDir = 'to right';
+                            if (fadeDir === 'right') gradDir = 'to left';
+                            
+                            const maskVal = `linear-gradient(${gradDir}, transparent, black ${fadePixels}px)`;
+                            maskStyle = {
+                              WebkitMaskImage: maskVal,
+                              maskImage: maskVal
+                            };
+                          }
+
+                          return (
+                            <div key={layer.name} style={{ ...style, overflow: 'hidden', ...maskStyle }}>
+                              {imgSrc && (
+                                <img src={imgSrc.startsWith('http') ? imgSrc : `${API}${imgSrc}`} alt={layer.name} style={{ width: '100%', height: '100%', objectFit, objectPosition, display: 'block' }} />
+                              )}
+                            </div>
+                          );
+                        }
+
+                        if (layer.type === 'shape') {
+                          return <div key={layer.name} style={style} />;
+                        }
+
+                        return null;
+                      });
+                    })()}
+
+                    {/* Neon-blue blinking highlight borders overlay (ALWAYS ON TOP OF ALL LAYERS!) */}
+                    {(templateLayersMap[selectedTemplateId] || selectedTemplate.layers).map((layer: PlacidLayer) => {
+                      const isHighlighted = highlightedLayers.has(layer.name) || hoveredLayerName === layer.name;
+                      if (!isHighlighted) return null;
+
                       const left = `${layer.position.xmin}%`;
                       const top = `${layer.position.ymin}%`;
                       const w = `${layer.position.xmax - layer.position.xmin}%`;
                       const h = `${layer.position.ymax - layer.position.ymin}%`;
 
-                      const parsedFont = layer.style.fontFamily ? parsePlacidFont(layer.style.fontFamily) : null;
-                      const fontOverrides = parsedFont ? {
-                        fontFamily: parsedFont.fontFamily,
-                        fontWeight: parsedFont.fontWeight,
-                        fontStyle: parsedFont.fontStyle
-                      } : {};
-
-                      const scaledStyle = scaleStyleToCqw({
-                        ...layer.style,
-                        ...fontOverrides
-                      }, selectedTemplate.resolution.width);
-
-                      const style: React.CSSProperties = {
-                        position: 'absolute', left, top, width: w, height: h,
-                        boxSizing: 'border-box', pointerEvents: 'none',
-                        ...scaledStyle
-                      };
-
-                      if (layer.type === 'text') {
-                        const val = layerValues[layer.name] !== undefined ? layerValues[layer.name] : (layer.text || 'dummy text');
-                        
-                        let justifyContent = 'center';
-                        if (layer.style.textAlign === 'left') justifyContent = 'flex-start';
-                        if (layer.style.textAlign === 'right') justifyContent = 'flex-end';
-
-                        return (
-                          <div key={layer.name} style={{ ...style, display: 'flex', alignItems: 'center', justifyContent, padding: '0 8px', wordBreak: 'break-word', overflow: 'hidden' }}>
-                            <div style={{ display: '-webkit-box', WebkitLineClamp: 3, WebkitBoxOrient: 'vertical', overflow: 'hidden', width: '100%', wordWrap: 'break-word', textAlign: 'inherit' }}>
-                              {val}
-                            </div>
-                          </div>
-                        );
-                      }
-
-                      if (layer.type === 'picture') {
-                        let imgSrc = baseImageUrl;
-                        const mapping = imageMappings[layer.name];
-                        if (mapping === 'product') {
-                          imgSrc = productImageUrl;
-                        } else if (mapping === 'none') {
-                          imgSrc = '';
-                        }
-                        
-                        const isProduct = mapping === 'product';
-                        const objectFit = isProduct ? 'contain' : (layer.style.objectFit || 'cover');
-                        
-                        // Auto-center background image crop around the detected product
-                        const objectPosition = isProduct ? 'center' : `${productCenterX}% ${productCenterY}%`;
-
-                        return (
-                          <div key={layer.name} style={{ ...style, overflow: 'hidden' }}>
-                            {imgSrc && (
-                              <img src={imgSrc.startsWith('http') ? imgSrc : `${API}${imgSrc}`} alt={layer.name} style={{ width: '100%', height: '100%', objectFit, objectPosition, display: 'block' }} />
-                            )}
-                          </div>
-                        );
-                      }
-
-                      if (layer.type === 'shape') {
-                        return <div key={layer.name} style={style} />;
-                      }
-
-                      return null;
+                      return (
+                        <div
+                          key={`highlight-${layer.name}`}
+                          className="neon-blink-border"
+                          style={{
+                            position: 'absolute',
+                            left,
+                            top,
+                            width: w,
+                            height: h,
+                            border: '4px solid #00ffff',
+                            boxShadow: '0 0 15px #00ffff, inset 0 0 15px #00ffff',
+                            zIndex: 99999,
+                            pointerEvents: 'none',
+                            borderRadius: layer.style.borderRadius || '0px',
+                            boxSizing: 'border-box'
+                          }}
+                        />
+                      );
                     })}
                   </>
                 ) : null}
@@ -1050,85 +1444,196 @@ export default function ZomboLayerReviewPage() {
             <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 12, textAlign: 'left' }}>
               <thead>
                 <tr style={{ borderBottom: '1px solid var(--border)', color: 'var(--text-muted)' }}>
-                  <th style={{ padding: '8px 10px', fontWeight: 800, width: '80px' }}>✓ Review</th>
+                  <th style={{ padding: '8px 10px', fontWeight: 800, width: '70px', textAlign: 'center' }}>✓ Review</th>
+                  <th style={{ padding: '8px 10px', fontWeight: 800, width: '70px', textAlign: 'center' }}>Highlight</th>
                   <th style={{ padding: '8px 10px', fontWeight: 800 }}>Réteg név</th>
-                  <th style={{ padding: '8px 10px', fontWeight: 800 }}>Típus</th>
+                  <th style={{ padding: '8px 10px', fontWeight: 800, width: '80px' }}>Típus</th>
+                  <th style={{ padding: '8px 10px', fontWeight: 800, width: '80px' }}>Sorrend</th>
                   <th style={{ padding: '8px 10px', fontWeight: 800 }}>Pozíció (xmin-xmax, ymin-ymax)</th>
-                  <th style={{ padding: '8px 10px', fontWeight: 800 }}>Z-Index</th>
-                  <th style={{ padding: '8px 10px', fontWeight: 800, width: '40%' }}>Aktív érték / Leképezés</th>
+                  <th style={{ padding: '8px 10px', fontWeight: 800, width: '60px' }}>Z-Index</th>
+                  <th style={{ padding: '8px 10px', fontWeight: 800, width: '180px' }}>Áttetszőség (Opacity)</th>
+                  <th style={{ padding: '8px 10px', fontWeight: 800, width: '30%' }}>Aktív érték / Leképezés</th>
                 </tr>
               </thead>
               <tbody>
-                {selectedTemplate?.layers?.map((layer: PlacidLayer, idx: number) => {
-                  const typeColor = layer.type === 'text' ? '#3b82f6' : layer.type === 'picture' ? '#10b981' : '#8b5cf6';
-                  const layerKey = `${selectedTemplateId}::${layer.name}`;
-                  const isLayerReviewed = reviewedLayers.has(layerKey);
-                  const isBg = isBackgroundLayer(layer, idx);
-                  
-                  return (
-                    <tr 
-                      key={layer.name} 
-                      style={{ 
-                        borderBottom: '1px solid rgba(255,255,255,0.04)', 
-                        verticalAlign: 'middle',
-                        background: isLayerReviewed 
-                          ? 'rgba(16,185,129,0.04)' 
-                          : isBg 
-                            ? 'rgba(59,130,246,0.02)' 
-                            : 'transparent',
-                        transition: 'background 0.2s'
-                      }}
-                    >
-                      {/* Layer status checkbox */}
-                      <td style={{ padding: '10px', textAlign: 'center' }}>
-                        <input
-                          type="checkbox"
-                          checked={isLayerReviewed}
-                          onChange={() => toggleLayerReviewed(layer.name)}
-                          style={{ cursor: 'pointer', accentColor: '#10b981', width: 13, height: 13 }}
-                        />
-                      </td>
-                      <td style={{ padding: '10px', fontWeight: 700, color: isLayerReviewed ? '#10b981' : 'var(--text)' }}>
-                        {layer.name} {isBg && <span style={{ fontSize: 9, fontWeight: 900, color: '#3b82f6', background: 'rgba(59,130,246,0.1)', padding: '1px 5px', borderRadius: 4, marginLeft: 6 }}>háttér</span>}
-                      </td>
-                      <td style={{ padding: '10px' }}>
-                        <span style={{ fontSize: 9, fontWeight: 900, background: typeColor, color: '#fff', padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase' }}>
-                          {layer.type}
-                        </span>
-                      </td>
-                      <td style={{ padding: '10px', fontFamily: 'monospace', color: 'var(--text-muted)' }}>
-                        {layer.position.xmin}% - {layer.position.xmax}% , {layer.position.ymin}% - {layer.position.ymax}%
-                      </td>
-                      <td style={{ padding: '10px', fontWeight: 700 }}>{layer.style.zIndex || 0}</td>
-                      <td style={{ padding: '10px' }}>
-                        {layer.type === 'text' && (
+                {(() => {
+                  const layers = templateLayersMap[selectedTemplateId] || selectedTemplate?.layers || [];
+                  return layers.map((layer: PlacidLayer, idx: number) => {
+                    const typeColor = layer.type === 'text' ? '#3b82f6' : layer.type === 'picture' ? '#10b981' : '#8b5cf6';
+                    const layerKey = `${selectedTemplateId}::${layer.name}`;
+                    const isLayerReviewed = reviewedLayers.has(layerKey);
+                    const isBg = isBackgroundLayer(layer, idx);
+                    
+                    // Opacity resolution from JSON parsed requirements
+                    const opacityVal = activeParsedJson[`${layer.name}_opacity`] !== undefined 
+                      ? activeParsedJson[`${layer.name}_opacity`] 
+                      : (layer.style.opacity !== undefined ? Math.round(layer.style.opacity * 100) : 100);
+
+                    return (
+                      <tr 
+                        key={layer.name} 
+                        onMouseEnter={() => setHoveredLayerName(layer.name)}
+                        onMouseLeave={() => setHoveredLayerName(null)}
+                        style={{ 
+                          borderBottom: '1px solid rgba(255,255,255,0.04)', 
+                          verticalAlign: 'middle',
+                          background: hoveredLayerName === layer.name 
+                            ? 'rgba(255,255,255,0.02)' 
+                            : isLayerReviewed 
+                              ? 'rgba(16,185,129,0.04)' 
+                              : isBg 
+                                ? 'rgba(59,130,246,0.02)' 
+                                : 'transparent',
+                          transition: 'background 0.2s'
+                        }}
+                      >
+                        {/* Layer status checkbox */}
+                        <td style={{ padding: '10px', textAlign: 'center' }}>
                           <input
-                            type="text"
-                            value={layerValues[layer.name] || ''}
-                            onChange={e => setLayerValues(prev => ({ ...prev, [layer.name]: e.target.value }))}
-                            style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
+                            type="checkbox"
+                            checked={isLayerReviewed}
+                            onChange={() => toggleLayerReviewed(layer.name)}
+                            style={{ cursor: 'pointer', accentColor: '#10b981', width: 13, height: 13 }}
                           />
-                        )}
-                        {layer.type === 'picture' && (
-                          <select
-                            value={imageMappings[layer.name] || 'base'}
-                            onChange={e => setImageMappings(prev => ({ ...prev, [layer.name]: e.target.value as any }))}
-                            style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 11.5, fontWeight: 600 }}
-                          >
-                            <option value="base">Háttérkép (AI generált)</option>
-                            <option value="product">Termékkép (Körbevágott)</option>
-                            <option value="none">Üres / Átlátszó</option>
-                          </select>
-                        )}
-                        {layer.type === 'shape' && (
-                          <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
-                            Háttér: {layer.style.backgroundColor || 'Nincs'}, Lekerekítés: {layer.style.borderRadius || '0px'}
+                        </td>
+
+                        {/* Highlight checkbox */}
+                        <td style={{ padding: '10px', textAlign: 'center' }}>
+                          <input
+                            type="checkbox"
+                            checked={highlightedLayers.has(layer.name)}
+                            onChange={(e) => {
+                              const checked = e.target.checked;
+                              setHighlightedLayers(prev => {
+                                const next = new Set(prev);
+                                if (checked) {
+                                  next.add(layer.name);
+                                } else {
+                                  next.delete(layer.name);
+                                }
+                                return next;
+                              });
+                            }}
+                            style={{ cursor: 'pointer', accentColor: '#00ffff', width: 13, height: 13 }}
+                          />
+                        </td>
+
+                        {/* Layer Name */}
+                        <td style={{ padding: '10px', fontWeight: 700, color: isLayerReviewed ? '#10b981' : 'var(--text)' }}>
+                          {layer.name} {isBg && <span style={{ fontSize: 9, fontWeight: 900, color: '#3b82f6', background: 'rgba(59,130,246,0.1)', padding: '1px 5px', borderRadius: 4, marginLeft: 6 }}>háttér</span>}
+                        </td>
+
+                        {/* Layer Type */}
+                        <td style={{ padding: '10px' }}>
+                          <span style={{ fontSize: 9, fontWeight: 900, background: typeColor, color: '#fff', padding: '2px 6px', borderRadius: 4, textTransform: 'uppercase' }}>
+                            {layer.type}
                           </span>
-                        )}
-                      </td>
-                    </tr>
-                  );
-                })}
+                        </td>
+
+                        {/* Order Control (Fel / Le nyilak) */}
+                        <td style={{ padding: '10px' }}>
+                          <div style={{ display: 'flex', gap: 4 }}>
+                            <button
+                              disabled={idx === 0}
+                              onClick={() => moveLayer(idx, 'up')}
+                              style={{ 
+                                padding: '4px 6px', 
+                                fontSize: 10, 
+                                background: idx === 0 ? 'rgba(255,255,255,0.02)' : 'var(--bg3)', 
+                                border: '1px solid var(--border)', 
+                                color: idx === 0 ? 'var(--text-muted)' : 'var(--text)', 
+                                borderRadius: 4, 
+                                cursor: idx === 0 ? 'not-allowed' : 'pointer' 
+                              }}
+                              title="Mozgatás Fel"
+                            >
+                              ▲
+                            </button>
+                            <button
+                              disabled={idx === layers.length - 1}
+                              onClick={() => moveLayer(idx, 'down')}
+                              style={{ 
+                                padding: '4px 6px', 
+                                fontSize: 10, 
+                                background: idx === layers.length - 1 ? 'rgba(255,255,255,0.02)' : 'var(--bg3)', 
+                                border: '1px solid var(--border)', 
+                                color: idx === layers.length - 1 ? 'var(--text-muted)' : 'var(--text)', 
+                                borderRadius: 4, 
+                                cursor: idx === layers.length - 1 ? 'not-allowed' : 'pointer' 
+                              }}
+                              title="Mozgatás Le"
+                            >
+                              ▼
+                            </button>
+                          </div>
+                        </td>
+
+                        {/* Position */}
+                        <td style={{ padding: '10px', fontFamily: 'monospace', color: 'var(--text-muted)' }}>
+                          {layer.position.xmin}% - {layer.position.xmax}% , {layer.position.ymin}% - {layer.position.ymax}%
+                        </td>
+
+                        {/* Z-Index */}
+                        <td style={{ padding: '10px', fontWeight: 700 }}>{layer.style.zIndex || 0}</td>
+
+                        {/* Opacity Slider */}
+                        <td style={{ padding: '10px' }}>
+                          <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                            <input
+                              type="range"
+                              min="0"
+                              max="100"
+                              value={opacityVal}
+                              onChange={e => {
+                                const val = parseInt(e.target.value, 10);
+                                setParsedRequirements(prev => {
+                                  const current = prev[selectedTemplateId] || {};
+                                  return {
+                                    ...prev,
+                                    [selectedTemplateId]: {
+                                      ...current,
+                                      [`${layer.name}_opacity`]: val
+                                    }
+                                  };
+                                });
+                              }}
+                              style={{ flex: 1, accentColor: '#8b5cf6', cursor: 'pointer', height: 4 }}
+                            />
+                            <span style={{ fontSize: 11, fontWeight: 700, minWidth: 32, textAlign: 'right' }}>{opacityVal}%</span>
+                          </div>
+                        </td>
+
+                        {/* Value / Map */}
+                        <td style={{ padding: '10px' }}>
+                          {layer.type === 'text' && (
+                            <input
+                              type="text"
+                              value={layerValues[layer.name] || ''}
+                              onChange={e => setLayerValues(prev => ({ ...prev, [layer.name]: e.target.value }))}
+                              style={{ width: '100%', padding: '6px 10px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 12 }}
+                            />
+                          )}
+                          {layer.type === 'picture' && (
+                            <select
+                              value={imageMappings[layer.name] || 'base'}
+                              onChange={e => setImageMappings(prev => ({ ...prev, [layer.name]: e.target.value as any }))}
+                              style={{ width: '100%', padding: '5px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg)', color: 'var(--text)', fontSize: 11.5, fontWeight: 600 }}
+                            >
+                              <option value="base">Háttérkép (AI generált)</option>
+                              <option value="product">Termékkép (Körbevágott)</option>
+                              <option value="none">Üres / Átlátszó</option>
+                            </select>
+                          )}
+                          {layer.type === 'shape' && (
+                            <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
+                              Háttér: {layer.style.backgroundColor || 'Nincs'}, Lekerekítés: {layer.style.borderRadius || '0px'}
+                            </span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  });
+                })()}
               </tbody>
             </table>
           </div>
@@ -1199,8 +1704,38 @@ export default function ZomboLayerReviewPage() {
 
         </div>
 
+        {/* Fixed Save button in bottom-right corner */}
+        <button
+          onClick={handleGlobalSave}
+          style={{
+            position: 'fixed',
+            bottom: 24,
+            right: 24,
+            padding: '12px 24px',
+            borderRadius: 12,
+            background: 'linear-gradient(135deg, #10b981, #059669)',
+            color: '#fff',
+            fontSize: 13,
+            fontWeight: 900,
+            cursor: 'pointer',
+            boxShadow: '0 8px 30px rgba(16,185,129,0.35)',
+            border: 'none',
+            zIndex: 9999,
+            display: 'flex',
+            alignItems: 'center',
+            gap: 8,
+            transition: 'transform 0.15s, opacity 0.15s'
+          }}
+          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
+          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
+        >
+          <span>💾</span> MENTÉS
+        </button>
+
       </div>
 
     </div>
   );
 }
+
+export default ZomboLayerReviewPage;

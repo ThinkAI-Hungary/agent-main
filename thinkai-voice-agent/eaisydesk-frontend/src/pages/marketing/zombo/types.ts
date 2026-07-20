@@ -275,9 +275,10 @@ export function getBackendUrl(): string {
   if (envUrl && envUrl.trim() !== '') {
     return envUrl;
   }
-  const protocol = typeof window !== 'undefined' ? window.location.protocol : 'http:';
-  const hostname = typeof window !== 'undefined' ? window.location.hostname : 'localhost';
-  return `${protocol}//${hostname}:3001`;
+  if (typeof window !== 'undefined') {
+    return window.location.origin;
+  }
+  return 'http://localhost:5173';
 }
 
 export function fixImageUrl(url: string | undefined | null): string {

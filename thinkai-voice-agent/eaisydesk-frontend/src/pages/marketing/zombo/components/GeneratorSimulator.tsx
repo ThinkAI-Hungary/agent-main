@@ -1,6 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
 import type { PostCreative, SystemLog, BrandKit } from '../types';
-import { getBackendUrl } from '../types';
 import { Sparkles, Play, Cpu, Fingerprint, Brain, Layers, CheckCircle2 } from 'lucide-react';
 
 interface GeneratorSimulatorProps {
@@ -63,7 +62,7 @@ export const GeneratorSimulator: React.FC<GeneratorSimulatorProps> = ({
     onGenerateStart(briefText);
 
     // Call actual backend API in the background
-    fetch(`${getBackendUrl()}/api/generate`, {
+    fetch('/api/generate', {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -377,8 +376,7 @@ export const GeneratorSimulator: React.FC<GeneratorSimulatorProps> = ({
           left: 0;
           right: 0;
           bottom: 0;
-          background: var(--bg-main);
-          opacity: 0.95;
+          background: rgba(5, 3, 10, 0.85);
           backdrop-filter: blur(10px);
           display: flex;
           align-items: center;
@@ -390,8 +388,8 @@ export const GeneratorSimulator: React.FC<GeneratorSimulatorProps> = ({
           width: 100%;
           max-width: 580px;
           padding: 24px;
-          background: var(--panel-bg);
-          border: 1px solid var(--panel-border);
+          background: rgba(15, 12, 30, 0.95);
+          border-color: rgba(139, 92, 246, 0.3);
           display: flex;
           flex-direction: column;
           gap: 16px;
@@ -411,7 +409,7 @@ export const GeneratorSimulator: React.FC<GeneratorSimulatorProps> = ({
           display: flex;
           flex-direction: column;
           gap: 10px;
-          background: var(--bg3);
+          background: rgba(0,0,0,0.2);
           padding: 16px;
           border-radius: 12px;
           border: 1px solid rgba(255,255,255,0.03);
@@ -497,7 +495,7 @@ export const GeneratorSimulator: React.FC<GeneratorSimulatorProps> = ({
           }
         }
         .simulation-console {
-          background: var(--bg);
+          background: #050308;
           border-radius: 8px;
           border: 1px solid var(--panel-border);
           padding: 12px;

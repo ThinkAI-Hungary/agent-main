@@ -1,0 +1,680 @@
+{
+  "preset_id": 79,
+  "title": "Beauty",
+  "cover": "https://s3-placid-app.s3.eu-central-1.amazonaws.com/production/PUBLIC/public-disk/previews/presets/79.jpg",
+  "tags": [
+    "Pinterest",
+    "Article"
+  ],
+  "canvas": {
+    "id": "0",
+    "type": "canvas",
+    "name": "element-9069",
+    "opacity": 100,
+    "meta": {
+      "title": "Beauty"
+    },
+    "editor": {
+      "canChangeAspectRatio": false
+    },
+    "fields": {
+      "background": {
+        "field": true,
+        "type": "image",
+        "content": {
+          "imageSrc": "upload",
+          "imageUrl": null,
+          "imageId": null,
+          "browserViewport": {
+            "width": 1280,
+            "height": 800
+          }
+        },
+        "display": {
+          "borderRadius": 0,
+          "backgroundSize": "cover",
+          "backgroundPositionVertical": "center",
+          "backgroundPositionHorizontal": "center"
+        }
+      },
+      "backgroundColor": {
+        "field": true,
+        "type": "color",
+        "content": {
+          "color": {
+            "rgba": {
+              "r": 255,
+              "g": 255,
+              "b": 255,
+              "a": 1
+            },
+            "hex": "#FFFFFF"
+          }
+        },
+        "display": {
+          "displayType": "color"
+        }
+      }
+    },
+    "canvasHeight": 1500,
+    "canvasWidth": 1000
+  },
+  "items": [
+    {
+      "id": "id-1",
+      "type": "picture",
+      "name": "img",
+      "opacity": 100,
+      "meta": {
+        "title": "bg-img"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": "0",
+          "top": 220
+        },
+        "size": {
+          "width": 1000,
+          "height": 1140
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            },
+            "imageUUID": "20b0b64e-4b90-43dc-9f62-a38407d37d0e"
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "cover",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "zIndex": 1,
+      "version": 3
+    },
+    {
+      "id": "id-7",
+      "type": "rectangle",
+      "name": "overlay",
+      "opacity": "7",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 0,
+          "top": 220
+        },
+        "size": {
+          "width": 1000,
+          "height": 1140
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "borderRadius": 0
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 0,
+                "s": 0,
+                "l": 0,
+                "a": 1
+              },
+              "hex": "#000000",
+              "rgba": {
+                "r": 0,
+                "g": 0,
+                "b": 0,
+                "a": 1
+              },
+              "hsv": {
+                "h": 0,
+                "s": 0,
+                "v": 0,
+                "a": 1
+              },
+              "oldHue": 0,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 2,
+      "has_border": false,
+      "version": 3
+    },
+    {
+      "id": "id-3",
+      "type": "rectangle",
+      "name": "border",
+      "opacity": "100",
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 50,
+          "top": 50
+        },
+        "size": {
+          "width": 900,
+          "height": 1400
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "borderWidth": 3,
+            "borderRadius": 0
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 226.9565217391304,
+                "s": 0.621621621621622,
+                "l": 0.9274509803921569,
+                "a": 1
+              },
+              "hex": "#E1E6F8",
+              "rgba": {
+                "r": 225,
+                "g": 230,
+                "b": 248,
+                "a": 1
+              },
+              "hsv": {
+                "h": 226.9565217391304,
+                "s": 0.09274193548387098,
+                "v": 0.9725490196078431,
+                "a": 1
+              },
+              "oldHue": 354.7826086956522,
+              "source": "hex",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        }
+      },
+      "zIndex": 3,
+      "version": 3,
+      "has_border": true
+    },
+    {
+      "id": "id-2",
+      "type": "rectangle",
+      "name": "bg-text",
+      "opacity": 100,
+      "meta": {
+        "title": "bg-text"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 100,
+          "top": 100
+        },
+        "size": {
+          "width": 800,
+          "height": 240
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "rectangle": {
+          "field": true,
+          "type": "rectangle",
+          "content": [],
+          "display": {
+            "borderRadius": 0
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 228.2352941176471,
+                "s": 0.6369000000000014,
+                "l": 0.9286,
+                "a": 1
+              },
+              "hex": "#E1E6F8",
+              "rgba": {
+                "r": 225,
+                "g": 230,
+                "b": 248,
+                "a": 1
+              },
+              "hsv": {
+                "h": 228.2352941176471,
+                "s": 0.09336996817061252,
+                "v": 0.9740746600000001,
+                "a": 1
+              },
+              "oldHue": 228.23529411764707,
+              "source": "hsl",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 354.7826086956522,
+                "s": 0.621621621621622,
+                "l": 0.9274509803921569,
+                "a": 1
+              },
+              "hex": "#F8E1E3",
+              "rgba": {
+                "r": 248,
+                "g": 225,
+                "b": 227,
+                "a": 1
+              },
+              "hsv": {
+                "h": 354.7826086956522,
+                "s": 0.09274193548387098,
+                "v": 0.9725490196078431,
+                "a": 1
+              },
+              "oldHue": 354.7826086956522,
+              "source": "hex",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 4,
+      "has_border": false,
+      "version": 3
+    },
+    {
+      "id": "id-4",
+      "type": "text",
+      "name": "title",
+      "opacity": 100,
+      "meta": {
+        "title": "hl"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 160,
+          "top": 130
+        },
+        "size": {
+          "width": 680,
+          "height": 180
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "Anti-Aging for your Lips: 10 Treatments and Tips"
+          },
+          "display": {
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "52",
+            "lineHeight": 60,
+            "fontWeight": "400",
+            "style": "fitty",
+            "fontFamily": "yesevaone-regular",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textTransform": "none"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 242.35294117647038,
+                "s": 0.24308533780844055,
+                "l": 0.34245436500000004,
+                "a": 1
+              },
+              "hex": "#44426D",
+              "rgba": {
+                "r": 68,
+                "g": 66,
+                "b": 109,
+                "a": 1
+              },
+              "hsv": {
+                "h": 242.35294117647038,
+                "s": 0.39110000000000006,
+                "v": 0.4257,
+                "a": 1
+              },
+              "oldHue": 242.35294117647038,
+              "source": "hsva",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 5,
+      "version": 3
+    },
+    {
+      "id": "id-5",
+      "type": "text",
+      "name": "url",
+      "opacity": 100,
+      "meta": {
+        "title": "url"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 170,
+          "top": 1390
+        },
+        "size": {
+          "width": 660,
+          "height": "30"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true,
+        "show_in_form": true
+      },
+      "fields": {
+        "text": {
+          "field": true,
+          "type": "text",
+          "content": {
+            "text": "www.naturalcosmetics.com"
+          },
+          "display": {
+            "textAlign": "center",
+            "verticalAlign": "middle",
+            "fontSize": "20",
+            "lineHeight": 26,
+            "fontWeight": 400,
+            "style": "single-line",
+            "fontFamily": "montserrat-regular",
+            "bold": false,
+            "italic": false,
+            "underline": false,
+            "strikethrough": false,
+            "textTransform": "none"
+          }
+        },
+        "color": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "hsl": {
+                "h": 242.7906976744186,
+                "s": 0.24571428571428564,
+                "l": 0.3431372549019608,
+                "a": 1
+              },
+              "hex": "#44426D",
+              "rgba": {
+                "r": 68,
+                "g": 66,
+                "b": 109,
+                "a": 1
+              },
+              "hsv": {
+                "h": 242.7906976744186,
+                "s": 0.3944954128440366,
+                "v": 0.42745098039215684,
+                "a": 1
+              },
+              "oldHue": 242.7906976744186,
+              "source": "hex",
+              "a": 1
+            }
+          },
+          "display": {
+            "displayType": "color"
+          }
+        },
+        "backgroundColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        },
+        "borderColor": {
+          "field": true,
+          "type": "color",
+          "content": {
+            "color": {
+              "rgba": {
+                "r": 255,
+                "g": 255,
+                "b": 255,
+                "a": 1
+              },
+              "hex": "#FFFFFF"
+            }
+          },
+          "display": {
+            "displayType": "none"
+          }
+        }
+      },
+      "zIndex": 6,
+      "version": 3
+    },
+    {
+      "id": "id-6",
+      "type": "watermark",
+      "name": "watermark",
+      "opacity": 100,
+      "meta": {
+        "title": "untitled"
+      },
+      "geometry": {
+        "zIndex": 1,
+        "position": {
+          "left": 307.5,
+          "top": 976
+        },
+        "size": {
+          "width": "185",
+          "height": "70"
+        },
+        "version": 3
+      },
+      "editor": {
+        "canChangeAspectRatio": true
+      },
+      "fields": {
+        "image": {
+          "field": true,
+          "type": "image",
+          "content": {
+            "imageSrc": "upload",
+            "imageUrl": null,
+            "imageId": 789,
+            "browserViewport": {
+              "width": 1280,
+              "height": 1024
+            }
+          },
+          "display": {
+            "borderRadius": 0,
+            "backgroundSize": "contain",
+            "backgroundPositionVertical": "center",
+            "backgroundPositionHorizontal": "center"
+          }
+        }
+      },
+      "zIndex": 7,
+      "version": 3
+    }
+  ],
+  "snippet": "<!-- Open Graph Image - Add to <head>-->\n<meta property=\"og:image\" content=\"https://api.placid.app/u/phm9upvfugib2?img=%24DEFAULT%24&overlay=%24DEFAULT%24&border=%24DEFAULT%24&bg-text=%24DEFAULT%24&title=%24DEFAULT%24&url=%24DEFAULT%24\"/>\n<meta property=\"og:image:height\" content=\"1500\"/>\n<meta property=\"og:image:width\" content=\"1000\"/>\n\n<!-- Twitter Card Image - Add to <head> -->\n<meta property=\"twitter:image\" content=\"https://api.placid.app/u/phm9upvfugib2?img=%24DEFAULT%24&overlay=%24DEFAULT%24&border=%24DEFAULT%24&bg-text=%24DEFAULT%24&title=%24DEFAULT%24&url=%24DEFAULT%24\"/>\n<meta name=\"twitter:card\" content=\"summary_large_image\">\n\n<!-- (Hidden) Pinterest Image - Add wherever you want in your content-->\n<img style=\"display:none\" src=\"https://api.placid.app/u/phm9upvfugib2?img=%24DEFAULT%24&overlay=%24DEFAULT%24&border=%24DEFAULT%24&bg-text=%24DEFAULT%24&title=%24DEFAULT%24&url=%24DEFAULT%24\" data-pin-description=\"Pin Description\" data-pin-url=\"http://yourposturl.com\"/>\n"
+}
