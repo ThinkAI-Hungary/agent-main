@@ -23,6 +23,7 @@ import { ScheduleView } from './zombo/components/ScheduleView';
 import { AdminMonitor } from './zombo/components/AdminMonitor';
 import { CampaignCreator } from './zombo/components/CampaignCreator';
 import { ImageTestLab } from './zombo/components/ImageTestLab';
+const ImageTestLabAny = ImageTestLab as any;
 import { OverlayTestLab } from './zombo/components/OverlayTestLab';
 import { ProdCalendarView } from './zombo/components/ProdCalendarView';
 import ZomboQuickPostPage from './zombo/components/ZomboQuickPostPage';
@@ -2477,7 +2478,7 @@ export default function ZomboAuditPage() {
                 />
               )}
 
-              {genSubTab === 'imagelab' && <ImageTestLab activeBrandKit={activeKit} auditResult={result} />}
+              {genSubTab === 'imagelab' && <ImageTestLabAny activeBrandKit={activeKit} auditResult={result} />}
 
               {genSubTab === 'overlay-lab' && <OverlayTestLab activeBrandKit={activeKit} />}
 

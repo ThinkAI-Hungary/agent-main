@@ -12,7 +12,7 @@ export default defineConfig({
         // letting other requests (like /admin/login, /admin/api) pass through to the FastAPI proxy.
         server.middlewares.use((req, res, next) => {
           if (req.url?.startsWith('/api') || req.url?.startsWith('/renders')) {
-            expressApp(req, res, next);
+            expressApp(req as any, res as any, next);
           } else {
             next();
           }

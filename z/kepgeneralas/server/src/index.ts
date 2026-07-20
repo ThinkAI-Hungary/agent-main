@@ -4995,7 +4995,10 @@ Rules:
    - "fade_gradient": true
    - "fade_pixels": <number of pixels, default 100>
    - "fade_direction": "top" | "bottom" | "left" | "right" (default is "top")
-6. Return ONLY the raw modified JSON object. Do not include markdown blocks, code blocks, or conversational text.`,
+6. Support dominant color background gradient requests, e.g. "háttér a kép legdominánsabb színéből ússzon át", "background gradient to dominant color", or similar should map to:
+   - "background_gradient_to_dominant": true
+   - "background_gradient_direction": "to bottom" | "to top" | "to left" | "to right" (default is "to bottom")
+7. Return ONLY the raw modified JSON object. Do not include markdown blocks, code blocks, or conversational text.`,
       messages: [
         { role: 'user', content: `Current JSON:\n${JSON.stringify(currentJson, null, 2)}\n\nInstruction:\n${instruction}` }
       ],

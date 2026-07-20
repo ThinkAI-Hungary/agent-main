@@ -273,14 +273,17 @@ export async function renderLocalPlacid(params: RenderParams, port: number = 300
         maskStyle = `-webkit-mask-image: ${maskVal}; mask-image: ${maskVal};`;
       }
 
+      const imgClass = (parsedRequirements?.background_gradient_to_dominant === true) ? 'class="source-image-for-dominant"' : '';
       layersHtml += `
         <div class="layer-item picture-layer" style="position: absolute; left: ${left}; top: ${top}; width: ${w}; height: ${h}; overflow: hidden; ${maskStyle} ${layerStyleStr}">
-          ${imgSrc ? `<img src="${imgSrc}" style="width: 100%; height: 100%; object-fit: ${objectFit}; object-position: ${objectPosition}; display: block;" />` : ''}
+          ${imgSrc ? `<img ${imgClass} src="${imgSrc}" style="width: 100%; height: 100%; object-fit: ${objectFit}; object-position: ${objectPosition}; display: block;" />` : ''}
         </div>
       `;
     } else if (layer.type === 'shape') {
+      const isBg = isBackgroundLayer(layer, layers.indexOf(layer)) || layer.name === 'background_layer';
+      const bgIdAttr = (isBg && parsedRequirements?.background_gradient_to_dominant === true) ? 'id="background-gradient-dominant"' : '';
       layersHtml += `
-        <div class="layer-item shape-layer" style="position: absolute; left: ${left}; top: ${top}; width: ${w}; height: ${h}; ${layerStyleStr}"></div>
+        <div ${bgIdAttr} class="layer-item shape-layer" style="position: absolute; left: ${left}; top: ${top}; width: ${w}; height: ${h}; ${layerStyleStr}"></div>
       `;
     }
   }
@@ -326,6 +329,87 @@ export async function renderLocalPlacid(params: RenderParams, port: number = 300
       <div class="canvas-container">
         ${layersHtml}
       </div>
+      ${parsedRequirements?.background_gradient_to_dominant === true ? `
+      <script>
+        window.addEventListener('DOMContentLoaded', () => {
+          const imgEl = document.querySelector('.source-image-for-dominant');
+          const bgEl = document.getElementById('background-gradient-dominant');
+          if (imgEl && bgEl) {
+            const getDominant = () => {
+              try {
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = 50;
+                canvas.height = 50;
+                ctx.drawImage(imgEl, 0, 0, 50, 50);
+                const imgData = ctx.getImageData(0, 0, 50, 50).data;
+                
+                let colorCounts = {};
+                let maxCount = 0;
+                let dominant = '#ffffff';
+                
+                for (let i = 0; i < imgData.length; i += 4) {
+                  const r = imgData[i];
+                  const g = imgData[i+1];
+                  const b = imgData[i+2];
+                  const a = imgData[i+3];
+                  if (a < 100) continue;
+                  
+                  const maxVal = Math.max(r, g, b);
+                  const minVal = Math.min(r, g, b);
+                  const diff = maxVal - minVal;
+                  
+                  const qr = Math.round(r / 15) * 15;
+                  const qg = Math.round(g / 15) * 15;
+                  const qb = Math.round(b / 15) * 15;
+                  const key = qr + ',' + qg + ',' + qb;
+                  
+                  const score = diff > 20 ? 3 : 1;
+                  colorCounts[key] = (colorCounts[key] || 0) + score;
+                  
+                  if (colorCounts[key] > maxCount) {
+                    maxCount = colorCounts[key];
+                    
+                    const toHex = (c) => {
+                      const hex = Math.max(0, Math.min(255, c)).toString(16);
+                      return hex.length === 1 ? "0" + hex : hex;
+                    };
+                    dominant = "#" + toHex(qr) + toHex(qg) + toHex(qb);
+                  }
+                }
+                
+                // Lighten color
+                let r = parseInt(dominant.substring(1, 3), 16);
+                let g = parseInt(dominant.substring(3, 5), 16);
+                let b = parseInt(dominant.substring(5, 7), 16);
+                
+                r = Math.round(r + (255 - r) * 0.82);
+                g = Math.round(g + (255 - g) * 0.82);
+                b = Math.round(b + (255 - b) * 0.82);
+                
+                const toHex = (c) => {
+                  const hex = c.toString(16);
+                  return hex.length === 1 ? "0" + hex : hex;
+                };
+                const lightenedHex = "#" + toHex(r) + toHex(g) + toHex(b);
+                
+                const gradDir = "${parsedRequirements.background_gradient_direction || 'to bottom'}";
+                bgEl.style.background = 'linear-gradient(' + gradDir + ', ' + lightenedHex + ', transparent)';
+                console.log('[LOCAL-RENDER-DOMINANT] Applied dominant gradient background:', lightenedHex);
+              } catch (e) {
+                console.error('[LOCAL-RENDER-DOMINANT] Error extracting dominant color:', e);
+              }
+            };
+            
+            if (imgEl.complete) {
+              getDominant();
+            } else {
+              imgEl.addEventListener('load', getDominant);
+            }
+          }
+        });
+      </script>
+      ` : ''}
     </body>
     </html>
   `;

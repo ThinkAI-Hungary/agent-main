@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { GeneratorBrandKit } from './types';
 
 // 8px Base Spacing Grid

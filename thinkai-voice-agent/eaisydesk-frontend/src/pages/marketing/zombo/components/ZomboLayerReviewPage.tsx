@@ -68,6 +68,85 @@ PRESETS.forEach((t: PlacidTemplate) => {
   group.variants.push(t);
 });
 
+function rgbToHex(r: number, g: number, b: number): string {
+  const toHex = (c: number) => {
+    const hex = Math.max(0, Math.min(255, c)).toString(16);
+    return hex.length === 1 ? "0" + hex : hex;
+  };
+  return "#" + toHex(r) + toHex(g) + toHex(b);
+}
+
+function getDominantColor(imageUrl: string): Promise<string> {
+  return new Promise((resolve) => {
+    if (!imageUrl) return resolve('#ffffff');
+    const img = new Image();
+    img.crossOrigin = "Anonymous";
+    img.onload = () => {
+      try {
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        if (!ctx) return resolve('#ffffff');
+        canvas.width = 50;
+        canvas.height = 50;
+        ctx.drawImage(img, 0, 0, 50, 50);
+        const imgData = ctx.getImageData(0, 0, 50, 50).data;
+        
+        const colorCounts: Record<string, number> = {};
+        let maxCount = 0;
+        let dominantColor = '#ffffff';
+        
+        for (let i = 0; i < imgData.length; i += 4) {
+          const r = imgData[i];
+          const g = imgData[i+1];
+          const b = imgData[i+2];
+          const a = imgData[i+3];
+          if (a < 100) continue; // Skip highly transparent pixels
+          
+          const maxVal = Math.max(r, g, b);
+          const minVal = Math.min(r, g, b);
+          const diff = maxVal - minVal;
+          
+          const qr = Math.round(r / 15) * 15;
+          const qg = Math.round(g / 15) * 15;
+          const qb = Math.round(b / 15) * 15;
+          const key = `${qr},${qg},${qb}`;
+          
+          const score = diff > 20 ? 3 : 1;
+          colorCounts[key] = (colorCounts[key] || 0) + score;
+          
+          if (colorCounts[key] > maxCount) {
+            maxCount = colorCounts[key];
+            dominantColor = rgbToHex(qr, qg, qb);
+          }
+        }
+        resolve(dominantColor);
+      } catch {
+        resolve('#ffffff');
+      }
+    };
+    img.onerror = () => resolve('#ffffff');
+    img.src = imageUrl;
+  });
+}
+
+function lightenColor(hex: string): string {
+  // Convert hex to RGB
+  let r = parseInt(hex.substring(1, 3), 16);
+  let g = parseInt(hex.substring(3, 5), 16);
+  let b = parseInt(hex.substring(5, 7), 16);
+
+  // boost to a very light pastel version of the color (80% blend to white)
+  r = Math.round(r + (255 - r) * 0.82);
+  g = Math.round(g + (255 - g) * 0.82);
+  b = Math.round(b + (255 - b) * 0.82);
+
+  const toHex = (c: number) => {
+    const hex = c.toString(16);
+    return hex.length === 1 ? "0" + hex : hex;
+  };
+  return "#" + toHex(r) + toHex(g) + toHex(b);
+}
+
 // Convert all px styling keys to relative container-query width (cqw) for perfect preview scaling
 function scaleStyleToCqw(style: Record<string, any>, canvasWidth: number): React.CSSProperties {
   const scaled: Record<string, any> = {};
@@ -226,40 +305,54 @@ function ZomboLayerReviewPage() {
   // State for reviewed templates (saved in LocalStorage, fallback to hardcoded meta)
   const [reviewedTemplates, setReviewedTemplates] = useState<Set<string>>(() => {
     const set = new Set<string>();
-    // 1. Add hardcoded approved templates
-    Object.entries(HARDCODED_TEMPLATE_METADATA).forEach(([uuid, meta]) => {
-      if (meta.is_approved) {
-        set.add(uuid);
-      }
-    });
-    // 2. Add local storage ones
     try {
       const stored = localStorage.getItem('zombo_reviewed_templates');
-      if (stored) {
+      if (stored !== null) {
         JSON.parse(stored).forEach((id: string) => set.add(id));
+      } else {
+        // Fallback for first load
+        Object.entries(HARDCODED_TEMPLATE_METADATA).forEach(([uuid, meta]) => {
+          if (meta.is_approved) {
+            set.add(uuid);
+          }
+        });
       }
-    } catch {}
+    } catch {
+      Object.entries(HARDCODED_TEMPLATE_METADATA).forEach(([uuid, meta]) => {
+        if (meta.is_approved) {
+          set.add(uuid);
+        }
+      });
+    }
     return set;
   });
 
   // State for reviewed individual layers (saved in LocalStorage as 'templateUuid::layerName', fallback to hardcoded meta)
   const [reviewedLayers, setReviewedLayers] = useState<Set<string>>(() => {
     const set = new Set<string>();
-    // 1. Add hardcoded approved layers
-    Object.entries(HARDCODED_TEMPLATE_METADATA).forEach(([uuid, meta]) => {
-      Object.entries(meta.layers).forEach(([layerName, layerMeta]) => {
-        if (layerMeta.is_approved) {
-          set.add(`${uuid}::${layerName}`);
-        }
-      });
-    });
-    // 2. Add local storage ones
     try {
       const stored = localStorage.getItem('zombo_reviewed_layers');
-      if (stored) {
+      if (stored !== null) {
         JSON.parse(stored).forEach((key: string) => set.add(key));
+      } else {
+        // Fallback for first load
+        Object.entries(HARDCODED_TEMPLATE_METADATA).forEach(([uuid, meta]) => {
+          Object.entries(meta.layers).forEach(([layerName, layerMeta]) => {
+            if (layerMeta.is_approved) {
+              set.add(`${uuid}::${layerName}`);
+            }
+          });
+        });
       }
-    } catch {}
+    } catch {
+      Object.entries(HARDCODED_TEMPLATE_METADATA).forEach(([uuid, meta]) => {
+        Object.entries(meta.layers).forEach(([layerName, layerMeta]) => {
+          if (layerMeta.is_approved) {
+            set.add(`${uuid}::${layerName}`);
+          }
+        });
+      });
+    }
     return set;
   });
 
@@ -356,9 +449,70 @@ function ZomboLayerReviewPage() {
   // JSON editor states
   const [jsonText, setJsonText] = useState<string>('');
   const [jsonError, setJsonError] = useState<string | null>(null);
+  const [jsonFocusedConfig, setJsonFocusedConfig] = useState<Record<string, any> | null>(null);
 
   const [aiRefineInstruction, setAiRefineInstruction] = useState('');
   const [isRefiningJson, setIsRefiningJson] = useState(false);
+
+  const [resolvedDominantColor, setResolvedDominantColor] = useState('#ffffff');
+  const [aiInstructionsHistory, setAiInstructionsHistory] = useState<Record<string, string[]>>(() => {
+    try {
+      const stored = localStorage.getItem('zombo_ai_instructions_history');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const [jsonConfigHistory, setJsonConfigHistory] = useState<Record<string, Record<string, any>[]>>(() => {
+    try {
+      const stored = localStorage.getItem('zombo_template_json_history');
+      return stored ? JSON.parse(stored) : {};
+    } catch {
+      return {};
+    }
+  });
+
+  const pushConfigToHistory = (templateId: string, config: Record<string, any>) => {
+    if (!config || Object.keys(config).length === 0) return;
+    setJsonConfigHistory(prev => {
+      const next = { ...prev };
+      const list = [...(next[templateId] || [])];
+      
+      // Compare with the last entry to avoid duplicates
+      const lastEntry = list[list.length - 1];
+      if (lastEntry && JSON.stringify(lastEntry) === JSON.stringify(config)) {
+        return prev;
+      }
+      
+      list.push(JSON.parse(JSON.stringify(config)));
+      if (list.length > 15) {
+        list.shift(); // cap history at 15 entries
+      }
+      next[templateId] = list;
+      localStorage.setItem('zombo_template_json_history', JSON.stringify(next));
+      return next;
+    });
+  };
+
+  // Analyze dominant color of the product (or base) image when URLs change
+  useEffect(() => {
+    const analyzeColor = async () => {
+      const targetUrl = productImageUrl || baseImageUrl;
+      if (!targetUrl) {
+        setResolvedDominantColor('#ffffff');
+        return;
+      }
+      try {
+        const color = await getDominantColor(targetUrl.startsWith('http') ? targetUrl : `${API}${targetUrl}`);
+        setResolvedDominantColor(color);
+        console.log(`[DOMINANT-COLOR] Extracted: ${color} for ${targetUrl}`);
+      } catch (e) {
+        setResolvedDominantColor('#ffffff');
+      }
+    };
+    analyzeColor();
+  }, [productImageUrl, baseImageUrl]);
 
   const setSelectedTemplateId = (uuid: string) => {
     setSearchParams(prev => {
@@ -378,7 +532,6 @@ function ZomboLayerReviewPage() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedCategory, setSelectedCategory] = useState('All');
   const [reviewFilter, setReviewFilter] = useState<'all' | 'pending' | 'reviewed'>('all');
-  const [dynamicFilters, setDynamicFilters] = useState<Record<string, any>>({});
 
   const selectedTemplate = PRESETS.find(t => t.uuid === selectedTemplateId) || PRESETS[0];
 
@@ -407,6 +560,7 @@ function ZomboLayerReviewPage() {
       if (!response.ok) throw new Error(`Helyi API hiba: ${response.status}`);
       const data = await response.json();
       if (data.parsed) {
+        pushConfigToHistory(selectedTemplateId, activeParsedJson);
         setParsedRequirements(prev => ({
           ...prev,
           [selectedTemplateId]: data.parsed
@@ -440,10 +594,22 @@ function ZomboLayerReviewPage() {
       
       const data = await response.json();
       if (data.success && data.parsed) {
+        pushConfigToHistory(selectedTemplateId, activeParsedJson);
         const newJsonText = JSON.stringify(data.parsed, null, 2);
         setJsonText(newJsonText);
         setJsonError(null);
         
+        // Update history
+        setAiInstructionsHistory(prev => {
+          const next = { ...prev };
+          const list = next[selectedTemplateId] || [];
+          if (!list.includes(aiRefineInstruction)) {
+            next[selectedTemplateId] = [...list, aiRefineInstruction];
+          }
+          localStorage.setItem('zombo_ai_instructions_history', JSON.stringify(next));
+          return next;
+        });
+
         // Update in-memory parsed values state
         setParsedRequirements(prev => ({
           ...prev,
@@ -463,8 +629,58 @@ function ZomboLayerReviewPage() {
     }
   };
 
-  // Manual global save function triggered by the save button
-  const handleGlobalSave = () => {
+  const handleResetToDefault = () => {
+    try {
+      pushConfigToHistory(selectedTemplateId, activeParsedJson);
+      const allPics = (selectedTemplate.layers || []).filter(l => l.type === 'picture');
+      const bgPics = allPics.filter((l, idx) => isBackgroundLayer(l, idx));
+      const contentPics = allPics.filter((l, idx) => !isBackgroundLayer(l, idx));
+      
+      const defaultParsed: Record<string, any> = {
+        images_count: allPics.length === 1 ? 1 : contentPics.length,
+        has_background: allPics.length === 1 ? false : bgPics.length > 0
+      };
+
+      const hardcodedMeta = HARDCODED_TEMPLATE_METADATA[selectedTemplateId];
+      if (hardcodedMeta) {
+        Object.entries(hardcodedMeta.layers).forEach(([layerName, layerMeta]) => {
+          if (layerMeta.opacity !== undefined) {
+            defaultParsed[`${layerName}_opacity`] = layerMeta.opacity;
+          }
+          if (layerMeta.fade_gradient !== undefined) {
+            defaultParsed.fade_gradient = layerMeta.fade_gradient;
+          }
+          if (layerMeta.fade_pixels !== undefined) {
+            defaultParsed.fade_pixels = layerMeta.fade_pixels;
+          }
+          if (layerMeta.fade_direction !== undefined) {
+            defaultParsed.fade_direction = layerMeta.fade_direction;
+          }
+        });
+      }
+
+      const newJsonText = JSON.stringify(defaultParsed, null, 2);
+      setJsonText(newJsonText);
+      setJsonError(null);
+
+      setParsedRequirements(prev => ({
+        ...prev,
+        [selectedTemplateId]: defaultParsed
+      }));
+
+      const stored = localStorage.getItem('zombo_template_parsed_requirements_v4');
+      const parsed = stored ? JSON.parse(stored) : {};
+      parsed[selectedTemplateId] = defaultParsed;
+      localStorage.setItem('zombo_template_parsed_requirements_v4', JSON.stringify(parsed));
+
+      showToast({ title: 'Alaphelyzet visszaállítva', message: 'A sablon konfiguráció visszaállt a gyári értékekre!', type: 'info' });
+    } catch (err: any) {
+      showToast({ title: 'Hiba a visszaállításkor', message: err.message, type: 'error' });
+    }
+  };
+
+  // Global Autosave Effect triggering on any state changes
+  useEffect(() => {
     try {
       localStorage.setItem('zombo_reviewed_templates', JSON.stringify(Array.from(reviewedTemplates)));
       localStorage.setItem('zombo_reviewed_layers', JSON.stringify(Array.from(reviewedLayers)));
@@ -473,12 +689,18 @@ function ZomboLayerReviewPage() {
       localStorage.setItem('qpp_pinned_test_image', baseImageUrl);
       localStorage.setItem('qpp_pinned_test_image_product_url', productImageUrl);
       localStorage.setItem('zombo_template_layers_map', JSON.stringify(templateLayersMap));
-      
-      showToast({ title: 'Mentés sikeres', message: 'Minden változtatás elmentve a LocalStorage-ba!', type: 'success' });
-    } catch (err: any) {
-      showToast({ title: 'Mentési hiba', message: err.message, type: 'error' });
+    } catch (err) {
+      console.error('[AUTOSAVE] Failed to save configurations:', err);
     }
-  };
+  }, [
+    reviewedTemplates,
+    reviewedLayers,
+    templateRequirements,
+    parsedRequirements,
+    baseImageUrl,
+    productImageUrl,
+    templateLayersMap
+  ]);
 
   // JSON change handler that parses typed string dynamically
   const handleJsonChange = (val: string) => {
@@ -612,22 +834,7 @@ function ZomboLayerReviewPage() {
     }));
   };
 
-  // Extract all unique parsed requirement keys for dynamic filtering
-  const allParsed = Object.values(parsedRequirements) as Record<string, any>[];
-  const uniqueFilterKeys = Array.from(new Set(allParsed.flatMap(p => Object.keys(p))));
 
-  const getUniqueValuesForFilter = (key: string) => {
-    const vals = new Set<any>();
-    Object.values(parsedRequirements).forEach((p: any) => {
-      if (p && p[key] !== undefined) {
-        vals.add(p[key]);
-      }
-    });
-    return ['Mind', ...Array.from(vals)].sort((a, b) => {
-      if (typeof a === 'number' && typeof b === 'number') return a - b;
-      return String(a).localeCompare(String(b));
-    });
-  };
 
   // Renders a human-readable interpretation of the active JSON config next to the editor
   const renderHumanReadableDescription = () => {
@@ -703,20 +910,7 @@ function ZomboLayerReviewPage() {
                           (reviewFilter === 'reviewed' && isAnyVariantReviewed) ||
                           (reviewFilter === 'pending' && !isAnyVariantReviewed);
 
-    // Dynamic AI filters
-    let matchesDynamic = true;
-    for (const [fKey, fVal] of Object.entries(dynamicFilters)) {
-      const hasMatchingVariant = g.variants.some(v => {
-        const parsed = parsedRequirements[v.uuid];
-        return parsed && parsed[fKey] === fVal;
-      });
-      if (!hasMatchingVariant) {
-        matchesDynamic = false;
-        break;
-      }
-    }
-
-    return matchesSearch && matchesCat && matchesReview && matchesDynamic;
+    return matchesSearch && matchesCat && matchesReview;
   });
 
   const resolution = selectedTemplate?.resolution;
@@ -816,48 +1010,7 @@ function ZomboLayerReviewPage() {
             })}
           </div>
 
-          {/* Dynamic AI Filters Section */}
-          {uniqueFilterKeys.length > 0 && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 8, background: 'rgba(251,191,36,0.03)', border: '1px dashed rgba(251,191,36,0.2)', padding: 10, borderRadius: 8 }}>
-              <div style={{ fontSize: 9.5, fontWeight: 900, textTransform: 'uppercase', color: '#fbbf24', letterSpacing: '0.05em' }}>
-                🔍 Dinamikus Szűrők (AI)
-              </div>
-              <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-                {uniqueFilterKeys.map(key => {
-                  const vals = getUniqueValuesForFilter(key);
-                  const currentValue = dynamicFilters[key] ?? 'Mind';
-                  return (
-                    <div key={key} style={{ display: 'flex', flexDirection: 'column', gap: 3 }}>
-                      <span style={{ fontSize: 10, fontWeight: 700, textTransform: 'capitalize', color: 'var(--text-dim)' }}>
-                        {key.replace(/_/g, ' ')}:
-                      </span>
-                      <select
-                        value={String(currentValue)}
-                        onChange={e => {
-                          const val = e.target.value;
-                          setDynamicFilters(prev => {
-                            const next = { ...prev };
-                            if (val === 'Mind') {
-                              delete next[key];
-                            } else {
-                              const num = Number(val);
-                              next[key] = isNaN(num) || val === '' ? (val === 'true' ? true : val === 'false' ? false : val) : num;
-                            }
-                            return next;
-                          });
-                        }}
-                        style={{ width: '100%', padding: '4px 8px', borderRadius: 6, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: 10.5 }}
-                      >
-                        {vals.map(v => (
-                          <option key={String(v)} value={String(v)}>{String(v)}</option>
-                        ))}
-                      </select>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-          )}
+
 
           <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 2, scrollbarWidth: 'none' }}>
             {categories.map(cat => {
@@ -1042,9 +1195,28 @@ function ZomboLayerReviewPage() {
               <span style={{ fontSize: 11.5, fontWeight: 800, textTransform: 'uppercase', color: '#fbbf24', letterSpacing: '0.05em' }}>
                 📋 Sablon Működési Követelmények (JSON Config)
               </span>
-              <span style={{ fontSize: 9.5, color: jsonError ? '#ef4444' : '#10b981', fontWeight: 800 }}>
-                {jsonError ? '⚠️ Érvénytelen JSON' : '✓ Érvényes JSON'}
-              </span>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                <button
+                  onClick={handleResetToDefault}
+                  style={{
+                    background: 'rgba(239, 68, 68, 0.1)',
+                    color: '#f87171',
+                    border: '1px solid rgba(239, 68, 68, 0.2)',
+                    padding: '3px 8px',
+                    borderRadius: 6,
+                    fontSize: 9.5,
+                    fontWeight: 800,
+                    cursor: 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                  title="Alapértelmezett beállítások visszaállítása a LocalStorage törlésével"
+                >
+                  ↩ Visszaállítás alaphelyzetbe
+                </button>
+                <span style={{ fontSize: 9.5, color: jsonError ? '#ef4444' : '#10b981', fontWeight: 800 }}>
+                  {jsonError ? '⚠️ Érvénytelen JSON' : '✓ Érvényes JSON'}
+                </span>
+              </div>
             </div>
 
             <div style={{ display: 'grid', gridTemplateColumns: '1.2fr 1fr', gap: 16, height: 180 }}>
@@ -1054,6 +1226,18 @@ function ZomboLayerReviewPage() {
                   placeholder="Ide jön a sablon JSON konfigurációja..."
                   value={jsonText}
                   onChange={e => handleJsonChange(e.target.value)}
+                  onFocus={() => {
+                    setJsonFocusedConfig(JSON.parse(JSON.stringify(activeParsedJson)));
+                  }}
+                  onBlur={() => {
+                    try {
+                      const currentParsed = JSON.parse(jsonText);
+                      if (jsonFocusedConfig && JSON.stringify(jsonFocusedConfig) !== JSON.stringify(currentParsed)) {
+                        pushConfigToHistory(selectedTemplateId, jsonFocusedConfig);
+                      }
+                    } catch {}
+                    setJsonFocusedConfig(null);
+                  }}
                   style={{
                     flex: 1,
                     width: '100%',
@@ -1143,6 +1327,85 @@ function ZomboLayerReviewPage() {
                 </button>
               </div>
             </div>
+
+            {/* AI History chips list */}
+            {aiInstructionsHistory[selectedTemplateId] && aiInstructionsHistory[selectedTemplateId].length > 0 && (
+              <div style={{ borderTop: '1px dashed rgba(252, 211, 77, 0.1)', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <span style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--text-muted)' }}>🕒 KORÁBBI AI KÉRÉSEK (Rákattintva beíródik):</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {aiInstructionsHistory[selectedTemplateId].map((histText, idx) => (
+                    <button
+                      key={idx}
+                      onClick={() => setAiRefineInstruction(histText)}
+                      style={{
+                        padding: '4px 8px',
+                        borderRadius: 6,
+                        background: 'rgba(255, 255, 255, 0.04)',
+                        border: '1.5px solid var(--border)',
+                        color: 'var(--text-dim)',
+                        fontSize: 10.5,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.2s',
+                        textAlign: 'left'
+                      }}
+                      onMouseEnter={e => { e.currentTarget.style.borderColor = '#fbbf24'; e.currentTarget.style.color = '#fbbf24'; }}
+                      onMouseLeave={e => { e.currentTarget.style.borderColor = 'var(--border)'; e.currentTarget.style.color = 'var(--text-dim)'; }}
+                    >
+                      {histText}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* JSON Configuration History */}
+            {jsonConfigHistory[selectedTemplateId] && jsonConfigHistory[selectedTemplateId].length > 0 && (
+              <div style={{ borderTop: '1px dashed rgba(252, 211, 77, 0.1)', paddingTop: 8, display: 'flex', flexDirection: 'column', gap: 5 }}>
+                <span style={{ fontSize: 9.5, fontWeight: 800, color: 'var(--text-muted)' }}>🕒 KORÁBBI BEÁLLÍTÁSOK (Visszaállításhoz kattints rá):</span>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {jsonConfigHistory[selectedTemplateId].map((histConfig, idx) => {
+                    const label = Object.entries(histConfig)
+                      .map(([k, v]) => `${k}:${v}`)
+                      .join(', ');
+                    const truncatedLabel = label.length > 50 ? label.substring(0, 50) + '...' : label;
+                    return (
+                      <button
+                        key={idx}
+                        onClick={() => {
+                          pushConfigToHistory(selectedTemplateId, activeParsedJson);
+                          setParsedRequirements(prev => ({
+                            ...prev,
+                            [selectedTemplateId]: histConfig
+                          }));
+                          setJsonText(JSON.stringify(histConfig, null, 2));
+                          setJsonError(null);
+                          showToast({ title: 'Visszaállítva', message: `Korábbi konfiguráció visszaállítva!`, type: 'success' });
+                        }}
+                        style={{
+                          padding: '4px 8px',
+                          borderRadius: 6,
+                          background: 'rgba(251, 191, 36, 0.04)',
+                          border: '1.5px solid rgba(251, 191, 36, 0.2)',
+                          color: 'var(--text-dim)',
+                          fontSize: 10.5,
+                          fontWeight: 600,
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                          textAlign: 'left'
+                        }}
+                        onMouseEnter={e => { e.currentTarget.style.borderColor = '#fbbf24'; e.currentTarget.style.color = '#fbbf24'; }}
+                        onMouseLeave={e => { e.currentTarget.style.borderColor = 'rgba(251, 191, 36, 0.2)'; e.currentTarget.style.color = 'var(--text-dim)'; }}
+                        title={JSON.stringify(histConfig, null, 2)}
+                      >
+                        Verzió #{idx + 1} ({truncatedLabel})
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+
           </div>
         </div>
 
@@ -1382,7 +1645,14 @@ function ZomboLayerReviewPage() {
                         }
 
                         if (layer.type === 'shape') {
-                          return <div key={layer.name} style={style} />;
+                          const isBgShape = isBackgroundLayer(layer, layers.indexOf(layer)) || layer.name === 'background_layer';
+                          const dynamicStyle = { ...style };
+                          if (isBgShape && activeParsedJson.background_gradient_to_dominant === true) {
+                            const gradDir = activeParsedJson.background_gradient_direction || 'to bottom';
+                            const lightened = lightenColor(resolvedDominantColor);
+                            dynamicStyle.background = `linear-gradient(${gradDir}, ${lightened}, transparent)`;
+                          }
+                          return <div key={layer.name} style={dynamicStyle} />;
                         }
 
                         return null;
@@ -1584,6 +1854,26 @@ function ZomboLayerReviewPage() {
                               min="0"
                               max="100"
                               value={opacityVal}
+                              onMouseDown={() => {
+                                (window as any)._sliderStartConfig = JSON.parse(JSON.stringify(activeParsedJson));
+                              }}
+                              onMouseUp={() => {
+                                const startConfig = (window as any)._sliderStartConfig;
+                                if (startConfig && JSON.stringify(startConfig) !== JSON.stringify(activeParsedJson)) {
+                                  pushConfigToHistory(selectedTemplateId, startConfig);
+                                }
+                                (window as any)._sliderStartConfig = null;
+                              }}
+                              onTouchStart={() => {
+                                (window as any)._sliderStartConfig = JSON.parse(JSON.stringify(activeParsedJson));
+                              }}
+                              onTouchEnd={() => {
+                                const startConfig = (window as any)._sliderStartConfig;
+                                if (startConfig && JSON.stringify(startConfig) !== JSON.stringify(activeParsedJson)) {
+                                  pushConfigToHistory(selectedTemplateId, startConfig);
+                                }
+                                (window as any)._sliderStartConfig = null;
+                              }}
                               onChange={e => {
                                 const val = parseInt(e.target.value, 10);
                                 setParsedRequirements(prev => {
@@ -1703,34 +1993,6 @@ function ZomboLayerReviewPage() {
           </div>
 
         </div>
-
-        {/* Fixed Save button in bottom-right corner */}
-        <button
-          onClick={handleGlobalSave}
-          style={{
-            position: 'fixed',
-            bottom: 24,
-            right: 24,
-            padding: '12px 24px',
-            borderRadius: 12,
-            background: 'linear-gradient(135deg, #10b981, #059669)',
-            color: '#fff',
-            fontSize: 13,
-            fontWeight: 900,
-            cursor: 'pointer',
-            boxShadow: '0 8px 30px rgba(16,185,129,0.35)',
-            border: 'none',
-            zIndex: 9999,
-            display: 'flex',
-            alignItems: 'center',
-            gap: 8,
-            transition: 'transform 0.15s, opacity 0.15s'
-          }}
-          onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.05)'}
-          onMouseLeave={e => e.currentTarget.style.transform = 'scale(1)'}
-        >
-          <span>💾</span> MENTÉS
-        </button>
 
       </div>
 

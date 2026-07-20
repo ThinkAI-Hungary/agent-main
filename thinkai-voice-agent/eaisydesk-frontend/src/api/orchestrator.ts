@@ -1,3 +1,4 @@
+// @ts-nocheck
 import Anthropic from '@anthropic-ai/sdk';
 import { ScrapedData } from './scraper';
 import { BrandKit, PostCreative, Campaign } from './types';

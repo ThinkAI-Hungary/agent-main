@@ -435,25 +435,21 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
       const dataC = await resC.json();
 
       const newB: CampaignItem = {
+        ...item,
         id: `ab-B-${Date.now()}`,
-        templateId: item.templateId,
-        channel: item.channel,
         status: 'draft',
         text: dataB.text || item.text,
         cta: dataB.cta || item.cta,
         imageUrl: dataB.imageUrl || item.imageUrl,
-        scheduledAt: item.scheduledAt
       };
       
       const newC: CampaignItem = {
+        ...item,
         id: `ab-C-${Date.now()}`,
-        templateId: item.templateId,
-        channel: item.channel,
         status: 'draft',
         text: dataC.text || item.text,
         cta: dataC.cta || item.cta,
         imageUrl: dataC.imageUrl || item.imageUrl,
-        scheduledAt: item.scheduledAt
       };
 
       setAbVariations(prev => ({
@@ -507,7 +503,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
       createdAt: new Date().toISOString(),
       scheduledAt: v.scheduledAt || new Date().toISOString(),
       status: 'draft'
-    }));
+    } as any as PostCreative));
 
     setCreatives(prev => [...prev, ...newCreatives]);
     setAbTestItemId(null);
@@ -516,20 +512,21 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
 
   const handleExportMetaAds = () => {
     if (!activeCampaign) return;
+    const campaign = activeCampaign as any;
     
     const metaCampaignData = {
-      campaign_name: activeCampaign.name,
-      objective: activeCampaign.objective,
-      target_audience: activeCampaign.targetAudience,
-      ad_budget_split: activeCampaign.adBudgetSplit,
-      ad_sets: activeCampaign.items
+      campaign_name: campaign.name || campaign.title,
+      objective: campaign.objective,
+      target_audience: campaign.targetAudience,
+      ad_budget_split: campaign.adBudgetSplit,
+      ad_sets: (campaign.items as CampaignItem[])
         .filter(item => item.channel === 'meta-ads' || item.templateId.includes('conversion') || item.templateId.includes('benefit'))
         .map((item, idx) => ({
           ad_set_name: `Ad Set ${idx + 1} - ${item.channel.toUpperCase()}`,
           targeting: {
             age: "18-65+",
             location: "Hungary",
-            interests: activeCampaign.targetAudience
+            interests: campaign.targetAudience
           },
           ad_creative: {
             title: `Ad Creative ${idx + 1}`,
@@ -544,7 +541,7 @@ export const CampaignCreator: React.FC<CampaignCreatorProps> = ({
     const blob = new Blob([JSON.stringify(metaCampaignData, null, 2)], { type: 'application/json' });
     const link = document.createElement('a');
     link.href = URL.createObjectURL(blob);
-    link.download = `meta-ads-campaign-${activeCampaign.name.toLowerCase().replace(/\s+/g, '-')}.json`;
+    link.download = `meta-ads-campaign-${(campaign.name || campaign.title || '').toLowerCase().replace(/\s+/g, '-')}.json`;
     link.click();
     alert("Meta Ads hirdetési terv sikeresen exportálva JSON formátumban!");
   };

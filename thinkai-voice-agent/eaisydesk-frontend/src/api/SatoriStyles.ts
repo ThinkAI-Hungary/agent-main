@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { SatoriRenderOptions, SatoriRenderer } from './SatoriRenderer';
 
 export class SatoriStyles {

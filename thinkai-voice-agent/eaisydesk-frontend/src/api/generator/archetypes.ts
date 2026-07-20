@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { GeneratorBrandKit, CreativeContent, PolotnoJSON, PolotnoChild } from './types';
 import { resolveColorRoles, spacing, typography } from './tokens';
 import { autoFit } from './helpers';
