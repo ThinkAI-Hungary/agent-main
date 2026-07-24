@@ -8,6 +8,7 @@ import { useAuth } from '../context/AuthContext';
 import { useApproval } from '../context/ApprovalContext';
 import { useClients } from '../hooks/useClients';
 import { useSessions, type SessionSummary, type SessionInteraction } from '../hooks/useSessions';
+import { useGroupedSessions } from '../hooks/useGroupedSessions';
 import { resolveClientName, getRowChannel, parseCustomData, isAssignedToMe } from '../helpers/clientResolvers';
 import {
   detectUgyTipus,
@@ -92,9 +93,12 @@ const SORT_OPTIONS = [
 export default function InteractionsPage() {
   const isMobile = useIsMobile(768);
   const { user, isAdmin } = useAuth();
-  const { openApproval, registerOnApproved } = useApproval();
+  const { registerOnApproved } = useApproval();
   const { clients, clientsMap } = useClients();
-  const { sessions, loading, refetch: refetchSessions } = useSessions(100);
+  // Szerver-oldali aggregáció: 1 session = 1 sor (a kliens-oldali merge megszűnt)
+  const { groups, loading, error, refetch: refetchSessions } = useGroupedSessions(100);
+  // A ClientDetailView a régi hookot használja (tool-hívás részletekkel)
+  const { sessions } = useSessions(100);
   const { confirm, ConfirmDialog } = useConfirm();
   const { events } = useCalendarEvents();
   const pullInteractions = usePullToRefresh({ onRefresh: refetchSessions, enabled: isMobile });
@@ -113,7 +117,10 @@ export default function InteractionsPage() {
   const [visibleCols, setVisibleCols] = useState<Set<string>>(
     new Set(ALL_COLUMNS.map((c) => c.key))
   );
-  const [selectedRows, setSelectedRows] = useState<Set<number>>(new Set());
+  // Kijelölés sessionId alapján (stabil refetchen át — index-alapú volt és
+  // minden frissítésnél elveszett)
+  const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
+  const [isDeleting, setIsDeleting] = useState(false);
   const [summaryModalRow, setSummaryModalRow] = useState<InteractionRow | null>(null);
   const [autoExpandApproval, setAutoExpandApproval] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
@@ -146,76 +153,20 @@ export default function InteractionsPage() {
     return () => document.removeEventListener('click', handleClick);
   }, []);
 
-  // ── Build interaction rows (EAISY-241 §1.2.1: egy interakció = egy sor) ──
-  // Korábban minden session.interactions külön sor volt — egy voice hívás 2+ sort
-  // eredményezett (végösszegzés + minden tool-hívás). Most session-enként EGYETLEN
-  // reprezentatív sort építünk: a leginformatívabb interakciót vesszük alapul, és
-  // az összes eredményt badge-ként gyűjtjük. Státuszból a legmagasabb prioritású
-  // (Lezárt < Nyitott < Sürgős) jelenik meg (brief §1.2.1).
-  const STATUSZ_PRIORITY: Record<string, number> = { Lezárt: 1, Nyitott: 2, Sürgős: 3 };
-
-  function pickStatusz(statuses: string[]): string {
-    if (!statuses.length) return 'Nyitott';
-    return statuses.reduce((top, s) =>
-      (STATUSZ_PRIORITY[s] ?? 0) > (STATUSZ_PRIORITY[top] ?? 0) ? s : top
-    , statuses[0]);
-  }
-
+  // ── Build interaction rows (EAISY-241 §1.2.1: egy session = egy sor) ──
+  // A sorokat a szerver-oldali grouped végpont adja: a reprezentatív interakciót
+  // és a session-max státuszt az SQL választja (nincs kliens-oldali ablakos merge).
   const allRows = useMemo<InteractionRow[]>(() => {
     const rows: InteractionRow[] = [];
-    sessions.forEach((s: SessionSummary) => {
-      const sessionDate = s.started_at || '';
-      const sRoom = (s.room_name || '').toLowerCase();
-      // Skip spam a session szintjén
-      const interactions = (s.interactions || []).filter((r) => r.approval_status !== 'spam');
-
-      if (interactions.length === 0) {
-        // Session interakciók nélkül (régóta létező ág)
-        const clientInfo = resolveClientName(
-          {},
-          { session_id: s.session_id, participant: s.participant, client_name: s.client_name },
-          clientsMap,
-          clients
-        );
-        rows.push({
-          date: sessionDate,
-          channel: getRowChannel('', sRoom, s.session_id || '', s.channel),
-          client: clientInfo.name,
-          clientId: clientInfo.id,
-          clientStatus: clientInfo.status,
-          clientCreatedAt: clientInfo.created_at,
-          direction: 'Bejövő',
-          ugyTipus: detectUgyTipus({ topic: '', summary: s.summary || '' }),
-          eredmeny: detectEredmeny({ topic: '', summary: s.summary || '', approval_status: 'approved' }),
-          statusz: 'Lezárt',
-          teendo: 'Nincs további teendő',
-          tags: [],
-          type: 'session',
-          topic: '-',
-          summary: s.summary || '-',
-          result: '',
-          interactionId: null,
-          sessionId: s.session_id || null,
-          ai_draft_response: null,
-          approval_status: null,
-        });
-        return;
-      }
-
-      // ── EAISY-241 §1.2.1: session interakcióinak összevonása egy sorba ──
-      // Reprezentatív interakció választása: preferáljuk azt, ami a leggazdagabb
-      // (van classification/summary/draft). Voice-nál a 'telefon' végösszegzés a jó.
-      const representative = interactions.reduce((best: SessionInteraction, r: SessionInteraction) => {
-        const score = (r: SessionInteraction): number =>
-          (r.classification ? 3 : 0) + (r.summary && r.summary !== '-' ? 2 : 0) +
-          (r.ai_draft_response ? 1 : 0) + (r.type === 'telefon' ? 1 : 0);
-        return score(r) > score(best) ? r : best;
-      }, interactions[0]);
+    groups.forEach((g) => {
+      const representative = g.representative || {};
+      if (representative.approval_status === 'spam') return;
+      const sRoom = (g.room_name || '').toLowerCase();
 
       // Ügyfél-feloldás a reprezentatív interakcióra
       const clientInfo = resolveClientName(
         representative,
-        { session_id: s.session_id, participant: s.participant, client_name: s.client_name },
+        { session_id: g.session_id, participant: g.participant || undefined, client_name: g.client_name || undefined },
         clientsMap,
         clients
       );
@@ -225,26 +176,20 @@ export default function InteractionsPage() {
         clientTags = (cd?.tags as string[]) || [];
       }
 
-      // EAISY-241 §1: az eredmeny csak a REPREZENTATÍV interakció saját eredménye
-      // (korábban az egész session tool-hívásainak eredményeit gyűjtöttük össze —
-      // a brief szerint egy interakcióhoz kizárólag a saját eredménye tartozik).
-      const repEredmeny = detectEredmeny(representative);
-      // Státusz: a legmagasabb prioritású az összes interakció közül
-      const allStatusz = interactions.map((r) => detectStatusz(r));
-      const finalStatusz = pickStatusz(allStatusz);
-
       rows.push({
-        date: representative.created_at || sessionDate,
-        channel: getRowChannel(representative.type || '', sRoom, s.session_id || '', s.channel),
+        date: g.last_created_at || representative.created_at || '',
+        channel: getRowChannel(representative.type || '', sRoom, g.session_id || '', representative.type || ''),
         client: clientInfo.name,
         clientId: clientInfo.id,
         clientStatus: clientInfo.status,
         clientCreatedAt: clientInfo.created_at,
         direction: (representative.direction || 'inbound').toLowerCase() === 'outbound' ? 'Kimenő' : 'Bejövő',
         ugyTipus: detectUgyTipus(representative),
-        // EAISY-241 §1: CSAK a reprezentatív interakció saját eredménye (nem a session összesé)
-        eredmeny: repEredmeny,
-        statusz: finalStatusz,
+        // EAISY-241 §1: CSAK a reprezentatív interakció saját eredménye
+        eredmeny: detectEredmeny(representative),
+        // Státusz: a session legmagasabb prioritású státusza (szerver-oldalról),
+        // fallback a reprezentatív saját státusza
+        statusz: g.session_statusz || detectStatusz(representative),
         teendo: detectTeendo(representative),
         tags: clientTags,
         type: representative.type || '-',
@@ -252,7 +197,7 @@ export default function InteractionsPage() {
         summary: representative.summary || '-',
         result: representative.result || '',
         interactionId: representative.id || null,
-        sessionId: s.session_id || null,
+        sessionId: g.session_id || null,
         ai_draft_response: representative.ai_draft_response || null,
         approval_status: representative.approval_status || null,
         classification: representative.classification || null,  // EAISY-241
@@ -260,7 +205,7 @@ export default function InteractionsPage() {
     });
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     return rows;
-  }, [sessions, clients, clientsMap]);
+  }, [groups, clients, clientsMap]);
 
   // ── Member filtering: non-admins only see assigned or unassigned interactions ──
   const myRows = useMemo(() => {
@@ -285,7 +230,7 @@ export default function InteractionsPage() {
       // EAISY-241 §1.2.4: kimenő (outbound) kommunikáció elrejtése a listanézetből
       if (r.direction === 'Kimenő') return false;
       if (q) {
-        const searchable = [r.channel, r.client, r.direction, r.ugyTipus, r.eredmeny, r.statusz, r.teendo, r.summary].join(' ');
+        const searchable = [r.channel, r.client, r.ugyTipus, r.eredmeny, r.statusz, r.teendo, r.summary].join(' ');
         if (!cleanStr(searchable).includes(q)) return false;
       }
       if (filterUgyTipus.size > 0 && !r.ugyTipus.split(', ').some(t => filterUgyTipus.has(t))) return false;
@@ -310,17 +255,14 @@ export default function InteractionsPage() {
     return rows;
   }, [myRows, searchQuery, sortBy, filterUgyTipus, filterCsatorna, filterStatusz, filterDateFrom, filterDateTo]);
 
-  // Reset selection when data changes
-  useEffect(() => setSelectedRows(new Set()), [filteredRows]);
-
   const activeFilterCount = filterUgyTipus.size + filterCsatorna.size + filterStatusz.size + (filterDateFrom ? 1 : 0) + (filterDateTo ? 1 : 0);
 
-  // ── Checkbox handlers ──
-  const toggleRow = useCallback((idx: number) => {
+  // ── Checkbox handlers (sessionId-alapú kijelölés — túléli a refetchet) ──
+  const toggleRow = useCallback((sessionId: string) => {
     setSelectedRows((prev) => {
       const next = new Set(prev);
-      if (next.has(idx)) next.delete(idx);
-      else next.add(idx);
+      if (next.has(sessionId)) next.delete(sessionId);
+      else next.add(sessionId);
       return next;
     });
   }, []);
@@ -328,7 +270,7 @@ export default function InteractionsPage() {
   const toggleAll = useCallback(
     (checked: boolean) => {
       if (checked) {
-        setSelectedRows(new Set(filteredRows.map((_, i) => i)));
+        setSelectedRows(new Set(filteredRows.map((r) => r.sessionId).filter(Boolean) as string[]));
       } else {
         setSelectedRows(new Set());
       }
@@ -336,8 +278,8 @@ export default function InteractionsPage() {
     [filteredRows]
   );
 
-  const isAllSelected = filteredRows.length > 0 && selectedRows.size === filteredRows.length;
-  const isIndeterminate = selectedRows.size > 0 && selectedRows.size < filteredRows.length;
+  const isAllSelected = filteredRows.length > 0 && selectedRows.size === filteredRows.filter((r) => r.sessionId).length;
+  const isIndeterminate = selectedRows.size > 0 && !isAllSelected;
 
   // ── Column toggle ──
   const toggleCol = useCallback((key: string) => {
@@ -351,7 +293,7 @@ export default function InteractionsPage() {
 
   // ── Delete ──
   const handleDeleteSelected = useCallback(async () => {
-    if (selectedRows.size === 0) return;
+    if (selectedRows.size === 0 || isDeleting) return;
     const ok = await confirm(
       `Biztosan törölni szeretnéd a kijelölt ${selectedRows.size} interakciót? Ez a művelet nem vonható vissza!`,
       { title: 'Interakciók törlése', danger: true }
@@ -359,13 +301,13 @@ export default function InteractionsPage() {
     if (!ok) return;
 
     const interactionIds = new Set<number>();
-    const sessionIds = new Set<string>();
-    selectedRows.forEach((idx) => {
-      const row = filteredRows[idx];
+    const sessionIds = new Set<string>(selectedRows);
+    selectedRows.forEach((sid) => {
+      const row = filteredRows.find((r) => r.sessionId === sid);
       if (row?.interactionId) interactionIds.add(row.interactionId);
-      if (row?.sessionId) sessionIds.add(row.sessionId);
     });
 
+    setIsDeleting(true);
     try {
       const res = await authFetch('/admin/api/interactions/delete', {
         method: 'POST',
@@ -378,11 +320,14 @@ export default function InteractionsPage() {
       if (!res.ok) throw new Error('Delete failed');
       const data = await res.json();
       showToast(`Törölve: ${data.deleted_interactions || 0} interakció, ${data.deleted_sessions || 0} session`);
+      setSelectedRows(new Set());
       refetchSessions();
     } catch {
       showToast('Hiba történt a törlés során!', 'error');
+    } finally {
+      setIsDeleting(false);
     }
-  }, [selectedRows, filteredRows, confirm, refetchSessions]);
+  }, [selectedRows, filteredRows, confirm, refetchSessions, isDeleting]);
 
   // ── Filter toggle helpers ──
   function toggleFilter(set: Set<string>, val: string, setter: (s: Set<string>) => void) {
@@ -399,24 +344,6 @@ export default function InteractionsPage() {
     setFilterDateFrom('');
     setFilterDateTo('');
   }
-
-  // ── Approval from interaction ──
-  const handleApprovalFromInteraction = useCallback(
-    (row: InteractionRow) => {
-      openApproval({
-        interactionId: row.interactionId,
-        sessionId: row.sessionId,
-        clientName: row.client,
-        channel: row.channel,
-        date: row.date,
-        topic: row.topic,
-        summary: row.summary,
-        aiDraftResponse: row.ai_draft_response || undefined,
-        approvalStatus: row.approval_status || undefined,
-      });
-    },
-    [openApproval]
-  );
 
   // ── Client Detail overlay ──
   if (selectedClientId) {
@@ -462,6 +389,13 @@ export default function InteractionsPage() {
         <div className="page-title">Interakciós napló</div>
       </div>
 
+      {/* Fetch-hiba megjelenítése (korábban örök „Nincs találat" állapot volt) */}
+      {error && (
+        <div className="card-container" style={{ padding: '12px 16px', marginBottom: 8, color: '#b91c1c', background: '#fee2e2', borderRadius: 8 }}>
+          {error} — <button className="btn btn-outline" onClick={() => refetchSessions()}>Újrapróbálás</button>
+        </div>
+      )}
+
       {/* Desktop toolbar — outside table card */}
       {!isMobile && (
       <div className="int-toolbar">
@@ -492,6 +426,7 @@ export default function InteractionsPage() {
           {isAdmin && selectedRows.size > 0 && (
             <button
               onClick={handleDeleteSelected}
+              disabled={isDeleting}
               className="int-toolbar-btn int-toolbar-btn--danger"
             >
               <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
@@ -500,7 +435,7 @@ export default function InteractionsPage() {
                 <path d="M10 11v6" />
                 <path d="M14 11v6" />
               </svg>
-              {selectedRows.size} törlése
+              {isDeleting ? 'Törlés…' : `${selectedRows.size} törlése`}
             </button>
           )}
 
@@ -705,11 +640,14 @@ export default function InteractionsPage() {
               ) : filteredRows.length === 0 ? (
                 <div className="int-empty-state"><span className="no-data">Nincs találat</span></div>
               ) : (() => {
-                const todayStr = new Date().toISOString().split('T')[0];
-                const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
+                // Lokális dátum (nem UTC) — éjfél körül ne csússzon el a Ma/Tegnap
+                const localDateStr = (d: Date) =>
+                  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+                const todayStr = localDateStr(new Date());
+                const yesterdayStr = localDateStr(new Date(Date.now() - 86400000));
                 let lastDateGroup = '';
                 return filteredRows.map((r, i) => {
-                  const dateStr = (r.date || '').split('T')[0] || (r.date || '').split(' ')[0];
+                  const dateStr = r.date ? localDateStr(new Date(r.date)) : '';
                   let separator = null;
                   if (dateStr !== lastDateGroup) {
                     lastDateGroup = dateStr;
@@ -822,8 +760,8 @@ export default function InteractionsPage() {
                     <td className="int-checkbox-col int-td-checkbox" onClick={(e) => e.stopPropagation()}>
                       <input
                         type="checkbox"
-                        checked={selectedRows.has(i)}
-                        onChange={() => toggleRow(i)}
+                        checked={r.sessionId ? selectedRows.has(r.sessionId) : false}
+                        onChange={() => r.sessionId && toggleRow(r.sessionId)}
                         className="int-checkbox-input"
                       />
                     </td>

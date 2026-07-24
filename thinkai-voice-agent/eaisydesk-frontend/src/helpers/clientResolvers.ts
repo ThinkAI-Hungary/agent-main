@@ -6,7 +6,7 @@
  * DO NOT modify matching logic – functional parity is critical.
  */
 
-import { isRawId } from './formatters';
+import { isRawId, normalizePhoneNational } from './formatters';
 
 export interface ClientRecord {
   id: number | string;
@@ -92,14 +92,29 @@ export function resolveClientName(
   if (directId) {
     const directMatch = allClients.find((c) => {
       const cd = parseCustomData(c.custom_data);
+      // Az instagram_/whatsapp_ session-ökhöz is több kulcsot nézünk — korábban
+      // kizárólag messenger_id/messenger_psid matchelt, az instagram_id /
+      // whatsapp_id kulcson tárolt ügyfelek sosem oldódtak fel.
       const mid = (
         (cd?.messenger_id as string) ||
         (cd?.messenger_psid as string) ||
+        (cd?.instagram_id as string) ||
+        (cd?.whatsapp_id as string) ||
+        (cd?.wa_id as string) ||
         ''
       )
         .toString()
         .trim();
-      return mid && mid === directId;
+      if (mid && mid === directId) return true;
+      // whatsapp session: a directId telefonszám is lehet → national-összevetés
+      if (sid.startsWith('whatsapp_')) {
+        const ph = normalizePhoneNational(
+          (cd?.phone as string) || (cd?.telefon as string) || c.phone || ''
+        );
+        const svPh = normalizePhoneNational(directId);
+        if (ph && svPh && ph === svPh) return true;
+      }
+      return false;
     });
     if (directMatch) {
       const n = bestClientName(directMatch);
@@ -130,11 +145,12 @@ export function resolveClientName(
   }
   if (directId && !searchValues.includes(directId))
     searchValues.push(directId);
-  // EAISY-241 §1.2.5: Voice session (call_ / call-out- / room name) — a participant
-  // gyakran telefonszám. Adjuk hozzá a keresési értékekhez, hogy a 3. ág megtalálja
-  // az ügyfelet telefonszám (vagy név) alapján. Csak ha még nincs benne.
-  const isVoiceSession = /^(call[-_]|voice[-_]|phone[-_])/i.test(sid) ||
-    /^call-out-camp-/i.test(sid);
+  // EAISY-241 §1.2.5: Voice session (call_ / call-out- / sip_ / room name) — a
+  // participant gyakran telefonszám. Adjuk hozzá a keresési értékekhez, hogy a 3.
+  // ág megtalálja az ügyfelet telefonszám (vagy név) alapján. Csak ha még nincs benne.
+  const isVoiceSession = /^(call[-_]|voice[-_]|phone[-_]|sip[-_])/i.test(sid) ||
+    /^call-out-camp-/i.test(sid) ||
+    /^thinkai-/i.test(sid);
   if (isVoiceSession) {
     const partVal = (session.participant || '').trim();
     if (partVal && !searchValues.includes(partVal.toLowerCase())) {
@@ -146,7 +162,7 @@ export function resolveClientName(
   for (const searchVal of searchValues) {
     const match = allClients.find((c) => {
       const cd = parseCustomData(c.custom_data);
-      // Match by name
+      // Match by name (pontos, case-insensitive)
       const cn = (
         (cd?.nev as string) ||
         (cd?.name as string) ||
@@ -157,10 +173,12 @@ export function resolveClientName(
         .toLowerCase()
         .trim();
       if (cn && cn === searchVal) return true;
-      // Match by messenger_id
+      // Match by messenger/instagram/whatsapp id
       const mid = (
         (cd?.messenger_id as string) ||
         (cd?.messenger_psid as string) ||
+        (cd?.instagram_id as string) ||
+        (cd?.whatsapp_id as string) ||
         ''
       )
         .toString()
@@ -172,18 +190,29 @@ export function resolveClientName(
         .toLowerCase()
         .trim();
       if (em && em === searchVal) return true;
-      // Match by phone — EAISY-241 §1: digit-only normalizáció, hogy a
-      // +36/06/0036 prefix-elt és formázott számok is egyezzenek.
-      const ph = (
+      // Match by phone — EAISY-241 §1: NATIONAL normalizált összevetés, hogy a
+      // +36/06/0036 prefix-elt és formázott számok is egyezzenek (korábban a
+      // nyers digit-összevetés a +36 vs 06 párost NEM találta meg).
+      const phNational = normalizePhoneNational(
         (cd?.phone as string) ||
         (cd?.telefon as string) ||
         c.phone ||
         ''
       );
-      const phDigits = ph.replace(/\D/g, '');
+      const svNational = normalizePhoneNational(searchVal);
+      if (phNational && svNational && phNational === svNational) return true;
+      // Fallback: nyers digit-suffix — de csak elég hosszú (≥7 jegy) értékkel,
+      // különben egy rövid szám bármihez hozzámatchel (false positive).
+      const phDigits = (
+        (cd?.phone as string) ||
+        (cd?.telefon as string) ||
+        c.phone ||
+        ''
+      ).replace(/\D/g, '');
       const svDigits = searchVal.replace(/\D/g, '');
-      if (phDigits && svDigits && (phDigits === svDigits ||
-          phDigits.endsWith(svDigits) || svDigits.endsWith(phDigits))) return true;
+      if (phDigits && svDigits.length >= 7 && phDigits.length >= 7 &&
+          (phDigits === svDigits ||
+           phDigits.endsWith(svDigits) || svDigits.endsWith(phDigits))) return true;
       return false;
     });
     if (match) {

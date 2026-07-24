@@ -34,7 +34,7 @@ from classifier import classify_interaction
 
 # ── Import tools ──────────────────────────────────────────────────────────────
 sys.path.insert(0, str(THIS_DIR))
-from tools import ALL_TOOLS, set_session_id, reset_session_alerts, set_caller_phone, get_caller_phone
+from tools import ALL_TOOLS, set_session_id, reset_session_alerts, set_caller_phone, get_caller_phone, session_has_complaint_or_request, _spawn
 import database as db
 
 # ── Google credentials setup (still needed for Gemini LLM) ───────────────────
@@ -107,6 +107,7 @@ async def entrypoint(ctx: JobContext):
     db.create_session(session_id=session_id, room_name=room_name)
     set_session_id(session_id)
     reset_session_alerts()  # EAISY-241: tiszta kontextus minden új sessionnél
+    set_caller_phone("")    # ne szivárogjon át az ELŐZŐ hívó telefonszáma
 
     # Log call type + detect campaign calls
     is_outbound_call = room_name.startswith("call-out-")
@@ -300,7 +301,7 @@ SZABÁLYOK:
                 if is_final and transcript.strip():
                     text = transcript.strip()
                     if text and text != ".":
-                        entry = f"Felhasználó: {text}"
+                        entry = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}]\nFelhasználó: {text}"
                         # Check last 3 entries to de-duplicate
                         if not any(text in item for item in transcript_list[-3:]):
                             transcript_list.append(entry)
@@ -338,7 +339,7 @@ SZABÁLYOK:
                 text = text.strip()
                 if text and text != ".":
                     role_name = "Felhasználó" if role == "user" else "AI Válasz"
-                    entry = f"{role_name}: {text}"
+                    entry = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}]\n{role_name}: {text}"
                     # Check last 3 entries to de-duplicate
                     if not any(text in x for x in transcript_list[-3:]):
                         transcript_list.append(entry)
@@ -354,7 +355,7 @@ SZABÁLYOK:
                 if content and isinstance(content, str):
                     text = content.strip()
                     if text and text != ".":
-                        entry = f"AI Válasz: {text}"
+                        entry = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}]\nAI Válasz: {text}"
                         # Check last 3 entries to de-duplicate
                         if not any(text in item for item in transcript_list[-3:]):
                             transcript_list.append(entry)
@@ -375,22 +376,29 @@ SZABÁLYOK:
         # hibát dobna; ezért itt, a start után végezzük. Ha a dispatch rule-ban a
         # HidePhoneNumber be van kapcsolva, az attribútum üres lesz.
         try:
+            import re as _re_ph2
             caller_phone = ""
-            if hasattr(ctx, "room") and ctx.room:
-                # Várjuk a SIP participant-et (legfeljebb 5s)
-                for p in list(ctx.room.remote_participants.values()):
-                    attrs = getattr(p, "attributes", None) or {}
-                    sip_phone = attrs.get("sip.phoneNumber") or attrs.get("sip.phoneNumber".lower())
-                    if sip_phone:
-                        caller_phone = sip_phone
-                        break
-                    # Fallback: identity / name tartalmazza a számot
-                    ident = (p.identity or "")
-                    import re as _re_ph2
-                    m = _re_ph2.search(r'\+?\d{9,15}', ident)
-                    if m:
-                        caller_phone = m.group(0)
-                        break
+            # A SIP participant / attributes nem feltétlenül érhető el azonnal —
+            # legfeljebb 5 mp-ig újrapróbáljuk (a korábbi kód egyetlen pillanatképet
+            # nézett, és a komment által ígért várakozás elmaradt).
+            deadline = asyncio.get_event_loop().time() + 5.0
+            while not caller_phone:
+                if hasattr(ctx, "room") and ctx.room:
+                    for p in list(ctx.room.remote_participants.values()):
+                        attrs = getattr(p, "attributes", None) or {}
+                        sip_phone = attrs.get("sip.phoneNumber")
+                        if sip_phone:
+                            caller_phone = sip_phone
+                            break
+                        # Fallback: identity / name tartalmazza a számot
+                        ident = (p.identity or "")
+                        m = _re_ph2.search(r'\+?\d{9,15}', ident)
+                        if m:
+                            caller_phone = m.group(0)
+                            break
+                if caller_phone or asyncio.get_event_loop().time() >= deadline:
+                    break
+                await asyncio.sleep(0.5)
             if caller_phone:
                 logger.info(f"📞 Hívó telefonszáma (SIP attribute): {caller_phone}")
                 set_caller_phone(caller_phone)
@@ -422,7 +430,7 @@ SZABÁLYOK:
             except Exception as e:
                 logger.warning(f"Could not trigger greeting: {e}")
 
-        asyncio.create_task(_trigger_greeting())
+        _spawn(_trigger_greeting(), name="greeting-trigger")
 
         # Block here until the room disconnects
         await room_disconnected.wait()
@@ -475,11 +483,16 @@ SZABÁLYOK:
                 else:
                     logger.info("Successfully loaded transcript from Gemini internal context")
                     
-                # Format each turn with a timestamp block so the frontend parser can split them into bubbles
+                # Format each turn with a timestamp block so the frontend parser can split them into bubbles.
+                # Az event-alapú turnok már VALÓS időbélyeget kaptak rögzítéskor; a chat-contextből
+                # jövők (timestamp nélküliek) a hívás végének idejét kapják.
                 now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
                 formatted_turns = []
                 for turn in final_turns:
-                    formatted_turns.append(f"[{now_str}]\n{turn}")
+                    if turn.lstrip().startswith("["):
+                        formatted_turns.append(turn)
+                    else:
+                        formatted_turns.append(f"[{now_str}]\n{turn}")
                 
                 transcript = "\n\n".join(formatted_turns)
                 logger.info(f"Final transcript built ({len(final_turns)} turns) for session {session_id}")
@@ -495,10 +508,18 @@ SZABÁLYOK:
                 summary_text = "Néma/rövid hívás, nem történt érdemi beszélgetés."
                 
                 if classification_text.strip():
+                    # Ha a beszélgetés során panasz/kérés flagelődött (report_alert),
+                    # azt handover_reason-ként adjuk át — a klasszifikáció így nem
+                    # adhat autonóm/Lezárt kimenetet emberi ügyre.
+                    handover_reason = (
+                        "panasz/sürgős jelzés a beszélgetés során (report_alert)"
+                        if session_has_complaint_or_request() else ""
+                    )
                     classification = await classify_interaction(
                         message_text=classification_text,
                         channel="telefon",
-                        tool_calls=tools
+                        tool_calls=tools,
+                        handover_reason=handover_reason
                     )
                     summary_text = classification.get("osszefoglalas") or "AI telefonos beszélgetés"
                     
@@ -530,9 +551,16 @@ SZABÁLYOK:
                 # A hívó NEVÉT a klasszifikációból nyerjük ki (client_name mező).
                 client_id = None
                 caller_name = classification.get("client_name") or ""
+                # LLM-szemét szűrése — placeholder/értéktelen névvel nem keresünk
+                # (substring-match egyébként másik ügyfelet találhatna meg)
+                if not db.is_valid_client_name(caller_name):
+                    if caller_name:
+                        logger.info(f"Klasszifikációs client_name eldobva (placeholder): '{caller_name}'")
+                    caller_name = ""
                 if phone_number or caller_name:
                     try:
                         # Először megkeressük a meglévő klienst telefonszám vagy név alapján
+                        # (a find_client_by_contact név-ága: először pontos, utána substring)
                         existing = None
                         if phone_number:
                             existing = db.find_client_by_contact(phone=phone_number)
@@ -540,7 +568,9 @@ SZABÁLYOK:
                             existing = db.find_client_by_contact(name=caller_name)
                         if existing:
                             client_id = existing.get("id")
-                            # Frissítjük a phone + name adatokat ha újak lettek megadva
+                            # Frissítjük a phone + name adatokat ha újak lettek megadva —
+                            # KÖZVETLENÜL az existing id-re (különben üres telefonnál a
+                            # belső lookup nem találná meg → duplikátum jönne létre)
                             update_data = {"forras_csatorna": "Voice Agent"}
                             if phone_number:
                                 update_data["phone"] = phone_number
@@ -549,7 +579,8 @@ SZABÁLYOK:
                             db.upsert_client(
                                 custom_data=update_data,
                                 additional_log=transcript if transcript.strip() else "Hívás történt.",
-                                status=existing.get("status") or "aktiv"
+                                status=existing.get("status") or "aktiv",
+                                existing_id=existing.get("id")
                             )
                         else:
                             # Új kliens létrehozása — a név a klasszifikációból, ha van
@@ -586,7 +617,7 @@ SZABÁLYOK:
             except Exception as e:
                 logger.error(f"Failed to classify voice session {session_id}: {e}")
 
-        asyncio.create_task(_run_classification())
+        _spawn(_run_classification(), name=f"classify-{session_id}")
         logger.info(f"Session closed and duration saved: {session_id}")
 
 

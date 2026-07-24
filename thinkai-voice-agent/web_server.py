@@ -1680,10 +1680,18 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             combined_tags = list(set(tags_from_ai + tags_from_task))
             
             # ── KLASSZIFIKÁCIÓ ──
+            # Ha az AI visszahívást/sürgőset jelzett (alert_tags), azt
+            # handover_reason-ként adjuk át — ne lehessen autonóm válasz emberi ügyre.
+            meta_handover = ""
+            if "urgent" in combined_tags:
+                meta_handover = "sürgős jelzés (alert_tags)"
+            elif "callback" in combined_tags or "complaint" in combined_tags:
+                meta_handover = "visszahívás/panasz jelzés (alert_tags)"
             classification = await classify_interaction(
                 message_text=message_text,
                 channel=source_channel.lower(),
-                tool_calls=["book_meeting"] if booked_meeting else []
+                tool_calls=["book_meeting"] if booked_meeting else [],
+                handover_reason=meta_handover
             )
 
             # EAISY-241 §1.1.2 — Ha az ügytípus eljárása „Önállóan kezelhető"
@@ -1715,7 +1723,7 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 direction="inbound",
                 funnel_stage=funnel_stage_final,
                 alert_tags=combined_tags,
-                handover_reason=None,
+                handover_reason=meta_handover or None,
                 approval_status=approval_status,
                 ai_draft_response=draft_json,
                 clinic_id=str(chosen_clinic_id) if chosen_clinic_id else None,
@@ -2159,6 +2167,41 @@ def admin_interactions(
     return {"interactions": db.get_interactions(limit=limit, type_filter=type)}
 
 
+@app.get("/admin/api/interactions/grouped")
+def admin_interactions_grouped(
+    limit: int = 100,
+    offset: int = 0,
+    username: str = Depends(verify_jwt)
+):
+    """Session-aggregált interakciós lista (1 session = 1 sor, szerver-oldalon).
+    Visszatérés: {sessions: [{session_id, interaction_count, last_created_at,
+    session_statusz, representative}], total}."""
+    return db.get_grouped_interactions(limit=limit, offset=offset)
+
+
+@app.get("/admin/api/classification-labels")
+def admin_classification_labels(username: str = Depends(verify_jwt)):
+    """Kanonikus klasszifikációs címkék — a frontend ezzel validálhatja a
+    RELATION_MATRIX-ét (backend↔frontend drift-megelőzés)."""
+    import classifier as _clf
+    return {
+        "type_priority": _clf.TYPE_PRIORITY,
+        "autonomous_automations": list(_clf.AUTONOMOUS_AUTOMATIONS),
+        "ugytipusok": _clf.TYPE_PRIORITY,
+        "statuszok": ["Lezárt", "Nyitott", "Sürgős"],
+        "eredmenyek": [
+            "Megválaszolt kérdés", "Válasz előkészítve", "Kérdés rögzítve",
+            "Új időpont", "Módosított időpont", "Törölt időpont",
+            "Foglalási szándék rögzítve", "Módosítási szándék rögzítve", "Lemondási szándék rögzítve",
+            "Panasz rögzítve", "Igény rögzítve",
+        ],
+        "teendok": [
+            "Nincs további teendő", "Jóváhagyás szükséges", "Időpont véglegesítése",
+            "Válasz/visszahívás szükséges", "Intézkedés", "Azonnali beavatkozás szükséges",
+        ],
+    }
+
+
 @app.get("/admin/api/calendar")
 def admin_calendar(username: str = Depends(verify_jwt)):
     """Calendar events, sorted by start time."""
@@ -2311,17 +2354,25 @@ def update_interaction_status(id: int, req: InteractionStatusUpdateRequest, user
         if not db.supabase:
             raise Exception("Database connection not available")
 
-        updates = {"approval_status": "lezárt"}
-        
+        # FONTOS: az approval_status-t NEM írjuk — az az approval-flow domainje
+        # (pending/approved/rejected/spam). Korábban 'lezárt'-ot írt bele, ami a
+        # statusz-értékkészlet szennyezése volt. A lezárást a classification
+        # statusz mezője hordozza (a frontend detectStatusz ezt olvassa elsőként).
+        updates = {}
+
         # Fetch existing classification to avoid overriding other fields (ugytipus, eredmeny, etc.)
         res = db.supabase.table("interactions").select("classification").eq("id", id).execute()
         if res.data and len(res.data) > 0:
             cls = res.data[0].get("classification")
             if isinstance(cls, dict):
-                # Update the inner statusz field which detectStatusz prioritizes
                 cls["statusz"] = "Lezárt"
+                cls["teendo"] = "Nincs további teendő"
                 updates["classification"] = cls
-        
+            else:
+                updates["classification"] = {"statusz": "Lezárt", "teendo": "Nincs további teendő"}
+        else:
+            updates["classification"] = {"statusz": "Lezárt", "teendo": "Nincs további teendő"}
+
         db.supabase.table("interactions").update(updates).eq("id", id).execute()
         logger.info(f"Interaction {id} marked as lezárt by {username}")
         return {"status": "success", "message": "Interakció lezárva"}
@@ -2725,7 +2776,49 @@ async def get_written_behavior(username: str = Depends(verify_jwt)):
 async def save_written_behavior(payload: TextFileRequest, username: str = Depends(verify_jwt)):
     """EAISY-241 — Save the written communication behavior setting."""
     db.update_text_config("written_behavior", payload.content)
+    import classifier as _clf
+    _clf.invalidate_classifier_cache()
     return {"ok": True, "message": "Írásos kommunikáció beállítása elmentve."}
+
+
+# ── Issue-handling (ügykezelési szabályok) — teljes állapot a backendben ──────
+# Korábban a written_behavior kivételével minden (defaultRequestNotify,
+# defaultComplaintNotify, customRules) csak localStorage-ban élt — böngészőnként
+# eltért, és a classifier nem látta. Most a text_configs az igaz forrás.
+
+class IssueHandlingRequest(BaseModel):
+    writtenBehavior: str = "autonomous"
+    defaultRequestNotify: str = "email"
+    defaultComplaintNotify: str = "email"
+    customRules: list = []
+
+@app.get("/admin/api/issue-handling")
+async def get_issue_handling(username: str = Depends(verify_jwt)):
+    """Ügykezelési szabályok teljes állapota (JSON a text_configs-ban)."""
+    raw = db.get_text_config("issue_handling")
+    if raw:
+        try:
+            return json.loads(raw)
+        except Exception:
+            pass
+    # Back-compat: ha még nincs issue_handling, a written_behavior-ból seedelünk
+    return {
+        "writtenBehavior": db.get_text_config("written_behavior") or "autonomous",
+        "defaultRequestNotify": "email",
+        "defaultComplaintNotify": "email",
+        "customRules": [],
+    }
+
+@app.post("/admin/api/issue-handling")
+async def save_issue_handling(payload: IssueHandlingRequest, username: str = Depends(verify_jwt)):
+    """Ügykezelési szabályok mentése — a written_behavior-t külön kulcsra is
+    kiírjuk (a classifier azt olvassa)."""
+    data = payload.model_dump()
+    db.update_text_config("issue_handling", json.dumps(data, ensure_ascii=False))
+    db.update_text_config("written_behavior", payload.writtenBehavior)
+    import classifier as _clf
+    _clf.invalidate_classifier_cache()
+    return {"ok": True, "message": "Ügykezelési szabályok elmentve."}
 
 
 
@@ -2773,20 +2866,28 @@ class TriageRuleCreate(BaseModel):
 
 @app.post("/admin/api/triage_rules")
 def api_post_triage_rules(rule: TriageRuleCreate, admin: dict = Depends(verify_jwt)):
-    new_id = db.add_triage_rule(rule.situation, rule.priority, rule.escalation_email)
+    # Upsert situation alapján — a unique index mellett case-eltérésnél sem lesz
+    # 500-as (korábban sima insert volt, ami duplikációt/23505-öt okozhatott)
+    new_id = db.upsert_triage_rule(rule.situation, rule.priority, rule.escalation_email)
     if new_id:
+        import classifier as _clf
+        _clf.invalidate_classifier_cache()
         return {"ok": True, "id": new_id}
     raise HTTPException(status_code=500, detail="Hiba a létrehozáskor")
 
 @app.put("/admin/api/triage_rules/{rule_id}")
 def api_put_triage_rules(rule_id: int, rule: TriageRuleCreate, admin: dict = Depends(verify_jwt)):
     if db.update_triage_rule(rule_id, rule.situation, rule.priority, rule.escalation_email):
+        import classifier as _clf
+        _clf.invalidate_classifier_cache()
         return {"ok": True}
     raise HTTPException(status_code=400, detail="Hiba a frissítéskor")
 
 @app.delete("/admin/api/triage_rules/{rule_id}")
 def api_delete_triage_rules(rule_id: int, admin: dict = Depends(verify_jwt)):
     if db.delete_triage_rule(rule_id):
+        import classifier as _clf
+        _clf.invalidate_classifier_cache()
         return {"ok": True}
     raise HTTPException(status_code=400, detail="Hiba a törléskor")
 
@@ -3101,7 +3202,9 @@ def delete_approvals_api(req: DeleteApprovalsRequest, username: str = Depends(ve
     raise HTTPException(status_code=500, detail="Hiba a törlés során")
 
 class ApproveRequest(BaseModel):
-    modified_draft: str
+    modified_draft: str = ""
+    # Multi-channel draftnál a frontend csatornánként szerkeszt: {channel: szöveg}
+    modified_drafts: dict | None = None
 
 @app.post("/admin/api/approvals/{id}/approve")
 async def approve_approval_api(id: int, req: ApproveRequest, username: str = Depends(verify_jwt)):
@@ -3125,8 +3228,8 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
         raise HTTPException(status_code=400, detail="Érvénytelen JSON piszkozat")
         
     channel = draft.get("channel", "").lower()
-    final_text = req.modified_draft
-    
+    final_text = req.modified_draft or draft.get("body", "")
+
     # Multi-channel kampány piszkozat kezelése
     drafts_to_send = []
     if draft.get("multi_channel") and draft.get("drafts"):
@@ -3134,41 +3237,45 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
             drafts_to_send.append(sub_draft)
     else:
         drafts_to_send.append(draft)
-    
+
     try:
         async with httpx.AsyncClient() as http_client:
             for send_draft in drafts_to_send:
                 ch = send_draft.get("channel", "").lower()
-                # A szöveget a fő draft-ból vesszük (amit az admin szerkesztett), de
-                # multi_channel esetén minden csatornának a saját szövegét használjuk
-                send_text = send_draft.get("body", final_text) if draft.get("multi_channel") else final_text
+                if draft.get("multi_channel"):
+                    # Csatornánként SZERKESZTETT szöveg, ha a frontend küldte
+                    # (korábban az összefűzött szerkesztés csendben elveszett —
+                    # minden csatornán az eredeti body ment ki)
+                    ch_name = send_draft.get("channel", "")
+                    send_text = (req.modified_drafts or {}).get(ch_name) or send_draft.get("body", "")
+                else:
+                    send_text = final_text
 
                 if ch == "email":
-                    brevo_key = os.getenv("BREVO_API_KEY", "")
-                    api_key = brevo_key
-                    if brevo_key and not brevo_key.startswith("xkeysib-"):
-                        try:
-                            decoded = b64module.b64decode(brevo_key).decode()
-                            parsed = json.loads(decoded)
-                            api_key = parsed.get("api_key", brevo_key)
-                        except: pass
-                    
+                    api_key = email_processor._get_brevo_api_key()
+
                     html_body = f'<div style="font-family: Arial, sans-serif;">{send_text.replace(chr(10), "<br>")}</div>'
                     if send_draft.get("event_id"):
-                        import email_processor
                         html_body += email_processor.get_cancellation_html(send_draft.get("event_id"))
 
-                    bi = db.get_business_info()
-                    _sender = {"name": bi.get("sender_name") or bi.get("practice_name", "Virtuális Asszisztens"), "email": bi.get("sender_email") or os.getenv("BREVO_SENDER_EMAIL", "noreply@example.com")}
+                    _sender = email_processor._get_sender()
+                    email_payload = {
+                        "sender": _sender,
+                        "to": [{"email": send_draft.get("to_email"), "name": send_draft.get("to_name", "")}],
+                        "subject": send_draft.get("subject", "Re:"),
+                        "htmlContent": html_body,
+                    }
+                    # Threading: ha a draft hordozza a bejövő levél Message-ID-jét,
+                    # a válasz a meglévő szálhoz fűződik az ügyfél levelezőjében
+                    if send_draft.get("in_reply_to"):
+                        email_payload["headers"] = {
+                            "In-Reply-To": send_draft["in_reply_to"],
+                            "References": send_draft["in_reply_to"],
+                        }
                     resp = await http_client.post(
                         "https://api.brevo.com/v3/smtp/email",
                         headers={"api-key": api_key, "Content-Type": "application/json"},
-                        json={
-                            "sender": _sender,
-                            "to": [{"email": send_draft.get("to_email"), "name": send_draft.get("to_name", "")}],
-                            "subject": send_draft.get("subject", "Re:"),
-                            "htmlContent": html_body,
-                        },
+                        json=email_payload,
                         timeout=20,
                     )
                     resp.raise_for_status()
@@ -3295,7 +3402,12 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
         db.update_approval_status(id, "approved", new_draft=new_draft_json)
         return {"status": "warning", "message": f"Jóváhagyva, de a küldés sikertelen: {str(e)[:150]}"}
         
-    # 2. Adatbázis frissítése
+    # 2. Adatbázis frissítése — a szerkesztett szöveg(ek) elmentése
+    if draft.get("multi_channel") and req.modified_drafts:
+        for sd in draft.get("drafts", []):
+            ch_name = sd.get("channel", "")
+            if ch_name in req.modified_drafts:
+                sd["body"] = req.modified_drafts[ch_name]
     draft["body"] = final_text
     new_draft_json = json.dumps(draft)
     success = db.update_approval_status(id, "approved", new_draft=new_draft_json)

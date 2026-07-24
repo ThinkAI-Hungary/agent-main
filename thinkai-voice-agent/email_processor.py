@@ -33,9 +33,63 @@ THIS_DIR = Path(__file__).resolve().parent
 def _get_sender() -> dict:
     """Return dynamic sender dict from business_info (Supabase)."""
     bi = db.get_business_info()
-    name = bi.get("sender_name") or bi.get("practice_name", "Virtuális Asszisztens")
-    email_addr = bi.get("sender_email") or os.getenv("BREVO_SENDER_EMAIL", "noreply@example.com")
+    name = bi.get("sender_name") or bi.get("practice_name") or "Virtuális Asszisztens"
+    email_addr = bi.get("sender_email") or os.getenv("BREVO_SENDER_EMAIL", "")
     return {"name": name, "email": email_addr}
+
+
+def _sender_is_valid(sender: dict) -> bool:
+    """Ellenőrzi, hogy a feladó valósnak tekinthető-e (nem üres / nem placeholder).
+    Érvénytelen feladóval a Brevo 400-zal elutasít — inkább itt bukjunk el
+    explicit hibaüzenettel."""
+    email_addr = (sender.get("email") or "").strip()
+    if not email_addr:
+        return False
+    if email_addr.endswith("@example.com"):
+        return False
+    return True
+
+
+def _get_brevo_api_key() -> str:
+    """BREVO_API_KEY kiolvasása — a kulcs lehet nyers (xkeysib-...) vagy
+    base64-kódolt JSON ({'api_key': ...}). Egyetlen helper, korábban 4 helyen
+    volt lemásolva."""
+    brevo_key = os.getenv("BREVO_API_KEY", "")
+    if brevo_key and not brevo_key.startswith("xkeysib-"):
+        try:
+            import base64 as b64module
+            decoded = b64module.b64decode(brevo_key).decode()
+            parsed = json.loads(decoded)
+            return parsed.get("api_key", brevo_key)
+        except Exception:
+            pass
+    return brevo_key
+
+
+# ── Háttér-task registry — a fire-and-forget taskok kivételei ne vesszenek el ──
+_background_tasks: set = set()
+
+
+def _spawn(coro, name: str = "") -> asyncio.Task:
+    """Háttér-task indítása referencia-megőrzéssel és hiba-naplózással."""
+    task = asyncio.create_task(coro, name=name or None)
+    _background_tasks.add(task)
+
+    def _done(t: asyncio.Task):
+        _background_tasks.discard(t)
+        if not t.cancelled() and t.exception():
+            logger.error(f"Háttér-task '{t.get_name()}' hibával állt le: {t.exception()}")
+
+    task.add_done_callback(_done)
+    return task
+
+
+def _reply_subject(subject: str) -> str:
+    """Válasz-tárgy normalizálás — ne halmozódjon: 'Re: Re: Re: …'."""
+    s = (subject or "").strip()
+    if s.lower().startswith("re:"):
+        return s
+    return f"Re: {s}"
 load_dotenv(THIS_DIR / ".env")
 from prompt_utils import get_system_prompt
 # Common encodings for Hungarian emails, tried in order of likelihood
@@ -214,10 +268,11 @@ def is_spam_email(from_email: str, from_name: str, subject: str, text_content: s
             logger.debug(f"Spam detected (sender domain): {domain}")
             return True
 
-    # 3. Subject pattern matching
+    # 3. Subject pattern matching — 2 találat kell (egyetlen kulcsszó, pl.
+    # „kedvezmény" egy legitim ügyfél-tárgyban, nem elég a silent drop-hoz)
     spam_subject_hits = sum(1 for rx in _SPAM_SUBJECT_RE if rx.search(subject_lower))
-    if spam_subject_hits >= 1:
-        logger.debug(f"Spam detected (subject): {subject}")
+    if spam_subject_hits >= 2:
+        logger.debug(f"Spam detected (subject, {spam_subject_hits} hits): {subject}")
         return True
 
     # 4. Content pattern matching — require at least 2 hits for content-only
@@ -240,10 +295,11 @@ def is_spam_email(from_email: str, from_name: str, subject: str, text_content: s
     return False
 
 
-async def process_single_email(from_email: str, from_name: str, subject: str, text_content: str):
+async def process_single_email(from_email: str, from_name: str, subject: str, text_content: str, message_id: str = ""):
     # ── SPAM CHECK — before any AI call ──────────────────────────────
     if is_spam_email(from_email, from_name, subject, text_content):
         logger.info(f"SPAM szűrve (silent drop): {from_email} — {subject}")
+        db.create_session(session_id=f"spam_{from_email}", room_name="Spam", participant=from_name)
         db.log_interaction(
             type="email",
             topic=f"[SPAM] {subject[:200]}",
@@ -255,6 +311,17 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
             approval_status="spam"
         )
         return
+
+    # EAISY-241: email_client_id KORAI inicializálása — az AI-hívások ELŐTT,
+    # hogy hibaágakon (Gemini hiba, JSON parse hiba) is meglegyen a client-
+    # kapcsolat és az interakció-log. A lookup minden nem-spam emailnél lefut.
+    email_client_id = None
+    try:
+        existing_sender_client = db.find_client_by_contact(email=from_email)
+        if existing_sender_client:
+            email_client_id = existing_sender_client.get("id")
+    except Exception as e:
+        logger.error(f"Email client lookup hiba: {e}")
 
     google_key = os.getenv("GOOGLE_API_KEY")
     if not google_key:
@@ -324,13 +391,13 @@ Ha egyik sem releváns, legyen üres lista [].
 
     client = genai.Client(api_key=google_key)
     
-    # ELŐZMÉNYEK LEKÉRDEZÉSE
+    # ELŐZMÉNYEK LEKÉRDEZÉSE — csak az utolsó 3 (nem a teljes szál + Python-szelet)
     history_text = ""
     try:
         session_id = f"email_{from_email}"
-        history_res = db.supabase.table("interactions").select("summary, ai_draft_response").eq("session_id", session_id).order("created_at", desc=False).execute()
+        history_res = db.supabase.table("interactions").select("summary, ai_draft_response").eq("session_id", session_id).order("created_at", desc=True).limit(3).execute()
         if history_res.data:
-            recent_history = history_res.data[-3:]
+            recent_history = list(reversed(history_res.data))
             history_text = "--- ELŐZŐ ÜZENETEK (KONTEXTUS A BESZÉLGETÉSHEZ) ---\n"
             for h in recent_history:
                 history_text += f"ÜGYFÉL KORÁBBI E-MAILJE: {h.get('summary', '')}\n"
@@ -378,8 +445,20 @@ Ha egyik sem releváns, legyen üres lista [].
         ai_text = response.text.strip()
     except Exception as e:
         logger.error(f"Gemini API hiba: {e}")
-        # Mivel a levél már Seen állapotba került, de hiba volt,
-        # éles rendszerben vissza lehetne állítani Unseen-re.
+        # Hibaágakon is naplózunk interakciót — a levél ne tűnjön el nyomtalanul
+        # (a dedup-tábla rögzíti, újrafeldolgozás nem lesz, de az admin látja).
+        db.create_session(session_id=f"email_{from_email}", room_name="Email Thread", participant=from_name)
+        db.log_interaction(
+            type="email",
+            topic=f"[FELDOLGOZÁSI HIBA] {subject[:200]}",
+            summary=f"Bejövő email feldolgozása meghiúsult (Gemini API hiba): {from_email}",
+            result=str(e)[:500],
+            tool_name="imap_worker_ai",
+            session_id=f"email_{from_email}",
+            funnel_stage="relevant",
+            approval_status="pending",
+            client_id=email_client_id
+        )
         return
 
     # Eltávolítjuk a markdown json blockokat ha esetleg mégis beletenné
@@ -395,6 +474,18 @@ Ha egyik sem releváns, legyen üres lista [].
         data = json.loads(ai_text)
     except json.JSONDecodeError as e:
         logger.error(f"Hibás JSON válasz az AI-tól: {e}\nNyers AI válasz:\n{ai_text}")
+        db.create_session(session_id=f"email_{from_email}", room_name="Email Thread", participant=from_name)
+        db.log_interaction(
+            type="email",
+            topic=f"[FELDOLGOZÁSI HIBA] {subject[:200]}",
+            summary=f"Bejövő email feldolgozása meghiúsult (hibás AI JSON): {from_email}",
+            result=str(e)[:500],
+            tool_name="imap_worker_ai",
+            session_id=f"email_{from_email}",
+            funnel_stage="relevant",
+            approval_status="pending",
+            client_id=email_client_id
+        )
         return
 
     is_relevant = data.get("is_relevant", False)
@@ -406,32 +497,26 @@ Ha egyik sem releváns, legyen üres lista [].
     handover_reason = data.get("handover_reason")
     secondary_tags = data.get("secondary_tags", [])
     
-    # Fallback emberi döntés
-    if not handover_reason and email_reply and ("hív" in email_reply.lower() or "ember" in email_reply.lower() or "kollég" in email_reply.lower()):
+    # Fallback emberi döntés — szóhatáros regex (a „hív" substring kihívás-ra,
+    # felhív-ra stb. is matchelt; téves pozitívokat okozott)
+    if not handover_reason and email_reply and _re.search(r"(visszahív|emberi döntés|kolléga|kollégánk)", email_reply.lower()):
         if "callback" in alert_tags or "urgent" in alert_tags:
             handover_reason = "Emberi döntés"
-    
+
     log_szoveg = f"{beszelgetes}\n- Bejövő e-mail (Tárgy: {subject}): {text_content}"
     if email_reply:
         log_szoveg += f"\n\nAI Válasz:\n{email_reply}"
-
-    # EAISY-241: email_client_id inicializálása — korábban csak az is_relevant/meeting
-    # ágon belül lett beállítva, így nem-releváns email-nél a client_id null maradt.
-    email_client_id = None
-    # Ha a feladó email-je már létezik a kliensek között, beállítjuk az ID-t
-    # függetlenül a relevanciától — így minden interakció össze lesz kötve az ügyféllel.
-    try:
-        existing_client = db.find_client_by_contact(email=from_email)
-        if existing_client:
-            email_client_id = existing_client.get("id")
-    except Exception as e:
-        logger.error(f"Email client lookup hiba: {e}")
 
     # Ha releváns lead vagy időpontot foglalt, felvesszük a Kanbanba
     if is_relevant or meeting:
         kanban = kanban or {}
         name = kanban.get("name") or from_name or "Névtelen E-mail lead"
-        email = kanban.get("email") or from_email
+        # A KLIENS IDENTITÁSA a tényleges feladó — az AI által a kanban_data-ba
+        # írt (esetleg hallucinált) email nem írhatja felül.
+        kanban_email = (kanban.get("email") or "").strip()
+        if kanban_email and kanban_email.lower() != from_email.lower():
+            logger.info(f"A kanban_data email ({kanban_email}) eltér a feladótól ({from_email}) — a feladót használjuk")
+        email = from_email
         details = {
             "name": name,
             "email": email,
@@ -461,9 +546,10 @@ Ha egyik sem releváns, legyen üres lista [].
             elif "urgent" in alert_tags_list:
                 details["prioritas"] = "Sürgős"
                 
-        # AI-alapú másodlagos címkék hozzáadása (meglévő tagek megőrzésével)
+        # AI-alapú másodlagos címkék hozzáadása (meglévő tagek megőrzésével) —
+        # a korai, feladó-alapú lookupot használjuk (nem új DB round-trip)
         existing_tags = []
-        existing_client = db.find_client_by_contact(email=email)
+        existing_client = existing_sender_client
         if existing_client:
             ec_data = existing_client.get("custom_data", {}) or {}
             if isinstance(ec_data, str):
@@ -492,7 +578,12 @@ Ha egyik sem releváns, legyen üres lista [].
             time_str = meeting.get("time")
             dur = meeting.get("duration_minutes", 30)
             title = meeting.get("title", f"Megbeszélés: {from_name}")
-            
+
+            # time_str normalizálás: az AI adhat "14:30:00"-t is → HH:MM-re vágjuk
+            if isinstance(time_str, str):
+                m_time = _re.match(r"^(\d{1,2}:\d{2})", time_str.strip())
+                time_str = m_time.group(1) if m_time else None
+
             if date_str and time_str:
                 start_dt = _to_budapest_tz(f"{date_str}T{time_str}:00")
                 end_dt = start_dt + timedelta(minutes=dur)
@@ -504,9 +595,19 @@ Ha egyik sem releváns, legyen üres lista [].
                     attendee=from_name,
                     attendee_email=from_email
                 )
-                logger.info(f"Naptár esemény sikeresen létrehozva: {title} {start_dt}")
+                if created_event_id:
+                    logger.info(f"Naptár esemény sikeresen létrehozva: {title} {start_dt}")
+                else:
+                    raise ValueError("add_calendar_event nem adott vissza event id-t")
+            else:
+                raise ValueError(f"Hiányzó/érvénytelen dátum vagy idő: date={date_str!r} time={time_str!r}")
         except Exception as e:
             logger.error(f"Hiba a naptáresemény hozzáadásakor: {e}")
+            # KRITIKUS: ha az esemény NEM jött létre, a meeting truthy maradna →
+            # a klasszifikáció „auto_booking"-ot adhatna, és az autonóm válasz
+            # nem létező foglalást igérne vissza. Ilyenkor meeting=None.
+            created_event_id = None
+            meeting = None
 
     modify_action = data.get("action_modify_meeting")
     if modify_action and modify_action.get("event_title_to_modify"):
@@ -586,10 +687,11 @@ Ha egyik sem releváns, legyen üres lista [].
         except Exception as e:
             logger.error(f"Hiba a naptáresemény törlésekor: {e}")
 
-    if email_reply:
+    if email_reply and email_reply.strip():
         # Email "kiküldés" helyett piszkozat mentése a Jóváhagyó rendszerbe (Human-in-the-loop)
 
         sent_ok = False
+        reply_subject = _reply_subject(subject)
 
         draft_payload = {
             "channel": "Email",
@@ -598,12 +700,15 @@ Ha egyik sem releváns, legyen üres lista [].
 
             "to_name": from_name,
 
-            "subject": f"Re: {subject}",
+            "subject": reply_subject,
 
             "body": email_reply
 
         }
-        
+
+        if message_id:
+            draft_payload["in_reply_to"] = message_id
+
         if created_event_id is not None:
             draft_payload["event_id"] = created_event_id
 
@@ -614,11 +719,11 @@ Ha egyik sem releváns, legyen üres lista [].
         # Naplózás
         session_id = f"email_{from_email}"
         db.create_session(session_id=session_id, room_name="Email Thread", participant=from_name)
-        
-        db.add_email_log(
+
+        email_log_id = db.add_email_log(
             to_name=from_name,
             to_email=from_email,
-            subject=f"Re: {subject}",
+            subject=reply_subject,
             message=email_reply,
             status="pending",
             session_id=session_id
@@ -626,13 +731,14 @@ Ha egyik sem releváns, legyen üres lista [].
         f_stage = "valaszolt"
         if meeting:
             f_stage = "foglalt"
-            
+
         # ── KLASSZIFIKÁCIÓ ──
-        ai_answered = bool(email_reply and not handover_reason)
+        ai_answered = bool(email_reply and email_reply.strip() and not handover_reason)
         classification = await classify_interaction(
             message_text=text_content,
             channel="email",
             tool_calls=["book_meeting"] if meeting else [],
+            handover_reason=handover_reason or "",
             kb_answered=ai_answered
         )
 
@@ -648,13 +754,14 @@ Ha egyik sem releváns, legyen üres lista [].
             and ai_answered
         )
         send_ok = False
-        if is_autonomous_email and email_reply:
+        if is_autonomous_email and email_reply.strip():
             try:
                 send_ok = await _send_autonomous_email(
                     to_email=from_email,
                     to_name=from_name or "",
-                    subject=f"Re: {subject}",
+                    subject=reply_subject,
                     body=email_reply,
+                    in_reply_to=message_id,
                 )
             except Exception as send_err:
                 logger.error(f"Auto-send email hiba: {send_err}")
@@ -681,61 +788,74 @@ Ha egyik sem releváns, legyen üres lista [].
 
         if is_autonomous_email and send_ok:
             logger.info(f"✅ Autonóm email válasz kiküldve: {from_email} — {classification.get('eredmeny','')}")
-            # Frissítjük az email_log status-t is 'sent'-re
+            # CSAK a mostani levél email_log sorát állítjuk 'sent'-re (korábban
+            # session_id-re frissített — a feladó ÖSSZES korábbi, akár ki nem
+            # küldött draftját is „sent"-re állította)
             try:
-                db.supabase.table("email_logs").update({"status": "sent"}).eq("session_id", session_id).execute()
-            except Exception:
-                pass
+                if email_log_id:
+                    db.supabase.table("email_logs").update({"status": "sent"}).eq("id", email_log_id).execute()
+            except Exception as elu_err:
+                logger.warning(f"email_log státusz-frissítés sikertelen: {elu_err}")
 
         if isinstance(alert_tags, list) and "kiemelt" in alert_tags:
             email_to_send = None
             t_rules = db.get_triage_rules()
             for r in t_rules:
-                if r.get("priority") == "Kiemelt" and r.get("escalation_email"):
+                if (r.get("priority") or "").lower() in ("surgos", "sürgős", "kiemelt", "urgent") and r.get("escalation_email"):
                     email_to_send = r["escalation_email"]
                     break
-            
+
             if email_to_send:
-                asyncio.create_task(send_escalation_email_to_staff(
+                _spawn(send_escalation_email_to_staff(
                     to_email=email_to_send,
                     patient_name=from_name,
                     patient_contact=from_email,
                     problem_description=f"E-mail tárgy: {subject}\n{text_content[:200]}...",
                     priority="Kiemelt"
-                ))
+                ), name="escalation-email")
 
 
 def check_imap_sync():
-    """Szinkron IMAP lekérdezés, amit egy threadpoolban futtatunk."""
+    """Szinkron IMAP lekérdezés, amit egy threadpoolban futtatunk.
+
+    UID-alapú műveletek (a message sequence numberök EXPUNGE esetén elcsúszhatnak).
+    A leveleket NEM jelöljük olvasottnak — azt a worker teszi meg a feldolgozás
+    UTÁN (mark_emails_seen_sync), így crash esetén a levél nem vész el.
+    Visszatérés: [(uid, message_id, from_email, from_name, subject, text), ...]
+    """
     server = os.getenv("IMAP_SERVER")
     user = os.getenv("IMAP_USER")
     pwd = os.getenv("IMAP_PASS")
 
     if not server or not user or not pwd:
-        # Ha nincsenek meg az adatok, csendben kilép
+        logger.warning("Hiányzó IMAP_SERVER/IMAP_USER/IMAP_PASS — a poll kihagyva")
         return []
 
     emails_to_process = []
-    
+
     try:
         # Port 993 az alapértelmezett IMAP SSL
         mail = imaplib.IMAP4_SSL(server, port=993)
         mail.login(user, pwd)
         mail.select("inbox")
 
-        # Csak az olvasatlan (UNSEEN) leveleket kérdezzük le
-        status, messages = mail.search(None, "UNSEEN")
+        # Csak az olvasatlan (UNSEEN) leveleket kérdezzük le — UID SEARCH
+        status, messages = mail.uid("search", None, "UNSEEN")
         if status == "OK" and messages[0]:
-            msg_ids = messages[0].split()
-            for msg_id in msg_ids:
-                res, msg_data = mail.fetch(msg_id, "(RFC822)")
-                if res == "OK":
+            uids = messages[0].split()
+            logger.info(f"IMAP poll: {len(uids)} olvasatlan levél")
+            for uid in uids:
+                try:
+                    res, msg_data = mail.uid("fetch", uid, "(RFC822)")
+                    if res != "OK":
+                        continue
                     raw_email = msg_data[0][1]
                     msg = email.message_from_bytes(raw_email)
 
                     subject = decode_mime_words(msg.get("Subject", ""))
                     from_header = decode_mime_words(msg.get("From", ""))
-                    
+                    message_id = (msg.get("Message-ID") or "").strip()
+
                     from_name = from_header
                     from_email = from_header
                     if "<" in from_header and ">" in from_header:
@@ -762,105 +882,146 @@ def check_imap_sync():
                         raw_payload = msg.get_payload(decode=True)
                         text_content = _decode_payload(raw_payload, charset)
                     text_content = clean_email_body(text_content)
-                    emails_to_process.append((msg_id, from_email, from_name, subject, text_content))
-        
-        # A feldolgozott üzeneteket megjelöljük egyelőre olvasottként ("Seen") beolvasáskor,
-        # hogy ha kilép a program a kiexpediálás előtt, ne olvassa be még egyszer
-        for item in emails_to_process:
-            mail.store(item[0], "+FLAGS", "\\Seen")
+                    emails_to_process.append((uid, message_id, from_email, from_name, subject, text_content))
+                except Exception as fe:
+                    logger.error(f"Levél fetch/parse hiba (uid={uid}): {fe}")
 
         mail.close()
         mail.logout()
     except Exception as e:
         logger.error(f"IMAP csatlakozási hiba: {e}")
-        
+
     return emails_to_process
 
 
-async def _send_autonomous_email(to_email: str, to_name: str, subject: str, body: str) -> bool:
+def mark_emails_seen_sync(uids: list):
+    """A feldolgozott levelek \\Seen jelölése a FELDOLGOZÁS UTÁN (UID STORE).
+    Crash esetén a jelöletlen levelek újra beolvasódnak — a processed_emails
+    dedup-tábla akkor is megakadályozza a dupla feldolgozást."""
+    if not uids:
+        return
+    server = os.getenv("IMAP_SERVER")
+    user = os.getenv("IMAP_USER")
+    pwd = os.getenv("IMAP_PASS")
+    if not server or not user or not pwd:
+        return
+    try:
+        mail = imaplib.IMAP4_SSL(server, port=993)
+        mail.login(user, pwd)
+        mail.select("inbox")
+        for uid in uids:
+            try:
+                mail.uid("store", uid, "+FLAGS", "\\Seen")
+            except Exception as se:
+                logger.warning(f"Seen-jelölés sikertelen (uid={uid}): {se}")
+        mail.close()
+        mail.logout()
+    except Exception as e:
+        logger.error(f"IMAP seen-jelölési hiba: {e}")
+
+
+async def _send_autonomous_email(to_email: str, to_name: str, subject: str, body: str, in_reply_to: str = "") -> bool:
     """
     EAISY-241 — Autonóm email válasz küldése Brevo-n keresztül.
     Akkor használjuk, amikor az ügytípus eljárása „Önállóan kezelhető" és a
     klasszifikáció autonomous=true. A válasz azonnal kikerül, nem vár jóváhagyásra.
+    Átmeneti Brevo-hiba (429/5xx) esetén 1 retry backoff-fal.
     """
-    brevo_key = os.getenv('BREVO_API_KEY', '')
-    api_key = brevo_key
-    if brevo_key and not brevo_key.startswith('xkeysib-'):
-        try:
-            import base64 as b64module
-            decoded = b64module.b64decode(brevo_key).decode()
-            parsed = json.loads(decoded)
-            api_key = parsed.get('api_key', brevo_key)
-        except Exception:
-            pass
+    api_key = _get_brevo_api_key()
     if not api_key:
         logger.error('Nincs BREVO_API_KEY az autonóm email küldéshez.')
         return False
-    bi = db.get_business_info()
-    sender = bi.get("sender_name") or bi.get("practice_name", "Virtuális Asszisztens")
-    sender_email = bi.get("sender_email") or os.getenv("BREVO_SENDER_EMAIL", "noreply@example.com")
+    sender = _get_sender()
+    if not _sender_is_valid(sender):
+        logger.error(f'Érvénytelen/hiányzó feladó az autonóm küldéshez: {sender!r} — a levél NEM ment ki.')
+        return False
     html_body = f'<div style="font-family: Arial, sans-serif;">{body.replace(chr(10), "<br>")}</div>'
-    import httpx
+    payload = {
+        'sender': {'name': sender["name"], 'email': sender["email"]},
+        'to': [{'email': to_email, 'name': to_name}],
+        'subject': subject,
+        'htmlContent': html_body,
+    }
+    # Threading: az ügyfél levelezőprogramja így a meglévő szálhoz fűzi a választ
+    if in_reply_to:
+        payload['headers'] = {'In-Reply-To': in_reply_to, 'References': in_reply_to}
     try:
         async with httpx.AsyncClient() as client:
-            resp = await client.post(
-                'https://api.brevo.com/v3/smtp/email',
-                headers={'api-key': api_key, 'Content-Type': 'application/json'},
-                json={
-                    'sender': {'name': sender, 'email': sender_email},
-                    'to': [{'email': to_email, 'name': to_name}],
-                    'subject': subject,
-                    'htmlContent': html_body,
-                },
-                timeout=15.0,
-            )
-            if resp.status_code in [200, 201, 202]:
-                logger.info(f'Autonóm email kiküldve: {to_email}')
-                return True
-            logger.error(f'Brevo autonóm küldés hiba: {resp.status_code} - {resp.text}')
-            return False
+            for attempt in range(2):
+                resp = await client.post(
+                    'https://api.brevo.com/v3/smtp/email',
+                    headers={'api-key': api_key, 'Content-Type': 'application/json'},
+                    json=payload,
+                    timeout=15.0,
+                )
+                if resp.status_code in [200, 201, 202]:
+                    logger.info(f'Autonóm email kiküldve: {to_email}')
+                    return True
+                if resp.status_code == 429 or resp.status_code >= 500:
+                    if attempt == 0:
+                        logger.warning(f'Brevo átmeneti hiba ({resp.status_code}), retry 2 mp múlva…')
+                        await asyncio.sleep(2)
+                        continue
+                logger.error(f'Brevo autonóm küldés hiba: {resp.status_code} - {resp.text}')
+                return False
     except Exception as e:
         logger.error(f'Hiba az autonóm email küldésekor: {e}')
         return False
 
 
 async def email_worker_loop():
-    """Háttérfolyamat, ami percenként hívja az IMAP-et és feldolgozza azt."""
+    """Háttérfolyamat, ami percenként hívja az IMAP-et és feldolgozza azt.
+
+    Dedup: a Message-ID-t a processed_emails táblába claimeli (insert-first);
+    ha már létezik, a levél kihagyásra kerül — két párhuzamos process sem
+    dolgozhatja fel kétszer. Per-email try/except: egy hiba nem veszíti el
+    a batch maradékát. A \\Seen jelölés a feldolgozás UTÁN történik.
+    """
     server = os.getenv("IMAP_SERVER")
     if not server:
         logger.info("Nincs IMAP_SERVER beállítva. Az e-mail háttérfolyamat nem indul el.")
         return
-        
+
     logger.info("E-mail figyelő worker elindítva.")
     while True:
         try:
             # Futtatjuk a blokkoló IMAP műveletet thread-ben
             emails = await asyncio.to_thread(check_imap_sync)
-            
-            for msg_id, from_email, from_name, subject, text_content in emails:
-                await process_single_email(from_email, from_name, subject, text_content)
-                
+
+            seen_uids = []
+            for uid, message_id, from_email, from_name, subject, text_content in emails:
+                try:
+                    # Dedup-claim: ha már feldolgoztuk (akár egy másik process),
+                    # kihagyjuk — dupla Gemini hívás/dupla válasz nem lehet.
+                    if message_id and not db.claim_processed_email(message_id, from_email, f"email_{from_email}"):
+                        logger.info(f"Duplikált levél kihagyva (már feldolgozva): {message_id}")
+                        seen_uids.append(uid)
+                        continue
+                    await process_single_email(from_email, from_name, subject, text_content, message_id=message_id)
+                except Exception as proc_err:
+                    logger.error(f"Email feldolgozási hiba ({from_email} — {subject}): {proc_err}")
+                    if message_id:
+                        try:
+                            db.update_processed_email_status(message_id, "error")
+                        except Exception:
+                            pass
+                seen_uids.append(uid)
+
+            if seen_uids:
+                await asyncio.to_thread(mark_emails_seen_sync, seen_uids)
+
         except asyncio.CancelledError:
             logger.info("E-mail figyelő worker megszakítva.")
             break
         except Exception as e:
             logger.error(f"E-mail worker hiba: {e}")
-            
+
         # Várakozás a következő lekérdezésig (pl. 60 másodperc)
         await asyncio.sleep(60)
 
 async def send_escalation_email_to_staff(to_email: str, patient_name: str, patient_contact: str, problem_description: str, priority: str = "Sürgős") -> bool:
     """Eszkalációs e-mail küldése az orvosnak/személyzetnek sürgős eseteknél."""
-    brevo_key = os.getenv("BREVO_API_KEY", "")
-    api_key = brevo_key
-    if brevo_key and not brevo_key.startswith("xkeysib-"):
-        try:
-            import base64 as b64module
-            decoded = b64module.b64decode(brevo_key).decode()
-            parsed = json.loads(decoded)
-            api_key = parsed.get("api_key", brevo_key)
-        except Exception:
-            pass
+    api_key = _get_brevo_api_key()
 
     if not api_key:
         logger.error("Nincs beállítva BREVO_API_KEY az eszkalációs e-mailhez.")
@@ -911,16 +1072,7 @@ async def send_escalation_email_to_staff(to_email: str, patient_name: str, patie
 
 async def send_reminder_email(to_email: str, subject: str, html_content: str) -> bool:
     import os, json
-    brevo_key = os.getenv('BREVO_API_KEY', '')
-    api_key = brevo_key
-    if brevo_key and not brevo_key.startswith('xkeysib-'):
-        try:
-            import base64 as b64module
-            decoded = b64module.b64decode(brevo_key).decode()
-            parsed = json.loads(decoded)
-            api_key = parsed.get('api_key', brevo_key)
-        except Exception:
-            pass
+    api_key = _get_brevo_api_key()
     if not api_key:
         logger.error('Nincs beállítva BREVO_API_KEY az emlékeztető e-mailhez.')
         return False
@@ -961,53 +1113,62 @@ async def reminder_worker_loop():
                 template = settings.get('reminder_template', '')
                 events = db.get_upcoming_events_for_reminders(hours_offset=hours)
                 for ev in events:
-                    if not ev.get('attendee_email') or ev.get('attendee_email') == '-':
-                        continue
-                    
-                    nev = ev.get('attendee', 'Páciens')
-                    idopont = ev.get('start_dt', '')
-                    if idopont:
-                        try:
-                            dt = datetime.datetime.fromisoformat(idopont.replace('Z', '+00:00'))
-                            idopont = dt.strftime('%Y.%m.%d %H:%M')
-                        except:
-                            pass
-                    
-                    szolgaltatas = ev.get('title', '')
-                    telephely = ''
-                    client = db.find_client_by_contact(email=ev.get('attendee_email'))
-                    if client:
-                        clinic_id = client.get('custom_data', {}).get('clinic_id')
-                        if clinic_id:
-                            clinics = db.get_clinics()
-                            for c in clinics:
-                                if str(c.get('id')) == str(clinic_id):
-                                    telephely = c.get('name_and_address', '')
-                                    break
-                    
-                    msg = template.replace('{nev}', nev).replace('{idopont}', idopont).replace('{szolgaltatas}', szolgaltatas).replace('{telephely}', telephely)
-                    html_msg = msg.replace('\n', '<br>')
-                    
-                    success = await send_reminder_email(
-                        to_email=ev.get('attendee_email'),
-                        subject=f'Időpont emlékeztető: {szolgaltatas}',
-                        html_content=html_msg
-                    )
-                    
-                    if success:
-                        db.mark_reminder_sent(ev.get('id'))
-                        session_id = f"reminder_{ev.get('id')}"
-                        db.create_session(session_id=session_id, room_name="Időpont emlékeztető", participant=nev)
-                        db.log_interaction(
-                            type="email",
-                            topic="Emlékeztető",
-                            summary=f"Emlékeztető elküldve a(z) {ev.get('attendee_email')} címre",
-                            result="Elküldve",
-                            tool_name="reminder_worker",
-                            session_id=session_id,
-                            direction="outbound",
-                            funnel_stage="relevant"
+                    # Per-event védelem: egy rossz esemény ne áldozza fel a teljes
+                    # 15 perces iteráció maradékát
+                    try:
+                        if not ev.get('attendee_email') or ev.get('attendee_email') == '-':
+                            continue
+
+                        nev = ev.get('attendee', 'Páciens')
+                        idopont = ev.get('start_dt', '')
+                        if idopont:
+                            try:
+                                dt = datetime.datetime.fromisoformat(idopont.replace('Z', '+00:00'))
+                                idopont = dt.strftime('%Y.%m.%d %H:%M')
+                            except:
+                                pass
+
+                        szolgaltatas = ev.get('title', '')
+                        telephely = ''
+                        client = db.find_client_by_contact(email=ev.get('attendee_email'))
+                        if client:
+                            cd = client.get('custom_data') or {}
+                            if isinstance(cd, str):
+                                try: cd = json.loads(cd)
+                                except: cd = {}
+                            clinic_id = cd.get('clinic_id') if isinstance(cd, dict) else None
+                            if clinic_id:
+                                clinics = db.get_clinics()
+                                for c in clinics:
+                                    if str(c.get('id')) == str(clinic_id):
+                                        telephely = c.get('name_and_address', '')
+                                        break
+
+                        msg = template.replace('{nev}', nev).replace('{idopont}', idopont).replace('{szolgaltatas}', szolgaltatas).replace('{telephely}', telephely)
+                        html_msg = msg.replace('\n', '<br>')
+
+                        success = await send_reminder_email(
+                            to_email=ev.get('attendee_email'),
+                            subject=f'Időpont emlékeztető: {szolgaltatas}',
+                            html_content=html_msg
                         )
+
+                        if success:
+                            db.mark_reminder_sent(ev.get('id'))
+                            session_id = f"reminder_{ev.get('id')}"
+                            db.create_session(session_id=session_id, room_name="Időpont emlékeztető", participant=nev)
+                            db.log_interaction(
+                                type="email",
+                                topic="Emlékeztető",
+                                summary=f"Emlékeztető elküldve a(z) {ev.get('attendee_email')} címre",
+                                result="Elküldve",
+                                tool_name="reminder_worker",
+                                session_id=session_id,
+                                direction="outbound",
+                                funnel_stage="relevant"
+                            )
+                    except Exception as ev_err:
+                        logger.error(f'Emlékeztető küldési hiba (event id={ev.get("id")}): {ev_err}')
                         
         except Exception as e:
             logger.error(f'Hiba az emlékeztető workerben: {e}')
@@ -1099,17 +1260,8 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
         </div>
         """
         
-        brevo_key = os.getenv("BREVO_API_KEY", "")
-        api_key = brevo_key
-        if brevo_key and not brevo_key.startswith("xkeysib-"):
-            try:
-                decoded = b64module.b64decode(brevo_key).decode()
-                import json
-                parsed = json.loads(decoded)
-                api_key = parsed.get("api_key", brevo_key)
-            except Exception:
-                pass
-                
+        api_key = _get_brevo_api_key()
+
         if not api_key:
             logger.error("Nincs beállítva BREVO_API_KEY az időpont visszaigazoló e-mailhez.")
             return
@@ -1202,16 +1354,7 @@ async def send_modification_confirmation_email(attendee: str, attendee_email: st
     </div>
     """
 
-    brevo_key = os.getenv("BREVO_API_KEY", "")
-    api_key = brevo_key
-    if brevo_key and not brevo_key.startswith("xkeysib-"):
-        try:
-            import base64 as b64module
-            decoded = b64module.b64decode(brevo_key).decode()
-            parsed = json.loads(decoded)
-            api_key = parsed.get("api_key", brevo_key)
-        except Exception:
-            pass
+    api_key = _get_brevo_api_key()
 
     if not api_key:
         logger.error("Nincs beállítva BREVO_API_KEY a módosítás visszaigazoló e-mailhez.")
@@ -1367,11 +1510,11 @@ async def automation_worker_loop():
                             ai_draft_response=draft_json,
                         )
                         logger.info(f"Automation '{auto['name']}' draft saved for approval: {email}")
-                        
+
         except asyncio.CancelledError:
             logger.info("Automatizáció worker megszakítva.")
             break
         except Exception as e:
             logger.error(f"Automation worker error: {e}")
-        
+
         await asyncio.sleep(5 * 60)  # 5 perc

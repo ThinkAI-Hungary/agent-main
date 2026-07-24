@@ -376,6 +376,36 @@ def add_email_log(to_name, to_email, subject, message, status, error="", session
     except Exception:
         return 0
 
+def get_grouped_interactions(limit: int = 100, offset: int = 0) -> dict:
+    """Szerver-oldali session-aggregáció (SQL függvény): sessionönként 1 sor,
+    reprezentatív interakció + session-max státusz + darabszám. A kliens-oldali
+    500 soros ablakos merge helyett. A sessions tábla participant/room_name
+    mezőit Python-oldalon csatoljuk (a frontend client-feloldásához kell)."""
+    if not supabase:
+        return {"sessions": [], "total": 0}
+    try:
+        res = supabase.rpc("get_grouped_interactions", {"p_limit": limit, "p_offset": offset}).execute()
+        data = res.data
+        if not isinstance(data, dict):
+            return {"sessions": [], "total": 0}
+        # Participant/room kiegészítés a sessions táblából
+        try:
+            sids = [s.get("session_id") for s in data.get("sessions", []) if s.get("session_id")]
+            if sids:
+                sres = supabase.table("sessions").select("session_id, room_name, participant").in_("session_id", sids).execute()
+                smap = {s["session_id"]: s for s in (sres.data or [])}
+                for s in data.get("sessions", []):
+                    sess = smap.get(s.get("session_id"), {})
+                    s["room_name"] = sess.get("room_name")
+                    s["participant"] = sess.get("participant")
+        except Exception as se:
+            logger.warning(f"grouped sessions participant enrich hiba: {se}")
+        return data
+    except Exception as e:
+        logger.error(f"get_grouped_interactions error: {e}")
+        return {"sessions": [], "total": 0}
+
+
 def get_email_logs(limit: int = 100) -> list[dict]:
     if not supabase: return []
     try:
@@ -383,6 +413,40 @@ def get_email_logs(limit: int = 100) -> list[dict]:
         return res.data
     except Exception:
         return []
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# PROCESSED EMAILS — Message-ID alapú deduplikáció (EAISY-241 email pipeline)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def claim_processed_email(message_id: str, from_email: str = "", session_id: str = "") -> bool:
+    """Insert-first claim a bejövő levélre. True = mi nyertük a claimet (feldolgozható),
+    False = már feldolgozta (ez vagy egy másik process) → ki kell hagyni.
+    DB-hiba esetén True-t ad (fail-open): inkább dolgozzuk fel kétszer, mint hogy
+    elvesszen — a versenyhelyzet ablaka így is nagyságrendekkel kisebb."""
+    if not supabase or not message_id:
+        return True
+    try:
+        supabase.table("processed_emails").insert({
+            "message_id": message_id,
+            "from_email": from_email or None,
+            "session_id": session_id or None,
+        }).execute()
+        return True
+    except Exception as e:
+        err = str(e)
+        if "23505" in err or "duplicate" in err.lower() or "409" in err:
+            return False  # már létezik → duplikátum
+        logger.warning(f"claim_processed_email hiba (fail-open, feldolgozzuk): {e}")
+        return True
+
+def update_processed_email_status(message_id: str, status: str) -> bool:
+    if not supabase or not message_id:
+        return False
+    try:
+        supabase.table("processed_emails").update({"status": status}).eq("message_id", message_id).execute()
+        return True
+    except Exception:
+        return False
 
 # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # TASKS
@@ -1057,6 +1121,29 @@ def add_client(custom_data: dict, status: str = "uj") -> int:
         logger.error(f"Add client error: {e}")
         return 0
 
+# Nevek, amelyek NEM tekinthetők valódi ügyfélnévnek (LLM/placeholder szemét) —
+# ezekre név-alapú client-keresést nem végzünk, mert substring-match esetén
+# létező, másik ügyfelet találnánk meg velük (CRM-korrupció).
+INVALID_CLIENT_NAMES = {
+    "ismeretlen", "ismeretlen hívó", "ismeretlen hivo", "névtelen", "nevtelen",
+    "nem tudom", "nem mondta meg", "nem árulta el", "unknown", "n/a", "none",
+    "null", "-", "ügyfél", "ugyfel", "hívó", "hivo",
+}
+
+
+def is_valid_client_name(name: str | None) -> bool:
+    """Ellenőrzi, hogy a (tipikusan LLM-ből jövő) név valódi ügyfélnévnek
+    tekinthető-e: min. 3 karakter, nem blacklistelt placeholder."""
+    if not name:
+        return False
+    n = name.strip()
+    if len(n) < 3:
+        return False
+    if n.lower() in INVALID_CLIENT_NAMES:
+        return False
+    return True
+
+
 def find_client_by_contact(email: str = "", phone: str = "", messenger_id: str = "", name: str = "") -> dict | None:
     if not supabase: return None
     try:
@@ -1073,27 +1160,54 @@ def find_client_by_contact(email: str = "", phone: str = "", messenger_id: str =
             res = None
         if res and res.data:
             return res.data[0]
-        # EAISY-241: név-alapú keresés (case-insensitive) — ha phone/email nem talált
-        if name and name.strip():
-            res = supabase.table("clients").select("*").ilike("name", f"%{name.strip()}%").order("id", desc=True).limit(1).execute()
+        # EAISY-241: név-alapú keresés (case-insensitive) — ha phone/email nem talált.
+        # Először PONTOS (teljes név) egyezés, csak utána substring — egy rövid vagy
+        # részleges név (pl. „Péter") így nem ír felül egy másik ügyfelet véletlenül.
+        if is_valid_client_name(name):
+            n = name.strip()
+            res = supabase.table("clients").select("*").ilike("name", n).order("id", desc=True).limit(1).execute()
             if res.data:
                 return res.data[0]
+            # substring match csak elég hosszú (≥5 karakteres) névvel
+            if len(n) >= 5:
+                res = supabase.table("clients").select("*").ilike("name", f"%{n}%").order("id", desc=True).limit(1).execute()
+                if res.data:
+                    return res.data[0]
         return None
     except Exception as e:
         logger.error(f"Find client error: {e}")
         return None
 
-def upsert_client(custom_data: dict, additional_log: str = "", status: str | None = None) -> int:
+def upsert_client(custom_data: dict, additional_log: str = "", status: str | None = None, existing_id: int | None = None) -> int:
     email = custom_data.get("email", "").strip()
     phone = custom_data.get("phone", "").strip()
     messenger_id = custom_data.get("messenger_id", "").strip()
-    
-    existing = find_client_by_contact(email, phone, messenger_id)
+
+    # existing_id megadása esetén KÖZVETLENÜL azt a klienst frissítjük —
+    # ez akkor kell, ha a hívó már név alapján találta meg a klienst, és a
+    # belső find_client_by_contact (ami nem kap name-t) máskülönben duplikátumot
+    # hozna létre.
+    if existing_id:
+        try:
+            res = supabase.table("clients").select("*").eq("id", existing_id).limit(1).execute()
+            existing = res.data[0] if res.data else None
+        except Exception as e:
+            logger.error(f"Upsert client by id error: {e}")
+            existing = None
+    else:
+        existing = find_client_by_contact(email, phone, messenger_id)
     if existing:
         curr_data = existing.get("custom_data", {}) or {}
         for k, v in custom_data.items():
-            if v is not None and str(v).strip() != "": 
-                curr_data[k] = v
+            if v is None or str(v).strip() == "":
+                continue
+            if k == "name":
+                # Meglévő VALÓDI nevet nem írunk felül (LLM-szemét / becenév /
+                # eltérő átirat ellen) — csak placeholder vagy üres név cserélhető.
+                old_name = (curr_data.get("name") or existing.get("name") or "")
+                if is_valid_client_name(old_name) and str(v).strip().lower() != old_name.strip().lower():
+                    continue
+            curr_data[k] = v
         
         if additional_log:
             old_log = curr_data.get("beszelgetes_naplo", "")

@@ -1102,16 +1102,27 @@ function IhInfoBanner({ title, body, onClose }: { title: string; body: string; o
 function IssueHandlingRulesSection() {
   const [state, setState] = useState<IssueHandlingState>(loadIssueHandlingState);
   const [openInfo, setOpenInfo] = useState<string | null>(null);
+  const [saving, setSaving] = useState(false);
   const toggleInfo = (id: string) => setOpenInfo(prev => prev === id ? null : id);
 
   useEffect(() => {
-    // EAISY-241: written_behavior betöltése a backend-ről mount-kor
-    authFetch('/admin/api/written-behavior')
-      .then(res => res.json())
+    // EAISY-241: a TELJES állapot a backendről jön mount-kor (a text_configs az
+    // igaz forrás; a localStorage csak cache — korábban a writtenBehavior
+    // kivételével minden csak böngésző-lokális volt, és a mount felülírhatta
+    // a nem mentett lokális állapotot)
+    authFetch('/admin/api/issue-handling')
+      .then(res => res.ok ? res.json() : null)
       .then(data => {
-        if (data && data.content) {
+        if (data && typeof data === 'object' && data.writtenBehavior) {
           setState(prev => {
-            const nextState = { ...prev, writtenBehavior: data.content };
+            const nextState: IssueHandlingState = {
+              defaultRequestNotify: data.defaultRequestNotify ?? prev.defaultRequestNotify,
+              defaultComplaintNotify: data.defaultComplaintNotify ?? prev.defaultComplaintNotify,
+              writtenBehavior: data.writtenBehavior,
+              customRules: Array.isArray(data.customRules) && data.customRules.length > 0
+                ? data.customRules
+                : prev.customRules,
+            };
             localStorage.setItem(ISSUE_RULES_LS_KEY, JSON.stringify(nextState));
             return nextState;
           });
@@ -1120,17 +1131,26 @@ function IssueHandlingRulesSection() {
       .catch(() => {});
   }, []);
 
-  const handleSave = useCallback(() => {
+  const handleSave = useCallback(async () => {
+    if (saving) return;
+    setSaving(true);
     localStorage.setItem(ISSUE_RULES_LS_KEY, JSON.stringify(state));
-    // EAISY-241: written_behavior mentése a backend-be is (text_configs),
-    // hogy a classifier lássa (override-ként működik a triage_rules felett).
-    authFetch('/admin/api/written-behavior', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ content: state.writtenBehavior }),
-    }).catch(() => {});
-    showToast('Ügykezelési szabályok mentve', 'success');
-  }, [state]);
+    try {
+      // A TELJES állapot a backendbe megy (text_configs) — a written_behavior-t
+      // a backend külön kulcsra is kiírja, amit a classifier olvas.
+      const res = await authFetch('/admin/api/issue-handling', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(state),
+      });
+      if (!res.ok) throw new Error('save failed');
+      showToast('Ügykezelési szabályok mentve', 'success');
+    } catch {
+      showToast('Hiba a mentés során — a beállítások csak helyben mentődtek!', 'error');
+    } finally {
+      setSaving(false);
+    }
+  }, [state, saving]);
 
   const updateCustomRule = (idx: number, field: string, value: string) => {
     setState(prev => {
@@ -1157,8 +1177,8 @@ function IssueHandlingRulesSection() {
     <>
       {/* Save button row */}
       <div className="ih-save-row">
-        <button className="beallitasok-save-btn" onClick={handleSave}>
-          Változtatások mentése
+        <button className="beallitasok-save-btn" onClick={handleSave} disabled={saving}>
+          {saving ? 'Mentés…' : 'Változtatások mentése'}
         </button>
       </div>
 

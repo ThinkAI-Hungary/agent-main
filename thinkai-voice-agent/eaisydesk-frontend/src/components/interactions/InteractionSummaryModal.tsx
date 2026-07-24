@@ -50,17 +50,21 @@ export default function InteractionSummaryModal({
   onApproved,
 }: Props) {
   const navigate = useNavigate();
-  // EAISY-241 §1.2.3 — CTA gombok jogosultság-kezelése
-  const { isAdminOnly } = useAuth();  // true = csak admin (nem manager/member)
+  // EAISY-241 §1.2.3 — CTA gombok jogosultság-kezelése.
+  // Jogosultság-konzisztencia: ugyanaz az admin-VAGY-manager szabály, mint a
+  // listanézetben (korábban a modal szigorúan csak admint nézett, a lista
+  // manager-t is adminnak — következetlen volt).
+  const { isAdmin } = useAuth();
   const rawDraft = row.ai_draft_response || row.aiDraftResponse || null;
   const approvalStatus = row.approval_status || row.approvalStatus || null;
   // EAISY-241 §1.1.2 — Ha az ügytípus eljárása „Önállóan kezelhető" (autonomous),
   // a jóváhagyási/szerkesztési UI nem jelenik meg (a válasz már auto-kiküldésre került).
   // Ez true ha approval folyamat szükséges ÉS nem autonóm.
-  const isAutonomous = row.classification?.autonomous === true || approvalStatus === 'approved';
+  const isAutoSent = row.classification?.autonomous === true;
+  const isAutonomous = isAutoSent || approvalStatus === 'approved';
   const isPendingApproval = !isAutonomous && (
     row.teendo === 'Jóváhagyásra vár' ||
-    row.teendo === 'Válasz jóváhagyása szükséges' ||
+    row.teendo === 'Jóváhagyás szükséges' ||
     approvalStatus === 'pending'
   );
   const [showDetails, setShowDetails] = useState(!!autoExpandApproval);
@@ -80,6 +84,8 @@ export default function InteractionSummaryModal({
 
   // Approval state
   const [draftText, setDraftText] = useState('');
+  // Multi-channel draft: csatornánkénti szerkeszthető szövegek
+  const [draftChannels, setDraftChannels] = useState<{ channel: string; body: string }[] | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [submittingApproval, setSubmittingApproval] = useState(false);
   const approvalRef = useRef<HTMLDivElement>(null);
@@ -90,12 +96,19 @@ export default function InteractionSummaryModal({
   const channel = row.channel || 'Telefon';
   const channelUpper = channel.toUpperCase();
   const isMessengerOrInsta = channel === 'Messenger' || channel === 'Instagram';
+  // A 'IDŐPONT' (nagybetűs) összevetés halott ág volt — a detectUgyTipus mindig
+  // 'Időpont'-ot ad. A szándék-címkék (Foglalási/Módosítási/Lemondási szándék
+  // rögzítve) nem tartalmazzák az „időpont" substringet, ezért az ugyTipus a
+  // megbízható forrás.
   const isAppointmentType =
-    row.eredmeny.includes('időpont') || row.eredmeny.includes('Időpont') || row.ugyTipus === 'IDŐPONT';
+    row.ugyTipus === 'Időpont' ||
+    (row.classification?.detected_types || []).includes('Időpont') ||
+    row.eredmeny.includes('időpont') || row.eredmeny.includes('Időpont');
 
-  // Client status: Új vs Visszatérő
+  // Client status: Új vs Visszatérő — badge CSAK ismert regisztrációs dátumnál
+  // (ismeretlen ügyfélnél a „ÚJ ÜGYFÉL" félrevezető volt)
   const isNewClient = (() => {
-    if (!row.clientCreatedAt) return true;
+    if (!row.clientCreatedAt) return false;
     const created = new Date(row.clientCreatedAt);
     const now = new Date();
     const diffDays = (now.getTime() - created.getTime()) / (1000 * 60 * 60 * 24);
@@ -190,9 +203,10 @@ export default function InteractionSummaryModal({
         while ((m = entryRegex.exec(log)) !== null) {
           const timestamp = m[1].trim();
           let content = m[2].trim();
-          // Log timestamps are in local Budapest time — append timezone so Date() doesn't treat as UTC
-          const isoWithTz = timestamp.replace(' ', 'T') + (timestamp.includes('+') || timestamp.includes('Z') ? '' : '+02:00');
-          const time = new Date(isoWithTz).getTime() || 0;
+          // A log időbélyegek helyi (Budapest) idők — timezone-suffix NÉLKÜL
+          // parse-oljuk lokálisként (a korábbi fix '+02:00' télen 1 órát csúszott)
+          const isoLocal = timestamp.replace(' ', 'T');
+          const time = new Date(isoLocal).getTime() || 0;
 
           const hasEmailMarker = /[-–]\s*Bejövő e-mail\s*\(/i.test(content);
           const emailIncoming = hasEmailMarker
@@ -457,11 +471,8 @@ export default function InteractionSummaryModal({
           });
         }
 
-        // For IDŐPONT type with appointment data, create structured summary
-        if (
-          (row.ugyTipus === 'IDŐPONT' || isAppointmentType) &&
-          (apptDate || apptService || apptDoctor)
-        ) {
+        // For Időpont type with appointment data, create structured summary
+        if (isAppointmentType && (apptDate || apptService || apptDoctor)) {
           const lines = [baseSummary];
           if (apptDate) lines.push(`Befoglalt időpont:  ${apptDate}`);
           if (apptService && apptService !== '-')
@@ -481,9 +492,11 @@ export default function InteractionSummaryModal({
     };
   }, [row, clients, clientsMap, isAppointmentType]);
 
-  // ── Parse AI draft for approval ──
+  // ── Parse AI draft ──
+  // MINDEN módban parse-oljuk (korábban csak pending módban → az autonóm és
+  // sürgős „Kiküldött válasz" doboz SOHA nem jelenhetett meg).
   useEffect(() => {
-    if (!isPendingApproval || !rawDraft) return;
+    if (!rawDraft) return;
     let parsedDraft: string;
     try {
       const draftData = JSON.parse(rawDraft);
@@ -492,6 +505,13 @@ export default function InteractionSummaryModal({
         draftData.drafts &&
         draftData.drafts.length > 1
       ) {
+        // Csatornánkénti szövegek külön state-be (szerkesztéshez)
+        setDraftChannels(
+          draftData.drafts.map((d: { channel: string; body?: string }) => ({
+            channel: d.channel,
+            body: (d.body || '').replace(/<br\s*\/?>/gi, '\n'),
+          }))
+        );
         parsedDraft = draftData.drafts
           .map((d: { channel: string; body?: string }) => {
             const chIcon: Record<string, string> = {
@@ -509,7 +529,7 @@ export default function InteractionSummaryModal({
       parsedDraft = rawDraft || '';
     }
     setDraftText(parsedDraft.replace(/<br\s*\/?>/gi, '\n'));
-  }, [isPendingApproval, rawDraft]);
+  }, [rawDraft]);
 
   // Auto-scroll to approval section when auto-expanding
   useEffect(() => {
@@ -523,26 +543,35 @@ export default function InteractionSummaryModal({
     }
   }, [autoExpandApproval, showDetails]);
 
-  // Close on Escape
+  // Close on Escape — submit közben NE záródjon be (a finally blokk különben
+  // unmounted komponensen hívna state-settert)
   useEffect(() => {
     function handleKeyDown(e: KeyboardEvent) {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !submittingApproval) onClose();
     }
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [onClose, submittingApproval]);
 
   // ── Approval submit ──
   const handleApprovalSubmit = async () => {
     if (!row.interactionId) return;
     setSubmittingApproval(true);
     try {
+      const body: Record<string, unknown> = { modified_draft: draftText };
+      // Multi-channel: csatornánként szerkesztett szövegek (a backend ezeket
+      // küldi ki, nem az összefűzött preview-t)
+      if (draftChannels) {
+        body.modified_drafts = Object.fromEntries(
+          draftChannels.map((d) => [d.channel, d.body])
+        );
+      }
       const res = await authFetch(
         `/admin/api/approvals/${row.interactionId}/approve`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ modified_draft: draftText }),
+          body: JSON.stringify(body),
         }
       );
       if (!res.ok) {
@@ -608,11 +637,15 @@ export default function InteractionSummaryModal({
           <div className="ism-header-left">
             <div className="ism-header-name-row">
               <h2 className="ism-header-name">{clientName}</h2>
-              <span
-                className={`ism-badge ${isNewClient ? 'ism-badge--new' : 'ism-badge--returning'}`}
-              >
-                {isNewClient ? 'ÚJ ÜGYFÉL' : 'VISSZATÉRŐ'}
-              </span>
+              {/* Badge csak ismert regisztrációs dátumnál — ismeretlen ügyfélnél
+                  ne mutasson félrevezető „ÚJ ÜGYFÉL" címkét */}
+              {row.clientCreatedAt && (
+                <span
+                  className={`ism-badge ${isNewClient ? 'ism-badge--new' : 'ism-badge--returning'}`}
+                >
+                  {isNewClient ? 'ÚJ ÜGYFÉL' : 'VISSZATÉRŐ'}
+                </span>
+              )}
             </div>
             <div className="ism-header-date">{formattedDate}</div>
           </div>
@@ -808,7 +841,7 @@ export default function InteractionSummaryModal({
                                 {fmtDt(
                                   block.timestamp.includes('+') || block.timestamp.includes('Z')
                                     ? block.timestamp
-                                    : block.timestamp.replace(' ', 'T') + '+02:00'
+                                    : block.timestamp.replace(' ', 'T')
                                 )}
                               </span>
                             )}
@@ -840,7 +873,10 @@ export default function InteractionSummaryModal({
                             <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
                           </svg>
                           <span className="ism-draft-label">Kiküldött válasz</span>
-                          <span style={{ fontSize: 11, color: '#22c55e', marginLeft: 'auto' }}>✓ automatikus</span>
+                          {/* Manuálisan jóváhagyott ≠ automatikus küldés */}
+                          <span style={{ fontSize: 11, color: '#22c55e', marginLeft: 'auto' }}>
+                            {isAutoSent ? '✓ automatikus' : '✓ jóváhagyva'}
+                          </span>
                         </div>
                         <div className="ism-draft-box">{draftText}</div>
                       </div>
@@ -876,7 +912,30 @@ export default function InteractionSummaryModal({
                           </span>
                         </div>
 
-                        {isEditing ? (
+                        {draftChannels ? (
+                          /* Multi-channel: csatornánként szerkeszthető szövegek —
+                             a kiküldés is csatornánként történik (modified_drafts) */
+                          draftChannels.map((d, idx) => (
+                            <div key={d.channel} style={{ marginBottom: 8 }}>
+                              <div className="ism-draft-label" style={{ marginBottom: 4 }}>{d.channel}</div>
+                              {isEditing ? (
+                                <textarea
+                                  className="ism-draft-textarea"
+                                  value={d.body}
+                                  onChange={(e) =>
+                                    setDraftChannels((prev) =>
+                                      prev ? prev.map((x, i) => (i === idx ? { ...x, body: e.target.value } : x)) : prev
+                                    )
+                                  }
+                                  disabled={submittingApproval}
+                                  rows={4}
+                                />
+                              ) : (
+                                <div className="ism-draft-box">{d.body}</div>
+                              )}
+                            </div>
+                          ))
+                        ) : isEditing ? (
                           <textarea
                             ref={textareaRef}
                             className="ism-draft-textarea"
@@ -942,11 +1001,12 @@ export default function InteractionSummaryModal({
           </button>
           <button
             className={`ism-footer-btn ${showCalendarButton ? 'ism-footer-btn--calendar' : 'ism-footer-btn--solid'}`}
-            // EAISY-241 §2.5: „Ugrás teendőkre" inaktív admin-nál; „Ugrás naptárra" AKTÍV mindenkinél.
-            disabled={isAdminOnly && !showCalendarButton}
-            style={(isAdminOnly && !showCalendarButton) ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
+            // EAISY-241 §2.5: „Ugrás teendőkre" inaktív admin/manager-nél (adminnak
+            // minden ügy látszik, nincs saját teendőlista); „Ugrás naptárra" AKTÍV.
+            disabled={isAdmin && !showCalendarButton}
+            style={(isAdmin && !showCalendarButton) ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
             onClick={() => {
-              if (isAdminOnly && !showCalendarButton) return;
+              if (isAdmin && !showCalendarButton) return;
               onClose();
               navigate(showCalendarButton ? '/calendar' : '/dashboard');
             }}

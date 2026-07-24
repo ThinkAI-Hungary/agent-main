@@ -23,6 +23,7 @@ import httpx
 from livekit.agents import function_tool, RunContext
 from loguru import logger
 import asyncio
+import contextvars
 
 import database as db
 import email_processor
@@ -31,83 +32,126 @@ import email_processor
 # ── Paths ────────────────────────────────────────────────────────────────────
 THIS_DIR = Path(__file__).resolve().parent
 
-# Context var for current session_id (set by server.py entrypoint)
-_current_session_id: str = ""
+# ── Session-állapot: contextvars (task-scoped) ───────────────────────────────
+# Korábban modul-globálisok voltak — egy worker több roomot is kiszolgálhat
+# párhuzamosan ugyanazon az event loop-on, így a hívások egymásnak írták felül
+# a session_id-t / caller phone-t / alert-flageket. A ContextVar coroutine-scoped,
+# így párhuzamos hívásoknál nincs keresztszennyezés.
+_session_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("eaisydesk_session_id", default="")
+_caller_phone_var: contextvars.ContextVar[str] = contextvars.ContextVar("eaisydesk_caller_phone", default="")
+_session_alerts_var: contextvars.ContextVar[frozenset] = contextvars.ContextVar("eaisydesk_session_alerts", default=frozenset())
+
 
 def set_session_id(sid: str):
-    global _current_session_id
-    _current_session_id = sid
+    _session_id_var.set(sid or "")
+
+
+def get_session_id() -> str:
+    return _session_id_var.get()
 
 
 # EAISY-241 §6: Hívó telefonszáma (SIP attribute-ból kinyerve, l. server.py).
 # A book_meeting ezt használja alapértelmezett attendee_phone-ként, ha a hívó
 # nem mond mást; a hívás végén a client upsert is ebből dolgozik.
-_current_caller_phone: str = ""
-
 def set_caller_phone(phone: str):
-    global _current_caller_phone
-    _current_caller_phone = phone or ""
+    _caller_phone_var.set(phone or "")
+
 
 def get_caller_phone() -> str:
-    return _current_caller_phone
+    return _caller_phone_var.get()
+
+
+# ── Háttér-task registry — a fire-and-forget taskok kivételei ne vesszenek el ──
+_background_tasks: set = set()
+
+
+def _spawn(coro, name: str = "") -> asyncio.Task:
+    """Háttér-task indítása referencia-megőrzéssel és hiba-naplózással."""
+    task = asyncio.create_task(coro, name=name or None)
+    _background_tasks.add(task)
+
+    def _done(t: asyncio.Task):
+        _background_tasks.discard(t)
+        if not t.cancelled() and t.exception():
+            logger.error(f"Háttér-task '{t.get_name()}' hibával állt le: {t.exception()}")
+
+    task.add_done_callback(_done)
+    return task
 
 
 # ── EAISY-241: Voice-agent gating helpers ────────────────────────────────────
 # Ezek a függvények biztosítják, hogy a hang-agent NE cselekedjen önállóan olyan
 # ügytípusoknál, amelyeknél a brief (EAISY-241 §1.1.1/§2) szerint emberi beavatkozás
-# szükséges. A triage_rules.routing konfigurációból olvassák a döntést.
+# szükséges.
 #
 # Kontextus-flag-ek: a beszélgetés során (pl. report_alert tool) beállítható, hogy
 # az ügyfél panaszt tett / kérést intézett. Ezek megakadályozzák az autonóm
 # foglalást / intézkedést.
-_current_session_alerts: set[str] = set()  # {"complaint", "urgent", "request", ...}
 
 
 def flag_session_alert(alert_type: str):
     """Jelzi, hogy a beszélgetés során panasz/kérés/urgent hangzott el.
     A book_meeting és más autonóm tool-ok ezt ellenőrzik."""
-    _current_session_alerts.add(alert_type)
+    _session_alerts_var.set(_session_alerts_var.get() | {alert_type})
 
 
 def reset_session_alerts():
     """Új session / új beszélgetés elején törli a kontextus-flag-eket."""
-    _current_session_alerts.clear()
+    _session_alerts_var.set(frozenset())
 
 
 def _is_autonomous_allowed(ugytipus: str, idopont_altipus: str = None) -> bool:
     """
-    Ellenőrzi a triage_rules.routing alapján, hogy az adott ügytípus
+    Ellenőrzi a triage_rules.routing rules-list alapján, hogy az adott ügytípus
     autonóm módon kezelhető-e a hang-agent által.
 
-    EAISY-241 §2 — Kérés/Panasz SOSEM autonóm; Időpont Módosítás/Lemondás sosem.
+    SINGLE SOURCE OF TRUTH: a classifier döntési fáját használja (voice csatorna,
+    restriction=none alapon) — ha a kialakuló automation 'auto_*', az akció autonóm.
+    Korábban egy elavult 'autonomous_allowed' routing-kulcsot olvasott, amit az új
+    rules-list séma nem is definiál → a kapu gyakorlatilag holt volt.
+
+    DB-hiba esetén fail-closed (nem autonóm) — konzervatív viselkedés.
     """
     try:
-        rules = db.get_triage_rules()
-        for rule in rules:
-            if (rule.get("situation") or "").strip().lower() == (ugytipus or "").strip().lower():
-                routing = rule.get("routing") or {}
-                if isinstance(routing, str):
-                    try:
-                        routing = json.loads(routing)
-                    except Exception:
-                        routing = {}
-                # Időpont: altípus-specifikus
-                if ugytipus == "Időpont" and idopont_altipus and routing.get("subtypes"):
-                    sub = routing["subtypes"].get(idopont_altipus, {})
-                    return bool(sub.get("autonomous_allowed", routing.get("autonomous_allowed", True)))
-                return bool(routing.get("autonomous_allowed", True))
+        import classifier
+        rules = classifier._get_triage_rules_cached()
+        if not rules:
+            # Nincs konfig (DB-hiba) — fail-closed
+            logger.warning("_is_autonomous_allowed: nincs triage konfig (fail-closed)")
+            return False
+        decision = classifier._apply_decision_tree(
+            ugytipus=ugytipus,
+            idopont_altipus=idopont_altipus,
+            restriction="none",  # voice default — a korlátozásokat a session-flag kezeli
+            kb_answered=True,
+            channel="telefon",
+            triage_rules=rules,
+        )
+        return decision.get("automation", "") in classifier.AUTONOMOUS_AUTOMATIONS
     except Exception as e:
-        logger.warning(f"_is_autonomous_allowed error (fallback True): {e}")
-    # Ha nincs szabály, konzervatív: Kérés/Panasz sosem, egyébként igen
-    if ugytipus in ("Kérés", "Panasz"):
+        logger.warning(f"_is_autonomous_allowed hiba (fail-closed): {e}")
         return False
-    return True
 
 
 def _session_has_complaint_or_request() -> bool:
     """Visszaadja, hogy a jelenlegi beszélgetés során panasz/kérés hangzott-e el.
     Ezek blokkolják az autonóm cselekvést (brief §1.1.1)."""
-    return bool(_current_session_alerts & {"complaint", "request", "urgent"})
+    return bool(_session_alerts_var.get() & {"complaint", "request", "urgent"})
+
+
+def session_has_complaint_or_request() -> bool:
+    """Publikus wrapper — a server.py hívásvégi klasszifikációja is ezt kérdezi le
+    (handover_reason származtatásához)."""
+    return _session_has_complaint_or_request()
+
+
+def _autonomy_blocked_message() -> str:
+    """Egységes válasz, ha az autonómia-guard blokkolja az akciót."""
+    return (
+        "Köszönöm, rögzítettem a kérését! Ezt az ügyet egy kollégának kell "
+        "véglegesítenie — hamarosan felveszik Önnel a kapcsolatot. "
+        "Van még esetleg más, amiben segíthetek?"
+    )
 
 
 # ── Hungarian date/time parsing ─────────────────────────────────────────────
@@ -139,20 +183,42 @@ def _parse_hungarian_date(raw: str) -> str:
     if re.match(r"^\d{4}-\d{2}-\d{2}$", raw):
         return raw
 
-    year = datetime.utcnow().year
+    year = datetime.now(BUDAPEST_TZ).year
+
+    # 4 jegyű explicit évszám levágása (különben a nap-keresés az év első két
+    # számjegyét találná meg: „2026. március 11" → nap=20 lenne)
+    explicit_year = None
+    m_year = re.search(r"\b((?:19|20)\d{2})\b", raw)
+    raw_no_year = raw
+    if m_year:
+        explicit_year = int(m_year.group(1))
+        raw_no_year = (raw[:m_year.start()] + raw[m_year.end():])
+
+    def _roll_forward(y: int, mo: int, d: int) -> str:
+        """Évszám nélküli dátum: ha idén már elmúlt, jövő évre görgetjük
+        (decemberben a „január 15" nem múltbeli foglalás lesz)."""
+        if explicit_year is None:
+            try:
+                if datetime(y, mo, d, tzinfo=BUDAPEST_TZ).date() < datetime.now(BUDAPEST_TZ).date():
+                    y += 1
+            except ValueError:
+                pass
+        return f"{y}-{mo:02d}-{d:02d}"
 
     # "március 11" / "márc 11" / "március 11-én" / "március 11."
     for name, month_num in _HU_MONTHS.items():
         if name in raw.lower():
-            day_match = re.search(r"(\d{1,2})", raw)
+            day_match = re.search(r"(\d{1,2})", raw_no_year)
             if day_match:
                 day = int(day_match.group(1))
-                return f"{year}-{month_num:02d}-{day:02d}"
+                if explicit_year is not None:
+                    return f"{explicit_year}-{month_num:02d}-{day:02d}"
+                return _roll_forward(year, month_num, day)
 
     # "03/11" or "03.11" or "3/11"
-    m = re.match(r"^(\d{1,2})[/\.](\d{1,2})$", raw)
+    m = re.match(r"^(\d{1,2})[/\.](\d{1,2})$", raw_no_year.strip().rstrip("."))
     if m:
-        return f"{year}-{int(m.group(1)):02d}-{int(m.group(2)):02d}"
+        return _roll_forward(year, int(m.group(1)), int(m.group(2)))
 
     # "2026.03.11" or "2026/03/11"
     m = re.match(r"^(\d{4})[/\.](\d{1,2})[/\.](\d{1,2})$", raw)
@@ -220,7 +286,7 @@ async def send_followup_email(
             logger.info("Brevo key: decoded from base64/JSON")
         except Exception:
             api_key = raw_key
-    logger.info(f"Brevo key starts with: {api_key[:12]}...")
+    logger.info(f"Brevo key loaded: {api_key[:4]}…")
     logger.info(f"Sending follow-up email to {recipient_name} <{recipient_email}>")
 
     # ── Sender from DB ──
@@ -267,7 +333,7 @@ async def send_followup_email(
         message=message,
         status=status_str,
         error=error_msg,
-        session_id=_current_session_id,
+        session_id=get_session_id(),
     )
     db.log_interaction(
         type="email",
@@ -275,7 +341,7 @@ async def send_followup_email(
         summary=f"{recipient_name} ({recipient_email}) — {subject}",
         result=f"Küldés {'sikeres' if sent_ok else 'sikertelen'}",
         tool_name="send_followup_email",
-        session_id=_current_session_id,
+        session_id=get_session_id(),
         funnel_stage=funnel_stage,
         classification={
             "ugytipus": "Egyéb",
@@ -285,8 +351,8 @@ async def send_followup_email(
         }
     )
 
-    if recipient_name and _current_session_id:
-        db.update_session_participant(_current_session_id, recipient_name)
+    if recipient_name and get_session_id():
+        db.update_session_participant(get_session_id(), recipient_name)
 
     if sent_ok:
         return f"Email sikeresen elküldve {recipient_name} ({recipient_email}) részére."
@@ -346,7 +412,7 @@ async def check_calendar(
         summary=f"Következő {days_ahead} nap, {len(upcoming)} esemény",
         result=f"{len(upcoming)} esemény",
         tool_name="check_calendar",
-        session_id=_current_session_id,
+        session_id=get_session_id(),
         funnel_stage=funnel_stage,
         classification={
             "ugytipus": "Időpont",
@@ -361,6 +427,33 @@ async def check_calendar(
 # ═══════════════════════════════════════════════════════════════════════════════
 # 3. BOOK A MEETING (local JSON store)
 # ═══════════════════════════════════════════════════════════════════════════════
+
+_EMAIL_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+
+
+def _normalize_email(raw: str) -> str:
+    """EAISY-241 §5: email-normalizáció — a beszédben kimondott "kukac" → "@",
+    szóközök eltávolítása, kisbetűsítés. A LLM gyakran hibásan írja át a
+    hallott email-t; ez a normalizáció + záró regex-validáció segít.
+    Érvénytelen eredmény esetén üres string (→ nem megy ki csendben elbukó
+    visszaigazoló email)."""
+    if not raw:
+        return ""
+    e = raw.strip().lower()
+    # A specifikusabb formák ELŐBB (a sima "kukac"→"@" replace a "(kukac)"-ból
+    # "(@)"-t csinálna, és a zárójelek bent maradnának)
+    e = e.replace("(kukac)", "@").replace("kukac", "@")
+    e = e.replace(" [at] ", "@").replace(" at ", "@")
+    e = e.replace(" pont ", ".").replace(" pont.", ".").replace(" ", "")
+    # Ha több @ van, csak az első marad
+    if e.count("@") > 1:
+        parts = e.split("@")
+        e = parts[0] + "@" + "".join(parts[1:])
+    if e and not _EMAIL_RE.match(e):
+        logger.warning(f"Érvénytelen email a normalizáció után: '{raw}' → '{e}' — eldobva")
+        return ""
+    return e
+
 
 @function_tool(description="Találkozó/meeting foglalása a naptárba. Használd, ha a felhasználó időpontot szeretne foglalni. KÖTELEZŐ elkérni a felhasználó nevét, telefonszámát és email címét a foglalás előtt! A szolgáltatás és az orvos nevét is próbáld meg kideríteni!")
 async def book_meeting(
@@ -378,20 +471,6 @@ async def book_meeting(
     funnel_stage: Annotated[str, "A beszélgetés állapota: 'irrelevant', 'relevant', 'valaszolt', 'ajanlat', 'foglalt'"] = "foglalt",
 ) -> str:
     """Találkozó foglalása a naptárba."""
-    # EAISY-241 §5: email-normalizáció — a beszédben kimondott "kukac" → "@",
-    # szóközök eltávolítása, kisbetűsítés. A LLM gyakran hibásan írja át a
-    # hallott email-t; ez a normalizáció + validáció segít.
-    def _normalize_email(raw: str) -> str:
-        if not raw:
-            return ""
-        e = raw.strip().lower().replace("kukac", "@").replace("(kukac)", "@").replace(" [at] ", "@").replace(" at ", "@")
-        e = e.replace(" pont ", ".").replace(" pont.", ".").replace(" ", "")
-        # Ha több @ van, csak az első marad
-        if e.count("@") > 1:
-            parts = e.split("@")
-            e = parts[0] + "@" + "@".join(parts[1:])
-        return e
-
     attendee_email = _normalize_email(attendee_email)
 
     # EAISY-241 §6: ha a hívó nem mondott telefonszámot (üres), de a rendszer
@@ -407,24 +486,24 @@ async def book_meeting(
     # és az interakciót embernek továbbítja.
     if _session_has_complaint_or_request():
         logger.info("EAISY-241: booking blocked — complaint/request flagged in session")
-        return (
-            "Megértettem a helyzetet. Sajnálom, hogy ezt tapasztalta. "
-            "Ezt az ügyet egy kollégának kell lekezelnie — rögzítettem a kérését, "
-            "és hamarosan felveszik Önnel a kapcsolatot. Van még esetleg más, amiben segíthetek?"
-        )
+        return _autonomy_blocked_message()
     if not _is_autonomous_allowed("Időpont", "Új"):
         logger.info("EAISY-241: booking blocked — Időpont not autonomous in triage config")
-        return (
-            "Köszönöm, nagyon szívesen segítek az időpont egyeztetésben! "
-            "A foglalás véglegesítéséhez át kell adnom a kérést egy kollégának, "
-            "aki rögzíti és visszaigazolja. Fel tudná írni a nevét és elérhetőségét?"
-        )
+        return _autonomy_blocked_message()
 
     try:
         parsed_date = _parse_hungarian_date(date)
         parsed_time = _parse_hungarian_time(time)
         start_dt = _to_budapest_tz(f"{parsed_date}T{parsed_time}:00")
         end_dt = start_dt + timedelta(minutes=duration_minutes)
+
+        # Múltbeli időpont elutasítása (az évszám-görgetés ellenére explicit
+        # múltbeli dátumot is megadhat a hívó)
+        if end_dt <= datetime.now(BUDAPEST_TZ):
+            return (
+                "Ez az időpont sajnos már elmúlt. Kérem adjon meg egy jövőbeli "
+                "dátumot és időpontot!"
+            )
 
         events = db.get_calendar_events()
 
@@ -436,7 +515,9 @@ async def book_meeting(
                 if start_dt < ev_end and end_dt > ev_start:
                     ev_title = ev.get("title", "Névtelen esemény")
                     ev_time = ev_start.strftime("%H:%M")
-                    suggestion = _find_next_slot(events, date, duration_minutes, start_dt)
+                    # A PARSE-OLT ISO dátumot adjuk át (a nyers „március 11"-hez
+                    # a strftime-összevetés sosem találna aznapi eseményt)
+                    suggestion = _find_next_slot(events, parsed_date, duration_minutes, start_dt)
                     msg = (
                         f"Ütközés! {ev_time}-kor már van egy foglalás: \"{ev_title}\" "
                         f"({ev.get('duration_minutes', 30)} perc)."
@@ -446,7 +527,11 @@ async def book_meeting(
                     else:
                         msg += " Ezen a napon nincs több szabad hely. Válassz egy másik napot!"
                     return msg
-            except Exception:
+            except Exception as ev_err:
+                # Egy rossz formátumú meglévő esemény ne akadályozza az ütközés-
+                # ellenőrzést a többinél — de naplózzuk, mert ilyenkor az adott
+                # eseménnyel nem detektálunk ütközést.
+                logger.debug(f"Ütközés-ellenőrzés: esemény kihagyva parse-hiba miatt: {ev_err}")
                 continue
 
         # ── No conflict — book it in Calendar ───────────────────────────
@@ -461,14 +546,14 @@ async def book_meeting(
 
         # Trigger automated confirmation email in the background
         if attendee_email:
-            asyncio.create_task(email_processor.send_booking_confirmation_email(
+            _spawn(email_processor.send_booking_confirmation_email(
                 event_id=event_id,
                 title=title,
                 date=parsed_date,
                 time=parsed_time,
                 attendee=attendee,
                 attendee_email=attendee_email
-            ))
+            ), name="booking-confirmation-email")
 
         # ── Add to Kanban (Clients Database) ───────────────────────────
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
@@ -517,8 +602,8 @@ async def book_meeting(
         first_col_id = columns[0]['id'] if columns else 'uj'
         db.upsert_client(custom_data, additional_log=f"Hangasszisztens időpontot foglalt: {date} {time}", status=first_col_id)
 
-        if attendee and _current_session_id:
-            db.update_session_participant(_current_session_id, attendee)
+        if attendee and get_session_id():
+            db.update_session_participant(get_session_id(), attendee)
 
         # ── Log interaction ───────────────────────────────────────────
         db.log_interaction(
@@ -527,7 +612,7 @@ async def book_meeting(
             summary=f"{title} — {date} {time} | {attendee} <{attendee_email}> ({attendee_phone})",
             result="Lefoglalva + Kanban kártya létrehozva",
             tool_name="book_meeting",
-            session_id=_current_session_id,
+            session_id=get_session_id(),
             funnel_stage=funnel_stage,
             classification={
                 "ugytipus": "Időpont",
@@ -645,7 +730,7 @@ async def get_weather(
             summary=f"{city} időjárás lekérdezve",
             result=f"{temp}°C, {weather_desc}",
             tool_name="get_weather",
-            session_id=_current_session_id,
+            session_id=get_session_id(),
             funnel_stage=funnel_stage,
             classification={
                 "ugytipus": "Kérdés",
@@ -676,14 +761,14 @@ async def create_task(
     logger.info(f"Creating task: {task}")
 
     try:
-        db.add_task(text=task, priority=priority, due_date=due_date, session_id=_current_session_id)
+        db.add_task(text=task, priority=priority, due_date=due_date, session_id=get_session_id())
         db.log_interaction(
             type="feladat",
             topic="Feladat rögzítés",
             summary=task,
             result="Rögzítve",
             tool_name="create_task",
-            session_id=_current_session_id,
+            session_id=get_session_id(),
             funnel_stage=funnel_stage,
             classification={
                 "ugytipus": "Kérés",
@@ -777,7 +862,7 @@ async def lookup_info(
         summary=topic,
         result=result[:100] + "..." if len(result) > 100 else result,
         tool_name="lookup_info",
-        session_id=_current_session_id,
+        session_id=get_session_id(),
         funnel_stage=funnel_stage,
         classification={
             "ugytipus": "Kérdés",
@@ -806,6 +891,16 @@ async def modify_meeting(
 ) -> str:
     """Naptári esemény módosítása."""
     logger.info(f"Modifying meeting: {event_title}")
+
+    # ── EAISY-241 — Autonómia guard (ugyanaz, mint book_meeting-nél) ─────────
+    # Panasz/kérés esetén, vagy ha a triage konfig nem engedi az autonóm
+    # módosítást, az AI nem módosít önállóan.
+    if _session_has_complaint_or_request():
+        logger.info("EAISY-241: modify blocked — complaint/request flagged in session")
+        return _autonomy_blocked_message()
+    if not _is_autonomous_allowed("Időpont", "Módosítás"):
+        logger.info("EAISY-241: modify blocked — Módosítás not autonomous in triage config")
+        return _autonomy_blocked_message()
 
     found = db.find_calendar_event_by_title(event_title)
     if not found:
@@ -859,6 +954,14 @@ async def delete_meeting(
     """Naptári esemény törlése."""
     logger.info(f"Deleting meeting: {event_title}")
 
+    # ── EAISY-241 — Autonómia guard (ugyanaz, mint book_meeting-nél) ─────────
+    if _session_has_complaint_or_request():
+        logger.info("EAISY-241: delete blocked — complaint/request flagged in session")
+        return _autonomy_blocked_message()
+    if not _is_autonomous_allowed("Időpont", "Lemondás"):
+        logger.info("EAISY-241: delete blocked — Lemondás not autonomous in triage config")
+        return _autonomy_blocked_message()
+
     found = db.find_calendar_event_by_title(event_title)
     if not found:
         events = db.get_calendar_events()
@@ -873,23 +976,26 @@ async def delete_meeting(
 # 9. REPORT ALERT (voice command / background)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@function_tool(description="Operatív riasztás rögzítése. Használd AZONNAL a háttérben, ha az ügyfél panaszkodik (complaint), nagyon sürgős esetet jelez (urgent), visszahívást kér (callback), vagy egy gyakran ismétlődő hibát/kérdést vet fel (recurring).")
+@function_tool(description="Operatív riasztás rögzítése. Használd AZONNAL a háttérben, ha az ügyfél panaszkodik (complaint), nagyon sürgős esetet jelez (urgent), visszahívást vagy egyéb kérést intéz (callback/request), vagy egy gyakran ismétlődő hibát/kérdést vet fel (recurring).")
 async def report_alert(
     ctx: RunContext,
-    tags: Annotated[list[str], "A releváns címkék listája. Lehetséges értékek: 'urgent', 'complaint', 'callback', 'recurring'"],
+    tags: Annotated[list[str], "A releváns címkék listája. Lehetséges értékek: 'urgent', 'complaint', 'callback', 'request', 'recurring'"],
     reason: Annotated[str, "Rövid indoklás, hogy miért kapta ezt a címkét a beszélgetés"] = "",
 ) -> str:
     """Riasztási címke rögzítése az adatbázisba."""
     logger.info(f"Reporting alert tags: {tags} - Reason: {reason}")
-    valid_tags = [t for t in tags if t in ("urgent", "complaint", "callback", "recurring")]
+    valid_tags = [t for t in tags if t in ("urgent", "complaint", "callback", "request", "recurring")]
 
     # EAISY-241 — kontextus-flag beállítása, hogy a későbbi autonóm tool-ok
-    # (pl. book_meeting) tudják: panasz/kérés hangzott el → nem cselekszenek önállóan.
+    # (pl. book_meeting, modify_meeting, delete_meeting) tudják: panasz/kérés
+    # hangzott el → nem cselekszenek önállóan.
     if valid_tags:
         for t in valid_tags:
             flag_session_alert(t)
-        if "complaint" in valid_tags or "urgent" in valid_tags:
-            flag_session_alert("complaint")
+        # A visszahívás-kérés (callback) klasszikus „Kérés" — az is blokkolja az
+        # autonóm cselekvést (a Kérés a brief szerint sosem autonóm)
+        if "callback" in valid_tags:
+            flag_session_alert("request")
 
     if valid_tags:
         db.log_interaction(
@@ -898,33 +1004,35 @@ async def report_alert(
             summary=reason or "Automatikus címkézés a beszélgetés alapján",
             result=", ".join(valid_tags),
             tool_name="report_alert",
-            session_id=_current_session_id,
+            session_id=get_session_id(),
             funnel_stage="relevant",
             alert_tags=valid_tags,
             classification={
                 "ugytipus": "Panasz" if "complaint" in valid_tags or "urgent" in valid_tags else "Kérés",
                 "eredmeny": "Panasz rögzítve" if "complaint" in valid_tags or "urgent" in valid_tags else "Igény rögzítve",
                 "statusz": "Sürgős",
-                "teendo": "Azonnali beavatkozás"
+                "teendo": "Azonnali beavatkozás szükséges"
             }
         )
-        
+
         if "urgent" in valid_tags:
             triage_rules = db.get_triage_rules()
             email_to_send = None
             for r in triage_rules:
-                if r.get("priority") == "Kiemelt" and r.get("escalation_email"):
+                # A priority-k normalizálva vannak ('surgos'), de a régi formátumot
+                # is elfogadjuk back-compat okból
+                if (r.get("priority") or "").lower() in ("surgos", "sürgős", "kiemelt", "urgent") and r.get("escalation_email"):
                     email_to_send = r["escalation_email"]
                     break
-            
+
             if email_to_send:
-                asyncio.create_task(email_processor.send_escalation_email_to_staff(
+                _spawn(email_processor.send_escalation_email_to_staff(
                     to_email=email_to_send,
                     patient_name="Ismeretlen (Hangasszisztens)",
                     patient_contact="Lásd a rendszerben",
                     problem_description=reason or "Sürgős eset bejelentése telefonon.",
                     priority="Kiemelt"
-                ))
+                ), name="escalation-email")
 
         return "Riasztás sikeresen rögzítve az adminisztrátorok felé a háttérben."
     return "Nem megfelelő címkék."
@@ -979,8 +1087,8 @@ async def tag_client(
                 if c.get("name", "").strip().lower() == name_lower:
                     existing = c
                     break
-        except Exception:
-            pass
+        except Exception as nc_err:
+            logger.debug(f"tag_client név-keresés sikertelen: {nc_err}")
 
     if not existing:
         # Create a new client with the tags

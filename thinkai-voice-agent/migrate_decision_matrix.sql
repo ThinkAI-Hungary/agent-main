@@ -66,15 +66,15 @@ INSERT INTO triage_rules (situation, priority, escalation_email, routing) VALUES
 ('Kérés', 'ember', NULL,
 '{"kb_relevance":"irrelevant","default_restriction":"handover","fallback":{"eredmeny":"Igény rögzítve","statusz":"Nyitott","teendo":"Intézkedés"},"rules":[
   {"channels":["mind"],"kb":"any","restriction":"any","automation":"handover","eredmeny":"Igény rögzítve","statusz":"Nyitott","teendo":"Intézkedés"},
-  {"channels":["mind"],"kb":"any","restriction":"urgent","automation":"urgent_handover","eredmeny":"Igény rögzítve","statusz":"Sürgős","teendo":"Azonnali beavatkozás"}
+  {"channels":["mind"],"kb":"any","restriction":"urgent","automation":"urgent_handover","eredmeny":"Igény rögzítve","statusz":"Sürgős","teendo":"Azonnali beavatkozás szükséges"}
 ]}'::jsonb)
 ON CONFLICT DO NOTHING;
 
 -- ── PANASZ (§4.3) — KB irreleváns, mindig sürgős ──
 INSERT INTO triage_rules (situation, priority, escalation_email, routing) VALUES
 ('Panasz', 'surgos', NULL,
-'{"kb_relevance":"irrelevant","default_restriction":"urgent","fallback":{"eredmeny":"Panasz rögzítve","statusz":"Sürgős","teendo":"Azonnali beavatkozás"},"rules":[
-  {"channels":["mind"],"kb":"any","restriction":"any","automation":"urgent_handover","eredmeny":"Panasz rögzítve","statusz":"Sürgős","teendo":"Azonnali beavatkozás"}
+'{"kb_relevance":"irrelevant","default_restriction":"urgent","fallback":{"eredmeny":"Panasz rögzítve","statusz":"Sürgős","teendo":"Azonnali beavatkozás szükséges"},"rules":[
+  {"channels":["mind"],"kb":"any","restriction":"any","automation":"urgent_handover","eredmeny":"Panasz rögzítve","statusz":"Sürgős","teendo":"Azonnali beavatkozás szükséges"}
 ]}'::jsonb)
 ON CONFLICT DO NOTHING;
 
@@ -105,7 +105,7 @@ INSERT INTO triage_rules (situation, priority, escalation_email, routing) VALUES
 ('Egyéb', 'ember', NULL,
 '{"kb_relevance":"irrelevant","default_restriction":"handover","fallback":{"eredmeny":"Igény rögzítve","statusz":"Nyitott","teendo":"Intézkedés"},"rules":[
   {"channels":["mind"],"kb":"any","restriction":"any","automation":"handover","eredmeny":"Igény rögzítve","statusz":"Nyitott","teendo":"Intézkedés"},
-  {"channels":["mind"],"kb":"any","restriction":"urgent","automation":"urgent_handover","eredmeny":"Igény rögzítve","statusz":"Sürgős","teendo":"Azonnali beavatkozás"}
+  {"channels":["mind"],"kb":"any","restriction":"urgent","automation":"urgent_handover","eredmeny":"Igény rögzítve","statusz":"Sürgős","teendo":"Azonnali beavatkozás szükséges"}
 ]}'::jsonb)
 ON CONFLICT DO NOTHING;
 

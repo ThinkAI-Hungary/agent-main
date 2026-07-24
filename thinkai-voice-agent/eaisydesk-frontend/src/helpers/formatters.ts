@@ -65,6 +65,23 @@ export function fmtDate(isoStr: string): string {
 }
 
 /**
+ * Magyar telefonszám NATIONAL (hazai) részének kinyerése összehasonlításhoz.
+ * "+36301234567" / "06301234567" / "0036301234567" / "301234567" → "301234567".
+ * Üres stringet ad, ha nem ismerhető fel magyar formátumként.
+ * A clientResolvers telefon-matchingje is ezt használja (+36 vs 06 matchelés).
+ */
+export function normalizePhoneNational(raw: string | null | undefined): string {
+  if (!raw) return '';
+  const digits = String(raw).replace(/\D/g, '');
+  if (!digits) return '';
+  if (digits.startsWith('0036') && digits.length === 13) return digits.substring(4);
+  if (digits.startsWith('36') && digits.length >= 10) return digits.substring(2);
+  if (digits.startsWith('06') && digits.length >= 10) return digits.substring(2);
+  if (digits.length === 9 && !digits.startsWith('0')) return digits;
+  return '';
+}
+
+/**
  * EAISY-241 §1.3.5 — Magyar telefonszám normalizálás MEGJELENÍTÉSHEZ.
  * Bemenet: bármilyen formátumú magyar telefonszám (pl. "06301234567", "+36 30 123 4567",
  * "06-30/123-4567", "30/1234567"). Kimenet: "+36 xx xxx xxxx" formátum, vagy az
@@ -73,27 +90,8 @@ export function fmtDate(isoStr: string): string {
  */
 export function formatPhoneHu(raw: string | null | undefined): string {
   if (!raw) return '';
-  // Csak számjegyek maradnak
-  const digits = String(raw).replace(/[^\d]/g, '');
-  if (!digits) return String(raw);
-
-  // Magyar mobil/vezetékes: 06 vagy +36 prefix, majd 9 számjegy (pl. 30 123 4567)
-  // Vagy vezetékes 7-8 számjegy area-code-dal.
-  let national = '';
-  if (digits.startsWith('36') && digits.length >= 10) {
-    national = digits.substring(2);
-  } else if (digits.startsWith('06') && digits.length >= 10) {
-    national = digits.substring(2);
-  } else if (digits.length === 9 && !digits.startsWith('0')) {
-    // pl. "301234567" (prefix nélkül)
-    national = digits;
-  } else if (digits.length === 11 && digits.startsWith('00')) {
-    // 0036 prefix nemzetközi formátum
-    national = digits.substring(4);
-  } else {
-    // Nem ismert magyar formátum — eredeti vissza
-    return String(raw);
-  }
+  const national = normalizePhoneNational(raw);
+  if (!national) return String(raw);
 
   // national most 9 számjegy (pl. "301234567") → "+36 30 123 4567"
   if (national.length === 9) {
