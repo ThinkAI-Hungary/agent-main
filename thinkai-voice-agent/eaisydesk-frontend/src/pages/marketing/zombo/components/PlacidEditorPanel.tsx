@@ -50,6 +50,7 @@ interface GroupedTemplate {
 
 interface Props {
   baseImageUrl: string;
+  onRendered?: (url: string) => void;
   productImageUrl?: string;
   productPosition?: {
     left: number;
@@ -134,6 +135,13 @@ export function parsePlacidFont(fontName: string): { fontFamily: string; fontWei
 function scaleStyleToCqw(style: Record<string, any>, canvasWidth: number): React.CSSProperties {
   const scaled: Record<string, any> = {};
   Object.entries(style).forEach(([key, val]) => {
+    if (key === 'lineHeight' || key === 'line-height') {
+      const num = typeof val === 'number' ? val : parseFloat(val);
+      if (!isNaN(num) && num > 5) {
+        scaled[key] = `${(num / canvasWidth) * 100}cqw`;
+        return;
+      }
+    }
     if (typeof val === 'string' && val.endsWith('px')) {
       const num = parseFloat(val);
       if (!isNaN(num)) {
@@ -147,10 +155,11 @@ function scaleStyleToCqw(style: Record<string, any>, canvasWidth: number): React
 }
 
 // Generate CSS @import statement for Google Fonts used in the template
-const getGoogleFontsImport = (template: PlacidTemplate) => {
+const getGoogleFontsImport = (template: PlacidTemplate, customLayers?: PlacidLayer[]) => {
   const fontNames = new Set<string>();
-  if (template?.layers) {
-    template.layers.forEach(layer => {
+  const layers = customLayers || template?.layers;
+  if (layers) {
+    layers.forEach(layer => {
       if (layer.type === 'text' && layer.style.fontFamily) {
         const parsed = parsePlacidFont(layer.style.fontFamily);
         const cleanName = parsed.fontFamily.replace(/"/g, '').split(',')[0].trim();
@@ -160,7 +169,7 @@ const getGoogleFontsImport = (template: PlacidTemplate) => {
       }
     });
   }
-  
+
   if (fontNames.size === 0) return '';
   const familiesParam = Array.from(fontNames)
     .map(name => `family=${name}:wght@300;400;500;600;700;800;900`)
@@ -207,6 +216,7 @@ PRESETS.forEach((t: PlacidTemplate) => {
 
 export default function PlacidEditorPanel({
   baseImageUrl,
+  onRendered,
   productImageUrl,
   productPosition,
   prompt = '',
@@ -215,24 +225,25 @@ export default function PlacidEditorPanel({
   decomposedLayerCta = ''
 }: Props) {
   const [selectedTemplateId, setSelectedTemplateId] = useState<string>(PRESETS[0]?.uuid || '');
-  
+  const [templateLayersMap, setTemplateLayersMap] = useState<Record<string, PlacidLayer[]>>({});
+
   // Persistent unified text states
   const [customHeadline, setCustomHeadline] = useState(decomposedLayerText || 'dummy text');
   const [customCta, setCustomCta] = useState(decomposedLayerCta || 'dummy text');
   const [customUrl, setCustomUrl] = useState('dummy text');
   const [customPrice, setCustomPrice] = useState('dummy text');
   const [otherLayerValues, setOtherLayerValues] = useState<Record<string, string>>({});
-  
+
   const [isRendering, setIsRendering] = useState(false);
   const [renderedUrl, setRenderedUrl] = useState<string | null>(null);
-  
+
   const [activeTab, setActiveTab] = useState<'presets' | 'presets'>('presets'); // Limit to presets tab
   const [apiTemplates, setApiTemplates] = useState<any[]>([]);
   const [isLoadingTemplates, setIsLoadingTemplates] = useState(false);
-  
+
   // Custom image layer mappings state
   const [imageMappings, setImageMappings] = useState<Record<string, 'base' | 'product' | 'none'>>({});
-  
+
   // Modal states for browsing presets
   const [showModal, setShowModal] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -260,12 +271,31 @@ export default function PlacidEditorPanel({
     return otherLayerValues[layerName] || 'dummy text';
   };
 
+  // Load reviewed templates layers map from server on mount
+  useEffect(() => {
+    const loadReviewedData = async () => {
+      try {
+        const resp = await fetch(`${API}/api/image/load-reviewed-data`);
+        if (!resp.ok) throw new Error('Server load error');
+        const data = await resp.json();
+        if (data.templateLayersMap && typeof data.templateLayersMap === 'object') {
+          setTemplateLayersMap(data.templateLayersMap);
+        }
+      } catch (err) {
+        console.warn('[LOAD-REVIEWED-DATA] PlacidEditorPanel failed to load template layers map:', err);
+      }
+    };
+    loadReviewedData();
+  }, []);
+
   // Sync edit fields & image mappings state on template select
   useEffect(() => {
     if (selectedTemplate) {
+      const layers = templateLayersMap[selectedTemplateId] || selectedTemplate.layers;
+
       // 1. Initialize other layer values
       const initialOthers: Record<string, string> = {};
-      selectedTemplate.layers.forEach((layer) => {
+      layers.forEach((layer) => {
         if (layer.type === 'text') {
           const cat = getTextLayerCategory(layer.name);
           if (cat === 'other') {
@@ -277,8 +307,8 @@ export default function PlacidEditorPanel({
 
       // 2. Image layers mapping initialization
       const initialImages: Record<string, 'base' | 'product' | 'none'> = {};
-      const pictureLayers = selectedTemplate.layers.filter((l: PlacidLayer) => l.type === 'picture');
-      
+      const pictureLayers = layers.filter((l: PlacidLayer) => l.type === 'picture');
+
       pictureLayers.forEach((layer: PlacidLayer, idx: number) => {
         const nameLower = layer.name.toLowerCase();
         // Default small avatars/logos/user boxes to empty to keep clean
@@ -296,29 +326,35 @@ export default function PlacidEditorPanel({
       });
       setImageMappings(initialImages);
     }
-  }, [selectedTemplateId, activeTab]);
+  }, [selectedTemplateId, activeTab, templateLayersMap]);
 
   // Local Rendering Trigger
   const handlePlacidRender = async () => {
     setIsRendering(true);
     setRenderedUrl(null);
     try {
+      const layers = templateLayersMap[selectedTemplateId] || selectedTemplate.layers;
       const compiledLayerValues: Record<string, string> = {};
-      selectedTemplate.layers.forEach(layer => {
+      layers.forEach(layer => {
         if (layer.type === 'text') {
           compiledLayerValues[layer.name] = getLayerTextValue(layer.name);
         }
       });
 
+      const stored = localStorage.getItem('zombo_template_parsed_requirements_v4');
+      const parsedReqs = stored ? JSON.parse(stored) : {};
+      const activeParsedJson = parsedReqs[selectedTemplateId] || {};
+
       const payload = {
         width: selectedTemplate.resolution?.width || 1200,
         height: selectedTemplate.resolution?.height || 1200,
-        layers: selectedTemplate.layers,
+        layers: layers,
         layerValues: compiledLayerValues,
         baseImageUrl,
         productImageUrl,
         imageMappings,
-        productPosition
+        productPosition,
+        parsedRequirements: activeParsedJson
       };
       const response = await fetch(`${API}/api/image/placid-render-local`, {
         method: 'POST',
@@ -329,6 +365,7 @@ export default function PlacidEditorPanel({
       const data = await response.json();
       if (data.image_url) {
         setRenderedUrl(data.image_url);
+        onRendered?.(data.image_url);
         showToast({ title: 'Sikeres helyi renderelés', message: 'A kompozit kép elkészült helyileg!', type: 'success' });
       } else {
         throw new Error('Nincs image_url a válaszban');
@@ -373,8 +410,8 @@ export default function PlacidEditorPanel({
 
   // Filter grouped presets based on query & selected category tab
   const filteredGroups = GROUPED_PRESETS.filter(g => {
-    const matchesSearch = g.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          g.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      g.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesCat = selectedCategory === 'All' || g.tags.includes(selectedCategory);
     return matchesSearch && matchesCat;
   });
@@ -382,16 +419,17 @@ export default function PlacidEditorPanel({
   const displayUrl = renderedUrl ? (renderedUrl.startsWith('http') ? renderedUrl : `${API}${renderedUrl}`) : null;
 
   // Checklist of what the template expects
-  const textLayers = selectedTemplate?.layers?.filter((l: PlacidLayer) => l.type === 'text') || [];
-  const pictureLayers = selectedTemplate?.layers?.filter((l: PlacidLayer) => l.type === 'picture') || [];
-  const shapeLayers = selectedTemplate?.layers?.filter((l: PlacidLayer) => l.type === 'shape') || [];
-  
+  const activeLayers = templateLayersMap[selectedTemplateId] || selectedTemplate?.layers || [];
+  const textLayers = activeLayers.filter((l: PlacidLayer) => l.type === 'text');
+  const pictureLayers = activeLayers.filter((l: PlacidLayer) => l.type === 'picture');
+  const shapeLayers = activeLayers.filter((l: PlacidLayer) => l.type === 'shape');
+
   const hasCta = textLayers.some((l: PlacidLayer) => l.name.toLowerCase().includes('cta') || l.name.toLowerCase().includes('button'));
   const hasBadge = shapeLayers.some((l: PlacidLayer) => l.name.toLowerCase().includes('badge') || l.name.toLowerCase().includes('percentage') || l.name.toLowerCase().includes('sale') || l.name.toLowerCase().includes('discount'));
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
-      
+
       {/* Template Requirements Checklist panel */}
       {selectedTemplate && (
         <div style={{ padding: '12px 14px', borderRadius: 12, border: '1px solid var(--border)', background: 'rgba(251,191,36,0.03)', display: 'flex', flexDirection: 'column', gap: 6 }}>
@@ -418,9 +456,9 @@ export default function PlacidEditorPanel({
       {/* Local High-Fidelity Simulation Preview */}
       <div style={{ borderRadius: 14, overflow: 'hidden', border: '2px solid var(--border)', background: '#090d16', position: 'relative', aspectRatio: selectedTemplate?.resolution ? `${selectedTemplate.resolution.width}/${selectedTemplate.resolution.height}` : '1/1', containerType: 'inline-size' }}>
         <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-          
+
           {/* Inject dynamic fonts */}
-          <style dangerouslySetInnerHTML={{ __html: getGoogleFontsImport(selectedTemplate) }} />
+          <style dangerouslySetInnerHTML={{ __html: getGoogleFontsImport(selectedTemplate, activeLayers) }} />
 
           {displayUrl ? (
             <img src={displayUrl} alt="Placid preview" style={{ width: '100%', height: '100%', objectFit: 'contain', display: 'block' }} />
@@ -428,11 +466,11 @@ export default function PlacidEditorPanel({
             <>
               {/* Solid white canvas background */}
               <div style={{ position: 'absolute', inset: 0, backgroundColor: '#ffffff', zIndex: 0 }} />
-              
+
               {/* Dynamic layer renderer sorted by zIndex */}
               {selectedTemplate ? (
                 <>
-                  {[...selectedTemplate.layers].sort((a, b) => (a.style.zIndex || 0) - (b.style.zIndex || 0)).map((layer: PlacidLayer) => {
+                  {[...activeLayers].sort((a, b) => (a.style.zIndex || 0) - (b.style.zIndex || 0)).map((layer: PlacidLayer) => {
                     const left = `${layer.position.xmin}%`;
                     const top = `${layer.position.ymin}%`;
                     const w = `${layer.position.xmax - layer.position.xmin}%`;
@@ -459,7 +497,7 @@ export default function PlacidEditorPanel({
 
                     if (layer.type === 'text') {
                       const val = getLayerTextValue(layer.name);
-                      
+
                       // Map alignment to flex positioning
                       let justifyContent = 'center';
                       if (layer.style.textAlign === 'left') justifyContent = 'flex-start';
@@ -477,16 +515,16 @@ export default function PlacidEditorPanel({
                     if (layer.type === 'picture') {
                       let imgSrc = baseImageUrl;
                       const mapping = imageMappings[layer.name];
-                      
+
                       if (mapping === 'product') {
                         imgSrc = productImageUrl || '';
                       } else if (mapping === 'none') {
                         imgSrc = '';
                       }
-                      
+
                       const isProduct = mapping === 'product';
                       const objectFit = isProduct ? 'contain' : (layer.style.objectFit || 'cover');
-                      
+
                       // Auto-center background image crop around the detected product
                       const objectPosition = isProduct ? 'center' : `${productCenterX}% ${productCenterY}%`;
 
@@ -671,7 +709,7 @@ export default function PlacidEditorPanel({
                     return (
                       <button
                         key={variant.uuid}
-                        onClick={() => { setSelectedTemplateId(variant.uuid); setRenderedUrl(null); }}
+                        onClick={() => { setSelectedTemplateId(variant.uuid); setRenderedUrl(null); onRendered?.(baseImageUrl); }}
                         style={{
                           padding: '4px 8px',
                           borderRadius: 6,
@@ -700,7 +738,7 @@ export default function PlacidEditorPanel({
         {renderedUrl && (
           <>
             <button
-              onClick={() => setRenderedUrl(null)}
+              onClick={() => { setRenderedUrl(null); onRendered?.(baseImageUrl); }}
               style={{ flex: 1, padding: '10px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text)', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
             >
               Vissza
@@ -745,7 +783,7 @@ export default function PlacidEditorPanel({
       {showModal && (
         <div style={{ position: 'fixed', inset: 0, zIndex: 1000, background: 'rgba(0,0,0,0.85)', backdropFilter: 'blur(8px)', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'center', padding: 20 }}>
           <div style={{ maxWidth: 1100, width: '95%', height: '85vh', background: 'var(--bg2)', border: '1.5px solid var(--border)', borderRadius: 20, display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 20px 50px rgba(0,0,0,0.5)' }}>
-            
+
             {/* Modal Header */}
             <div style={{ padding: '16px 20px', borderBottom: '1px solid var(--border)', display: 'flex', alignItems: 'center', justifyItems: 'center', justifyContent: 'space-between', background: 'var(--bg3)' }}>
               <div>
@@ -762,7 +800,7 @@ export default function PlacidEditorPanel({
 
             {/* Split Body */}
             <div style={{ display: 'flex', flex: 1, overflow: 'hidden' }}>
-              
+
               {/* Left Pane - Grid */}
               <div style={{ flex: 1.2, display: 'flex', flexDirection: 'column', height: '100%', borderRight: '1px solid var(--border)', overflow: 'hidden', background: 'var(--bg)' }}>
                 {/* Modal Filters */}
@@ -839,9 +877,10 @@ export default function PlacidEditorPanel({
               {(() => {
                 const tempTemplate = PRESETS.find(t => t.uuid === tempSelectedTemplateId) || PRESETS[0];
                 const tempGroup = GROUPED_PRESETS.find(g => g.variants.some(v => v.uuid === tempSelectedTemplateId)) || GROUPED_PRESETS[0];
-                const tempTextLayers = tempTemplate?.layers?.filter((l: PlacidLayer) => l.type === 'text') || [];
-                const tempPictureLayers = tempTemplate?.layers?.filter((l: PlacidLayer) => l.type === 'picture') || [];
-                const tempShapeLayers = tempTemplate?.layers?.filter((l: PlacidLayer) => l.type === 'shape') || [];
+                const tempActiveLayers = templateLayersMap[tempSelectedTemplateId] || tempTemplate?.layers || [];
+                const tempTextLayers = tempActiveLayers.filter((l: PlacidLayer) => l.type === 'text');
+                const tempPictureLayers = tempActiveLayers.filter((l: PlacidLayer) => l.type === 'picture');
+                const tempShapeLayers = tempActiveLayers.filter((l: PlacidLayer) => l.type === 'shape');
 
                 return (
                   <div style={{ flex: 0.8, display: 'flex', flexDirection: 'column', height: '100%', padding: 20, background: 'var(--bg3)', overflowY: 'auto' }}>
@@ -900,12 +939,12 @@ export default function PlacidEditorPanel({
                       }}>
                         {/* Solid white canvas background */}
                         <div style={{ position: 'absolute', inset: 0, backgroundColor: '#ffffff', zIndex: 0 }} />
-                        
+
                         {/* Inject dynamic fonts */}
-                        <style dangerouslySetInnerHTML={{ __html: getGoogleFontsImport(tempTemplate) }} />
+                        <style dangerouslySetInnerHTML={{ __html: getGoogleFontsImport(tempTemplate, tempActiveLayers) }} />
 
                         {/* Dynamic Layers sorted by zIndex */}
-                        {[...tempTemplate.layers].sort((a, b) => (a.style.zIndex || 0) - (b.style.zIndex || 0)).map((layer: PlacidLayer) => {
+                        {[...tempActiveLayers].sort((a, b) => (a.style.zIndex || 0) - (b.style.zIndex || 0)).map((layer: PlacidLayer) => {
                           const left = `${layer.position.xmin}%`;
                           const top = `${layer.position.ymin}%`;
                           const w = `${layer.position.xmax - layer.position.xmin}%`;
@@ -931,7 +970,7 @@ export default function PlacidEditorPanel({
 
                           if (layer.type === 'text') {
                             const val = getLayerTextValue(layer.name);
-                            
+
                             let justifyContent = 'center';
                             if (layer.style.textAlign === 'left') justifyContent = 'flex-start';
                             if (layer.style.textAlign === 'right') justifyContent = 'flex-end';
@@ -953,10 +992,10 @@ export default function PlacidEditorPanel({
                             } else if (mapping === 'none') {
                               imgSrc = '';
                             }
-                            
+
                             const isProduct = mapping === 'product';
                             const objectFit = isProduct ? 'contain' : (layer.style.objectFit || 'cover');
-                            
+
                             // Auto-center background image crop around the detected product
                             const objectPosition = isProduct ? 'center' : `${productCenterX}% ${productCenterY}%`;
 

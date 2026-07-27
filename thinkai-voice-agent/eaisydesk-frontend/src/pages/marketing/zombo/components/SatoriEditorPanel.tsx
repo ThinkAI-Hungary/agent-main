@@ -19,39 +19,39 @@ let BRAND_DNA_COLORS = {
 
 const LayersIcon = ({ size = 14 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 17 22 12"/>
+    <polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 17 22 12" />
   </svg>
 );
 const DlIcon = ({ size = 13 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
   </svg>
 );
 const PlusIcon = ({ size = 12 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+    <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
   </svg>
 );
 const RefreshIcon = ({ size = 12 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+    <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
   </svg>
 );
 const TrashIcon = ({ size = 12 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+    <polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
   </svg>
 );
 const RobotIcon = ({ size = 14 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="3" y="11" width="18" height="10" rx="2"/><circle cx="12" cy="5" r="2"/><path d="M12 7v4M8 15h.01M16 15h.01"/>
+    <rect x="3" y="11" width="18" height="10" rx="2" /><circle cx="12" cy="5" r="2" /><path d="M12 7v4M8 15h.01M16 15h.01" />
   </svg>
 );
 const PalIcon = ({ size = 14 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 14.7255 3.09032 17.1962 4.85857 19C5.01452 19.156 5.0925 19.234 5.15669 19.3278C5.29384 19.5281 5.30881 19.7891 5.19522 20.0039C5.14207 20.1044 5.06649 20.1873 4.91533 20.3533L4.82843 20.4485C4.29813 21.0318 4.03298 21.3235 4.0768 21.572C4.12061 21.8206 4.45785 21.9366 5.13233 22C5.38531 22 5.56549 22 5.72147 22H12Z"/>
-    <circle cx="7.5" cy="10.5" r="1.5"/><circle cx="11.5" cy="7.5" r="1.5"/><circle cx="16.5" cy="9.5" r="1.5"/><circle cx="15.5" cy="14.5" r="1.5"/>
+    <path d="M12 22C17.5228 22 22 17.5228 22 12C22 6.47715 17.5228 2 12 2C6.47715 2 2 6.47715 2 12C2 14.7255 3.09032 17.1962 4.85857 19C5.01452 19.156 5.0925 19.234 5.15669 19.3278C5.29384 19.5281 5.30881 19.7891 5.19522 20.0039C5.14207 20.1044 5.06649 20.1873 4.91533 20.3533L4.82843 20.4485C4.29813 21.0318 4.03298 21.3235 4.0768 21.572C4.12061 21.8206 4.45785 21.9366 5.13233 22C5.38531 22 5.56549 22 5.72147 22H12Z" />
+    <circle cx="7.5" cy="10.5" r="1.5" /><circle cx="11.5" cy="7.5" r="1.5" /><circle cx="16.5" cy="9.5" r="1.5" /><circle cx="15.5" cy="14.5" r="1.5" />
   </svg>
 );
 const EyeIcon = ({ size = 12 }: { size?: number }) => (
@@ -69,63 +69,63 @@ const EyeOffIcon = ({ size = 12 }: { size?: number }) => (
 
 const SATORI_STYLES = [
   // 30 Premium Tailwind Styles at the front
-  { id: 'tailwind-cta',             name: 'Tailwind 1',  thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #3da2e3 100%)', category: 'tailwind-basic' },
-  { id: 'tailwind-gradient-bottom', name: 'Tailwind 2',  thumbGrad: 'linear-gradient(to top, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
-  { id: 'tailwind-gradient-left',   name: 'Tailwind 3',  thumbGrad: 'linear-gradient(to right, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
-  { id: 'tailwind-luxury-frame',    name: 'Tailwind 4',  thumbGrad: 'rgba(15,23,42,0.95)', category: 'tailwind-basic' },
-  { id: 'tailwind-neo-brutal',      name: 'Tailwind 5',  thumbGrad: 'linear-gradient(135deg, #ffffff 0%, #c32226 100%)', category: 'tailwind-basic' },
-  { id: 'tailwind-ribbon-top',      name: 'Tailwind 6',  thumbGrad: 'linear-gradient(to bottom, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
-  { id: 'tailwind-circle-badge',    name: 'Tailwind 7',  thumbGrad: 'radial-gradient(circle, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
-  { id: 'tailwind-feature-list',    name: 'Tailwind 8',  thumbGrad: 'linear-gradient(to bottom, #0f172a 0%, #020617 100%)', category: 'tailwind-basic' },
-  { id: 'tailwind-side-panel',      name: 'Tailwind 9',  thumbGrad: 'linear-gradient(to right, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
-  { id: 'tailwind-minimal-corner',  name: 'Tailwind 10', thumbGrad: 'radial-gradient(circle at bottom right, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
-  
-  { id: 'modernist-split',          name: 'Tailwind 11', thumbGrad: 'linear-gradient(to right, rgba(0,0,0,0) 50%, #111827 50%)', category: 'tailwind-custom' },
-  { id: 'magazine-cover',           name: 'Tailwind 12', thumbGrad: 'rgba(0,0,0,0.3)', category: 'tailwind-custom' },
-  { id: 'minimalist-editorial',     name: 'Tailwind 13', thumbGrad: '#ffffff', category: 'tailwind-custom' },
-  { id: 'glow-dark',                name: 'Tailwind 14', thumbGrad: 'radial-gradient(circle at center, #187fc0 0%, #0b0f19 100%)', category: 'tailwind-custom' },
-  { id: 'bold-slant',               name: 'Tailwind 15', thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #3da2e3 100%)', category: 'tailwind-custom' },
-  { id: 'duotone-overlay',          name: 'Tailwind 16', thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #c32226 100%)', category: 'tailwind-custom' },
-  { id: 'neon-sign',                name: 'Tailwind 17', thumbGrad: 'radial-gradient(circle, #c32226 0%, #05050a 100%)', category: 'tailwind-custom' },
-  { id: 'glass-list',               name: 'Tailwind 18', thumbGrad: 'linear-gradient(to bottom, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 100%)', category: 'tailwind-custom' },
-  { id: 'brushed-metal',            name: 'Tailwind 19', thumbGrad: 'linear-gradient(to right, #334155 0%, #1e293b 100%)', category: 'tailwind-custom' },
-  { id: 'cyberpunk-hud',            name: 'Tailwind 20', thumbGrad: 'radial-gradient(circle, #187fc0 0%, #030712 100%)', category: 'tailwind-custom' },
-  
-  { id: 'stripe-card',              name: 'Tailwind 21', thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #c32226 100%)', category: 'tailwind-internet' },
-  { id: 'linear-board',             name: 'Tailwind 22', thumbGrad: 'linear-gradient(to bottom, #121214 0%, #18181b 100%)', category: 'tailwind-internet' },
-  { id: 'apple-spec',               name: 'Tailwind 23', thumbGrad: '#000000', category: 'tailwind-internet' },
-  { id: 'netflix-billboard',        name: 'Tailwind 24', thumbGrad: 'linear-gradient(to top, #000000 0%, rgba(0,0,0,0) 100%)', category: 'tailwind-internet' },
-  { id: 'airbnb-card',              name: 'Tailwind 25', thumbGrad: '#ffffff', category: 'tailwind-internet' },
-  { id: 'spotify-lyrics',           name: 'Tailwind 26', thumbGrad: 'radial-gradient(circle, #1ed760 0%, #000000 100%)', category: 'tailwind-internet' },
-  { id: 'notion-board',             name: 'Tailwind 27', thumbGrad: '#ffffff', category: 'tailwind-internet' },
-  { id: 'figma-canvas',             name: 'Tailwind 28', thumbGrad: 'linear-gradient(to bottom, #f1f1f1 0%, #ffffff 100%)', category: 'tailwind-internet' },
-  { id: 'github-readme',            name: 'Tailwind 29', thumbGrad: '#ffffff', category: 'tailwind-internet' },
-  { id: 'tesla-minimal',            name: 'Tailwind 30', thumbGrad: '#f4f4f5', category: 'tailwind-internet' },
+  { id: 'tailwind-cta', name: 'Tailwind 1', thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #3da2e3 100%)', category: 'tailwind-basic' },
+  { id: 'tailwind-gradient-bottom', name: 'Tailwind 2', thumbGrad: 'linear-gradient(to top, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
+  { id: 'tailwind-gradient-left', name: 'Tailwind 3', thumbGrad: 'linear-gradient(to right, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
+  { id: 'tailwind-luxury-frame', name: 'Tailwind 4', thumbGrad: 'rgba(15,23,42,0.95)', category: 'tailwind-basic' },
+  { id: 'tailwind-neo-brutal', name: 'Tailwind 5', thumbGrad: 'linear-gradient(135deg, #ffffff 0%, #c32226 100%)', category: 'tailwind-basic' },
+  { id: 'tailwind-ribbon-top', name: 'Tailwind 6', thumbGrad: 'linear-gradient(to bottom, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
+  { id: 'tailwind-circle-badge', name: 'Tailwind 7', thumbGrad: 'radial-gradient(circle, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
+  { id: 'tailwind-feature-list', name: 'Tailwind 8', thumbGrad: 'linear-gradient(to bottom, #0f172a 0%, #020617 100%)', category: 'tailwind-basic' },
+  { id: 'tailwind-side-panel', name: 'Tailwind 9', thumbGrad: 'linear-gradient(to right, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
+  { id: 'tailwind-minimal-corner', name: 'Tailwind 10', thumbGrad: 'radial-gradient(circle at bottom right, #0f172a 0%, rgba(15,23,42,0) 100%)', category: 'tailwind-basic' },
+
+  { id: 'modernist-split', name: 'Tailwind 11', thumbGrad: 'linear-gradient(to right, rgba(0,0,0,0) 50%, #111827 50%)', category: 'tailwind-custom' },
+  { id: 'magazine-cover', name: 'Tailwind 12', thumbGrad: 'rgba(0,0,0,0.3)', category: 'tailwind-custom' },
+  { id: 'minimalist-editorial', name: 'Tailwind 13', thumbGrad: '#ffffff', category: 'tailwind-custom' },
+  { id: 'glow-dark', name: 'Tailwind 14', thumbGrad: 'radial-gradient(circle at center, #187fc0 0%, #0b0f19 100%)', category: 'tailwind-custom' },
+  { id: 'bold-slant', name: 'Tailwind 15', thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #3da2e3 100%)', category: 'tailwind-custom' },
+  { id: 'duotone-overlay', name: 'Tailwind 16', thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #c32226 100%)', category: 'tailwind-custom' },
+  { id: 'neon-sign', name: 'Tailwind 17', thumbGrad: 'radial-gradient(circle, #c32226 0%, #05050a 100%)', category: 'tailwind-custom' },
+  { id: 'glass-list', name: 'Tailwind 18', thumbGrad: 'linear-gradient(to bottom, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0) 100%)', category: 'tailwind-custom' },
+  { id: 'brushed-metal', name: 'Tailwind 19', thumbGrad: 'linear-gradient(to right, #334155 0%, #1e293b 100%)', category: 'tailwind-custom' },
+  { id: 'cyberpunk-hud', name: 'Tailwind 20', thumbGrad: 'radial-gradient(circle, #187fc0 0%, #030712 100%)', category: 'tailwind-custom' },
+
+  { id: 'stripe-card', name: 'Tailwind 21', thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #c32226 100%)', category: 'tailwind-internet' },
+  { id: 'linear-board', name: 'Tailwind 22', thumbGrad: 'linear-gradient(to bottom, #121214 0%, #18181b 100%)', category: 'tailwind-internet' },
+  { id: 'apple-spec', name: 'Tailwind 23', thumbGrad: '#000000', category: 'tailwind-internet' },
+  { id: 'netflix-billboard', name: 'Tailwind 24', thumbGrad: 'linear-gradient(to top, #000000 0%, rgba(0,0,0,0) 100%)', category: 'tailwind-internet' },
+  { id: 'airbnb-card', name: 'Tailwind 25', thumbGrad: '#ffffff', category: 'tailwind-internet' },
+  { id: 'spotify-lyrics', name: 'Tailwind 26', thumbGrad: 'radial-gradient(circle, #1ed760 0%, #000000 100%)', category: 'tailwind-internet' },
+  { id: 'notion-board', name: 'Tailwind 27', thumbGrad: '#ffffff', category: 'tailwind-internet' },
+  { id: 'figma-canvas', name: 'Tailwind 28', thumbGrad: 'linear-gradient(to bottom, #f1f1f1 0%, #ffffff 100%)', category: 'tailwind-internet' },
+  { id: 'github-readme', name: 'Tailwind 29', thumbGrad: '#ffffff', category: 'tailwind-internet' },
+  { id: 'tesla-minimal', name: 'Tailwind 30', thumbGrad: '#f4f4f5', category: 'tailwind-internet' },
 
   // Original non-tailwind styles follow
-  { id: 'gradient-bottom', name: 'Gradient Alul',  thumbGrad: 'linear-gradient(to top, #000 0%, rgba(0,0,0,0) 55%)', category: 'legacy' },
-  { id: 'gradient-left',   name: 'Gradient Bal',   thumbGrad: 'linear-gradient(to right, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0) 55%)', category: 'legacy' },
-  { id: 'circle-badge',    name: 'Kör Badge',       thumbGrad: 'radial-gradient(circle at center, rgba(24,127,192,0.85) 0%, rgba(0,0,0,0.5) 60%)', category: 'legacy' },
-  { id: 'promo-accent',    name: 'Promo Accent',    thumbGrad: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0) 48%)', category: 'legacy' },
-  { id: 'full-dark',       name: 'Full Dark',        thumbGrad: 'rgba(0,0,0,0.7)', category: 'legacy' },
-  { id: 'white-card',      name: 'Fehér Kártya',    thumbGrad: 'linear-gradient(to top, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0.97) 35%, rgba(255,255,255,0) 65%)', category: 'legacy' },
-  { id: 'luxury-frame',    name: 'Luxury Keret',     thumbGrad: 'rgba(5,3,12,0.87)', category: 'legacy' },
-  { id: 'neo-brutal',      name: 'Neo Brutal',        thumbGrad: 'rgba(0,0,0,0.56)', category: 'legacy' },
-  { id: 'ribbon-top',      name: 'Ribbon Felül',      thumbGrad: 'linear-gradient(to bottom, rgba(24,127,192,0.9) 0%, rgba(24,127,192,0.9) 22%, rgba(0,0,0,0.5) 22%)', category: 'legacy' },
-  { id: 'minimal-bar',     name: 'Minimál Sáv',       thumbGrad: 'rgba(0,0,0,0.14)', category: 'legacy' },
-  { id: 'glass-card',      name: 'Glass Card',        thumbGrad: 'linear-gradient(to top, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.22) 38%, rgba(255,255,255,0) 60%)', category: 'legacy' },
-  { id: 'diagonal-split',  name: 'Átlós Split',       thumbGrad: 'linear-gradient(135deg, #fff 48%, rgba(0,0,0,0.88) 48%)', category: 'legacy' },
-  { id: 'feature-list',    name: 'Felsorolás',     thumbGrad: 'linear-gradient(to bottom, #1e1b4b 0%, #1e1b4b 100%)', category: 'legacy' },
-  { id: 'retro-sticker',   name: 'Retro Matrica',  thumbGrad: 'linear-gradient(135deg, #ffffff 0%, #c32226 100%)', category: 'legacy' },
-  { id: 'side-panel',      name: 'Oldalsáv',       thumbGrad: 'linear-gradient(to right, #187fc0 0%, #187fc0 38%, rgba(0,0,0,0) 38%)', category: 'legacy' },
-  { id: 'minimal-corner',  name: 'Sarok Kártya',   thumbGrad: 'radial-gradient(circle at bottom right, #ffffff 0%, rgba(255,255,255,0) 70%)', category: 'legacy' },
+  { id: 'gradient-bottom', name: 'Gradient Alul', thumbGrad: 'linear-gradient(to top, #000 0%, rgba(0,0,0,0) 55%)', category: 'legacy' },
+  { id: 'gradient-left', name: 'Gradient Bal', thumbGrad: 'linear-gradient(to right, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0) 55%)', category: 'legacy' },
+  { id: 'circle-badge', name: 'Kör Badge', thumbGrad: 'radial-gradient(circle at center, rgba(24,127,192,0.85) 0%, rgba(0,0,0,0.5) 60%)', category: 'legacy' },
+  { id: 'promo-accent', name: 'Promo Accent', thumbGrad: 'linear-gradient(to top, rgba(0,0,0,0.88) 0%, rgba(0,0,0,0) 48%)', category: 'legacy' },
+  { id: 'full-dark', name: 'Full Dark', thumbGrad: 'rgba(0,0,0,0.7)', category: 'legacy' },
+  { id: 'white-card', name: 'Fehér Kártya', thumbGrad: 'linear-gradient(to top, rgba(255,255,255,0.97) 0%, rgba(255,255,255,0.97) 35%, rgba(255,255,255,0) 65%)', category: 'legacy' },
+  { id: 'luxury-frame', name: 'Luxury Keret', thumbGrad: 'rgba(5,3,12,0.87)', category: 'legacy' },
+  { id: 'neo-brutal', name: 'Neo Brutal', thumbGrad: 'rgba(0,0,0,0.56)', category: 'legacy' },
+  { id: 'ribbon-top', name: 'Ribbon Felül', thumbGrad: 'linear-gradient(to bottom, rgba(24,127,192,0.9) 0%, rgba(24,127,192,0.9) 22%, rgba(0,0,0,0.5) 22%)', category: 'legacy' },
+  { id: 'minimal-bar', name: 'Minimál Sáv', thumbGrad: 'rgba(0,0,0,0.14)', category: 'legacy' },
+  { id: 'glass-card', name: 'Glass Card', thumbGrad: 'linear-gradient(to top, rgba(255,255,255,0.22) 0%, rgba(255,255,255,0.22) 38%, rgba(255,255,255,0) 60%)', category: 'legacy' },
+  { id: 'diagonal-split', name: 'Átlós Split', thumbGrad: 'linear-gradient(135deg, #fff 48%, rgba(0,0,0,0.88) 48%)', category: 'legacy' },
+  { id: 'feature-list', name: 'Felsorolás', thumbGrad: 'linear-gradient(to bottom, #1e1b4b 0%, #1e1b4b 100%)', category: 'legacy' },
+  { id: 'retro-sticker', name: 'Retro Matrica', thumbGrad: 'linear-gradient(135deg, #ffffff 0%, #c32226 100%)', category: 'legacy' },
+  { id: 'side-panel', name: 'Oldalsáv', thumbGrad: 'linear-gradient(to right, #187fc0 0%, #187fc0 38%, rgba(0,0,0,0) 38%)', category: 'legacy' },
+  { id: 'minimal-corner', name: 'Sarok Kártya', thumbGrad: 'radial-gradient(circle at bottom right, #ffffff 0%, rgba(255,255,255,0) 70%)', category: 'legacy' },
   { id: 'modern-minimal-border', name: 'Minimál Keret', thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #187fc0 100%)', category: 'legacy' },
   { id: 'asymmetric-split', name: 'Aszimmetrikus', thumbGrad: 'linear-gradient(to left, #187fc0 0%, #187fc0 38%, rgba(0,0,0,0) 38%)', category: 'legacy' },
-  { id: 'badge-ticker',     name: 'Marquee Szalag', thumbGrad: 'linear-gradient(to bottom, #c32226 0%, #c32226 20%, rgba(0,0,0,0) 20%, rgba(0,0,0,0) 80%, #c32226 80%)', category: 'legacy' },
-  { id: 'comic-speech',     name: 'Képregény Buborék', thumbGrad: 'radial-gradient(circle at center, #ffffff 0%, #ffffff 50%, rgba(0,0,0,0) 55%)', category: 'legacy' },
-  { id: 'bold-kicker',      name: 'Kicker Cím',     thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #105e8f 100%)', category: 'legacy' },
-  { id: 'social-proof-rating', name: 'Értékelés',     thumbGrad: 'linear-gradient(135deg, #c32226 0%, #9c1b1e 100%)', category: 'legacy' },
-  { id: 'polaroid-frame',   name: 'Polaroid Keret', thumbGrad: 'linear-gradient(to bottom, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.2) 80%, #ffffff 80%)', category: 'legacy' }
+  { id: 'badge-ticker', name: 'Marquee Szalag', thumbGrad: 'linear-gradient(to bottom, #c32226 0%, #c32226 20%, rgba(0,0,0,0) 20%, rgba(0,0,0,0) 80%, #c32226 80%)', category: 'legacy' },
+  { id: 'comic-speech', name: 'Képregény Buborék', thumbGrad: 'radial-gradient(circle at center, #ffffff 0%, #ffffff 50%, rgba(0,0,0,0) 55%)', category: 'legacy' },
+  { id: 'bold-kicker', name: 'Kicker Cím', thumbGrad: 'linear-gradient(135deg, #187fc0 0%, #105e8f 100%)', category: 'legacy' },
+  { id: 'social-proof-rating', name: 'Értékelés', thumbGrad: 'linear-gradient(135deg, #c32226 0%, #9c1b1e 100%)', category: 'legacy' },
+  { id: 'polaroid-frame', name: 'Polaroid Keret', thumbGrad: 'linear-gradient(to bottom, rgba(255,255,255,0.2) 0%, rgba(255,255,255,0.2) 80%, #ffffff 80%)', category: 'legacy' }
 ];
 
 const STYLE_PRESETS: Record<string, { name: string; text: string; cta: string }[]> = {
@@ -324,6 +324,7 @@ interface Props {
   decomposedLayerText?: string;
   decomposedLayerCta?: string;
   initialSuggestedStyles?: { styleId: string; reason: string }[];
+  brandKit?: any;
 }
 
 export function SatoriEditorPanel({
@@ -333,20 +334,27 @@ export function SatoriEditorPanel({
   subject = '',
   decomposedLayerText = '',
   decomposedLayerCta = '',
-  initialSuggestedStyles
+  initialSuggestedStyles,
+  brandKit
 }: Props) {
-  // Dynamically update the colors from sessionStorage to handle SPA navigation and site changes
-  try {
-    const raw = sessionStorage.getItem('zombo_audit_result');
-    if (raw) {
-      const data = JSON.parse(raw);
-      const colorList = data.colors?.top_colors_detail || data.visuals?.top_colors_detail || [];
-      if (colorList[0]?.hex) BRAND_DNA_COLORS.primary = colorList[0].hex;
-      if (colorList[1]?.hex) BRAND_DNA_COLORS.secondary = colorList[1].hex;
-      if (colorList[2]?.hex) BRAND_DNA_COLORS.accent = colorList[2].hex;
+  // Dynamically update the colors from props or sessionStorage to handle SPA navigation and site changes
+  if (brandKit?.colors) {
+    if (brandKit.colors.primary) BRAND_DNA_COLORS.primary = brandKit.colors.primary;
+    if (brandKit.colors.secondary) BRAND_DNA_COLORS.secondary = brandKit.colors.secondary;
+    if (brandKit.colors.accent) BRAND_DNA_COLORS.accent = brandKit.colors.accent;
+  } else {
+    try {
+      const raw = sessionStorage.getItem('zombo_audit_result');
+      if (raw) {
+        const data = JSON.parse(raw);
+        const colorList = data.colors?.top_colors_detail || data.visuals?.top_colors_detail || [];
+        if (colorList[0]?.hex) BRAND_DNA_COLORS.primary = colorList[0].hex;
+        if (colorList[1]?.hex) BRAND_DNA_COLORS.secondary = colorList[1].hex;
+        if (colorList[2]?.hex) BRAND_DNA_COLORS.accent = colorList[2].hex;
+      }
+    } catch (e) {
+      console.error('[SatoriEditorPanel] Failed to update brand colors:', e);
     }
-  } catch (e) {
-    console.error('[SatoriEditorPanel] Failed to update brand colors:', e);
   }
   const [selectedStyleId, setSelectedStyleId] = useState<string | null>('tailwind-cta');
   const [styleTab, setStyleTab] = useState<'all' | 'tailwind-basic' | 'tailwind-custom' | 'tailwind-internet' | 'legacy'>('all');
@@ -359,10 +367,10 @@ export function SatoriEditorPanel({
   });
   const [activeLayerIdx, setActiveLayerIdx] = useState(0);
   const [suggestedStyles, setSuggestedStyles] = useState<{ styleId: string; reason: string }[]>(initialSuggestedStyles || []);
-  const [ctaText,   setCtaText]   = useState(decomposedLayerCta || 'Válaszd a megfelelőt!');
-  const [ctaColor,  setCtaColor]  = useState(BRAND_DNA_COLORS.white);
-  const [ctaBgColor,setCtaBgColor]= useState(BRAND_DNA_COLORS.primary);
-  
+  const [ctaText, setCtaText] = useState(decomposedLayerCta || 'Válaszd a megfelelőt!');
+  const [ctaColor, setCtaColor] = useState(BRAND_DNA_COLORS.white);
+  const [ctaBgColor, setCtaBgColor] = useState(BRAND_DNA_COLORS.primary);
+
   const [showBorder, setShowBorder] = useState(true);
   const [showCta, setShowCta] = useState(true);
   const [showBadge, setShowBadge] = useState(true);
@@ -384,9 +392,9 @@ export function SatoriEditorPanel({
   useEffect(() => {
     if (decomposedLayerText) {
       setExtractedPromoText(decomposedLayerText);
-      setTextLayers(prev => prev.map(l => 
-        (l.id === 'productName' || l.id === 'headline' || l.id === '1') 
-          ? { ...l, text: decomposedLayerText } 
+      setTextLayers(prev => prev.map(l =>
+        (l.id === 'productName' || l.id === 'headline' || l.id === '1')
+          ? { ...l, text: decomposedLayerText }
           : l
       ));
     }
@@ -410,16 +418,16 @@ export function SatoriEditorPanel({
       if (!decomposedLayerText) {
         const fallback = getPromoTextFromPrompt(prompt);
         setExtractedPromoText(fallback || prompt);
-        setTextLayers(prev => prev.map(l => 
-          (l.id === 'productName' || l.id === 'headline' || l.id === '1') 
-            ? { ...l, text: fallback || prompt } 
+        setTextLayers(prev => prev.map(l =>
+          (l.id === 'productName' || l.id === 'headline' || l.id === '1')
+            ? { ...l, text: fallback || prompt }
             : l
         ));
       }
     }
   }, [prompt, decomposedLayerText]);
 
-  const debounceRef  = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const renderingRef = useRef(false);
 
   const handleRender = useCallback(async (overrideStyleId?: string) => {
@@ -496,10 +504,10 @@ export function SatoriEditorPanel({
   const selectStyle = (id: string) => {
     setSelectedStyleId(id);
     stateRef.current = { ...stateRef.current, selectedStyleId: id };
-    
+
     // Get the current text typed by the user to preserve it
     const currentText = textLayers.find(l => l.id === 'productName' || l.id === 'headline' || l.id === '1')?.text || textLayers[0]?.text || '';
-    
+
     const activeBrief = localPrompt.trim() || prompt.trim();
     const promptFallback = getPromoTextFromPrompt(activeBrief);
     const promoTextToUse = extractedPromoText || promptFallback || currentText || 'Szöveg';
@@ -549,7 +557,7 @@ export function SatoriEditorPanel({
     const newLayers: TextLayer[] = preset.textLayers.map(l => {
       let yOffset = 0;
       let fontSize = l.fontSize || defaults.fontSize;
-      
+
       let textVal = l.text;
       if ((l.id === 'productName' || l.id === 'headline' || l.id === '1') && promoTextToUse) {
         textVal = promoTextToUse;
@@ -588,7 +596,7 @@ export function SatoriEditorPanel({
     setShowBorder(preset.showBorder);
     setShowBadge(preset.showBadge);
     setShowCta(preset.showCta);
-    
+
     stateRef.current = {
       selectedStyleId: preset.styleId,
       textLayers: newLayers,
@@ -984,14 +992,14 @@ export function SatoriEditorPanel({
     setTextLayers(prev => {
       const next = prev.map((l, i) => i === idx ? { ...l, ...patch } : l);
       stateRef.current = { ...stateRef.current, textLayers: next };
-      
+
       const activeLayer = next[idx];
       if (activeLayer && (activeLayer.id === 'productName' || activeLayer.id === 'headline' || activeLayer.id === '1')) {
         if (patch.text !== undefined) {
           setExtractedPromoText(patch.text);
         }
       }
-      
+
       return next;
     });
     debounceRender();
@@ -1007,13 +1015,13 @@ export function SatoriEditorPanel({
   };
 
   const updateCta = (field: 'ctaText' | 'ctaColor' | 'ctaBgColor', value: string) => {
-    if (field === 'ctaText')   { 
-      setCtaText(value);    
-      stateRef.current = { ...stateRef.current, ctaText: value }; 
+    if (field === 'ctaText') {
+      setCtaText(value);
+      stateRef.current = { ...stateRef.current, ctaText: value };
       setExtractedCtaText(value);
     }
-    if (field === 'ctaColor')  { setCtaColor(value);   stateRef.current = { ...stateRef.current, ctaColor: value }; }
-    if (field === 'ctaBgColor'){ setCtaBgColor(value); stateRef.current = { ...stateRef.current, ctaBgColor: value }; }
+    if (field === 'ctaColor') { setCtaColor(value); stateRef.current = { ...stateRef.current, ctaColor: value }; }
+    if (field === 'ctaBgColor') { setCtaBgColor(value); stateRef.current = { ...stateRef.current, ctaBgColor: value }; }
     debounceRender();
   };
 
@@ -1076,8 +1084,8 @@ export function SatoriEditorPanel({
       if (data.ctaOpts?.color) setCtaColor(data.ctaOpts.color);
       if (data.ctaOpts?.bgColor) setCtaBgColor(data.ctaOpts.bgColor);
 
-      const promoText = data.textLayers?.find((l: any) => l.id === 'productName' || l.id === 'headline' || l.id === '1')?.text 
-        || data.text 
+      const promoText = data.textLayers?.find((l: any) => l.id === 'productName' || l.id === 'headline' || l.id === '1')?.text
+        || data.text
         || '';
       const finalCta = data.cta || '';
       if (promoText) setExtractedPromoText(promoText);
@@ -1119,8 +1127,8 @@ export function SatoriEditorPanel({
   const al = textLayers[activeLayerIdx];
   const brandNameIdx = textLayers.findIndex(l => l.id === 'brandName');
   const showBrandName = brandNameIdx !== -1 ? textLayers[brandNameIdx].visible !== false : false;
-  const firstVisibleText = textLayers.find(l => l.id !== 'brandName' && l.visible !== false && l.text.trim())?.text 
-    || textLayers.find(l => l.visible !== false && l.text.trim())?.text 
+  const firstVisibleText = textLayers.find(l => l.id !== 'brandName' && l.visible !== false && l.text.trim())?.text
+    || textLayers.find(l => l.visible !== false && l.text.trim())?.text
     || 'Különleges ajánlatunk!';
 
   return (
@@ -1231,7 +1239,7 @@ export function SatoriEditorPanel({
 
       {/* Overhauled Figma/Graphics Workspace */}
       <div style={{ display: 'flex', gap: 12, minHeight: 380, background: 'rgba(255,255,255,0.01)', borderRadius: 14, border: '1.5px solid var(--border)', padding: '12px 8px 12px 12px' }}>
-        
+
         {/* Left Toolbar Dock */}
         <div style={{ display: 'flex', flexDirection: 'column', gap: 10, width: 44, flexShrink: 0, borderRight: '1.5px solid var(--border)', paddingRight: 8, alignItems: 'center' }}>
           <button onClick={() => setActiveSection('ai')} title="AI Assistant"
@@ -1258,7 +1266,7 @@ export function SatoriEditorPanel({
 
         {/* Right Settings Inspector Pane */}
         <div style={{ flex: 1, minWidth: 0, paddingLeft: 4, overflowY: 'auto', maxHeight: 420 }}>
-          
+
           {/* PRESETS SECTION */}
           {activeSection === 'presets' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
@@ -1266,7 +1274,7 @@ export function SatoriEditorPanel({
               <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
                 Valassz az elore elkeszitett, professzionalis elrendezesek es mintaszovegek kozul egy kattintassal.
               </p>
-              
+
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, maxHeight: 330, overflowY: 'auto', paddingRight: 4 }}>
                 {GLOBAL_PRESETS.map((preset, idx) => {
                   const isCurrentStyle = selectedStyleId === preset.styleId;
@@ -1294,7 +1302,7 @@ export function SatoriEditorPanel({
               <p style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.5, margin: 0 }}>
                 Az AI elemzi a terméket és a promptot, majd teljesen automatikusan kiválasztja a megfelelő elrendezést, színeket, CTA-t, és megírja a reklámszöveget.
               </p>
-              
+
               <div>
                 <label style={lbl}>Prompt / Kép leírása</label>
                 <textarea
@@ -1305,7 +1313,7 @@ export function SatoriEditorPanel({
                   style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }}
                 />
               </div>
-              
+
               <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '2px 0 6px 0' }}>
                 <input
                   type="checkbox"
@@ -1421,7 +1429,7 @@ export function SatoriEditorPanel({
           {activeSection === 'styles' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: '#4ade80', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Satori Stilusok</div>
-              
+
               {/* Category tabs */}
               <div style={{ display: 'flex', gap: 4, overflowX: 'auto', paddingBottom: 4, borderBottom: '1.5px solid var(--border)' }}>
                 {(['all', 'tailwind-basic', 'tailwind-custom', 'tailwind-internet', 'legacy'] as const).map(tab => {
@@ -1470,7 +1478,7 @@ export function SatoriEditorPanel({
                   </div>
                 </div>
               )}
-              
+
               {/* Global Elements Visibility Toggles */}
               <div style={{ marginTop: 10, borderTop: '1px solid var(--border)', paddingTop: 10, display: 'flex', flexDirection: 'column', gap: 8 }}>
                 <div style={lbl}>Látható Elemek</div>
@@ -1504,7 +1512,7 @@ export function SatoriEditorPanel({
                 <button onClick={addLayer} style={{ padding: '4px 8px', borderRadius: 6, border: '1px dashed rgba(251,191,36,0.5)', fontSize: 9, fontWeight: 800, cursor: 'pointer', background: 'rgba(251,191,36,0.1)', color: '#fbbf24', display: 'flex', alignItems: 'center', gap: 3 }}>
                   <PlusIcon size={9} /> Uj Reteg
                 </button>
-                        {textLayers.map((layer, idx) => {
+                {textLayers.map((layer, idx) => {
                   const isSel = activeLayerIdx === idx;
                   const getSemanticLabel = (id: string, index: number) => {
                     if (id === 'brandName') return 'Márkanév';
@@ -1559,7 +1567,7 @@ export function SatoriEditorPanel({
                     </div>
                     <textarea value={al.text} onChange={e => updateLayer(activeLayerIdx, { text: e.target.value })} rows={2} placeholder="pl. KIVALO MINOSEG" style={{ ...inp, resize: 'vertical', fontFamily: 'inherit' }} />
                   </div>
-                  
+
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 8 }}>
                     <div>
                       <label style={lbl}>Betumeret ({al.fontSize}px)</label>
@@ -1590,7 +1598,7 @@ export function SatoriEditorPanel({
                     <div>
                       <label style={lbl}>Igazitas</label>
                       <div style={{ display: 'flex', gap: 3 }}>
-                        {(['left','center','right'] as const).map(a => (
+                        {(['left', 'center', 'right'] as const).map(a => (
                           <button key={a} onClick={() => updateLayer(activeLayerIdx, { textAlign: a })}
                             style={{ flex: 1, padding: '6px 3px', borderRadius: 5, border: 'none', fontSize: 10, fontWeight: 700, cursor: 'pointer', background: al.textAlign === a ? 'rgba(251,191,36,0.2)' : 'rgba(255,255,255,0.03)', color: al.textAlign === a ? '#fbbf24' : 'var(--text-muted)' }}>
                             {a === 'left' ? '«' : a === 'center' ? '|' : '»'}
@@ -1613,7 +1621,7 @@ export function SatoriEditorPanel({
           {activeSection === 'cta' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <div style={{ fontSize: 11, fontWeight: 800, color: '#22d3ee', textTransform: 'uppercase', letterSpacing: '0.06em' }}>CTA Gomb Beallitasok</div>
-              
+
               <div>
                 <label style={lbl}>CTA Gomb szovege</label>
                 <input type="text" value={ctaText} onChange={e => updateCta('ctaText', e.target.value)} placeholder="pl. VASAROLJ MOST" style={inp} />

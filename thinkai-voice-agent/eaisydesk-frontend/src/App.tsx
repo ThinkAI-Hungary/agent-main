@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
 import { AuthProvider, useAuth } from './context/AuthContext';
 import { ThemeProvider } from './context/ThemeContext';
 import { ApprovalProvider } from './context/ApprovalContext';
+import { AuditProvider } from './context/AuditContext';
 import LoginPage from './pages/LoginPage';
 import ToastContainer from './components/ui/Toast';
 import ApprovalModal from './components/interactions/ApprovalModal';
@@ -90,11 +91,13 @@ export default function App() {
     <BrowserRouter basename="/admin">
       <ThemeProvider>
         <AuthProvider>
-          <ApprovalProvider>
-            <AuthGate />
-            <ApprovalModal />
-            <ToastContainer />
-          </ApprovalProvider>
+          <AuditProvider>
+            <ApprovalProvider>
+              <AuthGate />
+              <ApprovalModal />
+              <ToastContainer />
+            </ApprovalProvider>
+          </AuditProvider>
         </AuthProvider>
       </ThemeProvider>
     </BrowserRouter>

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'url';
 import axios from 'axios';
 import Anthropic from '@anthropic-ai/sdk';
 import { fal } from '@fal-ai/client';
+import { createClient } from '@supabase/supabase-js';
 
 import { scrapeWebsite } from './scraper.js';
 import {
@@ -66,7 +67,7 @@ async function generateWithFluxFlex(
   prompt: string,
   width: number,
   height: number,
-  opts?: { safetyTolerance?: number; guidance?: number; steps?: number; aspectRatio?: string; inputImage?: string; inputImage2?: string; backgroundPrompt?: string; forceFlex?: boolean }
+  opts?: { safetyTolerance?: number; guidance?: number; steps?: number; aspectRatio?: string; inputImage?: string; inputImage2?: string; backgroundPrompt?: string; forceFlex?: boolean; strength?: number }
 ): Promise<{ imageUrl: string; model: string; generationTime: number }> {
   const bflKey = process.env.BFL_API_KEY;
   if (!bflKey) throw new Error('BFL_API_KEY is not configured in .env');
@@ -94,9 +95,9 @@ async function generateWithFluxFlex(
   console.log(`[BFL-ROUTER]   Endpoint: ${endpoint}`);
 
   const safetyTol = opts?.safetyTolerance ?? 5;
-  const guidance  = opts?.guidance ?? 4.5;
-  const steps     = opts?.steps ?? 50;
-  const ar        = opts?.aspectRatio ?? '2:3';
+  const guidance = opts?.guidance ?? 4.5;
+  const steps = opts?.steps ?? 50;
+  const ar = opts?.aspectRatio ?? '2:3';
 
   console.log(`[BFL-ROUTER] Submitting task — ${width}x${height} | guidance=${guidance} steps=${steps}`);
   console.log(`[BFL-ROUTER] Prompt: "${prompt.substring(0, 100)}..."`);
@@ -113,6 +114,10 @@ async function generateWithFluxFlex(
     payload.steps = steps;
     payload.width = width;
     payload.height = height;
+    if (opts?.strength !== undefined) {
+      payload.strength = opts.strength;
+      payload.image_prompt_strength = opts.strength;
+    }
 
     if (opts?.inputImage) {
       payload.input_image = imageToBflInput(opts.inputImage);
@@ -147,7 +152,7 @@ async function generateWithFluxFlex(
         || (err.response?.status >= 500);
       if (isRetryable && attempt < maxSubmitAttempts) {
         const delayMs = attempt * 3000;
-        console.warn(`[BFL-ROUTER] Attempt ${attempt}/${maxSubmitAttempts} failed (${err.code || err.response?.status}). Retrying in ${delayMs/1000}s...`);
+        console.warn(`[BFL-ROUTER] Attempt ${attempt}/${maxSubmitAttempts} failed (${err.code || err.response?.status}). Retrying in ${delayMs / 1000}s...`);
         await new Promise(r => setTimeout(r, delayMs));
       } else {
         throw err; // non-retryable or last attempt — rethrow
@@ -218,6 +223,10 @@ const __dirname = path.dirname(__filename);
 
 dotenv.config({ path: path.resolve(__dirname, '../../.env') });
 
+const supabaseUrl = process.env.SUPABASE_URL || '';
+const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY || process.env.SUPABASE_KEY || '';
+const supabase = (supabaseUrl && supabaseKey) ? createClient(supabaseUrl, supabaseKey) : null;
+
 if (process.env.FAL_KEY) {
   fal.config({ credentials: process.env.FAL_KEY });
 }
@@ -252,30 +261,42 @@ app.use('/renders', express.static(rendersDir));
 
 function imageToBflInput(imageUrl: string | undefined): string | undefined {
   if (!imageUrl) return undefined;
-  
+
   if (imageUrl.startsWith('data:image/') || imageUrl.startsWith('data:application/')) {
     return imageUrl;
   }
-  
+
+  const getLocallyExistingPath = (filename: string): string | null => {
+    // 1. Check in backend renders
+    const backendPath = path.join(rendersDir, filename);
+    if (fs.existsSync(backendPath)) return backendPath;
+
+    // 2. Check in frontend renders
+    const frontendPath = path.resolve(__dirname, '../../../../thinkai-voice-agent/eaisydesk-frontend/src/renders', filename);
+    if (fs.existsSync(frontendPath)) return frontendPath;
+
+    return null;
+  };
+
   if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
     if (imageUrl.includes('/renders/')) {
       const parts = imageUrl.split('/renders/');
       const filename = parts[parts.length - 1];
-      const filePath = path.join(rendersDir, filename);
-      if (fs.existsSync(filePath)) {
-        console.log(`[BFL-BASE64] Converting localhost URL ${imageUrl} to base64`);
+      const filePath = getLocallyExistingPath(filename);
+      if (filePath) {
+        console.log(`[BFL-BASE64] Converting localhost URL ${imageUrl} to base64 from: ${filePath}`);
         const buffer = fs.readFileSync(filePath);
         return buffer.toString('base64');
       }
     }
     return imageUrl;
   }
-  
+
   if (imageUrl.startsWith('/renders/') || imageUrl.startsWith('renders/')) {
     const filename = path.basename(imageUrl);
-    const filePath = path.join(rendersDir, filename);
-    if (fs.existsSync(filePath)) {
-      console.log(`[BFL-BASE64] Converting relative URL ${imageUrl} to base64`);
+    const filePath = getLocallyExistingPath(filename);
+    if (filePath) {
+      console.log(`[BFL-BASE64] Converting relative URL ${imageUrl} to base64 from: ${filePath}`);
       const buffer = fs.readFileSync(filePath);
       return buffer.toString('base64');
     }
@@ -288,7 +309,7 @@ function imageToBflInput(imageUrl: string | undefined): string | undefined {
       const buffer = fs.readFileSync(absPath);
       return buffer.toString('base64');
     }
-  } catch {}
+  } catch { }
 
   return imageUrl;
 }
@@ -303,7 +324,7 @@ app.post('/api/extract', async (req, res) => {
   try {
     console.log(`[SCRAPE] Starting brand extraction for: ${url}`);
     const scraped = await scrapeWebsite(url);
-    
+
     console.log(`[AI] Invoking Claude Sonnet for brand kit analysis...`);
     const analyzedKit = await analyzeBrandKit(scraped);
 
@@ -354,14 +375,14 @@ app.post('/api/generate', async (req, res) => {
   try {
     console.log(`[ORCHESTRATE] Starting generation brief: "${brief}"`);
     const plannedVariants: GeneratedPostVariant[] = await orchestrateCreatives(brief, brandKit, pastApproved);
-    
+
     const creatives: PostCreative[] = [];
     const briefId = `brief-${Date.now()}`;
 
     // Process all 4 planned post layouts in parallel
     const promises = plannedVariants.map(async (variant, idx) => {
-      console.log(`[VARIANT ${idx+1}/4] Processing ${variant.templateId} template...`);
-      
+      console.log(`[VARIANT ${idx + 1}/4] Processing ${variant.templateId} template...`);
+
       // 1. Generate image with Flux 2 Pro (BFL direct API)
       let imageUrl = '';
       let genModel = '';
@@ -373,9 +394,9 @@ app.post('/api/generate', async (req, res) => {
           imageUrl = genResult.imageUrl;
           genModel = genResult.model;
           genTime = genResult.generationTime;
-          console.log(`[FLUX2] Image generated for variant ${idx+1}: ${imageUrl} using ${genModel} in ${genTime}s`);
+          console.log(`[FLUX2] Image generated for variant ${idx + 1}: ${imageUrl} using ${genModel} in ${genTime}s`);
         } catch (imageErr: any) {
-          console.error(`[FLUX2] Image generation failed for variant ${idx+1}:`, imageErr.message);
+          console.error(`[FLUX2] Image generation failed for variant ${idx + 1}:`, imageErr.message);
           // Fallback image url if generator fails
           imageUrl = getFallbackImage(brandKit);
         }
@@ -584,9 +605,9 @@ async function fetchImageAsClaudeBlock(imageUrl: string): Promise<{
   };
 }> {
   console.log(`[IMAGE-FETCH] Fetching image from URL/path: ${imageUrl}`);
-  
+
   let rawBuffer: Buffer;
-  
+
   // Detect local relative renders paths, local paths, or relative paths
   if (imageUrl.startsWith('/renders/') || imageUrl.startsWith('renders/') || (!imageUrl.startsWith('http://') && !imageUrl.startsWith('https://') && !imageUrl.startsWith('data:'))) {
     const filename = path.basename(imageUrl);
@@ -621,33 +642,33 @@ async function fetchImageAsClaudeBlock(imageUrl: string): Promise<{
       rawBuffer = Buffer.from(imageResponse.data);
     }
   }
-  
+
   console.log(`[IMAGE-FETCH] Original size: ${(rawBuffer.length / 1024).toFixed(1)} KB. Processing with sharp...`);
-  
+
   let processedBuffer: Buffer;
   try {
     const imagePipeline = sharp(rawBuffer);
     const metadata = await imagePipeline.metadata();
-    
+
     // Resize if any dimension exceeds 1600px
     if ((metadata.width && metadata.width > 1600) || (metadata.height && metadata.height > 1600)) {
       imagePipeline.resize(1600, 1600, { fit: 'inside', withoutEnlargement: true });
     }
-    
+
     // Convert to jpeg: flatten transparency on a white background, output standard JPEG
     processedBuffer = await imagePipeline
       .flatten({ background: { r: 255, g: 255, b: 255 } })
       .jpeg({ quality: 85 })
       .toBuffer();
-      
+
     console.log(`[IMAGE-FETCH] Processed size: ${(processedBuffer.length / 1024).toFixed(1)} KB`);
   } catch (err: any) {
     console.warn(`[IMAGE-FETCH] Sharp processing failed, falling back to raw buffer: ${err.message}`);
     processedBuffer = rawBuffer;
   }
-  
+
   const base64Data = processedBuffer.toString('base64');
-  
+
   return {
     type: 'image',
     source: {
@@ -708,7 +729,8 @@ DO NOT output full sentences, markdown, or explanations. Only output the comma-s
 async function intelligentComposePrompt(
   scenePrompt: string,
   slotSubjects: string[],
-  brandRules: string[]
+  brandRules: string[],
+  brandKit?: any
 ): Promise<string> {
   const systemPrompt = `You are an expert AI prompt engineer. Your job is to compose a single, highly detailed, unified English prompt for image generation (FLUX) by combining a user's scene description with the foreground subjects from uploaded image slots.
 
@@ -716,6 +738,7 @@ Inputs:
 - User's scene description (in Hungarian or English): "${scenePrompt}"
 - Foreground subjects: ${JSON.stringify(slotSubjects)}
 - Brand rules (SECONDARY — only use if user didn't specify): ${JSON.stringify(brandRules)}
+${brandKit?.colors ? `- Brand Colors: Primary: ${brandKit.colors.primary}, Secondary: ${brandKit.colors.secondary}, Accent: ${brandKit.colors.accent}, description: ${brandKit.colors.rules || ''}` : ''}
 
 PRIORITY RULE: The user's scene description is the MASTER. It always wins over brand rules.
 - If the user specifies lighting (e.g. "overhead spotlight") — use that lighting, NOT the brand default.
@@ -726,10 +749,11 @@ PRIORITY RULE: The user's scene description is the MASTER. It always wins over b
 CRITICAL RULES:
 1. REMOVE ALL BRAND NAMES, TRADEMARKS, COMPANY NAMES, AND MODEL DESIGNATIONS (e.g. Audi, BMW, Mercedes, Poli-Farbe, PoliFarbe, A8, etc.). Replace them with high-quality generic equivalents (e.g. "luxury sedan car" instead of "Audi car", "bucket of paint" instead of "Poli-Farbe paint").
 2. INTEGRATE ALL SUBJECTS TOGETHER IN ONE SCENE. You MUST describe the exact physical relationship between every subject. Do NOT place them separately or independently in the scene. If there is a car and a paint bucket, the paint bucket must be placed directly on, in, or immediately next to the car (e.g. "a white paint bucket sitting on the car hood", "a paint bucket leaning against the car door"). If there is a product and a person, the person must be interacting with or holding the product. Every subject must share the same scene, the same ground plane, the same light source. Never describe them as separate elements in different locations.
-3. EVERY SUBJECT MUST BE 100% FULLY INSIDE THE FRAME — NO EXCEPTIONS. This is the most critical rule. You MUST explicitly state in the prompt that every single subject is completely contained within the image boundaries. Use phrases like: "entire vehicle fully visible from front bumper to rear bumper, all four wheels on the ground, no part of the car is cut off or outside the frame", "the paint bucket is shown in its entirety, completely within the frame". If the composition requires a wide shot to show everything, describe a wide-angle or pulled-back camera position. Never describe a close-up if it risks cutting off any subject.
+3. EVERY SUBJECT MUST BE 100% FULLY INSIDE THE FRAME — NO EXCEPTIONS. This is the most critical rule. You MUST explicitly state in the prompt that every single subject is completely contained within the image boundaries. Use phrases like: "entire vehicle fully visible from front bumper to rear bumper, all four wheels on the ground, no part of the car is cut off or outside the frame", "the paint bucket is shown in its entirety, completely within the frame". If any horizontal object (like a car, vehicle, table, etc.) is in the scene, and the target aspect ratio is vertical (e.g. 2:3 or 9:16), you MUST describe an extreme wide-angle far shot, with the camera pulled back extremely far to leave generous empty space/margins on the left and right sides of the subject, ensuring the entire horizontal object fits fully within the vertical frame without touching or going outside any borders. Never describe a close-up or medium shot if there is a car or large object.
 4. DO NOT REPRODUCE OR ADD TEXT unless the subject clearly has existing text on it. If any foreground subject has text on it (label, logo), describe it as "existing label visible, kept intact and legible". Do NOT invent new text. Do NOT describe re-generating or re-spelling any text. If the scene prompt explicitly suppresses text (no_text), instruct the generator to keep all surfaces clean and text-free.
 5. DO NOT output split-screen, multiple panels, or collages. The prompt must describe a single unified photo or scene.
-6. Output ONLY the composed English prompt. Maximum 120 words. Do not write markdown, code blocks, or explanations.`;
+6. BRAND COLOR ALIGNMENT: If brand colors are provided (e.g. primary, secondary, accent), and the user did not specify explicit contradictory colors in their scene description, subtly integrate these brand kit colors into the scene environment (e.g. "with subtle accents of [primary color]", "with details in [secondary color]", "under lighting with [accent color] highlights") to reinforce the brand identity.
+7. Output ONLY the composed English prompt. Maximum 120 words. Do not write markdown, code blocks, or explanations.`;
 
   try {
     const model = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
@@ -760,13 +784,22 @@ async function decomposeUserPrompt(
   imageSubjects: string[],
   brandDna?: string,
   exactTextOnly = false
-): Promise<{ scenePrompt: string; layerText: string | null; layerCta: string | null }> {
+): Promise<{
+  scenePrompt: string;
+  layerText: string | null;
+  layerCta: string | null;
+  hashtags?: {
+    facebook: string[];
+    instagram: string[];
+    x: string[];
+  };
+}> {
   let strictInstruction = "";
   if (exactTextOnly) {
     strictInstruction = "\nCRITICAL STRICT RULE: The user has requested EXACT TEXT ONLY. You MUST NOT summarize, edit, or shorten the promotional text or offer details. Extract the literal promotional phrase exactly as written in the user's input (e.g. if the user wrote '/ Nyáron 30% akció minden falfestékre', extract 'Nyáron 30% akció minden falfestékre' word-for-word, do NOT shorten it to '30% AKCIÓ'). Return this exact text in 'layerText'.";
   }
 
-  const systemPrompt = `You are a social media post production AI. Your job is to split a user's raw creative brief into two separate parts:${strictInstruction}
+  const systemPrompt = `You are a social media post production AI. Your job is to split a user's raw creative brief into separate parts:${strictInstruction}
 
 1. SCENE PROMPT (for AI image generation):
    - Describes the physical scene, setting, lighting, atmosphere, composition
@@ -792,6 +825,12 @@ async function decomposeUserPrompt(
    - Only include if the content clearly calls for user action
    - If not applicable → return null
 
+4. HASHTAGS (popular platform-specific tags):
+   - For facebook, instagram, and x (Twitter), generate 1-5 highly relevant, popular hashtags in Hungarian (or English if universally used in Hungary) based on the input topic AND the Brand DNA context.
+   - Align the hashtags with the brand's industry, products, and target audience keywords (from the Brand DNA context if provided).
+   - CRITICAL: Never include AI-related hashtags (such as #ai, #artificialintelligence, #generativeai, #midjourney, #flux, #aigenerated, #digitalart) unless the raw user input explicitly asks for them.
+   - Do NOT include generic or spammy hashtags. Select the top popular ones in the topic.
+
 User input: "${rawPrompt}"
 Image subjects: ${JSON.stringify(imageSubjects)}
 Brand DNA context: ${brandDna || 'not provided'}
@@ -800,14 +839,21 @@ Return ONLY a JSON object with this exact structure (no markdown, no explanation
 {
   "scenePrompt": "...",
   "layerText": "..." or null,
-  "layerCta": "..." or null
+  "layerCta": "..." or null,
+  "hashtags": {
+    "facebook": ["#tag1", "#tag2", ...],
+    "instagram": ["#tag1", "#tag2", ...],
+    "x": ["#tag1", "#tag2", ...]
+  }
 }`;
 
+  // Use Claude 3.5 Sonnet directly for decomposition and hashtags
   try {
     const model = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+    console.log(`[DECOMPOSE] Routing via Claude 3.5 Sonnet (${model})...`);
     const response = await anthropic.messages.create({
       model,
-      max_tokens: 400,
+      max_tokens: 600,
       temperature: 0.1,
       system: systemPrompt,
       messages: [{ role: 'user', content: 'Decompose the user prompt now.' }]
@@ -815,15 +861,16 @@ Return ONLY a JSON object with this exact structure (no markdown, no explanation
     const text = response.content[0].type === 'text' ? response.content[0].text : '';
     const cleaned = extractJsonStr(text);
     const parsed = JSON.parse(cleaned);
-    console.log(`[DECOMPOSE] scenePrompt: "${parsed.scenePrompt}" | layerText: ${parsed.layerText} | layerCta: ${parsed.layerCta}`);
+    console.log(`[DECOMPOSE-CLAUDE] scenePrompt: "${parsed.scenePrompt}" | layerText: "${parsed.layerText}" | hashtags: ${JSON.stringify(parsed.hashtags)}`);
     return {
       scenePrompt: parsed.scenePrompt || rawPrompt,
       layerText: parsed.layerText || null,
       layerCta: parsed.layerCta || null,
+      hashtags: parsed.hashtags || { facebook: [], instagram: [], x: [] }
     };
   } catch (err: any) {
     console.error('[DECOMPOSE] Claude error:', err.message);
-    return { scenePrompt: rawPrompt, layerText: null, layerCta: null };
+    return { scenePrompt: rawPrompt, layerText: null, layerCta: null, hashtags: { facebook: [], instagram: [], x: [] } };
   }
 }
 
@@ -949,7 +996,7 @@ Return ONLY JSON (no markdown):
 interface SceneContext {
   // Surface placement
   surfaceYPercent: number;          // 0-100: top edge of the surface where product base goes
-  surfaceDepthHint: 'close'|'mid'|'far'; // how far the surface extends into the scene
+  surfaceDepthHint: 'close' | 'mid' | 'far'; // how far the surface extends into the scene
   availableWidthPercent: number;    // 0-100: how much of image width is free on the surface
 
   // Product scale (dynamically determined by scene objects and perspective)
@@ -960,7 +1007,7 @@ interface SceneContext {
   lightSourceXPercent: number;      // 0-100: horizontal position of main light
   lightSourceYPercent: number;      // 0-100: vertical position (0=top, 50=mid)
   lightTemperatureK: number;        // 2700=warm tungsten, 4000=neutral, 6500=cool daylight
-  lightIntensity: 'soft'|'medium'|'hard'; // determines specular highlight strength
+  lightIntensity: 'soft' | 'medium' | 'hard'; // determines specular highlight strength
 
   // Environment
   ambientDarkness: number;          // 0-100: how dark the background is (drives rim darkening)
@@ -1041,18 +1088,18 @@ confidence: Your confidence in surfaceYPercent accuracy (0-100).`,
     const parsed = JSON.parse(extractJsonStr(text));
 
     const result: SceneContext = {
-      surfaceYPercent:          Math.max(52, Math.min(85,  Number(parsed.surfaceYPercent)          || 68)),  // min 52%: surface never in upper half
-      surfaceDepthHint:         (['close','mid','far'].includes(parsed.surfaceDepthHint) ? parsed.surfaceDepthHint : 'mid') as 'close'|'mid'|'far',
-      availableWidthPercent:    Math.max(30, Math.min(100, Number(parsed.availableWidthPercent)    || 80)),
-      recommendedScalePercent:  Math.max(22, Math.min(55,  Number(parsed.recommendedScalePercent)  || 38)),
-      recommendedXOffsetPercent:Math.max(-20,Math.min(20,  Number(parsed.recommendedXOffsetPercent)|| 0)),
-      lightSourceXPercent:      Math.max(0,  Math.min(100, Number(parsed.lightSourceXPercent)      || 50)),
-      lightSourceYPercent:      Math.max(0,  Math.min(100, Number(parsed.lightSourceYPercent)      || 15)),
-      lightTemperatureK:        Math.max(2700,Math.min(6500,Number(parsed.lightTemperatureK)       || 4000)),
-      lightIntensity:           (['soft','medium','hard'].includes(parsed.lightIntensity) ? parsed.lightIntensity : 'medium') as 'soft'|'medium'|'hard',
-      ambientDarkness:          Math.max(0,  Math.min(100, Number(parsed.ambientDarkness)          || 50)),
-      hasPerspective:           Boolean(parsed.hasPerspective),
-      confidence:               Math.max(0,  Math.min(100, Number(parsed.confidence)               || 50)),
+      surfaceYPercent: Math.max(52, Math.min(85, Number(parsed.surfaceYPercent) || 68)),  // min 52%: surface never in upper half
+      surfaceDepthHint: (['close', 'mid', 'far'].includes(parsed.surfaceDepthHint) ? parsed.surfaceDepthHint : 'mid') as 'close' | 'mid' | 'far',
+      availableWidthPercent: Math.max(30, Math.min(100, Number(parsed.availableWidthPercent) || 80)),
+      recommendedScalePercent: Math.max(22, Math.min(55, Number(parsed.recommendedScalePercent) || 38)),
+      recommendedXOffsetPercent: Math.max(-20, Math.min(20, Number(parsed.recommendedXOffsetPercent) || 0)),
+      lightSourceXPercent: Math.max(0, Math.min(100, Number(parsed.lightSourceXPercent) || 50)),
+      lightSourceYPercent: Math.max(0, Math.min(100, Number(parsed.lightSourceYPercent) || 15)),
+      lightTemperatureK: Math.max(2700, Math.min(6500, Number(parsed.lightTemperatureK) || 4000)),
+      lightIntensity: (['soft', 'medium', 'hard'].includes(parsed.lightIntensity) ? parsed.lightIntensity : 'medium') as 'soft' | 'medium' | 'hard',
+      ambientDarkness: Math.max(0, Math.min(100, Number(parsed.ambientDarkness) || 50)),
+      hasPerspective: Boolean(parsed.hasPerspective),
+      confidence: Math.max(0, Math.min(100, Number(parsed.confidence) || 50)),
     };
     console.log(
       `[SCENE-ANALYZE] surfaceY=${result.surfaceYPercent}% | scale=${result.recommendedScalePercent}% | ` +
@@ -1080,7 +1127,7 @@ async function checkGeneratedImage(
   try {
     const imageContentBlock = await fetchImageAsClaudeBlock(imageUrl);
 
-  const systemPrompt = `You are a strict visual quality inspector AI. Your job is to check the generated image for composition errors.
+    const systemPrompt = `You are a strict visual quality inspector AI. Your job is to check the generated image for composition errors.
 Evaluate the image against the prompt: "${prompt}"
 
 We want a single, natural, integrated photograph or cohesive scene where ALL subjects are fully visible.
@@ -1177,7 +1224,7 @@ Return ONLY a JSON object (no markdown, no wrap):
     const text = response.content[0].type === 'text' ? response.content[0].text : '';
     const cleaned = extractJsonStr(text);
     const parsed = JSON.parse(cleaned);
-    
+
     let xmin = typeof parsed.xmin === 'number' ? parsed.xmin : 25;
     let xmax = typeof parsed.xmax === 'number' ? parsed.xmax : 75;
     let ymin = typeof parsed.ymin === 'number' ? parsed.ymin : 30;
@@ -1546,10 +1593,12 @@ OUTPUT FORMAT - return ONLY this JSON, no extra text, no markdown:
           max_tokens: 4000,
           temperature: 0.1,
           system: lightingSystemPrompt,
-          messages: [{ role: 'user', content: [imageContentBlock, {
-            type: 'text',
-            text: 'Analyze this product image using the physics laws provided. Return ONLY the JSON with lightingAnalysis key. Derive all numbers from what you observe — do not guess randomly.'
-          }] }],
+          messages: [{
+            role: 'user', content: [imageContentBlock, {
+              type: 'text',
+              text: 'Analyze this product image using the physics laws provided. Return ONLY the JSON with lightingAnalysis key. Derive all numbers from what you observe — do not guess randomly.'
+            }]
+          }],
         });
 
         const lightingText = lightingResp.content[0].type === 'text' ? lightingResp.content[0].text : '{}';
@@ -1595,9 +1644,33 @@ OUTPUT FORMAT - return ONLY this JSON, no extra text, no markdown:
   }
 });
 
+// Route: Hashtags generation only (without image generation)
+app.post('/api/image/hashtags-only', async (req, res) => {
+  const { scenePrompt, brandKit } = req.body;
+  if (!scenePrompt) {
+    return res.status(400).json({ error: 'scenePrompt is required.' });
+  }
+
+  console.log(`\n[HASHTAGS-ONLY] Starting hashtag generation for prompt: "${scenePrompt}"`);
+  try {
+    const brandRules = brandKit?.visualRules || [];
+    const safeBrandDna = brandRules.join('; ');
+    const decomposed = await decomposeUserPrompt(
+      scenePrompt.trim(),
+      [], // no slot subjects for hashtags only
+      safeBrandDna,
+      false
+    );
+    res.json({ hashtags: decomposed.hashtags || { facebook: [], instagram: [], x: [] } });
+  } catch (err: any) {
+    console.error(`[HASHTAGS-ONLY] Error:`, err);
+    res.status(500).json({ error: 'Failed to generate hashtags', details: err.message });
+  }
+});
+
 // Route: Composite image generation
 app.post('/api/image/composite-generate', async (req, res) => {
-  const { slots, scenePrompt, brandKit, aspectRatio, width, height, previewOnly, preserveOriginal, productAwareBg, exactTextOnly = false } = req.body;
+  const { slots, scenePrompt, brandKit, aspectRatio, width, height, previewOnly, preserveOriginal, productAwareBg, exactTextOnly = false, useBrandColors = false } = req.body;
   if (!slots || !Array.isArray(slots) || slots.length === 0) {
     return res.status(400).json({ error: 'slots array is required.' });
   }
@@ -1614,7 +1687,7 @@ app.post('/api/image/composite-generate', async (req, res) => {
     });
 
     const brandRules = brandKit?.visualRules || [];
-    const brandTone  = brandKit?.tone || [];
+    const brandTone = brandKit?.tone || [];
     // SAFETY: brandKit.brandDna can arrive as string, object, or array depending on frontend version.
     // Always force to string before any string operations (.match, template literals, etc.)
     const safeBrandDna: string = (() => {
@@ -1647,8 +1720,8 @@ app.post('/api/image/composite-generate', async (req, res) => {
     console.log(`[COMPOSITE-GENERATE] Decomposed — scene: "${effectiveScenePrompt}" | layerText: ${decomposed.layerText} | layerCta: ${decomposed.layerCta}`);
 
     // Intelligently compose, translate and merge scene prompt with slot contents (and strip brand names)
-    let activePrompt = await intelligentComposePrompt(effectiveScenePrompt, slotSubjects, brandRules);
-    
+    let activePrompt = await intelligentComposePrompt(effectiveScenePrompt, slotSubjects, brandRules, useBrandColors ? brandKit : undefined);
+
     // Style tags from DNA — only append if user didn't already specify a style/mood/atmosphere.
     // If the user's scene prompt contains explicit mood words, DNA style is secondary.
     // SCENE OVERRIDE mode: DNA style ALWAYS suppressed — scenario wins completely.
@@ -1675,7 +1748,7 @@ app.post('/api/image/composite-generate', async (req, res) => {
 
     if (previewOnly) {
       console.log(`[COMPOSITE-GENERATE] Preview only requested. Composed prompt: "${activePrompt}"`);
-      return res.json({ prompt: activePrompt, decomposedLayerText: decomposed.layerText, decomposedLayerCta: decomposed.layerCta });
+      return res.json({ prompt: activePrompt, decomposedLayerText: decomposed.layerText, decomposedLayerCta: decomposed.layerCta, hashtags: decomposed.hashtags });
     }
 
     let inputImage: string | undefined = undefined;
@@ -1683,7 +1756,7 @@ app.post('/api/image/composite-generate', async (req, res) => {
 
     if (slots.length > 1) {
       // Multiple slots: use the best available version of each slot (upscaled > preprocessed > original)
-      inputImage  = slots[0]?.preprocessedUrl || slots[0]?.originalUrl || undefined;
+      inputImage = slots[0]?.preprocessedUrl || slots[0]?.originalUrl || undefined;
       inputImage2 = slots[1]?.preprocessedUrl || slots[1]?.originalUrl || undefined;
     } else {
       // Single slot:
@@ -1693,7 +1766,7 @@ app.post('/api/image/composite-generate', async (req, res) => {
       const preprocessed = slots[0]?.preprocessedUrl || undefined;
       const upscaled = slots[0]?.upscaledUrl || undefined;
 
-      inputImage  = preprocessed || slots[0]?.originalUrl || undefined; // fallback to original only if no cutout
+      inputImage = preprocessed || slots[0]?.originalUrl || undefined; // fallback to original only if no cutout
       inputImage2 = upscaled && upscaled !== preprocessed ? upscaled : undefined;
     }
 
@@ -1793,26 +1866,26 @@ app.post('/api/image/composite-generate', async (req, res) => {
           lightingAnalysis = primarySlot.lightingAnalysis;
           // Use the pre-built fullBgPrompt from analyze phase
           // Strip conflicting clean-white-studio hints from the LA fullBgPrompt.
-        // The bgOnlyPrompt already adds dark atmospheric mood — if the LA JSON
-        // says "clean white seamless studio", it contradicts the mood instruction
-        // and FLUX gets confused → results in plain white wall + industrial lamp mix.
-        let rawAddition = lightingAnalysis.prompts?.fullBgPrompt || '';
-        // RULE: Strip ALL background-type prescriptions — these describe the ORIGINAL product photo
-        // background, not the user's requested scene. They override the user's mood/atmosphere.
-        rawAddition = rawAddition
-          .replace(/clean white seamless studio background[^,.]*/gi, '')
-          .replace(/seamless white background[^,.]*/gi, '')
-          .replace(/white studio[^,.]*/gi, '')
-          .replace(/professional product photography (style|background)[^,.]*/gi, '')
-          .replace(/neutral (clean|white) background[^,.]*/gi, '')
-          .replace(/studio (setting|environment|background)[^,.]*/gi, '')
-          .replace(/,\s*,/g, ',').trim().replace(/^[,.]\s*/, '');
-        // RULE: Strip explicit light-source POSITION phrases.
-        rawAddition = rawAddition
-          .replace(/key light from [^,.;]*/gi, '')
-          .replace(/\blight (source |position )?(from|at|on) (the )?(top-?right|top-?left|right|left|top|bottom)[^,.;]*/gi, '')
-          .replace(/,\s*,/g, ',').trim().replace(/^[,.]\s*/, '');
-        productAwareAddition = rawAddition;
+          // The bgOnlyPrompt already adds dark atmospheric mood — if the LA JSON
+          // says "clean white seamless studio", it contradicts the mood instruction
+          // and FLUX gets confused → results in plain white wall + industrial lamp mix.
+          let rawAddition = lightingAnalysis.prompts?.fullBgPrompt || '';
+          // RULE: Strip ALL background-type prescriptions — these describe the ORIGINAL product photo
+          // background, not the user's requested scene. They override the user's mood/atmosphere.
+          rawAddition = rawAddition
+            .replace(/clean white seamless studio background[^,.]*/gi, '')
+            .replace(/seamless white background[^,.]*/gi, '')
+            .replace(/white studio[^,.]*/gi, '')
+            .replace(/professional product photography (style|background)[^,.]*/gi, '')
+            .replace(/neutral (clean|white) background[^,.]*/gi, '')
+            .replace(/studio (setting|environment|background)[^,.]*/gi, '')
+            .replace(/,\s*,/g, ',').trim().replace(/^[,.]\s*/, '');
+          // RULE: Strip explicit light-source POSITION phrases.
+          rawAddition = rawAddition
+            .replace(/key light from [^,.;]*/gi, '')
+            .replace(/\blight (source |position )?(from|at|on) (the )?(top-?right|top-?left|right|left|top|bottom)[^,.;]*/gi, '')
+            .replace(/,\s*,/g, ',').trim().replace(/^[,.]\s*/, '');
+          productAwareAddition = rawAddition;
           console.log(
             `[COMPOSITE-GENERATE][preserveOriginal] [PRODUCT-AWARE-v2] Using pre-computed LightingAnalysis:` +
             ` scenario=${lightingAnalysis.meta?.lightingScenario}` +
@@ -1895,8 +1968,8 @@ Return ONLY JSON, no markdown:
       // placement.perspectiveDistortion: 'none' | 'slight' | 'moderate' | 'strong'
       const laPlacement = lightingAnalysis?.placement;
       const pCameraAngle = laPlacement?.cameraAngle ?? 'slightly-above';
-      const pCameraFOV   = laPlacement?.cameraFOV   ?? 'normal';
-      const pPerspDist   = laPlacement?.perspectiveDistortion ?? 'slight';
+      const pCameraFOV = laPlacement?.cameraFOV ?? 'normal';
+      const pPerspDist = laPlacement?.perspectiveDistortion ?? 'slight';
 
       // FLUX prompt wording from §6.1 — describes WHAT WE SEE, not math angles
       const cameraAnglePrompts: Record<string, string> = {
@@ -1923,9 +1996,9 @@ Return ONLY JSON, no markdown:
           'strong three-point perspective convergence',
       };
       const fovPrompts: Record<string, string> = {
-        'wide':       'wide-angle lens, slight barrel distortion at table edges, strong perspective depth, nearby elements appear larger',
-        'normal':     'standard lens, natural undistorted perspective, proportions appear true to life',
-        'telephoto':  'telephoto compression, background appears closer to product, subtle telephoto flattening, shallow depth of field',
+        'wide': 'wide-angle lens, slight barrel distortion at table edges, strong perspective depth, nearby elements appear larger',
+        'normal': 'standard lens, natural undistorted perspective, proportions appear true to life',
+        'telephoto': 'telephoto compression, background appears closer to product, subtle telephoto flattening, shallow depth of field',
       };
       perspectiveCameraInstruction = [
         cameraAnglePrompts[pCameraAngle] ?? cameraAnglePrompts['slightly-above'],
@@ -1946,8 +2019,8 @@ Return ONLY JSON, no markdown:
       // SAFE for BG: volumetricLightPrompt (scene atmosphere: fog, haze, god rays).
       // SAFE for BG: compositionPrompt (scene framing rules, not product description).
       const bgSafeExtraParts: string[] = [
-        laPrompts?.volumetricLightPrompt  || '',  // scene atmosphere — OK for BG
-        laCompositionPrompt               || '',  // scene framing — OK for BG
+        laPrompts?.volumetricLightPrompt || '',  // scene atmosphere — OK for BG
+        laCompositionPrompt || '',  // scene framing — OK for BG
         // laPrompts?.materialPromptSuffix  — PRODUCT description, NOT for BG
         // laPrompts?.fresnelPrompt         — PRODUCT edge effect, NOT for BG
         // laPrompts?.sssEdgePrompt         — PRODUCT material, NOT for BG
@@ -1955,7 +2028,7 @@ Return ONLY JSON, no markdown:
       ].filter(Boolean);
       const extraPromptStr = bgSafeExtraParts.join(', ');
       if (laPrompts?.materialPromptSuffix || laPrompts?.fresnelPrompt || laPrompts?.threePointPrompt) {
-        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA] Product prompts (compositor-only, NOT in BG): mat="${(laPrompts?.materialPromptSuffix||'').slice(0,40)}" fresnel="${(laPrompts?.fresnelPrompt||'').slice(0,40)}" 3pt="${(laPrompts?.threePointPrompt||'').slice(0,40)}"`);
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA] Product prompts (compositor-only, NOT in BG): mat="${(laPrompts?.materialPromptSuffix || '').slice(0, 40)}" fresnel="${(laPrompts?.fresnelPrompt || '').slice(0, 40)}" 3pt="${(laPrompts?.threePointPrompt || '').slice(0, 40)}"`);
       }
       // ── Build bgOnlyPrompt with user mood FIRST (highest priority to FLUX) ──────
       // CRITICAL: sceneKeywords only contains the LOCATION (e.g. "workshop") — the
@@ -2064,10 +2137,10 @@ Return ONLY JSON, no markdown:
       // Save BG scene darkness BEFORE any product-aware override — needed for warm tint boost.
       const bgSceneAnalysisDarkness = sceneCtx.ambientDarkness;  // from SCENE-ANALYZE, unmodified
       if (productAwareBg && lightingAnalysis) {
-        const origTemp      = sceneCtx.lightTemperatureK;
-        const origXPct      = sceneCtx.lightSourceXPercent;
+        const origTemp = sceneCtx.lightTemperatureK;
+        const origXPct = sceneCtx.lightSourceXPercent;
         const origIntensity = sceneCtx.lightIntensity;
-        const origDarkness  = sceneCtx.ambientDarkness;
+        const origDarkness = sceneCtx.ambientDarkness;
 
         // Direct numeric override — no string conversion needed
         if (lightingAnalysis.lightSource?.temperatureK) {
@@ -2100,11 +2173,11 @@ Return ONLY JSON, no markdown:
         // Fix: nullify these values so our dynamic scene-based formulas run instead.
         // Only STRUCTURAL values (hasDropShadow, dropWidthMultiplier, penumbraWidth) are kept.
         if (lightingAnalysis.shadow) {
-          lightingAnalysis.shadow.dropOffsetX  = undefined;  // use sceneCtx.lightSourceXPercent formula
-          lightingAnalysis.shadow.dropOffsetY  = undefined;  // no y-shift by default
-          lightingAnalysis.shadow.dropOpacity  = undefined;  // use laDarkness formula
+          lightingAnalysis.shadow.dropOffsetX = undefined;  // use sceneCtx.lightSourceXPercent formula
+          lightingAnalysis.shadow.dropOffsetY = undefined;  // no y-shift by default
+          lightingAnalysis.shadow.dropOpacity = undefined;  // use laDarkness formula
           lightingAnalysis.shadow.dropLengthPx = undefined;  // use finalH * 0.12 formula
-          lightingAnalysis.shadow.dropBlurPx   = undefined;  // use penumbraBlur formula
+          lightingAnalysis.shadow.dropBlurPx = undefined;  // use penumbraBlur formula
           lightingAnalysis.shadow.penumbraWidth = undefined;  // use shadowH-based blur formula (studio penumbra is wrong for scene)
           console.log(`[COMPOSITE-GENERATE][preserveOriginal] [PRODUCT-AWARE-v2] Studio shadow directionals nullified → dynamic scene-based shadow will be used`);
         }
@@ -2188,7 +2261,7 @@ Return ONLY JSON, no markdown:
         await fs.promises.writeFile(bgHarmonizedPath, harmonizedBgBuffer);
         debugBgHarmonizedUrl = `http://localhost:${port}/renders/${bgHarmonizedFilename}`;
         console.log(`[DEBUG-IMG] ▶ BG #2 (harmonized FLUX output): ${debugBgHarmonizedUrl}`);
-        fs.promises.unlink(bgPhPath).catch(() => {}); // delete temp ph file, keep harmonized
+        fs.promises.unlink(bgPhPath).catch(() => { }); // delete temp ph file, keep harmonized
         console.log(`[COMPOSITE-GENERATE][preserveOriginal] [F] ✅ BG harmonized in ${harmonizedBgResult.generationTime}s — product label untouched`);
       } catch (bgHarmonizeErr: any) {
         console.warn(`[COMPOSITE-GENERATE][preserveOriginal] [F] ⚠️ BG harmonize failed (${(bgHarmonizeErr as any).message}) — using original BG`);
@@ -2220,16 +2293,16 @@ Return ONLY JSON, no markdown:
         const rawBuf = await sharp(rembgBuffer).raw().toBuffer();
         let pass1Count = 0, pass2Count = 0, pass3Count = 0;
         for (let i = 0; i < rawBuf.length; i += 4) {
-          const r = rawBuf[i], g = rawBuf[i+1], b = rawBuf[i+2], a = rawBuf[i+3];
+          const r = rawBuf[i], g = rawBuf[i + 1], b = rawBuf[i + 2], a = rawBuf[i + 3];
           const rgb = r + g + b;
           if (rgb > 480 && a > 0 && a < 120) {
-            rawBuf[i+3] = 0;     // near-white, mostly transparent → erase (background residue)
+            rawBuf[i + 3] = 0;     // near-white, mostly transparent → erase (background residue)
             pass1Count++;
           } else if (rgb > 480 && a >= 120 && a < 240) {
-            rawBuf[i+3] = 255;   // near-white, mostly opaque → boost to solid (product body)
+            rawBuf[i + 3] = 255;   // near-white, mostly opaque → boost to solid (product body)
             pass2Count++;
           } else if (a < 20) {
-            rawBuf[i+3] = 0;     // any very-low-alpha → erase (noise)
+            rawBuf[i + 3] = 0;     // any very-low-alpha → erase (noise)
             pass3Count++;
           }
         }
@@ -2238,7 +2311,7 @@ Return ONLY JSON, no markdown:
         }).png().toBuffer();
         console.log(`[COMPOSITE-GENERATE][preserveOriginal] [FIX1] rembg alpha: ` +
           `pass1(white→0)=${pass1Count} pass2(white→255)=${pass2Count} pass3(noise→0)=${pass3Count} | ` +
-          `total modified=${pass1Count+pass2Count+pass3Count}px`);
+          `total modified=${pass1Count + pass2Count + pass3Count}px`);
       }
 
 
@@ -2297,7 +2370,7 @@ Return ONLY JSON, no markdown:
       if (productTargetW > bgW) { productTargetW = bgW; productTargetH = Math.round(productTargetW / productAspect); }
       if (productTargetH > bgH) { productTargetH = bgH; productTargetW = Math.round(productTargetH * productAspect); }
 
-      console.log(`[COMPOSITE-GENERATE][preserveOriginal] BG: ${bgW}×${bgH} | Product: ${productTargetW}×${productTargetH} (${Math.round(productTargetH/bgH*100)}% of bgH | Claude suggested ${sceneCtx.recommendedScalePercent}%)`);
+      console.log(`[COMPOSITE-GENERATE][preserveOriginal] BG: ${bgW}×${bgH} | Product: ${productTargetW}×${productTargetH} (${Math.round(productTargetH / bgH * 100)}% of bgH | Claude suggested ${sceneCtx.recommendedScalePercent}%)`);
 
       const scaledProductBuffer = await sharp(rembgBuffer)
         .resize(productTargetW, productTargetH, { fit: 'inside', withoutEnlargement: false })
@@ -2333,9 +2406,9 @@ Return ONLY JSON, no markdown:
       const finalH = scaledMeta.height || productTargetH;
 
       // ── Positioning: from sceneCtx surface + x-offset ──────────────────────
-      const centerX    = Math.round(bgW / 2) + Math.round(bgW * (sceneCtx.recommendedXOffsetPercent / 100));
+      const centerX = Math.round(bgW / 2) + Math.round(bgW * (sceneCtx.recommendedXOffsetPercent / 100));
       const productLeft = Math.max(0, Math.min(bgW - finalW, centerX - Math.round(finalW / 2)));
-      const productTop  = Math.max(0, Math.min(surfaceY - finalH, bgH - finalH - 5));
+      const productTop = Math.max(0, Math.min(surfaceY - finalH, bgH - finalH - 5));
 
       // Sanity check: productTop must be >= 12% of bgH (same constraint as maxProductH)
       const minProductTop = Math.round(bgH * 0.12);
@@ -2370,11 +2443,11 @@ Return ONLY JSON, no markdown:
       const lightTheta = la?.lightSource?.directionAngle ?? (90 - Math.min(80, (sceneCtx.lightSourceYPercent ?? 15) * 1.5));
       const rad = (lightTheta * Math.PI) / 180;
       const lOverH = Math.abs(Math.tan(rad)) > 0.05 ? 1 / Math.tan(rad) : 0;
-      
+
       // Perspective adjustment: shadows receding into distance appear shorter on 2D canvas
       // unless it's a bird-eye view.
       const groundPerspectiveFactor = cameraAngle === 'bird-eye' ? 1.0 : 0.65;
-      
+
       const rawDropLengthPx = la?.shadow?.dropLengthPx;
       const shadowH = rawDropLengthPx
         ? Math.round(rawDropLengthPx * (finalH / 1000) * perspScale)
@@ -2404,7 +2477,7 @@ Return ONLY JSON, no markdown:
         : 0;
       // Blur: FIXED range 22-42px — old formula (shadowH*0.8 = 213px) made shadows invisible.
       // Penumbra should be a fixed photographic soft-shadow, not scaled by shadow length.
-      const penumbraBlurOverride: Record<string,number> = { 'none': 6, 'narrow': 14, 'medium': 24, 'wide': 38 };
+      const penumbraBlurOverride: Record<string, number> = { 'none': 6, 'narrow': 14, 'medium': 24, 'wide': 38 };
       const penumbraBlur = la?.shadow?.penumbraWidth ? penumbraBlurOverride[la.shadow.penumbraWidth] : undefined;
       const shadowBlurPx = Math.min(42, Math.max(22, la?.shadow?.dropBlurPx ?? penumbraBlur ?? 28));
       // GRADIENT shadow: cx=50%, cy=10% — gradient center at top of shadow ellipse
@@ -2419,7 +2492,7 @@ Return ONLY JSON, no markdown:
         `<stop offset="45%"  stop-color="black" stop-opacity="${(shadowOpacity * 0.40).toFixed(2)}"/>` +
         `<stop offset="100%" stop-color="black" stop-opacity="0"/>` +
         `</radialGradient></defs>` +
-        `<ellipse cx="${Math.round(shadowCanW/2)}" cy="${Math.round(shadowCanH/2)}" rx="${Math.round(shadowW/2)}" ry="${Math.round(shadowH/2)}" fill="url(#sg)"/>` +
+        `<ellipse cx="${Math.round(shadowCanW / 2)}" cy="${Math.round(shadowCanH / 2)}" rx="${Math.round(shadowW / 2)}" ry="${Math.round(shadowH / 2)}" fill="url(#sg)"/>` +
         `</svg>`
       );
       const shadowBufferFull = await sharp({
@@ -2434,11 +2507,11 @@ Return ONLY JSON, no markdown:
       // Sharp throws 'Image to composite must have same dimensions or smaller' if the
       // overlay extends outside the base. We must extract only the visible intersection.
       let shadowLeftAdj = shadowLeft - shadowPad;
-      let shadowTopAdj  = shadowTop  - shadowPad;
+      let shadowTopAdj = shadowTop - shadowPad;
       // Crop region inside the full shadow canvas that overlaps with bg
-      const cropLeft   = Math.max(0, -shadowLeftAdj);
-      const cropTop    = Math.max(0, -shadowTopAdj);
-      const cropRight  = Math.min(shadowCanW, bgW - shadowLeftAdj);
+      const cropLeft = Math.max(0, -shadowLeftAdj);
+      const cropTop = Math.max(0, -shadowTopAdj);
+      const cropRight = Math.min(shadowCanW, bgW - shadowLeftAdj);
       const cropBottom = Math.min(shadowCanH, bgH - shadowTopAdj);
       const cropW = Math.max(1, cropRight - cropLeft);
       const cropH = Math.max(1, cropBottom - cropTop);
@@ -2448,7 +2521,7 @@ Return ONLY JSON, no markdown:
         : shadowBufferFull;
       // Adjust placement to match the crop
       shadowLeftAdj = Math.max(0, shadowLeftAdj + cropLeft);
-      shadowTopAdj  = Math.max(0, shadowTopAdj  + cropTop);
+      shadowTopAdj = Math.max(0, shadowTopAdj + cropTop);
 
       // ── Fix #3: Apply rim darkening + warm tint DIRECTLY onto product PNG ──
       // Reason: multiply/soft-light blend on a full-size overlay buffer (finalW×finalH)
@@ -2488,7 +2561,7 @@ Return ONLY JSON, no markdown:
         const warmIntensity = Math.max(0, (5000 - sceneCtx.lightTemperatureK) / 2300);
         warmOpacity = warmIntensity * 0.28;
         warmG = Math.round(130 + (sceneCtx.lightTemperatureK - 2700) * 0.02);
-        warmB = Math.round(25  + (sceneCtx.lightTemperatureK - 2700) * 0.018);
+        warmB = Math.round(25 + (sceneCtx.lightTemperatureK - 2700) * 0.018);
       }
       const warmCoverage = Math.round(finalH * 0.45);
 
@@ -2535,7 +2608,7 @@ Return ONLY JSON, no markdown:
           `<svg width="${finalW}" height="${warmCoverage}" xmlns="http://www.w3.org/2000/svg">` +
           `<defs><linearGradient id="wt" x1="0" y1="0" x2="0" y2="1">` +
           `<stop offset="0%"   stop-color="rgb(255,${warmG},${warmB})" stop-opacity="${warmOpacity.toFixed(3)}"/>` +
-          `<stop offset="50%"  stop-color="rgb(255,${warmG},${warmB})" stop-opacity="${(warmOpacity*0.45).toFixed(3)}"/>` +
+          `<stop offset="50%"  stop-color="rgb(255,${warmG},${warmB})" stop-opacity="${(warmOpacity * 0.45).toFixed(3)}"/>` +
           `<stop offset="100%" stop-color="rgb(255,${warmG},${warmB})" stop-opacity="0"/>` +
           `</linearGradient></defs>` +
           `<rect width="${finalW}" height="${warmCoverage}" fill="url(#wt)"/>` +
@@ -2565,7 +2638,7 @@ Return ONLY JSON, no markdown:
       if (la?.compositing?.formShadowGradient?.enabled) {
         const fsg = la.compositing.formShadowGradient;
         const fsgOpacity = clamp(fsg.opacity ?? 0.28, 0.10, 0.45);
-        const topStop   = clamp(1 - (fsg.topBrightness    ?? 0.95), 0, 0.4);   // invert: bright top = low dark overlay
+        const topStop = clamp(1 - (fsg.topBrightness ?? 0.95), 0, 0.4);   // invert: bright top = low dark overlay
         const bottomStop = clamp(1 - (fsg.bottomBrightness ?? 0.30), 0.3, 0.8); // invert: dark bottom = high dark overlay
         const formGradSvg = Buffer.from(
           `<svg width="${finalW}" height="${finalH}" xmlns="http://www.w3.org/2000/svg">` +
@@ -2582,7 +2655,7 @@ Return ONLY JSON, no markdown:
         productWithEffects = await sharp(productWithEffects)
           .composite([{ input: formGradBuf, left: 0, top: 0, blend: 'multiply' }])
           .png().toBuffer();
-        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA-v2] Form shadow gradient: opacity=${fsgOpacity.toFixed(3)} topDark=${(topStop*fsgOpacity).toFixed(3)} bottomDark=${(bottomStop*fsgOpacity).toFixed(3)}`);
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA-v2] Form shadow gradient: opacity=${fsgOpacity.toFixed(3)} topDark=${(topStop * fsgOpacity).toFixed(3)} bottomDark=${(bottomStop * fsgOpacity).toFixed(3)}`);
       } else {
         // Fallback: always apply a mild Lambert gradient (25% darkening at base)
         const defaultGradSvg = Buffer.from(
@@ -2608,14 +2681,14 @@ Return ONLY JSON, no markdown:
       // White PP plastic (IOR~1.49): edges 15-25% brighter than center face.
       // Applied as a soft white screen-blend on the left and right edges.
       if (la?.material?.fresnelEdgeGlow === true) {
-        const fresnelScale: Record<string,number> = { 'subtle': 0.12, 'medium': 0.22, 'strong': 0.38 };
+        const fresnelScale: Record<string, number> = { 'subtle': 0.12, 'medium': 0.22, 'strong': 0.38 };
         const fresnelOpacity = fresnelScale[la.material.fresnelIntensity ?? 'subtle'] ?? 0.12;
         const fresnelW = Math.round(finalW * 0.12);  // 12% of product width per edge
         const fresnelSvg = Buffer.from(
           `<svg width="${finalW}" height="${finalH}" xmlns="http://www.w3.org/2000/svg">` +
           `<defs>` +
-          `<linearGradient id="fl" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="white" stop-opacity="${fresnelOpacity.toFixed(2)}"/><stop offset="${(fresnelW/finalW*100).toFixed(1)}%" stop-color="white" stop-opacity="0"/></linearGradient>` +
-          `<linearGradient id="fr" x1="1" y1="0" x2="0" y2="0"><stop offset="0%" stop-color="white" stop-opacity="${fresnelOpacity.toFixed(2)}"/><stop offset="${(fresnelW/finalW*100).toFixed(1)}%" stop-color="white" stop-opacity="0"/></linearGradient>` +
+          `<linearGradient id="fl" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="white" stop-opacity="${fresnelOpacity.toFixed(2)}"/><stop offset="${(fresnelW / finalW * 100).toFixed(1)}%" stop-color="white" stop-opacity="0"/></linearGradient>` +
+          `<linearGradient id="fr" x1="1" y1="0" x2="0" y2="0"><stop offset="0%" stop-color="white" stop-opacity="${fresnelOpacity.toFixed(2)}"/><stop offset="${(fresnelW / finalW * 100).toFixed(1)}%" stop-color="white" stop-opacity="0"/></linearGradient>` +
           `</defs>` +
           `<rect width="${finalW}" height="${finalH}" fill="url(#fl)"/>` +
           `<rect width="${finalW}" height="${finalH}" fill="url(#fr)"/>` +
@@ -2656,15 +2729,15 @@ Return ONLY JSON, no markdown:
         const isBacklit = (la.lightSource?.type === 'backlit') || (la.lightSource?.directionLabel === 'back');
         const isHighAngle = theta >= 70;  // overhead light also causes SSS on rim
         if (isBacklit || isHighAngle) {
-          const sssScale: Record<string,number> = { 'weak': 0.08, 'medium': 0.18, 'strong': 0.30 };
+          const sssScale: Record<string, number> = { 'weak': 0.08, 'medium': 0.18, 'strong': 0.30 };
           const sssOp = sssScale[la.material.sssStrength ?? 'weak'] ?? 0.08;
           const sssColor = la.material.sssColorShift === 'warm' ? [255, 210, 150] : [255, 255, 255];
           const sssW = Math.round(finalW * 0.15);
           const sssSvg = Buffer.from(
             `<svg width="${finalW}" height="${finalH}" xmlns="http://www.w3.org/2000/svg">` +
             `<defs>` +
-            `<linearGradient id="sl" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="rgb(${sssColor[0]},${sssColor[1]},${sssColor[2]})" stop-opacity="${sssOp.toFixed(2)}"/><stop offset="${(sssW/finalW*100).toFixed(1)}%" stop-color="rgb(${sssColor[0]},${sssColor[1]},${sssColor[2]})" stop-opacity="0"/></linearGradient>` +
-            `<linearGradient id="sr" x1="1" y1="0" x2="0" y2="0"><stop offset="0%" stop-color="rgb(${sssColor[0]},${sssColor[1]},${sssColor[2]})" stop-opacity="${sssOp.toFixed(2)}"/><stop offset="${(sssW/finalW*100).toFixed(1)}%" stop-color="rgb(${sssColor[0]},${sssColor[1]},${sssColor[2]})" stop-opacity="0"/></linearGradient>` +
+            `<linearGradient id="sl" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="rgb(${sssColor[0]},${sssColor[1]},${sssColor[2]})" stop-opacity="${sssOp.toFixed(2)}"/><stop offset="${(sssW / finalW * 100).toFixed(1)}%" stop-color="rgb(${sssColor[0]},${sssColor[1]},${sssColor[2]})" stop-opacity="0"/></linearGradient>` +
+            `<linearGradient id="sr" x1="1" y1="0" x2="0" y2="0"><stop offset="0%" stop-color="rgb(${sssColor[0]},${sssColor[1]},${sssColor[2]})" stop-opacity="${sssOp.toFixed(2)}"/><stop offset="${(sssW / finalW * 100).toFixed(1)}%" stop-color="rgb(${sssColor[0]},${sssColor[1]},${sssColor[2]})" stop-opacity="0"/></linearGradient>` +
             `</defs>` +
             `<rect width="${finalW}" height="${finalH}" fill="url(#sl)"/>` +
             `<rect width="${finalW}" height="${finalH}" fill="url(#sr)"/>` +
@@ -2687,23 +2760,23 @@ Return ONLY JSON, no markdown:
         const rlOp = clamp(rimLightCfg.opacity, 0, 0.50);
         const rlW = Math.round(finalW * (rimLightCfg.widthMultiplier ?? 0.15));
         // Build a gradient on the correct side
-        const isLeft  = rimLightCfg.side === 'left';
+        const isLeft = rimLightCfg.side === 'left';
         const isRight = rimLightCfg.side === 'right';
-        const isTop   = rimLightCfg.side === 'top';
+        const isTop = rimLightCfg.side === 'top';
         const rlSvgParts: string[] = [`<svg width="${finalW}" height="${finalH}" xmlns="http://www.w3.org/2000/svg"><defs>`];
         if (isLeft || !isRight && !isTop) {
-          rlSvgParts.push(`<linearGradient id="rll" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="white" stop-opacity="${rlOp.toFixed(2)}"/><stop offset="${(rlW/finalW*100).toFixed(1)}%" stop-color="white" stop-opacity="0"/></linearGradient>`);
+          rlSvgParts.push(`<linearGradient id="rll" x1="0" y1="0" x2="1" y2="0"><stop offset="0%" stop-color="white" stop-opacity="${rlOp.toFixed(2)}"/><stop offset="${(rlW / finalW * 100).toFixed(1)}%" stop-color="white" stop-opacity="0"/></linearGradient>`);
         }
         if (isRight || !isLeft && !isTop) {
-          rlSvgParts.push(`<linearGradient id="rlr" x1="1" y1="0" x2="0" y2="0"><stop offset="0%" stop-color="white" stop-opacity="${rlOp.toFixed(2)}"/><stop offset="${(rlW/finalW*100).toFixed(1)}%" stop-color="white" stop-opacity="0"/></linearGradient>`);
+          rlSvgParts.push(`<linearGradient id="rlr" x1="1" y1="0" x2="0" y2="0"><stop offset="0%" stop-color="white" stop-opacity="${rlOp.toFixed(2)}"/><stop offset="${(rlW / finalW * 100).toFixed(1)}%" stop-color="white" stop-opacity="0"/></linearGradient>`);
         }
         if (isTop) {
-          rlSvgParts.push(`<linearGradient id="rlt" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="white" stop-opacity="${rlOp.toFixed(2)}"/><stop offset="${(rlW/finalW*100).toFixed(1)}%" stop-color="white" stop-opacity="0"/></linearGradient>`);
+          rlSvgParts.push(`<linearGradient id="rlt" x1="0" y1="0" x2="0" y2="1"><stop offset="0%" stop-color="white" stop-opacity="${rlOp.toFixed(2)}"/><stop offset="${(rlW / finalW * 100).toFixed(1)}%" stop-color="white" stop-opacity="0"/></linearGradient>`);
         }
         rlSvgParts.push(`</defs>`);
-        if (isLeft  || !isRight && !isTop) rlSvgParts.push(`<rect width="${finalW}" height="${finalH}" fill="url(#rll)"/>`);
-        if (isRight || !isLeft && !isTop)  rlSvgParts.push(`<rect width="${finalW}" height="${finalH}" fill="url(#rlr)"/>`);
-        if (isTop)                          rlSvgParts.push(`<rect width="${finalW}" height="${finalH}" fill="url(#rlt)"/>`);
+        if (isLeft || !isRight && !isTop) rlSvgParts.push(`<rect width="${finalW}" height="${finalH}" fill="url(#rll)"/>`);
+        if (isRight || !isLeft && !isTop) rlSvgParts.push(`<rect width="${finalW}" height="${finalH}" fill="url(#rlr)"/>`);
+        if (isTop) rlSvgParts.push(`<rect width="${finalW}" height="${finalH}" fill="url(#rlt)"/>`);
         rlSvgParts.push(`</svg>`);
         const rlBuf = await svgToTransparentPng(Buffer.from(rlSvgParts.join('')), finalW, finalH);
         productWithEffects = await sharp(productWithEffects)
@@ -2719,11 +2792,11 @@ Return ONLY JSON, no markdown:
           `<defs>` +
           `<linearGradient id="rl" x1="0" y1="0" x2="1" y2="0">` +
           `<stop offset="0%"             stop-color="black" stop-opacity="${rimOpacity.toFixed(3)}"/>` +
-          `<stop offset="${(rimW/finalW*100).toFixed(1)}%" stop-color="black" stop-opacity="0"/>` +
+          `<stop offset="${(rimW / finalW * 100).toFixed(1)}%" stop-color="black" stop-opacity="0"/>` +
           `</linearGradient>` +
           `<linearGradient id="rr" x1="1" y1="0" x2="0" y2="0">` +
           `<stop offset="0%"             stop-color="black" stop-opacity="${rimOpacity.toFixed(3)}"/>` +
-          `<stop offset="${(rimW/finalW*100).toFixed(1)}%" stop-color="black" stop-opacity="0"/>` +
+          `<stop offset="${(rimW / finalW * 100).toFixed(1)}%" stop-color="black" stop-opacity="0"/>` +
           `</linearGradient>` +
           `</defs>` +
           `<rect width="${finalW}" height="${finalH}" fill="url(#rl)"/>` +
@@ -2762,11 +2835,11 @@ Return ONLY JSON, no markdown:
       // CRITICAL: Clamp all layer placements to BG bounds before compositing.
       // Sharp throws if any overlay extends outside the base image.
       const safeProductLeft = Math.max(0, Math.min(bgW - 1, productLeft));
-      const safeProductTop  = Math.max(0, Math.min(bgH - 1, productTop));
+      const safeProductTop = Math.max(0, Math.min(bgH - 1, productTop));
       const baseComposite = await sharp(harmonizedBgBuffer)
         .composite([
-          { input: shadowBuffer,        left: shadowLeftAdj, top: shadowTopAdj, blend: 'multiply' },
-          { input: productWithEffects,  left: safeProductLeft, top: safeProductTop, blend: 'over' }
+          { input: shadowBuffer, left: shadowLeftAdj, top: shadowTopAdj, blend: 'multiply' },
+          { input: productWithEffects, left: safeProductLeft, top: safeProductTop, blend: 'over' }
         ])
         .png()
         .toBuffer();
@@ -2800,7 +2873,7 @@ Return ONLY JSON, no markdown:
         ? rawContactOpacity
         : PERCEPTUAL_THRESHOLD / contactBlurPx);
       const contactLeft = productLeft + Math.round((finalW - contactW) / 2) + shadowXShift;
-      const contactTop  = Math.max(0, surfaceY - Math.round(contactH * 0.65));
+      const contactTop = Math.max(0, surfaceY - Math.round(contactH * 0.65));
 
       // Single smooth radial gradient contact shadow — no hard edges
       const contactCoreSvg = Buffer.from(
@@ -2810,7 +2883,7 @@ Return ONLY JSON, no markdown:
         `<stop offset="50%"  stop-color="black" stop-opacity="${(contactOpacity * 0.55).toFixed(2)}"/>` +
         `<stop offset="100%" stop-color="black" stop-opacity="0"/>` +
         `</radialGradient></defs>` +
-        `<ellipse cx="${Math.round(contactW/2)}" cy="${Math.round(contactH/2)}" rx="${Math.round(contactW/2)}" ry="${Math.round(contactH/2)}" fill="url(#cg)"/>` +
+        `<ellipse cx="${Math.round(contactW / 2)}" cy="${Math.round(contactH / 2)}" rx="${Math.round(contactW / 2)}" ry="${Math.round(contactH / 2)}" fill="url(#cg)"/>` +
         `</svg>`
       );
       // ── CRITICAL: Contact shadow may extend outside bg bounds. Extract visible intersection. ──
@@ -2821,10 +2894,10 @@ Return ONLY JSON, no markdown:
         .blur(contactBlurPx)
         .png().toBuffer();
       let contactLeftAdj = contactLeft;
-      let contactTopAdj  = contactTop;
-      const ccCropLeft   = Math.max(0, -contactLeftAdj);
-      const ccCropTop    = Math.max(0, -contactTopAdj);
-      const ccCropRight  = Math.min(contactW, bgW - contactLeftAdj);
+      let contactTopAdj = contactTop;
+      const ccCropLeft = Math.max(0, -contactLeftAdj);
+      const ccCropTop = Math.max(0, -contactTopAdj);
+      const ccCropRight = Math.min(contactW, bgW - contactLeftAdj);
       const ccCropBottom = Math.min(contactH, bgH - contactTopAdj);
       const ccCropW = Math.max(1, ccCropRight - ccCropLeft);
       const ccCropH = Math.max(1, ccCropBottom - ccCropTop);
@@ -2832,7 +2905,7 @@ Return ONLY JSON, no markdown:
         ? await sharp(contactShadowFull).extract({ left: ccCropLeft, top: ccCropTop, width: ccCropW, height: ccCropH }).png().toBuffer()
         : contactShadowFull;
       contactLeftAdj = Math.max(0, contactLeftAdj + ccCropLeft);
-      contactTopAdj  = Math.max(0, contactTopAdj  + ccCropTop);
+      contactTopAdj = Math.max(0, contactTopAdj + ccCropTop);
 
       // Halo: wider, softer outer AO spread
       // RULE: AO halos are physically present only in scenes with diffuse ambient occlusion.
@@ -2859,11 +2932,11 @@ Return ONLY JSON, no markdown:
       // AO halo DISABLED: user explicitly does not want the oval halo ring under the product.
       // It looks unnatural and is NOT needed — the contact shadow already grounds the product.
       const renderHalo = false;
-      const haloBlurPx  = la?.shadow?.aoHalo?.blurPx   ?? Math.max(4, Math.round(haloH * 0.5));
+      const haloBlurPx = la?.shadow?.aoHalo?.blurPx ?? Math.max(4, Math.round(haloH * 0.5));
       let haloBuffer: Buffer | null = null;
       if (renderHalo) {
         const haloLeft = productLeft + Math.round((finalW - haloW) / 2) + shadowXShift;
-        const haloTop  = Math.max(0, surfaceY - Math.round(haloH * 0.5));
+        const haloTop = Math.max(0, surfaceY - Math.round(haloH * 0.5));
         const haloSvg = Buffer.from(
           `<svg width="${haloW}" height="${haloH}" xmlns="http://www.w3.org/2000/svg">` +
           `<defs><radialGradient id="hg" cx="50%" cy="50%" r="50%">` +
@@ -2871,7 +2944,7 @@ Return ONLY JSON, no markdown:
           `<stop offset="65%"  stop-color="black" stop-opacity="${(haloOpacity * 0.25).toFixed(2)}"/>` +
           `<stop offset="100%" stop-color="black" stop-opacity="0"/>` +
           `</radialGradient></defs>` +
-          `<ellipse cx="${Math.round(haloW/2)}" cy="${Math.round(haloH/2)}" rx="${Math.round(haloW/2)}" ry="${Math.round(haloH/2)}" fill="url(#hg)"/>` +
+          `<ellipse cx="${Math.round(haloW / 2)}" cy="${Math.round(haloH / 2)}" rx="${Math.round(haloW / 2)}" ry="${Math.round(haloH / 2)}" fill="url(#hg)"/>` +
           `</svg>`
         );
         const rawHaloBuf = await sharp({
@@ -2900,9 +2973,9 @@ Return ONLY JSON, no markdown:
       // creating a "floating white disc" artifact via screen blend.
       const SPEC_ZONE_MAX_PCT = 0.08;  // HARD CAP — never exceed 8% of product height
       if (la?.material?.specular) {
-        specOpacity    = clamp(la.material.specular.opacity ?? 0.40, 0.10, 0.55);  // cap at 0.55 (was 0.65)
-        specZonePct    = Math.min(SPEC_ZONE_MAX_PCT, clamp(la.material.specular.zoneTopPct ?? 8, 4, 8) / 100);
-        specWidthMult  = clamp(la.material.specular.widthMultiplier ?? 0.50, 0.25, 0.65);  // slightly narrower
+        specOpacity = clamp(la.material.specular.opacity ?? 0.40, 0.10, 0.55);  // cap at 0.55 (was 0.65)
+        specZonePct = Math.min(SPEC_ZONE_MAX_PCT, clamp(la.material.specular.zoneTopPct ?? 8, 4, 8) / 100);
+        specWidthMult = clamp(la.material.specular.widthMultiplier ?? 0.50, 0.25, 0.65);  // slightly narrower
         // Overhead light (theta >= 75°): boost specular on lid (top of bucket gets full irradiance)
         const theta = la.lightSource?.directionAngle ?? 70;
         if (theta >= 75) {
@@ -2911,36 +2984,36 @@ Return ONLY JSON, no markdown:
         // material.roughness modulates specular blur: low roughness = tight sharp highlight
         const roughness = la.material?.roughness ?? 0.5;
         specBlurFromRoughness = Math.round(2 + roughness * 12);
-        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA-v2] Specular: opacity=${specOpacity.toFixed(2)} zone=top${Math.round(specZonePct*100)}% width=${specWidthMult} roughness=${roughness}→blurPx=${specBlurFromRoughness} [CAPPED at ${SPEC_ZONE_MAX_PCT*100}%]`);
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] [LA-v2] Specular: opacity=${specOpacity.toFixed(2)} zone=top${Math.round(specZonePct * 100)}% width=${specWidthMult} roughness=${roughness}→blurPx=${specBlurFromRoughness} [CAPPED at ${SPEC_ZONE_MAX_PCT * 100}%]`);
       } else {
-        specOpacity   = { 'soft': 0.15, 'medium': 0.32, 'hard': 0.50 }[sceneCtx.lightIntensity] ?? 0.32;
-        specZonePct   = 0.06;  // top 6% default (was 18%!!) — safe default that avoids handle
+        specOpacity = { 'soft': 0.15, 'medium': 0.32, 'hard': 0.50 }[sceneCtx.lightIntensity] ?? 0.32;
+        specZonePct = 0.06;  // top 6% default (was 18%!!) — safe default that avoids handle
         specWidthMult = 0.48;
         specBlurFromRoughness = 6; // fallback
       }
       let specularBuffer: Buffer | null = null;
       let specLeft = productLeft;
-      let specTop  = productTop;
+      let specTop = productTop;
       if (specOpacity > 0.05) {
         // Specular zone: top specZonePct of product height — STRICTLY the lid rim (physics-derived)
         // CRITICAL: specH2 is max 35% of zone height (was 50%) to keep highlight as a thin crescent
         // and NOT overlap with the product's white handle that sits on top of the lid.
         const specZoneH = Math.round(finalH * specZonePct);
-        const specW     = Math.round(finalW * specWidthMult);  // physics-derived width
-        const specH2    = Math.round(Math.max(4, specZoneH * 0.35));  // max 35% of zone height (was 50%)
+        const specW = Math.round(finalW * specWidthMult);  // physics-derived width
+        const specH2 = Math.round(Math.max(4, specZoneH * 0.35));  // max 35% of zone height (was 50%)
         // Light offset from sceneCtx (spotlight X position).
         // PHYSICS: specular highlight center = direction toward light source.
         // If light is at xPercent=65 (right), highlight shifts RIGHT on the product.
         // Scale factor 0.40: realistic range for product photography (not too extreme).
-        const specOffX  = Math.round((sceneCtx.lightSourceXPercent - 50) / 100 * finalW * 0.40);
-        const specPad   = Math.round(specH2 * 0.4);
-        const specBufW  = specW + specPad * 2;
-        const specBufH  = specH2 + specPad * 2;
+        const specOffX = Math.round((sceneCtx.lightSourceXPercent - 50) / 100 * finalW * 0.40);
+        const specPad = Math.round(specH2 * 0.4);
+        const specBufW = specW + specPad * 2;
+        const specBufH = specH2 + specPad * 2;
         specLeft = productLeft + Math.round((finalW - specW) / 2) + specOffX - specPad;
-        specTop  = productTop + Math.round(specZoneH * 0.15);  // top of lid, with small margin
+        specTop = productTop + Math.round(specZoneH * 0.15);  // top of lid, with small margin
         // Clamp to image bounds
         specLeft = Math.max(0, Math.min(bgW - specBufW, specLeft));
-        specTop  = Math.max(0, Math.min(bgH - specBufH, specTop));
+        specTop = Math.max(0, Math.min(bgH - specBufH, specTop));
         // Ensure specular bottom never goes beyond 18% mark of product
         const specBottomMax = productTop + specZoneH;
         if (specTop + specBufH > specBottomMax) {
@@ -2950,10 +3023,10 @@ Return ONLY JSON, no markdown:
           `<svg width="${specBufW}" height="${specBufH}" xmlns="http://www.w3.org/2000/svg">` +
           `<defs><radialGradient id="sp" cx="50%" cy="40%" r="50%">` +
           `<stop offset="0%"   stop-color="white" stop-opacity="${specOpacity.toFixed(2)}"/>` +
-          `<stop offset="40%"  stop-color="white" stop-opacity="${(specOpacity*0.18).toFixed(2)}"/>` +
+          `<stop offset="40%"  stop-color="white" stop-opacity="${(specOpacity * 0.18).toFixed(2)}"/>` +
           `<stop offset="100%" stop-color="white" stop-opacity="0"/>` +
           `</radialGradient></defs>` +
-          `<ellipse cx="${Math.round(specBufW/2)}" cy="${Math.round(specBufH * 0.45)}" rx="${Math.round(specW/2)}" ry="${Math.round(specH2/2)}" fill="url(#sp)"/>` +
+          `<ellipse cx="${Math.round(specBufW / 2)}" cy="${Math.round(specBufH * 0.45)}" rx="${Math.round(specW / 2)}" ry="${Math.round(specH2 / 2)}" fill="url(#sp)"/>` +
           `</svg>`
         );
         // Apply roughness-derived blur to the specular highlight
@@ -2962,7 +3035,7 @@ Return ONLY JSON, no markdown:
         specularBuffer = specBlurPx > 1
           ? await sharp(rawSpecBuf).blur(specBlurPx).png().toBuffer()
           : rawSpecBuf;
-        console.log(`[COMPOSITE-GENERATE][preserveOriginal] Specular: zone=top${Math.round(specZonePct*100)}% specW=${specW} specH=${specH2} offX=${specOffX}px opacity=${specOpacity.toFixed(2)}`);
+        console.log(`[COMPOSITE-GENERATE][preserveOriginal] Specular: zone=top${Math.round(specZonePct * 100)}% specW=${specW} specH=${specH2} offX=${specOffX}px opacity=${specOpacity.toFixed(2)}`);
       }
 
       console.log(`[COMPOSITE-GENERATE][preserveOriginal] Post-effects: warmOp=${warmOpacity.toFixed(3)} rimOp=${rimOpacity.toFixed(3)} specOp=${specOpacity.toFixed(2)} envTint=${envTintOpacity.toFixed(3)}`);
@@ -2995,7 +3068,7 @@ Return ONLY JSON, no markdown:
       const sceneIsReflective = false;
       let reflectionBuffer: Buffer | null = null;
       const reflLeft = productLeft;
-      const reflTop  = Math.min(bgH - 1, surfaceY);
+      const reflTop = Math.min(bgH - 1, surfaceY);
       console.log(`[COMPOSITE-GENERATE][preserveOriginal] [E1] Reflection: DISABLED (contact shadow is sufficient)`);
 
       // E2: Color grade — darken product to match scene darkness
@@ -3053,7 +3126,7 @@ Return ONLY JSON, no markdown:
       await fs.promises.writeFile(compositePath, compositedBuffer);
       imageUrl = `/renders/${compositeFilename}`;
       genModel = bgGenResult.model;
-      genTime  = bgGenResult.generationTime;
+      genTime = bgGenResult.generationTime;
       console.log(`[COMPOSITE-GENERATE][preserveOriginal] [E] Sharp composite saved → ${imageUrl}`);
 
       console.log(`[COMPOSITE-GENERATE][preserveOriginal] ✅ Final composite ready → ${imageUrl}`);
@@ -3082,25 +3155,37 @@ Return ONLY JSON, no markdown:
 
     } else {
       // ── Standard generation (no preserveOriginal) ─────────────────────────
-      const genResult = await generateWithFluxFlex(activePrompt, w, h, {
+      let genResult = await generateWithFluxFlex(activePrompt, w, h, {
         aspectRatio: ar,
         safetyTolerance: 5,
-        guidance: 4.5,
+        guidance: 7.5,
         steps: 50,
         inputImage,
         inputImage2,
-        backgroundPrompt: scenePrompt || undefined
+        backgroundPrompt: scenePrompt || undefined,
+        strength: 0.95
       });
       imageUrl = genResult.imageUrl;
       genModel = genResult.model;
-      genTime  = genResult.generationTime;
+      genTime = genResult.generationTime;
 
       console.log(`[COMPOSITE-GENERATE] Image generated, running QA checkup...`);
       checkupResult = await checkGeneratedImage(imageUrl, activePrompt);
 
       if (!checkupResult.passed) {
         console.log(`[COMPOSITE-GENERATE] ⚠️ QA FAILED (score: ${checkupResult.score}). Issues: ${checkupResult.issues.join(', ')}`);
-        console.log(`[COMPOSITE-GENERATE] Suggested fix for manual retry: "${checkupResult.suggestedPromptAdjustment}"`);
+        console.log(`[COMPOSITE-GENERATE] ⚡ Fallback Action: Re-generating image with absolute prompt priority (no reference image input) to fix layout issues...`);
+        const fallbackResult = await generateWithFluxFlex(activePrompt, w, h, {
+          aspectRatio: ar,
+          safetyTolerance: 5,
+          guidance: 6.0,
+          steps: 40,
+          // No inputImage reference passed — forces Flux to follow prompt perfectly from scratch
+        });
+        imageUrl = fallbackResult.imageUrl;
+        genModel = fallbackResult.model;
+        genTime = fallbackResult.generationTime;
+        checkupResult = await checkGeneratedImage(imageUrl, activePrompt);
       }
 
       // Run layer selector on the generated image
@@ -3160,11 +3245,12 @@ Return ONLY JSON, no markdown:
       checkup: checkupResult,
       decomposedLayerText: decomposed.layerText,
       decomposedLayerCta: decomposed.layerCta,
+      hashtags: decomposed.hashtags,
       selectedTemplateId,
       suggestedStyles,
       productPosition: finalProductPosition,
       debugImages: (debugBgRawUrl || debugBgHarmonizedUrl) ? {
-        bgRaw:        debugBgRawUrl        || null,
+        bgRaw: debugBgRawUrl || null,
         bgHarmonized: debugBgHarmonizedUrl || null,
       } : undefined,
     });
@@ -3200,7 +3286,7 @@ app.post('/api/image/preprocess', async (req, res) => {
 
     console.log('[PREPROCESS] Running local background removal...');
     const isolatedUrl = await removeBackground(uploadFilePath);
-    
+
     console.log(`[PREPROCESS] ✅ Complete in ${Date.now() - start}ms → ${isolatedUrl}`);
     res.json({ url: isolatedUrl, originalUrl: `/renders/${uploadFilename}` });
   } catch (err: any) {
@@ -3258,11 +3344,11 @@ app.post('/api/test-image', async (req, res) => {
   if (!scenePrompt) {
     return res.status(400).json({ error: 'scenePrompt is required.' });
   }
-  
+
   const start = Date.now();
   console.log(`\n[TEST-IMAGE] Model: ${model}, Product: ${productImageUrl ? 'yes' : 'no'}, Preprocessed: ${preprocessedImageUrl ? 'yes' : 'no'}`);
   console.log(`[TEST-IMAGE] Prompt: "${scenePrompt.substring(0, 80)}..."`);
-  
+
   try {
     let imageUrl = '';
     let usedModel = model || 'bria';
@@ -3302,10 +3388,10 @@ app.post('/api/test-image', async (req, res) => {
         const endpoint = model === 'bfl-flux-2-max'
           ? 'https://api.bfl.ai/v1/flux-2-max'
           : isFlex
-          ? 'https://api.bfl.ai/v1/flux-2-flex'
-          : isUltra
-          ? 'https://api.bfl.ai/v1/flux-pro-1.1-ultra'
-          : 'https://api.bfl.ai/v1/flux-2-pro';
+            ? 'https://api.bfl.ai/v1/flux-2-flex'
+            : isUltra
+              ? 'https://api.bfl.ai/v1/flux-pro-1.1-ultra'
+              : 'https://api.bfl.ai/v1/flux-2-pro';
 
         console.log(`[TEST-IMAGE] [BFL] Direct API call using endpoint: ${endpoint}`);
 
@@ -3405,26 +3491,26 @@ app.post('/api/test-image', async (req, res) => {
 
       } else if (model === 'flux-harmonize' && productImageUrl) {
         console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Model: ${model}, Product: ${productImageUrl ? 'yes' : 'no'}`);
-        
+
         console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Step 1/3: Generating background using Flux 2 Pro...`);
         const generatedBgUrl = await generateWithFlux2(activePrompt, 1024, 1536, { aspectRatio: '2:3', safetyTolerance: 5, guidance: 4.5, steps: 50 });
         console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Background generated: ${generatedBgUrl}`);
-        
+
         console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Step 2/3: Compositing product onto background...`);
         const compositedLocalPath = await compositeProduct(generatedBgUrl, preprocessedImageUrl || productImageUrl, 'feed', rendersDir);
         console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Composited local path: ${compositedLocalPath}`);
-        
+
         const compositedCdnUrl = await uploadToFal(compositedLocalPath);
         if (fs.existsSync(compositedLocalPath)) fs.unlinkSync(compositedLocalPath);
         console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Composited CDN URL: ${compositedCdnUrl}`);
-        
+
         console.log(`[TEST-IMAGE] [FLUX-HARMONIZE] Step 3/3: Harmonizing image...`);
         imageUrl = await harmonizeImage(compositedCdnUrl, activePrompt, '');
         usedModel = 'flux-harmonize';
-        
+
       } else if (model === 'flux-ip' && productImageUrl) {
         console.log(`[TEST-IMAGE] [FLUX-IP] IP:${ipStrength} CN:${cnStrength} G:${guidanceScale} S:${numSteps}`);
-        
+
         const payload = {
           prompt: `${activePrompt}, professional product photography, the product is naturally integrated into the scene with matching lighting and shadows`,
           image_size: { width: 1024, height: 1536 },
@@ -3446,9 +3532,9 @@ app.post('/api/test-image', async (req, res) => {
             conditioning_scale: cnStrength !== undefined ? Number(cnStrength) : 0.7,
           }],
         };
-        
+
         console.log(`[TEST-IMAGE] [FLUX-IP] Sending payload:`, JSON.stringify(payload, null, 2));
-        
+
         const submitResponse = await axios.post(
           'https://queue.fal.run/fal-ai/flux-general',
           payload,
@@ -3460,26 +3546,26 @@ app.post('/api/test-image', async (req, res) => {
             timeout: 30000,
           }
         );
-        
+
         const requestId = submitResponse.data?.request_id;
         if (!requestId) throw new Error('No request_id from queue submit');
         console.log(`[TEST-IMAGE] [FLUX-IP] Queued: ${requestId}`);
-        
+
         let result: any = null;
         const pollStart = Date.now();
         const maxPollMs = 360000;
-        
+
         while (Date.now() - pollStart < maxPollMs) {
           await new Promise(r => setTimeout(r, 2000));
-          
+
           const statusResp = await axios.get(
             `https://queue.fal.run/fal-ai/flux-general/requests/${requestId}/status`,
             { headers: { 'Authorization': `Key ${process.env.FAL_KEY}` }, timeout: 10000 }
           );
-          
+
           const status = statusResp.data?.status;
           console.log(`[TEST-IMAGE] [FLUX-IP] Poll: ${status} (${((Date.now() - pollStart) / 1000).toFixed(0)}s)`);
-          
+
           if (status === 'COMPLETED') {
             const resultResp = await axios.get(
               `https://queue.fal.run/fal-ai/flux-general/requests/${requestId}`,
@@ -3491,17 +3577,17 @@ app.post('/api/test-image', async (req, res) => {
             throw new Error(`Flux queue job failed: ${JSON.stringify(statusResp.data)}`);
           }
         }
-        
+
         if (!result) throw new Error('Flux queue job timed out after 6 minutes');
-        
+
         imageUrl = result?.images?.[0]?.url || result?.image?.url || '';
         usedModel = 'flux-ip-adapter';
-        
+
       } else {
         if (productImageUrl) {
           const placement = briaPlacement || 'automatic';
           console.log(`[TEST-IMAGE] [BRIA] Product shot mode — placement:${placement}, fast:${briaFast !== false}, optimize:${briaOptimize !== false}`);
-          
+
           const briaBody: any = {
             image_url: productImageUrl,
             scene_description: activePrompt,
@@ -3510,15 +3596,15 @@ app.post('/api/test-image', async (req, res) => {
             fast: briaFast !== false,
             num_results: 1,
           };
-          
+
           if (briaShotSize && Array.isArray(briaShotSize) && briaShotSize.length === 2) {
             briaBody.shot_size = briaShotSize;
           }
-          
+
           if (placement === 'manual_placement' && briaPositions && briaPositions.length > 0) {
             briaBody.manual_placement_selection = briaPositions;
           }
-          
+
           const briaResponse = await axios.post(
             'https://fal.run/fal-ai/bria/product-shot',
             briaBody,
@@ -3530,7 +3616,7 @@ app.post('/api/test-image', async (req, res) => {
               timeout: 120000,
             }
           );
-          
+
           imageUrl = briaResponse.data?.images?.[0]?.url || briaResponse.data?.image?.url || '';
           usedModel = 'bria-product-shot';
         } else {
@@ -3617,10 +3703,10 @@ function extractJsonStr(text: string): string {
 // Route 5.7: AI Layer suggestion based on image visual layout and scene description
 app.post('/api/ai/suggest-layers', async (req, res) => {
   const { imageUrl, scenePrompt, brandKit } = req.body;
-  
+
   console.log(`[SUGGEST-LAYERS] Request received. Prompt: "${scenePrompt?.substring(0, 50)}...", Image: ${imageUrl ? 'yes' : 'no'}`);
   const start = Date.now();
-  
+
   try {
     let imageContentBlock: any = null;
     if (imageUrl) {
@@ -3711,7 +3797,7 @@ A válasz KIZÁRÓLAG a JSON tömb legyen!`;
     const textContent = response.content[0].type === 'text' ? response.content[0].text : '';
     const cleanJson = extractJsonStr(textContent);
     const layers = JSON.parse(cleanJson);
-    
+
     console.log(`[SUGGEST-LAYERS] Claude returned ${layers.length} layers successfully in ${Date.now() - start}ms`);
     res.json({ layers });
   } catch (err: any) {
@@ -3761,7 +3847,7 @@ app.post('/api/campaign/generate', async (req, res) => {
   const sendEvent = (type: string, data: any) => {
     try {
       res.write(`data: ${JSON.stringify({ type, ...data })}\n\n`);
-    } catch {}
+    } catch { }
   };
 
   try {
@@ -3777,10 +3863,10 @@ app.post('/api/campaign/generate', async (req, res) => {
     const campaignStrategy = await orchestrateCampaign(brief, brandKit);
     const orchestrateTime = Date.now() - orchestrateStart;
     console.log(`[CAMPAIGN] Strategy done in ${orchestrateTime}ms — "${campaignStrategy.title}"`);
-    
-    sendEvent('step', { 
-      step: 1, 
-      message: `"${campaignStrategy.title}" — ${campaignStrategy.items?.length || 0} kreatív tervezve (${(orchestrateTime / 1000).toFixed(1)}s)` 
+
+    sendEvent('step', {
+      step: 1,
+      message: `"${campaignStrategy.title}" — ${campaignStrategy.items?.length || 0} kreatív tervezve (${(orchestrateTime / 1000).toFixed(1)}s)`
     });
 
     if (!campaignStrategy.items || !Array.isArray(campaignStrategy.items)) {
@@ -3794,30 +3880,30 @@ app.post('/api/campaign/generate', async (req, res) => {
     for (let idx = 0; idx < campaignStrategy.items.length; idx++) {
       const item = campaignStrategy.items[idx];
       const itemStart = Date.now();
-      
-      sendEvent('item-start', { 
-        index: idx, 
+
+      sendEvent('item-start', {
+        index: idx,
         total: campaignStrategy.items.length,
-        template: item.templateId, 
+        template: item.templateId,
         type: item.type,
         headline: item.headline || '',
-        message: `[${idx+1}/${campaignStrategy.items.length}] GPT Image 2 generálás: "${item.headline || item.templateId}"...` 
+        message: `[${idx + 1}/${campaignStrategy.items.length}] GPT Image 2 generálás: "${item.headline || item.templateId}"...`
       });
 
       // === IMAGE GENERATION ===
       let finalImageUrl = '';
       const imagePrompt = item.imagePrompt || '';
       const scenePrompt = `${imagePrompt}. Visual style: ${brandKit.visualRules.join(', ')}`;
-      
+
       try {
         const genStart = Date.now();
-        
+
         if (productImageUrl && imagePrompt) {
           // === BRIA PRODUCT SHOT: Product preservation + scene generation ===
-          console.log(`[ITEM ${idx+1}] [BRIA] Scene: "${imagePrompt.substring(0, 80)}..."`);
-          console.log(`[ITEM ${idx+1}] [BRIA] Product: ${productImageUrl.substring(0, 60)}...`);
-          sendEvent('item-progress', { index: idx, message: `[${idx+1}] Bria Product Shot — jelenet generálás...` });
-          
+          console.log(`[ITEM ${idx + 1}] [BRIA] Scene: "${imagePrompt.substring(0, 80)}..."`);
+          console.log(`[ITEM ${idx + 1}] [BRIA] Product: ${productImageUrl.substring(0, 60)}...`);
+          sendEvent('item-progress', { index: idx, message: `[${idx + 1}] Bria Product Shot — jelenet generálás...` });
+
           const briaResponse = await axios.post(
             'https://fal.run/fal-ai/bria/product-shot',
             {
@@ -3835,33 +3921,33 @@ app.post('/api/campaign/generate', async (req, res) => {
               timeout: 60000,
             }
           );
-          
+
           if (briaResponse.data?.images?.[0]?.url) {
             finalImageUrl = briaResponse.data.images[0].url;
           } else if (briaResponse.data?.image?.url) {
             finalImageUrl = briaResponse.data.image.url;
           }
-          
+
           const elapsed = Date.now() - genStart;
-          console.log(`[ITEM ${idx+1}] [BRIA] ✅ ${elapsed}ms → ${finalImageUrl?.substring(0, 60)}...`);
-          sendEvent('item-progress', { index: idx, message: `[${idx+1}] Bria kész (${(elapsed / 1000).toFixed(1)}s)` });
-          
+          console.log(`[ITEM ${idx + 1}] [BRIA] ✅ ${elapsed}ms → ${finalImageUrl?.substring(0, 60)}...`);
+          sendEvent('item-progress', { index: idx, message: `[${idx + 1}] Bria kész (${(elapsed / 1000).toFixed(1)}s)` });
+
         } else if (process.env.BFL_API_KEY && imagePrompt) {
           // === FLUX 2 PRO: No product, just scene generation ===
-          console.log(`[ITEM ${idx+1}] [FLUX2] "${imagePrompt.substring(0, 80)}..."`);
-          sendEvent('item-progress', { index: idx, message: `[${idx+1}] Flux 2 Pro jelenet generálás...` });
-          
+          console.log(`[ITEM ${idx + 1}] [FLUX2] "${imagePrompt.substring(0, 80)}..."`);
+          sendEvent('item-progress', { index: idx, message: `[${idx + 1}] Flux 2 Pro jelenet generálás...` });
+
           finalImageUrl = await generateWithFlux2(scenePrompt, 1024, 1536, { aspectRatio: '2:3', safetyTolerance: 1, guidance: 4.5, steps: 50 });
-          
+
           const elapsed = Date.now() - genStart;
-          console.log(`[ITEM ${idx+1}] [FLUX2] ✅ ${elapsed}ms`);
-          sendEvent('item-progress', { index: idx, message: `[${idx+1}] Flux 2 Pro kész (${(elapsed / 1000).toFixed(1)}s)` });
+          console.log(`[ITEM ${idx + 1}] [FLUX2] ✅ ${elapsed}ms`);
+          sendEvent('item-progress', { index: idx, message: `[${idx + 1}] Flux 2 Pro kész (${(elapsed / 1000).toFixed(1)}s)` });
         }
       } catch (imageErr: any) {
-        console.error(`[ITEM ${idx+1}] [IMAGE] ❌ ${imageErr.message}`);
-        sendEvent('item-progress', { index: idx, message: `[${idx+1}] ⚠️ Kép generálás hiba` });
+        console.error(`[ITEM ${idx + 1}] [IMAGE] ❌ ${imageErr.message}`);
+        sendEvent('item-progress', { index: idx, message: `[${idx + 1}] ⚠️ Kép generálás hiba` });
       }
-      
+
       if (!finalImageUrl) {
         finalImageUrl = 'https://images.unsplash.com/photo-1507133750040-4a8f57021571?auto=format&fit=crop&q=80&w=1080';
       }
@@ -3874,7 +3960,7 @@ app.post('/api/campaign/generate', async (req, res) => {
       }
 
       // 3. Playwright logo overlay
-      sendEvent('item-progress', { index: idx, message: `[${idx+1}] Logó-overlay renderelés...` });
+      sendEvent('item-progress', { index: idx, message: `[${idx + 1}] Logó-overlay renderelés...` });
       const localRenderPath = await renderPost(item as any, brandKit, rendererImageUrl);
 
       const campaignItem = {
@@ -3901,11 +3987,11 @@ app.post('/api/campaign/generate', async (req, res) => {
       creatives.push(campaignItem);
       const itemTime = Date.now() - itemStart;
 
-      sendEvent('item-complete', { 
-        index: idx, 
+      sendEvent('item-complete', {
+        index: idx,
         imageUrl: localRenderPath,
         headline: campaignItem.headline,
-        message: `[${idx+1}/${campaignStrategy.items.length}] ✅ "${campaignItem.headline}" kész (${(itemTime / 1000).toFixed(1)}s)` 
+        message: `[${idx + 1}/${campaignStrategy.items.length}] ✅ "${campaignItem.headline}" kész (${(itemTime / 1000).toFixed(1)}s)`
       });
     }
 
@@ -4339,7 +4425,7 @@ Visual Mood: ${visualRecipe.mood || ''}`;
           if (selectedTemplate && (selectedTemplate.textZone === 'center' || selectedTemplate.textZone === 'full')) {
             console.log(`[SATORI-AUTO-LAYOUT] 🚨 Post-validation override: selected template "${parsedConfig.satoriStyleId}" covers the center, but subject "${subject}" is present. Overriding to "caption-bottom-only" as fallback!`);
             parsedConfig.satoriStyleId = 'caption-bottom-only';
-            
+
             // Re-map text layers to fit the new bottom-only layout format
             parsedConfig.textLayers = [
               { id: 'productName', text: parsedConfig.text || (parsedConfig.textLayers && parsedConfig.textLayers[0]?.text) || 'Ajánlat', fontSize: 32, color: '#ffffff', opacity: 100, x: 0, y: 0, textAlign: 'center', visible: true }
@@ -4587,12 +4673,12 @@ x1,y1 = top-left (0-100%), x2,y2 = bottom-right (0-100%). If NO text: return []`
 
     // RAW base64 (no data: prefix) — BFL API requirement
     const productBase64 = flatProductBuffer.toString('base64');
-    const maskBase64    = maskBuffer.toString('base64');
+    const maskBase64 = maskBuffer.toString('base64');
 
     const fillPayload = {
       prompt: fillPrompt,
       image: productBase64,
-      mask:  maskBase64,
+      mask: maskBase64,
       safety_tolerance: 5,
       output_format: 'jpeg',
     };
@@ -4626,7 +4712,7 @@ x1,y1 = top-left (0-100%), x2,y2 = bottom-right (0-100%). If NO text: return []`
         headers: { 'X-Key': bflKey }, timeout: 10000
       });
       const { status, result: pollResult } = statusResp.data;
-      console.log(`[TEXT-PRESERVE-REGEN] Poll: ${status} (${((Date.now() - pollStart)/1000).toFixed(0)}s)`);
+      console.log(`[TEXT-PRESERVE-REGEN] Poll: ${status} (${((Date.now() - pollStart) / 1000).toFixed(0)}s)`);
 
       if (status === 'Ready') {
         resultImageUrl = pollResult?.sample;
@@ -4646,7 +4732,7 @@ x1,y1 = top-left (0-100%), x2,y2 = bottom-right (0-100%). If NO text: return []`
     const finalUrl = `/renders/${resultFilename}`;
 
     const elapsed = Date.now() - start;
-    console.log(`[TEXT-PRESERVE-REGEN] Done in ${(elapsed/1000).toFixed(1)}s → ${finalUrl}`);
+    console.log(`[TEXT-PRESERVE-REGEN] Done in ${(elapsed / 1000).toFixed(1)}s → ${finalUrl}`);
     res.json({
       imageUrl: finalUrl,
       elapsed,
@@ -4765,12 +4851,12 @@ async function uploadLocalImageToPlacid(imageUrl: string, activeToken: string): 
     } else {
       filename = path.basename(imageUrl);
     }
-    
+
     // Remove query params if any
     filename = filename.split('?')[0];
 
     if (!filename) return imageUrl;
-    
+
     const filePath = path.join(rendersDir, filename);
     if (!fs.existsSync(filePath)) {
       console.warn(`[PLACID-UPLOAD] File not found at local path: ${filePath}`);
@@ -4779,7 +4865,7 @@ async function uploadLocalImageToPlacid(imageUrl: string, activeToken: string): 
 
     console.log(`[PLACID-UPLOAD] Uploading local file ${filePath} to Placid Media API...`);
     const fileBuffer = fs.readFileSync(filePath);
-    
+
     const formData = new FormData();
     const blob = new Blob([fileBuffer], { type: 'image/png' });
     formData.append('file', blob, filename);
@@ -4855,14 +4941,14 @@ app.post('/api/image/placid-render', async (req, res) => {
     if (initialData.polling_url || initialData.id) {
       const pollUrl = initialData.polling_url || `https://api.placid.app/api/rest/images/${initialData.id}`;
       console.log(`[PLACID-PROXY] Image generation queued. Polling: ${pollUrl}`);
-      
+
       let attempts = 0;
       const maxAttempts = 15;
-      
+
       while (attempts < maxAttempts) {
         attempts++;
         await new Promise(resolve => setTimeout(resolve, 800));
-        
+
         try {
           const pollResp = await axios.get(pollUrl, {
             headers: {
@@ -4870,10 +4956,10 @@ app.post('/api/image/placid-render', async (req, res) => {
             },
             timeout: 5000
           });
-          
+
           const pollData = pollResp.data;
           console.log(`[PLACID-PROXY] Poll attempt ${attempts}: status = ${pollData.status}`);
-          
+
           if (pollData.status === 'finished' && pollData.image_url) {
             return res.json(pollData);
           }
@@ -5025,7 +5111,1088 @@ Rules:
   }
 });
 
+const reviewedDataFilePath = path.join(__dirname, 'reviewedTemplatesData.json');
+
+app.get('/api/image/load-reviewed-data', async (req, res) => {
+  try {
+    if (supabase) {
+      const { data, error } = await supabase
+        .from('placid_layer_configs')
+        .select('*')
+        .eq('id', 'global')
+        .single();
+      
+      if (!error && data) {
+        return res.json({
+          reviewedTemplates: data.reviewed_templates || [],
+          reviewedLayers: data.reviewed_layers || [],
+          templateRequirements: data.template_requirements || {},
+          parsedRequirements: data.parsed_requirements || {},
+          templateLayersMap: data.template_layers_map || {},
+          aiInstructionsHistory: data.ai_instructions_history || {}
+        });
+      }
+      if (error) {
+        console.warn('[LOAD-REVIEWED-DATA] Supabase select error, falling back to local file:', error.message);
+      }
+    }
+
+    // Local file fallback if Supabase fails or not configured
+    if (fs.existsSync(reviewedDataFilePath)) {
+      const fileContent = await fs.promises.readFile(reviewedDataFilePath, 'utf8');
+      return res.json(JSON.parse(fileContent));
+    }
+
+    return res.json({
+      reviewedTemplates: [],
+      reviewedLayers: [],
+      templateRequirements: {},
+      parsedRequirements: {},
+      templateLayersMap: {},
+      aiInstructionsHistory: {}
+    });
+  } catch (err: any) {
+    console.error('[LOAD-REVIEWED-DATA] Error loading data:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.post('/api/image/save-reviewed-data', async (req, res) => {
+  try {
+    const data = req.body;
+
+    if (supabase) {
+      const { error } = await supabase
+        .from('placid_layer_configs')
+        .upsert({
+          id: 'global',
+          reviewed_templates: data.reviewedTemplates || [],
+          reviewed_layers: data.reviewedLayers || [],
+          template_requirements: data.templateRequirements || {},
+          parsed_requirements: data.parsedRequirements || {},
+          template_layers_map: data.templateLayersMap || {},
+          ai_instructions_history: data.aiInstructionsHistory || {},
+          updated_at: new Date().toISOString()
+        });
+
+      if (error) {
+        console.error('[SAVE-REVIEWED-DATA] Supabase upsert error:', error.message);
+      }
+    }
+
+    // Always keep a local copy as backup/fallback
+    await fs.promises.writeFile(reviewedDataFilePath, JSON.stringify(data, null, 2), 'utf8');
+    res.json({ success: true });
+  } catch (err: any) {
+    console.error('[SAVE-REVIEWED-DATA] Error saving data:', err.message);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+
+
+function sanitizeBackendUrl(input: string): string {
+  let str = input.trim();
+  if (!str) return '';
+  str = str.replace(/https?:\/\/w{4,}\./gi, 'https://www.');
+  str = str.replace(/^w{4,}\./gi, 'www.');
+  const httpMatches = str.match(/https?:\/\/[^\s"'<>]+/gi);
+  if (httpMatches && httpMatches.length > 0) {
+    str = httpMatches[0];
+  }
+  if (!/^https?:\/\//i.test(str)) {
+    str = 'https://' + str;
+  }
+  try {
+    const parsed = new URL(str);
+    let hostname = parsed.hostname.replace(/^w{4,}\./i, 'www.');
+    let pathname = parsed.pathname === '/' ? '' : parsed.pathname;
+    return `${parsed.protocol}//${hostname}${pathname}`;
+  } catch {
+    return str.split('?')[0].split('#')[0];
+  }
+}
+
+function hexToRgb(hex: string): { r: number; g: number; b: number } | null {
+  hex = hex.replace(/^#/, '');
+  if (hex.length === 3) {
+    hex = hex.split('').map(c => c + c).join('');
+  }
+  if (hex.length === 6) {
+    return {
+      r: parseInt(hex.substring(0, 2), 16),
+      g: parseInt(hex.substring(2, 4), 16),
+      b: parseInt(hex.substring(4, 6), 16)
+    };
+  }
+  return null;
+}
+
+function getColorWarmth(r: number, g: number, b: number): 'warm' | 'cool' | 'neutral' {
+  if (r > b + 15) return 'warm';
+  if (b > r + 15) return 'cool';
+  return 'neutral';
+}
+
+app.post('/marketing/api/zombo/scrape', async (req, res) => {
+  const { url, limit = 10 } = req.body;
+  if (!url) {
+    return res.status(400).json({ error: 'URL param is required.' });
+  }
+
+  res.setHeader('Content-Type', 'application/x-ndjson');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+
+  const sendStep = (stepObj: any) => {
+    res.write(JSON.stringify(stepObj) + '\n');
+  };
+
+  try {
+    const cleanUrl = sanitizeBackendUrl(url);
+    sendStep({ step: 'progress', message: `Honlap feltérképezése elindítva (limit: dots aloldal): ${cleanUrl}...` });
+
+    const scraped = await scrapeWebsite(cleanUrl, limit);
+    sendStep({ step: 'progress', message: `Oldalak beolvasva (${scraped.text.length} karakter, dots szín)...` });
+
+    sendStep({ step: 'progress', message: `SEO Specialist & Brand DNA elemzés futtatása...` });
+
+    const title = scraped.title || cleanUrl;
+    const description = scraped.description || 'Nincs meta leírás megadva.';
+    const h1_texts = scraped.h1s.length > 0 ? scraped.h1s : scraped.text.split('\n').filter(t => t.length > 5 && t.length < 80).slice(0, 5);
+    const h1_count = Math.max(1, h1_texts.length);
+    const h2_count = scraped.h2s.length;
+    const h3_count = scraped.h3s.length;
+
+    const total_images = scraped.totalImagesCount || Math.max(1, scraped.images.length);
+    const missing_alt = scraped.missingAltCount;
+
+    let score = 88;
+    const deductions_detail: any[] = [];
+    if (description.length < 50) {
+      score -= 10;
+      deductions_detail.push({ criterion: 'Meta Description', points: -10, reason: 'A meta leírás túl rövid vagy hiányzik.', recommendation: 'Írj legalább 150 karakteres meta leírást.', status: 'fail' });
+    }
+    if (missing_alt > 0) {
+      score -= 5;
+      deductions_detail.push({ criterion: 'Képek alt attribútuma', points: -5, reason: `${missing_alt} képen hiányzik az alt leírás.`, recommendation: 'Pótold az alt attribútumokat a képeken.', status: 'warning' });
+    }
+
+    // Programmatic color distribution calculation
+    let warm_count = 0;
+    let cool_count = 0;
+    let neutral_count = 0;
+    scraped.colors.forEach(hex => {
+      const rgb = hexToRgb(hex);
+      if (rgb) {
+        const warmth = getColorWarmth(rgb.r, rgb.g, rgb.b);
+        if (warmth === 'warm') warm_count++;
+        else if (warmth === 'cool') cool_count++;
+        else neutral_count++;
+      }
+    });
+    const total_colors = scraped.colors.length || 1;
+    const warm_pct = Math.round((warm_count / total_colors) * 100);
+    const cool_pct = Math.round((cool_count / total_colors) * 100);
+    const neutral_pct = Math.round((neutral_count / total_colors) * 100);
+
+    let visual_tone = 'Kiegyensúlyozott / Neutrális';
+    if (warm_pct > cool_pct + 10) visual_tone = 'Meleg és Barátságos';
+    else if (cool_pct > warm_pct + 10) visual_tone = 'Hideg és Professzionális';
+
+    const top_colors_detail = scraped.colors.slice(0, 5).map((hex, i) => ({
+      hex,
+      pct: i === 0 ? 55 : i === 1 ? 25 : i === 2 ? 12 : 5,
+      name: `Szín ${i + 1}`
+    }));
+    if (top_colors_detail.length === 0) {
+      top_colors_detail.push({ hex: '#3B82F6', pct: 60, name: 'Elsődleges Kék' });
+      top_colors_detail.push({ hex: '#1E293B', pct: 40, name: 'Sötétszürke' });
+    }
+
+    // ── Deep Claude AI Multi-Agent Audit Analysis ──
+    let aiAnalysis: any = null;
+    let replyText1 = '';
+    let replyText2 = '';
+    const apiKey = process.env.ANTHROPIC_API_KEY;
+    const anthropic = new Anthropic({ apiKey });
+    if (apiKey) {
+      try {
+        sendStep({ step: 'progress', message: `Claude AI multi-ágens stratégiai elemzés futtatása (Brand DNA, Archetype, Copywriter)...` });
+        const promptText1 = `
+You are a world-class SEO Specialist and Visual Creative Director.
+Analyze the following scraped webpage data and construct a detailed, custom-tailored audit report JSON (Part 1) in Hungarian.
+
+CRITICAL INSTRUCTION: Your audit must be highly specific, custom-tailored, and detailed. Cite specific details, products, services, or copy found in the Scraped Content. Write all fields in professional, deeply insightful Hungarian. Do NOT use double quotes inside the JSON string values. Use single quotes (e.g. 'példa') instead. Keep all text descriptions extremely concise (max 2 sentences per description/reason/recommendation).
+For each item in the 'Programmatically Scraped Emails' and 'Programmatically Scraped Phone Numbers' arrays, read the Scraped Content to identify who or what department it belongs to or its purpose, and include this description in Hungarian (max 6 words) in the 'owner_context' field of the email/phone object.
+
+CRITICAL ARRAY LIMITS:
+- "deductions_detail" array: MUST contain EXACTLY 3 items. Never more than 3.
+- "global_improvements" array: MUST contain EXACTLY 3 string items. Never more than 3.
+- "images_analysis" array: MUST contain EXACTLY 3 image items. Never more than 3.
+- "products" array: MUST contain EXACTLY 3 items. Never more than 3.
+
+URL: ${cleanUrl}
+Title: ${title}
+Meta Description: ${description}
+Programmatically Scraped Emails: ${JSON.stringify(scraped.emails)}
+Programmatically Scraped Phone Numbers: ${JSON.stringify(scraped.phones)}
+Programmatically Scraped Social Links: ${JSON.stringify(scraped.socials)}
+Programmatically Scraped Images (first 3 for analysis): ${JSON.stringify(scraped.images.slice(0, 3))}
+Programmatically Scraped Logos (potential logos found): ${JSON.stringify((scraped as any).logos || [])}
+Scraped Content:
+${scraped.text.slice(0, 15000)}
+
+Return ONLY a single valid JSON object matching this EXACT schema with exactly 3 items in the arrays:
+{
+  "company_name": "Official legal / brand company name",
+  "business_category": "Industry category in Hungarian",
+  "seo_score": 82,
+  "deductions_detail": [
+    { "criterion": "Criterion name 1", "points": -10, "reason": "Detailed reason in Hungarian (max 2 sentences)", "recommendation": "Detailed recommendation in Hungarian (max 2 sentences)", "status": "fail" },
+    { "criterion": "Criterion name 2", "points": -5, "reason": "Detailed reason in Hungarian (max 2 sentences)", "recommendation": "Detailed recommendation in Hungarian (max 2 sentences)", "status": "warning" },
+    { "criterion": "Criterion name 3", "points": -5, "reason": "Detailed reason in Hungarian (max 2 sentences)", "recommendation": "Detailed recommendation in Hungarian (max 2 sentences)", "status": "warning" }
+  ],
+  "visual_tone": "Visual tone description in Hungarian (max 1 sentence)",
+  "visual_style_description": "Detailed visual style analysis in Hungarian (concise, max 2 sentences)",
+  "logo_analysis": {
+    "primary_logo": {
+      "url": "The primary resolved logo image URL from the Scraped Logos list (or empty string if none)",
+      "theme": "bright | dark",
+      "cropped": true,
+      "style_description": "Detailed analysis of the logo's appearance, shape, design, icon, and colors in Hungarian (max 2 sentences)"
+    },
+    "logos_breakdown": [
+      {
+        "url": "URL from Scraped Logos list",
+        "width": "pl. 120px vagy N/A",
+        "height": "pl. 60px vagy N/A",
+        "location": "pl. Fejléc",
+        "theme": "bright | dark",
+        "cropped": true,
+        "usage_context": "Detailed description of where and how it is used on the site, e.g. white vector logo in header for dark background (max 2 sentences)"
+      }
+    ]
+  },
+  "global_improvements": ["Improvement 1 (max 15 words)", "Improvement 2 (max 15 words)", "Improvement 3 (max 15 words)"],
+  "images_analysis": [
+    { "url": "image URL from scraped images list", "alt_text": "image alt text", "visual_description": "1-sentence visual description of what this image shows", "dominant_colors": ["#hex1", "#hex2"], "status": "success" },
+    { "url": "image URL from scraped images list", "alt_text": "image alt text", "visual_description": "1-sentence visual description of what this image shows", "dominant_colors": ["#hex1", "#hex2"], "status": "success" },
+    { "url": "image URL from scraped images list", "alt_text": "image alt text", "visual_description": "1-sentence visual description of what this image shows", "dominant_colors": ["#hex1", "#hex2"], "status": "success" }
+  ],
+  "emails": [
+    { "email": "email1@domain.hu", "owner_context": "Központi ügyfélszolgálat / Adatvédelmi tisztviselő / Karrier (max 6 szó)" }
+  ],
+  "phone_numbers": [
+    { "number": "+36 20 123 4567", "owner_context": "Recepció / Értékesítés / Hibabejelentés (max 6 szó)" }
+  ],
+  "addresses": ["Official postal address of company"],
+  "tax_number": "Adószám (tax identifier)",
+  "registration_number": "Cégjegyzékszám (registration identifier)",
+  "facebook": "Facebook link",
+  "instagram": "Instagram link",
+  "linkedin": "LinkedIn link",
+  "youtube": "YouTube link",
+  "tiktok": "TikTok link",
+  "pinterest": "Pinterest link",
+  "twitter": "Twitter link",
+  "github": "GitHub link",
+  "viber": "Viber link",
+  "whatsapp": "WhatsApp link",
+  "telegram": "Telegram link",
+  "products": [
+    { "name": "Product / Service 1", "brand": "Brand Name", "price": "19 900 Ft", "description": "Product summary (max 2 sentences)", "page_url": "${cleanUrl}" },
+    { "name": "Product / Service 2", "brand": "Brand Name", "price": "9 900 Ft", "description": "Product summary (max 2 sentences)", "page_url": "${cleanUrl}" },
+    { "name": "Product / Service 3", "brand": "Brand Name", "price": "29 900 Ft", "description": "Product summary (max 2 sentences)", "page_url": "${cleanUrl}" }
+  ]
+}
+`;
+
+        const promptText2 = `
+You are a world-class Copywriting Auditor and Brand DNA Strategist.
+Analyze the following scraped webpage data and construct a detailed, custom-tailored audit report JSON (Part 2) in Hungarian.
+
+CRITICAL INSTRUCTION: Your audit must be highly specific, custom-tailored, and detailed. Cite specific slogans, value propositions, or copy found in the Scraped Content. Write all fields in professional, deeply insightful Hungarian. Do NOT use double quotes inside the JSON string values. Use single quotes (e.g. 'példa') instead. Keep all text descriptions extremely concise (max 2 sentences per description/reason/recommendation).
+
+CRITICAL ARRAY LIMITS:
+- "copy_recommendations" array: MUST contain EXACTLY 3 items. Never more than 3.
+- "detected_posts" array: MUST contain EXACTLY 2 items. Never more than 2.
+
+URL: ${cleanUrl}
+Title: ${title}
+Meta Description: ${description}
+Scraped Content:
+${scraped.text.slice(0, 15000)}
+
+Return ONLY a single valid JSON object matching this EXACT schema with exactly 2 posts and 3 recommendations:
+{
+  "marketing_score": 85,
+  "value_prop": "Core value proposition analysis in Hungarian (max 2 sentences)",
+  "pas_alignment": "PAS framework evaluation in Hungarian (max 2 sentences)",
+  "aida_alignment": "AIDA framework evaluation in Hungarian (max 2 sentences)",
+  "cta_evaluation": "CTA evaluation in Hungarian (max 2 sentences)",
+  "credibility_evaluation": "Credibility and social proof analysis in Hungarian (max 2 sentences)",
+  "copy_recommendations": ["Recommendation 1 (max 15 words)", "Recommendation 2 (max 15 words)", "Recommendation 3 (max 15 words)"],
+  "brand_archetype": "Archetype name in Hungarian (e.g. A Szakértő, Az Innovátor, A Segítő)",
+  "brand_archetype_reasoning": "Detailed archetype reasoning in Hungarian (max 2 sentences)",
+  "alignment_reasoning": "Brand alignment reasoning in Hungarian (max 2 sentences)",
+  "target_audience": "Detailed target audience description in Hungarian (max 2 sentences)",
+  "personality_summary": "Brand personality overview in Hungarian (max 2 sentences)",
+  "brand_voice": ["Tone 1", "Tone 2", "Tone 3"],
+  "brand_coordinates": {
+    "tone": { "formal_vs_casual": 40, "rational_vs_emotional": 35, "modern_vs_traditional": 75, "simple_vs_technical": 40, "authority_vs_peer": 65 },
+    "business": { "price_segment_score": 60, "price_segment_label": "Price segment (e.g. Prémium, Közép)", "b2b_vs_b2c": 50, "product_vs_service": 50 },
+    "visual": { "minimalist_vs_decorative": 70, "warmth_vs_coolness": 50, "vibrancy": 65, "visual_style_tags": ["minimalist", "modern"] },
+    "content": { "primary_industry": "Industry", "key_content_themes": ["theme1"], "humor_level": 20, "storytelling_level": 60, "educational_level": 80, "promotional_level": 50 },
+    "engagement": { "cta_aggressiveness": 60, "emoji_usage": 40, "hashtag_density": 30, "post_length_preference": 50, "interaction_asking": 50 }
+  },
+  "addressing": { "mode": "tegező | önöző | vegyes", "confidence": 90, "evidence": ["Exact sentence 1 from scraped content", "Exact sentence 2"] },
+  "cta_library": {
+    "primary_ctas": ["Primary CTA 1", "Primary CTA 2"],
+    "secondary_ctas": ["Secondary CTA 1", "Secondary CTA 2"],
+    "slogans": ["Slogan 1"],
+    "tagline": "Tagline statement in Hungarian"
+  },
+  "brand_dont": {
+    "avoid_words": ["avoidword1"],
+    "avoid_topics": ["avoidtopic1"],
+    "avoid_tones": ["avoidtone1"]
+  },
+  "linguistic_fingerprint": {
+    "psychological_markers": { "cognitive_complexity": 55, "emotional_intensity": 45, "certainty_language": 75, "authenticity_score": 80, "clout_score": 65, "analytical_thinking": 70, "social_reference_density": 40 },
+    "temporal_focus": "temporal focus in Hungarian (e.g. Jelen, Jövő, Múlt)",
+    "rhetorical_patterns": { "primary_persuasion": "persuasion mode in Hungarian", "storytelling_structure": "storytelling structure in Hungarian" },
+    "vocabulary_profile": { "complexity_level": "complexity in Hungarian", "brand_specific_terms": ["term1", "term2"], "power_words": ["word1", "word2"], "avoided_words": ["word3"] },
+    "sentence_metrics": { "avg_sentence_length": 14, "question_ratio": 0.1, "exclamation_ratio": 0.05, "sentence_length_variance": "high | medium | low" },
+    "emotional_architecture": { "dominant_emotions": ["bizalom", "érdeklődés"], "emotional_arc": "emotional arc description in Hungarian", "urgency_level": 30, "exclusivity_level": 40, "social_proof_density": 50, "fomo_usage": 20 }
+  },
+  "summary": "Comprehensive 3-4 sentence business summary in Hungarian",
+  "seo_advice": "Detailed SEO strategy advice in Hungarian (max 3 sentences)",
+  "detected_posts": [
+    { "title": "Title of section / post 1 found", "placement": "Where it is located (e.g. Főoldal, Oldalsáv)", "inferred_popularity": "Estimated popularity (e.g. Magas, Átlagos)", "words": ["keyword1", "keyword2"], "style": "Tone of headline", "category": "Topic" },
+    { "title": "Title of section / post 2 found", "placement": "Where it is located (e.g. Főoldal, Oldalsáv)", "inferred_popularity": "Estimated popularity (e.g. Magas, Átlagos)", "words": ["keyword1", "keyword2"], "style": "Tone of headline", "category": "Topic" }
+  ],
+  "word_style_analysis": "Linguistic analysis of overall word usage tone (max 2 sentences)"
+}
+`;
+
+        const [response1, response2] = await Promise.all([
+          anthropic.messages.create({
+            model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
+            max_tokens: 4096,
+            messages: [{ role: 'user', content: promptText1 }]
+          }),
+          anthropic.messages.create({
+            model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
+            max_tokens: 4096,
+            messages: [{ role: 'user', content: promptText2 }]
+          })
+        ]);
+
+        replyText1 = response1.content[0].type === 'text' ? response1.content[0].text : '';
+        replyText2 = response2.content[0].type === 'text' ? response2.content[0].text : '';
+
+        let aiAnalysis1: any = {};
+        let aiAnalysis2: any = {};
+
+        const match1 = replyText1.match(/\{[\s\S]*\}/);
+        if (match1) aiAnalysis1 = JSON.parse(match1[0]);
+
+        const match2 = replyText2.match(/\{[\s\S]*\}/);
+        if (match2) aiAnalysis2 = JSON.parse(match2[0]);
+
+        aiAnalysis = { ...aiAnalysis1, ...aiAnalysis2 };
+      } catch (err: any) {
+        console.error('[AI-AUDIT-ERROR]', err.message);
+        if (replyText1 || replyText2) {
+          fs.writeFileSync('c:/Users/Zombo/Desktop/Antigrav/agentmain_digidesk/agent-main/z/kepgeneralas/server/raw_reply_error.txt', replyText1 + '\n=== PART 2 ===\n' + replyText2, 'utf8');
+        }
+      }
+    }
+
+    sendStep({ step: 'progress', message: `Arculati irányelvek, Brand DNA és közösségi tervező szinkronizálása...` });
+    await new Promise(r => setTimeout(r, 400));
+
+    const companyName = aiAnalysis?.company_name || scraped.schemaOrgData.find(s => s.name)?.name || title.split(/[|-]/)[0]?.trim() || 'Márka Név';
+    const summary = aiAnalysis?.summary || description || scraped.text.slice(0, 300);
+    const category = aiAnalysis?.business_category || 'Kereskedelem & Szolgáltatás';
+    const archetype = aiAnalysis?.brand_archetype || 'A Szakértő / Segítő';
+    const voice = aiAnalysis?.brand_voice || ['Professzionális', 'Segítőkész', 'Megbízható'];
+    const calculatedScore = aiAnalysis?.seo_score || score;
+
+    // Process emails: prioritize AI analysis (which includes owner_context), fall back to raw scraped strings mapped to a general context
+    const aiEmails = Array.isArray(aiAnalysis?.emails) ? aiAnalysis.emails : [];
+    const scrapedEmailsMapped = (scraped.emails || []).map(email => ({
+      email: String(email).trim(),
+      owner_context: 'Weboldalról detektált cím'
+    }));
+    const emailsList: any[] = [...aiEmails];
+    scrapedEmailsMapped.forEach(se => {
+      const exists = emailsList.some((ae: any) => {
+        const aeVal = typeof ae === 'object' && ae ? (ae.email || ae.value || '') : ae;
+        return String(aeVal).toLowerCase() === se.email.toLowerCase();
+      });
+      if (!exists) emailsList.push(se);
+    });
+
+    // Process phone numbers: prioritize AI analysis (which includes owner_context), fall back to raw scraped strings mapped to a general context
+    const aiPhones = Array.isArray(aiAnalysis?.phone_numbers) ? aiAnalysis.phone_numbers : [];
+    const scrapedPhonesMapped = (scraped.phones || []).map(phone => ({
+      number: String(phone).trim(),
+      owner_context: 'Weboldalról detektált telefonszám'
+    }));
+    const phonesList: any[] = [...aiPhones];
+    scrapedPhonesMapped.forEach(sp => {
+      const cleanedSp = sp.number.replace(/[^0-9+]/g, '');
+      const exists = phonesList.some((ap: any) => {
+        const apVal = typeof ap === 'object' && ap ? (ap.number || ap.phone || ap.value || '') : ap;
+        const cleanedAp = String(apVal).replace(/[^0-9+]/g, '');
+        return cleanedAp === cleanedSp || (cleanedAp.length >= 8 && cleanedSp.endsWith(cleanedAp)) || (cleanedSp.length >= 8 && cleanedAp.endsWith(cleanedSp));
+      });
+      if (!exists) phonesList.push(sp);
+    });
+
+    const addressesList = aiAnalysis?.addresses || [];
+
+    const auditData = {
+      url: cleanUrl,
+      seo: {
+        score: calculatedScore,
+        title,
+        description,
+        h1_count,
+        h2_count,
+        h3_count,
+        total_images,
+        missing_alt,
+        total_links: scraped.internalLinksCount + scraped.externalLinksCount,
+        internal_links: scraped.internalLinksCount,
+        external_links: scraped.externalLinksCount,
+        has_robots: scraped.hasRobots,
+        has_sitemap: scraped.hasSitemap,
+        lang_val: 'hu',
+        has_lang: true,
+        has_schema: scraped.schemaOrgData.length > 0,
+        has_viewport: true,
+        has_canonical: true,
+        is_https: cleanUrl.startsWith('https'),
+        h1_texts,
+        deductions: aiAnalysis?.deductions_detail?.map((d: any) => d.criterion) || deductions_detail.map(d => d.criterion),
+        deductions_detail: aiAnalysis?.deductions_detail || deductions_detail
+      },
+      visuals: {
+        visual_tone: visual_tone,
+        warm_pct: warm_pct,
+        cool_pct: cool_pct,
+        neutral_pct: neutral_pct,
+        top_colors_detail,
+        image_colors: top_colors_detail.map(c => c.hex),
+        visual_style_description: aiAnalysis?.visual_style_description || 'Letisztult, professzionális dizájn harmonikus színekkel.',
+        logo_analysis: aiAnalysis?.logo_analysis || {
+          primary_logo: {
+            url: scraped.logos?.[0]?.url || '',
+            theme: 'dark',
+            cropped: true,
+            style_description: 'A logó formavilága és színei a vállalati arculatot erősítik.'
+          },
+          logos_breakdown: scraped.logos.map(l => ({
+            url: l.url,
+            width: l.width || 'N/A',
+            height: l.height || 'N/A',
+            location: l.location,
+            theme: 'dark',
+            cropped: true,
+            usage_context: `Logó használata itt: ${l.location}`
+          }))
+        }
+      },
+      content: {
+        word_count: Math.max(250, scraped.text.split(/\s+/).length),
+        business_category: category,
+        tone: voice.join(', '),
+        summary,
+        seo_advice: aiAnalysis?.seo_advice || 'Ajánlott a kulcsszósűrűség növelése a H2 címsorokban.',
+        global_improvements: aiAnalysis?.global_improvements || [
+          'Meta leírások optimalizálása',
+          'Képek alt attribútumainak pótlása',
+          'Gyorsabb betöltési idő elérése'
+        ],
+        word_style_analysis: aiAnalysis?.word_style_analysis || 'Megfontolt, szakmai és ügyfélközpontú kommunikáció.',
+        detected_posts: aiAnalysis?.detected_posts || [],
+        images_analysis: [
+          ...(aiAnalysis?.images_analysis?.map((img: any) => ({
+            url: img.url || img.src || '',
+            alt_text: img.alt_text || img.alt || '',
+            visual_description: img.visual_description || img.description || '',
+            dominant_colors: img.dominant_colors || scraped.colors.slice(0, 2),
+            status: img.status || 'success'
+          })) || []),
+          ...scraped.images.slice(aiAnalysis?.images_analysis?.length || 0).map(img => ({
+            url: img.src,
+            alt_text: img.alt,
+            visual_description: `Kép a weboldalról (alt: ${img.alt || 'nincs'}).`,
+            dominant_colors: scraped.colors.slice(0, 2),
+            status: 'success'
+          }))
+        ]
+      },
+      marketing_audit: {
+        marketing_score: aiAnalysis?.marketing_score || 85,
+        value_proposition_evaluation: aiAnalysis?.value_prop || 'Egyértelmű értékajánlat a nyitóoldalon.',
+        frameworks_analysis: {
+          pas_alignment: aiAnalysis?.pas_alignment || 'Jó felépítés: probléma bemutatása és azonnali megoldás.',
+          aida_alignment: aiAnalysis?.aida_alignment || 'Kiváló figyelemfelkeltés és cselekvésre ösztönzés.'
+        },
+        cta_evaluation: aiAnalysis?.cta_evaluation || 'Erőteljes, jól látható hívógombok (CTA).',
+        credibility_evaluation: aiAnalysis?.credibility_evaluation || 'Vevői visszajelzések jelenléte.',
+        copy_recommendations: aiAnalysis?.copy_recommendations || ['Vásárlói vélemények kiemelése', 'Kiemelt ajánlatok láthatóságának növelése']
+      },
+      brand_personality: {
+        brand_archetype: archetype,
+        alignment_score: aiAnalysis?.alignment_score || 88,
+        brand_archetype_reasoning: aiAnalysis?.brand_archetype_reasoning || `A tartalom a(z) ${archetype} megközelítést hangsúlyozza.`,
+        alignment_reasoning: aiAnalysis?.alignment_reasoning || 'A vizuális elemek összhangban vannak a márkaértékekkel.',
+        target_audience: aiAnalysis?.target_audience || `${companyName} vásárlói és partnerei`,
+        personality_summary: aiAnalysis?.personality_summary || `${companyName} márkaértékei és tartalomstratégiája.`,
+        brand_voice: voice,
+        brand_coordinates: aiAnalysis?.brand_coordinates || {
+          tone: { formal_vs_casual: 40, rational_vs_emotional: 35, modern_vs_traditional: 75, simple_vs_technical: 40, authority_vs_peer: 65 },
+          business: { price_segment_score: 60, price_segment_label: 'Közép', b2b_vs_b2c: 50, product_vs_service: 50 },
+          visual: { minimalist_vs_decorative: 70, warmth_vs_coolness: 50, vibrancy: 65, visual_style_tags: ['modern'] },
+          content: { primary_industry: category, key_content_themes: ['bemutatkozás'], humor_level: 20, storytelling_level: 60, educational_level: 80, promotional_level: 50 },
+          engagement: { cta_aggressiveness: 60, emoji_usage: 40, hashtag_density: 30, post_length_preference: 50, interaction_asking: 50 }
+        },
+        addressing: aiAnalysis?.addressing || { mode: 'tegező', confidence: 90, evidence: ['Lépj kapcsolatba velünk'] },
+        cta_library: aiAnalysis?.cta_library || {
+          primary_ctas: ['Kérj ajánlatot', 'Nézd meg a kínálatot'],
+          secondary_ctas: ['Tudj meg többet', 'Vedd fel a kapcsolatot'],
+          slogans: [`${companyName} - Minőség és megbízhatóság`],
+          tagline: `${companyName} partnere`
+        },
+        brand_dont: aiAnalysis?.brand_dont || {
+          avoid_words: ['olcsó', 'gagyi'],
+          avoid_topics: ['politika'],
+          avoid_tones: ['túlzottan formális']
+        }
+      },
+      linguistic_fingerprint: aiAnalysis?.linguistic_fingerprint || {
+        psychological_markers: { cognitive_complexity: 55, emotional_intensity: 45, certainty_language: 75, authenticity_score: 80, clout_score: 65, analytical_thinking: 70, social_reference_density: 40 },
+        temporal_focus: 'Jelen',
+        rhetorical_patterns: { primary_persuasion: 'Racionális érvelés', storytelling_structure: 'Esettanulmány-alapú' },
+        vocabulary_profile: { complexity_level: 'Közepes', brand_specific_terms: [], power_words: [], avoided_words: [] },
+        sentence_metrics: { avg_sentence_length: 12, question_ratio: 0.08, exclamation_ratio: 0.04, sentence_length_variance: 'medium' },
+        emotional_architecture: { dominant_emotions: ['bizalom', 'érdeklődés'], emotional_arc: 'Feltörekvő bizalom', urgency_level: 30, exclusivity_level: 40, social_proof_density: 50, fomo_usage: 20 }
+      },
+      contact: {
+        company_name: companyName,
+        emails: emailsList,
+        phone_numbers: phonesList,
+        addresses: addressesList.length > 0 ? addressesList : ['Magyarország'],
+        tax_number: aiAnalysis?.tax_number || scraped.schemaOrgData.find(s => s.taxID || s.vatID)?.taxID || null,
+        registration_number: aiAnalysis?.registration_number || null,
+        facebook: aiAnalysis?.facebook || scraped.socials.facebook || null,
+        instagram: aiAnalysis?.instagram || scraped.socials.instagram || null,
+        linkedin: aiAnalysis?.linkedin || scraped.socials.linkedin || null,
+        youtube: aiAnalysis?.youtube || scraped.socials.youtube || null,
+        tiktok: aiAnalysis?.tiktok || scraped.socials.tiktok || null,
+        pinterest: aiAnalysis?.pinterest || scraped.socials.pinterest || null,
+        twitter: aiAnalysis?.twitter || scraped.socials.twitter || null,
+        github: aiAnalysis?.github || scraped.socials.github || null,
+        viber: aiAnalysis?.viber || scraped.socials.viber || null,
+        whatsapp: aiAnalysis?.whatsapp || scraped.socials.whatsapp || null,
+        telegram: aiAnalysis?.telegram || scraped.socials.telegram || null
+      },
+      products: aiAnalysis?.products || [],
+      scraper_json: scraped
+    };
+
+    sendStep({ step: 'complete', data: auditData });
+    res.end();
+  } catch (err: any) {
+  }
+});
+
+app.post('/marketing/api/zombo/re-evaluate-section', async (req, res) => {
+  const { url, section, scraper_json, existing_data } = req.body;
+  if (!url || !section || !scraper_json || !existing_data) {
+    return res.status(400).json({ error: 'Missing parameters (url, section, scraper_json, existing_data).' });
+  }
+
+  const apiKey = process.env.ANTHROPIC_API_KEY;
+  if (!apiKey) {
+    return res.status(500).json({ error: 'ANTHROPIC_API_KEY is not configured on the server.' });
+  }
+
+  try {
+    const anthropic = new Anthropic({ apiKey });
+    let prompt = '';
+    const cleanUrl = url.replace(/^https?:\/\//, '').replace(/\/.*$/, '').toLowerCase();
+    const scrapedText = scraper_json.text || '';
+    const title = existing_data.seo?.title || cleanUrl;
+    const description = existing_data.seo?.description || '';
+
+    if (section === 'contact') {
+      prompt = `
+You are a world-class Contact Data Auditor.
+Analyze the following scraped webpage data, programmatically scraped emails, phone numbers, and social links.
+Extract all valid emails, phone numbers, postal addresses, official company name, tax number, registration number, and social media links.
+For each email and phone number, identify its context/department (e.g. 'Központi ügyfélszolgálat', 'Adatvédelem', 'Értékesítés') in Hungarian (max 6 words) in the 'owner_context' field of the email/phone object.
+
+URL: ${cleanUrl}
+Title: ${title}
+Meta Description: ${description}
+Programmatically Scraped Emails: ${JSON.stringify(scraper_json.emails || [])}
+Programmatically Scraped Phone Numbers: ${JSON.stringify(scraper_json.phones || [])}
+Programmatically Scraped Social Links: ${JSON.stringify(scraper_json.socials || {})}
+Scraped Content:
+${scrapedText.slice(0, 15000)}
+
+Return ONLY a single valid JSON object matching this EXACT schema:
+{
+  "company_name": "Official legal / brand company name",
+  "emails": [
+    { "email": "email1@domain.hu", "owner_context": "Központi ügyfélszolgálat (max 6 szó)" }
+  ],
+  "phone_numbers": [
+    { "number": "+36 20 123 4567", "owner_context": "Recepció / Karrier (max 6 szó)" }
+  ],
+  "addresses": ["Official postal address of company"],
+  "tax_number": "Adószám (tax identifier) or null",
+  "registration_number": "Cégjegyzékszám (registration identifier) or null",
+  "facebook": "Facebook link or null",
+  "instagram": "Instagram link or null",
+  "linkedin": "LinkedIn link or null",
+  "youtube": "YouTube link or null",
+  "tiktok": "TikTok link or null",
+  "pinterest": "Pinterest link or null",
+  "twitter": "Twitter link or null",
+  "github": "GitHub link or null",
+  "viber": "Viber link or null",
+  "whatsapp": "WhatsApp link or null",
+  "telegram": "Telegram link or null"
+}
+`;
+    } else if (section === 'seo') {
+      prompt = `
+You are a world-class SEO Specialist.
+Analyze the following scraped webpage metadata and content.
+Determine the SEO score (0-100) and construct an audit of deductions and improvements in Hungarian.
+Keep all text descriptions extremely concise (max 2 sentences per description/reason/recommendation).
+
+URL: ${cleanUrl}
+Title: ${title}
+Meta Description: ${description}
+Scraped Content:
+${scrapedText.slice(0, 15000)}
+
+Return ONLY a single valid JSON object matching this EXACT schema with exactly 3 items in the arrays:
+{
+  "seo_score": 82,
+  "deductions_detail": [
+    { "criterion": "Criterion name 1", "points": -10, "reason": "Detailed reason in Hungarian (max 2 sentences)", "recommendation": "Detailed recommendation in Hungarian (max 2 sentences)", "status": "fail" },
+    { "criterion": "Criterion name 2", "points": -5, "reason": "Detailed reason in Hungarian (max 2 sentences)", "recommendation": "Detailed recommendation in Hungarian (max 2 sentences)", "status": "warning" },
+    { "criterion": "Criterion name 3", "points": -5, "reason": "Detailed reason in Hungarian (max 2 sentences)", "recommendation": "Detailed recommendation in Hungarian (max 2 sentences)", "status": "warning" }
+  ],
+  "global_improvements": ["Improvement 1 (max 15 words)", "Improvement 2 (max 15 words)", "Improvement 3 (max 15 words)"]
+}
+`;
+    } else if (section === 'colors') {
+      prompt = `
+You are a world-class Visual Creative Director.
+Analyze the following scraped webpage colors, visual style, logos, and images.
+Extract the dominant colors, visual tone description, visual style description, and primary logo analysis in Hungarian.
+For the colors, analyze the top colors used on the website and return a detailed breakdown of at least 3 dominant hex colors including their role (primary, secondary, accent, background).
+
+URL: ${cleanUrl}
+Title: ${title}
+Meta Description: ${description}
+Programmatically Scraped Logos: ${JSON.stringify(scraper_json.logos || [])}
+Scraped Content:
+${scrapedText.slice(0, 15000)}
+
+Return ONLY a single valid JSON object matching this EXACT schema:
+{
+  "top_colors_detail": [
+    { "hex": "#1a1a2e", "percentage": 45, "role": "primary", "usage_context": "Háttér és domináns sötét színek" }
+  ],
+  "visual_tone": "Visual tone description in Hungarian (max 1 sentence)",
+  "visual_style_description": "Detailed visual style analysis in Hungarian (concise, max 2 sentences)",
+  "logo_analysis": {
+    "primary_logo": {
+      "url": "The primary resolved logo image URL (or empty string if none)",
+      "theme": "bright | dark",
+      "cropped": true,
+      "style_description": "Detailed analysis of the logo's appearance and colors in Hungarian (max 2 sentences)"
+    }
+  }
+}
+`;
+    } else if (section === 'content') {
+      prompt = `
+You are a world-class Content Strategist.
+Analyze the following scraped webpage products, services, and content.
+Extract the top 3 products or services, and analyze the top 3 images in Hungarian.
+
+URL: ${cleanUrl}
+Title: ${title}
+Meta Description: ${description}
+Programmatically Scraped Images: ${JSON.stringify((scraper_json.images || []).slice(0, 3))}
+Scraped Content:
+${scrapedText.slice(0, 15000)}
+
+Return ONLY a single valid JSON object matching this EXACT schema with exactly 3 items in the arrays:
+{
+  "products": [
+    { "name": "Product / Service 1", "brand": "Brand Name", "price": "19 900 Ft", "description": "Product summary (max 2 sentences)", "page_url": "URL" }
+  ],
+  "images_analysis": [
+    { "url": "image URL", "alt_text": "alt text", "visual_description": "1-sentence description in Hungarian", "dominant_colors": ["#hex1"], "status": "success" }
+  ]
+}
+`;
+    } else if (section === 'brand_dna') {
+      prompt = `
+You are a world-class Brand DNA Strategist and Copywriter.
+Analyze the following scraped webpage data.
+Evaluate the brand voice, tone, brand coordinates (DNA), target audience, copywriting frameworks (PAS/AIDA), cta library, kernels/donts, and psycholinguistic fingerprint in Hungarian.
+
+URL: ${cleanUrl}
+Title: ${title}
+Meta Description: ${description}
+Scraped Content:
+${scrapedText.slice(0, 15000)}
+
+Return ONLY a single valid JSON object matching this EXACT schema:
+{
+  "marketing_score": 85,
+  "value_prop": "Core value proposition analysis in Hungarian (max 2 sentences)",
+  "pas_alignment": "PAS framework evaluation in Hungarian (max 2 sentences)",
+  "aida_alignment": "AIDA framework evaluation in Hungarian (max 2 sentences)",
+  "cta_evaluation": "CTA evaluation in Hungarian (max 2 sentences)",
+  "credibility_evaluation": "Credibility and social proof analysis in Hungarian (max 2 sentences)",
+  "copy_recommendations": ["Recommendation 1 (max 15 words)", "Recommendation 2 (max 15 words)", "Recommendation 3 (max 15 words)"],
+  "brand_archetype": "Archetype name in Hungarian (e.g. A Szakértő, Az Innovátor, A Segítő)",
+  "brand_archetype_reasoning": "Detailed archetype reasoning in Hungarian (max 2 sentences)",
+  "alignment_reasoning": "Brand alignment reasoning in Hungarian (max 2 sentences)",
+  "target_audience": "Detailed target audience description in Hungarian (max 2 sentences)",
+  "personality_summary": "Brand personality overview in Hungarian (max 2 sentences)",
+  "brand_voice": ["Tone 1", "Tone 2", "Tone 3"],
+  "brand_coordinates": {
+    "tone": { "formal_vs_casual": 40, "rational_vs_emotional": 35, "modern_vs_traditional": 75, "simple_vs_technical": 40, "authority_vs_peer": 65 },
+    "business": { "price_segment_score": 60, "price_segment_label": "Price segment (e.g. Prémium, Közép)", "b2b_vs_b2c": 50, "product_vs_service": 50 },
+    "visual": { "minimalist_vs_decorative": 70, "warmth_vs_coolness": 50, "vibrancy": 65, "visual_style_tags": ["minimalist", "modern"] },
+    "content": { "primary_industry": "Industry", "key_content_themes": ["theme1"], "humor_level": 20, "storytelling_level": 60, "educational_level": 80, "promotional_level": 50 },
+    "engagement": { "cta_aggressiveness": 60, "emoji_usage": 40, "hashtag_density": 30, "post_length_preference": 50, "interaction_asking": 50 }
+  },
+  "addressing": { "mode": "tegező | önöző | vegyes", "confidence": 90, "evidence": ["Sentence 1", "Sentence 2"] },
+  "cta_library": {
+    "primary_ctas": ["Primary CTA 1", "Primary CTA 2"],
+    "secondary_ctas": ["Secondary CTA 1", "Secondary CTA 2"],
+    "slogans": ["Slogan 1"],
+    "tagline": "Tagline statement in Hungarian"
+  },
+  "brand_dont": {
+    "avoid_words": ["avoidword1"],
+    "avoid_topics": ["avoidtopic1"],
+    "avoid_tones": ["avoidtone1"]
+  },
+  "linguistic_fingerprint": {
+    "psychological_markers": { "cognitive_complexity": 55, "emotional_intensity": 45, "certainty_language": 75, "authenticity_score": 80, "clout_score": 65, "analytical_thinking": 70, "social_reference_density": 40 },
+    "temporal_focus": "Temporal focus in Hungarian (e.g. Jövőorientált, Jelenorientált)",
+    "rhetorical_patterns": { "primary_persuasion": "Persuasion style in Hungarian", "storytelling_structure": "Storytelling style in Hungarian", "opening_patterns": ["Pattern 1"], "closing_patterns": ["Pattern 2"], "transition_phrases": ["Phrase 1"] },
+    "vocabulary_profile": { "complexity_level": "Vocabulary level in Hungarian", "brand_specific_terms": ["Term 1"], "power_words": ["Word 1"], "avoided_words": ["Word 2"] },
+    "emotional_fingerprint": { "dominant_emotions": ["Emotion 1"], "emotional_arc": "Emotional arc description in Hungarian" },
+    "sentence_structure_metrics": { "avg_sentence_length": 15, "sentence_length_variance": "Variance description in Hungarian", "question_ratio": 10, "exclamation_ratio": 5 }
+  }
+}
+`;
+    } else {
+      return res.status(400).json({ error: `Invalid section: ${section}` });
+    }
+
+    const completion = await anthropic.messages.create({
+      model: process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022',
+      max_tokens: 4000,
+      temperature: 0.15,
+      messages: [{ role: 'user', content: prompt }]
+    });
+
+    const replyText = completion.content[0].type === 'text' ? completion.content[0].text : '';
+    const match = replyText.match(/\{[\s\S]*\}/);
+    if (!match) {
+      throw new Error('No JSON object found in AI response.');
+    }
+
+    const aiRes = JSON.parse(match[0]);
+    const updated = { ...existing_data };
+
+    if (section === 'contact') {
+      // Process emails: prioritize AI analysis (which includes owner_context), fall back to raw scraped strings mapped to a general context
+      const aiEmails = Array.isArray(aiRes?.emails) ? aiRes.emails : [];
+      const scrapedEmailsMapped = (scraper_json.emails || []).map((email: any) => ({
+        email: String(email).trim(),
+        owner_context: 'Weboldalról detektált cím'
+      }));
+      const emailsList: any[] = [...aiEmails];
+      scrapedEmailsMapped.forEach((se: any) => {
+        const exists = emailsList.some((ae: any) => {
+          const aeVal = typeof ae === 'object' && ae ? (ae.email || ae.value || '') : ae;
+          return String(aeVal).toLowerCase() === se.email.toLowerCase();
+        });
+        if (!exists) emailsList.push(se);
+      });
+
+      // Process phone numbers: prioritize AI analysis (which includes owner_context), fall back to raw scraped strings mapped to a general context
+      const aiPhones = Array.isArray(aiRes?.phone_numbers) ? aiRes.phone_numbers : [];
+      const scrapedPhonesMapped = (scraper_json.phones || []).map((phone: any) => ({
+        number: String(phone).trim(),
+        owner_context: 'Weboldalról detektált telefonszám'
+      }));
+      const phonesList: any[] = [...aiPhones];
+      scrapedPhonesMapped.forEach((sp: any) => {
+        const cleanedSp = sp.number.replace(/[^0-9+]/g, '');
+        const exists = phonesList.some((ap: any) => {
+          const apVal = typeof ap === 'object' && ap ? (ap.number || ap.phone || ap.value || '') : ap;
+          const cleanedAp = String(apVal).replace(/[^0-9+]/g, '');
+          return cleanedAp === cleanedSp || (cleanedAp.length >= 8 && cleanedSp.endsWith(cleanedAp)) || (cleanedSp.length >= 8 && cleanedAp.endsWith(cleanedSp));
+        });
+        if (!exists) phonesList.push(sp);
+      });
+
+      const addressesList = aiRes?.addresses || [];
+
+      updated.contact = {
+        ...updated.contact,
+        company_name: aiRes.company_name,
+        emails: emailsList,
+        phone_numbers: phonesList,
+        addresses: addressesList.length > 0 ? addressesList : ['Magyarország'],
+        tax_number: aiRes.tax_number || null,
+        registration_number: aiRes.registration_number || null,
+        facebook: aiRes.facebook || null,
+        instagram: aiRes.instagram || null,
+        linkedin: aiRes.linkedin || null,
+        youtube: aiRes.youtube || null,
+        tiktok: aiRes.tiktok || null,
+        pinterest: aiRes.pinterest || null,
+        twitter: aiRes.twitter || null,
+        github: aiRes.github || null,
+        viber: aiRes.viber || null,
+        whatsapp: aiRes.whatsapp || null,
+        telegram: aiRes.telegram || null
+      };
+    } else if (section === 'seo') {
+      updated.seo = {
+        ...updated.seo,
+        score: aiRes.seo_score,
+        deductions_detail: aiRes.deductions_detail,
+        global_improvements: aiRes.global_improvements
+      };
+    } else if (section === 'colors') {
+      updated.visuals = {
+        ...updated.visuals,
+        top_colors_detail: aiRes.top_colors_detail,
+        visual_tone: aiRes.visual_tone,
+        visual_style_description: aiRes.visual_style_description,
+        logo_analysis: aiRes.logo_analysis
+      };
+    } else if (section === 'content') {
+      updated.products = aiRes.products;
+      if (updated.visuals) {
+        updated.visuals.images_analysis = aiRes.images_analysis;
+      }
+    } else if (section === 'brand_dna') {
+      updated.marketing_score = aiRes.marketing_score;
+      updated.value_prop = aiRes.value_prop;
+      updated.pas_alignment = aiRes.pas_alignment;
+      updated.aida_alignment = aiRes.aida_alignment;
+      updated.cta_evaluation = aiRes.cta_evaluation;
+      updated.credibility_evaluation = aiRes.credibility_evaluation;
+      updated.copy_recommendations = aiRes.copy_recommendations;
+      updated.brand_personality = {
+        ...updated.brand_personality,
+        brand_archetype: aiRes.brand_archetype,
+        brand_archetype_reasoning: aiRes.brand_archetype_reasoning,
+        alignment_reasoning: aiRes.alignment_reasoning,
+        target_audience: aiRes.target_audience,
+        personality_summary: aiRes.personality_summary,
+        brand_voice: aiRes.brand_voice,
+        brand_coordinates: aiRes.brand_coordinates,
+        addressing: aiRes.addressing,
+        cta_library: aiRes.cta_library,
+        brand_dont: aiRes.brand_dont
+      };
+      updated.linguistic_fingerprint = aiRes.linguistic_fingerprint;
+    }
+
+    return res.json({ success: true, data: updated });
+  } catch (err: any) {
+    console.error('[REEVALUATE-SECTION-ERROR]', err);
+    return res.status(500).json({ error: err.message || 'Szerveroldali hiba a részleges kiértékelés során.' });
+  }
+});
+
+app.post('/marketing/api/zombo/evaluate-category', async (req, res) => {
+  res.json({ success: true });
+});
+
+app.post('/marketing/api/zombo/generate-post', async (req, res) => {
+  const { prompt } = req.body;
+  res.json({
+    post: `🌟 ${prompt || 'Különleges ajánlat'}\n\nLépj kapcsolatba velünk még ma, és fedezd fel prémium szolgáltatásainkat!\n\n#social #planner #marketing`,
+    consistency_score: 95,
+    consistency_feedback: 'A poszt stílusa és hangneme tökéletesen illeszkedik a márka arculatához.'
+  });
+});
+
+app.post('/marketing/api/zombo/generate-image', async (req, res) => {
+  res.json({ variants: [] });
+});
+
+app.post('/marketing/api/zombo/upload-base64', async (req, res) => {
+  try {
+    const { base64, filename } = req.body;
+    if (!base64) {
+      return res.status(400).json({ error: 'No base64 data provided' });
+    }
+    const matches = base64.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) {
+      return res.status(400).json({ error: 'Invalid base64 format' });
+    }
+    const buffer = Buffer.from(matches[2], 'base64');
+
+    // 1. Process image using sharp
+    let image = sharp(buffer);
+    const metadata = await image.metadata();
+
+    const maxDimension = 1920;
+    if (metadata.width && metadata.height && (metadata.width > maxDimension || metadata.height > maxDimension)) {
+      if (metadata.width > metadata.height) {
+        image = image.resize({ width: maxDimension });
+      } else {
+        image = image.resize({ height: maxDimension });
+      }
+    }
+
+    // 2. Convert to WebP format
+    const webpBuffer = await image.webp({ quality: 85 }).toBuffer();
+
+    // 3. Save as .webp
+    const uniqueName = `library-${Date.now()}-${Math.round(Math.random() * 1e9)}.webp`;
+
+    if (!fs.existsSync(rendersDir)) {
+      fs.mkdirSync(rendersDir, { recursive: true });
+    }
+
+    const filePath = path.join(rendersDir, uniqueName);
+    fs.writeFileSync(filePath, webpBuffer);
+
+    const host = req.headers.host || `localhost:${port}`;
+    const protocol = req.protocol || 'http';
+    const imageUrl = `${protocol}://${host}/renders/${uniqueName}`;
+
+    res.json({ success: true, url: imageUrl });
+  } catch (err: any) {
+    console.error('[UPLOAD-BASE64] Error uploading/normalizing image:', err);
+    res.status(500).json({ error: err.message || 'Szerveroldali hiba a feltöltés/normalizálás közben' });
+  }
+});
+
+app.post('/marketing/api/zombo/smart-sort', async (req, res) => {
+  try {
+    const { files, existingFolderNames } = req.body;
+    if (!files || !Array.isArray(files) || files.length === 0) {
+      return res.status(400).json({ error: 'files must be a non-empty array' });
+    }
+
+    const folderNames = Array.isArray(existingFolderNames) ? existingFolderNames : [];
+
+    // Process files in batches of 15 to prevent rate/payload limits
+    const batchSize = 15;
+    const mappings: { fileId: string; category: string }[] = [];
+
+    for (let i = 0; i < files.length; i += batchSize) {
+      const batch = files.slice(i, i + batchSize);
+
+      const contentBlocks: any[] = [];
+
+      let promptText = `Analyze the visual contents of the provided images and group them into a minimal set of distinct, broad, high-level categories (e.g., "Állatok", "Szerszámok", "Tájképek", "Járművek").
+
+Strict Rules:
+1. DO NOT create synonymous, overlapping, or overly specific categories (e.g., do NOT create both "Szerszám" and "Munkaeszköz" or "Fúró" - merge them into a single, broad, clear category like "Szerszámok & Eszközök").
+2. Existing folders already created for this brand: [${folderNames.join(', ')}]. If any of these existing folders fit an image, you MUST reuse that exact folder name (case-insensitive) instead of creating a new one!
+3. Output a raw JSON object with a single key "mappings" containing a list of objects, each having "fileId" and "category" (in Hungarian, capitalized, e.g. "Szerszámok", "Tájkép", "Állatok"). Do not wrap in markdown blocks, do not add explanation.
+
+Example Output format:
+{
+  "mappings": [
+    { "fileId": "some-uuid-1", "category": "Szerszámok" },
+    { "fileId": "some-uuid-2", "category": "Tájkép" }
+  ]
+}
+
+Now classify the following files:\n`;
+
+      batch.forEach((file) => {
+        promptText += `- File ID: "${file.id}", Image URL: "${file.url}"\n`;
+      });
+
+      contentBlocks.push({ type: 'text', text: promptText });
+
+      // Add image blocks
+      for (const file of batch) {
+        try {
+          const imageBlock = await fetchImageAsClaudeBlock(file.url);
+          contentBlocks.push({
+            type: 'text',
+            text: `Image content block for File ID: "${file.id}":`
+          });
+          contentBlocks.push(imageBlock);
+        } catch (imgErr: any) {
+          console.error(`[SMART-SORT] Error fetching image block for ${file.url}:`, imgErr.message);
+        }
+      }
+
+      // Invoke Claude 3.5 Sonnet
+      const model = process.env.ANTHROPIC_MODEL || 'claude-3-5-sonnet-20241022';
+      const response = await anthropic.messages.create({
+        model,
+        max_tokens: 2000,
+        temperature: 0.1,
+        messages: [{ role: 'user', content: contentBlocks }]
+      });
+
+      const responseText = response.content[0].type === 'text' ? response.content[0].text : '';
+      console.log('[SMART-SORT] Claude raw response:', responseText);
+
+      // Parse JSON from response
+      try {
+        const jsonMatch = responseText.match(/\{[\s\S]*\}/);
+        if (jsonMatch) {
+          const parsed = JSON.parse(jsonMatch[0]);
+          if (parsed && Array.isArray(parsed.mappings)) {
+            parsed.mappings.forEach((m: any) => {
+              if (m.fileId && m.category) {
+                mappings.push({
+                  fileId: m.fileId,
+                  category: m.category.trim()
+                });
+              }
+            });
+          }
+        }
+      } catch (parseErr) {
+        console.error('[SMART-SORT] Failed to parse Claude response JSON:', parseErr);
+      }
+    }
+
+    res.json({ success: true, mappings });
+  } catch (err: any) {
+    console.error('[SMART-SORT] Exception in smart-sort endpoint:', err);
+    res.status(500).json({ error: err.message || 'Szerveroldali hiba a szortírozás közben' });
+  }
+});
+
 app.listen(port, () => {
   console.log(`AI Creative Studio backend running at http://localhost:${port}`);
 });
-

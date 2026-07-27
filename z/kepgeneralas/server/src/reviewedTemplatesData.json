@@ -1,0 +1,2811 @@
+{
+  "reviewedTemplates": [
+    "preset_101",
+    "preset_103",
+    "preset_174",
+    "preset_193"
+  ],
+  "reviewedLayers": [],
+  "templateRequirements": {
+    "preset_10": "A sablonon 3 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Nem.",
+    "preset_100": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_101": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_102": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_103": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_105": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_106": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_107": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_108": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_11": "A sablonon 0 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 0. Háttérkép van: Nem.",
+    "preset_110": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_111": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_112": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_113": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_114": "A sablonon 2 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Igen.",
+    "preset_115": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_116": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_117": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_119": "A sablonon 2 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Igen.",
+    "preset_12": "A sablonon 3 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Nem.",
+    "preset_120": "A sablonon 2 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Igen.",
+    "preset_121": "A sablonon 2 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Igen.",
+    "preset_122": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_123": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_124": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_125": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_126": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_127": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_128": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_129": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_130": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_131": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_132": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_133": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_134": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_135": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_136": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_137": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_138": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_139": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_14": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_140": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_141": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_142": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_143": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_144": "A sablonon 2 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Igen.",
+    "preset_145": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_146": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_148": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_149": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_15": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_150": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_151": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_152": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_153": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_155": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_156": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_157": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_158": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_159": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_16": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_160": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_161": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_162": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_163": "A sablonon 2 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Igen.",
+    "preset_164": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_165": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_166": "A sablonon 0 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 0. Háttérkép van: Igen.",
+    "preset_167": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_168": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_169": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_17": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_170": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_171": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_172": "A sablonon 0 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 0. Háttérkép van: Igen.",
+    "preset_174": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_175": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_176": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_177": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_178": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_179": "A sablonon 0 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 0. Háttérkép van: Igen.",
+    "preset_18": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_180": "A sablonon 2 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Igen.",
+    "preset_181": "A sablonon 5 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 5. Háttérkép van: Nem.",
+    "preset_182": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_183": "A sablonon 0 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 0. Háttérkép van: Igen.",
+    "preset_184": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_185": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_186": "A sablonon 0 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 0. Háttérkép van: Igen.",
+    "preset_187": "A sablonon 0 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 0. Háttérkép van: Igen.",
+    "preset_188": "A sablonon 2 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Igen.",
+    "preset_189": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_19": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_190": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_191": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_192": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_193": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_194": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_195": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_196": "A sablonon 2 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Igen.",
+    "preset_197": "A sablonon 2 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Igen.",
+    "preset_198": "A sablonon 3 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Nem.",
+    "preset_199": "A sablonon 3 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Nem.",
+    "preset_2": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_20": "A sablonon 0 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 0. Háttérkép van: Nem.",
+    "preset_200": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_201": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_202": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_203": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_204": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_205": "A sablonon 3 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Igen.",
+    "preset_206": "A sablonon 3 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Igen.",
+    "preset_207": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_208": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_209": "A sablonon 3 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Igen.",
+    "preset_21": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_210": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_211": "A sablonon 3 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Nem.",
+    "preset_212": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_213": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_214": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_215": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_216": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_217": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_218": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_219": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_22": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_220": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_221": "A sablonon 2 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Igen.",
+    "preset_222": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_223": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_224": "A sablonon 3 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Nem.",
+    "preset_225": "A sablonon 3 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Nem.",
+    "preset_226": "A sablonon 3 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Nem.",
+    "preset_227": "A sablonon 3 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Nem.",
+    "preset_228": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_229": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_23": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_230": "A sablonon 3 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Igen.",
+    "preset_231": "A sablonon 2 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Igen.",
+    "preset_232": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_233": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_234": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_235": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_236": "A sablonon 3 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Nem.",
+    "preset_237": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_238": "A sablonon 2 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Igen.",
+    "preset_239": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_24": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_240": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_241": "A sablonon 5 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 5. Háttérkép van: Nem.",
+    "preset_242": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_243": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_244": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_245": "A sablonon 0 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 0. Háttérkép van: Nem.",
+    "preset_246": "A sablonon 3 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Nem.",
+    "preset_247": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_248": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_249": "A sablonon 6 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 6. Háttérkép van: Nem.",
+    "preset_25": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_250": "A sablonon 3 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Nem.",
+    "preset_251": "A sablonon 3 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Igen.",
+    "preset_252": "A sablonon 3 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Igen.",
+    "preset_253": "A sablonon 3 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Igen.",
+    "preset_254": "A sablonon 3 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Nem.",
+    "preset_255": "A sablonon 3 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Nem.",
+    "preset_256": "A sablonon 3 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Nem.",
+    "preset_257": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_258": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_259": "A sablonon 4 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 4. Háttérkép van: Nem.",
+    "preset_26": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_260": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_261": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_262": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_263": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_264": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_265": "A sablonon 2 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Igen.",
+    "preset_266": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_267": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_268": "A sablonon 4 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 4. Háttérkép van: Nem.",
+    "preset_269": "A sablonon 4 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 4. Háttérkép van: Nem.",
+    "preset_27": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_270": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_271": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_272": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_273": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_274": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_275": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_276": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_277": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_278": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_279": "A sablonon 2 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Igen.",
+    "preset_28": "A sablonon 0 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 0. Háttérkép van: Nem.",
+    "preset_280": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_281": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_282": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_283": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_29": "A sablonon 3 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 3. Háttérkép van: Nem.",
+    "preset_3": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_30": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_31": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_32": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_33": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_34": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_35": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_36": "A sablonon 0 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 0. Háttérkép van: Nem.",
+    "preset_37": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_38": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_39": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_4": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_40": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_41": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_42": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_43": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_44": "A sablonon 4 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 4. Háttérkép van: Nem.",
+    "preset_45": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_46": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_47": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_49": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_5": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_50": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_52": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_53": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_54": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_55": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_56": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_57": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_58": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_59": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_60": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_61": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_62": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_63": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_64": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_65": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_66": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_67": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_68": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_69": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_7": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_70": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_77": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_78": "A sablonon 2 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 2. Háttérkép van: Nem.",
+    "preset_79": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_8": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_80": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_81": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_82": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_83": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_84": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_85": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_86": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_87": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_89": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_9": "A sablonon 0 db tartalomkép és 0 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 0. Háttérkép van: Nem.",
+    "preset_90": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_91": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_92": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_93": "A sablonon 1 db tartalomkép és 1 db háttérkép helyezkedik el. Szükséges tartalomképek száma: 1. Háttérkép van: Igen.",
+    "preset_94": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_95": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_96": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1.",
+    "preset_97": "A sablonon 1 db kép helyezkedik el. Szükséges képek száma: 1."
+  },
+  "parsedRequirements": {
+    "preset_10": {
+      "images_count": 3,
+      "has_background": false
+    },
+    "preset_100": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_101": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_102": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_103": {
+      "fade_pixels": 100,
+      "images_count": 1,
+      "fade_gradient": true,
+      "fade_direction": "left",
+      "has_background": true,
+      "text_layout_match_example": true
+    },
+    "preset_105": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_106": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_107": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_108": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_11": {
+      "images_count": 0,
+      "has_background": false
+    },
+    "preset_110": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_111": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_112": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_113": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_114": {
+      "images_count": 2,
+      "has_background": true
+    },
+    "preset_115": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_116": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_117": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_119": {
+      "images_count": 2,
+      "has_background": true
+    },
+    "preset_12": {
+      "images_count": 3,
+      "has_background": false
+    },
+    "preset_120": {
+      "images_count": 2,
+      "has_background": true
+    },
+    "preset_121": {
+      "images_count": 2,
+      "has_background": true
+    },
+    "preset_122": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_123": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_124": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_125": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_126": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_127": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_128": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_129": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_130": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_131": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_132": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_133": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_134": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_135": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_136": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_137": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_138": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_139": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_14": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_140": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_141": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_142": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_143": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_144": {
+      "images_count": 2,
+      "has_background": true
+    },
+    "preset_145": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_146": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_148": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_149": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_15": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_150": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_151": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_152": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_153": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_155": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_156": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_157": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_158": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_159": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_16": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_160": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_161": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_162": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_163": {
+      "images_count": 2,
+      "has_background": true
+    },
+    "preset_164": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_165": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_166": {
+      "images_count": 0,
+      "has_background": true
+    },
+    "preset_167": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_168": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_169": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_17": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_170": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_171": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_172": {
+      "images_count": 0,
+      "has_background": true
+    },
+    "preset_174": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_175": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_176": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_177": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_178": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_179": {
+      "images_count": 0,
+      "has_background": true
+    },
+    "preset_18": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_180": {
+      "images_count": 2,
+      "has_background": true
+    },
+    "preset_181": {
+      "images_count": 5,
+      "has_background": false
+    },
+    "preset_182": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_183": {
+      "images_count": 0,
+      "has_background": true
+    },
+    "preset_184": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_185": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_186": {
+      "images_count": 0,
+      "has_background": true
+    },
+    "preset_187": {
+      "images_count": 0,
+      "has_background": true
+    },
+    "preset_188": {
+      "images_count": 2,
+      "has_background": true
+    },
+    "preset_189": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_19": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_190": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_191": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_192": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_193": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_194": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_195": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_196": {
+      "images_count": 2,
+      "has_background": true
+    },
+    "preset_197": {
+      "images_count": 2,
+      "has_background": true
+    },
+    "preset_198": {
+      "images_count": 3,
+      "has_background": false
+    },
+    "preset_199": {
+      "images_count": 3,
+      "has_background": false
+    },
+    "preset_2": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_20": {
+      "images_count": 0,
+      "has_background": false
+    },
+    "preset_200": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_201": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_202": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_203": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_204": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_205": {
+      "images_count": 3,
+      "has_background": true
+    },
+    "preset_206": {
+      "images_count": 3,
+      "has_background": true
+    },
+    "preset_207": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_208": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_209": {
+      "images_count": 3,
+      "has_background": true
+    },
+    "preset_21": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_210": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_211": {
+      "images_count": 3,
+      "has_background": false
+    },
+    "preset_212": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_213": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_214": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_215": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_216": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_217": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_218": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_219": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_22": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_220": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_221": {
+      "images_count": 2,
+      "has_background": true
+    },
+    "preset_222": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_223": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_224": {
+      "images_count": 3,
+      "has_background": false
+    },
+    "preset_225": {
+      "images_count": 3,
+      "has_background": false
+    },
+    "preset_226": {
+      "images_count": 3,
+      "has_background": false
+    },
+    "preset_227": {
+      "images_count": 3,
+      "has_background": false
+    },
+    "preset_228": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_229": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_23": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_230": {
+      "images_count": 3,
+      "has_background": true
+    },
+    "preset_231": {
+      "images_count": 2,
+      "has_background": true
+    },
+    "preset_232": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_233": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_234": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_235": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_236": {
+      "images_count": 3,
+      "has_background": false
+    },
+    "preset_237": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_238": {
+      "images_count": 2,
+      "has_background": true
+    },
+    "preset_239": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_24": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_240": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_241": {
+      "images_count": 5,
+      "has_background": false
+    },
+    "preset_242": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_243": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_244": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_245": {
+      "images_count": 0,
+      "has_background": false
+    },
+    "preset_246": {
+      "images_count": 3,
+      "has_background": false
+    },
+    "preset_247": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_248": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_249": {
+      "images_count": 6,
+      "has_background": false
+    },
+    "preset_25": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_250": {
+      "images_count": 3,
+      "has_background": false
+    },
+    "preset_251": {
+      "images_count": 3,
+      "has_background": true
+    },
+    "preset_252": {
+      "images_count": 3,
+      "has_background": true
+    },
+    "preset_253": {
+      "images_count": 3,
+      "has_background": true
+    },
+    "preset_254": {
+      "images_count": 3,
+      "has_background": false
+    },
+    "preset_255": {
+      "images_count": 3,
+      "has_background": false
+    },
+    "preset_256": {
+      "images_count": 3,
+      "has_background": false
+    },
+    "preset_257": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_258": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_259": {
+      "images_count": 4,
+      "has_background": false
+    },
+    "preset_26": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_260": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_261": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_262": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_263": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_264": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_265": {
+      "images_count": 2,
+      "has_background": true
+    },
+    "preset_266": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_267": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_268": {
+      "images_count": 4,
+      "has_background": false
+    },
+    "preset_269": {
+      "images_count": 4,
+      "has_background": false
+    },
+    "preset_27": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_270": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_271": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_272": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_273": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_274": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_275": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_276": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_277": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_278": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_279": {
+      "images_count": 2,
+      "has_background": true
+    },
+    "preset_28": {
+      "images_count": 0,
+      "has_background": false
+    },
+    "preset_280": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_281": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_282": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_283": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_29": {
+      "images_count": 3,
+      "has_background": false
+    },
+    "preset_3": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_30": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_31": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_32": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_33": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_34": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_35": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_36": {
+      "images_count": 0,
+      "has_background": false
+    },
+    "preset_37": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_38": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_39": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_4": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_40": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_41": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_42": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_43": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_44": {
+      "images_count": 4,
+      "has_background": false
+    },
+    "preset_45": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_46": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_47": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_49": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_5": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_50": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_52": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_53": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_54": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_55": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_56": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_57": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_58": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_59": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_60": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_61": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_62": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_63": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_64": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_65": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_66": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_67": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_68": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_69": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_7": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_70": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_77": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_78": {
+      "images_count": 2,
+      "has_background": false
+    },
+    "preset_79": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_8": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_80": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_81": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_82": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_83": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_84": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_85": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_86": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_87": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_89": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_9": {
+      "images_count": 0,
+      "has_background": false
+    },
+    "preset_90": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_91": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_92": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_93": {
+      "images_count": 1,
+      "has_background": true
+    },
+    "preset_94": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_95": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_96": {
+      "images_count": 1,
+      "has_background": false
+    },
+    "preset_97": {
+      "images_count": 1,
+      "has_background": false
+    }
+  },
+  "templateLayersMap": {
+    "preset_10": [
+      {
+        "name": "background_layer",
+        "type": "shape",
+        "style": {
+          "zIndex": 1,
+          "backgroundColor": "#FFFFFF"
+        },
+        "position": {
+          "xmax": 100,
+          "xmin": 0,
+          "ymax": 100,
+          "ymin": 0
+        },
+        "description": "A sablon alap háttere, amely az egész tervezőfelületet kitölti.",
+        "context_instruction": "Ez a réteg határozza meg a háttérszínt. Szükség esetén cseréld le."
+      },
+      {
+        "name": "img_top_left",
+        "type": "picture",
+        "style": {
+          "zIndex": 1,
+          "objectFit": "cover",
+          "borderRadius": "0px",
+          "objectPosition": "center"
+        },
+        "position": {
+          "xmax": 49,
+          "xmin": 3,
+          "ymax": 48,
+          "ymin": 6
+        },
+        "description": "Képkeret réteg \"img-top-left\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "img_bottom_left",
+        "type": "picture",
+        "style": {
+          "zIndex": 1,
+          "objectFit": "cover",
+          "borderRadius": "0px",
+          "objectPosition": "center"
+        },
+        "position": {
+          "xmax": 49,
+          "xmin": 3,
+          "ymax": 94,
+          "ymin": 52
+        },
+        "description": "Képkeret réteg \"img-bottom-left\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "img_right",
+        "type": "picture",
+        "style": {
+          "zIndex": 1,
+          "objectFit": "cover",
+          "borderRadius": "0px",
+          "objectPosition": "center"
+        },
+        "position": {
+          "xmax": 97,
+          "xmin": 51,
+          "ymax": 94,
+          "ymin": 6
+        },
+        "description": "Képkeret réteg \"img-right\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "watermark_0",
+        "type": "shape",
+        "style": {
+          "zIndex": 1,
+          "borderRadius": "0px"
+        },
+        "position": {
+          "xmax": 94,
+          "xmin": 78,
+          "ymax": 21,
+          "ymin": 10
+        },
+        "description": "Alakzat réteg (\"watermark-0\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      }
+    ],
+    "preset_100": [
+      {
+        "name": "background_layer",
+        "type": "shape",
+        "style": {
+          "zIndex": 1,
+          "backgroundColor": "#FFFFFF"
+        },
+        "position": {
+          "xmax": 100,
+          "xmin": 0,
+          "ymax": 100,
+          "ymin": 0
+        },
+        "description": "A sablon alap háttere, amely az egész tervezőfelületet kitölti.",
+        "context_instruction": "Ez a réteg határozza meg a háttérszínt. Szükség esetén cseréld le."
+      },
+      {
+        "name": "watermark_0",
+        "type": "shape",
+        "style": {
+          "zIndex": 1,
+          "borderRadius": "0px"
+        },
+        "position": {
+          "xmax": 19,
+          "xmin": 4,
+          "ymax": 21,
+          "ymin": 6
+        },
+        "description": "Alakzat réteg (\"watermark-0\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "img",
+        "type": "picture",
+        "style": {
+          "zIndex": 2,
+          "objectFit": "cover",
+          "borderRadius": "25px",
+          "objectPosition": "center"
+        },
+        "position": {
+          "xmax": 98,
+          "xmin": 2,
+          "ymax": 97,
+          "ymin": 3
+        },
+        "description": "Képkeret réteg \"img\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "btn_bg",
+        "type": "shape",
+        "style": {
+          "zIndex": 3,
+          "borderRadius": "52px",
+          "backgroundColor": "#FA6872"
+        },
+        "position": {
+          "xmax": 63,
+          "xmin": 38,
+          "ymax": 90,
+          "ymin": 74
+        },
+        "description": "Alakzat réteg (\"btn-bg\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "btn_text",
+        "text": "buy now",
+        "type": "text",
+        "style": {
+          "color": "#FFFFFF",
+          "zIndex": 4,
+          "fontSize": "34px",
+          "textAlign": "left",
+          "fontFamily": "opensans-extrabolditalic",
+          "fontWeight": "800",
+          "lineHeight": 26,
+          "letterSpacing": "0px",
+          "textTransform": "uppercase"
+        },
+        "position": {
+          "xmax": 60,
+          "xmin": 40,
+          "ymax": 83,
+          "ymin": 77
+        },
+        "description": "Szöveg réteg \"btn-text\" névvel. Kezdeti minta szövege: \"buy now\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (250x40px)."
+      },
+      {
+        "name": "url",
+        "text": "streetwearshop.com",
+        "type": "text",
+        "style": {
+          "color": "#FFFFFF",
+          "zIndex": 5,
+          "fontSize": "20px",
+          "textAlign": "left",
+          "fontFamily": "opensans-extrabolditalic",
+          "fontWeight": "800",
+          "lineHeight": 26,
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 60,
+          "xmin": 40,
+          "ymax": 88,
+          "ymin": 83
+        },
+        "description": "Szöveg réteg \"url\" névvel. Kezdeti minta szövege: \"streetwearshop.com\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (250x30px)."
+      },
+      {
+        "name": "price_bg",
+        "type": "shape",
+        "style": {
+          "zIndex": 6,
+          "borderRadius": "75px",
+          "backgroundColor": "#FA6872"
+        },
+        "position": {
+          "xmax": 96,
+          "xmin": 84,
+          "ymax": 32,
+          "ymin": 8
+        },
+        "description": "Alakzat réteg (\"price-bg\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "price",
+        "text": "139€",
+        "type": "text",
+        "style": {
+          "color": "#FFFFFF",
+          "zIndex": 7,
+          "fontSize": "45px",
+          "textAlign": "left",
+          "fontFamily": "opensans-extrabolditalic",
+          "fontWeight": "800",
+          "lineHeight": 58.5,
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 95,
+          "xmin": 85,
+          "ymax": 27,
+          "ymin": 13
+        },
+        "description": "Szöveg réteg \"price\" névvel. Kezdeti minta szövege: \"139€\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (120x90px)."
+      }
+    ],
+    "preset_101": [
+      {
+        "name": "background_layer",
+        "type": "shape",
+        "style": {
+          "zIndex": 1,
+          "backgroundColor": "#FFFFFF"
+        },
+        "position": {
+          "xmax": 100,
+          "xmin": 0,
+          "ymax": 100,
+          "ymin": 0
+        },
+        "description": "A sablon alap háttere, amely az egész tervezőfelületet kitölti.",
+        "context_instruction": "Ez a réteg határozza meg a háttérszínt. Szükség esetén cseréld le."
+      },
+      {
+        "name": "watermark_0",
+        "type": "shape",
+        "style": {
+          "zIndex": 1,
+          "borderRadius": "0px"
+        },
+        "position": {
+          "xmax": 98,
+          "xmin": 83,
+          "ymax": 17,
+          "ymin": 3
+        },
+        "description": "Alakzat réteg (\"watermark-0\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "img",
+        "type": "picture",
+        "style": {
+          "zIndex": 1,
+          "objectFit": "cover",
+          "borderRadius": "0px",
+          "objectPosition": "center"
+        },
+        "position": {
+          "xmax": 100,
+          "xmin": 50,
+          "ymax": 100,
+          "ymin": 0
+        },
+        "description": "Képkeret réteg \"img\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "gradient",
+        "type": "picture",
+        "style": {
+          "zIndex": 2,
+          "objectFit": "cover",
+          "borderRadius": "0px",
+          "objectPosition": "center"
+        },
+        "position": {
+          "xmax": 100,
+          "xmin": 50,
+          "ymax": 100,
+          "ymin": 0
+        },
+        "description": "Képkeret réteg \"gradient\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "underline",
+        "type": "shape",
+        "style": {
+          "zIndex": 3,
+          "borderRadius": "0px",
+          "backgroundColor": "#000000"
+        },
+        "position": {
+          "xmax": 31,
+          "xmin": 20,
+          "ymax": 87,
+          "ymin": 86
+        },
+        "description": "Alakzat réteg (\"underline\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "cta",
+        "text": "Buy Now",
+        "type": "text",
+        "style": {
+          "color": "#000",
+          "zIndex": 4,
+          "fontSize": "30px",
+          "textAlign": "center",
+          "fontFamily": "josefinsans-bold",
+          "fontWeight": "700",
+          "lineHeight": 39,
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 48,
+          "xmin": 4,
+          "ymax": 86,
+          "ymin": 79
+        },
+        "description": "Szöveg réteg \"cta\" névvel. Kezdeti minta szövege: \"Buy Now\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (520x40px)."
+      },
+      {
+        "name": "price",
+        "text": "$ 98",
+        "type": "text",
+        "style": {
+          "color": "#6F6F6F",
+          "zIndex": 5,
+          "fontSize": "60px",
+          "textAlign": "center",
+          "fontFamily": "josefinsans-bold",
+          "fontWeight": "700",
+          "lineHeight": 78,
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 48,
+          "xmin": 4,
+          "ymax": 75,
+          "ymin": 61
+        },
+        "description": "Szöveg réteg \"price\" névvel. Kezdeti minta szövege: \"$ 98\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (520x90px)."
+      },
+      {
+        "name": "title",
+        "text": "5-Day Juice Cleanse Pineapple",
+        "type": "text",
+        "style": {
+          "color": "#000",
+          "zIndex": 6,
+          "fontSize": "60px",
+          "textAlign": "center",
+          "fontFamily": "josefinsans-bold",
+          "fontWeight": "700",
+          "lineHeight": "66",
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 48,
+          "xmin": 4,
+          "ymax": 45,
+          "ymin": 12
+        },
+        "description": "Szöveg réteg \"title\" névvel. Kezdeti minta szövege: \"5-Day Juice Cleanse Pineapple\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (520x210px)."
+      }
+    ],
+    "preset_102": [
+      {
+        "name": "background_layer",
+        "type": "shape",
+        "style": {
+          "zIndex": 1,
+          "backgroundColor": "#FFFFFF"
+        },
+        "position": {
+          "xmax": 100,
+          "xmin": 0,
+          "ymax": 100,
+          "ymin": 0
+        },
+        "description": "A sablon alap háttere, amely az egész tervezőfelületet kitölti.",
+        "context_instruction": "Ez a réteg határozza meg a háttérszínt. Szükség esetén cseréld le."
+      },
+      {
+        "name": "watermark_0",
+        "type": "shape",
+        "style": {
+          "zIndex": 1,
+          "borderRadius": "0px"
+        },
+        "position": {
+          "xmax": 19,
+          "xmin": 4,
+          "ymax": 22,
+          "ymin": 7
+        },
+        "description": "Alakzat réteg (\"watermark-0\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "img",
+        "type": "picture",
+        "style": {
+          "zIndex": 1,
+          "objectFit": "cover",
+          "borderRadius": "25px",
+          "objectPosition": "center"
+        },
+        "position": {
+          "xmax": 98,
+          "xmin": 2,
+          "ymax": 97,
+          "ymin": 3
+        },
+        "description": "Képkeret réteg \"img\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "btn_bg",
+        "type": "shape",
+        "style": {
+          "zIndex": 2,
+          "borderRadius": "52px",
+          "backgroundColor": "#FA6872"
+        },
+        "position": {
+          "xmax": 63,
+          "xmin": 38,
+          "ymax": 90,
+          "ymin": 73
+        },
+        "description": "Alakzat réteg (\"btn-bg\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "btn_text",
+        "text": "buy now",
+        "type": "text",
+        "style": {
+          "color": "#FFFFFF",
+          "zIndex": 3,
+          "fontSize": "34px",
+          "textAlign": "left",
+          "fontFamily": "opensans-extrabolditalic",
+          "fontWeight": "800",
+          "lineHeight": 44.2,
+          "letterSpacing": "0px",
+          "textTransform": "uppercase"
+        },
+        "position": {
+          "xmax": 60,
+          "xmin": 40,
+          "ymax": 82,
+          "ymin": 75
+        },
+        "description": "Szöveg réteg \"btn-text\" névvel. Kezdeti minta szövege: \"buy now\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (250x40px)."
+      },
+      {
+        "name": "url",
+        "text": "streetwearshop.com",
+        "type": "text",
+        "style": {
+          "color": "#FFFFFF",
+          "zIndex": 4,
+          "fontSize": "20px",
+          "textAlign": "left",
+          "fontFamily": "opensans-extrabolditalic",
+          "fontWeight": "800",
+          "lineHeight": 26,
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 60,
+          "xmin": 40,
+          "ymax": 87,
+          "ymin": 82
+        },
+        "description": "Szöveg réteg \"url\" névvel. Kezdeti minta szövege: \"streetwearshop.com\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (250x30px)."
+      },
+      {
+        "name": "price_bg",
+        "type": "shape",
+        "style": {
+          "zIndex": 5,
+          "borderRadius": "75px",
+          "backgroundColor": "#FA6872"
+        },
+        "position": {
+          "xmax": 96,
+          "xmin": 84,
+          "ymax": 33,
+          "ymin": 8
+        },
+        "description": "Alakzat réteg (\"price-bg\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "price",
+        "text": "139€",
+        "type": "text",
+        "style": {
+          "color": "#FFFFFF",
+          "zIndex": 6,
+          "fontSize": "46px",
+          "textAlign": "left",
+          "fontFamily": "opensans-extrabolditalic",
+          "fontWeight": "800",
+          "lineHeight": 59.8,
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 95,
+          "xmin": 85,
+          "ymax": 28,
+          "ymin": 13
+        },
+        "description": "Szöveg réteg \"price\" névvel. Kezdeti minta szövege: \"139€\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (120x90px)."
+      }
+    ],
+    "preset_103": [
+      {
+        "name": "background_layer",
+        "type": "shape",
+        "style": {
+          "zIndex": 1,
+          "backgroundColor": "#FFFFFF"
+        },
+        "position": {
+          "xmax": 100,
+          "xmin": 0,
+          "ymax": 100,
+          "ymin": 0
+        },
+        "description": "A sablon alap háttere, amely az egész tervezőfelületet kitölti.",
+        "context_instruction": "Ez a réteg határozza meg a háttérszínt. Szükség esetén cseréld le."
+      },
+      {
+        "name": "watermark_0",
+        "type": "shape",
+        "style": {
+          "zIndex": 1,
+          "borderRadius": "0px"
+        },
+        "position": {
+          "xmax": 98,
+          "xmin": 83,
+          "ymax": 18,
+          "ymin": 3
+        },
+        "description": "Alakzat réteg (\"watermark-0\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "img",
+        "type": "picture",
+        "style": {
+          "zIndex": 1,
+          "objectFit": "cover",
+          "borderRadius": "0px",
+          "objectPosition": "center"
+        },
+        "position": {
+          "xmax": 100,
+          "xmin": 50,
+          "ymax": 100,
+          "ymin": 0
+        },
+        "description": "Képkeret réteg \"img\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "overlay",
+        "type": "picture",
+        "style": {
+          "zIndex": 2,
+          "objectFit": "cover",
+          "borderRadius": "0px",
+          "objectPosition": "center"
+        },
+        "position": {
+          "xmax": 100,
+          "xmin": 50,
+          "ymax": 100,
+          "ymin": 0
+        },
+        "description": "Képkeret réteg \"overlay\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "underline",
+        "type": "shape",
+        "style": {
+          "zIndex": 3,
+          "borderRadius": "0px",
+          "backgroundColor": "#000000"
+        },
+        "position": {
+          "xmax": 31,
+          "xmin": 20,
+          "ymax": 86,
+          "ymin": 85
+        },
+        "description": "Alakzat réteg (\"underline\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "cta",
+        "text": "Buy Now",
+        "type": "text",
+        "style": {
+          "color": "#000",
+          "zIndex": 4,
+          "fontSize": "30px",
+          "textAlign": "center",
+          "fontFamily": "josefinsans-bold",
+          "fontWeight": "700",
+          "lineHeight": 39,
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 48,
+          "xmin": 4,
+          "ymax": 85,
+          "ymin": 78
+        },
+        "description": "Szöveg réteg \"cta\" névvel. Kezdeti minta szövege: \"Buy Now\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (520x40px)."
+      },
+      {
+        "name": "price",
+        "text": "$ 98",
+        "type": "text",
+        "style": {
+          "color": "#6F6F6F",
+          "zIndex": 5,
+          "fontSize": "60px",
+          "textAlign": "center",
+          "fontFamily": "josefinsans-bold",
+          "fontWeight": "700",
+          "lineHeight": 78,
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 48,
+          "xmin": 4,
+          "ymax": 74,
+          "ymin": 59
+        },
+        "description": "Szöveg réteg \"price\" névvel. Kezdeti minta szövege: \"$ 98\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (520x90px)."
+      },
+      {
+        "name": "title",
+        "text": "5-Day Juice Cleanse Pineapple",
+        "type": "text",
+        "style": {
+          "color": "#000",
+          "zIndex": 6,
+          "fontSize": "60px",
+          "textAlign": "center",
+          "fontFamily": "josefinsans-bold",
+          "fontWeight": "700",
+          "lineHeight": "66",
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 48,
+          "xmin": 4,
+          "ymax": 48,
+          "ymin": 13
+        },
+        "description": "Szöveg réteg \"title\" névvel. Kezdeti minta szövege: \"5-Day Juice Cleanse Pineapple\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (520x210px)."
+      }
+    ],
+    "preset_146": [
+      {
+        "name": "background_layer",
+        "type": "shape",
+        "style": {
+          "zIndex": 1,
+          "backgroundColor": "#FFFFFF"
+        },
+        "position": {
+          "xmax": 100,
+          "xmin": 0,
+          "ymax": 100,
+          "ymin": 0
+        },
+        "description": "A sablon alap háttere, amely az egész tervezőfelületet kitölti.",
+        "context_instruction": "Ez a réteg határozza meg a háttérszínt. Szükség esetén cseréld le."
+      },
+      {
+        "name": "bg",
+        "type": "shape",
+        "style": {
+          "zIndex": 1,
+          "borderColor": "#FFFFFF",
+          "borderStyle": "solid",
+          "borderWidth": "1px",
+          "borderRadius": "0px",
+          "backgroundColor": "#FA6872"
+        },
+        "position": {
+          "xmax": 100,
+          "xmin": 0,
+          "ymax": 100,
+          "ymin": 0
+        },
+        "description": "Alakzat réteg (\"bg\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "img",
+        "type": "picture",
+        "style": {
+          "zIndex": 2,
+          "objectFit": "cover",
+          "borderRadius": "14px",
+          "objectPosition": "center"
+        },
+        "position": {
+          "xmax": 94,
+          "xmin": 6,
+          "ymax": 48,
+          "ymin": 11
+        },
+        "description": "Képkeret réteg \"img\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "btn_bg",
+        "type": "shape",
+        "style": {
+          "zIndex": 3,
+          "borderRadius": "75px",
+          "backgroundColor": "#FFFFFF"
+        },
+        "position": {
+          "xmax": 69,
+          "xmin": 31,
+          "ymax": 87,
+          "ymin": 79
+        },
+        "description": "Alakzat réteg (\"btn-bg\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "btn_text",
+        "text": "shop now",
+        "type": "text",
+        "style": {
+          "color": "#FA6872",
+          "zIndex": 4,
+          "fontSize": "50px",
+          "textAlign": "left",
+          "fontFamily": "opensans-extrabolditalic",
+          "fontWeight": "800",
+          "lineHeight": 65,
+          "letterSpacing": "0px",
+          "textTransform": "uppercase"
+        },
+        "position": {
+          "xmax": 67,
+          "xmin": 33,
+          "ymax": 83,
+          "ymin": 80
+        },
+        "description": "Szöveg réteg \"btn-text\" névvel. Kezdeti minta szövege: \"shop now\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (370x62px)."
+      },
+      {
+        "name": "btn_cta",
+        "text": "swipe up",
+        "type": "text",
+        "style": {
+          "color": "#FA6872",
+          "zIndex": 5,
+          "fontSize": "36px",
+          "textAlign": "left",
+          "fontFamily": "opensans-extrabolditalic",
+          "fontWeight": "800",
+          "lineHeight": 46.8,
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 62,
+          "xmin": 38,
+          "ymax": 86,
+          "ymin": 83
+        },
+        "description": "Szöveg réteg \"btn-cta\" névvel. Kezdeti minta szövege: \"swipe up\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (250x60px)."
+      },
+      {
+        "name": "title",
+        "text": "Sneakers Air Run",
+        "type": "text",
+        "style": {
+          "color": "#FFFFFF",
+          "zIndex": 6,
+          "fontSize": "135px",
+          "textAlign": "left",
+          "fontFamily": "opensans-extrabolditalic",
+          "fontWeight": "800",
+          "lineHeight": 148.5,
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 96,
+          "xmin": 4,
+          "ymax": 74,
+          "ymin": 57
+        },
+        "description": "Szöveg réteg \"title\" névvel. Kezdeti minta szövege: \"Sneakers Air Run\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (1000x330px)."
+      },
+      {
+        "name": "watermark_0",
+        "type": "shape",
+        "style": {
+          "zIndex": 7,
+          "borderRadius": "0px"
+        },
+        "position": {
+          "xmax": 97,
+          "xmin": 74,
+          "ymax": 7,
+          "ymin": 3
+        },
+        "description": "Alakzat réteg (\"watermark-0\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "subtitle",
+        "text": "New Arrival",
+        "type": "text",
+        "style": {
+          "color": "#FFFFFF",
+          "zIndex": 8,
+          "fontSize": "36px",
+          "textAlign": "left",
+          "fontFamily": "opensans-light",
+          "fontWeight": "300",
+          "lineHeight": 46.8,
+          "letterSpacing": "10px",
+          "textTransform": "uppercase"
+        },
+        "position": {
+          "xmax": 91,
+          "xmin": 9,
+          "ymax": 56,
+          "ymin": 52
+        },
+        "description": "Szöveg réteg \"subtitle\" névvel. Kezdeti minta szövege: \"New Arrival\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (879x90px)."
+      }
+    ],
+    "preset_174": [
+      {
+        "name": "background_layer",
+        "type": "shape",
+        "style": {
+          "zIndex": 1,
+          "backgroundColor": "#FFFFFF"
+        },
+        "position": {
+          "xmax": 100,
+          "xmin": 0,
+          "ymax": 100,
+          "ymin": 0
+        },
+        "description": "A sablon alap háttere, amely az egész tervezőfelületet kitölti.",
+        "context_instruction": "Ez a réteg határozza meg a háttérszínt. Szükség esetén cseréld le."
+      },
+      {
+        "name": "watermark_0",
+        "type": "shape",
+        "style": {
+          "zIndex": 1,
+          "borderRadius": "0px"
+        },
+        "position": {
+          "xmax": 98,
+          "xmin": 83,
+          "ymax": 9,
+          "ymin": 2
+        },
+        "description": "Alakzat réteg (\"watermark-0\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "img",
+        "type": "picture",
+        "style": {
+          "zIndex": 1,
+          "objectFit": "cover",
+          "borderRadius": "0px",
+          "objectPosition": "center"
+        },
+        "position": {
+          "xmax": 100,
+          "xmin": 0,
+          "ymax": 100,
+          "ymin": 44
+        },
+        "description": "Képkeret réteg \"img\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "gradient",
+        "type": "picture",
+        "style": {
+          "zIndex": 2,
+          "objectFit": "cover",
+          "transform": "rotate(90deg)",
+          "borderRadius": "0px",
+          "objectPosition": "center"
+        },
+        "position": {
+          "xmax": 78,
+          "xmin": 22,
+          "ymax": 122,
+          "ymin": 22
+        },
+        "description": "Képkeret réteg \"gradient\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "underline",
+        "type": "shape",
+        "style": {
+          "zIndex": 3,
+          "borderRadius": "0px",
+          "backgroundColor": "#000000"
+        },
+        "position": {
+          "xmax": 55,
+          "xmin": 45,
+          "ymax": 42,
+          "ymin": 42
+        },
+        "description": "Alakzat réteg (\"underline\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "cta",
+        "text": "Buy Now",
+        "type": "text",
+        "style": {
+          "color": "#000",
+          "zIndex": 4,
+          "fontSize": "30px",
+          "textAlign": "center",
+          "fontFamily": "josefinsans-bold",
+          "fontWeight": "700",
+          "lineHeight": 39,
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 72,
+          "xmin": 28,
+          "ymax": 41,
+          "ymin": 38
+        },
+        "description": "Szöveg réteg \"cta\" névvel. Kezdeti minta szövege: \"Buy Now\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (520x40px)."
+      },
+      {
+        "name": "price",
+        "text": "$ 98",
+        "type": "text",
+        "style": {
+          "color": "#6F6F6F",
+          "zIndex": 5,
+          "fontSize": "60px",
+          "textAlign": "center",
+          "fontFamily": "josefinsans-bold",
+          "fontWeight": "700",
+          "lineHeight": 78,
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 72,
+          "xmin": 28,
+          "ymax": 38,
+          "ymin": 30
+        },
+        "description": "Szöveg réteg \"price\" névvel. Kezdeti minta szövege: \"$ 98\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (520x90px)."
+      },
+      {
+        "name": "title",
+        "text": "5-Day Juice Cleanse Pineapple",
+        "type": "text",
+        "style": {
+          "color": "#000",
+          "zIndex": 6,
+          "fontSize": "140px",
+          "textAlign": "center",
+          "fontFamily": "josefinsans-bold",
+          "fontWeight": "700",
+          "lineHeight": "160",
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 88,
+          "xmin": 13,
+          "ymax": 26,
+          "ymin": 7
+        },
+        "description": "Szöveg réteg \"title\" névvel. Kezdeti minta szövege: \"5-Day Juice Cleanse Pineapple\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (900x228px)."
+      }
+    ],
+    "preset_193": [
+      {
+        "name": "background_layer",
+        "type": "shape",
+        "style": {
+          "zIndex": 1,
+          "backgroundColor": "#FFFFFF"
+        },
+        "position": {
+          "xmax": 100,
+          "xmin": 0,
+          "ymax": 100,
+          "ymin": 0
+        },
+        "description": "A sablon alap háttere, amely az egész tervezőfelületet kitölti.",
+        "context_instruction": "Ez a réteg határozza meg a háttérszínt. Szükség esetén cseréld le."
+      },
+      {
+        "name": "watermark_0",
+        "type": "shape",
+        "style": {
+          "zIndex": 1,
+          "borderRadius": "0px"
+        },
+        "position": {
+          "xmax": 108,
+          "xmin": 92,
+          "ymax": 6,
+          "ymin": 1
+        },
+        "description": "Alakzat réteg (\"watermark-0\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "discount",
+        "text": "30 % off",
+        "type": "text",
+        "style": {
+          "color": "#000000",
+          "zIndex": 2,
+          "fontSize": "50px",
+          "textAlign": "left",
+          "transform": "rotate(20deg)",
+          "fontFamily": "josefinsans-bold",
+          "fontWeight": "700",
+          "lineHeight": 55,
+          "letterSpacing": "0px",
+          "textTransform": "uppercase"
+        },
+        "position": {
+          "xmax": 88,
+          "xmin": 73,
+          "ymax": 38,
+          "ymin": 32
+        },
+        "description": "Szöveg réteg \"discount\" névvel. Kezdeti minta szövege: \"30 % off\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (170x120px)."
+      },
+      {
+        "name": "discount_bg",
+        "type": "shape",
+        "style": {
+          "zIndex": 3,
+          "borderColor": "#FFFFFF",
+          "borderStyle": "solid",
+          "borderWidth": "1px",
+          "borderRadius": "225px",
+          "backgroundColor": "#F8CE0C"
+        },
+        "position": {
+          "xmax": 93,
+          "xmin": 69,
+          "ymax": 41,
+          "ymin": 28
+        },
+        "description": "Alakzat réteg (\"discount-bg\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "title",
+        "text": "5-Day Juice Cleanse Pineapple",
+        "type": "text",
+        "style": {
+          "color": "#000",
+          "zIndex": 4,
+          "fontSize": "140px",
+          "textAlign": "center",
+          "fontFamily": "josefinsans-bold",
+          "fontWeight": "700",
+          "lineHeight": "160",
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 92,
+          "xmin": 8,
+          "ymax": 25,
+          "ymin": 13
+        },
+        "description": "Szöveg réteg \"title\" névvel. Kezdeti minta szövege: \"5-Day Juice Cleanse Pineapple\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (900x228px)."
+      },
+      {
+        "name": "cta",
+        "text": "Today only!",
+        "type": "text",
+        "style": {
+          "color": "#000",
+          "zIndex": 5,
+          "fontSize": "30px",
+          "textAlign": "center",
+          "fontFamily": "josefinsans-bold",
+          "fontWeight": "700",
+          "lineHeight": 39,
+          "letterSpacing": "0px",
+          "textTransform": "none"
+        },
+        "position": {
+          "xmax": 74,
+          "xmin": 26,
+          "ymax": 31,
+          "ymin": 28
+        },
+        "description": "Szöveg réteg \"cta\" névvel. Kezdeti minta szövege: \"Today only!\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (520x50px)."
+      },
+      {
+        "name": "underline",
+        "type": "shape",
+        "style": {
+          "zIndex": 6,
+          "borderRadius": "0px",
+          "backgroundColor": "#000000"
+        },
+        "position": {
+          "xmax": 55,
+          "xmin": 45,
+          "ymax": 31,
+          "ymin": 31
+        },
+        "description": "Alakzat réteg (\"underline\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "gradient",
+        "type": "picture",
+        "style": {
+          "zIndex": 7,
+          "objectFit": "cover",
+          "transform": "rotate(90deg)",
+          "borderRadius": "0px",
+          "objectPosition": "center"
+        },
+        "position": {
+          "xmax": 81,
+          "xmin": 19,
+          "ymax": 77,
+          "ymin": 21
+        },
+        "description": "Képkeret réteg \"gradient\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "img",
+        "type": "picture",
+        "style": {
+          "zIndex": 8,
+          "objectFit": "cover",
+          "borderRadius": "0px",
+          "objectPosition": "center"
+        },
+        "position": {
+          "xmax": 100,
+          "xmin": 0,
+          "ymax": 100,
+          "ymin": 32
+        },
+        "description": "Képkeret réteg \"img\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      }
+    ],
+    "preset_29": [
+      {
+        "name": "background_layer",
+        "type": "shape",
+        "position": {
+          "xmin": 0,
+          "xmax": 100,
+          "ymin": 0,
+          "ymax": 100
+        },
+        "style": {
+          "backgroundColor": "#FFFFFF",
+          "zIndex": 1
+        },
+        "description": "A sablon alap háttere, amely az egész tervezőfelületet kitölti.",
+        "context_instruction": "Ez a réteg határozza meg a háttérszínt. Szükség esetén cseréld le."
+      },
+      {
+        "name": "img_top_left",
+        "type": "picture",
+        "position": {
+          "xmin": 3,
+          "xmax": 49,
+          "ymin": 7,
+          "ymax": 48
+        },
+        "style": {
+          "objectFit": "cover",
+          "borderRadius": "0px",
+          "objectPosition": "center",
+          "zIndex": 1
+        },
+        "description": "Képkeret réteg \"img-top-left\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "img_bottom_left",
+        "type": "picture",
+        "position": {
+          "xmin": 3,
+          "xmax": 49,
+          "ymin": 52,
+          "ymax": 93
+        },
+        "style": {
+          "objectFit": "cover",
+          "borderRadius": "0px",
+          "objectPosition": "center",
+          "zIndex": 1
+        },
+        "description": "Képkeret réteg \"img-bottom-left\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "img_right",
+        "type": "picture",
+        "position": {
+          "xmin": 51,
+          "xmax": 97,
+          "ymin": 7,
+          "ymax": 93
+        },
+        "style": {
+          "objectFit": "cover",
+          "borderRadius": "0px",
+          "objectPosition": "center",
+          "zIndex": 1
+        },
+        "description": "Képkeret réteg \"img-right\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "watermark_0",
+        "type": "shape",
+        "position": {
+          "xmin": 78,
+          "xmax": 94,
+          "ymin": 11,
+          "ymax": 23
+        },
+        "style": {
+          "borderRadius": "0px",
+          "zIndex": 1
+        },
+        "description": "Alakzat réteg (\"watermark-0\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      }
+    ],
+    "preset_105": [
+      {
+        "name": "background_layer",
+        "type": "shape",
+        "position": {
+          "xmin": 0,
+          "xmax": 100,
+          "ymin": 0,
+          "ymax": 100
+        },
+        "style": {
+          "backgroundColor": "#FFFFFF",
+          "zIndex": 1
+        },
+        "description": "A sablon alap háttere, amely az egész tervezőfelületet kitölti.",
+        "context_instruction": "Ez a réteg határozza meg a háttérszínt. Szükség esetén cseréld le."
+      },
+      {
+        "name": "img",
+        "type": "picture",
+        "position": {
+          "xmin": 0,
+          "xmax": 100,
+          "ymin": 0,
+          "ymax": 100
+        },
+        "style": {
+          "objectFit": "cover",
+          "borderRadius": "0px",
+          "objectPosition": "center",
+          "zIndex": 1
+        },
+        "description": "Képkeret réteg \"img\" névvel, amely vizuális elemként vagy háttérként szolgál.",
+        "context_instruction": "Cseréld le ezt a képet a saját képedre vagy illusztrációdra. Ajánlott felbontása követi a réteg arányait."
+      },
+      {
+        "name": "box",
+        "type": "shape",
+        "position": {
+          "xmin": 17,
+          "xmax": 83,
+          "ymin": 33,
+          "ymax": 70
+        },
+        "style": {
+          "backgroundColor": "#fff",
+          "borderRadius": "0px",
+          "zIndex": 1
+        },
+        "description": "Alakzat réteg (\"box\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "bg_url",
+        "type": "shape",
+        "position": {
+          "xmin": 23,
+          "xmax": 78,
+          "ymin": 28,
+          "ymax": 41
+        },
+        "style": {
+          "backgroundColor": "#875FF8",
+          "borderRadius": "0px",
+          "zIndex": 1
+        },
+        "description": "Alakzat réteg (\"bg-url\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      },
+      {
+        "name": "url",
+        "type": "text",
+        "position": {
+          "xmin": 23,
+          "xmax": 78,
+          "ymin": 28,
+          "ymax": 41
+        },
+        "style": {
+          "color": "#FFFFFF",
+          "fontSize": "36px",
+          "fontFamily": "rubik-black",
+          "fontWeight": "900",
+          "textAlign": "left",
+          "lineHeight": 46.8,
+          "textTransform": "uppercase",
+          "letterSpacing": "0px",
+          "zIndex": 1
+        },
+        "text": "socialinfluence.com",
+        "description": "Szöveg réteg \"url\" névvel. Kezdeti minta szövege: \"socialinfluence.com\".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (660x80px)."
+      },
+      {
+        "name": "subline",
+        "type": "text",
+        "position": {
+          "xmin": 21,
+          "xmax": 79,
+          "ymin": 44,
+          "ymax": 67
+        },
+        "style": {
+          "color": "#000",
+          "fontSize": "36px",
+          "fontFamily": "rubik-light",
+          "fontWeight": "300",
+          "textAlign": "left",
+          "lineHeight": "50",
+          "textTransform": "uppercase",
+          "letterSpacing": "0px",
+          "zIndex": 1
+        },
+        "text": "Your platform for successful community-building ",
+        "description": "Szöveg réteg \"subline\" névvel. Kezdeti minta szövege: \"Your platform for successful community-building \".",
+        "context_instruction": "Módosítsd ezt a szöveget a kívánt feliratra. Figyelj a szövegdoboz méretére (700x135px)."
+      },
+      {
+        "name": "watermark_0",
+        "type": "shape",
+        "position": {
+          "xmin": 83,
+          "xmax": 97,
+          "ymin": 5,
+          "ymax": 17
+        },
+        "style": {
+          "borderRadius": "0px",
+          "zIndex": 1
+        },
+        "description": "Alakzat réteg (\"watermark-0\"), amely háttérként, keretként vagy elválasztóként funkcionál.",
+        "context_instruction": "A színe és szegélye módosítható a márkád arculatának megfelelően."
+      }
+    ]
+  },
+  "aiInstructionsHistory": {
+    "preset_103": [
+      "azt akarom, hogy a mintaképünk is legyen bal oldalt olyan gradient mint a példakép",
+      "azt akarom, hogy a szövegek elhelyezése is legyen olyan, mint a példa képen",
+      "a price cta title és underline al nem történt semmi, ugyanott vannak mint eddig, mozgasd őket a saját összeállitáson úgy, ahogy az eredetin vannak"
+    ]
+  }
+}

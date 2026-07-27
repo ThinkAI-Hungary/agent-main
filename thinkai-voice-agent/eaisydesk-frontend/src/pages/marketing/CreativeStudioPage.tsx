@@ -33,7 +33,7 @@ export default function CreativeStudioPage() {
   const location = useLocation();
   const navigate = useNavigate();
   const currentPath = location.pathname;
-  const basePath = '/marketing/zombo/creative-studio';
+  const basePath = '/marketing/social-planner/creative-studio';
 
   const [brandKits, setBrandKits] = useState<BrandKit[]>(INITIAL_BRAND_KITS);
   const [activeKitId, setActiveKitId] = useState<string>('kit-v2');

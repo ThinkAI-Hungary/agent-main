@@ -54,8 +54,15 @@ function kebabCase(str: string): string {
 function styleObjectToString(style: Record<string, any>): string {
   return Object.entries(style)
     .map(([key, val]) => {
-      if (key === 'zIndex') return `z-index: ${val}`;
-      return `${kebabCase(key)}: ${val}`;
+      let finalVal = val;
+      if (key === 'lineHeight' || key === 'line-height') {
+        const num = typeof val === 'number' ? val : parseFloat(val);
+        if (!isNaN(num) && num > 5) {
+          finalVal = `${num}px`;
+        }
+      }
+      if (key === 'zIndex') return `z-index: ${finalVal}`;
+      return `${kebabCase(key)}: ${finalVal}`;
     })
     .join('; ');
 }
@@ -73,7 +80,7 @@ function resolveImageUrl(url: string, port: number = 3001): string {
 function isBackgroundLayer(layer: PlacidLayer, index: number): boolean {
   if (layer.type !== 'picture') return false;
   const nameLower = layer.name.toLowerCase();
-  
+
   if (
     nameLower === 'bg' ||
     nameLower === 'background' ||
@@ -87,24 +94,24 @@ function isBackgroundLayer(layer: PlacidLayer, index: number): boolean {
   ) {
     return true;
   }
-  
+
   const pos = layer.position || {};
-  const isFullScreen = 
-    pos.xmin === 0 && 
-    pos.ymin === 0 && 
-    pos.xmax === 100 && 
+  const isFullScreen =
+    pos.xmin === 0 &&
+    pos.ymin === 0 &&
+    pos.xmax === 100 &&
     pos.ymax === 100;
   if (isFullScreen) {
     return true;
   }
-  
+
   if (
     (nameLower === 'img' || nameLower === 'image' || nameLower === 'photo' || nameLower === 'picture' || nameLower === 'main') &&
     index === 0
   ) {
     return true;
   }
-  
+
   return false;
 }
 
@@ -207,7 +214,7 @@ export async function renderLocalPlacid(params: RenderParams, port: number = 300
 
     if (layer.type === 'text') {
       const textContent = layerValues[layer.name] !== undefined ? layerValues[layer.name] : (layer.text || 'dummy text');
-      
+
       // Parse and override fonts
       if (layer.style.fontFamily) {
         const parsedFont = parsePlacidFont(layer.style.fontFamily);
@@ -252,10 +259,10 @@ export async function renderLocalPlacid(params: RenderParams, port: number = 300
       const pictureLayers = layers.filter(l => l.type === 'picture');
       const isSingleImage = pictureLayers.length === 1;
       const isBg = isBackgroundLayer(layer, layers.indexOf(layer));
-      
+
       // Force contain instead of cover if it is the only image OR if it is the background image
       const objectFit = (isSingleImage || isBg || isProduct) ? 'contain' : (layer.style.objectFit || 'cover');
-      
+
       // Use dynamic crop centering for background cover images to prevent product cutoff
       const objectPosition = isProduct ? 'center' : `${productCenterX}% ${productCenterY}%`;
 
@@ -268,7 +275,7 @@ export async function renderLocalPlacid(params: RenderParams, port: number = 300
         if (fadeDir === 'bottom') gradDir = 'to top';
         if (fadeDir === 'left') gradDir = 'to right';
         if (fadeDir === 'right') gradDir = 'to left';
-        
+
         const maskVal = `linear-gradient(${gradDir}, transparent, black ${fadePixels}px)`;
         maskStyle = `-webkit-mask-image: ${maskVal}; mask-image: ${maskVal};`;
       }

@@ -6,7 +6,9 @@ import { useState, useCallback, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTheme } from '../../context/ThemeContext';
 import { getToken } from '../../api/client';
+import { useAuth } from '../../context/AuthContext';
 import { showToast } from '../../components/ui/Toast';
+import { supabase } from '../../lib/supabase';
 
 // Cloned image generator imports
 import { type BrandKit as ZomboBrandKit, type PostCreative as ZomboPostCreative, type SystemLog as ZomboSystemLog, type Campaign as ZomboCampaign } from './zombo/types';
@@ -27,9 +29,13 @@ const ImageTestLabAny = ImageTestLab as any;
 import { OverlayTestLab } from './zombo/components/OverlayTestLab';
 import { ProdCalendarView } from './zombo/components/ProdCalendarView';
 import ZomboQuickPostPage from './zombo/components/ZomboQuickPostPage';
+import type { SocialBrand } from './zombo/socialBrandService';
+import { useAudit } from '../../context/AuditContext';
+import { SocialBrandSelector } from './zombo/components/SocialBrandSelector';
+import { MediaLibrary } from './zombo/components/MediaLibrary';
 import './zombo/zombo.css';
 
-// Lucide icons for generator sidebar
+// Lucide icons for Zombo Audit and generator sidebar
 import {
   Sparkles,
   Palette,
@@ -40,7 +46,26 @@ import {
   CheckCircle,
   TrendingUp,
   Zap,
-  Layers
+  Layers,
+  Globe,
+  PenTool,
+  Brain,
+  Database,
+  Search,
+  ArrowRight,
+  ArrowLeft,
+  Clock,
+  Settings,
+  ShieldAlert,
+  Trash2,
+  Plus,
+  ChevronDown,
+  Check,
+  Download,
+  Folder,
+  File,
+  FolderPlus,
+  Upload
 } from 'lucide-react';
 
 
@@ -58,11 +83,30 @@ interface SeoData {
   deductions: string[]; deductions_detail: { criterion: string; points: number; reason: string; recommendation?: string; status: string }[];
 }
 
+interface LogoDetail {
+  url: string;
+  width?: string;
+  height?: string;
+  location: string;
+  theme?: 'bright' | 'dark' | string;
+  cropped?: boolean;
+  usage_context?: string;
+}
+
 interface VisualsData {
   visual_tone: string; warm_pct: number; cool_pct: number; neutral_pct: number;
   top_colors_detail: { hex: string; pct: number; name?: string }[];
   image_colors: ({ hex: string; name?: string } | string)[];
   visual_style_description: string;
+  logo_analysis?: {
+    primary_logo?: {
+      url: string;
+      theme?: 'bright' | 'dark' | string;
+      cropped?: boolean;
+      style_description?: string;
+    };
+    logos_breakdown?: LogoDetail[];
+  };
 }
 
 interface ContentData {
@@ -310,14 +354,45 @@ const InfoRow = ({ label, children }: { label: string; children: React.ReactNode
   </tr>
 );
 
-const SectionCard = ({ title, icon, children }: { title: string; icon: string; children: React.ReactNode }) => (
-  <div style={{ background: 'var(--card, #fff)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, marginBottom: 18 }}>
-    <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 18, display: 'flex', alignItems: 'center', gap: 10 }}>
-      <span style={{ fontSize: 18 }}>{icon}</span> {title}
+const SectionCard = ({ title, icon, children, onReevaluate }: { title: string; icon: string; children: React.ReactNode; onReevaluate?: () => void }) => {
+  const [hovered, setHovered] = useState(false);
+  return (
+    <div style={{ background: 'var(--card, #fff)', border: '1px solid var(--border)', borderRadius: 16, padding: 24, marginBottom: 18 }}>
+      <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 18, display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          <span style={{ fontSize: 18 }}>{icon}</span> {title}
+        </div>
+        {onReevaluate && (
+          <button
+            onClick={onReevaluate}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
+            style={{
+              background: hovered ? 'rgba(139, 92, 246, 0.1)' : 'transparent',
+              border: '1px solid rgba(139, 92, 246, 0.3)',
+              color: '#8b5cf6',
+              cursor: 'pointer',
+              fontSize: 11,
+              fontWeight: 700,
+              padding: '4px 10px',
+              borderRadius: 8,
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: 4,
+              transition: 'all 0.2s ease',
+              boxShadow: hovered ? '0 2px 8px rgba(139, 92, 246, 0.15)' : 'none'
+            }}
+            title="Szekció újraértékelése AI-val az oldal adatai alapján"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" style={{ transform: hovered ? 'rotate(90deg)' : 'none', transition: 'transform 0.4s ease' }}><path d="M21.5 2v6h-6M21.34 15.57a10 10 0 1 1-.57-8.38l5.67-5.67" /></svg>
+            Újraértékelés
+          </button>
+        )}
+      </div>
+      {children}
     </div>
-    {children}
-  </div>
-);
+  );
+};
 
 const ScoreBadge = ({ score }: { score: number }) => {
   const bg = score >= 80 ? 'rgba(34,197,94,0.1)' : score >= 50 ? 'rgba(245,158,11,0.1)' : 'rgba(239,68,68,0.1)';
@@ -328,6 +403,7 @@ const ScoreBadge = ({ score }: { score: number }) => {
 
 /* ══════════════════════════════ TABS ══════════════════════════════ */
 const TABS = [
+  { id: 'overview', label: 'Áttekintés' },
   { id: 'seo', label: 'SEO Audit' },
   { id: 'visual', label: 'Vizuális' },
   { id: 'content', label: 'Tartalom' },
@@ -342,6 +418,7 @@ const TABS = [
 ];
 
 const EVAL_SUB_TABS = [
+  { id: 'overview', label: 'Áttekintés' },
   { id: 'seo', label: 'SEO Audit' },
   { id: 'visual', label: 'Vizuális' },
   { id: 'content', label: 'Tartalom' },
@@ -352,7 +429,8 @@ const EVAL_SUB_TABS = [
 ];
 
 const MAIN_TABS = [
-  { id: 'evaluation', label: 'Oldal kiértékelése' },
+  { id: 'overview', label: '📊 Gyors Áttekintés' },
+  { id: 'evaluation', label: '🔍 Részletes Audit' },
   { id: 'quick-post', label: '⚡ Quick Post' },
   { id: 'layer-review', label: '🔍 Layer Review' },
   { id: 'prod', label: 'Éles Naptár (Prod)' },
@@ -405,7 +483,7 @@ export function deriveBrandKitFromAudit(data: AuditResult, version: number): Zom
   /* ── Colors & basic fields ── */
   const colorList = data.visuals?.top_colors_detail || [];
   const primary = colorList[0]?.hex || '#1a1a2e';
-  const secondary = colorList[1]?.hex || '#f8f8f8';
+  const secondary = colorList[3]?.hex || colorList[1]?.hex || '#f8f8f8';
   const accent = colorList[2]?.hex || '#8b5cf6';
   const tone = bp?.brand_voice || [];
   const colorRules = data.visuals?.visual_style_description || '';
@@ -508,7 +586,7 @@ export function deriveBrandKitFromAudit(data: AuditResult, version: number): Zom
       bodySize: '15px',
       maxLineLength: 40,
     },
-    logoUrl: '',
+    logoUrl: data.scraper_json?.favicon || (data.url ? `https://www.google.com/s2/favicons?sz=128&domain=${data.url.replace(/^https?:\/\//, '').split('/')[0]}` : ''),
     logoPosition: 'top-left',
     tone,
     toneExampleGood: bp?.personality_summary || '',
@@ -521,6 +599,36 @@ export function deriveBrandKitFromAudit(data: AuditResult, version: number): Zom
 }
 
 
+export function sanitizeUrl(input: string): string {
+  let str = input.trim();
+  if (!str) return '';
+
+  // 1. Fix wwww. -> www.
+  str = str.replace(/https?:\/\/w{4,}\./gi, 'https://www.');
+  str = str.replace(/^w{4,}\./gi, 'www.');
+
+  // 2. Extract first valid http(s) block if double pasted
+  const httpMatches = str.match(/https?:\/\/[^\s"'<>]+/gi);
+  if (httpMatches && httpMatches.length > 0) {
+    str = httpMatches[0];
+  }
+
+  // 3. Ensure https:// prefix
+  if (!/^https?:\/\//i.test(str)) {
+    str = 'https://' + str;
+  }
+
+  // 4. Extract clean origin + pathname using URL constructor
+  try {
+    const parsed = new URL(str);
+    let hostname = parsed.hostname.replace(/^w{4,}\./i, 'www.');
+    let pathname = parsed.pathname === '/' ? '' : parsed.pathname;
+    return `${parsed.protocol}//${hostname}${pathname}`;
+  } catch {
+    return str.split('?')[0].split('#')[0];
+  }
+}
+
 function saveResult(data: AuditResult | null, url: string, tab: string) {
   try {
     if (data) {
@@ -531,30 +639,98 @@ function saveResult(data: AuditResult | null, url: string, tab: string) {
   } catch { /* storage full — silently ignore */ }
 }
 
+
+
+function getGroupedColors(colors: { hex: string; pct: number; name?: string }[] = []) {
+  const padded = [...colors];
+  const defaultColors = [
+    { hex: '#1a1a2e', pct: 40, name: 'Elsődleges 1' },
+    { hex: '#8b5cf6', pct: 30, name: 'Elsődleges 2' },
+    { hex: '#3b82f6', pct: 20, name: 'Elsődleges 3' },
+    { hex: '#f8f8f8', pct: 5, name: 'Másodlagos 1' },
+    { hex: '#e2e8f0', pct: 3, name: 'Másodlagos 2' },
+    { hex: '#cbd5e1', pct: 2, name: 'Másodlagos 3' }
+  ];
+  for (let i = padded.length; i < 6; i++) {
+    padded.push(defaultColors[i]);
+  }
+
+  return {
+    primaryColors: padded.slice(0, 3),
+    secondaryColors: padded.slice(3, 6)
+  };
+}
+
 /* ════════════════════════════════ Component ════════════════════════════════ */
 
 export default function ZomboAuditPage() {
   const navigate = useNavigate();
-  const [url, setUrl] = useState(() => sessionStorage.getItem(STORAGE_KEY_URL) || '');
-  const [limit, setLimit] = useState(10);
-  const [loading, setLoading] = useState(false);
-  const [progress, setProgress] = useState('');
-  const [result, setResult] = useState<AuditResult | null>(() => loadStoredResult());
+  const { user } = useAuth();
+
+  const {
+    url, setUrl, limit, setLimit, loading, progress, result, setResult,
+    activeBrand, setActiveBrand, allBrands, setAllBrands, brandKits, setBrandKits,
+    activeKitId, setActiveKitId, creatives, setCreatives, logs, setLogs,
+    addLog, handleSubmit, handleSelectBrand, handleDeleteBrand, handleAuditNewPage, isValidUrl,
+    handleReevaluateSection, handleToggleSelectContact
+  } = useAudit();
+
+
+
   const [activeTab, setActiveTab] = useState(() => {
     const stored = sessionStorage.getItem(STORAGE_KEY_TAB);
-    if (stored === 'prod' || stored === 'raw' || stored === 'quick-post' || stored === 'generate') return 'seo';
-    return stored || 'seo';
+    if (stored === 'prod' || stored === 'raw' || stored === 'quick-post' || stored === 'generate' || stored === 'media') return 'overview';
+    return stored || 'overview';
   });
-  const [activeMainTab, setActiveMainTab] = useState<'evaluation' | 'quick-post' | 'layer-review' | 'prod' | 'raw'>(() => {
+  const [activeMainTab, setActiveMainTab] = useState<'overview' | 'evaluation' | 'media' | 'quick-post' | 'layer-review' | 'prod' | 'raw'>(() => {
     const stored = sessionStorage.getItem(STORAGE_KEY_TAB);
+    if (stored === 'overview') return 'overview';
+    if (stored === 'media') return 'media';
+    if (stored === 'evaluation') return 'evaluation';
     if (stored === 'prod') return 'prod';
     if (stored === 'raw') return 'raw';
     if (stored === 'quick-post') return 'quick-post';
     if (stored === 'layer-review') return 'layer-review';
-    return 'evaluation';
+    return 'overview';
   });
   const [productSearch, setProductSearch] = useState('');
   const [productBrand, setProductBrand] = useState('');
+
+  const [activeModalImageUrl, setActiveModalImageUrl] = useState<string | null>(null);
+
+  const handleDownloadFile = async (url: string) => {
+    try {
+      const response = await fetch(url);
+      const blob = await response.blob();
+      const blobUrl = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = blobUrl;
+      link.download = url.split('/').pop() || 'arculati-elem';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(blobUrl);
+    } catch {
+      const link = document.createElement('a');
+      link.href = url;
+      link.target = '_blank';
+      link.download = url.split('/').pop() || 'arculati-elem';
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+    }
+  };
+
+  useEffect(() => {
+    if (activeModalImageUrl) {
+      document.body.style.overflow = 'hidden';
+    } else {
+      document.body.style.overflow = '';
+    }
+    return () => {
+      document.body.style.overflow = '';
+    };
+  }, [activeModalImageUrl]);
 
   // AI generation states
   const [genPostPrompt, setGenPostPrompt] = useState('');
@@ -569,27 +745,10 @@ export default function ZomboAuditPage() {
   const [genImgVariants, setGenImgVariants] = useState<any[]>([]);
   const [genImgLoading, setGenImgLoading] = useState(false);
 
-  const abortRef = useRef<AbortController | null>(null);
   const [loadingCategory, setLoadingCategory] = useState<Record<string, boolean>>({});
 
   // Cloned image generator states
-  const [brandKits, setBrandKits] = useState<ZomboBrandKit[]>(() => {
-    const stored = loadStoredResult();
-    if (stored) {
-      return [deriveBrandKitFromAudit(stored, 1)];
-    }
-    return [];
-  });
-  const [activeKitId, setActiveKitId] = useState<string>(() => {
-    const stored = loadStoredResult();
-    if (stored) {
-      return 'kit-v1';
-    }
-    return '';
-  });
   const [isExtracting, setIsExtracting] = useState<boolean>(false);
-  const [creatives, setCreatives] = useState<ZomboPostCreative[]>([]);
-  const [logs, setLogs] = useState<ZomboSystemLog[]>([]);
   const [shouldSimulateError, setShouldSimulateError] = useState<boolean>(false);
   const [genSubTab, setGenSubTab] = useState<'dashboard' | 'campaigns' | 'imagelab' | 'overlay-lab' | 'brandkit' | 'calendar' | 'admin' | 'social-manager'>('dashboard');
 
@@ -616,16 +775,53 @@ export default function ZomboAuditPage() {
   // ── No longer forcing dark mode — we now respect the global isDark state ────
   // from ThemeContext. The zombo.css takes care of token overrides.
 
-  const addLog = useCallback((message: string, level: 'info' | 'warn' | 'error' | 'success', step?: 'queue' | 'orchestrator' | 'renderer' | 'meta-api') => {
-    const newLog: ZomboSystemLog = {
-      id: `log-added-${Date.now()}-${Math.random()}`,
-      timestamp: new Date().toISOString(),
-      level,
-      message,
-      step
+  const handleColorChange = (index: number, newHex: string) => {
+    if (!result) return;
+    const newColors = [...(result.visuals?.top_colors_detail || [])];
+
+    const defaultColors = [
+      { hex: '#1a1a2e', pct: 40, name: 'Elsődleges 1' },
+      { hex: '#8b5cf6', pct: 30, name: 'Elsődleges 2' },
+      { hex: '#3b82f6', pct: 20, name: 'Elsődleges 3' },
+      { hex: '#f8f8f8', pct: 5, name: 'Másodlagos 1' },
+      { hex: '#e2e8f0', pct: 3, name: 'Másodlagos 2' },
+      { hex: '#cbd5e1', pct: 2, name: 'Másodlagos 3' }
+    ];
+    while (newColors.length < 6) {
+      newColors.push(defaultColors[newColors.length]);
+    }
+
+    newColors[index] = { ...newColors[index], hex: newHex };
+
+    const updatedResult: AuditResult = {
+      ...result,
+      visuals: {
+        ...result.visuals,
+        top_colors_detail: newColors
+      }
     };
-    setLogs(prev => [newLog, ...prev]);
-  }, []);
+
+    setResult(updatedResult);
+    saveResult(updatedResult, result.url, activeTab);
+
+    // Propagate changes to derived brand kit
+    setBrandKits(prev => prev.map((k, idx) => {
+      if (idx === 0) {
+        const updatedColorsObj = { ...k.colors };
+        if (index === 0) updatedColorsObj.primary = newHex;
+        if (index === 3) updatedColorsObj.secondary = newHex;
+        if (index === 2) updatedColorsObj.accent = newHex;
+
+        return {
+          ...k,
+          colors: updatedColorsObj
+        };
+      }
+      return k;
+    }));
+
+    showToast(`Szín módosítva: ${newHex}`);
+  };
 
   const handleGenerateStart = useCallback((briefText: string) => {
     addLog(`Új generálási folyamat elindítva brief alapján: "${briefText}"`, 'info', 'queue');
@@ -766,11 +962,7 @@ export default function ZomboAuditPage() {
     } catch { }
   }, [activeTab, activeMainTab]);
 
-  /* ── URL Validation ── */
-  const isValidUrl = useCallback((v: string) => {
-    if (!v.trim()) return false;
-    return /^(https?:\/\/)?[\da-z.-]+\.[a-z.]{2,6}([/\w .-]*)*\/?$/i.test(v.trim());
-  }, []);
+
 
   /* ── Per-Category Evaluation ── */
   const CATEGORY_MAP: Record<string, string> = {
@@ -782,7 +974,8 @@ export default function ZomboAuditPage() {
   const handleCategoryEvaluate = useCallback(async (category: string) => {
     const backendCategory = CATEGORY_MAP[category];
     if (!backendCategory) return;
-    const evalUrl = url.trim() || result?.url;
+    const rawUrl = url.trim() || result?.url || '';
+    const evalUrl = sanitizeUrl(rawUrl);
     if (!evalUrl) { showToast('Adj meg egy URL-t!', 'error'); return; }
 
     setLoadingCategory(prev => ({ ...prev, [category]: true }));
@@ -812,95 +1005,6 @@ export default function ZomboAuditPage() {
     setLoadingCategory(prev => ({ ...prev, [category]: false }));
   }, [url, result, activeTab]);
 
-  /* ── Streaming Scrape ── */
-  const handleSubmit = useCallback(async () => {
-    let submitUrl = url.trim();
-    if (!submitUrl) { showToast('Adj meg egy URL-t!', 'error'); return; }
-
-    // Auto-strip query/hash
-    try {
-      let temp = submitUrl;
-      if (!/^https?:\/\//i.test(temp)) temp = 'https://' + temp;
-      const parsed = new URL(temp);
-      submitUrl = parsed.origin + parsed.pathname;
-    } catch { /* keep as is */ }
-
-    setLoading(true);
-    setProgress('Kapcsolódás a szerverhez...');
-    setResult(null);
-
-    const ctrl = new AbortController();
-    abortRef.current = ctrl;
-
-    try {
-      const token = getToken();
-      const response = await fetch('/marketing/api/zombo/scrape', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-        body: JSON.stringify({ url: submitUrl, limit }),
-        signal: ctrl.signal,
-      });
-
-      if (!response.ok) throw new Error('Kapcsolódási hiba az elemző szerverhez.');
-
-      const reader = response.body!.getReader();
-      const decoder = new TextDecoder();
-      let buffer = '';
-
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) break;
-
-        buffer += decoder.decode(value, { stream: true });
-        const lines = buffer.split('\n');
-        buffer = lines.pop() || '';
-
-        for (const line of lines) {
-          if (!line.trim()) continue;
-          try {
-            const event = JSON.parse(line);
-            if (event.step === 'error') throw new Error(event.message);
-            if (event.message) setProgress(event.message);
-            if (event.step === 'complete' && event.data) {
-              const data = event.data;
-              // Parse scraper_json if string
-              if (typeof data.scraper_json === 'string') {
-                try { data.scraper_json = JSON.parse(data.scraper_json); } catch { /* keep as string */ }
-              }
-              setResult(data);
-              setActiveTab('seo');
-              saveResult(data, submitUrl, 'seo');
-              showToast('Elemzés kész!');
-
-
-              // Map brand coordinates to a new Brand Kit — uses the same deriveBrandKitFromAudit
-              // as v1, guaranteeing identical logic for all auto-generated versions.
-              setBrandKits(prev => {
-                const nextVer = prev.length + 1;
-                const newKit = deriveBrandKitFromAudit(data, nextVer);
-                setActiveKitId(newKit.id);
-                addLog(`[AUDIT SYMBIO] Új Brand Kit (v${nextVer}) automatikusan szinkronizálva az audit Brand DNA adatai alapján!`, 'success', 'orchestrator');
-                return [...prev, newKit];
-              });
-
-            }
-          } catch (e) {
-            if (e instanceof SyntaxError) {
-              // JSON parse error on one line — skip
-            } else {
-              throw e; // rethrow server errors and connection errors
-            }
-          }
-        }
-      }
-    } catch (e) {
-      if ((e as Error).name !== 'AbortError') {
-        showToast(`Hiba: ${(e as Error).message}`, 'error');
-      }
-    }
-    setLoading(false);
-    setProgress('');
-  }, [url, limit, addLog]);
 
   /* ── AI Post Generation ── */
   const handleGenPost = useCallback(async () => {
@@ -1007,6 +1111,496 @@ export default function ZomboAuditPage() {
     </div>
   );
 
+  const renderOverviewContent = () => {
+    const d = result;
+    if (!d) return null;
+
+    const companyName = d.contact?.company_name || activeBrand?.brand_name || 'Névtelen márka';
+    const websiteUrl = d.url || activeBrand?.domain || '';
+    const formattedDate = activeBrand?.created_at ? new Date(activeBrand.created_at).toLocaleString('hu-HU') : new Date().toLocaleString('hu-HU');
+    const category = d.content?.business_category || 'Nincs megadva';
+    const primaryLogoUrl = d.visuals?.logo_analysis?.primary_logo?.url || d.scraper_json?.logos?.[0] || '';
+    const resolvedLogoUrl = primaryLogoUrl || activeBrand?.logo_url || (activeBrand?.domain || websiteUrl ? `https://www.google.com/s2/favicons?sz=128&domain=${activeBrand?.domain || websiteUrl.replace(/^https?:\/\//, '').split('/')[0]}` : '');
+    const visualTone = d.visuals?.visual_tone || 'Neutrális';
+    const styleDescription = d.visuals?.visual_style_description || 'Nincs arculati leírás.';
+    const contentSummary = d.content?.summary || d.content?.seo_advice || 'Nincs tartalom leírás.';
+
+    const handleCopy = (text: string, label: string) => {
+      navigator.clipboard.writeText(text);
+      showToast(`${label} másolva a vágólapra!`);
+    };
+
+    return (
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+        {/* Top Header Card */}
+        <div style={{
+          display: 'flex',
+          gap: 24,
+          alignItems: 'center',
+          background: 'var(--bg2)',
+          padding: 24,
+          borderRadius: 16,
+          border: '1px solid var(--border)',
+          flexWrap: 'wrap'
+        }}>
+          {/* Logo preview */}
+          <div style={{
+            width: 90,
+            height: 90,
+            borderRadius: 12,
+            background: '#e2e8f0 repeating-conic-gradient(#ffffff 0% 25%, #cbd5e1 0% 50%) 50% / 12px 12px',
+            border: '1px solid var(--border)',
+            padding: 8,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            flexShrink: 0
+          }}>
+            {resolvedLogoUrl ? (
+              <img
+                src={resolvedLogoUrl}
+                alt=""
+                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain', cursor: 'pointer' }}
+                onClick={() => setActiveModalImageUrl(resolvedLogoUrl)}
+                title="Kattints a nagyításhoz"
+                onError={(e) => {
+                  (e.target as HTMLElement).style.display = 'none';
+                  const parent = (e.target as HTMLElement).parentElement;
+                  if (parent) {
+                    parent.innerHTML = `<span style="font-size: 24px; font-weight: 800; color: var(--text-dim);">${companyName.charAt(0).toUpperCase()}</span>`;
+                  }
+                }}
+              />
+            ) : (
+              <span style={{ fontSize: 24, fontWeight: 800, color: 'var(--text-dim)' }}>
+                {companyName.charAt(0).toUpperCase()}
+              </span>
+            )}
+          </div>
+
+          {/* Title & Metadata */}
+          <div style={{ flex: 1, minWidth: 240 }}>
+            <h2 style={{ fontSize: 22, fontWeight: 800, color: 'var(--text)', marginBottom: 6 }}>
+              {companyName}
+            </h2>
+            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 12, alignItems: 'center' }}>
+              <a
+                href={websiteUrl}
+                target="_blank"
+                rel="noopener noreferrer"
+                style={{ fontSize: 13, color: '#8b5cf6', fontWeight: 600, textDecoration: 'none', display: 'inline-flex', alignItems: 'center', gap: 4 }}
+              >
+                {websiteUrl} <span>↗</span>
+              </a>
+              <span style={{ color: 'var(--border)' }}>•</span>
+              <span style={{ fontSize: 12, fontWeight: 700, padding: '2px 8px', borderRadius: 4, background: 'rgba(59, 130, 246, 0.12)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                {category}
+              </span>
+              <span style={{ color: 'var(--border)' }}>•</span>
+              <span style={{ fontSize: 12, color: 'var(--text-muted)' }}>
+                Kiértékelve: {formattedDate}
+              </span>
+            </div>
+          </div>
+        </div>
+
+        {/* Two-column Grid */}
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(360px, 1fr))', gap: 24 }}>
+
+          {/* Left Panel: Contact and Company info */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+            {/* Kapcsolati információk */}
+            <SectionCard title="Kapcsolati Információk" icon="" onReevaluate={() => handleReevaluateSection('contact')}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 14 }}>
+                {/* Emails */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>E-mail címek</div>
+                  {d.contact?.emails && d.contact.emails.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {d.contact.emails.map((item: any, idx: number) => {
+                        const emailVal = typeof item === 'object' && item ? (item.email || item.value || '') : item;
+                        const contextVal = typeof item === 'object' && item ? (item.owner_context || item.context || item.description || '') : '';
+                        const isEmailSelected = result?.selected_contacts?.emails?.includes(emailVal);
+                        return (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: 'var(--bg3)', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)' }}>
+                            <input
+                              type="checkbox"
+                              checked={!!isEmailSelected}
+                              onChange={() => handleToggleSelectContact('email', emailVal)}
+                              style={{ marginTop: 3, cursor: 'pointer', width: 16, height: 16, accentColor: '#8b5cf6' }}
+                              title="Kijelölés posztíróhoz"
+                            />
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{emailVal}</span>
+                                <button
+                                  onClick={() => handleCopy(emailVal, 'E-mail')}
+                                  style={{ background: 'transparent', border: 'none', color: '#8b5cf6', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}
+                                >
+                                  Másolás
+                                </button>
+                              </div>
+                              {contextVal && (
+                                <div style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  fontSize: 10.5,
+                                  color: '#a78bfa',
+                                  background: 'rgba(139, 92, 246, 0.08)',
+                                  padding: '2px 8px',
+                                  borderRadius: 6,
+                                  width: 'fit-content',
+                                  marginTop: 6,
+                                  fontWeight: 700
+                                }}>
+                                  {contextVal}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>Nem található e-mail cím.</div>
+                  )}
+                </div>
+
+                {/* Telefonszámok */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Telefonszámok</div>
+                  {d.contact?.phone_numbers && d.contact.phone_numbers.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {d.contact.phone_numbers.map((item: any, idx: number) => {
+                        const phoneVal = typeof item === 'object' && item ? (item.number || item.phone || item.value || '') : item;
+                        const contextVal = typeof item === 'object' && item ? (item.owner_context || item.context || item.description || '') : '';
+                        const isPhoneSelected = result?.selected_contacts?.phones?.includes(phoneVal);
+                        return (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: 'var(--bg3)', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)' }}>
+                            <input
+                              type="checkbox"
+                              checked={!!isPhoneSelected}
+                              onChange={() => handleToggleSelectContact('phone', phoneVal)}
+                              style={{ marginTop: 3, cursor: 'pointer', width: 16, height: 16, accentColor: '#8b5cf6' }}
+                              title="Kijelölés posztíróhoz"
+                            />
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                                <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>{phoneVal}</span>
+                                <button
+                                  onClick={() => handleCopy(phoneVal, 'Telefon')}
+                                  style={{ background: 'transparent', border: 'none', color: '#8b5cf6', cursor: 'pointer', fontSize: 11, fontWeight: 700 }}
+                                >
+                                  Másolás
+                                </button>
+                              </div>
+                              {contextVal && (
+                                <div style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  fontSize: 10.5,
+                                  color: '#a78bfa',
+                                  background: 'rgba(139, 92, 246, 0.08)',
+                                  padding: '2px 8px',
+                                  borderRadius: 6,
+                                  width: 'fit-content',
+                                  marginTop: 6,
+                                  fontWeight: 700
+                                }}>
+                                  {contextVal}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>Nem található telefonszám.</div>
+                  )}
+                </div>
+
+                {/* Címek */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 6 }}>Címek</div>
+                  {d.contact?.addresses && d.contact.addresses.length > 0 ? (
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                      {d.contact.addresses.map((item: any, idx: number) => {
+                        const addressVal = typeof item === 'object' && item ? (item.address || item.value || '') : item;
+                        const contextVal = typeof item === 'object' && item ? (item.owner_context || item.context || item.description || '') : '';
+                        const isAddressSelected = result?.selected_contacts?.addresses?.includes(addressVal);
+                        return (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'flex-start', gap: 12, background: 'var(--bg3)', padding: '10px 14px', borderRadius: 10, border: '1px solid var(--border)' }}>
+                            <input
+                              type="checkbox"
+                              checked={!!isAddressSelected}
+                              onChange={() => handleToggleSelectContact('address', addressVal)}
+                              style={{ marginTop: 3, cursor: 'pointer', width: 16, height: 16, accentColor: '#8b5cf6' }}
+                              title="Kijelölés posztíróhoz"
+                            />
+                            <div style={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+                              <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12 }}>
+                                <span style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.4 }}>{addressVal}</span>
+                                <button
+                                  onClick={() => handleCopy(addressVal, 'Cím')}
+                                  style={{ background: 'transparent', border: 'none', color: '#8b5cf6', cursor: 'pointer', fontSize: 11, fontWeight: 700, flexShrink: 0 }}
+                                >
+                                  Másolás
+                                </button>
+                              </div>
+                              {contextVal && (
+                                <div style={{
+                                  display: 'inline-flex',
+                                  alignItems: 'center',
+                                  gap: 4,
+                                  fontSize: 10.5,
+                                  color: '#a78bfa',
+                                  background: 'rgba(139, 92, 246, 0.08)',
+                                  padding: '2px 8px',
+                                  borderRadius: 6,
+                                  width: 'fit-content',
+                                  marginTop: 6,
+                                  fontWeight: 700
+                                }}>
+                                  {contextVal}
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>Nem található cím.</div>
+                  )}
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* Cégadatok és Közösségi média */}
+            <SectionCard title="Hivatalos Adatok & Közösségi Média" icon="" onReevaluate={() => handleReevaluateSection('contact')}>
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+                {/* Adószám & Cégjegyzékszám */}
+                <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: 2 }}>Adószám</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
+                      {d.contact?.tax_number || 'Nem észlelt'}
+                    </div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: 2 }}>Cégjegyzékszám</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)' }}>
+                      {d.contact?.registration_number || 'Nem észlelt'}
+                    </div>
+                  </div>
+                </div>
+
+                {/* Social badges */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: 8 }}>Közösségi Csatornák</div>
+                  {(() => {
+                    const socials = [
+                      { key: 'facebook', label: 'Facebook', color: '#1877f2' },
+                      { key: 'instagram', label: 'Instagram', color: '#e1306c' },
+                      { key: 'linkedin', label: 'LinkedIn', color: '#0a66c2' },
+                      { key: 'youtube', label: 'YouTube', color: '#ff0000' },
+                      { key: 'tiktok', label: 'TikTok', color: '#010101' },
+                    ];
+                    const activeSocials = socials.filter(s => d.contact?.[s.key]);
+
+                    if (activeSocials.length === 0) {
+                      return <div style={{ fontSize: 12, color: 'var(--text-muted)', fontStyle: 'italic' }}>Nem észlelt közösségi linkeket a weboldalon.</div>;
+                    }
+
+                    return (
+                      <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
+                        {activeSocials.map((s, idx) => (
+                          <a
+                            key={idx}
+                            href={d.contact[s.key]}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              gap: 6,
+                              padding: '6px 12px',
+                              borderRadius: 20,
+                              background: 'var(--bg3)',
+                              border: '1px solid var(--border)',
+                              color: 'var(--text)',
+                              fontSize: 12,
+                              fontWeight: 600,
+                              textDecoration: 'none',
+                              transition: 'border-color 0.2s'
+                            }}
+                            onMouseEnter={e => e.currentTarget.style.borderColor = s.color}
+                            onMouseLeave={e => e.currentTarget.style.borderColor = 'var(--border)'}
+                          >
+                            <span style={{ color: s.color }}>●</span> {s.label}
+                          </a>
+                        ))}
+                      </div>
+                    );
+                  })()}
+                </div>
+
+              </div>
+            </SectionCard>
+
+          </div>
+
+          {/* Right Panel: AI style summary and details navigation link */}
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+            {/* AI Arculati Összefoglaló */}
+            <SectionCard title="AI Arculati & Vizuális Összegzés" icon="">
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 16 }}>
+
+                {/* Tone and warmth */}
+                <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap' }}>
+                  <div style={{ background: 'rgba(139, 92, 246, 0.08)', border: '1px solid rgba(139, 92, 246, 0.15)', borderRadius: 10, padding: '10px 14px', flex: 1, minWidth: 140 }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Vizuális Hangulat</div>
+                    <div style={{ fontSize: 14, fontWeight: 700, color: '#a78bfa', marginTop: 4 }}>{visualTone}</div>
+                  </div>
+
+                  <div style={{ background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10, padding: '10px 14px', flex: 1, minWidth: 140 }}>
+                    <div style={{ fontSize: 10, color: 'var(--text-muted)', textTransform: 'uppercase', fontWeight: 700 }}>Színkompozíció</div>
+                    <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--text)', marginTop: 4, display: 'flex', gap: 8 }}>
+                      <span>Warm: {d.visuals?.warm_pct}%</span>
+                      <span>Cool: {d.visuals?.cool_pct}%</span>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Stílus leírás */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: 4 }}>Dizájn & Stílusjegyek</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                    {styleDescription}
+                  </div>
+                </div>
+
+                {/* Weboldal tartalom / cél leírás */}
+                <div>
+                  <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: 4 }}>AI Tartalmi Összefoglaló</div>
+                  <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                    {contentSummary}
+                  </div>
+                </div>
+
+                {/* Navigation CTA button */}
+                <div style={{ borderTop: '1px solid var(--border)', paddingTop: 16, marginTop: 8 }}>
+                  <button
+                    onClick={() => setActiveMainTab('evaluation')}
+                    style={{
+                      width: '100%',
+                      padding: '12px 18px',
+                      borderRadius: 12,
+                      background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+                      border: 'none',
+                      color: '#ffffff',
+                      fontSize: 13,
+                      fontWeight: 700,
+                      cursor: 'pointer',
+                      boxShadow: '0 4px 12px rgba(139, 92, 246, 0.2)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: 8,
+                      transition: 'transform 0.2s'
+                    }}
+                    onMouseEnter={e => e.currentTarget.style.transform = 'translateY(-1px)'}
+                    onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+                  >
+                    Részletes Audit Elemzés Megtekintése <ArrowRight size={14} />
+                  </button>
+                </div>
+
+              </div>
+            </SectionCard>
+
+            <SectionCard title="Márka Színek (Szerkeszthető)" icon="" onReevaluate={() => handleReevaluateSection('colors')}>
+              {(() => {
+                const { primaryColors, secondaryColors } = getGroupedColors(d.visuals?.top_colors_detail);
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>
+                        Elsődleges Színek (3)
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {primaryColors.map((color, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg3)', padding: '8px 12px', borderRadius: 10, border: '1px solid var(--border)' }}>
+                            <div style={{ position: 'relative', width: 32, height: 32, borderRadius: 8, backgroundColor: color.hex, border: '1.5px solid rgba(0,0,0,0.15)', cursor: 'pointer', overflow: 'hidden' }}>
+                              <input
+                                type="color"
+                                value={color.hex}
+                                onChange={e => handleColorChange(idx, e.target.value)}
+                                style={{ position: 'absolute', top: -5, left: -5, width: 42, height: 42, border: 'none', cursor: 'pointer', opacity: 0 }}
+                              />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{color.name || `Elsődleges Szín ${idx + 1}`}</div>
+                              <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-muted)', marginTop: 2 }}>{color.hex}</div>
+                            </div>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)' }}>{color.pct}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+
+                    <div>
+                      <div style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: 8, letterSpacing: '0.05em' }}>
+                        Másodlagos Színek (3)
+                      </div>
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                        {secondaryColors.map((color, idx) => (
+                          <div key={idx} style={{ display: 'flex', alignItems: 'center', gap: 12, background: 'var(--bg3)', padding: '8px 12px', borderRadius: 10, border: '1px solid var(--border)' }}>
+                            <div style={{ position: 'relative', width: 32, height: 32, borderRadius: 8, backgroundColor: color.hex, border: '1.5px solid rgba(0,0,0,0.15)', cursor: 'pointer', overflow: 'hidden' }}>
+                              <input
+                                type="color"
+                                value={color.hex}
+                                onChange={e => handleColorChange(idx + 3, e.target.value)}
+                                style={{ position: 'absolute', top: -5, left: -5, width: 42, height: 42, border: 'none', cursor: 'pointer', opacity: 0 }}
+                              />
+                            </div>
+                            <div style={{ flex: 1 }}>
+                              <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>{color.name || `Másodlagos Szín ${idx + 1}`}</div>
+                              <div style={{ fontSize: 11, fontFamily: 'monospace', color: 'var(--text-muted)', marginTop: 2 }}>{color.hex}</div>
+                            </div>
+                            <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text-dim)' }}>{color.pct}%</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+            </SectionCard>
+
+          </div>
+
+        </div>
+
+        {/* Media Library / Képtár */}
+        <div style={{ background: 'var(--bg2)', padding: 24, borderRadius: 16, border: '1px solid var(--border)', marginTop: 8 }}>
+          <h3 style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+            <span>📁</span> Médiatár / Képtár
+          </h3>
+          <MediaLibrary brandId={activeBrand?.id} />
+        </div>
+
+      </div>
+    );
+  };
+
   const renderAllSections = () => {
     return (
       <div style={{ display: 'flex', flexDirection: 'column', gap: 32 }}>
@@ -1091,7 +1685,7 @@ export default function ZomboAuditPage() {
             </div>
 
             {/* SEO Detail Table */}
-            <SectionCard title="SEO Részletes Elemzés" icon="">
+            <SectionCard title="SEO Részletes Elemzés" icon="" onReevaluate={() => handleReevaluateSection('seo')}>
               <table style={{ width: '100%', borderCollapse: 'collapse' }}>
                 <tbody>
                   <InfoRow label="Meta Title">
@@ -1220,7 +1814,7 @@ export default function ZomboAuditPage() {
         return (
           <>
             <CategoryEvalButton tabId="visual" />
-            <SectionCard title="Szin Elemzes" icon="">
+            <SectionCard title="Szin Elemzes" icon="" onReevaluate={() => handleReevaluateSection('colors')}>
               <div style={{ marginBottom: 16 }}>
                 <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 8 }}>Hangulat eloszlas</div>
                 <div style={{ display: 'flex', gap: 24, marginBottom: 12 }}>
@@ -1242,8 +1836,8 @@ export default function ZomboAuditPage() {
                   <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: 'var(--text)' }}>Weboldal Szinek</div>
                   <div style={{ fontSize: 11, color: 'var(--text-muted)', marginBottom: 12 }}>Gombok, hatterek, szovegek, keretek, bannerek, vizualok</div>
                   {(() => {
-                    const colors = vis.top_colors_detail || [];
-                    if (colors.length === 0) return <span style={{ color: 'var(--text-muted)', fontSize: 12, fontStyle: 'italic' }}>Nincs adat.</span>;
+                    const { primaryColors, secondaryColors } = getGroupedColors(vis.top_colors_detail);
+                    const colors = [...primaryColors, ...secondaryColors];
                     const total = colors.reduce((s, c) => s + c.pct, 0);
                     const size = 160;
                     const cx = size / 2, cy = size / 2, r = 60, strokeW = 24;
@@ -1274,18 +1868,43 @@ export default function ZomboAuditPage() {
                             );
                           })}
                           <text x={cx} y={cy - 6} textAnchor="middle" fill="var(--text)" fontSize="18" fontWeight="800">{colors.length}</text>
-                          <text x={cx} y={cy + 12} textAnchor="middle" fill="var(--text-muted)" fontSize="9" fontWeight="600">SZIN</text>
+                          <text x={cx} y={cy + 12} textAnchor="middle" fill="var(--text-muted)" fontSize="9" fontWeight="600">SZÍN</text>
                         </svg>
-                        <div style={{ display: 'flex', flexDirection: 'column', gap: 6, width: '100%' }}>
-                          {colors.map((c, i) => (
-                            <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '4px 8px', borderRadius: 6, background: 'var(--bg3)', border: '1px solid var(--border)' }}
-                              onClick={() => { navigator.clipboard.writeText(c.hex); showToast('Szinkod masolva: ' + c.hex); }}>
-                              <div style={{ width: 16, height: 16, borderRadius: 4, background: c.hex, border: '1.5px solid rgba(0,0,0,0.2)', boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,0.1)', flexShrink: 0 }} />
-                              <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', flex: 1 }}>{c.name || c.hex}</span>
-                              <span style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--text-dim)' }}>{c.hex}</span>
-                              <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>{c.pct}%</span>
+
+                        <div style={{ display: 'flex', flexDirection: 'column', gap: 12, width: '100%' }}>
+                          <div>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: 6, letterSpacing: '0.05em', textAlign: 'left', width: '100%' }}>
+                              Elsődleges Színek (3)
                             </div>
-                          ))}
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              {primaryColors.map((c, i) => (
+                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '4px 8px', borderRadius: 6, background: 'var(--bg3)', border: '1px solid var(--border)' }}
+                                  onClick={() => { navigator.clipboard.writeText(c.hex); showToast('Szinkod masolva: ' + c.hex); }}>
+                                  <div style={{ width: 16, height: 16, borderRadius: 4, background: c.hex, border: '1.5px solid rgba(0,0,0,0.2)', boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,0.1)', flexShrink: 0 }} />
+                                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', flex: 1, textAlign: 'left' }}>{c.name || `Elsődleges Szín ${i + 1}`}</span>
+                                  <span style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--text-dim)' }}>{c.hex}</span>
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>{c.pct}%</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+
+                          <div>
+                            <div style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-dim)', textTransform: 'uppercase', marginBottom: 6, letterSpacing: '0.05em', marginTop: 8, textAlign: 'left', width: '100%' }}>
+                              Másodlagos Színek (3)
+                            </div>
+                            <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                              {secondaryColors.map((c, i) => (
+                                <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer', padding: '4px 8px', borderRadius: 6, background: 'var(--bg3)', border: '1px solid var(--border)' }}
+                                  onClick={() => { navigator.clipboard.writeText(c.hex); showToast('Szinkod masolva: ' + c.hex); }}>
+                                  <div style={{ width: 16, height: 16, borderRadius: 4, background: c.hex, border: '1.5px solid rgba(0,0,0,0.2)', boxShadow: 'inset 0 0 0 0.5px rgba(0,0,0,0.1)', flexShrink: 0 }} />
+                                  <span style={{ fontSize: 11, fontWeight: 600, color: 'var(--text)', flex: 1, textAlign: 'left' }}>{c.name || `Másodlagos Szín ${i + 1}`}</span>
+                                  <span style={{ fontSize: 10, fontFamily: 'monospace', color: 'var(--text-dim)' }}>{c.hex}</span>
+                                  <span style={{ fontSize: 10, fontWeight: 700, color: 'var(--text-muted)' }}>{c.pct}%</span>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
                         </div>
                       </div>
                     );
@@ -1341,9 +1960,245 @@ export default function ZomboAuditPage() {
               </div>
             </SectionCard>
 
-            <SectionCard title="Vizualis Stilus" icon="">
+            <SectionCard title="Vizualis Stilus" icon="" onReevaluate={() => handleReevaluateSection('colors')}>
               <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 6 }}>Hangulat: {vis.visual_tone}</div>
               <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>{vis.visual_style_description || 'Nem all rendelkezesre vizualis stiluselemzes.'}</div>
+            </SectionCard>
+
+            <SectionCard title="Logó & Arculati Vizuálok" icon="" onReevaluate={() => handleReevaluateSection('colors')}>
+              {vis.logo_analysis ? (
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+
+                  {/* 1. Primary Logo Card */}
+                  {vis.logo_analysis.primary_logo && (
+                    <div style={{ display: 'flex', gap: 20, alignItems: 'flex-start', flexWrap: 'wrap', background: 'var(--bg2)', padding: 16, borderRadius: 12, border: '1px solid var(--border)' }}>
+                      {/* Logo Preview */}
+                      {vis.logo_analysis.primary_logo.url && (
+                        <div
+                          onClick={() => setActiveModalImageUrl(vis.logo_analysis.primary_logo!.url)}
+                          style={{ backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 16 16\'%3E%3Crect width=\'8\' height=\'8\' fill=\'%23ffffff\'/%3E%3Crect x=\'8\' width=\'8\' height=\'8\' fill=\'%23cbd5e1\'/%3E%3Crect y=\'8\' width=\'8\' height=\'8\' fill=\'%23cbd5e1\'/%3E%3Crect x=\'8\' y=\'8\' width=\'8\' height=\'8\' fill=\'%23ffffff\'/%3E%3C/svg%3E")', backgroundSize: '16px 16px', border: '1px solid var(--border)', borderRadius: 12, padding: 16, display: 'flex', alignItems: 'center', justifyContent: 'center', minWidth: 140, height: 140, flexShrink: 0, cursor: 'pointer' }}
+                          title="Kattints a nagyításhoz"
+                        >
+                          <img
+                            src={vis.logo_analysis.primary_logo.url}
+                            alt="Elsődleges logó"
+                            style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                            onError={(e) => {
+                              e.currentTarget.style.display = 'none';
+                            }}
+                          />
+                        </div>
+                      )}
+
+                      {/* Logo Meta Details */}
+                      <div style={{ flex: 1, minWidth: 220 }}>
+                        <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', marginBottom: 8, width: '100%' }}>
+                          <span style={{ fontSize: 15, fontWeight: 800, color: 'var(--text)' }}>
+                            Elsődleges Arculati Logó
+                          </span>
+
+                          {/* Theme Badge */}
+                          {vis.logo_analysis.primary_logo.theme && (
+                            <span style={{
+                              fontSize: 10,
+                              fontWeight: 700,
+                              padding: '2px 8px',
+                              borderRadius: 4,
+                              background: vis.logo_analysis.primary_logo.theme === 'bright' ? 'rgba(139, 92, 246, 0.12)' : 'rgba(156, 163, 175, 0.15)',
+                              color: vis.logo_analysis.primary_logo.theme === 'bright' ? '#a78bfa' : 'var(--text-dim)',
+                              border: `1px solid ${vis.logo_analysis.primary_logo.theme === 'bright' ? 'rgba(139, 92, 246, 0.25)' : 'rgba(156, 163, 175, 0.25)'}`
+                            }}>
+                              {vis.logo_analysis.primary_logo.theme === 'bright' ? 'Bright / Fehér logó' : 'Dark / Sötét logó'}
+                            </span>
+                          )}
+
+                          {/* Cropped Badge */}
+                          <span style={{
+                            fontSize: 10,
+                            fontWeight: 700,
+                            padding: '2px 8px',
+                            borderRadius: 4,
+                            background: vis.logo_analysis.primary_logo.cropped ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                            color: vis.logo_analysis.primary_logo.cropped ? '#34d399' : '#f87171',
+                            border: `1px solid ${vis.logo_analysis.primary_logo.cropped ? 'rgba(16, 185, 129, 0.25)' : 'rgba(239, 68, 68, 0.25)'}`
+                          }}>
+                            {vis.logo_analysis.primary_logo.cropped ? 'Körbevágva (No Padding)' : 'Nincs körbevágva (Paddinggel)'}
+                          </span>
+
+                          {/* Download Button */}
+                          <button
+                            onClick={() => handleDownloadFile(vis.logo_analysis!.primary_logo!.url)}
+                            style={{
+                              display: 'inline-flex',
+                              alignItems: 'center',
+                              justifyContent: 'center',
+                              width: 28,
+                              height: 28,
+                              borderRadius: 6,
+                              background: 'rgba(139, 92, 246, 0.12)',
+                              border: '1px solid rgba(139, 92, 246, 0.25)',
+                              color: '#a78bfa',
+                              cursor: 'pointer',
+                              marginLeft: 'auto',
+                              transition: 'all 0.2s'
+                            }}
+                            onMouseEnter={e => {
+                              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.25)';
+                              e.currentTarget.style.color = '#ffffff';
+                            }}
+                            onMouseLeave={e => {
+                              e.currentTarget.style.background = 'rgba(139, 92, 246, 0.12)';
+                              e.currentTarget.style.color = '#a78bfa';
+                            }}
+                            title="Fájl letöltése"
+                          >
+                            <Download size={14} />
+                          </button>
+                        </div>
+
+                        <div style={{ fontSize: 13, color: 'var(--text-muted)', lineHeight: 1.6 }}>
+                          {vis.logo_analysis.primary_logo.style_description}
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 2. Structured Breakdown List */}
+                  {vis.logo_analysis.logos_breakdown && vis.logo_analysis.logos_breakdown.length > 0 && (
+                    <div style={{ marginTop: 8 }}>
+                      <div style={{ fontSize: 14, fontWeight: 800, color: 'var(--text)', marginBottom: 12 }}>
+                        Arculati elemek és logó verziók részletes bontása
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                        {vis.logo_analysis.logos_breakdown.map((item, idx) => (
+                          <div
+                            key={idx}
+                            style={{
+                              display: 'flex',
+                              gap: 16,
+                              alignItems: 'center',
+                              background: 'var(--bg3, rgba(255,255,255,0.02))',
+                              border: '1px solid var(--border)',
+                              borderRadius: 10,
+                              padding: 12,
+                              flexWrap: 'wrap'
+                            }}
+                          >
+                            {/* Logo Thumbnail preview */}
+                            <div
+                              onClick={() => setActiveModalImageUrl(item.url)}
+                              style={{
+                                backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 16 16\'%3E%3Crect width=\'8\' height=\'8\' fill=\'%23ffffff\'/%3E%3Crect x=\'8\' width=\'8\' height=\'8\' fill=\'%23cbd5e1\'/%3E%3Crect y=\'8\' width=\'8\' height=\'8\' fill=\'%23cbd5e1\'/%3E%3Crect x=\'8\' y=\'8\' width=\'8\' height=\'8\' fill=\'%23ffffff\'/%3E%3C/svg%3E")',
+                                backgroundSize: '16px 16px',
+                                border: '1px solid var(--border)',
+                                borderRadius: 8,
+                                padding: 6,
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                width: 64,
+                                height: 64,
+                                flexShrink: 0,
+                                cursor: 'pointer'
+                              }}
+                              title="Kattints a nagyításhoz"
+                            >
+                              <img
+                                src={item.url}
+                                alt={item.location}
+                                style={{ maxWidth: '100%', maxHeight: '100%', objectFit: 'contain' }}
+                              />
+                            </div>
+
+                            {/* Structured Details Grid */}
+                            <div style={{ flex: 1, minWidth: 240 }}>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6, width: '100%' }}>
+                                <span style={{ fontSize: 12, fontWeight: 700, color: 'var(--text)' }}>
+                                  Verzió #{idx + 1}
+                                </span>
+
+                                <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: 'rgba(59, 130, 246, 0.12)', color: '#60a5fa', border: '1px solid rgba(59, 130, 246, 0.2)' }}>
+                                  Elhelyezkedés: {item.location}
+                                </span>
+
+                                <span style={{ fontSize: 10, fontWeight: 700, padding: '1px 6px', borderRadius: 4, background: 'rgba(245, 158, 11, 0.12)', color: '#fbbf24', border: '1px solid rgba(245, 158, 11, 0.2)' }}>
+                                  Méret: {item.width || 'N/A'} × {item.height || 'N/A'}
+                                </span>
+
+                                <span style={{
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  padding: '1px 6px',
+                                  borderRadius: 4,
+                                  background: item.theme === 'bright' ? 'rgba(139, 92, 246, 0.12)' : 'rgba(156, 163, 175, 0.15)',
+                                  color: item.theme === 'bright' ? '#a78bfa' : 'var(--text-dim)',
+                                  border: `1px solid ${item.theme === 'bright' ? 'rgba(139, 92, 246, 0.2)' : 'rgba(156, 163, 175, 0.2)'}`
+                                }}>
+                                  Téma: {item.theme === 'bright' ? 'Világos (Fehér)' : 'Sötét'}
+                                </span>
+
+                                <span style={{
+                                  fontSize: 10,
+                                  fontWeight: 700,
+                                  padding: '1px 6px',
+                                  borderRadius: 4,
+                                  background: item.cropped ? 'rgba(16, 185, 129, 0.12)' : 'rgba(239, 68, 68, 0.12)',
+                                  color: item.cropped ? '#34d399' : '#f87171',
+                                  border: `1px solid ${item.cropped ? 'rgba(16, 185, 129, 0.2)' : 'rgba(239, 68, 68, 0.2)'}`
+                                }}>
+                                  {item.cropped ? 'Körbevágott' : 'Margós'}
+                                </span>
+
+                                {/* Row Download Button */}
+                                <button
+                                  onClick={() => handleDownloadFile(item.url)}
+                                  style={{
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    justifyContent: 'center',
+                                    width: 24,
+                                    height: 24,
+                                    borderRadius: 4,
+                                    background: 'rgba(255,255,255,0.05)',
+                                    border: '1px solid var(--border)',
+                                    color: 'var(--text-dim)',
+                                    cursor: 'pointer',
+                                    marginLeft: 'auto',
+                                    transition: 'all 0.2s'
+                                  }}
+                                  onMouseEnter={e => {
+                                    e.currentTarget.style.background = 'rgba(139, 92, 246, 0.15)';
+                                    e.currentTarget.style.color = '#a78bfa';
+                                    e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.3)';
+                                  }}
+                                  onMouseLeave={e => {
+                                    e.currentTarget.style.background = 'rgba(255,255,255,0.05)';
+                                    e.currentTarget.style.color = 'var(--text-dim)';
+                                    e.currentTarget.style.borderColor = 'var(--border)';
+                                  }}
+                                  title="Fájl letöltése"
+                                >
+                                  <Download size={12} />
+                                </button>
+                              </div>
+
+                              <div style={{ fontSize: 11, color: 'var(--text-muted)', lineHeight: 1.4 }}>
+                                {item.usage_context}
+                              </div>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                </div>
+              ) : (
+                <div style={{ fontSize: 13, color: 'var(--text-muted)', fontStyle: 'italic' }}>
+                  Nem áll rendelkezésre külön logóelemzési adat.
+                </div>
+              )}
             </SectionCard>
           </>
         );
@@ -1356,7 +2211,7 @@ export default function ZomboAuditPage() {
         return (
           <>
             <CategoryEvalButton tabId="content" />
-            <SectionCard title="AI Tartalom Elemzés" icon="">
+            <SectionCard title="AI Tartalom Elemzés" icon="" onReevaluate={() => handleReevaluateSection('content')}>
               {/* Word count KPI */}
               <div style={{ display: 'flex', alignItems: 'center', gap: 24, padding: '12px 16px', background: 'var(--bg3)', borderRadius: 10, border: '1px solid var(--border)', marginBottom: 20 }}>
                 <div>
@@ -1414,7 +2269,7 @@ export default function ZomboAuditPage() {
 
             {/* FIX 5: detected_posts */}
             {c.detected_posts && c.detected_posts.length > 0 && (
-              <SectionCard title="Detekált Oldaltartalom / Posztok" icon="">
+              <SectionCard title="Detekált Oldaltartalom / Posztok" icon="" onReevaluate={() => handleReevaluateSection('content')}>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
                   {c.detected_posts.map((dp, i) => (
                     <div key={i} style={{ padding: '12px 16px', background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 10 }}>
@@ -1441,7 +2296,7 @@ export default function ZomboAuditPage() {
 
             {/* FIX 6: images_analysis */}
             {c.images_analysis && c.images_analysis.length > 0 && (
-              <SectionCard title="Kép Elemzés (AI)" icon="">
+              <SectionCard title="Kép Elemzés (AI)" icon="" onReevaluate={() => handleReevaluateSection('content')}>
                 <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(280px, 1fr))', gap: 14 }}>
                   {c.images_analysis.map((img, i) => (
                     <div key={i} style={{ padding: 14, background: 'var(--bg3)', border: '1px solid var(--border)', borderRadius: 12 }}>
@@ -1498,7 +2353,7 @@ export default function ZomboAuditPage() {
         return (
           <>
             <CategoryEvalButton tabId="marketing" />
-            <SectionCard title="Marketing & Copywriting Audit" icon="">
+            <SectionCard title="Marketing & Copywriting Audit" icon="" onReevaluate={() => handleReevaluateSection('brand_dna')}>
               <div style={{ display: 'flex', alignItems: 'center', gap: 12, marginBottom: 20 }}>
                 <div style={{ fontSize: 32, fontWeight: 800, color: '#8b5cf6' }}>{m.marketing_score || 0}</div>
                 <div style={{ fontSize: 13, color: 'var(--text-muted)' }}>/ 100 Marketing Pontszám</div>
@@ -1540,7 +2395,7 @@ export default function ZomboAuditPage() {
           <>
             <CategoryEvalButton tabId="brand" />
             {/* Brand Overview */}
-            <SectionCard title="Brand Személyiség" icon="">
+            <SectionCard title="Brand Személyiség" icon="" onReevaluate={() => handleReevaluateSection('brand_dna')}>
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 20 }}>
                 <div style={{ padding: 16, background: 'var(--bg3)', borderRadius: 12, border: '1px solid var(--border)' }}>
                   <div style={{ fontSize: 11, fontWeight: 700, textTransform: 'uppercase', color: 'var(--text-dim)' }}>Archetípus</div>
@@ -1569,7 +2424,7 @@ export default function ZomboAuditPage() {
             </SectionCard>
 
             {/* Brand DNA Coordinates — Radar Chart + Details */}
-            <SectionCard title="Brand DNA Koordináták" icon="">
+            <SectionCard title="Brand DNA Koordináták" icon="" onReevaluate={() => handleReevaluateSection('brand_dna')}>
               {(() => {
                 // Calculate average per dimension for the radar chart
                 const avg = (vals: (number | undefined)[]) => {
@@ -1694,7 +2549,7 @@ export default function ZomboAuditPage() {
             </SectionCard>
 
             {/* Addressing */}
-            <SectionCard title="Megszólítás" icon="">
+            <SectionCard title="Megszólítás" icon="" onReevaluate={() => handleReevaluateSection('brand_dna')}>
               <div style={{ display: 'flex', gap: 16, marginBottom: 12 }}>
                 <div style={{ padding: '8px 16px', background: 'rgba(139,92,246,0.08)', borderRadius: 8, fontWeight: 700, color: '#8b5cf6' }}>{addr.mode || '—'}</div>
                 <div style={{ padding: '8px 16px', background: 'var(--bg3)', borderRadius: 8, fontWeight: 600, color: 'var(--text-muted)' }}>Magabiztosság: {addr.confidence || 0}%</div>
@@ -1707,7 +2562,7 @@ export default function ZomboAuditPage() {
             </SectionCard>
 
             {/* CTA Library */}
-            <SectionCard title="CTA Könyvtár" icon="">
+            <SectionCard title="CTA Könyvtár" icon="" onReevaluate={() => handleReevaluateSection('brand_dna')}>
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 12, fontWeight: 700, color: 'var(--text-muted)', marginBottom: 6 }}>Elsődleges CTA-k</div>
                 <div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>
@@ -1736,7 +2591,7 @@ export default function ZomboAuditPage() {
 
             {/* Brand Don't */}
             {(dont.avoid_words?.length > 0 || dont.avoid_topics?.length > 0 || dont.avoid_tones?.length > 0) && (
-              <SectionCard title="Brand Don't — Kerülendő" icon="">
+              <SectionCard title="Brand Don't — Kerülendő" icon="" onReevaluate={() => handleReevaluateSection('brand_dna')}>
                 {dont.avoid_words?.length > 0 && <div style={{ marginBottom: 12 }}><div style={{ fontSize: 12, fontWeight: 700, color: '#ef4444', marginBottom: 6 }}>Kerülendő szavak</div><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{dont.avoid_words.map((w, i) => <Tag key={i} color="#ef4444">{w}</Tag>)}</div></div>}
                 {dont.avoid_topics?.length > 0 && <div style={{ marginBottom: 12 }}><div style={{ fontSize: 12, fontWeight: 700, color: '#ef4444', marginBottom: 6 }}>Kerülendő témák</div><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{dont.avoid_topics.map((t, i) => <Tag key={i} color="#ef4444">{t}</Tag>)}</div></div>}
                 {dont.avoid_tones?.length > 0 && <div><div style={{ fontSize: 12, fontWeight: 700, color: '#ef4444', marginBottom: 6 }}>Kerülendő hangnem</div><div style={{ display: 'flex', gap: 6, flexWrap: 'wrap' }}>{dont.avoid_tones.map((t, i) => <Tag key={i} color="#ef4444">{t}</Tag>)}</div></div>}
@@ -1765,7 +2620,7 @@ export default function ZomboAuditPage() {
               );
 
               return (
-                <SectionCard title="Nyelvi Ujjlenyomat (Pszicholingvisztika)" icon="">
+                <SectionCard title="Nyelvi Ujjlenyomat (Pszicholingvisztika)" icon="" onReevaluate={() => handleReevaluateSection('brand_dna')}>
                   <div style={{ fontSize: 13, fontWeight: 700, marginBottom: 12, color: 'var(--text)' }}>Pszichologiai Markerek</div>
                   <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '0 20px', marginBottom: 24 }}>
                     <PsychBar label="Kognitiv komplexitas" value={Number(psych.cognitive_complexity) || 50} color="#8b5cf6" />
@@ -1899,17 +2754,92 @@ export default function ZomboAuditPage() {
                   <InfoRow label="Cegnev">{(ct.company_name as string) || '\u2014'}</InfoRow>
                   <InfoRow label="Cim">
                     {ctAddresses.length > 0
-                      ? <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{ctAddresses.map((a, i) => <div key={i}>{a}</div>)}</div>
+                      ? <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {ctAddresses.map((item, i) => {
+                            const addressVal = typeof item === 'object' && item ? (item.address || item.value || '') : item;
+                            const contextVal = typeof item === 'object' && item ? (item.owner_context || item.context || item.description || '') : '';
+                            const isAddressSelected = result?.selected_contacts?.addresses?.includes(addressVal);
+                            return (
+                              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg3)', padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={!!isAddressSelected}
+                                  onChange={() => handleToggleSelectContact('address', addressVal)}
+                                  style={{ cursor: 'pointer', width: 14, height: 14, accentColor: '#8b5cf6' }}
+                                  title="Kijelölés posztíróhoz"
+                                />
+                                <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                                  <span style={{ fontSize: 13, color: 'var(--text)' }}>{addressVal}</span>
+                                  {contextVal && (
+                                    <span style={{ fontSize: 10.5, color: '#a78bfa', background: 'rgba(139, 92, 246, 0.08)', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
+                                      {contextVal}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       : '\u2014'}
                   </InfoRow>
                   <InfoRow label="Telefon">
                     {ctPhones.length > 0
-                      ? <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{ctPhones.map((p, i) => <a key={i} href={`tel:${p}`} style={{ color: '#8b5cf6', textDecoration: 'none', fontWeight: 600 }}>{p}</a>)}</div>
+                      ? <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {ctPhones.map((item, i) => {
+                            const phoneVal = typeof item === 'object' && item ? (item.number || item.phone || item.value || '') : item;
+                            const contextVal = typeof item === 'object' && item ? (item.owner_context || item.context || item.description || '') : '';
+                            const isPhoneSelected = result?.selected_contacts?.phones?.includes(phoneVal);
+                            return (
+                              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg3)', padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={!!isPhoneSelected}
+                                  onChange={() => handleToggleSelectContact('phone', phoneVal)}
+                                  style={{ cursor: 'pointer', width: 14, height: 14, accentColor: '#8b5cf6' }}
+                                  title="Kijelölés posztíróhoz"
+                                />
+                                <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                                  <a href={`tel:${phoneVal}`} style={{ color: '#8b5cf6', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}>{phoneVal}</a>
+                                  {contextVal && (
+                                    <span style={{ fontSize: 10.5, color: '#a78bfa', background: 'rgba(139, 92, 246, 0.08)', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
+                                      {contextVal}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       : '\u2014'}
                   </InfoRow>
                   <InfoRow label="Email">
                     {ctEmails.length > 0
-                      ? <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>{ctEmails.map((e, i) => <a key={i} href={`mailto:${e}`} style={{ color: '#8b5cf6', textDecoration: 'none', fontWeight: 600 }}>{e}</a>)}</div>
+                      ? <div style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
+                          {ctEmails.map((item, i) => {
+                            const emailVal = typeof item === 'object' && item ? (item.email || item.value || '') : item;
+                            const contextVal = typeof item === 'object' && item ? (item.owner_context || item.context || item.description || '') : '';
+                            const isEmailSelected = result?.selected_contacts?.emails?.includes(emailVal);
+                            return (
+                              <div key={i} style={{ display: 'flex', alignItems: 'center', gap: 10, background: 'var(--bg3)', padding: '6px 12px', borderRadius: 8, border: '1px solid var(--border)' }}>
+                                <input
+                                  type="checkbox"
+                                  checked={!!isEmailSelected}
+                                  onChange={() => handleToggleSelectContact('email', emailVal)}
+                                  style={{ cursor: 'pointer', width: 14, height: 14, accentColor: '#8b5cf6' }}
+                                  title="Kijelölés posztíróhoz"
+                                />
+                                <div style={{ flex: 1, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+                                  <a href={`mailto:${emailVal}`} style={{ color: '#8b5cf6', textDecoration: 'none', fontWeight: 600, fontSize: 13 }}>{emailVal}</a>
+                                  {contextVal && (
+                                    <span style={{ fontSize: 10.5, color: '#a78bfa', background: 'rgba(139, 92, 246, 0.08)', padding: '1px 6px', borderRadius: 4, fontWeight: 700 }}>
+                                      {contextVal}
+                                    </span>
+                                  )}
+                                </div>
+                              </div>
+                            );
+                          })}
+                        </div>
                       : '\u2014'}
                   </InfoRow>
                   {ct.tax_number && <InfoRow label="Adoszam">{ct.tax_number as string}</InfoRow>}
@@ -1951,7 +2881,7 @@ export default function ZomboAuditPage() {
         return (
           <>
             <CategoryEvalButton tabId="products" />
-            <SectionCard title="Termékek & Szolgáltatások" icon="">
+            <SectionCard title="Termékek & Szolgáltatások" icon="" onReevaluate={() => handleReevaluateSection('content')}>
               <div style={{ display: 'flex', gap: 12, marginBottom: 16 }}>
                 <input
                   value={productSearch} onChange={e => setProductSearch(e.target.value)}
@@ -2547,7 +3477,7 @@ export default function ZomboAuditPage() {
               </div>
             </div>
             <button
-              onClick={() => navigate('/marketing/zombo/quickpost')}
+              onClick={() => navigate('/marketing/social-planner/quickpost')}
               style={{
                 padding: '14px 32px', borderRadius: 12, border: 'none',
                 background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
@@ -2587,64 +3517,225 @@ export default function ZomboAuditPage() {
   return (
     <div className={`page active zombo-creative-studio ${isDark ? 'dark' : ''}`} style={{ background: 'var(--bg-main)', color: 'var(--text-main)', minHeight: '100%' }}>
       {/* Header */}
-      <div className="mkt-page-header">
-        <div className="mkt-page-header-icon" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.15), rgba(109,40,217,0.15))' }}>
-          <svg fill="none" stroke="#8b5cf6" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" /><path d="M2 12h20" /></svg>
+      <div className="mkt-page-header" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', flexWrap: 'wrap', gap: 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {result && (
+            <button
+              onClick={handleAuditNewPage}
+              style={{
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                width: 36,
+                height: 36,
+                borderRadius: '50%',
+                background: 'var(--bg3, rgba(255,255,255,0.03))',
+                border: '1.5px solid var(--border)',
+                color: 'var(--text)',
+                cursor: 'pointer',
+                transition: 'all 0.2s ease',
+                marginRight: 6
+              }}
+              onMouseEnter={e => {
+                e.currentTarget.style.background = 'rgba(139, 92, 246, 0.12)';
+                e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.45)';
+                e.currentTarget.style.color = '#a78bfa';
+              }}
+              onMouseLeave={e => {
+                e.currentTarget.style.background = 'var(--bg3, rgba(255,255,255,0.03))';
+                e.currentTarget.style.borderColor = 'var(--border)';
+                e.currentTarget.style.color = 'var(--text)';
+              }}
+              title="Vissza a kezdőlapra (lista)"
+            >
+              <ArrowLeft size={16} />
+            </button>
+          )}
+          <div className="mkt-page-header-icon" style={{ background: 'linear-gradient(135deg, rgba(139,92,246,0.15), rgba(109,40,217,0.15))' }}>
+            <svg fill="none" stroke="#8b5cf6" strokeWidth="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" /><path d="M2 12h20" /></svg>
+          </div>
+          <div>
+            <div className="mkt-page-title">Social Planner</div>
+            <div className="mkt-page-subtitle">Multi-ágens alapú közösségi tartalomtervező és Brand DNA elemzés</div>
+          </div>
         </div>
-        <div>
-          <div className="mkt-page-title">Zombo Weboldal Audit</div>
-          <div className="mkt-page-subtitle">Multi-ágensű alapú keresőoptimalizálás és vizuális tartalomelemzés</div>
-        </div>
-      </div>
 
-      {/* Info Banner */}
-      <div style={{ background: 'rgba(139,92,246,0.06)', border: '1px solid rgba(139,92,246,0.15)', borderRadius: 12, padding: '12px 18px', marginBottom: 20, fontSize: 12, color: '#8b5cf6', lineHeight: 1.5 }}>
-        Adj meg egy URL-t, és állítsd be a feltérképezendő oldalszámot. A Scraper és SEO Specialist ágensek mélyrehatóan feltérképezik és kiértékelik a weboldalt.
-      </div>
-
-      {/* URL Input Row */}
-      <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'flex-end' }}>
-        <div style={{ flex: 1 }}>
-          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Weboldal URL címe</label>
-          <input
-            value={url} onChange={e => setUrl(e.target.value)}
-            placeholder="pl. bagira.hu vagy https://444.hu"
-            onKeyDown={e => e.key === 'Enter' && isValidUrl(url) && handleSubmit()}
-            style={{
-              width: '100%', padding: '10px 14px', border: `1.5px solid ${url && !isValidUrl(url) ? '#ef4444' : isValidUrl(url) ? '#8b5cf6' : 'var(--border)'}`,
-              borderRadius: 10, fontSize: 13, fontFamily: "'Inter', sans-serif", color: 'var(--text)', background: 'var(--bg)', outline: 'none',
-              transition: 'border-color 0.2s, box-shadow 0.2s',
-            }}
+        {/* Top Brand Selector Dropdown & Switch Modal trigger */}
+        {result && (
+          <SocialBrandSelector
+            activeBrand={activeBrand}
+            onSelectBrand={handleSelectBrand}
+            onAuditNewPage={handleAuditNewPage}
           />
-          {url && !isValidUrl(url) && <div style={{ fontSize: 11, color: '#ef4444', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>Érvénytelen URL formátum</div>}
-          {url && isValidUrl(url) && <div style={{ fontSize: 11, color: '#22c55e', marginTop: 4, display: 'flex', alignItems: 'center', gap: 4 }}>Érvényes URL</div>}
-        </div>
+        )}
+      </div>
 
-        <div style={{ width: 180 }}>
-          <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Párhuzamos lapok: {limit}</label>
-          <input type="range" min={1} max={30} value={limit} onChange={e => setLimit(Number(e.target.value))}
-            style={{ width: '100%', accentColor: '#8b5cf6' }} />
-          <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-dim)' }}><span>1</span><span>{limit} oldal</span></div>
-        </div>
+      {/* DEBUG BAR */}
+      <div style={{ background: '#1e1b4b', border: '1px dashed #8b5cf6', padding: 12, borderRadius: 8, marginBottom: 16, fontSize: 12, display: 'flex', flexWrap: 'wrap', gap: 16, color: '#a78bfa' }}>
+        <span><strong>DEBUG:</strong></span>
+        <span>User: {user ? `${user.username} (${user.role})` : 'null'}</span>
+        <span>allBrands count: {allBrands.length}</span>
+        <span>activeBrand: {activeBrand ? activeBrand.domain : 'none'}</span>
+        <span>result URL: {result ? result.url : 'none'}</span>
+        <span>VITE_SUPABASE_URL: {import.meta.env.VITE_SUPABASE_URL || 'undefined'}</span>
+      </div>
 
-        <button
-          onClick={handleSubmit}
-          disabled={loading || !isValidUrl(url)}
-          style={{
-            display: 'inline-flex', alignItems: 'center', gap: 8,
-            background: loading || !isValidUrl(url) ? 'var(--bg3)' : 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
-            color: loading || !isValidUrl(url) ? 'var(--text-muted)' : '#fff',
-            border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 13, fontWeight: 600,
-            cursor: loading || !isValidUrl(url) ? 'not-allowed' : 'pointer',
-            fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap',
-            boxShadow: loading || !isValidUrl(url) ? 'none' : '0 2px 8px rgba(139,92,246,0.3)',
-            transition: 'all 0.2s',
+      {/* Progress Panel / Loading state */}
+      {loading && (() => {
+        const getActiveStepIndex = (progressText: string): number => {
+          const p = progressText.toLowerCase();
+          if (p.includes('feltérképez') || p.includes('crawling') || p.includes('elindítva')) return 0;
+          if (p.includes('beolvasva') || p.includes('szín') || p.includes('stílus')) return 1;
+          if (p.includes('ágens') || p.includes('copywriter') || p.includes('tartalom')) return 2;
+          if (p.includes('dna') || p.includes('személyiség') || p.includes('archetype')) return 3;
+          if (p.includes('szinkron') || p.includes('mentés') || p.includes('adatbázis') || p.includes('complete')) return 4;
+          return 0;
+        };
+
+        const activeIdx = getActiveStepIndex(progress);
+        const steps = [
+          { label: 'Feltérképezés', icon: Globe },
+          { label: 'Színvilág', icon: Palette },
+          { label: 'Copywriting', icon: PenTool },
+          { label: 'Brand DNA', icon: Brain },
+          { label: 'Mentés', icon: Database }
+        ];
+
+        return (
+          <div style={{
+            background: 'var(--card, rgba(30, 27, 75, 0.45))',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(139, 92, 246, 0.25)',
+            borderRadius: 24,
+            padding: '60px 40px',
+            textAlign: 'center',
+            marginBottom: 24,
+            boxShadow: '0 20px 50px rgba(0,0,0,0.3)',
+            maxWidth: 720,
+            margin: '40px auto'
           }}>
-          {loading ? <><div style={{ width: 14, height: 14, border: '2px solid rgba(255,255,255,0.3)', borderTopColor: '#fff', borderRadius: '50%', animation: 'spin 0.6s linear infinite' }} /> Elemzés...</> : 'Elemzés futtatása'}
-        </button>
+            {/* Sequential Bouncing Loader Icons */}
+            <div style={{ display: 'flex', justifyContent: 'center', gap: 20, marginBottom: 40 }}>
+              {steps.map((step, idx) => {
+                const IconComponent = step.icon;
+                const isActive = idx === activeIdx;
+                const isCompleted = idx < activeIdx;
 
-        {/* Clear / Reset button */}
-        {result && !loading && (
+                return (
+                  <div
+                    key={idx}
+                    style={{
+                      display: 'flex',
+                      flexDirection: 'column',
+                      alignItems: 'center',
+                      gap: 8,
+                      animation: 'iconHop 1.4s infinite ease-in-out',
+                      animationDelay: `${idx * 0.15}s`
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 54,
+                        height: 54,
+                        borderRadius: '50%',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        transition: 'all 0.3s ease',
+                        background: isActive
+                          ? 'linear-gradient(135deg, #8b5cf6, #6d28d9)'
+                          : isCompleted
+                            ? 'rgba(34, 197, 94, 0.12)'
+                            : 'rgba(255, 255, 255, 0.03)',
+                        color: isActive
+                          ? '#fff'
+                          : isCompleted
+                            ? '#22c55e'
+                            : 'var(--text-muted)',
+                        border: isActive
+                          ? 'none'
+                          : isCompleted
+                            ? '1px solid rgba(34, 197, 94, 0.3)'
+                            : '1px solid var(--border)',
+                        boxShadow: isActive ? '0 0 20px rgba(139, 92, 246, 0.45)' : 'none'
+                      }}
+                    >
+                      <IconComponent size={24} />
+                    </div>
+                    <span style={{
+                      fontSize: 11,
+                      fontWeight: isActive ? 700 : 500,
+                      color: isActive ? '#8b5cf6' : isCompleted ? '#22c55e' : 'var(--text-muted)'
+                    }}>
+                      {step.label}
+                    </span>
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Glowing progress line */}
+            <div style={{ height: 4, background: 'var(--border)', borderRadius: 2, position: 'relative', overflow: 'hidden', width: '80%', margin: '0 auto 24px' }}>
+              <div style={{
+                position: 'absolute',
+                top: 0, left: 0, bottom: 0,
+                width: `${((activeIdx + 1) / 5) * 100}%`,
+                background: 'linear-gradient(90deg, #8b5cf6, #06b6d4)',
+                borderRadius: 2,
+                transition: 'width 0.4s ease'
+              }} />
+            </div>
+
+            <div style={{ fontSize: 18, fontWeight: 800, color: 'var(--text)', marginBottom: 8 }}>Elemzés folyamatban...</div>
+            <div style={{ fontSize: 13, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+              <span style={{ width: 14, height: 14, border: '2px solid rgba(139,92,246,0.1)', borderTopColor: '#8b5cf6', borderRadius: '50%', display: 'inline-block', animation: 'spin 1s linear infinite' }} />
+              {progress}
+            </div>
+          </div>
+        );
+      })()}
+
+      {/* URL Input Row at top (only shown when result is active) */}
+      {result && !loading && (
+        <div style={{ display: 'flex', gap: 12, marginBottom: 24, alignItems: 'flex-end' }}>
+          <div style={{ flex: 1 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Weboldal URL címe</label>
+            <input
+              value={url} onChange={e => setUrl(e.target.value)}
+              placeholder="pl. piktor.hu vagy https://audi.hu"
+              onKeyDown={e => e.key === 'Enter' && isValidUrl(url) && handleSubmit()}
+              style={{
+                width: '100%', padding: '10px 14px', border: `1.5px solid ${url && !isValidUrl(url) ? '#ef4444' : isValidUrl(url) ? '#8b5cf6' : 'var(--border)'}`,
+                borderRadius: 10, fontSize: 13, fontFamily: "'Inter', sans-serif", color: 'var(--text)', background: 'var(--bg)', outline: 'none',
+                transition: 'border-color 0.2s, box-shadow 0.2s',
+              }}
+            />
+          </div>
+
+          <div style={{ width: 180 }}>
+            <label style={{ display: 'block', fontSize: 11, fontWeight: 600, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.5px', marginBottom: 6 }}>Párhuzamos lapok: {limit}</label>
+            <input type="range" min={1} max={30} value={limit} onChange={e => setLimit(Number(e.target.value))}
+              style={{ width: '100%', accentColor: '#8b5cf6' }} />
+            <div style={{ display: 'flex', justifyContent: 'space-between', fontSize: 10, color: 'var(--text-dim)' }}><span>1</span><span>{limit} oldal</span></div>
+          </div>
+
+          <button
+            onClick={handleSubmit}
+            disabled={loading || !isValidUrl(url)}
+            style={{
+              display: 'inline-flex', alignItems: 'center', gap: 8,
+              background: loading || !isValidUrl(url) ? 'var(--bg3)' : 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+              color: loading || !isValidUrl(url) ? 'var(--text-muted)' : '#fff',
+              border: 'none', borderRadius: 10, padding: '10px 20px', fontSize: 13, fontWeight: 600,
+              cursor: loading || !isValidUrl(url) ? 'not-allowed' : 'pointer',
+              fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap',
+              boxShadow: loading || !isValidUrl(url) ? 'none' : '0 2px 8px rgba(139,92,246,0.3)',
+              transition: 'all 0.2s',
+            }}>
+            Elemzés futtatása
+          </button>
+
+          {/* Reset button */}
           <button
             onClick={() => {
               setResult(null);
@@ -2675,80 +3766,261 @@ export default function ZomboAuditPage() {
           >
             Tiszta lap
           </button>
-        )}
-      </div>
-
-      {/* Progress Panel */}
-      {loading && (
-        <div style={{ background: 'var(--card)', border: '1px solid var(--border)', borderRadius: 16, padding: '40px 20px', textAlign: 'center', marginBottom: 24 }}>
-          <div style={{ width: 40, height: 40, border: '3px solid var(--border)', borderTopColor: '#8b5cf6', borderRadius: '50%', animation: 'spin 0.6s linear infinite', margin: '0 auto 16px' }} />
-          <div style={{ fontSize: 15, fontWeight: 700, color: 'var(--text)', marginBottom: 8 }}>Elemzés folyamatban...</div>
-          <div style={{ fontSize: 13, color: 'var(--text-muted)', display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
-            <span style={{ width: 14, height: 14, border: '2px solid rgba(139,92,246,0.1)', borderTopColor: '#8b5cf6', borderRadius: '50%', display: 'inline-block', animation: 'spin 1s linear infinite' }} />
-            {progress}
-          </div>
         </div>
       )}
 
-      {/* Welcome / Empty State when no result is present */}
+      {/* Central Welcome & Search Engine (shown when no result is present) */}
       {!result && !loading && (
-        <div style={{
-          background: 'var(--card, #1c1936)',
-          border: '1px solid var(--border, rgba(255,255,255,0.08))',
-          borderRadius: 20,
-          padding: '60px 40px',
-          textAlign: 'center',
-          display: 'flex',
-          flexDirection: 'column',
-          alignItems: 'center',
-          justifyContent: 'center',
-          gap: 24,
-          maxWidth: 700,
-          margin: '40px auto',
-          boxShadow: '0 8px 32px 0 rgba(139, 92, 246, 0.05)',
-          borderColor: 'rgba(139, 92, 246, 0.15)'
-        }}>
+        <div style={{ width: '100%', maxWidth: 720, margin: '40px auto', display: 'flex', flexDirection: 'column', gap: 32 }}>
+
+          {/* Glassmorphic Central Welcome Box */}
           <div style={{
-            width: 80,
-            height: 80,
-            borderRadius: '24px',
-            background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+            background: 'var(--card, rgba(30, 27, 75, 0.45))',
+            backdropFilter: 'blur(16px)',
+            border: '1px solid rgba(139, 92, 246, 0.25)',
+            borderRadius: 24,
+            padding: '48px 32px',
+            textAlign: 'center',
             display: 'flex',
+            flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            color: '#fff',
-            fontSize: 32,
-            boxShadow: '0 0 30px rgba(139, 92, 246, 0.3)'
+            gap: 28,
+            boxShadow: '0 20px 50px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.1)'
           }}>
-            🔍
-          </div>
-          <div>
-            <h2 style={{ fontSize: '22px', fontWeight: 800, color: 'var(--text)', marginBottom: 12 }}>Zombo Weboldal Audit & Arculat Generátor</h2>
-            <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6', maxWidth: 500, margin: '0 auto' }}>
-              Adj meg egy weboldal URL-t felül a keresősávban a több-ágensű elemzés elindításához.
-              Az elemzés feltérképezi a SEO jellemzőket, kinyeri a márka-színeket, a tipográfiát, a szöveges és képi hangulatot, valamint létrehoz egy azonnal használható Brand DNA arculatot.
-            </p>
-          </div>
-          <div style={{
-            display: 'flex',
-            gap: 16,
-            justifyContent: 'center',
-            flexWrap: 'wrap',
-            marginTop: 8
-          }}>
-            <div style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 12, width: 160 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#8b5cf6' }}>1. Elemzés</div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>SEO és tartalom crawling</div>
+            <div style={{
+              width: 72,
+              height: 72,
+              borderRadius: '20px',
+              background: 'linear-gradient(135deg, #8b5cf6, #06b6d4)',
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: '#fff',
+              boxShadow: '0 0 30px rgba(139, 92, 246, 0.4)'
+            }}>
+              <Search size={32} />
             </div>
-            <div style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 12, width: 160 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#06b6d4' }}>2. Márka DNA</div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>Szín és stílus audit</div>
+
+            <div>
+              <h2 style={{ fontSize: '24px', fontWeight: 800, color: 'var(--text)', marginBottom: 12, fontFamily: "'Inter', sans-serif" }}>Social Planner Weboldal Audit</h2>
+              <p style={{ fontSize: '14px', color: 'var(--text-muted)', lineHeight: '1.6', maxWidth: 520, margin: '0 auto' }}>
+                Adj meg egy weboldal URL-t az elemzés elindításához. Az elemző ágensek feltérképezik az oldalt, kinyerik a stílusokat, szövegeket, és elkészítik a Márka DNA profilt.
+              </p>
             </div>
-            <div style={{ padding: '12px 20px', background: 'rgba(255,255,255,0.02)', border: '1px solid var(--border)', borderRadius: 12, width: 160 }}>
-              <div style={{ fontSize: 18, fontWeight: 700, color: '#22c55e' }}>3. Quick Post</div>
-              <div style={{ fontSize: 11, color: 'var(--text-dim)', marginTop: 4 }}>Közösségi média posztok</div>
+
+            {/* Central Search Box Layout */}
+            <div style={{ width: '100%', display: 'flex', flexDirection: 'column', gap: 16 }}>
+              <div style={{ display: 'flex', gap: 12, width: '100%' }}>
+                <div style={{ flex: 1, position: 'relative' }}>
+                  <Search size={18} style={{ position: 'absolute', left: 14, top: 13, color: 'var(--text-muted)' }} />
+                  <input
+                    value={url} onChange={e => setUrl(e.target.value)}
+                    placeholder="pl. piktor.hu vagy https://audi.hu"
+                    onKeyDown={e => e.key === 'Enter' && isValidUrl(url) && handleSubmit()}
+                    style={{
+                      width: '100%', padding: '12px 14px 12px 42px',
+                      border: `1.5px solid ${url && !isValidUrl(url) ? '#ef4444' : isValidUrl(url) ? '#8b5cf6' : 'var(--border)'}`,
+                      borderRadius: 12, fontSize: 14, fontFamily: "'Inter', sans-serif", color: 'var(--text)', background: 'rgba(255,255,255,0.02)', outline: 'none',
+                      transition: 'border-color 0.2s, box-shadow 0.2s',
+                    }}
+                  />
+                </div>
+
+                <button
+                  onClick={handleSubmit}
+                  disabled={loading || !isValidUrl(url)}
+                  style={{
+                    display: 'inline-flex', alignItems: 'center', gap: 8,
+                    background: loading || !isValidUrl(url) ? 'var(--bg3)' : 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+                    color: loading || !isValidUrl(url) ? 'var(--text-muted)' : '#fff',
+                    border: 'none', borderRadius: 12, padding: '0 24px', fontSize: 13, fontWeight: 700,
+                    cursor: loading || !isValidUrl(url) ? 'not-allowed' : 'pointer',
+                    fontFamily: "'Inter', sans-serif", whiteSpace: 'nowrap',
+                    boxShadow: loading || !isValidUrl(url) ? 'none' : '0 2px 8px rgba(139,92,246,0.3)',
+                    transition: 'all 0.2s',
+                  }}>
+                  Elemzés indítása
+                </button>
+              </div>
+
+              {url && !isValidUrl(url) && <div style={{ fontSize: 11, color: '#ef4444', textAlign: 'left', paddingLeft: 4 }}>Érvénytelen URL formátum</div>}
+              {url && isValidUrl(url) && <div style={{ fontSize: 11, color: '#22c55e', textAlign: 'left', paddingLeft: 4 }}>Érvényes URL</div>}
+
+              {/* Central Limit Slider */}
+              <div style={{ background: 'rgba(255,255,255,0.01)', border: '1px solid var(--border)', borderRadius: 12, padding: '12px 18px', textAlign: 'left' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: 'var(--text-muted)' }}>Feltérképezendő lapok száma:</span>
+                  <span style={{ fontSize: 12, fontWeight: 700, color: '#8b5cf6' }}>{limit} oldal</span>
+                </div>
+                <input type="range" min={1} max={30} value={limit} onChange={e => setLimit(Number(e.target.value))}
+                  style={{ width: '100%', accentColor: '#8b5cf6', cursor: 'pointer' }} />
+              </div>
             </div>
           </div>
+
+          {/* Evaluated Pages Card Grid (Restructured as a Premium Vertical List) */}
+          {allBrands.length > 0 && (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 18 }}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <div style={{ height: 1, flex: 1, background: 'var(--border)' }} />
+                <span style={{ fontSize: 11.5, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.08em', color: 'var(--text-muted)' }}>
+                  Kiértékelt oldalak
+                </span>
+                <div style={{ height: 1, flex: 1, background: 'var(--border)' }} />
+              </div>
+
+              <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: 12
+              }}>
+                {allBrands.map(b => (
+                  <div
+                    key={b.id}
+                    onClick={() => handleSelectBrand(b)}
+                    style={{
+                      background: 'var(--card, rgba(255,255,255,0.02))',
+                      border: '1px solid var(--border)',
+                      borderRadius: 16,
+                      padding: '14px 20px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'space-between',
+                      cursor: 'pointer',
+                      transition: 'all 0.2s ease',
+                    }}
+                    onMouseEnter={e => {
+                      e.currentTarget.style.transform = 'translateY(-2px)';
+                      e.currentTarget.style.borderColor = 'rgba(139,92,246,0.45)';
+                      e.currentTarget.style.boxShadow = '0 6px 16px rgba(139, 92, 246, 0.08)';
+                    }}
+                    onMouseLeave={e => {
+                      e.currentTarget.style.transform = 'translateY(0)';
+                      e.currentTarget.style.borderColor = 'var(--border)';
+                      e.currentTarget.style.boxShadow = 'none';
+                    }}
+                  >
+                    {/* Left side: Icon, Name and Domain */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 16, overflow: 'hidden' }}>
+                      {/* Favicon or Monogram circle */}
+                      <div style={{
+                        width: 40,
+                        height: 40,
+                        borderRadius: '50%',
+                        background: (b.logo_url || b.domain) ? '#ffffff' : 'linear-gradient(135deg, #8b5cf6, #3b82f6)',
+                        color: (b.logo_url || b.domain) ? 'var(--text)' : '#fff',
+                        display: 'flex',
+                        alignItems: 'center',
+                        justifyContent: 'center',
+                        fontSize: 14,
+                        fontWeight: 800,
+                        overflow: 'hidden',
+                        flexShrink: 0,
+                        border: (b.logo_url || b.domain) ? '1px solid var(--border)' : 'none',
+                        padding: (b.logo_url || b.domain) ? 6 : 0,
+                      }}>
+                        {b.logo_url || b.domain ? (
+                          <img
+                            src={b.logo_url || `https://www.google.com/s2/favicons?sz=128&domain=${b.domain}`}
+                            alt=""
+                            style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+                            onError={(e) => {
+                              (e.target as HTMLElement).style.display = 'none';
+                              const parent = (e.target as HTMLElement).parentElement;
+                              if (parent) {
+                                parent.style.background = 'linear-gradient(135deg, #8b5cf6, #3b82f6)';
+                                parent.style.color = '#fff';
+                                parent.style.padding = '0px';
+                                parent.style.border = 'none';
+                                parent.innerText = b.brand_name.charAt(0).toUpperCase();
+                              }
+                            }}
+                          />
+                        ) : (
+                          b.brand_name.charAt(0).toUpperCase()
+                        )}
+                      </div>
+
+                      <div style={{ display: 'flex', flexDirection: 'column', gap: 2, overflow: 'hidden' }}>
+                        <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {b.brand_name}
+                        </div>
+                        <div style={{ fontSize: 11, color: 'var(--text-muted)', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                          {b.domain}
+                        </div>
+                      </div>
+                    </div>
+
+                    {/* Right side: Load and Delete Actions */}
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
+                      <div
+                        style={{
+                          fontSize: 12,
+                          fontWeight: 700,
+                          color: '#8b5cf6',
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          gap: 6,
+                          background: 'rgba(139, 92, 246, 0.08)',
+                          border: '1px solid rgba(139, 92, 246, 0.15)',
+                          borderRadius: 10,
+                          padding: '8px 16px',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = 'rgba(139, 92, 246, 0.15)';
+                          e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.35)';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'rgba(139, 92, 246, 0.08)';
+                          e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.15)';
+                        }}
+                      >
+                        Betöltés <ArrowRight size={13} />
+                      </div>
+
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (confirm(`Biztosan törölni szeretnéd a(z) ${b.brand_name} oldalt az összes kiértékelésével és képével együtt?`)) {
+                            handleDeleteBrand(b.id);
+                          }
+                        }}
+                        style={{
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          width: 34,
+                          height: 34,
+                          borderRadius: 10,
+                          border: '1px solid rgba(239, 68, 68, 0.18)',
+                          background: 'rgba(239, 68, 68, 0.06)',
+                          color: '#f87171',
+                          cursor: 'pointer',
+                          transition: 'all 0.2s',
+                        }}
+                        onMouseEnter={e => {
+                          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.15)';
+                          e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.45)';
+                          e.currentTarget.style.color = '#ef4444';
+                        }}
+                        onMouseLeave={e => {
+                          e.currentTarget.style.background = 'rgba(239, 68, 68, 0.06)';
+                          e.currentTarget.style.borderColor = 'rgba(239, 68, 68, 0.18)';
+                          e.currentTarget.style.color = '#f87171';
+                        }}
+                        title="Kiértékelés törlése"
+                      >
+                        <Trash2 size={15} />
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
         </div>
       )}
 
@@ -2758,22 +4030,25 @@ export default function ZomboAuditPage() {
           {/* Main Top-Level Tab Bar */}
           <div style={{ display: 'flex', gap: 4, background: 'var(--bg3)', padding: 4, borderRadius: 12, border: '1px solid var(--border)', marginBottom: 16, flexWrap: 'wrap' }}>
             {MAIN_TABS.map(t => {
-              const isActive = (t.id === 'evaluation' && (activeMainTab === 'evaluation' || ['seo', 'visual', 'content', 'marketing', 'brand', 'contact', 'products'].includes(activeTab))) || activeMainTab === t.id;
+              const isActive = activeMainTab === t.id;
               return (
                 <button
                   key={t.id}
                   onClick={() => {
-                    if (t.id === 'evaluation') {
+                    if (t.id === 'overview') {
+                      setActiveMainTab('overview');
+                    } else if (t.id === 'evaluation') {
                       setActiveMainTab('evaluation');
-                      setActiveTab('seo'); // default to seo when opening evaluation
+                    } else if (t.id === 'media') {
+                      setActiveMainTab('media');
                     } else if (t.id === 'quick-post') {
-                      navigate('/marketing/zombo/quickpost');
+                      navigate('/marketing/social-planner/quickpost');
                     } else if (t.id === 'layer-review') {
-                      navigate('/marketing/zombo/layer-review');
+                      navigate('/marketing/social-planner/layer-review');
                     } else if (t.id === 'prod') {
-                      navigate('/marketing/zombo/calendar');
+                      navigate('/marketing/social-planner/calendar');
                     } else if (t.id === 'campaign') {
-                      navigate('/marketing/zombo/campaign');
+                      navigate('/marketing/social-planner/campaign');
                     } else if (t.id === 'raw') {
                       setActiveMainTab('raw');
                       setActiveTab('raw');
@@ -2797,17 +4072,140 @@ export default function ZomboAuditPage() {
 
           {/* Tab Content Rendering */}
           <div style={{ marginTop: 12 }}>
-            {activeMainTab === 'evaluation' ? (
+            {activeMainTab === 'overview' ? (
+              renderOverviewContent()
+            ) : activeMainTab === 'evaluation' ? (
               renderAllSections()
             ) : (
-              renderTabContent() // 'raw' case inside renderTabContent
+              renderTabContent()
             )}
           </div>
         </>
       )}
 
-      {/* Spin keyframe (inline) */}
-      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+
+
+      {/* Image Preview Modal */}
+      {activeModalImageUrl && (
+        <div
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            background: 'rgba(15, 23, 42, 0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: 24
+          }}
+          onClick={() => setActiveModalImageUrl(null)}
+        >
+          <div
+            style={{
+              background: '#1e293b',
+              border: '1px solid rgba(255,255,255,0.1)',
+              borderRadius: 16,
+              padding: 24,
+              maxWidth: '90%',
+              maxHeight: '90%',
+              display: 'flex',
+              flexDirection: 'column',
+              alignItems: 'center',
+              gap: 20,
+              boxShadow: '0 25px 50px -12px rgba(0, 0, 0, 0.5)'
+            }}
+            onClick={(e) => e.stopPropagation()}
+          >
+            {/* Checkerboard Image Container */}
+            <div style={{
+              backgroundImage: 'url("data:image/svg+xml,%3Csvg xmlns=\'http://www.w3.org/2000/svg\' width=\'16\' height=\'16\' viewBox=\'0 0 16 16\'%3E%3Crect width=\'8\' height=\'8\' fill=\'%23ffffff\'/%3E%3Crect x=\'8\' width=\'8\' height=\'8\' fill=\'%23cbd5e1\'/%3E%3Crect y=\'8\' width=\'8\' height=\'8\' fill=\'%23cbd5e1\'/%3E%3Crect x=\'8\' y=\'8\' width=\'8\' height=\'8\' fill=\'%23ffffff\'/%3E%3C/svg%3E")',
+              backgroundSize: '16px 16px',
+              borderRadius: 12,
+              padding: 24,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              minWidth: 280,
+              minHeight: 200,
+              maxWidth: '100%',
+              maxHeight: '60vh',
+              overflow: 'hidden',
+              border: '1px solid rgba(255,255,255,0.1)'
+            }}>
+              <img
+                src={activeModalImageUrl}
+                alt="Nagyított arculati elem"
+                style={{ maxWidth: '100%', maxHeight: '50vh', objectFit: 'contain' }}
+              />
+            </div>
+
+            {/* Actions */}
+            <div style={{ display: 'flex', gap: 12, width: '100%', justifyContent: 'center' }}>
+              <button
+                onClick={() => handleDownloadFile(activeModalImageUrl)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  gap: 8,
+                  padding: '10px 20px',
+                  borderRadius: 10,
+                  background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)',
+                  border: 'none',
+                  color: '#ffffff',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  boxShadow: '0 4px 12px rgba(139, 92, 246, 0.25)',
+                  transition: 'transform 0.2s, opacity 0.2s'
+                }}
+                onMouseEnter={e => e.currentTarget.style.transform = 'scale(1.02)'}
+                onMouseLeave={e => e.currentTarget.style.transform = 'none'}
+              >
+                Fájl letöltése
+              </button>
+              <button
+                onClick={() => setActiveModalImageUrl(null)}
+                style={{
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  padding: '10px 20px',
+                  borderRadius: 10,
+                  background: 'rgba(255,255,255,0.08)',
+                  border: '1px solid rgba(255,255,255,0.15)',
+                  color: '#e2e8f0',
+                  fontSize: 13,
+                  fontWeight: 700,
+                  cursor: 'pointer',
+                  transition: 'all 0.2s'
+                }}
+                onMouseEnter={e => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.15)';
+                  e.currentTarget.style.color = '#ffffff';
+                }}
+                onMouseLeave={e => {
+                  e.currentTarget.style.background = 'rgba(255,255,255,0.08)';
+                  e.currentTarget.style.color = '#e2e8f0';
+                }}
+              >
+                Bezárás
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* CSS Animations (spin + iconHop bounce keyframes) */}
+      <style>{`
+        @keyframes spin { to { transform: rotate(360deg); } }
+        @keyframes iconHop {
+          0%, 100% { transform: translateY(0); }
+          50% { transform: translateY(-8px); }
+        }
+      `}</style>
     </div>
   );
 }

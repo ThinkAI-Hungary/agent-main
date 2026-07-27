@@ -258,13 +258,25 @@ function imageToBflInput(imageUrl: string | undefined): string | undefined {
     return imageUrl;
   }
   
+  const getLocallyExistingPath = (filename: string): string | null => {
+    // 1. Check in frontend renders
+    const frontendPath = path.join(rendersDir, filename);
+    if (fs.existsSync(frontendPath)) return frontendPath;
+
+    // 2. Check in backend renders
+    const backendPath = path.resolve(__dirname, '../../../../z/kepgeneralas/server/src/renders', filename);
+    if (fs.existsSync(backendPath)) return backendPath;
+
+    return null;
+  };
+
   if (imageUrl.startsWith('http://') || imageUrl.startsWith('https://')) {
     if (imageUrl.includes('/renders/')) {
       const parts = imageUrl.split('/renders/');
       const filename = parts[parts.length - 1];
-      const filePath = path.join(rendersDir, filename);
-      if (fs.existsSync(filePath)) {
-        console.log(`[BFL-BASE64] Converting localhost URL ${imageUrl} to base64`);
+      const filePath = getLocallyExistingPath(filename);
+      if (filePath) {
+        console.log(`[BFL-BASE64] Converting localhost URL ${imageUrl} to base64 from: ${filePath}`);
         const buffer = fs.readFileSync(filePath);
         return buffer.toString('base64');
       }
@@ -274,9 +286,9 @@ function imageToBflInput(imageUrl: string | undefined): string | undefined {
   
   if (imageUrl.startsWith('/renders/') || imageUrl.startsWith('renders/')) {
     const filename = path.basename(imageUrl);
-    const filePath = path.join(rendersDir, filename);
-    if (fs.existsSync(filePath)) {
-      console.log(`[BFL-BASE64] Converting relative URL ${imageUrl} to base64`);
+    const filePath = getLocallyExistingPath(filename);
+    if (filePath) {
+      console.log(`[BFL-BASE64] Converting relative URL ${imageUrl} to base64 from: ${filePath}`);
       const buffer = fs.readFileSync(filePath);
       return buffer.toString('base64');
     }

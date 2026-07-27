@@ -12,6 +12,9 @@ import { showToast } from '../../../../components/ui/Toast';
 import ImageSlotUploader, { type ImageSlot } from './ImageSlotUploader';
 import { SatoriEditorPanel } from './SatoriEditorPanel';
 import PlacidEditorPanel from './PlacidEditorPanel';
+import { useAudit } from '../../../../context/AuditContext';
+import { supabase } from '../../../../lib/supabase';
+import { getBackendUrl, fixImageUrl } from '../types';
 import '../zombo.css';
 
 // ── ErrorBoundary: ha a component crashel, megmutatja a hibat (nem fekete kepernyo) ──
@@ -54,44 +57,59 @@ class QPPErrorBoundary extends Component<{ children: React.ReactNode }, { hasErr
 // ── Icons (inline SVG - proper JSX) ──────────────────────────────────────────
 const ArrowLeft = ({ size = 16 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="19" y1="12" x2="5" y2="12"/><polyline points="12 19 5 12 12 5"/>
+    <line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" />
   </svg>
 );
 const DlIcon = ({ size = 13 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/>
+    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="7 10 12 15 17 10" /><line x1="12" y1="15" x2="12" y2="3" />
   </svg>
 );
 const CpIcon = ({ size = 13 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <rect x="9" y="9" width="13" height="13" rx="2" ry="2"/><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1"/>
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" /><path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
   </svg>
 );
 const ZapIcon = ({ size = 15 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+    <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" />
   </svg>
 );
 const RefIcon = ({ size = 12 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="23 4 23 10 17 10"/><polyline points="1 20 1 14 7 14"/>
-    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"/>
+    <polyline points="23 4 23 10 17 10" /><polyline points="1 20 1 14 7 14" />
+    <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15" />
   </svg>
 );
 const LayersIcon = ({ size = 14 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <polygon points="12 2 2 7 12 12 22 7 12 2"/><polyline points="2 17 12 22 22 17"/><polyline points="2 12 12 17 22 12"/>
+    <polygon points="12 2 2 7 12 12 22 7 12 2" /><polyline points="2 17 12 22 22 17" /><polyline points="2 12 12 17 22 12" />
   </svg>
 );
 const OkIcon = ({ size = 13 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <polyline points="20 6 9 17 4 12"/>
+    <polyline points="20 6 9 17 4 12" />
   </svg>
 );
 const PinIcon = ({ size = 13 }: { size?: number }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-    <line x1="12" y1="17" x2="12" y2="22"/>
-    <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z"/>
+    <line x1="12" y1="17" x2="12" y2="22" />
+    <path d="M5 17h14v-1.76a2 2 0 0 0-1.11-1.79l-1.78-.9A2 2 0 0 1 15 10.76V6h1a2 2 0 0 0 0-4H8a2 2 0 0 0 0 4h1v4.76a2 2 0 0 1-1.11 1.79l-1.78.9A2 2 0 0 0 5 15.24Z" />
+  </svg>
+);
+const FolderPlusIcon = ({ size = 13 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+    <line x1="12" y1="11" x2="12" y2="17" />
+    <line x1="9" y1="14" x2="15" y2="14" />
+  </svg>
+);
+const HashIcon = ({ size = 13 }: { size?: number }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <line x1="4" y1="9" x2="20" y2="9" />
+    <line x1="4" y1="15" x2="20" y2="15" />
+    <line x1="10" y1="3" x2="8" y2="21" />
+    <line x1="16" y1="3" x2="14" y2="21" />
   </svg>
 );
 
@@ -146,6 +164,11 @@ interface Result {
       ymax: number;
     };
   } | null;
+  hashtags?: {
+    facebook: string[];
+    instagram: string[];
+    x: string[];
+  };
 }
 
 const API = (import.meta as any).env?.VITE_KEPGENERALAS_API_URL || 'http://localhost:3001';
@@ -163,20 +186,30 @@ const sInput: React.CSSProperties = {
   fontSize: 13, outline: 'none', boxSizing: 'border-box',
 };
 
+const TRANSPARENT_PLACEHOLDER = "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='1080' height='1080' viewBox='0 0 1080 1080'><rect width='1080' height='1080' fill='%2318181b'/></svg>";
+
 // ═══════════════════════════════════════════════════════════════════════════════
 function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean }) {
   const navigate = useNavigate();
+  const { activeBrand, brandKits, activeKitId, result: auditResult } = useAudit();
+  const activeBrandKit = brandKits?.find(k => k.id === activeKitId) || brandKits?.[0];
 
   const [imageSlots, setImageSlots] = useState<ImageSlot[]>([]);
-  const [prompt, setPrompt]         = useState('');
-  const [mode, setMode]             = useState<ModeId>('standard');
+  const [prompt, setPrompt] = useState('');
+  const [mode, setMode] = useState<ModeId>('smart');
   const [exactTextOnly, setExactTextOnly] = useState(false);
-  const [brandName, setBrandName]   = useState('');
-  const [isLoading, setIsLoading]   = useState(false);
-  const [statusMsg, setStatusMsg]   = useState('');
-  const [error, setError]           = useState<string | null>(null);
-  const [result, setResult]         = useState<Result | null>(null);
-  const [copied, setCopied]         = useState(false);
+  const [useBrandColors, setUseBrandColors] = useState(false);
+  const [aspectRatio, setAspectRatio] = useState<'2:3' | '9:16'>('2:3');
+  const [brandName, setBrandName] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const [statusMsg, setStatusMsg] = useState('');
+  const [error, setError] = useState<string | null>(null);
+  const [result, setResult] = useState<Result | null>(null);
+  const [editedImageUrl, setEditedImageUrl] = useState<string | null>(null);
+  const [isGeneratingHashtags, setIsGeneratingHashtags] = useState(false);
+  const [isSavingToMedia, setIsSavingToMedia] = useState(false);
+  const [useCutoutAsBase, setUseCutoutAsBase] = useState(false);
+  const [copied, setCopied] = useState(false);
   // Pin tesztkép: localStorage-bol betoltjuk az oldalnyitas utan (layer tesztekhez)
   // A localStorage-ban most mar a STABIL /renders/pinned/tesztkep.png URL van
   const [savedTestImage, setSavedTestImage] = useState<string | null>(
@@ -191,7 +224,16 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
     }
   );
   const [pinnedLoaded, setPinnedLoaded] = useState(false); // debug: betoltott-e mar
-  const [editorMode, setEditorMode] = useState<'satori' | 'placid'>('satori');
+  const [editorMode, setEditorMode] = useState<'satori' | 'placid' | 'none'>('none');
+
+  const hasImage = !!result?.imageUrl || imageSlots.length > 0;
+
+  React.useEffect(() => {
+    if (!hasImage) {
+      setEditorMode('none');
+      setEditedImageUrl(null);
+    }
+  }, [hasImage]);
 
   const isPreprocessing = imageSlots.some(
     s => s.preprocessLoading || s.analysisLoading || s.upscaleLoading
@@ -204,17 +246,18 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
   const handleGenerate = useCallback(async () => {
     console.log('[QPP] handleGenerate called, slots:', imageSlots.length);
     const slot = imageSlots.find(s => s.preprocessedUrl || s.originalUrl);
-    if (!slot) {
-      console.warn('[QPP] No slot with image found');
-      showToast({ title: 'Hiba', message: 'Toltsd fel a kepet elobb!', type: 'error' });
+    if (!slot && mode === 'textpreserve') {
+      console.warn('[QPP] No slot with image found for textpreserve mode');
+      showToast({ title: 'Hiba', message: 'Ehhez a modhoz toltsd fel a kepet elobb!', type: 'error' });
       return;
     }
-    const productImageUrl = slot.preprocessedUrl || slot.originalUrl || '';
+    const productImageUrl = slot ? (slot.preprocessedUrl || slot.originalUrl || '') : '';
     console.log('[QPP] productImageUrl (first 80):', productImageUrl.substring(0, 80));
 
     setIsLoading(true);
     setError(null);
     setResult(null);
+    setEditedImageUrl(null);
 
     try {
       if (mode === 'smart') {
@@ -224,7 +267,7 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
         // 3. preserveOriginal=FALSE → FLUX teljesen új képet generál a termékről
         //    (NEM paste-el — az inputImage referencia kép, amiből a terméket megérti)
         // 4. Eredmény: a termék BELE VAN GENERÁLVA a jelenetbe, természetes szervülással
-        setStatusMsg('Claude Vision: termek elemzese + FLUX jelenet generalas...');
+        setStatusMsg(slot ? 'Claude Vision: termek elemzese + FLUX jelenet generalas...' : 'FLUX jelenet generalas...');
         console.log('[QPP] smart mode → composite-generate preserveOriginal=FALSE productAwareBg=true (scratch gen)');
 
         // A scenePrompt: SCENARIO FIRST elv — ha van user prompt, az a legfontosabb
@@ -234,22 +277,23 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
           : 'professional product photography, clean background';
 
         const smartPayload = {
-          slots: imageSlots.map(s => ({
+          slots: slot ? imageSlots.map(s => ({
             originalUrl: s.originalUrl,
             preprocessedUrl: s.preprocessedUrl,
             upscaledUrl: s.upscaledUrl,
             isDefault: s.isDefault,
             analysis: s.analysis,               // Claude Vision termék elemzés
             lightingAnalysis: (s as any).lightingAnalysis, // fizika-alapú LA ha letezik
-          })),
+          })) : [],
           scenePrompt: smartScenePrompt,
-          brandKit: brandName ? { name: brandName, visualRules: [], tone: [] } : undefined,
+          brandKit: activeBrandKit || (brandName ? { name: brandName, visualRules: [], tone: [] } : undefined),
           preserveOriginal: false,              // KULCS: FLUX teljesen újat generál, NEM paste-el
-          productAwareBg: true,                 // Claude Vision elemzi a termeket → fizika-alapú jelenet
+          productAwareBg: !!slot,                 // Claude Vision elemzi a termeket → fizika-alapú jelenet
           exactTextOnly,
-          aspectRatio: '2:3',
-          width: 1024,
-          height: 1536,
+          useBrandColors,
+          aspectRatio,
+          width: aspectRatio === '2:3' ? 1024 : 1080,
+          height: aspectRatio === '2:3' ? 1536 : 1920,
         };
         console.log('[QPP] smart payload scenePrompt:', smartScenePrompt);
 
@@ -266,13 +310,15 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
         const smartUrl = smartRaw.startsWith('http') ? smartRaw : `${API}${smartRaw}`;
         setResult({
           imageUrl: smartUrl,
-          elapsed: smartData.generationTime,
+          elapsed: smartData.elapsed || smartData.generationTime || 0,
           mode: 'smart',
           decomposedLayerText: smartData.decomposedLayerText,
           decomposedLayerCta: smartData.decomposedLayerCta,
           suggestedStyles: smartData.suggestedStyles,
-          productPosition: smartData.productPosition
+          productPosition: smartData.productPosition,
+          hashtags: smartData.hashtags
         });
+        setEditedImageUrl(null);
         showToast({ title: 'Kesz!', message: 'Termek-tudatos jelenet generalva. Satori layerekre kesz!', type: 'success' });
 
       } else if (mode === 'textpreserve') {
@@ -304,24 +350,26 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
           ? data.imageUrl
           : `${API}${data.imageUrl}`;
         setResult({ imageUrl, textZonesDetected: data.textZonesDetected, elapsed: data.elapsed, mode: 'textpreserve' });
+        setEditedImageUrl(null);
         showToast({ title: 'Kesz!', message: `${data.textZonesDetected} szovegzona megorizve. ${(data.elapsed / 1000).toFixed(1)}s`, type: 'success' });
 
       } else {
         setStatusMsg('FLUX generalas folyamatban...');
         const payload = {
-          slots: imageSlots.map(s => ({
+          slots: slot ? imageSlots.map(s => ({
             originalUrl: s.originalUrl,
             preprocessedUrl: s.preprocessedUrl,
             isDefault: s.isDefault,
-          })),
+          })) : [],
           scenePrompt: prompt || 'professional product photo with clean background',
-          brandKit: brandName ? { name: brandName, visualRules: [], tone: [] } : undefined,
+          brandKit: activeBrandKit || (brandName ? { name: brandName, visualRules: [], tone: [] } : undefined),
           preserveOriginal: true,
           productAwareBg: false,
           exactTextOnly,
-          aspectRatio: '2:3',
-          width: 1024,
-          height: 1536,
+          useBrandColors,
+          aspectRatio,
+          width: aspectRatio === '2:3' ? 1024 : 1080,
+          height: aspectRatio === '2:3' ? 1536 : 1920,
         };
         console.log('[QPP] POST /api/image/composite-generate');
 
@@ -338,14 +386,15 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
         const imageUrl = raw.startsWith('http') ? raw : `${API}${raw}`;
         setResult({
           imageUrl,
-          caption: data.caption,
-          elapsed: data.generationTime,
+          elapsed: data.elapsed || data.generationTime || 0,
           mode: 'standard',
           decomposedLayerText: data.decomposedLayerText,
           decomposedLayerCta: data.decomposedLayerCta,
           suggestedStyles: data.suggestedStyles,
-          productPosition: data.productPosition
+          productPosition: data.productPosition,
+          hashtags: data.hashtags
         });
+        setEditedImageUrl(null);
         showToast({ title: 'Kesz!', message: 'Kep legeneralt.', type: 'success' });
       }
     } catch (err: any) {
@@ -357,22 +406,58 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
       setIsLoading(false);
       setStatusMsg('');
     }
-  }, [imageSlots, prompt, mode, brandName, exactTextOnly]);
+  }, [imageSlots, prompt, mode, brandName, exactTextOnly, useBrandColors, activeBrandKit]);
+
+  const handleGenerateHashtagsOnly = useCallback(async () => {
+    if (!prompt.trim()) return;
+    setIsGeneratingHashtags(true);
+    setError(null);
+    try {
+      console.log('[QPP] POST /api/image/hashtags-only');
+      const resp = await fetch(`${API}/api/image/hashtags-only`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          scenePrompt: prompt,
+          brandKit: activeBrandKit || (brandName ? { name: brandName, visualRules: [], tone: [] } : undefined),
+        }),
+      });
+      const data = await resp.json();
+      if (!resp.ok || data.error) throw new Error(data.error || 'Hashtag generálás sikertelen');
+      console.log('[QPP] hashtags-only response:', data.hashtags);
+      
+      setResult(prev => ({
+        imageUrl: prev?.imageUrl || '',
+        mode: prev?.mode || 'none',
+        ...prev,
+        hashtags: data.hashtags
+      }));
+      showToast({ title: 'Kész!', message: 'Hashtag ajánlások legenerálva.', type: 'success' });
+    } catch (err: any) {
+      console.error('[QPP] Hashtags only error:', err);
+      const msg = err.message || 'Ismeretlen hiba';
+      showToast({ title: 'Hiba', message: msg, type: 'error' });
+    } finally {
+      setIsGeneratingHashtags(false);
+    }
+  }, [prompt, activeBrandKit, brandName]);
 
   const handleDownload = () => {
-    if (!result?.imageUrl) return;
+    const activeUrl = editedImageUrl || result?.imageUrl;
+    if (!activeUrl) return;
     const a = document.createElement('a');
-    a.href = result.imageUrl;
+    a.href = activeUrl;
     a.download = `quickpost-${Date.now()}.jpg`;
     a.click();
   };
 
   // Pin: elmenti az aktualis result kepet tesztkepkent -- FAJLBA MENTI a backenden!
   const handlePinTestImage = async () => {
-    if (!result?.imageUrl) return;
-    const absUrl = result.imageUrl.startsWith('http')
-      ? result.imageUrl
-      : `${API}${result.imageUrl}`;
+    const activeUrl = editedImageUrl || result?.imageUrl;
+    if (!activeUrl) return;
+    const absUrl = activeUrl.startsWith('http')
+      ? activeUrl
+      : `${API}${activeUrl}`;
 
     const activeSlot = imageSlots.find(s => s.preprocessedUrl || s.originalUrl);
     const activeProductUrl = activeSlot ? (activeSlot.preprocessedUrl || activeSlot.originalUrl) : null;
@@ -439,6 +524,138 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
     }
   };
 
+  const handleSaveToMediaLibrary = async () => {
+    const activeUrl = result?.imageUrl;
+    if (!activeUrl) return;
+
+    setIsSavingToMedia(true);
+    showToast({ title: 'Mentés folyamatban...', message: 'Kép feltöltése és AI szortírozás...', type: 'success' });
+
+    try {
+      // 1. Fetch the image and convert to blob/base64
+      const response = await fetch(activeUrl);
+      const blob = await response.blob();
+
+      const base64 = await new Promise<string>((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+
+      // 2. Upload using backend
+      const backendUrl = getBackendUrl();
+      const filename = `quickpost-${Date.now()}.png`;
+      const uploadResp = await fetch(`${backendUrl}/marketing/api/zombo/upload-base64`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ base64, filename }),
+      });
+
+      if (!uploadResp.ok) throw new Error(await uploadResp.text());
+      const uploadData = await uploadResp.json();
+
+      // 3. Insert into Supabase media_files
+      const { data: userData } = await supabase.auth.getUser();
+      const userId = userData?.user?.id || null;
+
+      const { data: dbFile, error } = await supabase.from('media_files').insert({
+        name: filename.replace(/\.[^/.]+$/, "") + ".webp",
+        url: uploadData.url,
+        folder_id: null,
+        size: blob.size,
+        type: 'image/webp',
+        user_id: userId,
+        brand_id: activeBrand?.id || null,
+        is_logo: false
+      }).select().single();
+
+      if (error) throw error;
+      if (!dbFile) throw new Error('Nem sikerült létrehozni a médiatár rekordot.');
+
+      // 4. Retrieve existing folders for this brand
+      const { data: dbFolders } = await supabase
+        .from('media_folders')
+        .select('id, name')
+        .eq('brand_id', activeBrand?.id);
+      const existingFolderNames = dbFolders ? dbFolders.map(f => f.name) : [];
+
+      // 5. Call smart-sort endpoint to categorize the file
+      const sortResp = await fetch(`${backendUrl}/marketing/api/zombo/smart-sort`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          files: [{ id: dbFile.id, url: dbFile.url }],
+          existingFolderNames
+        })
+      });
+
+      if (sortResp.ok) {
+        const sortData = await sortResp.json();
+        if (sortData.success && sortData.mappings && sortData.mappings[0]) {
+          const mapping = sortData.mappings[0];
+          const cat = mapping.category;
+          const lowerCat = cat.toLowerCase();
+
+          // Find or create folder
+          let targetFolder = dbFolders?.find(f => f.name.toLowerCase() === lowerCat);
+          let folderId = targetFolder?.id;
+
+          if (!folderId) {
+            const { data: newFolder, error: insertErr } = await supabase
+              .from('media_folders')
+              .insert({
+                name: cat,
+                brand_id: activeBrand?.id,
+                user_id: userId,
+                is_logo: false
+              })
+              .select()
+              .single();
+
+            if (!insertErr && newFolder) {
+              folderId = newFolder.id;
+            }
+          }
+
+          if (folderId) {
+            await supabase
+              .from('media_files')
+              .update({ folder_id: folderId })
+              .eq('id', dbFile.id);
+            showToast({
+              title: 'AI Szortírozva!',
+              message: `A kép bekerült a Médiatár "${cat}" mappájába!`,
+              type: 'success'
+            });
+            return;
+          }
+        }
+      }
+
+      showToast({ title: 'Sikeres mentés!', message: 'A kép bekerült a Médiatár gyökerébe!', type: 'success' });
+    } catch (err: any) {
+      console.error('[QPP] Save to Media Library failed:', err);
+      showToast({ title: 'Hiba a mentésnél', message: err.message || 'Ismeretlen hiba', type: 'error' });
+    } finally {
+      setIsSavingToMedia(false);
+    }
+  };
+
+  const getBaseImageUrl = () => {
+    if (result?.imageUrl) {
+      return result.imageUrl.startsWith('http') ? result.imageUrl : `${API}${result.imageUrl}`;
+    }
+    const slot = imageSlots[0];
+    if (slot) {
+      const url = useCutoutAsBase ? (slot.preprocessedUrl || slot.originalUrl) : slot.originalUrl;
+      const fixed = fixImageUrl(url);
+      if (fixed) return fixed;
+      if (slot.rawBase64) return slot.rawBase64;
+    }
+    return TRANSPARENT_PLACEHOLDER;
+  };
+
 
   // Load pinned: betolti a mentett tesztkepert result-ba
   const handleLoadPinned = () => {
@@ -454,7 +671,7 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
     setError(null);
     setPinnedLoaded(true);
     showToast({ title: 'Tesztkep betoltve', message: 'A mentett kep betoltve layer teszthez.', type: 'success' });
-    
+
     if (imageSlots.length === 0) {
       handleLoadDefaultProduct();
     }
@@ -682,7 +899,7 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
     setTimeout(() => setCopied(false), 2000);
   };
 
-  const canGenerate = imageSlots.some(s => s.preprocessedUrl || s.originalUrl)
+  const canGenerate = (imageSlots.some(s => s.preprocessedUrl || s.originalUrl) || prompt.trim().length > 0)
     && !isPreprocessing
     && !isLoading;
 
@@ -697,7 +914,7 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
           position: 'sticky', top: 0, zIndex: 10,
         }}>
           <button
-            onClick={() => navigate('/marketing/zombo')}
+            onClick={() => navigate('/marketing/social-planner')}
             style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}
           >
             <ArrowLeft size={14} /> Vissza
@@ -780,6 +997,20 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
               disabled={isLoading}
               label="Kep feltoltese"
             />
+            {imageSlots.length > 0 && (
+              <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 10 }}>
+                <input
+                  type="checkbox"
+                  id="useCutoutAsBase"
+                  checked={useCutoutAsBase}
+                  onChange={e => setUseCutoutAsBase(e.target.checked)}
+                  style={{ cursor: 'pointer', width: 14, height: 14, accentColor: '#8b5cf6' }}
+                />
+                <label htmlFor="useCutoutAsBase" style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)', cursor: 'pointer', userSelect: 'none' }}>
+                  Körbevágott termékkép használata alapként
+                </label>
+              </div>
+            )}
           </section>
 
           {/* Brand */}
@@ -806,6 +1037,86 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
               disabled={isLoading}
               style={{ ...sInput, resize: 'vertical', fontFamily: 'inherit', marginBottom: 8 }}
             />
+            {/* Clickable contact detail chips */}
+            {result?.selected_contacts && (
+              <div style={{ marginTop: 6, marginBottom: 10 }}>
+                <div style={{ fontSize: 10, fontWeight: 800, textTransform: 'uppercase', letterSpacing: '0.05em', color: 'var(--text-muted)', marginBottom: 6 }}>
+                  Beilleszthető Kapcsolati Adatok
+                </div>
+                <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                  {result.selected_contacts.emails?.map((email, idx) => (
+                    <button
+                      key={`email-${idx}`}
+                      type="button"
+                      onClick={() => setPrompt(p => p ? `${p}\n${email}` : email)}
+                      style={{
+                        background: 'rgba(139, 92, 246, 0.08)',
+                        color: '#a78bfa',
+                        border: '1px solid rgba(139, 92, 246, 0.2)',
+                        padding: '4px 10px',
+                        borderRadius: 8,
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                      title="E-mail beillesztése a kontextusba"
+                    >
+                      ✉️ {email}
+                    </button>
+                  ))}
+                  {result.selected_contacts.phones?.map((phone, idx) => (
+                    <button
+                      key={`phone-${idx}`}
+                      type="button"
+                      onClick={() => setPrompt(p => p ? `${p}\n${phone}` : phone)}
+                      style={{
+                        background: 'rgba(139, 92, 246, 0.08)',
+                        color: '#a78bfa',
+                        border: '1px solid rgba(139, 92, 246, 0.2)',
+                        padding: '4px 10px',
+                        borderRadius: 8,
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                      title="Telefonszám beillesztése a kontextusba"
+                    >
+                      📞 {phone}
+                    </button>
+                  ))}
+                  {result.selected_contacts.addresses?.map((address, idx) => (
+                    <button
+                      key={`address-${idx}`}
+                      type="button"
+                      onClick={() => setPrompt(p => p ? `${p}\n${address}` : address)}
+                      style={{
+                        background: 'rgba(139, 92, 246, 0.08)',
+                        color: '#a78bfa',
+                        border: '1px solid rgba(139, 92, 246, 0.2)',
+                        padding: '4px 10px',
+                        borderRadius: 8,
+                        fontSize: 11.5,
+                        fontWeight: 600,
+                        cursor: 'pointer',
+                        transition: 'all 0.15s'
+                      }}
+                      title="Cím beillesztése a kontextusba"
+                    >
+                      📍 {address}
+                    </button>
+                  ))}
+                  {(!result.selected_contacts.emails?.length &&
+                    !result.selected_contacts.phones?.length &&
+                    !result.selected_contacts.addresses?.length) && (
+                      <span style={{ fontSize: 11, color: 'var(--text-dim)', fontStyle: 'italic' }}>
+                        Nincs kijelölt kapcsolati adat az auditban.
+                      </span>
+                    )}
+                </div>
+              </div>
+            )}
             <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0 2px 0' }}>
               <input
                 type="checkbox"
@@ -819,13 +1130,103 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
                 Csak a megadott szöveg használata (szigorú mód)
               </label>
             </div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, margin: '6px 0 2px 0' }}>
+              <input
+                type="checkbox"
+                id="useBrandColorsMain"
+                checked={useBrandColors}
+                onChange={e => setUseBrandColors(e.target.checked)}
+                disabled={isLoading}
+                style={{ cursor: 'pointer', width: 15, height: 15, accentColor: '#8b5cf6' }}
+              />
+              <label htmlFor="useBrandColorsMain" style={{ fontSize: 11, fontWeight: 700, color: 'var(--text)', cursor: 'pointer', userSelect: 'none' }}>
+                Márka színek használata a generált háttérben
+              </label>
+            </div>
+
+            {/* Képarány választó */}
+            <div style={{ marginTop: 12, display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700, color: 'var(--text-muted)' }}>Képarány</span>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <button
+                  type="button"
+                  onClick={() => setAspectRatio('2:3')}
+                  disabled={isLoading}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1.5px solid ' + (aspectRatio === '2:3' ? '#8b5cf6' : 'var(--border)'),
+                    background: aspectRatio === '2:3' ? 'rgba(139,92,246,0.12)' : 'transparent',
+                    color: aspectRatio === '2:3' ? '#a78bfa' : 'var(--text-muted)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  2:3 (Portré)
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setAspectRatio('9:16')}
+                  disabled={isLoading}
+                  style={{
+                    flex: 1,
+                    padding: '8px 12px',
+                    borderRadius: 8,
+                    border: '1.5px solid ' + (aspectRatio === '9:16' ? '#8b5cf6' : 'var(--border)'),
+                    background: aspectRatio === '9:16' ? 'rgba(139,92,246,0.12)' : 'transparent',
+                    color: aspectRatio === '9:16' ? '#a78bfa' : 'var(--text-muted)',
+                    fontSize: 11,
+                    fontWeight: 700,
+                    cursor: isLoading ? 'not-allowed' : 'pointer',
+                    transition: 'all 0.2s'
+                  }}
+                >
+                  9:16 (Story / TikTok)
+                </button>
+              </div>
+            </div>
+            
+            <button
+              type="button"
+              onClick={handleGenerateHashtagsOnly}
+              disabled={isLoading || isGeneratingHashtags || !prompt.trim()}
+              style={{
+                marginTop: 10,
+                width: '100%',
+                padding: '8px 12px',
+                borderRadius: 8,
+                border: '1.5px solid rgba(167,139,250,0.3)',
+                background: 'rgba(167,139,250,0.06)',
+                color: '#a78bfa',
+                fontSize: 11,
+                fontWeight: 700,
+                cursor: (isLoading || isGeneratingHashtags || !prompt.trim()) ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                gap: 6,
+                transition: 'all 0.2s',
+                opacity: (!prompt.trim() || isLoading || isGeneratingHashtags) ? 0.5 : 1
+              }}
+            >
+              {isGeneratingHashtags ? (
+                <>Hashtagek keresése...</>
+              ) : (
+                <>
+                  <HashIcon size={12} /> Csak Hashtag generálás (kép nélkül)
+                </>
+              )}
+            </button>
           </section>
 
           {/* Mode */}
           <section>
             <label style={sLabel}>Generalasi mod</label>
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
-              {MODES.map(m => (
+              {MODES.filter(m => m.id === 'smart').map(m => (
                 <div
                   key={m.id}
                   onClick={() => { if (!isLoading) { console.log('[QPP] mode set:', m.id); setMode(m.id); } }}
@@ -869,8 +1270,8 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
               width: '100%', padding: '13px', borderRadius: 12, border: 'none',
               background: canGenerate
                 ? (mode === 'textpreserve'
-                    ? 'linear-gradient(135deg,#06b6d4,#0891b2)'
-                    : mode === 'smart'
+                  ? 'linear-gradient(135deg,#06b6d4,#0891b2)'
+                  : mode === 'smart'
                     ? 'linear-gradient(135deg,#f59e0b,#d97706)'
                     : 'linear-gradient(135deg,#8b5cf6,#6d28d9)')
                 : 'var(--bg3)',
@@ -956,7 +1357,7 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
           )}
 
           {/* Result state -- 2-column: kep bal, Satori jobb */}
-          {!isLoading && result && (
+          {!isLoading && (
             <div style={{ display: 'grid', gridTemplateColumns: 'minmax(320px, 1fr) 360px', gap: 24, alignItems: 'start' }}>
 
               {/* BAL: kep + gombok */}
@@ -964,49 +1365,86 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
                 {/* Header */}
                 <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
                   <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
-                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: '#10b981' }} />
+                    <div style={{ width: 10, height: 10, borderRadius: '50%', background: result ? '#10b981' : '#3b82f6' }} />
                     <span style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>
-                      {result.mode === 'textpreserve' ? 'Szoveg-megorzott Eredmeny'
-                        : result.mode === 'smart' ? 'Okos Jelenet Eredmeny'
-                        : 'Generalt Kep'}
+                      {result?.mode === 'textpreserve' ? 'Szoveg-megorzott Eredmeny'
+                        : result?.mode === 'smart' ? 'Okos Jelenet Eredmeny'
+                          : result ? 'Generalt Kep' : 'Szerkesztő'}
                     </span>
-                    {result.textZonesDetected !== undefined && (
+                    {result?.textZonesDetected !== undefined && (
                       <span style={{ padding: '2px 8px', borderRadius: 20, fontSize: 10, fontWeight: 700, background: 'rgba(6,182,212,0.12)', color: '#06b6d4' }}>
                         {result.textZonesDetected} zona megorizve
                       </span>
                     )}
-                    {result.elapsed !== undefined && (
+                    {result?.elapsed !== undefined && (
                       <span style={{ fontSize: 10, color: 'var(--text-muted)' }}>
                         {(result.elapsed / 1000).toFixed(1)}s
                       </span>
                     )}
                   </div>
-                  <button
-                    onClick={() => { setResult(null); setError(null); }}
-                    style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
-                  >
-                    <RefIcon size={12} /> Uj generalas
-                  </button>
+                  {result && (
+                    <button
+                      onClick={() => { setResult(null); setError(null); }}
+                      style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 13px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 11, fontWeight: 600, cursor: 'pointer' }}
+                    >
+                      <RefIcon size={12} /> Uj generalas
+                    </button>
+                  )}
                 </div>
 
                 {/* Kep */}
                 <div style={{ borderRadius: 16, overflow: 'hidden', border: '2px solid var(--border)', background: 'var(--bg3)' }}>
-                  <img src={result.imageUrl} alt="Generalt kep" style={{ width: '100%', display: 'block' }} onLoad={() => console.log('[QPP] image loaded:', result.imageUrl.substring(0, 60))} onError={(e) => console.error('[QPP] image load error:', e)} />
+                  <img src={editedImageUrl || getBaseImageUrl()} alt="Generalt kep" style={{ width: '100%', display: 'block' }} onLoad={() => console.log('[QPP] image loaded:', (editedImageUrl || getBaseImageUrl()).substring(0, 60))} onError={(e) => console.error('[QPP] image load error:', e)} />
                 </div>
 
                 {/* Gombok */}
                 <div style={{ display: 'flex', gap: 8, flexWrap: 'wrap' }}>
-                  <button onClick={handleDownload} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, border: 'none', background: '#10b981', color: '#fff', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}>
+                  <button
+                    onClick={handleDownload}
+                    disabled={!hasImage}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, border: 'none',
+                      background: '#10b981', color: '#fff', fontSize: 12, fontWeight: 700,
+                      cursor: hasImage ? 'pointer' : 'not-allowed',
+                      opacity: hasImage ? 1 : 0.5
+                    }}
+                  >
                     <DlIcon size={13} /> Letoltes
                   </button>
                   <button
                     onClick={handlePinTestImage}
+                    disabled={!hasImage}
                     title="Menti a kepet tesztkepkent"
-                    style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, border: '1.5px solid rgba(251,191,36,0.4)', background: 'rgba(251,191,36,0.08)', color: '#fbbf24', fontSize: 12, fontWeight: 700, cursor: 'pointer' }}
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 9,
+                      border: '1.5px solid rgba(251,191,36,0.4)',
+                      background: 'rgba(251,191,36,0.08)', color: '#fbbf24', fontSize: 12, fontWeight: 700,
+                      cursor: hasImage ? 'pointer' : 'not-allowed',
+                      opacity: hasImage ? 1 : 0.5
+                    }}
                   >
                     <PinIcon size={13} /> Tesztkep
                   </button>
-                  {result.caption && (
+                  <button
+                    onClick={handleSaveToMediaLibrary}
+                    disabled={!hasImage || isSavingToMedia}
+                    title="Menti a kepet a markatárba"
+                    style={{
+                      display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, border: 'none',
+                      background: 'linear-gradient(135deg, #8b5cf6 0%, #7c3aed 100%)', color: '#fff', fontSize: 12, fontWeight: 700,
+                      cursor: (hasImage && !isSavingToMedia) ? 'pointer' : 'not-allowed',
+                      opacity: (hasImage && !isSavingToMedia) ? 1 : 0.5
+                    }}
+                  >
+                    {isSavingToMedia ? (
+                      <>Mentés...</>
+                    ) : (
+                      <>
+                        <FolderPlusIcon size={13} /> Mentés a Képtárba
+                      </>
+                    )}
+                  </button>
+                  {result?.caption && (
                     <button onClick={handleCopy} style={{ display: 'flex', alignItems: 'center', gap: 7, padding: '9px 16px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'transparent', color: copied ? '#10b981' : 'var(--text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer' }}>
                       {copied ? <OkIcon size={13} /> : <CpIcon size={13} />}
                       {copied ? 'Masolva!' : 'Caption'}
@@ -1014,10 +1452,59 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
                   )}
                 </div>
 
-                {result.caption && (
+                {result?.caption && (
                   <div style={{ padding: '14px', borderRadius: 11, border: '1.5px solid var(--border)', background: 'var(--card)' }}>
                     <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: 8 }}>Caption</div>
                     <div style={{ fontSize: 13, color: 'var(--text)', lineHeight: 1.6 }}>{result.caption}</div>
+                  </div>
+                )}
+
+                {result?.hashtags && (
+                  <div style={{ padding: '16px', borderRadius: 12, border: '1.5px solid var(--border)', background: 'var(--card)', display: 'flex', flexDirection: 'column', gap: 12 }}>
+                    <div style={{ fontSize: 11, fontWeight: 800, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+                      Hashtag ajánlások (kattints a másoláshoz)
+                    </div>
+                    
+                    <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+                      {['facebook', 'instagram', 'x'].map((platform) => {
+                        const tags = result.hashtags?.[platform as keyof typeof result.hashtags] || [];
+                        if (tags.length === 0) return null;
+                        
+                        return (
+                          <div key={platform} style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+                            <div style={{ fontSize: 9, fontWeight: 800, color: 'var(--text-muted)', textTransform: 'uppercase' }}>
+                              {platform === 'x' ? 'X (Twitter)' : platform.charAt(0).toUpperCase() + platform.slice(1)}
+                            </div>
+                            <div style={{ display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+                              {tags.map((tag) => (
+                                <span 
+                                  key={tag} 
+                                  onClick={() => {
+                                    navigator.clipboard.writeText(tag);
+                                    showToast({ title: 'Másolva!', message: `${tag} vágólapra másolva.`, type: 'success' });
+                                  }}
+                                  style={{ 
+                                    padding: '4px 8px', 
+                                    borderRadius: 6, 
+                                    fontSize: 11, 
+                                    background: 'var(--bg3)', 
+                                    color: '#a78bfa', 
+                                    cursor: 'pointer',
+                                    border: '1px solid var(--border)',
+                                    display: 'inline-flex',
+                                    alignItems: 'center',
+                                    transition: 'all 0.2s',
+                                  }}
+                                  title="Kattints a másoláshoz"
+                                >
+                                  {tag}
+                                </span>
+                              ))}
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 )}
               </div>
@@ -1025,56 +1512,87 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
               {/* JOBB: Layer Editor Sidebar */}
               <div style={{ position: 'sticky', top: 0, overflowY: 'auto', maxHeight: 'calc(100vh - 90px)', paddingRight: 4 }}>
                 <div style={{ padding: '16px', borderRadius: 18, background: 'var(--bg3)', border: '2px solid rgba(139,92,246,0.25)', boxShadow: '0 8px 32px rgba(0,0,0,0.15)' }}>
-                  
+
                   {/* isolated Editor Switcher */}
                   <div style={{ display: 'flex', background: 'var(--bg)', padding: 3, borderRadius: 10, border: '1px solid var(--border)', marginBottom: 16 }}>
                     <button
-                      onClick={() => setEditorMode('satori')}
+                      onClick={() => { setEditorMode('none'); setEditedImageUrl(null); }}
+                      style={{
+                        flex: 1, padding: '6px 12px', borderRadius: 8, border: 'none',
+                        background: editorMode === 'none' ? 'linear-gradient(135deg,#8b5cf6,#6d28d9)' : 'transparent',
+                        color: editorMode === 'none' ? '#fff' : 'var(--text-muted)',
+                        fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
+                      }}
+                    >
+                      Csak kép
+                    </button>
+                    <button
+                      onClick={() => { if (hasImage) setEditorMode('satori'); }}
+                      disabled={!hasImage}
+                      title={!hasImage ? 'Tölts fel egy képet a Satori használatához!' : ''}
                       style={{
                         flex: 1, padding: '6px 12px', borderRadius: 8, border: 'none',
                         background: editorMode === 'satori' ? 'linear-gradient(135deg,#8b5cf6,#6d28d9)' : 'transparent',
                         color: editorMode === 'satori' ? '#fff' : 'var(--text-muted)',
-                        fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
+                        fontSize: 11, fontWeight: 700, cursor: hasImage ? 'pointer' : 'not-allowed', transition: 'all 0.2s',
+                        opacity: hasImage ? 1 : 0.5
                       }}
                     >
                       Satori
                     </button>
                     <button
-                      onClick={() => setEditorMode('placid')}
+                      onClick={() => { if (hasImage) setEditorMode('placid'); }}
+                      disabled={!hasImage}
+                      title={!hasImage ? 'Tölts fel egy képet a Placid használatához!' : ''}
                       style={{
                         flex: 1, padding: '6px 12px', borderRadius: 8, border: 'none',
                         background: editorMode === 'placid' ? 'linear-gradient(135deg,#8b5cf6,#6d28d9)' : 'transparent',
                         color: editorMode === 'placid' ? '#fff' : 'var(--text-muted)',
-                        fontSize: 11, fontWeight: 700, cursor: 'pointer', transition: 'all 0.2s'
+                        fontSize: 11, fontWeight: 700, cursor: hasImage ? 'pointer' : 'not-allowed', transition: 'all 0.2s',
+                        opacity: hasImage ? 1 : 0.5
                       }}
                     >
                       Placid
                     </button>
                   </div>
 
-                  {editorMode === 'satori' ? (
+                  {editorMode === 'none' && (
+                    <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 12, padding: '40px 10px', textAlign: 'center', color: 'var(--text-muted)' }}>
+                      <div style={{ fontSize: 24 }}>🖼️</div>
+                      <div style={{ fontSize: 13, fontWeight: 700, color: 'var(--text)' }}>Nincs aktív layer szerkesztő</div>
+                      <div style={{ fontSize: 11, lineHeight: 1.5, maxWidth: 240 }}>
+                        A kép tiszta állapotban látható. Kattints a <strong>Satori</strong> vagy <strong>Placid</strong> fülre a feliratok elhelyezéséhez.
+                      </div>
+                    </div>
+                  )}
+
+                  {editorMode === 'satori' && (
                     <>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
                         <LayersIcon size={14} />
                         <span style={{ fontSize: 12, fontWeight: 800, color: '#a78bfa', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Satori Layer Szerkeszto</span>
                       </div>
                       <SatoriEditorPanel
-                        baseImageUrl={result.imageUrl.startsWith('http') ? result.imageUrl : `${API}${result.imageUrl}`}
+                        baseImageUrl={getBaseImageUrl()}
                         prompt={prompt}
                         subject={brandName}
-                        decomposedLayerText={result.decomposedLayerText}
-                        decomposedLayerCta={result.decomposedLayerCta}
-                        initialSuggestedStyles={result.suggestedStyles}
+                        decomposedLayerText={result?.decomposedLayerText}
+                        decomposedLayerCta={result?.decomposedLayerCta}
+                        initialSuggestedStyles={result?.suggestedStyles}
+                        onRendered={setEditedImageUrl}
+                        brandKit={activeBrandKit}
                       />
                     </>
-                  ) : (
+                  )}
+
+                  {editorMode === 'placid' && (
                     <>
                       <div style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 16 }}>
                         <LayersIcon size={14} />
                         <span style={{ fontSize: 12, fontWeight: 800, color: '#fbbf24', textTransform: 'uppercase', letterSpacing: '0.06em' }}>Placid Layer Szerkeszto</span>
                       </div>
                       <PlacidEditorPanel
-                        baseImageUrl={result.imageUrl.startsWith('http') ? result.imageUrl : `${API}${result.imageUrl}`}
+                        baseImageUrl={getBaseImageUrl()}
                         productImageUrl={
                           (() => {
                             const slot = imageSlots.find(s => s.preprocessedUrl || s.originalUrl);
@@ -1083,11 +1601,12 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
                             return stored || undefined;
                           })()
                         }
-                        productPosition={result.productPosition}
+                        productPosition={result?.productPosition}
                         prompt={prompt}
                         subject={brandName}
-                        decomposedLayerText={result.decomposedLayerText}
-                        decomposedLayerCta={result.decomposedLayerCta}
+                        decomposedLayerText={result?.decomposedLayerText}
+                        decomposedLayerCta={result?.decomposedLayerCta}
+                        onRendered={setEditedImageUrl}
                       />
                     </>
                   )}
@@ -1146,19 +1665,6 @@ function ZomboQuickPostPageInner({ inlineMode = false }: { inlineMode?: boolean 
             </div>
           )}
 
-          {/* Placeholder */}
-          {!isLoading && !result && !error && (
-            <div style={{ flex: 1, display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 14, padding: '60px 0', textAlign: 'center' }}>
-              <div style={{ width: 76, height: 76, borderRadius: 22, background: 'var(--bg3)', border: '2px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 34 }}>
-                🖼️
-              </div>
-              <div style={{ fontSize: 14, fontWeight: 700, color: 'var(--text-muted)' }}>Meg nincs eredmeny</div>
-              <div style={{ fontSize: 12, color: 'var(--text-muted)', maxWidth: 280, lineHeight: 1.5 }}>
-                Toltsd fel a kepet, valassz modot, majd nyomj{' '}
-                <strong style={{ color: 'var(--text)' }}>Generalas</strong> gombot.
-              </div>
-            </div>
-          )}
         </div>
       </div>
     </div>

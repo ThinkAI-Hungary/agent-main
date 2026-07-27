@@ -16,8 +16,8 @@ const MKT_NAV_ITEMS = [
   { id: 'mkt-seo', label: 'SEO / SEM', path: '/marketing/seo', icon: 'M11 11m-8 0a8 8 0 1016 0 8 8 0 00-16 0zM21 21l-4.35-4.35' },
   { id: 'mkt-loyalty', label: 'Hűségprogram', path: '/marketing/loyalty', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
   { id: 'mkt-competitor', label: 'Árfigyelő', path: '/marketing/competitor', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
-  { id: 'mkt-creative-studio', label: 'Creative Studio', path: '/marketing/zombo/creative-studio', icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' },
-  { id: 'mkt-zombo', label: 'Zombo Audit', path: '/marketing/zombo', icon: 'M12 12m-10 0a10 10 0 1020 0 10 10 0 00-20 0zM12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10zM2 12h20' },
+  { id: 'mkt-creative-studio', label: 'Creative Studio', path: '/marketing/social-planner/creative-studio', icon: 'M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5' },
+  { id: 'mkt-social-planner', label: 'Social Planner', path: '/marketing/social-planner', icon: 'M12 12m-10 0a10 10 0 1020 0 10 10 0 00-20 0zM12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10zM2 12h20' },
 ];
 
 export default function MarketingSidebar() {

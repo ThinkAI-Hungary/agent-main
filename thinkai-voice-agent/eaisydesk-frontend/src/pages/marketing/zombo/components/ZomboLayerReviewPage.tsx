@@ -90,30 +90,30 @@ function getDominantColor(imageUrl: string): Promise<string> {
         canvas.height = 50;
         ctx.drawImage(img, 0, 0, 50, 50);
         const imgData = ctx.getImageData(0, 0, 50, 50).data;
-        
+
         const colorCounts: Record<string, number> = {};
         let maxCount = 0;
         let dominantColor = '#ffffff';
-        
+
         for (let i = 0; i < imgData.length; i += 4) {
           const r = imgData[i];
-          const g = imgData[i+1];
-          const b = imgData[i+2];
-          const a = imgData[i+3];
+          const g = imgData[i + 1];
+          const b = imgData[i + 2];
+          const a = imgData[i + 3];
           if (a < 100) continue; // Skip highly transparent pixels
-          
+
           const maxVal = Math.max(r, g, b);
           const minVal = Math.min(r, g, b);
           const diff = maxVal - minVal;
-          
+
           const qr = Math.round(r / 15) * 15;
           const qg = Math.round(g / 15) * 15;
           const qb = Math.round(b / 15) * 15;
           const key = `${qr},${qg},${qb}`;
-          
+
           const score = diff > 20 ? 3 : 1;
           colorCounts[key] = (colorCounts[key] || 0) + score;
-          
+
           if (colorCounts[key] > maxCount) {
             maxCount = colorCounts[key];
             dominantColor = rgbToHex(qr, qg, qb);
@@ -151,6 +151,13 @@ function lightenColor(hex: string): string {
 function scaleStyleToCqw(style: Record<string, any>, canvasWidth: number): React.CSSProperties {
   const scaled: Record<string, any> = {};
   Object.entries(style).forEach(([key, val]) => {
+    if (key === 'lineHeight' || key === 'line-height') {
+      const num = typeof val === 'number' ? val : parseFloat(val);
+      if (!isNaN(num) && num > 5) {
+        scaled[key] = `${(num / canvasWidth) * 100}cqw`;
+        return;
+      }
+    }
     if (typeof val === 'string' && val.endsWith('px')) {
       const num = parseFloat(val);
       if (!isNaN(num)) {
@@ -187,7 +194,7 @@ const getGoogleFontsImport = (template: PlacidTemplate) => {
 function isBackgroundLayer(layer: PlacidLayer, index: number): boolean {
   if (layer.type !== 'picture') return false;
   const nameLower = layer.name.toLowerCase();
-  
+
   // 1. Explicit background names
   if (
     nameLower === 'bg' ||
@@ -202,13 +209,13 @@ function isBackgroundLayer(layer: PlacidLayer, index: number): boolean {
   ) {
     return true;
   }
-  
+
   // 2. Full screen picture layers
   const pos = layer.position || {};
-  const isFullScreen = 
-    pos.xmin === 0 && 
-    pos.ymin === 0 && 
-    pos.xmax === 100 && 
+  const isFullScreen =
+    pos.xmin === 0 &&
+    pos.ymin === 0 &&
+    pos.xmax === 100 &&
     pos.ymax === 100;
   if (isFullScreen) {
     return true;
@@ -228,7 +235,7 @@ function isBackgroundLayer(layer: PlacidLayer, index: number): boolean {
 // Helper function to resolve resolution to common aspect ratio labels
 function getAspectRatioString(width: number, height: number): string {
   const ratio = width / height;
-  
+
   // Explicitly check standard landscape and portrait dimensions
   if (Math.abs(ratio - 1) < 0.02) return '1:1';
   if (Math.abs(ratio - 0.8) < 0.02) return '4:5';
@@ -236,13 +243,13 @@ function getAspectRatioString(width: number, height: number): string {
   if (Math.abs(ratio - 1.777) < 0.02) return '16:9';
   if (Math.abs(ratio - 1.904) < 0.02) return '1:1';
   if (Math.abs(ratio - 2.0) < 0.02) return '2:1';
-  
+
   // Mathematical greatest common divisor for custom frames
   const getGcd = (a: number, b: number): number => b ? getGcd(b, a % b) : a;
   const divisor = getGcd(width, height);
   const wReduced = width / divisor;
   const hReduced = height / divisor;
-  
+
   if (wReduced < 20 && hReduced < 20) {
     return `${wReduced}:${hReduced}`;
   }
@@ -392,9 +399,9 @@ function ZomboLayerReviewPage() {
       } else {
         const bgPics = allPics.filter((l, idx) => isBackgroundLayer(l, idx));
         const contentPics = allPics.filter((l, idx) => !isBackgroundLayer(l, idx));
-        defaults[t.uuid] = { 
+        defaults[t.uuid] = {
           images_count: contentPics.length,
-          has_background: bgPics.length > 0 
+          has_background: bgPics.length > 0
         };
       }
 
@@ -473,18 +480,58 @@ function ZomboLayerReviewPage() {
     }
   });
 
+  const [hasLoadedFromServer, setHasLoadedFromServer] = useState(false);
+
+  // Load reviewed templates and requirements from server on mount
+  useEffect(() => {
+    const loadReviewedData = async () => {
+      try {
+        const resp = await fetch(`${API}/api/image/load-reviewed-data`);
+        if (!resp.ok) throw new Error('Server load error');
+        const data = await resp.json();
+        if (data.reviewedTemplates && Array.isArray(data.reviewedTemplates)) {
+          const tSet = new Set<string>();
+          data.reviewedTemplates.forEach((id: string) => tSet.add(id));
+          setReviewedTemplates(tSet);
+        }
+        if (data.reviewedLayers && Array.isArray(data.reviewedLayers)) {
+          const lSet = new Set<string>();
+          data.reviewedLayers.forEach((key: string) => lSet.add(key));
+          setReviewedLayers(lSet);
+        }
+        if (data.templateRequirements && typeof data.templateRequirements === 'object') {
+          setTemplateRequirements(prev => ({ ...prev, ...data.templateRequirements }));
+        }
+        if (data.parsedRequirements && typeof data.parsedRequirements === 'object') {
+          setParsedRequirements(prev => ({ ...prev, ...data.parsedRequirements }));
+        }
+        if (data.templateLayersMap && typeof data.templateLayersMap === 'object') {
+          setTemplateLayersMap(prev => ({ ...prev, ...data.templateLayersMap }));
+        }
+        if (data.aiInstructionsHistory && typeof data.aiInstructionsHistory === 'object') {
+          setAiInstructionsHistory(prev => ({ ...prev, ...data.aiInstructionsHistory }));
+        }
+      } catch (err) {
+        console.warn('[LOAD-REVIEWED-DATA] Failed to load from server, using local fallbacks:', err);
+      } finally {
+        setHasLoadedFromServer(true);
+      }
+    };
+    loadReviewedData();
+  }, []);
+
   const pushConfigToHistory = (templateId: string, config: Record<string, any>) => {
     if (!config || Object.keys(config).length === 0) return;
     setJsonConfigHistory(prev => {
       const next = { ...prev };
       const list = [...(next[templateId] || [])];
-      
+
       // Compare with the last entry to avoid duplicates
       const lastEntry = list[list.length - 1];
       if (lastEntry && JSON.stringify(lastEntry) === JSON.stringify(config)) {
         return prev;
       }
-      
+
       list.push(JSON.parse(JSON.stringify(config)));
       if (list.length > 15) {
         list.shift(); // cap history at 15 entries
@@ -524,7 +571,7 @@ function ZomboLayerReviewPage() {
 
   const [layerValues, setLayerValues] = useState<Record<string, string>>({});
   const [imageMappings, setImageMappings] = useState<Record<string, 'base' | 'product' | 'none'>>({});
-  
+
   const [isRendering, setIsRendering] = useState(false);
   const [renderedUrl, setRenderedUrl] = useState<string | null>(null);
 
@@ -587,18 +634,18 @@ function ZomboLayerReviewPage() {
           instruction: aiRefineInstruction
         })
       });
-      
+
       if (!response.ok) {
         throw new Error(`AI módosítás sikertelen: ${response.status}`);
       }
-      
+
       const data = await response.json();
       if (data.success && data.parsed) {
         pushConfigToHistory(selectedTemplateId, activeParsedJson);
         const newJsonText = JSON.stringify(data.parsed, null, 2);
         setJsonText(newJsonText);
         setJsonError(null);
-        
+
         // Update history
         setAiInstructionsHistory(prev => {
           const next = { ...prev };
@@ -615,7 +662,7 @@ function ZomboLayerReviewPage() {
           ...prev,
           [selectedTemplateId]: data.parsed
         }));
-        
+
         setAiRefineInstruction('');
         showToast({ title: 'AI Módosítás sikeres', message: 'A sablon konfiguráció frissítve lett!', type: 'success' });
       } else {
@@ -635,7 +682,7 @@ function ZomboLayerReviewPage() {
       const allPics = (selectedTemplate.layers || []).filter(l => l.type === 'picture');
       const bgPics = allPics.filter((l, idx) => isBackgroundLayer(l, idx));
       const contentPics = allPics.filter((l, idx) => !isBackgroundLayer(l, idx));
-      
+
       const defaultParsed: Record<string, any> = {
         images_count: allPics.length === 1 ? 1 : contentPics.length,
         has_background: allPics.length === 1 ? false : bgPics.length > 0
@@ -681,6 +728,7 @@ function ZomboLayerReviewPage() {
 
   // Global Autosave Effect triggering on any state changes
   useEffect(() => {
+    if (!hasLoadedFromServer) return;
     try {
       localStorage.setItem('zombo_reviewed_templates', JSON.stringify(Array.from(reviewedTemplates)));
       localStorage.setItem('zombo_reviewed_layers', JSON.stringify(Array.from(reviewedLayers)));
@@ -689,6 +737,22 @@ function ZomboLayerReviewPage() {
       localStorage.setItem('qpp_pinned_test_image', baseImageUrl);
       localStorage.setItem('qpp_pinned_test_image_product_url', productImageUrl);
       localStorage.setItem('zombo_template_layers_map', JSON.stringify(templateLayersMap));
+
+      // Post changes to server for persistence across browsers/sessions
+      const payload = {
+        reviewedTemplates: Array.from(reviewedTemplates),
+        reviewedLayers: Array.from(reviewedLayers),
+        templateRequirements,
+        parsedRequirements,
+        templateLayersMap,
+        aiInstructionsHistory
+      };
+      fetch(`${API}/api/image/save-reviewed-data`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      }).catch(err => console.error('[AUTOSAVE-SERVER] Failed to save reviewed templates data to server:', err));
+
     } catch (err) {
       console.error('[AUTOSAVE] Failed to save configurations:', err);
     }
@@ -699,7 +763,9 @@ function ZomboLayerReviewPage() {
     parsedRequirements,
     baseImageUrl,
     productImageUrl,
-    templateLayersMap
+    templateLayersMap,
+    aiInstructionsHistory,
+    hasLoadedFromServer
   ]);
 
   // JSON change handler that parses typed string dynamically
@@ -746,7 +812,7 @@ function ZomboLayerReviewPage() {
       // 2. Initialize text field inputs
       const initialTexts: Record<string, string> = {};
       const initialImages: Record<string, 'base' | 'product' | 'none'> = {};
-      
+
       const layers = templateLayersMap[selectedTemplateId] || selectedTemplate.layers;
       const pictureLayers = layers.filter(l => l.type === 'picture');
 
@@ -814,7 +880,7 @@ function ZomboLayerReviewPage() {
     const currentLayers = [...layers];
     const targetIndex = direction === 'up' ? index - 1 : index + 1;
     if (targetIndex < 0 || targetIndex >= currentLayers.length) return;
-    
+
     // Swap elements
     const temp = currentLayers[index];
     currentLayers[index] = currentLayers[targetIndex];
@@ -857,7 +923,7 @@ function ZomboLayerReviewPage() {
             <span><strong>Háttérkép szükséges:</strong> {activeParsedJson.has_background ? 'Igen' : 'Nem'}</span>
           </div>
         )}
-        
+
         {/* Opacity settings visualization */}
         {keys.some(k => k.endsWith('_opacity')) && (
           <div style={{ marginTop: 6, borderTop: '1px dashed var(--border)', paddingTop: 6 }}>
@@ -876,7 +942,7 @@ function ZomboLayerReviewPage() {
             </div>
           </div>
         )}
-        
+
         {/* Other custom rules */}
         {keys.filter(k => k !== 'images_count' && k !== 'has_background' && !k.endsWith('_opacity')).length > 0 && (
           <div style={{ marginTop: 6, borderTop: '1px dashed var(--border)', paddingTop: 6 }}>
@@ -898,17 +964,17 @@ function ZomboLayerReviewPage() {
 
   // Filter grouped presets
   const categories = ['All', ...Array.from(new Set(PRESETS.flatMap(t => t.tags || [])))].slice(0, 8);
-  
+
   const filteredGroups = GROUPED_PRESETS.filter(g => {
-    const matchesSearch = g.title.toLowerCase().includes(searchQuery.toLowerCase()) || 
-                          g.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
+    const matchesSearch = g.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      g.tags.some(tag => tag.toLowerCase().includes(searchQuery.toLowerCase()));
     const matchesCat = selectedCategory === 'All' || g.tags.includes(selectedCategory);
-    
+
     // Review filter
     const isAnyVariantReviewed = g.variants.some(v => reviewedTemplates.has(v.uuid));
     const matchesReview = reviewFilter === 'all' ||
-                          (reviewFilter === 'reviewed' && isAnyVariantReviewed) ||
-                          (reviewFilter === 'pending' && !isAnyVariantReviewed);
+      (reviewFilter === 'reviewed' && isAnyVariantReviewed) ||
+      (reviewFilter === 'pending' && !isAnyVariantReviewed);
 
     return matchesSearch && matchesCat && matchesReview;
   });
@@ -959,16 +1025,16 @@ function ZomboLayerReviewPage() {
 
   return (
     <div style={{ display: 'flex', height: '100vh', background: 'var(--bg)', color: 'var(--text)', fontFamily: "'Outfit', 'Inter', sans-serif", overflow: 'hidden' }}>
-      
+
       {/* LEFT NAVIGATION SIDEBAR (Dizájn lista) */}
       <div style={{ width: 300, display: 'flex', flexDirection: 'column', background: 'var(--bg2)', borderRight: '1px solid var(--border)', height: '100%', flexShrink: 0 }}>
-        
+
         {/* Sidebar Header & Filters */}
         <div style={{ padding: '18px 16px', borderBottom: '1px solid var(--border)', display: 'flex', flexDirection: 'column', gap: 12 }}>
           <div style={{ fontSize: 13, fontWeight: 900, textTransform: 'uppercase', color: 'var(--text-dim)', letterSpacing: '0.05em' }}>
             📁 Sablonok ({GROUPED_PRESETS.length})
           </div>
-          
+
           <input
             type="text"
             placeholder="Keresés..."
@@ -981,9 +1047,9 @@ function ZomboLayerReviewPage() {
           <div style={{ display: 'flex', gap: 4, background: 'var(--bg3)', padding: 3, borderRadius: 8, border: '1px solid var(--border)' }}>
             {(['all', 'pending', 'reviewed'] as const).map(f => {
               const label = f === 'all' ? 'Összes' : f === 'pending' ? 'Vizsgálandó' : 'Kész';
-              const count = f === 'all' 
-                ? GROUPED_PRESETS.length 
-                : f === 'pending' 
+              const count = f === 'all'
+                ? GROUPED_PRESETS.length
+                : f === 'pending'
                   ? GROUPED_PRESETS.filter(g => !g.variants.some(v => reviewedTemplates.has(v.uuid))).length
                   : GROUPED_PRESETS.filter(g => g.variants.some(v => reviewedTemplates.has(v.uuid))).length;
               const isActive = reviewFilter === f;
@@ -1056,15 +1122,15 @@ function ZomboLayerReviewPage() {
                   gap: 10,
                   padding: 8,
                   borderRadius: 10,
-                  border: isGroupSelected 
-                    ? '1.5px solid #fbbf24' 
-                    : isReviewed 
-                      ? '1px solid rgba(16,185,129,0.3)' 
+                  border: isGroupSelected
+                    ? '1.5px solid #fbbf24'
+                    : isReviewed
+                      ? '1px solid rgba(16,185,129,0.3)'
                       : '1px solid var(--border)',
-                  background: isGroupSelected 
-                    ? 'rgba(251,191,36,0.06)' 
-                    : isReviewed 
-                      ? 'rgba(16,185,129,0.03)' 
+                  background: isGroupSelected
+                    ? 'rgba(251,191,36,0.06)'
+                    : isReviewed
+                      ? 'rgba(16,185,129,0.03)'
                       : 'transparent',
                   cursor: 'pointer',
                   transition: 'all 0.15s'
@@ -1118,7 +1184,7 @@ function ZomboLayerReviewPage() {
 
       {/* MAIN CONTENT AREA */}
       <div style={{ flex: 1, display: 'flex', flexDirection: 'column', overflowY: 'auto', padding: '24px 30px' }}>
-        
+
         {/* Header section */}
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 20, borderBottom: '1px solid var(--border)', paddingBottom: 16, flexShrink: 0 }}>
           <div>
@@ -1130,7 +1196,7 @@ function ZomboLayerReviewPage() {
             </div>
           </div>
           <button
-            onClick={() => navigate('/marketing/zombo')}
+            onClick={() => navigate('/marketing/social-planner')}
             style={{ padding: '8px 16px', borderRadius: 8, border: '1px solid var(--border)', background: 'var(--bg3)', color: 'var(--text)', fontSize: 12.5, fontWeight: 700, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 6 }}
           >
             <span>←</span> Zombo Főoldal
@@ -1139,7 +1205,7 @@ function ZomboLayerReviewPage() {
 
         {/* Double-column Configuration Section (Images on left, Requirements on right) */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 20, flexShrink: 0 }}>
-          
+
           {/* Left Column: LocalStorage Image Status Box */}
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, padding: 18, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', gap: 14 }}>
             <div>
@@ -1162,7 +1228,7 @@ function ZomboLayerReviewPage() {
                 )}
               </div>
             </div>
-            
+
             <div style={{ display: 'flex', gap: 12 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 10, fontWeight: 800, color: 'var(--text-muted)', marginBottom: 4 }}>Háttér URL:</div>
@@ -1235,7 +1301,7 @@ function ZomboLayerReviewPage() {
                       if (jsonFocusedConfig && JSON.stringify(jsonFocusedConfig) !== JSON.stringify(currentParsed)) {
                         pushConfigToHistory(selectedTemplateId, jsonFocusedConfig);
                       }
-                    } catch {}
+                    } catch { }
                     setJsonFocusedConfig(null);
                   }}
                   style={{
@@ -1256,13 +1322,13 @@ function ZomboLayerReviewPage() {
               </div>
 
               {/* Right Column: Human readable leírás */}
-              <div style={{ 
-                background: '#090d16', 
-                border: '1px solid var(--border)', 
-                borderRadius: 8, 
-                padding: 12, 
-                overflowY: 'auto', 
-                height: '100%' 
+              <div style={{
+                background: '#090d16',
+                border: '1px solid var(--border)',
+                borderRadius: 8,
+                padding: 12,
+                overflowY: 'auto',
+                height: '100%'
               }}>
                 <div style={{ fontSize: 9.5, fontWeight: 900, color: 'var(--text-muted)', marginBottom: 6, textTransform: 'uppercase', letterSpacing: '0.05em' }}>
                   Emberileg Olvasható Leírás:
@@ -1430,7 +1496,7 @@ function ZomboLayerReviewPage() {
               Sablon jóváhagyva
             </label>
           </div>
-          
+
           <div style={{ display: 'flex', gap: 14, alignItems: 'center' }}>
             {(() => {
               const currentGroup = GROUPED_PRESETS.find(g => g.variants.some(v => v.uuid === selectedTemplateId));
@@ -1484,7 +1550,7 @@ function ZomboLayerReviewPage() {
 
         {/* HUGE SIDE-BY-SIDE VISUAL COMPARISON PANE IN CENTER */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24, flexShrink: 0 }}>
-          
+
           {/* Left Column: Placid Original Design */}
           <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, padding: 18, display: 'flex', flexDirection: 'column', gap: 10 }}>
             <div style={{ display: 'flex', justifyContent: 'space-between', width: '100%', alignItems: 'center' }}>
@@ -1532,12 +1598,13 @@ function ZomboLayerReviewPage() {
               containerType: 'inline-size'
             }}>
               <div style={{ position: 'relative', width: '100%', height: '100%' }}>
-                
+
                 {/* Solid white canvas background */}
                 <div style={{ position: 'absolute', inset: 0, backgroundColor: '#ffffff', zIndex: 0 }} />
-                
+
                 {/* Inject dynamic fonts and neon blink keyframes */}
-                <style dangerouslySetInnerHTML={{ __html: `
+                <style dangerouslySetInnerHTML={{
+                  __html: `
                   ${getGoogleFontsImport(selectedTemplate)}
                   @keyframes neonBlinkAnim {
                     0% { opacity: 0.35; border-color: #00ffff; box-shadow: 0 0 10px #00ffff, inset 0 0 10px #00ffff; }
@@ -1584,7 +1651,7 @@ function ZomboLayerReviewPage() {
 
                         if (layer.type === 'text') {
                           const val = layerValues[layer.name] !== undefined ? layerValues[layer.name] : (layer.text || 'dummy text');
-                          
+
                           let justifyContent = 'center';
                           if (layer.style.textAlign === 'left') justifyContent = 'flex-start';
                           if (layer.style.textAlign === 'right') justifyContent = 'flex-end';
@@ -1606,15 +1673,15 @@ function ZomboLayerReviewPage() {
                           } else if (mapping === 'none') {
                             imgSrc = '';
                           }
-                          
+
                           const isProduct = mapping === 'product';
                           const pictureLayers = layers.filter(l => l.type === 'picture');
                           const isSingleImage = pictureLayers.length === 1;
                           const isBg = isBackgroundLayer(layer, layers.indexOf(layer));
-                          
+
                           // Force contain instead of cover if it is the only image OR if it is the background image
                           const objectFit = (isSingleImage || isBg || isProduct) ? 'contain' : (layer.style.objectFit || 'cover');
-                          
+
                           // Auto-center background image crop around the detected product
                           const objectPosition = isProduct ? 'center' : `${productCenterX}% ${productCenterY}%`;
 
@@ -1627,7 +1694,7 @@ function ZomboLayerReviewPage() {
                             if (fadeDir === 'bottom') gradDir = 'to top';
                             if (fadeDir === 'left') gradDir = 'to right';
                             if (fadeDir === 'right') gradDir = 'to left';
-                            
+
                             const maskVal = `linear-gradient(${gradDir}, transparent, black ${fadePixels}px)`;
                             maskStyle = {
                               WebkitMaskImage: maskVal,
@@ -1733,26 +1800,26 @@ function ZomboLayerReviewPage() {
                     const layerKey = `${selectedTemplateId}::${layer.name}`;
                     const isLayerReviewed = reviewedLayers.has(layerKey);
                     const isBg = isBackgroundLayer(layer, idx);
-                    
+
                     // Opacity resolution from JSON parsed requirements
-                    const opacityVal = activeParsedJson[`${layer.name}_opacity`] !== undefined 
-                      ? activeParsedJson[`${layer.name}_opacity`] 
+                    const opacityVal = activeParsedJson[`${layer.name}_opacity`] !== undefined
+                      ? activeParsedJson[`${layer.name}_opacity`]
                       : (layer.style.opacity !== undefined ? Math.round(layer.style.opacity * 100) : 100);
 
                     return (
-                      <tr 
-                        key={layer.name} 
+                      <tr
+                        key={layer.name}
                         onMouseEnter={() => setHoveredLayerName(layer.name)}
                         onMouseLeave={() => setHoveredLayerName(null)}
-                        style={{ 
-                          borderBottom: '1px solid rgba(255,255,255,0.04)', 
+                        style={{
+                          borderBottom: '1px solid rgba(255,255,255,0.04)',
                           verticalAlign: 'middle',
-                          background: hoveredLayerName === layer.name 
-                            ? 'rgba(255,255,255,0.02)' 
-                            : isLayerReviewed 
-                              ? 'rgba(16,185,129,0.04)' 
-                              : isBg 
-                                ? 'rgba(59,130,246,0.02)' 
+                          background: hoveredLayerName === layer.name
+                            ? 'rgba(255,255,255,0.02)'
+                            : isLayerReviewed
+                              ? 'rgba(16,185,129,0.04)'
+                              : isBg
+                                ? 'rgba(59,130,246,0.02)'
                                 : 'transparent',
                           transition: 'background 0.2s'
                         }}
@@ -1806,14 +1873,14 @@ function ZomboLayerReviewPage() {
                             <button
                               disabled={idx === 0}
                               onClick={() => moveLayer(idx, 'up')}
-                              style={{ 
-                                padding: '4px 6px', 
-                                fontSize: 10, 
-                                background: idx === 0 ? 'rgba(255,255,255,0.02)' : 'var(--bg3)', 
-                                border: '1px solid var(--border)', 
-                                color: idx === 0 ? 'var(--text-muted)' : 'var(--text)', 
-                                borderRadius: 4, 
-                                cursor: idx === 0 ? 'not-allowed' : 'pointer' 
+                              style={{
+                                padding: '4px 6px',
+                                fontSize: 10,
+                                background: idx === 0 ? 'rgba(255,255,255,0.02)' : 'var(--bg3)',
+                                border: '1px solid var(--border)',
+                                color: idx === 0 ? 'var(--text-muted)' : 'var(--text)',
+                                borderRadius: 4,
+                                cursor: idx === 0 ? 'not-allowed' : 'pointer'
                               }}
                               title="Mozgatás Fel"
                             >
@@ -1822,14 +1889,14 @@ function ZomboLayerReviewPage() {
                             <button
                               disabled={idx === layers.length - 1}
                               onClick={() => moveLayer(idx, 'down')}
-                              style={{ 
-                                padding: '4px 6px', 
-                                fontSize: 10, 
-                                background: idx === layers.length - 1 ? 'rgba(255,255,255,0.02)' : 'var(--bg3)', 
-                                border: '1px solid var(--border)', 
-                                color: idx === layers.length - 1 ? 'var(--text-muted)' : 'var(--text)', 
-                                borderRadius: 4, 
-                                cursor: idx === layers.length - 1 ? 'not-allowed' : 'pointer' 
+                              style={{
+                                padding: '4px 6px',
+                                fontSize: 10,
+                                background: idx === layers.length - 1 ? 'rgba(255,255,255,0.02)' : 'var(--bg3)',
+                                border: '1px solid var(--border)',
+                                color: idx === layers.length - 1 ? 'var(--text-muted)' : 'var(--text)',
+                                borderRadius: 4,
+                                cursor: idx === layers.length - 1 ? 'not-allowed' : 'pointer'
                               }}
                               title="Mozgatás Le"
                             >
@@ -1931,7 +1998,7 @@ function ZomboLayerReviewPage() {
 
         {/* JSON SCHEMA & PLAYWRIGHT OUTPUT (BOTTOM ROW: SIDE-BY-SIDE) */}
         <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 24, marginBottom: 24, alignItems: 'start', flexShrink: 0 }}>
-          
+
           {/* Playwright rendered image preview */}
           {displayUrl ? (
             <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, padding: 18 }}>

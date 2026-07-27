@@ -167,7 +167,7 @@ export async function renderLocalPlacid(params: RenderParams, port: number = 300
 
     if (layer.type === 'text') {
       const textContent = layerValues[layer.name] !== undefined ? layerValues[layer.name] : (layer.text || 'dummy text');
-      
+
       // Parse and override fonts
       if (layer.style.fontFamily) {
         const parsedFont = parsePlacidFont(layer.style.fontFamily);
@@ -210,7 +210,7 @@ export async function renderLocalPlacid(params: RenderParams, port: number = 300
 
       const isProduct = mapping === 'product' || (!mapping && (layer.name.includes('product') || layer.name.includes('item')));
       const objectFit = isProduct ? 'contain' : (layer.style.objectFit || 'cover');
-      
+
       // Use dynamic crop centering for background cover images to prevent product cutoff
       const objectPosition = isProduct ? 'center' : `${productCenterX}% ${productCenterY}%`;
 

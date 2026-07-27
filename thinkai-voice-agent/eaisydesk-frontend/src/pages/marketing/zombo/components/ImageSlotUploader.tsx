@@ -1,6 +1,8 @@
 import React, { useState, useRef, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 import { fixImageUrl, getBackendUrl } from '../types';
+import { MediaLibrary } from './MediaLibrary';
+import { useAudit } from '../../../../context/AuditContext';
 
 // Inline Check ikon -- lucide-react Check nincs importalva ebben a fajlban
 const CheckIcon = ({ size = 10, color = 'currentColor' }: { size?: number; color?: string }) => (
@@ -456,10 +458,117 @@ export default function ImageSlotUploader({
   disabled = false,
   label = 'Képek feltöltése',
 }: ImageSlotUploaderProps) {
+  const { activeBrand } = useAudit();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [dragOverIdx, setDragOverIdx] = useState<number | null>(null);
   const [comparisonSlotId, setComparisonSlotId] = useState<string | null>(null);
   const [isZoomed, setIsZoomed] = useState<boolean>(false);
+  const [isMediaPickerOpen, setIsMediaPickerOpen] = useState<boolean>(false);
+
+  const addSlotFromUrl = useCallback(async (url: string) => {
+    const fetchImageAsBase64 = async (imageUrl: string): Promise<string> => {
+      const response = await fetch(imageUrl);
+      const blob = await response.blob();
+      return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onloadend = () => resolve(reader.result as string);
+        reader.onerror = reject;
+        reader.readAsDataURL(blob);
+      });
+    };
+
+    const newSlot = {
+      ...createEmptySlot(),
+      fileName: url.split('/').pop() || 'konyvtarbol.png',
+      originalUrl: url,
+      preprocessLoading: true,
+      analysisLoading: true
+    };
+
+    onChange(prev => {
+      if (prev.length >= maxSlots) return prev;
+      return [...prev, newSlot];
+    });
+
+    try {
+      const base64 = await fetchImageAsBase64(url);
+      
+      // Get dimensions
+      let width = 0;
+      let height = 0;
+      try {
+        const img = new Image();
+        img.src = base64;
+        await new Promise((resImg) => {
+          img.onload = () => {
+            width = img.naturalWidth;
+            height = img.naturalHeight;
+            resImg(null);
+          };
+          img.onerror = () => resImg(null);
+        });
+      } catch (dimErr) {
+        console.error('Error natural dimensions:', dimErr);
+      }
+
+      // Update slot with base64
+      onChange(current => current.map(s => s.id === newSlot.id
+        ? { ...s, rawBase64: base64 }
+        : s
+      ));
+
+      // Call preprocess
+      const ppResp = await fetch(`${getBackendUrl()}/api/image/preprocess`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ image: base64 }),
+      });
+      if (!ppResp.ok) throw new Error(await ppResp.text());
+      const ppData = await ppResp.json();
+
+      // Call analysis
+      const anResp = await fetch(`${getBackendUrl()}/api/image/analyze`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ imageUrl: ppData.url || ppData.originalUrl }),
+      });
+      let analysis: ImageAnalysisResult | null = null;
+      if (anResp.ok) {
+        const anData = await anResp.json();
+        analysis = anData.results?.[0] || null;
+      }
+
+      const autoRole: ImageSlot['role'] =
+        analysis?.imageType === 'product' || analysis?.imageType === 'logo' ? 'product'
+        : analysis?.imageType === 'model' ? 'model'
+        : analysis?.imageType === 'scene' || analysis?.imageType === 'lifestyle' ? 'background'
+        : 'auto';
+
+      onChange(current => current.map(s => s.id === newSlot.id
+        ? {
+            ...s,
+            originalUrl: ppData.originalUrl,
+            preprocessedUrl: ppData.url,
+            preprocessLoading: false,
+            analysisLoading: false,
+            analysis,
+            role: autoRole,
+            locked: analysis?.locked ?? false,
+            userEditedDescription: analysis?.subject || '',
+            alternativeTextDescription: analysis?.hasText
+              ? `Szöveg: „${(analysis.extractedText || '').replace(/k[öo]romfolt/gi, 'koromfolt')}” · Helye: ${analysis.textPlacement || ''}`
+              : 'Nincs írás a képen.',
+          }
+        : s
+      ));
+    } catch (err: any) {
+      console.error('[LIBRARY-IMPORT-PIPELINE] Error:', err);
+      onChange(current => current.map(s => s.id === newSlot.id
+        ? { ...s, preprocessLoading: false, analysisLoading: false, error: err.message || 'Hiba a feldolgozás során' }
+        : s
+      ));
+    }
+  }, [maxSlots, onChange]);
 
   const closeComparison = useCallback(() => {
     setComparisonSlotId(null);
@@ -1000,14 +1109,16 @@ export default function ImageSlotUploader({
                   )}
 
                   {/* Changeability pills */}
-                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 4 }}>
-                    {slot.analysis.changeabilityRules.allowedModifications.slice(0, 2).map((m, i) => (
-                      <span key={i} style={{ fontSize: 7.5, padding: '1px 5px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', borderRadius: 4 }}>✓ {m}</span>
-                    ))}
-                    {slot.analysis.changeabilityRules.mustPreserveExactly.slice(0, 2).map((m, i) => (
-                      <span key={i} style={{ fontSize: 7.5, padding: '1px 5px', background: 'rgba(239,68,68,0.09)', color: '#ef4444', borderRadius: 4 }}>🔒 {m}</span>
-                    ))}
-                  </div>
+                  {slot.analysis.changeabilityRules && (
+                    <div style={{ display: 'flex', flexWrap: 'wrap', gap: 3, marginTop: 4 }}>
+                      {(slot.analysis.changeabilityRules.allowedModifications || []).slice(0, 2).map((m, i) => (
+                        <span key={i} style={{ fontSize: 7.5, padding: '1px 5px', background: 'rgba(34,197,94,0.1)', color: '#22c55e', borderRadius: 4 }}>✓ {m}</span>
+                      ))}
+                      {(slot.analysis.changeabilityRules.mustPreserveExactly || []).slice(0, 2).map((m, i) => (
+                        <span key={i} style={{ fontSize: 7.5, padding: '1px 5px', background: 'rgba(239,68,68,0.09)', color: '#ef4444', borderRadius: 4 }}>🔒 {m}</span>
+                      ))}
+                    </div>
+                  )}
 
                   {/* Default toggle -- csak ha mar AI feldolgozta (preprocessedUrl letezik) */}
                   {slot.preprocessedUrl && (
@@ -1157,40 +1268,64 @@ export default function ImageSlotUploader({
 
         {/* Add slot button */}
         {slots.length < maxSlots && (
-          <div
-            onDragOver={(e) => { e.preventDefault(); setDragOverIdx(-1); }}
-            onDragLeave={() => setDragOverIdx(null)}
-            onDrop={(e) => {
-              e.preventDefault();
-              setDragOverIdx(null);
-              const files = e.dataTransfer.files;
-              if (files && files.length > 0) handleFilesSelect(files);
-            }}
-            onClick={() => !disabled && fileInputRef.current?.click()}
-            style={{
-              width: 200, height: slots.length === 0 ? 180 : 130,
-              display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 8,
-              background: dragOverIdx === -1 ? 'rgba(139,92,246,0.08)' : 'var(--bg3)',
-              border: `1.5px dashed ${dragOverIdx === -1 ? '#8b5cf6' : 'var(--border)'}`,
-              borderRadius: 12, cursor: disabled ? 'not-allowed' : 'pointer', color: 'var(--text-muted)', transition: 'all 0.2s', flexShrink: 0,
-            }}
-          >
-            <span style={{ fontSize: 26, opacity: 0.45 }}>+</span>
-            <span style={{ fontSize: 11, fontWeight: 600 }}>Kép hozzáadása</span>
-            <span style={{ fontSize: 9, color: 'var(--text-dim)', textAlign: 'center', lineHeight: 1.4 }}>Termék · Modell · Háttér</span>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              multiple
-              style={{ display: 'none' }}
-              disabled={disabled}
-              onChange={e => {
-                const files = e.target.files;
+          <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
+            <div
+              onDragOver={(e) => { e.preventDefault(); setDragOverIdx(-1); }}
+              onDragLeave={() => setDragOverIdx(null)}
+              onDrop={(e) => {
+                e.preventDefault();
+                setDragOverIdx(null);
+                const files = e.dataTransfer.files;
                 if (files && files.length > 0) handleFilesSelect(files);
-                e.target.value = '';
               }}
-            />
+              onClick={() => !disabled && fileInputRef.current?.click()}
+              style={{
+                width: 200, height: slots.length === 0 ? 140 : 95,
+                display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', gap: 6,
+                background: dragOverIdx === -1 ? 'rgba(139,92,246,0.08)' : 'var(--bg3)',
+                border: `1.5px dashed ${dragOverIdx === -1 ? '#8b5cf6' : 'var(--border)'}`,
+                borderRadius: 12, cursor: disabled ? 'not-allowed' : 'pointer', color: 'var(--text-muted)', transition: 'all 0.2s', flexShrink: 0,
+              }}
+            >
+              <span style={{ fontSize: 20, opacity: 0.45 }}>+</span>
+              <span style={{ fontSize: 11, fontWeight: 600 }}>Kép hozzáadása</span>
+              <span style={{ fontSize: 9, color: 'var(--text-dim)', textAlign: 'center', lineHeight: 1.4 }}>Termék · Modell · Háttér</span>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept="image/*"
+                multiple
+                style={{ display: 'none' }}
+                disabled={disabled}
+                onChange={e => {
+                  const files = e.target.files;
+                  if (files && files.length > 0) handleFilesSelect(files);
+                  e.target.value = '';
+                }}
+              />
+            </div>
+
+            <button
+              type="button"
+              onClick={() => setIsMediaPickerOpen(true)}
+              style={{
+                width: 200,
+                padding: '8px 10px',
+                background: 'rgba(139, 92, 246, 0.06)',
+                border: '1px solid rgba(139, 92, 246, 0.18)',
+                borderRadius: 10,
+                fontSize: 11,
+                fontWeight: 700,
+                color: '#a78bfa',
+                cursor: 'pointer',
+                textAlign: 'center',
+                transition: 'all 0.2s'
+              }}
+              onMouseEnter={e => { e.currentTarget.style.background = 'rgba(139, 92, 246, 0.12)'; e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.35)'; }}
+              onMouseLeave={e => { e.currentTarget.style.background = 'rgba(139, 92, 246, 0.06)'; e.currentTarget.style.borderColor = 'rgba(139, 92, 246, 0.18)'; }}
+            >
+              📁 Kiválasztás Médiatárból
+            </button>
           </div>
         )}
       </div>
@@ -1339,6 +1474,35 @@ export default function ImageSlotUploader({
           document.body
         );
       })()}
+
+      {isMediaPickerOpen && (
+        <div style={{ position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.6)', backdropFilter: 'blur(4px)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 99999, padding: 24 }}>
+          <div style={{ background: 'var(--bg2)', border: '1px solid var(--border)', borderRadius: 16, width: '100%', maxWidth: 800, maxHeight: '85vh', display: 'flex', flexDirection: 'column', overflow: 'hidden', boxShadow: '0 10px 30px rgba(0,0,0,0.5)' }}>
+            {/* Header */}
+            <div style={{ padding: '16px 24px', borderBottom: '1px solid var(--border)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+              <h3 style={{ fontSize: 16, fontWeight: 800, color: 'var(--text)' }}>Médiatár Böngészése</h3>
+              <button 
+                type="button" 
+                onClick={() => setIsMediaPickerOpen(false)}
+                style={{ background: 'transparent', border: 'none', color: 'var(--text-muted)', fontSize: 18, fontWeight: 700, cursor: 'pointer' }}
+              >
+                ✕
+              </button>
+            </div>
+            {/* Body */}
+            <div style={{ padding: 24, overflowY: 'auto', flex: 1 }}>
+              <MediaLibrary 
+                isSelectorMode={true} 
+                brandId={activeBrand?.id}
+                onSelect={(url) => {
+                  addSlotFromUrl(url);
+                  setIsMediaPickerOpen(false);
+                }} 
+              />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

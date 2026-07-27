@@ -27,13 +27,16 @@ export default function MarketingPage() {
       <Route path="seo" element={<SeoPage />} />
       <Route path="loyalty" element={<LoyaltyPage />} />
       <Route path="competitor" element={<CompetitorPage />} />
-      {/* Zombo sub-routes */}
-      <Route path="zombo/quickpost" element={<ZomboQuickPostPage />} />
-      <Route path="zombo/calendar" element={<ZomboCalendarPage />} />
-      <Route path="zombo/campaign" element={<ZomboCampaignPage />} />
-      <Route path="zombo/layer-review" element={<ZomboLayerReviewPage />} />
-      <Route path="zombo/creative-studio/*" element={<CreativeStudioPage />} />
-      <Route path="zombo" element={<ZomboAuditPage />} />
+      {/* Social Planner sub-routes */}
+      <Route path="social-planner/quickpost" element={<ZomboQuickPostPage />} />
+      <Route path="social-planner/calendar" element={<ZomboCalendarPage />} />
+      <Route path="social-planner/campaign" element={<ZomboCampaignPage />} />
+      <Route path="social-planner/layer-review" element={<ZomboLayerReviewPage />} />
+      <Route path="social-planner/creative-studio/*" element={<CreativeStudioPage />} />
+      <Route path="social-planner" element={<ZomboAuditPage />} />
+      {/* Backward compatibility redirect */}
+      <Route path="zombo/*" element={<Navigate to="/marketing/social-planner" replace />} />
+      <Route path="zombo" element={<Navigate to="/marketing/social-planner" replace />} />
       <Route path="*" element={<Navigate to="/admin/marketing" replace />} />
     </Routes>
   );

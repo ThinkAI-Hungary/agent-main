@@ -5,8 +5,11 @@ import sharp from 'sharp';
 import { fal } from '@fal-ai/client';
 import { exec } from 'child_process';
 import { promisify } from 'util';
+import { fileURLToPath } from 'url';
 
 const execPromise = promisify(exec);
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 // Configure fal client with API key at module load
 if (process.env.FAL_KEY) {
@@ -40,7 +43,7 @@ export async function removeBackground(imageUrl: string): Promise<string> {
   console.log(`[COMPOSITOR/REMBG] Starting background removal for: ${imageUrl.substring(0, 80)}...`);
   const start = Date.now();
 
-  const rendersDir = path.resolve(process.cwd(), 'renders');
+  const rendersDir = path.resolve(__dirname, '../renders');
   if (!fs.existsSync(rendersDir)) {
     fs.mkdirSync(rendersDir, { recursive: true });
   }
@@ -292,7 +295,7 @@ export async function localUpscale(imageUrl: string, maskUrl: string | null): Pr
   console.log(`[LOCAL-UPSCALE] Starting local 4x AI Real-ESRGAN upscale for: ${imageUrl}`);
   const start = Date.now();
   
-  const rendersDir = path.resolve(process.cwd(), 'renders');
+  const rendersDir = path.resolve(__dirname, '../renders');
   if (!fs.existsSync(rendersDir)) {
     fs.mkdirSync(rendersDir, { recursive: true });
   }

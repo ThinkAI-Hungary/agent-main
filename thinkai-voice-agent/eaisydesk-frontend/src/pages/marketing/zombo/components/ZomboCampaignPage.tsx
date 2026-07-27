@@ -47,7 +47,7 @@ export default function ZomboCampaignPage() {
         flexWrap: 'wrap'
       }}>
         <button
-          onClick={() => navigate('/marketing/zombo')}
+          onClick={() => navigate('/marketing/social-planner')}
           className="back-to-audit-btn"
           style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '7px 14px', borderRadius: 9, border: '1.5px solid var(--border)', background: 'transparent', color: 'var(--text-muted)', fontSize: 12, fontWeight: 600, cursor: 'pointer', transition: 'all 0.2s ease' }}
         >
@@ -115,7 +115,7 @@ export default function ZomboCampaignPage() {
               Kérlek, végezz el egy weboldal auditot a főoldalon a kampányok használatához!
             </div>
             <button
-              onClick={() => navigate('/marketing/zombo')}
+              onClick={() => navigate('/marketing/social-planner')}
               style={{
                 marginTop: 20, padding: '9px 20px', borderRadius: 9, border: 'none',
                 background: 'linear-gradient(135deg, #8b5cf6, #6d28d9)', color: '#fff',
