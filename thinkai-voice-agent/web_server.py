@@ -1135,8 +1135,9 @@ async def meta_webhook_verify(request: Request):
 
 @app.get("/api/webhook/meta-data-deletion")
 async def meta_data_deletion_verify(request: Request):
-    """A Data Deletion Callback URL-t a Meta ugyanúgy verifikálja, mint a többi
-    webhookot: egy GET subscribe-kéréssel."""
+    """A Data Deletion Callback URL-t a Meta a normál webhook-szerkezettel is
+    elérheti subscribe-kéréssel — háttér-kompat. (A hivatalos spec szerint a
+    data-deletion csak POST signed_request-et használ, de ez az endpoint nem árt.)"""
     verify_token = os.getenv("META_VERIFY_TOKEN", "")
     mode = request.query_params.get("hub.mode")
     token = request.query_params.get("hub.verify_token")
@@ -1146,53 +1147,86 @@ async def meta_data_deletion_verify(request: Request):
     raise HTTPException(status_code=403, detail="Verification token mismatch")
 
 
+def _decode_meta_signed_request(signed_request: str, app_secret: str) -> dict | None:
+    """Meta signed_request dekódolás (base64url + HMAC-SHA256).
+    Formátum: '<signature_base64>.<payload_base64>'
+    A signature-t az App Secret-tel HMAC-SHA256-cal aláírt payload-lal hasonlítjuk össze."""
+    import base64
+    import hmac
+    import hashlib
+    try:
+        sig_b64, payload_b64 = signed_request.split(".", 1)
+        # base64url → base64 padding
+        def _pad(s):
+            return s + "=" * (-len(s) % 4)
+        sig = base64.urlsafe_b64decode(_pad(sig_b64))
+        expected_sig = hmac.new(app_secret.encode(), payload_b64.encode(), hashlib.sha256).digest()
+        if not hmac.compare_digest(sig, expected_sig):
+            return None
+        payload_json = base64.urlsafe_b64decode(_pad(payload_b64)).decode("utf-8")
+        return json.loads(payload_json)
+    except Exception:
+        return None
+
+
 @app.post("/api/webhook/meta-data-deletion")
 async def meta_data_deletion_callback(request: Request):
-    """Meta Data Deletion Request callback. A Meta JSON payload-ja:
-    { "object": "page", "entry": [ { "id": "<app-id>", "time": ...,
-       "messaging": [ { "data_erasure_request": {
-           "user_id": "<PSID/IGSID>", "confirmation_code": "..." } ] } ] }
-    Válasz: { "url": "<statusz-link>" } — ahol az érintett láthatja, hogy a
-    törlés megtörtént. Esetünkben a publikus Privacy Policy linkje (a törlés
-    azonnal megtörténik)."""
+    """Meta Data Deletion Request callback (kötelező az App Verification-hez).
+
+    A Meta hivatalos specifikációja szerint: amikor egy felhasználó törli az
+    app-hozzáférését a Facebook/Instagram fiókjából, a Meta egy SIGNED REQUEST-et
+    POST-ol ide:
+        { "signed_request": "<base64url signature>.<base64url payload>" }
+    A payload (App Secret-tel HMAC-SHA256-aláírt) tartalmazza a user_id-t (PSID/IGSID)
+    és az algorithm-mezőt.
+
+    A válasznak JSON { url, confirmation_code } formátumúnak kell lennie:
+      - url: publikus oldal, ahol az érintett láthatja a törlés státuszát
+      - confirmation_code: alphanumeric kód, amit NEM a Meta küld, hanem MI generáljuk
+        és visszaadjuk — ezt mutatja a felhasználónak a Meta a törlés visszaigazolásakor.
+    """
     try:
         body = await request.json()
     except Exception:
         raise HTTPException(status_code=400, detail="Invalid JSON")
 
-    confirmation_code = ""
-    user_ids: list[str] = []
+    app_secret = os.getenv("META_APP_SECRET", "")
+    if not app_secret:
+        # Teszt-üzem (App Secret nélkül, pl. App Review előtti próba): elfogadjuk
+        # a nyers user_id-t a korábbi formátumban is, hogy a webhook hand-shake
+        # tesztelhető maradjon. Élesben az App Secret KÖTELEZŐ az aláírás-ellenőrzéshez.
+        user_id = str(body.get("user_id") or body.get("psid") or "")
+        confirmation_code = body.get("confirmation_code", "")
+    else:
+        signed_request = body.get("signed_request", "")
+        if not signed_request:
+            raise HTTPException(status_code=400, detail="Missing signed_request")
+        payload = _decode_meta_signed_request(signed_request, app_secret)
+        if payload is None:
+            raise HTTPException(status_code=400, detail="Invalid signature")
+        user_id = str(payload.get("user_id") or "")
+        confirmation_code = ""
 
-    # A payload több szerkezetben is érkezhet (Messenger / Instagram / WhatsApp)
-    for entry in body.get("entry", []):
-        for ev in entry.get("messaging", []):
-            req = ev.get("data_erasure_request") or ev.get("data_deletion_request")
-            if not req:
-                continue
-            uid = req.get("user_id") or req.get("psid") or req.get("igsid")
-            code = req.get("confirmation_code", "")
-            if uid:
-                user_ids.append(str(uid))
-            if code:
-                confirmation_code = str(code)
-        # WhatsApp-struktúra (changes.field == statuses nem törlés; a törlési
-        # kérelem a WhatsApp-nál is az „entry.messaging” útvonalon jöhet)
-
-    # Tényleges törlés: minden azonosítóhoz a kapcsolódó ügyfél + interakció
+    # Tényleges törlés: az összes a Meta-azonosítóhoz kapcsolódó ügyfél + interakció
     deleted_count = 0
-    for uid in user_ids:
+    if user_id:
         try:
-            deleted_count += db.delete_client_by_meta_id(uid)
+            deleted_count = db.delete_client_by_meta_id(user_id)
         except Exception as e:
-            print(f"[Data Deletion] Törlési hiba (uid={uid}): {e}")
+            print(f"[Data Deletion] Törlési hiba (user_id={user_id}): {e}")
 
-    print(f"[Data Deletion] Meta adattörlési kérelem: user_ids={user_ids} "
+    # Mi generáljuk a confirmation_code-ot (alphanumeric), ha a Meta nem adta meg.
+    # A Meta ezt a kódot jeleníti meg a felhasználónak a törlés visszaigazolásaként.
+    if not confirmation_code:
+        import secrets as _secrets
+        confirmation_code = _secrets.token_hex(8).upper()
+
+    print(f"[Data Deletion] Meta adattörlési kérelem: user_id={user_id} "
           f"confirmation={confirmation_code} törölt_sorok={deleted_count}")
 
-    # A Meta kötelező válasza: egy publikus URL, ahol az érintett láthatja a
-    # törlés státuszát. Esetünkben a Privacy Policy (amely leírja, hogy a
-    # törlés 30 napon belül megtörténik; valóságban azonnal lefut).
-    return {"url": PRIVACY_POLICY_URL}
+    # A Meta kötelező válasza: publikus URL + confirmation_code.
+    # Az URL a Privacy Policy (leírja a törlési folyamatot; a tényleges törlés azonnal megtörténik).
+    return {"url": PRIVACY_POLICY_URL, "confirmation_code": confirmation_code}
 
 
 async def analyze_alert_tags(message_text: str) -> list:
