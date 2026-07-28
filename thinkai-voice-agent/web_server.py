@@ -19,7 +19,7 @@ import httpx
 from dotenv import load_dotenv
 from fastapi import FastAPI, Depends, HTTPException, Request, status, File, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse, Response
+from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from pydantic import BaseModel
@@ -306,6 +306,61 @@ def marketing_page():
 @app.get("/marketing/elemzes")
 def marketing_elemzes():
     return FileResponse(THIS_DIR / "elemzes.html")
+
+
+# ── Publikus adatvédelmi oldalak (Meta App Verification: auth nélkül elérhető) ─
+PRIVACY_POLICY_URL = os.getenv("PRIVACY_POLICY_URL", "https://eaisy.hu/privacy")
+PRIVACY_POLICY_FILE = THIS_DIR / "PRIVACY_POLICY.md"
+
+
+@app.get("/privacy")
+async def public_privacy_policy():
+    """Publikus Privacy Policy. A hivatalos URL az eaisy.hu/privacy; ez a
+    backend-endpoint is szolgálja, hogy a Meta crawlerek itt is megtalálják
+    és a Sharing Debugger 200-at kapjon. HTML-ként renderelve a markdown
+    tartalomból (egyszerű, nem igényel függőséget)."""
+    try:
+        md = PRIVACY_POLICY_FILE.read_text(encoding="utf-8")
+    except Exception:
+        md = "# Adatvédelmi tájékoztató / Privacy Policy\n\n" \
+             "Lásd: " + PRIVACY_POLICY_URL
+    # Egyszerű HTML-wrap: escape + pre-formázott, középre igazítva
+    import html as _html
+    body = _html.escape(md)
+    html_page = f"""<!doctype html>
+<html lang="hu"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Adatvédelmi tájékoztató — eaisyDesk</title>
+<meta name="description" content="eaisyDesk adatvédelmi tájékoztató / Privacy Policy">
+<meta property="og:title" content="Adatvédelmi tájékoztató — eaisyDesk">
+<meta property="og:type" content="article">
+</head>
+<body style="max-width:820px;margin:24px auto;padding:0 16px;font-family:-apple-system,Segoe UI,Arial,sans-serif;line-height:1.6;color:#1f2937">
+<pre style="white-space:pre-wrap;word-wrap:break-word;font-family:inherit;font-size:15px;background:#f9fafb;padding:24px;border-radius:8px;border:1px solid #e5e7eb">{body}</pre>
+</body></html>"""
+    return HTMLResponse(content=html_page)
+
+
+@app.get("/gdpr")
+async def public_gdpr_info():
+    """A GDPR-oldal is publikusan elérhető — átirányít a Privacy Policy-re,
+    hogy egyetlen kanonikus forrás maradjon."""
+    return RedirectResponse(url="/privacy", status_code=301)
+
+
+@app.get("/robots.txt")
+async def robots_txt():
+    """A Meta crawlerei számára elérhető (kötelező). Semmit sem blokkolunk —
+    a Privacy Policy és a publikus oldalak indexelhetők."""
+    content = (
+        "User-agent: *\n"
+        "Allow: /\n"
+        "Allow: /privacy\n"
+        "Disallow: /admin/\n"
+        "Disallow: /api/\n"
+        f"\n# Privacy Policy: {PRIVACY_POLICY_URL}\n"
+    )
+    return PlainTextResponse(content=content, media_type="text/plain")
 
 
 
@@ -1034,6 +1089,78 @@ async def meta_webhook_verify(request: Request):
             return PlainTextResponse(content=challenge)
         raise HTTPException(status_code=403, detail="Verification token mismatch")
     raise HTTPException(status_code=400, detail="Missing parameters")
+
+
+# ── Meta Data Deletion Callback (kötelező az App Verification-hez) ──────────
+# A Meta akkor hívja, amikor egy felhasználó törli az app-hozzáférését a
+# Facebook/Instagram/WhatsApp fiókjából. A válasznak JSON { url }-t kell
+# visszaadnia, ami egy visszaigazoló link (ahol az érintett láthatja a státuszt).
+# A tényleges törlést a database.delete_client_by_meta_id() végzi: az összes
+# olyan ügyfelet és interakciót törli, amely a megadott Meta-azonosítóhoz
+# (PSID/IGSID/WhatsApp telefonszám) kapcsolódik.
+
+
+@app.get("/api/webhook/meta-data-deletion")
+async def meta_data_deletion_verify(request: Request):
+    """A Data Deletion Callback URL-t a Meta ugyanúgy verifikálja, mint a többi
+    webhookot: egy GET subscribe-kéréssel."""
+    verify_token = os.getenv("META_VERIFY_TOKEN", "")
+    mode = request.query_params.get("hub.mode")
+    token = request.query_params.get("hub.verify_token")
+    challenge = request.query_params.get("hub.challenge")
+    if mode == "subscribe" and token == verify_token:
+        return PlainTextResponse(content=challenge)
+    raise HTTPException(status_code=403, detail="Verification token mismatch")
+
+
+@app.post("/api/webhook/meta-data-deletion")
+async def meta_data_deletion_callback(request: Request):
+    """Meta Data Deletion Request callback. A Meta JSON payload-ja:
+    { "object": "page", "entry": [ { "id": "<app-id>", "time": ...,
+       "messaging": [ { "data_erasure_request": {
+           "user_id": "<PSID/IGSID>", "confirmation_code": "..." } ] } ] }
+    Válasz: { "url": "<statusz-link>" } — ahol az érintett láthatja, hogy a
+    törlés megtörtént. Esetünkben a publikus Privacy Policy linkje (a törlés
+    azonnal megtörténik)."""
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Invalid JSON")
+
+    confirmation_code = ""
+    user_ids: list[str] = []
+
+    # A payload több szerkezetben is érkezhet (Messenger / Instagram / WhatsApp)
+    for entry in body.get("entry", []):
+        for ev in entry.get("messaging", []):
+            req = ev.get("data_erasure_request") or ev.get("data_deletion_request")
+            if not req:
+                continue
+            uid = req.get("user_id") or req.get("psid") or req.get("igsid")
+            code = req.get("confirmation_code", "")
+            if uid:
+                user_ids.append(str(uid))
+            if code:
+                confirmation_code = str(code)
+        # WhatsApp-struktúra (changes.field == statuses nem törlés; a törlési
+        # kérelem a WhatsApp-nál is az „entry.messaging” útvonalon jöhet)
+
+    # Tényleges törlés: minden azonosítóhoz a kapcsolódó ügyfél + interakció
+    deleted_count = 0
+    for uid in user_ids:
+        try:
+            deleted_count += db.delete_client_by_meta_id(uid)
+        except Exception as e:
+            print(f"[Data Deletion] Törlési hiba (uid={uid}): {e}")
+
+    print(f"[Data Deletion] Meta adattörlési kérelem: user_ids={user_ids} "
+          f"confirmation={confirmation_code} törölt_sorok={deleted_count}")
+
+    # A Meta kötelező válasza: egy publikus URL, ahol az érintett láthatja a
+    # törlés státuszát. Esetünkben a Privacy Policy (amely leírja, hogy a
+    # törlés 30 napon belül megtörténik; valóságban azonnal lefut).
+    return {"url": PRIVACY_POLICY_URL}
+
 
 async def analyze_alert_tags(message_text: str) -> list:
     """Gyors AI elemzés a bejövő üzenet címkézéséhez."""
@@ -4057,7 +4184,6 @@ async def _run_phone_campaign(campaign: dict):
 
 @app.get('/api/public/cancel')
 async def public_cancel_appointment(token: str):
-    from fastapi.responses import HTMLResponse
     import jwt as pyjwt
     import database as db
     try:

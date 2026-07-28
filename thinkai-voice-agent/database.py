@@ -1241,6 +1241,60 @@ def update_client_status(client_id: int, status: str) -> bool:
     except Exception:
         return False
 
+def delete_client_by_meta_id(meta_id: str) -> int:
+    """Meta Data Deletion Callback: töröl egy ügyfél ÖSSZES adatát, amely a megadott
+    Meta-azonosítóhoz (PSID / IGSID / WhatsApp telefonszám) kapcsolódik.
+    Visszaadja a törölt ügyfelek számát (a kapcsolódó interakciók is törlődnek).
+
+    A keresés a custom_data.messenger_id / messenger_psid / instagram_id /
+    whatsapp_id mezőkben ÉS a clients.phone mezőben (WhatsApp-szám) történik.
+    """
+    if not supabase or not meta_id:
+        return 0
+    deleted = 0
+    try:
+        # Ügyfelek keresése a Meta-azonosító alapján
+        # custom_data JSONB contains() működik messenger_id/instagram_id/etc-re
+        meta_id_clean = str(meta_id).strip()
+        candidates: list[dict] = []
+        # 1) custom_data kulcsokon
+        for key in ("messenger_id", "messenger_psid", "instagram_id", "whatsapp_id", "wa_id"):
+            try:
+                res = supabase.table("clients").select("id,phone,custom_data").contains("custom_data", {key: meta_id_clean}).execute()
+                if res.data:
+                    candidates.extend(res.data)
+            except Exception:
+                pass
+        # 2) telefonszám (WhatsApp) — digit-normalizált egyezés is
+        meta_digits = ''.join(ch for ch in meta_id_clean if ch.isdigit())
+        if meta_digits and len(meta_digits) >= 7:
+            try:
+                res = supabase.table("clients").select("id,phone,custom_data").execute()
+                for c in (res.data or []):
+                    c_digits = ''.join(ch for ch in str(c.get("phone") or "") if ch.isdigit())
+                    if c_digits and (c_digits == meta_digits or c_digits.endswith(meta_digits) or meta_digits.endswith(c_digits)):
+                        candidates.append(c)
+            except Exception:
+                pass
+
+        # Deduplikálás id alapján
+        seen_ids: set = set()
+        for c in candidates:
+            cid = c.get("id")
+            if cid and cid not in seen_ids:
+                seen_ids.add(cid)
+
+        for cid in seen_ids:
+            try:
+                if delete_client(int(cid)):
+                    deleted += 1
+            except Exception as e:
+                logger.error(f"delete_client_by_meta_id: delete_client({cid}) hiba: {e}")
+    except Exception as e:
+        logger.error(f"delete_client_by_meta_id hiba: {e}")
+    return deleted
+
+
 def delete_client(client_id: int) -> bool:
     if not supabase: return False
     try:

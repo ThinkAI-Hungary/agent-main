@@ -539,6 +539,15 @@ export default function LoginPage() {
           <div className="login-footer">
             <span>Powered by</span>
             <strong>ThinkAI</strong>
+            <span style={{ margin: '0 6px' }}>·</span>
+            <a
+              href="https://eaisy.hu/privacy"
+              target="_blank"
+              rel="noopener noreferrer"
+              style={{ color: 'inherit', textDecoration: 'underline' }}
+            >
+              Adatvédelem
+            </a>
           </div>
         </div>
       </div>
