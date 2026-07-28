@@ -309,43 +309,74 @@ def marketing_elemzes():
 
 
 # ── Publikus adatvédelmi oldalak (Meta App Verification: auth nélkül elérhető) ─
-PRIVACY_POLICY_URL = os.getenv("PRIVACY_POLICY_URL", "https://eaisy.hu/privacy")
-PRIVACY_POLICY_FILE = THIS_DIR / "PRIVACY_POLICY.md"
+# A hivatalos (kanonikus) Privacy Policy-k az eaisy.hu-n élnek:
+#   - https://eaisy.hu/privacy              — vállalati (ThinkAI Kft., minden termék)
+#   - https://eaisy.hu/eaisydesk/privacy    — eaisyDesk termékspecifikus (ezt adjuk
+#                                             meg a Meta-nak, mert ez írja le a
+#                                             vizsgált app adatkezelését pontosan)
+# Ezek a backend-endpointok is szolgálják a markdown-tartalmat HTML-ben, hogy a
+# Meta crawlerek a saját domainünkön is megtalálják (és ne csak az eaisy.hu-n).
+PRIVACY_POLICY_URL = os.getenv("PRIVACY_POLICY_URL", "https://eaisy.hu/eaisydesk/privacy")
+CORPORATE_PP_URL = os.getenv("CORPORATE_PP_URL", "https://eaisy.hu/privacy")
+PRIVACY_POLICY_FILE = THIS_DIR / "PRIVACY_POLICY_eaisydesk.md"
+CORPORATE_PRIVACY_FILE = THIS_DIR / "PRIVACY_POLICY.md"
 
 
-@app.get("/privacy")
-async def public_privacy_policy():
-    """Publikus Privacy Policy. A hivatalos URL az eaisy.hu/privacy; ez a
-    backend-endpoint is szolgálja, hogy a Meta crawlerek itt is megtalálják
-    és a Sharing Debugger 200-at kapjon. HTML-ként renderelve a markdown
-    tartalomból (egyszerű, nem igényel függőséget)."""
-    try:
-        md = PRIVACY_POLICY_FILE.read_text(encoding="utf-8")
-    except Exception:
-        md = "# Adatvédelmi tájékoztató / Privacy Policy\n\n" \
-             "Lásd: " + PRIVACY_POLICY_URL
-    # Egyszerű HTML-wrap: escape + pre-formázott, középre igazítva
+def _render_md_as_html(md: str, title: str, description: str) -> str:
+    """Markdown tájékoztató HTML-oldallá alakítása (egyszerű, escape-elt <pre>
+    blokk — nem igényel külső markdown-függőséget)."""
     import html as _html
     body = _html.escape(md)
-    html_page = f"""<!doctype html>
+    return f"""<!doctype html>
 <html lang="hu"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Adatvédelmi tájékoztató — eaisyDesk</title>
-<meta name="description" content="eaisyDesk adatvédelmi tájékoztató / Privacy Policy">
-<meta property="og:title" content="Adatvédelmi tájékoztató — eaisyDesk">
+<title>{_html.escape(title)}</title>
+<meta name="description" content="{_html.escape(description)}">
+<meta property="og:title" content="{_html.escape(title)}">
 <meta property="og:type" content="article">
 </head>
 <body style="max-width:820px;margin:24px auto;padding:0 16px;font-family:-apple-system,Segoe UI,Arial,sans-serif;line-height:1.6;color:#1f2937">
 <pre style="white-space:pre-wrap;word-wrap:break-word;font-family:inherit;font-size:15px;background:#f9fafb;padding:24px;border-radius:8px;border:1px solid #e5e7eb">{body}</pre>
 </body></html>"""
-    return HTMLResponse(content=html_page)
+
+
+@app.get("/privacy")
+async def public_privacy_policy():
+    """Vállalati szintű Privacy Policy (ThinkAI Kft., minden termék). A Meta-nak
+    a termékspecifikus eaisyDesk-t adjuk meg (l. /eaisydesk/privacy), de ez a
+    kanonikus vállalati dokumentum."""
+    try:
+        md = CORPORATE_PRIVACY_FILE.read_text(encoding="utf-8")
+    except Exception:
+        md = "# Adatvédelmi tájékoztató — ThinkAI Kft.\n\nLásd: " + CORPORATE_PP_URL
+    return HTMLResponse(content=_render_md_as_html(
+        md,
+        "Adatvédelmi tájékoztató — ThinkAI Kft.",
+        "ThinkAI Kft. vállalati adatvédelmi tájékoztató"
+    ))
+
+
+@app.get("/eaisydesk/privacy")
+async def public_eaisydesk_privacy_policy():
+    """eaisyDesk termékspecifikus Privacy Policy — EZT adjuk meg a Meta
+    App Dashboardon, mert pontosan a vizsgált app (eaisyDesk) adatkezelését
+    írja le (Meta permission API-k, adatforrások, törlés)."""
+    try:
+        md = PRIVACY_POLICY_FILE.read_text(encoding="utf-8")
+    except Exception:
+        md = "# eaisyDesk — Privacy Policy\n\nLásd: " + PRIVACY_POLICY_URL
+    return HTMLResponse(content=_render_md_as_html(
+        md,
+        "eaisyDesk — Adatvédelmi tájékoztató",
+        "eaisyDesk termékspecifikus adatvédelmi tájékoztató / Privacy Policy"
+    ))
 
 
 @app.get("/gdpr")
 async def public_gdpr_info():
     """A GDPR-oldal is publikusan elérhető — átirányít a Privacy Policy-re,
     hogy egyetlen kanonikus forrás maradjon."""
-    return RedirectResponse(url="/privacy", status_code=301)
+    return RedirectResponse(url="/eaisydesk/privacy", status_code=301)
 
 
 @app.get("/robots.txt")
@@ -356,9 +387,11 @@ async def robots_txt():
         "User-agent: *\n"
         "Allow: /\n"
         "Allow: /privacy\n"
+        "Allow: /eaisydesk/privacy\n"
         "Disallow: /admin/\n"
         "Disallow: /api/\n"
-        f"\n# Privacy Policy: {PRIVACY_POLICY_URL}\n"
+        f"\n# Corporate Privacy Policy: {CORPORATE_PP_URL}\n"
+        f"# eaisyDesk Privacy Policy: {PRIVACY_POLICY_URL}\n"
     )
     return PlainTextResponse(content=content, media_type="text/plain")
 
