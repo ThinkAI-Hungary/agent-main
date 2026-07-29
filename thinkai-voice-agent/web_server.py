@@ -372,6 +372,34 @@ async def public_eaisydesk_privacy_policy():
     ))
 
 
+@app.get("/eaisydesk/aszf")
+async def public_eaisydesk_aszf():
+    """eaisyDesk Általános Szerződési Feltételek (ÁSZF) — publikus."""
+    try:
+        md = (THIS_DIR / "TERMS_OF_SERVICE.md").read_text(encoding="utf-8")
+    except Exception:
+        md = "# ÁSZF\n\nLásd: https://eaisy.hu/eaisydesk/aszf"
+    return HTMLResponse(content=_render_md_as_html(
+        md,
+        "eaisyDesk — Általános Szerződési Feltételek (ÁSZF)",
+        "eaisyDesk Általános Szerződési Feltételek"
+    ))
+
+
+@app.get("/eaisydesk/dpa")
+async def public_eaisydesk_dpa():
+    """eaisyDesk Adatkezelési Megállapodás (DPA) — publikus."""
+    try:
+        md = (THIS_DIR / "DATA_PROCESSING_AGREEMENT.md").read_text(encoding="utf-8")
+    except Exception:
+        md = "# Adatkezelési Megállapodás\n\nLásd: https://eaisy.hu/eaisydesk/dpa"
+    return HTMLResponse(content=_render_md_as_html(
+        md,
+        "eaisyDesk — Adatkezelési Megállapodás (DPA)",
+        "eaisyDesk Adatkezelési Megállapodás / Data Processing Agreement"
+    ))
+
+
 @app.get("/gdpr")
 async def public_gdpr_info():
     """A GDPR-oldal is publikusan elérhető — átirányít a Privacy Policy-re,
@@ -388,6 +416,8 @@ async def robots_txt():
         "Allow: /\n"
         "Allow: /privacy\n"
         "Allow: /eaisydesk/privacy\n"
+        "Allow: /eaisydesk/aszf\n"
+        "Allow: /eaisydesk/dpa\n"
         "Disallow: /admin/\n"
         "Disallow: /api/\n"
         f"\n# Corporate Privacy Policy: {CORPORATE_PP_URL}\n"
