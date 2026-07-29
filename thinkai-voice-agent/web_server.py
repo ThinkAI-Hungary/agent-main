@@ -318,8 +318,8 @@ def marketing_elemzes():
 # Meta crawlerek a saját domainünkön is megtalálják (és ne csak az eaisy.hu-n).
 PRIVACY_POLICY_URL = os.getenv("PRIVACY_POLICY_URL", "https://eaisy.hu/eaisydesk/privacy")
 CORPORATE_PP_URL = os.getenv("CORPORATE_PP_URL", "https://eaisy.hu/privacy")
-PRIVACY_POLICY_FILE = THIS_DIR / "PRIVACY_POLICY_eaisydesk.md"
-CORPORATE_PRIVACY_FILE = THIS_DIR / "PRIVACY_POLICY.md"
+PRIVACY_POLICY_FILE = THIS_DIR / "legal" / "PRIVACY_POLICY_eaisydesk.md"
+CORPORATE_PRIVACY_FILE = THIS_DIR / "legal" / "PRIVACY_POLICY.md"
 
 
 def _render_md_as_html(md: str, title: str, description: str) -> str:
@@ -376,7 +376,7 @@ async def public_eaisydesk_privacy_policy():
 async def public_eaisydesk_aszf():
     """eaisyDesk Általános Szerződési Feltételek (ÁSZF) — publikus."""
     try:
-        md = (THIS_DIR / "TERMS_OF_SERVICE.md").read_text(encoding="utf-8")
+        md = (THIS_DIR / "legal" / "TERMS_OF_SERVICE.md").read_text(encoding="utf-8")
     except Exception:
         md = "# ÁSZF\n\nLásd: https://eaisy.hu/eaisydesk/aszf"
     return HTMLResponse(content=_render_md_as_html(
@@ -390,7 +390,7 @@ async def public_eaisydesk_aszf():
 async def public_eaisydesk_dpa():
     """eaisyDesk Adatkezelési Megállapodás (DPA) — publikus."""
     try:
-        md = (THIS_DIR / "DATA_PROCESSING_AGREEMENT.md").read_text(encoding="utf-8")
+        md = (THIS_DIR / "legal" / "DATA_PROCESSING_AGREEMENT.md").read_text(encoding="utf-8")
     except Exception:
         md = "# Adatkezelési Megállapodás\n\nLásd: https://eaisy.hu/eaisydesk/dpa"
     return HTMLResponse(content=_render_md_as_html(
