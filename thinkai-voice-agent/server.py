@@ -115,6 +115,7 @@ async def entrypoint(ctx: JobContext):
     is_inbound_call = room_name.startswith("call-") and not is_outbound_call
 
     campaign_data = None
+    tenant_id = None  # FÁZIS 6: a session tenantja
     if is_outbound_call:
         raw_metadata = ctx.room.metadata or ""
         if not raw_metadata:
@@ -126,7 +127,7 @@ async def entrypoint(ctx: JobContext):
                         logger.info(f"Using dispatch metadata (room metadata was empty)")
             except Exception as e:
                 logger.warning(f"Failed to read dispatch metadata: {e}")
-        
+
         if raw_metadata:
             try:
                 parsed = json.loads(raw_metadata)
@@ -136,8 +137,28 @@ async def entrypoint(ctx: JobContext):
                     logger.info(f"📢 Outbound call with script detected ({call_type}): "
                                 f"{campaign_data.get('campaign_name', campaign_data.get('call_note', '?'))} "
                                 f"→ {campaign_data.get('client_name', '?')}")
+                # FÁZIS 6: tenant a room/dispatch metadata-ból (outbound hívásoknál)
+                tenant_id = parsed.get("tenant_id") or tenant_id
             except (json.JSONDecodeError, Exception) as e:
                 logger.warning(f"Failed to parse room/dispatch metadata: {e}")
+
+    # FÁZIS 6: tenant-feloldás widget session-öknél (room-name '<tenant_slug>-<uuid>' prefix)
+    if not tenant_id and not is_outbound_call and not is_inbound_call and "-" in room_name:
+        maybe_slug = room_name.split("-", 1)[0]
+        if maybe_slug and maybe_slug != "thinkai":
+            try:
+                resolved = db.supabase.table("tenants").select("id").eq("slug", maybe_slug).limit(1).execute()
+                if resolved.data:
+                    tenant_id = resolved.data[0]["id"]
+            except Exception as e:
+                logger.warning(f"Tenant slug feloldás sikertelen ({maybe_slug}): {e}")
+
+    # FÁZIS 6: a tenant-kontextus beállítása a session-state mellé — így a
+    # db-lekérdezések (business_info, triage_rules, clients) a helyes tenant
+    # scope-ban futnak. Ha nincs tenant feloldva, a DEFAULT_TENANT_SLUG-re esik.
+    if tenant_id:
+        db.set_current_tenant(tenant_id)
+        logger.info(f"🏢 Session tenant: {tenant_id}")
 
     if is_campaign_call:
         logger.info(f" Campaign outbound SIP call — room: {room_name}")

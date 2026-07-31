@@ -105,6 +105,13 @@ def _get_triage_rules_cached() -> list[dict]:
     return data
 
 
+def _get_gemini_api_key() -> str:
+    """Gemini API kulcs feloldása (BYOK) — a database.get_gemini_api_key()-re
+    delegál (a tenant saját kulcsa a tenant_credentials-ből, különben globális)."""
+    import database as db
+    return db.get_gemini_api_key()
+
+
 def _get_written_behavior() -> str:
     ts, val = _config_cache["written_behavior"]
     if val is not None and (time.monotonic() - ts) < _CONFIG_TTL_SEC:
@@ -506,7 +513,7 @@ async def _detect_intent_llm(message_text: str) -> dict:
         from google import genai
         from google.genai import types
 
-        api_key = os.environ.get("GEMINI_API_KEY") or os.environ.get("GOOGLE_API_KEY")
+        api_key = _get_gemini_api_key()
         if not api_key:
             raise ValueError("Missing GEMINI_API_KEY / GOOGLE_API_KEY")
 

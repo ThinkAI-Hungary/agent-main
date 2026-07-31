@@ -30,8 +30,12 @@ from classifier import classify_interaction
 THIS_DIR = Path(__file__).resolve().parent
 
 
-def _get_sender() -> dict:
-    """Return dynamic sender dict from business_info (Supabase)."""
+def _get_sender(tenant_id: str | None = None) -> dict:
+    """Return dynamic sender dict from the TENANT's business_info (multi-tenant).
+    A business_info már tenant-scopeolt (a contextvar alapján); explicit tenant_id
+    is átadható (worker-eknél)."""
+    if tenant_id:
+        db.set_current_tenant(tenant_id)
     bi = db.get_business_info()
     name = bi.get("sender_name") or bi.get("practice_name") or "Virtuális Asszisztens"
     email_addr = bi.get("sender_email") or os.getenv("BREVO_SENDER_EMAIL", "")
@@ -50,11 +54,9 @@ def _sender_is_valid(sender: dict) -> bool:
     return True
 
 
-def _get_brevo_api_key() -> str:
-    """BREVO_API_KEY kiolvasása — a kulcs lehet nyers (xkeysib-...) vagy
-    base64-kódolt JSON ({'api_key': ...}). Egyetlen helper, korábban 4 helyen
-    volt lemásolva."""
-    brevo_key = os.getenv("BREVO_API_KEY", "")
+def _decode_brevo_key(brevo_key: str) -> str:
+    """A BREVO_API_KEY lehet nyers (xkeysib-...) vagy base64-kódolt JSON
+    ({'api_key': ...}). A dekódolt nyers kulcsot adja."""
     if brevo_key and not brevo_key.startswith("xkeysib-"):
         try:
             import base64 as b64module
@@ -64,6 +66,18 @@ def _get_brevo_api_key() -> str:
         except Exception:
             pass
     return brevo_key
+
+
+def _get_brevo_api_key(tenant_id: str | None = None) -> str:
+    """BREVO kulcs feloldása (hibrid, FÁZIS 5):
+    1. Ha a tenant adott saját kulcsot a tenant_credentials-ben ('brevo_api_key'),
+       azzal küld (teljes izoláció, saját domain/reputáció).
+    2. Különben a globális platform-kulcs (a tenant sender_email-jével)."""
+    tid = tenant_id or db.get_current_tenant()
+    tenant_key = db.get_credential(tid, "brevo_api_key", default=None)
+    if tenant_key:
+        return _decode_brevo_key(tenant_key)
+    return _decode_brevo_key(os.getenv("BREVO_API_KEY", ""))
 
 
 # ── Háttér-task registry — a fire-and-forget taskok kivételei ne vesszenek el ──
@@ -323,9 +337,10 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
     except Exception as e:
         logger.error(f"Email client lookup hiba: {e}")
 
-    google_key = os.getenv("GOOGLE_API_KEY")
+    # BYOK: a tenant saját Gemini kulcsa (tenant_credentials), különben globális
+    google_key = db.get_gemini_api_key()
     if not google_key:
-        logger.error("Nincs GOOGLE_API_KEY beállítva. E-mail feldolgozás megszakítva.")
+        logger.error("Nincs Gemini API kulcs (tenant vagy globális). E-mail feldolgozás megszakítva.")
         return
 
     sys_prompt = get_system_prompt(channel="email")
@@ -815,27 +830,44 @@ Ha egyik sem releváns, legyen üres lista [].
                 ), name="escalation-email")
 
 
-def check_imap_sync():
+def _imap_credentials(tenant_id: str | None = None) -> tuple[str, str, str, int]:
+    """IMAP hitelesítés feloldása tenantonként (FÁZIS 4 multi-mailbox).
+    Sorrend: tenant_credentials (imap_server/user/pass/port) → globális .env.
+    Visszatérés: (server, user, pass, port)."""
+    tid = tenant_id or db.get_current_tenant()
+    server = db.get_credential(tid, "imap_server", default=os.getenv("IMAP_SERVER"))
+    user = db.get_credential(tid, "imap_user", default=os.getenv("IMAP_USER"))
+    pwd = db.get_credential(tid, "imap_pass", default=os.getenv("IMAP_PASS"))
+    port = int(db.get_credential(tid, "imap_port", default=os.getenv("IMAP_PORT", "993")) or 993)
+    return server, user, pwd, port
+
+
+def check_imap_sync(server: str = "", user: str = "", pwd: str = "", port: int = 993):
     """Szinkron IMAP lekérdezés, amit egy threadpoolban futtatunk.
 
     UID-alapú műveletek (a message sequence numberök EXPUNGE esetén elcsúszhatnak).
     A leveleket NEM jelöljük olvasottnak — azt a worker teszi meg a feldolgozás
     UTÁN (mark_emails_seen_sync), így crash esetén a levél nem vész el.
     Visszatérés: [(uid, message_id, from_email, from_name, subject, text), ...]
+
+    A hitelesítő adatok paraméterben is jöhetnek (multi-mailbox); ha üresek,
+    a globális .env-ből olvassuk (visszafelé kompatibilitás).
     """
-    server = os.getenv("IMAP_SERVER")
-    user = os.getenv("IMAP_USER")
-    pwd = os.getenv("IMAP_PASS")
+    if not server:
+        server = os.getenv("IMAP_SERVER")
+    if not user:
+        user = os.getenv("IMAP_USER")
+    if not pwd:
+        pwd = os.getenv("IMAP_PASS")
 
     if not server or not user or not pwd:
-        logger.warning("Hiányzó IMAP_SERVER/IMAP_USER/IMAP_PASS — a poll kihagyva")
+        logger.warning("Hiányzó IMAP hitelesítés — a poll kihagyva")
         return []
 
     emails_to_process = []
 
     try:
-        # Port 993 az alapértelmezett IMAP SSL
-        mail = imaplib.IMAP4_SSL(server, port=993)
+        mail = imaplib.IMAP4_SSL(server, port=port)
         mail.login(user, pwd)
         mail.select("inbox")
 
@@ -894,19 +926,23 @@ def check_imap_sync():
     return emails_to_process
 
 
-def mark_emails_seen_sync(uids: list):
+def mark_emails_seen_sync(uids: list, server: str = "", user: str = "", pwd: str = "", port: int = 993):
     """A feldolgozott levelek \\Seen jelölése a FELDOLGOZÁS UTÁN (UID STORE).
     Crash esetén a jelöletlen levelek újra beolvasódnak — a processed_emails
-    dedup-tábla akkor is megakadályozza a dupla feldolgozást."""
+    dedup-tábla akkor is megakadályozza a dupla feldolgozást.
+    Multi-mailbox: a hitelesítő adatok paraméterben is jöhetnek."""
     if not uids:
         return
-    server = os.getenv("IMAP_SERVER")
-    user = os.getenv("IMAP_USER")
-    pwd = os.getenv("IMAP_PASS")
+    if not server:
+        server = os.getenv("IMAP_SERVER")
+    if not user:
+        user = os.getenv("IMAP_USER")
+    if not pwd:
+        pwd = os.getenv("IMAP_PASS")
     if not server or not user or not pwd:
         return
     try:
-        mail = imaplib.IMAP4_SSL(server, port=993)
+        mail = imaplib.IMAP4_SSL(server, port=port)
         mail.login(user, pwd)
         mail.select("inbox")
         for uid in uids:
@@ -969,47 +1005,57 @@ async def _send_autonomous_email(to_email: str, to_name: str, subject: str, body
         return False
 
 
+async def _poll_tenant_mailbox(tenant: dict):
+    """Egy tenant IMAP-fiókjának lekérdezése és feldolgozása (FÁZIS 4).
+    A tenant-kontextust a coroutine elején beállítjuk, hogy a db-lekérdezések
+    (client-lookup, klasszifikáció, sender) a helyes tenant scope-ban fussanak."""
+    tid = tenant["id"]
+    db.set_current_tenant(tid)
+    server, user, pwd, port = _imap_credentials(tid)
+    if not server or not user or not pwd:
+        return  # nincs IMAP konfigurálva ennél a tenantnál
+
+    try:
+        emails = await asyncio.to_thread(check_imap_sync, server, user, pwd, port)
+
+        seen_uids = []
+        for uid, message_id, from_email, from_name, subject, text_content in emails:
+            try:
+                # Dedup-claim: ha már feldolgoztuk, kihagyjuk
+                if message_id and not db.claim_processed_email(message_id, from_email, f"email_{from_email}"):
+                    logger.info(f"Duplikált levél kihagyva (már feldolgozva): {message_id}")
+                    seen_uids.append(uid)
+                    continue
+                await process_single_email(from_email, from_name, subject, text_content, message_id=message_id)
+            except Exception as proc_err:
+                logger.error(f"Email feldolgozási hiba ({from_email} — {subject}): {proc_err}")
+                if message_id:
+                    try:
+                        db.update_processed_email_status(message_id, "error")
+                    except Exception:
+                        pass
+            seen_uids.append(uid)
+
+        if seen_uids:
+            await asyncio.to_thread(mark_emails_seen_sync, seen_uids, server, user, pwd, port)
+    except Exception as e:
+        logger.error(f"IMAP poll hiba (tenant={tenant.get('slug')}): {e}")
+
+
 async def email_worker_loop():
-    """Háttérfolyamat, ami percenként hívja az IMAP-et és feldolgozza azt.
+    """Háttérfolyamat, ami percenként hívja az IMAP-et MINDEN aktív tenant
+    fiókjára és feldolgozza azt (FÁZIS 4 multi-mailbox).
 
     Dedup: a Message-ID-t a processed_emails táblába claimeli (insert-first);
     ha már létezik, a levél kihagyásra kerül — két párhuzamos process sem
     dolgozhatja fel kétszer. Per-email try/except: egy hiba nem veszíti el
     a batch maradékát. A \\Seen jelölés a feldolgozás UTÁN történik.
     """
-    server = os.getenv("IMAP_SERVER")
-    if not server:
-        logger.info("Nincs IMAP_SERVER beállítva. Az e-mail háttérfolyamat nem indul el.")
-        return
-
-    logger.info("E-mail figyelő worker elindítva.")
+    logger.info("E-mail figyelő worker elindítva (multi-mailbox).")
     while True:
         try:
-            # Futtatjuk a blokkoló IMAP műveletet thread-ben
-            emails = await asyncio.to_thread(check_imap_sync)
-
-            seen_uids = []
-            for uid, message_id, from_email, from_name, subject, text_content in emails:
-                try:
-                    # Dedup-claim: ha már feldolgoztuk (akár egy másik process),
-                    # kihagyjuk — dupla Gemini hívás/dupla válasz nem lehet.
-                    if message_id and not db.claim_processed_email(message_id, from_email, f"email_{from_email}"):
-                        logger.info(f"Duplikált levél kihagyva (már feldolgozva): {message_id}")
-                        seen_uids.append(uid)
-                        continue
-                    await process_single_email(from_email, from_name, subject, text_content, message_id=message_id)
-                except Exception as proc_err:
-                    logger.error(f"Email feldolgozási hiba ({from_email} — {subject}): {proc_err}")
-                    if message_id:
-                        try:
-                            db.update_processed_email_status(message_id, "error")
-                        except Exception:
-                            pass
-                seen_uids.append(uid)
-
-            if seen_uids:
-                await asyncio.to_thread(mark_emails_seen_sync, seen_uids)
-
+            for tenant in db.get_active_tenants():
+                await _poll_tenant_mailbox(tenant)
         except asyncio.CancelledError:
             logger.info("E-mail figyelő worker megszakítva.")
             break
@@ -1100,15 +1146,12 @@ async def send_reminder_email(to_email: str, subject: str, html_content: str) ->
         logger.error(f'Hiba az emlékeztető e-mail küldésekor: {e}')
         return False
 
-async def reminder_worker_loop():
-    logger.info('Időpont emlékeztető worker elindítva.')
-    while True:
-        try:
-            import database as db
-            import datetime
-            import asyncio
-            settings = db.get_reminder_settings()
-            if settings and settings.get('reminder_enabled'):
+async def _run_reminders_for_tenant(tenant: dict):
+    """Egy tenant emlékeztetőinek kiküldése (FÁZIS 6 multi-tenant)."""
+    import datetime
+    db.set_current_tenant(tenant["id"])
+    settings = db.get_reminder_settings()
+    if settings and settings.get('reminder_enabled'):
                 hours = settings.get('reminder_hours', 24)
                 template = settings.get('reminder_template', '')
                 events = db.get_upcoming_events_for_reminders(hours_offset=hours)
@@ -1169,11 +1212,25 @@ async def reminder_worker_loop():
                             )
                     except Exception as ev_err:
                         logger.error(f'Emlékeztető küldési hiba (event id={ev.get("id")}): {ev_err}')
-                        
+
+
+async def reminder_worker_loop():
+    """Időpont emlékeztető worker MINDEN aktív tenantnak (FÁZIS 6 multi-tenant)."""
+    logger.info('Időpont emlékeztető worker elindítva (multi-tenant).')
+    while True:
+        try:
+            import asyncio
+            for tenant in db.get_active_tenants():
+                try:
+                    await _run_reminders_for_tenant(tenant)
+                except Exception as t_err:
+                    logger.error(f'Emlékeztető worker hiba (tenant={tenant.get("slug")}): {t_err}')
+        except asyncio.CancelledError:
+            logger.info('Emlékeztető worker megszakítva.')
+            break
         except Exception as e:
             logger.error(f'Hiba az emlékeztető workerben: {e}')
-        
-        import asyncio
+
         await asyncio.sleep(15 * 60) # 15 perc
 
 async def send_booking_confirmation_email(event_id: int, title: str, date: str, time: str, attendee: str, attendee_email: str):
@@ -1379,138 +1436,145 @@ async def send_modification_confirmation_email(attendee: str, attendee_email: st
         logger.error(f"Failed to send modification confirmation email: {e}")
 
 
+async def _run_automations_for_tenant(tenant: dict):
+    """Egy tenant eseményvezérelt automatizációi (FÁZIS 6 multi-tenant)."""
+    from datetime import datetime, timezone
+    db.set_current_tenant(tenant["id"])
+
+    automations = db.get_outbound_automations()
+    if not automations:
+        return
+
+    active = [a for a in automations if a.get("enabled")]
+    if not active:
+        return
+
+    clients = db.get_clients(limit=1000)
+    now = datetime.now(timezone.utc)
+
+    for auto in active:
+        trigger = auto.get("trigger_type", "")
+        template = auto.get("message_template", "")
+        delay_hours = auto.get("delay_hours", 24)
+
+        for client in clients:
+            cd = client.get("custom_data", {})
+            if isinstance(cd, str):
+                try: cd = json.loads(cd)
+                except: cd = {}
+            if not isinstance(cd, dict): cd = {}
+
+            tags = cd.get("tags", [])
+            email = cd.get("email") or client.get("email", "")
+            if not email or email == "-":
+                continue
+
+            # Dupla küldés elkerülése
+            if db.check_automation_sent(client["id"], auto["id"]):
+                continue
+
+            should_send = False
+            nev = cd.get("nev") or cd.get("name") or client.get("name", "Ügyfél")
+            szolgaltatas = ""
+            idopont = ""
+
+            if trigger == "no_show" and "no-show" in tags:
+                should_send = True
+                szolgaltatas = "korábbi időpont"
+
+            elif trigger == "inactive_client":
+                # Check last interaction
+                last_log = cd.get("beszelgetes_naplo", "")
+                if last_log:
+                    # Simple heuristic: check if last entry is > 60 days old
+                    created = client.get("created_at", "")
+                    if created:
+                        try:
+                            created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
+                            if (now - created_dt).days > 60:
+                                should_send = True
+                        except: pass
+
+            elif trigger == "cancelled_no_rebook" and "törölt időpont" in tags:
+                # Check if they have a future appointment
+                has_future = False
+                events = db.supabase.table("calendar_events").select("id").eq("attendee_email", email).gte("start_dt", now.isoformat()).limit(1).execute()
+                if events.data:
+                    has_future = True
+                if not has_future:
+                    should_send = True
+                    szolgaltatas = "lemondott időpont"
+
+            elif trigger == "follow_up":
+                # Check if there's a past completed appointment (within delay_hours window)
+                try:
+                    past_events = db.supabase.table("calendar_events").select("start_dt, title").eq("attendee_email", email).lt("start_dt", now.isoformat()).order("start_dt", desc=True).limit(1).execute()
+                    if past_events.data:
+                        ev = past_events.data[0]
+                        ev_dt = datetime.fromisoformat(ev["start_dt"].replace("Z", "+00:00"))
+                        hours_since = (now - ev_dt).total_seconds() / 3600
+                        if delay_hours <= hours_since <= delay_hours + 24:
+                            should_send = True
+                            szolgaltatas = ev.get("title", "")
+                            idopont = ev_dt.strftime("%Y.%m.%d %H:%M")
+                except: pass
+
+            elif trigger == "price_inquiry_follow" and "árkérdés" in tags:
+                # Only if no booking exists
+                has_booking = False
+                try:
+                    events = db.supabase.table("calendar_events").select("id").eq("attendee_email", email).gte("start_dt", now.isoformat()).limit(1).execute()
+                    if events.data: has_booking = True
+                except: pass
+                if not has_booking:
+                    should_send = True
+
+            if should_send:
+                # Fill template
+                msg = template.replace("{nev}", nev).replace("{szolgaltatas}", szolgaltatas).replace("{idopont}", idopont).replace("{telephely}", "")
+                html_msg = msg.replace("\n", "<br>")
+
+                # ── Human-in-the-loop: NE küldjünk közvetlenül! ──
+                # Piszkozatot mentünk jóváhagyásra, pont úgy, mint az email/messenger válaszoknál.
+                db.mark_automation_sent(client["id"], auto["id"])
+                session_id = f"automation_{auto['id']}_{client['id']}"
+                db.create_session(session_id=session_id, room_name=auto["name"], participant=nev)
+
+                draft_payload = {
+                    "channel": "Email",
+                    "to_email": email,
+                    "to_name": nev,
+                    "subject": f"{auto['name']} - {nev}",
+                    "body": msg,
+                }
+                draft_json = json.dumps(draft_payload)
+
+                db.log_interaction(
+                    type="email",
+                    topic=auto["name"],
+                    summary=f"{auto['name']} — {nev} ({email})",
+                    result="Várakozik jóváhagyásra",
+                    tool_name="automation_worker",
+                    session_id=session_id,
+                    direction="outbound",
+                    funnel_stage="relevant",
+                    approval_status="pending",
+                    ai_draft_response=draft_json,
+                )
+                logger.info(f"Automation '{auto['name']}' draft saved for approval: {email}")
+
+
 async def automation_worker_loop():
-    """Háttérfolyamat: eseményvezérelt kimenő automatizációk futtatása."""
-    logger.info("Eseményvezérelt automatizáció worker elindítva.")
+    """Háttérfolyamat: eseményvezérelt kimenő automatizációk MINDEN aktív
+    tenantnak (FÁZIS 6 multi-tenant)."""
+    logger.info("Eseményvezérelt automatizáció worker elindítva (multi-tenant).")
     while True:
         try:
-            import database as db
-            from datetime import datetime, timedelta, timezone
-            
-            automations = db.get_outbound_automations()
-            if not automations:
-                await asyncio.sleep(5 * 60)
-                continue
-            
-            active = [a for a in automations if a.get("enabled")]
-            if not active:
-                await asyncio.sleep(5 * 60)
-                continue
-            
-            clients = db.get_clients(limit=1000)
-            now = datetime.now(timezone.utc)
-            
-            for auto in active:
-                trigger = auto.get("trigger_type", "")
-                template = auto.get("message_template", "")
-                delay_hours = auto.get("delay_hours", 24)
-                
-                for client in clients:
-                    cd = client.get("custom_data", {})
-                    if isinstance(cd, str):
-                        try: cd = json.loads(cd)
-                        except: cd = {}
-                    if not isinstance(cd, dict): cd = {}
-                    
-                    tags = cd.get("tags", [])
-                    email = cd.get("email") or client.get("email", "")
-                    if not email or email == "-":
-                        continue
-                    
-                    # Dupla küldés elkerülése
-                    if db.check_automation_sent(client["id"], auto["id"]):
-                        continue
-                    
-                    should_send = False
-                    nev = cd.get("nev") or cd.get("name") or client.get("name", "Ügyfél")
-                    szolgaltatas = ""
-                    idopont = ""
-                    
-                    if trigger == "no_show" and "no-show" in tags:
-                        should_send = True
-                        szolgaltatas = "korábbi időpont"
-                        
-                    elif trigger == "inactive_client":
-                        # Check last interaction
-                        last_log = cd.get("beszelgetes_naplo", "")
-                        if last_log:
-                            # Simple heuristic: check if last entry is > 60 days old
-                            created = client.get("created_at", "")
-                            if created:
-                                try:
-                                    created_dt = datetime.fromisoformat(created.replace("Z", "+00:00"))
-                                    if (now - created_dt).days > 60:
-                                        should_send = True
-                                except: pass
-                    
-                    elif trigger == "cancelled_no_rebook" and "törölt időpont" in tags:
-                        # Check if they have a future appointment
-                        has_future = False
-                        events = db.supabase.table("calendar_events").select("id").eq("attendee_email", email).gte("start_dt", now.isoformat()).limit(1).execute()
-                        if events.data:
-                            has_future = True
-                        if not has_future:
-                            should_send = True
-                            szolgaltatas = "lemondott időpont"
-                    
-                    elif trigger == "follow_up":
-                        # Check if there's a past completed appointment (within delay_hours window)
-                        try:
-                            past_events = db.supabase.table("calendar_events").select("start_dt, title").eq("attendee_email", email).lt("start_dt", now.isoformat()).order("start_dt", desc=True).limit(1).execute()
-                            if past_events.data:
-                                ev = past_events.data[0]
-                                ev_dt = datetime.fromisoformat(ev["start_dt"].replace("Z", "+00:00"))
-                                hours_since = (now - ev_dt).total_seconds() / 3600
-                                if delay_hours <= hours_since <= delay_hours + 24:
-                                    should_send = True
-                                    szolgaltatas = ev.get("title", "")
-                                    idopont = ev_dt.strftime("%Y.%m.%d %H:%M")
-                        except: pass
-                    
-                    elif trigger == "price_inquiry_follow" and "árkérdés" in tags:
-                        # Only if no booking exists
-                        has_booking = False
-                        try:
-                            events = db.supabase.table("calendar_events").select("id").eq("attendee_email", email).gte("start_dt", now.isoformat()).limit(1).execute()
-                            if events.data: has_booking = True
-                        except: pass
-                        if not has_booking:
-                            should_send = True
-                    
-                    if should_send:
-                        # Fill template
-                        msg = template.replace("{nev}", nev).replace("{szolgaltatas}", szolgaltatas).replace("{idopont}", idopont).replace("{telephely}", "")
-                        html_msg = msg.replace("\n", "<br>")
-                        
-                        # ── Human-in-the-loop: NE küldjünk közvetlenül! ──
-                        # Piszkozatot mentünk jóváhagyásra, pont úgy, mint az email/messenger válaszoknál.
-                        db.mark_automation_sent(client["id"], auto["id"])
-                        session_id = f"automation_{auto['id']}_{client['id']}"
-                        db.create_session(session_id=session_id, room_name=auto["name"], participant=nev)
-                        
-                        draft_payload = {
-                            "channel": "Email",
-                            "to_email": email,
-                            "to_name": nev,
-                            "subject": f"{auto['name']} - {nev}",
-                            "body": msg,
-                        }
-                        draft_json = json.dumps(draft_payload)
-                        
-                        db.log_interaction(
-                            type="email",
-                            topic=auto["name"],
-                            summary=f"{auto['name']} — {nev} ({email})",
-                            result="Várakozik jóváhagyásra",
-                            tool_name="automation_worker",
-                            session_id=session_id,
-                            direction="outbound",
-                            funnel_stage="relevant",
-                            approval_status="pending",
-                            ai_draft_response=draft_json,
-                        )
-                        logger.info(f"Automation '{auto['name']}' draft saved for approval: {email}")
-
+            for tenant in db.get_active_tenants():
+                try:
+                    await _run_automations_for_tenant(tenant)
+                except Exception as t_err:
+                    logger.error(f"Automatizáció worker hiba (tenant={tenant.get('slug')}): {t_err}")
         except asyncio.CancelledError:
             logger.info("Automatizáció worker megszakítva.")
             break

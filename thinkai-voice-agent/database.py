@@ -183,6 +183,17 @@ def get_credential(tenant_id: str | None, key: str, default: str | None = None) 
     return default
 
 
+def get_gemini_api_key(tenant_id: str | None = None) -> str:
+    """Gemini API kulcs feloldása (BYOK): a tenant saját kulcsa a
+    tenant_credentials-ből ('gemini_api_key'), különben a globális platform-kulcs.
+    Közös helper — a classifier, email_processor és web_server is ezt használja."""
+    tid = tenant_id or get_current_tenant()
+    tenant_key = get_credential(tid, "gemini_api_key", default=None)
+    if tenant_key:
+        return tenant_key
+    return os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
+
+
 def init_db():
     if supabase:
         logger.info(f"Connected to Supabase Cloud at {SUPABASE_URL}")

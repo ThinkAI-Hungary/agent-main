@@ -105,16 +105,26 @@ async def social_publisher_worker():
             logger.error(f"Social publisher worker error: {e}")
 
 async def campaign_scheduler_worker():
-    """Háttérfolyamat: 30 másodpercenként ellenőrzi az ütemezett kampányokat és elindítja őket."""
+    """Háttérfolyamat: 30 másodpercenként ellenőrzi az ütemezett kampányokat és
+    elindítja őket — MINDEN aktív tenantnak (FÁZIS 6 multi-tenant)."""
     from datetime import datetime
     import zoneinfo
     local_tz = zoneinfo.ZoneInfo("Europe/Budapest")
     while True:
         await asyncio.sleep(30)
         try:
-            campaigns = db.get_campaigns()
+            # Tenant-iteráció: minden tenant kampányai a saját scope-jukban
+            all_campaigns = []
+            for tenant in db.get_active_tenants():
+                try:
+                    db.set_current_tenant(tenant["id"])
+                    for c in db.get_campaigns():
+                        all_campaigns.append((tenant, c))
+                except Exception as t_err:
+                    logger.error(f"[Scheduler] Tenant kampány-lekérdezés hiba ({tenant.get('slug')}): {t_err}")
             now = datetime.now(local_tz)
-            for c in campaigns:
+            for _tenant, c in all_campaigns:
+                db.set_current_tenant(_tenant["id"])  # a kampány saját tenantja legyen a kontextus
                 if c.get("status") != "Ütemezett":
                     continue
                 # Read scheduled_at from SCHED: prefix in ai_instructions
@@ -1147,14 +1157,20 @@ async def bg():
     return FileResponse(THIS_DIR / "login-bg.jpg", media_type="image/jpeg")
 
 @app.get("/api/token")
-async def get_token():
-    """Generate a LiveKit room token for a new user."""
+async def get_token(tenant: str = ""):
+    """Generate a LiveKit room token for a new user.
+
+    FÁZIS 6 (multi-tenant): a widget a tenant slugját adhatja meg a `tenant`
+    query-paraméterben — a room neve `<slug>-<uuid>` lesz, így a voice agent
+    entrypoint a tenantot a room-name-ből feloldja. Visszafelé kompatibilis:
+    paraméter nélkül a régi `thinkai-<uuid>` név (default tenant)."""
     api_key    = os.getenv("LIVEKIT_API_KEY")
     api_secret = os.getenv("LIVEKIT_API_SECRET")
     if not api_key or not api_secret:
         return JSONResponse({"error": "LiveKit credentials not configured"}, status_code=500)
 
-    room_name        = f"thinkai-{uuid.uuid4().hex[:8]}"
+    prefix = f"{tenant}-" if tenant else "thinkai-"
+    room_name        = f"{prefix}{uuid.uuid4().hex[:8]}"
     participant_name = f"user-{uuid.uuid4().hex[:6]}"
 
     token = (
@@ -1344,13 +1360,14 @@ Csak a címkéket tartalmazó JSON listát (pl. ["urgent", "complaint"]) add vis
     except Exception:
         return []
 
-async def fetch_meta_user_profile(sender_id: str, source_channel: str) -> Optional[dict]:
+async def fetch_meta_user_profile(sender_id: str, source_channel: str, tenant_id: str = None) -> Optional[dict]:
     """Fetch the user's name and profile picture from Meta Graph API using their PSID/IGSID."""
     if source_channel not in ("Messenger", "Instagram"):
         return None
-        
+
     # Instagram DM uses Page Access Token (Messenger platform), not IG API token
-    token = os.getenv("META_PAGE_ACCESS_TOKEN")
+    # Per-tenant token (env fallback — _meta_cred a fájl későbbi részében definiált)
+    token = _meta_cred(tenant_id or db.get_current_tenant(), "meta_page_token")
     if not token:
         return None
     
@@ -1449,20 +1466,96 @@ def is_spam_message(message_text: str) -> bool:
     return False
 
 
-async def _send_channel_message(source_channel: str, sender_id: str, text: str, phone_number_id: str = None) -> bool:
+# ═══════════════════════════════════════════════════════════════════════════════
+# META MULTI-TENANT — tenant feloldás + per-tenant credentialök (FÁZIS 5)
+# ═══════════════════════════════════════════════════════════════════════════════
+# Egy közös ThinkAI Meta app szolgál ki minden tenantot; a webhook payload
+# Meta-azonosítóiból (page_id / ig_user_id / phone_number_id) oldjuk fel, hogy
+# melyik tenanthoz tartozik az üzenet. A leképezést a tenant_credentials tábla
+# tárolja ('meta_page_id', 'instagram_user_id', 'whatsapp_phone_id' kulcsok).
+# Ha nincs találat (pl. Rivergate — nincs credential sor), None-t adunk, és
+# minden a régi módon, az env tokenekkel + default tenanttal működik.
+
+import time as _time
+
+# meta_id → tenant_id cache (TTL ~60 mp, hogy ne legyen N+1 lekérdezés üzenetenként)
+_META_TENANT_CACHE_TTL = 60
+_meta_tenant_cache: dict = {"ts": 0.0, "map": {}}
+
+
+def _rebuild_meta_tenant_cache():
+    """Újraépíti a meta_id → tenant_id leképezést az aktív tenantok
+    tenant_credentials soraiból (a tárolt ÉRTÉKRE illesztünk, nem a kulcsra)."""
+    mapping = {}
+    try:
+        for tenant in db.get_active_tenants():
+            tid = tenant.get("id")
+            if not tid:
+                continue
+            for key in ("meta_page_id", "instagram_user_id", "whatsapp_phone_id"):
+                val = db.get_credential(tid, key, default=None)
+                if val:
+                    mapping[str(val)] = tid
+    except Exception as e:
+        print(f"[Meta tenant] Cache rebuild hiba: {e}")
+    _meta_tenant_cache["map"] = mapping
+    _meta_tenant_cache["ts"] = _time.monotonic()
+
+
+def resolve_meta_tenant(page_id: str = "", ig_user_id: str = "", phone_number_id: str = "") -> str | None:
+    """Megkeresi, melyik tenant birtokolja a megadott Meta page ID-t /
+    Instagram user ID-t / WhatsApp phone_number_id-t. Visszatér a tenant_id-val
+    (uuid string) vagy None-nal (ilyenkor a hívó a default tenantot használja —
+    visszafelé kompatibilis, egycéges működés)."""
+    if _time.monotonic() - _meta_tenant_cache["ts"] > _META_TENANT_CACHE_TTL:
+        _rebuild_meta_tenant_cache()
+    mapping = _meta_tenant_cache["map"]
+    for meta_id in (page_id, ig_user_id, phone_number_id):
+        if meta_id and str(meta_id) in mapping:
+            return mapping[str(meta_id)]
+    return None
+
+
+def _meta_cred(tenant_id: str | None, key: str) -> str:
+    """Per-tenant Meta credential feloldása env fallbackkel.
+    Ha a tenantnak nincs credential sora, pontosan a régi env értéket adja —
+    így a meglévő egycéges (Rivergate) működés változatlan marad."""
+    if key == "meta_page_token":
+        fallback = os.getenv("META_PAGE_ACCESS_TOKEN", "")
+    elif key == "whatsapp_token":
+        # A tenant saját page tokenje is jó fallback (mint az env-ben a META_PAGE_ACCESS_TOKEN)
+        fallback = db.get_credential(
+            tenant_id, "meta_page_token",
+            default=os.getenv("WHATSAPP_TOKEN", os.getenv("META_PAGE_ACCESS_TOKEN", "")),
+        )
+    elif key == "whatsapp_phone_id":
+        fallback = os.getenv("WHATSAPP_PHONE_ID", "")
+    elif key == "instagram_token":
+        fallback = os.getenv("META_INSTAGRAM_TOKEN", "")
+    elif key == "instagram_user_id":
+        fallback = os.getenv("META_INSTAGRAM_USER_ID", "26530155976686869")
+    else:
+        fallback = ""
+    return db.get_credential(tenant_id, key, default=fallback) or ""
+
+
+async def _send_channel_message(source_channel: str, sender_id: str, text: str, phone_number_id: str = None, tenant_id: str = None) -> bool:
     """
     EAISY-241 §1.1.2 — Meta csatornára (Messenger/Instagram/WhatsApp) küldő helper.
     Az autonóm válasz (restriction == 'none') azonnali kiküldéséhez használjuk.
     Visszatér True-val ha sikeres, False ha hiba.
     A logika az approve_approval_api-ból van extractálva (web_server.py:~3110).
+    A tenant_id alapján per-tenant tokeneket használ (env fallbackkel).
     """
     import httpx
+    # Tenant: paraméter, különben a hívó által beállított contextvar
+    tid = tenant_id or db.get_current_tenant()
     ch = (source_channel or "").lower()
     try:
         async with httpx.AsyncClient() as http_client:
             if ch == "whatsapp":
-                wa_token = os.getenv("WHATSAPP_TOKEN", os.getenv("META_PAGE_ACCESS_TOKEN", ""))
-                wa_phone_id = phone_number_id or os.getenv("WHATSAPP_PHONE_ID", "")
+                wa_token = _meta_cred(tid, "whatsapp_token")
+                wa_phone_id = phone_number_id or _meta_cred(tid, "whatsapp_phone_id")
                 if not wa_token or not wa_phone_id:
                     return False
                 resp = await http_client.post(
@@ -1474,8 +1567,8 @@ async def _send_channel_message(source_channel: str, sender_id: str, text: str, 
                 resp.raise_for_status()
                 return True
             elif ch == "instagram":
-                ig_token = os.getenv("META_INSTAGRAM_TOKEN", "")
-                ig_user_id = os.getenv("META_INSTAGRAM_USER_ID", "26530155976686869")
+                ig_token = _meta_cred(tid, "instagram_token")
+                ig_user_id = _meta_cred(tid, "instagram_user_id")
                 if not ig_token:
                     return False
                 resp = await http_client.post(
@@ -1487,7 +1580,7 @@ async def _send_channel_message(source_channel: str, sender_id: str, text: str, 
                 resp.raise_for_status()
                 return True
             elif ch == "messenger":
-                page_access_token = os.getenv("META_PAGE_ACCESS_TOKEN", "")
+                page_access_token = _meta_cred(tid, "meta_page_token")
                 if not page_access_token:
                     return False
                 resp = await http_client.post(
@@ -1506,7 +1599,7 @@ async def _send_channel_message(source_channel: str, sender_id: str, text: str, 
         return False
 
 
-async def process_meta_message(sender_id: str, message_text: str, source_channel: str = "Messenger", phone_number_id: str = None, sender_name: str = None):
+async def process_meta_message(sender_id: str, message_text: str, source_channel: str = "Messenger", phone_number_id: str = None, sender_name: str = None, tenant_id: str = None):
     """Aszinkron háttérfeladat a Meta Messenger / Instagram / WhatsApp üzenetek feldolgozására."""
     import asyncio
     import json
@@ -1516,6 +1609,12 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
     from prompt_utils import get_system_prompt
     import database as db
     import email_processor
+
+    # ── Multi-tenant: a webhook által feloldott tenant kontextus beállítása ──
+    # (az asyncio.create_task amúgy is örökli a contextvart, de így biztos,
+    #  ha más hívó közvetlenül indítaná). Nincs tenant → default (Rivergate).
+    if tenant_id:
+        db.set_current_tenant(tenant_id)
 
     # ── SPAM CHECK — before any AI call ──────────────────────────────
     if is_spam_message(message_text):
@@ -1555,7 +1654,7 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
                 print(f"[WhatsApp] Feladó neve nem elérhető a webhook-ból, sender_id: {sender_id}")
         else:
             # ── Messenger / Instagram: profil lekérdezés a Graph API-ból (változatlan) ──
-            meta_profile = await fetch_meta_user_profile(sender_id, source_channel)
+            meta_profile = await fetch_meta_user_profile(sender_id, source_channel, tenant_id=tenant_id)
             if meta_profile:
                 if source_channel == "Instagram":
                     meta_name = meta_profile.get("username") or meta_profile.get("name")
@@ -1982,6 +2081,7 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                     send_ok = await _send_channel_message(
                         source_channel, sender_id, final_text,
                         phone_number_id=phone_number_id,
+                        tenant_id=tenant_id,
                     )
                 except Exception as send_err:
                     print(f"[Meta AI Process] Auto-send hiba ({source_channel}): {send_err}")
@@ -2024,39 +2124,63 @@ async def meta_webhook_receive(request: Request):
         raise HTTPException(status_code=400, detail="Invalid JSON")
     
     obj_type = body.get("object")
-    
+
+    # ── Multi-tenant routing (FÁZIS 5): a payload Meta-azonosítóiból tenant feloldás ──
+    # Messenger/IG: entry.id a page/IG id; WhatsApp: metadata.phone_number_id.
+    # Nincs találat → None → a contextvar a default tenantra (Rivergate) esik vissza.
+    payload_tenant = None
+    for _entry in body.get("entry", []):
+        payload_tenant = resolve_meta_tenant(page_id=_entry.get("id", ""), ig_user_id=_entry.get("id", ""))
+        if payload_tenant:
+            break
+        for _change in _entry.get("changes", []):
+            _pnid = (_change.get("value", {}).get("metadata") or {}).get("phone_number_id", "")
+            payload_tenant = resolve_meta_tenant(phone_number_id=_pnid)
+            if payload_tenant:
+                break
+        if payload_tenant:
+            break
+    if payload_tenant:
+        db.set_current_tenant(payload_tenant)
+        print(f"[Meta Webhook] Tenant feloldva: {payload_tenant}")
+
     # 1) Messenger / Instagram
     if obj_type in ("page", "instagram"):
         is_instagram = (obj_type == "instagram")
-        
+
         for entry in body.get("entry", []):
             # Get our own page/IG ID to detect echoes
             page_id = entry.get("id", "")
-            
+
+            # Entry-szintű tenant finomítás (egy payloadban több page is lehet)
+            entry_tenant = resolve_meta_tenant(page_id=page_id, ig_user_id=page_id) or payload_tenant
+            if entry_tenant:
+                db.set_current_tenant(entry_tenant)
+
             for webhook_event in entry.get("messaging", []):
                 sender_id = webhook_event.get("sender", {}).get("id")
-                
+
                 # ── Echo detection: skip messages sent BY our page/bot ──
                 message_obj = webhook_event.get("message", {})
                 if message_obj.get("is_echo"):
                     print(f"[Meta Webhook] Echo üzenet kiszűrve (sender: {sender_id})")
                     continue
                 # Also skip if sender is our own page ID or IG business account
-                ig_user_id = os.getenv("META_INSTAGRAM_USER_ID", "26530155976686869")
+                ig_user_id = _meta_cred(entry_tenant, "instagram_user_id")
                 if sender_id and (sender_id == page_id or sender_id == ig_user_id):
                     print(f"[Meta Webhook] Saját üzenet kiszűrve (sender: {sender_id})")
                     continue
-                
+
                 if "message" in webhook_event and "text" in message_obj:
                     message_text = message_obj["text"]
                     source_channel = "Instagram" if is_instagram else "Messenger"
                     print(f"[Meta Webhook] Új üzenet feladótól (ID: {sender_id}, Csatorna: {source_channel}): {message_text}")
-                    
-                    # AI aszinkron feldolgozás
-                    task = asyncio.create_task(process_meta_message(sender_id, message_text, source_channel))
+
+                    # AI aszinkron feldolgozás (a create_task örökli a tenant contextvart)
+                    task = asyncio.create_task(process_meta_message(sender_id, message_text, source_channel, tenant_id=entry_tenant))
                     background_tasks.add(task)
                     task.add_done_callback(background_tasks.discard)
-                    
+
         return PlainTextResponse(content="EVENT_RECEIVED", status_code=200)
 
     # 2) WhatsApp
@@ -2068,7 +2192,12 @@ async def meta_webhook_receive(request: Request):
                 # Check if it's a message event
                 if "messages" in value:
                     phone_number_id = value.get("metadata", {}).get("phone_number_id")
-                    
+
+                    # ── Multi-tenant: tenant feloldás a phone_number_id alapján ──
+                    wa_tenant = resolve_meta_tenant(phone_number_id=phone_number_id) or payload_tenant
+                    if wa_tenant:
+                        db.set_current_tenant(wa_tenant)
+
                     # ── Extract sender name from contacts array ──
                     # WhatsApp webhook provides contacts[].profile.name
                     wa_contacts = value.get("contacts", [])
@@ -2087,7 +2216,7 @@ async def meta_webhook_receive(request: Request):
                             message_text = message["text"].get("body", "")
                             print(f"[Meta Webhook] Új üzenet feladótól (ID: {sender_id}, Név: {sender_name or 'N/A'}, Csatorna: WhatsApp): {message_text}")
                             
-                            task = asyncio.create_task(process_meta_message(sender_id, message_text, "WhatsApp", phone_number_id, sender_name=sender_name))
+                            task = asyncio.create_task(process_meta_message(sender_id, message_text, "WhatsApp", phone_number_id, sender_name=sender_name, tenant_id=wa_tenant))
                             background_tasks.add(task)
                             task.add_done_callback(background_tasks.discard)
                             
@@ -3420,7 +3549,10 @@ async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_
             "type": "outbound_script_call",
             "script": req.script.strip(),
             "client_name": req.client_name.strip() if req.client_name else "",
-            "call_note": req.note.strip() if req.note else ""
+            "call_note": req.note.strip() if req.note else "",
+            # FÁZIS 6: a tenantot is átadjuk a metadata-ban — a voice agent
+            # entrypoint így a helyes tenant scope-ban dolgozik
+            "tenant_id": db.get_current_tenant() or "",
         })
 
     try:
@@ -3577,8 +3709,10 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                     print(f"[Approval] Email elküldve: {send_draft.get('to_email')}")
                     
                 elif ch == "whatsapp":
-                    wa_token = os.getenv("WHATSAPP_TOKEN", os.getenv("META_PAGE_ACCESS_TOKEN", ""))
-                    wa_phone_id = send_draft.get("phone_number_id") or os.getenv("WHATSAPP_PHONE_ID", "")
+                    # Per-tenant tokenek (a middleware a JWT-ből állítja a contextvart; env fallback)
+                    approval_tenant = db.get_current_tenant()
+                    wa_token = _meta_cred(approval_tenant, "whatsapp_token")
+                    wa_phone_id = send_draft.get("phone_number_id") or _meta_cred(approval_tenant, "whatsapp_phone_id")
                     if not wa_token or not wa_phone_id:
                         raise Exception("Hiányzó WhatsApp token vagy Phone ID")
                     
@@ -3595,14 +3729,16 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                     resp.raise_for_status()
                     
                 elif ch in ["messenger", "instagram"]:
-                    page_access_token = os.getenv("META_PAGE_ACCESS_TOKEN", "")
+                    # Per-tenant tokenek (a middleware a JWT-ből állítja a contextvart; env fallback)
+                    approval_tenant = db.get_current_tenant()
+                    page_access_token = _meta_cred(approval_tenant, "meta_page_token")
                     if not page_access_token:
                         raise Exception("Hiányzó Meta oldal token")
-                    
+
                     if ch == "instagram":
                         # Instagram DM: use META_INSTAGRAM_TOKEN + graph.instagram.com/{ig_user_id}/messages
-                        ig_token = os.getenv("META_INSTAGRAM_TOKEN", "")
-                        ig_user_id = os.getenv("META_INSTAGRAM_USER_ID", "26530155976686869")
+                        ig_token = _meta_cred(approval_tenant, "instagram_token")
+                        ig_user_id = _meta_cred(approval_tenant, "instagram_user_id")
                         if not ig_token:
                             raise Exception("Hiányzó META_INSTAGRAM_TOKEN")
                         resp = await http_client.post(
@@ -3657,7 +3793,8 @@ async def approve_approval_api(id: int, req: ApproveRequest, username: str = Dep
                         "type": "outbound_script_call",
                         "script": send_text,
                         "client_name": client_name,
-                        "call_note": send_draft.get("campaign_name", "Jóváhagyott kimenő hívás")
+                        "call_note": send_draft.get("campaign_name", "Jóváhagyott kimenő hívás"),
+                        "tenant_id": db.get_current_tenant() or "",
                     })
 
                     lk = lk_api_module.LiveKitAPI(url=lk_url, api_key=lk_key, api_secret=lk_secret)
@@ -4277,7 +4414,8 @@ async def _run_phone_campaign(campaign: dict):
             "campaign_id": campaign_id,
             "campaign_name": campaign_name,
             "client_name": client_name,
-            "script": ai_instructions
+            "script": ai_instructions,
+            "tenant_id": db.get_current_tenant() or "",
         })
 
         room_name = f"call-out-camp-{campaign_id}-{uuid.uuid4().hex[:6]}"
