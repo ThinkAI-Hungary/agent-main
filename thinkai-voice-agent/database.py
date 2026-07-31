@@ -247,14 +247,19 @@ def create_admin_user(username: str, password: str, email: str = "", role: str =
         return False
 
 def verify_admin_user(username: str, password: str) -> dict | None:
-    """Verify admin credentials by username OR email, return user info including role."""
+    """Verify admin credentials by username OR email, return user info including role.
+
+    FIGYELEM: a login TENANT-FÜGGETLEN (nincs _tenant_eq szűrő) — a tenantot épp
+    a user rekordból (tenant_id oszlop) kell kideríteni, tehát a keresésnek minden
+    tenantot látnia kell. Ez nem adatszivárgás: a username jelszó-védett, és a
+    login után a contextvar már a user saját tenantjára áll be."""
     if not supabase: return None
     try:
         # Try username first
-        res = _tenant_eq(supabase.table("admin_users").select("*")).eq("username", username).execute()
+        res = supabase.table("admin_users").select("*").eq("username", username).execute()
         # Fallback: try email
         if not res.data:
-            res = _tenant_eq(supabase.table("admin_users").select("*")).eq("email", username).execute()
+            res = supabase.table("admin_users").select("*").eq("email", username).execute()
         if res.data:
             user = res.data[0]
             if _verify_password(password, user["password_hash"]):
