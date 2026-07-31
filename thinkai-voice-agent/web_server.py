@@ -259,9 +259,11 @@ app.add_middleware(
 bearer_scheme = HTTPBearer(auto_error=False)
 
 
-def create_jwt(username: str) -> str:
+def create_jwt(username: str, tenant_id: str = "", role: str = "") -> str:
     payload = {
         "sub": username,
+        "tenant_id": tenant_id,
+        "role": role,
         "exp": datetime.utcnow() + timedelta(seconds=JWT_EXPIRES),
         "iat": datetime.utcnow(),
     }
@@ -278,6 +280,58 @@ def verify_jwt(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token lejárt")
     except Exception:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Érvénytelen token")
+
+
+def _decode_jwt_claims(credentials: HTTPAuthorizationCredentials | None) -> dict | None:
+    """JWT dekódolás — a teljes payload (sub, tenant_id, role), vagy None."""
+    if not credentials:
+        return None
+    try:
+        return pyjwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGO])
+    except Exception:
+        return None
+
+
+def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)) -> dict:
+    """Dependency: a teljes aktuális felhasználó (username, role, tenant_id).
+    A verify_jwt-hez hasonlóan 401-et dob hibás token esetén, de a teljes
+    user-objektumot adja (a ~5 endpointnak, amelyiknek tényleg kell a user)."""
+    payload = _decode_jwt_claims(credentials)
+    if payload is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Érvénytelen token")
+    username = payload.get("sub")
+    # A role-t a DB-ből frissen olvassuk (a JWT-ben lévő lehet régi), a tenantot a JWT-ből.
+    user = db.get_admin_user_by_username(username) or {}
+    return {
+        "username": username,
+        "role": user.get("role") or payload.get("role", ""),
+        "tenant_id": payload.get("tenant_id") or user.get("tenant_id"),
+    }
+
+
+# ── Tenant middleware: minden requesthez beállítja a tenant-kontextust ────────
+# A JWT-ben lévő tenant_id-t a database.py contextvar-jába tölti — így a
+# ~86 "csak gate" endpoint változatlan marad, a db-lekérdezések pedig már a
+# helyes tenant scope-ban futnak. Hitelesítetlen (publikus/webhook) requesteknél
+# a contextvar a DEFAULT_TENANT_SLUG-ra esik vissza.
+@app.middleware("http")
+async def tenant_context_middleware(request: Request, call_next):
+    auth = request.headers.get("Authorization", "")
+    tenant_id = None
+    if auth.startswith("Bearer "):
+        try:
+            payload = pyjwt.decode(auth[7:], JWT_SECRET, algorithms=[JWT_ALGO])
+            tenant_id = payload.get("tenant_id")
+            # Tegyük elérhetővé a teljes usert is a request.state-en
+            request.state.jwt_payload = payload
+        except Exception:
+            tenant_id = None
+    if tenant_id:
+        db.set_current_tenant(tenant_id)
+    # Ha nincs tenant (publikus), nem állítjuk be — a get_current_tenant()
+    # a DEFAULT_TENANT_SLUG-ra esik vissza.
+    response = await call_next(request)
+    return response
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2053,15 +2107,32 @@ class LoginRequest(BaseModel):
 
 @app.post("/admin/login")
 def admin_login(req: LoginRequest):
-    """Admin login — returns JWT token + role."""
+    """Admin login — returns JWT token + role + tenant."""
     user = db.verify_admin_user(req.username, req.password)
     if not user:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Hibás felhasználónév vagy jelszó"
         )
-    token = create_jwt(user["username"])
-    return {"token": token, "username": user["username"], "role": user.get("role", "admin"), "full_name": user.get("full_name", "")}
+    tenant_id = user.get("tenant_id") or ""
+    role = user.get("role", "admin")
+    token = create_jwt(user["username"], tenant_id=tenant_id, role=role)
+    # A tenant nevét is visszaadjuk a UI-nak (header/sidebar)
+    tenant_name = ""
+    if tenant_id:
+        try:
+            t = db.supabase.table("tenants").select("name").eq("id", tenant_id).limit(1).execute()
+            tenant_name = (t.data[0].get("name") if t.data else "") or ""
+        except Exception:
+            tenant_name = ""
+    return {
+        "token": token,
+        "username": user["username"],
+        "role": role,
+        "full_name": user.get("full_name", ""),
+        "tenant_id": tenant_id,
+        "tenant_name": tenant_name,
+    }
 
 
 def require_admin(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):

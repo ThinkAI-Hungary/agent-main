@@ -81,7 +81,7 @@ export async function authFetch(
 export async function loginApi(
   username: string,
   password: string
-): Promise<{ token: string; username: string; role: string; full_name: string }> {
+): Promise<{ token: string; username: string; role: string; full_name: string; tenant_id?: string; tenant_name?: string }> {
   let res: Response;
   try {
     res = await fetch(`${API_BASE}/admin/login`, {

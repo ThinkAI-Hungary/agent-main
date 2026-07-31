@@ -6,6 +6,7 @@ All persistent data: calendar, emails, tasks, sessions, interactions, admin user
 import os
 import hashlib
 import secrets
+import contextvars
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -24,6 +25,163 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     supabase: Client = None
 else:
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# ═══════════════════════════════════════════════════════════════════════════
+# MULTI-TENANCY (FÁZIS 2) — tenant-kontextus + credential store
+# ═══════════════════════════════════════════════════════════════════════════
+#
+# A tenant egy contextvars.ContextVar-ban van — ugyanaz a minta, mint a tools.py
+# session-state (coroutine-scoped, így párhuzamos requestek/workerek nem zavarják
+# egymást). A DEFAULT_TENANT_SLUG ('rivergate') fallback biztosítja, hogy a még
+# nem scope-olt hívások (pl. régi worker-ek, tesztek) a meglévő tenantre essenek
+# vissza — így a live Rivergate nem áll le az átállás alatt.
+
+DEFAULT_TENANT_SLUG = os.getenv("DEFAULT_TENANT_SLUG", "rivergate")
+
+_tenant_ctx: contextvars.ContextVar[str | None] = contextvars.ContextVar(
+    "eaisydesk_tenant_id", default=None
+)
+
+_tenant_id_cache: dict = {}  # slug → uuid (a tenants tábla ritkán változik)
+
+
+def _resolve_tenant_id(slug: str) -> str | None:
+    """slug → tenant uuid feloldása (cache-elve)."""
+    if not slug:
+        return None
+    if slug in _tenant_id_cache:
+        return _tenant_id_cache[slug]
+    if not supabase:
+        return None
+    try:
+        res = supabase.table("tenants").select("id").eq("slug", slug).limit(1).execute()
+        tid = res.data[0]["id"] if res.data else None
+        _tenant_id_cache[slug] = tid
+        return tid
+    except Exception as e:
+        logger.error(f"_resolve_tenant_id({slug}) hiba: {e}")
+        return None
+
+
+def set_current_tenant(tenant_id: str | None):
+    """Beállítja a jelenlegi coroutine tenantját (uuid). Request-middleware és
+    worker-iteráció hívja."""
+    _tenant_ctx.set(tenant_id)
+
+
+def get_current_tenant() -> str | None:
+    """Visszaadja a jelenlegi coroutine tenantját. Ha nincs beállítva (pl. régi
+    worker, teszt), a DEFAULT_TENANT_SLUG-hoz tartozó uuid-t adja — így a
+    backfill-elt Rivergate-adatok továbbra is elérhetők maradnak."""
+    tid = _tenant_ctx.get()
+    if tid:
+        return tid
+    return _resolve_tenant_id(DEFAULT_TENANT_SLUG)
+
+
+def require_tenant() -> str:
+    """Tenant uuid vagy RuntimeError — csak akkor használd, ha biztosan kell
+    tenant (pl. insert-nél). Olvasásnál a get_current_tenant() fallback-je oké."""
+    tid = get_current_tenant()
+    if not tid:
+        raise RuntimeError("Tenant context not set and no DEFAULT_TENANT_SLUG resolvable")
+    return tid
+
+
+def _tenant_eq(query, tid: str | None = None):
+    """Hozzáadja a .eq("tenant_id", tid)-t egy supabase query-hez. Ha tid None,
+    a get_current_tenant()-et használja (ami a default tenantre esik vissza)."""
+    effective = tid if tid is not None else get_current_tenant()
+    if effective:
+        return query.eq("tenant_id", effective)
+    return query
+
+
+def _with_tenant(payload: dict, tid: str | None = None) -> dict:
+    """Insert payload kiegészítése tenant_id-vel (ha nincs már benne)."""
+    if "tenant_id" not in payload or not payload.get("tenant_id"):
+        effective = tid if tid is not None else get_current_tenant()
+        if effective:
+            payload = {**payload, "tenant_id": effective}
+    return payload
+
+
+def get_active_tenants() -> list[dict]:
+    """Összes aktív tenant (worker-iterációhoz, super-admin UI-hoz)."""
+    if not supabase:
+        return []
+    try:
+        res = supabase.table("tenants").select("id,slug,name,plan,active").eq("active", True).execute()
+        return res.data or []
+    except Exception as e:
+        logger.error(f"get_active_tenants hiba: {e}")
+        return []
+
+
+# ── Credential store (titkosított, per-tenant) ───────────────────────────────
+
+_CREDENTIALS_KEY = os.getenv("CREDENTIALS_ENCRYPTION_KEY", "")
+_fernet = None
+
+
+def _get_fernet():
+    """Fernet a CREDENTIALS_ENCRYPTION_KEY-ből (urlsafe base64 32 byte).
+    Ha nincs kulcs, None — ilyenkor a get_credential csak a .env fallback-re támaszkodik."""
+    global _fernet
+    if _fernet is not None:
+        return _fernet
+    if not _CREDENTIALS_KEY:
+        return None
+    try:
+        from cryptography.fernet import Fernet
+        key = _CREDENTIALS_KEY.encode()
+        # Ha nem valid 32-byte base64 kulcs, deriváljuk belőle
+        try:
+            _fernet = Fernet(key)
+        except Exception:
+            import base64
+            derived = base64.urlsafe_b64encode(hashlib.sha256(key).digest())
+            _fernet = Fernet(derived)
+        return _fernet
+    except Exception as e:
+        logger.error(f"Fernet init hiba: {e}")
+        return None
+
+
+def set_credential(tenant_id: str, key: str, value: str) -> bool:
+    """Per-tenant credential titkosított tárolása (upsert)."""
+    if not supabase:
+        return False
+    f = _get_fernet()
+    if not f:
+        logger.error("set_credential: CREDENTIALS_ENCRYPTION_KEY nincs beállítva")
+        return False
+    try:
+        enc = f.encrypt(value.encode()).decode()
+        supabase.table("tenant_credentials").upsert(
+            {"tenant_id": tenant_id, "key": key, "value_encrypted": enc},
+            on_conflict="tenant_id,key"
+        ).execute()
+        return True
+    except Exception as e:
+        logger.error(f"set_credential hiba ({key}): {e}")
+        return False
+
+
+def get_credential(tenant_id: str | None, key: str, default: str | None = None) -> str | None:
+    """Per-tenant credential kiolvasása (dekódolva). Ha nincs a táblában,
+    a `default`-ot adja (általában a megfelelő .env érték — platform-globális fallback)."""
+    if tenant_id:
+        try:
+            res = supabase.table("tenant_credentials").select("value_encrypted").eq("tenant_id", tenant_id).eq("key", key).limit(1).execute()
+            if res.data:
+                f = _get_fernet()
+                if f:
+                    return f.decrypt(res.data[0]["value_encrypted"].encode()).decode()
+        except Exception as e:
+            logger.warning(f"get_credential({key}) dekódolási hiba (fallback default-ra): {e}")
+    return default
+
 
 def init_db():
     if supabase:
@@ -51,26 +209,26 @@ def create_admin_user(username: str, password: str, email: str = "", role: str =
     """Create a new admin user with role (admin/manager/member). Max 1 manager allowed."""
     if not supabase: return False
     try:
-        res = supabase.table("admin_users").select("*").eq("username", username).execute()
+        res = _tenant_eq(supabase.table("admin_users").select("*")).eq("username", username).execute()
         if res.data:
             logger.warning(f"Admin user already exists: {username}")
             return False
-        
-        # Enforce max 1 manager per company
+
+        # Enforce max 1 manager per company (per tenant)
         if role == "manager":
-            existing_managers = supabase.table("admin_users").select("id").eq("role", "manager").execute()
+            existing_managers = _tenant_eq(supabase.table("admin_users").select("id")).eq("role", "manager").execute()
             if existing_managers.data and len(existing_managers.data) >= 1:
                 logger.warning("Cannot create manager: max 1 manager allowed per company")
                 return False
         
-        supabase.table("admin_users").insert({
+        supabase.table("admin_users").insert(_with_tenant({
             "username": username,
             "email": email,
             "password_hash": _hash_password(password),
             "role": role,
             "created_by": created_by,
             "full_name": full_name
-        }).execute()
+        })).execute()
         logger.info(f"Admin user created: {username} (role={role})")
         return True
     except Exception as e:
@@ -82,10 +240,10 @@ def verify_admin_user(username: str, password: str) -> dict | None:
     if not supabase: return None
     try:
         # Try username first
-        res = supabase.table("admin_users").select("*").eq("username", username).execute()
+        res = _tenant_eq(supabase.table("admin_users").select("*")).eq("username", username).execute()
         # Fallback: try email
         if not res.data:
-            res = supabase.table("admin_users").select("*").eq("email", username).execute()
+            res = _tenant_eq(supabase.table("admin_users").select("*")).eq("email", username).execute()
         if res.data:
             user = res.data[0]
             if _verify_password(password, user["password_hash"]):
@@ -93,9 +251,9 @@ def verify_admin_user(username: str, password: str) -> dict | None:
                 import threading
                 def _update_last_login(uid):
                     try:
-                        supabase.table("admin_users").update({
+                        _tenant_eq(supabase.table("admin_users").update({
                             "last_login": datetime.now(timezone.utc).isoformat()
-                        }).eq("id", uid).execute()
+                        })).eq("id", uid).execute()
                     except Exception:
                         pass
                 threading.Thread(target=_update_last_login, args=(user["id"],), daemon=True).start()
@@ -122,9 +280,9 @@ def get_admin_users() -> list[dict]:
     """List all admin users (without password hashes)."""
     if not supabase: return []
     try:
-        res = supabase.table("admin_users").select(
+        res = _tenant_eq(supabase.table("admin_users").select(
             "id, username, email, role, full_name, created_at, last_login, created_by"
-        ).order("created_at", desc=False).execute()
+        )).order("created_at", desc=False).execute()
         return res.data or []
     except Exception as e:
         logger.error(f"Error listing admin users: {e}")
@@ -134,9 +292,9 @@ def get_admin_user_by_username(username: str) -> dict | None:
     """Get a single admin user by username (without password hash)."""
     if not supabase: return None
     try:
-        res = supabase.table("admin_users").select(
+        res = _tenant_eq(supabase.table("admin_users").select(
             "id, username, email, role, full_name"
-        ).eq("username", username).execute()
+        )).eq("username", username).execute()
         return res.data[0] if res.data else None
     except Exception as e:
         logger.error(f"Error getting admin user: {e}")
@@ -146,13 +304,13 @@ def update_admin_role(user_id: int, role: str) -> bool:
     """Update admin user role (admin/manager/member). Max 1 manager enforced."""
     if not supabase or role not in ("admin", "manager", "member"): return False
     try:
-        # Enforce max 1 manager per company
+        # Enforce max 1 manager per company (per tenant)
         if role == "manager":
-            existing_managers = supabase.table("admin_users").select("id").eq("role", "manager").neq("id", user_id).execute()
+            existing_managers = _tenant_eq(supabase.table("admin_users").select("id")).eq("role", "manager").neq("id", user_id).execute()
             if existing_managers.data and len(existing_managers.data) >= 1:
                 logger.warning("Cannot change role to manager: max 1 manager allowed per company")
                 return False
-        supabase.table("admin_users").update({"role": role}).eq("id", user_id).execute()
+        _tenant_eq(supabase.table("admin_users").update({"role": role})).eq("id", user_id).execute()
         logger.info(f"Updated admin user {user_id} role to {role}")
         return True
     except Exception as e:
@@ -163,7 +321,7 @@ def delete_admin_user(user_id: int) -> bool:
     """Delete an admin user."""
     if not supabase: return False
     try:
-        supabase.table("admin_users").delete().eq("id", user_id).execute()
+        _tenant_eq(supabase.table("admin_users").delete()).eq("id", user_id).execute()
         logger.info(f"Deleted admin user {user_id}")
         return True
     except Exception as e:
@@ -174,9 +332,9 @@ def update_admin_password(user_id: int, new_password: str) -> bool:
     """Update admin user password."""
     if not supabase: return False
     try:
-        supabase.table("admin_users").update({
+        _tenant_eq(supabase.table("admin_users").update({
             "password_hash": _hash_password(new_password)
-        }).eq("id", user_id).execute()
+        })).eq("id", user_id).execute()
         logger.info(f"Updated password for admin user {user_id}")
         return True
     except Exception as e:
@@ -190,40 +348,40 @@ def update_admin_password(user_id: int, new_password: str) -> bool:
 def create_session(session_id: str, room_name: str, participant: str = "") -> None:
     if not supabase: return
     try:
-        supabase.table("sessions").insert({
+        supabase.table("sessions").insert(_with_tenant({
             "session_id": session_id,
             "room_name": room_name,
             "started_at": datetime.now(timezone.utc).isoformat(),
             "participant": participant
-        }).execute()
+        })).execute()
     except Exception as e:
         logger.error(f"Error creating session: {e}")
 
 def close_session(session_id: str) -> None:
     if not supabase: return
     try:
-        res = supabase.table("sessions").select("started_at").eq("session_id", session_id).execute()
+        res = _tenant_eq(supabase.table("sessions").select("started_at")).eq("session_id", session_id).execute()
         if res.data:
             started_at = datetime.fromisoformat(res.data[0]["started_at"].replace("Z", "+00:00"))
             duration = int((datetime.now(timezone.utc) - started_at).total_seconds())
-            supabase.table("sessions").update({
+            _tenant_eq(supabase.table("sessions").update({
                 "ended_at": datetime.now(timezone.utc).isoformat(),
                 "duration_seconds": duration
-            }).eq("session_id", session_id).execute()
+            })).eq("session_id", session_id).execute()
     except Exception as e:
         logger.error(f"Error closing session: {e}")
 
 def update_session_participant(session_id: str, participant: str) -> None:
     if not supabase: return
     try:
-        supabase.table("sessions").update({"participant": participant}).eq("session_id", session_id).execute()
+        _tenant_eq(supabase.table("sessions").update({"participant": participant})).eq("session_id", session_id).execute()
     except Exception as e:
         logger.error(f"Error updating session participant: {e}")
 
 def get_sessions(limit: int = 50) -> list[dict]:
     if not supabase: return []
     try:
-        return supabase.table("sessions").select("*").order("started_at", desc=True).limit(limit).execute().data
+        return _tenant_eq(supabase.table("sessions").select("*")).order("started_at", desc=True).limit(limit).execute().data
     except Exception:
         return []
 
@@ -253,7 +411,7 @@ def log_interaction(type: str, topic: str = "", summary: str = "", result: str =
             data["client_id"] = client_id
         if classification is not None:
             data["classification"] = classification
-        supabase.table("interactions").insert(data).execute()
+        supabase.table("interactions").insert(_with_tenant(data)).execute()
     except Exception as e:
         logger.error(f"Error logging interaction: {e}")
         # Fallback: try dropping optional columns that may not exist in the schema
@@ -267,7 +425,7 @@ def log_interaction(type: str, topic: str = "", summary: str = "", result: str =
         if dropped:
             logger.info(f"Attempting fallback log without {', '.join(dropped)}...")
             try:
-                supabase.table("interactions").insert(data).execute()
+                supabase.table("interactions").insert(_with_tenant(data)).execute()
                 logger.info(f"Fallback log successful ({', '.join(dropped)} dropped)!")
             except Exception as fe:
                 logger.error(f"Fallback log failed: {fe}")
@@ -279,7 +437,7 @@ def log_interaction(type: str, topic: str = "", summary: str = "", result: str =
 def get_calendar_events() -> list[dict]:
     if not supabase: return []
     try:
-        res = supabase.table("calendar_events").select("*").order("start_dt", desc=False).execute()
+        res = _tenant_eq(supabase.table("calendar_events").select("*")).order("start_dt", desc=False).execute()
         return res.data
     except Exception:
         return []
@@ -287,14 +445,14 @@ def get_calendar_events() -> list[dict]:
 def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", attendee_email="") -> int:
     if not supabase: return 0
     try:
-        res = supabase.table("calendar_events").insert({
+        res = supabase.table("calendar_events").insert(_with_tenant({
             "title": title,
             "start_dt": start_dt,
             "end_dt": end_dt,
             "duration_minutes": duration_minutes,
             "attendee": attendee,
             "attendee_email": attendee_email
-        }).execute()
+        })).execute()
         return res.data[0]["id"] if res.data else 0
     except Exception as e:
         logger.error(f"Add event error: {e}")
@@ -306,7 +464,7 @@ def update_calendar_event(event_id: int, **fields) -> bool:
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates: return False
     try:
-        supabase.table("calendar_events").update(updates).eq("id", event_id).execute()
+        _tenant_eq(supabase.table("calendar_events").update(updates)).eq("id", event_id).execute()
         return True
     except Exception:
         return False
@@ -314,7 +472,7 @@ def update_calendar_event(event_id: int, **fields) -> bool:
 def delete_calendar_event(event_id: int) -> bool:
     if not supabase: return False
     try:
-        supabase.table("calendar_events").delete().eq("id", event_id).execute()
+        _tenant_eq(supabase.table("calendar_events").delete()).eq("id", event_id).execute()
         return True
     except Exception:
         return False
@@ -322,7 +480,7 @@ def delete_calendar_event(event_id: int) -> bool:
 def find_calendar_event_by_title(title_fragment: str) -> dict | None:
     if not supabase: return None
     try:
-        res = supabase.table("calendar_events").select("*").ilike("title", f"%{title_fragment}%").order("start_dt", desc=False).limit(1).execute()
+        res = _tenant_eq(supabase.table("calendar_events").select("*")).ilike("title", f"%{title_fragment}%").order("start_dt", desc=False).limit(1).execute()
         return res.data[0] if res.data else None
     except Exception:
         return None
@@ -332,7 +490,7 @@ def find_upcoming_event_by_attendee(email: str = None, name: str = None) -> dict
     from datetime import datetime
     now_iso = datetime.now().isoformat()
     try:
-        query = supabase.table("calendar_events").select("*").gte("start_dt", now_iso).order("start_dt", desc=False)
+        query = _tenant_eq(supabase.table("calendar_events").select("*")).gte("start_dt", now_iso).order("start_dt", desc=False)
         if email:
             query = query.eq("attendee_email", email)
         elif name:
@@ -350,7 +508,7 @@ def find_upcoming_event_by_attendee(email: str = None, name: str = None) -> dict
 def get_calendar_event(event_id: int) -> dict | None:
     if not supabase: return None
     try:
-        res = supabase.table("calendar_events").select("*").eq("id", event_id).execute()
+        res = _tenant_eq(supabase.table("calendar_events").select("*")).eq("id", event_id).execute()
         return res.data[0] if res.data else None
     except Exception as e:
         logger.error(f"Get calendar event error: {e}")
@@ -363,7 +521,7 @@ def get_calendar_event(event_id: int) -> dict | None:
 def add_email_log(to_name, to_email, subject, message, status, error="", session_id="") -> int:
     if not supabase: return 0
     try:
-        res = supabase.table("email_logs").insert({
+        res = supabase.table("email_logs").insert(_with_tenant({
             "to_name": to_name,
             "to_email": to_email,
             "subject": subject,
@@ -371,7 +529,7 @@ def add_email_log(to_name, to_email, subject, message, status, error="", session
             "status": status,
             "error": error or None,
             "session_id": session_id or None
-        }).execute()
+        })).execute()
         return res.data[0]["id"] if res.data else 0
     except Exception:
         return 0
@@ -384,7 +542,7 @@ def get_grouped_interactions(limit: int = 100, offset: int = 0) -> dict:
     if not supabase:
         return {"sessions": [], "total": 0}
     try:
-        res = supabase.rpc("get_grouped_interactions", {"p_limit": limit, "p_offset": offset}).execute()
+        res = supabase.rpc("get_grouped_interactions", {"p_limit": limit, "p_offset": offset, "p_tenant": get_current_tenant()}).execute()
         data = res.data
         if not isinstance(data, dict):
             return {"sessions": [], "total": 0}
@@ -392,7 +550,7 @@ def get_grouped_interactions(limit: int = 100, offset: int = 0) -> dict:
         try:
             sids = [s.get("session_id") for s in data.get("sessions", []) if s.get("session_id")]
             if sids:
-                sres = supabase.table("sessions").select("session_id, room_name, participant").in_("session_id", sids).execute()
+                sres = _tenant_eq(supabase.table("sessions").select("session_id, room_name, participant")).in_("session_id", sids).execute()
                 smap = {s["session_id"]: s for s in (sres.data or [])}
                 for s in data.get("sessions", []):
                     sess = smap.get(s.get("session_id"), {})
@@ -409,7 +567,7 @@ def get_grouped_interactions(limit: int = 100, offset: int = 0) -> dict:
 def get_email_logs(limit: int = 100) -> list[dict]:
     if not supabase: return []
     try:
-        res = supabase.table("email_logs").select("*").order("sent_at", desc=True).limit(limit).execute()
+        res = _tenant_eq(supabase.table("email_logs").select("*")).order("sent_at", desc=True).limit(limit).execute()
         return res.data
     except Exception:
         return []
@@ -426,11 +584,11 @@ def claim_processed_email(message_id: str, from_email: str = "", session_id: str
     if not supabase or not message_id:
         return True
     try:
-        supabase.table("processed_emails").insert({
+        supabase.table("processed_emails").insert(_with_tenant({
             "message_id": message_id,
             "from_email": from_email or None,
             "session_id": session_id or None,
-        }).execute()
+        })).execute()
         return True
     except Exception as e:
         err = str(e)
@@ -443,7 +601,7 @@ def update_processed_email_status(message_id: str, status: str) -> bool:
     if not supabase or not message_id:
         return False
     try:
-        supabase.table("processed_emails").update({"status": status}).eq("message_id", message_id).execute()
+        _tenant_eq(supabase.table("processed_emails").update({"status": status})).eq("message_id", message_id).execute()
         return True
     except Exception:
         return False
@@ -455,12 +613,12 @@ def update_processed_email_status(message_id: str, status: str) -> bool:
 def add_task(text, priority="normal", due_date="", session_id="") -> int:
     if not supabase: return 0
     try:
-        res = supabase.table("tasks").insert({
+        res = supabase.table("tasks").insert(_with_tenant({
             "text": text,
             "priority": priority,
             "due_date": due_date or None,
             "session_id": session_id or None
-        }).execute()
+        })).execute()
         return res.data[0]["id"] if res.data else 0
     except Exception:
         return 0
@@ -468,7 +626,7 @@ def add_task(text, priority="normal", due_date="", session_id="") -> int:
 def get_tasks(completed: bool | None = None, limit: int = 100) -> list[dict]:
     if not supabase: return []
     try:
-        query = supabase.table("tasks").select("*").order("created_at", desc=True).limit(limit)
+        query = _tenant_eq(supabase.table("tasks").select("*")).order("created_at", desc=True).limit(limit)
         if completed is not None:
             query = query.eq("completed", 1 if completed else 0)
         res = query.execute()
@@ -479,10 +637,10 @@ def get_tasks(completed: bool | None = None, limit: int = 100) -> list[dict]:
 def update_task_complete(task_id: int) -> dict:
     if not supabase: return {"ok": False}
     try:
-        res = supabase.table("tasks").select("completed").eq("id", task_id).execute()
+        res = _tenant_eq(supabase.table("tasks").select("completed")).eq("id", task_id).execute()
         if not res.data: return {"ok": False}
         new_val = 0 if res.data[0]["completed"] else 1
-        supabase.table("tasks").update({"completed": new_val}).eq("id", task_id).execute()
+        _tenant_eq(supabase.table("tasks").update({"completed": new_val})).eq("id", task_id).execute()
         return {"ok": True, "completed": bool(new_val)}
     except Exception:
         return {"ok": False}
@@ -490,7 +648,7 @@ def update_task_complete(task_id: int) -> dict:
 def delete_task(task_id: int) -> bool:
     if not supabase: return False
     try:
-        supabase.table("tasks").delete().eq("id", task_id).execute()
+        _tenant_eq(supabase.table("tasks").delete()).eq("id", task_id).execute()
         return True
     except Exception:
         return False
@@ -515,7 +673,7 @@ def get_alerts_stats(period: str = "month", channel: str = "mind", clinic_id: st
             start_dt = today - timedelta(days=365)
 
         # Fetch interactions with alert_tags, filtered by period
-        all_alerts_query = supabase.table("interactions").select("type, alert_tags, clinic_id").not_.is_("alert_tags", "null").neq("approval_status", "spam").gte("created_at", start_dt.isoformat()).execute()
+        all_alerts_query = _tenant_eq(supabase.table("interactions").select("type, alert_tags, clinic_id")).not_.is_("alert_tags", "null").neq("approval_status", "spam").gte("created_at", start_dt.isoformat()).execute()
         urgent_count = complaint_count = callback_count = recurring_count = 0
         for row in all_alerts_query.data:
             if not _matches_channel(row.get("type"), channel): continue
@@ -533,7 +691,7 @@ def get_alerts_stats(period: str = "month", channel: str = "mind", clinic_id: st
         stuck_count = 0
         if channel == "mind":
             yesterday = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
-            clients_res = supabase.table("clients").select("id, status, custom_data").lt("created_at", yesterday).execute()
+            clients_res = _tenant_eq(supabase.table("clients").select("id, status, custom_data")).lt("created_at", yesterday).execute()
             
             closed_statuses = ["lezarva", "siker", "kuka", "befejezett", "lezart"]
             for c in clients_res.data:
@@ -567,7 +725,7 @@ def get_alert_details(alert_type: str) -> list[dict]:
     try:
         if alert_type == "stuck":
             yesterday = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
-            clients_res = supabase.table("clients").select("*").lt("created_at", yesterday).order("created_at", desc=True).execute()
+            clients_res = _tenant_eq(supabase.table("clients").select("*")).lt("created_at", yesterday).order("created_at", desc=True).execute()
             
             stuck_cases = []
             closed_statuses = ["lezarva", "siker", "kuka", "befejezett", "lezart"]
@@ -594,7 +752,7 @@ def get_alert_details(alert_type: str) -> list[dict]:
             return stuck_cases
         elif alert_type in ["urgent", "complaint", "callback", "recurring"]:
             # Standard interactions filter
-            res = supabase.table("interactions").select("*").contains("alert_tags", f'["{alert_type}"]').order("created_at", desc=True).limit(50).execute()
+            res = _tenant_eq(supabase.table("interactions").select("*")).contains("alert_tags", f'["{alert_type}"]').order("created_at", desc=True).limit(50).execute()
             
             alerts = []
             for item in res.data:
@@ -616,7 +774,7 @@ def get_alert_details(alert_type: str) -> list[dict]:
 def get_latest_ai_insights() -> list[str]:
     if not supabase: return []
     try:
-        res = supabase.table("ai_insights").select("insights").order("created_at", desc=True).limit(1).execute()
+        res = _tenant_eq(supabase.table("ai_insights").select("insights")).order("created_at", desc=True).limit(1).execute()
         if res.data and len(res.data) > 0:
             return res.data[0].get("insights", [])
         return []
@@ -627,7 +785,7 @@ def get_latest_ai_insights() -> list[str]:
 def save_ai_insights(insights: list[str]) -> bool:
     if not supabase: return False
     try:
-        supabase.table("ai_insights").insert({"insights": insights}).execute()
+        supabase.table("ai_insights").insert(_with_tenant({"insights": insights})).execute()
         return True
     except Exception as e:
         logger.error(f"Save AI insights error: {e}")
@@ -692,10 +850,10 @@ def get_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mi
     try:
         # Fallback to count="exact" for Mind channel
         if channel == "mind" and clinic_id == "mind":
-            sess_res = supabase.table("sessions").select("id", count="exact", head=True).gte("started_at", start_dt.isoformat()).execute()
-            inter_res = supabase.table("interactions").select("id", count="exact", head=True).gte("created_at", start_dt.isoformat()).execute()
-            email_res = supabase.table("email_logs").select("id", count="exact", head=True).gte("sent_at", start_dt.isoformat()).execute()
-            cal_res = supabase.table("calendar_events").select("id", count="exact", head=True).gte("start_dt", start_dt.isoformat()).execute()
+            sess_res = _tenant_eq(supabase.table("sessions").select("id", count="exact", head=True)).gte("started_at", start_dt.isoformat()).execute()
+            inter_res = _tenant_eq(supabase.table("interactions").select("id", count="exact", head=True)).gte("created_at", start_dt.isoformat()).execute()
+            email_res = _tenant_eq(supabase.table("email_logs").select("id", count="exact", head=True)).gte("sent_at", start_dt.isoformat()).execute()
+            cal_res = _tenant_eq(supabase.table("calendar_events").select("id", count="exact", head=True)).gte("start_dt", start_dt.isoformat()).execute()
             
             tot_sess = sess_res.count or 0
             tot_inter = inter_res.count or 0
@@ -710,14 +868,14 @@ def get_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mi
             tot_email = 0
             tot_cal = 0
         
-        prev_sess = supabase.table("sessions").select("id", count="exact", head=True).gte("started_at", prev_start.isoformat()).lt("started_at", prev_end.isoformat()).execute()
-        prev_inter = supabase.table("interactions").select("id", count="exact", head=True).gte("created_at", prev_start.isoformat()).lt("created_at", prev_end.isoformat()).execute()
-        prev_email = supabase.table("email_logs").select("id", count="exact", head=True).gte("sent_at", prev_start.isoformat()).lt("sent_at", prev_end.isoformat()).execute()
-        prev_cal = supabase.table("calendar_events").select("id", count="exact", head=True).gte("start_dt", prev_start.isoformat()).lt("start_dt", prev_end.isoformat()).execute()
+        prev_sess = _tenant_eq(supabase.table("sessions").select("id", count="exact", head=True)).gte("started_at", prev_start.isoformat()).lt("started_at", prev_end.isoformat()).execute()
+        prev_inter = _tenant_eq(supabase.table("interactions").select("id", count="exact", head=True)).gte("created_at", prev_start.isoformat()).lt("created_at", prev_end.isoformat()).execute()
+        prev_email = _tenant_eq(supabase.table("email_logs").select("id", count="exact", head=True)).gte("sent_at", prev_start.isoformat()).lt("sent_at", prev_end.isoformat()).execute()
+        prev_cal = _tenant_eq(supabase.table("calendar_events").select("id", count="exact", head=True)).gte("start_dt", prev_start.isoformat()).lt("start_dt", prev_end.isoformat()).execute()
 
-        tasks_res = supabase.table("tasks").select("id", count="exact", head=True).eq("completed", 0).execute()
+        tasks_res = _tenant_eq(supabase.table("tasks").select("id", count="exact", head=True)).eq("completed", 0).execute()
 
-        all_inters = supabase.table("interactions").select("type, topic, handover_reason, created_at, clinic_id, session_id, approval_status").gte("created_at", start_dt.isoformat()).neq("approval_status", "spam").execute()
+        all_inters = _tenant_eq(supabase.table("interactions").select("type, topic, handover_reason, created_at, clinic_id, session_id, approval_status")).gte("created_at", start_dt.isoformat()).neq("approval_status", "spam").execute()
         type_counts = {}
         seen_sessions_for_type = set()
         topic_counts = {}
@@ -799,7 +957,7 @@ def get_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mi
         # Sort handovers primarily by predefined order or count, but dict items are fine as is, we'll format them to a list
         handovers = [{"reason": k, "count": v} for k, v in handover_counts.items()]
 
-        all_sess = supabase.table("sessions").select("started_at, duration_seconds").gte("started_at", start_dt.isoformat()).execute()
+        all_sess = _tenant_eq(supabase.table("sessions").select("started_at, duration_seconds")).gte("started_at", start_dt.isoformat()).execute()
         day_counts = {}
         total_dur = 0
         valid_durs = 0
@@ -814,13 +972,13 @@ def get_stats(period: str = "month", channel: str = "mind", clinic_id: str = "mi
         
         avg_dur = (total_dur / valid_durs) if valid_durs > 0 else 0
 
-        prev_sess_data = supabase.table("sessions").select("duration_seconds").gte("started_at", prev_start.isoformat()).lt("started_at", prev_end.isoformat()).execute()
+        prev_sess_data = _tenant_eq(supabase.table("sessions").select("duration_seconds")).gte("started_at", prev_start.isoformat()).lt("started_at", prev_end.isoformat()).execute()
         prev_tot_dur = sum([s["duration_seconds"] for s in prev_sess_data.data if s.get("duration_seconds") is not None])
         prev_val_durs = len([s for s in prev_sess_data.data if s.get("duration_seconds") is not None])
         prev_avg_dur = (prev_tot_dur / prev_val_durs) if prev_val_durs > 0 else 0
 
         # Previous period handover count
-        prev_handover_res = supabase.table("interactions").select("id", count="exact", head=True).not_.is_("handover_reason", "null").gte("created_at", prev_start.isoformat()).lt("created_at", prev_end.isoformat()).execute()
+        prev_handover_res = _tenant_eq(supabase.table("interactions").select("id", count="exact", head=True)).not_.is_("handover_reason", "null").gte("created_at", prev_start.isoformat()).lt("created_at", prev_end.isoformat()).execute()
         prev_total_handovers = prev_handover_res.count or 0
 
         all_keys = []
@@ -882,7 +1040,7 @@ def get_outbound_stats(period: str = "month", channel: str = "mind", clinic_id: 
         start_dt = today - timedelta(days=365)
 
     try:
-        all_inters = supabase.table("interactions").select("session_id, direction, funnel_stage, handover_reason, created_at, type, clinic_id, topic").gte("created_at", start_dt.isoformat()).neq("approval_status", "spam").execute()
+        all_inters = _tenant_eq(supabase.table("interactions").select("session_id, direction, funnel_stage, handover_reason, created_at, type, clinic_id, topic")).gte("created_at", start_dt.isoformat()).neq("approval_status", "spam").execute()
         
         sessions = {}
         # also count interactions without session_id that are outbound
@@ -983,7 +1141,7 @@ def get_funnel_stats(period: str = "month", channel: str = "mind", clinic_id: st
         elif period == "month": start_dt = today.replace(day=1)
         else: start_dt = today - timedelta(days=365)
         
-        res = supabase.table("interactions").select("funnel_stage, type, clinic_id").gte("created_at", start_dt.isoformat()).neq("approval_status", "spam").execute()
+        res = _tenant_eq(supabase.table("interactions").select("funnel_stage, type, clinic_id")).gte("created_at", start_dt.isoformat()).neq("approval_status", "spam").execute()
         stages = []
         for r in res.data:
             if not _matches_channel(r.get("type"), channel): continue
@@ -1013,7 +1171,7 @@ def get_funnel_stats(period: str = "month", channel: str = "mind", clinic_id: st
 def get_interactions(limit: int = 100, type_filter: str = "") -> list[dict]:
     if not supabase: return []
     try:
-        query = supabase.table("interactions").select("*").order("created_at", desc=True).limit(limit)
+        query = _tenant_eq(supabase.table("interactions").select("*")).order("created_at", desc=True).limit(limit)
         if type_filter:
             query = query.eq("type", type_filter)
         res = query.execute()
@@ -1022,7 +1180,7 @@ def get_interactions(limit: int = 100, type_filter: str = "") -> list[dict]:
         # Enrich with session participant names
         session_ids = list(set(i.get("session_id") for i in interactions if i.get("session_id")))
         if session_ids:
-            sess_res = supabase.table("sessions").select("session_id, participant").in_("session_id", session_ids).execute()
+            sess_res = _tenant_eq(supabase.table("sessions").select("session_id, participant")).in_("session_id", session_ids).execute()
             sess_map = {s["session_id"]: s.get("participant", "") for s in (sess_res.data or [])}
             for i in interactions:
                 sid = i.get("session_id")
@@ -1055,14 +1213,14 @@ def _build_session_summary(interactions: list[dict]) -> str:
 def get_sessions_with_summary(limit: int = 50) -> list[dict]:
     if not supabase: return []
     try:
-        sessions = supabase.table("sessions").select("*").order("started_at", desc=True).limit(limit).execute().data
+        sessions = _tenant_eq(supabase.table("sessions").select("*")).order("started_at", desc=True).limit(limit).execute().data
         if not sessions:
             return []
             
         session_ids = [s["session_id"] for s in sessions]
         
         # 1 lekérdezéssel lehozzuk az összes interakciót (N+1 query javítás)
-        all_inters = supabase.table("interactions").select("*").in_("session_id", session_ids).order("created_at", desc=False).execute().data
+        all_inters = _tenant_eq(supabase.table("interactions").select("*")).in_("session_id", session_ids).order("created_at", desc=False).execute().data
         
         inters_by_session = {}
         for inter in all_inters:
@@ -1109,13 +1267,13 @@ def add_client(custom_data: dict, status: str = "uj") -> int:
     if not supabase: return 0
     name = custom_data.get("name", "Névtelen").strip() or "Névtelen"
     try:
-        res = supabase.table("clients").insert({
+        res = supabase.table("clients").insert(_with_tenant({
             "name": name,
             "email": custom_data.get("email", ""),
             "phone": custom_data.get("phone", ""),
             "status": status,
             "custom_data": custom_data
-        }).execute()
+        })).execute()
         return res.data[0]["id"] if res.data else 0
     except Exception as e:
         logger.error(f"Add client error: {e}")
@@ -1148,14 +1306,14 @@ def find_client_by_contact(email: str = "", phone: str = "", messenger_id: str =
     if not supabase: return None
     try:
         if messenger_id:
-            res = supabase.table("clients").select("*").contains("custom_data", {"messenger_id": messenger_id}).order("id", desc=True).limit(1).execute()
+            res = _tenant_eq(supabase.table("clients").select("*")).contains("custom_data", {"messenger_id": messenger_id}).order("id", desc=True).limit(1).execute()
             if res.data: return res.data[0]
         if email and phone:
-            res = supabase.table("clients").select("*").or_(f"email.eq.{email},phone.eq.{phone}").order("id", desc=True).limit(1).execute()
+            res = _tenant_eq(supabase.table("clients").select("*")).or_(f"email.eq.{email},phone.eq.{phone}").order("id", desc=True).limit(1).execute()
         elif email:
-            res = supabase.table("clients").select("*").eq("email", email).order("id", desc=True).limit(1).execute()
+            res = _tenant_eq(supabase.table("clients").select("*")).eq("email", email).order("id", desc=True).limit(1).execute()
         elif phone:
-            res = supabase.table("clients").select("*").eq("phone", phone).order("id", desc=True).limit(1).execute()
+            res = _tenant_eq(supabase.table("clients").select("*")).eq("phone", phone).order("id", desc=True).limit(1).execute()
         else:
             res = None
         if res and res.data:
@@ -1165,12 +1323,12 @@ def find_client_by_contact(email: str = "", phone: str = "", messenger_id: str =
         # részleges név (pl. „Péter") így nem ír felül egy másik ügyfelet véletlenül.
         if is_valid_client_name(name):
             n = name.strip()
-            res = supabase.table("clients").select("*").ilike("name", n).order("id", desc=True).limit(1).execute()
+            res = _tenant_eq(supabase.table("clients").select("*")).ilike("name", n).order("id", desc=True).limit(1).execute()
             if res.data:
                 return res.data[0]
             # substring match csak elég hosszú (≥5 karakteres) névvel
             if len(n) >= 5:
-                res = supabase.table("clients").select("*").ilike("name", f"%{n}%").order("id", desc=True).limit(1).execute()
+                res = _tenant_eq(supabase.table("clients").select("*")).ilike("name", f"%{n}%").order("id", desc=True).limit(1).execute()
                 if res.data:
                     return res.data[0]
         return None
@@ -1189,7 +1347,7 @@ def upsert_client(custom_data: dict, additional_log: str = "", status: str | Non
     # hozna létre.
     if existing_id:
         try:
-            res = supabase.table("clients").select("*").eq("id", existing_id).limit(1).execute()
+            res = _tenant_eq(supabase.table("clients").select("*")).eq("id", existing_id).limit(1).execute()
             existing = res.data[0] if res.data else None
         except Exception as e:
             logger.error(f"Upsert client by id error: {e}")
@@ -1228,7 +1386,7 @@ def upsert_client(custom_data: dict, additional_log: str = "", status: str | Non
 def get_clients(limit: int = 500) -> list[dict]:
     if not supabase: return []
     try:
-        res = supabase.table("clients").select("*").order("created_at", desc=True).limit(limit).execute()
+        res = _tenant_eq(supabase.table("clients").select("*")).order("created_at", desc=True).limit(limit).execute()
         return res.data
     except Exception:
         return []
@@ -1236,7 +1394,7 @@ def get_clients(limit: int = 500) -> list[dict]:
 def update_client_status(client_id: int, status: str) -> bool:
     if not supabase: return False
     try:
-        supabase.table("clients").update({"status": status}).eq("id", client_id).execute()
+        _tenant_eq(supabase.table("clients").update({"status": status})).eq("id", client_id).execute()
         return True
     except Exception:
         return False
@@ -1257,19 +1415,19 @@ def delete_client_by_meta_id(meta_id: str) -> int:
         # custom_data JSONB contains() működik messenger_id/instagram_id/etc-re
         meta_id_clean = str(meta_id).strip()
         candidates: list[dict] = []
-        # 1) custom_data kulcsokon
+        # 1) custom_data kulcsokon — TENANT-SZŰRVE (különben cross-tenant törlés!)
         for key in ("messenger_id", "messenger_psid", "instagram_id", "whatsapp_id", "wa_id"):
             try:
-                res = supabase.table("clients").select("id,phone,custom_data").contains("custom_data", {key: meta_id_clean}).execute()
+                res = _tenant_eq(supabase.table("clients").select("id,phone,custom_data")).contains("custom_data", {key: meta_id_clean}).execute()
                 if res.data:
                     candidates.extend(res.data)
             except Exception:
                 pass
-        # 2) telefonszám (WhatsApp) — digit-normalizált egyezés is
+        # 2) telefonszám (WhatsApp) — digit-normalizált egyezés is, TENANT-SZŰRVE
         meta_digits = ''.join(ch for ch in meta_id_clean if ch.isdigit())
         if meta_digits and len(meta_digits) >= 7:
             try:
-                res = supabase.table("clients").select("id,phone,custom_data").execute()
+                res = _tenant_eq(supabase.table("clients").select("id,phone,custom_data")).execute()
                 for c in (res.data or []):
                     c_digits = ''.join(ch for ch in str(c.get("phone") or "") if ch.isdigit())
                     if c_digits and (c_digits == meta_digits or c_digits.endswith(meta_digits) or meta_digits.endswith(c_digits)):
@@ -1298,7 +1456,7 @@ def delete_client_by_meta_id(meta_id: str) -> int:
 def delete_client(client_id: int) -> bool:
     if not supabase: return False
     try:
-        client = supabase.table("clients").select("name, email, phone, custom_data").eq("id", client_id).execute().data
+        client = _tenant_eq(supabase.table("clients").select("name, email, phone, custom_data")).eq("id", client_id).execute().data
         if client:
             c = client[0]
             name = c.get("name")
@@ -1307,44 +1465,43 @@ def delete_client(client_id: int) -> bool:
             cd = c.get("custom_data") or {}
             messenger_id = cd.get("messenger_id", "")
 
-            # ── Delete calendar events ──
+            # ── Delete calendar events (tenant-szűrve) ──
             if name and name not in ("Névtelen", "-"):
-                supabase.table("calendar_events").delete().or_(f"title.ilike.%{name}%,attendee.ilike.%{name}%").execute()
+                _tenant_eq(supabase.table("calendar_events").delete()).or_(f"title.ilike.%{name}%,attendee.ilike.%{name}%").execute()
             if email and email != "-":
-                supabase.table("calendar_events").delete().or_(f"title.ilike.%{email}%,attendee_email.ilike.%{email}%").execute()
+                _tenant_eq(supabase.table("calendar_events").delete()).or_(f"title.ilike.%{email}%,attendee_email.ilike.%{email}%").execute()
 
-            # ── Delete ALL related sessions & interactions ──
-            # Collect session_ids that belong to this client
+            # ── Delete ALL related sessions & interactions (tenant-szűrve) ──
             session_ids_to_delete = set()
 
             # By email
             if email and email != "-":
-                supabase.table("email_logs").delete().eq("to_email", email).execute()
-                sess_res = supabase.table("sessions").select("session_id").or_(f"session_id.ilike.%{email}%,participant.ilike.%{email}%").execute()
+                _tenant_eq(supabase.table("email_logs").delete()).eq("to_email", email).execute()
+                sess_res = _tenant_eq(supabase.table("sessions").select("session_id")).or_(f"session_id.ilike.%{email}%,participant.ilike.%{email}%").execute()
                 for s in (sess_res.data or []):
                     session_ids_to_delete.add(s["session_id"])
 
             # By name
             if name and name not in ("Névtelen", "-"):
-                sess_res = supabase.table("sessions").select("session_id").ilike("participant", f"%{name}%").execute()
+                sess_res = _tenant_eq(supabase.table("sessions").select("session_id")).ilike("participant", f"%{name}%").execute()
                 for s in (sess_res.data or []):
                     session_ids_to_delete.add(s["session_id"])
 
             # By phone
             if phone and phone not in ("", "-"):
-                sess_res = supabase.table("sessions").select("session_id").ilike("participant", f"%{phone}%").execute()
+                sess_res = _tenant_eq(supabase.table("sessions").select("session_id")).ilike("participant", f"%{phone}%").execute()
                 for s in (sess_res.data or []):
                     session_ids_to_delete.add(s["session_id"])
 
             # By messenger_id (session_id often contains it)
             if messenger_id:
-                sess_res = supabase.table("sessions").select("session_id").ilike("session_id", f"%{messenger_id}%").execute()
+                sess_res = _tenant_eq(supabase.table("sessions").select("session_id")).ilike("session_id", f"%{messenger_id}%").execute()
                 for s in (sess_res.data or []):
                     session_ids_to_delete.add(s["session_id"])
 
             # Also try to find interactions by client name in participant field of their sessions
             if name and name not in ("Névtelen", "-"):
-                inter_sess_res = supabase.table("interactions").select("session_id").ilike("topic", f"%{name}%").execute()
+                inter_sess_res = _tenant_eq(supabase.table("interactions").select("session_id")).ilike("topic", f"%{name}%").execute()
                 for i in (inter_sess_res.data or []):
                     if i.get("session_id"):
                         session_ids_to_delete.add(i["session_id"])
@@ -1354,11 +1511,11 @@ def delete_client(client_id: int) -> bool:
             # Supabase .in_() has a limit, process in chunks
             for chunk_start in range(0, len(sid_list), 50):
                 chunk = sid_list[chunk_start:chunk_start + 50]
-                supabase.table("interactions").delete().in_("session_id", chunk).execute()
-                supabase.table("sessions").delete().in_("session_id", chunk).execute()
+                _tenant_eq(supabase.table("interactions").delete()).in_("session_id", chunk).execute()
+                _tenant_eq(supabase.table("sessions").delete()).in_("session_id", chunk).execute()
 
         # ── Finally delete the client record itself ──
-        supabase.table("clients").delete().eq("id", client_id).execute()
+        _tenant_eq(supabase.table("clients").delete()).eq("id", client_id).execute()
         return True
     except Exception as e:
         logger.error(f"Delete client cascade error: {e}")
@@ -1368,12 +1525,12 @@ def edit_client_details(client_id: int, custom_data: dict) -> bool:
     if not supabase: return False
     name = custom_data.get("name", "Névtelen").strip() or "Névtelen"
     try:
-        supabase.table("clients").update({
+        _tenant_eq(supabase.table("clients").update({
             "name": name,
             "email": custom_data.get("email", ""),
             "phone": custom_data.get("phone", ""),
             "custom_data": custom_data
-        }).eq("id", client_id).execute()
+        })).eq("id", client_id).execute()
         return True
     except Exception:
         return False
@@ -1382,7 +1539,7 @@ def add_client_tags(client_id: int, tags: list[str]) -> tuple[bool, list[str]]:
     """Add tags to a client's custom_data.tags array. Returns (success, actually_added_tags)."""
     if not supabase: return False, []
     try:
-        res = supabase.table("clients").select("custom_data").eq("id", client_id).execute()
+        res = _tenant_eq(supabase.table("clients").select("custom_data")).eq("id", client_id).execute()
         if not res.data:
             return False, []
         cd = res.data[0].get("custom_data") or {}
@@ -1391,7 +1548,7 @@ def add_client_tags(client_id: int, tags: list[str]) -> tuple[bool, list[str]]:
         if not new_tags:
             return True, []  # All tags already present
         cd["tags"] = current_tags + new_tags
-        supabase.table("clients").update({"custom_data": cd}).eq("id", client_id).execute()
+        _tenant_eq(supabase.table("clients").update({"custom_data": cd})).eq("id", client_id).execute()
         return True, new_tags
     except Exception as e:
         logger.error(f"Add client tags error: {e}")
@@ -1401,7 +1558,7 @@ def add_client_tags(client_id: int, tags: list[str]) -> tuple[bool, list[str]]:
 def get_client_fields() -> list[dict]:
     if not supabase: return []
     try:
-        res = supabase.table("client_fields").select("*").order("order_index", desc=False).execute()
+        res = _tenant_eq(supabase.table("client_fields").select("*")).order("order_index", desc=False).execute()
         return res.data
     except Exception:
         return []
@@ -1409,7 +1566,7 @@ def get_client_fields() -> list[dict]:
 def add_client_field(field_id: str, name: str, order_index: int) -> bool:
     if not supabase: return False
     try:
-        supabase.table("client_fields").insert({"id": field_id, "name": name, "order_index": order_index}).execute()
+        supabase.table("client_fields").insert(_with_tenant({"id": field_id, "name": name, "order_index": order_index})).execute()
         return True
     except Exception:
         return False
@@ -1417,7 +1574,7 @@ def add_client_field(field_id: str, name: str, order_index: int) -> bool:
 def update_client_field(field_id: str, name: str) -> bool:
     if not supabase: return False
     try:
-        supabase.table("client_fields").update({"name": name}).eq("id", field_id).execute()
+        _tenant_eq(supabase.table("client_fields").update({"name": name})).eq("id", field_id).execute()
         return True
     except Exception:
         return False
@@ -1425,7 +1582,7 @@ def update_client_field(field_id: str, name: str) -> bool:
 def delete_client_field(field_id: str) -> bool:
     if not supabase: return False
     try:
-        supabase.table("client_fields").delete().eq("id", field_id).execute()
+        _tenant_eq(supabase.table("client_fields").delete()).eq("id", field_id).execute()
         return True
     except Exception:
         return False
@@ -1433,7 +1590,7 @@ def delete_client_field(field_id: str) -> bool:
 def get_kanban_columns() -> list[dict]:
     if not supabase: return []
     try:
-        res = supabase.table("kanban_columns").select("*").order("order_index", desc=False).execute()
+        res = _tenant_eq(supabase.table("kanban_columns").select("*")).order("order_index", desc=False).execute()
         return res.data
     except Exception:
         return []
@@ -1441,7 +1598,7 @@ def get_kanban_columns() -> list[dict]:
 def add_kanban_column(col_id: str, name: str, order_index: int) -> bool:
     if not supabase: return False
     try:
-        supabase.table("kanban_columns").insert({"id": col_id, "name": name, "order_index": order_index}).execute()
+        supabase.table("kanban_columns").insert(_with_tenant({"id": col_id, "name": name, "order_index": order_index})).execute()
         return True
     except Exception:
         return False
@@ -1449,7 +1606,7 @@ def add_kanban_column(col_id: str, name: str, order_index: int) -> bool:
 def update_kanban_column(col_id: str, name: str) -> bool:
     if not supabase: return False
     try:
-        supabase.table("kanban_columns").update({"name": name}).eq("id", col_id).execute()
+        _tenant_eq(supabase.table("kanban_columns").update({"name": name})).eq("id", col_id).execute()
         return True
     except Exception:
         return False
@@ -1457,10 +1614,10 @@ def update_kanban_column(col_id: str, name: str) -> bool:
 def delete_kanban_column(col_id: str) -> bool:
     if not supabase: return False
     try:
-        count_res = supabase.table("clients").select("id", count="exact", head=True).eq("status", col_id).execute()
+        count_res = _tenant_eq(supabase.table("clients").select("id", count="exact", head=True)).eq("status", col_id).execute()
         if count_res.count and count_res.count > 0:
             raise ValueError(f"Nem törölheted: a(z) '{col_id}' oszlopban {count_res.count} ügyfél található.")
-        supabase.table("kanban_columns").delete().eq("id", col_id).execute()
+        _tenant_eq(supabase.table("kanban_columns").delete()).eq("id", col_id).execute()
         return True
     except ValueError as e:
         raise e
@@ -1474,7 +1631,7 @@ def delete_kanban_column(col_id: str) -> bool:
 def get_triage_rules() -> list[dict]:
     if not supabase: return []
     try:
-        res = supabase.table("triage_rules").select("*").order("id", desc=False).execute()
+        res = _tenant_eq(supabase.table("triage_rules").select("*")).order("id", desc=False).execute()
         return res.data
     except Exception:
         return []
@@ -1482,11 +1639,11 @@ def get_triage_rules() -> list[dict]:
 def add_triage_rule(situation: str, priority: str, escalation_email: str) -> int:
     if not supabase: return 0
     try:
-        res = supabase.table("triage_rules").insert({
+        res = supabase.table("triage_rules").insert(_with_tenant({
             "situation": situation,
             "priority": priority,
             "escalation_email": escalation_email or None
-        }).execute()
+        })).execute()
         return res.data[0]["id"] if res.data else 0
     except Exception as e:
         logger.error(f"Add triage rule error: {e}")
@@ -1495,11 +1652,11 @@ def add_triage_rule(situation: str, priority: str, escalation_email: str) -> int
 def update_triage_rule(rule_id: int, situation: str, priority: str, escalation_email: str) -> bool:
     if not supabase: return False
     try:
-        supabase.table("triage_rules").update({
+        _tenant_eq(supabase.table("triage_rules").update({
             "situation": situation,
             "priority": priority,
             "escalation_email": escalation_email or None
-        }).eq("id", rule_id).execute()
+        })).eq("id", rule_id).execute()
         return True
     except Exception:
         return False
@@ -1515,7 +1672,7 @@ def get_triage_rule_by_situation(situation: str) -> dict | None:
     if not supabase or not situation:
         return None
     try:
-        res = supabase.table("triage_rules").select("*").ilike("situation", situation).execute()
+        res = _tenant_eq(supabase.table("triage_rules").select("*")).ilike("situation", situation).execute()
         return res.data[0] if res.data else None
     except Exception as e:
         logger.error(f"get_triage_rule_by_situation error: {e}")
@@ -1551,13 +1708,13 @@ def upsert_triage_rule(situation: str, priority: str, escalation_email: str = ""
         if routing is not None:
             payload["routing"] = routing
         # Megnézzük létezik-e már
-        existing = supabase.table("triage_rules").select("id").ilike("situation", situation).execute()
+        existing = _tenant_eq(supabase.table("triage_rules").select("id")).ilike("situation", situation).execute()
         if existing.data:
             rule_id = existing.data[0]["id"]
-            supabase.table("triage_rules").update(payload).eq("id", rule_id).execute()
+            _tenant_eq(supabase.table("triage_rules").update(payload)).eq("id", rule_id).execute()
             return rule_id
         else:
-            res = supabase.table("triage_rules").insert(payload).execute()
+            res = supabase.table("triage_rules").insert(_with_tenant(payload)).execute()
             return res.data[0]["id"] if res.data else 0
     except Exception as e:
         logger.error(f"upsert_triage_rule error: {e}")
@@ -1568,7 +1725,7 @@ def update_triage_rule_routing(rule_id: int, routing: dict) -> bool:
     if not supabase or not routing:
         return False
     try:
-        supabase.table("triage_rules").update({"routing": routing}).eq("id", rule_id).execute()
+        _tenant_eq(supabase.table("triage_rules").update({"routing": routing})).eq("id", rule_id).execute()
         return True
     except Exception as e:
         logger.error(f"update_triage_rule_routing error: {e}")
@@ -1577,7 +1734,7 @@ def update_triage_rule_routing(rule_id: int, routing: dict) -> bool:
 def delete_triage_rule(rule_id: int) -> bool:
     if not supabase: return False
     try:
-        supabase.table("triage_rules").delete().eq("id", rule_id).execute()
+        _tenant_eq(supabase.table("triage_rules").delete()).eq("id", rule_id).execute()
         return True
     except Exception:
         return False
@@ -1588,7 +1745,7 @@ def delete_triage_rule(rule_id: int) -> bool:
 def get_services() -> list[dict]:
     if not supabase: return []
     try:
-        res = supabase.table("services").select("*").order("id", desc=False).execute()
+        res = _tenant_eq(supabase.table("services").select("*")).order("id", desc=False).execute()
         return res.data
     except Exception:
         return []
@@ -1596,13 +1753,13 @@ def get_services() -> list[dict]:
 def add_service(service_name: str, duration_minutes: int, description: str = "", assigned_to: str = "", note: str = "") -> int:
     if not supabase: return 0
     try:
-        res = supabase.table("services").insert({
+        res = supabase.table("services").insert(_with_tenant({
             "service_name": service_name,
             "duration_minutes": duration_minutes,
             "description": description,
             "assigned_to": assigned_to,
             "note": note
-        }).execute()
+        })).execute()
         return res.data[0]["id"] if res.data else 0
     except Exception as e:
         logger.error(f"Add service error: {e}")
@@ -1611,13 +1768,13 @@ def add_service(service_name: str, duration_minutes: int, description: str = "",
 def update_service(srv_id: int, service_name: str, duration_minutes: int, description: str = "", assigned_to: str = "", note: str = "") -> bool:
     if not supabase: return False
     try:
-        supabase.table("services").update({
+        _tenant_eq(supabase.table("services").update({
             "service_name": service_name,
             "duration_minutes": duration_minutes,
             "description": description,
             "assigned_to": assigned_to,
             "note": note
-        }).eq("id", srv_id).execute()
+        })).eq("id", srv_id).execute()
         return True
     except Exception:
         return False
@@ -1625,7 +1782,7 @@ def update_service(srv_id: int, service_name: str, duration_minutes: int, descri
 def delete_service(srv_id: int) -> bool:
     if not supabase: return False
     try:
-        supabase.table("services").delete().eq("id", srv_id).execute()
+        _tenant_eq(supabase.table("services").delete()).eq("id", srv_id).execute()
         return True
     except Exception:
         return False
@@ -1635,9 +1792,9 @@ def get_approvals(status: str = 'pending', limit: int = 100) -> list[dict]:
     if not supabase: return []
     try:
         if status == 'history':
-            res = supabase.table('interactions').select('*').neq('approval_status', 'pending').not_.is_('ai_draft_response', 'null').order('created_at', desc=True).limit(limit).execute()
+            res = _tenant_eq(supabase.table('interactions').select('*')).neq('approval_status', 'pending').not_.is_('ai_draft_response', 'null').order('created_at', desc=True).limit(limit).execute()
         else:
-            res = supabase.table('interactions').select('*').eq('approval_status', status).not_.is_('ai_draft_response', 'null').order('created_at', desc=True).limit(limit).execute()
+            res = _tenant_eq(supabase.table('interactions').select('*')).eq('approval_status', status).not_.is_('ai_draft_response', 'null').order('created_at', desc=True).limit(limit).execute()
         return res.data
     except Exception as e:
         logger.error(f'Error fetching approvals: {e}')
@@ -1646,7 +1803,7 @@ def get_approvals(status: str = 'pending', limit: int = 100) -> list[dict]:
 def delete_approvals(interaction_ids: list[int]) -> bool:
     if not supabase: return False
     try:
-        supabase.table('interactions').delete().in_('id', interaction_ids).execute()
+        _tenant_eq(supabase.table('interactions').delete()).in_('id', interaction_ids).execute()
         return True
     except Exception as e:
         logger.error(f'Error deleting approvals: {e}')
@@ -1661,7 +1818,7 @@ def update_approval_status(interaction_id: int, status: str, new_draft: str = No
             
         if status == 'approved':
             # Fetch existing interaction to determine how to update classification
-            res = supabase.table('interactions').select('classification, result').eq('id', interaction_id).execute()
+            res = _tenant_eq(supabase.table('interactions').select('classification, result')).eq('id', interaction_id).execute()
             if res.data:
                 row = res.data[0]
                 classification = row.get('classification') or {}
@@ -1692,7 +1849,7 @@ def update_approval_status(interaction_id: int, status: str, new_draft: str = No
                 updates['classification'] = classification
                 updates['result'] = new_result
                 
-        supabase.table('interactions').update(updates).eq('id', interaction_id).execute()
+        _tenant_eq(supabase.table('interactions').update(updates)).eq('id', interaction_id).execute()
         return True
     except Exception as e:
         logger.error(f'Error updating approval status: {e}')
@@ -1705,7 +1862,7 @@ def update_approval_status(interaction_id: int, status: str, new_draft: str = No
 def get_clinics() -> list[dict]:
     if not supabase: return []
     try:
-        res = supabase.table("clinics").select("*").order("id", desc=False).execute()
+        res = _tenant_eq(supabase.table("clinics").select("*")).order("id", desc=False).execute()
         return res.data
     except Exception as e:
         logger.error(f"Get clinics error: {e}")
@@ -1719,24 +1876,25 @@ def save_clinics(clinics: list[dict]) -> bool:
         for clinic in clinics:
             cid = clinic.get("id")
             if cid:
-                supabase.table("clinics").update({
+                _tenant_eq(supabase.table("clinics").update({
                     "name_and_address": clinic.get("name_and_address", ""),
                     "access_info": clinic.get("access_info", "")
-                }).eq("id", cid).execute()
+                })).eq("id", cid).execute()
                 updated_ids.append(int(cid))
             else:
-                res = supabase.table("clinics").insert({
+                res = supabase.table("clinics").insert(_with_tenant({
                     "name_and_address": clinic.get("name_and_address", ""),
                     "access_info": clinic.get("access_info", "")
-                }).execute()
+                })).execute()
                 if res.data:
                     updated_ids.append(res.data[0]["id"])
         
-        # Remove any clinics that weren't in the list
+        # Remove any clinics that weren't in the list (get_clinics() már tenant-szűrt,
+        # és a törlés is tenant-szűrt — más tenant klinikái nem törlődnek)
         all_clinics = get_clinics()
         for c in all_clinics:
             if c["id"] not in updated_ids:
-                supabase.table("clinics").delete().eq("id", c["id"]).execute()
+                _tenant_eq(supabase.table("clinics").delete()).eq("id", c["id"]).execute()
 
         return True
     except Exception as e:
@@ -1747,10 +1905,10 @@ def save_clinics(clinics: list[dict]) -> bool:
 # ── Settings persistence (Supabase) ───────────────────────────────────────────
 
 def get_agent_settings() -> dict:
-    """Read agent_settings row (id=1) from Supabase."""
+    """Read the current tenant's agent_settings row from Supabase (singleton per tenant)."""
     if not supabase: return {}
     try:
-        res = supabase.table("agent_settings").select("*").eq("id", 1).execute()
+        res = _tenant_eq(supabase.table("agent_settings").select("*")).order("id", desc=False).limit(1).execute()
         if res.data:
             row = res.data[0]
             row.pop("id", None)
@@ -1763,12 +1921,12 @@ def get_agent_settings() -> dict:
 
 
 def update_agent_settings(data: dict) -> bool:
-    """Upsert agent_settings row (id=1) in Supabase."""
+    """Upsert the current tenant's agent_settings row (match on tenant_id, not id=1)."""
     if not supabase: return False
     try:
-        data["id"] = 1
+        data.pop("id", None)  # az id tenantonként eltér — tenant_id a match kulcs
         data["updated_at"] = "now()"
-        supabase.table("agent_settings").upsert(data).execute()
+        supabase.table("agent_settings").upsert(_with_tenant(data), on_conflict="tenant_id").execute()
         return True
     except Exception as e:
         logger.error(f"Error updating agent_settings: {e}")
@@ -1776,10 +1934,10 @@ def update_agent_settings(data: dict) -> bool:
 
 
 def get_business_info() -> dict:
-    """Read praxis_info row (id=1) from Supabase."""
+    """Read the current tenant's business_info row from Supabase (singleton per tenant)."""
     if not supabase: return {}
     try:
-        res = supabase.table("business_info").select("*").eq("id", 1).execute()
+        res = _tenant_eq(supabase.table("business_info").select("*")).order("id", desc=False).limit(1).execute()
         if res.data:
             row = res.data[0]
             row.pop("id", None)
@@ -1792,12 +1950,12 @@ def get_business_info() -> dict:
 
 
 def update_business_info(data: dict) -> bool:
-    """Upsert praxis_info row (id=1) in Supabase."""
+    """Upsert the current tenant's business_info row (match on tenant_id, not id=1)."""
     if not supabase: return False
     try:
-        data["id"] = 1
+        data.pop("id", None)  # az id tenantonként eltér — tenant_id a match kulcs
         data["updated_at"] = "now()"
-        supabase.table("business_info").upsert(data).execute()
+        supabase.table("business_info").upsert(_with_tenant(data), on_conflict="tenant_id").execute()
         return True
     except Exception as e:
         logger.error(f"Error updating business_info: {e}")
@@ -1805,10 +1963,10 @@ def update_business_info(data: dict) -> bool:
 
 
 def get_knowledge_base() -> dict:
-    """Read knowledge_base row (id=1) from Supabase. Returns {format, content}."""
+    """Read the current tenant's knowledge_base row from Supabase. Returns {format, content}."""
     if not supabase: return {"format": "json", "content": "{}"}
     try:
-        res = supabase.table("knowledge_base").select("*").eq("id", 1).execute()
+        res = _tenant_eq(supabase.table("knowledge_base").select("*")).order("id", desc=False).limit(1).execute()
         if res.data:
             row = res.data[0]
             return {"format": row.get("format", "json"), "content": row.get("content", "{}")}
@@ -1819,12 +1977,12 @@ def get_knowledge_base() -> dict:
 
 
 def update_knowledge_base(fmt: str, content: str) -> bool:
-    """Upsert knowledge_base row (id=1) in Supabase."""
+    """Upsert the current tenant's knowledge_base row (match on tenant_id, not id=1)."""
     if not supabase: return False
     try:
-        supabase.table("knowledge_base").upsert({
-            "id": 1, "format": fmt, "content": content, "updated_at": "now()"
-        }).execute()
+        supabase.table("knowledge_base").upsert(_with_tenant({
+            "format": fmt, "content": content, "updated_at": "now()"
+        }), on_conflict="tenant_id").execute()
         return True
     except Exception as e:
         logger.error(f"Error updating knowledge_base: {e}")
@@ -1835,7 +1993,7 @@ def get_text_config(key: str) -> str:
     """Read a text_configs row by key. Returns content string."""
     if not supabase: return ""
     try:
-        res = supabase.table("text_configs").select("content").eq("key", key).execute()
+        res = _tenant_eq(supabase.table("text_configs").select("content")).eq("key", key).execute()
         if res.data:
             return res.data[0].get("content", "")
         return ""
@@ -1848,9 +2006,9 @@ def update_text_config(key: str, content: str) -> bool:
     """Upsert a text_configs row by key."""
     if not supabase: return False
     try:
-        supabase.table("text_configs").upsert({
+        supabase.table("text_configs").upsert(_with_tenant({
             "key": key, "content": content, "updated_at": "now()"
-        }).execute()
+        })).execute()
         return True
     except Exception as e:
         logger.error(f"Error updating text_config '{key}': {e}")
@@ -1860,7 +2018,7 @@ def update_text_config(key: str, content: str) -> bool:
 def get_reminder_settings() -> dict:
     if not supabase: return {}
     try:
-        res = supabase.table('reminder_settings').select('*').eq('id', 1).execute()
+        res = _tenant_eq(supabase.table('reminder_settings').select('*')).order('id', desc=False).limit(1).execute()
         if res.data: return res.data[0]
         return {'reminder_enabled': False, 'reminder_hours': 24, 'reminder_template': ''}
     except Exception as e:
@@ -1870,12 +2028,11 @@ def get_reminder_settings() -> dict:
 def update_reminder_settings(enabled: bool, hours: int, template: str) -> bool:
     if not supabase: return False
     try:
-        supabase.table('reminder_settings').upsert({
-            'id': 1,
+        supabase.table('reminder_settings').upsert(_with_tenant({
             'reminder_enabled': enabled,
             'reminder_hours': hours,
             'reminder_template': template
-        }).execute()
+        }), on_conflict='tenant_id').execute()
         return True
     except Exception as e:
         logger.error(f'Error updating reminder settings: {e}')
@@ -1888,7 +2045,7 @@ def get_upcoming_events_for_reminders(hours_offset: int):
         now = datetime.now(timezone.utc)
         target_start = now + timedelta(hours=hours_offset)
         target_end = target_start + timedelta(minutes=15)
-        res = supabase.table('calendar_events').select('*').gte('start_dt', target_start.isoformat()).lt('start_dt', target_end.isoformat()).execute()
+        res = _tenant_eq(supabase.table('calendar_events').select('*')).gte('start_dt', target_start.isoformat()).lt('start_dt', target_end.isoformat()).execute()
         events = []
         for e in res.data:
             if not e.get('reminder_sent'):
@@ -1901,7 +2058,7 @@ def get_upcoming_events_for_reminders(hours_offset: int):
 def mark_reminder_sent(event_id: int) -> bool:
     if not supabase: return False
     try:
-        supabase.table('calendar_events').update({'reminder_sent': True}).eq('id', event_id).execute()
+        _tenant_eq(supabase.table('calendar_events').update({'reminder_sent': True})).eq('id', event_id).execute()
         return True
     except Exception as e:
         logger.error(f'Error marking reminder sent: {e}')
@@ -1916,7 +2073,7 @@ def create_campaign(name: str, channels: list, client_ids: list, ai_instructions
     try:
         # A mode-ot az ai_instructions elejébe kódoljuk, hogy ne kelljen DB séma módosítás
         instructions_with_mode = f"MODE:{mode}:{ai_instructions}"
-        res = supabase.table("campaigns").insert({
+        res = supabase.table("campaigns").insert(_with_tenant({
             "name": name,
             "channels": channels,
             "status": "Vázlat",
@@ -1924,7 +2081,7 @@ def create_campaign(name: str, channels: list, client_ids: list, ai_instructions
             "ai_instructions": instructions_with_mode,
             "total_count": len(client_ids),
             "processed_count": 0
-        }).execute()
+        })).execute()
         return res.data[0]["id"] if res.data else 0
     except Exception as e:
         logger.error(f"Error creating campaign: {e}")
@@ -1933,7 +2090,7 @@ def create_campaign(name: str, channels: list, client_ids: list, ai_instructions
 def get_campaigns() -> list[dict]:
     if not supabase: return []
     try:
-        res = supabase.table("campaigns").select("*").order("created_at", desc=True).execute()
+        res = _tenant_eq(supabase.table("campaigns").select("*")).order("created_at", desc=True).execute()
         return res.data
     except Exception as e:
         logger.error(f"Error fetching campaigns: {e}")
@@ -1942,7 +2099,7 @@ def get_campaigns() -> list[dict]:
 def get_campaign(campaign_id: int) -> dict | None:
     if not supabase: return None
     try:
-        res = supabase.table("campaigns").select("*").eq("id", campaign_id).execute()
+        res = _tenant_eq(supabase.table("campaigns").select("*")).eq("id", campaign_id).execute()
         return res.data[0] if res.data else None
     except Exception as e:
         logger.error(f"Error fetching campaign: {e}")
@@ -1954,7 +2111,7 @@ def update_campaign_status(campaign_id: int, status: str, processed_count: int =
         updates = {"status": status}
         if processed_count is not None:
             updates["processed_count"] = processed_count
-        supabase.table("campaigns").update(updates).eq("id", campaign_id).execute()
+        _tenant_eq(supabase.table("campaigns").update(updates)).eq("id", campaign_id).execute()
         return True
     except Exception as e:
         logger.error(f"Error updating campaign status: {e}")
@@ -1974,9 +2131,9 @@ def update_campaign_content(campaign_id: int, ai_instructions: str, subject: str
             final_instructions = f"SUBJECT:{subject.strip()}|{ai_instructions}"
         else:
             final_instructions = ai_instructions
-        supabase.table("campaigns").update({
+        _tenant_eq(supabase.table("campaigns").update({
             "ai_instructions": final_instructions
-        }).eq("id", campaign_id).execute()
+        })).eq("id", campaign_id).execute()
         return True
     except Exception as e:
         logger.error(f"Error updating campaign content: {e}")
@@ -1985,7 +2142,7 @@ def update_campaign_content(campaign_id: int, ai_instructions: str, subject: str
 def delete_campaign(campaign_id: int) -> bool:
     if not supabase: return False
     try:
-        supabase.table("campaigns").delete().eq("id", campaign_id).execute()
+        _tenant_eq(supabase.table("campaigns").delete()).eq("id", campaign_id).execute()
         return True
     except Exception as e:
         logger.error(f"Error deleting campaign: {e}")
@@ -1994,7 +2151,7 @@ def delete_campaign(campaign_id: int) -> bool:
 def get_clients_by_ids(client_ids: list[int]) -> list[dict]:
     if not supabase or not client_ids: return []
     try:
-        res = supabase.table("clients").select("*").in_("id", client_ids).execute()
+        res = _tenant_eq(supabase.table("clients").select("*")).in_("id", client_ids).execute()
         return res.data
     except Exception as e:
         logger.error(f"Error fetching clients by IDs: {e}")
@@ -2007,7 +2164,7 @@ def get_clients_by_ids(client_ids: list[int]) -> list[dict]:
 def get_outbound_automations() -> list[dict]:
     if not supabase: return []
     try:
-        res = supabase.table("outbound_automations").select("*").order("id", desc=False).execute()
+        res = _tenant_eq(supabase.table("outbound_automations").select("*")).order("id", desc=False).execute()
         return res.data
     except Exception as e:
         logger.error(f"Error fetching outbound automations: {e}")
@@ -2018,7 +2175,7 @@ def update_outbound_automation(automation_id: int, data: dict) -> bool:
     try:
         allowed_keys = {"name", "enabled", "delay_hours", "channel", "message_template", "target_tag"}
         updates = {k: v for k, v in data.items() if k in allowed_keys}
-        supabase.table("outbound_automations").update(updates).eq("id", automation_id).execute()
+        _tenant_eq(supabase.table("outbound_automations").update(updates)).eq("id", automation_id).execute()
         return True
     except Exception as e:
         logger.error(f"Error updating outbound automation: {e}")
@@ -2028,7 +2185,7 @@ def check_automation_sent(client_id: int, automation_id: int) -> bool:
     """Check if an automation was already sent to a client."""
     if not supabase: return False
     try:
-        res = supabase.table("automation_sent_log").select("id").eq("client_id", client_id).eq("automation_id", automation_id).execute()
+        res = _tenant_eq(supabase.table("automation_sent_log").select("id")).eq("client_id", client_id).eq("automation_id", automation_id).execute()
         return len(res.data) > 0
     except Exception:
         return False
@@ -2037,10 +2194,10 @@ def mark_automation_sent(client_id: int, automation_id: int) -> bool:
     """Mark that an automation was sent to prevent duplicates."""
     if not supabase: return False
     try:
-        supabase.table("automation_sent_log").upsert({
+        supabase.table("automation_sent_log").upsert(_with_tenant({
             "client_id": client_id,
             "automation_id": automation_id
-        }).execute()
+        })).execute()
         return True
     except Exception as e:
         logger.error(f"Error marking automation sent: {e}")
@@ -2050,7 +2207,7 @@ def clear_automation_sent(client_id: int) -> bool:
     """Clear all automation sent records for a client so automations can re-trigger."""
     if not supabase: return False
     try:
-        supabase.table("automation_sent_log").delete().eq("client_id", client_id).execute()
+        _tenant_eq(supabase.table("automation_sent_log").delete()).eq("client_id", client_id).execute()
         return True
     except Exception as e:
         logger.error(f"Error clearing automation sent log: {e}")
@@ -2065,7 +2222,7 @@ def get_email_campaigns(limit: int = 50) -> list[dict]:
     """Kampányok listázása, legújabb elöl."""
     if not supabase: return []
     try:
-        res = supabase.table("email_campaigns").select("*").order("created_at", desc=True).limit(limit).execute()
+        res = _tenant_eq(supabase.table("email_campaigns").select("*")).order("created_at", desc=True).limit(limit).execute()
         return res.data or []
     except Exception as e:
         logger.error(f"Error listing email campaigns: {e}")
@@ -2076,7 +2233,7 @@ def get_email_campaign(campaign_id: str) -> dict | None:
     """Egy kampány lekérése ID alapján."""
     if not supabase: return None
     try:
-        res = supabase.table("email_campaigns").select("*").eq("id", campaign_id).execute()
+        res = _tenant_eq(supabase.table("email_campaigns").select("*")).eq("id", campaign_id).execute()
         return res.data[0] if res.data else None
     except Exception as e:
         logger.error(f"Error getting email campaign: {e}")
@@ -2090,7 +2247,7 @@ def create_email_campaign(data: dict) -> dict | None:
         allowed = {"name", "type", "subject_line", "subject_line_b", "template_html",
                     "segment_name", "status", "scheduled_at", "created_by"}
         insert_data = {k: v for k, v in data.items() if k in allowed and v is not None}
-        res = supabase.table("email_campaigns").insert(insert_data).execute()
+        res = supabase.table("email_campaigns").insert(_with_tenant(insert_data)).execute()
         return res.data[0] if res.data else None
     except Exception as e:
         logger.error(f"Error creating email campaign: {e}")
@@ -2107,7 +2264,7 @@ def update_email_campaign(campaign_id: str, data: dict) -> bool:
         updates = {k: v for k, v in data.items() if k in allowed}
         if not updates: return False
         updates["updated_at"] = datetime.now(timezone.utc).isoformat()
-        supabase.table("email_campaigns").update(updates).eq("id", campaign_id).execute()
+        _tenant_eq(supabase.table("email_campaigns").update(updates)).eq("id", campaign_id).execute()
         return True
     except Exception as e:
         logger.error(f"Error updating email campaign: {e}")
@@ -2118,7 +2275,7 @@ def delete_email_campaign(campaign_id: str) -> bool:
     """Kampány törlése."""
     if not supabase: return False
     try:
-        supabase.table("email_campaigns").delete().eq("id", campaign_id).execute()
+        _tenant_eq(supabase.table("email_campaigns").delete()).eq("id", campaign_id).execute()
         return True
     except Exception as e:
         logger.error(f"Error deleting email campaign: {e}")
@@ -2129,7 +2286,7 @@ def get_email_campaign_stats_summary() -> dict:
     """Kampány KPI összesítés (dashboard-hoz)."""
     if not supabase: return {"total": 0, "sent": 0, "draft": 0, "active": 0}
     try:
-        res = supabase.table("email_campaigns").select("status, stats").execute()
+        res = _tenant_eq(supabase.table("email_campaigns").select("status, stats")).execute()
         total = len(res.data) if res.data else 0
         sent = sum(1 for c in (res.data or []) if c.get("status") == "sent")
         draft = sum(1 for c in (res.data or []) if c.get("status") == "draft")
@@ -2168,7 +2325,7 @@ def get_email_subscribers(limit: int = 200) -> list[dict]:
     """Feliratkozók listázása."""
     if not supabase: return []
     try:
-        res = supabase.table("email_subscribers").select("*").order("created_at", desc=True).limit(limit).execute()
+        res = _tenant_eq(supabase.table("email_subscribers").select("*")).order("created_at", desc=True).limit(limit).execute()
         return res.data or []
     except Exception as e:
         logger.error(f"Error listing email subscribers: {e}")
@@ -2179,13 +2336,13 @@ def add_email_subscriber(email: str, name: str = "", tags: list = None, consent_
     """Új feliratkozó hozzáadása (upsert: ha létezik, frissíti a nevet/tageket)."""
     if not supabase: return None
     try:
-        res = supabase.table("email_subscribers").upsert({
+        res = supabase.table("email_subscribers").upsert(_with_tenant({
             "email": email,
             "name": name,
             "tags": tags or [],
             "consent_source": consent_source,
             "status": "active"
-        }, on_conflict="email").execute()
+        }), on_conflict="email").execute()
         return res.data[0] if res.data else None
     except Exception as e:
         logger.error(f"Error adding email subscriber: {e}")
@@ -2196,7 +2353,7 @@ def get_subscriber_count() -> int:
     """Összes aktív feliratkozó száma."""
     if not supabase: return 0
     try:
-        res = supabase.table("email_subscribers").select("id", count="exact", head=True).eq("status", "active").execute()
+        res = _tenant_eq(supabase.table("email_subscribers").select("id", count="exact", head=True)).eq("status", "active").execute()
         return res.count or 0
     except Exception as e:
         logger.error(f"Error counting subscribers: {e}")
@@ -2207,7 +2364,7 @@ def update_subscriber_status(email: str, status: str) -> bool:
     """Feliratkozó státusz frissítés (unsubscribed, bounced, complained)."""
     if not supabase: return False
     try:
-        supabase.table("email_subscribers").update({"status": status}).eq("email", email).execute()
+        _tenant_eq(supabase.table("email_subscribers").update({"status": status})).eq("email", email).execute()
         return True
     except Exception as e:
         logger.error(f"Error updating subscriber status: {e}")
@@ -2222,7 +2379,7 @@ def get_content_items(status_filter: str = None, limit: int = 50) -> list[dict]:
     """AI tartalmak listázása, opcionálisan szűrve státusz szerint."""
     if not supabase: return []
     try:
-        q = supabase.table("content_items").select("*").order("created_at", desc=True).limit(limit)
+        q = _tenant_eq(supabase.table("content_items").select("*")).order("created_at", desc=True).limit(limit)
         if status_filter and status_filter != "all":
             if status_filter == "pending":
                 q = q.in_("status", ["requested", "ai_draft", "editing"])
@@ -2256,7 +2413,7 @@ def create_content_item(data: dict) -> dict | None:
         }
         if data.get("scheduled_at"):
             row["scheduled_at"] = data["scheduled_at"]
-        res = supabase.table("content_items").insert(row).execute()
+        res = supabase.table("content_items").insert(_with_tenant(row)).execute()
         return res.data[0] if res.data else None
     except Exception as e:
         logger.error(f"Error creating content item: {e}")
@@ -2273,7 +2430,7 @@ def update_content_item(item_id: str, data: dict) -> dict | None:
                     "engagement_stats", "scheduled_at", "image_prompt"]
         update = {k: v for k, v in data.items() if k in allowed}
         update["updated_at"] = "now()"
-        res = supabase.table("content_items").update(update).eq("id", item_id).execute()
+        res = _tenant_eq(supabase.table("content_items").update(update)).eq("id", item_id).execute()
         return res.data[0] if res.data else None
     except Exception as e:
         logger.error(f"Error updating content item: {e}")
@@ -2284,7 +2441,7 @@ def delete_content_item(item_id: str) -> bool:
     """AI tartalom törlése."""
     if not supabase: return False
     try:
-        supabase.table("content_items").delete().eq("id", item_id).execute()
+        _tenant_eq(supabase.table("content_items").delete()).eq("id", item_id).execute()
         return True
     except Exception as e:
         logger.error(f"Error deleting content item: {e}")
@@ -2295,7 +2452,7 @@ def get_content_stats() -> dict:
     """AI tartalom statisztikák összesítés."""
     if not supabase: return {"total": 0, "pending": 0, "approved": 0, "published": 0, "scheduled": 0}
     try:
-        res = supabase.table("content_items").select("status").execute()
+        res = _tenant_eq(supabase.table("content_items").select("status")).execute()
         items = res.data or []
         pending_statuses = ["requested", "ai_draft", "editing"]
         return {
@@ -2316,8 +2473,8 @@ def get_scheduled_content() -> list[dict]:
     try:
         from datetime import datetime, timezone
         now = datetime.now(timezone.utc).isoformat()
-        res = (supabase.table("content_items")
-               .select("*")
+        res = (_tenant_eq(supabase.table("content_items")
+               .select("*"))
                .eq("status", "scheduled")
                .lte("scheduled_at", now)
                .execute())
@@ -2331,7 +2488,7 @@ def get_content_item(item_id: str) -> dict | None:
     """Egyetlen content item lekérése ID alapján."""
     if not supabase: return None
     try:
-        res = supabase.table("content_items").select("*").eq("id", item_id).execute()
+        res = _tenant_eq(supabase.table("content_items").select("*")).eq("id", item_id).execute()
         return res.data[0] if res.data else None
     except Exception as e:
         logger.error(f"Error getting content item: {e}")

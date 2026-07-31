@@ -6,6 +6,8 @@ export interface User {
   role: 'admin' | 'manager' | 'member';
   fullName: string;
   email: string;
+  tenantId?: string;
+  tenantName?: string;
 }
 
 interface AuthContextType {
@@ -71,6 +73,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       role: (data.role || 'member') as User['role'],
       fullName: data.full_name || '',
       email: email,
+      tenantId: data.tenant_id || undefined,
+      tenantName: data.tenant_name || undefined,
     };
     setStoredUser(newUser);
     setUser(newUser);

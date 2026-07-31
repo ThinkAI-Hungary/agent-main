@@ -7,10 +7,10 @@ export default function MainHeader() {
   const firstName = fullName.split(' ').pop() || fullName;
 
   const now = new Date();
-  const days = ['vas\u00e1rnap', 'h\u00e9tf\u0151', 'kedd', 'szerda', 'cs\u00fct\u00f6rt\u00f6k', 'p\u00e9ntek', 'szombat'];
+  const days = ['vasárnap', 'hétfő', 'kedd', 'szerda', 'csütörtök', 'péntek', 'szombat'];
   const months = [
-    'janu\u00e1r', 'febru\u00e1r', 'm\u00e1rcius', '\u00e1prilis', 'm\u00e1jus', 'j\u00fanius',
-    'j\u00falius', 'augusztus', 'szeptember', 'okt\u00f3ber', 'november', 'december',
+    'január', 'február', 'március', 'április', 'május', 'június',
+    'július', 'augusztus', 'szeptember', 'október', 'november', 'december',
   ];
   const dateStr = `${now.getFullYear()}. ${months[now.getMonth()]} ${now.getDate()}., ${days[now.getDay()]}`;
 
@@ -22,6 +22,11 @@ export default function MainHeader() {
         </div>
         <div className="greeting-date" id="greeting-date">
           {dateStr}
+          {user?.tenantName && (
+            <span style={{ marginLeft: 10, padding: '2px 8px', background: '#e0f2fe', color: '#0369a1', borderRadius: 6, fontSize: 12, fontWeight: 600 }}>
+              {user.tenantName}
+            </span>
+          )}
         </div>
       </div>
     </div>
