@@ -262,7 +262,8 @@ def verify_admin_user(username: str, password: str) -> dict | None:
                     "username": user["username"],
                     "email": user.get("email", ""),
                     "role": user.get("role", "admin"),
-                    "full_name": user.get("full_name", "")
+                    "full_name": user.get("full_name", ""),
+                    "tenant_id": user.get("tenant_id")
                 }
     except Exception as e:
         logger.error(f"Error verifying admin: {e}")
