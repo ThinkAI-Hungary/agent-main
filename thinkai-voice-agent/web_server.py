@@ -350,6 +350,13 @@ async def tenant_context_middleware(request: Request, call_next):
 
 @app.get("/")
 async def index():
+    """Főoldal → átirányítás a login page-re (/admin)."""
+    return RedirectResponse(url="/admin/", status_code=302)
+
+@app.get("/demo")
+@app.get("/demo/")
+async def demo_widget():
+    """A voice widget demo oldal (korábban a főoldal volt)."""
     return FileResponse(THIS_DIR / "voice-widget.html")
 
 @app.get("/widget")
