@@ -2535,7 +2535,7 @@ def admin_get_insights(username: str = Depends(verify_jwt)):
     return {"status": "success", "insights": insights}
 
 @app.post("/admin/api/analytics/insights/generate")
-async def admin_generate_insights(username: str = Depends(verify_jwt)):
+async def admin_generate_insights(_auth = Depends(require_admin_or_manager)):
     """Generate new AI insights based on stats."""
     stats = db.get_stats(period="month")
     google_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -2648,7 +2648,7 @@ class ManualEventRequest(BaseModel):
     duration_minutes: int = 30
 
 @app.post("/admin/api/calendar")
-def admin_create_event(req: ManualEventRequest, username: str = Depends(verify_jwt)):
+def admin_create_event(req: ManualEventRequest, _auth = Depends(require_admin_or_manager)):
     """Create a manual calendar event and auto-create client if needed."""
     from datetime import datetime, timedelta
     try:
@@ -2689,8 +2689,7 @@ def admin_create_event(req: ManualEventRequest, username: str = Depends(verify_j
         
         if not found:
             # Get user's full_name for felelos
-            user_info = db.get_admin_user_by_username(username)
-            felelos = (user_info or {}).get("full_name", "") or username
+            felelos = _auth.get("full_name", "") or _auth.get("username", "")
             
             custom_data = {
                 "name": req.attendee,
@@ -2728,7 +2727,7 @@ def admin_task_complete(task_id: int, username: str = Depends(verify_jwt)):
 
 
 @app.delete("/admin/api/tasks/{task_id}")
-def admin_task_delete(task_id: int, username: str = Depends(verify_jwt)):
+def admin_task_delete(task_id: int, _auth = Depends(require_admin_or_manager)):
     """Delete a task."""
     res = db.delete_task(task_id)
     if not res:
@@ -2753,7 +2752,7 @@ class BulkDeleteInteractionsRequest(BaseModel):
     session_ids: list[str] = []
 
 @app.post("/admin/api/interactions/delete")
-def admin_delete_interactions(req: BulkDeleteInteractionsRequest, username: str = Depends(verify_jwt)):
+def admin_delete_interactions(req: BulkDeleteInteractionsRequest, _auth = Depends(require_admin_or_manager)):
     """Delete interactions and/or sessions by ID."""
     deleted_interactions = 0
     deleted_sessions = 0
@@ -2776,7 +2775,7 @@ class InteractionStatusUpdateRequest(BaseModel):
     status: str
 
 @app.patch("/admin/api/interactions/{id}/status")
-def update_interaction_status(id: int, req: InteractionStatusUpdateRequest, username: str = Depends(verify_jwt)):
+def update_interaction_status(id: int, req: InteractionStatusUpdateRequest, _auth = Depends(require_admin_or_manager)):
     """Safe status update that handles both approval_status and classification override."""
     if req.status != "lezárt":
         raise HTTPException(status_code=400, detail="Érvénytelen státusz érték. Csak a 'lezárt' támogatott.")
@@ -2805,7 +2804,7 @@ def update_interaction_status(id: int, req: InteractionStatusUpdateRequest, user
             updates["classification"] = {"statusz": "Lezárt", "teendo": "Nincs további teendő"}
 
         db.supabase.table("interactions").update(updates).eq("id", id).execute()
-        logger.info(f"Interaction {id} marked as lezárt by {username}")
+        logger.info(f"Interaction {id} marked as lezárt by {_auth.get('username')}")
         return {"status": "success", "message": "Interakció lezárva"}
     except Exception as e:
         logger.error(f"Status update error for interaction {id}: {e}")
@@ -2951,19 +2950,19 @@ def admin_clients(username: str = Depends(verify_jwt)):
     return {"clients": clients}
 
 @app.post("/admin/api/clients")
-def admin_add_client(req: ClientCreateRequest, username: str = Depends(verify_jwt)):
+def admin_add_client(req: ClientCreateRequest, _auth = Depends(require_admin_or_manager)):
     """Add a new client."""
     client_id = db.add_client(req.custom_data, "uj")
     return {"ok": True, "id": client_id}
 
 @app.patch("/admin/api/clients/{client_id}/status")
-def admin_update_client_status(client_id: int, req: ClientStatusUpdateRequest, username: str = Depends(verify_jwt)):
+def admin_update_client_status(client_id: int, req: ClientStatusUpdateRequest, _auth = Depends(require_admin_or_manager)):
     """Update client status (drag & drop)."""
     db.update_client_status(client_id, req.status)
     return {"ok": True}
 
 @app.delete("/admin/api/clients/{client_id}")
-def admin_delete_client(client_id: int, username: str = Depends(verify_jwt)):
+def admin_delete_client(client_id: int, _auth = Depends(require_admin_or_manager)):
     """Delete client."""
     db.delete_client(client_id)
     return {"ok": True}
@@ -2972,14 +2971,14 @@ class BulkDeleteClientsRequest(BaseModel):
     client_ids: list[int]
 
 @app.post("/admin/api/clients/bulk_delete")
-def admin_bulk_delete_clients(req: BulkDeleteClientsRequest, username: str = Depends(verify_jwt)):
+def admin_bulk_delete_clients(req: BulkDeleteClientsRequest, _auth = Depends(require_admin_or_manager)):
     """Delete multiple clients."""
     for cid in req.client_ids:
         db.delete_client(cid)
     return {"ok": True}
 
 @app.put("/admin/api/clients/{client_id}")
-def admin_update_client_details(client_id: int, req: ClientCreateRequest, username: str = Depends(verify_jwt)):
+def admin_update_client_details(client_id: int, req: ClientCreateRequest, _auth = Depends(require_admin_or_manager)):
     """Update client basic details."""
     db.edit_client_details(client_id, req.custom_data)
     return {"ok": True}
@@ -2997,19 +2996,19 @@ def admin_get_client_fields(username: str = Depends(verify_jwt)):
     return {"fields": db.get_client_fields()}
 
 @app.post("/admin/api/client_fields")
-def admin_add_client_field(req: ClientFieldCreateRequest, username: str = Depends(verify_jwt)):
+def admin_add_client_field(req: ClientFieldCreateRequest, _admin = Depends(require_admin)):
     success = db.add_client_field(req.id, req.name, req.order_index)
     if not success:
         raise HTTPException(status_code=400, detail="Field ID already exists")
     return {"ok": True}
 
 @app.put("/admin/api/client_fields/{field_id}")
-def admin_update_client_field(field_id: str, req: ClientFieldUpdateRequest, username: str = Depends(verify_jwt)):
+def admin_update_client_field(field_id: str, req: ClientFieldUpdateRequest, _admin = Depends(require_admin)):
     db.update_client_field(field_id, req.name)
     return {"ok": True}
 
 @app.delete("/admin/api/client_fields/{field_id}")
-def admin_delete_client_field(field_id: str, username: str = Depends(verify_jwt)):
+def admin_delete_client_field(field_id: str, _admin = Depends(require_admin)):
     db.delete_client_field(field_id)
     return {"ok": True}
 
@@ -3026,19 +3025,19 @@ def admin_get_kanban_columns(username: str = Depends(verify_jwt)):
     return {"columns": db.get_kanban_columns()}
 
 @app.post("/admin/api/kanban_columns")
-def admin_add_kanban_column(req: KanbanColumnCreateRequest, username: str = Depends(verify_jwt)):
+def admin_add_kanban_column(req: KanbanColumnCreateRequest, _admin = Depends(require_admin)):
     success = db.add_kanban_column(req.id, req.name, req.order_index)
     if not success:
         raise HTTPException(status_code=400, detail="Column ID already exists")
     return {"ok": True}
 
 @app.put("/admin/api/kanban_columns/{col_id}")
-def admin_update_kanban_column(col_id: str, req: KanbanColumnUpdateRequest, username: str = Depends(verify_jwt)):
+def admin_update_kanban_column(col_id: str, req: KanbanColumnUpdateRequest, _admin = Depends(require_admin)):
     db.update_kanban_column(col_id, req.name)
     return {"ok": True}
 
 @app.delete("/admin/api/kanban_columns/{col_id}")
-def admin_delete_kanban_column(col_id: str, username: str = Depends(verify_jwt)):
+def admin_delete_kanban_column(col_id: str, _admin = Depends(require_admin)):
     try:
         db.delete_kanban_column(col_id)
         return {"ok": True}
@@ -3127,7 +3126,7 @@ class TextFileRequest(BaseModel):
 
 
 @app.post("/admin/api/settings")
-async def save_settings(payload: SettingsSaveRequest, username: str = Depends(verify_jwt)):
+async def save_settings(payload: SettingsSaveRequest, _admin = Depends(require_admin)):
     """Save agent settings and knowledge base to Supabase."""
     print(f"[DEBUG] save_settings received payload: {payload.dict()}", flush=True)
     settings = {
@@ -3169,7 +3168,7 @@ async def get_system_prompt(username: str = Depends(verify_jwt)):
 
 
 @app.post("/admin/api/system-prompt")
-async def save_system_prompt(payload: TextFileRequest, username: str = Depends(verify_jwt)):
+async def save_system_prompt(payload: TextFileRequest, _admin = Depends(require_admin)):
     """Save system prompt to Supabase."""
     db.update_text_config("system_prompt", payload.content)
     return {"ok": True, "message": "System prompt elmentve."}
@@ -3188,7 +3187,7 @@ async def get_workflow(username: str = Depends(verify_jwt)):
 
 
 @app.post("/admin/api/workflow")
-async def save_workflow(payload: TextFileRequest, username: str = Depends(verify_jwt)):
+async def save_workflow(payload: TextFileRequest, _admin = Depends(require_admin)):
     """Save workflow to Supabase."""
     db.update_text_config("workflow", payload.content)
     return {"ok": True, "message": "Workflow elmentve."}
@@ -3204,7 +3203,7 @@ async def get_written_behavior(username: str = Depends(verify_jwt)):
 
 
 @app.post("/admin/api/written-behavior")
-async def save_written_behavior(payload: TextFileRequest, username: str = Depends(verify_jwt)):
+async def save_written_behavior(payload: TextFileRequest, _admin = Depends(require_admin)):
     """EAISY-241 — Save the written communication behavior setting."""
     db.update_text_config("written_behavior", payload.content)
     import classifier as _clf
@@ -3241,7 +3240,7 @@ async def get_issue_handling(username: str = Depends(verify_jwt)):
     }
 
 @app.post("/admin/api/issue-handling")
-async def save_issue_handling(payload: IssueHandlingRequest, username: str = Depends(verify_jwt)):
+async def save_issue_handling(payload: IssueHandlingRequest, _admin = Depends(require_admin)):
     """Ügykezelési szabályok mentése — a written_behavior-t külön kulcsra is
     kiírjuk (a classifier azt olvassa)."""
     data = payload.model_dump()
@@ -3296,7 +3295,7 @@ class TriageRuleCreate(BaseModel):
     escalation_email: str = ""
 
 @app.post("/admin/api/triage_rules")
-def api_post_triage_rules(rule: TriageRuleCreate, admin: dict = Depends(verify_jwt)):
+def api_post_triage_rules(rule: TriageRuleCreate, _admin = Depends(require_admin)):
     # Upsert situation alapján — a unique index mellett case-eltérésnél sem lesz
     # 500-as (korábban sima insert volt, ami duplikációt/23505-öt okozhatott)
     new_id = db.upsert_triage_rule(rule.situation, rule.priority, rule.escalation_email)
@@ -3307,7 +3306,7 @@ def api_post_triage_rules(rule: TriageRuleCreate, admin: dict = Depends(verify_j
     raise HTTPException(status_code=500, detail="Hiba a létrehozáskor")
 
 @app.put("/admin/api/triage_rules/{rule_id}")
-def api_put_triage_rules(rule_id: int, rule: TriageRuleCreate, admin: dict = Depends(verify_jwt)):
+def api_put_triage_rules(rule_id: int, rule: TriageRuleCreate, _admin = Depends(require_admin)):
     if db.update_triage_rule(rule_id, rule.situation, rule.priority, rule.escalation_email):
         import classifier as _clf
         _clf.invalidate_classifier_cache()
@@ -3315,7 +3314,7 @@ def api_put_triage_rules(rule_id: int, rule: TriageRuleCreate, admin: dict = Dep
     raise HTTPException(status_code=400, detail="Hiba a frissítéskor")
 
 @app.delete("/admin/api/triage_rules/{rule_id}")
-def api_delete_triage_rules(rule_id: int, admin: dict = Depends(verify_jwt)):
+def api_delete_triage_rules(rule_id: int, _admin = Depends(require_admin)):
     if db.delete_triage_rule(rule_id):
         import classifier as _clf
         _clf.invalidate_classifier_cache()
@@ -3337,20 +3336,20 @@ def api_get_services(admin: dict = Depends(verify_jwt)):
     return db.get_services()
 
 @app.post("/admin/api/services")
-def api_post_services(svc: ServiceCreate, admin: dict = Depends(verify_jwt)):
+def api_post_services(svc: ServiceCreate, _auth = Depends(require_admin_or_manager)):
     new_id = db.add_service(svc.service_name, svc.duration_minutes, svc.description, svc.assigned_to, svc.note)
     if new_id:
         return {"ok": True, "id": new_id}
     raise HTTPException(status_code=500, detail="Hiba a létrehozáskor")
 
 @app.put("/admin/api/services/{srv_id}")
-def api_put_services(srv_id: int, svc: ServiceCreate, admin: dict = Depends(verify_jwt)):
+def api_put_services(srv_id: int, svc: ServiceCreate, _auth = Depends(require_admin_or_manager)):
     if db.update_service(srv_id, svc.service_name, svc.duration_minutes, svc.description, svc.assigned_to, svc.note):
         return {"ok": True}
     raise HTTPException(status_code=400, detail="Hiba a frissítéskor")
 
 @app.delete("/admin/api/services/{srv_id}")
-def api_delete_services(srv_id: int, admin: dict = Depends(verify_jwt)):
+def api_delete_services(srv_id: int, _auth = Depends(require_admin_or_manager)):
     if db.delete_service(srv_id):
         return {"ok": True}
     raise HTTPException(status_code=400, detail="Hiba a törléskor")
@@ -3362,7 +3361,7 @@ async def get_business_info(username: str = Depends(verify_jwt)):
     return db.get_business_info()
 
 @app.post("/admin/api/business-info")
-async def save_business_info(payload: BusinessInfoSaveRequest, username: str = Depends(verify_jwt)):
+async def save_business_info(payload: BusinessInfoSaveRequest, _admin = Depends(require_admin)):
     """Save practice info to Supabase. Business hours are managed separately via /admin/api/settings."""
     data = {
         "practice_name": payload.practice_name,
@@ -3395,7 +3394,7 @@ async def save_business_info(payload: BusinessInfoSaveRequest, username: str = D
     return {"ok": True, "message": "Céginformáció elmentve."}
 
 @app.get("/admin/api/prices/template/download")
-async def download_price_template(username: str = Depends(verify_jwt)):
+async def download_price_template(_admin = Depends(require_admin)):
     """Generate and return an Excel template for price list upload."""
     import openpyxl
     import io
@@ -3450,7 +3449,7 @@ async def download_price_template(username: str = Depends(verify_jwt)):
     )
 
 @app.post("/admin/api/upload_prices")
-async def upload_prices(file: UploadFile = File(...), username: str = Depends(verify_jwt)):
+async def upload_prices(file: UploadFile = File(...), _admin = Depends(require_admin)):
     content = await file.read()
     prices_text = ""
     fname = (file.filename or "").lower()
@@ -3533,7 +3532,7 @@ class SipCallRequest(BaseModel):
     client_name: str = ""  # Ügyfél neve (személyre szabáshoz)
 
 @app.post("/admin/api/sip/call")
-async def sip_outbound_call(req: SipCallRequest, username: str = Depends(verify_jwt)):
+async def sip_outbound_call(req: SipCallRequest, _auth = Depends(require_admin_or_manager)):
     """Kimenő SIP hívás indítása az AI agenttel — opcionális scripttel."""
     from livekit import api as lk_api_module
 
@@ -3621,7 +3620,7 @@ def get_approvals_api(status: str = "pending", username: str = Depends(verify_jw
     return {"approvals": approvals}
 
 @app.post("/admin/api/approvals/{id}/reject")
-def reject_approval_api(id: int, username: str = Depends(verify_jwt)):
+def reject_approval_api(id: int, _auth = Depends(require_admin_or_manager)):
     success = db.update_approval_status(id, "rejected")
     if success: return {"status": "success"}
     raise HTTPException(status_code=500, detail="Hiba az elutasítás során")
@@ -3630,7 +3629,7 @@ class DeleteApprovalsRequest(BaseModel):
     ids: list[int]
 
 @app.delete("/admin/api/approvals")
-def delete_approvals_api(req: DeleteApprovalsRequest, username: str = Depends(verify_jwt)):
+def delete_approvals_api(req: DeleteApprovalsRequest, _auth = Depends(require_admin_or_manager)):
     success = db.delete_approvals(req.ids)
     if success: return {"status": "success"}
     raise HTTPException(status_code=500, detail="Hiba a törlés során")
@@ -3641,7 +3640,7 @@ class ApproveRequest(BaseModel):
     modified_drafts: dict | None = None
 
 @app.post("/admin/api/approvals/{id}/approve")
-async def approve_approval_api(id: int, req: ApproveRequest, username: str = Depends(verify_jwt)):
+async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(require_admin_or_manager)):
     import json
     import httpx
     import base64 as b64module
@@ -3860,13 +3859,13 @@ def get_clinics_api(admin: dict = Depends(verify_jwt)):
     return db.get_clinics()
 
 @app.post("/admin/api/clinics")
-def save_clinics_api(clinics: list[dict], admin: dict = Depends(verify_jwt)):
+def save_clinics_api(clinics: list[dict], _auth = Depends(require_admin_or_manager)):
     success = db.save_clinics(clinics)
     if success: return {"status": "ok"}
     raise HTTPException(status_code=500, detail="Failed to save clinics")
 
 @app.delete("/admin/api/clinics/{clinic_id}")
-def delete_clinic_api(clinic_id: int, admin: dict = Depends(verify_jwt)):
+def delete_clinic_api(clinic_id: int, _auth = Depends(require_admin_or_manager)):
     """Delete a single clinic by ID."""
     try:
         if db.supabase:
@@ -3928,7 +3927,7 @@ async def get_reminder_settings_endpoint(username: str = Depends(verify_jwt)):
     return db.get_reminder_settings()
 
 @app.post('/admin/api/settings/reminder')
-async def save_reminder_settings_endpoint(payload: ReminderSettingsRequest, username: str = Depends(verify_jwt)):
+async def save_reminder_settings_endpoint(payload: ReminderSettingsRequest, _admin = Depends(require_admin)):
     import database as db
     success = db.update_reminder_settings(payload.reminder_enabled, payload.reminder_hours, payload.reminder_template)
     if success:
@@ -3946,7 +3945,7 @@ async def get_outbound_automations_endpoint(username: str = Depends(verify_jwt))
     return db.get_outbound_automations()
 
 @app.put('/admin/api/outbound_automations/{automation_id}')
-async def update_outbound_automation_endpoint(automation_id: int, request: Request, username: str = Depends(verify_jwt)):
+async def update_outbound_automation_endpoint(automation_id: int, request: Request, _admin = Depends(require_admin)):
     import database as db
     data = await request.json()
     success = db.update_outbound_automation(automation_id, data)
@@ -3972,7 +3971,7 @@ def get_campaigns_api(username: str = Depends(verify_jwt)):
     return {"campaigns": campaigns}
 
 @app.post("/admin/api/campaigns")
-def create_campaign_api(req: CampaignCreateRequest, username: str = Depends(verify_jwt)):
+def create_campaign_api(req: CampaignCreateRequest, _auth = Depends(require_admin_or_manager)):
     instructions = req.ai_instructions
     if req.subject:
         instructions = f"SUBJECT:{req.subject}|{instructions}"
@@ -3995,7 +3994,7 @@ def create_campaign_api(req: CampaignCreateRequest, username: str = Depends(veri
     raise HTTPException(status_code=500, detail="Kampány létrehozása sikertelen")
 
 @app.post("/admin/api/campaigns/{campaign_id}/start")
-async def start_campaign_api(campaign_id: int, username: str = Depends(verify_jwt)):
+async def start_campaign_api(campaign_id: int, _auth = Depends(require_admin_or_manager)):
     campaign = db.get_campaign(campaign_id)
     if not campaign:
         raise HTTPException(status_code=404, detail="Kampány nem található")
@@ -4038,7 +4037,7 @@ async def start_campaign_api(campaign_id: int, username: str = Depends(verify_jw
     return {"status": "success", "message": f"Kampány elindítva ({ch_str}) — {', '.join(msg_parts)}."}
 
 @app.post("/admin/api/campaigns/{campaign_id}/stop")
-def stop_campaign_api(campaign_id: int, username: str = Depends(verify_jwt)):
+def stop_campaign_api(campaign_id: int, _auth = Depends(require_admin_or_manager)):
     campaign = db.get_campaign(campaign_id)
     if not campaign:
         raise HTTPException(status_code=404, detail="Kampány nem található")
@@ -4046,7 +4045,7 @@ def stop_campaign_api(campaign_id: int, username: str = Depends(verify_jwt)):
     return {"status": "success"}
 
 @app.post("/admin/api/campaigns/{campaign_id}/close")
-def close_campaign_api(campaign_id: int, username: str = Depends(verify_jwt)):
+def close_campaign_api(campaign_id: int, _auth = Depends(require_admin_or_manager)):
     campaign = db.get_campaign(campaign_id)
     if not campaign:
         raise HTTPException(status_code=404, detail="Kampány nem található")
@@ -4054,14 +4053,14 @@ def close_campaign_api(campaign_id: int, username: str = Depends(verify_jwt)):
     return {"status": "success"}
 
 @app.delete("/admin/api/campaigns/{campaign_id}")
-def delete_campaign_api(campaign_id: int, username: str = Depends(verify_jwt)):
+def delete_campaign_api(campaign_id: int, _auth = Depends(require_admin_or_manager)):
     success = db.delete_campaign(campaign_id)
     if success:
         return {"status": "success"}
     raise HTTPException(status_code=500, detail="Törlés sikertelen")
 
 @app.put("/admin/api/campaigns/{campaign_id}")
-async def update_campaign_content_api(campaign_id: int, request: Request, username: str = Depends(verify_jwt)):
+async def update_campaign_content_api(campaign_id: int, request: Request, _auth = Depends(require_admin_or_manager)):
     """EAISY-241 §1.6.2 — Kampány üzenet + subject szerkesztése (csak Tervezet/Ütemezett)."""
     data = await request.json()
     ai_instructions = (data.get("ai_instructions") or "").strip()
@@ -4082,7 +4081,7 @@ async def update_campaign_content_api(campaign_id: int, request: Request, userna
     raise HTTPException(status_code=500, detail="Mentés sikertelen")
 
 @app.post("/admin/api/campaigns/{campaign_id}/schedule")
-async def schedule_campaign_api(campaign_id: int, request: Request, username: str = Depends(verify_jwt)):
+async def schedule_campaign_api(campaign_id: int, request: Request, _auth = Depends(require_admin_or_manager)):
     """Kampány ütemezése jövőbeli időpontra (campaigns tábla)."""
     data = await request.json()
     scheduled_at = data.get("scheduled_at")
@@ -4112,7 +4111,7 @@ async def schedule_campaign_api(campaign_id: int, request: Request, username: st
 
 
 @app.post("/admin/api/campaigns/generate_message")
-async def generate_campaign_message(request: Request, username: str = Depends(verify_jwt)):
+async def generate_campaign_message(request: Request, _auth = Depends(require_admin_or_manager)):
     """AI kampány varázsló — üzenet generálás Gemini-vel."""
     data = await request.json()
     brief = data.get("brief", "")
