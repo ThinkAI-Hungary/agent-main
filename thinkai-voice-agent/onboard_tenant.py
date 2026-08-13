@@ -111,7 +111,7 @@ def seed_config(tenant_id: str, config: dict):
     print(f"  ✅ agent_settings: voice=Puck, greeting beállítva")
 
     # knowledge_base (üres, de létrejön a sor)
-    db.update_knowledge_base({"content": "{}"})
+    db.update_knowledge_base(fmt="json", content="{}")
     print(f"  ✅ knowledge_base: üres (a Settings-ben tölthető)")
 
     # text_configs — alapértelmezett system_prompt placeholder + written_behavior=approval
