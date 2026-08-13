@@ -43,6 +43,32 @@ JWT_SECRET  = os.getenv("JWT_SECRET", "thinkai-admin-secret-change-me")
 JWT_ALGO    = "HS256"
 JWT_EXPIRES = 60 * 60 * 8  # 8 hours
 
+# ── Credential management whitelist ───────────────────────────────────────────
+# A tenant_credentials táblában kezelhető kulcsok és metaadatuk.
+# Csak ezek a kulcsok módosíthatók az API-n keresztül (biztonsági whitelist).
+_CREDENTIAL_KEYS: dict[str, dict] = {
+    "gemini_api_key":    {"label": "Gemini API kulcs",          "channel": "ai",        "secret": True,  "env": "GEMINI_API_KEY"},
+    "imap_server":       {"label": "IMAP szerver",              "channel": "email",     "secret": False, "env": "IMAP_SERVER"},
+    "imap_port":         {"label": "IMAP port",                 "channel": "email",     "secret": False, "env": "IMAP_PORT"},
+    "imap_user":         {"label": "IMAP felhasználónév",       "channel": "email",     "secret": False, "env": "IMAP_USER"},
+    "imap_pass":         {"label": "IMAP jelszó",               "channel": "email",     "secret": True,  "env": "IMAP_PASS"},
+    "brevo_api_key":     {"label": "Brevo API kulcs",           "channel": "email",     "secret": True,  "env": "BREVO_API_KEY"},
+    "meta_page_token":   {"label": "Facebook Page Token",       "channel": "messenger", "secret": True,  "env": "META_PAGE_ACCESS_TOKEN"},
+    "meta_page_id":      {"label": "Facebook Page ID",          "channel": "messenger", "secret": False, "env": None},
+    "instagram_token":   {"label": "Instagram Token",           "channel": "instagram", "secret": True,  "env": "META_INSTAGRAM_TOKEN"},
+    "instagram_user_id": {"label": "Instagram User ID",         "channel": "instagram", "secret": False, "env": "META_INSTAGRAM_USER_ID"},
+    "whatsapp_token":    {"label": "WhatsApp Token",            "channel": "whatsapp",  "secret": True,  "env": "WHATSAPP_TOKEN"},
+    "whatsapp_phone_id": {"label": "WhatsApp Phone Number ID",  "channel": "whatsapp",  "secret": False, "env": "WHATSAPP_PHONE_ID"},
+}
+
+_CHANNEL_LABELS = {
+    "ai":        "AI / LLM (Gemini)",
+    "email":     "Email (IMAP + Brevo)",
+    "messenger": "Messenger",
+    "instagram": "Instagram",
+    "whatsapp":  "WhatsApp",
+}
+
 # ── Init DB on startup ────────────────────────────────────────────────────────
 db.init_db()
 db.seed_admin_from_env()
@@ -3392,6 +3418,115 @@ async def save_business_info(payload: BusinessInfoSaveRequest, _admin = Depends(
     if not ok:
         raise HTTPException(status_code=500, detail="Nem sikerült menteni a céginformációt.")
     return {"ok": True, "message": "Céginformáció elmentve."}
+
+
+# ── Credential management (per-tenant API keys) ──────────────────────────────
+
+def _mask_secret(value: str, is_secret: bool) -> str:
+    """Maszkolt előnézet: secret-nél csak az utolsó 4 karakter látszik,
+    nem-secret-nél (pl. IMAP szerver) a teljes érték."""
+    if not value:
+        return ""
+    if not is_secret:
+        return value
+    if len(value) <= 8:
+        return "••••"
+    return "••••••••" + value[-4:]
+
+
+@app.get("/admin/api/credentials")
+async def list_credentials(_admin: dict = Depends(require_admin)):
+    """Visszaadja az összes kezelhető credential kulcsot csatornánként csoportosítva.
+    A titkos értékeket NEM adja vissza — csak maszkolt előnézetet és státuszt."""
+    tenant_id = db.get_current_tenant()
+    stored_keys = set(db.list_credential_keys(tenant_id))
+
+    channels: dict[str, dict] = {}
+    for key, meta in _CREDENTIAL_KEYS.items():
+        ch = meta["channel"]
+        if ch not in channels:
+            channels[ch] = {"label": _CHANNEL_LABELS.get(ch, ch), "credentials": {}}
+
+        is_set = key in stored_keys
+        masked = None
+        if is_set:
+            # Csak a maszkoláshoz olvassuk fel — a válaszban sosem szerepel a nyers érték
+            raw = db.get_credential(tenant_id, key, default=None) or ""
+            masked = _mask_secret(raw, meta["secret"])
+
+        env_name = meta.get("env")
+        has_fallback = bool(env_name and os.getenv(env_name))
+
+        channels[ch]["credentials"][key] = {
+            "label": meta["label"],
+            "secret": meta["secret"],
+            "set": is_set,
+            "masked": masked,
+            "has_fallback": has_fallback,
+        }
+
+    return {"channels": channels}
+
+
+class CredentialUpdateRequest(BaseModel):
+    credentials: dict[str, str]
+
+
+@app.put("/admin/api/credentials")
+async def update_credentials(payload: CredentialUpdateRequest, _admin: dict = Depends(require_admin)):
+    """Batch credential mentés. Üres string = törlés (visszaáll a globális fallback-re).
+    Csak a whitelist-ben szereplő kulcsok fogadhatók el."""
+    tenant_id = db.get_current_tenant()
+    updated: list[str] = []
+    cleared: list[str] = []
+    errors: list[str] = []
+
+    for key, value in payload.credentials.items():
+        if key not in _CREDENTIAL_KEYS:
+            errors.append(f"Ismeretlen kulcs: {key}")
+            continue
+
+        value = (value or "").strip()
+        if not value:
+            # Üres érték = törlés (visszaáll a .env fallback-re)
+            if db.delete_credential(tenant_id, key):
+                cleared.append(key)
+            else:
+                errors.append(f"Nem sikerült törölni: {key}")
+        else:
+            if db.set_credential(tenant_id, key, value):
+                updated.append(key)
+            else:
+                errors.append(
+                    f"Nem sikerült menteni: {key} "
+                    "(ellenőrizd, hogy a CREDENTIALS_ENCRYPTION_KEY be van-e állítva)"
+                )
+
+    if errors and not updated and not cleared:
+        raise HTTPException(status_code=500, detail="; ".join(errors))
+
+    return {
+        "ok": True,
+        "message": "Hitelesítő adatok elmentve.",
+        "updated": updated,
+        "cleared": cleared,
+        "errors": errors,
+    }
+
+
+@app.delete("/admin/api/credentials/{key}")
+async def delete_credential(key: str, _admin: dict = Depends(require_admin)):
+    """Egyetlen credential törlése — visszaáll a globális .env fallback-re."""
+    if key not in _CREDENTIAL_KEYS:
+        raise HTTPException(status_code=400, detail=f"Ismeretlen credential kulcs: {key}")
+
+    tenant_id = db.get_current_tenant()
+    ok = db.delete_credential(tenant_id, key)
+    if not ok:
+        raise HTTPException(status_code=500, detail="Nem sikerült törölni a hitelesítő adatot.")
+
+    return {"ok": True, "message": "Hitelesítő adat törölve, visszaállítva a globális beállításra."}
+
 
 @app.get("/admin/api/prices/template/download")
 async def download_price_template(_admin = Depends(require_admin)):

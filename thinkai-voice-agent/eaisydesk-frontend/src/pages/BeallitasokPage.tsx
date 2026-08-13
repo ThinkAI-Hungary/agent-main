@@ -14,6 +14,7 @@ import ProfileAvatarUpload from '../components/settings/ProfileAvatarUpload';
 import SessionTimeoutSetting from '../components/settings/SessionTimeoutSetting';
 import GdprSection from '../components/settings/GdprSection';
 import CustomSelect from '../components/settings/CustomSelect';
+import CredentialsSection from '../components/settings/CredentialsSection';
 
 
 interface User {
@@ -30,6 +31,7 @@ const TABS = [
   { id: 'csapat', label: 'Csapat', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75' },
   { id: 'eaisydesk', label: 'eaisyDesk beállítások', icon: 'M12.22 2h-.44a2 2 0 00-2 2v.18a2 2 0 01-1 1.73l-.43.25a2 2 0 01-2 0l-.15-.08a2 2 0 00-2.73.73l-.22.38a2 2 0 00.73 2.73l.15.1a2 2 0 011 1.72v.51a2 2 0 01-1 1.74l-.15.09a2 2 0 00-.73 2.73l.22.38a2 2 0 002.73.73l.15-.08a2 2 0 012 0l.43.25a2 2 0 011 1.73V20a2 2 0 002 2h.44a2 2 0 002-2v-.18a2 2 0 011-1.73l.43-.25a2 2 0 012 0l.15.08a2 2 0 002.73-.73l.22-.39a2 2 0 00-.73-2.73l-.15-.08a2 2 0 01-1-1.74v-.5a2 2 0 011-1.74l.15-.09a2 2 0 00.73-2.73l-.22-.38a2 2 0 00-2.73-.73l-.15.08a2 2 0 01-2 0l-.43-.25a2 2 0 01-1-1.73V4a2 2 0 00-2-2zM12 15a3 3 0 100-6 3 3 0 000 6z' },
   { id: 'biztonsag', label: 'Biztonság', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
+  { id: 'credentials', label: 'Hitelesítő adatok', icon: 'M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 1 1 7.778-7.778zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4' },
 ] as const;
 
 export default function BeallitasokPage() {
@@ -60,6 +62,7 @@ export default function BeallitasokPage() {
   const visibleTabs = useMemo(() => {
     return TABS.filter(tab => {
       if (tab.id === 'csapat' || tab.id === 'eaisydesk') return isAdmin;
+      if (tab.id === 'credentials') return isAdminOnly;
       return true;
     });
   }, [isAdmin]);
@@ -328,6 +331,11 @@ export default function BeallitasokPage() {
               <GdprSection />
             </div>
           </div>
+        )}
+
+        {/* ── HITELESÍTŐ ADATOK TAB ── */}
+        {activeTab === 'credentials' && isAdminOnly && (
+          <CredentialsSection />
         )}
       </div>
 

@@ -183,6 +183,39 @@ def get_credential(tenant_id: str | None, key: str, default: str | None = None) 
     return default
 
 
+def delete_credential(tenant_id: str, key: str) -> bool:
+    """Per-tenant credential törlése. Ha sikeres, a credential visszaáll a
+    globális .env fallback-re (get_credential default argumentuma)."""
+    if not supabase or not tenant_id:
+        return False
+    try:
+        supabase.table("tenant_credentials").delete().eq(
+            "tenant_id", tenant_id
+        ).eq("key", key).execute()
+        return True
+    except Exception as e:
+        logger.error(f"delete_credential hiba ({key}): {e}")
+        return False
+
+
+def list_credential_keys(tenant_id: str) -> list[str]:
+    """Visszaadja a tenant által tárolt credential kulcsok listáját.
+    Az értékeket NEM olvassa ki — csak a kulcsneveket a GET API-hoz."""
+    if not tenant_id or not supabase:
+        return []
+    try:
+        res = (
+            supabase.table("tenant_credentials")
+            .select("key")
+            .eq("tenant_id", tenant_id)
+            .execute()
+        )
+        return [r["key"] for r in res.data] if res.data else []
+    except Exception as e:
+        logger.warning(f"list_credential_keys hiba: {e}")
+        return []
+
+
 def get_gemini_api_key(tenant_id: str | None = None) -> str:
     """Gemini API kulcs feloldása (BYOK): a tenant saját kulcsa a
     tenant_credentials-ből ('gemini_api_key'), különben a globális platform-kulcs.
