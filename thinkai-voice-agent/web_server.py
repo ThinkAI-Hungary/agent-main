@@ -43,6 +43,11 @@ JWT_SECRET  = os.getenv("JWT_SECRET", "thinkai-admin-secret-change-me")
 JWT_ALGO    = "HS256"
 JWT_EXPIRES = 60 * 60 * 8  # 8 hours
 
+# ── Environment ───────────────────────────────────────────────────────────────
+# "staging" = sandbox: háttér workerek és LiveKit agent kikapcsolva.
+# "production" (default) = minden worker fut.
+APP_ENV = os.getenv("APP_ENV", "production")
+
 # ── Credential management whitelist ───────────────────────────────────────────
 # A tenant_credentials táblában kezelhető kulcsok és metaadatuk.
 # Csak ezek a kulcsok módosíthatók az API-n keresztül (biztonsági whitelist).
@@ -202,15 +207,22 @@ async def campaign_scheduler_worker():
 
 @app.on_event("startup")
 async def startup_event():
+    # Staging módban a háttér workerek KI vannak kapcsolva —
+    # a staging egy sandbox: nem olvas mailboxot, nem küld emaileket,
+    # nem futtat kampányokat, nem publikál social posztokat.
+    if APP_ENV == "staging":
+        logger.info("⏭️  Staging mód: háttér workerek kikapcsolva (email, reminder, automation, social, campaign)")
+        return
+
     # Elindítjuk az email worker loopot a háttérben
     task = asyncio.create_task(email_processor.email_worker_loop())
     background_tasks.add(task)
     task.add_done_callback(background_tasks.discard)
-    
+
     task2 = asyncio.create_task(email_processor.reminder_worker_loop())
     background_tasks.add(task2)
     task2.add_done_callback(background_tasks.discard)
-    
+
     # Eseményvezérelt automatizációk worker
     task3 = asyncio.create_task(email_processor.automation_worker_loop())
     background_tasks.add(task3)
