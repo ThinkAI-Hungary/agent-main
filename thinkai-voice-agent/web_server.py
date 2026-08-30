@@ -47,6 +47,7 @@ JWT_EXPIRES = 60 * 60 * 8  # 8 hours
 # "staging" = sandbox: háttér workerek és LiveKit agent kikapcsolva.
 # "production" (default) = minden worker fut.
 APP_ENV = os.getenv("APP_ENV", "production")
+AGENT_NAME = os.getenv("AGENT_NAME", "dobozos-ai")
 
 # ── Credential management whitelist ───────────────────────────────────────────
 # A tenant_credentials táblában kezelhető kulcsok és metaadatuk.
@@ -276,7 +277,7 @@ async def inbound_sip_room_monitor():
                 if not has_agent:
                     await lk.agent_dispatch.create_dispatch(
                         lk_api_module.CreateAgentDispatchRequest(
-                            agent_name="dobozos-ai",
+                            agent_name=AGENT_NAME,
                             room=room.name,
                             metadata="inbound_sip",
                         )
@@ -1225,7 +1226,7 @@ async def get_token(tenant: str = ""):
         .with_grants(VideoGrants(room_join=True, room=room_name))
         .with_room_config(
             RoomConfiguration(
-                agents=[RoomAgentDispatch(agent_name="dobozos-ai")]
+                agents=[RoomAgentDispatch(agent_name=AGENT_NAME)]
             )
         )
     )
@@ -3736,7 +3737,7 @@ async def sip_outbound_call(req: SipCallRequest, _auth = Depends(require_admin_o
         # 3. Csak ha felvették: agent dispatch (metadata-val ha van script)
         await lk.agent_dispatch.create_dispatch(
             lk_api_module.CreateAgentDispatchRequest(
-                agent_name="dobozos-ai",
+                agent_name=AGENT_NAME,
                 room=room_name,
                 metadata=call_metadata or "outbound_call",
             )
@@ -3971,7 +3972,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(req
                     )
                     await lk.agent_dispatch.create_dispatch(
                         lk_api_module.CreateAgentDispatchRequest(
-                            agent_name="dobozos-ai",
+                            agent_name=AGENT_NAME,
                             room=call_room,
                             metadata=call_metadata,
                         )
@@ -4601,7 +4602,7 @@ async def _run_phone_campaign(campaign: dict):
             # 3. Dispatch agent with campaign metadata
             await lk.agent_dispatch.create_dispatch(
                 lk_api_module.CreateAgentDispatchRequest(
-                    agent_name="dobozos-ai",
+                    agent_name=AGENT_NAME,
                     room=room_name,
                     metadata=campaign_metadata,
                 )

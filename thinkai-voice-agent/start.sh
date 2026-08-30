@@ -23,15 +23,12 @@ cleanup() {
 }
 trap cleanup EXIT INT TERM
 
-# Start the agent worker in the background (skip on staging)
-if [ "${APP_ENV:-production}" != "staging" ]; then
-    echo "   Agent worker: python server.py $MODE"
-    NO_COLOR=1 python3 server.py "$MODE" &
-    AGENT_PID=$!
-else
-    echo "   Agent worker: ⏭️  kihagyva (staging)"
-    AGENT_PID=""
-fi
+# Start the agent worker — mindkét környezetben fut,
+# de a staging saját AGENT_NAME-t használ (nem konfliktol a proddal).
+AGENT="${AGENT_NAME:-dobozos-ai}"
+echo "   Agent worker: python server.py $MODE (agent: $AGENT)"
+NO_COLOR=1 python3 server.py "$MODE" &
+AGENT_PID=$!
 
 echo "   Web server:   python web_server.py (port ${PORT:-8000})"
 
@@ -39,10 +36,7 @@ echo "   Web server:   python web_server.py (port ${PORT:-8000})"
 python3 web_server.py &
 WEB_PID=$!
 
-if [ -n "$AGENT_PID" ]; then
-    echo "✅ Both processes started (agent=$AGENT_PID, web=$WEB_PID)"
-    wait $AGENT_PID $WEB_PID
-else
-    echo "✅ Web server started (web=$WEB_PID, staging — no agent)"
-    wait $WEB_PID
-fi
+echo "✅ Both processes started (agent=$AGENT_PID, web=$WEB_PID)"
+
+# Wait for both — if either exits, the cleanup trap handles the other
+wait $AGENT_PID $WEB_PID
