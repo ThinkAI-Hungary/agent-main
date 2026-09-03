@@ -186,7 +186,7 @@ export default function CredentialsSection() {
   const handleConnectFacebook = async () => {
     setOauthLoading(true);
     try {
-      const token = localStorage.getItem('token') || sessionStorage.getItem('token') || '';
+      const token = localStorage.getItem('thinkai_admin_token') || '';
       const res = await authFetch(`/auth/facebook/start?token=${token}`);
       if (res.ok) {
         const data = await res.json();
