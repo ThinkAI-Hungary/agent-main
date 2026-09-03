@@ -1953,11 +1953,19 @@ async def _send_channel_message(source_channel: str, sender_id: str, text: str, 
             elif ch == "instagram":
                 ig_token = _meta_cred(tid, "instagram_token")
                 ig_user_id = _meta_cred(tid, "instagram_user_id")
-                if not ig_token:
+                page_access_token = _meta_cred(tid, "meta_page_token")
+                token_to_use = ig_token or page_access_token
+                if not token_to_use:
                     return False
+                # Ha Facebook Page Access Token (OAuth, EAA...), a graph.facebook.com/v21.0/me/messages kell
+                # Ha régi Instagram token (IG...), akkor graph.instagram.com/{ig_user_id}/messages
+                if token_to_use.startswith("EAA") or not token_to_use.startswith("IG"):
+                    url = "https://graph.facebook.com/v21.0/me/messages"
+                else:
+                    url = f"https://graph.instagram.com/v21.0/{ig_user_id}/messages"
                 resp = await http_client.post(
-                    f"https://graph.instagram.com/v21.0/{ig_user_id}/messages",
-                    headers={"Authorization": f"Bearer {ig_token}", "Content-Type": "application/json"},
+                    url,
+                    headers={"Authorization": f"Bearer {token_to_use}", "Content-Type": "application/json"},
                     json={"recipient": {"id": sender_id}, "message": {"text": text}},
                     timeout=20,
                 )
@@ -4232,13 +4240,19 @@ async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(req
                         raise Exception("Hiányzó Meta oldal token")
 
                     if ch == "instagram":
-                        # Instagram DM: use META_INSTAGRAM_TOKEN + graph.instagram.com/{ig_user_id}/messages
-                        ig_token = _meta_cred(approval_tenant, "instagram_token")
+                        # Instagram DM: ha a token Facebook Page Access Token (OAuth, EAA...),
+                        # a Meta Graph API me/messages végpontot kell hívni (ugyanúgy mint Messenger).
+                        # Ha régi Instagram token (IG...), akkor graph.instagram.com/{ig_user_id}/messages.
+                        ig_token = _meta_cred(approval_tenant, "instagram_token") or page_access_token
                         ig_user_id = _meta_cred(approval_tenant, "instagram_user_id")
                         if not ig_token:
-                            raise Exception("Hiányzó META_INSTAGRAM_TOKEN")
+                            raise Exception("Hiányzó Instagram vagy Meta oldal token")
+                        if ig_token.startswith("EAA") or not ig_token.startswith("IG"):
+                            url = "https://graph.facebook.com/v21.0/me/messages"
+                        else:
+                            url = f"https://graph.instagram.com/v21.0/{ig_user_id}/messages"
                         resp = await http_client.post(
-                            f"https://graph.instagram.com/v21.0/{ig_user_id}/messages",
+                            url,
                             headers={
                                 "Authorization": f"Bearer {ig_token}",
                                 "Content-Type": "application/json"
