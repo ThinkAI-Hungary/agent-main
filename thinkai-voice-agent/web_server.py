@@ -614,6 +614,7 @@ async def facebook_oauth_start(request: Request):
         f"&scope={scope}"
         f"&state={state}"
         f"&response_type=code"
+        f"&auth_type=rerequest"
     )
 
     return {"url": fb_oauth_url, "redirect_uri": redirect_uri}
