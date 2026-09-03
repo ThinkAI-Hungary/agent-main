@@ -129,11 +129,19 @@ export default function NotificationCenter() {
 
         const maxId = Math.max(...rows.map((r: any) => r.id || 0));
 
-        // On first poll, just record the latest ID — don't fire notifications for old stuff
+        // On first poll, load saved position from localStorage to avoid re-notifying old items.
+        // But if no saved position, record current max and skip (don't spam on first load).
         if (isFirstPollRef.current) {
           isFirstPollRef.current = false;
-          lastInteractionIdRef.current = maxId;
-          return;
+          const saved = parseInt(localStorage.getItem('lastInteractionId') || '0');
+          if (saved > 0) {
+            lastInteractionIdRef.current = saved;
+            // Still check for new rows against the saved position
+          } else {
+            lastInteractionIdRef.current = maxId;
+            localStorage.setItem('lastInteractionId', String(maxId));
+            return;
+          }
         }
 
         // Find new rows (id > last known)
@@ -168,6 +176,7 @@ export default function NotificationCenter() {
 
         if (maxId > lastInteractionIdRef.current) {
           lastInteractionIdRef.current = maxId;
+          localStorage.setItem('lastInteractionId', String(maxId));
         }
       } catch { /* polling error */ }
     }

@@ -1701,45 +1701,52 @@ async def fetch_meta_user_profile(sender_id: str, source_channel: str, tenant_id
         return None
 
     # Instagram DM uses Page Access Token (Messenger platform), not IG API token
-    # Per-tenant token (env fallback — _meta_cred a fájl későbbi részében definiált)
-    token = _meta_cred(tenant_id or db.get_current_tenant(), "meta_page_token")
-    if not token:
+    # Per-tenant token elsőként, fallback: a legacy META_PAGE_ACCESS_TOKEN env var
+    tenant_token = _meta_cred(tenant_id or db.get_current_tenant(), "meta_page_token")
+    env_token    = os.getenv("META_PAGE_ACCESS_TOKEN", "")
+    tokens_to_try = [t for t in [tenant_token, env_token] if t]
+
+    if not tokens_to_try:
         return None
-    
+
     # Instagram IGSID supports 'name' field directly.
     # Messenger PSID only supports 'first_name', 'last_name', 'profile_pic' — NOT 'name'.
-    # Requesting 'name' on a PSID causes a 400 error, breaking the entire request.
     if source_channel == "Instagram":
-        fields = "name,username,profile_pic"
+        field_sets = ["name,username,profile_pic"]
     else:
-        fields = "first_name,last_name,profile_pic"
-        
-    url = f"https://graph.facebook.com/v21.0/{sender_id}?fields={fields}&access_token={token}"
-    try:
-        import httpx
-        async with httpx.AsyncClient() as client:
-            resp = await client.get(url, timeout=5.0)
-            if resp.status_code == 200:
-                data = resp.json()
-                name = data.get("name")
-                username = data.get("username")
-                if source_channel == "Instagram" and not name:
-                    name = username
-                if not name:
-                    first = data.get("first_name", "")
-                    last = data.get("last_name", "")
-                    name = f"{first} {last}".strip()
-                profile_pic = data.get("profile_pic")
-                res_dict = {"name": name, "profile_pic": profile_pic}
-                if username:
-                    res_dict["username"] = username
-                return res_dict if name else None
-            else:
-                print(f"[Meta API] Error fetching profile for {sender_id} ({source_channel}): {resp.text}")
-                return None
-    except Exception as e:
-        print(f"[Meta API] Exception fetching profile: {e}")
-        return None
+        field_sets = ["first_name,last_name,profile_pic", "name,profile_pic"]
+
+    import httpx
+    for token in tokens_to_try:
+        for fields in field_sets:
+            url = f"https://graph.facebook.com/v25.0/{sender_id}?fields={fields}&access_token={token}"
+            try:
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get(url, timeout=5.0)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        name = data.get("name", "").strip()
+                        username = data.get("username", "").strip()
+                        if source_channel == "Instagram" and not name:
+                            name = username
+                        if not name:
+                            first = data.get("first_name", "").strip()
+                            last  = data.get("last_name", "").strip()
+                            name = f"{first} {last}".strip()
+                        profile_pic = data.get("profile_pic")
+                        if name:
+                            logger.info(f"[Meta API] Név feloldva: '{name}' ({source_channel}/{sender_id})")
+                            res = {"name": name, "profile_pic": profile_pic}
+                            if username:
+                                res["username"] = username
+                            return res
+                    else:
+                        logger.debug(f"[Meta API] Profile fetch hiba ({fields}): {resp.status_code}")
+            except Exception as e:
+                logger.debug(f"[Meta API] Profile fetch kivétel ({fields}): {e}")
+
+    logger.warning(f"[Meta API] Név feloldás sikertelen ({source_channel} {sender_id}), DB fallback...")
+    return None
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # SPAM FILTER — Heuristic message spam detection (Messenger/Instagram/WhatsApp)
