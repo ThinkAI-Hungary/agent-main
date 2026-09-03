@@ -113,7 +113,7 @@ export default function NotificationCenter() {
   }, [toasts]);
 
   /* ── Polling-based notification system (replaces Supabase Realtime) ── */
-  const lastInteractionIdRef = useRef(0);
+  const lastSeenTimeRef = useRef<string>('');
   const isFirstPollRef = useRef(true);
 
   useEffect(() => {
@@ -127,25 +127,31 @@ export default function NotificationCenter() {
         const rows = data?.interactions || data;
         if (!Array.isArray(rows) || rows.length === 0) return;
 
-        const maxId = Math.max(...rows.map((r: any) => r.id || 0));
+        // Sort by created_at DESC, find the latest timestamp
+        const sorted = [...rows].sort((a: any, b: any) =>
+          (b.created_at || '').localeCompare(a.created_at || '')
+        );
+        const latestTime = sorted[0]?.created_at || '';
 
-        // On first poll, load saved position from localStorage to avoid re-notifying old items.
-        // But if no saved position, record current max and skip (don't spam on first load).
+        // On first poll: load saved timestamp from localStorage
         if (isFirstPollRef.current) {
           isFirstPollRef.current = false;
-          const saved = parseInt(localStorage.getItem('lastInteractionId') || '0');
-          if (saved > 0) {
-            lastInteractionIdRef.current = saved;
-            // Still check for new rows against the saved position
+          const saved = localStorage.getItem('lastSeenInteractionTime') || '';
+          if (saved) {
+            lastSeenTimeRef.current = saved;
+            // Fall through to check for new rows against saved timestamp
           } else {
-            lastInteractionIdRef.current = maxId;
-            localStorage.setItem('lastInteractionId', String(maxId));
+            lastSeenTimeRef.current = latestTime;
+            localStorage.setItem('lastSeenInteractionTime', latestTime);
             return;
           }
         }
 
-        // Find new rows (id > last known)
-        const newRows = rows.filter((r: any) => (r.id || 0) > lastInteractionIdRef.current);
+        // Find new rows: created_at > last seen time
+        const newRows = rows.filter((r: any) =>
+          (r.created_at || '') > lastSeenTimeRef.current
+        );
+
         for (const row of newRows) {
           const channel = row.type || row.channel || 'Üzenet';
           const rawTopic = (row.topic || '').replace(/\uFFFD/g, '');
@@ -155,7 +161,9 @@ export default function NotificationCenter() {
             ? `Beérkezett üzenet: ${incomingMessage}`
             : rawSummary || `Új ${channel} érkezett`;
           const alertTags = row.alert_tags || [];
-          const isUrgent = alertTags.includes('urgent');
+          const isUrgent = Array.isArray(alertTags)
+            ? alertTags.includes('urgent')
+            : String(alertTags).includes('urgent');
           const clientName = row.client_name || row.participant || 'Ismeretlen';
 
           if (isUrgent) {
@@ -174,9 +182,9 @@ export default function NotificationCenter() {
           }
         }
 
-        if (maxId > lastInteractionIdRef.current) {
-          lastInteractionIdRef.current = maxId;
-          localStorage.setItem('lastInteractionId', String(maxId));
+        if (latestTime > lastSeenTimeRef.current) {
+          lastSeenTimeRef.current = latestTime;
+          localStorage.setItem('lastSeenInteractionTime', latestTime);
         }
       } catch { /* polling error */ }
     }
