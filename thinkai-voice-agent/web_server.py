@@ -735,7 +735,7 @@ async def _save_meta_page_credentials(tenant_id: str, page: dict):
 
 
 @app.get("/auth/facebook/pages")
-async def facebook_list_pages(select_token: str, _admin: dict = Depends(require_admin)):
+async def facebook_list_pages(select_token: str, _user: str = Depends(verify_jwt)):
     """Ha a usernek több FB oldala van, ez adja vissza a listát hogy ki tudja választani."""
     state_data = _oauth_states.get(f"pages:{select_token}")
     if not state_data:
@@ -752,7 +752,7 @@ class MetaPageSelectRequest(BaseModel):
 
 
 @app.post("/auth/facebook/connect")
-async def facebook_connect_page(payload: MetaPageSelectRequest, _admin: dict = Depends(require_admin)):
+async def facebook_connect_page(payload: MetaPageSelectRequest, _user: str = Depends(verify_jwt)):
     """Kiválasztott FB page token mentése (ha több oldal volt). Frontend hívja a page selection modalból."""
     state_key = f"pages:{payload.select_token}"
     state_data = _oauth_states.pop(state_key, None)
@@ -770,7 +770,7 @@ async def facebook_connect_page(payload: MetaPageSelectRequest, _admin: dict = D
 
 
 @app.delete("/auth/facebook/disconnect")
-async def facebook_disconnect(_admin: dict = Depends(require_admin)):
+async def facebook_disconnect(_user: str = Depends(verify_jwt)):
     """Facebook / Instagram leválasztása — törli a tokeneket a tenant_credentials-ből."""
     tenant_id = db.get_current_tenant()
     for key in ("meta_page_token", "meta_page_id", "instagram_token", "instagram_user_id"):
