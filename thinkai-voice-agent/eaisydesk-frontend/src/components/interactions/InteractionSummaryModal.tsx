@@ -15,6 +15,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { fmtDt } from '../../helpers/formatters';
 import { parseCustomData, type ClientRecord } from '../../helpers/clientResolvers';
+import { FormattedMessage } from '../../helpers/messageFormatter';
 import { authFetch } from '../../api/client';
 import { showToast } from '../ui/Toast';
 import { EredmenyBadge, StatuszBadge } from '../ui/Badge';
@@ -858,7 +859,7 @@ export default function InteractionSummaryModal({
                                 : 'ism-chat-bubble--ai'
                             }`}
                           >
-                            {block.text}
+                            <FormattedMessage text={block.text} />
                           </div>
                         </div>
                       )

@@ -647,3 +647,133 @@
     text-align: center;
   }
 }
+
+/* ── Formatted Message Rendering ── */
+.ism-formatted-text {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.ism-text-line {
+  min-height: 1.25em;
+  word-break: break-word;
+}
+
+.ism-empty-line {
+  height: 8px;
+}
+
+.ism-chat-bold {
+  font-weight: 600;
+  color: inherit;
+}
+
+.ism-chat-link {
+  color: #0284c7;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+  word-break: break-all;
+  transition: color 0.15s ease;
+}
+
+.ism-chat-link:hover {
+  color: #0369a1;
+}
+
+.ism-chat-link--email {
+  color: #0d9488;
+}
+
+/* Standalone attachment / image chip */
+.ism-attachment-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  margin: 6px 0;
+  background: #ffffff;
+  border: 1px solid #cbd5e1;
+  border-radius: 8px;
+  font-size: 12px;
+  color: #334155;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04);
+  max-width: fit-content;
+}
+
+.ism-attachment-icon {
+  color: #0284c7;
+  flex-shrink: 0;
+}
+
+.ism-attachment-chip-body {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+}
+
+.ism-attachment-label {
+  font-size: 10.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+  color: #64748b;
+  font-weight: 500;
+}
+
+.ism-attachment-filename {
+  font-size: 12.5px;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+/* Inline small attachment tag */
+.ism-attachment-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 2px 7px;
+  background: #e2e8f0;
+  border-radius: 4px;
+  font-size: 11.5px;
+  font-weight: 500;
+  color: #334155;
+  margin: 0 3px;
+  vertical-align: middle;
+}
+
+.ism-attachment-tag-icon {
+  color: #0284c7;
+  flex-shrink: 0;
+}
+
+.ism-attachment-tag-name {
+  font-weight: 600;
+}
+
+/* Quoted email text */
+.ism-quote-line {
+  padding-left: 10px;
+  border-left: 3px solid #cbd5e1;
+  color: #64748b;
+  font-size: 12.5px;
+  font-style: italic;
+  margin: 2px 0;
+}
+
+/* Forwarded message divider */
+.ism-forwarded-divider {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 10px 0 6px 0;
+  padding: 5px 12px;
+  background: rgba(6, 182, 212, 0.08);
+  border-left: 3px solid #06b6d4;
+  border-radius: 0 6px 6px 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0891b2;
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+

@@ -11,6 +11,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useApproval } from '../../context/ApprovalContext';
 import { authFetch } from '../../api/client';
 import { showToast } from '../ui/Toast';
+import { FormattedMessage } from '../../helpers/messageFormatter';
 import './ApprovalModal.css';
 
 export default function ApprovalModal() {
@@ -148,7 +149,7 @@ export default function ApprovalModal() {
               )}
             </div>
             <div className="apv-modal-context-text">
-              {topicText || <em style={{ color: 'var(--text-dim, #94a3b8)' }}>Az ügyfél eredeti üzenete nem elérhető (régebbi interakció)</em>}
+              {topicText ? <FormattedMessage text={topicText} /> : <em style={{ color: 'var(--text-dim, #94a3b8)' }}>Az ügyfél eredeti üzenete nem elérhető (régebbi interakció)</em>}
             </div>
           </div>
 

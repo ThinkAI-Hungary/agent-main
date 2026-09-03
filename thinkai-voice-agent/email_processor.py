@@ -896,23 +896,55 @@ def check_imap_sync(server: str = "", user: str = "", pwd: str = "", port: int =
                         from_email = parts[1].replace(">", "").strip()
 
                     text_content = ""
+                    html_content = ""
+                    attachments_found = []
                     if msg.is_multipart():
                         for part in msg.walk():
                             content_type = part.get_content_type()
-                            content_disposition = str(part.get("Content-Disposition"))
+                            content_disposition = str(part.get("Content-Disposition") or "")
+                            part_filename = decode_mime_words(part.get_filename() or "")
+
+                            # Csatolmányok és képek detektálása
+                            if "attachment" in content_disposition or (content_type.startswith("image/") and part_filename):
+                                if part_filename and part_filename not in attachments_found:
+                                    attachments_found.append(part_filename)
+
                             if content_type == "text/plain" and "attachment" not in content_disposition:
-                                charset = part.get_content_charset() or 'utf-8'
-                                raw_payload = part.get_payload(decode=True)
-                                text_content = _decode_payload(raw_payload, charset)
-                                break
+                                if not text_content:
+                                    charset = part.get_content_charset() or 'utf-8'
+                                    raw_payload = part.get_payload(decode=True)
+                                    text_content = _decode_payload(raw_payload, charset)
                             elif content_type == "text/html" and "attachment" not in content_disposition:
-                                charset = part.get_content_charset() or 'utf-8'
-                                raw_payload = part.get_payload(decode=True)
-                                text_content = _decode_payload(raw_payload, charset)
+                                if not html_content:
+                                    charset = part.get_content_charset() or 'utf-8'
+                                    raw_payload = part.get_payload(decode=True)
+                                    html_content = _decode_payload(raw_payload, charset)
                     else:
                         charset = msg.get_content_charset() or 'utf-8'
                         raw_payload = msg.get_payload(decode=True)
                         text_content = _decode_payload(raw_payload, charset)
+
+                    # Ha nem volt text/plain, kinyerjük a text/html-ből
+                    if not text_content and html_content:
+                        import re as _re_html
+                        clean_html = _re_html.sub(r'<style.*?</style>', '', html_content, flags=_re_html.DOTALL | _re_html.IGNORECASE)
+                        clean_html = _re_html.sub(r'<script.*?</script>', '', clean_html, flags=_re_html.DOTALL | _re_html.IGNORECASE)
+                        clean_html = _re_html.sub(r'<br\s*/?>', '\n', clean_html, flags=_re_html.IGNORECASE)
+                        clean_html = _re_html.sub(r'</p>', '\n\n', clean_html, flags=_re_html.IGNORECASE)
+                        clean_html = _re_html.sub(r'</div>', '\n', clean_html, flags=_re_html.IGNORECASE)
+                        clean_html = _re_html.sub(r'<[^>]+>', '', clean_html)
+                        text_content = clean_html.strip()
+
+                    # Csatolmányok jelzése a szövegben, ha még nem szerepelnek benne
+                    if attachments_found:
+                        new_atts = [
+                            f"[Melléklet: {fn}]"
+                            for fn in attachments_found
+                            if f"[image: {fn}]" not in text_content and f"[Melléklet: {fn}]" not in text_content
+                        ]
+                        if new_atts:
+                            text_content = (text_content.rstrip() + "\n\n" + "\n".join(new_atts)).strip()
+
                     text_content = clean_email_body(text_content)
                     emails_to_process.append((uid, message_id, from_email, from_name, subject, text_content))
                 except Exception as fe:
