@@ -665,7 +665,14 @@ async def facebook_oauth_callback(request: Request, code: str = None, state: str
         long_lived_token = ll_data.get("access_token", short_lived_token)
         logger.info(f"[Meta OAuth] Long-lived user token megszerezve, tenant={tenant_id}")
 
-        # ── 3. FB Page-ek lekérése (a long-lived tokennel) ────────────────────
+        # ── 3. DEBUG: megnézzük milyen permissionök vannak a tokenen ──────────
+        resp_perms = await client.get(f"{_FB_GRAPH}/me/permissions", params={"access_token": long_lived_token})
+        print(f"[DEBUG Meta OAuth] /me/permissions: {resp_perms.json()}", flush=True)
+
+        resp_me = await client.get(f"{_FB_GRAPH}/me", params={"access_token": long_lived_token, "fields": "id,name"})
+        print(f"[DEBUG Meta OAuth] /me: {resp_me.json()}", flush=True)
+
+        # ── FB Page-ek lekérése ────────────────────────────────────────────────
         resp3 = await client.get(f"{_FB_GRAPH}/me/accounts", params={
             "access_token": long_lived_token,
             "fields":       "id,name,access_token,instagram_business_account",
