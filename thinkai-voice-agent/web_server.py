@@ -680,47 +680,32 @@ async def facebook_oauth_callback(request: Request, code: str = None, state: str
         long_lived_token = ll_data.get("access_token", short_lived_token)
         logger.info(f"[Meta OAuth] Long-lived user token megszerezve, tenant={tenant_id}")
 
-        # ── 3. DEBUG: megnézzük milyen permissionök vannak a tokenen ──────────
-        resp_perms = await client.get(f"{_FB_GRAPH}/me/permissions", params={"access_token": long_lived_token})
-        print(f"[DEBUG Meta OAuth] /me/permissions: {resp_perms.json()}", flush=True)
-
-        resp_me = await client.get(f"{_FB_GRAPH}/me", params={"access_token": long_lived_token, "fields": "id,name"})
-        print(f"[DEBUG Meta OAuth] /me: {resp_me.json()}", flush=True)
-
         # ── FB Page-ek lekérése ────────────────────────────────────────────────
         resp3 = await client.get(f"{_FB_GRAPH}/me/accounts", params={
             "access_token": long_lived_token,
             "fields":       "id,name,access_token,instagram_business_account",
         })
         pages_data = resp3.json()
-        print(f"[DEBUG Meta OAuth] /me/accounts: {pages_data}", flush=True)
         pages = pages_data.get("data", [])
 
-        # ── Fallback: Business API (ha Business Suite-on keresztül kezelt oldal) ──
+        # Fallback: Business API (ha /me/accounts üres marad)
         if not pages:
-            print("[DEBUG Meta OAuth] /me/accounts üres — Business API fallback...", flush=True)
             resp_biz = await client.get(f"{_FB_GRAPH}/me/businesses", params={
                 "access_token": long_lived_token,
                 "fields": "id,name,owned_pages{id,name,access_token,instagram_business_account}",
             })
-            biz_data = resp_biz.json()
-            print(f"[DEBUG Meta OAuth] /me/businesses: {biz_data}", flush=True)
-            for biz in biz_data.get("data", []):
-                owned = biz.get("owned_pages", {}).get("data", [])
-                # owned_pages nem mindig adja vissza az access_token-t — fetcheljük külön
-                for op in owned:
+            for biz in resp_biz.json().get("data", []):
+                for op in biz.get("owned_pages", {}).get("data", []):
                     if not op.get("access_token"):
                         tok_resp = await client.get(f"{_FB_GRAPH}/{op['id']}", params={
                             "access_token": long_lived_token,
                             "fields": "id,name,access_token,instagram_business_account",
                         })
-                        tok_data = tok_resp.json()
-                        logger.info(f"[Meta OAuth] Page token fetch: {tok_data}")
-                        op.update(tok_data)
+                        op.update(tok_resp.json())
                     pages.append(op)
 
         if not pages:
-            logger.warning(f"[Meta OAuth] Nincs oldal! me/accounts + Business API is üres.")
+            logger.warning(f"[Meta OAuth] Nincs oldal a tenant={tenant_id} számára.")
             return RedirectResponse(url=_OAUTH_FRONTEND_ERROR + "&reason=no_pages", status_code=302)
 
         # Ha csak egy oldal van → azonnal mentjük; ha több → page selection oldalra
