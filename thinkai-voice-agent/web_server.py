@@ -49,6 +49,10 @@ JWT_EXPIRES = 60 * 60 * 8  # 8 hours
 APP_ENV = os.getenv("APP_ENV", "production")
 AGENT_NAME = os.getenv("AGENT_NAME", "dobozos-ai")
 
+# ── Meta / Facebook OAuth ─────────────────────────────────────────────────────
+META_APP_ID     = os.getenv("META_APP_ID", "")
+META_APP_SECRET = os.getenv("META_APP_SECRET", "")
+
 # ── Credential management whitelist ───────────────────────────────────────────
 # A tenant_credentials táblában kezelhető kulcsok és metaadatuk.
 # Csak ezek a kulcsok módosíthatók az API-n keresztül (biztonsági whitelist).
@@ -535,6 +539,243 @@ async def robots_txt():
     )
     return PlainTextResponse(content=content, media_type="text/plain")
 
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# META (FACEBOOK / INSTAGRAM) OAUTH — "Csatlakoztatás" flow
+# ═══════════════════════════════════════════════════════════════════════════════
+#
+# Flow összefoglalás:
+#   1. Frontend meghívja: GET /auth/facebook/start  → visszaad egy FB OAuth URL-t
+#   2. Frontend redirectel erre az URL-re (Meta OAuth dialog)
+#   3. Meta visszahív: GET /auth/facebook/callback?code=...&state=...
+#   4. Backend: code → short-lived user token → long-lived (60 nap) → permanent page token
+#   5. Ha a usernek több FB oldala van → GET /auth/facebook/pages listázza őket
+#   6. Frontend meghívja: POST /auth/facebook/connect { page_id } → menti a tokent
+#   7. Tokenek bekerülnek a tenant_credentials táblába, soha nem járnak le.
+
+# CSRF state store (in-memory, elegendő egyszerre néhány auth flow-hoz)
+_oauth_states: dict[str, dict] = {}   # state_token → {tenant_id, created_at}
+
+_FB_GRAPH = "https://graph.facebook.com/v20.0"
+
+# Az OAuth után visszaugrunk a frontend settings oldalára
+_OAUTH_FRONTEND_SUCCESS = "/admin/settings?tab=integrations&meta=success"
+_OAUTH_FRONTEND_ERROR   = "/admin/settings?tab=integrations&meta=error"
+
+
+@app.get("/auth/facebook/start")
+async def facebook_oauth_start(request: Request):
+    """OAuth flow indítása. A frontend erre az URL-re irányítja a felhasználót.
+    Visszaad egy { url: "https://www.facebook.com/dialog/oauth?..." } JSON-t.
+    A tenant azonosítása a JWT-ből történik (Authorization header vagy ?token= query param).
+    """
+    if not META_APP_ID or not META_APP_SECRET:
+        raise HTTPException(status_code=500, detail="META_APP_ID vagy META_APP_SECRET nincs konfigurálva")
+
+    # Tenant azonosítása: JWT-ből vagy query param-ból
+    tenant_id = None
+    auth_header = request.headers.get("Authorization", "")
+    token_param = request.query_params.get("token", "")
+    raw_token = auth_header.replace("Bearer ", "") if auth_header.startswith("Bearer ") else token_param
+    if raw_token:
+        try:
+            payload = pyjwt.decode(raw_token, JWT_SECRET, algorithms=[JWT_ALGO])
+            tenant_id = payload.get("tenant_id")
+        except Exception:
+            pass
+
+    if not tenant_id:
+        raise HTTPException(status_code=401, detail="Azonosítás szükséges")
+
+    # CSRF state generálás
+    import secrets as _secrets
+    state = _secrets.token_urlsafe(32)
+    _oauth_states[state] = {
+        "tenant_id": tenant_id,
+        "created_at": datetime.utcnow().isoformat(),
+    }
+
+    # Callback URL — az app domain-jéből derül ki
+    base_url = str(request.base_url).rstrip("/")
+    redirect_uri = f"{base_url}/auth/facebook/callback"
+
+    scope = ",".join([
+        "pages_manage_posts",
+        "pages_read_engagement",
+        "pages_show_list",
+        "instagram_basic",
+        "instagram_content_publish",
+        "instagram_manage_messages",
+        "pages_messaging",
+    ])
+
+    fb_oauth_url = (
+        f"https://www.facebook.com/dialog/oauth"
+        f"?client_id={META_APP_ID}"
+        f"&redirect_uri={redirect_uri}"
+        f"&scope={scope}"
+        f"&state={state}"
+        f"&response_type=code"
+    )
+
+    return {"url": fb_oauth_url, "redirect_uri": redirect_uri}
+
+
+@app.get("/auth/facebook/callback")
+async def facebook_oauth_callback(request: Request, code: str = None, state: str = None, error: str = None):
+    """Meta OAuth callback. Meta ide redirect-el vissza a code-dal.
+    Automatikusan elvégzi a teljes token cserét és elmenti a credential-öket.
+    """
+    # Hiba esetén (felhasználó visszautasított)
+    if error or not code:
+        return RedirectResponse(url=_OAUTH_FRONTEND_ERROR + "&reason=denied", status_code=302)
+
+    # CSRF state ellenőrzés
+    state_data = _oauth_states.pop(state, None)
+    if not state_data:
+        return RedirectResponse(url=_OAUTH_FRONTEND_ERROR + "&reason=invalid_state", status_code=302)
+
+    tenant_id = state_data["tenant_id"]
+    base_url = str(request.base_url).rstrip("/")
+    redirect_uri = f"{base_url}/auth/facebook/callback"
+
+    async with httpx.AsyncClient(timeout=30) as client:
+        # ── 1. Code → Short-lived User Token ──────────────────────────────────
+        resp = await client.get(f"{_FB_GRAPH}/oauth/access_token", params={
+            "client_id":     META_APP_ID,
+            "client_secret": META_APP_SECRET,
+            "redirect_uri":  redirect_uri,
+            "code":          code,
+        })
+        token_data = resp.json()
+        if "error" in token_data:
+            logger.error(f"FB OAuth code exchange error: {token_data['error']}")
+            return RedirectResponse(url=_OAUTH_FRONTEND_ERROR + "&reason=token_exchange", status_code=302)
+
+        short_lived_token = token_data.get("access_token")
+        if not short_lived_token:
+            return RedirectResponse(url=_OAUTH_FRONTEND_ERROR + "&reason=no_token", status_code=302)
+
+        # ── 2. Short-lived → Long-lived User Token (60 nap) ───────────────────
+        resp2 = await client.get(f"{_FB_GRAPH}/oauth/access_token", params={
+            "grant_type":        "fb_exchange_token",
+            "client_id":         META_APP_ID,
+            "client_secret":     META_APP_SECRET,
+            "fb_exchange_token": short_lived_token,
+        })
+        ll_data = resp2.json()
+        long_lived_token = ll_data.get("access_token", short_lived_token)
+        logger.info(f"[Meta OAuth] Long-lived user token megszerezve, tenant={tenant_id}")
+
+        # ── 3. FB Page-ek lekérése (a long-lived tokennel) ────────────────────
+        resp3 = await client.get(f"{_FB_GRAPH}/me/accounts", params={
+            "access_token": long_lived_token,
+            "fields":       "id,name,access_token,instagram_business_account",
+        })
+        pages_data = resp3.json()
+        pages = pages_data.get("data", [])
+
+        if not pages:
+            return RedirectResponse(url=_OAUTH_FRONTEND_ERROR + "&reason=no_pages", status_code=302)
+
+        # Ha csak egy oldal van → azonnal mentjük; ha több → page selection oldalra
+        if len(pages) == 1:
+            page = pages[0]
+            await _save_meta_page_credentials(tenant_id, page)
+            logger.info(f"[Meta OAuth] Sikeresen csatlakoztatva: {page.get('name')} (tenant={tenant_id})")
+            return RedirectResponse(url=_OAUTH_FRONTEND_SUCCESS, status_code=302)
+        else:
+            # Több oldal: átmenetileg eltároljuk, frontend page-selection modal-t mutat
+            import secrets as _secrets
+            select_token = _secrets.token_urlsafe(24)
+            _oauth_states[f"pages:{select_token}"] = {
+                "tenant_id": tenant_id,
+                "pages": pages,
+                "created_at": datetime.utcnow().isoformat(),
+            }
+            frontend_select = f"/admin/settings?tab=integrations&meta=select_page&select_token={select_token}"
+            return RedirectResponse(url=frontend_select, status_code=302)
+
+
+async def _save_meta_page_credentials(tenant_id: str, page: dict):
+    """Elmenti a Facebook Page + Instagram Business Account tokenjeit a tenant_credentials-ba."""
+    page_id    = page.get("id", "")
+    page_token = page.get("access_token", "")
+    page_name  = page.get("name", "")
+
+    # Page token mentése
+    db.set_credential(tenant_id, "meta_page_token", page_token)
+    db.set_credential(tenant_id, "meta_page_id",    page_id)
+    logger.info(f"[Meta OAuth] FB Page token elmentve: {page_name} ({page_id})")
+
+    # Instagram Business Account keresése a page-hez
+    ig_account = page.get("instagram_business_account")
+    if ig_account and ig_account.get("id"):
+        ig_user_id = ig_account["id"]
+        # Az IG token = a page token (Business Discovery API-n keresztül működik)
+        db.set_credential(tenant_id, "instagram_token",   page_token)
+        db.set_credential(tenant_id, "instagram_user_id", ig_user_id)
+        logger.info(f"[Meta OAuth] Instagram Business Account elmentve: {ig_user_id}")
+    else:
+        # Próbáljuk lekérni külön (ha a page-nek van IG kapcsolata)
+        try:
+            async with httpx.AsyncClient(timeout=15) as client:
+                resp = await client.get(f"{_FB_GRAPH}/{page_id}", params={
+                    "fields":       "instagram_business_account",
+                    "access_token": page_token,
+                })
+                data = resp.json()
+                ig = data.get("instagram_business_account", {})
+                if ig.get("id"):
+                    db.set_credential(tenant_id, "instagram_token",   page_token)
+                    db.set_credential(tenant_id, "instagram_user_id", ig["id"])
+                    logger.info(f"[Meta OAuth] Instagram elmentve (külön lekérés): {ig['id']}")
+        except Exception as e:
+            logger.warning(f"[Meta OAuth] Instagram lekérés sikertelen: {e}")
+
+
+@app.get("/auth/facebook/pages")
+async def facebook_list_pages(select_token: str, _admin: dict = Depends(require_admin)):
+    """Ha a usernek több FB oldala van, ez adja vissza a listát hogy ki tudja választani."""
+    state_data = _oauth_states.get(f"pages:{select_token}")
+    if not state_data:
+        raise HTTPException(status_code=404, detail="Érvénytelen vagy lejárt token")
+    return {"pages": [
+        {"id": p["id"], "name": p["name"]}
+        for p in state_data.get("pages", [])
+    ]}
+
+
+class MetaPageSelectRequest(BaseModel):
+    select_token: str
+    page_id: str
+
+
+@app.post("/auth/facebook/connect")
+async def facebook_connect_page(payload: MetaPageSelectRequest, _admin: dict = Depends(require_admin)):
+    """Kiválasztott FB page token mentése (ha több oldal volt). Frontend hívja a page selection modalból."""
+    state_key = f"pages:{payload.select_token}"
+    state_data = _oauth_states.pop(state_key, None)
+    if not state_data:
+        raise HTTPException(status_code=404, detail="Érvénytelen vagy lejárt token")
+
+    tenant_id = state_data["tenant_id"]
+    pages     = state_data.get("pages", [])
+    page      = next((p for p in pages if p["id"] == payload.page_id), None)
+    if not page:
+        raise HTTPException(status_code=400, detail="Ismeretlen page_id")
+
+    await _save_meta_page_credentials(tenant_id, page)
+    return {"ok": True, "message": f"Sikeresen csatlakoztatva: {page.get('name')}"}
+
+
+@app.delete("/auth/facebook/disconnect")
+async def facebook_disconnect(_admin: dict = Depends(require_admin)):
+    """Facebook / Instagram leválasztása — törli a tokeneket a tenant_credentials-ből."""
+    tenant_id = db.get_current_tenant()
+    for key in ("meta_page_token", "meta_page_id", "instagram_token", "instagram_user_id"):
+        db.delete_credential(tenant_id, key)
+    return {"ok": True, "message": "Facebook és Instagram leválasztva."}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
