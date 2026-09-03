@@ -781,6 +781,22 @@ async def _save_meta_page_credentials(tenant_id: str, page: dict):
     except Exception as e:
         logger.warning(f"[Meta OAuth] Webhook feliratkozás hiba: {e}")
 
+    # Ha ez az oldal korábban egy másik bérlőhöz volt rendelve, töröljük a régi bérlőtől
+    try:
+        if db.supabase and page_id:
+            old_rows = db.supabase.table("tenant_credentials").select("tenant_id").eq("key", "meta_page_id").eq("value", str(page_id)).execute()
+            for r in (old_rows.data or []):
+                old_tid = r.get("tenant_id")
+                if old_tid and str(old_tid) != str(tenant_id):
+                    logger.info(f"[Meta OAuth] Oldal ({page_id}) átmozgatva {old_tid} -> {tenant_id}, régi kulcsok törlése...")
+                    for k in ("meta_page_token", "meta_page_id", "instagram_token", "instagram_user_id"):
+                        db.delete_credential(old_tid, k)
+    except Exception as e:
+        logger.warning(f"[Meta OAuth] Régi tenant ellenőrzési hiba: {e}")
+
+    # Memóriabeli routing cache azonnali újragenerálása
+    _rebuild_meta_tenant_cache()
+
 
 @app.get("/auth/facebook/pages")
 async def facebook_list_pages(select_token: str, _user: str = Depends(verify_jwt)):
@@ -819,11 +835,31 @@ async def facebook_connect_page(payload: MetaPageSelectRequest, _user: str = Dep
 
 @app.delete("/auth/facebook/disconnect")
 async def facebook_disconnect(_user: str = Depends(verify_jwt)):
-    """Facebook / Instagram leválasztása — törli a tokeneket a tenant_credentials-ből."""
+    """Facebook / Instagram leválasztása — Meta API leiratkozás és tokenek törlése."""
     tenant_id = db.get_current_tenant()
+    page_id = db.get_credential(tenant_id, "meta_page_id", default="")
+    page_token = db.get_credential(tenant_id, "meta_page_token", default="")
+
+    # 1. Meta Webhook leiratkozás (subscribed_apps törlése a Facebook oldalon)
+    if page_id and page_token:
+        try:
+            async with httpx.AsyncClient(timeout=10) as client:
+                res = await client.delete(
+                    f"{_FB_GRAPH}/{page_id}/subscribed_apps",
+                    params={"access_token": page_token}
+                )
+                logger.info(f"[Meta Disconnect] subscribed_apps leiratkozva ({page_id}): {res.status_code}")
+        except Exception as e:
+            logger.warning(f"[Meta Disconnect] Nem sikerült leiratkozni a Meta API-n ({page_id}): {e}")
+
+    # 2. Adatbázis kulcsok törlése
     for key in ("meta_page_token", "meta_page_id", "instagram_token", "instagram_user_id"):
         db.delete_credential(tenant_id, key)
-    return {"ok": True, "message": "Facebook és Instagram leválasztva."}
+
+    # 3. Memóriabeli routing cache azonnali frissítése
+    _rebuild_meta_tenant_cache()
+
+    return {"ok": True, "message": "Facebook és Instagram sikeresen leválasztva."}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -2003,10 +2039,11 @@ async def process_meta_message(sender_id: str, message_text: str, source_channel
     import email_processor
 
     # ── Multi-tenant: a webhook által feloldott tenant kontextus beállítása ──
-    # (az asyncio.create_task amúgy is örökli a contextvart, de így biztos,
-    #  ha más hívó közvetlenül indítaná). Nincs tenant → default (Rivergate).
-    if tenant_id:
-        db.set_current_tenant(tenant_id)
+    if not tenant_id:
+        logger.warning(f"[Meta AI Process] Nincs hozzárendelt bérlő ({source_channel}, sender={sender_id}) — eldobva az adatbiztonság védelmében.")
+        return
+
+    db.set_current_tenant(tenant_id)
 
     # ── SPAM CHECK — before any AI call ──────────────────────────────
     if is_spam_message(message_text):
@@ -2550,8 +2587,11 @@ async def meta_webhook_receive(request: Request):
 
             # Entry-szintű tenant finomítás (egy payloadban több page is lehet)
             entry_tenant = resolve_meta_tenant(page_id=page_id, ig_user_id=page_id) or payload_tenant
-            if entry_tenant:
-                db.set_current_tenant(entry_tenant)
+            if not entry_tenant:
+                print(f"[Meta Webhook] Figyelmen kívül hagyva: Nincs aktív bérlő a Meta fiókhoz ({page_id})")
+                continue
+
+            db.set_current_tenant(entry_tenant)
 
             for webhook_event in entry.get("messaging", []):
                 sender_id = webhook_event.get("sender", {}).get("id")
@@ -2570,7 +2610,7 @@ async def meta_webhook_receive(request: Request):
                 if "message" in webhook_event and "text" in message_obj:
                     message_text = message_obj["text"]
                     source_channel = "Instagram" if is_instagram else "Messenger"
-                    print(f"[Meta Webhook] Új üzenet feladótól (ID: {sender_id}, Csatorna: {source_channel}): {message_text}")
+                    print(f"[Meta Webhook] Új üzenet feladótól (ID: {sender_id}, Csatorna: {source_channel}, Tenant: {entry_tenant}): {message_text}")
 
                     # AI aszinkron feldolgozás (a create_task örökli a tenant contextvart)
                     task = asyncio.create_task(process_meta_message(sender_id, message_text, source_channel, tenant_id=entry_tenant))
@@ -2591,8 +2631,11 @@ async def meta_webhook_receive(request: Request):
 
                     # ── Multi-tenant: tenant feloldás a phone_number_id alapján ──
                     wa_tenant = resolve_meta_tenant(phone_number_id=phone_number_id) or payload_tenant
-                    if wa_tenant:
-                        db.set_current_tenant(wa_tenant)
+                    if not wa_tenant:
+                        print(f"[Meta Webhook] Figyelmen kívül hagyva: Nincs aktív bérlő a WhatsApp Phone ID-hoz ({phone_number_id})")
+                        continue
+
+                    db.set_current_tenant(wa_tenant)
 
                     # ── Extract sender name from contacts array ──
                     # WhatsApp webhook provides contacts[].profile.name
@@ -2610,7 +2653,7 @@ async def meta_webhook_receive(request: Request):
                         
                         if message.get("type") == "text" and "text" in message:
                             message_text = message["text"].get("body", "")
-                            print(f"[Meta Webhook] Új üzenet feladótól (ID: {sender_id}, Név: {sender_name or 'N/A'}, Csatorna: WhatsApp): {message_text}")
+                            print(f"[Meta Webhook] Új üzenet feladótól (ID: {sender_id}, Név: {sender_name or 'N/A'}, Csatorna: WhatsApp, Tenant: {wa_tenant}): {message_text}")
                             
                             task = asyncio.create_task(process_meta_message(sender_id, message_text, "WhatsApp", phone_number_id, sender_name=sender_name, tenant_id=wa_tenant))
                             background_tasks.add(task)
