@@ -295,8 +295,8 @@ export default function CredentialsSection() {
   };
 
   // ── Helpers ───────────────────────────────────────────────────────────────
-  /** Igaz, ha a Facebook / Instagram össze van kötve (van page token) */
-  const isMetaConnected = !!(credStatus['meta_page_token']?.set || credStatus['meta_page_token']?.has_fallback);
+  /** Igaz, ha a Facebook / Instagram össze van kötve — csak DB-ben tárolt token számít (env fallback nem) */
+  const isMetaConnected = !!(credStatus['meta_page_token']?.set);
   const metaPageId      = credStatus['meta_page_id']?.masked || null;
   const igUserId        = credStatus['instagram_user_id']?.masked || null;
 
