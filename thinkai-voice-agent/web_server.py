@@ -595,8 +595,8 @@ async def facebook_oauth_start(request: Request):
         "created_at": datetime.utcnow().isoformat(),
     }
 
-    # Callback URL — az app domain-jéből derül ki
-    base_url = str(request.base_url).rstrip("/")
+    # Callback URL — APP_BASE_URL env var (proxy mögött a request.base_url nem megbízható)
+    base_url = os.getenv("APP_BASE_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
     redirect_uri = f"{base_url}/auth/facebook/callback"
 
     scope = ",".join([
@@ -636,7 +636,7 @@ async def facebook_oauth_callback(request: Request, code: str = None, state: str
         return RedirectResponse(url=_OAUTH_FRONTEND_ERROR + "&reason=invalid_state", status_code=302)
 
     tenant_id = state_data["tenant_id"]
-    base_url = str(request.base_url).rstrip("/")
+    base_url = os.getenv("APP_BASE_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
     redirect_uri = f"{base_url}/auth/facebook/callback"
 
     async with httpx.AsyncClient(timeout=30) as client:
