@@ -604,8 +604,6 @@ async def facebook_oauth_start(request: Request):
         "pages_read_engagement",
         "pages_show_list",
         "instagram_basic",
-        "instagram_content_publish",
-        "instagram_manage_messages",
         "pages_messaging",
     ])
 
