@@ -671,9 +671,11 @@ async def facebook_oauth_callback(request: Request, code: str = None, state: str
             "fields":       "id,name,access_token,instagram_business_account",
         })
         pages_data = resp3.json()
+        logger.info(f"[Meta OAuth] /me/accounts válasz: {pages_data}")  # DEBUG
         pages = pages_data.get("data", [])
 
         if not pages:
+            logger.warning(f"[Meta OAuth] Nincs oldal! Teljes válasz: {pages_data}")
             return RedirectResponse(url=_OAUTH_FRONTEND_ERROR + "&reason=no_pages", status_code=302)
 
         # Ha csak egy oldal van → azonnal mentjük; ha több → page selection oldalra
