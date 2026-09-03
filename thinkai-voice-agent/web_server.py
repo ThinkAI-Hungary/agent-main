@@ -674,8 +674,31 @@ async def facebook_oauth_callback(request: Request, code: str = None, state: str
         logger.info(f"[Meta OAuth] /me/accounts válasz: {pages_data}")  # DEBUG
         pages = pages_data.get("data", [])
 
+        # ── Fallback: Business API (ha Business Suite-on keresztül kezelt oldal) ──
         if not pages:
-            logger.warning(f"[Meta OAuth] Nincs oldal! Teljes válasz: {pages_data}")
+            logger.info("[Meta OAuth] /me/accounts üres — Business API fallback próbálkozás...")
+            resp_biz = await client.get(f"{_FB_GRAPH}/me/businesses", params={
+                "access_token": long_lived_token,
+                "fields": "id,name,owned_pages{id,name,access_token,instagram_business_account}",
+            })
+            biz_data = resp_biz.json()
+            logger.info(f"[Meta OAuth] /me/businesses válasz: {biz_data}")
+            for biz in biz_data.get("data", []):
+                owned = biz.get("owned_pages", {}).get("data", [])
+                # owned_pages nem mindig adja vissza az access_token-t — fetcheljük külön
+                for op in owned:
+                    if not op.get("access_token"):
+                        tok_resp = await client.get(f"{_FB_GRAPH}/{op['id']}", params={
+                            "access_token": long_lived_token,
+                            "fields": "id,name,access_token,instagram_business_account",
+                        })
+                        tok_data = tok_resp.json()
+                        logger.info(f"[Meta OAuth] Page token fetch: {tok_data}")
+                        op.update(tok_data)
+                    pages.append(op)
+
+        if not pages:
+            logger.warning(f"[Meta OAuth] Nincs oldal! me/accounts + Business API is üres.")
             return RedirectResponse(url=_OAUTH_FRONTEND_ERROR + "&reason=no_pages", status_code=302)
 
         # Ha csak egy oldal van → azonnal mentjük; ha több → page selection oldalra
