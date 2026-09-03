@@ -763,6 +763,24 @@ async def _save_meta_page_credentials(tenant_id: str, page: dict):
         except Exception as e:
             logger.warning(f"[Meta OAuth] Instagram lekérés sikertelen: {e}")
 
+    # ── Automatikus Messenger webhook feliratkozás ─────────────────────────────
+    # Ezzel az ügyfeleknek nem kell a Meta Developer Console-ban kézzel
+    # feliratkozni — az OAuth után automatikusan beregisztráljuk az oldalt.
+    try:
+        async with httpx.AsyncClient(timeout=15) as client:
+            sub_resp = await client.post(
+                f"{_FB_GRAPH}/{page_id}/subscribed_apps",
+                params={"access_token": page_token},
+                json={"subscribed_fields": "messages,messaging_postbacks,message_reads"},
+            )
+            sub_data = sub_resp.json()
+            if sub_data.get("success"):
+                logger.info(f"[Meta OAuth] Messenger webhook feliratkozva: {page_id}")
+            else:
+                logger.warning(f"[Meta OAuth] Webhook feliratkozás válasz: {sub_data}")
+    except Exception as e:
+        logger.warning(f"[Meta OAuth] Webhook feliratkozás hiba: {e}")
+
 
 @app.get("/auth/facebook/pages")
 async def facebook_list_pages(select_token: str, _user: str = Depends(verify_jwt)):
