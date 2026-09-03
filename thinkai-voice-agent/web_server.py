@@ -2090,7 +2090,11 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
 
         # 3. Gemini hívás
         client = genai.Client(api_key=os.getenv("GOOGLE_API_KEY"))
-        user_content = f"Ügyfél neve: {meta_name if meta_name else 'Ismeretlen'}\nÚj üzenet: {message_text}"
+        # Ha a nevet nem sikerült lekérni (Meta API korlát), az AI természetesen megkéri
+        if not meta_name:
+            user_content = f"Ügyfél neve: Ismeretlen (kérd meg az ügyfelet hogy adja meg a nevét természetesen a beszélgetés elején, ha még nem tette meg)\nÚj üzenet: {message_text}"
+        else:
+            user_content = f"Ügyfél neve: {meta_name}\nÚj üzenet: {message_text}"
 
         try:
             response = await client.aio.models.generate_content(

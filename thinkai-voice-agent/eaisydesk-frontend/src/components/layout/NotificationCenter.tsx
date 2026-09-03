@@ -70,9 +70,13 @@ export default function NotificationCenter() {
   const urgentAudio = useRef<HTMLAudioElement | null>(null);
   const initialized = useRef(false);
 
+  const interactionAudio = useRef<HTMLAudioElement | null>(null);
+
   // Init audio
   useEffect(() => {
     urgentAudio.current = new Audio('https://actions.google.com/sounds/v1/alarms/beep_short.ogg');
+    interactionAudio.current = new Audio('https://actions.google.com/sounds/v1/cartoon/cartoon_cowbell.ogg');
+    if (interactionAudio.current) interactionAudio.current.volume = 0.3;
   }, []);
 
   // Close dropdown on outside click
@@ -97,9 +101,12 @@ export default function NotificationCenter() {
       return next;
     });
 
+    // Minden típusnál toast — urgent: hang+popup, interaction: csendes popup
+    setToasts(prev => [...prev, notif]);
     if (type === 'urgent') {
-      setToasts(prev => [...prev, notif]);
       urgentAudio.current?.play().catch(() => {});
+    } else if (type === 'interaction') {
+      interactionAudio.current?.play().catch(() => {});
     }
   }, []);
 
