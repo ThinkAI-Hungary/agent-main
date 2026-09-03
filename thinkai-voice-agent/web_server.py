@@ -599,23 +599,37 @@ async def facebook_oauth_start(request: Request):
     base_url = os.getenv("APP_BASE_URL", "").rstrip("/") or str(request.base_url).rstrip("/")
     redirect_uri = f"{base_url}/auth/facebook/callback"
 
-    scope = ",".join([
-        "pages_manage_posts",
-        "pages_read_engagement",
-        "pages_show_list",
-        "instagram_basic",
-        "pages_messaging",
-    ])
+    # Facebook Login for Business config_id (System User token — business-owned pages-hez)
+    fbl_config_id = os.getenv("META_FBL_CONFIG_ID", "")
 
-    fb_oauth_url = (
-        f"https://www.facebook.com/dialog/oauth"
-        f"?client_id={META_APP_ID}"
-        f"&redirect_uri={redirect_uri}"
-        f"&scope={scope}"
-        f"&state={state}"
-        f"&response_type=code"
-        f"&auth_type=rerequest"
-    )
+    if fbl_config_id:
+        # Facebook Login for Business flow — config_id megadja a permissionöket
+        fb_oauth_url = (
+            f"https://www.facebook.com/dialog/oauth"
+            f"?client_id={META_APP_ID}"
+            f"&redirect_uri={redirect_uri}"
+            f"&config_id={fbl_config_id}"
+            f"&state={state}"
+            f"&response_type=code"
+        )
+    else:
+        # Fallback: standard Facebook Login scope-okkal
+        scope = ",".join([
+            "pages_manage_posts",
+            "pages_read_engagement",
+            "pages_show_list",
+            "instagram_basic",
+            "pages_messaging",
+        ])
+        fb_oauth_url = (
+            f"https://www.facebook.com/dialog/oauth"
+            f"?client_id={META_APP_ID}"
+            f"&redirect_uri={redirect_uri}"
+            f"&scope={scope}"
+            f"&state={state}"
+            f"&response_type=code"
+            f"&auth_type=rerequest"
+        )
 
     return {"url": fb_oauth_url, "redirect_uri": redirect_uri}
 
