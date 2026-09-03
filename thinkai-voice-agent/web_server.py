@@ -1696,56 +1696,98 @@ Csak a címkéket tartalmazó JSON listát (pl. ["urgent", "complaint"]) add vis
         return []
 
 async def fetch_meta_user_profile(sender_id: str, source_channel: str, tenant_id: str = None) -> Optional[dict]:
-    """Fetch the user's name and profile picture from Meta Graph API using their PSID/IGSID."""
+    """Fetch the user's name and profile picture from Meta Graph API using their PSID/IGSID.
+    
+    Messenger: pages_user_profiles permission lett letiltva (2021), ezért a
+    /{page_id}/conversations?user_id={psid}&fields=participants endpointot
+    használjuk (pages_messaging jog elegendő).
+    Instagram: /{igsid}?fields=name,username direktben működik.
+    """
     if source_channel not in ("Messenger", "Instagram"):
         return None
 
-    # Instagram DM uses Page Access Token (Messenger platform), not IG API token
-    # Per-tenant token elsőként, fallback: a legacy META_PAGE_ACCESS_TOKEN env var
     tenant_token = _meta_cred(tenant_id or db.get_current_tenant(), "meta_page_token")
+    page_id      = _meta_cred(tenant_id or db.get_current_tenant(), "meta_page_id")
     env_token    = os.getenv("META_PAGE_ACCESS_TOKEN", "")
     tokens_to_try = [t for t in [tenant_token, env_token] if t]
 
     if not tokens_to_try:
         return None
 
-    # Instagram IGSID supports 'name' field directly.
-    # Messenger PSID only supports 'first_name', 'last_name', 'profile_pic' — NOT 'name'.
-    if source_channel == "Instagram":
-        field_sets = ["name,username,profile_pic"]
-    else:
-        field_sets = ["first_name,last_name,profile_pic", "name,profile_pic"]
-
     import httpx
-    for token in tokens_to_try:
-        for fields in field_sets:
-            url = f"https://graph.facebook.com/v25.0/{sender_id}?fields={fields}&access_token={token}"
+
+    # ── Instagram: közvetlen IGSID profil lekérés ────────────────────────────
+    if source_channel == "Instagram":
+        for token in tokens_to_try:
+            url = f"https://graph.facebook.com/v20.0/{sender_id}"
             try:
                 async with httpx.AsyncClient() as client:
-                    resp = await client.get(url, timeout=5.0)
+                    resp = await client.get(url, params={"fields": "name,username,profile_pic", "access_token": token}, timeout=5.0)
+                    if resp.status_code == 200:
+                        data = resp.json()
+                        name = data.get("name", "").strip() or data.get("username", "").strip()
+                        if name:
+                            logger.info(f"[Meta API] Instagram név feloldva: '{name}' ({sender_id})")
+                            return {"name": name, "profile_pic": data.get("profile_pic"), "username": data.get("username", "")}
+            except Exception as e:
+                logger.debug(f"[Meta API] Instagram profil hiba: {e}")
+        logger.warning(f"[Meta API] Instagram névfeloldás sikertelen: {sender_id}")
+        return None
+
+    # ── Messenger: conversation participants API (pages_messaging jog) ────────
+    # GET /{page_id}/conversations?user_id={psid}&fields=participants
+    # Ez nem igényel pages_user_profiles-t — az ügyfél neve a résztvevők listájában van.
+    for token in tokens_to_try:
+        pid = page_id or ""
+        if not pid:
+            continue
+        try:
+            async with httpx.AsyncClient() as client:
+                resp = await client.get(
+                    f"https://graph.facebook.com/v20.0/{pid}/conversations",
+                    params={"user_id": sender_id, "fields": "participants", "access_token": token},
+                    timeout=8.0,
+                )
+                if resp.status_code == 200:
+                    data = resp.json()
+                    for conv in data.get("data", []):
+                        for participant in conv.get("participants", {}).get("data", []):
+                            # Kizárjuk magát az oldalt (az oldal neve nem a keresett név)
+                            if str(participant.get("id")) == str(pid):
+                                continue
+                            name = participant.get("name", "").strip()
+                            if name and name.lower() not in ("", "ismeretlen", "névtelen"):
+                                logger.info(f"[Meta API] Messenger név feloldva (conv): '{name}' ({sender_id})")
+                                return {"name": name, "profile_pic": None}
+                else:
+                    logger.debug(f"[Meta API] Conversation API hiba: {resp.status_code} {resp.text[:200]}")
+        except Exception as e:
+            logger.debug(f"[Meta API] Conversation API kivétel: {e}")
+
+    # ── Fallback: közvetlen PSID lekérés (régebbi tokenekre) ─────────────────
+    for token in tokens_to_try:
+        for fields in ["first_name,last_name,profile_pic", "name,profile_pic"]:
+            try:
+                async with httpx.AsyncClient() as client:
+                    resp = await client.get(
+                        f"https://graph.facebook.com/v20.0/{sender_id}",
+                        params={"fields": fields, "access_token": token},
+                        timeout=5.0,
+                    )
                     if resp.status_code == 200:
                         data = resp.json()
                         name = data.get("name", "").strip()
-                        username = data.get("username", "").strip()
-                        if source_channel == "Instagram" and not name:
-                            name = username
                         if not name:
                             first = data.get("first_name", "").strip()
                             last  = data.get("last_name", "").strip()
-                            name = f"{first} {last}".strip()
-                        profile_pic = data.get("profile_pic")
+                            name  = f"{first} {last}".strip()
                         if name:
-                            logger.info(f"[Meta API] Név feloldva: '{name}' ({source_channel}/{sender_id})")
-                            res = {"name": name, "profile_pic": profile_pic}
-                            if username:
-                                res["username"] = username
-                            return res
-                    else:
-                        logger.debug(f"[Meta API] Profile fetch hiba ({fields}): {resp.status_code}")
-            except Exception as e:
-                logger.debug(f"[Meta API] Profile fetch kivétel ({fields}): {e}")
+                            logger.info(f"[Meta API] PSID névfeloldás (fallback): '{name}' ({sender_id})")
+                            return {"name": name, "profile_pic": data.get("profile_pic")}
+            except Exception:
+                pass
 
-    logger.warning(f"[Meta API] Név feloldás sikertelen ({source_channel} {sender_id}), DB fallback...")
+    logger.warning(f"[Meta API] Névfeloldás minden módszerrel sikertelen: {sender_id}")
     return None
 
 # ═══════════════════════════════════════════════════════════════════════════════
