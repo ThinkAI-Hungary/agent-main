@@ -671,18 +671,18 @@ async def facebook_oauth_callback(request: Request, code: str = None, state: str
             "fields":       "id,name,access_token,instagram_business_account",
         })
         pages_data = resp3.json()
-        logger.info(f"[Meta OAuth] /me/accounts válasz: {pages_data}")  # DEBUG
+        print(f"[DEBUG Meta OAuth] /me/accounts: {pages_data}", flush=True)
         pages = pages_data.get("data", [])
 
         # ── Fallback: Business API (ha Business Suite-on keresztül kezelt oldal) ──
         if not pages:
-            logger.info("[Meta OAuth] /me/accounts üres — Business API fallback próbálkozás...")
+            print("[DEBUG Meta OAuth] /me/accounts üres — Business API fallback...", flush=True)
             resp_biz = await client.get(f"{_FB_GRAPH}/me/businesses", params={
                 "access_token": long_lived_token,
                 "fields": "id,name,owned_pages{id,name,access_token,instagram_business_account}",
             })
             biz_data = resp_biz.json()
-            logger.info(f"[Meta OAuth] /me/businesses válasz: {biz_data}")
+            print(f"[DEBUG Meta OAuth] /me/businesses: {biz_data}", flush=True)
             for biz in biz_data.get("data", []):
                 owned = biz.get("owned_pages", {}).get("data", [])
                 # owned_pages nem mindig adja vissza az access_token-t — fetcheljük külön
