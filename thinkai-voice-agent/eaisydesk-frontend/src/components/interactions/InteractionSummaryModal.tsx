@@ -357,6 +357,29 @@ export default function InteractionSummaryModal({
         parsedBlocks = [];
       }
 
+      // ── Fallback ha nincs user blokk a logban, de a topic tartalmazza az email szövegét és csatolmányát ──
+      if (!parsedBlocks.some((b) => b.sender === 'user') && row.topic) {
+        const emailTopicMatch = row.topic.match(
+          /^Email AI válasz\s*-\s*[^:]*:\s*([\s\S]+)$/i
+        );
+        if (emailTopicMatch) {
+          const userMsg = emailTopicMatch[1].trim();
+          if (userMsg) {
+            // A redundáns rendszerüzenetet (pl. "Igény rögzítve") kiszűrjük
+            parsedBlocks = [
+              {
+                sender: 'user',
+                text: userMsg,
+                timestamp: row.date
+                  ? row.date.replace('T', ' ').slice(0, 16)
+                  : undefined,
+              },
+              ...parsedBlocks.filter((b) => b.text !== row.result),
+            ];
+          }
+        }
+      }
+
       // ── Set summary text ──
       // EAISY-241 §1.2.2: az összefoglalás CSAK az adott interakcióra vonatkozzon.
       // Korábban cData.problem_description (kliens-szintű, felülírt) jött először,

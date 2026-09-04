@@ -522,69 +522,66 @@ Ha egyik sem releváns, legyen üres lista [].
     if email_reply:
         log_szoveg += f"\n\nAI Válasz:\n{email_reply}"
 
-    # Ha releváns lead vagy időpontot foglalt, felvesszük a Kanbanba
-    if is_relevant or meeting:
-        kanban = kanban or {}
-        name = kanban.get("name") or from_name or "Névtelen E-mail lead"
-        # A KLIENS IDENTITÁSA a tényleges feladó — az AI által a kanban_data-ba
-        # írt (esetleg hallucinált) email nem írhatja felül.
-        kanban_email = (kanban.get("email") or "").strip()
-        if kanban_email and kanban_email.lower() != from_email.lower():
-            logger.info(f"A kanban_data email ({kanban_email}) eltér a feladótól ({from_email}) — a feladót használjuk")
-        email = from_email
-        details = {
-            "name": name,
-            "email": email,
-            "phone": kanban.get("phone", ""),
-            "forras_csatorna": "E-mail",
-        }
-        if kanban.get("jarmu_tipusa"):
-            details["jarmu_tipusa"] = kanban["jarmu_tipusa"]
-        if kanban.get("jarmu_modell"):
-            details["jarmu_modell"] = kanban["jarmu_modell"]
-            
-        if meeting and meeting.get("assigned_to"):
-            details["assigned_to"] = meeting.get("assigned_to")
-            
-        if isinstance(alert_tags, list) and "urgent" in alert_tags:
+    # Ügyfél és beszélgetés napló mentése MINDEN bejövő emailhez
+    kanban = kanban or {}
+    name = kanban.get("name") or from_name or "Névtelen E-mail lead"
+    # A KLIENS IDENTITÁSA a tényleges feladó
+    kanban_email = (kanban.get("email") or "").strip()
+    if kanban_email and kanban_email.lower() != from_email.lower():
+        logger.info(f"A kanban_data email ({kanban_email}) eltér a feladótól ({from_email}) — a feladót használjuk")
+    email = from_email
+    details = {
+        "name": name,
+        "email": email,
+        "phone": kanban.get("phone", ""),
+        "forras_csatorna": "E-mail",
+    }
+    if kanban.get("jarmu_tipusa"):
+        details["jarmu_tipusa"] = kanban["jarmu_tipusa"]
+    if kanban.get("jarmu_modell"):
+        details["jarmu_modell"] = kanban["jarmu_modell"]
+        
+    if meeting and meeting.get("assigned_to"):
+        details["assigned_to"] = meeting.get("assigned_to")
+        
+    if isinstance(alert_tags, list) and "urgent" in alert_tags:
+        details["prioritas"] = "Sürgős"
+        
+    if beszelgetes:
+        details["problem_description"] = beszelgetes
+    else:
+        details["problem_description"] = f"E-mail tárgy: {subject}"
+        
+    alert_tags_list = data.get("alert_tags", [])
+    if isinstance(alert_tags_list, list):
+        if "kiemelt" in alert_tags_list:
+            details["prioritas"] = "Kiemelt"
+        elif "urgent" in alert_tags_list:
             details["prioritas"] = "Sürgős"
             
-        if beszelgetes:
-            details["problem_description"] = beszelgetes
-        else:
-            details["problem_description"] = f"E-mail tárgy: {subject}"
+    # AI-alapú másodlagos címkék hozzáadása (meglévő tagek megőrzésével)
+    existing_tags = []
+    existing_client = existing_sender_client
+    if existing_client:
+        ec_data = existing_client.get("custom_data", {}) or {}
+        if isinstance(ec_data, str):
+            try: ec_data = json.loads(ec_data)
+            except: ec_data = {}
+        existing_tags = ec_data.get("tags", []) if isinstance(ec_data, dict) else []
+    if not isinstance(existing_tags, list): existing_tags = []
+    
+    if isinstance(secondary_tags, list) and secondary_tags:
+        for st in secondary_tags:
+            if st and st not in existing_tags:
+                existing_tags.append(st)
+    if existing_tags:
+        details["tags"] = existing_tags
             
-        alert_tags_list = data.get("alert_tags", [])
-        if isinstance(alert_tags_list, list):
-            if "kiemelt" in alert_tags_list:
-                details["prioritas"] = "Kiemelt"
-            elif "urgent" in alert_tags_list:
-                details["prioritas"] = "Sürgős"
-                
-        # AI-alapú másodlagos címkék hozzáadása (meglévő tagek megőrzésével) —
-        # a korai, feladó-alapú lookupot használjuk (nem új DB round-trip)
-        existing_tags = []
-        existing_client = existing_sender_client
-        if existing_client:
-            ec_data = existing_client.get("custom_data", {}) or {}
-            if isinstance(ec_data, str):
-                try: ec_data = json.loads(ec_data)
-                except: ec_data = {}
-            existing_tags = ec_data.get("tags", []) if isinstance(ec_data, dict) else []
-        if not isinstance(existing_tags, list): existing_tags = []
-        
-        if isinstance(secondary_tags, list) and secondary_tags:
-            for st in secondary_tags:
-                if st and st not in existing_tags:
-                    existing_tags.append(st)
-        if existing_tags:
-            details["tags"] = existing_tags
-                
-        # Mentsük Kanban "uj" oszlopba
-        cols = db.get_kanban_columns()
-        first_col = cols[0]["id"] if cols else "uj"
-        email_client_id = db.upsert_client(custom_data=details, additional_log=log_szoveg, status=first_col)
-        logger.info(f"Ügyfél mentve/frissítve a Kanban táblában: {name}")
+    # Mentsük Kanban "uj" oszlopba és frissítsük a beszélgetés naplót
+    cols = db.get_kanban_columns()
+    first_col = cols[0]["id"] if cols else "uj"
+    email_client_id = db.upsert_client(custom_data=details, additional_log=log_szoveg, status=first_col)
+    logger.info(f"Ügyfél mentve/frissítve a Kanban táblában: {name} (client_id={email_client_id})")
         
     created_event_id = None
     if meeting:
