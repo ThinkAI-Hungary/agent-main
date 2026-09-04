@@ -777,3 +777,211 @@
   letter-spacing: 0.5px;
 }
 
+.ism-attachment-tag-link {
+  text-decoration: none;
+  display: inline-flex;
+  vertical-align: middle;
+}
+
+.ism-attachment-download-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+  padding: 4px 10px;
+  background: rgba(13, 148, 136, 0.08);
+  border: 1px solid rgba(13, 148, 136, 0.3);
+  border-radius: 6px;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0d9488;
+  text-decoration: none;
+  transition: all 0.15s ease;
+}
+
+.ism-attachment-download-btn:hover {
+  background: rgba(13, 148, 136, 0.18);
+  color: #0f766e;
+}
+
+/* Image attachment preview card */
+.ism-attachment-card {
+  margin: 8px 0;
+  max-width: 320px;
+  background: #ffffff;
+  border: 1px solid #e2e8f0;
+  border-radius: 10px;
+  overflow: hidden;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.05);
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+}
+
+.ism-attachment-card:hover {
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.08);
+}
+
+.ism-attachment-img-wrap {
+  position: relative;
+  width: 100%;
+  max-height: 220px;
+  background: #f8fafc;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  overflow: hidden;
+}
+
+.ism-attachment-img {
+  max-width: 100%;
+  max-height: 220px;
+  object-fit: contain;
+  display: block;
+  transition: transform 0.2s ease;
+}
+
+.ism-attachment-img-wrap:hover .ism-attachment-img {
+  transform: scale(1.02);
+}
+
+.ism-attachment-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.4);
+  color: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0;
+  transition: opacity 0.15s ease;
+  backdrop-filter: blur(2px);
+}
+
+.ism-attachment-img-wrap:hover .ism-attachment-overlay {
+  opacity: 1;
+}
+
+.ism-attachment-card-footer {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 12px;
+  background: #f8fafc;
+  border-top: 1px solid #e2e8f0;
+}
+
+.ism-attachment-link-btn {
+  display: inline-flex;
+  align-items: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: #0284c7;
+  text-decoration: none;
+  padding: 3px 8px;
+  border-radius: 4px;
+  background: rgba(2, 132, 199, 0.08);
+  transition: background 0.15s ease;
+}
+
+.ism-attachment-link-btn:hover {
+  background: rgba(2, 132, 199, 0.16);
+}
+
+/* Lightbox popup modal */
+.ism-lightbox-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 10000;
+  background: rgba(15, 23, 42, 0.85);
+  backdrop-filter: blur(6px);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  animation: ismFadeIn 0.15s ease-out;
+}
+
+@keyframes ismFadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.ism-lightbox-container {
+  position: relative;
+  max-width: 90vw;
+  max-height: 90vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+
+.ism-lightbox-close {
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: #1e293b;
+  color: #ffffff;
+  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 14px;
+  font-weight: 700;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+  transition: all 0.15s ease;
+  z-index: 10;
+}
+
+.ism-lightbox-close:hover {
+  background: #ef4444;
+  transform: scale(1.08);
+}
+
+.ism-lightbox-img {
+  max-width: 88vw;
+  max-height: 80vh;
+  object-fit: contain;
+  border-radius: 8px;
+  box-shadow: 0 20px 40px rgba(0, 0, 0, 0.5);
+  background: #000000;
+}
+
+.ism-lightbox-toolbar {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+
+.ism-lightbox-title {
+  color: #e2e8f0;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.ism-lightbox-open {
+  color: #38bdf8;
+  font-size: 13px;
+  font-weight: 600;
+  text-decoration: none;
+  padding: 4px 10px;
+  background: rgba(56, 189, 248, 0.12);
+  border-radius: 6px;
+  transition: all 0.15s ease;
+}
+
+.ism-lightbox-open:hover {
+  background: rgba(56, 189, 248, 0.25);
+  color: #7dd3fc;
+}
+
+

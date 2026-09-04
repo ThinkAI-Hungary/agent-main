@@ -897,17 +897,25 @@ def check_imap_sync(server: str = "", user: str = "", pwd: str = "", port: int =
 
                     text_content = ""
                     html_content = ""
-                    attachments_found = []
+                    saved_attachments = []
                     if msg.is_multipart():
                         for part in msg.walk():
                             content_type = part.get_content_type()
                             content_disposition = str(part.get("Content-Disposition") or "")
                             part_filename = decode_mime_words(part.get_filename() or "")
 
-                            # Csatolmányok és képek detektálása
-                            if "attachment" in content_disposition or (content_type.startswith("image/") and part_filename):
-                                if part_filename and part_filename not in attachments_found:
-                                    attachments_found.append(part_filename)
+                            # Csatolmányok és képek detektálása és mentése
+                            is_att = "attachment" in content_disposition or (content_type.startswith("image/") and part_filename) or (content_type.startswith("image/") and "inline" in content_disposition)
+                            if is_att:
+                                try:
+                                    part_data = part.get_payload(decode=True)
+                                    if part_data:
+                                        from attachment_manager import save_email_attachment
+                                        saved_meta = save_email_attachment(part_data, part_filename or "image.png", content_type)
+                                        if saved_meta:
+                                            saved_attachments.append(saved_meta)
+                                except Exception as att_err:
+                                    logger.error(f"Csatolmány mentési hiba ({part_filename}): {att_err}")
 
                             if content_type == "text/plain" and "attachment" not in content_disposition:
                                 if not text_content:
@@ -935,15 +943,26 @@ def check_imap_sync(server: str = "", user: str = "", pwd: str = "", port: int =
                         clean_html = _re_html.sub(r'<[^>]+>', '', clean_html)
                         text_content = clean_html.strip()
 
-                    # Csatolmányok jelzése a szövegben, ha még nem szerepelnek benne
-                    if attachments_found:
-                        new_atts = [
-                            f"[Melléklet: {fn}]"
-                            for fn in attachments_found
-                            if f"[image: {fn}]" not in text_content and f"[Melléklet: {fn}]" not in text_content
-                        ]
-                        if new_atts:
-                            text_content = (text_content.rstrip() + "\n\n" + "\n".join(new_atts)).strip()
+                    # Csatolmányok és képek linkelése a szövegben
+                    if saved_attachments:
+                        import re as _re_att
+                        for att in saved_attachments:
+                            fn = att["filename"]
+                            url = att["url"]
+                            if att["is_image"]:
+                                pattern = _re_att.compile(r'\[image:\s*' + _re_att.escape(fn) + r'\](?!\()', _re_att.IGNORECASE)
+                                if pattern.search(text_content):
+                                    text_content = pattern.sub(f"[image: {fn}]({url})", text_content, count=1)
+                                elif _re_att.search(r'\[image:\s*[^\]]+\](?!\()', text_content):
+                                    text_content = _re_att.sub(r'\[image:\s*[^\]]+\](?!\()', f"[image: {fn}]({url})", text_content, count=1)
+                                else:
+                                    text_content = (text_content.rstrip() + f"\n\n[image: {fn}]({url})").strip()
+                            else:
+                                pattern = _re_att.compile(r'\[Melléklet:\s*' + _re_att.escape(fn) + r'\](?!\()', _re_att.IGNORECASE)
+                                if pattern.search(text_content):
+                                    text_content = pattern.sub(f"[Melléklet: {fn}]({url})", text_content, count=1)
+                                else:
+                                    text_content = (text_content.rstrip() + f"\n\n[Melléklet: {fn}]({url})").strip()
 
                     text_content = clean_email_body(text_content)
                     emails_to_process.append((uid, message_id, from_email, from_name, subject, text_content))

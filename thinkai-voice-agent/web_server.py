@@ -406,6 +406,34 @@ async def demo_widget():
 async def widget():
     return FileResponse(THIS_DIR / "voice-widget.html")
 
+# ── E-mail csatolmányok és beágyazott képek kiszolgálása ─────────────────────
+@app.get("/api/attachments/{token}/{filename}")
+async def api_get_attachment(token: str, filename: str):
+    """
+    Kiszolgálja az e-mailes csatolmányokat és beágyazott képeket.
+    Szigorú CWE-22 Path Traversal védelemmel és nosniff fejléccel.
+    """
+    from attachment_manager import get_attachment_path
+    path = get_attachment_path(token, filename)
+    if not path or not path.exists():
+        raise HTTPException(status_code=404, detail="A csatolmány nem található")
+
+    import mimetypes
+    guessed_mime, _ = mimetypes.guess_type(path.name)
+    mime = guessed_mime or "application/octet-stream"
+    is_image = mime.startswith("image/") or path.name.lower().endswith((".png", ".jpg", ".jpeg", ".webp", ".gif"))
+    disposition = "inline" if is_image else "attachment"
+
+    return FileResponse(
+        path=path,
+        media_type=mime,
+        headers={
+            "X-Content-Type-Options": "nosniff",
+            "Content-Disposition": f'{disposition}; filename="{path.name}"',
+            "Cache-Control": "public, max-age=86400",
+        }
+    )
+
 # ── React frontend (SPA + statikus fájlok) ──────────────────────────────────────
 FRONTEND_DIST = THIS_DIR / "frontend_dist"
 if FRONTEND_DIST.exists():
