@@ -1,0 +1,441 @@
+/* ═════════════════════════════════════════════════════════════════
+   Interakciós napló — eaisyDesk UI Kit alapú stílusok
+   (kit 05 Szűrőpanel · 06 Badge · 07 Csatorna · 08 KPI · 09 Adattábla)
+   Ez a fájl a polish.css UTÁN töltődik be, így felülírja a régi int-* rétegeket.
+   ═════════════════════════════════════════════════════════════════ */
+
+/* ── Hiba banner ── */
+.int-error-banner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 14px;
+  margin-bottom: 10px;
+  color: #d9363d;
+  background: #fff2f0;
+  border: 1px solid #ffccc7;
+  border-radius: 8px;
+  font-size: 13px;
+}
+
+/* ── KPI chipek (kit 08) ── */
+.int-kpis {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  margin-bottom: 12px;
+}
+.int-kpi {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  padding: 8px 14px;
+  border-radius: 8px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 14px;
+  transition: border-color 0.15s, background 0.15s;
+}
+.int-kpi:hover { border-color: #94a3b8; }
+.int-kpi.is-on {
+  border-color: #186d98;
+  background: color-mix(in srgb, #186d98 5%, #ffffff);
+}
+.int-kpi-num { font-size: 18px; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1; }
+.int-kpi-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text-muted);
+}
+.int-kpi-dot { width: 7px; height: 7px; border-radius: 50%; display: inline-block; background: #94a3b8; }
+.int-kpi--sürgős .int-kpi-dot { background: #ff4d4f; }
+.int-kpi--nyitott .int-kpi-dot { background: #faad14; }
+.int-kpi--lezárt .int-kpi-dot { background: #52c41a; }
+
+/* ── Toolbar ── */
+.int-toolbar {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 14px;
+}
+.int-searchbox { position: relative; min-width: 240px; }
+.int-searchbox .int-search-icon {
+  position: absolute;
+  left: 11px;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 15px;
+  height: 15px;
+  color: var(--text-muted);
+  pointer-events: none;
+}
+.int-search-input {
+  height: 36px;
+  width: 100%;
+  padding: 0 12px 0 34px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  font-family: inherit;
+  font-size: 13.5px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.int-search-input:focus {
+  border-color: #186d98;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #186d98 16%, transparent);
+}
+
+/* Szűrés gomb — primary navy (kit 05) */
+.int-filter-btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid #186d98;
+  background: #186d98;
+  color: #ffffff;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  font-family: inherit;
+  transition: background 0.15s;
+}
+.int-filter-btn:hover { background: color-mix(in srgb, #186d98 86%, #000000); }
+.int-filter-btn--sm { height: 30px; padding: 0 10px; font-size: 12px; }
+.int-filter-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 18px;
+  height: 18px;
+  padding: 0 5px;
+  border-radius: 8px;
+  background: #ffffff;
+  color: #186d98;
+  font-size: 11px;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+/* Ikon-gomb (kit 14 · Oszlopok) */
+.int-btn-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* Törlés gomb — danger tint (kit 02) */
+.int-btn-danger {
+  color: #d9363d;
+  background: #fff2f0;
+  border-color: #ffccc7;
+}
+.int-btn-danger:hover {
+  background: color-mix(in srgb, #fff2f0 80%, #ffccc7);
+  border-color: #ffccc7;
+  color: #d9363d;
+}
+
+/* ── Szűrő popover (kit 05) ── */
+.int-filter-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 440px;
+  max-width: calc(100vw - 32px);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px;
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.18);
+  z-index: 20;
+}
+.int-filter-pop--mobile { width: min(320px, calc(100vw - 48px)); }
+.int-filter-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+.int-filter-pop--mobile .int-filter-grid { grid-template-columns: 1fr; }
+.int-filter-field { display: flex; flex-direction: column; gap: 5px; }
+.int-filter-field--full { grid-column: 1 / -1; }
+.int-filter-field > span {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text-muted);
+  letter-spacing: 0.02em;
+  padding-left: 2px;
+}
+.int-date-input {
+  height: 36px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  outline: none;
+  width: 100%;
+}
+.int-date-input:focus {
+  border-color: #186d98;
+  box-shadow: 0 0 0 3px color-mix(in srgb, #186d98 16%, transparent);
+}
+.int-filter-checks {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 6px;
+  background: color-mix(in srgb, var(--card) 60%, var(--bg));
+}
+.filter-cb-label {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  padding: 6px 8px;
+  border-radius: 6px;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  user-select: none;
+}
+.filter-cb-label:hover { background: var(--bg3); }
+.filter-cb-input {
+  width: 16px;
+  height: 16px;
+  margin: 0;
+  accent-color: #186d98;
+  cursor: pointer;
+  flex: none;
+}
+.int-filter-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  margin-top: 14px;
+  padding-top: 12px;
+  border-top: 1px solid var(--border);
+}
+.int-filter-hint { font-size: 12px; color: var(--text-muted); }
+
+/* ── Oszlop-láthatóság popover (kit 14) ── */
+.int-columns-pop {
+  position: absolute;
+  top: calc(100% + 8px);
+  right: 0;
+  width: 280px;
+  max-width: calc(100vw - 32px);
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 8px;
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.18);
+  z-index: 20;
+}
+.int-columns-title {
+  font-size: 11px;
+  font-weight: 600;
+  color: #186d98;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  padding: 6px 8px 8px;
+}
+.int-col-toggle {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 7px 8px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 13px;
+  color: var(--text);
+  user-select: none;
+}
+.int-col-toggle:hover { background: var(--bg3); }
+.int-col-cb { width: 15px; height: 15px; margin: 0; accent-color: #186d98; flex: none; cursor: pointer; }
+
+/* ── Táblázat (kit 09) ── */
+.int-table-scroll { overflow-x: auto; }
+
+#interactions-flat-table { min-width: 880px; }
+
+#interactions-flat-table.int-table-norx th.int-th {
+  background: var(--bg3);
+  padding: 0 16px;
+  height: 42px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  font-weight: 500;
+  text-transform: none;
+  letter-spacing: 0;
+  color: var(--text-muted);
+  white-space: nowrap;
+}
+
+/* Időpont oszlop rendezhető fejléc-gomb */
+.int-th--sort { padding: 0 !important; }
+.int-sort-btn {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  height: 100%;
+  padding: 0 16px;
+  background: none;
+  border: 0;
+  font: inherit;
+  color: inherit;
+  font-weight: 500;
+  text-align: left;
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.int-sort-btn:hover { color: var(--text); }
+.int-sort-ic { display: inline-flex; color: #186d98; flex: none; }
+
+#interactions-flat-table.int-table-norx td.int-td {
+  padding: 12px 16px;
+  font-size: 13.5px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border);
+  border-left: none;
+  border-right: none;
+  border-top: none;
+  vertical-align: middle;
+  white-space: nowrap;
+}
+#interactions-flat-table.int-table-norx tbody tr:last-child td { border-bottom: none; }
+#interactions-flat-table.int-table-norx tbody tr.int-row:hover td {
+  background: color-mix(in srgb, var(--bg3) 60%, #ffffff);
+}
+
+/* Sürgős sor — error tint + 3px inset jel (kit 09) */
+#interactions-flat-table.int-table-norx tbody tr.is-urgent td {
+  background: color-mix(in srgb, #fff2f0 42%, #ffffff);
+}
+#interactions-flat-table.int-table-norx tbody tr.is-urgent td:first-child {
+  box-shadow: inset 3px 0 0 #ff4d4f;
+}
+#interactions-flat-table.int-table-norx tbody tr.is-urgent:hover td {
+  background: color-mix(in srgb, #fff2f0 68%, #ffffff);
+}
+
+/* Checkbox oszlop */
+.int-checkbox-input { width: 16px; height: 16px; accent-color: #186d98; cursor: pointer; }
+
+/* Ügyfél név link — CSS hover (inline JS helyett) */
+.int-client-link {
+  background: none;
+  border: none;
+  padding: 0;
+  border-bottom: 1px solid transparent;
+  color: #186d98;
+  font: inherit;
+  font-weight: 500;
+  cursor: pointer;
+  transition: color 0.15s, border-color 0.15s;
+}
+.int-client-link:hover { color: #134d6e; border-bottom-color: #134d6e; }
+
+/* Oszlop-minimumok (kit 09) */
+.int-td--date { min-width: 150px; }
+.int-td--client { min-width: 210px; max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+.int-td--channel { min-width: 130px; }
+.int-td--truncate { max-width: 200px; }
+
+/* Csatorna chip (kit 07) */
+.int-channel-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  white-space: nowrap;
+}
+.int-channel-ic {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+.int-channel-ic svg { width: 15px; height: 15px; }
+.int-channel-name { font-size: 13px; color: var(--text); }
+
+/* Üres állapot (kit 09) */
+.int-td--pad40 { padding: 0 !important; }
+.int-empty {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 40px 16px;
+}
+.int-empty-ic { color: var(--text-muted); margin-bottom: 10px; }
+.int-empty h3 { font-size: 14px; font-weight: 600; margin: 0 0 2px; color: var(--text); }
+.int-empty p { font-size: 12.5px; color: var(--text-muted); margin: 0; }
+
+/* ── Tábla lábléc + lapozó (kit 09) ── */
+.int-table-foot {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--border);
+  flex-wrap: wrap;
+}
+.int-foot-count { font-size: 12.5px; color: var(--text-muted); font-variant-numeric: tabular-nums; }
+.int-pagination { display: flex; gap: 4px; align-items: center; }
+.int-pg-btn {
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-size: 13px;
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
+  cursor: pointer;
+}
+.int-pg-btn:hover { border-color: #94a3b8; }
+.int-pg-btn.is-on { background: var(--text); color: var(--card); border-color: transparent; font-weight: 600; }
+.int-pg-btn:disabled { opacity: 0.4; pointer-events: none; }
+.int-pg-gap { color: var(--text-muted); font-size: 12px; padding: 0 2px; }
+
+@media (max-width: 1080px) {
+  .int-filter-pop { width: 100%; right: 0; left: 0; }
+}

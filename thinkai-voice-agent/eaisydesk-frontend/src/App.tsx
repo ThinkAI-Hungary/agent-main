@@ -46,6 +46,7 @@ import './styles/dark-mode.css';
 import './styles/automatizaciok.css';
 import './styles/responsive.css';
 import './styles/polish.css';
+import './styles/interactions.css';
 
 function SmartRedirect() {
   const { user, isSuperAdmin, impersonatedTenant } = useAuth();

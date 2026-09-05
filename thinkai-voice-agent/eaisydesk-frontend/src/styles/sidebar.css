@@ -1,15 +1,17 @@
     /* ── Sidebar ───────────────────────────────────────────────────── */
+    /* eaisyDesk UI Kit · 11 Navigáció (shell): sötét navy alap, hajszálvonal,
+       keretes aktív elem jobbra teal pöttyel, white-tint hover. */
     .sidebar {
       position: fixed;
       left: 0;
       top: 0;
       bottom: 0;
-      width: 240px;
-      background: #082432;
-      border-right: 1px solid #1a3548;
+      width: 236px;
+      background: color-mix(in srgb, #186d98 42%, #000000);
+      border-right: 1px solid color-mix(in srgb, #ffffff 14%, transparent);
       display: flex;
       flex-direction: column;
-      padding: 24px 16px;
+      padding: 16px 12px;
       z-index: 100;
     }
 
@@ -17,17 +19,21 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 4px 8px 10px;
-      border-bottom: 1px solid #1a3548;
-      margin-bottom: 8px;
-      transition: background 0.2s;
-      border-radius: 10px;
+      padding: 6px 8px 12px;
+      border-bottom: 1px solid color-mix(in srgb, #ffffff 10%, transparent);
+      border-radius: 0;
+      transition: background 0.15s;
     }
     .sidebar-logo:hover {
-      background: rgba(255,255,255,0.04);
+      background: color-mix(in srgb, #ffffff 9%, transparent);
+    }
+    /* első nav elem távolsága a brandtól (kit: 14px) */
+    .logo-switch-dd + .nav-item,
+    .logo-switch-dd + .nav-group {
+      margin-top: 14px;
     }
 
-    /* ── App Switcher Dropdown ── */
+    /* ── App Switcher Dropdown (kit popover: fehér kártya, 1px border, mély árnyék) ── */
     .logo-switch-dd {
       max-height: 0;
       overflow: hidden;
@@ -44,12 +50,13 @@
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 10px 14px;
-      border-radius: 10px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
+      padding: 10px;
+      border-radius: 8px;
+      background: #ffffff;
+      border: 1px solid #dbdbdb;
+      box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.28);
       cursor: pointer;
-      transition: all 0.2s;
+      transition: background 0.15s;
       margin-top: 6px;
       width: 100%;
       text-align: left;
@@ -57,13 +64,12 @@
       color: inherit;
     }
     .logo-switch-link:hover {
-      background: rgba(139,92,246,0.12);
-      border-color: rgba(139,92,246,0.3);
+      background: #f5f5f5;
     }
     .logo-switch-icon {
       width: 26px;
       height: 26px;
-      border-radius: 7px;
+      border-radius: 8px;
       display: flex;
       align-items: center;
       justify-content: center;
@@ -74,89 +80,125 @@
     .logo-switch-name {
       font-size: 12px;
       font-weight: 600;
-      color: #8ea9c0;
+      color: #082432;
     }
     .logo-switch-link:hover .logo-switch-name {
-      color: #a78bfa;
+      color: #186d98;
     }
     .logo-switch-desc {
       font-size: 10px;
-      color: #4a6f85;
+      color: #8c8c8c;
       margin-top: 1px;
     }
     .sidebar.collapsed .logo-switch-dd {
       display: none !important;
     }
 
-    .sidebar-logo-icon {
-      width: 32px;
-      height: 32px;
-      background: linear-gradient(135deg, var(--accent), var(--accent2));
-      border-radius: 8px;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      font-size: 14px;
+    /* ── Brand sor — accent wordmark + szerep pill, divider a sor alatt ── */
+    .sidebar-brand-initial { display: none; }
+    .sidebar-brand-name {
+      font-size: 17px;
       font-weight: 700;
-      color: #0a1f2e;
-      flex-shrink: 0;
+      letter-spacing: -0.02em;
+      color: var(--accent);
+      white-space: nowrap;
     }
-
-    .sidebar-logo-text {
-      font-size: 16px;
-      font-weight: 700;
-      background: linear-gradient(90deg, #e8edf5 60%, var(--accent));
-      -webkit-background-clip: text;
-      -webkit-text-fill-color: transparent;
+    .sidebar-role-pill {
+      margin-left: auto;
+      font-size: 10px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      color: color-mix(in srgb, #ffffff 82%, transparent);
+      background: color-mix(in srgb, #ffffff 10%, transparent);
+      border: 1px solid color-mix(in srgb, #ffffff 22%, transparent);
+      border-radius: 8px;
+      padding: 2px 6px;
+      white-space: nowrap;
     }
 
     .nav-item {
       display: flex;
       align-items: center;
-      gap: 12px;
-      padding: 11px 14px;
-      border-radius: 10px;
+      gap: 10px;
+      padding: 9px 10px 9px 16px;
+      border-radius: 8px;
+      border: 1px solid transparent;
       cursor: pointer;
-      font-size: 13.5px;
+      font-size: 12.5px;
       font-weight: 500;
-      color: #8ea9c0;
-      transition: all 0.2s ease;
-      margin-bottom: 3px;
-      border: none;
+      color: color-mix(in srgb, #186d98 55%, #ffffff);
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
+      margin-bottom: 2px;
       background: none;
       width: 100%;
       text-align: left;
-      letter-spacing: 0.01em;
+      position: relative;
+      white-space: nowrap;
+    }
+    .nav-item > span {
+      overflow: hidden;
+      text-overflow: ellipsis;
     }
 
     .nav-item:hover {
-      background: rgba(28, 238, 224, 0.08);
-      color: #e0f2f1;
+      background: color-mix(in srgb, #ffffff 9%, transparent);
+      color: #ffffff;
     }
 
     .nav-item.active {
-      background: rgba(28, 238, 224, 0.15);
-      color: #1ceee0;
+      background: color-mix(in srgb, #ffffff 12%, transparent);
+      border-color: color-mix(in srgb, #ffffff 26%, transparent);
+      color: #ffffff;
+      font-weight: 600;
+    }
+    /* kit: aktív elem jobbra teal pötty — csak nyitott állapotban
+       (collapsed módban a ::after a tooltipnak való, lásd settings.css) */
+    .sidebar:not(.collapsed) .nav-item.active::after {
+      content: "";
+      position: absolute;
+      right: 11px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      background: var(--accent);
     }
 
     .nav-item svg {
-      width: 18px;
-      height: 18px;
+      width: 15px;
+      height: 15px;
       flex-shrink: 0;
+      stroke-width: 1.7;
     }
 
     .nav-group {}
-    .nav-group-toggle { display:flex;align-items:center;gap:12px;padding:11px 14px;border-radius: 10px;cursor:pointer;font-size:13.5px;font-weight:500;color: #8ea9c0;transition:all 0.2s ease;margin-bottom:3px;border:none;background:none;width:100%;text-align:left;letter-spacing:0.01em; }
-    .nav-group-toggle:hover { background:rgba(28,238,224,0.08);color:#e0f2f1; }
-    .nav-group-toggle.active { color:#1ceee0; }
-    .nav-group-toggle svg { width:18px;height:18px;flex-shrink:0; }
-    .nav-group-toggle .nav-chevron { margin-left:auto;width:14px;height:14px;transition:transform 0.2s; }
+    .nav-group-toggle { display:flex;align-items:center;gap:10px;padding:9px 10px 9px 16px;border-radius:8px;border:1px solid transparent;cursor:pointer;font-size:12.5px;font-weight:500;color:color-mix(in srgb, #186d98 55%, #ffffff);transition:background 0.15s,color 0.15s;margin-bottom:2px;border:none;background:none;width:100%;text-align:left;position:relative;white-space:nowrap; }
+    .nav-group-toggle > span { overflow:hidden;text-overflow:ellipsis; }
+    .nav-group-toggle:hover { background:color-mix(in srgb, #ffffff 9%, transparent);color:#ffffff; }
+    /* csoportfejléc csak színben jelzi, hogy benne vagyunk — a leaf kapja a teljes aktív kezelést */
+    .nav-group-toggle.active { color:#ffffff; }
+    .nav-group-toggle svg { width:15px;height:15px;flex-shrink:0;stroke-width:1.7; }
+    .nav-group-toggle .nav-chevron { margin-left:auto;width:14px;height:14px;color:color-mix(in srgb, #ffffff 40%, transparent);transition:transform 0.2s; }
     .nav-group-toggle.open .nav-chevron { transform:rotate(180deg); }
     .nav-submenu { max-height:0;overflow:hidden;transition:max-height 0.25s ease; }
     .nav-submenu.open { max-height:200px; }
-    .nav-sub-item { display:flex;align-items:center;gap:8px;padding:9px 14px 9px 44px;border-radius: 10px;cursor:pointer;font-size:13px;font-weight:500;color: #8ea9c0;transition:all 0.2s ease;margin-bottom:2px;border:none;background:none;width:100%;text-align:left; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-    .nav-sub-item:hover { background:rgba(28,238,224,0.08);color:#e0f2f1; }
-    .nav-sub-item.active { background:rgba(28,238,224,0.15);color:#1ceee0;font-weight:600; }
+    .nav-sub-item { display:flex;align-items:center;gap:8px;padding:7px 10px 7px 23px;border-radius:8px;border:1px solid transparent;cursor:pointer;font-size:12px;font-weight:500;color:color-mix(in srgb, #186d98 55%, #ffffff);transition:background 0.15s,color 0.15s,border-color 0.15s;margin-bottom:2px;background:none;width:100%;text-align:left;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;position:relative; }
+    .nav-sub-icon { width:13px;height:13px;flex-shrink:0;opacity:0.9; }
+    .nav-sub-item:hover { background:color-mix(in srgb, #ffffff 9%, transparent);color:#ffffff; }
+    .nav-sub-item.active { background:color-mix(in srgb, #ffffff 12%, transparent);border-color:color-mix(in srgb, #ffffff 26%, transparent);color:#ffffff;font-weight:600; }
+    .sidebar:not(.collapsed) .nav-sub-item.active::after { content:"";position:absolute;right:11px;top:50%;transform:translateY(-50%);width:6px;height:6px;border-radius:50%;background:var(--accent); }
+    /* becsukott brand: csak egy accent kezdőbetű marad */
+    .sidebar.collapsed .sidebar-brand-name,
+    .sidebar.collapsed .sidebar-role-pill { display: none; }
+    .sidebar.collapsed .sidebar-brand-initial {
+      display: block;
+      font-size: 17px;
+      font-weight: 700;
+      letter-spacing: -0.02em;
+      color: var(--accent);
+      line-height: 1;
+    }
 
     .nav-section-title {
       font-size: 10px;
@@ -169,8 +211,8 @@
 
     .sidebar-bottom {
       margin-top: auto;
-      padding-top: 16px;
-      border-top: 1px solid rgba(255,255,255,0.06);
+      padding-top: 12px;
+      border-top: 1px solid color-mix(in srgb, #ffffff 12%, transparent);
       position: relative;
     }
 
@@ -437,8 +479,10 @@
 
     /* ╔══════════════════════════════════════════════════════════════════════════╗
     /* ── Logo App Switcher (DigiDesk ↔ Marketing) ── */
-    .sidebar-logo.has-switch{cursor:pointer;position:relative;transition:background 0.2s;border-radius: 10px;margin:-4px -8px;padding:8px 8px 8px 16px;}
-    .sidebar-logo.has-switch:hover{background:rgba(255,255,255,0.05);}
+    /* ── Logo App Switcher (DigiDesk ↔ Marketing) ──
+       (a popover stílusokat lásd fent az App Switcher blokkban — itt csak a brand sor) */
+    .sidebar-logo.has-switch{cursor:pointer;position:relative;transition:background 0.15s;border-radius:0;margin:0;padding:6px 8px 12px;}
+    .sidebar-logo.has-switch:hover{background:color-mix(in srgb, #ffffff 9%, transparent);}
     .logo-switch-dd{max-height:0;overflow:hidden;transition:max-height 0.25s ease,opacity 0.2s;opacity:0;margin:0 8px;}
     .logo-switch-dd.open{max-height:80px;opacity:1;margin-bottom:8px;}
     .logo-switch-link{display:flex;align-items:center;gap:10px;padding:10px 14px;border-radius: 10px;background:rgba(255,255,255,0.04);border:1px solid rgba(255,255,255,0.08);text-decoration:none;transition:all 0.2s;margin-top:6px;}
@@ -524,7 +568,6 @@
 
 /* === Sidebar: migrated inline styles === */
 .sidebar-logo--clickable { cursor: pointer; position: relative; }
-.sidebar-logo-img { height: 28px; width: auto; object-fit: contain; }
 .logo-switch-icon--marketing {
   background: linear-gradient(135deg, #8b5cf6, #6d28d9);
   color: #fff;

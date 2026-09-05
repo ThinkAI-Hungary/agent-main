@@ -42,39 +42,9 @@
 }
 
 
-/* ── 3. Sidebar active item — subtle, no glow ─────────────────────── */
-.nav-item.active {
-  position: relative;
-}
-
-.nav-item.active::before {
-  content: '';
-  position: absolute;
-  left: 0;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 60%;
-  border-radius: 0 3px 3px 0;
-  background: #1ceee0;
-  /* NO box-shadow glow — flat design */
-}
-
-.nav-sub-item.active {
-  position: relative;
-}
-
-.nav-sub-item.active::before {
-  content: '';
-  position: absolute;
-  left: 28px;
-  top: 50%;
-  transform: translateY(-50%);
-  width: 3px;
-  height: 50%;
-  border-radius: 0 3px 3px 0;
-  background: #1ceee0;
-}
+/* ── 3. Sidebar active item ───────────────────────────────────────── */
+/* Eltávolítva: az aktív elem jelölése a UI Kit 11 alapján a sidebar.css-ben
+   él (keretes aktív + jobbra teal pötty), a korábbi bal oldali sáv helyett. */
 
 
 /* ── 4. Input focus — subtle border change, no glow ───────────────── */

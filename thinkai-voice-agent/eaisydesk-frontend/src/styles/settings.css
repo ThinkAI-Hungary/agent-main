@@ -136,34 +136,43 @@
     /* Hide old circle collapse button */
     .sidebar-collapse-btn { display: none !important; }
 
-    /* �� Visibill-style sidebar bottom �������������������������� */
+    /* ── Visibill-style sidebar bottom → eaisyDesk UI Kit · 11 (sb-foot kártya) ── */
     .sidebar-user-row {
       display: flex;
       align-items: center;
       gap: 10px;
-      padding: 12px 14px;
+      padding: 10px;
+      margin: 0 2px;
+      background: color-mix(in srgb, #ffffff 8%, transparent);
+      border: 1px solid color-mix(in srgb, #ffffff 18%, transparent);
+      border-radius: 8px;
     }
     .sidebar-user-row .user-avatar {
-      width: 34px;
-      height: 34px;
-      font-size: 12px;
+      width: 30px;
+      height: 30px;
+      border-radius: 50%;
+      background: color-mix(in srgb, #ffffff 12%, transparent);
+      border: 1px solid color-mix(in srgb, #ffffff 24%, transparent);
+      color: #ffffff;
+      font-size: 11px;
+      font-weight: 600;
     }
     .sidebar-user-row .user-text {
       flex: 1;
       min-width: 0;
     }
     .sidebar-user-row .user-name {
-      font-size: 13px;
+      font-size: 12px;
       font-weight: 600;
-      color: #e8edf5;
+      color: #ffffff;
       line-height: 1.2;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
     }
     .sidebar-user-row .user-role {
-      font-size: 11px;
-      color: #8ea9c0;
+      font-size: 10.5px;
+      color: color-mix(in srgb, #ffffff 58%, transparent);
       margin-top: 1px;
       line-height: 1.2;
       white-space: nowrap;
@@ -171,28 +180,27 @@
       text-overflow: ellipsis;
     }
     .sidebar-theme-toggle {
-      width: 32px;
-      height: 32px;
+      width: 28px;
+      height: 28px;
       border-radius: 8px;
-      border: 1px solid rgba(255,255,255,0.08);
-      background: rgba(255,255,255,0.04);
-      color: rgba(255,255,255,0.5);
+      border: 1px solid transparent;
+      background: transparent;
+      color: color-mix(in srgb, #ffffff 58%, transparent);
       cursor: pointer;
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: all 0.2s;
+      transition: background 0.15s, color 0.15s;
       flex-shrink: 0;
       padding: 0;
     }
     .sidebar-theme-toggle:hover {
-      background: rgba(28, 238, 224, 0.10);
-      color: #1ceee0;
-      border-color: rgba(28, 238, 224, 0.25);
+      background: color-mix(in srgb, #ffffff 12%, transparent);
+      color: #ffffff;
     }
     .sidebar-theme-toggle svg {
-      width: 16px;
-      height: 16px;
+      width: 15px;
+      height: 15px;
       transition: transform 0.3s ease;
     }
     .sidebar-theme-toggle .icon-sun { display: block; }
@@ -204,35 +212,35 @@
       display: grid;
       grid-template-columns: 1fr 1fr;
       gap: 6px;
-      padding: 6px 14px 10px;
+      padding: 8px 2px 6px;
     }
     .sidebar-icon-btn {
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: 10px;
-      border-radius: 10px;
-      background: rgba(255,255,255,0.04);
-      border: 1px solid rgba(255,255,255,0.08);
-      color: rgba(255,255,255,0.5);
+      padding: 9px;
+      border-radius: 8px;
+      background: color-mix(in srgb, #ffffff 5%, transparent);
+      border: 1px solid color-mix(in srgb, #ffffff 14%, transparent);
+      color: color-mix(in srgb, #ffffff 55%, transparent);
       cursor: pointer;
-      transition: all 0.2s;
+      transition: background 0.15s, color 0.15s, border-color 0.15s;
       font-family: 'Inter', Arial, sans-serif;
       font-size: 0;
     }
     .sidebar-icon-btn svg {
-      width: 18px;
-      height: 18px;
+      width: 16px;
+      height: 16px;
     }
     .sidebar-icon-btn:hover {
-      background: rgba(28, 238, 224, 0.10);
-      color: #1ceee0;
-      border-color: rgba(28, 238, 224, 0.25);
+      background: color-mix(in srgb, #ffffff 12%, transparent);
+      color: #ffffff;
+      border-color: color-mix(in srgb, #ffffff 22%, transparent);
     }
     .sidebar-icon-btn.btn-logout-new:hover {
-      background: rgba(239, 68, 68, 0.08);
-      color: #ef4444;
-      border-color: rgba(239, 68, 68, 0.2);
+      background: rgba(239, 68, 68, 0.10);
+      color: #f87171;
+      border-color: rgba(239, 68, 68, 0.25);
     }
 
     .sidebar-collapse-bar {
@@ -240,20 +248,18 @@
       align-items: center;
       justify-content: center;
       padding: 8px 14px;
-      border-top: 1px solid rgba(255,255,255,0.06);
+      /* elválasztóvonal a .sidebar-bottom felső élén van — itt nem kell még egy */
       cursor: pointer;
-      color: rgba(255,255,255,0.4);
-      transition: all 0.2s;
+      color: color-mix(in srgb, #ffffff 40%, transparent);
+      transition: background 0.15s, color 0.15s;
       width: 100%;
       background: none;
-      border-left: none;
-      border-right: none;
-      border-bottom: none;
+      border: none;
       font-family: 'Inter', Arial, sans-serif;
     }
     .sidebar-collapse-bar:hover {
-      background: rgba(28, 238, 224, 0.06);
-      color: #1ceee0;
+      background: color-mix(in srgb, #ffffff 9%, transparent);
+      color: #ffffff;
     }
     .sidebar-collapse-bar svg {
       width: 16px;
