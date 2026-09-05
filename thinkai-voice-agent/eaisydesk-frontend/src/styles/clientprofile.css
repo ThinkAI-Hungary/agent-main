@@ -1020,3 +1020,7 @@ body.dark .cd-table-card tbody tr.cd-is-urgent td { background: var(--cp-err-row
 
 /* Listanézet sormagasság / név */
 .cd-table-card .cp-strong { font-weight: 600; color: var(--text); }
+
+/* Kampány szekciók (Függő / Lezárt) */
+.camp-section { margin-bottom: 4px; }
+.camp-section--closed { margin-top: 24px; }

@@ -2222,11 +2222,36 @@ def get_clients_by_ids(client_ids: list[int]) -> list[dict]:
 # OUTBOUND AUTOMATIONS (ESEMÉNYVEZÉRELT KOMMUNIKÁCIÓ)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# Alapértelmezett automatizmusok — új tenantnál automatikusan seedelésre kerülnek
+DEFAULT_OUTBOUND_AUTOMATIONS = [
+    {"name": "No-show utáni üzenet", "trigger_type": "no_show", "enabled": False, "delay_hours": 0,
+     "message_template": "Tisztelt Ügyfelünk!\n\nSajnálattal tapasztaltuk, hogy nem tudott megjelenni a lefoglalt szolgálatás időpontján.\n\nSzeretne új időpontot foglalni? Szívesen segítünk!\n\nÜdvözlettel,\nA csapat"},
+    {"name": "Inaktív ügyfél reaktiválás", "trigger_type": "inactive_client", "enabled": False, "delay_hours": 0,
+     "message_template": "Kedves {nev}!\n\nRégóta nem találkoztunk, és hiányzik nekünk!\n\nSzeretnénk felhívni a figyelmét aktuális szolgáltatásainkra. Foglaljon időpontot most!\n\nÜdvözlettel,\nA csapat"},
+    {"name": "Utánkövetés - elégedettség", "trigger_type": "follow_up", "enabled": False, "delay_hours": 0,
+     "message_template": "Kedves {nev}!\n\nReméljük, elégedett volt a(z) {szolgaltatas} szolgáltatásunkkal!\n\nKérjük, ossza meg velünk tapasztalatát, hogy tovább fejlődhessünk.\n\nÜdvözlettel,\nA csapat"},
+    {"name": "Ajánlatkövetés", "trigger_type": "follow_up", "enabled": False, "delay_hours": 72,
+     "message_template": "Kedves {nev}!\n\nKorábban érdeklődött szolgáltatásaink iránt. Segíthetünk a döntésben?\n\nSzívesen válaszolunk kérdéseire, vagy foglalunk Önnek egy konzultációs időpontot.\n\nÜdvözlettel,\nA csapat"},
+    {"name": "Időpont lemondás - újrafoglalás", "trigger_type": "cancelled_no_rebook", "enabled": False, "delay_hours": 0,
+     "message_template": "Kedves {nev}!\n\nLemondta korábbi időpontját ({szolgaltatas}). Szeretne új időpontot foglalni?\n\nVárjuk visszajelzését!\n\nÜdvözlettel,\nA csapat"},
+]
+
 def get_outbound_automations() -> list[dict]:
     if not supabase: return []
     try:
         res = _tenant_eq(supabase.table("outbound_automations").select("*")).order("id", desc=False).execute()
-        return res.data
+        rows = res.data
+        if not rows:
+            # Üres tábla (pl. új tenant) — alapértelmezett automatizmusok seedelése
+            try:
+                seed_rows = [_with_tenant({**d}) for d in DEFAULT_OUTBOUND_AUTOMATIONS]
+                seed_res = supabase.table("outbound_automations").insert(seed_rows).execute()
+                rows = seed_res.data or []
+                logger.info(f"Seeded {len(rows)} default outbound automations")
+            except Exception as seed_err:
+                logger.warning(f"Outbound automation seed failed: {seed_err}")
+                return []
+        return rows
     except Exception as e:
         logger.error(f"Error fetching outbound automations: {e}")
         return []
