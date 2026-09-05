@@ -83,12 +83,8 @@ const UGYTIPUS_OPTIONS = ['Időpont', 'Kérdés', 'Kérés', 'Panasz', 'Egyéb']
 const CSATORNA_OPTIONS = ['Messenger', 'Telefon', 'Email', 'Instagram', 'WhatsApp'];
 const STATUSZ_OPTIONS = ['Lezárt', 'Nyitott', 'Sürgős'];
 
-const SORT_OPTIONS = [
-  { value: 'date_desc', label: 'Legújabbak elől' },
-  { value: 'date_asc', label: 'Legrégebbiek elől' },
-  { value: 'client_asc', label: 'Ügyfélnév szerint A–Z' },
-  { value: 'topic_asc', label: 'Ügytípus szerint A–Z' },
-];
+// Lapozás (desktop tábla)
+const PAGE_SIZE = 10;
 
 export default function InteractionsPage() {
   const isMobile = useIsMobile(768);
@@ -110,10 +106,11 @@ export default function InteractionsPage() {
 
   // State
   const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('date_desc');
+  // Rendezés: egyetlen váltó — Időpont szerint fel/le (fejlécből)
+  const [dateAsc, setDateAsc] = useState(false);
+  const [page, setPage] = useState(1);
   const [filterOpen, setFilterOpen] = useState(false);
   const [colDropdownOpen, setColDropdownOpen] = useState(false);
-  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   const [visibleCols, setVisibleCols] = useState<Set<string>>(
     new Set(ALL_COLUMNS.map((c) => c.key))
   );
@@ -134,9 +131,8 @@ export default function InteractionsPage() {
 
   const filterContainerRef = useRef<HTMLDivElement>(null);
   const colDropdownRef = useRef<HTMLDivElement>(null);
-  const sortDropdownRef = useRef<HTMLDivElement>(null);
 
-  // Outside click to close dropdowns
+  // Outside click + Esc zárja a lenyílókat
   useEffect(() => {
     function handleClick(e: MouseEvent) {
       if (filterContainerRef.current && !filterContainerRef.current.contains(e.target as Node)) {
@@ -145,12 +141,19 @@ export default function InteractionsPage() {
       if (colDropdownRef.current && !colDropdownRef.current.contains(e.target as Node)) {
         setColDropdownOpen(false);
       }
-      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
-        setSortDropdownOpen(false);
+    }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === 'Escape') {
+        setFilterOpen(false);
+        setColDropdownOpen(false);
       }
     }
     document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
+    document.addEventListener('keydown', handleKey);
+    return () => {
+      document.removeEventListener('click', handleClick);
+      document.removeEventListener('keydown', handleKey);
+    };
   }, []);
 
   // ── Build interaction rows (EAISY-241 §1.2.1: egy session = egy sor) ──
@@ -224,9 +227,11 @@ export default function InteractionsPage() {
   }, [allRows, isAdmin, user, clientsMap]);
 
   // ── Filter + sort ──
-  const filteredRows = useMemo(() => {
+  // preStatusRows: minden szűrő ÉRVÉNYESül a státuszon kívül — ez adja a KPI
+  // számlálókat (a chipre kattintva épp a státusz-szűrőt toggled)
+  const preStatusRows = useMemo(() => {
     const q = cleanStr(searchQuery);
-    const rows = myRows.filter((r) => {
+    return myRows.filter((r) => {
       // EAISY-241 §1.2.4: kimenő (outbound) kommunikáció elrejtése a listanézetből
       if (r.direction === 'Kimenő') return false;
       if (q) {
@@ -235,7 +240,6 @@ export default function InteractionsPage() {
       }
       if (filterUgyTipus.size > 0 && !r.ugyTipus.split(', ').some(t => filterUgyTipus.has(t))) return false;
       if (filterCsatorna.size > 0 && !filterCsatorna.has(r.channel)) return false;
-      if (filterStatusz.size > 0 && !filterStatusz.has(r.statusz)) return false;
       if (filterDateFrom || filterDateTo) {
         const rd = (r.date || '').slice(0, 10);
         if (filterDateFrom && rd < filterDateFrom) return false;
@@ -243,17 +247,40 @@ export default function InteractionsPage() {
       }
       return true;
     });
+  }, [myRows, searchQuery, filterUgyTipus, filterCsatorna, filterDateFrom, filterDateTo]);
 
-    rows.sort((a, b) => {
-      if (sortBy === 'date_desc') return (b.date || '').localeCompare(a.date || '');
-      if (sortBy === 'date_asc') return (a.date || '').localeCompare(b.date || '');
-      if (sortBy === 'client_asc') return (a.client || '').localeCompare(b.client || '');
-      if (sortBy === 'topic_asc') return (a.ugyTipus || '').localeCompare(b.ugyTipus || '');
-      return 0;
-    });
-
+  const filteredRows = useMemo(() => {
+    const rows = preStatusRows.filter((r) => filterStatusz.size === 0 || filterStatusz.has(r.statusz));
+    rows.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+    if (!dateAsc) rows.reverse();
     return rows;
-  }, [myRows, searchQuery, sortBy, filterUgyTipus, filterCsatorna, filterStatusz, filterDateFrom, filterDateTo]);
+  }, [preStatusRows, filterStatusz, dateAsc]);
+
+  // ── KPI számlálók (Sürgős / Nyitott / Lezárt) ──
+  const kpiCounts = useMemo(() => {
+    const c: Record<string, number> = { 'Sürgős': 0, 'Nyitott': 0, 'Lezárt': 0 };
+    preStatusRows.forEach((r) => {
+      const key = STATUSZ_OPTIONS.find((s) => s.toLowerCase() === (r.statusz || '').toLowerCase());
+      if (key) c[key] += 1;
+    });
+    return c;
+  }, [preStatusRows]);
+
+  const toggleStatusKpi = useCallback((s: string) => {
+    setFilterStatusz((prev) => (prev.size === 1 && prev.has(s) ? new Set() : new Set([s])));
+  }, []);
+
+  // ── Lapozás (desktop) ──
+  const totalPages = Math.max(1, Math.ceil(filteredRows.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const pageRows = useMemo(
+    () => filteredRows.slice(pageStart, pageStart + PAGE_SIZE),
+    [filteredRows, pageStart]
+  );
+
+  // Szűrő/keresés változásakor vissza az első oldalra
+  useEffect(() => { setPage(1); }, [searchQuery, filterUgyTipus, filterCsatorna, filterStatusz, filterDateFrom, filterDateTo]);
 
   const activeFilterCount = filterUgyTipus.size + filterCsatorna.size + filterStatusz.size + (filterDateFrom ? 1 : 0) + (filterDateTo ? 1 : 0);
 
@@ -270,15 +297,15 @@ export default function InteractionsPage() {
   const toggleAll = useCallback(
     (checked: boolean) => {
       if (checked) {
-        setSelectedRows(new Set(filteredRows.map((r) => r.sessionId).filter(Boolean) as string[]));
+        setSelectedRows(new Set(pageRows.map((r) => r.sessionId).filter(Boolean) as string[]));
       } else {
         setSelectedRows(new Set());
       }
     },
-    [filteredRows]
+    [pageRows]
   );
 
-  const isAllSelected = filteredRows.length > 0 && selectedRows.size === filteredRows.filter((r) => r.sessionId).length;
+  const isAllSelected = pageRows.length > 0 && selectedRows.size === pageRows.filter((r) => r.sessionId).length;
   const isIndeterminate = selectedRows.size > 0 && !isAllSelected;
 
   // ── Column toggle ──
@@ -391,45 +418,58 @@ export default function InteractionsPage() {
 
       {/* Fetch-hiba megjelenítése (korábban örök „Nincs találat" állapot volt) */}
       {error && (
-        <div className="card-container" style={{ padding: '12px 16px', marginBottom: 8, color: '#b91c1c', background: '#fee2e2', borderRadius: 8 }}>
-          {error} — <button className="btn btn-outline" onClick={() => refetchSessions()}>Újrapróbálás</button>
+        <div className="int-error-banner">
+          <span>{error}</span>
+          <button className="btn btn-outline btn-sm" onClick={() => refetchSessions()}>Újrapróbálás</button>
+        </div>
+      )}
+
+      {/* KPI chipek (kit 08) — kattintva státusz-szűrő */}
+      {!isMobile && (
+        <div className="int-kpis">
+          {STATUSZ_OPTIONS.map((s) => {
+            const active = filterStatusz.size === 1 && filterStatusz.has(s);
+            return (
+              <button
+                key={s}
+                type="button"
+                className={`int-kpi${active ? ' is-on' : ''} int-kpi--${s.toLowerCase()}`}
+                onClick={() => toggleStatusKpi(s)}
+              >
+                <span className="int-kpi-num">{kpiCounts[s]}</span>
+                <span className="int-kpi-label"><i className="int-kpi-dot" />{s}</span>
+              </button>
+            );
+          })}
         </div>
       )}
 
       {/* Desktop toolbar — outside table card */}
       {!isMobile && (
       <div className="int-toolbar">
-        {/* Left: result count */}
-        <div className="flex-row gap-12">
-          {filteredRows.length > 0 && (
-            <span className="text-desc font-semibold int-count-label">
-              {filteredRows.length} találat
-            </span>
-          )}
+        {/* Left: search */}
+        <div className="int-searchbox">
+          <svg className="int-search-icon" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+            <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.2" y2="16.2" />
+          </svg>
+          <input
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Keresés a táblázatban"
+            type="text"
+            className="int-search-input"
+          />
         </div>
 
-        {/* Right: search + actions */}
+        {/* Right: actions */}
         <div className="flex-row gap-8 flex-wrap">
-          <div className="int-search-wrap">
-            <svg className="int-search-icon" fill="none" stroke="#5F7D95" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
-              <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-            </svg>
-            <input
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              placeholder="Keresés a táblázatban"
-              type="text"
-              className="int-toolbar-input"
-            />
-          </div>
-
           {isAdmin && selectedRows.size > 0 && (
             <button
               onClick={handleDeleteSelected}
               disabled={isDeleting}
-              className="int-toolbar-btn int-toolbar-btn--danger"
+              className="btn int-btn-danger"
             >
-              <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
+              <svg fill="none" height="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15">
                 <polyline points="3 6 5 6 21 6" />
                 <path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" />
                 <path d="M10 11v6" />
@@ -439,15 +479,16 @@ export default function InteractionsPage() {
             </button>
           )}
 
-          {/* Filter */}
+          {/* Filter — primary (kit 05) */}
           <div className="relative int-dropdown-wrap" ref={filterContainerRef}>
             <button
-              className="int-toolbar-btn flex-row gap-6"
+              className="int-filter-btn flex-row gap-6"
               title="Szűrés"
+              aria-expanded={filterOpen}
               onClick={() => setFilterOpen(!filterOpen)}
             >
-              <svg fill="none" height="14" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14">
-                <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+              <svg fill="none" height="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15">
+                <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
               </svg>
               Szűrés
               {activeFilterCount > 0 && (
@@ -458,85 +499,76 @@ export default function InteractionsPage() {
             </button>
 
             {filterOpen && (
-              <div className="dropdown-menu dropdown-menu--filter">
-                <div className="dropdown-header">Szűrők</div>
-                <div className="int-filter-list">
-                  <FilterSection title="Dátum">
-                    <div className="flex-row gap-8">
-                      <input className="form-date int-date-input" type="date" lang="hu" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
-                      <input className="form-date int-date-input" type="date" lang="hu" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
+              <div className="int-filter-pop" role="dialog" aria-label="Szűrési feltételek">
+                <div className="int-filter-grid">
+                  <label className="int-filter-field">
+                    <span>Dátum tól</span>
+                    <input className="int-date-input" type="date" lang="hu" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
+                  </label>
+                  <label className="int-filter-field">
+                    <span>Dátum ig</span>
+                    <input className="int-date-input" type="date" lang="hu" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
+                  </label>
+                  <div className="int-filter-field">
+                    <span>Ügytípus</span>
+                    <div className="int-filter-checks">
+                      {UGYTIPUS_OPTIONS.map((v) => (
+                        <FilterCheckbox key={v} label={v} checked={filterUgyTipus.has(v)} onChange={() => toggleFilter(filterUgyTipus, v, setFilterUgyTipus)} />
+                      ))}
                     </div>
-                  </FilterSection>
-                  <FilterSection title="Ügytípus" bordered>
-                    {UGYTIPUS_OPTIONS.map((v) => (
-                      <FilterCheckbox key={v} label={v} checked={filterUgyTipus.has(v)} onChange={() => toggleFilter(filterUgyTipus, v, setFilterUgyTipus)} />
-                    ))}
-                  </FilterSection>
-                  <FilterSection title="Csatorna" bordered>
-                    {CSATORNA_OPTIONS.map((v) => (
-                      <FilterCheckbox key={v} label={v} checked={filterCsatorna.has(v)} onChange={() => toggleFilter(filterCsatorna, v, setFilterCsatorna)} />
-                    ))}
-                  </FilterSection>
-                  <FilterSection title="Státusz" bordered>
-                    {STATUSZ_OPTIONS.map((v) => (
-                      <FilterCheckbox key={v} label={v} checked={filterStatusz.has(v)} onChange={() => toggleFilter(filterStatusz, v, setFilterStatusz)} />
-                    ))}
-                  </FilterSection>
+                  </div>
+                  <div className="int-filter-field">
+                    <span>Csatorna</span>
+                    <div className="int-filter-checks">
+                      {CSATORNA_OPTIONS.map((v) => (
+                        <FilterCheckbox key={v} label={v} checked={filterCsatorna.has(v)} onChange={() => toggleFilter(filterCsatorna, v, setFilterCsatorna)} />
+                      ))}
+                    </div>
+                  </div>
+                  <div className="int-filter-field int-filter-field--full">
+                    <span>Státusz</span>
+                    <div className="int-filter-checks">
+                      {STATUSZ_OPTIONS.map((v) => (
+                        <FilterCheckbox key={v} label={v} checked={filterStatusz.has(v)} onChange={() => toggleFilter(filterStatusz, v, setFilterStatusz)} />
+                      ))}
+                    </div>
+                  </div>
                 </div>
-                <div className="flex-row gap-8 int-filter-footer">
-                  <button className="btn btn-outline int-filter-btn" onClick={resetFilters}>Visszaállítás</button>
-                  <button className="btn btn-primary int-filter-btn" onClick={() => setFilterOpen(false)}>Alkalmaz</button>
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Sort */}
-          <div className="relative int-dropdown-wrap" ref={sortDropdownRef}>
-            <button
-              className="int-toolbar-btn flex-row gap-6"
-              onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
-            >
-              <svg fill="none" height="14" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14">
-                <path d="M7 15l5 5 5-5" /><path d="M7 9l5-5 5 5" />
-              </svg>
-              Sorrend
-            </button>
-            {sortDropdownOpen && (
-              <div className="dropdown-menu dropdown-menu--sort">
-                {SORT_OPTIONS.map((o) => (
-                  <button
-                    key={o.value}
-                    className={`dropdown-item ${sortBy === o.value ? 'active' : ''}`}
-                    onClick={() => { setSortBy(o.value); setSortDropdownOpen(false); }}
-                  >
-                    {sortBy === o.value && <span className="int-sort-check">✓</span>}
-                    {o.label}
+                <div className="int-filter-actions">
+                  <span className="int-filter-hint">
+                    {activeFilterCount > 0 ? `${activeFilterCount} aktív szűrő` : 'Nincs aktív szűrő'}
+                  </span>
+                  <button className="btn btn-sm" onClick={resetFilters}>
+                    <svg fill="none" height="13" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="13">
+                      <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
+                    </svg>
+                    Szűrők törlése
                   </button>
-                ))}
+                </div>
               </div>
             )}
           </div>
 
-          {/* Columns */}
+          {/* Columns (kit 14) */}
           <div className="relative int-dropdown-wrap" ref={colDropdownRef}>
             <button
-              className="int-toolbar-btn flex-row gap-6"
+              className="btn int-btn-icon"
               title="Oszlopok"
+              aria-label="Oszlopok"
+              aria-expanded={colDropdownOpen}
               onClick={() => setColDropdownOpen(!colDropdownOpen)}
             >
-              <svg fill="none" height="14" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14">
-                <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" />
+              <svg fill="none" height="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15">
+                <rect x="3" y="4" width="5" height="16" rx="1" /><rect x="9.5" y="4" width="5" height="16" rx="1" /><rect x="16" y="4" width="5" height="16" rx="1" />
               </svg>
-              Oszlopok
             </button>
             {colDropdownOpen && (
-              <div className="dropdown-menu dropdown-menu--columns">
-                <div className="dropdown-header">Látható oszlopok</div>
+              <div className="int-columns-pop" role="dialog" aria-label="Oszlopok megjelenítése">
+                <div className="int-columns-title">Oszlopok</div>
                 {ALL_COLUMNS.map((col) => (
-                  <label key={col.key} className="int-col-label">
+                  <label key={col.key} className="int-col-toggle">
                     <input type="checkbox" checked={visibleCols.has(col.key)} onChange={() => toggleCol(col.key)} className="int-col-cb" />
-                    {col.label}
+                    <span>{col.label === 'Időpont' ? 'Interakció időpontja' : col.label}</span>
                   </label>
                 ))}
               </div>
@@ -583,7 +615,7 @@ export default function InteractionsPage() {
                 <div className="flex-row gap-6">
                   {/* Filter */}
                   <div className="relative int-dropdown-wrap" ref={filterContainerRef}>
-                    <button className="int-toolbar-btn int-toolbar-btn--flex" onClick={() => setFilterOpen(!filterOpen)}>
+                    <button className="int-filter-btn int-filter-btn--sm flex-row gap-6" onClick={() => setFilterOpen(!filterOpen)} aria-expanded={filterOpen}>
                       <svg fill="none" height="12" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
                       Szűrés
                       {activeFilterCount > 0 && (
@@ -593,39 +625,35 @@ export default function InteractionsPage() {
                       )}
                     </button>
                     {filterOpen && (
-                      <div className="int-filter-dropdown">
-                        <div className="int-filter-header">Szűrők</div>
-                        <div className="int-filter-list">
-                          <FilterSection title="Dátum">
-                            <div className="flex-row gap-8">
-                              <input type="date" lang="hu" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="int-date-input" />
-                              <input type="date" lang="hu" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="int-date-input" />
-                            </div>
-                          </FilterSection>
-                          <FilterSection title="Ügytípus" bordered>{UGYTIPUS_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterUgyTipus.has(v)} onChange={() => toggleFilter(filterUgyTipus, v, setFilterUgyTipus)} />))}</FilterSection>
-                          <FilterSection title="Csatorna" bordered>{CSATORNA_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterCsatorna.has(v)} onChange={() => toggleFilter(filterCsatorna, v, setFilterCsatorna)} />))}</FilterSection>
-                          <FilterSection title="Státusz" bordered>{STATUSZ_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterStatusz.has(v)} onChange={() => toggleFilter(filterStatusz, v, setFilterStatusz)} />))}</FilterSection>
+                      <div className="int-filter-pop int-filter-pop--mobile" role="dialog" aria-label="Szűrési feltételek">
+                        <div className="int-filter-grid">
+                          <label className="int-filter-field">
+                            <span>Dátum tól</span>
+                            <input type="date" lang="hu" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="int-date-input" />
+                          </label>
+                          <label className="int-filter-field">
+                            <span>Dátum ig</span>
+                            <input type="date" lang="hu" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="int-date-input" />
+                          </label>
+                          <div className="int-filter-field int-filter-field--full">
+                            <span>Ügytípus</span>
+                            <div className="int-filter-checks">{UGYTIPUS_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterUgyTipus.has(v)} onChange={() => toggleFilter(filterUgyTipus, v, setFilterUgyTipus)} />))}</div>
+                          </div>
+                          <div className="int-filter-field int-filter-field--full">
+                            <span>Csatorna</span>
+                            <div className="int-filter-checks">{CSATORNA_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterCsatorna.has(v)} onChange={() => toggleFilter(filterCsatorna, v, setFilterCsatorna)} />))}</div>
+                          </div>
+                          <div className="int-filter-field int-filter-field--full">
+                            <span>Státusz</span>
+                            <div className="int-filter-checks">{STATUSZ_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterStatusz.has(v)} onChange={() => toggleFilter(filterStatusz, v, setFilterStatusz)} />))}</div>
+                          </div>
                         </div>
-                        <div className="flex-row gap-8 int-filter-footer">
-                          <button className="btn btn-outline int-filter-btn" onClick={resetFilters}>Visszaállítás</button>
-                          <button className="btn btn-primary int-filter-btn" onClick={() => setFilterOpen(false)}>Alkalmaz</button>
+                        <div className="int-filter-actions">
+                          <span className="int-filter-hint">
+                            {activeFilterCount > 0 ? `${activeFilterCount} aktív szűrő` : 'Nincs aktív szűrő'}
+                          </span>
+                          <button className="btn btn-sm" onClick={resetFilters}>Szűrők törlése</button>
                         </div>
-                      </div>
-                    )}
-                  </div>
-                  {/* Sort */}
-                  <div className="relative int-dropdown-wrap" ref={sortDropdownRef}>
-                    <button className="int-toolbar-btn int-toolbar-btn--flex" onClick={() => setSortDropdownOpen(!sortDropdownOpen)}>
-                      <svg fill="none" height="12" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12"><path d="M3 6h18M6 12h12M9 18h6" /></svg>
-                      Rendezés
-                    </button>
-                    {sortDropdownOpen && (
-                      <div className="int-sort-dropdown">
-                        {SORT_OPTIONS.map((o) => (
-                          <button key={o.value} onClick={() => { setSortBy(o.value); setSortDropdownOpen(false); }} className={`int-sort-option ${sortBy === o.value ? 'active' : ''}`}>
-                            {sortBy === o.value && <span className="int-sort-check">✓</span>}{o.label}
-                          </button>
-                        ))}
                       </div>
                     )}
                   </div>
@@ -723,6 +751,7 @@ export default function InteractionsPage() {
 
         {/* ═══ DESKTOP: Table ═══ */}
         {!isMobile && (
+          <div className="int-table-scroll">
           <table className="data-table int-table-norx" id="interactions-flat-table">
             <thead className="int-thead">
               <tr>
@@ -731,9 +760,26 @@ export default function InteractionsPage() {
                   <input type="checkbox" checked={isAllSelected} ref={(el) => { if (el) el.indeterminate = isIndeterminate; }} onChange={(e) => toggleAll(e.target.checked)} className="int-checkbox-input" />
                 </th>
                 )}
-                {ALL_COLUMNS.map((col) =>
-                  visibleCols.has(col.key) ? <th key={col.key}>{col.label === 'Időpont' ? 'Interakció időpontja' : col.label}</th> : null
-                )}
+                {ALL_COLUMNS.map((col) => {
+                  if (!visibleCols.has(col.key)) return null;
+                  if (col.key === 'date') {
+                    return (
+                      <th key={col.key} className="int-th int-th--sort">
+                        <button type="button" className="int-sort-btn" onClick={() => setDateAsc((v) => !v)} title="Időpont szerinti sorrend váltása">
+                          Interakció időpontja
+                          <span className="int-sort-ic">
+                            <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="13" height="13">
+                              {dateAsc
+                                ? <polyline points="6 14 12 8 18 14" />
+                                : <polyline points="6 9 12 15 18 9" />}
+                            </svg>
+                          </span>
+                        </button>
+                      </th>
+                    );
+                  }
+                  return <th key={col.key} className="int-th">{col.label}</th>;
+                })}
               </tr>
             </thead>
             <tbody>
@@ -746,14 +792,20 @@ export default function InteractionsPage() {
               ) : filteredRows.length === 0 ? (
                 <tr>
                   <td colSpan={visibleCols.size + 1} className="int-td--pad40">
-                    <span className="no-data">Nincs találat</span>
+                    <div className="int-empty">
+                      <svg className="int-empty-ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="30" height="30">
+                        <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.2" y2="16.2" /><line x1="8" y1="11" x2="14" y2="11" />
+                      </svg>
+                      <h3>Nincs találat</h3>
+                      <p>Próbáld módosítani a keresést vagy a szűrőket.</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
-                filteredRows.map((r, i) => (
+                pageRows.map((r, i) => (
                   <tr
                     key={`${r.sessionId}-${r.interactionId}-${i}`}
-                    className="int-row cursor-pointer"
+                    className={`int-row cursor-pointer${r.statusz === 'Sürgős' || r.statusz === 'SÜRGŐS' ? ' is-urgent' : ''}`}
                     onClick={() => { setAutoExpandApproval(false); setSummaryModalRow(r); }}
                   >
                     {isAdmin && (
@@ -772,14 +824,12 @@ export default function InteractionsPage() {
                       </td>
                     )}
                     {visibleCols.has('client') && (
-                      <td className="int-td">
+                      <td className="int-td int-td--client">
                         {r.clientId ? (
                           <button
                             className="int-client-link"
                             title="Ugrás az ügyfél adatlapjára"
                             onClick={(e) => { e.stopPropagation(); setSelectedClientId(String(r.clientId)); }}
-                            onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = '#186D98'; e.currentTarget.style.color = '#134d6e'; }}
-                            onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.color = '#186D98'; }}
                           >
                             {r.client}
                           </button>
@@ -789,7 +839,9 @@ export default function InteractionsPage() {
                       </td>
                     )}
                     {visibleCols.has('channel') && (
-                      <td className="int-td int-td--channel">{r.channel}</td>
+                      <td className="int-td int-td--channel">
+                        <ChannelChip name={r.channel} />
+                      </td>
                     )}
                     {visibleCols.has('ugyTipus') && (
                       <td className="int-td">
@@ -816,6 +868,33 @@ export default function InteractionsPage() {
               )}
             </tbody>
           </table>
+          </div>
+        )}
+
+        {/* Tábla lábléc: találat-számláló + lapozó (kit 09) — desktop */}
+        {!isMobile && !loading && filteredRows.length > 0 && (
+          <div className="int-table-foot">
+            <span className="int-foot-count">
+              {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filteredRows.length)} / {filteredRows.length} találat
+            </span>
+            {totalPages > 1 && (
+              <nav className="int-pagination" aria-label="Lapozás">
+                <button type="button" className="int-pg-btn" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)} aria-label="Előző oldal">
+                  <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><polyline points="15 18 9 12 15 6" /></svg>
+                </button>
+                {pageNumbers(safePage, totalPages).map((p, idx) =>
+                  p === '…' ? (
+                    <span key={`gap-${idx}`} className="int-pg-gap">…</span>
+                  ) : (
+                    <button key={p} type="button" className={`int-pg-btn${p === safePage ? ' is-on' : ''}`} onClick={() => setPage(p)}>{p}</button>
+                  )
+                )}
+                <button type="button" className="int-pg-btn" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)} aria-label="Következő oldal">
+                  <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><polyline points="9 18 15 12 9 6" /></svg>
+                </button>
+              </nav>
+            )}
+          </div>
         )}
       </div>
 
@@ -837,28 +916,42 @@ export default function InteractionsPage() {
 
 // ── Sub-components ──
 
-function FilterSection({ title, bordered, children }: { title: string; bordered?: boolean; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
+/** Kit 07: csatorna chip — ikon-tartó + címke (ikonok a UI kit készletéből) */
+const CHANNEL_ICONS: Record<string, React.ReactNode> = {
+  Telefon: <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />,
+  Email: <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22 6 12 13 2 6" /></>,
+  WhatsApp: <><path d="M12 3a9 9 0 0 0-7.72 13.44L3 21l4.78-1.22A9 9 0 1 0 12 3z" /><path d="M8.5 9.5a3.5 3.5 0 0 0 5 5" /></>,
+  Messenger: <><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></>,
+  Instagram: <><rect x="2" y="2" width="20" height="20" rx="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></>,
+};
+
+function ChannelChip({ name }: { name: string }) {
+  const icon = CHANNEL_ICONS[name];
   return (
-    <div className={`filter-section${bordered ? ' filter-section--bordered' : ''}`}>
-      <button
-        onClick={() => setOpen(!open)}
-        className="filter-section-btn"
-      >
-        <span>{title}</span>
-        <svg
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          viewBox="0 0 24 24"
-          className={`filter-section-chevron${open ? ' filter-section-chevron--open' : ''}`}
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </button>
-      {open && <div className="filter-section-body">{children}</div>}
-    </div>
+    <span className="int-channel-chip">
+      {icon && (
+        <span className="int-channel-ic">
+          <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+            {icon}
+          </svg>
+        </span>
+      )}
+      <span className="int-channel-name">{name}</span>
+    </span>
   );
+}
+
+/** Lapozó oldalszám-lista: max 7 elem, szélső eseteken gondolattal */
+function pageNumbers(current: number, total: number): Array<number | '…'> {
+  if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+  const pages: Array<number | '…'> = [1];
+  const from = Math.max(2, current - 1);
+  const to = Math.min(total - 1, current + 1);
+  if (from > 2) pages.push('…');
+  for (let p = from; p <= to; p++) pages.push(p);
+  if (to < total - 1) pages.push('…');
+  pages.push(total);
+  return pages;
 }
 
 function FilterCheckbox({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {

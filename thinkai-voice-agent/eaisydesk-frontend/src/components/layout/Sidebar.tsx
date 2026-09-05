@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../../context/AuthContext';
 import { useTheme } from '../../context/ThemeContext';
@@ -11,13 +11,13 @@ interface NavItem {
   id: string;
   label: string;
   path: string;
-  icon: string;
+  icon: ReactNode;
   adminOnly?: boolean;
   adminExclusive?: boolean;
   superadminOnly?: boolean;
   memberOnly?: boolean;
   hidden?: boolean;
-  children?: { id: string; label: string; path: string; adminOnly?: boolean; adminExclusive?: boolean; superadminOnly?: boolean }[];
+  children?: { id: string; label: string; path: string; adminOnly?: boolean; adminExclusive?: boolean; superadminOnly?: boolean; icon?: ReactNode }[];
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -25,59 +25,80 @@ const NAV_ITEMS: NavItem[] = [
     id: 'dashboard',
     label: 'Irányítópult',
     path: '/dashboard',
-    icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z',
+    icon: <path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" />,
     memberOnly: true,
   },
   {
     id: 'analytics',
     label: 'Analitika',
     path: '/analytics',
-    icon: 'M3 12h2l3-9 4 18 3-9h6',
+    icon: <><line x1="18" y1="20" x2="18" y2="10" /><line x1="12" y1="20" x2="12" y2="4" /><line x1="6" y1="20" x2="6" y2="14" /></>,
     adminOnly: true,
   },
   {
     id: 'interactions-group',
     label: 'Ügyfélközpont',
     path: '',
-    icon: 'M8 12h8M8 8h4m-4 8h6M4 4h16a2 2 0 012 2v12a2 2 0 01-2 2H4a2 2 0 01-2-2V6a2 2 0 012-2z',
+    icon: <><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" /><circle cx="12" cy="7" r="4" /></>,
     children: [
-      { id: 'interactions', label: 'Interakciós napló', path: '/interactions' },
-      { id: 'clients', label: 'Ügyféllista', path: '/clients' },
-      { id: 'kanban', label: 'Érdeklődőkezelés', path: '/kanban' },
+      {
+        id: 'interactions', label: 'Interakciós napló', path: '/interactions',
+        icon: <><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><line x1="16" y1="13" x2="8" y2="13" /><line x1="16" y1="17" x2="8" y2="17" /></>,
+      },
+      {
+        id: 'clients', label: 'Ügyféllista', path: '/clients',
+        icon: <><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></>,
+      },
+      {
+        id: 'kanban', label: 'Érdeklődőkezelés', path: '/kanban',
+        icon: <><rect x="3" y="3" width="7" height="10" rx="1.5" /><rect x="14" y="3" width="7" height="6" rx="1.5" /><rect x="3" y="17" width="7" height="4" rx="1.5" /><rect x="14" y="13" width="7" height="8" rx="1.5" /></>,
+      },
     ],
   },
   {
     id: 'calendar',
     label: 'Naptár',
     path: '/calendar',
-    icon: 'M16 2v4M8 2v4M3 10h18',
+    icon: <><rect height="18" rx="2" width="18" x="3" y="4" /><path d="M16 2v4M8 2v4M3 10h18" /></>,
   },
   {
     id: 'outbound-group',
     label: 'Kimenő kommunikáció',
     path: '',
-    icon: 'M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z',
+    icon: <><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></>,
     children: [
-      { id: 'outbound', label: 'Kampányok', path: '/outbound' },
-      { id: 'automatizaciok', label: 'Automatikus értesítések', path: '/automatizaciok' },
+      {
+        id: 'outbound', label: 'Kampányok', path: '/outbound',
+        icon: <><path d="m3 11 18-5v12L3 14v-3z" /><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" /></>,
+      },
+      {
+        id: 'automatizaciok', label: 'Automatikus értesítések', path: '/automatizaciok',
+        icon: <><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></>,
+      },
     ],
   },
   {
     id: 'settings-group',
     label: 'Tudástár',
     path: '',
-    icon: 'M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2zM8 7h8M8 11h6',
+    icon: <><path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z" /><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z" /></>,
     adminOnly: true,
     children: [
-      { id: 'settings-basic', label: 'Céginformációk', path: '/settings/basic' },
-      { id: 'settings-szabalyok', label: 'Szabályok', path: '/settings/szabalyok' },
+      {
+        id: 'settings-basic', label: 'Céginformációk', path: '/settings/basic',
+        icon: <><rect x="4" y="2" width="16" height="20" rx="2" /><line x1="9" y1="6" x2="15" y2="6" /><line x1="9" y1="10" x2="15" y2="10" /><line x1="9" y1="14" x2="15" y2="14" /><line x1="9" y1="18" x2="11" y2="18" /></>,
+      },
+      {
+        id: 'settings-szabalyok', label: 'Szabályok', path: '/settings/szabalyok',
+        icon: <><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></>,
+      },
     ],
   },
   {
     id: 'management',
     label: 'Management & Debug',
     path: '/management',
-    icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+    icon: <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />,
     superadminOnly: true,
   },
   {
@@ -220,6 +241,16 @@ export default function Sidebar() {
           ? 'Manager'
           : 'Member';
 
+  // rövid szerep-jelölő a brand pillhez (UI Kit 11 · sb-badge)
+  const rolePill =
+    user?.role === 'superadmin'
+      ? 'Superadmin'
+      : user?.role === 'admin'
+        ? 'Admin'
+        : user?.role === 'manager'
+          ? 'Manager'
+          : 'Member';
+
   return (
     <>
     {/* Mobile hamburger button — rendered outside sidebar */}
@@ -244,16 +275,14 @@ export default function Sidebar() {
         </svg>
       </button>
 
-      {/* Logo with App Switcher */}
+      {/* Brand + App Switcher — accent wordmark + szerep pill, halvány divider alatta */}
       <div
         className={`sidebar-logo${(!isSuperAdmin || impersonatedTenant) ? ' sidebar-logo--clickable' : ''}${appSwitcherOpen ? ' has-switch-open' : ''}`}
         onClick={() => (!isSuperAdmin || impersonatedTenant) && setAppSwitcherOpen(!appSwitcherOpen)}
       >
-        <img
-          src={`${import.meta.env.BASE_URL}eaisydesk_logo.png`}
-          alt="eaisydesk"
-          className="sidebar-logo-img"
-        />
+        <span className="sidebar-brand-initial" aria-hidden="true">e</span>
+        <span className="sidebar-brand-name">eaisyDesk</span>
+        <span className="sidebar-role-pill">{rolePill}</span>
       </div>
 
       {/* App Switcher Dropdown */}
@@ -296,8 +325,8 @@ export default function Sidebar() {
                 onClick={() => toggleGroup(item.id)}
                 data-tooltip={item.label}
               >
-                <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <path d={item.icon} />
+                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                  {item.icon}
                 </svg>
                 <span>{item.label}</span>
                 <svg className="nav-chevron" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
@@ -315,7 +344,12 @@ export default function Sidebar() {
                     className={`nav-sub-item${isActive(child.path) ? ' active' : ''}`}
                     onClick={() => navigate(child.path)}
                   >
-                    {child.label}
+                    {child.icon && (
+                      <svg className="nav-sub-icon" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+                        {child.icon}
+                      </svg>
+                    )}
+                    <span>{child.label}</span>
                   </button>
                 ))}
               </div>
@@ -350,15 +384,8 @@ export default function Sidebar() {
             onClick={() => navigate(item.path)}
             data-tooltip={item.label}
           >
-            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-              {item.id === 'calendar' ? (
-                <>
-                  <rect height="18" rx="2" width="18" x="3" y="4" />
-                  <path d={item.icon} />
-                </>
-              ) : (
-                <path d={item.icon} />
-              )}
+            <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+              {item.icon}
             </svg>
             <span>{item.label}</span>
           </button>

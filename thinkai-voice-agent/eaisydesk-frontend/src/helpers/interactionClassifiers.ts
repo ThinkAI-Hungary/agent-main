@@ -439,12 +439,13 @@ export const EREDMENY_COLORS: Record<string, { bg: string; color: string }> = {
 };
 
 export const STATUSZ_COLORS: Record<string, { bg: string; color: string }> = {
-  Lezárt: { bg: '#dcfce7', color: '#166534' },
-  Nyitott: { bg: '#fef9c3', color: '#854d0e' },
-  Sürgős: { bg: '#ef4444', color: '#ffffff' },
-  LEZÁRT: { bg: '#dcfce7', color: '#166534' },
-  NYITOTT: { bg: '#fef9c3', color: '#854d0e' },
-  SÜRGŐS: { bg: '#ef4444', color: '#ffffff' },
+  // eaisyDesk UI Kit 06: tintelt háttér + sötét szöveg + keret (Badge.tsx adja)
+  Lezárt: { bg: '#f6ffed', color: '#389e0d' },
+  Nyitott: { bg: '#fffbe6', color: '#d48806' },
+  Sürgős: { bg: '#fff2f0', color: '#d9363d' },
+  LEZÁRT: { bg: '#f6ffed', color: '#389e0d' },
+  NYITOTT: { bg: '#fffbe6', color: '#d48806' },
+  SÜRGŐS: { bg: '#fff2f0', color: '#d9363d' },
 };
 
 export const UGYTIPUS_COLORS: Record<string, { bg: string; color: string }> = {

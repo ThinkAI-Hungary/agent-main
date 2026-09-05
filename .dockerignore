@@ -44,3 +44,13 @@ railway.toml
 # IDE
 .vscode/
 .idea/
+
+# Frontend test artifacts (only needed locally)
+thinkai-voice-agent/eaisydesk-frontend/tests/
+thinkai-voice-agent/eaisydesk-frontend/screenshots/
+thinkai-voice-agent/eaisydesk-frontend/test-results/
+thinkai-voice-agent/eaisydesk-frontend/playwright-report/
+thinkai-voice-agent/eaisydesk-frontend/playwright.config.ts
+
+# Local scratch venv
+scratch_venv/

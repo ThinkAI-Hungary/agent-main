@@ -5,9 +5,9 @@
     }
 
     .main-content {
-      margin-left: 240px;
-      width: calc(100vw - 240px);
-      max-width: calc(100vw - 240px);
+      margin-left: 236px;
+      width: calc(100vw - 236px);
+      max-width: calc(100vw - 236px);
       padding: 32px;
       min-height: 100vh;
       background: var(--bg);

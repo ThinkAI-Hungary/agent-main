@@ -10,25 +10,31 @@ interface BadgeProps {
   value: string;
   colorMap?: Record<string, { bg: string; color: string }>;
   style?: React.CSSProperties;
+  children?: React.ReactNode;
 }
 
-/** Generic pill badge */
-export function Badge({ value, colorMap, style }: BadgeProps) {
+/** Generic pill badge — eaisyDesk UI Kit 06 stílus: tintelt háttér, 1px keret, 8px radius */
+export function Badge({ value, colorMap, style, children }: BadgeProps) {
   if (!value) return <span>—</span>;
   const c = colorMap?.[value] || { bg: '#f3f4f6', color: '#374151' };
   return (
     <span
       style={{
-        display: 'inline-block',
+        display: 'inline-flex',
+        alignItems: 'center',
+        gap: 6,
         padding: '3px 10px',
-        borderRadius: '9999px',
-        fontSize: '11px',
-        fontWeight: 600,
+        borderRadius: '8px',
+        fontSize: '11.5px',
+        fontWeight: 500,
+        whiteSpace: 'nowrap',
         background: c.bg,
         color: c.color,
+        border: `1px solid color-mix(in srgb, ${c.color} 28%, ${c.bg})`,
         ...style,
       }}
     >
+      {children}
       {value}
     </span>
   );
@@ -46,13 +52,16 @@ export function EredmenyBadge({ value }: { value: string }) {
   );
 }
 
+/** Státusz badge — kit 06: színes pötty a szöveg előtt */
 export function StatuszBadge({ value }: { value: string }) {
+  const c = STATUSZ_COLORS[value];
   return (
     <Badge
       value={value}
       colorMap={STATUSZ_COLORS}
-      style={{ borderRadius: '6px', fontWeight: 700, letterSpacing: '0.5px' }}
-    />
+    >
+      {c && <span style={{ width: 6, height: 6, borderRadius: '50%', background: c.color, flex: 'none' }} />}
+    </Badge>
   );
 }
 
