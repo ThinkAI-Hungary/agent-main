@@ -42,20 +42,37 @@
 .int-crumb-current { color: var(--text); font-weight: 600; font-size: 12px; }
 .int-page-title { margin: 0; }
 
-/* ── KPI + dátum sáv (kit 08) ── */
-.int-kpi-band {
+/* ── Fejléc sáv: minden vezérlő egy keretes sorban ──
+   (mai nap | KPI-k | kereső | spacer | oszlopok | törlés | szűrés) */
+.int-header-bar {
   display: flex;
   align-items: center;
-  justify-content: space-between;
   gap: 12px;
   flex-wrap: wrap;
-  margin-bottom: 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 16px;
+  margin-bottom: 14px;
 }
 .int-today {
   font-size: 12.5px;
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
+  padding-right: 12px;
+  border-right: 1px solid var(--border);
+}
+.int-header-bar .int-kpis { flex-wrap: nowrap; }
+.int-header-bar .int-kpi { padding: 6px 10px; gap: 8px; }
+.int-header-bar .int-kpi-num { font-size: 16px; }
+.int-header-bar .int-searchbox { flex: 1; min-width: 140px; }
+.int-header-bar .int-search-input { padding-left: 32px; }
+.int-header-actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-left: auto;
 }
 
 /* ── KPI chipek (kit 08) ── */

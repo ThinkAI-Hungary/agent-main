@@ -436,33 +436,30 @@ export default function InteractionsPage() {
         </div>
       )}
 
-      {/* KPI + dátum sáv (kit 08) — chipek kattintva státusz-szűrők, jobbra a mai nap */}
+      {/* Fejléc sáv — minden vezérlő egy keretes sorban (mai nap | KPI-k | keresés | oszlopok | szűrés) */}
       {!isMobile && (
-        <div className="int-kpi-band">
-          <div className="int-kpis">
-            {STATUSZ_OPTIONS.map((s) => {
-              const active = filterStatusz.size === 1 && filterStatusz.has(s);
-              return (
-                <button
-                  key={s}
-                  type="button"
-                  className={`int-kpi${active ? ' is-on' : ''} int-kpi--${s.toLowerCase()}`}
-                  onClick={() => toggleStatusKpi(s)}
-                >
-                  <span className="int-kpi-num">{kpiCounts[s]}</span>
-                  <span className="int-kpi-label"><i className="int-kpi-dot" />{s}</span>
-                </button>
-              );
-            })}
-          </div>
-          <span className="int-today">{todayLabel}</span>
-        </div>
-      )}
+      <div className="int-header-bar">
+        <span className="int-today">Mai nap · {todayLabel}</span>
 
-      {/* Desktop toolbar — outside table card */}
-      {!isMobile && (
-      <div className="int-toolbar">
-        {/* Left: search */}
+        {/* KPI chipek (kit 08) — kattintva státusz-szűrők */}
+        <div className="int-kpis">
+          {STATUSZ_OPTIONS.map((s) => {
+            const active = filterStatusz.size === 1 && filterStatusz.has(s);
+            return (
+              <button
+                key={s}
+                type="button"
+                className={`int-kpi${active ? ' is-on' : ''} int-kpi--${s.toLowerCase()}`}
+                onClick={() => toggleStatusKpi(s)}
+              >
+                <span className="int-kpi-num">{kpiCounts[s]}</span>
+                <span className="int-kpi-label"><i className="int-kpi-dot" />{s}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Kereső */}
         <div className="int-searchbox">
           <svg className="int-search-icon" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
             <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.2" y2="16.2" />
@@ -470,14 +467,14 @@ export default function InteractionsPage() {
           <input
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
-            placeholder="Keresés a táblázatban"
+            placeholder="Keresés név, e-mail, ügytípus, eredmény szerint..."
             type="text"
             className="int-search-input"
           />
         </div>
 
-        {/* Right: actions */}
-        <div className="flex-row gap-8 flex-wrap">
+        {/* Jobb akciók: Oszlopok, Törlés, Szűrés (utolsó) */}
+        <div className="int-header-actions">
           {isAdmin && selectedRows.size > 0 && (
             <button
               onClick={handleDeleteSelected}
