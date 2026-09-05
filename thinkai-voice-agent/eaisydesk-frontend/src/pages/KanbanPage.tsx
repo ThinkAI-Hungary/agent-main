@@ -59,7 +59,6 @@ export interface KanbanCardData {
   contact: string;
   assignee: string;
   lastInteraction: string;
-  extraFields: string[];
   isSurgos: boolean;
   status: string;
   created_at: string;
@@ -128,14 +127,17 @@ export default function KanbanPage() {
     [columns]
   );
 
-  // ── Utolsó interakció ügyfelenként (kártya lábléchez) ──
+  // ── Utolsó interakció ügyfelenként (kártya lábléc + kontakt-csatorna) ──
   const lastInteractionByClient = useMemo(() => {
-    const m: Record<string, string> = {};
+    const m: Record<string, { date: string; channel: string }> = {};
     sessions.forEach((s) => {
       s.interactions?.forEach((r) => {
         if (!r.client_id || !r.created_at) return;
         const k = String(r.client_id);
-        if (!m[k] || r.created_at > m[k]) m[k] = r.created_at;
+        const prev = m[k];
+        if (!prev || r.created_at > prev.date) {
+          m[k] = { date: r.created_at, channel: (r.type || s.channel || '').toLowerCase() };
+        }
       });
     });
     return m;
@@ -173,17 +175,12 @@ export default function KanbanPage() {
       const name = bestClientName(c) || c.name || 'Névtelen';
       const isSurgos = cd?.prioritas === 'Sürgős' || cd?.priority === 'Sürgős' || cd?.prioritas === 'Kiemelt';
 
-      // Elérhetőség a kártyára (egy sor)
-      const contact =
-        (cd?.telefonszam as string) || (cd?.phone as string) || (cd?.telefon as string) ||
-        c.phone || (cd?.email as string) || c.email || '';
-
-      // Extra fields from custom_data (fields 2-3)
-      const extraFields: string[] = [];
-      ['email', 'telefonszam', 'phone', 'telefon'].forEach((key) => {
-        const val = cd?.[key] as string;
-        if (val && val !== contact && extraFields.length < 1) extraFields.push(val);
-      });
+      // Kontakt: azon a csatornán, amin utoljára volt kapcsolat
+      // (utolsó interakció email → email; egyéb → telefon), fallback sorrenddel
+      const email = (cd?.email as string) || c.email || '';
+      const phone = (cd?.telefonszam as string) || (cd?.phone as string) || (cd?.telefon as string) || c.phone || '';
+      const lastCh = lastInteractionByClient[String(c.id)]?.channel || '';
+      const contact = lastCh === 'email' ? (email || phone) : (phone || email);
 
       map[colId].push({
         id: c.id,
@@ -191,8 +188,7 @@ export default function KanbanPage() {
         tags,
         contact,
         assignee: ((cd?.assigned_to || cd?.felelos || '') as string).trim(),
-        lastInteraction: lastInteractionByClient[String(c.id)] || '',
-        extraFields,
+        lastInteraction: lastInteractionByClient[String(c.id)]?.date || '',
         isSurgos: !!isSurgos,
         status,
         created_at: c.created_at || '',

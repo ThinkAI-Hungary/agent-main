@@ -158,10 +158,7 @@ export default function KanbanCard({ card, isDragOverlay, onRemove, onClick, onR
         </>
       )}
 
-      {/* Extra fields (második elérhetőség) */}
-      {card.extraFields.map((f, i) => (
-        <div key={i} className="kanban-card-extra">{f}</div>
-      ))}
+      {/* Megjegyzés: extra mezők a kontakt sorba olvadnak — nincs külön blokk */}
     </div>
   );
 }

@@ -71,6 +71,7 @@ export default function KanbanColumn({ column, cards, protectedColumn, onRename,
             {column.name}
           </span>
         )}
+        {protectedColumn && <span className="kanban-col-auto">Automatikus</span>}
         <span className="kanban-col-count">{cards.length}</span>
         {!protectedColumn && !editing && (
           <span className="kanban-col-actions">

@@ -59,6 +59,19 @@
   font-weight: 600;
   padding: 0 8px;
 }
+.kanban-col-auto {
+  flex: none;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--cp-a2);
+  background: color-mix(in srgb, var(--cp-a2) 10%, var(--card));
+  border: 1px solid color-mix(in srgb, var(--cp-a2) 30%, var(--border));
+  border-radius: 999px;
+  padding: 1px 7px;
+  white-space: nowrap;
+}
 .kanban-col-count {
   flex: none;
   min-width: 22px;
