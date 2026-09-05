@@ -19,7 +19,6 @@ import {
   detectTeendo,
   getTagColor,
 } from '../../helpers/interactionClassifiers';
-import { EredmenyBadge, StatuszBadge, DirectionBadge } from '../ui/Badge';
 import InteractionSummaryModal from '../interactions/InteractionSummaryModal';
 
 interface EnrichedClient {
@@ -74,6 +73,85 @@ interface ManualTask {
   completed: number;
   created_at: string;
   client_id: number | null;
+}
+
+// UI Kit csatorna-ikonok (mockup szerinti chipekhez)
+const CP_CHANNEL_ICONS: Record<string, React.ReactNode> = {
+  Telefon: <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />,
+  Email: <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22 6 12 13 2 6" /></>,
+  WhatsApp: <><path d="M12 3a9 9 0 0 0-7.72 13.44L3 21l4.78-1.22A9 9 0 1 0 12 3z" /><g transform="translate(6 6) scale(0.5)"><path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /></g></>,
+  Messenger: <><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /><g transform="translate(6.5 7) scale(0.5)"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></g></>,
+  Instagram: <><rect x="2" y="2" width="20" height="20" rx="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></>,
+};
+
+function CpChannelCell({ name }: { name: string }) {
+  const icon = CP_CHANNEL_ICONS[name];
+  return (
+    <span className="cp-channel">
+      {icon && (
+        <span className="cp-ch">
+          <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">{icon}</svg>
+        </span>
+      )}
+      {name}
+    </span>
+  );
+}
+
+function cpStatusVariant(statusz: string): 'err' | 'open' | 'closed' {
+  const s = (statusz || '').toLowerCase();
+  if (s === 'sürgős' || s === 'surgos') return 'err';
+  if (s === 'nyitott') return 'open';
+  return 'closed';
+}
+
+function CpStatusBadge({ value }: { value: string }) {
+  const v = cpStatusVariant(value);
+  const label = v === 'err' ? 'Sürgős' : v === 'open' ? 'Nyitott' : 'Lezárt';
+  return (
+    <span className={`cp-badge cp-${v}`}>
+      <i className="cp-dot" />
+      {label}
+    </span>
+  );
+}
+
+// Mockup szerinti teendő-cellák: none → szürke pipa; jóváhagyás → óra (warn); azonnali → villám (err)
+function CpTeendoCell({ value }: { value: string }) {
+  const t = (value || '').toLowerCase();
+  if (!value || t === 'nincs további teendő') {
+    return (
+      <span className="cp-todo-none">
+        <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>
+        Nincs további teendő
+      </span>
+    );
+  }
+  if (t.includes('azonnali') || t.includes('intézkedés')) {
+    return (
+      <span className="cp-badge cp-err">
+        <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+        {value}
+      </span>
+    );
+  }
+  if (t.includes('jóváhagyás') || t.includes('válasz szükséges') || t.includes('válasz jóváhagyása')) {
+    return (
+      <span className="cp-badge cp-warn">
+        <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
+        {value}
+      </span>
+    );
+  }
+  return <span className="cp-todo-text">{value}</span>;
+}
+
+function CpDirBadge({ value }: { value: string }) {
+  return (
+    <span className={`cp-dirbadge ${value === 'Kimenő' ? 'cp-dir-out' : 'cp-dir-in'}`}>
+      {value || '—'}
+    </span>
+  );
 }
 
 export default function ClientDetailView({ client, clientsMap, sessions, events, source, onBack, onRefresh }: Props) {
@@ -428,25 +506,24 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     }
   }, [onRefresh]);
 
-  // Status
+  // Status (mockup: Új → info tint, egyéb → navy tint, inaktív → szürke)
   function statusLabel() {
-    if (client.isInactive) return { text: 'Inaktív', dot: '#94a3b8' };
-    if (client.isNew) return { text: 'Új ügyfél', dot: '#60C5FF' };
-    return { text: 'Visszatérő', dot: '#52c41a' };
+    if (client.isInactive) return { text: 'Inaktív', cls: 'cp-grayb' };
+    if (client.isNew) return { text: 'Új ügyfél', cls: 'cp-infob' };
+    return { text: 'Visszatérő', cls: 'cp-navyb' };
   }
   const sl = statusLabel();
 
   const regDate = client.created_at ? new Date(client.created_at).toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
 
-  const PREDEFINED_TAGS: { label: string; bg: string; color: string }[] = [
-    { label: 'potenciális ügyfél' },
-    { label: 'árkérdés' },
-    { label: 'kampánylead' },
-    { label: 'ajánlatkérés' },
-    { label: 'törölt időpont' },
-    { label: 'no-show' },
-    { label: 'VIP' },
-  ].map(t => ({ ...t, ...getTagColor(t.label) }));
+  // Értékesítési címkék — kizárólag ezek szerepelnek a hozzáadás panelen
+  const PREDEFINED_TAGS: string[] = [
+    'kampánylead',
+    'potenciális ügyfél',
+    'árkérdés',
+    'no-show',
+    'törölt időpont',
+  ];
 
   // „Ma · 18:23" stílusú dátum a kézi teendőkhöz
   function taskDateLabel(iso: string): string {
@@ -467,12 +544,8 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     <div className="analytics-shell">
       {/* Back button */}
       <div className="flex-between mb-20">
-        <button
-          className="btn btn-ghost"
-          style={{ color: '#186D98', padding: 0 }}
-          onClick={onBack}
-        >
-          <span>← </span>
+        <button className="cd-back-btn" onClick={onBack}>
+          <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
           {source === 'calendar' ? 'Vissza a naptárhoz' : source === 'interactions' ? 'Vissza az interakciós listához' : 'Vissza az ügyféllistához'}
         </button>
       </div>
@@ -536,7 +609,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           <div className="cd-hero-main">
             <div className="flex-row gap-10 cd-name-row">
               <h2 className="cd-client-name">{displayName}</h2>
-              <span className="cd-hero-badge"><i className="cd-hero-badge-dot" style={{ background: sl.dot }} />{sl.text}</span>
+              <span className={`cp-badge ${sl.cls}`}><i className="cp-dot" />{sl.text}</span>
             </div>
             <div className="cd-hero-contact">
               <span className={displayPhone ? '' : 'cd-contact-na'}>
@@ -573,7 +646,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                 <div className="cd-appt-next">
                   <div className="cd-appt-next-label">Következő időpont</div>
                   {upcoming.length === 0 ? (
-                    <span className="cd-appt-empty-next">Nincs megjeleníthető időpont</span>
+                    <span className="cd-appt-next-value is-empty">Nincs közelgő időpont</span>
                   ) : (
                     <div className="cd-appt-next-value">
                       {upcoming[0].start_dt ? fmtDt(upcoming[0].start_dt) : '—'}
@@ -581,9 +654,9 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                     </div>
                   )}
                 </div>
-                <div className="flex-col gap-8 cd-appt-past-rows">
-                  {past.length === 0 && <span className="cd-appt-empty">Nincs korábbi foglalás.</span>}
-                  {past.slice(0, 3).map((ev, i) => (
+                <div className="cd-appt-past">
+                  {past.length === 0 && <div className="cd-appt-row" style={{ opacity: 0.7 }}>Nincs korábbi időpont</div>}
+                  {past.slice(0, 2).map((ev, i) => (
                     <div key={i} className="flex-row gap-8 cd-appt-row">
                       <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="13" height="13"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
                       {ev.start_dt ? fmtDt(ev.start_dt) : '—'}
@@ -610,8 +683,11 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
               const c = getTagColor(t);
               return (
                 <span key={t} className="cd-tag-chip" style={{ background: c.bg, color: c.color }}>
+                  <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
                   {t}
-                  <button onClick={() => removeTag(t)} className="cd-tag-remove" style={{ color: 'inherit' }}>×</button>
+                  <button onClick={() => removeTag(t)} className="cd-tag-remove" aria-label={`Címke törlése: ${t}`}>
+                    <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="10" height="10"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                  </button>
                 </span>
               );
             })}
@@ -621,11 +697,11 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             {showTagPicker && (
               <div className="cd-tag-picker-panel">
                 <div className="cd-tag-picker-header">Előre definiált címkék</div>
-                <div className="flex-col gap-2">
-                  {PREDEFINED_TAGS.filter(t => !((cd?.tags as string[]) || []).includes(t.label)).map(t => (
-                    <button key={t.label} onClick={() => addTag(t.label)} className="cd-predefined-row">
+                <div className="cd-tag-picker-list">
+                  {PREDEFINED_TAGS.filter(t => !((cd?.tags as string[]) || []).includes(t)).map(t => (
+                    <button key={t} onClick={() => addTag(t)} className="cd-predefined-row">
                       <svg className="cd-predefined-tag-ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
-                      <span>{t.label}</span>
+                      <span>{t}</span>
                       <svg className="cd-predefined-plus" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                     </button>
                   ))}
@@ -652,7 +728,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             value={notes}
             onChange={(e) => setNotes(e.target.value)}
             onBlur={() => saveNotes(notes)}
-            placeholder="Megjegyzés az ügyfélről..."
+            placeholder="Írj megjegyzést az ügyfélhez…"
             className="cd-notes-textarea"
           />
         </div>
@@ -670,9 +746,10 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             Teendő hozzáadása
           </button>
         </div>
-        <div className="table-card">
-          <table className="data-table int-table-norx">
-            <thead className="int-thead">
+        <div className="cd-table-card">
+          <div className="cd-table-scroll">
+          <table>
+            <thead>
               <tr>
                 <th>Interakció időpontja</th>
                 <th>Csatorna</th>
@@ -687,30 +764,27 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             <tbody>
               {/* Kézi teendők pszeudo-sorai (legfelül) */}
               {openManualTasks.map((t) => (
-                <tr key={`task-${t.id}`} className="int-row cd-task-row">
-                  <td className="int-td">
-                    <div className="cd-date-primary">{taskDateLabel(t.created_at)}</div>
-                  </td>
-                  <td className="int-td">
-                    <span className="cd-task-channel">
-                      <span className="cd-task-channel-ic">
-                        <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                <tr key={`task-${t.id}`} className="cd-task-row">
+                  <td className="cd-time-cell">{taskDateLabel(t.created_at)}</td>
+                  <td>
+                    <span className="cp-channel">
+                      <span className="cp-ch">
+                        <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                       </span>
                       Hozzáadott feladat
                     </span>
                   </td>
-                  <td className="int-td" />
-                  <td className="int-td" />
-                  <td className="int-td" />
-                  <td className="int-td">
-                    <StatuszBadge value={t.priority === 'high' ? 'Sürgős' : 'Nyitott'} />
-                  </td>
-                  <td className="int-td"><span className="cd-teendo-strong">{t.text}</span></td>
-                  <td className="int-td cd-done-col" onClick={(e) => e.stopPropagation()}>
+                  <td />
+                  <td />
+                  <td />
+                  <td><CpStatusBadge value={t.priority === 'high' ? 'Sürgős' : 'Nyitott'} /></td>
+                  <td><span className="cp-todo-text">{t.text}</span></td>
+                  <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
-                      className="int-checkbox-input"
-                      title="Elvégezve"
+                      className="cp-done-check"
+                      aria-label="Elvégezve"
+                      title="Kipipálásra a teendő lezártra vált"
                       checked={false}
                       onChange={() => toggleManualTask(t)}
                     />
@@ -718,31 +792,27 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                 </tr>
               ))}
               {openInteractions.length === 0 && openManualTasks.length === 0 ? (
-                <tr><td colSpan={8} className="empty-state no-data">Nincs beavatkozást igénylő interakció</td></tr>
+                <tr><td colSpan={8}><div className="cp-empty">Nincs beavatkozást igénylő interakció.</div></td></tr>
               ) : openInteractions.map((r, i) => (
                 <tr
                   key={i}
-                  className="int-row cursor-pointer"
+                  className={`cursor-pointer${(r.statusz || '').toLowerCase() === 'sürgős' ? ' cd-is-urgent' : ''}`}
                   onClick={() => setSummaryModalRow(r)}
                 >
-                  <td className="int-td">
-                    <div className="cd-date-primary">{r.date ? new Date(r.date).toLocaleDateString('hu-HU') : '-'}</div>
-                    <div className="cd-date-time">{r.date ? new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
-                  </td>
-                  <td className="int-td">{r.channel}</td>
-                  <td className="int-td"><DirectionBadge value={r.direction} /></td>
-                  <td className="int-td"><span className="cd-ugytipus">{r.ugyTipus}</span></td>
-                  <td className="int-td"><EredmenyBadge value={r.eredmeny} /></td>
-                  <td className="int-td"><StatuszBadge value={r.statusz} /></td>
-                  <td className="int-td">
-                    <span className={r.teendo === 'Válasz jóváhagyása szükséges' || r.teendo === 'Jóváhagyásra vár' ? 'int-teendo-text' : 'cd-teendo-muted'}>{r.teendo}</span>
-                  </td>
+                  <td className="cd-time-cell">{r.date ? `${new Date(r.date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })} · ${new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}` : '-'}</td>
+                  <td><CpChannelCell name={r.channel} /></td>
+                  <td><CpDirBadge value={r.direction} /></td>
+                  <td>{r.ugyTipus}</td>
+                  <td className="cp-result">{r.eredmeny}</td>
+                  <td><CpStatusBadge value={r.statusz} /></td>
+                  <td><CpTeendoCell value={r.teendo} /></td>
                   {/* Elvégezve checkbox */}
-                  <td className="int-td cd-done-col" onClick={(e) => e.stopPropagation()}>
+                  <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
-                      className="int-checkbox-input"
-                      title="Elvégezve — interakció lezárása"
+                      className="cp-done-check"
+                      aria-label="Elvégezve"
+                      title="Kipipálásra az interakció lezártra vált"
                       checked={false}
                       onChange={(e) => handleMarkDone(e as unknown as React.MouseEvent, r.interactionId)}
                     />
@@ -751,6 +821,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
               ))}
             </tbody>
           </table>
+          </div>
         </div>
       </div>
 
@@ -762,9 +833,10 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             <span className="cd-int-section-count">{closedInteractions.length}</span>
           </h3>
         </div>
-        <div className="table-card table-card--dim">
-          <table className="data-table int-table-norx">
-            <thead className="int-thead">
+        <div className="cd-table-card">
+          <div className="cd-table-scroll">
+          <table>
+            <thead>
               <tr>
                 <th>Interakció időpontja</th>
                 <th>Csatorna</th>
@@ -778,32 +850,28 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             </thead>
             <tbody>
               {closedInteractions.length === 0 ? (
-                <tr><td colSpan={8} className="empty-state no-data">Nincs lezárt interakció</td></tr>
+                <tr><td colSpan={8}><div className="cp-empty">Nincs lezárt interakció.</div></td></tr>
               ) : closedInteractions.slice(0, 20).map((r, i) => (
                 <tr
                   key={i}
-                  className="int-row cursor-pointer"
+                  className="cursor-pointer"
                   onClick={() => setSummaryModalRow(r)}
                 >
-                  <td className="int-td">
-                    <div className="cd-date-primary">{r.date ? new Date(r.date).toLocaleDateString('hu-HU') : '-'}</div>
-                    <div className="cd-date-time">{r.date ? new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' }) : ''}</div>
-                  </td>
-                  <td className="int-td">{r.channel}</td>
-                  <td className="int-td"><DirectionBadge value={r.direction} /></td>
-                  <td className="int-td"><span className="cd-ugytipus">{r.ugyTipus}</span></td>
-                  <td className="int-td"><EredmenyBadge value={r.eredmeny} /></td>
-                  <td className="int-td"><StatuszBadge value={r.statusz} /></td>
-                  <td className="int-td">
-                    <span className={r.teendo === 'Válasz jóváhagyása szükséges' || r.teendo === 'Jóváhagyásra vár' ? 'int-teendo-text' : 'cd-teendo-muted'}>{r.teendo}</span>
-                  </td>
-                  <td className="int-td cd-done-col" onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" className="int-checkbox-input" checked disabled />
+                  <td className="cd-time-cell">{r.date ? `${new Date(r.date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })} · ${new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}` : '-'}</td>
+                  <td><CpChannelCell name={r.channel} /></td>
+                  <td><CpDirBadge value={r.direction} /></td>
+                  <td>{r.ugyTipus}</td>
+                  <td className="cp-result">{r.eredmeny}</td>
+                  <td><CpStatusBadge value={r.statusz} /></td>
+                  <td><CpTeendoCell value={r.teendo} /></td>
+                  <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
+                    <input type="checkbox" className="cp-done-check" checked disabled aria-label="Elvégezte" />
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
+          </div>
         </div>
         {closedInteractions.length > 20 && (
           <div className="cd-more-label">+ {closedInteractions.length - 20} további</div>
@@ -850,51 +918,52 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       {/* • • •  Új teendő Modal • • •  */}
       {showTaskModal && (
         <div className="modal-overlay" onClick={() => setShowTaskModal(false)}>
-          <div className="modal-card cd-task-modal" onClick={e => e.stopPropagation()}>
-            <div className="modal-head cd-task-modal-head">
+          <div className="cd-task-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Új teendő">
+            <div className="cd-task-modal-head">
               <h3 className="modal-title">Új teendő</h3>
-              <button className="modal-x cd-task-modal-x" onClick={() => setShowTaskModal(false)} aria-label="Bezárás">
+              <button className="cd-task-modal-x" onClick={() => setShowTaskModal(false)} aria-label="Bezárás">
                 <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
             </div>
-            <div className="modal-body flex-col gap-14">
-              <div className="form-group">
-                <label className="form-label">Teendő leírása</label>
-                <textarea
-                  className="input cd-task-textarea"
-                  rows={4}
-                  value={taskText}
-                  onChange={e => setTaskText(e.target.value)}
-                  placeholder="Pl. Felhívni még egyszer..."
-                  autoFocus
-                  onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) addManualTask(); }}
-                />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Státusz</label>
-                <div className="cd-task-seg" role="radiogroup" aria-label="Státusz">
-                  <button
-                    type="button"
-                    className={taskPriority === 'normal' ? 'is-on' : ''}
-                    onClick={() => setTaskPriority('normal')}
-                  >
-                    <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
-                    Nyitott
-                  </button>
-                  <button
-                    type="button"
-                    className={taskPriority === 'high' ? 'is-on' : ''}
-                    onClick={() => setTaskPriority('high')}
-                  >
-                    <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
-                    Sürgős
-                  </button>
-                </div>
+            <div className="cd-task-modal-body">
+              <label className="cd-task-modal-label" htmlFor="cdTaskDesc">Teendő leírása</label>
+              <textarea
+                id="cdTaskDesc"
+                className="cd-task-textarea"
+                rows={3}
+                value={taskText}
+                onChange={e => setTaskText(e.target.value)}
+                placeholder="Pl. Felhívni még egyszer…"
+                autoFocus
+                onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) addManualTask(); }}
+              />
+              <div className="cd-task-modal-label" id="cdTaskSegLabel">Státusz</div>
+              <div className="cd-task-seg" role="radiogroup" aria-labelledby="cdTaskSegLabel">
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={taskPriority === 'normal'}
+                  className={taskPriority === 'normal' ? 'is-on' : ''}
+                  onClick={() => setTaskPriority('normal')}
+                >
+                  <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
+                  Nyitott
+                </button>
+                <button
+                  type="button"
+                  role="radio"
+                  aria-checked={taskPriority === 'high'}
+                  className={taskPriority === 'high' ? 'is-on' : ''}
+                  onClick={() => setTaskPriority('high')}
+                >
+                  <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+                  Sürgős
+                </button>
               </div>
             </div>
-            <div className="modal-footer">
-              <button className="btn btn-outline" onClick={() => setShowTaskModal(false)}>Mégse</button>
-              <button className="btn btn-primary" onClick={addManualTask} disabled={taskSaving || !taskText.trim()}>
+            <div className="cd-task-modal-foot">
+              <button className="cd-btn" onClick={() => setShowTaskModal(false)}>Mégse</button>
+              <button className="cd-btn cd-btn-primary" onClick={addManualTask} disabled={taskSaving || !taskText.trim()}>
                 {taskSaving ? 'Mentés...' : 'Mentés'}
               </button>
             </div>

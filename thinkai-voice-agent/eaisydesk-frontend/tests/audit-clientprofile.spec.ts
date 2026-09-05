@@ -1,4 +1,5 @@
 import { test, expect, type Page } from '@playwright/test';
+import { seedAuth } from './helpers';
 
 /**
  * Audit-spec: ügyfélprofil (ClientDetailView) megjelenítés és új teendő funkció.
@@ -74,6 +75,18 @@ test('ügyfélprofil — hero, kártyák, táblák', async ({ page }) => {
   await setup(page);
   await openProfile(page);
   await page.screenshot({ path: 'screenshots/audit-profile.png', fullPage: true });
+});
+
+test('ügyfélprofil — dark mode', async ({ page }) => {
+  await setup(page);
+  await seedAuth(page, { thinkai_theme: 'dark' });
+  await page.goto('/admin/clients');
+  await expect(page.locator('.page-title', { hasText: 'Ügyféllista' })).toBeVisible();
+  await page.waitForTimeout(600);
+  await page.locator('.int-row').first().click();
+  await expect(page.locator('.cd-hero')).toBeVisible({ timeout: 15000 });
+  await page.waitForTimeout(500);
+  await page.screenshot({ path: 'screenshots/audit-profile-dark.png', fullPage: true });
 });
 
 test('új teendő modál', async ({ page }) => {
