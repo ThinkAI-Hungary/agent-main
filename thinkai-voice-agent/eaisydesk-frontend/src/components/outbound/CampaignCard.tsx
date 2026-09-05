@@ -1,11 +1,12 @@
 /**
- * CampaignCard — memo-wrapped campaign list card.
- * Extracted from OutboundPage to prevent the full list re-rendering
- * on filter changes, selection toggles, or other parent state updates.
+ * CampaignCard – kampány kártya (UI Kit / mockup stílus)
+ * Struktúra: cím + kebab · státusz badge · célzott ügyfelek · indítás/ütemezés ·
+ * elválasztó · létrehozó avatar + név + létrehozva dátum.
  */
-import { memo, useState, useEffect, useRef } from 'react';
+import { memo, useState, useEffect } from 'react';
 import { useAuth } from '../../context/AuthContext';
 import { authFetch } from '../../api/client';
+import CampaignMenu, { campaignStatusDisplay, campaignStatusKey, getScheduledDate, fmtCreatedDate } from './CampaignMenu';
 
 interface Campaign {
   id: number;
@@ -21,31 +22,14 @@ interface Campaign {
   created_by?: string;
 }
 
-interface StatusInfo { bg: string; color: string; label: string; }
-
-const CHANNEL_NAMES: Record<string, string> = {
-  email: 'Email', whatsapp: 'WhatsApp', telefon: 'Telefon',
-  messenger: 'Messenger', instagram: 'Instagram',
-};
-
 interface CampaignCardProps {
   campaign: Campaign;
-  statusInfo: StatusInfo;
-  isSelected: boolean;
-  onToggleSelect: (id: number) => void;
   onOpenDetail: (campaign: Campaign) => void;
   onStart: (id: number) => void;
   onStop: (id: number) => void;
   onClose: (id: number) => void;
   onDelete: (id: number) => void;
   onSchedule: (id: number) => void;
-}
-
-function getScheduledDate(aiInstructions: string | undefined): string | null {
-  if (!aiInstructions || !aiInstructions.startsWith('SCHED:')) return null;
-  const pipeIdx = aiInstructions.indexOf('|');
-  if (pipeIdx < 0) return null;
-  return aiInstructions.substring(6, pipeIdx);
 }
 
 function getInitials(name: string): string {
@@ -55,8 +39,6 @@ function getInitials(name: string): string {
 
 const CampaignCard = memo(function CampaignCard({
   campaign: c,
-  isSelected,
-  onToggleSelect,
   onOpenDetail,
   onStart,
   onStop,
@@ -66,40 +48,6 @@ const CampaignCard = memo(function CampaignCard({
 }: CampaignCardProps) {
   const { user } = useAuth();
   const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-  const [menuOpen, setMenuOpen] = useState(false);
-  const menuRef = useRef<HTMLDivElement>(null);
-
-  const channels = c.channels || (c.channel ? [c.channel] : ['email']);
-  const clientCount = c.client_ids?.length || 0;
-
-  const scheduledDate = getScheduledDate(c.ai_instructions);
-  const displayDate = scheduledDate || c.created_at;
-  const formattedDate = displayDate
-    ? new Date(displayDate).toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' })
-    : '—';
-
-  // Determine status classification:
-  let statusKey: 'tervezet' | 'aktiv' | 'utemezett' | 'lezart' = 'tervezet';
-  let stripeClass = 'out-card--stripe-tervezet';
-  let badgeLabel = 'TERVEZET';
-  let badgeColor = '#186D98';
-
-  if (c.status === 'Aktív') {
-    statusKey = 'aktiv';
-    stripeClass = 'out-card--stripe-aktiv';
-    badgeLabel = 'AKTÍV';
-    badgeColor = '#32B100';
-  } else if (c.status === 'Ütemezett') {
-    statusKey = 'utemezett';
-    stripeClass = 'out-card--stripe-utemezett';
-    badgeLabel = 'ÜTEMEZETT';
-    badgeColor = '#C43284';
-  } else if (c.status === 'Befejezett' || c.status === 'Megállítva') {
-    statusKey = 'lezart';
-    stripeClass = 'out-card--stripe-lezart';
-    badgeLabel = 'LEZÁRT';
-    badgeColor = '#9D9D9D';
-  }
 
   const creatorName = c.created_by || user?.fullName || 'Admin';
   const creatorUsername = c.created_by || user?.username || 'admin';
@@ -112,174 +60,79 @@ const CampaignCard = memo(function CampaignCard({
         throw new Error();
       })
       .then(data => {
-        if (!cancelled && data.avatar_url) {
-          setAvatarUrl(data.avatar_url);
-        }
+        if (!cancelled && data.avatar_url) setAvatarUrl(data.avatar_url);
       })
       .catch(() => {});
     return () => { cancelled = true; };
   }, [creatorUsername]);
 
-  // Close menu on outside click
-  useEffect(() => {
-    if (!menuOpen) return;
-    const handleClick = (e: MouseEvent) => {
-      if (menuRef.current && !menuRef.current.contains(e.target as Node)) {
-        setMenuOpen(false);
-      }
-    };
-    document.addEventListener('mousedown', handleClick);
-    return () => document.removeEventListener('mousedown', handleClick);
-  }, [menuOpen]);
+  const { label: statusLabel, cls: statusCls } = campaignStatusDisplay(c.status);
+  const statusKey = campaignStatusKey(c.status);
+  const clientCount = c.client_ids?.length || 0;
+  const scheduledDate = getScheduledDate(c.ai_instructions);
 
-  // Build menu items based on status
-  const menuItems: { label: string; icon: string; handler: () => void; danger?: boolean }[] = [];
-
-  if (statusKey === 'tervezet') {
-    menuItems.push(
-      { label: 'Indítás', icon: 'play', handler: () => onStart(c.id) },
-      { label: 'Ütemezés', icon: 'calendar', handler: () => onSchedule(c.id) },
-    );
+  // Sor: indítás / ütemezés / küldés a státusz szerint
+  let actionRow: React.ReactNode;
+  if (statusKey === 'aktiv') {
+    actionRow = <><span className="camp-ic"><svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg></span><span>Indítás: <b>{fmtCreatedDate(scheduledDate || c.created_at)}</b></span></>;
   } else if (statusKey === 'utemezett') {
-    menuItems.push(
-      { label: 'Indítás most', icon: 'play', handler: () => onStart(c.id) },
-      { label: 'Átütemezés', icon: 'calendar', handler: () => onSchedule(c.id) },
-    );
-  } else if (statusKey === 'aktiv') {
-    menuItems.push(
-      { label: 'Szüneteltetés', icon: 'pause', handler: () => onStop(c.id) },
-      { label: 'Leállítás', icon: 'stop', handler: () => onClose(c.id) },
-    );
+    actionRow = <><span className="camp-ic"><svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg></span><span>Ütemezés: <b>{fmtCreatedDate(scheduledDate || c.created_at)}</b></span></>;
+  } else if (statusKey === 'lezart') {
+    actionRow = <><span className="camp-ic"><svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg></span><span>Küldés: <b>{fmtCreatedDate(scheduledDate || c.created_at)}</b></span></>;
+  } else {
+    actionRow = <><span className="camp-ic"><svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="22" y1="2" x2="11" y2="13" /><polygon points="22 2 15 22 11 13 2 9 22 2" /></svg></span><span>{scheduledDate ? <>Ütemezés: <b>{fmtCreatedDate(scheduledDate)}</b></> : <span className="camp-muted">nem ütemezett</span>}</span></>;
   }
-  // Törlés always last
-  menuItems.push({ label: 'Törlés', icon: 'trash', handler: () => onDelete(c.id), danger: true });
-
-  const renderIcon = (icon: string) => {
-    switch (icon) {
-      case 'play':
-        return (
-          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
-            <polygon points="5 3 19 12 5 21 5 3" />
-          </svg>
-        );
-      case 'calendar':
-        return (
-          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
-            <rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" />
-          </svg>
-        );
-      case 'pause':
-        return (
-          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
-            <rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" />
-          </svg>
-        );
-      case 'stop':
-        return (
-          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
-            <rect x="3" y="3" width="18" height="18" rx="2" />
-          </svg>
-        );
-      case 'trash':
-        return (
-          <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
-            <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
-          </svg>
-        );
-      default: return null;
-    }
-  };
 
   return (
     <div
-      className={`out-campaign-card ${stripeClass}${isSelected ? ' out-campaign-card--selected' : ''}`}
+      className="camp-card"
       onClick={() => onOpenDetail(c)}
     >
-      {/* Top row: checkbox + badges + dots */}
-      <div className="out-card-top">
-        {/* Checkbox */}
-        <div className="out-card-checkbox-wrap" onClick={e => { e.stopPropagation(); onToggleSelect(c.id); }}>
-          <div className={`out-card-checkbox${isSelected ? ' out-card-checkbox--selected' : ''}`}>
-            {isSelected && (
-              <svg fill="none" stroke="#082432" strokeWidth="3" viewBox="0 0 24 24" className="out-card-checkmark">
-                <polyline points="20 6 9 17 4 12" />
-              </svg>
-            )}
-          </div>
-        </div>
-
-        {/* Badges */}
-        <div className="out-card-badges">
-          <span className="out-card-status-badge" style={{ background: badgeColor, color: '#fff' }}>
-            {badgeLabel}
-          </span>
-          {channels.map((ch) => (
-            <span key={ch} className="out-card-channel-badge">
-              {(CHANNEL_NAMES[ch] || ch).toUpperCase()}
-            </span>
-          ))}
-        </div>
-
-        {/* Three-dot menu */}
-        <div className="out-card-dots-wrap" ref={menuRef} onClick={e => e.stopPropagation()}>
-          <button
-            className="out-card-dots"
-            onClick={(e) => { e.stopPropagation(); setMenuOpen(!menuOpen); }}
-            title="Műveletek"
-          >
-            <svg fill="currentColor" viewBox="0 0 24 24" width="18" height="18">
-              <circle cx="12" cy="5" r="1.5" /><circle cx="12" cy="12" r="1.5" /><circle cx="12" cy="19" r="1.5" />
-            </svg>
-          </button>
-
-          {menuOpen && (
-            <div className="out-card-menu">
-              {menuItems.map((item) => (
-                <button
-                  key={item.label}
-                  className={`out-card-menu-item${item.danger ? ' out-card-menu-item--danger' : ''}`}
-                  onClick={(e) => { e.stopPropagation(); item.handler(); setMenuOpen(false); }}
-                >
-                  {renderIcon(item.icon)}
-                  {item.label}
-                </button>
-              ))}
-            </div>
-          )}
-        </div>
+      {/* Cím + kebab */}
+      <div className="camp-card-top">
+        <div className="camp-card-title">{c.name}</div>
+        <CampaignMenu
+          statusKey={statusKey}
+          onStart={() => onStart(c.id)}
+          onStop={() => onStop(c.id)}
+          onClose={() => onClose(c.id)}
+          onDelete={() => onDelete(c.id)}
+          onSchedule={() => onSchedule(c.id)}
+        />
       </div>
 
-      {/* Title */}
-      <div className="out-card-title">{c.name}</div>
-
-      {/* Info boxes */}
-      <div className="out-card-info-row">
-        <div className="out-card-info-box">
-          <svg fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" width="16" height="16">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z" />
-          </svg>
-          <span>{clientCount} ügyfél</span>
-        </div>
-        <div className="out-card-info-box">
-          <svg fill="none" stroke="currentColor" strokeWidth="1.5" viewBox="0 0 24 24" width="16" height="16">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          <span>{statusKey === 'tervezet' ? 'Nem ütemezett' : formattedDate}</span>
-        </div>
+      {/* Státusz badge */}
+      <div>
+        <span className={`cp-badge ${statusCls}`}><i className="cp-dot" />{statusLabel}</span>
       </div>
 
-      {/* Footer meta */}
-      <div className="out-card-footer">
-        <div className={`out-card-avatar ${avatarUrl ? 'out-card-avatar--transparent' : 'out-card-avatar--gradient'}`}>
-          {avatarUrl ? (
-            <img src={avatarUrl} alt="Avatar" className="member-avatar-img" />
-          ) : (
-            getInitials(creatorName)
-          )}
-        </div>
-        <span className="out-card-footer-date">
-          {c.created_at ? new Date(c.created_at).toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '—'}
+      {/* Célzott ügyfelek */}
+      <div className="camp-row">
+        <span className="camp-ic">
+          <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
         </span>
+        <span>
+          {clientCount > 0
+            ? <><b className="camp-num">{clientCount}</b> célzott ügyfél</>
+            : <span className="camp-muted">még nincs célzott ügyfél</span>}
+        </span>
+      </div>
+
+      {/* Indítás / ütemezés */}
+      <div className="camp-row">{actionRow}</div>
+
+      {/* Elválasztó + létrehozó lábléc */}
+      <div className="camp-card-divider" />
+      <div className="camp-card-creator">
+        {avatarUrl ? (
+          <img src={avatarUrl} alt={creatorName} className="camp-creator-ava" onError={() => setAvatarUrl(null)} />
+        ) : (
+          <span className="camp-creator-ava">{getInitials(creatorName)}</span>
+        )}
+        <div className="camp-creator-text">
+          <b>{creatorName}</b>
+          <span>Létrehozva: {fmtCreatedDate(c.created_at)}</span>
+        </div>
       </div>
     </div>
   );

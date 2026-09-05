@@ -793,3 +793,230 @@ body.dark .cd-table-card tbody tr.cd-is-urgent td { background: var(--cp-err-row
   width: 18px;
   height: 18px;
 }
+
+/* ═══ Kampányok (OutboundPage) ═══ */
+
+/* Felső sor: státusz chipek + nézetváltó + Új kampány */
+.camp-top-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 16px;
+}
+.camp-chips {
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.camp-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--text);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.camp-chip:hover { border-color: var(--text-dim); }
+.camp-chip.is-on {
+  border-color: var(--cp-a2);
+  color: var(--cp-a2);
+  font-weight: 600;
+  background: color-mix(in srgb, var(--cp-a2) 5%, var(--card));
+}
+.camp-chip-count { font-variant-numeric: tabular-nums; opacity: 0.8; }
+.camp-top-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+/* Nézetváltó (kit cal-seg minta) */
+.camp-view-switch {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+}
+.camp-view-switch button {
+  width: 34px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.camp-view-switch button svg { width: 16px; height: 16px; }
+.camp-view-switch button:hover { color: var(--text); }
+.camp-view-switch button.is-on {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.08);
+}
+
+/* Kampány státusz badge-ek (mockup: Aktív zöld, Ütemezett sárga, Tervezet teal, Lezárt szürke) */
+.cp-camp-active   { background: color-mix(in srgb, var(--success, #52c41a) 12%, var(--card)); color: color-mix(in srgb, var(--success, #52c41a) 80%, var(--text)); border-color: color-mix(in srgb, var(--success, #52c41a) 45%, var(--border)); }
+.cp-camp-active .cp-dot { background: var(--success, #52c41a); }
+.cp-camp-scheduled { background: var(--cp-warn-bg); color: var(--cp-warn-fg); border-color: var(--cp-warn-bd); }
+.cp-camp-scheduled .cp-dot { background: var(--warning, #faad14); }
+.cp-camp-draft    { background: color-mix(in srgb, var(--accent) 12%, var(--card)); color: color-mix(in srgb, var(--accent) 45%, var(--text)); border-color: color-mix(in srgb, var(--accent) 45%, var(--border)); }
+.cp-camp-draft .cp-dot { background: var(--accent); }
+.cp-camp-closed   { background: var(--cp-gray-bg); color: var(--cp-gray-fg); border-color: var(--cp-gray-bd); }
+.cp-camp-closed .cp-dot { background: var(--cp-gray-fg); }
+
+/* Kártyás nézet */
+.camp-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  gap: 12px;
+}
+.camp-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  cursor: pointer;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.camp-card:hover {
+  border-color: var(--cp-a2);
+  box-shadow: 0 6px 18px -12px rgba(0, 0, 0, 0.28);
+}
+.camp-card-top {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+}
+.camp-card-title {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.camp-row {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  font-size: 13px;
+  color: var(--text);
+}
+.camp-ic {
+  width: 24px;
+  height: 24px;
+  flex: none;
+  border-radius: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-muted);
+}
+.camp-ic svg { width: 13px; height: 13px; }
+.camp-num { font-weight: 600; }
+.camp-muted { color: var(--text-muted); font-style: italic; }
+.camp-strong { font-weight: 600; color: var(--text); }
+.camp-card-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 2px 0;
+}
+.camp-card-creator {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.camp-creator-ava {
+  width: 34px;
+  height: 34px;
+  flex: none;
+  border-radius: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+  object-fit: cover;
+  overflow: hidden;
+}
+.camp-creator-text { display: flex; flex-direction: column; min-width: 0; }
+.camp-creator-text b { font-size: 13px; font-weight: 600; color: var(--text); }
+.camp-creator-text span { font-size: 11.5px; color: var(--text-muted); }
+
+/* Kebab menü (fehér kit popover) */
+.camp-menu { position: relative; flex: none; }
+.camp-menu-btn {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.camp-menu-btn:hover { background: var(--bg3); color: var(--text); }
+.camp-menu-pop {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  min-width: 180px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 4px;
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.18);
+  z-index: 40;
+}
+.camp-menu-item {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  width: 100%;
+  padding: 9px 10px;
+  border: 0;
+  background: none;
+  border-radius: 8px;
+  font-family: inherit;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+  text-align: left;
+}
+.camp-menu-item:hover { background: var(--bg3); }
+.camp-menu-item svg { color: var(--text-muted); flex: none; }
+.camp-menu-item--danger { color: var(--cp-err-fg); }
+.camp-menu-item--danger svg { color: var(--cp-err-fg); }
+.camp-menu-item--danger:hover { background: var(--cp-err-bg); }
+
+/* Listanézet sormagasság / név */
+.cd-table-card .cp-strong { font-weight: 600; color: var(--text); }
