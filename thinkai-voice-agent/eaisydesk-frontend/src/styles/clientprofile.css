@@ -781,3 +781,15 @@ body.dark .cd-table-card tbody tr.cd-is-urgent td { background: var(--cp-err-row
 
 /* Rendezhető fejléc (mockup: Ügyfél ▲) */
 .cp-th-sort { padding: 0 !important; }
+
+/* Ügyféllista fejléc ikon-gombok (Sorrend / Oszlopok): 36×36, 18px ikon */
+.int-header-actions .int-btn-icon {
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  justify-content: center;
+}
+.int-header-actions .int-btn-icon svg {
+  width: 18px;
+  height: 18px;
+}
