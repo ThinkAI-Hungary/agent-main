@@ -434,7 +434,7 @@ export default function InteractionsPage() {
       {/* Fejléc sáv: morzsák + cím */}
       <header className="int-page-head">
         <nav className="int-breadcrumbs" aria-label="Navigációs morzsák">
-          <button type="button" className="int-crumb-link" onClick={() => navigate('/')}>Kezdőlap</button>
+          <span className="int-crumb-link">Ügyfélközpont</span>
           <span className="int-crumb-sep">/</span>
           <span className="int-crumb-current">Interakciós napló</span>
         </nav>
