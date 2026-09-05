@@ -668,25 +668,28 @@ def update_processed_email_status(message_id: str, status: str) -> bool:
 # TASKS
 # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
-def add_task(text, priority="normal", due_date="", session_id="") -> int:
+def add_task(text, priority="normal", due_date="", session_id="", client_id=None) -> int:
     if not supabase: return 0
     try:
         res = supabase.table("tasks").insert(_with_tenant({
             "text": text,
             "priority": priority,
             "due_date": due_date or None,
-            "session_id": session_id or None
+            "session_id": session_id or None,
+            "client_id": int(client_id) if client_id else None,
         })).execute()
         return res.data[0]["id"] if res.data else 0
     except Exception:
         return 0
 
-def get_tasks(completed: bool | None = None, limit: int = 100) -> list[dict]:
+def get_tasks(completed: bool | None = None, limit: int = 100, client_id: int | None = None) -> list[dict]:
     if not supabase: return []
     try:
         query = _tenant_eq(supabase.table("tasks").select("*")).order("created_at", desc=True).limit(limit)
         if completed is not None:
             query = query.eq("completed", 1 if completed else 0)
+        if client_id is not None:
+            query = query.eq("client_id", int(client_id))
         res = query.execute()
         return res.data
     except Exception:

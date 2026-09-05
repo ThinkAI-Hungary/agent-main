@@ -3225,10 +3225,30 @@ def admin_emails(limit: int = 100, username: str = Depends(verify_jwt)):
 
 
 @app.get("/admin/api/tasks")
-def admin_tasks(completed: str = "all", username: str = Depends(verify_jwt)):
-    """Task list."""
+def admin_tasks(completed: str = "all", client_id: int | None = None, username: str = Depends(verify_jwt)):
+    """Task list; opcionálisan ügyfélre szűrve (ügyfélprofil kézi teendői)."""
     comp = None if completed == "all" else (completed == "true")
-    return {"tasks": db.get_tasks(completed=comp)}
+    return {"tasks": db.get_tasks(completed=comp, client_id=client_id)}
+
+
+@app.post("/admin/api/tasks")
+def admin_task_create(payload: dict, username: str = Depends(verify_jwt)):
+    """Kézi teendő létrehozása (ügyfélprofil „Teendő hozzáadása")."""
+    text = (payload.get("text") or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="A teendő leírása kötelező")
+    priority = payload.get("priority") or "normal"
+    if priority not in ("normal", "high"):
+        priority = "normal"
+    task_id = db.add_task(
+        text=text,
+        priority=priority,
+        due_date=payload.get("due_date") or "",
+        client_id=payload.get("client_id"),
+    )
+    if not task_id:
+        raise HTTPException(status_code=500, detail="A teendő mentése nem sikerült")
+    return {"ok": True, "id": task_id}
 
 
 @app.patch("/admin/api/tasks/{task_id}/complete")

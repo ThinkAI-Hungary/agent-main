@@ -85,8 +85,34 @@ export default function MemberDashboardPage() {
     registerOnApproved(refetchSessions);
   }, [registerOnApproved, refetchSessions]);
 
+  // ── Kézi teendők (ügyfélprofil „Teendő hozzáadása" → tasks tábla) ──
+  const [manualTasks, setManualTasks] = useState<Array<{ id: number; text: string; priority: string; completed: number; created_at: string; client_id: number | null }>>([]);
+  const loadManualTasks = useCallback(async () => {
+    try {
+      const res = await authFetch('/admin/api/tasks');
+      if (res.ok) {
+        const d = await res.json();
+        setManualTasks(Array.isArray(d.tasks) ? d.tasks : []);
+      }
+    } catch { /* néma — a dashboard többi része működik nélküle is */ }
+  }, []);
+  useEffect(() => { loadManualTasks(); }, [loadManualTasks]);
+
   const handleMarkDone = async (e: React.MouseEvent, row: InteractionRow) => {
     e.stopPropagation();
+    // Kézi teendő: completed toggle (a Lezárt szűrőből újra nyitható)
+    const manual = row as InteractionRow & { isManual?: boolean; taskId?: number; taskCompleted?: boolean };
+    if (manual.isManual && manual.taskId) {
+      try {
+        const res = await authFetch(`/admin/api/tasks/${manual.taskId}/complete`, { method: 'PATCH' });
+        if (!res.ok) throw new Error('task toggle failed');
+        showToast(manual.taskCompleted ? 'Teendő újraaktiválva' : 'Teendő elkészültnek jelölve', 'success');
+        loadManualTasks();
+      } catch {
+        showToast('Hiba a teendő frissítésekor', 'error');
+      }
+      return;
+    }
     if (row.statusz === 'Lezárt') return;
 
     try {
@@ -270,6 +296,43 @@ export default function MemberDashboardPage() {
     });
   }, [allRows, clientsMap, username, fullName]);
 
+  // ── Kézi teendők sorokká alakítva (ügyfélprofil „Teendő hozzáadása") ──
+  const manualRows = useMemo(() => {
+    return manualTasks
+      .filter((t) => t.client_id)
+      .map((t) => {
+        const client = clientsMap[String(t.client_id)];
+        const clientName = client ? (bestClientName(client) || client.name || 'Névtelen') : 'Névtelen';
+        return {
+          date: t.created_at || '',
+          channel: 'Hozzáadott feladat',
+          client: clientName,
+          clientId: t.client_id,
+          clientStatus: null,
+          clientCreatedAt: null,
+          direction: '',
+          ugyTipus: '',
+          eredmeny: '',
+          statusz: t.completed ? 'Lezárt' : (t.priority === 'high' ? 'Sürgős' : 'Nyitott'),
+          teendo: t.text,
+          tags: [] as string[],
+          type: 'task',
+          topic: '',
+          summary: '',
+          result: '',
+          interactionId: null,
+          sessionId: null,
+          ai_draft_response: null,
+          approval_status: null,
+          isManual: true,
+          taskId: t.id,
+          taskCompleted: !!t.completed,
+        };
+      });
+  }, [manualTasks, clientsMap]);
+
+  const combinedRows = useMemo(() => [...manualRows, ...myRows], [manualRows, myRows]);
+
   // ── KPI Calculations ──
   const myClients = useMemo(() => {
     return hookClients.filter(c => isAssignedToMe(c, username, fullName));
@@ -330,7 +393,14 @@ export default function MemberDashboardPage() {
     let completedCount = 0;
     let activeAllCount = 0;
 
-    myRows.forEach((r) => {
+    combinedRows.forEach((row) => {
+      const r = row as typeof row & { isManual?: boolean; taskCompleted?: boolean };
+      // Kézi feladatok: aktív → Összes aktív; kész → Lezárt (Mai/Lejárt nem vonatkozik rájuk)
+      if (r.isManual) {
+        if (r.taskCompleted) completedCount++;
+        else activeAllCount++;
+        return;
+      }
       const rowDate = new Date(r.date);
       const isCompleted = r.statusz === 'Lezárt';
       if (isCompleted) {
@@ -346,11 +416,17 @@ export default function MemberDashboardPage() {
     });
 
     return { today: todayCount, overdue: overdueCount, completed: completedCount, all: activeAllCount };
-  }, [myRows, todayStart, todayEnd]);
+  }, [combinedRows, todayStart, todayEnd]);
 
   // ── Dashboard Quick Filters ──
   const dashboardFilteredRows = useMemo(() => {
-    return myRows.filter((r) => {
+    return combinedRows.filter((row) => {
+      const r = row as typeof row & { isManual?: boolean; taskCompleted?: boolean };
+      // Kézi feladatok: 'Minden aktív' alatt mindig látszanak, 'Lezárt' között a készük; Mai/Lejárt nem vonatkozik rájuk
+      if (r.isManual) {
+        if (dashboardFilter === 'completed') return r.taskCompleted;
+        return !r.taskCompleted && dashboardFilter === 'all';
+      }
       const rowDate = new Date(r.date);
       const isCompleted = r.statusz === 'Lezárt';
       if (dashboardFilter === 'completed') {
@@ -365,7 +441,7 @@ export default function MemberDashboardPage() {
       }
       return true;
     });
-  }, [myRows, dashboardFilter, todayStart, todayEnd]);
+  }, [combinedRows, dashboardFilter, todayStart, todayEnd]);
 
   // ── Searching + Dropdown Category Filters ──
   const filteredRows = useMemo(() => {
@@ -908,7 +984,16 @@ export default function MemberDashboardPage() {
                         </td>
                       )}
                       {visibleCols.has('channel') && (
-                        <td className="int-td int-td--channel">{r.channel}</td>
+                        <td className="int-td int-td--channel">
+                          {(r as typeof r & { isManual?: boolean }).isManual ? (
+                            <span className="cd-task-channel">
+                              <span className="cd-task-channel-ic">
+                                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                              </span>
+                              Hozzáadott feladat
+                            </span>
+                          ) : r.channel}
+                        </td>
                       )}
                       {visibleCols.has('direction') && (
                         <td className="int-td">
@@ -917,12 +1002,12 @@ export default function MemberDashboardPage() {
                       )}
                       {visibleCols.has('ugyTipus') && (
                         <td className="int-td">
-                          <span className="int-type-label">{r.ugyTipus}</span>
+                          {(r as typeof r & { isManual?: boolean }).isManual ? <span className="cd-empty-cell">—</span> : <span className="int-type-label">{r.ugyTipus}</span>}
                         </td>
                       )}
                       {visibleCols.has('eredmeny') && (
                         <td className="int-td">
-                          <EredmenyBadge value={r.eredmeny} />
+                          {(r as typeof r & { isManual?: boolean }).isManual ? <span className="cd-empty-cell">—</span> : <EredmenyBadge value={r.eredmeny} />}
                         </td>
                       )}
                       {visibleCols.has('statusz') && (
@@ -940,11 +1025,11 @@ export default function MemberDashboardPage() {
                           <input
                             type="checkbox"
                             checked={r.statusz === 'Lezárt'}
-                            disabled={r.statusz === 'Lezárt'}
+                            disabled={r.statusz === 'Lezárt' && !(r as typeof r & { isManual?: boolean }).isManual}
                             onChange={() => {}}
                             onClick={(e) => handleMarkDone(e, r)}
                             style={{ 
-                              cursor: r.statusz === 'Lezárt' ? 'default' : 'pointer',
+                              cursor: r.statusz === 'Lezárt' && !(r as typeof r & { isManual?: boolean }).isManual ? 'default' : 'pointer',
                               width: '18px',
                               height: '18px',
                               accentColor: '#1ceee0'

@@ -47,6 +47,7 @@ import './styles/automatizaciok.css';
 import './styles/responsive.css';
 import './styles/polish.css';
 import './styles/interactions.css';
+import './styles/clientprofile.css';
 
 function SmartRedirect() {
   const { user, isSuperAdmin, impersonatedTenant } = useAuth();
