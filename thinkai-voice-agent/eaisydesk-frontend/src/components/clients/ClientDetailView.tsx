@@ -163,6 +163,17 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
   const [saving, setSaving] = useState(false);
   const [showTagPicker, setShowTagPicker] = useState(false);
   const [customTag, setCustomTag] = useState('');
+  const tagPickerRef = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!showTagPicker) return;
+    function handle(e: MouseEvent) {
+      if (tagPickerRef.current && !tagPickerRef.current.contains(e.target as Node)) {
+        setShowTagPicker(false);
+      }
+    }
+    document.addEventListener('mousedown', handle);
+    return () => document.removeEventListener('mousedown', handle);
+  }, [showTagPicker]);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
   // hárompontos overflow menu a profil-műveletekhez
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
@@ -692,7 +703,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
               );
             })}
           </div>
-          <div className="cd-tag-picker-wrap">
+          <div className="cd-tag-picker-wrap" ref={tagPickerRef}>
             <button onClick={() => setShowTagPicker(!showTagPicker)} className="cd-tag-add-btn">+ Címke hozzáadása</button>
             {showTagPicker && (
               <div className="cd-tag-picker-panel">

@@ -218,6 +218,10 @@ body.dark {
   font-weight: 600;
   color: var(--text);
 }
+.cd-appt-next-value.is-empty {
+  font-weight: 400;
+  color: var(--text-muted);
+}
 .cd-appt-next-value.is-empty { color: var(--text-muted); font-weight: 500; }
 .cd-appt-past {
   display: flex;
