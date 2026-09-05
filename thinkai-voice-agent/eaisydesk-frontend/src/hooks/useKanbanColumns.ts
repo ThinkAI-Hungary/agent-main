@@ -12,7 +12,7 @@ interface UseKanbanColumnsReturn {
   loading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
-  addColumn: (id: string, name: string) => Promise<boolean>;
+  addColumn: (id: string, name: string, order_index?: number) => Promise<boolean>;
   renameColumn: (id: string, name: string) => Promise<boolean>;
   deleteColumn: (id: string) => Promise<boolean>;
 }
@@ -40,16 +40,18 @@ export function useKanbanColumns(): UseKanbanColumnsReturn {
   }, []);
 
   const addColumn = useCallback(
-    async (id: string, name: string): Promise<boolean> => {
-      const order_index =
-        columns.length > 0
-          ? Math.max(...columns.map((c) => c.order_index)) + 1
-          : 1;
+    async (id: string, name: string, order_index?: number): Promise<boolean> => {
+      const resolvedOrder =
+        order_index !== undefined
+          ? order_index
+          : columns.length > 0
+            ? Math.max(...columns.map((c) => c.order_index)) + 1
+            : 1;
       try {
         const res = await authFetch('/admin/api/kanban_columns', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ id, name, order_index }),
+          body: JSON.stringify({ id, name, order_index: resolvedOrder }),
         });
         if (!res.ok) return false;
         await fetchColumns();

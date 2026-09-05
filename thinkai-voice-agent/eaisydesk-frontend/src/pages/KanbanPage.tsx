@@ -1,9 +1,14 @@
 /**
- * KanbanPage – 1:1 migration of legacy kanban board with @dnd-kit instead of HTML5 DnD
- * Features: drag-drop cards between columns, add/rename/delete columns, priority sorting,
- * tags, clinic display, double-click to client detail.
+ * KanbanPage – Érdeklődőkezelés (értékesítés-támogatás)
+ *
+ * Belépési szabály: csak az az ügyfél látszik, akinek van legalább egy
+ * ÉRTÉKESÍTÉSI címkéje (SALES_TAGS), vagy akinek a státusza valamely kanban
+ * oszlopra mutat (korábban áthelyezték / kézzel felvették).
+ * Új belépők mindig az UTÁNKÖVETÉS oszlopba kerülnek (védett, fix első oszlop).
+ * A kártya 🗑 gombja CSAK a kanbanról távolítja el az ügyfelet
+ * (custom_data.kanban_removed jelző) — az ügyfél a rendszerben marad.
  */
-import { useState, useMemo, useCallback } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { useIsMobile } from '../hooks/useIsMobile';
 import {
   DndContext,
@@ -34,17 +39,38 @@ import KanbanColumn from '../components/kanban/KanbanColumn';
 import KanbanCard from '../components/kanban/KanbanCard';
 import ClientDetailView from '../components/clients/ClientDetailView';
 
+// ── Értékesítési címkék és belépési oszlop ──
+export const SALES_TAGS = [
+  'kampánylead',
+  'potenciális vásárló',
+  'árkérdés',
+  'törölt időpont',
+  'no-show',
+];
+export const FIRST_COL_ID = 'utankovetes';
+const FIRST_COL_NAME = 'UTÁNKÖVETÉS';
+
 // ── Enriched kanban card data ──
 export interface KanbanCardData {
   id: string | number;
   name: string;
   tags: string[];
-  clinicName: string;
+  contact: string;
+  assignee: string;
+  lastInteraction: string;
   extraFields: string[];
   isSurgos: boolean;
   status: string;
   created_at: string;
   raw: ClientRecord;
+}
+
+function initialsOf(name: string): string {
+  const n = (name || '?').trim();
+  const parts = n.split(/\s+/);
+  return parts.length >= 2
+    ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+    : n.substring(0, 2).toUpperCase();
 }
 
 export default function KanbanPage() {
@@ -54,11 +80,11 @@ export default function KanbanPage() {
   const { clients, clientsMap, refetch: refetchClients } = useClients();
   const { sessions } = useSessions(500);
   const { events } = useCalendarEvents();
-  const { columns, loading, addColumn, renameColumn, deleteColumn, refetch: _refetchColumns } = useKanbanColumns();
+  const { columns, loading, addColumn, renameColumn, deleteColumn, refetch: refetchColumns } = useKanbanColumns();
   const { confirm, ConfirmDialog } = useConfirm();
 
   const [activeCardId, setActiveCardId] = useState<string | null>(null);
-  const [showAddModal, setShowAddModal] = useState(false);
+  const [showAddCol, setShowAddCol] = useState(false);
   const [newColName, setNewColName] = useState('');
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
@@ -79,46 +105,83 @@ export default function KanbanPage() {
     }),
   }), []);
 
+  // ── UTÁNKÖVETÉS oszlop biztosítása (fix, első, order 0) ──
+  useEffect(() => {
+    if (loading) return;
+    if (!columns.some((c) => c.id === FIRST_COL_ID)) {
+      addColumn(FIRST_COL_ID, FIRST_COL_NAME, 0);
+    }
+  }, [loading, columns, addColumn]);
+
+  const sortedColumns = useMemo(
+    () => [...columns].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)),
+    [columns]
+  );
+
+  // ── Utolsó interakció ügyfelenként (kártya lábléchez) ──
+  const lastInteractionByClient = useMemo(() => {
+    const m: Record<string, string> = {};
+    sessions.forEach((s) => {
+      s.interactions?.forEach((r) => {
+        if (!r.client_id || !r.created_at) return;
+        const k = String(r.client_id);
+        if (!m[k] || r.created_at > m[k]) m[k] = r.created_at;
+      });
+    });
+    return m;
+  }, [sessions]);
+
   // ── Build card data grouped by column ──
   const cardsByColumn = useMemo<Record<string, KanbanCardData[]>>(() => {
     const map: Record<string, KanbanCardData[]> = {};
-    columns.forEach((col) => { map[col.id] = []; });
+    sortedColumns.forEach((col) => { map[col.id] = []; });
 
     clients.forEach((c) => {
       // Member filtering: non-admins only see their assigned clients or unassigned ones
       if (!isAdmin) {
         const username = user?.username || '';
         const fullName = user?.fullName || '';
-        const cd = parseCustomData(c.custom_data);
-        const assignedTo = ((cd.assigned_to || cd.felelos || '') as string).trim();
+        const cd0 = parseCustomData(c.custom_data);
+        const assignedTo = ((cd0.assigned_to || cd0.felelos || '') as string).trim();
         if (assignedTo && !isAssignedToMe(c, username, fullName)) return;
       }
 
-      const status = c.status || 'uj';
-      if (!map[status]) map[status] = [];
-
       const cd = parseCustomData(c.custom_data);
-      const name = bestClientName(c) || c.name || 'Névtelen';
+      // Kanbanról eltávolítva jelző — nem jelenik meg újra automatikusan
+      if (cd.kanban_removed) return;
+
       const tags: string[] = (cd?.tags as string[]) || [];
+      const hasSalesTag = tags.some((t) => SALES_TAGS.includes(t));
+      const status = c.status || '';
+      const statusIsCol = sortedColumns.some((col) => col.id === status);
+      // BELÉPÉSI SZABÁLY: értékesítési címke VAGY kanban oszlopra mutató státusz
+      if (!hasSalesTag && !statusIsCol) return;
+
+      const colId = statusIsCol ? status : FIRST_COL_ID;
+      if (!map[colId]) return; // oszlop még nem töltődött be
+
+      const name = bestClientName(c) || c.name || 'Névtelen';
       const isSurgos = cd?.prioritas === 'Sürgős' || cd?.priority === 'Sürgős' || cd?.prioritas === 'Kiemelt';
+
+      // Elérhetőség a kártyára (egy sor)
+      const contact =
+        (cd?.telefonszam as string) || (cd?.phone as string) || (cd?.telefon as string) ||
+        c.phone || (cd?.email as string) || c.email || '';
 
       // Extra fields from custom_data (fields 2-3)
       const extraFields: string[] = [];
       ['email', 'telefonszam', 'phone', 'telefon'].forEach((key) => {
         const val = cd?.[key] as string;
-        if (val && extraFields.length < 2) extraFields.push(val);
+        if (val && val !== contact && extraFields.length < 1) extraFields.push(val);
       });
 
-      let clinicName = '';
-      if (cd?.clinic_id) {
-        clinicName = `📍 Telephely ID: ${cd.clinic_id}`;
-      }
-
-      map[status].push({
+      map[colId].push({
         id: c.id,
         name,
         tags,
-        clinicName,
+        contact,
+        assignee: ((cd?.assigned_to || cd?.felelos || '') as string).trim(),
+        lastInteraction: lastInteractionByClient[String(c.id)] || '',
         extraFields,
         isSurgos: !!isSurgos,
         status,
@@ -137,7 +200,7 @@ export default function KanbanPage() {
     });
 
     return map;
-  }, [clients, columns]);
+  }, [clients, sortedColumns, lastInteractionByClient, user, isAdmin]);
 
   const activeCard = useMemo(() => {
     if (!activeCardId) return null;
@@ -170,7 +233,7 @@ export default function KanbanPage() {
     }
 
     // Verify it's a valid column
-    if (!columns.some((col) => col.id === targetColumnId)) return;
+    if (!sortedColumns.some((col) => col.id === targetColumnId)) return;
 
     // Find current column
     let sourceColumnId = '';
@@ -183,7 +246,6 @@ export default function KanbanPage() {
 
     if (sourceColumnId === targetColumnId) return;
 
-    // Optimistic update
     try {
       const res = await authFetch(`/admin/api/clients/${cardId}/status`, {
         method: 'PATCH',
@@ -201,12 +263,50 @@ export default function KanbanPage() {
       showToast('Hiba a mozgatás során!', 'error');
       refetchClients();
     }
-  }, [cardsByColumn, columns, refetchClients]);
+  }, [cardsByColumn, sortedColumns, refetchClients]);
+
+  // ── Címke törlése kártyáról (custom_data.tags) ──
+  const handleRemoveTag = useCallback(async (clientId: string | number, tag: string) => {
+    const c = clients.find((cl) => String(cl.id) === String(clientId));
+    if (!c) return;
+    const cd = parseCustomData(c.custom_data);
+    const tags = (((cd?.tags as string[]) || [])).filter((t) => t !== tag);
+    try {
+      const res = await authFetch(`/admin/api/clients/${clientId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ custom_data: { ...cd, tags } }),
+      });
+      if (res.ok) { showToast(`Címke eltávolítva: ${tag}`); refetchClients(); }
+      else showToast('Hiba a címke törlésekor', 'error');
+    } catch { showToast('Hiba', 'error'); }
+  }, [clients, refetchClients]);
+
+  // ── Eltávolítás a kanbanról (ügyfél a rendszerben MARAD) ──
+  const handleRemoveFromKanban = useCallback(async (clientId: string | number) => {
+    const ok = await confirm(
+      'Eltávolítod az ügyfelet az érdeklődőkezelésből? Az ügyfél a rendszerben marad, csak itt nem jelenik meg többé.',
+      { title: 'Eltávolítás a kanbanról', danger: true }
+    );
+    if (!ok) return;
+    const c = clients.find((cl) => String(cl.id) === String(clientId));
+    if (!c) return;
+    const cd = parseCustomData(c.custom_data);
+    try {
+      const res = await authFetch(`/admin/api/clients/${clientId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ custom_data: { ...cd, kanban_removed: true } }),
+      });
+      if (res.ok) { showToast('Eltávolítva a kanbanról'); refetchClients(); }
+      else showToast('Hiba az eltávolításkor', 'error');
+    } catch { showToast('Hiba', 'error'); }
+  }, [clients, confirm, refetchClients]);
 
   // ── Column operations ──
   const handleAddColumn = useCallback(async () => {
     const name = newColName.trim();
-    if (!name) { setShowAddModal(false); return; }
+    if (!name) { setShowAddCol(false); return; }
     const idStr = name.toLowerCase().replace(/\s+/g, '-').replace(/[^a-z0-9-]/gi, '');
     if (!idStr) { showToast('Érvénytelen név', 'error'); return; }
 
@@ -217,7 +317,7 @@ export default function KanbanPage() {
       showToast('Hiba: Már létezik ilyen oszlop', 'error');
     }
     setNewColName('');
-    setShowAddModal(false);
+    setShowAddCol(false);
   }, [newColName, addColumn]);
 
   const handleRenameColumn = useCallback(async (id: string, newName: string) => {
@@ -226,22 +326,13 @@ export default function KanbanPage() {
   }, [renameColumn]);
 
   const handleDeleteColumn = useCallback(async (id: string) => {
+    if (id === FIRST_COL_ID) return; // védett oszlop
     const ok = await confirm('Biztosan törlöd ezt az oszlopot? Csak akkor lehetséges, ha üres!', { title: 'Oszlop törlése', danger: true });
     if (!ok) return;
     const success = await deleteColumn(id);
     if (!success) showToast('Hiba a törlésnél. Biztosan üres az oszlop?', 'error');
     else showToast('Oszlop törölve');
   }, [confirm, deleteColumn]);
-
-  const handleDeleteClient = useCallback(async (clientId: string | number) => {
-    const ok = await confirm('Biztosan törölni szeretnéd ezt az ügyfelet?', { title: 'Ügyfél törlése', danger: true });
-    if (!ok) return;
-    try {
-      const res = await authFetch(`/admin/api/clients/${clientId}`, { method: 'DELETE' });
-      if (res.ok) { showToast('Ügyfél törölve'); refetchClients(); }
-      else showToast('Hiba a törlés során', 'error');
-    } catch { showToast('Hiba a törlés során', 'error'); }
-  }, [confirm, refetchClients]);
 
   const handleCardClick = useCallback((card: KanbanCardData) => {
     setSelectedClientId(String(card.id));
@@ -253,7 +344,6 @@ export default function KanbanPage() {
         <div className="page-header">
           <div>
             <div className="page-title">Érdeklődőkezelés</div>
-
           </div>
         </div>
         <KanbanSkeleton />
@@ -302,67 +392,21 @@ export default function KanbanPage() {
     <div className="analytics-shell">
       <ConfirmDialog />
 
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <div className="page-title">Érdeklődőkezelés</div>
-
-        </div>
-      </div>
-
-      {/* Add column button — right-aligned above board */}
-      <div className="kanban-toolbar">
-        <div className="kanban-add-col-wrap">
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="kanban-add-col-btn"
-          >
-            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="15" height="15">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-            </svg>
-            Új oszlop
-          </button>
-
-          {/* Add Column Popover */}
-          {showAddModal && (
-            <>
-              <div className="kanban-popover-backdrop" onClick={() => setShowAddModal(false)} />
-              <div className="kanban-add-popover" onClick={(e) => e.stopPropagation()}>
-                <div className="kanban-add-popover-title">Új oszlop hozzáadása</div>
-                <input
-                  type="text"
-                  className="input"
-                  value={newColName}
-                  onChange={(e) => setNewColName(e.target.value)}
-                  onKeyDown={(e) => { if (e.key === 'Enter') handleAddColumn(); if (e.key === 'Escape') setShowAddModal(false); }}
-                  placeholder="Ide írd az új oszlop nevét"
-                  autoFocus
-                />
-                <div className="kanban-add-popover-actions">
-                  <button
-                    className="kanban-add-col-btn"
-                    onClick={() => { setShowAddModal(false); setNewColName(''); }}
-                  >
-                    Mégse
-                  </button>
-                  <button
-                    className="btn btn-primary"
-                    onClick={handleAddColumn}
-                  >
-                    Hozzáadás
-                  </button>
-                </div>
-              </div>
-            </>
-          )}
-        </div>
-      </div>
+      {/* Header — breadcrumbs + cím */}
+      <header className="int-page-head">
+        <nav className="int-breadcrumbs" aria-label="Navigációs morzsák">
+          <span className="int-crumb-link">Ügyfélközpont</span>
+          <span className="int-crumb-sep">/</span>
+          <span className="int-crumb-current">Érdeklődőkezelés</span>
+        </nav>
+        <h1 className="page-title int-page-title">Érdeklődőkezelés</h1>
+      </header>
 
       {/* Kanban Board */}
       {isMobile ? (
         /* ═══ MOBILE: Accordion view ═══ */
         <div className="kanban-mobile-accordion">
-          {columns.map((col) => {
+          {sortedColumns.map((col) => {
             const cards = cardsByColumn[col.id] || [];
             const isOpen = openAccordion === col.id;
             if (openAccordion === null && cards.length > 0) {
@@ -392,7 +436,8 @@ export default function KanbanPage() {
                           key={String(card.id)}
                           card={card}
                           onClick={() => handleCardClick(card)}
-                          onDelete={() => handleDeleteClient(String(card.id))}
+                          onRemove={() => handleRemoveFromKanban(String(card.id))}
+                          onRemoveTag={handleRemoveTag}
                         />
                       ))
                     )}
@@ -412,17 +457,45 @@ export default function KanbanPage() {
           measuring={measuring}
         >
           <div className="kanban-board">
-            {columns.map((col) => (
+            {sortedColumns.map((col) => (
               <KanbanColumn
                 key={col.id}
                 column={col}
                 cards={cardsByColumn[col.id] || []}
+                protectedColumn={col.id === FIRST_COL_ID}
                 onRename={handleRenameColumn}
                 onDelete={handleDeleteColumn}
-                onDeleteClient={handleDeleteClient}
+                onRemoveClient={handleRemoveFromKanban}
                 onCardClick={handleCardClick}
+                onRemoveTag={handleRemoveTag}
               />
             ))}
+
+            {/* Oszlop hozzáadása — muted, szaggatott oszlop a sor végén */}
+            <div className="kanban-add-col">
+              {showAddCol ? (
+                <div className="kanban-add-col-form" onClick={(e) => e.stopPropagation()}>
+                  <input
+                    type="text"
+                    className="cd-form-input"
+                    value={newColName}
+                    onChange={(e) => setNewColName(e.target.value)}
+                    onKeyDown={(e) => { if (e.key === 'Enter') handleAddColumn(); if (e.key === 'Escape') { setShowAddCol(false); setNewColName(''); } }}
+                    placeholder="Oszlop neve"
+                    autoFocus
+                  />
+                  <div className="kanban-add-col-actions">
+                    <button className="cd-btn" onClick={() => { setShowAddCol(false); setNewColName(''); }}>Mégse</button>
+                    <button className="cd-btn cd-btn-primary" onClick={handleAddColumn}>Hozzáadás</button>
+                  </div>
+                </div>
+              ) : (
+                <button className="kanban-add-col-trigger" onClick={() => setShowAddCol(true)}>
+                  <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                  Oszlop hozzáadása
+                </button>
+              )}
+            </div>
           </div>
 
           {/* Drag Overlay */}

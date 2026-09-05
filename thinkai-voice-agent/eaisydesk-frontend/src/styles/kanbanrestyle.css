@@ -1,0 +1,294 @@
+/* ═════════════════════════════════════════════════════════════════
+   Érdeklődőkezelés (kanban) — eaisyDesk UI Kit + dark mode
+   A clientprofile.css UTÁN töltődik be, felülírja a régi kanban-* rétegeket.
+   Szemantikus --cp-* tokeneket használ (clientprofile.css definiálja).
+   ═════════════════════════════════════════════════════════════════ */
+
+/* ── Board: vízszintes scroll, minden oszlop látszik görgetve ── */
+.kanban-board {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  overflow-x: auto;
+  padding-bottom: 12px;
+}
+
+/* ── Oszlop ── */
+.kanban-board .kanban-col {
+  flex: 0 0 280px;
+  width: 280px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  display: flex;
+  flex-direction: column;
+  max-height: calc(100vh - 220px);
+}
+.kanban-board .kanban-col.drag-over {
+  border-color: var(--cp-a2);
+  box-shadow: 0 0 0 2px color-mix(in srgb, var(--cp-a2) 18%, transparent);
+}
+
+.kanban-board .kanban-col-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg3);
+  border-radius: 8px 8px 0 0;
+  min-height: 44px;
+}
+.kanban-col-name {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+  flex: 1;
+  text-transform: none;
+}
+.kanban-board .kanban-col-header { text-transform: none; }
+.kanban-col-rename-input {
+  height: 30px;
+  flex: 1;
+  min-width: 0;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 0 8px;
+}
+.kanban-col-count {
+  flex: none;
+  min-width: 22px;
+  height: 20px;
+  padding: 0 6px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 999px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.kanban-col-actions {
+  display: inline-flex;
+  gap: 2px;
+  flex: none;
+}
+.kanban-col-icon-btn {
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+}
+.kanban-col-icon-btn svg { width: 14px; height: 14px; }
+.kanban-col-icon-btn:hover { background: var(--card); color: var(--text); }
+.kanban-col-icon-btn--danger:hover { background: var(--card); color: var(--cp-err-fg); }
+
+/* ── Kártyák ── */
+.kanban-cards {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px;
+  overflow-y: auto;
+  flex: 1;
+}
+.kanban-card {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+.kanban-card:hover {
+  border-color: var(--cp-a2);
+  box-shadow: 0 6px 18px -12px rgba(0, 0, 0, 0.28);
+}
+.kanban-card.is-urgent { border-color: var(--error, #ff4d4f); }
+
+.kanban-card-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.kanban-card-ava {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  border-radius: 50%;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+}
+.kanban-card-id { min-width: 0; flex: 1; }
+.kanban-card-name {
+  display: block;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kanban-card-sub {
+  display: block;
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kanban-card-remove {
+  flex: none;
+  width: 26px;
+  height: 26px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 0;
+  background: none;
+  border-radius: 8px;
+  color: var(--text-muted);
+  cursor: pointer;
+  opacity: 0.6;
+}
+.kanban-card-remove svg { width: 14px; height: 14px; }
+.kanban-card-remove:hover { opacity: 1; background: var(--cp-err-bg); color: var(--cp-err-fg); }
+
+.kanban-card-tags {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+}
+.kanban-card-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 2px 9px;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 500;
+  white-space: nowrap;
+}
+.kanban-card-tag svg { width: 10px; height: 10px; flex: none; }
+.kanban-card-tag-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 14px;
+  height: 14px;
+  margin: 0 -4px 0 1px;
+  padding: 0;
+  border: 0;
+  background: none;
+  border-radius: 50%;
+  color: inherit;
+  opacity: 0.65;
+  cursor: pointer;
+  flex: none;
+}
+.kanban-card-tag-x:hover { opacity: 1; background: color-mix(in srgb, var(--text) 12%, transparent); }
+
+.kanban-card-divider {
+  height: 1px;
+  background: var(--border);
+  margin: 2px 0;
+}
+.kanban-card-footer {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kanban-card-extra {
+  font-size: 12px;
+  color: var(--text-muted);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+/* Üres oszlop illusztráció */
+.kanban-board .kanban-empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  padding: 18px 10px;
+  color: var(--text-muted);
+  font-size: 12px;
+}
+.kanban-board .kanban-empty-state svg { width: 26px; height: 26px; opacity: 0.5; }
+
+/* Drag placeholder */
+.kanban-drag-placeholder {
+  border: 1px dashed var(--cp-a2);
+  border-radius: 8px;
+  min-height: 64px;
+  background: color-mix(in srgb, var(--cp-a2) 5%, transparent);
+}
+
+/* ── Oszlop hozzáadása — muted, szaggatott oszlop a sor végén ── */
+.kanban-add-col {
+  flex: 0 0 240px;
+  width: 240px;
+  min-height: 120px;
+  border: 1px dashed var(--border);
+  border-radius: 8px;
+  background: transparent;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.kanban-add-col-trigger {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  background: none;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  padding: 10px;
+}
+.kanban-add-col-trigger:hover { color: var(--cp-a2); }
+.kanban-add-col-form {
+  width: 100%;
+  padding: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.kanban-add-col-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+/* Régi toolbar elrejtése (a muted oszlop váltja ki) */
+.kanban-toolbar { display: none !important; }
+
+/* Mobil accordion változatlanul működik; dark mód a tokenekből adódik */

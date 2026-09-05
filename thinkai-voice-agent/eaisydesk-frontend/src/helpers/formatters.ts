@@ -109,3 +109,19 @@ export function formatPhoneHu(raw: string | null | undefined): string {
   }
   return String(raw);
 }
+
+/** Mockup-stílusú relatív dátum: "Ma · 14:32" / "Tegnap · 13:20" / "júl. 31. · 15:26" */
+export function relDateHu(iso: string): string {
+  if (!iso) return '';
+  const d = new Date(iso);
+  if (isNaN(d.getTime())) return '';
+  const time = d.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
+  const now = new Date();
+  const sameDay = (a: Date, b: Date) =>
+    a.getFullYear() === b.getFullYear() && a.getMonth() === b.getMonth() && a.getDate() === b.getDate();
+  if (sameDay(d, now)) return `Ma · ${time}`;
+  const yesterday = new Date(now.getTime() - 86400000);
+  if (sameDay(d, yesterday)) return `Tegnap · ${time}`;
+  const month = d.toLocaleDateString('hu-HU', { month: 'short' }).replace('.', '');
+  return `${month}. ${d.getDate()}. · ${time}`;
+}
