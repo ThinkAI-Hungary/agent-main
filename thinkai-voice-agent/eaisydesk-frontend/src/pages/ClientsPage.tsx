@@ -705,16 +705,18 @@ export default function ClientsPage() {
               )}
             </div>
 
-            {/* Sort */}
+            {/* Sort — ikon-only, tooltip (kit 14) */}
             <div className="relative int-dropdown-wrap" ref={sortDropdownRef}>
               <button
-                className="cd-btn"
+                className="cd-btn int-btn-icon"
+                title="Sorrend"
+                aria-label="Sorrend"
+                aria-expanded={sortDropdownOpen}
                 onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
               >
-                <svg fill="none" height="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15">
-                  <path d="M7 15l5 5 5-5" /><path d="M7 9l5-5 5 5" />
+                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15">
+                  <polyline points="8 9 12 5 16 9" /><polyline points="16 15 12 19 8 15" />
                 </svg>
-                Sorrend
               </button>
               {sortDropdownOpen && (
                 <div className="dropdown-menu dropdown-menu--sort">
@@ -736,8 +738,8 @@ export default function ClientsPage() {
             <div className="relative int-dropdown-wrap" ref={colDropdownRef}>
               <button
                 className="cd-btn int-btn-icon"
-                title="Oszlopok"
-                aria-label="Oszlopok"
+                title="Oszlopok megjelenítése"
+                aria-label="Oszlopok megjelenítése"
                 aria-expanded={colDropdownOpen}
                 onClick={() => setColDropdownOpen(!colDropdownOpen)}
               >
