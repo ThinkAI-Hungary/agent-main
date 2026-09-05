@@ -29,6 +29,7 @@ import { useSessions } from '../hooks/useSessions';
 import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import { useKanbanColumns } from '../hooks/useKanbanColumns';
 import { parseCustomData, bestClientName, isAssignedToMe, type ClientRecord } from '../helpers/clientResolvers';
+import { normalizeNameKey } from '../helpers/formatters';
 import { useAuth } from '../context/AuthContext';
 
 import { useConfirm } from '../components/ui/ConfirmDialog';
@@ -105,13 +106,22 @@ export default function KanbanPage() {
     }),
   }), []);
 
+  // ── UTÁNKÖVETÉS oszlop kanonikus felismerése NÉV alapján is ──
+  // Ha már létezik azonos nevű oszlop más id-vel (pl. régi 'uj'-ból átnevezve),
+  // azt fogadjuk el — nem készítünk duplikátumot.
+  const firstCol = useMemo(
+    () => columns.find((c) => normalizeNameKey(c.name) === 'utankovetes'),
+    [columns]
+  );
+  const firstColId = firstCol?.id ?? FIRST_COL_ID;
+
   // ── UTÁNKÖVETÉS oszlop biztosítása (fix, első, order 0) ──
   useEffect(() => {
     if (loading) return;
-    if (!columns.some((c) => c.id === FIRST_COL_ID)) {
+    if (!firstCol) {
       addColumn(FIRST_COL_ID, FIRST_COL_NAME, 0);
     }
-  }, [loading, columns, addColumn]);
+  }, [loading, firstCol, addColumn]);
 
   const sortedColumns = useMemo(
     () => [...columns].sort((a, b) => (a.order_index ?? 0) - (b.order_index ?? 0)),
@@ -157,7 +167,7 @@ export default function KanbanPage() {
       // BELÉPÉSI SZABÁLY: értékesítési címke VAGY kanban oszlopra mutató státusz
       if (!hasSalesTag && !statusIsCol) return;
 
-      const colId = statusIsCol ? status : FIRST_COL_ID;
+      const colId = statusIsCol ? status : firstColId;
       if (!map[colId]) return; // oszlop még nem töltődött be
 
       const name = bestClientName(c) || c.name || 'Névtelen';
@@ -200,7 +210,7 @@ export default function KanbanPage() {
     });
 
     return map;
-  }, [clients, sortedColumns, lastInteractionByClient, user, isAdmin]);
+  }, [clients, sortedColumns, lastInteractionByClient, firstColId, user, isAdmin]);
 
   const activeCard = useMemo(() => {
     if (!activeCardId) return null;
@@ -462,7 +472,7 @@ export default function KanbanPage() {
                 key={col.id}
                 column={col}
                 cards={cardsByColumn[col.id] || []}
-                protectedColumn={col.id === FIRST_COL_ID}
+                protectedColumn={col.id === firstColId}
                 onRename={handleRenameColumn}
                 onDelete={handleDeleteColumn}
                 onRemoveClient={handleRemoveFromKanban}

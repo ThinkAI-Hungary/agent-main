@@ -110,6 +110,15 @@ export function formatPhoneHu(raw: string | null | undefined): string {
   return String(raw);
 }
 
+/** Név-alkalny: ékezetek/db/kisbetű normalizálás oszlop-összehasonlitáshoz */
+export function normalizeNameKey(s: string): string {
+  return (s || '')
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, '');
+}
+
 /** Mockup-stílusú relatív dátum: "Ma · 14:32" / "Tegnap · 13:20" / "júl. 31. · 15:26" */
 export function relDateHu(iso: string): string {
   if (!iso) return '';

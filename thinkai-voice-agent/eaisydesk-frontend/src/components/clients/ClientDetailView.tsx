@@ -7,7 +7,7 @@
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { parseCustomData, type ClientRecord } from '../../helpers/clientResolvers';
-import { fmtDt, formatPhoneHu } from '../../helpers/formatters';
+import { fmtDt, formatPhoneHu, normalizeNameKey } from '../../helpers/formatters';
 import { authFetch } from '../../api/client';
 import { showToast } from '../ui/Toast';
 import type { SessionSummary } from '../../hooks/useSessions';
@@ -589,11 +589,23 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                 <button onClick={async () => {
                   setShowOverflowMenu(false);
                   try {
+                    // Az UTÁNKÖVETÉS oszlop kanonikus id-jának feloldása név szerint
+                    // (a védett első oszlop id-ja eltérhet a konstansától)
+                    let targetId = 'utankovetes';
+                    try {
+                      const colsRes = await authFetch('/admin/api/kanban_columns');
+                      if (colsRes.ok) {
+                        const d = await colsRes.json();
+                        const cols: Array<{ id: string; name: string }> = Array.isArray(d?.columns) ? d.columns : [];
+                        const hit = cols.find((c) => normalizeNameKey(c.name) === 'utankovetes');
+                        if (hit) targetId = hit.id;
+                      }
+                    } catch { /* fallback: konstans id */ }
                     // 1) státusz az UTÁNKÖVETÉS oszlopra, 2) kanban_removed jelző törlése
                     const res = await authFetch(`/admin/api/clients/${client.id}/status`, {
                       method: 'PATCH',
                       headers: { 'Content-Type': 'application/json' },
-                      body: JSON.stringify({ status: 'utankovetes' }),
+                      body: JSON.stringify({ status: targetId }),
                     });
                     const updatedCd = { ...cd };
                     delete updatedCd.kanban_removed;
