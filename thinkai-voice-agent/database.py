@@ -2620,6 +2620,32 @@ def get_app_error_logs(filters: dict = None, page: int = 1, page_size: int = 50)
     date_from = filters.get("date_from")
     date_to = filters.get("date_to")
 
+    # Resolve all possible identifiers for the tenant filter (id and slug)
+    tenant_identifiers = set()
+    if tenant_id:
+        tenant_identifiers.add(str(tenant_id))
+        if supabase:
+            try:
+                is_uuid = False
+                try:
+                    uuid.UUID(str(tenant_id))
+                    is_uuid = True
+                except (ValueError, AttributeError, TypeError):
+                    is_uuid = False
+
+                if is_uuid:
+                    tres = supabase.table("tenants").select("id, slug").eq("id", str(tenant_id)).execute()
+                else:
+                    tres = supabase.table("tenants").select("id, slug").eq("slug", str(tenant_id)).execute()
+
+                for t in (tres.data or []):
+                    if t.get("id"):
+                        tenant_identifiers.add(str(t["id"]))
+                    if t.get("slug"):
+                        tenant_identifiers.add(str(t["slug"]))
+            except Exception as e:
+                logger.warning(f"Failed to resolve tenant identifiers for {tenant_id}: {e}")
+
     items = []
     total = 0
     used_supabase = False
@@ -2627,8 +2653,11 @@ def get_app_error_logs(filters: dict = None, page: int = 1, page_size: int = 50)
     if supabase:
         try:
             query = supabase.table("app_error_logs").select("*", count="exact")
-            if tenant_id:
-                query = query.eq("tenant_id", tenant_id)
+            if tenant_identifiers:
+                if len(tenant_identifiers) == 1:
+                    query = query.eq("tenant_id", list(tenant_identifiers)[0])
+                else:
+                    query = query.in_("tenant_id", list(tenant_identifiers))
             if error_type:
                 query = query.eq("error_type", error_type)
             if severity:
@@ -2654,7 +2683,7 @@ def get_app_error_logs(filters: dict = None, page: int = 1, page_size: int = 50)
         all_local = _load_local_error_logs()
         filtered = []
         for log in all_local:
-            if tenant_id and log.get("tenant_id") != tenant_id:
+            if tenant_identifiers and log.get("tenant_id") not in tenant_identifiers:
                 continue
             if error_type and log.get("error_type") != error_type:
                 continue
@@ -2675,6 +2704,31 @@ def get_app_error_logs(filters: dict = None, page: int = 1, page_size: int = 50)
         total = len(filtered)
         start = (page - 1) * page_size
         items = filtered[start:start + page_size]
+
+    # Enrich items with company name and slug
+    t_map = {}
+    if supabase:
+        try:
+            tres = supabase.table("tenants").select("id, slug, name").execute()
+            for t in (tres.data or []):
+                t_map[str(t["id"])] = t
+                if t.get("slug"):
+                    t_map[str(t["slug"])] = t
+        except Exception:
+            pass
+
+    for it in items:
+        tid = it.get("tenant_id")
+        if not tid:
+            it["tenant_name"] = "Központi Rendszer"
+            it["tenant_slug"] = "globális"
+        elif str(tid) in t_map:
+            matched = t_map[str(tid)]
+            it["tenant_name"] = matched.get("name") or str(tid)
+            it["tenant_slug"] = matched.get("slug") or ""
+        else:
+            it["tenant_name"] = str(tid)
+            it["tenant_slug"] = ""
 
     return {
         "items": items,

@@ -10,6 +10,8 @@ interface ErrorLog {
   created_at: string;
   user_id?: string;
   tenant_id?: string;
+  tenant_name?: string;
+  tenant_slug?: string;
   error_type: string;
   severity: 'error' | 'warning' | 'info';
   component?: string;
@@ -1339,7 +1341,7 @@ export default function ManagementDashboardPage() {
             >
               <option value="">Összes Cég</option>
               {tenants.map((t) => (
-                <option key={t.id} value={t.slug || t.id}>
+                <option key={t.id} value={t.id}>
                   {t.name} ({t.slug})
                 </option>
               ))}
@@ -1472,7 +1474,12 @@ export default function ManagementDashboardPage() {
                             <span className="mgmt-type-tag">{err.error_type}</span>
                           </td>
                           <td>
-                            <code>{err.tenant_id || 'globális'}</code>
+                            <div style={{ fontWeight: 600, fontSize: '13px', color: 'var(--text-main)' }}>
+                              {err.tenant_name || (err.tenant_id ? (tenants.find(t => t.id === err.tenant_id || t.slug === err.tenant_id)?.name || err.tenant_id) : 'Központi Rendszer')}
+                            </div>
+                            <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '2px' }}>
+                              {err.tenant_slug || (err.tenant_id ? (tenants.find(t => t.id === err.tenant_id || t.slug === err.tenant_id)?.slug || '') : 'globális')}
+                            </div>
                           </td>
                           <td>
                             <div style={{ fontWeight: 500 }}>{err.component || '-'}</div>
@@ -1501,6 +1508,22 @@ export default function ManagementDashboardPage() {
                                   <div className="mgmt-detail-item">
                                     <div className="mgmt-detail-item-label">Hiba Azonosító (ID)</div>
                                     <code>{err.id}</code>
+                                  </div>
+                                  <div className="mgmt-detail-item">
+                                    <div className="mgmt-detail-item-label">Érintett Cég (Tenant)</div>
+                                    <div style={{ fontWeight: 600 }}>
+                                      {err.tenant_name || (err.tenant_id ? (tenants.find(t => t.id === err.tenant_id || t.slug === err.tenant_id)?.name || err.tenant_id) : 'Központi Rendszer (Globális)')}
+                                      {(err.tenant_slug || (err.tenant_id && tenants.find(t => t.id === err.tenant_id)?.slug)) && (
+                                        <span style={{ fontSize: '12px', color: 'var(--text-dim)', marginLeft: '6px' }}>
+                                          ({err.tenant_slug || tenants.find(t => t.id === err.tenant_id)?.slug})
+                                        </span>
+                                      )}
+                                    </div>
+                                    {err.tenant_id && (
+                                      <code style={{ fontSize: '11px', color: 'var(--text-dim)', display: 'block', marginTop: '3px' }}>
+                                        UUID: {err.tenant_id}
+                                      </code>
+                                    )}
                                   </div>
                                   <div className="mgmt-detail-item">
                                     <div className="mgmt-detail-item-label">URL / Útvonal</div>
