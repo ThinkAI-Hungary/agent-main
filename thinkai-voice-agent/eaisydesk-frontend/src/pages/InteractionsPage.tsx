@@ -87,6 +87,11 @@ const STATUSZ_OPTIONS = ['Lezárt', 'Nyitott', 'Sürgős'];
 // Lapozás (desktop tábla)
 const PAGE_SIZE = 10;
 
+/** Lokális dátum string (nem UTC) — az éjfél körüli elcsúszás ellen */
+function toLocalDateStr(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export default function InteractionsPage() {
   const isMobile = useIsMobile(768);
   const navigate = useNavigate();
@@ -265,12 +270,16 @@ export default function InteractionsPage() {
   }, [preStatusRows, filterStatusz, dateAsc]);
 
   // ── KPI számlálók (Sürgős / Nyitott / Lezárt) ──
-  // A teljes betöltött halmazból számol (kimenő rejtve) — a kereső, típus/csatorna
-  // és dátumszűrők NEM befolyásolják: stabil, "állapot-összkép" számok.
+  // KIZÁRÓLAG a mai nap forgalmát mutatják (helyi dátum szerint, kimenő rejtve) —
+  // a kereső és a többi szűrő NEM befolyásolja: a sáv "Mai nap" feliratához illő,
+  // stabil napi számok. Nagy forgalomnál így nem duzzad óriásira.
   const kpiCounts = useMemo(() => {
     const c: Record<string, number> = { 'Sürgős': 0, 'Nyitott': 0, 'Lezárt': 0 };
+    const today = toLocalDateStr(new Date());
     myRows.forEach((r) => {
       if (r.direction === 'Kimenő') return;
+      const d = r.date ? toLocalDateStr(new Date(r.date)) : '';
+      if (d !== today) return;
       const key = STATUSZ_OPTIONS.find((s) => s.toLowerCase() === (r.statusz || '').toLowerCase());
       if (key) c[key] += 1;
     });
