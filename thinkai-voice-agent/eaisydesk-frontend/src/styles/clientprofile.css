@@ -123,6 +123,7 @@ body.dark {
 .cd-hero-reg b { color: var(--text); font-weight: 600; }
 
 /* ── Kebab (mockup: vízszintes pöttyök, lefelé nyíló menü) ── */
+.cd-overflow-wrap { position: relative; display: inline-block; }
 .cd-overflow-btn {
   width: 36px;
   height: 36px;
