@@ -25,6 +25,7 @@ const MarketingPage = lazy(() => import('./pages/marketing/MarketingPage'));
 const AutomatizaciokPage = lazy(() => import('./pages/AutomatizaciokPage'));
 const PrivacyPolicyPage = lazy(() => import('./pages/PrivacyPolicyPage'));
 const GdprPage = lazy(() => import('./pages/GdprPage'));
+const ManagementDashboardPage = lazy(() => import('./pages/ManagementDashboardPage'));
 
 // Global styles (same CSS as the old admin)
 import './styles/variables.css';
@@ -47,9 +48,30 @@ import './styles/responsive.css';
 import './styles/polish.css';
 
 function SmartRedirect() {
-  const { user } = useAuth();
-  const isAdminOnly = user?.role === 'admin';
+  const { user, isSuperAdmin, impersonatedTenant } = useAuth();
+  if (!impersonatedTenant && (isSuperAdmin || user?.role === 'superadmin')) {
+    return <Navigate to="/management" replace />;
+  }
+  const isAdminOnly = user?.role === 'admin' || isSuperAdmin;
   return <Navigate to={isAdminOnly ? '/analytics' : '/dashboard'} replace />;
+}
+
+function SuperAdminOnlyRoute({ children }: { children: React.ReactNode }) {
+  const { isSuperAdmin, user } = useAuth();
+  if (!isSuperAdmin && user?.role !== 'superadmin') {
+    return <Navigate to={user?.role === 'admin' ? '/analytics' : '/dashboard'} replace />;
+  }
+  return <>{children}</>;
+}
+
+function TenantUserRoute({ children }: { children: React.ReactNode }) {
+  const { isSuperAdmin, user, impersonatedTenant } = useAuth();
+  // When not impersonating, superadmin uses dedicated full-width /management.
+  // When impersonating a tenant, superadmin is working in that tenant's workspace with full access.
+  if (!impersonatedTenant && (isSuperAdmin || user?.role === 'superadmin')) {
+    return <Navigate to="/management" replace />;
+  }
+  return <>{children}</>;
 }
 
 const PageLoader = () => (
@@ -68,20 +90,31 @@ function AuthGate() {
   return (
     <Suspense fallback={<PageLoader />}>
       <Routes>
+        {/* Dedicated standalone full-width route for Superadmin Management without Sidebar */}
+        <Route
+          path="management"
+          element={
+            <SuperAdminOnlyRoute>
+              <ManagementDashboardPage />
+            </SuperAdminOnlyRoute>
+          }
+        />
+
+        {/* Regular tenant routes with AppLayout (Sidebar + Content) */}
         <Route element={<AppLayout />}>
           <Route index element={<SmartRedirect />} />
-          <Route path="dashboard" element={<MemberDashboardPage />} />
-          <Route path="analytics" element={<AnalyticsPage />} />
-          <Route path="interactions" element={<InteractionsPage />} />
-          <Route path="clients" element={<ClientsPage />} />
-          <Route path="kanban" element={<KanbanPage />} />
-          <Route path="calendar" element={<CalendarPage />} />
-          <Route path="outbound" element={<OutboundPage />} />
-          <Route path="automatizaciok" element={<AutomatizaciokPage />} />
-          <Route path="settings/*" element={<SettingsPage />} />
-          <Route path="beallitasok" element={<BeallitasokPage />} />
+          <Route path="dashboard" element={<TenantUserRoute><MemberDashboardPage /></TenantUserRoute>} />
+          <Route path="analytics" element={<TenantUserRoute><AnalyticsPage /></TenantUserRoute>} />
+          <Route path="interactions" element={<TenantUserRoute><InteractionsPage /></TenantUserRoute>} />
+          <Route path="clients" element={<TenantUserRoute><ClientsPage /></TenantUserRoute>} />
+          <Route path="kanban" element={<TenantUserRoute><KanbanPage /></TenantUserRoute>} />
+          <Route path="calendar" element={<TenantUserRoute><CalendarPage /></TenantUserRoute>} />
+          <Route path="outbound" element={<TenantUserRoute><OutboundPage /></TenantUserRoute>} />
+          <Route path="automatizaciok" element={<TenantUserRoute><AutomatizaciokPage /></TenantUserRoute>} />
+          <Route path="settings/*" element={<TenantUserRoute><SettingsPage /></TenantUserRoute>} />
+          <Route path="beallitasok" element={<TenantUserRoute><BeallitasokPage /></TenantUserRoute>} />
           <Route path="help" element={<HelpPage />} />
-          <Route path="marketing/*" element={<MarketingPage />} />
+          <Route path="marketing/*" element={<TenantUserRoute><MarketingPage /></TenantUserRoute>} />
           <Route path="privacy" element={<PrivacyPolicyPage />} />
           <Route path="gdpr" element={<GdprPage />} />
           <Route path="*" element={<SmartRedirect />} />

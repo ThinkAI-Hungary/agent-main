@@ -12,12 +12,14 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
     return localStorage.getItem('thinkai_theme') === 'dark';
   });
 
-  // Sync with body class
+  // Sync with body and html class
   useEffect(() => {
     if (isDark) {
       document.body.classList.add('dark');
+      document.documentElement.classList.add('dark');
     } else {
       document.body.classList.remove('dark');
+      document.documentElement.classList.remove('dark');
     }
   }, [isDark]);
 

@@ -4,6 +4,8 @@ All persistent data: calendar, emails, tasks, sessions, interactions, admin user
 """
 
 import os
+import uuid
+import json
 import hashlib
 import secrets
 import contextvars
@@ -343,9 +345,15 @@ def get_admin_user_by_username(username: str) -> dict | None:
     if not supabase: return None
     try:
         res = _tenant_eq(supabase.table("admin_users").select(
-            "id, username, email, role, full_name"
+            "id, username, email, role, full_name, tenant_id"
         )).eq("username", username).execute()
-        return res.data[0] if res.data else None
+        if res.data:
+            return res.data[0]
+        # Global fallback (pl. superadmin / cross-tenant felhasználók)
+        res_global = supabase.table("admin_users").select(
+            "id, username, email, role, full_name, tenant_id"
+        ).eq("username", username).execute()
+        return res_global.data[0] if res_global.data else None
     except Exception as e:
         logger.error(f"Error getting admin user: {e}")
         return None
@@ -2543,3 +2551,203 @@ def get_content_item(item_id: str) -> dict | None:
     except Exception as e:
         logger.error(f"Error getting content item: {e}")
         return None
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# APP ERROR LOGS (MANAGEMENT & OBSERVABILITY)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_LOCAL_ERROR_LOGS_FILE = Path(__file__).resolve().parent / "data" / "app_error_logs_local.json"
+
+def _load_local_error_logs() -> list[dict]:
+    if not _LOCAL_ERROR_LOGS_FILE.exists():
+        return []
+    try:
+        with open(_LOCAL_ERROR_LOGS_FILE, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except Exception as e:
+        logger.warning(f"Error reading local error logs: {e}")
+        return []
+
+def _save_local_error_logs(logs: list[dict]):
+    try:
+        _LOCAL_ERROR_LOGS_FILE.parent.mkdir(parents=True, exist_ok=True)
+        trimmed = logs[:2000]
+        with open(_LOCAL_ERROR_LOGS_FILE, "w", encoding="utf-8") as f:
+            json.dump(trimmed, f, ensure_ascii=False, indent=2)
+    except Exception as e:
+        logger.warning(f"Error saving local error logs: {e}")
+
+def log_app_error(error_data: dict) -> dict:
+    """Save error log to Supabase app_error_logs, with local buffer fallback."""
+    item = {
+        "id": str(uuid.uuid4()),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "user_id": error_data.get("user_id"),
+        "tenant_id": error_data.get("tenant_id") or get_current_tenant(),
+        "error_type": error_data.get("error_type") or "unhandled",
+        "severity": error_data.get("severity") or "error",
+        "component": error_data.get("component") or "",
+        "action": error_data.get("action") or "",
+        "message": str(error_data.get("message") or "Unknown error"),
+        "stack_trace": error_data.get("stack_trace") or "",
+        "context": error_data.get("context") or {},
+        "url": error_data.get("url") or "",
+        "user_agent": error_data.get("user_agent") or ""
+    }
+
+    local_logs = _load_local_error_logs()
+    local_logs.insert(0, item)
+    _save_local_error_logs(local_logs)
+
+    if supabase:
+        try:
+            res = supabase.table("app_error_logs").insert(item).execute()
+            if res.data:
+                return res.data[0]
+        except Exception as e:
+            logger.warning(f"Supabase app_error_logs insert failed (using local buffer): {e}")
+
+    return item
+
+def get_app_error_logs(filters: dict = None, page: int = 1, page_size: int = 50) -> dict:
+    """Get paginated and filtered error logs."""
+    filters = filters or {}
+    tenant_id = filters.get("tenant_id")
+    error_type = filters.get("error_type")
+    severity = filters.get("severity")
+    search = (filters.get("search") or "").lower().strip()
+    date_from = filters.get("date_from")
+    date_to = filters.get("date_to")
+
+    items = []
+    total = 0
+    used_supabase = False
+
+    if supabase:
+        try:
+            query = supabase.table("app_error_logs").select("*", count="exact")
+            if tenant_id:
+                query = query.eq("tenant_id", tenant_id)
+            if error_type:
+                query = query.eq("error_type", error_type)
+            if severity:
+                query = query.eq("severity", severity)
+            if date_from:
+                query = query.gte("created_at", date_from)
+            if date_to:
+                query = query.lte("created_at", date_to)
+            if search:
+                query = query.ilike("message", f"%{search}%")
+
+            offset = (page - 1) * page_size
+            query = query.order("created_at", desc=True).range(offset, offset + page_size - 1)
+            res = query.execute()
+            items = res.data or []
+            total = res.count or len(items)
+            used_supabase = True
+        except Exception as e:
+            logger.warning(f"Supabase get_app_error_logs error, falling back to local: {e}")
+            used_supabase = False
+
+    if not used_supabase:
+        all_local = _load_local_error_logs()
+        filtered = []
+        for log in all_local:
+            if tenant_id and log.get("tenant_id") != tenant_id:
+                continue
+            if error_type and log.get("error_type") != error_type:
+                continue
+            if severity and log.get("severity") != severity:
+                continue
+            if date_from and log.get("created_at") < date_from:
+                continue
+            if date_to and log.get("created_at") > date_to:
+                continue
+            if search:
+                msg = str(log.get("message", "")).lower()
+                stack = str(log.get("stack_trace", "")).lower()
+                comp = str(log.get("component", "")).lower()
+                if search not in msg and search not in stack and search not in comp:
+                    continue
+            filtered.append(log)
+
+        total = len(filtered)
+        start = (page - 1) * page_size
+        items = filtered[start:start + page_size]
+
+    return {
+        "items": items,
+        "total": total,
+        "page": page,
+        "page_size": page_size,
+        "total_pages": max(1, (total + page_size - 1) // page_size) if page_size > 0 else 1
+    }
+
+def get_error_kpi_summary() -> dict:
+    """Calculates KPI summary for errors."""
+    cutoff_24h = (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+    total = 0
+    last_24h = 0
+    top_type = "N/A"
+    affected_tenants = set()
+    type_counts = {}
+
+    items = []
+    if supabase:
+        try:
+            res = supabase.table("app_error_logs").select("error_type, created_at, tenant_id").order("created_at", desc=True).limit(2000).execute()
+            items = res.data or []
+        except Exception:
+            items = _load_local_error_logs()
+    else:
+        items = _load_local_error_logs()
+
+    total = len(items)
+    for it in items:
+        created = it.get("created_at", "")
+        if created >= cutoff_24h:
+            last_24h += 1
+        t_id = it.get("tenant_id")
+        if t_id:
+            affected_tenants.add(t_id)
+        etype = it.get("error_type", "unhandled")
+        type_counts[etype] = type_counts.get(etype, 0) + 1
+
+    if type_counts:
+        top_type = max(type_counts.items(), key=lambda x: x[1])[0]
+
+    return {
+        "total_errors": total,
+        "last_24h_errors": last_24h,
+        "top_error_type": top_type,
+        "affected_tenants_count": len(affected_tenants)
+    }
+
+def delete_app_error_logs(log_ids: list[str]) -> bool:
+    """Delete selected error logs."""
+    if not log_ids:
+        return True
+
+    local_logs = _load_local_error_logs()
+    id_set = set(log_ids)
+    new_local = [l for l in local_logs if l.get("id") not in id_set]
+    _save_local_error_logs(new_local)
+
+    if supabase:
+        try:
+            supabase.table("app_error_logs").delete().in_("id", log_ids).execute()
+        except Exception as e:
+            logger.warning(f"Error deleting from Supabase app_error_logs: {e}")
+    return True
+
+def clear_all_app_error_logs() -> bool:
+    """Clear all error logs."""
+    _save_local_error_logs([])
+    if supabase:
+        try:
+            supabase.table("app_error_logs").delete().neq("id", "00000000-0000-0000-0000-000000000000").execute()
+        except Exception as e:
+            logger.warning(f"Error clearing Supabase app_error_logs: {e}")
+    return True
+

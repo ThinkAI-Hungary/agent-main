@@ -14,9 +14,10 @@ interface NavItem {
   icon: string;
   adminOnly?: boolean;
   adminExclusive?: boolean;
+  superadminOnly?: boolean;
   memberOnly?: boolean;
   hidden?: boolean;
-  children?: { id: string; label: string; path: string; adminOnly?: boolean; adminExclusive?: boolean }[];
+  children?: { id: string; label: string; path: string; adminOnly?: boolean; adminExclusive?: boolean; superadminOnly?: boolean }[];
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -72,7 +73,13 @@ const NAV_ITEMS: NavItem[] = [
       { id: 'settings-szabalyok', label: 'Szabályok', path: '/settings/szabalyok' },
     ],
   },
-
+  {
+    id: 'management',
+    label: 'Management & Debug',
+    path: '/management',
+    icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z',
+    superadminOnly: true,
+  },
   {
     id: 'help',
     label: 'Segítség',
@@ -82,7 +89,7 @@ const NAV_ITEMS: NavItem[] = [
 ];
 
 export default function Sidebar() {
-  const { user, isAdmin, isAdminOnly, logout } = useAuth();
+  const { user, isAdmin, isAdminOnly, isSuperAdmin, impersonatedTenant, logout } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const navigate = useNavigate();
   const location = useLocation();
@@ -205,11 +212,13 @@ export default function Sidebar() {
       : avatarName.substring(0, 2).toUpperCase();
 
   const roleLabel =
-    user?.role === 'admin'
-      ? 'Adminisztrátor'
-      : user?.role === 'manager'
-        ? 'Manager'
-        : 'Member';
+    user?.role === 'superadmin'
+      ? (impersonatedTenant ? 'Bérlői Admin (Megszemélyesítve)' : 'Superadmin')
+      : user?.role === 'admin'
+        ? 'Adminisztrátor'
+        : user?.role === 'manager'
+          ? 'Manager'
+          : 'Member';
 
   return (
     <>
@@ -237,8 +246,8 @@ export default function Sidebar() {
 
       {/* Logo with App Switcher */}
       <div
-        className={`sidebar-logo sidebar-logo--clickable${appSwitcherOpen ? ' has-switch-open' : ''}`}
-        onClick={() => setAppSwitcherOpen(!appSwitcherOpen)}
+        className={`sidebar-logo${(!isSuperAdmin || impersonatedTenant) ? ' sidebar-logo--clickable' : ''}${appSwitcherOpen ? ' has-switch-open' : ''}`}
+        onClick={() => (!isSuperAdmin || impersonatedTenant) && setAppSwitcherOpen(!appSwitcherOpen)}
       >
         <img
           src={`${import.meta.env.BASE_URL}eaisydesk_logo.png`}
@@ -248,26 +257,30 @@ export default function Sidebar() {
       </div>
 
       {/* App Switcher Dropdown */}
-      <div className={`logo-switch-dd${appSwitcherOpen ? ' open' : ''}`}>
-        <button
-          className="logo-switch-link"
-          onClick={(e) => {
-            e.stopPropagation();
-            navigate('/marketing');
-            setAppSwitcherOpen(false);
-          }}
-        >
-          <div className="logo-switch-icon logo-switch-icon--marketing">M</div>
-          <div>
-            <div className="logo-switch-name">EAISY Marketing</div>
-            <div className="logo-switch-desc">Marketing automatizáció</div>
-          </div>
-        </button>
-      </div>
+      {(!isSuperAdmin || impersonatedTenant) && (
+        <div className={`logo-switch-dd${appSwitcherOpen ? ' open' : ''}`}>
+          <button
+            className="logo-switch-link"
+            onClick={(e) => {
+              e.stopPropagation();
+              navigate('/marketing');
+              setAppSwitcherOpen(false);
+            }}
+          >
+            <div className="logo-switch-icon logo-switch-icon--marketing">M</div>
+            <div>
+              <div className="logo-switch-name">EAISY Marketing</div>
+              <div className="logo-switch-desc">Marketing automatizáció</div>
+            </div>
+          </button>
+        </div>
+      )}
 
 
       {/* Navigation items */}
       {NAV_ITEMS.map((item) => {
+        if (isSuperAdmin && !impersonatedTenant && !item.superadminOnly) return null;
+        if (item.superadminOnly && (!isSuperAdmin || impersonatedTenant)) return null;
         if (item.adminExclusive && !isAdminOnly) return null;
         if (item.adminOnly && !isAdmin) return null;
         if (item.memberOnly && isAdminOnly) return null;
@@ -361,7 +374,7 @@ export default function Sidebar() {
             ) : initials}
           </div>
           <div className="user-text">
-            <div className="user-name">{user?.fullName || user?.username || 'admin'}</div>
+            <div className="user-name">{impersonatedTenant ? impersonatedTenant.name : (user?.fullName || user?.username || 'admin')}</div>
             <div className="user-role">{roleLabel}</div>
           </div>
           <button className="sidebar-theme-toggle" onClick={toggleTheme} title="Sötét/Világos mód">
@@ -388,8 +401,8 @@ export default function Sidebar() {
         <div className="sidebar-btn-row">
           <button
             className="sidebar-icon-btn"
-            onClick={() => navigate('/beallitasok')}
-            title="Beállítások"
+            onClick={() => navigate((isSuperAdmin && !impersonatedTenant) ? '/management' : '/beallitasok')}
+            title={(isSuperAdmin && !impersonatedTenant) ? 'Management' : 'Beállítások'}
           >
             <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
               <circle cx="12" cy="12" r="3" />

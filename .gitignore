@@ -47,6 +47,7 @@ thinkai-voice-agent/google-credentials.json
 *.db
 *.sqlite
 *.sqlite3
+thinkai-voice-agent/data/
 
 # Large runtime files
 thinkai-voice-agent/cloudflared.exe

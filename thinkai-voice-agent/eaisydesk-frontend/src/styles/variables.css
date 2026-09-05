@@ -63,24 +63,36 @@
       --fc-event-text-color: #082432;
     }
 
-    /* ── Dark Mode token overrides (original navy-teal) ── */
+    /* ── Dark Mode token overrides (modern dark slate-teal Linear/Visibill style) ── */
+    :root.dark,
+    html.dark,
     body.dark {
-      --bg: #060d14;
-      --bg2: #0d2538;
-      --bg3: #0f2d40;
-      --card: #0d2538;
-      --border: #1a3548;
-      --text: #e8edf5;
-      --text-muted: #6b8b99;
-      --text-dim: #2d4a5f;
-      --accent-glow: rgba(28, 238, 224, 0.18);
-      --shadow-sm: inset 0 0 0 1px rgba(28, 238, 224, 0.06);
-      --shadow: inset 0 0 0 1px #1a3548;
-      --shadow-lg: inset 0 0 0 1px rgba(28, 238, 224, 0.08), 0 4px 12px -4px rgb(0 0 0 / 0.4);
-      --shell-bg: #0d2538;
-      --shell-border: #1a3548;
-      --shell-text: #e8edf5;
-      --shell-muted: #6b8b99;
+      --bg: #090d14;
+      --bg1: #090d14;
+      --bg2: #0f1724;
+      --bg3: #151f30;
+      --card: #0f1724;
+      --border: rgba(255, 255, 255, 0.09);
+      --text: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #94a3b8;
+      --figma-dark: #2dd4bf;
+      --figma-sidebar: #090d14;
+      --figma-hover: #151f30;
+      --figma-accent: #1ceee0;
+      --figma-accent2: #18d4c6;
+      --figma-accent3: #2dd4bf;
+      --figma-kpi-from: rgba(45, 212, 191, 0.12);
+      --figma-kpi-to: rgba(45, 212, 191, 0.03);
+      --figma-muted: #94a3b8;
+      --accent-glow: rgba(45, 212, 191, 0.18);
+      --shadow-sm: inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+      --shadow: 0 4px 14px rgba(0, 0, 0, 0.35), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+      --shadow-lg: 0 10px 25px -5px rgba(0, 0, 0, 0.5), 0 4px 10px -4px rgba(0, 0, 0, 0.4);
+      --shell-bg: #0f1724;
+      --shell-border: rgba(255, 255, 255, 0.09);
+      --shell-text: #f8fafc;
+      --shell-muted: #94a3b8;
     }
 
     /* ── Body defaults (Inter) ───────────────────── */

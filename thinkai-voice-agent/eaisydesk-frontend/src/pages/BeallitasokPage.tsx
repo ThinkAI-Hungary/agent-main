@@ -35,7 +35,7 @@ const TABS = [
 ] as const;
 
 export default function BeallitasokPage() {
-  const { user, updateUser } = useAuth();
+  const { user, updateUser, isAdmin, isAdminOnly } = useAuth();
   const { confirm, ConfirmDialog } = useConfirm();
   const [activeTab, setActiveTab] = useState('profil');
   const [users, setUsers] = useState<User[]>([]);
@@ -55,9 +55,6 @@ export default function BeallitasokPage() {
   // Create user modal
   const [showCreateUserModal, setShowCreateUserModal] = useState(false);
   const [newUser, setNewUser] = useState({ full_name: '', username: '', email: '', password: '', role: 'member' });
-
-  const isAdmin = user?.role === 'admin' || user?.role === 'manager';
-  const isAdminOnly = user?.role === 'admin';
 
   const visibleTabs = useMemo(() => {
     return TABS.filter(tab => {

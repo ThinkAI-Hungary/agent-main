@@ -154,7 +154,7 @@ export default function MarketingSidebar() {
           <div className="user-avatar">{initials}</div>
           <div className="user-text">
             <div className="user-name">{user?.fullName || user?.username || 'admin'}</div>
-            <div className="user-role">{user?.role === 'admin' ? 'Adminisztrátor' : user?.role === 'manager' ? 'Manager' : 'Member'}</div>
+            <div className="user-role">{user?.role === 'superadmin' ? 'Superadmin' : user?.role === 'admin' ? 'Adminisztrátor' : user?.role === 'manager' ? 'Manager' : 'Member'}</div>
           </div>
           <button className="sidebar-theme-toggle" onClick={toggleTheme} title="Sötét/Világos mód">
             {isDark ? (

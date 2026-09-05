@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useLayoutEffect, useCallback, type FormEvent, type ReactNode } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { useTheme } from '../context/ThemeContext';
 
@@ -166,6 +167,7 @@ const showcaseSlides: ShowcaseSlide[] = [
 ];
 
 export default function LoginPage() {
+  const navigate = useNavigate();
   const { login, logoutMessage } = useAuth();
   const { isDark, toggleTheme } = useTheme();
   const [email, setEmail] = useState('');
@@ -430,7 +432,14 @@ export default function LoginPage() {
     setLoading(true);
     setError('');
     try {
-      await login(email.trim(), password);
+      const loggedUser = await login(email.trim(), password);
+      if (loggedUser?.role === 'superadmin') {
+        navigate('/management', { replace: true });
+      } else if (loggedUser?.role === 'admin') {
+        navigate('/analytics', { replace: true });
+      } else {
+        navigate('/dashboard', { replace: true });
+      }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Nem sikerült csatlakozni a szerverhez.');
     } finally {
