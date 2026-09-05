@@ -278,6 +278,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
   }, [loadManualTasks]);
 
   const openManualTasks = useMemo(() => manualTasks.filter(t => !t.completed), [manualTasks]);
+  const closedManualTasks = useMemo(() => manualTasks.filter(t => !!t.completed), [manualTasks]);
 
   // Avatar monogram (inicialok)
   const avatarInitials = useMemo(() => {
@@ -841,7 +842,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         <div className="cd-section-head">
           <h3 className="cd-int-section-title">
             Lezárt interakciók
-            <span className="cd-int-section-count">{closedInteractions.length}</span>
+            <span className="cd-int-section-count">{closedInteractions.length + closedManualTasks.length}</span>
           </h3>
         </div>
         <div className="cd-table-card">
@@ -860,26 +861,62 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
               </tr>
             </thead>
             <tbody>
-              {closedInteractions.length === 0 ? (
-                <tr><td colSpan={8}><div className="cp-empty">Nincs lezárt interakció.</div></td></tr>
-              ) : closedInteractions.slice(0, 20).map((r, i) => (
-                <tr
-                  key={i}
-                  className="cursor-pointer"
-                  onClick={() => setSummaryModalRow(r)}
-                >
-                  <td className="cd-time-cell">{r.date ? `${new Date(r.date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })} · ${new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}` : '-'}</td>
-                  <td><CpChannelCell name={r.channel} /></td>
-                  <td><CpDirBadge value={r.direction} /></td>
-                  <td>{r.ugyTipus}</td>
-                  <td className="cp-result">{r.eredmeny}</td>
-                  <td><CpStatusBadge value={r.statusz} /></td>
-                  <td><CpTeendoCell value={r.teendo} /></td>
-                  <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
-                    <input type="checkbox" className="cp-done-check" checked disabled aria-label="Elvégezte" />
-                  </td>
-                </tr>
-              ))}
+              {(() => {
+                if (closedInteractions.length === 0 && closedManualTasks.length === 0) {
+                  return <tr><td colSpan={8}><div className="cp-empty">Nincs lezárt interakció.</div></td></tr>;
+                }
+                // kézi feladatok + interakciók együtt, dátum szerint csökkenő
+                const merged: Array<{ key: string; sortKey: string; task?: ManualTask; row?: InteractionRowDetail }> = [
+                  ...closedManualTasks.map((t) => ({ key: `task-${t.id}`, sortKey: t.created_at || '', task: t })),
+                  ...closedInteractions.map((r) => ({ key: `int-${r.interactionId}-${r.sessionId}`, sortKey: r.date || '', row: r })),
+                ].sort((a, b) => b.sortKey.localeCompare(a.sortKey));
+
+                return merged.slice(0, 20).map((item) => {
+                  if (item.task) {
+                    const t = item.task;
+                    return (
+                      <tr key={item.key} className="cd-task-row">
+                        <td className="cd-time-cell">{taskDateLabel(t.created_at)}</td>
+                        <td>
+                          <span className="cp-channel">
+                            <span className="cp-ch">
+                              <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                            </span>
+                            Hozzáadott feladat
+                          </span>
+                        </td>
+                        <td />
+                        <td />
+                        <td />
+                        <td><CpStatusBadge value="Lezárt" /></td>
+                        <td><span className="cp-todo-text">{t.text}</span></td>
+                        <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
+                          <input type="checkbox" className="cp-done-check" checked disabled aria-label="Elvégezte" />
+                        </td>
+                      </tr>
+                    );
+                  }
+                  const r = item.row!;
+                  return (
+                    <tr
+                      key={item.key}
+                      className="cursor-pointer"
+                      onClick={() => setSummaryModalRow(r)}
+                    >
+                      <td className="cd-time-cell">{r.date ? `${new Date(r.date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })} · ${new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}` : '-'}</td>
+                      <td><CpChannelCell name={r.channel} /></td>
+                      <td><CpDirBadge value={r.direction} /></td>
+                      <td>{r.ugyTipus}</td>
+                      <td className="cp-result">{r.eredmeny}</td>
+                      <td><CpStatusBadge value={r.statusz} /></td>
+                      <td><CpTeendoCell value={r.teendo} /></td>
+                      <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
+                        <input type="checkbox" className="cp-done-check" checked disabled aria-label="Elvégezte" />
+                      </td>
+                    </tr>
+                  );
+                });
+              })()}
             </tbody>
           </table>
           </div>

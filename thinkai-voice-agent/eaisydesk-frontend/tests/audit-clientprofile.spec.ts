@@ -47,6 +47,7 @@ async function setup(page: Page) {
   await page.route('**/admin/api/tasks**', (route) =>
     route.fulfill({ status: 200, contentType: 'application/json', body: JSON.stringify({ tasks: [
       { id: 1, text: 'felhív', priority: 'high', completed: 0, created_at: iso(2), client_id: 1 },
+      { id: 2, text: 'árajánlatot küldeni', priority: 'normal', completed: 1, created_at: iso(30), client_id: 1 },
     ] }) })
   );
   await page.route('**/admin/api/clients**', (route) =>
