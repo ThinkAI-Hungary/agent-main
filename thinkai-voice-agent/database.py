@@ -324,9 +324,16 @@ def seed_admin_from_env():
     username = os.getenv("ADMIN_USERNAME", "admin")
     password = os.getenv("ADMIN_PASSWORD", "thinkai2026")
     email = os.getenv("ADMIN_EMAIL", "")
-    created = create_admin_user(username, password, email, role="admin", created_by="system")
+    created = create_admin_user(username, password, email, role="superadmin", created_by="system")
     if created:
-        logger.info(f"Seeded admin user from env: {username}")
+        logger.info(f"Seeded superadmin user from env: {username}")
+    else:
+        # Ha a user már létezik, biztosítjuk a superadmin jogosultságot
+        try:
+            if supabase:
+                supabase.table("admin_users").update({"role": "superadmin"}).eq("username", username).execute()
+        except Exception as e:
+            logger.warning(f"Could not ensure superadmin role for {username}: {e}")
 
 def get_admin_users() -> list[dict]:
     """List all admin users (without password hashes)."""
