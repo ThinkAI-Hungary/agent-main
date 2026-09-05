@@ -735,3 +735,49 @@ body.dark .cd-table-card tbody tr.cd-is-urgent td { background: var(--cp-err-row
   .cd-middle-grid-inner { grid-template-columns: 1fr; }
   .cd-section-head { flex-wrap: wrap; }
 }
+
+/* ═══ Ügyféllista (ClientsPage) ═══ */
+
+/* + Új ügyfél — accent gomb (teal) */
+.cp-btn-accent {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 36px;
+  padding: 0 14px;
+  border-radius: 8px;
+  border: 1px solid var(--accent);
+  background: var(--accent);
+  color: #082432;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  cursor: pointer;
+  white-space: nowrap;
+  transition: filter 0.15s;
+}
+.cp-btn-accent:hover { filter: brightness(0.94); }
+.cp-btn-accent:disabled { opacity: 0.4; pointer-events: none; }
+
+/* Új ügyfél / Visszatérő badge (accent tint) */
+.cp-accentb {
+  background: color-mix(in srgb, var(--accent) 14%, var(--card));
+  color: color-mix(in srgb, var(--accent) 40%, var(--text));
+  border-color: color-mix(in srgb, var(--accent) 45%, var(--border));
+}
+.cp-accentb .cp-dot { background: var(--accent); }
+
+/* Ügyfél cella: avatar-négyzet + név */
+.cp-ch-name {
+  width: 36px;
+  height: 36px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  background: var(--bg3);
+}
+.cp-client-name { font-weight: 600; color: var(--text); white-space: nowrap; }
+.cp-time { font-variant-numeric: tabular-nums; color: var(--text); }
+
+/* Rendezhető fejléc (mockup: Ügyfél ▲) */
+.cp-th-sort { padding: 0 !important; }

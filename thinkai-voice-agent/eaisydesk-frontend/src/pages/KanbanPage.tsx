@@ -29,6 +29,7 @@ import { useSessions } from '../hooks/useSessions';
 import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import { useKanbanColumns } from '../hooks/useKanbanColumns';
 import { parseCustomData, bestClientName, isAssignedToMe, type ClientRecord } from '../helpers/clientResolvers';
+import { SALES_TAGS } from '../helpers/interactionClassifiers';
 import { normalizeNameKey } from '../helpers/formatters';
 import { useAuth } from '../context/AuthContext';
 
@@ -40,14 +41,7 @@ import KanbanColumn from '../components/kanban/KanbanColumn';
 import KanbanCard from '../components/kanban/KanbanCard';
 import ClientDetailView from '../components/clients/ClientDetailView';
 
-// ── Értékesítési címkék és belépési oszlop ──
-export const SALES_TAGS = [
-  'kampánylead',
-  'potenciális vásárló',
-  'árkérdés',
-  'törölt időpont',
-  'no-show',
-];
+// ── Belépési oszlop (a SALES_TAGS az interactionClassifiers-ből) ──
 export const FIRST_COL_ID = 'utankovetes';
 const FIRST_COL_NAME = 'UTÁNKÖVETÉS';
 

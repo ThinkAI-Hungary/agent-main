@@ -13,6 +13,7 @@ import { useCalendarEvents, type CalendarEvent } from '../hooks/useCalendarEvent
 import { parseCustomData, bestClientName, isAssignedToMe, type ClientRecord } from '../helpers/clientResolvers';
 import { fmtDt, cleanStr, formatPhoneHu } from '../helpers/formatters';
 import { TagBadge } from '../components/ui/Badge';
+import { SALES_TAGS, getTagColor } from '../helpers/interactionClassifiers';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
@@ -93,6 +94,68 @@ export default function ClientsPage() {
   const [showCampaignWizard, setShowCampaignWizard] = useState(false);
   const [members, setMembers] = useState<MemberUser[]>([]);
 
+  // ── Új ügyfél modál ──
+  const [showNewClient, setShowNewClient] = useState(false);
+  const [ncName, setNcName] = useState('');
+  const [ncPhone, setNcPhone] = useState('');
+  const [ncEmail, setNcEmail] = useState('');
+  const [ncSaving, setNcSaving] = useState(false);
+
+  const handleCreateClient = useCallback(async () => {
+    const name = ncName.trim();
+    const phone = ncPhone.trim();
+    const email = ncEmail.trim();
+    if (!name) { showToast('Az ügyfél neve kötelező', 'error'); return; }
+    if (!phone && !email) { showToast('Legalább egy elérhetőség (telefonszám vagy email) kötelező', 'error'); return; }
+    setNcSaving(true);
+    try {
+      const res = await authFetch('/admin/api/clients', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ custom_data: { name, email, telefonszam: phone } }),
+      });
+      if (res.ok) {
+        showToast('Ügyfél létrehozva');
+        setShowNewClient(false);
+        setNcName(''); setNcPhone(''); setNcEmail('');
+        refetchClients();
+      } else showToast('Hiba a mentéskor', 'error');
+    } catch { showToast('Hiba', 'error'); }
+    finally { setNcSaving(false); }
+  }, [ncName, ncPhone, ncEmail, refetchClients]);
+
+  // ── Értékesítési státusz: kanban-tagság szerint (olvasott) ──
+  const salesStatusOf = useCallback((c: EnrichedClient): string => {
+    const cd = parseCustomData(c.raw.custom_data);
+    if (cd.kanban_removed) return '';
+    const hasSalesTag = c.tags.some((t) => SALES_TAGS.includes(t));
+    const statusIsCol = kanbanColumns.some((col) => col.id === c.status);
+    if (!hasSalesTag && !statusIsCol) return '';
+    const col = kanbanColumns.find((col) => col.id === c.status);
+    return col ? col.name : 'UTÁNKÖVETÉS';
+  }, [kanbanColumns]);
+
+  // ── Címke törlése a listából ──
+  const handleRemoveTag = useCallback(async (clientId: string | number, tag: string) => {
+    const c = clients.find((cl) => String(cl.id) === String(clientId));
+    if (!c) return;
+    const cd = parseCustomData(c.custom_data);
+    const tags = (((cd?.tags as string[]) || [])).filter((t) => t !== tag);
+    try {
+      const res = await authFetch(`/admin/api/clients/${clientId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ custom_data: { ...cd, tags } }),
+      });
+      if (res.ok) { showToast(`Címke eltávolítva: ${tag}`); refetchClients(); }
+      else showToast('Hiba a címke törlésekor', 'error');
+    } catch { showToast('Hiba', 'error'); }
+  }, [clients, refetchClients]);
+
+  // ── Lapozás ──
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 10;
+
   const [filterOpen, setFilterOpen] = useState(false);
   const filterDropdownRef = useRef<HTMLDivElement>(null);
   const [filterKategoria, setFilterKategoria] = useState<Set<string>>(new Set());
@@ -102,6 +165,8 @@ export default function ClientsPage() {
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
   const [sortBy, setSortBy] = useState('date_desc');
+  // Szűrő/keresés/sorrend változásakor vissza az első oldalra
+  useEffect(() => { setPage(1); }, [searchQuery, filterKategoria, filterErtStatusz, filterFelelos, sortBy]);
 
   const ALL_KATEGORIA = ['Új ügyfél', 'Visszatérő', 'Inaktív'];
   
@@ -297,6 +362,28 @@ export default function ClientsPage() {
     });
   }, [myClients, searchQuery, filterKategoria, filterErtStatusz, filterFelelos, sortBy, kanbanNameMap]);
 
+  // ── Lapozás (oldal scroll, 10/oldal) ──
+  const totalPages = Math.max(1, Math.ceil(filteredClients.length / PAGE_SIZE));
+  const safePage = Math.min(page, totalPages);
+  const pageStart = (safePage - 1) * PAGE_SIZE;
+  const pageClients = useMemo(
+    () => filteredClients.slice(pageStart, pageStart + PAGE_SIZE),
+    [filteredClients, pageStart]
+  );
+
+  /** Lapozó oldalszám-lista: max 7 elem, szélső eseteken gondolattal */
+  function pageNumbers(current: number, total: number): Array<number | '…'> {
+    if (total <= 7) return Array.from({ length: total }, (_, i) => i + 1);
+    const pages: Array<number | '…'> = [1];
+    const from = Math.max(2, current - 1);
+    const to = Math.min(total - 1, current + 1);
+    if (from > 2) pages.push('…');
+    for (let p = from; p <= to; p++) pages.push(p);
+    if (to < total - 1) pages.push('…');
+    pages.push(total);
+    return pages;
+  }
+
   // Reset selection when data changes
   useEffect(() => setSelectedRows(new Set()), [filteredClients]);
 
@@ -375,15 +462,22 @@ export default function ClientsPage() {
     }
   }
 
-  // ── Status badge ──
+  // ── Status badge (UI Kit: Új ügyfél → accent tint, Visszatérő → navy tint) ──
   function statusBadge(c: EnrichedClient) {
     if (c.isInactive) {
-      return <span className="status-badge badge-inactive">INAKTÍV</span>;
+      return <span className="cp-badge cp-grayb"><i className="cp-dot" />Inaktív</span>;
     }
     if (c.isNew) {
-      return <span className="status-badge badge-new">ÚJ</span>;
+      return <span className="cp-badge cp-accentb"><i className="cp-dot" />Új ügyfél</span>;
     }
-    return <span className="status-badge badge-returning">VISSZATÉRŐ</span>;
+    return <span className="cp-badge cp-navyb"><i className="cp-dot" />Visszatérő ügyfél</span>;
+  }
+
+  function avatarInitials(name: string): string {
+    const parts = (name || '?').trim().split(/\s+/);
+    return parts.length >= 2
+      ? (parts[0][0] + parts[parts.length - 1][0]).toUpperCase()
+      : (name || '?').substring(0, 2).toUpperCase();
   }
 
   return (
@@ -399,10 +493,15 @@ export default function ClientsPage() {
         />
       )}
 
-      {/* Page title — standalone */}
-      <div className="page-header">
-        <div className="page-title">Ügyféllista</div>
-      </div>
+      {/* Fejléc sáv: morzsák + cím */}
+      <header className="int-page-head">
+        <nav className="int-breadcrumbs" aria-label="Navigációs morzsák">
+          <span className="int-crumb-link">Ügyfélközpont</span>
+          <span className="int-crumb-sep">/</span>
+          <span className="int-crumb-current">Ügyféllista</span>
+        </nav>
+        <h1 className="page-title int-page-title">Ügyféllista</h1>
+      </header>
 
 
       {/* ═══ MOBILE: Search bar + Card view ═══ */}
@@ -527,35 +626,27 @@ export default function ClientsPage() {
       {/* ═══ DESKTOP: Table view ═══ */}
       {!isMobile && viewMode === 'table' && (
         <>
-        {/* Toolbar — outside table card */}
-        <div className="int-toolbar">
-          {/* Left: result count */}
-          <div className="flex-row gap-12">
-            {filteredClients.length > 0 && (
-              <span className="text-desc font-semibold cl-no-wrap">
-                {filteredClients.length} ügyfél
-              </span>
-            )}
+        {/* Fejléc sáv — kereső + akciók egy keretes sorban */}
+        <div className="int-header-bar">
+          {/* Kereső */}
+          <div className="int-searchbox">
+            <svg className="int-search-icon" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24">
+              <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.2" y2="16.2" />
+            </svg>
+            <input
+              type="text"
+              className="int-search-input"
+              placeholder="Keresés név, e-mail, telefonszám, címke szerint..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
           </div>
 
-          {/* Right: search + actions */}
-          <div className="flex-row gap-8 flex-wrap">
-            <div className="int-search-wrap">
-              <svg className="int-search-icon" fill="none" stroke="#5F7D95" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
-                <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-              </svg>
-              <input
-                type="text"
-                className="int-toolbar-input"
-                placeholder="Keresés a táblázatban"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-              />
-            </div>
-
+          {/* Jobb akciók */}
+          <div className="int-header-actions">
             {/* Bulk delete */}
             {isAdmin && selectedRows.size > 0 && (
-              <button className="int-toolbar-btn cl-btn--delete" onClick={handleBulkDelete}>
+              <button className="cd-btn int-btn-danger" onClick={handleBulkDelete}>
                 Kijelöltek törlése ({selectedRows.size})
               </button>
             )}
@@ -563,22 +654,23 @@ export default function ClientsPage() {
             {/* Campaign export */}
             {selectedRows.size > 0 && (
               <button
-                className="cl-btn--export int-toolbar-btn"
+                className="cd-btn int-btn-danger"
                 onClick={() => setShowCampaignWizard(true)}
               >
                 Kampányba exportálás ({selectedRows.size})
               </button>
             )}
 
-            {/* Filter */}
+            {/* Filter — primary (kit 05) */}
             <div className="relative int-dropdown-wrap" ref={filterDropdownRef}>
               <button
-                className={`int-toolbar-btn flex-row gap-6 ${activeFilterCount > 0 ? 'active' : ''}`}
+                className="int-filter-btn flex-row gap-6"
                 title="Szűrés"
+                aria-expanded={filterOpen}
                 onClick={() => setFilterOpen(!filterOpen)}
               >
-                <svg fill="none" height="14" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14">
-                  <line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" />
+                <svg fill="none" height="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15">
+                  <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
                 </svg>
                 Szűrés
                 {activeFilterCount > 0 && <span className="int-filter-badge">{activeFilterCount}</span>}
@@ -603,9 +695,11 @@ export default function ClientsPage() {
                       ))}
                     </FilterSection>
                   </div>
-                  <div className="flex-row gap-8 int-filter-footer">
-                    <button className="btn btn-outline int-filter-btn" onClick={resetFilters}>Visszaállítás</button>
-                    <button className="btn btn-primary int-filter-btn" onClick={() => setFilterOpen(false)}>Alkalmaz</button>
+                  <div className="int-filter-actions">
+                    <span className="int-filter-hint">
+                      {activeFilterCount > 0 ? `${activeFilterCount} aktív szűrő` : 'Nincs aktív szűrő'}
+                    </span>
+                    <button className="btn btn-sm" onClick={resetFilters}>Szűrők törlése</button>
                   </div>
                 </div>
               )}
@@ -614,10 +708,10 @@ export default function ClientsPage() {
             {/* Sort */}
             <div className="relative int-dropdown-wrap" ref={sortDropdownRef}>
               <button
-                className="int-toolbar-btn flex-row gap-6"
+                className="cd-btn"
                 onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
               >
-                <svg fill="none" height="14" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14">
+                <svg fill="none" height="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15">
                   <path d="M7 15l5 5 5-5" /><path d="M7 9l5-5 5 5" />
                 </svg>
                 Sorrend
@@ -638,17 +732,18 @@ export default function ClientsPage() {
               )}
             </div>
 
-            {/* Column toggle */}
+            {/* Column toggle (kit 14) */}
             <div className="relative int-dropdown-wrap" ref={colDropdownRef}>
               <button
-                className="int-toolbar-btn flex-row gap-6"
+                className="cd-btn int-btn-icon"
                 title="Oszlopok"
+                aria-label="Oszlopok"
+                aria-expanded={colDropdownOpen}
                 onClick={() => setColDropdownOpen(!colDropdownOpen)}
               >
-                <svg fill="none" height="14" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14">
-                  <rect x="3" y="3" width="18" height="18" rx="2" /><line x1="9" y1="3" x2="9" y2="21" /><line x1="15" y1="3" x2="15" y2="21" />
+                <svg fill="none" height="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15">
+                  <rect x="3" y="4" width="5" height="16" rx="1" /><rect x="9.5" y="4" width="5" height="16" rx="1" /><rect x="16" y="4" width="5" height="16" rx="1" />
                 </svg>
-                Oszlopok
               </button>
               {colDropdownOpen && (
                 <div className="dropdown-menu dropdown-menu--columns">
@@ -662,67 +757,113 @@ export default function ClientsPage() {
                 </div>
               )}
             </div>
+
+            {/* + Új ügyfél — accent (utolsó a sorban) */}
+            <button className="cp-btn-accent" onClick={() => setShowNewClient(true)}>
+              <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+              Új ügyfél
+            </button>
           </div>
         </div>
 
-        {/* Table card — table only */}
-        <div className="card-container cl-table-wrap">
-          {/* Table */}
-          <table className="data-table data-table--no-radius int-table-norx">
-            <thead className="int-thead">
+        {/* Table card — kit, oldalgörgetéssel */}
+        <div className="cd-table-card">
+          <div className="cd-table-scroll">
+          <table>
+            <thead>
               <tr>
                 <th className="int-checkbox-col">
                   <input type="checkbox" checked={isAllSelected} ref={(el) => { if (el) el.indeterminate = isIndeterminate; }} onChange={(e) => toggleAll(e.target.checked)} className="int-checkbox-input" />
                 </th>
-                {CLIENT_COLUMNS.map((col) => visibleCols.has(col.key) ? <th key={col.key}>{col.label}</th> : null)}
+                {CLIENT_COLUMNS.map((col) => {
+                  if (!visibleCols.has(col.key)) return null;
+                  if (col.key === 'name') {
+                    return (
+                      <th key={col.key} className="cp-th-sort">
+                        <button type="button" className="int-sort-btn" onClick={() => setSortBy(sortBy === 'name_asc' ? 'name_desc' : 'name_asc')} title="Név szerinti sorrend váltása">
+                          Ügyfél
+                          <span className="int-sort-ic">
+                            <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="13" height="13">
+                              {sortBy === 'name_asc'
+                                ? <polyline points="6 14 12 8 18 14" />
+                                : <polyline points="6 9 12 15 18 9" />}
+                            </svg>
+                          </span>
+                        </button>
+                      </th>
+                    );
+                  }
+                  return <th key={col.key}>{col.label}</th>;
+                })}
               </tr>
             </thead>
             <tbody>
-              {filteredClients.length === 0 ? (
+              {clients.length === 0 ? (
+                <tr><td colSpan={visibleCols.size + 1}><TableSkeleton columns={visibleCols.size} rows={8} /></td></tr>
+              ) : filteredClients.length === 0 ? (
                 <tr>
-                  <td colSpan={visibleCols.size + 1} className="int-td--pad40">
-                    {clients.length === 0 ? <TableSkeleton columns={visibleCols.size} rows={8} /> : <div className="cl-empty-center"><span className="no-data">Nincs találat</span></div>}
+                  <td colSpan={visibleCols.size + 1}>
+                    <div className="int-empty">
+                      <svg className="int-empty-ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="30" height="30">
+                        <circle cx="11" cy="11" r="7" /><line x1="21" y1="21" x2="16.2" y2="16.2" /><line x1="8" y1="11" x2="14" y2="11" />
+                      </svg>
+                      <h3>Nincs találat</h3>
+                      <p>Próbáld módosítani a keresést vagy a szűrőket.</p>
+                    </div>
                   </td>
                 </tr>
               ) : (
-                filteredClients.map((c) => (
-                  <tr key={String(c.id)} className="int-row cursor-pointer" onClick={() => openClientDetail(String(c.id))}>
-                    <td className="int-checkbox-col int-td-checkbox" onClick={(e) => e.stopPropagation()}>
+                pageClients.map((c) => (
+                  <tr key={String(c.id)} className="cursor-pointer" onClick={() => openClientDetail(String(c.id))}>
+                    <td className="int-checkbox-col" onClick={(e) => e.stopPropagation()}>
                       <input type="checkbox" checked={selectedRows.has(String(c.id))} onChange={() => toggleRow(String(c.id))} className="int-checkbox-input" />
                     </td>
                     {visibleCols.has('name') && (
-                      <td className="int-td cl-td-name">
-                        <div className="cl-name-cell">{c.name}</div>
-                        <div className="cl-name-id">ID: {c.id}</div>
+                      <td>
+                        <span className="cp-channel">
+                          <span className="cp-ch cp-ch-name">{avatarInitials(c.name)}</span>
+                          <span className="cp-client-name">{c.name}</span>
+                        </span>
                       </td>
                     )}
                     {visibleCols.has('status_badge') && (
-                      <td className="int-td">{statusBadge(c)}</td>
+                      <td>{statusBadge(c)}</td>
                     )}
                     {visibleCols.has('phone') && (
-                      <td className="int-td">{c.phone ? formatPhoneHu(c.phone) : '—'}</td>
+                      <td className={c.phone ? 'cp-time' : 'cp-result'}>{c.phone ? formatPhoneHu(c.phone) : '—'}</td>
                     )}
                     {visibleCols.has('email') && (
-                      <td className="int-td">{c.email || '—'}</td>
+                      <td className={c.email ? '' : 'cp-result'}>{c.email || '—'}</td>
                     )}
                     {visibleCols.has('tags') && (
-                      <td className="int-td">
-                        <div className="flex-row gap-4 flex-wrap">
-                          {c.tags.slice(0, 3).map((t) => <TagBadge key={t} tag={t} />)}
-                          {c.tags.length > 3 && <span className="cl-tag-overflow--sm">+{c.tags.length - 3}</span>}
+                      <td>
+                        <div className="cd-tags">
+                          {c.tags.slice(0, 3).map((t) => {
+                            const col = getTagColor(t);
+                            return (
+                              <span key={t} className="cd-tag-chip" style={{ background: col.bg, color: col.color }}>
+                                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 0 1-2.83 0L2 12V2h10l8.59 8.59a2 2 0 0 1 0 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
+                                {t}
+                                <button className="cd-tag-remove" aria-label={`Címke törlése: ${t}`} onClick={(e) => { e.stopPropagation(); handleRemoveTag(c.id, t); }}>
+                                  <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="10" height="10"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                                </button>
+                              </span>
+                            );
+                          })}
+                          {c.tags.length > 3 && <span className="cp-result">+{c.tags.length - 3}</span>}
                         </div>
                       </td>
                     )}
                     {visibleCols.has('sales_status') && (
-                      <td className="int-td">
-                        {kanbanNameMap[c.status] || c.status || '—'}
+                      <td className={salesStatusOf(c) ? '' : 'cp-result'}>
+                        {salesStatusOf(c) || '—'}
                       </td>
                     )}
                     {visibleCols.has('lastInteraction') && (
-                      <td className="int-td int-td--date">{c.lastInteraction ? fmtDt(c.lastInteraction) : '—'}</td>
+                      <td className="cd-time-cell">{c.lastInteraction ? fmtDt(c.lastInteraction) : '—'}</td>
                     )}
                     {visibleCols.has('assignee') && (
-                      <td className="int-td" onClick={e => e.stopPropagation()}>
+                      <td onClick={e => e.stopPropagation()}>
                         {isAdmin ? (
                           <AssigneeDropdown
                             value={c.assignee || ''}
@@ -740,18 +881,79 @@ export default function ClientsPage() {
                             }}
                           />
                         ) : (
-                          <span className="cl-assignee-muted">{c.assignee || '—'}</span>
+                          <span className="cp-result">{c.assignee || '—'}</span>
                         )}
                       </td>
                     )}
-
                   </tr>
                 ))
               )}
             </tbody>
           </table>
+          </div>
+
+          {/* Lapozó (kit 09) */}
+          {filteredClients.length > 0 && (
+            <div className="int-table-foot">
+              <span className="int-foot-count">
+                {pageStart + 1}–{Math.min(pageStart + PAGE_SIZE, filteredClients.length)} / {filteredClients.length} ügyfél
+              </span>
+              {totalPages > 1 && (
+                <nav className="int-pagination" aria-label="Lapozás">
+                  <button type="button" className="int-pg-btn" disabled={safePage <= 1} onClick={() => setPage(safePage - 1)} aria-label="Előző oldal">
+                    <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><polyline points="15 18 9 12 15 6" /></svg>
+                  </button>
+                  {pageNumbers(safePage, totalPages).map((n, idx) =>
+                    n === '…' ? (
+                      <span key={`gap-${idx}`} className="int-pg-gap">…</span>
+                    ) : (
+                      <button key={n} type="button" className={`int-pg-btn${n === safePage ? ' is-on' : ''}`} onClick={() => setPage(n)}>{n}</button>
+                    )
+                  )}
+                  <button type="button" className="int-pg-btn" disabled={safePage >= totalPages} onClick={() => setPage(safePage + 1)} aria-label="Következő oldal">
+                    <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><polyline points="9 18 15 12 9 6" /></svg>
+                  </button>
+                </nav>
+              )}
+            </div>
+          )}
         </div>
         </>
+      )}
+
+      {/* ═══ Új ügyfél modál ═══ */}
+      {showNewClient && (
+        <div className="modal-overlay" onClick={() => setShowNewClient(false)}>
+          <div className="cd-task-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Új ügyfél">
+            <div className="cd-task-modal-head">
+              <h3 className="modal-title">Új ügyfél</h3>
+              <button className="cd-task-modal-x" onClick={() => setShowNewClient(false)} aria-label="Bezárás">
+                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+            <div className="cd-task-modal-body">
+              <div className="form-group">
+                <label className="cd-task-modal-label" htmlFor="ncName">Név</label>
+                <input id="ncName" className="cd-form-input" value={ncName} onChange={e => setNcName(e.target.value)} placeholder="Pl. Kovács Anna" autoFocus />
+              </div>
+              <div className="form-group">
+                <label className="cd-task-modal-label" htmlFor="ncPhone">Telefonszám</label>
+                <input id="ncPhone" className="cd-form-input" value={ncPhone} onChange={e => setNcPhone(e.target.value)} placeholder="+36 30 ..." />
+              </div>
+              <div className="form-group">
+                <label className="cd-task-modal-label" htmlFor="ncEmail">Email</label>
+                <input id="ncEmail" className="cd-form-input" value={ncEmail} onChange={e => setNcEmail(e.target.value)} placeholder="email@példa.hu" />
+                <div className="int-filter-hint" style={{ marginTop: 4 }}>Legalább az egyik elérhetőséget ki kell tölteni.</div>
+              </div>
+            </div>
+            <div className="cd-task-modal-foot">
+              <button className="cd-btn" onClick={() => setShowNewClient(false)}>Mégse</button>
+              <button className="cd-btn cd-btn-primary" onClick={handleCreateClient} disabled={ncSaving || !ncName.trim() || (!ncPhone.trim() && !ncEmail.trim())}>
+                {ncSaving ? 'Mentés...' : 'Mentés'}
+              </button>
+            </div>
+          </div>
+        </div>
       )}
 
     </div>

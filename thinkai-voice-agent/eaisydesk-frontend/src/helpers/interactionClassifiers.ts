@@ -438,6 +438,15 @@ export const EREDMENY_COLORS: Record<string, { bg: string; color: string }> = {
   'Panasz rögzítve': { bg: '#fee2e2', color: '#b91c1c' },
 };
 
+/** Értékesítési címkék — ezek alapján kerül az ügyfél az érdeklődőkezelésbe */
+export const SALES_TAGS = [
+  'kampánylead',
+  'potenciális vásárló',
+  'árkérdés',
+  'törölt időpont',
+  'no-show',
+];
+
 export const STATUSZ_COLORS: Record<string, { bg: string; color: string }> = {
   // eaisyDesk UI Kit 06: tintelt háttér + sötét szöveg + keret (Badge.tsx adja)
   Lezárt: { bg: '#f6ffed', color: '#389e0d' },
