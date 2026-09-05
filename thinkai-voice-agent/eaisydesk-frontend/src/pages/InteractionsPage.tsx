@@ -2,6 +2,7 @@
  * InteractionsPage – 1:1 migration of legacy view-interactions + admin-interactions.js
  */
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useAuth } from '../context/AuthContext';
@@ -88,7 +89,13 @@ const PAGE_SIZE = 10;
 
 export default function InteractionsPage() {
   const isMobile = useIsMobile(768);
+  const navigate = useNavigate();
   const { user, isAdmin } = useAuth();
+
+  // mai dátum magyar formátumban a fejléc sávba
+  const todayLabel = new Date().toLocaleDateString('hu-HU', {
+    year: 'numeric', month: 'long', day: 'numeric', weekday: 'long',
+  });
   const { registerOnApproved } = useApproval();
   const { clients, clientsMap } = useClients();
   // Szerver-oldali aggregáció: 1 session = 1 sor (a kliens-oldali merge megszűnt)
@@ -411,10 +418,15 @@ export default function InteractionsPage() {
     <div className="analytics-shell">
       <ConfirmDialog />
 
-      {/* Page title — standalone */}
-      <div className="page-header">
-        <div className="page-title">Interakciós napló</div>
-      </div>
+      {/* Fejléc sáv: morzsák + cím */}
+      <header className="int-page-head">
+        <nav className="int-breadcrumbs" aria-label="Navigációs morzsák">
+          <button type="button" className="int-crumb-link" onClick={() => navigate('/')}>Kezdőlap</button>
+          <span className="int-crumb-sep">/</span>
+          <span className="int-crumb-current">Interakciós napló</span>
+        </nav>
+        <h1 className="page-title int-page-title">Interakciós napló</h1>
+      </header>
 
       {/* Fetch-hiba megjelenítése (korábban örök „Nincs találat" állapot volt) */}
       {error && (
@@ -424,23 +436,26 @@ export default function InteractionsPage() {
         </div>
       )}
 
-      {/* KPI chipek (kit 08) — kattintva státusz-szűrő */}
+      {/* KPI + dátum sáv (kit 08) — chipek kattintva státusz-szűrők, jobbra a mai nap */}
       {!isMobile && (
-        <div className="int-kpis">
-          {STATUSZ_OPTIONS.map((s) => {
-            const active = filterStatusz.size === 1 && filterStatusz.has(s);
-            return (
-              <button
-                key={s}
-                type="button"
-                className={`int-kpi${active ? ' is-on' : ''} int-kpi--${s.toLowerCase()}`}
-                onClick={() => toggleStatusKpi(s)}
-              >
-                <span className="int-kpi-num">{kpiCounts[s]}</span>
-                <span className="int-kpi-label"><i className="int-kpi-dot" />{s}</span>
-              </button>
-            );
-          })}
+        <div className="int-kpi-band">
+          <div className="int-kpis">
+            {STATUSZ_OPTIONS.map((s) => {
+              const active = filterStatusz.size === 1 && filterStatusz.has(s);
+              return (
+                <button
+                  key={s}
+                  type="button"
+                  className={`int-kpi${active ? ' is-on' : ''} int-kpi--${s.toLowerCase()}`}
+                  onClick={() => toggleStatusKpi(s)}
+                >
+                  <span className="int-kpi-num">{kpiCounts[s]}</span>
+                  <span className="int-kpi-label"><i className="int-kpi-dot" />{s}</span>
+                </button>
+              );
+            })}
+          </div>
+          <span className="int-today">{todayLabel}</span>
         </div>
       )}
 
@@ -479,6 +494,31 @@ export default function InteractionsPage() {
             </button>
           )}
 
+          {/* Columns (kit 14) */}
+          <div className="relative int-dropdown-wrap" ref={colDropdownRef}>
+            <button
+              className="btn int-btn-icon"
+              title="Oszlopok"
+              aria-label="Oszlopok"
+              aria-expanded={colDropdownOpen}
+              onClick={() => setColDropdownOpen(!colDropdownOpen)}
+            >
+              <svg fill="none" height="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15">
+                <rect x="3" y="4" width="5" height="16" rx="1" /><rect x="9.5" y="4" width="5" height="16" rx="1" /><rect x="16" y="4" width="5" height="16" rx="1" />
+              </svg>
+            </button>
+            {colDropdownOpen && (
+              <div className="int-columns-pop" role="dialog" aria-label="Oszlopok megjelenítése">
+                <div className="int-columns-title">Oszlopok</div>
+                {ALL_COLUMNS.map((col) => (
+                  <label key={col.key} className="int-col-toggle">
+                    <input type="checkbox" checked={visibleCols.has(col.key)} onChange={() => toggleCol(col.key)} className="int-col-cb" />
+                    <span>{col.label === 'Időpont' ? 'Interakció időpontja' : col.label}</span>
+                  </label>
+                ))}
+              </div>
+            )}
+          </div>
           {/* Filter — primary (kit 05) */}
           <div className="relative int-dropdown-wrap" ref={filterContainerRef}>
             <button
@@ -549,31 +589,6 @@ export default function InteractionsPage() {
             )}
           </div>
 
-          {/* Columns (kit 14) */}
-          <div className="relative int-dropdown-wrap" ref={colDropdownRef}>
-            <button
-              className="btn int-btn-icon"
-              title="Oszlopok"
-              aria-label="Oszlopok"
-              aria-expanded={colDropdownOpen}
-              onClick={() => setColDropdownOpen(!colDropdownOpen)}
-            >
-              <svg fill="none" height="15" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15">
-                <rect x="3" y="4" width="5" height="16" rx="1" /><rect x="9.5" y="4" width="5" height="16" rx="1" /><rect x="16" y="4" width="5" height="16" rx="1" />
-              </svg>
-            </button>
-            {colDropdownOpen && (
-              <div className="int-columns-pop" role="dialog" aria-label="Oszlopok megjelenítése">
-                <div className="int-columns-title">Oszlopok</div>
-                {ALL_COLUMNS.map((col) => (
-                  <label key={col.key} className="int-col-toggle">
-                    <input type="checkbox" checked={visibleCols.has(col.key)} onChange={() => toggleCol(col.key)} className="int-col-cb" />
-                    <span>{col.label === 'Időpont' ? 'Interakció időpontja' : col.label}</span>
-                  </label>
-                ))}
-              </div>
-            )}
-          </div>
         </div>
       </div>
       )}
