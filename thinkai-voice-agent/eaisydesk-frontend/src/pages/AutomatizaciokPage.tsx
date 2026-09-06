@@ -212,14 +212,14 @@ export default function AutomatizaciokPage() {
 
   if (loading) {
     return (
-      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '24px 32px 64px', color: t.text2 }}>
+      <div className="page active" id="page-automatizaciok">
         <div className="spinner spinner--md" />
       </div>
     );
   }
 
   return (
-    <div style={{ maxWidth: 1120, margin: '0 auto', padding: '24px 32px 64px' }}>
+    <div className="page active" id="page-automatizaciok">
       {/* ── Page head ── */}
       <header style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
         <div>
