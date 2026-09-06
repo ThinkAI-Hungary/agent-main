@@ -406,6 +406,22 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
     if client_context:
         sys_prompt += "\n\n" + client_context
 
+    # ── Aktuális dátum + relatív dátum-feloldási szabály ──
+    try:
+        from zoneinfo import ZoneInfo
+        _now_hu = datetime.now(ZoneInfo("Europe/Budapest"))
+        _hu_days = ["hétfő", "kedd", "szerda", "csütörtök", "péntek", "szombat", "vasárnap"]
+        sys_prompt += (
+            "\n\n--- AKTUÁLIS DÁTUM (Budapesti idő) ---\n"
+            f"MA: {_now_hu.strftime('%Y.%m.%d.')} ({_hu_days[_now_hu.weekday()]}), {_now_hu.strftime('%H:%M')}.\n"
+            "DÁTUMSZÁMÍTÁSI SZABÁLY: Ha az ügyfél relatív időpontot ad meg ('holnap', 'kedden', 'jövő csütörtök', 'jövő héten szerda' stb.), mindig a fenti MAI DÁTUMHOZ képest számold! "
+            "A '<napnév>' és a 'jövő <napnév>' egyaránt a LEGKÖZELEBBI, még el nem múlt előfordulást jelenti (a mai nap után következő első <napnév>). "
+            "PÉLDA: ha ma vasárnap van, akkor a 'jövő csütörtök' = a rá következő csütörtök, NEM egy héttel későbbi. "
+            "A meeting.date mezőbe KONKRÉT YYYY-MM-DD dátumot írj, ezt a mai dátumhoz és a hét napjaihoz képest számold ki!\n"
+        )
+    except Exception:
+        pass
+
     # Utasítás a strukturált JSON outputra
     json_instruction = """
 TE FELADATOD:

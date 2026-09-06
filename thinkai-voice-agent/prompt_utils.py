@@ -1,5 +1,10 @@
 import json
 from datetime import datetime
+from zoneinfo import ZoneInfo
+
+# Budapesti idő + magyar napnevek (a prompt {today} mezőjéhez)
+_HU_TZ = ZoneInfo("Europe/Budapest")
+_HU_DAYS = ["hétfő", "kedd", "szerda", "csütörtök", "péntek", "szombat", "vasárnap"]
 from pathlib import Path
 from loguru import logger
 import database
@@ -244,7 +249,7 @@ def get_system_prompt(channel: str = None) -> str:
         logger.error(f"Error loading clinics for prompt: {e}")
 
     variables = {
-        "today":          datetime.now().strftime("%Y-%m-%d (%A)"),
+        "today":          (lambda n: f"{n.strftime('%Y.%m.%d.')} ({HU_DAYS[n.weekday()]}, {n.strftime('%H:%M')})")(datetime.now(_HU_TZ)),
         "practice_name":  pi.get("practice_name", ""),
         "address":        pi.get("address", ""),
         "markanev":       pi.get("markanev", ""),
