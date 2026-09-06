@@ -75,7 +75,7 @@ export default function CalendarPage() {
       try {
         const res = await authFetch('/admin/api/services');
         const data = await res.json();
-        const list = Array.isArray(data?.services) ? data.services : [];
+        const list = Array.isArray(data) ? data : (Array.isArray(data?.services) ? data.services : []);
         // A Kolléga mező vesszővel elválasztott névlista — egyedi nevekre bontjuk,
         // a "minden fogorvos" jellegű szabad szövegeket kiszűrjük
         const names = new Set<string>();
@@ -718,22 +718,6 @@ export default function CalendarPage() {
                     <option value="120">120 perc</option>
                   </select>
                 </div>
-              </div>
-              <div className="form-group">
-                <label className="cd-task-modal-label">Esemény címe</label>
-                <input className="cd-form-input" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} placeholder="pl. Konzultáció" />
-              </div>
-              <div className="form-group">
-                <label className="cd-task-modal-label">Munkatárs</label>
-                <select className="cd-form-input" value={newEvent.assigned_to} onChange={e => setNewEvent({ ...newEvent, assigned_to: e.target.value })}>
-                  <option value="">— Munkatárs választás —</option>
-                  {staffOptions.map(name => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                  {newEvent.assigned_to && !staffOptions.includes(newEvent.assigned_to) && (
-                    <option value={newEvent.assigned_to}>{newEvent.assigned_to}</option>
-                  )}
-                </select>
               </div>
             </div>
             <div className="cd-task-modal-foot">
