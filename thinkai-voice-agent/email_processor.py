@@ -689,6 +689,7 @@ Ha egyik sem releváns, legyen üres lista [].
     created_event_id = None
     meeting_failed = False
 
+    modification_info = None
     modify_action = data.get("action_modify_meeting")
     if modify_action and modify_action.get("event_title_to_modify"):
         try:
@@ -707,20 +708,20 @@ Ha egyik sem releváns, legyen üres lista [].
                 if updates:
                     db.update_calendar_event(found["id"], **updates)
                     logger.info(f"Naptár esemény módosítva (e-mailből): {found['title']}")
-                    # Módosítás visszaigazolás email küldése
-                    attendee_email = found.get("attendee_email")
-                    if attendee_email and attendee_email != "-":
-                        old_dt_str = found["start_dt"]
-                        new_dt_str = updates.get("start_dt", old_dt_str)
-                        asyncio.create_task(
-                            send_modification_confirmation_email(
-                                attendee=found.get("attendee", "Ügyfél"),
-                                attendee_email=attendee_email,
-                                title=found.get("title", "Konzultáció"),
-                                old_datetime=old_dt_str,
-                                new_datetime=new_dt_str
-                            )
-                        )
+                    # Módosítás-visszaigazoló: jóváhagyás-módban a jóváhagyott
+                    # válasszal együtt megy ki (pending_modification), autonóm
+                    # módban azonnal — a döntés a klasszifikáció után történik.
+                    attendee_email_m = found.get("attendee_email")
+                    if attendee_email_m and attendee_email_m != "-":
+                        modification_info = {
+                            "attendee": found.get("attendee", "Ügyfél"),
+                            "attendee_email": attendee_email_m,
+                            "title": found.get("title", "Konzultáció"),
+                            "old_datetime": found["start_dt"],
+                            "new_datetime": updates.get("start_dt", found["start_dt"]),
+                            "event_id": found.get("id"),
+                            "assigned_to": found.get("doctor", ""),
+                        }
         except Exception as e:
             logger.error(f"Hiba a naptáresemény módosításakor: {e}")
 
@@ -764,6 +765,19 @@ Ha egyik sem releváns, legyen üres lista [].
 
                 db.delete_calendar_event(found["id"])
                 logger.info(f"Naptár esemény törölve (e-mailből): {found['title']}")
+                # Lemondás-visszaigazoló az ügyfélnek (beégetett sablon, toggle-ölt;
+                # a lemondás tényszerű — ez nem jóváhagyás-köteles)
+                att_email_c = found.get("attendee_email")
+                if att_email_c and att_email_c != "-":
+                    asyncio.create_task(
+                        send_cancellation_email(
+                            attendee=found.get("attendee", "Ügyfél"),
+                            attendee_email=att_email_c,
+                            title=found.get("title", "Konzultáció"),
+                            start_dt_iso=found.get("start_dt", ""),
+                            assigned_to=found.get("doctor", ""),
+                        )
+                    )
         except Exception as e:
             logger.error(f"Hiba a naptáresemény törlésekor: {e}")
 
@@ -869,6 +883,15 @@ Ha egyik sem releváns, legyen üres lista [].
                     "attendee_email": from_email,
                 }
                 logger.info(f"Naptár-foglalás a jóváhagyásig halasztva: {meeting.get('title')} ({meeting.get('date')} {meeting.get('time')}) — pending_meeting")
+
+        # Módosítás-visszaigazoló: autonóm módban azonnal kimegy, jóváhagyás-módban
+        # a jóváhagyott válasszal együtt (pending_modification a draftban — Q7 döntés)
+        if modification_info:
+            if is_autonomous_email:
+                asyncio.create_task(send_modification_confirmation_email(**modification_info))
+                logger.info(f"Módosítás-visszaigazoló ütemezve: {modification_info['attendee_email']}")
+            else:
+                draft_payload["pending_modification"] = modification_info
 
         if created_event_id is not None:
             draft_payload["event_id"] = created_event_id
@@ -1300,6 +1323,251 @@ async def send_escalation_email_to_staff(to_email: str, patient_name: str, patie
         return False
 
 
+# ═════════ Időpont-értesítések — BEÉGETETT sablonok (2026-09-06) ═════════
+# A 4 időponthoz kötődő email szövege a user által rögzített, MÓDOSÍTHATATLAN
+# sablon — a user csak toggle-ölheti (Automatikus értesítések oldal).
+# Változók: {{név}} {{időpont}} {{szolgáltatás}} {{munkatárs}} {{telephely}} {{szolgáltató}}
+
+_APPOINTMENT_NOTIFICATIONS = {
+    "confirmation": {
+        "title": "Időpont visszaigazolása",
+        "description": "Közvetlenül a sikeres foglalás után kiküldött visszaigazoló email.",
+        "subject": "Időpont visszaigazolás",
+        "body": (
+            "Kedves {{név}} !\n\n"
+            "Időpontját sikeresen rögzítettük:\n\n"
+            "Időpont: {{időpont}}\n"
+            "Szolgáltatás: {{szolgáltatás}} – {{munkatárs}}\n\n"
+            "Mellékletként csatoltuk az időpont naptárfájlját (.ics), melyet hozzáadhat okostelefonjának vagy számítógépének naptárához.\n\n"
+            "Várjuk szerettettel!\n"
+            "A {{szolgáltató}} csapata"
+        ),
+        "toggle_setting": "confirmation_enabled",
+        "ics": True,
+    },
+    "reminder": {
+        "title": "Időpont emlékeztető",
+        "description": "Egy nappal az időpont előtt kiküldött emlékeztető.",
+        "subject": "Időpont emlékeztető",
+        "body": (
+            "Kedves {{név}} !\n\n"
+            "Szeretnénk emlékeztetni, hogy holnap időpontja lesz:\n\n"
+            "Időpont: {{időpont}}\n"
+            "Szolgáltatás: {{szolgáltatás}} – {{munkatárs}}\n"
+            "Helyszín: {{telephely}}\n\n"
+            "Várjuk szerettettel!\n"
+            "A {{szolgáltató}} csapata"
+        ),
+        "toggle_setting": "reminder_enabled",
+        "ics": False,
+    },
+    "modification": {
+        "title": "Időpont módosításának visszaigazolása",
+        "description": "Az időpont megváltozása esetén kiküldött megerősítő email.",
+        "subject": "Időpont módosítás visszaigazolása",
+        "body": (
+            "Kedves {{név}} !\n\n"
+            "Időpontját módosítottuk az alábbi időpontra:\n\n"
+            "Időpont: {{időpont}}\n"
+            "Szolgáltatás: {{szolgáltatás}} – {{munkatárs}}\n"
+            "Helyszín: {{telephely}}\n\n"
+            "Mellékletként csatoltuk a frissített naptárfájlt (.ics).\n\n"
+            "Várjuk szerettettel!\n"
+            "A {{szolgáltató}} csapata"
+        ),
+        "toggle_setting": "modification_enabled",
+        "ics": True,
+    },
+    "cancellation": {
+        "title": "Időpont lemondása",
+        "description": "Az időpont lemondásakor kiküldött visszaigazoló email.",
+        "subject": "Időpont lemondás",
+        "body": (
+            "Kedves {{név}} !\n\n"
+            "Időpontját lemondtuk:\n\n"
+            "Időpont: {{időpont}}\n"
+            "Szolgáltatás: {{szolgáltatás}} – {{munkatárs}}\n\n"
+            "Amennyiben szeretne új időpontot egyeztetni, állunk rendelkezésére.\n\n"
+            "Üdvözlettel,\n"
+            "A {{szolgáltató}} csapata"
+        ),
+        "toggle_setting": "cancellation_enabled",
+        "ics": False,
+    },
+}
+
+_HU_MONTHS = ["január", "február", "március", "április", "május", "június",
+              "július", "augusztus", "szeptember", "október", "november", "december"]
+
+
+def _format_hu_datetime(dt) -> str:
+    """Magyar, emberbarát időpont formátum: 2026. szeptember 7. (hétfő) 10:00"""
+    try:
+        return (f"{dt.year}. {_HU_MONTHS[dt.month - 1]} {dt.day}. "
+                f"({_HU_DAYS[dt.weekday()]}) {dt.strftime('%H:%M')}")
+    except Exception:
+        return str(dt)
+
+
+def resolve_assigned_staff(title: str, assigned_to: str = "") -> str:
+    """{{munkatárs}} feloldása: explicit érték → a szolgáltatáshoz rendelt munkatárs
+    → random releváns munkatárs a services.assigned_to poolból (rendelési idő
+    beállításáig minden foglaláshoz kell munkatárs — user döntés, 257/254 tesztek)."""
+    explicit = (assigned_to or "").strip()
+    if explicit:
+        return explicit
+    try:
+        services = db.get_services() or []
+    except Exception:
+        services = []
+    t = (title or "").strip().lower()
+    matched, pool = [], []
+    for sv in services:
+        st = (sv.get("assigned_to") or "").strip()
+        if not st:
+            continue
+        if st not in pool:
+            pool.append(st)
+        nm = (sv.get("name") or "").strip().lower()
+        if nm and (nm in t or t in nm):
+            if st not in matched:
+                matched.append(st)
+    import random
+    if matched:
+        return random.choice(matched)
+    if pool:
+        return random.choice(pool)
+    return ""
+
+
+def _notification_vars(attendee: str, title: str, start_dt_iso: str,
+                       assigned_to: str = "", attendee_email: str = "") -> dict:
+    """A beégetett sablonok változóinak összegyűjtése."""
+    import datetime as _dt_mod
+    nev = (attendee or "").strip() or "Páciens"
+    idopont = ""
+    try:
+        dt = _dt_mod.datetime.fromisoformat(str(start_dt_iso).replace("Z", "+00:00"))
+        idopont = _format_hu_datetime(dt)
+    except Exception:
+        idopont = str(start_dt_iso or "")
+    szolgaltatas = (title or "").strip()
+    munkatars = resolve_assigned_staff(szolgaltatas, assigned_to)
+
+    telephely = ""
+    try:
+        clinics = db.get_clinics() or []
+        clinic_id = None
+        if attendee_email:
+            client = db.find_client_by_contact(email=attendee_email)
+            cd = (client.get("custom_data") or {}) if client else {}
+            if isinstance(cd, str):
+                try: cd = json.loads(cd)
+                except Exception: cd = {}
+            clinic_id = cd.get("clinic_id") if isinstance(cd, dict) else None
+        if clinic_id:
+            for c in clinics:
+                if str(c.get("id")) == str(clinic_id):
+                    telephely = c.get("name") or c.get("name_and_address") or ""
+                    break
+        if not telephely and clinics:
+            telephely = clinics[0].get("name") or clinics[0].get("name_and_address") or ""
+    except Exception:
+        telephely = ""
+
+    szolgaltato = ""
+    try:
+        szolgaltato = (db.get_business_info() or {}).get("practice_name", "") or ""
+    except Exception:
+        pass
+
+    return {
+        "név": nev,
+        "időpont": idopont,
+        "szolgáltatás": szolgaltatas,
+        "munkatárs": munkatars,
+        "telephely": telephely,
+        "szolgáltató": szolgaltato,
+    }
+
+
+def _render_notification(kind: str, vars: dict, cancel_html: str = "") -> tuple[str, str]:
+    """Beégetett sablon renderelése → (subject, html). Üres {{telephely}}-sor eldobása."""
+    spec = _APPOINTMENT_NOTIFICATIONS[kind]
+    body = spec["body"]
+    munkatars = (vars.get("munkatárs") or "").strip()
+    if munkatars:
+        body = body.replace("– {{munkatárs}}", f"– {munkatars}")
+    for key, val in vars.items():
+        body = body.replace("{{" + key + "}}", val or "")
+    body = _re.sub(r"(?m)^\s*Helyszín:\s*$\n?", "", body)
+    html = (
+        '<div style="font-family: \'Segoe UI\', Arial, sans-serif; max-width: 600px; '
+        'margin: 0 auto; color: #333; line-height: 1.6;">'
+        + body.replace("\n", "<br>\n")
+        + cancel_html
+        + "</div>"
+    )
+    return spec["subject"], html
+
+
+def get_appointment_notification_settings() -> dict:
+    """A 4 időpont-értesítés engedélyezési állapota (reminder_settings per-tenant)."""
+    st = {}
+    try:
+        st = db.get_reminder_settings() or {}
+    except Exception:
+        pass
+    return {
+        "confirmation": bool(st.get("confirmation_enabled", True)),
+        "reminder": bool(st.get("reminder_enabled", True)),
+        "modification": bool(st.get("modification_enabled", True)),
+        "cancellation": bool(st.get("cancellation_enabled", True)),
+    }
+
+
+def _build_ics(event_id: int, title: str, start_dt_iso: str, end_dt_iso: str,
+               attendee: str, attendee_email: str, cancel_url: str = "") -> str | None:
+    """ICS naptárfájl (RFC 5545) generálása — visszaigazoláshoz és módosításhoz."""
+    import base64 as b64module
+    from datetime import datetime
+    try:
+        start_dt = _to_budapest_tz(start_dt_iso)
+        end_dt = _to_budapest_tz(end_dt_iso)
+        uid = f"eaisy-{event_id}@thinkai.hu"
+        now_utc = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
+        dtstart = start_dt.strftime("%Y%m%dT%H%M%S")
+        dtend = end_dt.strftime("%Y%m%dT%H%M%S")
+        ics_cancel_desc = f"\\nLemondás: {cancel_url}" if cancel_url else ""
+        ics_content = (
+            "BEGIN:VCALENDAR\r\n"
+            "VERSION:2.0\r\n"
+            "PRODID:-//EAISY//Booking//HU\r\n"
+            "CALSCALE:GREGORIAN\r\n"
+            "METHOD:REQUEST\r\n"
+            "BEGIN:VEVENT\r\n"
+            f"UID:{uid}\r\n"
+            f"DTSTAMP:{now_utc}\r\n"
+            f"DTSTART;TZID=Europe/Budapest:{dtstart}\r\n"
+            f"DTEND;TZID=Europe/Budapest:{dtend}\r\n"
+            f"SUMMARY:{title}\r\n"
+            f"DESCRIPTION:Időpont visszaigazolás - {title}{ics_cancel_desc}\r\n"
+            f"ATTENDEE;CN={attendee}:mailto:{attendee_email}\r\n"
+            "STATUS:CONFIRMED\r\n"
+            "BEGIN:VALARM\r\n"
+            "TRIGGER:-PT60M\r\n"
+            "ACTION:DISPLAY\r\n"
+            f"DESCRIPTION:Emlékeztető: {title} 1 óra múlva\r\n"
+            "END:VALARM\r\n"
+            "END:VEVENT\r\n"
+            "END:VCALENDAR\r\n"
+        )
+        return b64module.b64encode(ics_content.encode("utf-8")).decode("utf-8")
+    except Exception as e:
+        logger.error(f"ICS generálási hiba: {e}")
+        return None
+
+
 async def send_reminder_email(to_email: str, subject: str, html_content: str) -> bool:
     import os, json
     api_key = _get_brevo_api_key()
@@ -1331,71 +1599,55 @@ async def send_reminder_email(to_email: str, subject: str, html_content: str) ->
         return False
 
 async def _run_reminders_for_tenant(tenant: dict):
-    """Egy tenant emlékeztetőinek kiküldése (FÁZIS 6 multi-tenant)."""
+    """Egy tenant emlékeztetőinek kiküldése (FÁZIS 6 multi-tenant).
+
+    Beégetett sablon (_APPOINTMENT_NOTIFICATIONS['reminder']), fix 24 órával
+    az esemény előtt — a user csak toggle-ölheti (reminder_enabled)."""
     import datetime
     db.set_current_tenant(tenant["id"])
     settings = db.get_reminder_settings()
-    if settings and settings.get('reminder_enabled'):
-                hours = settings.get('reminder_hours', 24)
-                template = settings.get('reminder_template', '')
-                events = db.get_upcoming_events_for_reminders(hours_offset=hours)
-                for ev in events:
-                    # Per-event védelem: egy rossz esemény ne áldozza fel a teljes
-                    # 15 perces iteráció maradékát
-                    try:
-                        if not ev.get('attendee_email') or ev.get('attendee_email') == '-':
-                            continue
+    if not (settings and settings.get('reminder_enabled')):
+        return
 
-                        nev = ev.get('attendee', 'Páciens')
-                        idopont = ev.get('start_dt', '')
-                        if idopont:
-                            try:
-                                dt = datetime.datetime.fromisoformat(idopont.replace('Z', '+00:00'))
-                                idopont = dt.strftime('%Y.%m.%d %H:%M')
-                            except:
-                                pass
+    events = db.get_upcoming_events_for_reminders(hours_offset=24)
+    for ev in events:
+        # Per-event védelem: egy rossz esemény ne áldozza fel a teljes
+        # 15 perces iteráció maradékát
+        try:
+            if not ev.get('attendee_email') or ev.get('attendee_email') == '-':
+                continue
 
-                        szolgaltatas = ev.get('title', '')
-                        telephely = ''
-                        client = db.find_client_by_contact(email=ev.get('attendee_email'))
-                        if client:
-                            cd = client.get('custom_data') or {}
-                            if isinstance(cd, str):
-                                try: cd = json.loads(cd)
-                                except: cd = {}
-                            clinic_id = cd.get('clinic_id') if isinstance(cd, dict) else None
-                            if clinic_id:
-                                clinics = db.get_clinics()
-                                for c in clinics:
-                                    if str(c.get('id')) == str(clinic_id):
-                                        telephely = c.get('name_and_address', '')
-                                        break
+            vars = _notification_vars(
+                ev.get('attendee', 'Páciens'),
+                ev.get('title', ''),
+                ev.get('start_dt', ''),
+                assigned_to=ev.get('doctor', ''),
+                attendee_email=ev.get('attendee_email'),
+            )
+            subject, html_msg = _render_notification("reminder", vars)
 
-                        msg = template.replace('{nev}', nev).replace('{idopont}', idopont).replace('{szolgaltatas}', szolgaltatas).replace('{telephely}', telephely)
-                        html_msg = msg.replace('\n', '<br>')
+            success = await send_reminder_email(
+                to_email=ev.get('attendee_email'),
+                subject=subject,
+                html_content=html_msg
+            )
 
-                        success = await send_reminder_email(
-                            to_email=ev.get('attendee_email'),
-                            subject=f'Időpont emlékeztető: {szolgaltatas}',
-                            html_content=html_msg
-                        )
-
-                        if success:
-                            db.mark_reminder_sent(ev.get('id'))
-                            session_id = f"reminder_{ev.get('id')}"
-                            db.create_session(session_id=session_id, room_name="Időpont emlékeztető", participant=nev)
-                            db.log_interaction(
-                                type="email",
-                                topic="Emlékeztető",
-                                summary=f"Emlékeztető elküldve a(z) {ev.get('attendee_email')} címre",
-                                result="Elküldve",
-                                tool_name="reminder_worker",
-                                session_id=session_id,
-                                direction="outbound",
-                                funnel_stage="relevant"
-                            )
-                    except Exception as ev_err:
-                        logger.error(f'Emlékeztető küldési hiba (event id={ev.get("id")}): {ev_err}')
+            if success:
+                db.mark_reminder_sent(ev.get('id'))
+                session_id = f"reminder_{ev.get('id')}"
+                db.create_session(session_id=session_id, room_name="Időpont emlékeztető", participant=vars["név"])
+                db.log_interaction(
+                    type="email",
+                    topic="Emlékeztető",
+                    summary=f"Emlékeztető elküldve a(z) {ev.get('attendee_email')} címre",
+                    result="Elküldve",
+                    tool_name="reminder_worker",
+                    session_id=session_id,
+                    direction="outbound",
+                    funnel_stage="relevant"
+                )
+        except Exception as ev_err:
+            logger.error(f'Emlékeztető küldési hiba (event id={ev.get("id")}): {ev_err}')
 
 
 async def reminder_worker_loop():
@@ -1453,6 +1705,9 @@ def create_event_from_pending_meeting(pm: dict):
         return None
     dur = pm.get("duration_minutes", 30) or 30
     title = pm.get("title", "Időpont")
+    # {{munkatárs}}: minden foglalás MINDEN ESETBEN kap munkatársat
+    # (explicit → szolgáltatás szerinti → random releváns)
+    assigned_staff = resolve_assigned_staff(title, pm.get("assigned_to", ""))
     try:
         start_dt = _to_budapest_tz(f"{date_str}T{time_str}:00")
         end_dt = start_dt + timedelta(minutes=dur)
@@ -1463,7 +1718,10 @@ def create_event_from_pending_meeting(pm: dict):
             duration_minutes=dur,
             attendee=pm.get("attendee", ""),
             attendee_email=pm.get("attendee_email", ""),
+            assigned_to=assigned_staff,
         )
+        if assigned_staff:
+            logger.info(f"Foglalás munkatárshoz rendelve: {assigned_staff} ({title})")
         if not event_id:
             return None
         return event_id
@@ -1486,118 +1744,59 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
     SERVER_URL = (os.getenv("APP_BASE_URL") or os.getenv("SERVER_URL") or "http://localhost:8000").rstrip("/")
     
     try:
-        # ── Tenant beállítások: visszaigazoló sablon + lemondási link kapcsoló ──
-        conf_enabled = True
-        conf_subject = "Időpont visszaigazolás"
-        conf_template = None
+        # ── Tenant beállítások: toggle + lemondási link kapcsoló (a szöveg BEÉGETETT) ──
         conf_cancel_link = True
         try:
             settings = db.get_reminder_settings()
             if settings:
-                conf_enabled = settings.get('confirmation_enabled', True)
-                conf_subject = settings.get('confirmation_subject') or conf_subject
-                conf_template = settings.get('confirmation_template') or None
+                if not settings.get('confirmation_enabled', True):
+                    logger.info(f"Confirmation email skipped (disabled in settings): {attendee_email}")
+                    return
                 conf_cancel_link = settings.get('confirmation_cancel_link', True)
         except Exception:
             pass
 
-        if not conf_enabled:
-            logger.info(f"Confirmation email skipped (disabled in settings): {attendee_email}")
-            return
-
 
         token = pyjwt.encode({"event_id": event_id, "exp": datetime.utcnow() + timedelta(days=90)}, JWT_SECRET, algorithm=JWT_ALGO)
         cancel_url = f"{SERVER_URL}/api/public/cancel?token={token}"
-        
+
         # ── ICS naptárfájl generálása ──────────────────────────────────
         try:
-            start_dt = _to_budapest_tz(f"{date}T{time}:00")
-            end_dt = start_dt + timedelta(minutes=30)  # alapértelmezett 30 perc
-            
+            start_dt_full = _to_budapest_tz(f"{date}T{time}:00")
+            end_dt_full = start_dt_full + timedelta(minutes=30)  # alapértelmezett 30 perc
+
             # Próbáljuk megkapni a tényleges időtartamot az adatbázisból
             try:
                 ev = db.supabase.table("calendar_events").select("duration_minutes").eq("id", event_id).execute()
                 if ev.data and ev.data[0].get("duration_minutes"):
-                    end_dt = start_dt + timedelta(minutes=ev.data[0]["duration_minutes"])
+                    end_dt_full = start_dt_full + timedelta(minutes=ev.data[0]["duration_minutes"])
             except Exception:
                 pass
-            
-            # ICS formátum (RFC 5545)
-            uid = f"eaisy-{event_id}@thinkai.hu"
-            now_utc = datetime.utcnow().strftime("%Y%m%dT%H%M%SZ")
-            dtstart = start_dt.strftime("%Y%m%dT%H%M%S")
-            dtend = end_dt.strftime("%Y%m%dT%H%M%S")
-            
-            ics_cancel_desc = f"\\nLemondás: {cancel_url}" if conf_cancel_link else ""
-            ics_content = (
-                "BEGIN:VCALENDAR\r\n"
-                "VERSION:2.0\r\n"
-                "PRODID:-//EAISY//Booking//HU\r\n"
-                "CALSCALE:GREGORIAN\r\n"
-                "METHOD:REQUEST\r\n"
-                "BEGIN:VEVENT\r\n"
-                f"UID:{uid}\r\n"
-                f"DTSTAMP:{now_utc}\r\n"
-                f"DTSTART;TZID=Europe/Budapest:{dtstart}\r\n"
-                f"DTEND;TZID=Europe/Budapest:{dtend}\r\n"
-                f"SUMMARY:{title}\r\n"
-                f"DESCRIPTION:Időpont visszaigazolás - {title}{ics_cancel_desc}\r\n"
-                f"ATTENDEE;CN={attendee}:mailto:{attendee_email}\r\n"
-                "STATUS:CONFIRMED\r\n"
-                "BEGIN:VALARM\r\n"
-                "TRIGGER:-PT60M\r\n"
-                "ACTION:DISPLAY\r\n"
-                f"DESCRIPTION:Emlékeztető: {title} 1 óra múlva\r\n"
-                "END:VALARM\r\n"
-                "END:VEVENT\r\n"
-                "END:VCALENDAR\r\n"
+
+            ics_base64 = _build_ics(
+                event_id=event_id, title=title,
+                start_dt_iso=start_dt_full.isoformat(), end_dt_iso=end_dt_full.isoformat(),
+                attendee=attendee, attendee_email=attendee_email,
+                cancel_url=cancel_url if conf_cancel_link else "",
             )
-            ics_base64 = b64module.b64encode(ics_content.encode("utf-8")).decode("utf-8")
         except Exception as e:
             logger.error(f"ICS generálási hiba: {e}")
             ics_base64 = None
-        
-        html_content = f"""
-        <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
-            <p>Kedves {attendee}!</p>
-            <br>
-            <p>Köszönjük az adatokat! Lefoglaltuk Önnek az alábbi időpontot:</p>
-            <div style="background-color: #f9fafb; border-left: 4px solid #10b981; padding: 15px; margin: 20px 0;">
-                <strong>Időpont:</strong> {date} {time}<br>
-                <strong>Szolgáltatás:</strong> {title}
-            </div>
-            <p>Mellékletként csatoltuk az időpont naptárfájlját (.ics), melyet könnyedén hozzáadhatsz okostelefonod vagy számítógéped naptárához.</p>
-            <p style="font-size: 12px; color: #6b7280; font-style: italic;">
-                * Kérjük, vegye figyelembe, hogy időpont módosítására az időpont előtti 48 órával van lehetőség. 
-                Tájékoztatjuk, hogy 24 órán belüli lemondás esetén rendelőnk külön szabályzata lehet érvényben.
-            </p>
-            <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-            <div style="text-align: center;">
-                <p style="margin-bottom: 20px;">Üdvözlettel: <strong>A virtuális asszisztens csapata</strong></p>
-                <a href="{cancel_url}" style="background-color: #ef4444; color: #ffffff; padding: 12px 30px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 16px;">Lemondom</a>
-            </div>
-            <hr style="border: 0; border-top: 1px dotted #e5e7eb; margin: 30px 0;">
-        </div>
-        """
-        
-        # Egyedi sablon: {nev} / {idopont} / {szolgaltatas} / {lemondas_gomb} helyettesítéssel
-        if conf_template:
-            lemondas_gomb = get_cancellation_html(event_id) if conf_cancel_link else ""
-            html_content = (
-                conf_template
-                .replace("{nev}", attendee)
-                .replace("{idopont}", f"{date} {time}")
-                .replace("{szolgaltatas}", title)
-                .replace("{lemondas_gomb}", lemondas_gomb)
-                .replace("\n", "<br>")
-            )
-            if conf_cancel_link:
-                html_content += get_cancellation_html(event_id)
-        elif not conf_cancel_link:
-            # Lemondási link kikapcsolva: gomb + URL eltávolítása az alap emailből
-            import re as _re
-            html_content = _re.sub(r'<a href="[^"]*"[^>]*>Lemondom</a>', '', html_content)
-            html_content = html_content.replace(cancel_url, '')
+
+        # ── Beégetett sablon (Automatikus értesítések) ──
+        doctor = ""
+        try:
+            ev_row = db.get_calendar_event(event_id)
+            doctor = (ev_row or {}).get("doctor") or ""
+        except Exception:
+            pass
+        vars = _notification_vars(
+            attendee, title, f"{date}T{time}:00",
+            assigned_to=doctor, attendee_email=attendee_email,
+        )
+        subject, html_content = _render_notification("confirmation", vars)
+        if conf_cancel_link:
+            html_content += get_cancellation_html(event_id)
 
         api_key = _get_brevo_api_key()
 
@@ -1608,7 +1807,7 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
         email_payload = {
             "sender": _get_sender(),
             "to": [{"email": attendee_email, "name": attendee}],
-            "subject": conf_subject,
+            "subject": subject,
             "htmlContent": html_content,
         }
         
@@ -1659,45 +1858,87 @@ def get_cancellation_html(event_id: int) -> str:
     """
 
 
-async def send_modification_confirmation_email(attendee: str, attendee_email: str, title: str, old_datetime: str, new_datetime: str):
-    """Időpont módosítás visszaigazolás email küldése."""
-    import os, json
-    from datetime import datetime as dt
+async def send_modification_confirmation_email(attendee: str, attendee_email: str, title: str, old_datetime: str, new_datetime: str, event_id: int | None = None, assigned_to: str = ""):
+    """Időpont módosítás visszaigazolás — beégetett sablonnal, toggle-lel."""
+    import os
+    from datetime import timedelta
 
-    # Format datetimes
-    try:
-        old_dt = dt.fromisoformat(old_datetime.replace('Z', '+00:00'))
-        old_formatted = old_dt.strftime('%Y.%m.%d %H:%M')
-    except:
-        old_formatted = old_datetime
-    try:
-        new_dt = dt.fromisoformat(new_datetime.replace('Z', '+00:00'))
-        new_formatted = new_dt.strftime('%Y.%m.%d %H:%M')
-    except:
-        new_formatted = new_datetime
+    toggles = get_appointment_notification_settings()
+    if not toggles.get("modification"):
+        logger.info(f"Modification confirmation skipped (disabled): {attendee_email}")
+        return
 
-    html_content = f"""
-    <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; margin: 0 auto; color: #333; line-height: 1.6;">
-        <p>Kedves {attendee}!</p>
-        <br>
-        <p>Időpontja sikeresen módosításra került. Az új időpont részletei:</p>
-        <div style="background-color: #f9fafb; border-left: 4px solid #f59e0b; padding: 15px; margin: 20px 0;">
-            <strong>Szolgáltatás:</strong> {title}<br>
-            <del style="color: #9ca3af;">Eredeti időpont: {old_formatted}</del><br>
-            <strong style="color: #059669;">Új időpont: {new_formatted}</strong>
-        </div>
-        <p style="font-size: 12px; color: #6b7280; font-style: italic;">
-            * Kérjük, vegye figyelembe, hogy további módosításra az időpont előtti 48 órával van lehetőség.
-        </p>
-        <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0;">
-        <p style="text-align: center;">Üdvözlettel: <strong>A virtuális asszisztens csapata</strong></p>
-    </div>
-    """
+    vars = _notification_vars(attendee, title, new_datetime, assigned_to=assigned_to, attendee_email=attendee_email)
+    subject, html_content = _render_notification("modification", vars)
+
+    # Frissített ICS melléklet az új időponttal
+    ics_base64 = None
+    try:
+        new_start = _to_budapest_tz(new_datetime)
+        dur = 30
+        if event_id:
+            try:
+                ev_row = db.get_calendar_event(event_id)
+                if ev_row and ev_row.get("duration_minutes"):
+                    dur = ev_row["duration_minutes"]
+            except Exception:
+                pass
+        ics_base64 = _build_ics(
+            event_id=event_id or 0, title=title,
+            start_dt_iso=new_start.isoformat(),
+            end_dt_iso=(new_start + timedelta(minutes=dur)).isoformat(),
+            attendee=attendee, attendee_email=attendee_email,
+        )
+    except Exception as e:
+        logger.error(f"ICS generálási hiba (módosítás): {e}")
 
     api_key = _get_brevo_api_key()
 
     if not api_key:
         logger.error("Nincs beállítva BREVO_API_KEY a módosítás visszaigazoló e-mailhez.")
+        return
+
+    email_payload = {
+        "sender": _get_sender(),
+        "to": [{"email": attendee_email, "name": attendee}],
+        "subject": subject,
+        "htmlContent": html_content,
+    }
+    if ics_base64:
+        safe_title = title.replace(" ", "_").replace("/", "-")[:30]
+        email_payload["attachment"] = [{
+            "content": ics_base64,
+            "name": f"idopont_modositas_{safe_title}.ics"
+        }]
+
+    try:
+        async with httpx.AsyncClient() as http_client:
+            resp = await http_client.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={"api-key": api_key, "Content-Type": "application/json"},
+                json=email_payload,
+                timeout=20,
+            )
+            resp.raise_for_status()
+        logger.info(f"Modification confirmation email sent to {attendee_email}.")
+    except Exception as e:
+        logger.error(f"Failed to send modification confirmation email: {e}")
+
+
+async def send_cancellation_email(attendee: str, attendee_email: str, title: str, start_dt_iso: str, assigned_to: str = ""):
+    """Időpont lemondás visszaigazolás — beégetett sablonnal, toggle-lel.
+    (ICS csatolás nélkül — a lemondott időpontot nem célszerű naptárban tartani.)"""
+    toggles = get_appointment_notification_settings()
+    if not toggles.get("cancellation"):
+        logger.info(f"Cancellation email skipped (disabled): {attendee_email}")
+        return
+
+    vars = _notification_vars(attendee, title, start_dt_iso, assigned_to=assigned_to, attendee_email=attendee_email)
+    subject, html_content = _render_notification("cancellation", vars)
+
+    api_key = _get_brevo_api_key()
+    if not api_key:
+        logger.error("Nincs beállítva BREVO_API_KEY a lemondás visszaigazoló e-mailhez.")
         return
 
     try:
@@ -1708,15 +1949,15 @@ async def send_modification_confirmation_email(attendee: str, attendee_email: st
                 json={
                     "sender": _get_sender(),
                     "to": [{"email": attendee_email, "name": attendee}],
-                    "subject": f"Időpont módosítás visszaigazolás - {title}",
+                    "subject": subject,
                     "htmlContent": html_content,
                 },
                 timeout=20,
             )
             resp.raise_for_status()
-        logger.info(f"Modification confirmation email sent to {attendee_email}.")
+        logger.info(f"Cancellation email sent to {attendee_email}.")
     except Exception as e:
-        logger.error(f"Failed to send modification confirmation email: {e}")
+        logger.error(f"Failed to send cancellation email: {e}")
 
 
 async def _run_automations_for_tenant(tenant: dict):

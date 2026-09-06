@@ -931,6 +931,19 @@ async def modify_meeting(
 
         db.update_calendar_event(found["id"], **updates)
 
+        # Módosítás-visszaigazoló az ügyfélnek (beégetett sablon, toggle-ölt)
+        att_email = found.get("attendee_email")
+        if att_email and att_email != "-":
+            _spawn(email_processor.send_modification_confirmation_email(
+                attendee=found.get("attendee", "Ügyfél"),
+                attendee_email=att_email,
+                title=found.get("title", "Konzultáció"),
+                old_datetime=found["start_dt"],
+                new_datetime=updates.get("start_dt", found["start_dt"]),
+                event_id=found.get("id"),
+                assigned_to=found.get("doctor", ""),
+            ))
+
         changes = []
         if new_title: changes.append(f"cím: {new_title}")
         if new_date: changes.append(f"dátum: {new_date}")
@@ -969,6 +982,18 @@ async def delete_meeting(
         return f"Nem találtam ilyen eseményt. A naptárban ezek vannak: {titles}"
 
     db.delete_calendar_event(found["id"])
+
+    # Lemondás-visszaigazoló az ügyfélnek (beégetett sablon, toggle-ölt)
+    att_email = found.get("attendee_email")
+    if att_email and att_email != "-":
+        _spawn(email_processor.send_cancellation_email(
+            attendee=found.get("attendee", "Ügyfél"),
+            attendee_email=att_email,
+            title=found.get("title", "Konzultáció"),
+            start_dt_iso=found.get("start_dt", ""),
+            assigned_to=found.get("doctor", ""),
+        ))
+
     return f"Esemény törölve: {event_title}."
 
 

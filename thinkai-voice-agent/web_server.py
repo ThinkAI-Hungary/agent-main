@@ -2461,6 +2461,18 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                     
             if found:
                 db.delete_calendar_event(found["id"])
+                # Lemondás-visszaigazoló az ügyfélnek (beégetett sablon, toggle-ölt)
+                _del_att_email = found.get("attendee_email")
+                if _del_att_email and _del_att_email != "-":
+                    asyncio.create_task(
+                        email_processor.send_cancellation_email(
+                            attendee=found.get("attendee", "Ügyfél"),
+                            attendee_email=_del_att_email,
+                            title=found.get("title", "Konzultáció"),
+                            start_dt_iso=found.get("start_dt", ""),
+                            assigned_to=found.get("doctor", ""),
+                        )
+                    )
                 if client_to_cancel:
                     c_data = client_to_cancel.get("custom_data", {})
                     if isinstance(c_data, str):
@@ -3163,38 +3175,70 @@ class ManualEventRequest(BaseModel):
     start_dt: str  # ISO format datetime
     duration_minutes: int = 30
     id: int | None = None  # ha megvan, frissítés (szerkesztés)
+    assigned_to: str = ""  # munkatárs ({{munkatárs}} változó)
 
 @app.post("/admin/api/calendar")
 def admin_create_event(req: ManualEventRequest, _auth = Depends(require_admin_or_manager)):
     """Create or update a manual calendar event."""
     from datetime import datetime, timedelta
 
-    # Ha id van megadva → meglévő esemény frissítése (szerkesztés)
+    # Ha id van megadva → meglévő esemény frissítés (szerkesztés)
     if getattr(req, 'id', None):
         start = datetime.fromisoformat(req.start_dt.replace("Z", "+00:00"))
         end = start + timedelta(minutes=req.duration_minutes)
         ok = db.update_calendar_event(req.id, title=req.title, start_dt=start.isoformat(),
             end_dt=end.isoformat(), duration_minutes=req.duration_minutes,
-            attendee=req.attendee, attendee_email=req.attendee_email)
+            attendee=req.attendee, attendee_email=req.attendee_email,
+            doctor=getattr(req, 'assigned_to', '') or None)
         if not ok:
             raise HTTPException(500, "Frissítés sikertelen")
+        # Módosítás-visszaigazoló (beégetett sablon, toggle-ölt) — kézi szerkesztés
+        if req.attendee_email and req.attendee_email != "-":
+            asyncio.create_task(
+                email_processor.send_modification_confirmation_email(
+                    attendee=req.attendee,
+                    attendee_email=req.attendee_email,
+                    title=req.title,
+                    old_datetime=req.start_dt,
+                    new_datetime=start.isoformat(),
+                    event_id=req.id,
+                    assigned_to=getattr(req, 'assigned_to', ''),
+                )
+            )
         return {"ok": True, "id": req.id, "updated": True}
 
     try:
         start = datetime.fromisoformat(req.start_dt.replace("Z", "+00:00"))
     except Exception:
         raise HTTPException(400, "Érvénytelen dátum formátum")
-    
+
     end = start + timedelta(minutes=req.duration_minutes)
-    
+
+    # {{munkatárs}}: minden esemény kap munkatársat (explicit → szolgáltatás → random)
+    assigned_staff = email_processor.resolve_assigned_staff(req.title, getattr(req, 'assigned_to', ''))
+
     event_id = db.add_calendar_event(
         title=req.title,
         start_dt=start.isoformat(),
         end_dt=end.isoformat(),
         duration_minutes=req.duration_minutes,
         attendee=req.attendee,
-        attendee_email=req.attendee_email
+        attendee_email=req.attendee_email,
+        assigned_to=assigned_staff
     )
+
+    # Visszaigazoló email (beégetett sablon, toggle-ölt) — kézi foglalás esetén is
+    if event_id and req.attendee_email and req.attendee_email != "-":
+        asyncio.create_task(
+            email_processor.send_booking_confirmation_email(
+                event_id=event_id,
+                title=req.title,
+                date=start.strftime("%Y-%m-%d"),
+                time=start.strftime("%H:%M"),
+                attendee=req.attendee,
+                attendee_email=req.attendee_email
+            )
+        )
     
     # Auto-create client if not exists
     if req.attendee:
@@ -3236,9 +3280,23 @@ def admin_create_event(req: ManualEventRequest, _auth = Depends(require_admin_or
 @app.delete("/admin/api/calendar/{event_id}")
 def admin_delete_calendar_event(event_id: int, _auth = Depends(require_admin_or_manager)):
     """Naptár esemény törlése."""
+    # A törlés ELŐTT kiszedjük az adatokat a lemondás-visszaigazolóhoz
+    ev = db.get_calendar_event(event_id) or {}
     ok = db.delete_calendar_event_by_id(event_id)
     if not ok:
         raise HTTPException(status_code=404, detail="Event not found")
+    # Lemondás-visszaigazoló az ügyfélnek (beégetett sablon, toggle-ölt)
+    att_email = ev.get("attendee_email")
+    if att_email and att_email != "-":
+        asyncio.create_task(
+            email_processor.send_cancellation_email(
+                attendee=ev.get("attendee", "Ügyfél"),
+                attendee_email=att_email,
+                title=ev.get("title", "Konzultáció"),
+                start_dt_iso=ev.get("start_dt", ""),
+                assigned_to=ev.get("doctor", ""),
+            )
+        )
     return {"ok": True}
 
 
@@ -4414,6 +4472,24 @@ async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(req
                                 )
                             )
                             print(f"[Approval] Visszaigazoló email ütemezve: {_pm_att_email}")
+
+                    # Halasztott MÓDOSÍTás-visszaigazoló (jóváhagyás-mód, Q7 döntés):
+                    # az esemény már módosult a feldolgozáskor, a visszaigazoló csak
+                    # most, a jóváhagyott válasszal egyidőben megy ki
+                    _pmod = send_draft.get("pending_modification") or draft.get("pending_modification")
+                    if _pmod:
+                        asyncio.create_task(
+                            email_processor.send_modification_confirmation_email(
+                                attendee=_pmod.get("attendee", "Ügyfél"),
+                                attendee_email=_pmod.get("attendee_email") or send_draft.get("to_email", ""),
+                                title=_pmod.get("title", "Konzultáció"),
+                                old_datetime=_pmod.get("old_datetime", ""),
+                                new_datetime=_pmod.get("new_datetime", ""),
+                                event_id=_pmod.get("event_id"),
+                                assigned_to=_pmod.get("assigned_to", ""),
+                            )
+                        )
+                        print(f"[Approval] Módosítás-visszaigazoló ütemezve: {_pmod.get('attendee_email')}")
                     
                 elif ch == "whatsapp":
                     # Per-tenant tokenek (a middleware a JWT-ből állítja a contextvart; env fallback)
@@ -4635,7 +4711,65 @@ class ReminderSettingsRequest(BaseModel):
 @app.get('/admin/api/settings/reminder')
 async def get_reminder_settings_endpoint(username: str = Depends(verify_jwt)):
     import database as db
-    return db.get_reminder_settings()
+    settings = db.get_reminder_settings() or {}
+    # A 4 időpont-értesítés: beégetett sablon + toggle állapot (Automatikus értesítések oldal)
+    toggles = email_processor.get_appointment_notification_settings()
+    notifications = []
+    for kind, spec in email_processor._APPOINTMENT_NOTIFICATIONS.items():
+        notifications.append({
+            "kind": kind,
+            "title": spec["title"],
+            "description": spec["description"],
+            "subject": spec["subject"],
+            "body": spec["body"],
+            "enabled": toggles.get(kind, True),
+        })
+    settings["notifications"] = notifications
+    return settings
+
+class NotificationToggleRequest(BaseModel):
+    kind: str  # confirmation | reminder | modification | cancellation
+    enabled: bool
+
+@app.post('/admin/api/settings/reminder/notification-toggle')
+async def toggle_notification_endpoint(req: NotificationToggleRequest, _admin = Depends(require_admin)):
+    """Egy időpont-értesítés be/ki kapcsolása (a sablon szöveg beégetett)."""
+    import database as db
+    if req.kind not in ("confirmation", "reminder", "modification", "cancellation"):
+        raise HTTPException(status_code=400, detail="Ismeretlen értesítés-típus")
+    current = db.get_reminder_settings() or {}
+    target = {
+        'reminder_enabled': bool(current.get('reminder_enabled', True)),
+        'reminder_hours': int(current.get('reminder_hours', 24) or 24),
+        'reminder_template': current.get('reminder_template', '') or '',
+        'confirmation_enabled': bool(current.get('confirmation_enabled', True)),
+        'confirmation_subject': current.get('confirmation_subject'),
+        'confirmation_template': current.get('confirmation_template'),
+        'confirmation_cancel_link': bool(current.get('confirmation_cancel_link', True)),
+        'modification_enabled': bool(current.get('modification_enabled', True)),
+        'cancellation_enabled': bool(current.get('cancellation_enabled', True)),
+    }
+    if req.kind == "confirmation":
+        target['confirmation_enabled'] = req.enabled
+    elif req.kind == "reminder":
+        target['reminder_enabled'] = req.enabled
+    elif req.kind == "modification":
+        target['modification_enabled'] = req.enabled
+    else:
+        target['cancellation_enabled'] = req.enabled
+
+    success = db.update_reminder_settings(
+        target['reminder_enabled'], target['reminder_hours'], target['reminder_template'],
+        confirmation_enabled=target['confirmation_enabled'],
+        confirmation_subject=target['confirmation_subject'],
+        confirmation_template=target['confirmation_template'],
+        confirmation_cancel_link=target['confirmation_cancel_link'],
+        modification_enabled=target['modification_enabled'],
+        cancellation_enabled=target['cancellation_enabled'],
+    )
+    if success:
+        return {'ok': True, 'message': 'Értesítés beállítva.'}
+    raise HTTPException(status_code=500, detail='Adatbázis hiba mentéskor')
 
 @app.post('/admin/api/settings/reminder')
 async def save_reminder_settings_endpoint(payload: ReminderSettingsRequest, _admin = Depends(require_admin)):
@@ -5272,6 +5406,21 @@ async def public_cancel_appointment(token: str):
                 db.update_client_status(client["id"], "lemondott")
                 # Reset automation sent log so cancelled_no_rebook can fire again
                 db.clear_automation_sent(client["id"])
+
+        # Lemondás-visszaigazoló az ügyfélnek (beégetett sablon, toggle-ölt) —
+        # a törlés ELŐTT, mert utána már nincs meg az esemény
+        if event:
+            att_email = event.get("attendee_email")
+            if att_email and att_email != "-":
+                asyncio.create_task(
+                    email_processor.send_cancellation_email(
+                        attendee=event.get("attendee", "Ügyfél"),
+                        attendee_email=att_email,
+                        title=event.get("title", "Konzultáció"),
+                        start_dt_iso=event.get("start_dt", ""),
+                        assigned_to=event.get("doctor", ""),
+                    )
+                )
 
         # Delete from calendar
         success = db.delete_calendar_event(event_id)

@@ -505,17 +505,21 @@ def get_calendar_events() -> list[dict]:
     except Exception:
         return []
 
-def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", attendee_email="") -> int:
+def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", attendee_email="", assigned_to="") -> int:
     if not supabase: return 0
     try:
-        res = supabase.table("calendar_events").insert(_with_tenant({
+        insert_data = _with_tenant({
             "title": title,
             "start_dt": start_dt,
             "end_dt": end_dt,
             "duration_minutes": duration_minutes,
             "attendee": attendee,
             "attendee_email": attendee_email
-        })).execute()
+        })
+        # Munkatárs ({{munkatárs}} változó): calendar_events.doctor oszlop
+        if assigned_to:
+            insert_data["doctor"] = assigned_to
+        res = supabase.table("calendar_events").insert(insert_data).execute()
         return res.data[0]["id"] if res.data else 0
     except Exception as e:
         logger.error(f"Add event error: {e}")
@@ -523,7 +527,7 @@ def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", a
 
 def update_calendar_event(event_id: int, **fields) -> bool:
     if not supabase: return False
-    allowed = {"title", "start_dt", "end_dt", "duration_minutes", "attendee", "attendee_email", "completed"}
+    allowed = {"title", "start_dt", "end_dt", "duration_minutes", "attendee", "attendee_email", "completed", "doctor"}
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates: return False
     try:
@@ -2120,7 +2124,8 @@ def get_reminder_settings() -> dict:
 
 def update_reminder_settings(enabled: bool, hours: int, template: str,
                              confirmation_enabled=None, confirmation_subject=None,
-                             confirmation_template=None, confirmation_cancel_link=None) -> bool:
+                             confirmation_template=None, confirmation_cancel_link=None,
+                             modification_enabled=None, cancellation_enabled=None) -> bool:
     if not supabase: return False
     try:
         payload = _with_tenant({
@@ -2133,6 +2138,9 @@ def update_reminder_settings(enabled: bool, hours: int, template: str,
         if confirmation_subject is not None: payload['confirmation_subject'] = confirmation_subject
         if confirmation_template is not None: payload['confirmation_template'] = confirmation_template
         if confirmation_cancel_link is not None: payload['confirmation_cancel_link'] = confirmation_cancel_link
+        # Időpont-értesítés toggle-ök (beégetett sablonok — csak engedélyez/tilt)
+        if modification_enabled is not None: payload['modification_enabled'] = modification_enabled
+        if cancellation_enabled is not None: payload['cancellation_enabled'] = cancellation_enabled
         supabase.table('reminder_settings').upsert(payload, on_conflict='tenant_id').execute()
         return True
     except Exception as e:
