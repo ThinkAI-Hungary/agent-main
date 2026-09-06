@@ -123,6 +123,15 @@ A kódbázisból queryelhető tudásgráf: [github.com/Graphify-Labs/graphify](h
 - `process_single_email` korábban `status=first_col`-lal mentette az ügyfelet → MINDEN email küldő bekerült az érdeklődőkezelésbe
 - Most: NEM állít oszlopot — a kanbába csak értékesítési címkés vagy kézzel felvett ügyfél kerül
 
+### 7. Adatkérési szabályok az email válasz-promptban (2026-09-06 délután, ügyfél 252 visszajelzés)
+
+- **Probléma**: az AI válaszban rákérdezett az ügyfél EMAIL CÍMÉRE (és ismert adatokra) — pedig azt a bejövő levélből a rendszer ismeri. Client 252 (Orosz Erika, et_orosz@yahoo.ie) új címről írt → ÚJ ÜGYFÉL ág → semmilyen adatkérési szabály nem volt benne.
+- **Javítás** (`email_processor.py`, client_context blokk, commit `9ee8e4f`): csatornaszintű `ADATKÉRÉSI SZABÁLYOK` blokk **mindkét ágra** (új + visszatérő):
+  - Email cím SOHA nem kérdezhető (a feladóból ismert, a blokk ki is írja a konkrét címet)
+  - CSAK hiányzó adat kérhető: teljes név, ha nem egyértelmű; telefonszám, ha nincs megadva és kell (visszaigazolás/emlékeztető)
+  - Visszatérő ágnál a nyilvántartott telefonszám is bekerült a kontextus-listába
+- **Deploy + verifikáció**: `update.sh` → futó commit `9ee8e4f`, konténer healthy, új szabály bent a konténer `/app/email_processor.py`-jában, logok tiszták. E2E teszt: küldjön a user friss tesztemailel egy új címről → a draftban nem szerepelhet email-cím-rákérdezés.
+
 ---
 
 ## Adatbázis módosítások (élőn lefutottak)
