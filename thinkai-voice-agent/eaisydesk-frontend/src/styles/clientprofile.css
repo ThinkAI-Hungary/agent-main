@@ -1309,8 +1309,56 @@ body.dark .cd-table-card tbody tr.cd-is-urgent td { background: var(--cp-err-row
 .cal-list-card .t-date { display: block; font-size: 11px; color: var(--text-muted); }
 .cal-list-card tbody tr:hover td { background: var(--bg3); }
 
-/* Naptár navigációs chevronok: nagyobb ikon a gombon */
+/* Naptár navigációs chevronok: ugyanaz a méret, mint a bal oldali
+   listanézet/naptárnézet kapcsoló (36×36 gomb, 16px ikon) */
+.cal-nav-center .int-btn-icon {
+  width: 36px;
+  padding: 0;
+  flex: none;
+}
 .cal-nav-center .int-btn-icon svg {
-  width: 20px;
-  height: 20px;
+  width: 16px;
+  height: 16px;
+}
+
+/* Időpont-tooltip (hét nézet): időpont · időtartam · ügyfél · munkatárs */
+.cal-tip {
+  position: fixed;
+  z-index: 60;
+  min-width: 200px;
+  max-width: 240px;
+  padding: 10px 12px;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 12px 32px -10px rgba(0, 0, 0, 0.22);
+  pointer-events: none;
+}
+.cal-tip-time {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--cp-a2);
+  font-variant-numeric: tabular-nums;
+}
+.cal-tip-title {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 2px;
+}
+.cal-tip-name {
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  margin-top: 3px;
+}
+.cal-tip-meta {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+.cal-tip-col {
+  font-size: 11px;
+  color: var(--text-muted);
 }

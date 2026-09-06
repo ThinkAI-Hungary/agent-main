@@ -32,6 +32,7 @@ interface CalendarEventItem {
   attendee?: string;
   attendee_email?: string;
   reminder_sent?: boolean;
+  doctor?: string; // {{munkatárs}} — calendar_events.doctor
 }
 
 function pad2(n: number) { return (n < 10 ? '0' : '') + n; }
@@ -55,6 +56,8 @@ export default function CalendarPage() {
   const [showNewEventModal, setShowNewEventModal] = useState(false);
   const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  // Tooltip állapot (hét nézet: teljes kártyaadatok hoverre)
+  const [eventTip, setEventTip] = useState<{ ev: CalendarEventItem; x: number; y: number } | null>(null);
 
   const [newEvent, setNewEvent] = useState({
     attendee: '', email: '', phone: '', title: '',
@@ -193,7 +196,11 @@ export default function CalendarPage() {
   function renderWeek() {
     const start = startOfWeek(calCursor);
     const todayKey = dateKey(new Date());
-    const head: React.ReactNode[] = [];
+    const head: React.ReactNode[] = [
+      // Sarok-cella az óra-oszlop fölé — enélkül a hétfő fejléce az órák
+      // oszlopába csúszik és az egész napsáv balra tolódik (hot fix)
+      <div key="corner" className="cal-week-corner" />,
+    ];
     for (let i = 0; i < 7; i++) {
       const d = new Date(start.getTime()); d.setDate(start.getDate() + i);
       const isToday = dateKey(d) === todayKey;
@@ -222,12 +229,16 @@ export default function CalendarPage() {
         const top = (startMin / 60) * CAL_HOUR_PX;
         const dur = ev.duration_minutes || 30;
         const hpx = Math.max(22, (dur / 60) * CAL_HOUR_PX);
+        const emailKey = (ev.attendee_email || '').toLowerCase().trim();
+        const staff = ev.doctor || assigneeFor(emailKey);
         return (
           <div
             key={ev.id}
             className={`cal-ev-abs${hpx < 28 ? ' cal-ev-xs' : hpx < 44 ? ' cal-ev-sm' : ''}`}
             style={{ top: Math.round(top), height: Math.round(hpx) }}
             onClick={e => { e.stopPropagation(); openEventEdit(ev); }}
+            onMouseEnter={e => showEventTip(ev, e.currentTarget)}
+            onMouseLeave={hideEventTip}
           >
             <span className="cal-ev-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
             <span className="cal-ev-name">{ev.attendee || ''}</span>
@@ -288,6 +299,18 @@ export default function CalendarPage() {
       </>
     );
   }
+
+  // ── Tooltip (hét nézet): időpont · időtartam · ügyfél · ellátó munkatárs ──
+  const showEventTip = useCallback((ev: CalendarEventItem, card: HTMLElement) => {
+    const r = card.getBoundingClientRect();
+    const tipW = 240, tipH = 120;
+    let x = r.left;
+    let y = r.bottom + 6;
+    if (x + tipW > window.innerWidth - 12) x = Math.max(12, window.innerWidth - tipW - 12);
+    if (y + tipH > window.innerHeight - 12) y = Math.max(12, r.top - tipH - 6);
+    setEventTip({ ev, x, y });
+  }, []);
+  const hideEventTip = useCallback(() => setEventTip(null), []);
 
   // ── Ügyfélprofil megnyitás eseményből ──
   const findClientByAttendee = useCallback((attendeeName: string, attendeeEmail: string): string | null => {
@@ -509,6 +532,30 @@ export default function CalendarPage() {
             </section>
           )}
 
+          {/* Tooltip (hét nézet): időpont · időtartam · ügyfél · munkatárs */}
+          {viewMode === 'grid' && calMode === 'week' && eventTip && (() => {
+            const t = new Date(eventTip.ev.start_dt);
+            const dur = eventTip.ev.duration_minutes || 30;
+            const emailKey = (eventTip.ev.attendee_email || '').toLowerCase().trim();
+            const staff = eventTip.ev.doctor || assigneeFor(emailKey);
+            return (
+              <div
+                className="cal-tip"
+                style={{ left: eventTip.x, top: eventTip.y, display: 'block', pointerEvents: 'none' }}
+                role="tooltip"
+              >
+                <div className="cal-tip-time">
+                  {pad2(t.getHours())}:{pad2(t.getMinutes())} · {dur} perc
+                </div>
+                <div className="cal-tip-title">{eventTip.ev.title}</div>
+                <div className="cal-tip-name">{eventTip.ev.attendee || '—'}</div>
+                <div className="cal-tip-meta">
+                  <span className="cal-tip-col">Ellátó munkatárs: {staff || '—'}</span>
+                </div>
+              </div>
+            );
+          })()}
+
           {/* Listanézet (mockup oszlopok + no-show jelölés) */}
           {viewMode === 'list' && (
             <div className="cd-table-card cal-list-card">
@@ -572,9 +619,9 @@ export default function CalendarPage() {
       {/* Új esemény modál */}
       {showNewEventModal && (
         <div className="modal-overlay" onClick={() => setShowNewEventModal(false)}>
-          <div className="cd-task-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Új időpont">
+          <div className="cd-task-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={editingEventId ? 'Időpont szerkesztése' : 'Új időpont'}>
             <div className="cd-task-modal-head">
-              <h3 className="modal-title">Új időpont létrehozása</h3>
+              <h3 className="modal-title">{editingEventId ? 'Időpont szerkesztése' : 'Új időpont létrehozása'}</h3>
               <button className="cd-task-modal-x" onClick={() => setShowNewEventModal(false)} aria-label="Bezárás">
                 <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
@@ -621,15 +668,15 @@ export default function CalendarPage() {
               </div>
             </div>
             <div className="cd-task-modal-foot">
-              <button className="cd-btn" onClick={() => { setShowNewEventModal(false); setEditingEventId(null); }}>Mégse</button>
               {editingEventId && (
                 <button className="cd-btn cd-btn-danger" style={{ marginRight: 'auto' }} onClick={() => { handleDeleteEvent(editingEventId); setShowNewEventModal(false); }}>
                   <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
-                  Törlés
+                  Időpont törlése
                 </button>
               )}
+              <button className="cd-btn" onClick={() => { setShowNewEventModal(false); setEditingEventId(null); }}>Mégse</button>
               <button className="cd-btn cd-btn-primary" onClick={editingEventId ? handleUpdateEvent : handleSubmitEvent} disabled={!newEvent.attendee || !newEvent.title || !newEvent.date || !newEvent.time}>
-                {editingEventId ? 'Frissítés' : 'Létrehozás'}
+                {editingEventId ? 'Mentés' : 'Létrehozás'}
               </button>
             </div>
           </div>
