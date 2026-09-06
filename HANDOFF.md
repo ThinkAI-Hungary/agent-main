@@ -234,16 +234,17 @@ A user HTML-mockupja alapján (a modal cím és a tooltip eltérő kezelése sze
 - **Utófix 2 — duplikált mezők + üres névlista** (commit `915afc9`): (a) a modalban DUPLÁN szerepelt az „Esemény címe + Munkatárs" blokk (a fix-4 körös szerkesztés törlő lépése hiányzott) — a dátumsor utáni másolat törölve; (b) a `staffOptions` üres volt, mert a `GET /admin/api/services` csupasz tömböt ad, a kód `data.services`-t várta — most mindkét alak kezelve. Élő ellenőrzés: chunkban „Esemény címe" 1×; a valós válasz 7 szolgáltatás → 7 konkrét név (Balogh Pálma, Dr. Hegedűs Eszter, Dr. Kiss Réka, Dr. Kovács Márk, Dr. Molnár Bence, Dr. Varga Anna, Pál Alexandra).
 - **Utófix 3 — Ma gomb** (commit `9bbf344`): a „Ma" gomb mindig a **NAPI nézetet** tölti be (`setCalMode('day')` + cursor azonnai napra) — heti/havi nézetből vagy ellapozás után is az aznapi napot mutatja. Verifikáció: a deployed CalendarPage chunk md5 hashesen egyezik a friss builddel.
 
-### 17. TERVEZETT — Member irányítópult áttervezés (2026-09-07, kérdések függőben — MÉG NEM INDULT EL)
+### 17. TERVEZETT — Member irányítópult áttervezés + jogosultság-legalizálás (2026-09-07 — user döntések megvannak, implementáció NEM indult el)
 
-**User kérés**: a member irányítópult a user NAPI teendőit mutassa (mockup alapján): hero (üdvözlet + dátum), 3 KPI-kártya (Sürgős/lejárt szám · Nyitott szám · Mai időpontok kártya — első időpont látszik, többi lenyitható), 2 szekció táblázattal: **Sürgős/lejárt** (Sürgős státuszúak + Minden nyitott/sürgős, ami created_at alapján a tegnapi nap előtt keletkezett és nincs lezárva — 24 órás szabály, státusz nem változik, csak a szekcióba feljebb kerül) és **Nyitott teendők** (aznapi nyitottak). A dashboard szűrőként működik: Lezárt kizárva; pipára az interakció lezárul (eltűnik a dashboardról, a naplóban marad Lezártan). Mockup: user által adott HTML (hero, KPI-k, táblázat, interakciós modal jóváhagyás-gombbal, Messenger/IG 24h figyelmeztető).
+**User kérés**: a member irányítópult a user NAPI teendőit mutassa (mockup alapján): hero (üdvözlet + dátum), 3 KPI-kártya (Sürgős/lejárt szám · Nyitott szám · Mai időpontok kártya — első időpont látszik, többi lenyitható), 2 szekció táblázattal: **Sürgős/lejárt** (Sürgős státuszúak + Minden nyitott/sürgős, ami created_at alapján a tegnapi nap előtt keletkezett és nincs lezárva — 24 órás szabály, státusz nem változik, csak a szekcióba feljebb kerül) és **Nyitott teendők** (az aznapi nyitottak). A dashboard szűrőként működik: Lezárt kizárva; pipára az interakció lezárul (eltűnik a dashboardról, a naplóban marad Lezártan). Interakciós modal AI összefoglalóval + Messenger/IG 24h figyelmeztetővel.
 
-**Nyitott kérdések (user válaszára vár)**:
-1. Member „Elvégezve" jogosultság: a lezáró endpoint (`PATCH /admin/api/interactions/{id}/status`) ma `admin/manager`-only → membernek 403 (a MOSTANI checkbox membernel is ezért elhasal). Javaslat: member-scoped záró végpont (csak saját kiosztott ügyfél).
-2. „Jóváhagyás és elküldés" memberként: approvals jóváhagyás admin/manager jog. Member modalban draft olvasható + „admin/manager küldi" felirat (javaslat), vagy member is küldhet?
-3. „Színes pille rendezett teendők" kifejezés jelentése — tisztázandó.
-4. Kézi teendők (Hozzáadott feladat) elhelyezése az új dashboardon (javaslat: Nyitott szekcióba keverve).
-**Döntések (amíg nincs kifogás)**: konténer = app szélesség; 24h határ = interakció created_at; useSessions limit 100 → 300; Mai időpontok = csak hozzám rendelt ügyfelek mai eseményei.
+**User DÖNTÉSEK (2026-09-07)**:
+1. **Felelős-hozzárendelés leépítése**: minden member MINDEN interakciót lát (napló + dashboard) és mindennel dolgozhat — az `isAssignedToMe` szűrők kikerülnek a dashboardból; „aki kapja, marja" recepció-modell. (A felelős/assigned mező marad mint opcionális metaadat, nem hozzáférés-vezérlés.)
+2. **Jóváhagyás/küldés MINDEN szinten**: az approvals approve/reject és az interakció-lezárás végpontokat `require_admin_or_manager` → `verify_jwt` szintre kell hozni (approve + reject + interactions/{id}/status + task delete konzisztensen). A member elsődleges dolga a kommunikáció.
+3. **Teendő = sima szöveg** a mockupban is (színes pill helyett — a korábbi döntésnek megfelelően).
+4. **Mai időpontok = MINDEN mai esemény** (nem csak hozzám rendelt ügyfeleké). Kézi teendők a Nyitott szekcióba keverve.
+
+**Implementációs teendők (később)**: backend — approvals approve/reject → verify_jwt; interactions/{id}/status → verify_jwt; tasks delete → verify_jwt (konzisztencia); MemberDashboardPage teljes rewrite a mockup szerint (hero, 3 KPI, Sürgős/lejárt + Nyitott szekciók, interakciós modal jóváhagyás-gombbal, 24h Messenger/IG figyelmeztető); useSessions limit 300; konténer = app szélesség. **Figyelem**: minden role küldhet → a jóváhagyó neve naplózva marad az approvals rekordban.
 
 ---
 
