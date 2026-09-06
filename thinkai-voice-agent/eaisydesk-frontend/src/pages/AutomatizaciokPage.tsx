@@ -12,6 +12,10 @@ interface ReminderSettings {
   reminder_enabled: boolean;
   reminder_hours: number;
   reminder_template: string;
+  confirmation_enabled?: boolean;
+  confirmation_subject?: string;
+  confirmation_template?: string;
+  confirmation_cancel_link?: boolean;
 }
 interface OutboundAutomation {
   id: number;
@@ -71,6 +75,8 @@ const labelStyle: React.CSSProperties = {
 export default function AutomatizaciokPage() {
   const [reminder, setReminder] = useState<ReminderSettings>({
     reminder_enabled: false, reminder_hours: 24, reminder_template: '',
+    confirmation_enabled: true, confirmation_subject: 'Időpont visszaigazolás',
+    confirmation_template: '', confirmation_cancel_link: true,
   });
   const [automations, setAutomations] = useState<OutboundAutomation[]>([]);
   const [inactivityDays, setInactivityDays] = useState(60);
@@ -106,10 +112,14 @@ export default function AutomatizaciokPage() {
           reminder_enabled: toSave.reminder_enabled,
           reminder_hours: toSave.reminder_hours,
           reminder_template: toSave.reminder_template,
+          confirmation_enabled: toSave.confirmation_enabled ?? true,
+          confirmation_subject: toSave.confirmation_subject ?? '',
+          confirmation_template: toSave.confirmation_template ?? '',
+          confirmation_cancel_link: toSave.confirmation_cancel_link ?? true,
         }),
       });
       if (!res.ok) throw new Error('Save failed');
-      showToast('Emlékeztető mentve!');
+      showToast('Beállítások mentve!');
     } catch {
       showToast('Hiba a mentés során!', 'error');
     }
@@ -216,6 +226,93 @@ export default function AutomatizaciokPage() {
                     }}
                     onBlur={() => saveReminder()}
                     placeholder="Kedves {nev}! Emlékeztetjük, hogy holnap {idopont}-kor időpontja van..."
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* 1/b. Időpont visszaigazolás (Statikus sor) */}
+          <div className="auto-item-card">
+            <div
+              className="flex-row auto-row-trigger"
+              onClick={() => setExpandedAuto(expandedAuto === -2 ? null : -2)}
+            >
+              <label className="tt-toggle" onClick={e => e.stopPropagation()}>
+                <input type="checkbox" checked={reminder.confirmation_enabled ?? true}
+                  onChange={async (e) => {
+                    const enabled = e.target.checked;
+                    setReminder(prev => ({ ...prev, confirmation_enabled: enabled }));
+                    try {
+                      await saveReminder({ confirmation_enabled: enabled });
+                    } catch { showToast('Hiba a mentés során!', 'error'); }
+                  }}
+                />
+                <span className="tt-toggle-slider" />
+              </label>
+
+              <div className="flex-1">
+                <div className={`auto-row-title ${(reminder.confirmation_enabled ?? true) ? '' : 'auto-row-title--muted'}`}>
+                  Időpont visszaigazolás
+                </div>
+                <div className="auto-row-desc">Visszaigazoló email küldése foglaláskor</div>
+              </div>
+              <svg fill="none" stroke="var(--text-muted)" strokeWidth="2" viewBox="0 0 24 24" width="16" height="16"
+                className={`auto-chevron ${expandedAuto === -2 ? 'auto-chevron--open' : 'auto-chevron--closed'}`}>
+                <path d="M6 9l6 6 6-6" />
+              </svg>
+            </div>
+
+            {expandedAuto === -2 && (
+              <div className="auto-expand-body">
+                {/* Lemondási link kapcsoló */}
+                <div className="mb-20">
+                  <div className="flex-row gap-8 mb-12">
+                    <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+                      <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                    </svg>
+                    <span className="auto-label-accent">Lemondási lehetőség</span>
+                  </div>
+                  <label className="check" style={{ display: 'flex', alignItems: 'center', gap: 8, cursor: 'pointer' }}>
+                    <input type="checkbox" checked={reminder.confirmation_cancel_link ?? true}
+                      onChange={e => { setReminder(prev => ({ ...prev, confirmation_cancel_link: e.target.checked })); }}
+                      style={{ width: 16, height: 16, accentColor: '#1ceee0' }}
+                    />
+                    <span style={{ fontSize: 13, color: 'var(--text)' }}>Az ügyfelek emailből lemondhassák az időpontjukat (lemondási gomb az emailben)</span>
+                  </label>
+                </div>
+
+                {/* Tárgy */}
+                <div className="mb-20">
+                  <div className="flex-row gap-8 mb-12">
+                    <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" />
+                    </svg>
+                    <span className="auto-label-accent">Email tárgya</span>
+                  </div>
+                  <input type="text" className="tt-input" style={{ width: '100%' }} value={reminder.confirmation_subject ?? ''}
+                    onChange={e => setReminder(prev => ({ ...prev, confirmation_subject: e.target.value }))}
+                    onBlur={() => saveReminder()}
+                    placeholder="Időpont visszaigazolás"
+                  />
+                </div>
+
+                {/* Sablon */}
+                <div>
+                  <div className="flex-row gap-8 mb-12">
+                    <svg fill="none" stroke="#1ceee0" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14">
+                      <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />
+                    </svg>
+                    <span className="auto-label-accent">Email sablon</span>
+                  </div>
+                  <textarea className="tt-textarea auto-template-textarea" value={reminder.confirmation_template ?? ''}
+                    ref={el => { if (el) { el.style.height = 'auto'; el.style.height = el.scrollHeight + 'px'; } }}
+                    onChange={e => {
+                      setReminder(prev => ({ ...prev, confirmation_template: e.target.value }));
+                      e.target.style.height = 'auto'; e.target.style.height = e.target.scrollHeight + 'px';
+                    }}
+                    onBlur={() => saveReminder()}
+                    placeholder="Üresen hagyva a beépített visszaigazoló sablon megy. Helyettesítők: {nev}, {idopont}, {szolgaltatas}, {lemondas_gomb}"
                   />
                 </div>
               </div>

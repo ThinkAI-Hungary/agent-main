@@ -4569,6 +4569,10 @@ class ReminderSettingsRequest(BaseModel):
     reminder_enabled: bool
     reminder_hours: int
     reminder_template: str
+    confirmation_enabled: bool | None = None
+    confirmation_subject: str | None = None
+    confirmation_template: str | None = None
+    confirmation_cancel_link: bool | None = None
 
 @app.get('/admin/api/settings/reminder')
 async def get_reminder_settings_endpoint(username: str = Depends(verify_jwt)):
@@ -4578,7 +4582,13 @@ async def get_reminder_settings_endpoint(username: str = Depends(verify_jwt)):
 @app.post('/admin/api/settings/reminder')
 async def save_reminder_settings_endpoint(payload: ReminderSettingsRequest, _admin = Depends(require_admin)):
     import database as db
-    success = db.update_reminder_settings(payload.reminder_enabled, payload.reminder_hours, payload.reminder_template)
+    success = db.update_reminder_settings(
+        payload.reminder_enabled, payload.reminder_hours, payload.reminder_template,
+        confirmation_enabled=payload.confirmation_enabled,
+        confirmation_subject=payload.confirmation_subject,
+        confirmation_template=payload.confirmation_template,
+        confirmation_cancel_link=payload.confirmation_cancel_link,
+    )
     if success:
         return {'ok': True, 'message': 'Emlékeztető beállítások mentve.'}
     raise HTTPException(status_code=500, detail='Adatbázis hiba mentéskor')

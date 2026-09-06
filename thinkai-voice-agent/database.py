@@ -2086,14 +2086,22 @@ def get_reminder_settings() -> dict:
         logger.error(f'Error getting reminder settings: {e}')
         return {}
 
-def update_reminder_settings(enabled: bool, hours: int, template: str) -> bool:
+def update_reminder_settings(enabled: bool, hours: int, template: str,
+                             confirmation_enabled=None, confirmation_subject=None,
+                             confirmation_template=None, confirmation_cancel_link=None) -> bool:
     if not supabase: return False
     try:
-        supabase.table('reminder_settings').upsert(_with_tenant({
+        payload = _with_tenant({
             'reminder_enabled': enabled,
             'reminder_hours': hours,
             'reminder_template': template
-        }), on_conflict='tenant_id').execute()
+        })
+        # Visszaigazoló beállítások — csak ha átadják (None → nem írja felül)
+        if confirmation_enabled is not None: payload['confirmation_enabled'] = confirmation_enabled
+        if confirmation_subject is not None: payload['confirmation_subject'] = confirmation_subject
+        if confirmation_template is not None: payload['confirmation_template'] = confirmation_template
+        if confirmation_cancel_link is not None: payload['confirmation_cancel_link'] = confirmation_cancel_link
+        supabase.table('reminder_settings').upsert(payload, on_conflict='tenant_id').execute()
         return True
     except Exception as e:
         logger.error(f'Error updating reminder settings: {e}')

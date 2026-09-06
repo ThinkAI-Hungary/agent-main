@@ -1292,6 +1292,26 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
     SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8000")
     
     try:
+        # ── Tenant beállítások: visszaigazoló sablon + lemondási link kapcsoló ──
+        conf_enabled = True
+        conf_subject = "Időpont visszaigazolás"
+        conf_template = None
+        conf_cancel_link = True
+        try:
+            settings = db.get_reminder_settings()
+            if settings:
+                conf_enabled = settings.get('confirmation_enabled', True)
+                conf_subject = settings.get('confirmation_subject') or conf_subject
+                conf_template = settings.get('confirmation_template') or None
+                conf_cancel_link = settings.get('confirmation_cancel_link', True)
+        except Exception:
+            pass
+
+        if not conf_enabled:
+            logger.info(f"Confirmation email skipped (disabled in settings): {attendee_email}")
+            return
+
+
         token = pyjwt.encode({"event_id": event_id, "exp": datetime.utcnow() + timedelta(days=90)}, JWT_SECRET, algorithm=JWT_ALGO)
         cancel_url = f"{SERVER_URL}/api/public/cancel?token={token}"
         
@@ -1314,6 +1334,7 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
             dtstart = start_dt.strftime("%Y%m%dT%H%M%S")
             dtend = end_dt.strftime("%Y%m%dT%H%M%S")
             
+            ics_cancel_desc = f"\\nLemondás: {cancel_url}" if conf_cancel_link else ""
             ics_content = (
                 "BEGIN:VCALENDAR\r\n"
                 "VERSION:2.0\r\n"
@@ -1326,7 +1347,7 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
                 f"DTSTART;TZID=Europe/Budapest:{dtstart}\r\n"
                 f"DTEND;TZID=Europe/Budapest:{dtend}\r\n"
                 f"SUMMARY:{title}\r\n"
-                f"DESCRIPTION:Időpont visszaigazolás - {title}\\nLemondás: {cancel_url}\r\n"
+                f"DESCRIPTION:Időpont visszaigazolás - {title}{ics_cancel_desc}\r\n"
                 f"ATTENDEE;CN={attendee}:mailto:{attendee_email}\r\n"
                 "STATUS:CONFIRMED\r\n"
                 "BEGIN:VALARM\r\n"
@@ -1365,6 +1386,25 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
         </div>
         """
         
+        # Egyedi sablon: {nev} / {idopont} / {szolgaltatas} / {lemondas_gomb} helyettesítéssel
+        if conf_template:
+            lemondas_gomb = get_cancellation_html(event_id) if conf_cancel_link else ""
+            html_content = (
+                conf_template
+                .replace("{nev}", attendee)
+                .replace("{idopont}", f"{date} {time}")
+                .replace("{szolgaltatas}", title)
+                .replace("{lemondas_gomb}", lemondas_gomb)
+                .replace("\n", "<br>")
+            )
+            if conf_cancel_link:
+                html_content += get_cancellation_html(event_id)
+        elif not conf_cancel_link:
+            # Lemondási link kikapcsolva: gomb + URL eltávolítása az alap emailből
+            import re as _re
+            html_content = _re.sub(r'<a href="[^"]*"[^>]*>Lemondom</a>', '', html_content)
+            html_content = html_content.replace(cancel_url, '')
+
         api_key = _get_brevo_api_key()
 
         if not api_key:
@@ -1374,7 +1414,7 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
         email_payload = {
             "sender": _get_sender(),
             "to": [{"email": attendee_email, "name": attendee}],
-            "subject": "Időpont visszaigazolás",
+            "subject": conf_subject,
             "htmlContent": html_content,
         }
         
