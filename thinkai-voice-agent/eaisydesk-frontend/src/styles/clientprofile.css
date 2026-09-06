@@ -93,6 +93,11 @@ body.dark {
   color: var(--cp-a2);
 }
 .cd-hero-main { min-width: 0; }
+.cd-hero-sub {
+  font-size: 11.5px;
+  color: var(--text-muted);
+  margin-top: 2px;
+}
 .cd-name-row { flex-wrap: wrap; gap: 10px; }
 .cd-client-name {
   margin: 0;

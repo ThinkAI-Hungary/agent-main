@@ -67,7 +67,7 @@ async function openProfile(page: Page) {
   await page.goto('/admin/clients');
   await expect(page.locator('.page-title', { hasText: 'Ügyféllista' })).toBeVisible();
   await page.waitForTimeout(600);
-  await page.locator('.int-row').first().click();
+  await page.locator('.cd-table-card tbody tr').first().click();
   await expect(page.locator('.cd-hero')).toBeVisible({ timeout: 15000 });
   await page.waitForTimeout(500);
 }
@@ -84,7 +84,7 @@ test('ügyfélprofil — dark mode', async ({ page }) => {
   await page.goto('/admin/clients');
   await expect(page.locator('.page-title', { hasText: 'Ügyféllista' })).toBeVisible();
   await page.waitForTimeout(600);
-  await page.locator('.int-row').first().click();
+  await page.locator('.cd-table-card tbody tr').first().click();
   await expect(page.locator('.cd-hero')).toBeVisible({ timeout: 15000 });
   await page.waitForTimeout(500);
   await page.screenshot({ path: 'screenshots/audit-profile-dark.png', fullPage: true });
