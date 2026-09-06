@@ -1155,8 +1155,7 @@ body.dark .cd-table-card tbody tr.cd-is-urgent td { background: var(--cp-err-row
 .cal-week-body {
   display: grid;
   grid-template-columns: 62px repeat(7, minmax(0, 1fr));
-  /* első hr vonal eltolása a fejléc border-ével egyvonalban */
-  margin-top: -1px;
+  margin-top: 4px;
 }
 .cal-week-gutter {
   position: relative;
