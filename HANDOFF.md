@@ -208,6 +208,7 @@ A user HTML-mockupja alapján (a modal cím és a tooltip eltérő kezelése sze
 - **Logpontok**: `send_booking_confirmation_email`, reminder worker (a régi type='email' log leváltva), `send_modification_confirmation_email`, `send_cancellation_email`, `_run_campaign` (Kampány, client_id-val).
 - **Verifikáció**: deploy `f758baf` — élő teszt: outbound sor bent (id 781, ügyfél 257, mind a 4 érték helyes), a grouped RPC NEM adja vissza, a sima interactions listában benne van. Konténer healthy.
 - **Korlát**: a Marketing modul bulk Brevo kampányai (`brevo_campaigns.send_campaign_now`) Brevo-listára mennek — ügyfél-szintű logolás ott nem lehetséges (csak a Kimenő kommunikáció `campaigns` kampányai logolódnak). **Megjegyzés**: a notification bell (NotificationCenter) ma még kaphat outbound sorokat (30 mp-enként /admin/api/interactions?limit=10) — ha zavaró, külön szűrés kell oda is.
+- **NotificationCenter szűrés** (commit `40ba374`): a csengő 30 mp-es pollja kiszűri a `tool_name='outbound_notification'` sorokat — a kimenő üzenetek (visszaigazoló/emlékeztető/módosítás/lemondás/kampány) nem értesítenek, csak az ügyfélprofilban látszanak.
 
 ---
 
