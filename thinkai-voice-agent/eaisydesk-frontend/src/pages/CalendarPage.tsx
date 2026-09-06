@@ -76,8 +76,17 @@ export default function CalendarPage() {
         const res = await authFetch('/admin/api/services');
         const data = await res.json();
         const list = Array.isArray(data?.services) ? data.services : [];
-        const names = Array.from(new Set(list.map((s: { assigned_to?: string }) => (s.assigned_to || '').trim()).filter(Boolean))) as string[];
-        setStaffOptions(names.sort((a, b) => a.localeCompare(b, 'hu')));
+        // A Kolléga mező vesszővel elválasztott névlista — egyedi nevekre bontjuk,
+        // a "minden fogorvos" jellegű szabad szövegeket kiszűrjük
+        const names = new Set<string>();
+        list.forEach((s: { assigned_to?: string }) => {
+          (s.assigned_to || '').split(',').forEach(part => {
+            const n = part.trim();
+            if (!n || /^minden\b/i.test(n)) return;
+            names.add(n);
+          });
+        });
+        setStaffOptions(Array.from(names).sort((a, b) => a.localeCompare(b, 'hu')));
       } catch { /* ignore */ }
     })();
   }, []);
@@ -677,6 +686,18 @@ export default function CalendarPage() {
                 <label className="cd-task-modal-label">Esemény címe</label>
                 <input className="cd-form-input" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} placeholder="pl. Konzultáció" />
               </div>
+              <div className="form-group">
+                <label className="cd-task-modal-label">Munkatárs</label>
+                <select className="cd-form-input" value={newEvent.assigned_to} onChange={e => setNewEvent({ ...newEvent, assigned_to: e.target.value })}>
+                  <option value="">— Munkatárs választás —</option>
+                  {staffOptions.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                  {newEvent.assigned_to && !staffOptions.includes(newEvent.assigned_to) && (
+                    <option value={newEvent.assigned_to}>{newEvent.assigned_to}</option>
+                  )}
+                </select>
+              </div>
               <div className="flex-row gap-10">
                 <div className="flex-1">
                   <label className="cd-task-modal-label">Dátum</label>
@@ -699,12 +720,19 @@ export default function CalendarPage() {
                 </div>
               </div>
               <div className="form-group">
+                <label className="cd-task-modal-label">Esemény címe</label>
+                <input className="cd-form-input" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} placeholder="pl. Konzultáció" />
+              </div>
+              <div className="form-group">
                 <label className="cd-task-modal-label">Munkatárs</label>
                 <select className="cd-form-input" value={newEvent.assigned_to} onChange={e => setNewEvent({ ...newEvent, assigned_to: e.target.value })}>
-                  <option value="">Automatikus (szabályok alapján)</option>
+                  <option value="">— Munkatárs választás —</option>
                   {staffOptions.map(name => (
                     <option key={name} value={name}>{name}</option>
                   ))}
+                  {newEvent.assigned_to && !staffOptions.includes(newEvent.assigned_to) && (
+                    <option value={newEvent.assigned_to}>{newEvent.assigned_to}</option>
+                  )}
                 </select>
               </div>
             </div>

@@ -1471,10 +1471,23 @@ def _format_hu_datetime(dt) -> str:
         return str(dt)
 
 
+def _split_staff_names(assigned_to: str) -> list[str]:
+    """A services.assigned_to vesszővel elválasztott névlistáját egyedi nevekre bontja.
+    A "minden fogorvos" jellegű szabad szövegeket kiszűri (nem konkrét nevek)."""
+    names = []
+    for part in (assigned_to or "").split(","):
+        n = part.strip()
+        if not n or n.lower().startswith("minden"):
+            continue
+        if n not in names:
+            names.append(n)
+    return names
+
+
 def resolve_assigned_staff(title: str, assigned_to: str = "") -> str:
     """{{munkatárs}} feloldása: explicit érték → a szolgáltatáshoz rendelt munkatárs
-    → random releváns munkatárs a services.assigned_to poolból (rendelési idő
-    beállításáig minden foglaláshoz kell munkatárs — user döntés, 257/254 tesztek)."""
+    → random releváns munkatárs a Foglalható szolgáltatások, kollégák listából
+    (rendelési idő beállításáig minden foglaláshoz kell munkatárs — user döntés)."""
     explicit = (assigned_to or "").strip()
     if explicit:
         return explicit
@@ -1485,15 +1498,17 @@ def resolve_assigned_staff(title: str, assigned_to: str = "") -> str:
     t = (title or "").strip().lower()
     matched, pool = [], []
     for sv in services:
-        st = (sv.get("assigned_to") or "").strip()
-        if not st:
+        names = _split_staff_names(sv.get("assigned_to") or "")
+        if not names:
             continue
-        if st not in pool:
-            pool.append(st)
-        nm = (sv.get("name") or "").strip().lower()
+        for n in names:
+            if n not in pool:
+                pool.append(n)
+        nm = (sv.get("service_name") or "").strip().lower()
         if nm and (nm in t or t in nm):
-            if st not in matched:
-                matched.append(st)
+            for n in names:
+                if n not in matched:
+                    matched.append(n)
     import random
     if matched:
         return random.choice(matched)
