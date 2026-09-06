@@ -900,6 +900,10 @@ def _imap_credentials(tenant_id: str | None = None) -> tuple[str, str, str, int]
     return server, user, pwd, port
 
 
+# Mailboxonkénti UID high-water mark: csak az előző pollnál újabb UID-eket
+# dolgozunk fel — függetlenül az olvasottságtól (külső kliens jelölhet \Seen-et).
+_imap_highwater: dict = {}
+
 def check_imap_sync(server: str = "", user: str = "", pwd: str = "", port: int = 993):
     """Szinkron IMAP lekérdezés, amit egy threadpoolban futtatunk.
 
@@ -929,11 +933,24 @@ def check_imap_sync(server: str = "", user: str = "", pwd: str = "", port: int =
         mail.login(user, pwd)
         mail.select("inbox")
 
-        # Csak az olvasatlan (UNSEEN) leveleket kérdezzük le — UID SEARCH
-        status, messages = mail.uid("search", None, "UNSEEN")
+        # Utolsó N nap levelei — NEM UNSEEN filter! Külső levelező kliens
+        # (pl. a tulaj mail appja) korábban megjelölheti olvasottnak, és akkor
+        # a levél elveszne. A duplikációt a processed_emails Message-ID
+        # claim (insert-first) kezeli, nem a \Seen jelzés; a már feldolgozott
+        # UID-eket pedig mailboxonkénti high-water mark szűri.
+        from datetime import timedelta as _td
+        since_date = (datetime.now() - _td(days=3)).strftime("%d-%b-%Y")
+        status, messages = mail.uid("search", None, f'(SINCE "{since_date}")')
         if status == "OK" and messages[0]:
             uids = messages[0].split()
-            logger.info(f"IMAP poll: {len(uids)} olvasatlan levél")
+            hw_key = (server, user, port)
+            hw = _imap_highwater.get(hw_key, 0)
+            new_uids = [u for u in uids if int(u) > hw]
+            logger.info(f"IMAP poll: {len(uids)} levél a 3 napos ablakban, ebből új: {len(new_uids)}")
+            if not new_uids:
+                mail.logout()
+                return []
+            uids = new_uids
             for uid in uids:
                 try:
                     res, msg_data = mail.uid("fetch", uid, "(RFC822)")
@@ -1147,6 +1164,11 @@ async def _poll_tenant_mailbox(tenant: dict):
 
         if seen_uids:
             await asyncio.to_thread(mark_emails_seen_sync, seen_uids, server, user, pwd, port)
+            hw_key = (server, user, port)
+            try:
+                _imap_highwater[hw_key] = max(int(u) for u in seen_uids + [_imap_highwater.get(hw_key, 0)])
+            except (ValueError, TypeError):
+                pass
     except Exception as e:
         logger.error(f"IMAP poll hiba (tenant={tenant.get('slug')}): {e}")
 
