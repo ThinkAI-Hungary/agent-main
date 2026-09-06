@@ -351,7 +351,7 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
     # dátum, "járt már nálunk?"), amiknek az adatai megvannak a rendszerben.
     adatkeresi_szabalyok = (
         "ADATKÉRÉSI SZABÁLYOK (mindig érvényesek):\n"
-        f"- Az ügyfél EMAIL CÍMÉT SOHA NE KÉRDEZD MEG — a rendszer a bejövő levél feladójából ismeri ({from_email}); rákérdezni felesleges és szakszerűtlen.\n"
+        f"- Az ügyfél EMAIL CÍMÉT SOHA NE KÉRDEZD MEG: minden levelük nyilvánvalóan mutatja, melyik címről érkezett ({from_email}) — rákérdezni kontraproduktív, attól függetlenül, hogy az ügyfél ismert-e a nyilvántartásban.\n"
         "- CSAK olyan adatot kérj el, amivel a rendszer NEM rendelkezik: ha a név nem egyértelmű (pl. csak keresztnevet írt), kérd el a teljes nevét; ha telefonszám nincs megadva és az ügyintézéshez szükség van rá (pl. időpont-visszaigazolás, emlékeztető), kérd el a telefonszámot.\n"
         "- Ami már ismert (a fenti listából vagy a levélből egyértelműen), arra soha ne kérdezz rá újra.\n"
     )

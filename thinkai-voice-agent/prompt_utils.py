@@ -288,6 +288,19 @@ def get_system_prompt(channel: str = None) -> str:
             lang_instruction = f"STRICT RULE: You MUST respond ONLY in {lang_name}. NEVER reply in Hungarian!"
         result = f"[LANGUAGE OVERRIDE] {lang_instruction}\n\n{result}"
 
+    # ── E-mail csatornaszabály: a feladó címét a címzett magától értetődően látja ──
+    # Aki emailt ír, annak nyilvánvaló, hogy a címzett látja a feladó címét — a
+    # rákérdezés kontraproduktív, a nyilvántartási státusztól függetlenül.
+    if channel and channel.lower() == "email":
+        result += (
+            "\n\n--- E-MAIL CSATORNASZABÁLY ---\n"
+            "Az ügyfél EMAIL CÍMÉT SOHA NE KÉRDEZD MEG: minden levél nyilvánvalóan "
+            "mutatja, melyik címről érkezett, a rendszer ismeri a feladót. Ez attól "
+            "függetlenül érvényes, hogy az ügyfél szerepel-e a nyilvántartásban — "
+            "rákérdezni kontraproduktív. A hiányzó, az ügyintézéshez szükséges egyéb "
+            "adatokat (pl. teljes név, telefonszám) természetesen el lehet kérni."
+        )
+
     # ── EAISY-241 §1.1.1/§2 — Eljárás-szabályok injektálása a promptba ────────
     # Dinamikusan felépíti a „mit tehet önállóan / mit nem" szabályokat a triage_rules
     # eljárás értékeiből, hogy a hang-agent betartsa a brief non-autonomy követelményeit.
