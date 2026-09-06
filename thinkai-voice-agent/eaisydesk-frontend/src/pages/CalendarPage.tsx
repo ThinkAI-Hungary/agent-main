@@ -184,6 +184,9 @@ export default function CalendarPage() {
 
   const goToday = useCallback(() => {
     const d = new Date(); d.setHours(0, 0, 0, 0); setCalCursor(d);
+    // A Ma gomb mindig a NAPI nézetet tölti be — heti/havi nézetből vagy
+    // más nappal ellapozás után is az aznapi napot mutatja
+    setCalMode('day');
   }, []);
 
   function calTitleText(): string {
