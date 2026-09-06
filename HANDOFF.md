@@ -234,6 +234,17 @@ A user HTML-mockupja alapján (a modal cím és a tooltip eltérő kezelése sze
 - **Utófix 2 — duplikált mezők + üres névlista** (commit `915afc9`): (a) a modalban DUPLÁN szerepelt az „Esemény címe + Munkatárs" blokk (a fix-4 körös szerkesztés törlő lépése hiányzott) — a dátumsor utáni másolat törölve; (b) a `staffOptions` üres volt, mert a `GET /admin/api/services` csupasz tömböt ad, a kód `data.services`-t várta — most mindkét alak kezelve. Élő ellenőrzés: chunkban „Esemény címe" 1×; a valós válasz 7 szolgáltatás → 7 konkrét név (Balogh Pálma, Dr. Hegedűs Eszter, Dr. Kiss Réka, Dr. Kovács Márk, Dr. Molnár Bence, Dr. Varga Anna, Pál Alexandra).
 - **Utófix 3 — Ma gomb** (commit `9bbf344`): a „Ma" gomb mindig a **NAPI nézetet** tölti be (`setCalMode('day')` + cursor azonnai napra) — heti/havi nézetből vagy ellapozás után is az aznapi napot mutatja. Verifikáció: a deployed CalendarPage chunk md5 hashesen egyezik a friss builddel.
 
+### 17. TERVEZETT — Member irányítópult áttervezés (2026-09-07, kérdések függőben — MÉG NEM INDULT EL)
+
+**User kérés**: a member irányítópult a user NAPI teendőit mutassa (mockup alapján): hero (üdvözlet + dátum), 3 KPI-kártya (Sürgős/lejárt szám · Nyitott szám · Mai időpontok kártya — első időpont látszik, többi lenyitható), 2 szekció táblázattal: **Sürgős/lejárt** (Sürgős státuszúak + Minden nyitott/sürgős, ami created_at alapján a tegnapi nap előtt keletkezett és nincs lezárva — 24 órás szabály, státusz nem változik, csak a szekcióba feljebb kerül) és **Nyitott teendők** (aznapi nyitottak). A dashboard szűrőként működik: Lezárt kizárva; pipára az interakció lezárul (eltűnik a dashboardról, a naplóban marad Lezártan). Mockup: user által adott HTML (hero, KPI-k, táblázat, interakciós modal jóváhagyás-gombbal, Messenger/IG 24h figyelmeztető).
+
+**Nyitott kérdések (user válaszára vár)**:
+1. Member „Elvégezve" jogosultság: a lezáró endpoint (`PATCH /admin/api/interactions/{id}/status`) ma `admin/manager`-only → membernek 403 (a MOSTANI checkbox membernel is ezért elhasal). Javaslat: member-scoped záró végpont (csak saját kiosztott ügyfél).
+2. „Jóváhagyás és elküldés" memberként: approvals jóváhagyás admin/manager jog. Member modalban draft olvasható + „admin/manager küldi" felirat (javaslat), vagy member is küldhet?
+3. „Színes pille rendezett teendők" kifejezés jelentése — tisztázandó.
+4. Kézi teendők (Hozzáadott feladat) elhelyezése az új dashboardon (javaslat: Nyitott szekcióba keverve).
+**Döntések (amíg nincs kifogás)**: konténer = app szélesség; 24h határ = interakció created_at; useSessions limit 100 → 300; Mai időpontok = csak hozzám rendelt ügyfelek mai eseményei.
+
 ---
 
 ## Adatbázis módosítások (élőn lefutottak)
