@@ -168,10 +168,18 @@ A kódbázisból queryelhető tudásgráf: [github.com/Graphify-Labs/graphify](h
   - Megjegyzés: a `modify/delete_meeting` akciók továbbra is azonnal futnak (nem érinti a jóváhagyás-mód) — ha ez is kérdéses lesz, külön tétel.
 - **Verifikáció**: deploy `210de4f` — konténer healthy, logok tiszták, konténerbeli import-teszt OK (helper érvénytelen adatra None-t ad). Teljes E2E: jóváhagyás-módban küldött foglalási email → pending draftban `pending_meeting` kell legyen, esemény NEM keletkezik; a jóváhagyás gombra → esemény + visszaigazoló + jóváhagyott válasz.
 
-### 📋 KÖVETKEZŐ FELADAT (user bejelentette): automatikus értesítések rendrakása
+### 12. Automatikus értesítések rendrakása — 4 beégetett időpont-értesítés (2026-09-06 éjszaka)
 
-- Az automatikus értesítések (emlékeztetők) csak az IDŐPONTOKRA vonatkozzanak — a reminder/automation worker logikáját át kell nézni és rendbe tenni. (User jelzése a 10. tétel után; még nem kezdődött el.)
-- **Ide tartozik a 11. tételben talált rés is**: a `action_modify_meeting` / `action_delete_meeting` ág a módosítás-visszaigazolót (`send_modification_confirmation_email`) még azonnal kiküldi, jóváhagyás-módban is — ez is az időpont-értesítések közé tartozik, itt kell rendezni.
+**User döntések (kérdés-válasz után)**: minden esemény-változásról menjen email; {{munkatárs}} MINDEN foglaláshoz (explicit → szolgáltatás szerinti → random releváns); emlékeztető fix 24 óra; régi eseményvezérelt automatizációk kikapcsolva megmaradnak; minden típusú lemondásról email (ICS nélkül); módosítás-visszaigazoló jóváhagyás-módban a jóváhagyott válasszal megy ki; a régi visszaigazoló-akkordion megszűnik.
+
+**A 4 beégetett sablon** (`_APPOINTMENT_NOTIFICATIONS`, email_processor.py — a user screenshotjai szerint): Időpont visszaigazolása / Időpont emlékeztető / Időpont módosításának visszaigazolása / Időpont lemondása. Változók: `{{név}} {{időpont}} {{szolgáltatás}} {{munkatárs}} {{telephely}} {{szolgáltató}}`. Az időpont formátum: „2026. szeptember 7. (hétfő) 10:00". A szöveg NEM szerkeszthető — csak toggle.
+
+- **Változó-feloldás**: `resolve_assigned_staff` (explicit assigned_to → services.assigned_to szolgáltatás-match → random pool); telephely = ügyfél clinic_id → első klinika → practice_name; szolgáltató = business_info.practice_name. Az eseményeken a `calendar_events.doctor` oszlop tárolja (az `add_calendar_event` kapott `assigned_to` paramétert, az update whitelist "doctor").
+- **DB migráció (staging branchen lefutott)**: `reminder_settings` + `modification_enabled`, `cancellation_enabled` (default true); `outbound_automations` összes sora `enabled=false` (a worker és a sorok megmaradnak).
+- **Send-point lefedettség (mind toggle-ölt)**: visszaigazoló — email AI (autonóm), jóváhagyás endpoint, Meta webhook, voice book_meeting, **kézi naptár-létrehozás (ÚJ)**; módosító — email flow (jóváhagyás-módban `pending_modification` a draftban, az approve endpoint küldi — **ÚJ**), Meta webhook, **voice modify_meeting (ÚJ)**, **kézi naptár-szerkesztés (ÚJ)**; lemondó — **self-cancel link (ÚJ)**, **kézi naptár-törlés (ÚJ)**, **voice delete_meeting (ÚJ)**, **email AI törlés (ÚJ)**, **Meta webhook törlés (ÚJ)**.
+- **API**: `GET /admin/api/settings/reminder` → `notifications[]` (kind/title/description/subject/body/enabled — a frontendnek); `POST /admin/api/settings/reminder/notification-toggle` {kind, enabled}.
+- **Frontend**: `AutomatizaciokPage.tsx` teljes rewrite — 4 frozen kártya (ikon, toggle „Engedélyezve", csak olvasható tárgy + chip-stílusú {{változó}}-s szöveg); a régi Emlékeztető-szerkesztő, Visszaigazolás-akkordion és eseményvezérelt lista eltűnt. `reminder_hours`/`reminder_template`/`confirmation_subject`/`confirmation_template` oszlopok megmaradnak de NEM használtak (a worker fix 24 órát használ).
+- **Verifikáció**: deploy `1840434` — konténer healthy, 0 ERROR; élő render-teszt: magyar dátumformátum OK, mind a 4 sablon behelyettesít, üres Helyszín-sor eldobódik; toggle-ök default true. **Nyitott**: élő E2E (foglalás → 4 email egyike a beállítás szerint) + a CalendarPage "Új időpont" modal még nem ad fel munkatárs-mezőt (a backend random fallback lép) — ha kell, UI-bővítés külön tétel.
 
 ### 11. Megengedő Gemini JSON-parse + elveszett email megmentése (2026-09-06 este, 774-es interakció)
 
