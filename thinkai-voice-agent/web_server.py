@@ -5200,6 +5200,11 @@ async def _run_campaign(campaign: dict, active_channels: list[str]):
                 resp.raise_for_status()
                 processed += 1
                 print(f"[Campaign] Email elküldve: {client_name} <{client_email}>")
+                # Ügyfélprofil log: Kampány / Kiküldve sor (naplóba NEM kerül)
+                email_processor.log_outbound_message(
+                    "campaign", client_name, client_email, subject, body,
+                    client_id=client.get("id"),
+                )
             except Exception as e:
                 failed += 1
                 print(f"[Campaign] Email küldési hiba ({client_name}): {e}")

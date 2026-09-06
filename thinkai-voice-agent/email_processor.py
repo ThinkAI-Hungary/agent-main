@@ -1400,6 +1400,65 @@ _HU_MONTHS = ["január", "február", "március", "április", "május", "június"
               "július", "augusztus", "szeptember", "október", "november", "december"]
 _HU_DAYS_LOCAL = ["hétfő", "kedd", "szerda", "csütörtök", "péntek", "szombat", "vasárnap"]
 
+# Kimenő automatikus üzenetek ügytípus értékei (ügyfélprofil lezárt sorai)
+_OUTBOUND_TOPIC = {
+    "confirmation": "Időpont visszaigazolása",
+    "reminder": "Időpont emlékeztető",
+    "modification": "Időpont módosításának visszaigazolása",
+    "cancellation": "Időpont lemondása",
+    "campaign": "Kampány",
+}
+
+
+def log_outbound_message(kind: str, attendee: str, attendee_email: str, subject: str,
+                         body_text: str, client_id: int | None = None):
+    """Kimenő automatikus/kampány üzenet naplózása az ÜGYFÉLPROFILBA.
+
+    Interakció-sorként kerül be: direction='outbound' → az interakciós napló
+    (grouped RPC `has_inbound` szűrő) KISZŰRI, az ügyfélprofil lezárt sorai
+    közt viszont megjelenik: Eredmény=Kiküldve, Státusz=Lezárt,
+    Teendő=Nincs további teendő. A sorra kattintva az üzenet szövege látszik
+    (ai_draft_response.body)."""
+    try:
+        if not attendee_email:
+            return
+        if not client_id:
+            cl = db.find_client_by_contact(email=attendee_email)
+            client_id = cl.get("id") if cl else None
+        if not client_id:
+            logger.info(f"Outbound log kihagyva (nincs ügyfélrekord): {attendee_email}")
+            return
+        ugytipus = _OUTBOUND_TOPIC.get(kind, kind)
+        from datetime import datetime as _dt
+        sid = f"outbound_{kind}_{client_id}_{int(_dt.now().timestamp())}"
+        db.log_interaction(
+            type="email",
+            topic=ugytipus,
+            summary=subject or ugytipus,
+            result="Kiküldve",
+            tool_name="outbound_notification",
+            session_id=sid,
+            direction="outbound",
+            approval_status="approved",
+            client_id=client_id,
+            classification={
+                "ugytipus": ugytipus,
+                "statusz": "Lezárt",
+                "eredmeny": "Kiküldve",
+                "teendo": "Nincs további teendő",
+            },
+            ai_draft_response=json.dumps({
+                "channel": "Email",
+                "to_email": attendee_email,
+                "to_name": attendee or "",
+                "subject": subject or ugytipus,
+                "body": body_text or "",
+            }, ensure_ascii=False),
+        )
+        logger.info(f"Outbound üzenet naplózva az ügyfélprofilba: {ugytipus} → {attendee_email} (client_id={client_id})")
+    except Exception as e:
+        logger.error(f"Outbound logolási hiba ({kind}): {e}")
+
 
 def _format_hu_datetime(dt) -> str:
     """Magyar, emberbarát időpont formátum: 2026. szeptember 7. (hétfő) 10:00"""
@@ -1492,8 +1551,8 @@ def _notification_vars(attendee: str, title: str, start_dt_iso: str,
     }
 
 
-def _render_notification(kind: str, vars: dict, cancel_html: str = "") -> tuple[str, str]:
-    """Beégetett sablon renderelése → (subject, html). Üres {{telephely}}-sor eldobása."""
+def _render_notification(kind: str, vars: dict, cancel_html: str = "") -> tuple[str, str, str]:
+    """Beégetett sablon renderelése → (subject, html, plain szöveg). Üres {{telephely}}-sor eldobása."""
     spec = _APPOINTMENT_NOTIFICATIONS[kind]
     body = spec["body"]
     munkatars = (vars.get("munkatárs") or "").strip()
@@ -1509,7 +1568,7 @@ def _render_notification(kind: str, vars: dict, cancel_html: str = "") -> tuple[
         + cancel_html
         + "</div>"
     )
-    return spec["subject"], html
+    return spec["subject"], html, body
 
 
 def get_appointment_notification_settings() -> dict:
@@ -1625,7 +1684,7 @@ async def _run_reminders_for_tenant(tenant: dict):
                 assigned_to=ev.get('doctor', ''),
                 attendee_email=ev.get('attendee_email'),
             )
-            subject, html_msg = _render_notification("reminder", vars)
+            subject, html_msg, _plain = _render_notification("reminder", vars)
 
             success = await send_reminder_email(
                 to_email=ev.get('attendee_email'),
@@ -1635,17 +1694,13 @@ async def _run_reminders_for_tenant(tenant: dict):
 
             if success:
                 db.mark_reminder_sent(ev.get('id'))
-                session_id = f"reminder_{ev.get('id')}"
-                db.create_session(session_id=session_id, room_name="Időpont emlékeztető", participant=vars["név"])
-                db.log_interaction(
-                    type="email",
-                    topic="Emlékeztető",
-                    summary=f"Emlékeztető elküldve a(z) {ev.get('attendee_email')} címre",
-                    result="Elküldve",
-                    tool_name="reminder_worker",
-                    session_id=session_id,
-                    direction="outbound",
-                    funnel_stage="relevant"
+                # Ügyfélprofil log: Lezárt / Kiküldve sor (naplóba NEM kerül)
+                log_outbound_message(
+                    "reminder",
+                    vars["név"],
+                    ev.get('attendee_email'),
+                    subject,
+                    _plain,
                 )
         except Exception as ev_err:
             logger.error(f'Emlékeztető küldési hiba (event id={ev.get("id")}): {ev_err}')
@@ -1795,7 +1850,7 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
             attendee, title, f"{date}T{time}:00",
             assigned_to=doctor, attendee_email=attendee_email,
         )
-        subject, html_content = _render_notification("confirmation", vars)
+        subject, html_content, _plain = _render_notification("confirmation", vars)
         if conf_cancel_link:
             html_content += get_cancellation_html(event_id)
 
@@ -1829,6 +1884,8 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
             )
             resp.raise_for_status()
         logger.info(f"Booking confirmation email sent to {attendee_email} with cancel link.")
+        # Ügyfélprofil log: Lezárt / Kiküldve sor (naplóba NEM kerül)
+        log_outbound_message("confirmation", attendee, attendee_email, subject, _plain)
     except Exception as e:
         logger.error(f"Failed to send booking confirmation email: {e}")
 
@@ -1870,7 +1927,7 @@ async def send_modification_confirmation_email(attendee: str, attendee_email: st
         return
 
     vars = _notification_vars(attendee, title, new_datetime, assigned_to=assigned_to, attendee_email=attendee_email)
-    subject, html_content = _render_notification("modification", vars)
+    subject, html_content, _plain = _render_notification("modification", vars)
 
     # Frissített ICS melléklet az új időponttal
     ics_base64 = None
@@ -1922,6 +1979,8 @@ async def send_modification_confirmation_email(attendee: str, attendee_email: st
             )
             resp.raise_for_status()
         logger.info(f"Modification confirmation email sent to {attendee_email}.")
+        # Ügyfélprofil log: Lezárt / Kiküldve sor (naplóba NEM kerül)
+        log_outbound_message("modification", attendee, attendee_email, subject, _plain)
     except Exception as e:
         logger.error(f"Failed to send modification confirmation email: {e}")
 
@@ -1935,7 +1994,7 @@ async def send_cancellation_email(attendee: str, attendee_email: str, title: str
         return
 
     vars = _notification_vars(attendee, title, start_dt_iso, assigned_to=assigned_to, attendee_email=attendee_email)
-    subject, html_content = _render_notification("cancellation", vars)
+    subject, html_content, _plain = _render_notification("cancellation", vars)
 
     api_key = _get_brevo_api_key()
     if not api_key:
@@ -1957,6 +2016,8 @@ async def send_cancellation_email(attendee: str, attendee_email: str, title: str
             )
             resp.raise_for_status()
         logger.info(f"Cancellation email sent to {attendee_email}.")
+        # Ügyfélprofil log: Lezárt / Kiküldve sor (naplóba NEM kerül)
+        log_outbound_message("cancellation", attendee, attendee_email, subject, _plain)
     except Exception as e:
         logger.error(f"Failed to send cancellation email: {e}")
 
