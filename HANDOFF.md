@@ -168,6 +168,14 @@ A kódbázisból queryelhető tudásgráf: [github.com/Graphify-Labs/graphify](h
   - Megjegyzés: a `modify/delete_meeting` akciók továbbra is azonnal futnak (nem érinti a jóváhagyás-mód) — ha ez is kérdéses lesz, külön tétel.
 - **Verifikáció**: deploy `210de4f` — konténer healthy, logok tiszták, konténerbeli import-teszt OK (helper érvénytelen adatra None-t ad). Teljes E2E: jóváhagyás-módban küldött foglalási email → pending draftban `pending_meeting` kell legyen, esemény NEM keletkezik; a jóváhagyás gombra → esemény + visszaigazoló + jóváhagyott válasz.
 
+### 11. Megengedő Gemini JSON-parse + elveszett email megmentése (2026-09-06 este, 774-es interakció)
+
+- **Probléma**: a user 21:30-as levele (erika@feedbacks.hu, "Fw: idﺀpont SOS", tartalom: „módosíthatnám 10 órára az időpontot?") megérkezett és claimelve lett, DE a Gemini JSON-mód ellenére érvénytelen escape-szekvenciát adott (`\n\Természetesen` → `Invalid \escape`) → a feldolgozás elszállt, csak hiba-interakció (774) készült draft nélkül, a claim pedig „ok"-ként rögzült → a levél örökre elveszett volna.
+- **A csatolmány kérdése**: a postafiók BODYSTRUCTURE-je szerint a 3 feedbacks.hu levél EGYIKÉBEN sincs csatolmány — a user Outlookjában a rózsaszín helyőrző alapján a csatolmány a kliensben ragadt (feltöltés nem sikerült). Nem rendszerhiba.
+- **Javítás** (commit `98ad9bf`): `_loads_lenient()` megengedő parse (`email_processor.py`) + ugyanez inline a `classifier.py` intent-parse-ban — szabványos parse először, hibánál az érvénytelen visszaperjelek (`\"\/bfnrtu` kivételébe nem tartozó) eldobása. Tesztelve a TÉNYLEGES hibás válasszal (a `\T` eldobásával a szöveg helyesen újsorral folytatódik).
+- **Mentés (recovery)**: a 19:31-es hibás claim törölve + konténer restart (high-water reset) → újrafeldolgozás a javított kóddal: Gemini OK → **esemény #107 (Akut fogászati vizsgálat - fájdalom) módosítva hétfő 10:00 Budapestre** → válasz pending draftként jóváhagyásra vár (interakció 775).
+- **Talált rés (a következő körbe)**: a módosítás-visszaigazoló email azonnal kiment (`send_modification_confirmation_email`), jóváhagyás-módban is — lásd a KÖVETKEZŐ FELADAT blokkot.
+
 ### 12. Automatikus értesítések rendrakása — 4 beégetett időpont-értesítés (2026-09-06 éjszaka)
 
 **User döntések (kérdés-válasz után)**: minden esemény-változásról menjen email; {{munkatárs}} MINDEN foglaláshoz (explicit → szolgáltatás szerinti → random releváns); emlékeztető fix 24 óra; régi eseményvezérelt automatizációk kikapcsolva megmaradnak; minden típusú lemondásról email (ICS nélkül); módosítás-visszaigazoló jóváhagyás-módban a jóváhagyott válasszal megy ki; a régi visszaigazoló-akkordion megszűnik.
@@ -182,13 +190,15 @@ A kódbázisból queryelhető tudásgráf: [github.com/Graphify-Labs/graphify](h
 - **Verifikáció**: deploy `1840434` — konténer healthy, 0 ERROR; élő render-teszt: magyar dátumformátum OK, mind a 4 sablon behelyettesít, üres Helyszín-sor eldobódik; toggle-ök default true. **Nyitott**: élő E2E (foglalás → 4 email egyike a beállítás szerint) + a CalendarPage "Új időpont" modal még nem ad fel munkatárs-mezőt (a backend random fallback lép) — ha kell, UI-bővítés külön tétel.
 - **Design finomhangolás** (commit `8c1b3c1` + `4b41d26`): az `AutomatizaciokPage.tsx` a user által adott HTML-mockup szerint lett újraístílusozva — co-section kártyák (surface fejléc, stroke SVG ikonok tintelt négyzetben, 40×22 toggle accent-2 színnel, „Engedélyezve" felirat), nt-token chip-stílusú változók, kikapcsolt kártyánál a törzs elhalványul (opacity .55 + pointer-events none), dark mode a ThemeContext `isDark`-jából (accent-2: #186d98 → #3fd8c8). A toggle-funkció változatlan (notification-toggle endpoint). **Konténer**: a mockup 1120px max-width-jét a user visszavételre kérte — az oldal az alkalmazás szokásos `.page` wrapperét használja (`.main-content` adja a szélességet, `4b41d26`). Deploy + a lazy chunk tartalom szerint verifikálva; vizuális böngésző-ellenőrzés nem volt lehetséges a környezetben (nincs browser backend) — user hard refresh után látja.
 
-### 11. Megengedő Gemini JSON-parse + elveszett email megmentése (2026-09-06 este, 774-es interakció)
+### 13. Naptár finomhangolás (2026-09-06 éjszaka, commit `db17909`)
 
-- **Probléma**: a user 21:30-as levele (erika@feedbacks.hu, "Fw: idﺀpont SOS", tartalom: „módosíthatnám 10 órára az időpontot?") megérkezett és claimelve lett, DE a Gemini JSON-mód ellenére érvénytelen escape-szekvenciát adott (`\n\Természetesen` → `Invalid \escape`) → a feldolgozás elszállt, csak hiba-interakció (774) készült draft nélkül, a claim pedig „ok"-ként rögzült → a levél örökre elveszett volna.
-- **A csatolmány kérdése**: a postafiók BODYSTRUCTURE-je szerint a 3 feedbacks.hu levél EGYIKÉBEN sincs csatolmány — a user Outlookjában a rózsaszín helyőrző alapján a csatolmány a kliensben ragadt (feltöltés nem sikerült). Nem rendszerhiba.
-- **Javítás** (commit `98ad9bf`): `_loads_lenient()` megengedő parse (`email_processor.py`) + ugyanez inline a `classifier.py` intent-parse-ban — szabványos parse először, hibánál az érvénytelen visszaperjelek (`\"\/bfnrtu` kivételébe nem tartozó) eldobása. Tesztelve a TÉNYLEGES hibás válasszal (a `\T` eldobásával a szöveg helyesen újsorral folytatódik).
-- **Mentés (recovery)**: a 19:31-es hibás claim törölve + konténer restart (high-water reset) → újrafeldolgozás a javított kóddal: Gemini OK → **esemény #107 (Akut fogászati vizsgálat - fájdalom) módosítva hétfő 10:00 Budapestre** → válasz pending draftként jóváhagyásra vár (interakció 775).
-- **Talált rés (a következő körbe)**: a módosítás-visszaigazoló email azonnal kiment (`send_modification_confirmation_email`), jóváhagyás-módban is — lásd a KÖVETKEZŐ FELADAT blokkot.
+A user HTML-mockupja alapján (a modal cím és a tooltip eltérő kezelése szerinti instrukciókkal):
+
+- **Hot fix — hétfő oszlop-csúszás**: a React heti nézet fejlécéből HIÁNYZOTT a `.cal-week-corner` cella (a mockupban az első rács-elem), így a hétfő fejléce a 62px-es óra-oszlopba csúszott és az egész napsáv balra tolódott. Pótolva — a fejléc és a rács törzs oszlopai most igazodnak. (A függőleges ritmus — head margin-top 6px / body 4px — nem változott, azt a user követendőnek jelölte.)
+- **Tooltip** (hét nézet, `.cal-ev-abs` hoverre): időpont · időtartam, esemény címe, ügyfél neve, „Ellátó munkatárs: …" (forrás: `event.doctor` → ügyfél `assigned_to`). Fix pozíció, képernyő-szélre flip, `pointer-events:none`. Stílusok: clientprofile.css `.cal-tip*`.
+- **Szerkesztő modal**: meglévő eseménynél a cím **„Időpont szerkesztése"** (újnál marad „Új időpont létrehozása"); alsó műveleti sáv a mockup szerint: [Időpont törlése — danger + kuka ikon, balra] [Mégse] [Mentés — primary] (korábban „Frissítés"/„Törlés" feliratok, más sorrend).
+- **Chevronok**: a `cal-nav-center` prev/next gombok most a bal oldali listanézet/naptárnézet kapcsoló méretét követik (36×36 gomb, 16px ikon — korábban 20px svg volt, de a gomb széles maradt).
+- **Verifikáció**: deploy `db17909` — CalendarPage chunk + fő CSS chunk élesben ellenőrizve („Időpont szerkesztése", „Időpont törlése", `cal-week-corner`, `cal-tip`, chevron sizing mind benne). Vizuális böngésző-ellenőrzés nem lehetséges (nincs browser backend) — user hard refresh után látja.
 
 ---
 
