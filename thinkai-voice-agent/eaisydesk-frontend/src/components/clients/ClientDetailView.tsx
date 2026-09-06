@@ -731,7 +731,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                         aria-label="Időpont szerkesztése a naptárban"
                         onClick={(e) => {
                           e.stopPropagation();
-                          navigate('/admin/calendar', { state: { editEventId: upcoming[0].id } });
+                          navigate('/calendar', { state: { editEventId: upcoming[0].id } });
                         }}
                       >
                         <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><path d="M17 3a2.83 2.83 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>

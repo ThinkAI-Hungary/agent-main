@@ -1384,3 +1384,24 @@ body.dark .cd-table-card tbody tr.cd-is-urgent td { background: var(--cp-err-row
 .row-task:focus { outline: none; }
 .row-task:focus-visible td { background: var(--bg3); }
 .row-task:focus-visible { outline: 2px solid var(--cp-a2); outline-offset: -2px; }
+
+/* Következő időpont — szerkesztés ikon gomb (UI Kit: kis ghost ikongomb) */
+.cd-appt-edit-btn {
+  width: 26px;
+  height: 26px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.cd-appt-edit-btn:hover {
+  color: var(--cp-a2);
+  border-color: var(--cp-a2);
+  background: var(--bg3);
+}
