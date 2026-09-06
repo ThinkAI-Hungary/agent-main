@@ -4352,6 +4352,23 @@ async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(req
                 if ch == "email":
                     api_key = email_processor._get_brevo_api_key()
 
+                    # Jóváhagyás-mód: a halasztott foglalás (pending_meeting) CSAK most,
+                    # a jóváhagyott válasz kiküldésével egyidőben jön létre — korábban
+                    # a visszaigazoló már kiment, miközben a válasz még pending volt
+                    # (257-es ügy). A létrejövő event_id kerül a levél lemondási linkjébe.
+                    _pm_created_event_id = None
+                    _pm = send_draft.get("pending_meeting")
+                    if _pm and not send_draft.get("event_id"):
+                        try:
+                            _pm_created_event_id = email_processor.create_event_from_pending_meeting(_pm)
+                            if _pm_created_event_id:
+                                send_draft["event_id"] = _pm_created_event_id
+                                print(f"[Approval] Halasztott foglalás létrehozva: event #{_pm_created_event_id} ({_pm.get('date')} {_pm.get('time')})")
+                            else:
+                                print(f"[Approval] Halasztott foglalás NEM jött létre: {_pm}")
+                        except Exception as pm_err:
+                            print(f"[Approval] Halasztott foglalás hiba: {pm_err}")
+
                     html_body = f'<div style="font-family: Arial, sans-serif;">{send_text.replace(chr(10), "<br>")}</div>'
                     if send_draft.get("event_id"):
                         html_body += email_processor.get_cancellation_html(send_draft.get("event_id"))
@@ -4378,6 +4395,23 @@ async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(req
                     )
                     resp.raise_for_status()
                     print(f"[Approval] Email elküldve: {send_draft.get('to_email')}")
+
+                    # Visszaigazoló (ICS + lemondási link) az újonnan létrehozott
+                    # eseményhez — a jóváhagyott válasszal egyidőben megy ki
+                    if _pm_created_event_id:
+                        _pm_att_email = send_draft.get("to_email") or _pm.get("attendee_email") or ""
+                        if _pm_att_email and _pm_att_email != "-":
+                            asyncio.create_task(
+                                email_processor.send_booking_confirmation_email(
+                                    event_id=_pm_created_event_id,
+                                    title=_pm.get("title", "Időpont"),
+                                    date=_pm.get("date", ""),
+                                    time=_pm.get("time", ""),
+                                    attendee=_pm.get("attendee", send_draft.get("to_name", "")),
+                                    attendee_email=_pm_att_email,
+                                )
+                            )
+                            print(f"[Approval] Visszaigazoló email ütemezve: {_pm_att_email}")
                     
                 elif ch == "whatsapp":
                     # Per-tenant tokenek (a middleware a JWT-ből állítja a contextvart; env fallback)

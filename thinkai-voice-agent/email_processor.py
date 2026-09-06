@@ -681,58 +681,13 @@ Ha egyik sem releváns, legyen üres lista [].
     email_client_id = db.upsert_client(custom_data=details, additional_log=log_szoveg)
     logger.info(f"Ügyfél mentve/frissítve a Kanban táblában: {name} (client_id={email_client_id})")
         
+    # ── Esemény-létrehozás HALASZTVA (jóváhagyás-mód fix, 257-es ügy) ──
+    # A naptáresemény + visszaigazoló email CSAK akkor készül el, ha a válasz is
+    # azonnal kimegy (autonóm mód). Jóváhagyás-módban a meeting-javaslat a draftba
+    # kerül ("pending_meeting"), és a jóváhagyáskor jön létre — korábban a
+    # visszaigazoló már kiment, miközben a válasz még jóváhagyásra várt.
     created_event_id = None
-    if meeting:
-        try:
-            date_str = meeting.get("date")
-            time_str = meeting.get("time")
-            dur = meeting.get("duration_minutes", 30)
-            title = meeting.get("title", f"Megbeszélés: {from_name}")
-
-            # time_str normalizálás: az AI adhat "14:30:00"-t is → HH:MM-re vágjuk
-            if isinstance(time_str, str):
-                m_time = _re.match(r"^(\d{1,2}:\d{2})", time_str.strip())
-                time_str = m_time.group(1) if m_time else None
-
-            if date_str and time_str:
-                start_dt = _to_budapest_tz(f"{date_str}T{time_str}:00")
-                end_dt = start_dt + timedelta(minutes=dur)
-                created_event_id = db.add_calendar_event(
-                    title=title,
-                    start_dt=start_dt.isoformat(),
-                    end_dt=end_dt.isoformat(),
-                    duration_minutes=dur,
-                    attendee=from_name,
-                    attendee_email=from_email
-                )
-                if created_event_id:
-                    logger.info(f"Naptár esemény sikeresen létrehozva: {title} {start_dt}")
-                    # Hivatalos visszaigazoló email ICS naptárfájllal (ugyanaz,
-                    # mint a voice/Meta foglalásoknál — beállításokból: sablon,
-                    # lemondási link)
-                    if from_email and from_email != "-":
-                        asyncio.create_task(
-                            send_booking_confirmation_email(
-                                event_id=created_event_id,
-                                title=title,
-                                date=date_str,
-                                time=time_str,
-                                attendee=from_name,
-                                attendee_email=from_email
-                            )
-                        )
-                else:
-                    raise ValueError("add_calendar_event nem adott vissza event id-t")
-            else:
-                raise ValueError(f"Hiányzó/érvénytelen dátum vagy idő: date={date_str!r} time={time_str!r}")
-        except Exception as e:
-            logger.error(f"Hiba a naptáresemény hozzáadásakor: {e}")
-            # KRITIKUS: ha az esemény NEM jött létre, a meeting truthy maradna →
-            # a klasszifikáció „auto_booking"-ot adhatna, és az autonóm válasz
-            # nem létező foglalást igérne vissza. Ilyenkor meeting=None.
-            created_event_id = None
-            meeting = None
-            meeting_failed = True
+    meeting_failed = False
 
     modify_action = data.get("action_modify_meeting")
     if modify_action and modify_action.get("event_title_to_modify"):
@@ -836,13 +791,6 @@ Ha egyik sem releváns, legyen üres lista [].
         if message_id:
             draft_payload["in_reply_to"] = message_id
 
-        if created_event_id is not None:
-            draft_payload["event_id"] = created_event_id
-
-        draft_json = json.dumps(draft_payload)
-
-        logger.info(f"E-mail piszkozat mentve jóváhagyásra: {from_email}")
-
         # Naplózás
         session_id = f"email_{from_email}"
         db.create_session(session_id=session_id, room_name="Email Thread", participant=from_name)
@@ -855,9 +803,6 @@ Ha egyik sem releváns, legyen üres lista [].
             status="pending",
             session_id=session_id
         )
-        f_stage = "valaszolt"
-        if meeting:
-            f_stage = "foglalt"
 
         # ── KLASSZIFIKÁCIÓ ──
         ai_answered = bool(email_reply and email_reply.strip() and not handover_reason)
@@ -875,14 +820,65 @@ Ha egyik sem releváns, legyen üres lista [].
         # (Megválaszolt kérdés / Új időpont / stb.), teendő: Nincs további teendő.
         # Ellenkező esetben a státusz NEM lehet Lezárt (Nyitott vagy Sürgős),
         # és az interakció pending marad (emberi beavatkozás szükséges).
-        # Ha a naptáresemény létrehozása elhasalt, a válasz (ami a foglalást
-        # erősíti meg) NEM mehet ki autonóman — emberi ellenőrzésre vár.
         is_autonomous_email = (
             bool(classification.get("autonomous"))
             and classification.get("restriction") == "none"
             and ai_answered
             and not meeting_failed
         )
+
+        # ── Esemény-létrehozás: CSAK akkor, ha a válasz is azonnal megy ──
+        # Jóváhagyás-módban a meeting-javaslat a draftba kerül (pending_meeting),
+        # az esemény + visszaigazoló a jóváhagyáskor készül el (approve endpoint).
+        if meeting and meeting.get("date") and meeting.get("time") and not meeting_failed:
+            if is_autonomous_email:
+                created_event_id = create_event_from_pending_meeting({
+                    "title": meeting.get("title", f"Megbeszélés: {from_name}"),
+                    "date": meeting.get("date"),
+                    "time": meeting.get("time"),
+                    "duration_minutes": meeting.get("duration_minutes", 30),
+                    "attendee": from_name,
+                    "attendee_email": from_email,
+                })
+                if created_event_id:
+                    logger.info(f"Naptár esemény sikeresen létrehozva: {meeting.get('title')} (event #{created_event_id})")
+                    # Hivatalos visszaigazoló email ICS naptárfájllal (beállításokból:
+                    # sablon, lemondási link)
+                    if from_email and from_email != "-":
+                        asyncio.create_task(
+                            send_booking_confirmation_email(
+                                event_id=created_event_id,
+                                title=meeting.get("title", f"Megbeszélés: {from_name}"),
+                                date=meeting.get("date"),
+                                time=meeting.get("time"),
+                                attendee=from_name,
+                                attendee_email=from_email
+                            )
+                        )
+                else:
+                    logger.error(f"Naptár esemény létrehozása sikertelen: {meeting.get('title')}")
+                    meeting_failed = True
+                    is_autonomous_email = False
+            else:
+                draft_payload["pending_meeting"] = {
+                    "title": meeting.get("title", f"Megbeszélés: {from_name}"),
+                    "date": meeting.get("date"),
+                    "time": meeting.get("time"),
+                    "duration_minutes": meeting.get("duration_minutes", 30),
+                    "attendee": from_name,
+                    "attendee_email": from_email,
+                }
+                logger.info(f"Naptár-foglalás a jóváhagyásig halasztva: {meeting.get('title')} ({meeting.get('date')} {meeting.get('time')}) — pending_meeting")
+
+        if created_event_id is not None:
+            draft_payload["event_id"] = created_event_id
+
+        draft_json = json.dumps(draft_payload)
+
+        logger.info(f"E-mail piszkozat mentve jóváhagyásra: {from_email}")
+
+        f_stage = "foglalt" if created_event_id else "valaszolt"
+
         send_ok = False
         if is_autonomous_email and email_reply.strip():
             try:
@@ -1420,6 +1416,44 @@ async def reminder_worker_loop():
             logger.error(f'Hiba az emlékeztető workerben: {e}')
 
         await asyncio.sleep(15 * 60) # 15 perc
+
+def create_event_from_pending_meeting(pm: dict):
+    """Naptáresemény létrehozása egy halasztott foglalásból.
+
+    Két helyről hívódik: (1) process_single_email autonóm ága, (2) az approve
+    endpoint (jóváhagyás-mód: a "pending_meeting" javaslat csak a jóváhagyott
+    válasz kiküldésekor válik eseménnyé). Visszaadja az event id-t, hibánál None-t.
+    """
+    from datetime import timedelta
+    date_str = pm.get("date")
+    time_str = pm.get("time")
+    # time_str normalizálás: az AI adhat "14:30:00"-t is → HH:MM-re vágjuk
+    if isinstance(time_str, str):
+        m_time = _re.match(r"^(\d{1,2}:\d{2})", time_str.strip())
+        time_str = m_time.group(1) if m_time else None
+    if not date_str or not time_str:
+        logger.error(f"create_event_from_pending_meeting: hiányzó dátum/idő: date={date_str!r} time={time_str!r}")
+        return None
+    dur = pm.get("duration_minutes", 30) or 30
+    title = pm.get("title", "Időpont")
+    try:
+        start_dt = _to_budapest_tz(f"{date_str}T{time_str}:00")
+        end_dt = start_dt + timedelta(minutes=dur)
+        event_id = db.add_calendar_event(
+            title=title,
+            start_dt=start_dt.isoformat(),
+            end_dt=end_dt.isoformat(),
+            duration_minutes=dur,
+            attendee=pm.get("attendee", ""),
+            attendee_email=pm.get("attendee_email", ""),
+        )
+        if not event_id:
+            return None
+        return event_id
+    except Exception as e:
+        logger.error(f"create_event_from_pending_meeting hiba ({title}): {e}")
+        return None
+
 
 async def send_booking_confirmation_email(event_id: int, title: str, date: str, time: str, attendee: str, attendee_email: str):
     import jwt as pyjwt
