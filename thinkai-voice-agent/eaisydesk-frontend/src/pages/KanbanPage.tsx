@@ -380,7 +380,7 @@ export default function KanbanPage() {
           clientsMap={clientsMap}
           sessions={sessions}
           events={events}
-          source="clients"
+          source="kanban"
           onBack={() => setSelectedClientId(null)}
           onRefresh={refetchClients}
         />

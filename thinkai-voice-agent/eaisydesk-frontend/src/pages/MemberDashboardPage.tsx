@@ -539,7 +539,7 @@ export default function MemberDashboardPage() {
           clientsMap={clientsMap}
           sessions={hookSessions}
           events={events}
-          source="interactions"
+          source="member"
           onBack={() => setSelectedClientId(null)}
           onRefresh={refetchSessions}
         />

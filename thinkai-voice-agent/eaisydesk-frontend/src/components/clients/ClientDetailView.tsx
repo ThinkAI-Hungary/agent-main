@@ -42,7 +42,7 @@ interface Props {
   clientsMap: Record<string, ClientRecord>;
   sessions: SessionSummary[];
   events: CalendarEvent[];
-  source: 'clients' | 'interactions' | 'calendar';
+  source: 'clients' | 'interactions' | 'calendar' | 'kanban' | 'member';
   onBack: () => void;
   onRefresh: () => void;
 }
@@ -584,7 +584,11 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       <div className="flex-between mb-20">
         <button className="cd-back-btn" onClick={onBack}>
           <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15"><line x1="19" y1="12" x2="5" y2="12" /><polyline points="12 19 5 12 12 5" /></svg>
-          {source === 'calendar' ? 'Vissza a naptárhoz' : source === 'interactions' ? 'Vissza az interakciós listához' : 'Vissza az ügyféllistához'}
+          {source === 'calendar' ? 'Vissza a naptárhoz'
+            : source === 'interactions' ? 'Vissza az interakciós naplóhoz'
+            : source === 'kanban' ? 'Vissza az érdeklődőkezeléshez'
+            : source === 'member' ? 'Vissza az irányítópulthoz'
+            : 'Vissza az ügyféllistához'}
         </button>
       </div>
 
@@ -716,9 +720,22 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                   {upcoming.length === 0 ? (
                     <span className="cd-appt-next-value is-empty">Nincs közelgő időpont</span>
                   ) : (
-                    <div className="cd-appt-next-value">
-                      {upcoming[0].start_dt ? fmtDt(upcoming[0].start_dt) : '—'}
-                      {(upcoming[0] as CalendarEvent & { title?: string }).title ? ` · ${(upcoming[0] as CalendarEvent & { title?: string }).title}` : ''}
+                    <div className="cd-appt-next-value" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+                      <span>
+                        {upcoming[0].start_dt ? fmtDt(upcoming[0].start_dt) : '—'}
+                        {(upcoming[0] as CalendarEvent & { title?: string }).title ? ` · ${(upcoming[0] as CalendarEvent & { title?: string }).title}` : ''}
+                      </span>
+                      <button
+                        className="cd-appt-edit-btn"
+                        title="Időpont szerkesztése a naptárban"
+                        aria-label="Időpont szerkesztése a naptárban"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          navigate('/admin/calendar', { state: { editEventId: upcoming[0].id } });
+                        }}
+                      >
+                        <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><path d="M17 3a2.83 2.83 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" /></svg>
+                      </button>
                     </div>
                   )}
                 </div>
@@ -826,7 +843,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                 <th>Eredmény</th>
                 <th>Státusz</th>
                 <th>Teendő</th>
-                <th className="cd-done-col">Elvégezte</th>
+                <th className="cd-done-col">Elvégezve</th>
               </tr>
             </thead>
             <tbody>
@@ -921,7 +938,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                 <th>Eredmény</th>
                 <th>Státusz</th>
                 <th>Teendő</th>
-                <th className="cd-done-col">Elvégezte</th>
+                <th className="cd-done-col">Elvégezve</th>
               </tr>
             </thead>
             <tbody>

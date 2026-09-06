@@ -2,11 +2,12 @@
  * CalendarPage – Naptár (UI Kit) — saját renderelés: nap / hét / hónap + listanézet.
  * Esemény kattintás → ügyfélprofil. Múltbeli esemény: no-show jelölés.
  */
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import { useClients } from '../hooks/useClients';
 import { useSessions } from '../hooks/useSessions';
+import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { parseCustomData, isAssignedToMe, bestClientName } from '../helpers/clientResolvers';
 import { CalendarSkeleton } from '../components/ui/Skeleton';
@@ -60,9 +61,37 @@ export default function CalendarPage() {
   const [eventTip, setEventTip] = useState<{ ev: CalendarEventItem; x: number; y: number } | null>(null);
 
   const [newEvent, setNewEvent] = useState({
-    attendee: '', email: '', phone: '', title: '',
+    attendee: '', email: '', phone: '', title: '', assigned_to: '',
     date: new Date().toISOString().split('T')[0], time: '09:00', duration: '30',
   });
+  // Munkatárs-opciók (foglalási szabályok: services.assigned_to névsor)
+  const [staffOptions, setStaffOptions] = useState<string[]>([]);
+  // Ügyfélprofil „Következő időpont" ceruza → naptár bejegyzés szerkesztése
+  const location = useLocation();
+  const handledEditIds = useRef<Set<number>>(new Set());
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await authFetch('/admin/api/services');
+        const data = await res.json();
+        const list = Array.isArray(data?.services) ? data.services : [];
+        const names = Array.from(new Set(list.map((s: { assigned_to?: string }) => (s.assigned_to || '').trim()).filter(Boolean))) as string[];
+        setStaffOptions(names.sort((a, b) => a.localeCompare(b, 'hu')));
+      } catch { /* ignore */ }
+    })();
+  }, []);
+
+  // Ügyfélprofilból ide navigált szerkesztés: state.editEventId -> popup nyitás
+  useEffect(() => {
+    const st = (location.state as { editEventId?: number } | null)?.editEventId;
+    if (!st || handledEditIds.current.has(st) || !events.length) return;
+    const ev = (events as CalendarEventItem[]).find(e => e.id === st);
+    if (ev) {
+      handledEditIds.current.add(st);
+      openEventEdit(ev);
+    }
+  }, [location.state, events]);
 
   // Member filtering: nem adminok csak a hozzájuk rendelt ügyfelek eseményeit látják
   const myEvents = useMemo(() => {
@@ -333,6 +362,7 @@ export default function CalendarPage() {
       email: ev.attendee_email || '',
       phone: '',
       title: ev.title || '',
+      assigned_to: ev.doctor || '',
       date: (ev.start_dt || '').split('T')[0],
       time: (ev.start_dt || '').split('T')[1]?.substring(0, 5) || '09:00',
       duration: String(ev.duration_minutes || 30),
@@ -368,6 +398,7 @@ export default function CalendarPage() {
           attendee_phone: newEvent.phone,
           start_dt,
           duration_minutes: parseInt(newEvent.duration) || 30,
+          assigned_to: newEvent.assigned_to,
         }),
       });
       if (res.ok) {
@@ -406,11 +437,12 @@ export default function CalendarPage() {
           attendee_phone: newEvent.phone,
           start_dt,
           duration_minutes: parseInt(newEvent.duration) || 30,
+          assigned_to: newEvent.assigned_to,
         }),
       });
       if (!res.ok) { showToast('Hiba az időpont létrehozásakor', 'error'); return; }
       setShowNewEventModal(false);
-      setNewEvent({ attendee: '', email: '', phone: '', title: '', date: new Date().toISOString().split('T')[0], time: '09:00', duration: '30' });
+      setNewEvent({ attendee: '', email: '', phone: '', title: '', assigned_to: '', date: new Date().toISOString().split('T')[0], time: '09:00', duration: '30' });
       showToast('Időpont sikeresen létrehozva!');
       refetchEvents();
     } catch { showToast('Hiba az időpont létrehozásakor', 'error'); }
@@ -665,6 +697,15 @@ export default function CalendarPage() {
                     <option value="120">120 perc</option>
                   </select>
                 </div>
+              </div>
+              <div className="form-group">
+                <label className="cd-task-modal-label">Munkatárs</label>
+                <select className="cd-form-input" value={newEvent.assigned_to} onChange={e => setNewEvent({ ...newEvent, assigned_to: e.target.value })}>
+                  <option value="">Automatikus (szabályok alapján)</option>
+                  {staffOptions.map(name => (
+                    <option key={name} value={name}>{name}</option>
+                  ))}
+                </select>
               </div>
             </div>
             <div className="cd-task-modal-foot">

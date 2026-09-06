@@ -2,7 +2,7 @@
  * InteractionsPage – 1:1 migration of legacy view-interactions + admin-interactions.js
  */
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { useIsMobile } from '../hooks/useIsMobile';
 import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useAuth } from '../context/AuthContext';
@@ -134,6 +134,12 @@ export default function InteractionsPage() {
   const [summaryModalRow, setSummaryModalRow] = useState<InteractionRow | null>(null);
   const [autoExpandApproval, setAutoExpandApproval] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  // Sidebar „Interakciós napló" kattintás is zárja be a profilt (ugyanazon
+  // path esetén is új location.key keletkezik a navigate-től)
+  const location = useLocation();
+  useEffect(() => {
+    setSelectedClientId(null);
+  }, [location.key]);
 
   // Filters
   const [filterUgyTipus, setFilterUgyTipus] = useState<Set<string>>(new Set());
