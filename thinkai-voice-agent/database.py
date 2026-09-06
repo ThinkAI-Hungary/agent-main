@@ -406,6 +406,11 @@ def update_admin_password(user_id: int, new_password: str) -> bool:
 def create_session(session_id: str, room_name: str, participant: str = "") -> None:
     if not supabase: return
     try:
+        # Létező session esetén csendben OK (email szálaknál a session_id
+        # az ügyfél emailjéből van — az ismételt levelek ugyanazt adják)
+        existing = supabase.table("sessions").select("session_id").eq("session_id", session_id).limit(1).execute()
+        if existing.data:
+            return
         supabase.table("sessions").insert(_with_tenant({
             "session_id": session_id,
             "room_name": room_name,

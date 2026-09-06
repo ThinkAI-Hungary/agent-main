@@ -681,6 +681,7 @@ Ha egyik sem releváns, legyen üres lista [].
             # nem létező foglalást igérne vissza. Ilyenkor meeting=None.
             created_event_id = None
             meeting = None
+            meeting_failed = True
 
     modify_action = data.get("action_modify_meeting")
     if modify_action and modify_action.get("event_title_to_modify"):
@@ -760,6 +761,8 @@ Ha egyik sem releváns, legyen üres lista [].
         except Exception as e:
             logger.error(f"Hiba a naptáresemény törlésekor: {e}")
 
+    meeting_failed = locals().get('meeting_failed', False)
+
     if email_reply and email_reply.strip():
         # Email "kiküldés" helyett piszkozat mentése a Jóváhagyó rendszerbe (Human-in-the-loop)
 
@@ -821,10 +824,13 @@ Ha egyik sem releváns, legyen üres lista [].
         # (Megválaszolt kérdés / Új időpont / stb.), teendő: Nincs további teendő.
         # Ellenkező esetben a státusz NEM lehet Lezárt (Nyitott vagy Sürgős),
         # és az interakció pending marad (emberi beavatkozás szükséges).
+        # Ha a naptáresemény létrehozása elhasalt, a válasz (ami a foglalást
+        # erősíti meg) NEM mehet ki autonóman — emberi ellenőrzésre vár.
         is_autonomous_email = (
             bool(classification.get("autonomous"))
             and classification.get("restriction") == "none"
             and ai_answered
+            and not meeting_failed
         )
         send_ok = False
         if is_autonomous_email and email_reply.strip():
