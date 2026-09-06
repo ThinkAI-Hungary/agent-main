@@ -534,7 +534,12 @@ async def _detect_intent_llm(message_text: str) -> dict:
             ),
             contents=prompt
         )
-        result = json.loads(response.text)
+        # Megengedő parse: a modell alkalmanként érvénytelen escape-t ad (pl. \T),
+        # ilyenkor az érvénytelen visszaperjelek eldobásával mentjük a választ.
+        try:
+            result = json.loads(response.text)
+        except json.JSONDecodeError:
+            result = json.loads(re.sub(r'\\(?!["\\/bfnrtu])', "", response.text))
         if not isinstance(result, dict):
             raise ValueError(f"LLM intent nem dict-et adott: {type(result)}")
     except Exception as e:

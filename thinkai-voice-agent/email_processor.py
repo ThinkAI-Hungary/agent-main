@@ -583,7 +583,7 @@ Ha egyik sem releváns, legyen üres lista [].
     ai_text = ai_text.strip()
 
     try:
-        data = json.loads(ai_text)
+        data = _loads_lenient(ai_text)
     except json.JSONDecodeError as e:
         logger.error(f"Hibás JSON válasz az AI-tól: {e}\nNyers AI válasz:\n{ai_text}")
         db.create_session(session_id=f"email_{from_email}", room_name="Email Thread", participant=from_name)
@@ -1416,6 +1416,23 @@ async def reminder_worker_loop():
             logger.error(f'Hiba az emlékeztető workerben: {e}')
 
         await asyncio.sleep(15 * 60) # 15 perc
+
+def _loads_lenient(raw: str):
+    """Gemini JSON-válasz megengedő parse-ja.
+
+    A JSON-mód ellenére előfordul, hogy a modell érvénytelen escape-szekvenciát
+    generál (pl. `\\n\\Természetesen` — a \\T nem érvényes JSON escape; 774-es
+    interakció). Első körben szabványos parse; hibánál az érvénytelen
+    visszaperjelek eldobásával próbáljuk menteni a választ (a modell szándéka
+    szerint a karakter simán folytatódik a szövegben).
+    """
+    try:
+        return json.loads(raw)
+    except json.JSONDecodeError:
+        pass
+    fixed = _re.sub(r'\\(?!["\\/bfnrtu])', "", raw)
+    return json.loads(fixed)
+
 
 def create_event_from_pending_meeting(pm: dict):
     """Naptáresemény létrehozása egy halasztott foglalásból.
