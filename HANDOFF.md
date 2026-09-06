@@ -131,6 +131,9 @@ A kódbázisból queryelhető tudásgráf: [github.com/Graphify-Labs/graphify](h
   - CSAK hiányzó adat kérhető: teljes név, ha nem egyértelmű; telefonszám, ha nincs megadva és kell (visszaigazolás/emlékeztető)
   - Visszatérő ágnál a nyilvántartott telefonszám is bekerült a kontextus-listába
 - **Deploy + verifikáció**: `update.sh` → futó commit `9ee8e4f`, konténer healthy, új szabály bent a konténer `/app/email_processor.py`-jában, logok tiszták. E2E teszt: küldjön a user friss tesztemailel egy új címről → a draftban nem szerepelhet email-cím-rákérdezés.
+- **Finomítás (user pontosítás után, commit `ae5d33c`)**: az indok NEM a nyilvántartás/regisztráció, hanem maga a csatorna — *aki emailt ír, annak nyilvánvaló, hogy a címzett látja a feladó címét, ezért kontraproduktív rákérdezni*. Ezért:
+  - `prompt_utils.get_system_prompt(channel="email")` végére került egy **E-MAIL CSATORNASZABÁLY** blokk — ez mindig érvényes, client-lookup hibája esetén is (funkcionálisan tesztelve a konténerben: a `channel='email'` prompt tartalmazza)
+  - A client-context bullet is átírótt erre az érvelésre („attól függetlenül, hogy az ügyfél ismert-e a nyilvántartásban")
 
 ---
 
