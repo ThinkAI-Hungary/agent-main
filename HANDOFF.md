@@ -171,6 +171,15 @@ A kódbázisból queryelhető tudásgráf: [github.com/Graphify-Labs/graphify](h
 ### 📋 KÖVETKEZŐ FELADAT (user bejelentette): automatikus értesítések rendrakása
 
 - Az automatikus értesítések (emlékeztetők) csak az IDŐPONTOKRA vonatkozzanak — a reminder/automation worker logikáját át kell nézni és rendbe tenni. (User jelzése a 10. tétel után; még nem kezdődött el.)
+- **Ide tartozik a 11. tételben talált rés is**: a `action_modify_meeting` / `action_delete_meeting` ág a módosítás-visszaigazolót (`send_modification_confirmation_email`) még azonnal kiküldi, jóváhagyás-módban is — ez is az időpont-értesítések közé tartozik, itt kell rendezni.
+
+### 11. Megengedő Gemini JSON-parse + elveszett email megmentése (2026-09-06 este, 774-es interakció)
+
+- **Probléma**: a user 21:30-as levele (erika@feedbacks.hu, "Fw: idﺀpont SOS", tartalom: „módosíthatnám 10 órára az időpontot?") megérkezett és claimelve lett, DE a Gemini JSON-mód ellenére érvénytelen escape-szekvenciát adott (`\n\Természetesen` → `Invalid \escape`) → a feldolgozás elszállt, csak hiba-interakció (774) készült draft nélkül, a claim pedig „ok"-ként rögzült → a levél örökre elveszett volna.
+- **A csatolmány kérdése**: a postafiók BODYSTRUCTURE-je szerint a 3 feedbacks.hu levél EGYIKÉBEN sincs csatolmány — a user Outlookjában a rózsaszín helyőrző alapján a csatolmány a kliensben ragadt (feltöltés nem sikerült). Nem rendszerhiba.
+- **Javítás** (commit `98ad9bf`): `_loads_lenient()` megengedő parse (`email_processor.py`) + ugyanez inline a `classifier.py` intent-parse-ban — szabványos parse először, hibánál az érvénytelen visszaperjelek (`\"\/bfnrtu` kivételébe nem tartozó) eldobása. Tesztelve a TÉNYLEGES hibás válasszal (a `\T` eldobásával a szöveg helyesen újsorral folytatódik).
+- **Mentés (recovery)**: a 19:31-es hibás claim törölve + konténer restart (high-water reset) → újrafeldolgozás a javított kóddal: Gemini OK → **esemény #107 (Akut fogászati vizsgálat - fájdalom) módosítva hétfő 10:00 Budapestre** → válasz pending draftként jóváhagyásra vár (interakció 775).
+- **Talált rés (a következő körbe)**: a módosítás-visszaigazoló email azonnal kiment (`send_modification_confirmation_email`), jóváhagyás-módban is — lásd a KÖVETKEZŐ FELADAT blokkot.
 
 ---
 
