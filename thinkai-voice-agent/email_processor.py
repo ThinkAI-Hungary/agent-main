@@ -349,6 +349,12 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
     # A válaszgeneráló AI-nak tudnia kell, hogy a feladó ÚJ vagy VISSZATÉRŐ
     # ügyfél — különben felesleges azonosítási köröket kérdezi (név, születési
     # dátum, "járt már nálunk?"), amiknek az adatai megvannak a rendszerben.
+    adatkeresi_szabalyok = (
+        "ADATKÉRÉSI SZABÁLYOK (mindig érvényesek):\n"
+        f"- Az ügyfél EMAIL CÍMÉT SOHA NE KÉRDEZD MEG — a rendszer a bejövő levél feladójából ismeri ({from_email}); rákérdezni felesleges és szakszerűtlen.\n"
+        "- CSAK olyan adatot kérj el, amivel a rendszer NEM rendelkezik: ha a név nem egyértelmű (pl. csak keresztnevet írt), kérd el a teljes nevét; ha telefonszám nincs megadva és az ügyintézéshez szükség van rá (pl. időpont-visszaigazolás, emlékeztető), kérd el a telefonszámot.\n"
+        "- Ami már ismert (a fenti listából vagy a levélből egyértelműen), arra soha ne kérdezz rá újra.\n"
+    )
     client_context = ""
     try:
         if existing_sender_client:
@@ -379,6 +385,8 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
             details = []
             cname = cd.get("nev") or cd.get("name") or existing_sender_client.get("name", "")
             if cname: details.append(f"nyilvántartott név: {cname}")
+            cphone = existing_sender_client.get("phone", "")
+            if cphone: details.append(f"nyilvántartott telefonszám: {cphone}")
             if created_at: details.append(f"nyilvántartásba véve: {created_at[:10]}")
             if int_count: details.append(f"korábbi interakciók: {int_count} db")
             if last_int_dt: details.append(f"utolsó interakció: {last_int_dt}")
@@ -394,11 +402,13 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
                 + ("; ".join(details) + "\n" if details else "")
                 + "SZIGORÚ SZABÁLY: Mivel az ügyfél már szerepel a nyilvántartásban, TILOS rákérdezni, hogy járt-e már nálunk, és TILOS újból bekérni az azonosításához szükséges adatokat (név, születési dátum stb.) — ezek megvannak. "
                 "Ha időpontot érint a kérés, erősítsd meg vagy kínálj neki időpontot.\n"
+                + adatkeresi_szabalyok
             )
         else:
             client_context = (
                 "--- AZ ÜGYFÉL STÁTUSZA A NYILVÁNTARTÁSBAN ---\n"
                 "AZ ÜGYFÉL ÚJ ÜGYFÉL: még nem szerepel a nyilvántartásban, korábbi foglalása vagy interakciója nincs.\n"
+                + adatkeresi_szabalyok
             )
     except Exception as ctx_err:
         logger.warning(f"Ügyfél-kontextus összeállítási hiba: {ctx_err}")
