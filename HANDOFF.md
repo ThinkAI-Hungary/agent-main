@@ -19,6 +19,10 @@ A `{today}` prompt-változó egy lambda-ban hivatkozott a `HU_DAYS` tömbre, de 
 
 **Rendezés**: commit `fb525c5` (push: origin/rebuild) → staging rebuild (`docker compose build + up -d dobozos-agent`). Ellenőrizve: konténer healthy, a javított sor bent van a konténer `/app/prompt_utils.py`-jában, indulás óta nincs ERROR a logokban, `/admin/` HTTP 200. **A prod NEM volt érintett** (a bug-bevezető `f3866e5` commit nincs a prod HEAD-ben).
 
+**Végponttól végpontig teszt (2026-09-06 17:11)**: a 10 db bug-korszakban elhasalt `erika@molaire.hu` levél újrafeldolgozva — 10/10 Gemini-elemzés + klasszifikáció OK, 8 autonóm válasz kiment, 5 naptáresemény + visszaigazoló emailek keletkeztek, 0 hiba. A DB-ben a `processed_emails` 19 sor, mind `status=ok`.
+
+**Újrafeldolgozás részletei (jegyzet)**: a poll UID high-water markkal dolgozik in-memory (`email_processor.py:975–992`), a `\Seen`-jelzést szándékosan NEM veszi figyelembe. Ezért egy levél újravételéhez: (1) `processed_emails` claim törlése (SQL), (2) **konténer restart** (a high-water mark nullázásához) — a `\Seen` visszabiggyesztés önmagában NEM elég.
+
 ---
 
 ## Utolsó 3 nap változtatásai (kronologikus sorrend)
