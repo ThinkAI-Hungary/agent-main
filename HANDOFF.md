@@ -157,6 +157,20 @@ A kódbázisból queryelhető tudásgráf: [github.com/Graphify-Labs/graphify](h
 - **Verifikáció**: deploy `5539d0f` → konténerben élő fallback-teszt: az eredeti 254-es üzenet → `Időpont / Új / urgens=True`, valódi panasz → `Panasz`. Logok tiszták.
 - ⚠️ **Prod-deploykor**: a prod DB-ben is át kell írni a `triage_rules` "Erős fájdalom" sorát surgos → onallo (a kód-commit egyedül nem elég, mert a sor DB-adat)!
 
+### 10. Jóváhagyás-mód: esemény + visszaigazoló csak a jóváhagyáskor (2026-09-06 este, 257-es ügy)
+
+- **Probléma**: jóváhagyás-küldés beállítás mellett a válasz helyesen pending draft lett, DE a naptáresemény + a visszaigazoló email (ICS + lemondási link) már azonnal kiment — miközben a user még nem hagyta jóvá a választ.
+- **Új eljárás (user által előírt)**: jóváhagyás-módban 1. semmi nem történik a user jóváhagyásáig, 2. a jóváhagyáskor / vele egyidőben jön létre a calendar event és megy ki a visszaigazoló.
+- **Javítás** (commit `210de4f`):
+  - `email_processor.py`: az esemény-létrehozás áthelyezve a klasszifikáció UTÁNRA — autonóm válasz esetén azonnal létrejön (és megy a visszaigazoló); jóváhagyás-módban a meeting-javaslat a draftba kerül (`draft_payload["pending_meeting"]`: title/date/time/duration/attendee/email), esemény NEM készül. `f_stage` most már a tényleges esemény-létrehozástól lesz "foglalt". Új helper: `create_event_from_pending_meeting(pm)`.
+  - `web_server.py` approve endpoint (`POST /admin/api/approvals/{id}/approve`, email ág): ha a draftban van `pending_meeting` → jóváhagyáskor létrejön az esemény, a `event_id` kerül a jóváhagyott levél lemondási linkjébe, és a visszaigazoló (ICS) a válasz kiküldésével egyidőben megy ki. A draft mentése az event_id-vel együtt frissül.
+  - Megjegyzés: a `modify/delete_meeting` akciók továbbra is azonnal futnak (nem érinti a jóváhagyás-mód) — ha ez is kérdéses lesz, külön tétel.
+- **Verifikáció**: deploy `210de4f` — konténer healthy, logok tiszták, konténerbeli import-teszt OK (helper érvénytelen adatra None-t ad). Teljes E2E: jóváhagyás-módban küldött foglalási email → pending draftban `pending_meeting` kell legyen, esemény NEM keletkezik; a jóváhagyás gombra → esemény + visszaigazoló + jóváhagyott válasz.
+
+### 📋 KÖVETKEZŐ FELADAT (user bejelentette): automatikus értesítések rendrakása
+
+- Az automatikus értesítések (emlékeztetők) csak az IDŐPONTOKRA vonatkozzanak — a reminder/automation worker logikáját át kell nézni és rendbe tenni. (User jelzése a 10. tétel után; még nem kezdődött el.)
+
 ---
 
 ## Adatbázis módosítások (élőn lefutottak)
