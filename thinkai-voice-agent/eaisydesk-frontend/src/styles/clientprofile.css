@@ -1125,6 +1125,7 @@ body.dark .cd-table-card tbody tr.cd-is-urgent td { background: var(--cp-err-row
 .cal-week-head {
   display: grid;
   grid-template-columns: 62px repeat(7, minmax(0, 1fr));
+  margin-top: 6px;
   border-bottom: 1px solid var(--border);
 }
 .cal-week-corner { border-right: 1px solid var(--border); background: var(--card); }
