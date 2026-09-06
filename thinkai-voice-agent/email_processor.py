@@ -1421,7 +1421,10 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
     from datetime import datetime, timedelta
     JWT_SECRET = os.getenv("JWT_SECRET", "thinkai-admin-secret-change-me")
     JWT_ALGO = "HS256"
-    SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8000")
+    # Publikus base URL: az APP_BASE_URL a mérvadó (ugyanaz, mint az OAuth callbackeknél),
+    # a SERVER_URL csak legacy fallback — üresen localhostot adna, ami a kiküldött
+    # emailekben halott linket eredményez.
+    SERVER_URL = (os.getenv("APP_BASE_URL") or os.getenv("SERVER_URL") or "http://localhost:8000").rstrip("/")
     
     try:
         # ── Tenant beállítások: visszaigazoló sablon + lemondási link kapcsoló ──
@@ -1576,7 +1579,8 @@ def get_cancellation_html(event_id: int) -> str:
     from datetime import datetime, timedelta
     JWT_SECRET = os.getenv("JWT_SECRET", "thinkai-admin-secret-change-me")
     JWT_ALGO = "HS256"
-    SERVER_URL = os.getenv("SERVER_URL", "http://localhost:8000")
+    # Lásd fent: APP_BASE_URL a mérvadó publikus base URL (SERVER_URL csak legacy fallback)
+    SERVER_URL = (os.getenv("APP_BASE_URL") or os.getenv("SERVER_URL") or "http://localhost:8000").rstrip("/")
     
     token = pyjwt.encode({"event_id": event_id, "exp": datetime.utcnow() + timedelta(days=90)}, JWT_SECRET, algorithm=JWT_ALGO)
     cancel_url = f"{SERVER_URL}/api/public/cancel?token={token}"
