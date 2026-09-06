@@ -184,6 +184,13 @@ DELETE FROM public.processed_emails WHERE from_email = 'erika@molaire.hu';
 ```
 **Ok**: a törölt ügyfél korábbi emailek claim-jei blokkolták az újboli feldolgozást.
 
+### Migráció 5: `processed_emails` claim törlés — mind a 3 teszt-domain (2026-09-06 este)
+```sql
+DELETE FROM public.processed_emails
+WHERE from_email ILIKE '%@yahoo.ie' OR from_email ILIKE '%@molaire.hu' OR from_email ILIKE '%@feedbacks.hu';
+```
+**Ok**: a user ismét törölte a saját ügyfélrekordjait, hogy tiszta lappal tesztelhessen — 16 claim törlödött (et_orosz@yahoo.ie ×5, erika@molaire.hu ×10, erika@feedbacks.hu ×1). Konténer-restart NEM történt (szándékosan): a friss levelek új UID-del a high-water mark fölé esnek, így úgyis feldolgozásra kerülnek; a restart a 3 napos ablakban lévő régi tesztemaileket újraküldené.
+
 ---
 
 ## Backend endpoint változások
