@@ -210,6 +210,16 @@ A user HTML-mockupja alapján (a modal cím és a tooltip eltérő kezelése sze
 - **Korlát**: a Marketing modul bulk Brevo kampányai (`brevo_campaigns.send_campaign_now`) Brevo-listára mennek — ügyfél-szintű logolás ott nem lehetséges (csak a Kimenő kommunikáció `campaigns` kampányai logolódnak). **Megjegyzés**: a notification bell (NotificationCenter) ma még kaphat outbound sorokat (30 mp-enként /admin/api/interactions?limit=10) — ha zavaró, külön szűrés kell oda is.
 - **NotificationCenter szűrés** (commit `40ba374`): a csengő 30 mp-es pollja kiszűri a `tool_name='outbound_notification'` sorokat — a kimenő üzenetek (visszaigazoló/emlékeztető/módosítás/lemondás/kampány) nem értesítenek, csak az ügyfélprofilban látszanak.
 
+### 15. Hozzáadott feladatok finomhangolás (2026-09-06 éjszaka, commit `1f517a2`)
+
+- **todo-frame**: a kézi teendő szövege fix méretű keretben (280px széles, 30px magas, border + 8px radius), `text-overflow:ellipsis` csonkolással; a teljes szöveg `title` tooltipben. CSS: clientprofile.css `.todo-frame`.
+- **Kattintható sor**: a feladat-sor `row-task` osztály + `tabIndex={0}`; kattintásra ÉS Enter/Space-re megnyílik a `#todoEditOverlay` popup (ügyfélprofil: nyitott + lezárt feladat sorok is).
+- **Szerkesztő/törlő popup**: textarea + [Törlés — danger, balra] [Mégse] [Mentés — primary]; mentés → új `PATCH /admin/api/tasks/{task_id}` {text} (database: `update_task_text`), törlés → DELETE; utánna `loadManualTasks()` újrarenderelés + toast. Escape zárja a popupokat (szerkesztő → hozzáadás-modál sorrend).
+- **esc (HTML-escape)**: React JSX alapból escape-el (nincs dangerouslySetInnerHTML) — a szöveg biztonságosan megjeleníthető.
+- **Member dashboard**: a kézi teendők teendő-cellája ott is todo-frame-et kapott (csonkolás + tooltip); a sor-kattintás ott továbbra is az elkészült-jelölés (meglévő viselkedés, nem bontottam meg). Az szerkesztő popup az ügyfélprofilban érhető el.
+- **Jogosultság**: a PATCH endpoint `require_admin_or_manager` (konzisztens a DELETE-tel) — member csak complete-toggle-t tud.
+- **Verifikáció**: deploy `1f517a2` — ClientDetailView chunk (todo-frame/row-task/todoEditOverlay/„Teendő szerkesztése") + CSS élőben ellenőrizve; PATCH endpoint 401 auth nélkül (létezik, védett). Konténer healthy.
+
 ---
 
 ## Adatbázis módosítások (élőn lefutottak)
