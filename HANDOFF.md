@@ -229,6 +229,7 @@ A user HTML-mockupja alapján (a modal cím és a tooltip eltérő kezelése sze
 5. **Sidebar Interakciós napló kattintás bezárja a profilt**: `useEffect` a `location.key`-re — a Sidebar navigate-je ugyanazon path esetén is új key-t ad, ami nullázza a `selectedClientId`-et (csak InteractionsPage-ben).
 6. **Vissza-gomb címkéje**: „Vissza az interakciós listához" → **„Vissza az interakciós naplóhoz"**. (Member dashboard saját: „Vissza az irányítópulthoz".)
 - **Verifikáció**: deploy `33c5085` — chunkok tartalom szerint ellenőrizve (címkék, editEventId, Munkatárs select, location.key logika a forrásban); „Elvégezte" nem maradt sehol. Konténer healthy.
+- **Utófix — Következő időpont ikon** (commit `3561ec1`): (a) a navigate a dupla prefixet okozta (`/admin/calendar` + basename `/admin` → `/admin/admin/calendar` → SmartRedirect → analitika) — javítva basename-relatív `/calendar`-ra; (b) a `.cd-appt-edit-btn` UI Kit ghost ikongomb-stílust kapott (26×26, border, radius 8, muted → hover `--cp-a2`; clientprofile.css, az index CSS chunkba épül). Verifikálva a staging JS+CSS chunkokban. **Tanulság**: navigate mindig basename-relatív (nincs `/admin` prefix) — lásd a dupla-prefix ismert hibát.
 
 ---
 
