@@ -249,7 +249,7 @@ def get_system_prompt(channel: str = None) -> str:
         logger.error(f"Error loading clinics for prompt: {e}")
 
     variables = {
-        "today":          (lambda n: f"{n.strftime('%Y.%m.%d.')} ({HU_DAYS[n.weekday()]}, {n.strftime('%H:%M')})")(datetime.now(_HU_TZ)),
+        "today":          (lambda n: f"{n.strftime('%Y.%m.%d.')} ({_HU_DAYS[n.weekday()]}, {n.strftime('%H:%M')})")(datetime.now(_HU_TZ)),
         "practice_name":  pi.get("practice_name", ""),
         "address":        pi.get("address", ""),
         "markanev":       pi.get("markanev", ""),
