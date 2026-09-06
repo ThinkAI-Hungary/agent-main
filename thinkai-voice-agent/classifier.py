@@ -502,11 +502,20 @@ async def _detect_intent_llm(message_text: str) -> dict:
        ne találj ki!
 
     Szabályok:
-    - Ha az ügyfél dühös, fájdalomra panaszkodik vagy elégedetlen, akkor a detected_types
-      MINDIG tartalmazza a "Panasz"-t (és az is a domináns ugytipus).
+    - FONTOS: a FIZIKAI/ORVOSI tünet (fogfájás, erős fájdalom, bölcsességfog-fájdalom,
+      duzzanat, vérzés, láz) NEM "Panasz"! A "Panasz" kizárólag a SZOLGÁLTATÁSSAL vagy
+      annak minőségével szembeni elégedetlenség (reklamáció), pl. visszatérítési igény,
+      panasz a kezelő munkájára.
+    - Ha az ügyfél fájdalomra vagy más fizikai tünetre hivatkozva kezelést/időpontot
+      kér → ugytipus: "Időpont", idopont_altipus: "Új", és urgens: true.
+    - Ha az ügyfél dühös vagy a szolgáltatással elégedetlen (reklamáció), akkor a
+      detected_types MINDIG tartalmazza a "Panasz"-t (és az is a domináns ugytipus).
     - Ha az ügyfél csak érdeklődik valami iránt (pl. árak, nyitvatartás), az "Kérdés".
     - Ha az ügyfél konkrétan kér valamit (pl. visszahívást, leletet), az "Kérés".
     - Egy üzenet lehet több típusú egyszerre: sorold fel mindegyiket a detected_types-ban.
+    6. urgens: true | false — true, ha ORVOSI sürgősség van (erős fájdalom, duzzanat,
+       vérzés, láz, baleset) vagy az ügyfél sürgősséget jelez ("mihamarabb", "azonnal");
+       egyébként false.
     """
 
     try:
@@ -548,6 +557,7 @@ async def _detect_intent_llm(message_text: str) -> dict:
 
     result["ugytipus"] = ugytipus
     result["detected_types"] = detected
+    result["urgens"] = bool(result.get("urgens"))
     result["idopont_altipus"] = _normalize_altipus(result.get("idopont_altipus")) if ugytipus == "Időpont" else None
     if not isinstance(result.get("client_name"), str) or not result["client_name"].strip():
         result["client_name"] = None
@@ -579,6 +589,12 @@ _PANASZ_EXACT = _kw_exact("baj,faj")
 _IDOPONT_STEM = _kw_stems("idopont,booking,naptar,foglalni,foglalna,foglalas,foglalt,lefoglal,befoglal")
 _LEMONDAS_STEM = _kw_stems("lemond,torol,cancel,nem tudok menni,megsem,torolne,le szeretnem,le kell mondan,le szeretnem mondan")
 _MODOSITAS_STEM = _kw_stems("modosit,athelyez,valtoztat,atrak,mashova,maskor")
+# Fizikai/orvosi fájdalom-tünetek — ezek NEM reklamációk (Panasz), hanem sürgős
+# időpont-ügyek (ügyfél-visszajelzés, 254-es ügy: "fáj a bölcsességfogam" → Panasz volt).
+# Ékezet-mentes tőkék: a "faj" önállóan NEM szerepel, mert a "fajta" hamis találat lenne.
+_PAIN_STEM = _kw_stems("fajdal,faj a,faj az,fajos,fogfaj,fejfaj,fogam faj,bolcsesseg,gyullad,duzza,verzes,verzik,verz a,lazas,lazam,elviselhetetlen")
+# Valódi, szolgáltatásra vonatkozó reklamáció jelei — ha ezek is megvannak, marad Panasz
+_PANASZ_TENYLEGES_STEM = _kw_stems("panasz,reklamac,elegedetlen,kifogas,panaszkod,complaint,visszafizetes,visszaterites")
 _KERES_STEM = _kw_stems("szeretnem kerni,szeretnek kerni,kerem,kuldjenek,kuldjuk,visszahiv,hivjanak vissza,intezked,szuksegem lenne")
 _KERDES_STEM = _kw_stems("mikor,mennyi,hogyan,miert,kerdez,kerdes")
 _KERDES_EXACT = _kw_exact("hol,van-e")
@@ -620,6 +636,18 @@ def _detect_intent_keyword(message_text: str) -> dict:
     if not detected_types:
         detected_types = ["Egyéb"]
 
+    # Fizikai/orvosi fájdalom NEM Panasz, hanem sürgős időpont-ügy: a fájdalom-tőkék
+    # (fajdal, elviselhetetlen, faj) amúgy Panasznak veszik — ha nincs valódi,
+    # szolgáltatásra vonatkozó reklamációs jel, kivesszük és Időpont+Sürgős lesz.
+    urgens = bool(_PAIN_STEM.search(t))
+    if urgens:
+        if "Időpont" not in detected_types:
+            detected_types.append("Időpont")
+            if idopont_altipus is None:
+                idopont_altipus = "Új"
+        if "Panasz" in detected_types and not _PANASZ_TENYLEGES_STEM.search(t):
+            detected_types.remove("Panasz")
+
     # Domináns típus a prioritás szerint
     ugytipus = "Egyéb"
     for t_type in TYPE_PRIORITY:
@@ -633,6 +661,7 @@ def _detect_intent_keyword(message_text: str) -> dict:
         "osszefoglalas": "",  # Fallback can't summarize well
         "detected_types": detected_types,
         "client_name": None,  # Keyword fallback can't extract names
+        "urgens": urgens,
     }
 
 
@@ -699,6 +728,17 @@ async def classify_interaction(
         idopont_altipus=altipus,
     )
 
+    # Fizikai/orvosi sürgősség (fájdalom stb.) + ÚJ időpont-kérés: a cél a mielőbbi
+    # időpontadás, nem a lerázás (ügyfél-visszajelzés, 254-es ügy). A sürgősség a
+    # STÁTUSZON jelenik meg ("Sürgős"), nem az autonómia letiltásán — ezért az
+    # urgent/handover restriction (pl. "Erős fájdalom" kontextus-szabály) itt none-ra
+    # oldódik, hogy a döntési fa auto_booking útvonala működhessen.
+    urgens = bool(intent.get("urgens"))
+    if urgens and dominant_ugytipus == "Időpont" and altipus == "Új" and restriction in ("urgent", "handover"):
+        logger.info("🚨 Urgens fizikai panasz + új időpont-kérés: restriction "
+                    f"{restriction} → none (mielőbbi időpontadás érdekében)")
+        restriction = "none"
+
     # 5. Döntési fa alkalmazása — konfig-vezérelt (triage_rules.routing)
     decision = _apply_decision_tree(
         ugytipus=dominant_ugytipus,
@@ -721,6 +761,14 @@ async def classify_interaction(
         "autonomous": decision.get("automation", "") in AUTONOMOUS_AUTOMATIONS,
         **{k: v for k, v in decision.items() if k != "automation"},
     }
+
+    # Sürgős fizikai panasz + új időpont-kérés: a státusz "Sürgős" és a teendő a
+    # mielőbbi időpontadás — az ügy típusa Időpont marad (nem Panasz, nem lerázás).
+    if urgens and dominant_ugytipus == "Időpont" and altipus == "Új":
+        result["urgens"] = True
+        result["statusz"] = "Sürgős"
+        result["eredmeny"] = "Sürgős időpont-kérés"
+        result["teendo"] = "Mielőbbi időpont adása"
 
     logger.info(f"🏷️ Classification [{channel}]: {result}")
     return result

@@ -259,9 +259,31 @@ class TestKeywordFallback:
         r = _detect_intent_keyword("Csatolom a fájlt amit kértél")
         assert "Panasz" not in r["detected_types"]
 
-    def test_fajdalom_is_panasz(self):
+    def test_fajdalom_nem_panasz_surgos_idopont(self):
+        """KRITIKUS (2026-09-06, 254-es ügy): a fizikai/orvosi fájdalom NEM reklamáció —
+        sürgős Időpont-ügy, ne Panasz-handover (lerázás)."""
         r = _detect_intent_keyword("Fájdalom gyötör, alig bírom")
-        assert "Panasz" in r["detected_types"]
+        assert "Panasz" not in r["detected_types"]
+        assert r["ugytipus"] == "Időpont"
+        assert r["idopont_altipus"] == "Új"
+        assert r["urgens"] is True
+
+    def test_fajdalom_idopont_keressel(self):
+        """254-es ügy eredeti üzenete: fájdalom + időpont-kérés → Időpont, nem Panasz."""
+        r = _detect_intent_keyword("Nagyon fáj a bölcsességfogam, szeretnék mihamarabb időpontot kérni")
+        assert "Panasz" not in r["detected_types"]
+        assert r["ugytipus"] == "Időpont"
+        assert r["urgens"] is True
+
+    def test_fajdalom_valodi_panaszal_marad_panasz(self):
+        """Fájdalom + szolgáltatásra vonatkozó elégedetlenség → marad Panasz."""
+        r = _detect_intent_keyword("A kezelés óta is fáj a fogam, nagyon elégedetlen vagyok, panaszt teszek")
+        assert r["ugytipus"] == "Panasz"
+        assert r["urgens"] is True
+
+    def test_nincs_fajdalom_nincs_urgens(self):
+        r = _detect_intent_keyword("Holnap szeretnék időpontot foglalni")
+        assert r["urgens"] is False
 
     def test_holnap_not_kerdes_hol(self):
         r = _detect_intent_keyword("Holnap szeretnék időpontot foglalni")
