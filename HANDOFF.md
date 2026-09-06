@@ -154,6 +154,7 @@ A kódbázisból queryelhető tudásgráf: [github.com/Graphify-Labs/graphify](h
   - email prompt: FIGYELEM-tiltás alól fájdalom-kivétel + új "SZABÁLY — FÁJDALOM" blokk (meeting a legkorábbi munkaidőre 24-48 óra ablakkal, "urgent" tag, handover_reason null, fájdalomcsillapítási tájékoztató adható)
   - DB (staging branch): `triage_rules` "Erős fájdalom" sor priority surgos → **onallo**
   - Tesztek: `test_fajdalom_is_panasz` helyett 4 új regressziós teszt (tiszta fájdalom → Időpont+urgens; fájdalom+időpont-kérés → Időpont; fájdalom+valódi elégedetlenség → Panasz; sima időpont → urgens=False). Suite: 51/51 zöld (a tools+tenancy EGYÜTTES futtatásának fixture-ütközése előzetesen is megvolt, önállóan mind zöld).
+- **Új kanonikus címke-értékek** (commit `bafb2ac`): a fenti override két új értéket vezetett be — `eredmény: "Sürgős időpont-kérés"`, `teendő: "Mielőbbi időpont adása"`. Mindkettő fel lett véve a `GET /admin/api/classification-labels` kanonikus listájába (web_server.py) és a frontend `interactionClassifiers.ts` címkeszótár-kommentjébe; élőben verifikálva a labels endpointon. (Frontend: csak komment-változás, `npm run build` zöld.)
 - **Verifikáció**: deploy `5539d0f` → konténerben élő fallback-teszt: az eredeti 254-es üzenet → `Időpont / Új / urgens=True`, valódi panasz → `Panasz`. Logok tiszták.
 - ⚠️ **Prod-deploykor**: a prod DB-ben is át kell írni a `triage_rules` "Erős fájdalom" sorát surgos → onallo (a kód-commit egyedül nem elég, mert a sor DB-adat)!
 
