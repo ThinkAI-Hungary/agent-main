@@ -1,0 +1,20 @@
+# graphify kizárások — a .gitignore-on felül
+# deploy logok és Archívum
+deploy.log*
+*.gz
+# elavult, generált doki-gyűjtemény (a HANDOFF.md és a friss kód a mérvadó)
+dokumentumok/
+# nem-kód artefaktok
+logo/
+_pdf_extract.txt
+spec_output.txt
+temp_req.txt
+# egyszeri javító/scratch scriptek
+patch_clients.py
+_adapt_widget.py
+_fix_widget_calendar.py
+fix_email_tz.py
+fix_tools_tz.py
+# build kimenet symlink + legacy HTML backupok
+thinkai-voice-agent/frontend_dist
+thinkai-voice-agent/admin_backup_*.html

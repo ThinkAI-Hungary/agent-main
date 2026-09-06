@@ -1,5 +1,11 @@
 # HANDOFF — eaisyDesk | 2026-09-06
 
+## ⚠️ ÁLLANDÓ MUNKAREND — minden sessionnek
+
+- **Ezt a HANDOFF.md-t MINDEN utasítás elvégzése UTÁN frissíteni kell** (mit csináltunk, hol állunk, mi a következő lépés), majd commit + push `origin/rebuild`-re. Cél: bármikor indulhat új session, ebből a fájlból kell tudnia folytatni.
+- Deploy után verifikálni (konténer healthy, logok tiszták), és az eredményt is beírni.
+- A friss, teljes rendszerdokumentáció: `/root/eaisydesk-context-2026-09.md` (a repón KÍVÜL van, mert kulcsokat tartalmaz — soha ne commitold!). A repóban lévő régi dokik (`dokumentumok/`, AGENT_DOCS, RENDSZERLEIRAS) elavultak.
+
 ## Projekt áttekintés
 
 - **Repo**: `/root/dobozos` — branch: `rebuild` (push: `origin/rebuild`)
@@ -22,6 +28,28 @@ A `{today}` prompt-változó egy lambda-ban hivatkozott a `HU_DAYS` tömbre, de 
 **Végponttól végpontig teszt (2026-09-06 17:11)**: a 10 db bug-korszakban elhasalt `erika@molaire.hu` levél újrafeldolgozva — 10/10 Gemini-elemzés + klasszifikáció OK, 8 autonóm válasz kiment, 5 naptáresemény + visszaigazoló emailek keletkeztek, 0 hiba. A DB-ben a `processed_emails` 19 sor, mind `status=ok`.
 
 **Újrafeldolgozás részletei (jegyzet)**: a poll UID high-water markkal dolgozik in-memory (`email_processor.py:975–992`), a `\Seen`-jelzést szándékosan NEM veszi figyelembe. Ezért egy levél újravételéhez: (1) `processed_emails` claim törlése (SQL), (2) **konténer restart** (a high-water mark nullázásához) — a `\Seen` visszabiggyesztés önmagában NEM elég.
+
+---
+
+## Graphify tudásgráf (2026-09-06 telepítve)
+
+A kódbázisból queryelhető tudásgráf: [github.com/Graphify-Labs/graphify](https://github.com/Graphify-Labs/graphify). Kód, dokik, SQL sémák → gráf + jelentés + wiki.
+
+- **CLI**: `graphify` (symlink: `/usr/local/bin/graphify` → `/root/graphify-venv/bin/graphify`, v0.9.55; PyPI csomag: `graphifyy` + extra `openai` és `graphifyy[sql]` dependenciák a venvben)
+- **Gráf helye**: `/root/dobozos/graphify-out/` (graph.json: 2161 node / 3949 él / 181 közösség, továbbá GRAPH_REPORT.md, graph.html, wiki-készítés `export wiki`) — gitignored, NEM megy a repóba, csak a szerveren él
+- **Kizárások**: `/root/dobozos/.graphifyignore` (commitolva: deploy logok, dokumentumok/, logo, scratch scriptek)
+- **Backend**: Gemini (`GOOGLE_API_KEY` a `thinkai-voice-agent/.env`-ből exportálva a futtatáshoz; az első gráf-építés ~$0,23 volt)
+- **Használat** (a `/root/dobozos`-ból):
+  ```bash
+  export GOOGLE_API_KEY=$(grep -oP '^GOOGLE_API_KEY=\K.*' thinkai-voice-agent/.env | head -1); export GEMINI_API_KEY="$GOOGLE_API_KEY"
+  graphify query "kérdés a kódbázisról"           # BFS keresés a gráfban (--budget N a méret szabásához)
+  graphify explain "_tenant_eq"                    # node + szomszédok magyarázata
+  graphify path "A" "B"                            # legrövidebb út két node közt
+  graphify god-nodes                               # architektúra hubok
+  graphify update /root/dobozos                    # kódváltozás UTÁN — AST rész API-költség NÉLKÜL
+  graphify extract /root/dobozos --backend gemini  # teljes újraépítés (LLM költséggel, a cache csak a változást számolja)
+  ```
+- **Új session tipp**: nagyobb kérdésnél előbb `graphify query`, utána fájl-olvasás. A GRAPH_REPORT.md `Built from commit` mezőjéből látszik, elavult-e a gráf (`graphify check-update .`).
 
 ---
 

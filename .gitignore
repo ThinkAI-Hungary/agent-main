@@ -63,3 +63,6 @@ node_modules/
 # Temp files
 *.diff
 lint_results*.txt
+
+# Graphify tudásgráf (generált artefakt, szerveren marad — lásd HANDOFF)
+graphify-out/
