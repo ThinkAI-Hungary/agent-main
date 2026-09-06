@@ -1154,6 +1154,8 @@ body.dark .cd-table-card tbody tr.cd-is-urgent td { background: var(--cp-err-row
 .cal-week-body {
   display: grid;
   grid-template-columns: 62px repeat(7, minmax(0, 1fr));
+  /* első hr vonal eltolása a fejléc border-ével egyvonalban */
+  margin-top: -1px;
 }
 .cal-week-gutter {
   position: relative;
@@ -1306,3 +1308,9 @@ body.dark .cd-table-card tbody tr.cd-is-urgent td { background: var(--cp-err-row
 .cal-list-card .t-time { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
 .cal-list-card .t-date { display: block; font-size: 11px; color: var(--text-muted); }
 .cal-list-card tbody tr:hover td { background: var(--bg3); }
+
+/* Naptár navigációs chevronok: nagyobb ikon a gombon */
+.cal-nav-center .int-btn-icon svg {
+  width: 20px;
+  height: 20px;
+}
