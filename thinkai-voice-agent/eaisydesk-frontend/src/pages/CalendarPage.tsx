@@ -1,40 +1,68 @@
 /**
- * CalendarPage – 1:1 migration of legacy calendar view
- * Features: list view + grid (FullCalendar) view, new event creation, no-show marking
- * Clicking an event opens the client profile.
+ * CalendarPage – Naptár (UI Kit) — saját renderelés: nap / hét / hónap + listanézet.
+ * Esemény kattintás → ügyfélprofil. Múltbeli esemény: no-show jelölés.
  */
-import { useState, useMemo, useCallback } from 'react';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useIsMobile } from '../hooks/useIsMobile';
-import FullCalendar from '@fullcalendar/react';
-import dayGridPlugin from '@fullcalendar/daygrid';
-import timeGridPlugin from '@fullcalendar/timegrid';
-import interactionPlugin from '@fullcalendar/interaction';
-import listPlugin from '@fullcalendar/list';
 import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import { useClients } from '../hooks/useClients';
 import { useSessions } from '../hooks/useSessions';
 import { useAuth } from '../context/AuthContext';
 import { parseCustomData, isAssignedToMe, bestClientName } from '../helpers/clientResolvers';
-import { fmtDt } from '../helpers/formatters';
 import { CalendarSkeleton } from '../components/ui/Skeleton';
+import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
 import { authFetch } from '../api/client';
 import ClientDetailView from '../components/clients/ClientDetailView';
-import type { EventClickArg } from '@fullcalendar/core';
+
+const HU_MONTHS = ['jan.', 'febr.', 'márc.', 'ápr.', 'máj.', 'jún.', 'júl.', 'aug.', 'szept.', 'okt.', 'nov.', 'dec.'];
+const WD_SHORT = ['H', 'K', 'Sze', 'Cs', 'P', 'Szo', 'V'];
+const WD_FULL = ['vasárnap', 'hétfő', 'kedd', 'szerda', 'csütörtök', 'péntek', 'szombat'];
+const CAL_DAY_START = 7;
+const CAL_DAY_END = 21;
+const CAL_HOUR_PX = 48;
+
+type CalMode = 'day' | 'week' | 'month';
+
+interface CalendarEventItem {
+  id: number;
+  title: string;
+  start_dt: string;
+  duration_minutes?: number;
+  attendee?: string;
+  attendee_email?: string;
+  reminder_sent?: boolean;
+}
+
+function pad2(n: number) { return (n < 10 ? '0' : '') + n; }
+function dateKey(d: Date) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
+function startOfWeek(d: Date) {
+  const r = new Date(d.getTime()); const day = r.getDay();
+  r.setDate(r.getDate() + (day === 0 ? -6 : 1 - day)); r.setHours(0, 0, 0, 0);
+  return r;
+}
 
 export default function CalendarPage() {
+  const isMobile = useIsMobile(768);
   const { user, isAdmin } = useAuth();
   const { events, loading, refetch: refetchEvents } = useCalendarEvents();
   const { clients, clientsMap } = useClients();
   const { sessions } = useSessions(500);
-  const [viewMode, setViewMode] = useState<'list' | 'grid'>('grid');
+  const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [calMode, setCalMode] = useState<'day' | 'week' | 'month'>('week');
+  const [calCursor, setCalCursor] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
+  const { confirm, ConfirmDialog } = useConfirm();
   const [showNewEventModal, setShowNewEventModal] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
-  const isMobile = useIsMobile(768);
 
-  // Member filtering: build set of assigned client names/emails
+  const [newEvent, setNewEvent] = useState({
+    attendee: '', email: '', phone: '', title: '',
+    date: new Date().toISOString().split('T')[0], time: '09:00', duration: '30',
+  });
+
+  // Member filtering: nem adminok csak a hozzájuk rendelt ügyfelek eseményeit látják
   const myEvents = useMemo(() => {
-    if (isAdmin) return events;
+    if (isAdmin) return events as CalendarEventItem[];
     const username = user?.username || '';
     const fullName = user?.fullName || '';
     const assignedNames = new Set<string>();
@@ -48,7 +76,7 @@ export default function CalendarPage() {
         if (email) assignedEmails.add(email);
       }
     });
-    return events.filter(ev => {
+    return (events as CalendarEventItem[]).filter(ev => {
       const evName = (ev.attendee || '').toLowerCase().trim();
       const evEmail = (ev.attendee_email || '').toLowerCase().trim();
       if (evEmail && assignedEmails.has(evEmail)) return true;
@@ -57,73 +85,230 @@ export default function CalendarPage() {
     });
   }, [events, clients, isAdmin, user]);
 
-  // New event form
-  const [newEvent, setNewEvent] = useState({
-    attendee: '',
-    email: '',
-    phone: '',
-    title: '',
-    date: new Date().toISOString().split('T')[0],
-    time: '09:00',
-    duration: '30',
-  });
-
-  // ── FullCalendar events ──
-  const fcEvents = useMemo(() => {
-    return myEvents.map((ev) => {
-      let end: string | undefined;
-      if (ev.duration_minutes && ev.start_dt) {
-        end = new Date(new Date(ev.start_dt).getTime() + ev.duration_minutes * 60000).toISOString();
-      }
-      return {
-        id: String(ev.id),
-        title: ev.title + (ev.attendee ? ' - ' + ev.attendee : ''),
-        start: ev.start_dt,
-        end,
-        extendedProps: { attendee: ev.attendee, attendee_email: ev.attendee_email },
-      };
+  // ── Események dátum szerint csoportosítva ──
+  const eventsByDate = useMemo(() => {
+    const m: Record<string, CalendarEventItem[]> = {};
+    myEvents.forEach(ev => {
+      if (!ev.start_dt) return;
+      const k = dateKey(new Date(ev.start_dt));
+      (m[k] = m[k] || []).push(ev);
     });
+    Object.values(m).forEach(list => list.sort((a, b) => (a.start_dt || '').localeCompare(b.start_dt || '')));
+    return m;
   }, [myEvents]);
 
-  // ── Find client by attendee name/email ──
+  // ── Kolléga (ügyfél felelőse) + Ügyfélstátusz badge az email címhez ──
+  const clientInfoByEmail = useMemo(() => {
+    const m: Record<string, { assignee: string }> = {};
+    clients.forEach(c => {
+      const cd = parseCustomData(c.custom_data);
+      const email = ((cd.email || c.email || '') as string).toLowerCase().trim();
+      if (!email) return;
+      m[email] = { assignee: ((cd.assigned_to || cd.felelos || '') as string).trim() };
+    });
+    return m;
+  }, [clients]);
+
+  const assigneeFor = useCallback((email: string) => {
+    return clientInfoByEmail[email.toLowerCase().trim()]?.assignee || '';
+  }, [clientInfoByEmail]);
+
+  const pastEventCountByEmail = useMemo(() => {
+    const m: Record<string, number> = {};
+    const nowMs = Date.now();
+    myEvents.forEach(ev => {
+      const email = (ev.attendee_email || '').toLowerCase().trim();
+      if (!email) return;
+      if (new Date(ev.start_dt || '').getTime() < nowMs) m[email] = (m[email] || 0) + 1;
+    });
+    return m;
+  }, [myEvents]);
+
+  const clientBadgeFor = useCallback((email: string) => {
+    const past = pastEventCountByEmail[email.toLowerCase().trim()] || 0;
+    return past > 1 ? 'Visszatérő ügyfél' : 'Új ügyfél';
+  }, [pastEventCountByEmail]);
+
+  // ── Navigáció ──
+  const calNav = useCallback((dir: number) => {
+    setCalCursor(prev => {
+      const d = new Date(prev.getTime());
+      if (calMode === 'day') d.setDate(d.getDate() + dir);
+      else if (calMode === 'week') d.setDate(d.getDate() + dir * 7);
+      else d.setMonth(d.getMonth() + dir);
+      return d;
+    });
+  }, [calMode]);
+
+  const goToday = useCallback(() => {
+    const d = new Date(); d.setHours(0, 0, 0, 0); setCalCursor(d);
+  }, []);
+
+  function calTitleText(): string {
+    const y = calCursor.getFullYear();
+    if (calMode === 'day') {
+      return `${y}. ${HU_MONTHS[calCursor.getMonth()]} ${calCursor.getDate()}. · ${WD_FULL[calCursor.getDay()]}`;
+    }
+    if (calMode === 'week') {
+      const s = startOfWeek(calCursor);
+      const e = new Date(s.getTime()); e.setDate(s.getDate() + 6);
+      const sTxt = `${HU_MONTHS[s.getMonth()]} ${s.getDate()}.`;
+      const eTxt = (s.getMonth() === e.getMonth() ? `${e.getDate()}.` : `${HU_MONTHS[e.getMonth()]} ${e.getDate()}.`) + ` ${y}.`;
+      return `${sTxt} – ${eTxt}`;
+    }
+    return `${y}. ${HU_MONTHS[calCursor.getMonth()]}`;
+  }
+
+  // ── Esemény-kártya (hónap/nap) ──
+  function renderEv(ev: CalendarEventItem, compact: boolean) {
+    const t = new Date(ev.start_dt);
+    return (
+      <div className={`cal-ev${compact ? ' cal-ev-xs' : ''}`} onClick={e => { e.stopPropagation(); openClientFromEvent(ev.attendee || '', ev.attendee_email || ''); }}>
+        <span className="cal-ev-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
+        <span className="cal-ev-title">{ev.title}</span>
+        {!compact && <span className="cal-ev-name">{ev.attendee || ''}</span>}
+      </div>
+    );
+  }
+
+  // ── NAP nézet ──
+  function renderDay() {
+    const key = dateKey(calCursor);
+    const day = eventsByDate[key] || [];
+    const rows: React.ReactNode[] = [];
+    for (let h = CAL_DAY_START; h <= CAL_DAY_END; h++) {
+      const evs = day.filter(ev => new Date(ev.start_dt).getHours() === h);
+      rows.push(
+        <div key={h} className="cal-day-row">
+          <div className="cal-day-time">{pad2(h)}:00</div>
+          <div className="cal-day-events">{evs.map(ev => renderEv(ev, false))}</div>
+        </div>
+      );
+    }
+    return <div className="cal-day-wrap">{rows}</div>;
+  }
+
+  // ── HÉT nézet ──
+  function renderWeek() {
+    const start = startOfWeek(calCursor);
+    const todayKey = dateKey(new Date());
+    const head: React.ReactNode[] = [];
+    for (let i = 0; i < 7; i++) {
+      const d = new Date(start.getTime()); d.setDate(start.getDate() + i);
+      const isToday = dateKey(d) === todayKey;
+      head.push(
+        <div key={i} className={`cal-wh${isToday ? ' is-today' : ''}`}>
+          <span className="d-wd">{WD_SHORT[i]}</span>
+          <span className="d-num">{d.getDate()}</span>
+        </div>
+      );
+    }
+    const gutter: React.ReactNode[] = [];
+    for (let h = CAL_DAY_START; h <= CAL_DAY_END; h++) {
+      gutter.push(<div key={h} className="cal-hr"><span>{pad2(h)}:00</span></div>);
+    }
+    const cols: React.ReactNode[] = [];
+    for (let j = 0; j < 7; j++) {
+      const d = new Date(start.getTime()); d.setDate(start.getDate() + j);
+      const key = dateKey(d);
+      const isToday = key === todayKey;
+      const day = (eventsByDate[key] || []).slice().sort((a, b) => (a.start_dt || '').localeCompare(b.start_dt || ''));
+      const slots: React.ReactNode[] = [];
+      for (let h = CAL_DAY_START; h <= CAL_DAY_END; h++) slots.push(<div key={h} className="cal-wslot" />);
+      const evs = day.map(ev => {
+        const t = new Date(ev.start_dt);
+        const startMin = (t.getHours() - CAL_DAY_START) * 60 + t.getMinutes();
+        const top = (startMin / 60) * CAL_HOUR_PX;
+        const dur = ev.duration_minutes || 30;
+        const hpx = Math.max(22, (dur / 60) * CAL_HOUR_PX);
+        return (
+          <div
+            key={ev.id}
+            className={`cal-ev-abs${hpx < 28 ? ' cal-ev-xs' : hpx < 44 ? ' cal-ev-sm' : ''}`}
+            style={{ top: Math.round(top), height: Math.round(hpx) }}
+            onClick={e => { e.stopPropagation(); openClientFromEvent(ev.attendee || '', ev.attendee_email || ''); }}
+          >
+            <span className="cal-ev-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
+            <span className="cal-ev-name">{ev.attendee || ''}</span>
+            <span className="cal-ev-title">{ev.title}</span>
+          </div>
+        );
+      });
+      cols.push(<div key={j} className={`cal-wcol${isToday ? ' is-today' : ''}`}>{slots}{evs}</div>);
+    }
+    return (
+      <div className="cal-week">
+        <div className="cal-week-head">{head}</div>
+        <div className="cal-week-body">
+          <div className="cal-week-gutter">{gutter}</div>
+          {cols}
+        </div>
+      </div>
+    );
+  }
+
+  // ── HÓNAP nézet ──
+  function renderMonth() {
+    const first = new Date(calCursor.getFullYear(), calCursor.getMonth(), 1);
+    const start = startOfWeek(first);
+    const todayKey = dateKey(new Date());
+    const head: React.ReactNode[] = [];
+    for (let i = 0; i < 7; i++) head.push(<div key={i} className="cal-wd">{WD_SHORT[i]}</div>);
+    const cells: React.ReactNode[] = [];
+    for (let w = 0; w < 6; w++) {
+      for (let j = 0; j < 7; j++) {
+        const d = new Date(start.getTime()); d.setDate(start.getDate() + (w * 7 + j));
+        const key = dateKey(d);
+        const inMonth = d.getMonth() === calCursor.getMonth();
+        const isToday = key === todayKey;
+        const day = eventsByDate[key] || [];
+        const evHtml = day.slice(0, 2).map(ev => {
+          const t = new Date(ev.start_dt);
+          return (
+            <div key={ev.id} className="cal-ev" onClick={e => { e.stopPropagation(); openClientFromEvent(ev.attendee || '', ev.attendee_email || ''); }}>
+              <span className="cal-ev-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
+              <span className="cal-ev-title">{ev.title}</span>
+            </div>
+          );
+        });
+        cells.push(
+          <div key={key + `${w}-${j}`} className={`cal-mcell${!inMonth ? ' is-out' : ''}${isToday ? ' is-today' : ''}`}>
+            <span className="d-num">{d.getDate()}</span>
+            {evHtml}
+            {day.length > 2 && <span className="cal-ev-more">+{day.length - 2} további</span>}
+          </div>
+        );
+      }
+    }
+    return (
+      <>
+        <div className="cal-month-head">{head}</div>
+        <div className="cal-month-grid">{cells}</div>
+      </>
+    );
+  }
+
+  // ── Ügyfélprofil megnyitás eseményből ──
   const findClientByAttendee = useCallback((attendeeName: string, attendeeEmail: string): string | null => {
     const name = (attendeeName || '').toLowerCase().trim();
     const email = (attendeeEmail || '').toLowerCase().trim();
-
     for (const c of clients) {
       const cd = parseCustomData(c.custom_data);
       const clientName = (bestClientName(c) || c.name || '').toLowerCase().trim();
       const clientEmail = ((cd?.email as string) || c.email || '').toLowerCase().trim();
-
-      // Match by email (strongest)
-      if (email && clientEmail && email === clientEmail) {
-        return String(c.id);
-      }
-      // Match by name
-      if (name && clientName && (name === clientName || clientName.includes(name) || name.includes(clientName))) {
-        return String(c.id);
-      }
+      if (email && clientEmail && email === clientEmail) return String(c.id);
+      if (name && clientName && (name === clientName || clientName.includes(name) || name.includes(clientName))) return String(c.id);
     }
     return null;
   }, [clients]);
 
-  // ── Open client profile from event ──
   const openClientFromEvent = useCallback((attendeeName: string, attendeeEmail: string) => {
     const clientId = findClientByAttendee(attendeeName, attendeeEmail);
-    if (clientId) {
-      setSelectedClientId(clientId);
-    } else {
-      showToast('Ügyfél nem található az adatbázisban', 'error');
-    }
+    if (clientId) setSelectedClientId(clientId);
+    else showToast('Ügyfél nem található az adatbázisban', 'error');
   }, [findClientByAttendee]);
 
-  // ── FullCalendar eventClick handler ──
-  const handleEventClick = useCallback((info: EventClickArg) => {
-    const { attendee, attendee_email } = info.event.extendedProps;
-    openClientFromEvent(attendee || '', attendee_email || '');
-  }, [openClientFromEvent]);
-
-  // ── Submit new event ──
+  // ── Új esemény ──
   const handleSubmitEvent = useCallback(async () => {
     if (!newEvent.attendee || !newEvent.title || !newEvent.date || !newEvent.time) {
       showToast('Ügyfél neve, esemény címe, dátum és időpont kötelező!', 'error');
@@ -143,47 +328,28 @@ export default function CalendarPage() {
           duration_minutes: parseInt(newEvent.duration) || 30,
         }),
       });
-      if (!res.ok) {
-        showToast('Hiba az időpont létrehozásakor', 'error');
-        return;
-      }
+      if (!res.ok) { showToast('Hiba az időpont létrehozásakor', 'error'); return; }
       setShowNewEventModal(false);
       setNewEvent({ attendee: '', email: '', phone: '', title: '', date: new Date().toISOString().split('T')[0], time: '09:00', duration: '30' });
       showToast('Időpont sikeresen létrehozva!');
       refetchEvents();
-    } catch {
-      showToast('Hiba az időpont létrehozásakor', 'error');
-    }
+    } catch { showToast('Hiba az időpont létrehozásakor', 'error'); }
   }, [newEvent, refetchEvents]);
 
-  // ── Today's events for agenda panel (must be above early returns to satisfy rules-of-hooks) ──
-  const todayStr = new Date().toISOString().split('T')[0];
-  const todayEvents = useMemo(() => {
-    return myEvents
-      .filter((ev) => (ev.start_dt || '').startsWith(todayStr))
-      .sort((a, b) => (a.start_dt || '').localeCompare(b.start_dt || ''));
-  }, [myEvents, todayStr]);
-
-  // ── No-show marking ──
-  const handleMarkNoShow = useCallback(async (eventId: number, _attendeeEmail: string, _attendeeName: string) => {
+  // ── No-show jelölés ──
+  const handleMarkNoShow = useCallback(async (eventId: number) => {
     try {
       const res = await authFetch(`/admin/api/calendar`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ id: eventId, reminder_sent: true }),
       });
-      if (res.ok) {
-        showToast('No-show címke hozzáadva');
-        refetchEvents();
-      } else {
-        showToast('Hiba a no-show jelöléskor', 'error');
-      }
-    } catch {
-      showToast('Hiba', 'error');
-    }
+      if (res.ok) { showToast('No-show jelölve'); refetchEvents(); }
+      else showToast('Hiba a no-show jelöléskor', 'error');
+    } catch { showToast('Hiba', 'error'); }
   }, [refetchEvents]);
 
-  // ── Client Detail overlay ──
+  // ── Ügyfél Detail overlay ──
   if (selectedClientId) {
     const clientRaw = clients.find((c) => String(c.id) === selectedClientId);
     if (clientRaw) {
@@ -217,290 +383,193 @@ export default function CalendarPage() {
     }
   }
 
-  // todayEvents and todayStr moved above early return to satisfy rules-of-hooks
-
   const now = new Date();
 
   return (
     <div className="analytics-shell">
-      {/* Header */}
-      <div className="page-header">
-        <div>
-          <div className="page-title">Naptár</div>
+      <ConfirmDialog />
 
-        </div>
-        <div className="flex-row gap-10" style={{ paddingRight: 48 }}>
-          {/* View toggle */}
-          <div className="flex-row gap-4 cal-view-toggle">
-            <button
-              className={`btn btn-ghost-sm ${viewMode === 'list' ? 'filter-btn active' : ''}`}
-              onClick={() => setViewMode('list')}
-            >
-              Lista
-            </button>
-            <button
-              className={`btn btn-ghost-sm ${viewMode === 'grid' ? 'filter-btn active' : ''}`}
-              onClick={() => setViewMode('grid')}
-            >
-              Naptár
-            </button>
-          </div>
-
-          {/* New event button */}
-          <button className="btn btn-primary" onClick={() => setShowNewEventModal(true)}>
-            + Új időpont
-          </button>
-        </div>
-      </div>
+      {/* Fejléc sáv: morzsák + cím */}
+      <header className="int-page-head">
+        <nav className="int-breadcrumbs" aria-label="Navigációs morzsák">
+          <span className="int-crumb-link">Ügyfélközpont</span>
+          <span className="int-crumb-sep">/</span>
+          <span className="int-crumb-current">Naptár</span>
+        </nav>
+        <h1 className="page-title int-page-title">Naptár</h1>
+      </header>
 
       {loading ? (
         <CalendarSkeleton />
       ) : (
         <>
-          {/* List view */}
-          {viewMode === 'list' && (
-            <div className="table-card cal-table-card">
-              <table className="data-table int-table-norx">
-                <thead className="int-thead">
-                  <tr>
-                    <th>Időpont</th>
-                    <th>Esemény</th>
-                    <th>Ügyfél</th>
-                    <th>Időtartam</th>
-                    <th>Email</th>
-                    <th className="text-center">Státusz</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {myEvents.length === 0 ? (
-                    <tr className="int-row">
-                      <td className="int-td" colSpan={6}>
-                        <div className="empty-state">
-                          <div className="empty-state-icon" />
-                          <div className="empty-state-text no-data">Nincs naptári esemény</div>
-                        </div>
-                      </td>
-                    </tr>
-                  ) : (
-                    myEvents.map((ev) => {
-                      const isPast = new Date(ev.start_dt || '') < new Date();
-                      return (
-                        <tr
-                          key={ev.id}
-                          className="int-row cursor-pointer"
-                          style={{ opacity: isPast ? 0.7 : 1 }}
-                          onClick={() => openClientFromEvent(ev.attendee || '', ev.attendee_email || '')}
-                        >
-                          <td className="int-td"><div className="td-time">{fmtDt(ev.start_dt || '')}</div></td>
-                          <td className="int-td cal-ev-title">{ev.title}</td>
-                          <td className="int-td">
-                            <span className="cal-attendee-link">
-                              {ev.attendee || <span className="no-data">Nincs ügyfél</span>}
-                            </span>
-                          </td>
-                          <td className="int-td"><span className="badge badge-teal">{ev.duration_minutes} perc</span></td>
-                          <td className="int-td td-summary">{ev.attendee_email || <span className="no-data">Nincs email</span>}</td>
-                          <td className="int-td cal-status-cell" onClick={(e) => e.stopPropagation()}>
-                            {isPast ? (
-                              <button
-                                onClick={() => handleMarkNoShow(ev.id as number, ev.attendee_email || '', ev.attendee || '')}
-                                className="btn btn-noshow"
-                                title="No-show címke hozzáadása"
-                              >
-                                Nem jelent meg
-                              </button>
-                            ) : (
-                              <span className="cal-waiting">Várakozik</span>
-                            )}
-                          </td>
-                        </tr>
-                      );
-                    })
-                  )}
-                </tbody>
-              </table>
+          {/* Toolbar: listanézet-ikon + navigáció + Ma + nézetváltó + Időpont hozzáadása */}
+          <div className="cal-toolbar">
+            <button
+              className={`cal-list-toggle${viewMode === 'list' ? ' is-on' : ''}`}
+              title={viewMode === 'list' ? 'Vissza a naptárhoz' : 'Listanézet'}
+              aria-label={viewMode === 'list' ? 'Vissza a naptárhoz' : 'Listanézet'}
+              aria-pressed={viewMode === 'list'}
+              onClick={() => setViewMode(viewMode === 'list' ? 'grid' : 'list')}
+            >
+              {viewMode === 'list' ? (
+                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+              ) : (
+                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="8" y1="6" x2="21" y2="6" /><line x1="8" y1="12" x2="21" y2="12" /><line x1="8" y1="18" x2="21" y2="18" /><line x1="3" y1="6" x2="3.01" y2="6" /><line x1="3" y1="12" x2="3.01" y2="12" /><line x1="3" y1="18" x2="3.01" y2="18" /></svg>
+              )}
+            </button>
+
+            <div className="cal-nav-center">
+              <button className="cd-btn int-btn-icon" onClick={() => calNav(-1)} aria-label="Előző időszak">
+                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="15 18 9 12 15 6" /></svg>
+              </button>
+              <span className="cal-title">{calTitleText()}</span>
+              <button className="cd-btn int-btn-icon" onClick={() => calNav(1)} aria-label="Következő időszak">
+                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6" /></svg>
+              </button>
             </div>
+
+            <div className="cal-actions">
+              <button className="cd-btn btn-sm cal-today-btn" onClick={goToday}>Ma</button>
+              <div className="cal-seg" role="tablist" aria-label="Naptár nézetváltás">
+                {(['day', 'week', 'month'] as CalMode[]).map(m => (
+                  <button key={m} className={`cal-seg-btn${calMode === m ? ' is-on' : ''}`} onClick={() => setCalMode(m)}>
+                    {m === 'day' ? 'Nap' : m === 'week' ? 'Hét' : 'Hónap'}
+                  </button>
+                ))}
+              </div>
+              <button className="cp-btn-accent" onClick={() => setShowNewEventModal(true)}>
+                <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                Időpont hozzáadása
+              </button>
+            </div>
+          </div>
+
+          {/* Naptár rácsok (nap/hét/hónap) — saját renderelés */}
+          {viewMode === 'grid' && (
+            <section className="cal-main">
+              {calMode === 'day' ? renderDay() : calMode === 'week' ? renderWeek() : renderMonth()}
+            </section>
           )}
 
-          {/* Grid (FullCalendar) view — two column layout */}
-          {viewMode === 'grid' && (
-            <div className="calendar-page-layout">
-              {/* Left: Calendar grid */}
-              <div className="calendar-grid-wrapper">
-                <FullCalendar
-                  plugins={[dayGridPlugin, timeGridPlugin, interactionPlugin, listPlugin]}
-                  initialView={isMobile ? 'timeGridDay' : 'timeGridWeek'}
-                  locale="hu"
-                  firstDay={1}
-                  height="100%"
-                  allDaySlot={false}
-                  nowIndicator
-                  slotMinTime="08:00:00"
-                  slotMaxTime="19:00:00"
-                  slotDuration="00:30:00"
-                  expandRows
-                  headerToolbar={isMobile ? {
-                    left: 'prev,today,next',
-                    center: 'title',
-                    right: 'timeGridDay,dayGridMonth',
-                  } : {
-                    left: 'prev,today,next',
-                    center: 'title',
-                    right: 'timeGridDay,timeGridWeek,dayGridMonth',
-                  }}
-                  buttonText={{ today: 'Ma', month: 'Hónap', week: 'Hét', day: 'Nap' }}
-                  eventColor="var(--accent)"
-                  events={fcEvents}
-                  eventTimeFormat={{ hour: '2-digit', minute: '2-digit', meridiem: false, hour12: false }}
-                  eventClick={handleEventClick}
-                  eventClassNames="fc-event-clickable"
-                />
-              </div>
-
-              {/* Right: Agenda panel */}
-              <div className="calendar-agenda-panel">
-                <div className="agenda-header">
-                  <div className="agenda-title">
-                    Mai események
-                    {todayEvents.length > 0 && (
-                      <span className="agenda-count">{todayEvents.length}</span>
+          {/* Listanézet (mockup oszlopok + no-show jelölés) */}
+          {viewMode === 'list' && (
+            <div className="cd-table-card cal-list-card">
+              <div className="cd-table-scroll">
+                <table>
+                  <thead>
+                    <tr>
+                      <th>Időpont</th>
+                      <th>Időpont státusza</th>
+                      <th>Ügyfél</th>
+                      <th>Ügyfélstátusz</th>
+                      <th>Esemény</th>
+                      <th>Időtartam</th>
+                      <th>Kolléga</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {myEvents.length === 0 ? (
+                      <tr><td colSpan={7}><div className="cp-empty">Nincs naptári esemény.</div></td></tr>
+                    ) : (
+                      [...myEvents]
+                        .sort((a, b) => (b.start_dt || '').localeCompare(a.start_dt || ''))
+                        .map(ev => {
+                          const t = new Date(ev.start_dt);
+                          const isPast = t.getTime() < now.getTime();
+                          const isNoShow = !!ev.reminder_sent && isPast;
+                          const dTxt = dateKey(t) === dateKey(new Date()) ? 'Ma' : `${HU_MONTHS[t.getMonth()]} ${t.getDate()}.`;
+                          const emailKey = (ev.attendee_email || '').toLowerCase().trim();
+                          const assignee = assigneeFor(emailKey);
+                          const badge = clientBadgeFor(emailKey);
+                          return (
+                            <tr key={ev.id} className="cursor-pointer" onClick={() => openClientFromEvent(ev.attendee || '', ev.attendee_email || '')}>
+                              <td className="cd-time-cell">
+                                <span className="t-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
+                                <span className="t-date">{dTxt}</span>
+                              </td>
+                              <td>
+                                {isNoShow
+                                  ? <span className="cp-badge cp-camp-closed"><i className="cp-dot" />No-show</span>
+                                  : isPast
+                                    ? <button className="cd-btn btn-sm" onClick={e => { e.stopPropagation(); handleMarkNoShow(ev.id as number); }}>Nem jelent meg</button>
+                                    : <span className="cp-result">Várakozik</span>}
+                              </td>
+                              <td>{ev.attendee || <span className="cp-result">Nincs ügyfél</span>}</td>
+                              <td><span className={`cp-badge ${pastEventCountByEmail[emailKey] ? 'cp-navyb' : 'cp-accentb'}`}><i className="cp-dot" />{badge}</span></td>
+                              <td>{ev.title}</td>
+                              <td>{ev.duration_minutes || 30} perc</td>
+                              <td>{assignee || <span className="cp-result">—</span>}</td>
+                            </tr>
+                          );
+                        })
                     )}
-                  </div>
-                  <div className="agenda-date">
-                    {new Date().toLocaleDateString('hu-HU', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' })}
-                  </div>
-                </div>
-
-                {todayEvents.length === 0 ? (
-                  <div className="agenda-empty">
-                    <div className="agenda-empty-icon"></div>
-                    <div className="agenda-empty-text no-data">Nincs mai időpont</div>
-                  </div>
-                ) : (
-                  <div className="agenda-list">
-                    {todayEvents.map((ev) => {
-                      const evStart = new Date(ev.start_dt || '');
-                      const evEnd = new Date(evStart.getTime() + (ev.duration_minutes || 30) * 60000);
-                      const isPast = evEnd < now;
-                      const isNow = evStart <= now && now < evEnd;
-
-                      return (
-                        <div
-                          key={ev.id}
-                          className={`agenda-card${isPast ? ' is-past' : ''}${isNow ? ' is-now' : ''}`}
-                          onClick={() => openClientFromEvent(ev.attendee || '', ev.attendee_email || '')}
-                        >
-                          <div className="agenda-card-time">
-                            {evStart.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}
-                          </div>
-                          <div className="agenda-card-info">
-                            <div className="agenda-card-title">{ev.title}</div>
-                            <div className="agenda-card-attendee">{ev.attendee || <span className="no-data">Nincs ügyfél</span>}</div>
-                          </div>
-                          <div className="agenda-card-duration">
-                            {ev.duration_minutes || 30} perc
-                          </div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
+                  </tbody>
+                </table>
               </div>
             </div>
           )}
         </>
       )}
 
-      {/* New Event Modal — Apple-style */}
+      {/* Új esemény modál */}
       {showNewEventModal && (
         <div className="modal-overlay" onClick={() => setShowNewEventModal(false)}>
-          <div className="modal-card modal-card--460" onClick={(e) => e.stopPropagation()}>
-            {/* Header */}
-            <div className="modal-header">
-              <div>
-                <h3 className="modal-title">Új időpont létrehozása</h3>
-                <p className="text-sm text-muted cal-modal-sub">Adja meg az ügyfél és az esemény adatait</p>
-              </div>
-              <button className="modal-close" onClick={() => setShowNewEventModal(false)}>✕</button>
+          <div className="cd-task-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Új időpont">
+            <div className="cd-task-modal-head">
+              <h3 className="modal-title">Új időpont létrehozása</h3>
+              <button className="cd-task-modal-x" onClick={() => setShowNewEventModal(false)} aria-label="Bezárás">
+                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
             </div>
-
-            <div className="modal-body">
-              {/* Section: Ügyfél */}
-              <div className="mb-20">
-                <div className="form-label form-label--section">Ügyfél adatai</div>
-                <div className="flex-col gap-10">
-                  <ModalInput label="Név" value={newEvent.attendee} onChange={(v) => setNewEvent({ ...newEvent, attendee: v })} required placeholder="pl. Kiss Anna" />
-                  <div className="flex-row gap-10">
-                    <div className="flex-1">
-                      <ModalInput label="Email" value={newEvent.email} onChange={(v) => setNewEvent({ ...newEvent, email: v })} type="email" placeholder="email@pelda.hu" />
-                    </div>
-                    <div className="flex-1">
-                      <ModalInput label="Telefon" value={newEvent.phone} onChange={(v) => setNewEvent({ ...newEvent, phone: v })} type="tel" placeholder="+36 20 123 4567" />
-                    </div>
-                  </div>
+            <div className="cd-task-modal-body">
+              <div className="form-group">
+                <label className="cd-task-modal-label">Ügyfél neve</label>
+                <input className="cd-form-input" value={newEvent.attendee} onChange={e => setNewEvent({ ...newEvent, attendee: e.target.value })} placeholder="pl. Kiss Anna" />
+              </div>
+              <div className="flex-row gap-10">
+                <div className="flex-1">
+                  <label className="cd-task-modal-label">Email</label>
+                  <input className="cd-form-input" type="email" value={newEvent.email} onChange={e => setNewEvent({ ...newEvent, email: e.target.value })} placeholder="email@pelda.hu" />
+                </div>
+                <div className="flex-1">
+                  <label className="cd-task-modal-label">Telefon</label>
+                  <input className="cd-form-input" type="tel" value={newEvent.phone} onChange={e => setNewEvent({ ...newEvent, phone: e.target.value })} placeholder="+36 20 123 4567" />
                 </div>
               </div>
-
-              {/* Section: Esemény */}
-              <div className="mb-20">
-                <div className="form-label form-label--section">Esemény részletei</div>
-                <div className="flex-col gap-10">
-                  <ModalInput label="Esemény címe" value={newEvent.title} onChange={(v) => setNewEvent({ ...newEvent, title: v })} required placeholder="pl. Konzultáció" />
-                  <div className="flex-row gap-10">
-                    <div className="flex-1">
-                      <label className="form-label">Dátum *</label>
-                      <input className="input" type="date" lang="hu" value={newEvent.date} onChange={(e) => setNewEvent({ ...newEvent, date: e.target.value })} />
-                    </div>
-                    <div className="flex-1">
-                      <label className="form-label">Időpont *</label>
-                      <input className="input" type="time" value={newEvent.time} onChange={(e) => setNewEvent({ ...newEvent, time: e.target.value })} />
-                    </div>
-                  </div>
-                  <div>
-                    <label className="form-label">Időtartam</label>
-                    <select className="input" value={newEvent.duration} onChange={(e) => setNewEvent({ ...newEvent, duration: e.target.value })}>
-                      <option value="15">15 perc</option>
-                      <option value="30">30 perc</option>
-                      <option value="45">45 perc</option>
-                      <option value="60">60 perc</option>
-                      <option value="90">90 perc</option>
-                      <option value="120">120 perc</option>
-                    </select>
-                  </div>
+              <div className="form-group">
+                <label className="cd-task-modal-label">Esemény címe</label>
+                <input className="cd-form-input" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} placeholder="pl. Konzultáció" />
+              </div>
+              <div className="flex-row gap-10">
+                <div className="flex-1">
+                  <label className="cd-task-modal-label">Dátum</label>
+                  <input className="cd-form-input" type="date" lang="hu" value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} />
+                </div>
+                <div className="flex-1">
+                  <label className="cd-task-modal-label">Időpont</label>
+                  <input className="cd-form-input" type="time" value={newEvent.time} onChange={e => setNewEvent({ ...newEvent, time: e.target.value })} />
+                </div>
+                <div className="flex-1">
+                  <label className="cd-task-modal-label">Időtartam</label>
+                  <select className="cd-form-input" value={newEvent.duration} onChange={e => setNewEvent({ ...newEvent, duration: e.target.value })}>
+                    <option value="15">15 perc</option>
+                    <option value="30">30 perc</option>
+                    <option value="45">45 perc</option>
+                    <option value="60">60 perc</option>
+                    <option value="90">90 perc</option>
+                    <option value="120">120 perc</option>
+                  </select>
                 </div>
               </div>
             </div>
-
-            {/* Footer */}
-            <div className="modal-footer">
-              <button className="btn btn-outline" onClick={() => setShowNewEventModal(false)}>Mégse</button>
-              <button className="btn btn-primary" onClick={handleSubmitEvent}>Létrehozás</button>
+            <div className="cd-task-modal-foot">
+              <button className="cd-btn" onClick={() => setShowNewEventModal(false)}>Mégse</button>
+              <button className="cd-btn cd-btn-primary" onClick={handleSubmitEvent} disabled={!newEvent.attendee || !newEvent.title || !newEvent.date || !newEvent.time}>Létrehozás</button>
             </div>
           </div>
         </div>
       )}
-
-      {/* Mobile FAB — new event */}
-      {isMobile && (
-        <button className="mobile-fab" onClick={() => setShowNewEventModal(true)} title="Új időpont">
-          <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="22" height="22">
-            <line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" />
-          </svg>
-        </button>
-      )}
-    </div>
-  );
-}
-
-
-
-function ModalInput({ label, value, onChange, type = 'text', required, placeholder }: {
-  label: string; value: string; onChange: (v: string) => void; type?: string; required?: boolean; placeholder?: string;
-}) {
-  return (
-    <div className="form-group">
-      <label className="form-label">{label}{required && ' *'}</label>
-      <input className="input" type={type} value={value} onChange={(e) => onChange(e.target.value)} placeholder={placeholder} required={required} />
     </div>
   );
 }

@@ -1029,3 +1029,280 @@ body.dark .cd-table-card tbody tr.cd-is-urgent td { background: var(--cp-err-row
 /* Kampány szekciók (Függő / Lezárt) */
 .camp-section { margin-bottom: 4px; }
 .camp-section--closed { margin-top: 24px; }
+
+/* ═════════════════════════════════════════════════════════════════
+   Naptár (CalendarPage) — eaisyDesk UI Kit + dark mode
+   A cal-* osztályok a mockup szerinti saját rendereléshez.
+   ═════════════════════════════════════════════════════════════════ */
+
+.cal-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+.cal-list-toggle {
+  width: 36px;
+  height: 36px;
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--card);
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s, background 0.15s;
+}
+.cal-list-toggle svg { width: 16px; height: 16px; }
+.cal-list-toggle:hover { color: var(--text); border-color: var(--cp-a2); }
+.cal-list-toggle.is-on { background: var(--bg3); color: var(--text); border-color: var(--cp-a2); }
+
+.cal-nav-center {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+}
+.cal-title {
+  min-width: 0;
+  text-align: center;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.cal-actions {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+.cal-today-btn { height: 30px; padding: 0 12px; font-size: 12px; }
+.cal-seg {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 3px;
+}
+.cal-seg-btn {
+  height: 28px;
+  padding: 0 12px;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--text-muted);
+  font-family: inherit;
+  font-size: 12.5px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background 0.15s, color 0.15s;
+}
+.cal-seg-btn:hover { color: var(--text); }
+.cal-seg-btn.is-on {
+  background: var(--card);
+  color: var(--text);
+  box-shadow: 0 1px 2px rgba(0,0,0,0.08);
+}
+
+.cal-main {
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+  margin-top: 12px;
+}
+
+/* ── HÉT nézet ── */
+.cal-week { min-width: 680px; }
+.cal-week-head {
+  display: grid;
+  grid-template-columns: 62px repeat(7, minmax(0, 1fr));
+  border-bottom: 1px solid var(--border);
+}
+.cal-week-corner { border-right: 1px solid var(--border); background: var(--card); }
+.cal-wh {
+  min-width: 0;
+  padding: 8px 4px 7px;
+  border-right: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+}
+.cal-wh:last-child { border-right: none; }
+.cal-wh .d-wd { font-size: 11px; color: var(--text-muted); }
+.cal-wh .d-num {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-radius: 50%;
+}
+.cal-wh.is-today .d-num { background: var(--cp-a2); color: #ffffff; }
+.cal-week-body {
+  display: grid;
+  grid-template-columns: 62px repeat(7, minmax(0, 1fr));
+}
+.cal-week-gutter {
+  position: relative;
+  min-width: 0;
+  border-right: 1px solid var(--border);
+}
+.cal-hr { height: 48px; position: relative; }
+.cal-hr span {
+  position: absolute;
+  top: -6px;
+  right: 8px;
+  font-size: 10.5px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+  line-height: 1;
+}
+.cal-wcol {
+  position: relative;
+  min-width: 0;
+  border-right: 1px solid var(--border);
+}
+.cal-wcol:last-child { border-right: none; }
+.cal-wcol.is-today { background: color-mix(in srgb, var(--accent) 5%, transparent); }
+.cal-wslot { height: 48px; border-top: 1px solid var(--border); }
+.cal-wslot:first-child { border-top: none; }
+.cal-ev-abs {
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  padding: 3px 6px;
+  border: 1px solid color-mix(in srgb, var(--cp-a2) 24%, var(--border));
+  border-left: 2px solid var(--cp-a2);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--cp-a2) 8%, var(--card));
+  cursor: pointer;
+}
+.cal-ev-abs:hover { background: color-mix(in srgb, var(--cp-a2) 14%, var(--card)); }
+.cal-ev-abs .cal-ev-time { font-size: 10.5px; font-weight: 600; color: var(--cp-a2); font-variant-numeric: tabular-nums; }
+.cal-ev-abs .cal-ev-title { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-ev-abs .cal-ev-name { font-size: 10.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-ev-abs.cal-ev-xs .cal-ev-name,
+.cal-ev-abs.cal-ev-xs .cal-ev-title { display: none; }
+.cal-ev-abs.cal-ev-sm .cal-ev-title { display: none; }
+
+/* ── HÓNAP nézet ── */
+.cal-month-head {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  border-bottom: 1px solid var(--border);
+}
+.cal-wd {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 4px;
+  font-size: 11px;
+  color: var(--text-muted);
+}
+.cal-month-grid {
+  display: grid;
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+}
+.cal-mcell {
+  min-height: 112px;
+  min-width: 0;
+  padding: 7px;
+  border-right: 1px solid var(--border);
+  border-bottom: 1px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.cal-mcell:nth-child(7n) { border-right: none; }
+.cal-mcell.is-out { background: var(--bg3); }
+.cal-mcell .d-num {
+  width: 22px;
+  height: 22px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text-muted);
+  border-radius: 50%;
+}
+.cal-mcell.is-out .d-num { color: var(--text-dim); }
+.cal-mcell.is-today .d-num { background: var(--cp-a2); color: #ffffff; }
+.cal-ev {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  min-width: 0;
+  padding: 4px 7px;
+  border: 1px solid color-mix(in srgb, var(--cp-a2) 24%, var(--border));
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--cp-a2) 7%, var(--card));
+  cursor: pointer;
+}
+.cal-ev-time { font-size: 10.5px; font-weight: 600; color: var(--cp-a2); font-variant-numeric: tabular-nums; }
+.cal-ev-title { font-size: 12px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-ev-name { font-size: 10.5px; color: var(--text-muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cal-ev.cal-ev-xs { padding: 3px 6px; gap: 0; }
+.cal-ev-xs .cal-ev-name { display: none; }
+.cal-ev-more { font-size: 10.5px; color: var(--text-muted); padding: 2px 6px; }
+
+/* ── NAP nézet ── */
+.cal-day-row {
+  display: flex;
+  border-bottom: 1px solid var(--border);
+  min-height: 52px;
+}
+.cal-day-row:last-child { border-bottom: none; }
+.cal-day-time {
+  width: 62px;
+  flex: none;
+  padding: 10px 0 0 12px;
+  font-size: 11px;
+  color: var(--text-muted);
+  font-variant-numeric: tabular-nums;
+}
+.cal-day-events {
+  flex: 1;
+  padding: 6px 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+/* ── LISTANÉZET ═══ */
+.cal-list-card { margin-top: 12px; }
+.cal-list-card .cp-channel { display: inline-flex; align-items: center; gap: 8px; }
+.cal-list-card .cp-ch {
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text);
+}
+.cal-list-card .t-time { display: block; font-size: 13px; font-weight: 600; color: var(--text); }
+.cal-list-card .t-date { display: block; font-size: 11px; color: var(--text-muted); }
+.cal-list-card tbody tr:hover td { background: var(--bg3); }
