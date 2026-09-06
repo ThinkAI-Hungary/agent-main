@@ -53,6 +53,7 @@ export default function CalendarPage() {
   const [calCursor, setCalCursor] = useState(() => { const d = new Date(); d.setHours(0, 0, 0, 0); return d; });
   const { confirm, ConfirmDialog } = useConfirm();
   const [showNewEventModal, setShowNewEventModal] = useState(false);
+  const [editingEventId, setEditingEventId] = useState<number | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
 
   const [newEvent, setNewEvent] = useState({
@@ -163,7 +164,7 @@ export default function CalendarPage() {
   function renderEv(ev: CalendarEventItem, compact: boolean) {
     const t = new Date(ev.start_dt);
     return (
-      <div className={`cal-ev${compact ? ' cal-ev-xs' : ''}`} onClick={e => { e.stopPropagation(); openClientFromEvent(ev.attendee || '', ev.attendee_email || ''); }}>
+      <div className={`cal-ev${compact ? ' cal-ev-xs' : ''}`} onClick={e => { e.stopPropagation(); openEventEdit(ev); }}>
         <span className="cal-ev-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
         <span className="cal-ev-title">{ev.title}</span>
         {!compact && <span className="cal-ev-name">{ev.attendee || ''}</span>}
@@ -226,7 +227,7 @@ export default function CalendarPage() {
             key={ev.id}
             className={`cal-ev-abs${hpx < 28 ? ' cal-ev-xs' : hpx < 44 ? ' cal-ev-sm' : ''}`}
             style={{ top: Math.round(top), height: Math.round(hpx) }}
-            onClick={e => { e.stopPropagation(); openClientFromEvent(ev.attendee || '', ev.attendee_email || ''); }}
+            onClick={e => { e.stopPropagation(); openEventEdit(ev); }}
           >
             <span className="cal-ev-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
             <span className="cal-ev-name">{ev.attendee || ''}</span>
@@ -265,7 +266,7 @@ export default function CalendarPage() {
         const evHtml = day.slice(0, 2).map(ev => {
           const t = new Date(ev.start_dt);
           return (
-            <div key={ev.id} className="cal-ev" onClick={e => { e.stopPropagation(); openClientFromEvent(ev.attendee || '', ev.attendee_email || ''); }}>
+            <div key={ev.id} className="cal-ev" onClick={e => { e.stopPropagation(); openEventEdit(ev); }}>
               <span className="cal-ev-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
               <span className="cal-ev-title">{ev.title}</span>
             </div>
@@ -302,11 +303,67 @@ export default function CalendarPage() {
     return null;
   }, [clients]);
 
+  // Esemény kattintás → szerkesztő panel megnyitása
+  const openEventEdit = useCallback((ev: CalendarEventItem) => {
+    setNewEvent({
+      attendee: ev.attendee || '',
+      email: ev.attendee_email || '',
+      phone: '',
+      title: ev.title || '',
+      date: (ev.start_dt || '').split('T')[0],
+      time: (ev.start_dt || '').split('T')[1]?.substring(0, 5) || '09:00',
+      duration: String(ev.duration_minutes || 30),
+    });
+    setEditingEventId(ev.id);
+    setShowNewEventModal(true);
+  }, []);
+
+  // Ügyfélprofil megnyitás (a szerkesztő panelből külön gombbal)
   const openClientFromEvent = useCallback((attendeeName: string, attendeeEmail: string) => {
     const clientId = findClientByAttendee(attendeeName, attendeeEmail);
     if (clientId) setSelectedClientId(clientId);
     else showToast('Ügyfél nem található az adatbázisban', 'error');
   }, [findClientByAttendee]);
+
+  // ── Esemény frissítése / törlése ──
+  const handleUpdateEvent = useCallback(async () => {
+    if (!editingEventId) return;
+    if (!newEvent.attendee || !newEvent.title || !newEvent.date || !newEvent.time) {
+      showToast('Név, esemény címe, dátum és időpont kötelező!', 'error');
+      return;
+    }
+    const start_dt = `${newEvent.date}T${newEvent.time}:00`;
+    try {
+      const res = await authFetch(`/admin/api/calendar`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingEventId,
+          title: newEvent.title,
+          attendee: newEvent.attendee,
+          attendee_email: newEvent.email,
+          attendee_phone: newEvent.phone,
+          start_dt,
+          duration_minutes: parseInt(newEvent.duration) || 30,
+        }),
+      });
+      if (res.ok) {
+        showToast('Időpont frissítve!');
+        setShowNewEventModal(false);
+        refetchEvents();
+      } else showToast('Hiba a frissítéskor', 'error');
+    } catch { showToast('Hiba', 'error'); }
+  }, [editingEventId, newEvent, refetchEvents]);
+
+  const handleDeleteEvent = useCallback(async (eventId: number) => {
+    const ok = await confirm('Biztosan törlöd ezt az időpontot?', { title: 'Időpont törlése', danger: true });
+    if (!ok) return;
+    try {
+      const res = await authFetch(`/admin/api/clients/calendar/${eventId}`, { method: 'DELETE' });
+      if (res.ok) { showToast('Időpont törölve'); refetchEvents(); }
+      else showToast('Hiba a törléskor', 'error');
+    } catch { showToast('Hiba', 'error'); }
+  }, [refetchEvents]);
 
   // ── Új esemény ──
   const handleSubmitEvent = useCallback(async () => {
@@ -465,7 +522,7 @@ export default function CalendarPage() {
                       <th>Ügyfélstátusz</th>
                       <th>Esemény</th>
                       <th>Időtartam</th>
-                      <th>Kolléga</th>
+                      <th>Munkatárs</th>
                     </tr>
                   </thead>
                   <tbody>
@@ -564,8 +621,16 @@ export default function CalendarPage() {
               </div>
             </div>
             <div className="cd-task-modal-foot">
-              <button className="cd-btn" onClick={() => setShowNewEventModal(false)}>Mégse</button>
-              <button className="cd-btn cd-btn-primary" onClick={handleSubmitEvent} disabled={!newEvent.attendee || !newEvent.title || !newEvent.date || !newEvent.time}>Létrehozás</button>
+              <button className="cd-btn" onClick={() => { setShowNewEventModal(false); setEditingEventId(null); }}>Mégse</button>
+              {editingEventId && (
+                <button className="cd-btn cd-btn-danger" style={{ marginRight: 'auto' }} onClick={() => { handleDeleteEvent(editingEventId); setShowNewEventModal(false); }}>
+                  <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                  Törlés
+                </button>
+              )}
+              <button className="cd-btn cd-btn-primary" onClick={editingEventId ? handleUpdateEvent : handleSubmitEvent} disabled={!newEvent.attendee || !newEvent.title || !newEvent.date || !newEvent.time}>
+                {editingEventId ? 'Frissítés' : 'Létrehozás'}
+              </button>
             </div>
           </div>
         </div>

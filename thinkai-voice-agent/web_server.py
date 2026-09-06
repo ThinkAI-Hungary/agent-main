@@ -3160,11 +3160,24 @@ class ManualEventRequest(BaseModel):
     attendee_phone: str = ""
     start_dt: str  # ISO format datetime
     duration_minutes: int = 30
+    id: int | None = None  # ha megvan, frissítés (szerkesztés)
 
 @app.post("/admin/api/calendar")
 def admin_create_event(req: ManualEventRequest, _auth = Depends(require_admin_or_manager)):
-    """Create a manual calendar event and auto-create client if needed."""
+    """Create or update a manual calendar event."""
     from datetime import datetime, timedelta
+
+    # Ha id van megadva → meglévő esemény frissítése (szerkesztés)
+    if getattr(req, 'id', None):
+        start = datetime.fromisoformat(req.start_dt.replace("Z", "+00:00"))
+        end = start + timedelta(minutes=req.duration_minutes)
+        ok = db.update_calendar_event(req.id, title=req.title, start_dt=start.isoformat(),
+            end_dt=end.isoformat(), duration_minutes=req.duration_minutes,
+            attendee=req.attendee, attendee_email=req.attendee_email)
+        if not ok:
+            raise HTTPException(500, "Frissítés sikertelen")
+        return {"ok": True, "id": req.id, "updated": True}
+
     try:
         start = datetime.fromisoformat(req.start_dt.replace("Z", "+00:00"))
     except Exception:
@@ -3216,6 +3229,15 @@ def admin_create_event(req: ManualEventRequest, _auth = Depends(require_admin_or
             db.add_client(custom_data, "uj")
     
     return {"status": "success", "event_id": event_id, "message": "Időpont sikeresen létrehozva"}
+
+
+@app.delete("/admin/api/calendar/{event_id}")
+def admin_delete_calendar_event(event_id: int, _auth = Depends(require_admin_or_manager)):
+    """Naptár esemény törlése."""
+    ok = db.delete_calendar_event_by_id(event_id)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Event not found")
+    return {"ok": True}
 
 
 @app.get("/admin/api/emails")
