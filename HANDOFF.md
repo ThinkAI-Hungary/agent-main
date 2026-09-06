@@ -220,6 +220,16 @@ A user HTML-mockupja alapján (a modal cím és a tooltip eltérő kezelése sze
 - **Jogosultság**: a PATCH endpoint `require_admin_or_manager` (konzisztens a DELETE-tel) — member csak complete-toggle-t tud.
 - **Verifikáció**: deploy `1f517a2` — ClientDetailView chunk (todo-frame/row-task/todoEditOverlay/„Teendő szerkesztése") + CSS élőben ellenőrizve; PATCH endpoint 401 auth nélkül (létezik, védett). Konténer healthy.
 
+### 16. Hot fix kör (2026-09-06 éjszaka, commit `732a421` + `33c5085`)
+
+1. **Érdeklődőkezelésből nyitott profil**: vissza-gomb „Vissza az érdeklődőkezeléshez" — KanbanPage `source="kanban"`-t ad át (korábban `clients`-et, ezért ügyféllista-felirat jött). A Props `source` típus bővült: + `kanban`, `member`.
+2. **Ügyfélprofil oszlopfő**: „Elvégezte" → **„Elvégezve"** (mindkét táblában + a disabled checkboxok aria-labeljei is).
+3. **Következő időpont szerkesztés ikon**: az ügyfélprofil Időpontok kártya „Következő időpont" sorában ceruza-ikon → `navigate('/admin/calendar', { state: { editEventId } })`. A CalendarPage `useEffect` + `handledEditIds` ref fogadja: megkeresi az eseményt és megnyitja az „Időpont szerkesztése" popupot (events betöltése után; `useRef` dupla-nyitás ellen).
+4. **Naptár szerkesztő popup — Munkatárs lenyíló**: új select („Automatikus (szabályok alapján)" + a `services.assigned_to` egyedi nevei — `GET /admin/api/services`-ből). `newEvent.assigned_to` mentése create/update payloadban → `calendar_events.doctor` (a 12. tétel óta az add/update kezeli). `openEventEdit` előtölti `ev.doctor`-ból.
+5. **Sidebar Interakciós napló kattintás bezárja a profilt**: `useEffect` a `location.key`-re — a Sidebar navigate-je ugyanazon path esetén is új key-t ad, ami nullázza a `selectedClientId`-et (csak InteractionsPage-ben).
+6. **Vissza-gomb címkéje**: „Vissza az interakciós listához" → **„Vissza az interakciós naplóhoz"**. (Member dashboard saját: „Vissza az irányítópulthoz".)
+- **Verifikáció**: deploy `33c5085` — chunkok tartalom szerint ellenőrizve (címkék, editEventId, Munkatárs select, location.key logika a forrásban); „Elvégezte" nem maradt sehol. Konténer healthy.
+
 ---
 
 ## Adatbázis módosítások (élőn lefutottak)
