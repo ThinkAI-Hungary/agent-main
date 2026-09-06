@@ -18,7 +18,7 @@ import {
   isAssignedToMe,
   bestClientName,
 } from '../helpers/clientResolvers';
-import { EredmenyBadge, StatuszBadge, DirectionBadge } from '../components/ui/Badge';
+import { StatuszBadge, DirectionBadge } from '../components/ui/Badge';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
@@ -924,7 +924,7 @@ export default function MemberDashboardPage() {
                         </div>
 
                         <div className="mobile-card-footer">
-                          <EredmenyBadge value={r.eredmeny} />
+                          <span className="cp-result">{r.eredmeny}</span>
                           <span className="int-teendo-text">{r.teendo}</span>
                         </div>
                       </div>
@@ -1007,7 +1007,7 @@ export default function MemberDashboardPage() {
                       )}
                       {visibleCols.has('eredmeny') && (
                         <td className="int-td">
-                          {(r as typeof r & { isManual?: boolean }).isManual ? <span className="cd-empty-cell">—</span> : <EredmenyBadge value={r.eredmeny} />}
+                          {(r as typeof r & { isManual?: boolean }).isManual ? <span className="cd-empty-cell">—</span> : <span className="cp-result">{r.eredmeny}</span>}
                         </td>
                       )}
                       {visibleCols.has('statusz') && (

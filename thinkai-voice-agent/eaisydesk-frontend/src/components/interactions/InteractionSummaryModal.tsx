@@ -18,7 +18,7 @@ import { parseCustomData, type ClientRecord } from '../../helpers/clientResolver
 import { FormattedMessage } from '../../helpers/messageFormatter';
 import { authFetch } from '../../api/client';
 import { showToast } from '../ui/Toast';
-import { EredmenyBadge, StatuszBadge } from '../ui/Badge';
+import { StatuszBadge } from '../ui/Badge';
 import { useAuth } from '../../context/AuthContext';
 import type { InteractionRow } from '../../pages/InteractionsPage';
 import './InteractionSummaryModal.css';
@@ -709,7 +709,7 @@ export default function InteractionSummaryModal({
               </div>
               <div className="ism-status-row">
                 <span className="ism-status-label">Eredmény:</span>
-                <EredmenyBadge value={row.eredmeny} />
+                <span className="cp-result">{row.eredmeny}</span>
               </div>
               {(notificationText || (isSurgos && surgosEmail)) && (
                 <div className="ism-status-row">

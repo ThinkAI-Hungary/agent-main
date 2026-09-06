@@ -116,32 +116,11 @@ function CpStatusBadge({ value }: { value: string }) {
   );
 }
 
-// Mockup szerinti teendő-cellák: none → szürke pipa; jóváhagyás → óra (warn); azonnali → villám (err)
+// Teendő-cellák — egységesen sima szöveg (a státusz pill adja a színes jelzést)
 function CpTeendoCell({ value }: { value: string }) {
   const t = (value || '').toLowerCase();
   if (!value || t === 'nincs további teendő') {
-    return (
-      <span className="cp-todo-none">
-        <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12" /></svg>
-        Nincs további teendő
-      </span>
-    );
-  }
-  if (t.includes('azonnali') || t.includes('intézkedés')) {
-    return (
-      <span className="cp-badge cp-err">
-        <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
-        {value}
-      </span>
-    );
-  }
-  if (t.includes('jóváhagyás') || t.includes('válasz szükséges') || t.includes('válasz jóváhagyása')) {
-    return (
-      <span className="cp-badge cp-warn">
-        <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
-        {value}
-      </span>
-    );
+    return <span className="cp-result">Nincs további teendő</span>;
   }
   return <span className="cp-todo-text">{value}</span>;
 }

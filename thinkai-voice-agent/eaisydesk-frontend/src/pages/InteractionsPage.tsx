@@ -18,7 +18,7 @@ import {
   detectTeendo,
 } from '../helpers/interactionClassifiers';
 import { fmtDt, cleanStr } from '../helpers/formatters';
-import { EredmenyBadge, StatuszBadge } from '../components/ui/Badge';
+import { StatuszBadge } from '../components/ui/Badge';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
@@ -762,7 +762,7 @@ export default function InteractionsPage() {
 
                         {/* Footer */}
                         <div className="mobile-card-footer">
-                          <EredmenyBadge value={r.eredmeny} />
+                          <span className="cp-result">{r.eredmeny}</span>
                           <span className="int-teendo-text">{r.teendo}</span>
                         </div>
                       </div>
@@ -874,9 +874,7 @@ export default function InteractionsPage() {
                       </td>
                     )}
                     {visibleCols.has('eredmeny') && (
-                      <td className="int-td">
-                        <EredmenyBadge value={r.eredmeny} />
-                      </td>
+                      <td className="int-td cp-result">{r.eredmeny}</td>
                     )}
                     {visibleCols.has('statusz') && (
                       <td className="int-td">
