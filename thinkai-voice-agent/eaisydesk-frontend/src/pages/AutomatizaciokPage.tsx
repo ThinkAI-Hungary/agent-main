@@ -8,13 +8,14 @@
  *   3. Időpont módosításának visszaigazolása (frissített .ics)
  *   4. Időpont lemondása
  *
- * Változók: {{név}} {{időpont}} {{szolgáltatás}} {{munkatárs}} {{telephely}} {{szolgáltató}}
- * (A régi eseményvezérelt automatizációk kikapcsolt állapotban megmaradnak
- * a DB-ben, de a felületen már nem jelennek meg.)
+ * Design: user által adott HTML-mockup (co-section / nt-token rendszer,
+ * 1120px szélesség, szekció-fejléc surface háttérrel, stroke SVG ikonok,
+ * toggle-öléskor a kártya törzse elhalványul).
  */
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type CSSProperties } from 'react';
 import { authFetch } from '../api/client';
 import { showToast } from '../components/ui/Toast';
+import { useTheme } from '../context/ThemeContext';
 
 // ── Interfaces ──
 interface AppointmentNotification {
@@ -26,131 +27,143 @@ interface AppointmentNotification {
   enabled: boolean;
 }
 
-// ── Kártya-ikonok (kind → glyph + tint) ──
-const KIND_ICONS: Record<string, { glyph: string; tint: string; fg: string }> = {
-  confirmation: { glyph: '✓', tint: 'rgba(28, 238, 224, 0.12)', fg: '#0d9488' },
-  reminder: { glyph: '⏱', tint: 'rgba(59, 130, 246, 0.12)', fg: '#2563eb' },
-  modification: { glyph: '✎', tint: 'rgba(168, 85, 247, 0.12)', fg: '#7c3aed' },
-  cancellation: { glyph: '✕', tint: 'rgba(239, 68, 68, 0.12)', fg: '#dc2626' },
+// ── Mockup-tokenek (világos / sötét) ──
+const tokens = (dark: boolean) => ({
+  bg: dark ? '#141414' : '#ffffff',
+  surface: dark ? '#1d1d1d' : '#f5f5f5',
+  fg: dark ? '#dcdcdc' : '#000000',
+  muted: dark ? '#7e7e7e' : '#8c8c8c',
+  border: dark ? '#3e3e3e' : '#dbdbdb',
+  text2: dark ? '#adadad' : '#595959',
+  accent: dark ? '#3fd8c8' : '#1ceee0',
+  accent2: dark ? '#3fd8c8' : '#186d98',
+});
+
+// ── Stroke SVG ikonok (mockup symbol-jai) ──
+const Icon = ({ d, style }: { d: React.ReactNode; style?: CSSProperties }) => (
+  <svg
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth={1.7}
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    style={{ width: 16, height: 16, flex: 'none', ...style }}
+  >
+    {d}
+  </svg>
+);
+const ICONS: Record<string, React.ReactNode> = {
+  confirmation: <polyline points="20 6 9 17 4 12" />,
+  reminder: (
+    <>
+      <circle cx="12" cy="12" r="9" />
+      <polyline points="12 7 12 12 15 14" />
+    </>
+  ),
+  modification: <path d="M17 3a2.83 2.83 0 0 1 4 4L7.5 20.5 2 22l1.5-5.5L17 3z" />,
+  cancellation: (
+    <>
+      <line x1="18" y1="6" x2="6" y2="18" />
+      <line x1="6" y1="6" x2="18" y2="18" />
+    </>
+  ),
 };
 
-const cardStyle: React.CSSProperties = {
-  background: 'var(--card)',
-  border: '1px solid var(--border, rgba(0,0,0,0.08))',
-  borderRadius: 14,
-  overflow: 'hidden',
-  marginBottom: 24,
-  boxShadow: '0 2px 12px rgba(0,0,0,0.08)',
-};
-const cardHeaderStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  gap: 16,
-  padding: '20px 26px',
-  background: 'var(--bg-secondary, rgba(0,0,0,0.02))',
-  borderBottom: '1px solid var(--border, rgba(0,0,0,0.06))',
-};
-const cardBodyStyle: React.CSSProperties = {
-  padding: '26px',
-};
-const fieldLabelStyle: React.CSSProperties = {
-  display: 'block',
-  fontSize: 12.5,
-  fontWeight: 600,
-  color: 'var(--text-muted)',
-  marginBottom: 8,
-};
-const readOnlyInputStyle: React.CSSProperties = {
-  width: '100%',
-  boxSizing: 'border-box',
-  padding: '13px 16px',
-  borderRadius: 10,
-  border: '1px solid var(--border, rgba(0,0,0,0.1))',
-  background: 'var(--bg-secondary, transparent)',
-  color: 'var(--text)',
-  fontSize: 14.5,
-  outline: 'none',
-};
-const readOnlyBodyStyle: React.CSSProperties = {
-  width: '100%',
-  boxSizing: 'border-box',
-  minHeight: 220,
-  padding: '18px 20px',
-  borderRadius: 10,
-  border: '1px solid var(--border, rgba(0,0,0,0.1))',
-  background: 'var(--bg-secondary, transparent)',
-  color: 'var(--text)',
-  fontSize: 14.5,
-  lineHeight: 2.1,
-  whiteSpace: 'pre-wrap',
-};
-
-/** A sablon-szöveg renderelése {{változó}} chipekkel */
-function TemplateBody({ body }: { body: string }) {
-  const parts = body.split(/(\{\{[^}]+\}\})/g);
+/** Sablon-szöveg renderelése: bekezdések + {{változó}} token chipek */
+function TemplateBody({ body, t }: { body: string; t: ReturnType<typeof tokens> }) {
+  const tokenStyle: CSSProperties = {
+    fontWeight: 600,
+    color: t.accent2,
+    background: `color-mix(in srgb, ${t.accent2} 10%, transparent)`,
+    borderRadius: 8,
+    padding: '1px 6px',
+    whiteSpace: 'nowrap',
+  };
+  const paragraphs = body.split('\n\n');
   return (
-    <div style={readOnlyBodyStyle}>
-      {parts.map((p, i) =>
-        /^\{\{[^}]+\}\}$/.test(p) ? (
-          <span
-            key={i}
-            style={{
-              background: 'rgba(28, 238, 224, 0.14)',
-              color: '#0d9488',
-              fontWeight: 700,
-              padding: '2px 8px',
-              borderRadius: 6,
-              fontSize: 13.5,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {p}
-          </span>
-        ) : (
-          <span key={i}>{p}</span>
-        )
-      )}
+    <div
+      style={{
+        padding: 14,
+        border: `1px solid ${t.border}`,
+        borderRadius: 8,
+        background: t.bg,
+        fontSize: 13,
+        color: t.text2,
+        lineHeight: 1.65,
+      }}
+    >
+      {paragraphs.map((para, pi) => (
+        <p key={pi} style={{ margin: 0, marginTop: pi > 0 ? 8 : 0 }}>
+          {para.split('\n').map((line, li) => (
+            <span key={li}>
+              {li > 0 && <br />}
+              {line.split(/(\{\{[^}]+\}\})/g).map((part, pi2) =>
+                /^\{\{[^}]+\}\}$/.test(part) ? (
+                  <span key={pi2} style={tokenStyle}>{part}</span>
+                ) : (
+                  <span key={pi2}>{part}</span>
+                )
+              )}
+            </span>
+          ))}
+        </p>
+      ))}
     </div>
   );
 }
 
-/** Toggle kapcsoló */
-function ToggleSwitch({ enabled, onChange }: { enabled: boolean; onChange: (v: boolean) => void }) {
+/** Toggle kapcsoló (mockup: 40×22, pipánál accent-2 háttér) */
+function ToggleSwitch({ enabled, onChange, t }: { enabled: boolean; onChange: (v: boolean) => void; t: ReturnType<typeof tokens> }) {
   return (
-    <button
-      onClick={() => onChange(!enabled)}
-      aria-pressed={enabled}
+    <label
       style={{
-        width: 46,
-        height: 26,
-        borderRadius: 13,
-        border: 'none',
-        cursor: 'pointer',
         position: 'relative',
-        background: enabled ? '#1d4ed8' : 'rgba(128,128,128,0.35)',
-        transition: 'background 0.2s',
-        flexShrink: 0,
+        display: 'inline-flex',
+        flex: 'none',
+        width: 40,
+        height: 22,
+        cursor: 'pointer',
       }}
     >
+      <input
+        type="checkbox"
+        checked={enabled}
+        onChange={(e) => onChange(e.target.checked)}
+        style={{ position: 'absolute', opacity: 0, width: '100%', height: '100%', margin: 0, cursor: 'pointer', zIndex: 1 }}
+      />
       <span
         style={{
-          position: 'absolute',
-          top: 3,
-          left: enabled ? 23 : 3,
-          width: 20,
-          height: 20,
-          borderRadius: '50%',
-          background: '#fff',
-          transition: 'left 0.2s',
-          boxShadow: '0 1px 3px rgba(0,0,0,0.3)',
+          position: 'relative',
+          display: 'block',
+          width: '100%',
+          height: '100%',
+          borderRadius: 8,
+          background: enabled ? t.accent2 : t.border,
+          transition: 'background .15s',
         }}
-      />
-    </button>
+      >
+        <span
+          style={{
+            position: 'absolute',
+            top: 3,
+            left: 3,
+            width: 16,
+            height: 16,
+            borderRadius: '50%',
+            background: '#ffffff',
+            transform: enabled ? 'translateX(18px)' : 'translateX(0)',
+            transition: 'transform .15s',
+          }}
+        />
+      </span>
+    </label>
   );
 }
 
 export default function AutomatizaciokPage() {
+  const { isDark } = useTheme();
+  const t = tokens(isDark);
   const [notifications, setNotifications] = useState<AppointmentNotification[]>([]);
   const [loading, setLoading] = useState(true);
   const [savingKind, setSavingKind] = useState<string | null>(null);
@@ -171,7 +184,6 @@ export default function AutomatizaciokPage() {
 
   const toggleNotification = async (kind: AppointmentNotification['kind'], enabled: boolean) => {
     setSavingKind(kind);
-    // Optimista frissítés
     setNotifications((prev) => prev.map((n) => (n.kind === kind ? { ...n, enabled } : n)));
     try {
       const res = await authFetch('/admin/api/settings/reminder/notification-toggle', {
@@ -182,85 +194,137 @@ export default function AutomatizaciokPage() {
       if (!res.ok) throw new Error('Save failed');
       showToast(enabled ? 'Értesítés engedélyezve.' : 'Értesítés letiltva.');
     } catch {
-      // Visszaállítás hibánál
       setNotifications((prev) => prev.map((n) => (n.kind === kind ? { ...n, enabled: !enabled } : n)));
       showToast('Hiba a mentés során!', 'error');
     }
     setSavingKind(null);
   };
 
+  const fieldLabelStyle: CSSProperties = {
+    display: 'block',
+    fontSize: 11,
+    fontWeight: 500,
+    color: t.muted,
+    letterSpacing: '0.02em',
+    paddingLeft: 2,
+    marginBottom: 5,
+  };
+
   if (loading) {
     return (
-      <div className="flex-row auto-loading">
+      <div style={{ maxWidth: 1120, margin: '0 auto', padding: '24px 32px 64px', color: t.text2 }}>
         <div className="spinner spinner--md" />
       </div>
     );
   }
 
   return (
-    <div className="page active" id="page-automatizaciok">
-      {/* ── Page Header ── */}
-      <div className="page-header">
-        <div className="page-title">Automatikus értesítések</div>
-      </div>
+    <div style={{ maxWidth: 1120, margin: '0 auto', padding: '24px 32px 64px' }}>
+      {/* ── Page head ── */}
+      <header style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
+        <div>
+          <p style={{ fontSize: 12, color: t.muted, marginBottom: 4 }}>
+            Kimenő kommunikáció <b style={{ color: t.fg, fontWeight: 600 }}>/ Értesítések</b>
+          </p>
+          <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.015em', lineHeight: 1.25, color: t.fg }}>
+            Automatikus értesítések
+          </h1>
+        </div>
+      </header>
 
       {notifications.length === 0 && (
-        <div style={{ color: 'var(--text-muted)', padding: '20px 4px' }}>
+        <div style={{ color: t.muted, marginTop: 16, fontSize: 13 }}>
           Nincs megjeleníthető értesítés.
         </div>
       )}
 
       {notifications.map((n) => {
-        const icon = KIND_ICONS[n.kind] || KIND_ICONS.confirmation;
+        const sectionStyle: CSSProperties = {
+          background: t.bg,
+          border: `1px solid ${t.border}`,
+          borderRadius: 8,
+          marginTop: 12,
+          overflow: 'hidden',
+        };
+        const off = !n.enabled;
         return (
-          <div key={n.kind} style={cardStyle}>
-            <div style={cardHeaderStyle}>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 14, minWidth: 0 }}>
-                <div
-                  style={{
-                    width: 40,
-                    height: 40,
-                    borderRadius: 10,
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    background: icon.tint,
-                    color: icon.fg,
-                    fontSize: 17,
-                    fontWeight: 700,
-                    flexShrink: 0,
-                  }}
-                >
-                  {icon.glyph}
+          <section key={n.kind} style={sectionStyle}>
+            {/* ── Szekció fejléc ── */}
+            <div
+              style={{
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 12,
+                padding: '13px 16px',
+                borderBottom: `1px solid ${t.border}`,
+                background: t.surface,
+              }}
+            >
+              <div style={{ minWidth: 0 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 8, fontSize: 14, fontWeight: 600, color: t.fg }}>
+                  <span
+                    style={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      width: 28,
+                      height: 28,
+                      color: t.accent2,
+                      background: `color-mix(in srgb, ${t.accent} 18%, ${t.bg})`,
+                      borderRadius: 8,
+                      flex: 'none',
+                      boxSizing: 'border-box',
+                    }}
+                  >
+                    <Icon d={ICONS[n.kind]} />
+                  </span>
+                  {n.title}
                 </div>
-                <div style={{ minWidth: 0 }}>
-                  <div style={{ fontSize: 16.5, fontWeight: 700, color: 'var(--text)' }}>{n.title}</div>
-                  <div style={{ fontSize: 13.5, color: 'var(--text-muted)', marginTop: 2 }}>{n.description}</div>
-                </div>
+                <div style={{ fontSize: 12, color: t.muted, marginTop: 1 }}>{n.description}</div>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
-                <span style={{ fontSize: 13.5, color: 'var(--text-muted)' }}>
-                  {n.enabled ? 'Engedélyezve' : 'Letiltva'}
-                </span>
-                <ToggleSwitch
-                  enabled={n.enabled}
-                  onChange={(v) => !savingKind && toggleNotification(n.kind, v)}
-                />
+              <div style={{ display: 'inline-flex', alignItems: 'center', gap: 8, fontSize: 12, fontWeight: 500, color: t.muted, whiteSpace: 'nowrap' }}>
+                <span>Engedélyezve</span>
+                <ToggleSwitch enabled={n.enabled} onChange={(v) => !savingKind && toggleNotification(n.kind, v)} t={t} />
               </div>
             </div>
 
-            <div style={cardBodyStyle}>
-              <label style={fieldLabelStyle}>Email tárgya</label>
-              <input style={readOnlyInputStyle} value={n.subject} readOnly />
-
-              <label style={{ ...fieldLabelStyle, marginTop: 20 }}>Email szövege</label>
-              <TemplateBody body={n.body} />
-
-              <div style={{ marginTop: 14, fontSize: 12.5, color: 'var(--text-muted)' }}>
-                Ez egy beégetett sablon — a szöveg nem módosítható, csak engedélyezhető vagy letiltható.
+            {/* ── Szekció törzs (kikapcsolva elhalványul) ── */}
+            <div
+              style={{
+                padding: 16,
+                opacity: off ? 0.55 : 1,
+                pointerEvents: off ? 'none' : 'auto',
+                transition: 'opacity .15s',
+              }}
+            >
+              <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <span style={fieldLabelStyle}>Email tárgya</span>
+                  <div
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      minHeight: 40,
+                      padding: '0 12px',
+                      border: `1px solid ${t.border}`,
+                      borderRadius: 8,
+                      background: t.bg,
+                      fontSize: 13,
+                      color: t.text2,
+                      cursor: 'default',
+                    }}
+                  >
+                    {n.subject}
+                  </div>
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 5 }}>
+                  <span style={fieldLabelStyle}>Email szövege</span>
+                  <TemplateBody body={n.body} t={t} />
+                </div>
               </div>
             </div>
-          </div>
+          </section>
         );
       })}
     </div>
