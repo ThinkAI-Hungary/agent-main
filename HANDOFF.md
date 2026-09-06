@@ -200,6 +200,15 @@ A user HTML-mockupja alapján (a modal cím és a tooltip eltérő kezelése sze
 - **Chevronok**: a `cal-nav-center` prev/next gombok most a bal oldali listanézet/naptárnézet kapcsoló méretét követik (36×36 gomb, 16px ikon — korábban 20px svg volt, de a gomb széles maradt).
 - **Verifikáció**: deploy `db17909` — CalendarPage chunk + fő CSS chunk élesben ellenőrizve („Időpont szerkesztése", „Időpont törlése", `cal-week-corner`, `cal-tip`, chevron sizing mind benne). Vizuális böngésző-ellenőrzés nem lehetséges (nincs browser backend) — user hard refresh után látja.
 
+### 14. Kimenő kommunikáció logolása az ügyfélprofilba (2026-09-06 éjszaka, commit `e02b6d7` + `f758baf`)
+
+**User kérés**: bármilyen automatikus vagy kampány üzenet megjelenjen az ügyfélprofil LEZÁRT sorai között — az interakciós naplóba NEM. Öt ügytípus-érték: Időpont visszaigazolása / Időpont emlékeztető / Időpont módosításának visszaigazolása / Időpont lemondása / Kampány. Eredmény: Kiküldve · Státusz: Lezárt · Teendő: Nincs további teendő. Sor kattintható → az üzenet szövege látszik.
+
+- **Mechanizmus**: `log_outbound_message()` (email_processor.py) — `interactions` sor: `type='email'`, **`direction='outbound'`**, `client_id`, `classification` = {ugytipus/státusz/eredmény/teendő a fenti értékekkel}, `ai_draft_response` = {channel:'Email', subject, body} (a profil modal ebből mutatja az üzenetet). **A napló automatikusan kiszűri**: a `get_grouped_interactions` RPC `has_inbound` (BOOL_OR(direction IS DISTINCT FROM 'outbound')) szűrője kihagyja a tisztán outbound sessionöket — RPC nem változott. Stabil session: `outbound_{kind}_{client_id}` (create_session ELŐBB — az interactions.session_id FK a sessions-re, enélkül FK-hiba és csendes adatvesztés!).
+- **Logpontok**: `send_booking_confirmation_email`, reminder worker (a régi type='email' log leváltva), `send_modification_confirmation_email`, `send_cancellation_email`, `_run_campaign` (Kampány, client_id-val).
+- **Verifikáció**: deploy `f758baf` — élő teszt: outbound sor bent (id 781, ügyfél 257, mind a 4 érték helyes), a grouped RPC NEM adja vissza, a sima interactions listában benne van. Konténer healthy.
+- **Korlát**: a Marketing modul bulk Brevo kampányai (`brevo_campaigns.send_campaign_now`) Brevo-listára mennek — ügyfél-szintű logolás ott nem lehetséges (csak a Kimenő kommunikáció `campaigns` kampányai logolódnak). **Megjegyzés**: a notification bell (NotificationCenter) ma még kaphat outbound sorokat (30 mp-enként /admin/api/interactions?limit=10) — ha zavaró, külön szűrés kell oda is.
+
 ---
 
 ## Adatbázis módosítások (élőn lefutottak)
