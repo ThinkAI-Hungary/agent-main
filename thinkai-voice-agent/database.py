@@ -715,6 +715,15 @@ def update_task_complete(task_id: int) -> dict:
     except Exception:
         return {"ok": False}
 
+def update_task_text(task_id: int, text: str) -> dict:
+    """Hozzáadott feladat szövegének szerkesztése (ügyfélprofil popup)."""
+    if not supabase: return {"ok": False}
+    try:
+        res = _tenant_eq(supabase.table("tasks").update({"text": text})).eq("id", task_id).execute()
+        return {"ok": bool(res.data)}
+    except Exception:
+        return {"ok": False}
+
 def delete_task(task_id: int) -> bool:
     if not supabase: return False
     try:

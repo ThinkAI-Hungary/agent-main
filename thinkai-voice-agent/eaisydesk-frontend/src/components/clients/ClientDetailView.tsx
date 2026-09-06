@@ -221,6 +221,53 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
   const [taskText, setTaskText] = useState('');
   const [taskPriority, setTaskPriority] = useState<'normal' | 'high'>('normal');
   const [taskSaving, setTaskSaving] = useState(false);
+  // Teendő szerkesztő popup (#todoEditOverlay)
+  const [editTask, setEditTask] = useState<ManualTask | null>(null);
+  const [editTaskText, setEditTaskText] = useState('');
+
+  const openTaskEdit = useCallback((t: ManualTask) => {
+    setEditTask(t);
+    setEditTaskText(t.text || '');
+  }, []);
+
+  const saveTaskEdit = useCallback(async () => {
+    if (!editTask) return;
+    const text = editTaskText.trim();
+    if (!text) { showToast('A teendő szövege kötelező!', 'error'); return; }
+    try {
+      const res = await authFetch(`/admin/api/tasks/${editTask.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setEditTask(null);
+      await loadManualTasks();
+      showToast('Teendő mentve');
+    } catch { showToast('Hiba a mentéskor', 'error'); }
+  }, [editTask, editTaskText, loadManualTasks]);
+
+  const deleteTaskEdit = useCallback(async () => {
+    if (!editTask) return;
+    try {
+      const res = await authFetch(`/admin/api/tasks/${editTask.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('delete failed');
+      setEditTask(null);
+      await loadManualTasks();
+      showToast('Teendő törölve');
+    } catch { showToast('Hiba a törléskor', 'error'); }
+  }, [editTask, loadManualTasks]);
+
+  // Escape zárja a popupokat (szerkesztő előbb, majd a hozzáadás modál)
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => {
+      if (e.key !== 'Escape') return;
+      if (editTask) { setEditTask(null); return; }
+      if (showTaskModal) setShowTaskModal(false);
+    };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [editTask, showTaskModal]);
 
   const addManualTask = useCallback(async () => {
     const text = taskText.trim();
@@ -785,7 +832,13 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             <tbody>
               {/* Kézi teendők pszeudo-sorai (legfelül) */}
               {openManualTasks.map((t) => (
-                <tr key={`task-${t.id}`} className="cd-task-row">
+                <tr
+                  key={`task-${t.id}`}
+                  className="cd-task-row row-task"
+                  tabIndex={0}
+                  onClick={() => openTaskEdit(t)}
+                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTaskEdit(t); } }}
+                >
                   <td className="cd-time-cell">{taskDateLabel(t.created_at)}</td>
                   <td>
                     <span className="cp-channel">
@@ -799,7 +852,9 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                   <td />
                   <td />
                   <td><CpStatusBadge value={t.priority === 'high' ? 'Sürgős' : 'Nyitott'} /></td>
-                  <td><span className="cp-todo-text">{t.text}</span></td>
+                  <td>
+                    <div className="todo-frame" title={t.text}>{t.text}</div>
+                  </td>
                   <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
                     <input
                       type="checkbox"
@@ -884,7 +939,13 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                   if (item.task) {
                     const t = item.task;
                     return (
-                      <tr key={item.key} className="cd-task-row">
+                      <tr
+                        key={item.key}
+                        className="cd-task-row row-task"
+                        tabIndex={0}
+                        onClick={() => openTaskEdit(t)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTaskEdit(t); } }}
+                      >
                         <td className="cd-time-cell">{taskDateLabel(t.created_at)}</td>
                         <td>
                           <span className="cp-channel">
@@ -898,7 +959,9 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                         <td />
                         <td />
                         <td><CpStatusBadge value="Lezárt" /></td>
-                        <td><span className="cp-todo-text">{t.text}</span></td>
+                        <td>
+                          <div className="todo-frame" title={t.text}>{t.text}</div>
+                        </td>
                         <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
                           <input type="checkbox" className="cp-done-check" checked disabled aria-label="Elvégezte" />
                         </td>
@@ -973,6 +1036,40 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       )}
 
       {/* • • •  Új teendő Modal • • •  */}
+      {/* ── Teendő szerkesztő popup (#todoEditOverlay) ── */}
+      {editTask && (
+        <div className="modal-overlay" id="todoEditOverlay" onClick={() => setEditTask(null)}>
+          <div className="cd-task-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Teendő szerkesztése">
+            <div className="cd-task-modal-head">
+              <h3 className="modal-title">Teendő szerkesztése</h3>
+              <button className="cd-task-modal-x" onClick={() => setEditTask(null)} aria-label="Bezárás">
+                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+            <div className="cd-task-modal-body">
+              <label className="cd-task-modal-label" htmlFor="cdTaskEditText">Teendő leírása</label>
+              <textarea
+                id="cdTaskEditText"
+                className="cd-task-textarea"
+                rows={4}
+                value={editTaskText}
+                onChange={e => setEditTaskText(e.target.value)}
+                autoFocus
+                onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveTaskEdit(); }}
+              />
+            </div>
+            <div className="cd-task-modal-foot">
+              <button className="cd-btn cd-btn-danger" style={{ marginRight: 'auto' }} onClick={deleteTaskEdit}>
+                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                Törlés
+              </button>
+              <button className="cd-btn" onClick={() => setEditTask(null)}>Mégse</button>
+              <button className="cd-btn cd-btn-primary" onClick={saveTaskEdit} disabled={!editTaskText.trim()}>Mentés</button>
+            </div>
+          </div>
+        </div>
+      )}
+
       {showTaskModal && (
         <div className="modal-overlay" onClick={() => setShowTaskModal(false)}>
           <div className="cd-task-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Új teendő">

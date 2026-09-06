@@ -3342,6 +3342,21 @@ def admin_task_complete(task_id: int, username: str = Depends(verify_jwt)):
     return {"ok": True, "completed": res.get("completed", False)}
 
 
+class TaskTextRequest(BaseModel):
+    text: str
+
+@app.patch("/admin/api/tasks/{task_id}")
+def admin_task_update_text(task_id: int, req: TaskTextRequest, _auth = Depends(require_admin_or_manager)):
+    """Hozzáadott feladat szövegének szerkesztése (ügyfélprofil popup)."""
+    text = (req.text or "").strip()
+    if not text:
+        raise HTTPException(status_code=400, detail="A teendő szövege kötelező")
+    res = db.update_task_text(task_id, text)
+    if not res.get("ok"):
+        raise HTTPException(status_code=404, detail="Task not found or update failed")
+    return {"ok": True}
+
+
 @app.delete("/admin/api/tasks/{task_id}")
 def admin_task_delete(task_id: int, _auth = Depends(require_admin_or_manager)):
     """Delete a task."""

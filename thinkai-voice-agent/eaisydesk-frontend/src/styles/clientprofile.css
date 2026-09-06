@@ -1362,3 +1362,25 @@ body.dark .cd-table-card tbody tr.cd-is-urgent td { background: var(--cp-err-row
   font-size: 11px;
   color: var(--text-muted);
 }
+
+/* ── Hozzáadott feladat: csonkoló keret + kattintható sor ── */
+.todo-frame {
+  width: 280px;
+  max-width: 100%;
+  height: 30px;
+  line-height: 28px;
+  padding: 0 10px;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg3, transparent);
+  font-size: 13px;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+}
+.row-task { cursor: pointer; }
+.row-task:focus { outline: none; }
+.row-task:focus-visible td { background: var(--bg3); }
+.row-task:focus-visible { outline: 2px solid var(--cp-a2); outline-offset: -2px; }

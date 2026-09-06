@@ -1017,7 +1017,11 @@ export default function MemberDashboardPage() {
                       )}
                       {visibleCols.has('teendo') && (
                         <td className="int-td int-td--truncate" title={r.teendo}>
-                          <span className="int-teendo-text">{r.teendo}</span>
+                          {(r as typeof r & { isManual?: boolean }).isManual ? (
+                            <div className="todo-frame" title={r.teendo}>{r.teendo}</div>
+                          ) : (
+                            <span className="int-teendo-text">{r.teendo}</span>
+                          )}
                         </td>
                       )}
                       {visibleCols.has('done') && (
