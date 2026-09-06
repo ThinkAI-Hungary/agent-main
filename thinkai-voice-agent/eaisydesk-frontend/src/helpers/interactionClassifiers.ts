@@ -11,11 +11,13 @@
  *               Igény rögzítve | Panasz rögzítve |
  *               Új időpont | Módosított időpont | Törölt időpont |
  *               Foglalási szándék rögzítve |
- *               Módosítási szándék rögzítve | Lemondási szándék rögzítve
+ *               Módosítási szándék rögzítve | Lemondási szándék rögzítve |
+ *               Sürgős időpont-kérés
  *   státusz:    Lezárt | Nyitott | Sürgős
  *   teendő:     Nincs további teendő | Jóváhagyás szükséges |
  *               Válasz/visszahívás szükséges | Intézkedés |
- *               Időpont véglegesítése | Azonnali beavatkozás szükséges
+ *               Időpont véglegesítése | Azonnali beavatkozás szükséges |
+ *               Mielőbbi időpont adása
  *
  * Vegyes ügytípus prioritás (EAISY-241 §2.2): Panasz > Időpont > Kérés > Kérdés > Egyéb
  */

@@ -3138,11 +3138,13 @@ def admin_classification_labels(username: str = Depends(verify_jwt)):
             "Megválaszolt kérdés", "Válasz előkészítve", "Kérdés rögzítve",
             "Új időpont", "Módosított időpont", "Törölt időpont",
             "Foglalási szándék rögzítve", "Módosítási szándék rögzítve", "Lemondási szándék rögzítve",
+            "Sürgős időpont-kérés",
             "Panasz rögzítve", "Igény rögzítve",
         ],
         "teendok": [
             "Nincs további teendő", "Jóváhagyás szükséges", "Időpont véglegesítése",
             "Válasz/visszahívás szükséges", "Intézkedés", "Azonnali beavatkozás szükséges",
+            "Mielőbbi időpont adása",
         ],
     }
 
