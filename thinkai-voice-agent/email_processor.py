@@ -1429,8 +1429,10 @@ def log_outbound_message(kind: str, attendee: str, attendee_email: str, subject:
             logger.info(f"Outbound log kihagyva (nincs ügyfélrekord): {attendee_email}")
             return
         ugytipus = _OUTBOUND_TOPIC.get(kind, kind)
-        from datetime import datetime as _dt
-        sid = f"outbound_{kind}_{client_id}_{int(_dt.now().timestamp())}"
+        # Stabil session (ügyfél + üzenettípus): az interactions.session_id FK a
+        # sessions táblára — a sessiont LÉTRE KELL HOZNI a logolás előtt
+        sid = f"outbound_{kind}_{client_id}"
+        db.create_session(session_id=sid, room_name="Kimenő üzenet", participant=attendee or attendee_email)
         db.log_interaction(
             type="email",
             topic=ugytipus,
