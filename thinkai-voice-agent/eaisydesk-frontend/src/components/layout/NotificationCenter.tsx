@@ -127,8 +127,14 @@ export default function NotificationCenter() {
         const rows = data?.interactions || data;
         if (!Array.isArray(rows) || rows.length === 0) return;
 
+        // Kimenő automatikus üzenetek (visszaigazoló, emlékeztető, módosítás,
+        // lemondás, kampány — tool_name='outbound_notification') nem értesítenek;
+        // ezek csak az ügyfélprofil lezárt sorai között jelennek meg.
+        const visibleRows = rows.filter((r: any) => r.tool_name !== 'outbound_notification');
+        if (visibleRows.length === 0) return;
+
         // Sort by created_at DESC, find the latest timestamp
-        const sorted = [...rows].sort((a: any, b: any) =>
+        const sorted = [...visibleRows].sort((a: any, b: any) =>
           (b.created_at || '').localeCompare(a.created_at || '')
         );
         const latestTime = sorted[0]?.created_at || '';
@@ -148,7 +154,7 @@ export default function NotificationCenter() {
         }
 
         // Find new rows: created_at > last seen time
-        const newRows = rows.filter((r: any) =>
+        const newRows = visibleRows.filter((r: any) =>
           (r.created_at || '') > lastSeenTimeRef.current
         );
 
