@@ -135,6 +135,13 @@ A kódbázisból queryelhető tudásgráf: [github.com/Graphify-Labs/graphify](h
   - `prompt_utils.get_system_prompt(channel="email")` végére került egy **E-MAIL CSATORNASZABÁLY** blokk — ez mindig érvényes, client-lookup hibája esetén is (funkcionálisan tesztelve a konténerben: a `channel='email'` prompt tartalmazza)
   - A client-context bullet is átírótt erre az érvelésre („attól függetlenül, hogy az ügyfél ismert-e a nyilvántartásban")
 
+### 8. Visszaigazoló email lemondási link domain-fix (2026-09-06 este)
+
+- **Probléma**: a visszaigazoló (és emlékeztető) emailek lemondási linkje `http://localhost:8000/api/public/cancel?token=…` volt → a címzett számára kattinthatatlan.
+- **Ok**: az email-link építő (`email_processor.py`, reminder ~L1427 + confirmation ~L1583) a `SERVER_URL` env-t olvasta, ami nincs beállítva → localhost fallback. Közben a `APP_BASE_URL` (a staging .env-ben már régen `https://digideskadmin.molaire.hu`) a web_server OAuth callbackjeinél már használatban volt — két konkurens base-URL konvenció élt.
+- **Javítás** (commit `50e2155`): mindkét helyen `APP_BASE_URL → SERVER_URL → localhost` sorrendű feloldás `.rstrip("/")`-szal. Stagingen nem kellett .env-et állítani (APP_BASE_URL már jó). **Prod-deploy előtt ellenőrizni, hogy a prod .env-ben `APP_BASE_URL=https://desk.eaisy.hu` van-e!**
+- **Verifikáció**: deploy `50e2155`, konténer env-ben APP_BASE_URL jó, a link-építő kifejezés a jó domaint adja. Élő teszt: a user által jelentett (helyes domainnel meghívott) link HTTP 200 + „Sikeres lemondás" — a 99-es tesztesemény lemondódott/törlődött (a link működésének bizonyítéka), az ügyfél „lemondott" státusz + „törölt időpont" tag-et kapott.
+
 ---
 
 ## Adatbázis módosítások (élőn lefutottak)
