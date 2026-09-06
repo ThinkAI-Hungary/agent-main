@@ -345,6 +345,67 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
 
     sys_prompt = get_system_prompt(channel="email")
 
+    # ── Ügyfél-kontextus injektálása ─────────────────────────────────
+    # A válaszgeneráló AI-nak tudnia kell, hogy a feladó ÚJ vagy VISSZATÉRŐ
+    # ügyfél — különben felesleges azonosítási köröket kérdezi (név, születési
+    # dátum, "járt már nálunk?"), amiknek az adatai megvannak a rendszerben.
+    client_context = ""
+    try:
+        if existing_sender_client:
+            cid = existing_sender_client.get("id")
+            cd = existing_sender_client.get("custom_data", {}) or {}
+            if isinstance(cd, str):
+                try: cd = json.loads(cd)
+                except Exception: cd = {}
+            created_at = existing_sender_client.get("created_at", "") or ""
+
+            int_count = 0
+            last_int_dt = ""
+            try:
+                res_i = db.supabase.table("interactions").select("created_at").eq("client_id", cid).order("created_at", desc=True).limit(100).execute()
+                if res_i.data:
+                    int_count = len(res_i.data)
+                    last_int_dt = (res_i.data[0].get("created_at") or "")[:10]
+            except Exception: pass
+
+            upcoming = []
+            try:
+                from datetime import datetime as _dt, timezone as _tz
+                now_iso = _dt.now(_tz.utc).isoformat()
+                res_e = db.supabase.table("calendar_events").select("title,start_dt").eq("attendee_email", from_email).gte("start_dt", now_iso).order("start_dt", desc=False).limit(3).execute()
+                upcoming = res_e.data or []
+            except Exception: pass
+
+            details = []
+            cname = cd.get("nev") or cd.get("name") or existing_sender_client.get("name", "")
+            if cname: details.append(f"nyilvántartott név: {cname}")
+            if created_at: details.append(f"nyilvántartásba véve: {created_at[:10]}")
+            if int_count: details.append(f"korábbi interakciók: {int_count} db")
+            if last_int_dt: details.append(f"utolsó interakció: {last_int_dt}")
+            if upcoming:
+                up_str = "; ".join(f"{(e.get('title') or 'időpont')} ({(e.get('start_dt') or '')[:16].replace('T', ' ')})" for e in upcoming)
+                details.append(f"bejegyzett jövőbeli időpontja: {up_str}")
+            ctags = cd.get("tags", []) or []
+            if ctags: details.append("címkék: " + ", ".join(ctags))
+
+            client_context = (
+                "--- AZ ÜGYFÉL STÁTUSZA A NYILVÁNTARTÁSBAN ---\n"
+                "AZ ÜGYFÉL VISSZATÉRŐ ÜGYFÉL: már szerepel a nyilvántartásban.\n"
+                + ("; ".join(details) + "\n" if details else "")
+                + "SZIGORÚ SZABÁLY: Mivel az ügyfél már szerepel a nyilvántartásban, TILOS rákérdezni, hogy járt-e már nálunk, és TILOS újból bekérni az azonosításához szükséges adatokat (név, születési dátum stb.) — ezek megvannak. "
+                "Ha időpontot érint a kérés, erősítsd meg vagy kínálj neki időpontot.\n"
+            )
+        else:
+            client_context = (
+                "--- AZ ÜGYFÉL STÁTUSZA A NYILVÁNTARTÁSBAN ---\n"
+                "AZ ÜGYFÉL ÚJ ÜGYFÉL: még nem szerepel a nyilvántartásban, korábbi foglalása vagy interakciója nincs.\n"
+            )
+    except Exception as ctx_err:
+        logger.warning(f"Ügyfél-kontextus összeállítási hiba: {ctx_err}")
+
+    if client_context:
+        sys_prompt += "\n\n" + client_context
+
     # Utasítás a strukturált JSON outputra
     json_instruction = """
 TE FELADATOD:
