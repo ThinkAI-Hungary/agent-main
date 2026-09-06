@@ -1398,13 +1398,14 @@ _APPOINTMENT_NOTIFICATIONS = {
 
 _HU_MONTHS = ["január", "február", "március", "április", "május", "június",
               "július", "augusztus", "szeptember", "október", "november", "december"]
+_HU_DAYS_LOCAL = ["hétfő", "kedd", "szerda", "csütörtök", "péntek", "szombat", "vasárnap"]
 
 
 def _format_hu_datetime(dt) -> str:
     """Magyar, emberbarát időpont formátum: 2026. szeptember 7. (hétfő) 10:00"""
     try:
         return (f"{dt.year}. {_HU_MONTHS[dt.month - 1]} {dt.day}. "
-                f"({_HU_DAYS[dt.weekday()]}) {dt.strftime('%H:%M')}")
+                f"({_HU_DAYS_LOCAL[dt.weekday()]}) {dt.strftime('%H:%M')}")
     except Exception:
         return str(dt)
 
