@@ -980,7 +980,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                           <div className="todo-frame" title={t.text}>{t.text}</div>
                         </td>
                         <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
-                          <input type="checkbox" className="cp-done-check" checked disabled aria-label="Elvégezte" />
+                          <input type="checkbox" className="cp-done-check" checked disabled aria-label="Elvégezve" />
                         </td>
                       </tr>
                     );
@@ -1000,7 +1000,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                       <td><CpStatusBadge value={r.statusz} /></td>
                       <td><CpTeendoCell value={r.teendo} /></td>
                       <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
-                        <input type="checkbox" className="cp-done-check" checked disabled aria-label="Elvégezte" />
+                        <input type="checkbox" className="cp-done-check" checked disabled aria-label="Elvégezve" />
                       </td>
                     </tr>
                   );
