@@ -448,6 +448,8 @@ Ha az ügyfél nem jelölt meg konkrét és pontos foglalási időpontot (konkr�
 FIGYELEM: Ha az eset Sürgős vagy Kiemelt prioritású, VAGY a kérés szerepel a Kivételek (Exceptions) listájában, a "meeting" értéke KÖTELEZŐEN null kell legyen (SZIGORÚAN TILOS időpontot foglalni!), és a "handover_reason" legyen 'Sürgős / triázs' vagy 'Foglalási kivétel'.
 Ebben az esetben a válaszlevélben se ígérj egyeztetést konkrét időpontokról, kizárólag azt jelezd, hogy az ügyét azonnal továbbítottad egy élő kollégának/munkatársnak!
 
+SZABÁLY — DENTÁLHIGIÉNIÁS KEZELÉSEK: Dentálhigiénés kezeléseket (pl. EMS fogkő-eltávolítás, Air-Flow) ÚJ ÜGYFÉLNEK IS KÖZVETLENÜL LE LEHET FOGLALNI — nem szükséges előtte konzultáció, és NE kérj rá identitás-ellenőrzést (a nyilvántartás alapján a rendszer tudja, ki az ügyfél). Ha az ügyfél kezelést megnevezve kér időpontot, az esemény címe A KEZELÉS NEVE legyen (pl. "EMS fogkő-eltávolítás"), nem "Konzultáció".
+
 KIVÉTEL A TILTÁS ALÓL (FONTOS!):
 Ha a felhasználó egyértelműen időpontot kér, de NEM adja meg, hogy milyen panasza/kezelése van, AKKOR IS FOGLALD LE az időpontot (a "meeting" objektum kitöltésével, pl. "Konzultáció" vagy "Általános vizsgálat" címmel)! Ne tagadd meg a foglalást és ne kérj vissza pontosítást csak azért, mert nem tudod a kezelés típusát. Csak akkor tilos a foglalás, ha a megadott panasz egyértelműen Sürgős/Kiemelt, vagy egyértelműen szerepel a Kivételek között. Ha nincs panasz megadva, feltételezd, hogy Normál eset!
 A lehetséges alert_tags értékek:
@@ -638,10 +640,11 @@ Ha egyik sem releváns, legyen üres lista [].
     if existing_tags:
         details["tags"] = existing_tags
             
-    # Mentsük Kanban "uj" oszlopba és frissítsük a beszélgetés naplót
-    cols = db.get_kanban_columns()
-    first_col = cols[0]["id"] if cols else "uj"
-    email_client_id = db.upsert_client(custom_data=details, additional_log=log_szoveg, status=first_col)
+    # Ügyfél mentése. FONTOS (érdeklődőkezelés belépési szabály): itt NEM
+    # állítunk kanban oszlopot — a kanbába csak értékesítési címkés ügyfél
+    # vagy kézi felvétel kerül. (Régi viselkedés: mindent az első oszlopba
+    # tett, ami felülírta a már rendezett ügyfelek oszlopát is.)
+    email_client_id = db.upsert_client(custom_data=details, additional_log=log_szoveg)
     logger.info(f"Ügyfél mentve/frissítve a Kanban táblában: {name} (client_id={email_client_id})")
         
     created_event_id = None
@@ -670,6 +673,20 @@ Ha egyik sem releváns, legyen üres lista [].
                 )
                 if created_event_id:
                     logger.info(f"Naptár esemény sikeresen létrehozva: {title} {start_dt}")
+                    # Hivatalos visszaigazoló email ICS naptárfájllal (ugyanaz,
+                    # mint a voice/Meta foglalásoknál — beállításokból: sablon,
+                    # lemondási link)
+                    if from_email and from_email != "-":
+                        asyncio.create_task(
+                            send_booking_confirmation_email(
+                                event_id=created_event_id,
+                                title=title,
+                                date=date_str,
+                                time=time_str,
+                                attendee=from_name,
+                                attendee_email=from_email
+                            )
+                        )
                 else:
                     raise ValueError("add_calendar_event nem adott vissza event id-t")
             else:
