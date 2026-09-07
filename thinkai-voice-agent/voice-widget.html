@@ -635,7 +635,7 @@
         <!-- CENTER: Voice -->
         <div class="voice-panel">
             <img class="logo-img" src="/thinkai-logo.png" alt="ThinkAI">
-            <div class="subtitle">AI Ügyfélszolgálat Demo</div>
+            <div class="subtitle" id="widgetSubtitle">AI Ügyfélszolgálat Demo</div>
 
             <div class="visualizer" id="visualizer">
                 <div class="bar"></div>
@@ -753,6 +753,29 @@
             throw new Error('A szerver nem elérhető. Próbáld újra!');
         }
 
+        // ── Per-tenant előnézet: cégnév + üdvözlés a widget betöltésekor ──
+        const WIDGET_TENANT = new URLSearchParams(window.location.search).get('tenant') || '';
+        (async function loadWidgetConfig() {
+            if (!WIDGET_TENANT) return;
+            try {
+                const esc = (s) => String(s).replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+                const resp = await fetch(`/api/widget-config?tenant=${encodeURIComponent(WIDGET_TENANT)}`);
+                if (!resp.ok) return;
+                const cfg = await resp.json();
+                if (cfg.practice_name) {
+                    document.title = `${cfg.practice_name} — Virtuális asszisztens`;
+                }
+                const subtitleEl = document.getElementById('widgetSubtitle');
+                if (subtitleEl && cfg.subtitle) subtitleEl.textContent = cfg.subtitle;
+                const statusEl = document.getElementById('status');
+                if (statusEl) {
+                    statusEl.textContent = cfg.greeting
+                        ? `${cfg.greeting} Kattints ide, és beszélj velem!`
+                        : (cfg.practice_name ? `Kattints ide, és beszélj a ${cfg.practice_name} asszisztensével!` : statusEl.textContent);
+                }
+            } catch (e) { /* fallback: marad a generikus nézet */ }
+        })();
+
         async function connect() {
             const MAX_CONNECT_ATTEMPTS = 3;
             for (let attempt = 1; attempt <= MAX_CONNECT_ATTEMPTS; attempt++) {
@@ -761,8 +784,7 @@
                     try { await fetch('/api/health'); } catch (e) { }
 
                     setState('connecting', 'Csatlakozás...');
-                    const tenantParam = new URLSearchParams(window.location.search).get('tenant') || '';
-                    const resp = await fetchWithRetry('/api/token' + (tenantParam ? `?tenant=${encodeURIComponent(tenantParam)}` : ''), 3, 2000);
+                    const resp = await fetchWithRetry('/api/token' + (WIDGET_TENANT ? `?tenant=${encodeURIComponent(WIDGET_TENANT)}` : ''), 3, 2000);
                     const { token, url } = await resp.json();
 
                     room = new Room({

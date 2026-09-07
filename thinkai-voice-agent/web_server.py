@@ -1599,6 +1599,31 @@ async def get_token(tenant: str = ""):
     })
 
 
+@app.get("/api/widget-config")
+async def widget_config(tenant: str = ""):
+    """Publikus, CSAK megjelenítési adatok a voice widget per-tenant előnézetéhez.
+    (Cégnév + üdvözlőszöveg — semmi érzékeny. A tenant feloldása slug alapján.)"""
+    practice_name = ""
+    greeting = ""
+    try:
+        if tenant:
+            res = db.supabase.table("tenants").select("id").eq("slug", tenant).limit(1).execute()
+            if res.data:
+                tid = res.data[0]["id"]
+                db.set_current_tenant(tid)
+        bi = db.get_business_info() or {}
+        practice_name = (bi.get("markanev") or bi.get("practice_name") or "").strip()
+        settings = db.get_agent_settings() or {}
+        greeting = (settings.get("greeting") or "").strip()
+    except Exception:
+        pass
+    return {
+        "practice_name": practice_name,
+        "greeting": greeting,
+        "subtitle": f"{practice_name} — Virtuális asszisztens".strip(" —") if practice_name else "AI Ügyfélszolgálat Demo",
+    }
+
+
 @app.post("/api/session/end")
 async def session_end(request: Request):
     """Called by the widget on disconnect to record session duration."""
