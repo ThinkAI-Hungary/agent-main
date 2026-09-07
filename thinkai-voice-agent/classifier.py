@@ -511,6 +511,11 @@ async def _detect_intent_llm(message_text: str) -> dict:
     - Ha az ügyfél dühös vagy a szolgáltatással elégedetlen (reklamáció), akkor a
       detected_types MINDIG tartalmazza a "Panasz"-t (és az is a domináns ugytipus).
     - Ha az ügyfél csak érdeklődik valami iránt (pl. árak, nyitvatartás), az "Kérdés".
+    - MEGLEVŐ IDŐPONTHOZ KAPCSOLÓDÓ TÁJÉKOZTATÓ KÉRDÉS: ha az ügyfél a meglévő/tervezett
+      időpontjával kapcsolatban KÉRDEZ (pl. hol található a rendelő, hogyan jut el oda,
+      mikor pontosan), és NINCS foglalási, módosítási vagy lemondási szándéka →
+      ugytipus: "Kérdés", és a detected_types CSAK ["Kérdés"] legyen — az "Időpont"
+      NE szerepeljen, mert nem időpont-akció történt! (257-es ügy tanulsága.)
     - Ha az ügyfél konkrétan kér valamit (pl. visszahívást, leletet), az "Kérés".
     - Egy üzenet lehet több típusú egyszerre: sorold fel mindegyiket a detected_types-ban.
     6. urgens: true | false — true, ha ORVOSI sürgősség van (erős fájdalom, duzzanat,
@@ -653,6 +658,15 @@ def _detect_intent_keyword(message_text: str) -> dict:
         if "Panasz" in detected_types and not _PANASZ_TENYLEGES_STEM.search(t):
             detected_types.remove("Panasz")
 
+    # Kérdés + Időpont ütközés: ha nincs foglalási ige (foglal/lefoglal/booking…),
+    # csak az "időpont" szó szerepel a szövegben, akkor tájékoztató KÉRDÉS-ről van
+    # szó — nem időpont-foglalási akcióról (257-es ügy tanulsága).
+    if "Kérdés" in detected_types and "Időpont" in detected_types:
+        import re as _re_local
+        if not _re_local.search(r"foglal|booking|idopontot ker|idopontot szeretn", t):
+            detected_types.remove("Időpont")
+            idopont_altipus = None
+
     # Domináns típus a prioritás szerint
     ugytipus = "Egyéb"
     for t_type in TYPE_PRIORITY:
@@ -716,8 +730,18 @@ async def classify_interaction(
             dominant_ugytipus = t_type
             break
 
+    # Kérdés-dominancia kivétel (257-es ügy): ha a detektálás KÉRDÉST mondott
+    # elsődleges típusnak, és az Időpont csak említés szintjén szerepel (pl.
+    # "a holnapi időpontommal kapcsolatban hol van a rendelő?") altípus/akció
+    # nélkül, akkor a KÉRDÉS marad domináns — nem fordítjuk Időpontra.
+    raw_altipus = _normalize_altipus(intent.get("idopont_altipus"))
+    if (intent.get("ugytipus") == "Kérdés"
+            and "Kérdés" in detected_types and "Időpont" in detected_types
+            and not raw_altipus):
+        dominant_ugytipus = "Kérdés"
+
     # Az altípust egy helyen normalizáljuk — a döntési fa és a kimenet is ezt látja
-    altipus = _normalize_altipus(intent.get("idopont_altipus")) if dominant_ugytipus == "Időpont" else None
+    altipus = raw_altipus if dominant_ugytipus == "Időpont" else None
 
     # 3. KB-megválaszolhatóság detektálása (tool calls alapján, ha nincs explicit megadva)
     if kb_answered is None:

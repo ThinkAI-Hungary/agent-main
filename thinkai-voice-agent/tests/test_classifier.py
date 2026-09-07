@@ -281,6 +281,19 @@ class TestKeywordFallback:
         assert r["ugytipus"] == "Panasz"
         assert r["urgens"] is True
 
+    def test_meglevo_idopont_kerdes_kerdes_marad(self):
+        """257-es ügy: meglévő időponthoz kapcsolódó tájékoztató kérdés (hol a rendelő?)
+        → Kérdés domináns, nem Időpont (a vegyes-típus priorítás ne fordítsa át)."""
+        r = _detect_intent_keyword("Azt szeretném kérdezni a holnapi időpontommal kapcsolatban, hogy pontosan hol található a rendelő?")
+        assert r["ugytipus"] == "Kérdés"
+        assert "Időpont" not in r["detected_types"]
+        assert r["idopont_altipus"] is None
+
+    def test_idopont_kerdes_foglalas_igevel_idopont(self):
+        """Kérdés + konkrét foglalási ige → Időpont marad (akció történni fog)."""
+        r = _detect_intent_keyword("Szeretném kérdezni, hogy holnap foglalni tudok-e időpontot?")
+        assert r["ugytipus"] == "Időpont"
+
     def test_nincs_fajdalom_nincs_urgens(self):
         r = _detect_intent_keyword("Holnap szeretnék időpontot foglalni")
         assert r["urgens"] is False
