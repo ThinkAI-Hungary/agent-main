@@ -1,14 +1,15 @@
 /**
  * VoiceAgentTestSection — élő hangasszisztens teszt a Beállítások alatt.
- * Tenant-választó + beágyazott voice widget (iframe → /widget?tenant=<slug>).
- * Csak admin/manager használhatja (a tab-szűrő + ez a guard is).
+ * CSAK a bejelentkezett admin SAJÁT tenantját teszteli (nincs tenant-választó —
+ * minden admin egy konkrét cég adminja, tenant-átlátás nincs).
+ * Beágyazott voice widget (iframe → /widget?tenant=<saját-slug>).
  */
-import { useState, useEffect, useCallback, useMemo } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { authFetch } from '../../api/client';
 import { showToast } from '../ui/Toast';
 import Spinner from '../ui/Spinner';
 
-interface TenantInfo {
+interface OwnTenant {
   id: string;
   slug: string;
   name: string;
@@ -17,36 +18,33 @@ interface TenantInfo {
 }
 
 export default function VoiceAgentTestSection() {
-  const [tenants, setTenants] = useState<TenantInfo[]>([]);
-  const [selectedSlug, setSelectedSlug] = useState<string>('');
+  const [tenant, setTenant] = useState<OwnTenant | null>(null);
   const [agentName, setAgentName] = useState<string>('');
   const [loading, setLoading] = useState(true);
   const [reloadKey, setReloadKey] = useState(0);
 
-  // Tenant-ok betöltése
+  // Saját tenant betöltése (a JWT tenant_id alapján — a backend csak ezt adja vissza)
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true);
       try {
-        const res = await authFetch('/admin/api/tenants');
+        const res = await authFetch('/admin/api/tenants/me');
         if (res.ok) {
           const data = await res.json();
-          const list: TenantInfo[] = data.tenants || [];
-          if (!cancelled) {
-            setTenants(list);
-            if (list.length > 0) setSelectedSlug((prev) => prev || list[0].slug);
-          }
+          if (!cancelled) setTenant(data.tenant || null);
+        } else if (!cancelled) {
+          showToast('Nem sikerült betölteni a tenant információt', 'error');
         }
       } catch {
-        if (!cancelled) showToast('Nem sikerült betölteni a tenantokat', 'error');
+        if (!cancelled) showToast('Nem sikerült betölteni a tenant információt', 'error');
       }
       if (!cancelled) setLoading(false);
     })();
     return () => { cancelled = true; };
   }, []);
 
-  // Agent-név lekérése a token endpointból (tenant-váltásnál frissül)
+  // Agent-név lekérése a token endpointból (a saját tenantunkhoz)
   const fetchAgentInfo = useCallback(async (slug: string) => {
     try {
       const res = await fetch(`/api/token${slug ? `?tenant=${encodeURIComponent(slug)}` : ''}`);
@@ -58,18 +56,21 @@ export default function VoiceAgentTestSection() {
   }, []);
 
   useEffect(() => {
-    if (selectedSlug) fetchAgentInfo(selectedSlug);
-  }, [selectedSlug, reloadKey, fetchAgentInfo]);
-
-  const selected = useMemo(
-    () => tenants.find((t) => t.slug === selectedSlug),
-    [tenants, selectedSlug],
-  );
+    if (tenant?.slug) fetchAgentInfo(tenant.slug);
+  }, [tenant, reloadKey, fetchAgentInfo]);
 
   if (loading) {
     return (
       <div className="beallitasok-card" style={{ minHeight: 160, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
         <Spinner />
+      </div>
+    );
+  }
+
+  if (!tenant) {
+    return (
+      <div className="beallitasok-card">
+        <div className="vat-hint">Tenant információ nem elérhető.</div>
       </div>
     );
   }
@@ -84,8 +85,8 @@ export default function VoiceAgentTestSection() {
           <div>
             <div className="beal-subtitle-16">Hangasszisztens élő teszt</div>
             <div className="vat-desc">
-              Válaszd ki a céget, majd indítsd el a beszélgetést. A hívás ugyanazon a
-              LiveKit agenten megy keresztül, mint az éles forgalom — a te tenantod adataival.
+              Indítsd el a beszélgetést — ugyanazon a LiveKit agenten megy keresztül,
+              mint az éles forgalom, a saját céged adataival (árlista, GYIK, szabályok).
             </div>
           </div>
         </div>
@@ -96,30 +97,18 @@ export default function VoiceAgentTestSection() {
             <div className="vat-info-value">{agentName || '…'}</div>
           </div>
           <div className="vat-info-item">
-            <div className="vat-info-label">Tenant</div>
-            <div className="vat-info-value">{selected ? selected.name : '…'}</div>
+            <div className="vat-info-label">Cég</div>
+            <div className="vat-info-value">{tenant.name}</div>
           </div>
           <div className="vat-info-item">
             <div className="vat-info-label">Státusz</div>
             <div className="vat-info-value">
-              {selected ? (selected.active ? '🟢 aktív' : '⚪ inaktív (csak teszt)') : '…'}
+              {tenant.active ? '🟢 aktív' : '⚪ inaktív (a teszt így is működik)'}
             </div>
           </div>
         </div>
 
         <div className="vat-select-row">
-          <label className="vat-select-label">Cég (tenant):</label>
-          <select
-            className="vat-select"
-            value={selectedSlug}
-            onChange={(e) => { setSelectedSlug(e.target.value); setReloadKey((k) => k + 1); }}
-          >
-            {tenants.map((t) => (
-              <option key={t.id} value={t.slug}>
-                {t.name} ({t.slug}){t.active ? '' : ' — inaktív'}
-              </option>
-            ))}
-          </select>
           <button
             className="vat-reload-btn"
             type="button"
@@ -134,8 +123,8 @@ export default function VoiceAgentTestSection() {
       {/* Beágyazott widget */}
       <div className="beallitasok-card vat-widget-card">
         <iframe
-          key={`${selectedSlug}-${reloadKey}`}
-          src={`/widget${selectedSlug ? `?tenant=${encodeURIComponent(selectedSlug)}` : ''}`}
+          key={`${tenant.slug}-${reloadKey}`}
+          src={`/widget?tenant=${encodeURIComponent(tenant.slug)}`}
           className="vat-iframe"
           title="Voice agent teszt"
           allow="microphone"
@@ -156,10 +145,7 @@ const vatStyles = `
 .vat-info-item { background: var(--bg3, #F0F4F8); border-radius: 8px; padding: 10px 14px; }
 .vat-info-label { font-size: 11px; font-weight: 600; color: var(--text-muted, #5F7D95); text-transform: uppercase; letter-spacing: 0.4px; }
 .vat-info-value { font-size: 14px; font-weight: 600; color: var(--text, #082432); margin-top: 2px; word-break: break-all; }
-.vat-select-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; flex-wrap: wrap; }
-.vat-select-label { font-size: 13px; font-weight: 600; color: var(--text, #082432); }
-.vat-select { height: 38px; padding: 0 12px; font-size: 14px; border: 1px solid var(--border, #D9D9D9); border-radius: 8px; background: var(--bg, #fff); color: var(--text, #082432); outline: none; min-width: 260px; }
-.vat-select:focus { border-color: #1ceee0; box-shadow: 0 0 0 3px rgba(28,238,224,0.1); }
+.vat-select-row { display: flex; align-items: center; gap: 10px; margin-top: 16px; }
 .vat-reload-btn { height: 38px; padding: 0 14px; border-radius: 8px; border: 1px solid var(--border, #D9D9D9); background: var(--bg, #fff); color: var(--text, #082432); font-size: 13px; font-weight: 600; cursor: pointer; }
 .vat-reload-btn:hover { border-color: #1ceee0; }
 .vat-widget-card { padding: 0 !important; overflow: hidden; }

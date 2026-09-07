@@ -4223,12 +4223,17 @@ async def delete_credential(key: str, _admin: dict = Depends(require_admin)):
     return {"ok": True, "message": "Hitelesítő adat törölve, visszaállítva a globális beállításra."}
 
 
-# ── Tenant lista (Voice Agent teszt-tabhoz és admin célokra) ─────────────────
-@app.get("/admin/api/tenants")
-async def list_tenants(_admin: dict = Depends(require_admin)):
-    """Admin-only tenant lista (slug, név, aktivitás) — a Voice Agent teszt-tab választójához."""
-    rows = db.supabase.table("tenants").select("id,slug,name,active,plan").order("name").execute()
-    return {"tenants": rows.data or []}
+# ── Tenant infó (Voice Agent teszt-tabhoz) — CSAK a saját tenant ────────────
+@app.get("/admin/api/tenants/me")
+async def get_own_tenant(_admin: dict = Depends(require_admin)):
+    """A bejelentkezett admin SAJÁT tenantjának adatai (slug, név, aktivitás).
+    Tenant-listázás NINCS: minden admin kizárólag a saját cégét láthatja.
+    (Multi-tenant áttekintés később kizárólag superadmin / management rétegből.)"""
+    tid = db.get_current_tenant()
+    rows = db.supabase.table("tenants").select("id,slug,name,active,plan").eq("id", tid).limit(1).execute()
+    if not rows.data:
+        raise HTTPException(status_code=404, detail="Tenant nem található")
+    return {"tenant": rows.data[0]}
 
 
 @app.get("/admin/api/prices/template/download")
