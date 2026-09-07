@@ -16,6 +16,7 @@ import GdprSection from '../components/settings/GdprSection';
 import CustomSelect from '../components/settings/CustomSelect';
 import CredentialsSection from '../components/settings/CredentialsSection';
 import VoiceAgentTestSection from '../components/settings/VoiceAgentTestSection';
+import VoiceProvisioningSection from '../components/settings/VoiceProvisioningSection';
 
 
 interface User {
@@ -34,6 +35,7 @@ const TABS = [
   { id: 'biztonsag', label: 'Biztonság', icon: 'M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z' },
   { id: 'credentials', label: 'Hitelesítő adatok', icon: 'M21 2l-2 2m-7.61 7.61a5.5 5.5 0 1 1-7.778 7.778 5.5 5.5 0 1 1 7.778-7.778zm0 0L15.5 7.5m0 0l3 3L22 7l-3-3m-3.5 3.5L19 4' },
   { id: 'hangteszt', label: 'Hangasszisztens teszt', icon: 'M23 7l-7 5 7 5V7zM14 5H3a2 2 0 00-2 2v10a2 2 0 002 2h11a2 2 0 002-2V7a2 2 0 00-2-2z' },
+  { id: 'telefonia', label: 'Telefónia', icon: 'M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z' },
 ] as const;
 
 export default function BeallitasokPage() {
@@ -63,6 +65,7 @@ export default function BeallitasokPage() {
       if (tab.id === 'csapat' || tab.id === 'eaisydesk') return isAdmin;
       if (tab.id === 'credentials') return isAdminOnly;
       if (tab.id === 'hangteszt') return isAdmin;
+      if (tab.id === 'telefonia') return isAdminOnly;
       return true;
     });
   }, [isAdmin]);
@@ -341,6 +344,11 @@ export default function BeallitasokPage() {
         {/* ── HANGASSZISZTENS TESZT TAB ── */}
         {activeTab === 'hangteszt' && isAdmin && (
           <VoiceAgentTestSection />
+        )}
+
+        {/* ── TELEFÓNIA TAB ── */}
+        {activeTab === 'telefonia' && isAdminOnly && (
+          <VoiceProvisioningSection />
         )}
       </div>
 

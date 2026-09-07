@@ -31,6 +31,7 @@ import asyncio
 
 import database as db
 import email_processor
+import telnyx_provision
 from classifier import classify_interaction
 from anthropic import AsyncAnthropic
 
@@ -42,6 +43,18 @@ logger = logging.getLogger(__name__)
 JWT_SECRET  = os.getenv("JWT_SECRET", "thinkai-admin-secret-change-me")
 JWT_ALGO    = "HS256"
 JWT_EXPIRES = 60 * 60 * 8  # 8 hours
+
+
+def _voice_outbound_params() -> tuple[str, str]:
+    """Outbound SIP paraméterek a SAJÁT tenanthoz: (trunk_id, caller_number).
+    Tenant-saját cred (sip_outbound_trunk_id / sip_phone_number) → .env fallback.
+    A caller ID így a patika saját száma lesz, nem a platformé."""
+    tid = db.get_current_tenant()
+    trunk_id = db.get_credential(tid, "sip_outbound_trunk_id", default=None) \
+        or os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_jgPctgJYZcAf")
+    caller = db.get_credential(tid, "sip_phone_number", default=None) \
+        or os.getenv("SIP_PHONE_NUMBER", "")
+    return trunk_id, caller
 
 # ── Environment ───────────────────────────────────────────────────────────────
 # "staging" = sandbox: háttér workerek és LiveKit agent kikapcsolva.
@@ -69,6 +82,10 @@ _CREDENTIAL_KEYS: dict[str, dict] = {
     "instagram_user_id": {"label": "Instagram User ID",         "channel": "instagram", "secret": False, "env": "META_INSTAGRAM_USER_ID"},
     "whatsapp_token":    {"label": "WhatsApp Token",            "channel": "whatsapp",  "secret": True,  "env": "WHATSAPP_TOKEN"},
     "whatsapp_phone_id": {"label": "WhatsApp Phone Number ID",  "channel": "whatsapp",  "secret": False, "env": "WHATSAPP_PHONE_ID"},
+    # ── Telefónia (Telnyx BYO) ──
+    "telnyx_api_key":            {"label": "Telnyx API kulcs",            "channel": "telefónia", "secret": True,  "env": "TELNYX_API_KEY"},
+    "telnyx_connection_id":      {"label": "Telnyx Connection ID",        "channel": "telefónia", "secret": False, "env": None},
+    "telnyx_outbound_profile_id": {"label": "Telnyx Outbound Profile ID", "channel": "telefónia", "secret": False, "env": None},
 }
 
 _CHANNEL_LABELS = {
@@ -4261,6 +4278,132 @@ async def get_own_tenant(_admin: dict = Depends(require_admin)):
     return {"tenant": rows.data[0]}
 
 
+# ── Telefónia (Telnyx BYO) — provisioning wizard endpointok ─────────────────
+class TelnyxValidateRequest(BaseModel):
+    api_key: str
+
+
+class VoiceProvisionRequest(BaseModel):
+    phone_number: str           # E.164, pl. +36621234567
+    number_id: str = ""         # Telnyx phone_number ID (ha a UI-ból ismert)
+
+
+@app.post("/admin/api/voice/telnyx/validate")
+async def voice_validate_telnyx_key(payload: TelnyxValidateRequest, _admin: dict = Depends(require_admin)):
+    """Telnyx API kulcs validálása és MENTÉSE (Fernet-titkosítva) a saját tenant alá."""
+    api_key = (payload.api_key or "").strip()
+    if not api_key:
+        raise HTTPException(status_code=400, detail="Adj meg egy Telnyx API kulcsot")
+    import asyncio
+    try:
+        valid = await asyncio.to_thread(telnyx_provision.validate_key, api_key)
+    except telnyx_provision.TelnyxError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+    if not valid:
+        raise HTTPException(status_code=400, detail="A Telnyx API kulcs érvénytelen vagy lejárt")
+    if not db.set_credential(db.get_current_tenant(), "telnyx_api_key", api_key):
+        raise HTTPException(status_code=500, detail="Nem sikerült menteni a kulcsot (titkosítási hiba)")
+    try:
+        numbers = await asyncio.to_thread(telnyx_provision.list_numbers, api_key)
+    except telnyx_provision.TelnyxError as e:
+        numbers = []
+        logger.warning(f"Telnyx szám-lista hiba validáció után: {e}")
+    return {"ok": True, "numbers": numbers}
+
+
+@app.get("/admin/api/voice/status")
+async def voice_status(_admin: dict = Depends(require_admin)):
+    """Telefónia konfiguráció állapota a saját tenant számára."""
+    tid = db.get_current_tenant()
+    keys = set(db.list_credential_keys(tid))
+    phone = db.get_credential(tid, "sip_phone_number", default=None) if "sip_phone_number" in keys else None
+    return {
+        "telnyx_key_saved": "telnyx_api_key" in keys,
+        "connection_id": db.get_credential(tid, "telnyx_connection_id", default=None) if "telnyx_connection_id" in keys else None,
+        "outbound_profile_id": db.get_credential(tid, "telnyx_outbound_profile_id", default=None) if "telnyx_outbound_profile_id" in keys else None,
+        "phone_number": phone,
+        "phone_number_masked": (phone[:5] + "••••" + phone[-3:]) if phone and len(phone) > 8 else phone,
+        "sip_host": telnyx_provision.livekit_sip_host(),
+        "agent": AGENT_NAME,
+    }
+
+
+@app.post("/admin/api/voice/provision")
+async def voice_provision(payload: VoiceProvisionRequest, _admin: dict = Depends(require_admin)):
+    """Teljes telefonbeállítás a tenant saját Telnyx kulcsával:
+    outbound profile → FQDN connection → FQDN → szám hozzárendelés →
+    LiveKit inbound trunk numbers[] bővítés → cred-ek mentése."""
+    import asyncio
+    tid = db.get_current_tenant()
+    api_key = db.get_credential(tid, "telnyx_api_key", default=None)
+    if not api_key:
+        raise HTTPException(status_code=400, detail="Előbb mentsd el a Telnyx API kulcsot")
+    phone = (payload.phone_number or "").strip()
+    if not phone.startswith("+"):
+        raise HTTPException(status_code=400, detail="A szám E.164 formátumú legyen (pl. +36621234567)")
+
+    saved_conn = db.get_credential(tid, "telnyx_connection_id", default=None)
+    saved_ovp = db.get_credential(tid, "telnyx_outbound_profile_id", default=None)
+    slug = "tenant"
+    try:
+        t = db.supabase.table("tenants").select("slug").eq("id", tid).limit(1).execute()
+        if t.data:
+            slug = t.data[0]["slug"]
+    except Exception:
+        pass
+
+    results: dict = {}
+    try:
+        ovp_id = await asyncio.to_thread(
+            telnyx_provision.ensure_outbound_voice_profile, api_key, saved_ovp, f"eaisyDesk-{slug}")
+        results["outbound_profile_id"] = ovp_id
+
+        conn_id, auth_user, auth_pass = await asyncio.to_thread(
+            telnyx_provision.ensure_fqdn_connection, api_key, saved_conn, ovp_id, f"eaisyDesk-{slug}")
+        results["connection_id"] = conn_id
+
+        sip_host = telnyx_provision.livekit_sip_host()
+        fqdn_id = await asyncio.to_thread(telnyx_provision.ensure_fqdn, api_key, conn_id, sip_host)
+        results["fqdn"] = sip_host
+
+        number_id = payload.number_id
+        if not number_id:
+            numbers = await asyncio.to_thread(telnyx_provision.list_numbers, api_key)
+            match = next((n for n in numbers if n.get("number") == phone), None)
+            if not match:
+                raise HTTPException(status_code=400, detail=f"A {phone} szám nem található a Telnyx fiókban")
+            number_id = match["id"]
+        await asyncio.to_thread(telnyx_provision.associate_number, api_key, number_id, conn_id)
+        results["number_associated"] = True
+
+        # LiveKit: szám felvétele a shared inbound trunk numbers[] listájába
+        inbound_trunk = os.getenv("SIP_INBOUND_TRUNK_ID", "")
+        if inbound_trunk:
+            lk = lk_api_module.LiveKitAPI(url=os.getenv("LIVEKIT_URL"),
+                                          api_key=os.getenv("LIVEKIT_API_KEY"),
+                                          api_secret=os.getenv("LIVEKIT_API_SECRET"))
+            try:
+                await lk.sip.update_sip_inbound_trunk_fields(
+                    inbound_trunk, numbers=lk_api_module.ListUpdate(add=[phone]))
+            finally:
+                await lk.aclose()
+            results["inbound_trunk_updated"] = inbound_trunk
+        else:
+            logger.warning("SIP_INBOUND_TRUNK_ID nincs beállítva — a szám nem került fel a trunkra")
+
+        # Cred-ek mentése
+        db.set_credential(tid, "telnyx_connection_id", conn_id)
+        db.set_credential(tid, "telnyx_outbound_profile_id", ovp_id)
+        db.set_credential(tid, "sip_phone_number", phone)
+        if auth_user:
+            # a LiveKit KIMENŐ trunk authjához kell majd (V2) — log, hogy ne vesszen el
+            logger.info(f"Telnyx connection auth user={auth_user} (pass a Telnyx-ben)")
+    except telnyx_provision.TelnyxError as e:
+        raise HTTPException(status_code=502, detail=str(e))
+
+    return {"ok": True, "message": "Telefonbeállítás elkészült.", **results}
+
+
 @app.get("/admin/api/prices/template/download")
 async def download_price_template(_admin = Depends(require_admin)):
     """Generate and return an Excel template for price list upload."""
@@ -4407,7 +4550,7 @@ async def sip_outbound_call(req: SipCallRequest, _auth = Depends(require_admin_o
     lk_url    = os.getenv("LIVEKIT_URL")
     lk_key    = os.getenv("LIVEKIT_API_KEY")
     lk_secret = os.getenv("LIVEKIT_API_SECRET")
-    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_jgPctgJYZcAf")  # Telnyx HD Voice outbound
+    trunk_id, caller_number = _voice_outbound_params()  # Telnyx HD Voice outbound (tenant-saját)
 
     phone = req.phone_number.strip()
     if not phone.startswith("+"):
@@ -4451,6 +4594,7 @@ async def sip_outbound_call(req: SipCallRequest, _auth = Depends(require_admin_o
                 participant_name=phone,
                 wait_until_answered=True,
                 krisp_enabled=True,
+                sip_number=caller_number or None,
             )
         )
 
@@ -4711,7 +4855,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(ver
                     lk_url    = os.getenv("LIVEKIT_URL")
                     lk_key    = os.getenv("LIVEKIT_API_KEY")
                     lk_secret = os.getenv("LIVEKIT_API_SECRET")
-                    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_jgPctgJYZcAf")  # Telnyx HD Voice outbound
+                    trunk_id, caller_number = _voice_outbound_params()  # Telnyx HD Voice outbound (tenant-saját)
 
                     call_phone = send_draft.get("phone_number", "")
                     if not call_phone:
@@ -4746,6 +4890,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(ver
                             participant_name=call_phone,
                             wait_until_answered=True,
                             krisp_enabled=True,
+                            sip_number=caller_number or None,
                         )
                     )
                     await lk.agent_dispatch.create_dispatch(
@@ -5371,7 +5516,7 @@ async def _run_phone_campaign(campaign: dict):
     lk_url    = os.getenv("LIVEKIT_URL")
     lk_key    = os.getenv("LIVEKIT_API_KEY")
     lk_secret = os.getenv("LIVEKIT_API_SECRET")
-    trunk_id  = os.getenv("SIP_OUTBOUND_TRUNK_ID", "ST_jgPctgJYZcAf")  # Telnyx HD Voice outbound
+    trunk_id, caller_number = _voice_outbound_params()  # Telnyx HD Voice outbound (tenant-saját)
 
     if not all([lk_url, lk_key, lk_secret]):
         print(f"[PhoneCampaign] LiveKit credentials hiányzik, kampány megszakítva: {campaign_name}")
@@ -5447,6 +5592,7 @@ async def _run_phone_campaign(campaign: dict):
                     participant_name=phone,
                     wait_until_answered=True,
                     krisp_enabled=True,
+                    sip_number=caller_number or None,
                 )
             )
 

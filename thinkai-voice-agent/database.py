@@ -229,6 +229,49 @@ def get_gemini_api_key(tenant_id: str | None = None) -> str:
     return os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY") or ""
 
 
+_SIP_LOOKUP_TTL = 60  # mp — a reverse-lookup cache élettartama
+_sip_lookup_cache: dict[str, tuple[str, float]] = {}
+
+
+def _normalize_e164(phone: str) -> str:
+    """Telefonszám E.164-hoz hasonló normalizálás: csak számok + vezető +."""
+    digits = "".join(ch for ch in (phone or "") if ch.isdigit())
+    if not digits:
+        return ""
+    return "+" + digits
+
+
+def find_tenant_by_sip_number(phone: str) -> str | None:
+    """Reverse-lookup: hívott (trunk) telefonszám → tenant_id.
+    A tenant_credentials 'sip_phone_number' sorait decryptelve keresi.
+    60 mp cache (hívásonként egyszer fut, de a decrypt drága lenne ping-pongnál)."""
+    import time as _time
+    target = _normalize_e164(phone)
+    if not target or not supabase:
+        return None
+    cached = _sip_lookup_cache.get(target)
+    if cached and (_time.time() - cached[1]) < _SIP_LOOKUP_TTL:
+        return cached[0]
+    try:
+        res = supabase.table("tenant_credentials").select("tenant_id,value_encrypted").eq("key", "sip_phone_number").execute()
+        f = _get_fernet()
+        for row in res.data or []:
+            try:
+                if not f:
+                    break
+                stored = _normalize_e164(f.decrypt(row["value_encrypted"].encode()).decode())
+                if stored and stored == target:
+                    tid = row["tenant_id"]
+                    _sip_lookup_cache[target] = (tid, _time.time())
+                    return tid
+            except Exception:
+                continue
+    except Exception as e:
+        logger.warning(f"find_tenant_by_sip_number hiba ({target}): {e}")
+    _sip_lookup_cache[target] = (None, _time.time())
+    return None
+
+
 def init_db():
     if supabase:
         logger.info(f"Connected to Supabase Cloud at {SUPABASE_URL}")

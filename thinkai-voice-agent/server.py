@@ -153,6 +153,30 @@ async def entrypoint(ctx: JobContext):
             except Exception as e:
                 logger.warning(f"Tenant slug feloldás sikertelen ({maybe_slug}): {e}")
 
+    # FÁZIS 0: bejövő SIP — tenant feloldás a HÍVOTT számból (sip.trunkPhoneNumber).
+    # A catch-all dispatch rule miatt a room név nem hordoz tenantot; a hívott szám
+    # alapján a tenant_credentials reverse-lookup dönt (find_tenant_by_sip_number).
+    if not tenant_id and is_inbound_call:
+        trunk_number = None
+        try:
+            for _ in range(10):  # max ~5s várakozás a SIP participant attribútumra
+                for p in ctx.room.remote_participants.values():
+                    attrs = getattr(p, "attributes", None) or {}
+                    tn = attrs.get("sip.trunkPhoneNumber")
+                    if tn:
+                        trunk_number = tn
+                        break
+                if trunk_number:
+                    break
+                await asyncio.sleep(0.5)
+        except Exception as e:
+            logger.warning(f"Inbound trunkPhoneNumber olvasási hiba: {e}")
+        if trunk_number:
+            tenant_id = db.find_tenant_by_sip_number(trunk_number)
+            logger.info(f"Inbound hívott szám {trunk_number} → tenant: {tenant_id or 'NINCS (default)'}")
+        else:
+            logger.warning("Inbound SIP: trunkPhoneNumber nem olvasható — default tenant lesz")
+
     # FÁZIS 6: a tenant-kontextus beállítása a session-state mellé — így a
     # db-lekérdezések (business_info, triage_rules, clients) a helyes tenant
     # scope-ban futnak. Ha nincs tenant feloldva, a DEFAULT_TENANT_SLUG-re esik.
