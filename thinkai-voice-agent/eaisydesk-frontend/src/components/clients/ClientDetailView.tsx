@@ -841,71 +841,87 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
               </tr>
             </thead>
             <tbody>
-              {/* Kézi teendők pszeudo-sorai (legfelül) */}
-              {openManualTasks.map((t) => (
-                <tr
-                  key={`task-${t.id}`}
-                  className="cd-task-row row-task"
-                  tabIndex={0}
-                  onClick={() => openTaskEdit(t)}
-                  onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTaskEdit(t); } }}
-                >
-                  <td className="cd-time-cell">{taskDateLabel(t.created_at)}</td>
-                  <td>
-                    <span className="cp-channel">
-                      <span className="cp-ch">
-                        <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                      </span>
-                      Hozzáadott feladat
-                    </span>
-                  </td>
-                  <td />
-                  <td />
-                  <td />
-                  <td><CpStatusBadge value={t.priority === 'high' ? 'Sürgős' : 'Nyitott'} /></td>
-                  <td>
-                    <div className="todo-frame" title={t.text}>{t.text}</div>
-                  </td>
-                  <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      className="cp-done-check"
-                      aria-label="Elvégezve"
-                      title="Kipipálásra a teendő lezártra vált"
-                      checked={false}
-                      onChange={() => toggleManualTask(t)}
-                    />
-                  </td>
-                </tr>
-              ))}
-              {openInteractions.length === 0 && openManualTasks.length === 0 ? (
-                <tr><td colSpan={8}><div className="cp-empty">Nincs beavatkozást igénylő interakció.</div></td></tr>
-              ) : openInteractions.map((r, i) => (
-                <tr
-                  key={i}
-                  className={`cursor-pointer${(r.statusz || '').toLowerCase() === 'sürgős' ? ' cd-is-urgent' : ''}`}
-                  onClick={() => setSummaryModalRow(r)}
-                >
-                  <td className="cd-time-cell">{r.date ? `${new Date(r.date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })} · ${new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}` : '-'}</td>
-                  <td><CpChannelCell name={r.channel} /></td>
-                  <td><CpDirBadge value={r.direction} /></td>
-                  <td>{r.ugyTipus}</td>
-                  <td className="cp-result">{r.eredmeny}</td>
-                  <td><CpStatusBadge value={r.statusz} /></td>
-                  <td><CpTeendoCell value={r.teendo} /></td>
-                  {/* Elvégezve checkbox */}
-                  <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
-                    <input
-                      type="checkbox"
-                      className="cp-done-check"
-                      aria-label="Elvégezve"
-                      title="Kipipálásra az interakció lezártra vált"
-                      checked={false}
-                      onChange={(e) => handleMarkDone(e as unknown as React.MouseEvent, r.interactionId)}
-                    />
-                  </td>
-                </tr>
-              ))}
+              {(() => {
+                // Kronologikus összefésülés: kézi teendők + interakciók együtt,
+                // legújabb elöl (korábban a kézi teendők fixen legfelül voltak)
+                const merged = [
+                  ...openManualTasks.map(t => ({ kind: 'task' as const, key: `task-${t.id}`, sortDate: t.created_at || '', task: t })),
+                  ...openInteractions.map((r, i) => ({ kind: 'int' as const, key: `int-${r.interactionId ?? i}`, sortDate: r.date || '', int: r })),
+                ].sort((a, b) => (b.sortDate || '').localeCompare(a.sortDate || ''));
+
+                if (merged.length === 0) {
+                  return <tr><td colSpan={8}><div className="cp-empty">Nincs beavatkozást igénylő interakció.</div></td></tr>;
+                }
+
+                return merged.map((item) => {
+                  if (item.kind === 'task') {
+                    const t = item.task;
+                    return (
+                      <tr
+                        key={item.key}
+                        className="cd-task-row row-task"
+                        tabIndex={0}
+                        onClick={() => openTaskEdit(t)}
+                        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); openTaskEdit(t); } }}
+                      >
+                        <td className="cd-time-cell">{taskDateLabel(t.created_at)}</td>
+                        <td>
+                          <span className="cp-channel">
+                            <span className="cp-ch">
+                              <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                            </span>
+                            Hozzáadott feladat
+                          </span>
+                        </td>
+                        <td />
+                        <td />
+                        <td />
+                        <td><CpStatusBadge value={t.priority === 'high' ? 'Sürgős' : 'Nyitott'} /></td>
+                        <td>
+                          <div className="todo-frame" title={t.text}>{t.text}</div>
+                        </td>
+                        <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
+                          <input
+                            type="checkbox"
+                            className="cp-done-check"
+                            aria-label="Elvégezve"
+                            title="Kipipálásra a teendő lezártra vált"
+                            checked={false}
+                            onChange={() => toggleManualTask(t)}
+                          />
+                        </td>
+                      </tr>
+                    );
+                  }
+                  const r = item.int!;
+                  return (
+                    <tr
+                      key={item.key}
+                      className={`cursor-pointer${(r.statusz || '').toLowerCase() === 'sürgős' ? ' cd-is-urgent' : ''}`}
+                      onClick={() => setSummaryModalRow(r)}
+                    >
+                      <td className="cd-time-cell">{r.date ? `${new Date(r.date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })} · ${new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}` : '-'}</td>
+                      <td><CpChannelCell name={r.channel} /></td>
+                      <td><CpDirBadge value={r.direction} /></td>
+                      <td>{r.ugyTipus}</td>
+                      <td className="cp-result">{r.eredmeny}</td>
+                      <td><CpStatusBadge value={r.statusz} /></td>
+                      <td><CpTeendoCell value={r.teendo} /></td>
+                      {/* Elvégezve checkbox */}
+                      <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="cp-done-check"
+                          aria-label="Elvégezve"
+                          title="Kipipálásra az interakció lezártra vált"
+                          checked={false}
+                          onChange={(e) => handleMarkDone(e as unknown as React.MouseEvent, r.interactionId)}
+                        />
+                      </td>
+                    </tr>
+                  );
+                });
+              })()}
             </tbody>
           </table>
           </div>
