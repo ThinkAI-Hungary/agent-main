@@ -1594,7 +1594,17 @@ async def get_token(tenant: str = ""):
         "token": token.to_jwt(),
         "url": os.getenv("LIVEKIT_URL"),
         "room": room_name,
+        "agent": AGENT_NAME,
+        "tenant": tenant or "",
     })
+
+
+# ── Tenant lista (Voice Agent teszt-tabhoz és admin célokra) ─────────────────
+@app.get("/admin/api/tenants")
+async def list_tenants(_admin: dict = Depends(require_admin)):
+    """Admin-only tenant lista (slug, név, aktivitás) — a Voice Agent teszt-tab választójához."""
+    rows = db.supabase.table("tenants").select("id,slug,name,active,plan").order("name").execute()
+    return {"tenants": rows.data or []}
 
 
 @app.post("/api/session/end")

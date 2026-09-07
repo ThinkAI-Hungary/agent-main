@@ -761,7 +761,8 @@
                     try { await fetch('/api/health'); } catch (e) { }
 
                     setState('connecting', 'Csatlakozás...');
-                    const resp = await fetchWithRetry('/api/token', 3, 2000);
+                    const tenantParam = new URLSearchParams(window.location.search).get('tenant') || '';
+                    const resp = await fetchWithRetry('/api/token' + (tenantParam ? `?tenant=${encodeURIComponent(tenantParam)}` : ''), 3, 2000);
                     const { token, url } = await resp.json();
 
                     room = new Room({
