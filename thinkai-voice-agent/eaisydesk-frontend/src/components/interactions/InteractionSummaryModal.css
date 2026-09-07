@@ -74,24 +74,37 @@
 }
 
 .ism-badge {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: 6px;
-  letter-spacing: 0.5px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 10.5px;
+  font-weight: 600;
+  padding: 3px 10px;
+  border-radius: 8px;
+  letter-spacing: 0.3px;
   white-space: nowrap;
-  text-transform: uppercase;
+  border: 1px solid transparent;
+}
+
+.ism-badge::before {
+  content: '';
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: currentColor;
+  flex: none;
 }
 
 .ism-badge--new {
-  background: #082432;
-  color: #fff;
+  background: color-mix(in srgb, #1ceee0 14%, #ffffff);
+  color: #0d9488;
+  border-color: color-mix(in srgb, #1ceee0 45%, #ffffff);
 }
 
 .ism-badge--returning {
-  background: rgba(22, 101, 52, 0.15);
-  color: #166534;
-  border: 1px solid rgba(22, 101, 52, 0.3);
+  background: color-mix(in srgb, #186d98 12%, #ffffff);
+  color: #186d98;
+  border-color: color-mix(in srgb, #186d98 35%, #ffffff);
 }
 
 .ism-header-date {
@@ -147,8 +160,16 @@
 }
 
 .ism-pill--filled {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
   background: #082432;
   color: #fff;
+}
+
+.ism-pill--filled svg {
+  width: 12px;
+  height: 12px;
 }
 
 .ism-pill--outline {

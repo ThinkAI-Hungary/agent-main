@@ -12,14 +12,12 @@
  * - Dynamic footer: "Ugrás teendőkre" vs "Ugrás naptárra"
  */
 import { useState, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
 import { fmtDt } from '../../helpers/formatters';
 import { parseCustomData, type ClientRecord } from '../../helpers/clientResolvers';
 import { FormattedMessage } from '../../helpers/messageFormatter';
 import { authFetch } from '../../api/client';
 import { showToast } from '../ui/Toast';
 import { StatuszBadge } from '../ui/Badge';
-import { useAuth } from '../../context/AuthContext';
 import type { InteractionRow } from '../../pages/InteractionsPage';
 import './InteractionSummaryModal.css';
 
@@ -41,6 +39,15 @@ interface ChatBlock {
   timestamp?: string;
 }
 
+// Csatorna ikonok (UI Kit: ikon + csatornanév pill a modál fejlécében)
+const CHANNEL_ICONS: Record<string, React.ReactNode> = {
+  Telefon: <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" />,
+  Email: <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22 6 12 13 2 6" /></>,
+  WhatsApp: <path d="M12 3a9 9 0 0 0-7.72 13.44L3 21l4.78-1.22A9 9 0 1 0 12 3z" />,
+  Messenger: <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" />,
+  Instagram: <><rect x="2" y="2" width="20" height="20" rx="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></>,
+};
+
 export default function InteractionSummaryModal({
   row,
   onClose,
@@ -50,12 +57,10 @@ export default function InteractionSummaryModal({
   autoExpandApproval,
   onApproved,
 }: Props) {
-  const navigate = useNavigate();
   // EAISY-241 §1.2.3 — CTA gombok jogosultság-kezelése.
   // Jogosultság-konzisztencia: ugyanaz az admin-VAGY-manager szabály, mint a
   // listanézetben (korábban a modal szigorúan csak admint nézett, a lista
   // manager-t is adminnak — következetlen volt).
-  const { isAdmin } = useAuth();
   const rawDraft = row.ai_draft_response || row.aiDraftResponse || null;
   const approvalStatus = row.approval_status || row.approvalStatus || null;
   // EAISY-241 §1.1.2 — Ha az ügytípus eljárása „Önállóan kezelhető" (autonomous),
@@ -220,11 +225,8 @@ export default function InteractionSummaryModal({
             : [content];
 
           if (hasEmailMarker && (emailIncoming || aiResponseSplit.length > 1)) {
-            const beforeEmail = content.match(/^([\s\S]*?)(?=[-–]\s*Bejövő e-mail)/i);
-            const summaryText = beforeEmail ? beforeEmail[1].trim() : '';
-            if (summaryText) {
-              entries.push({ timestamp, time, sender: 'system', text: summaryText });
-            }
+            // Az AI összefoglaló sort NEM tesszük a chatbe — az ÖSSZEFOGLALÁS
+            // doboz felül már megmutatja (duplikáció volt, 257-es ügy).
             if (emailIncoming) {
               const emailSubject = emailIncoming[1].trim();
               const emailBody = emailIncoming[2].trim();
@@ -682,11 +684,14 @@ export default function InteractionSummaryModal({
               ✕
             </button>
             <div className="ism-pills">
-              <span className="ism-pill ism-pill--filled">{channelUpper}</span>
-              <span className="ism-pill ism-pill--outline">
-                {row.direction.toUpperCase()}
+              <span className="ism-pill ism-pill--filled">
+                {CHANNEL_ICONS[channelUpper] && (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}>
+                    {CHANNEL_ICONS[channelUpper]}
+                  </svg>
+                )}
+                {channelUpper}
               </span>
-              <span className="ism-pill ism-pill--outline">{row.ugyTipus}</span>
             </div>
           </div>
         </div>
@@ -1009,35 +1014,7 @@ export default function InteractionSummaryModal({
           </div>
         </div>
 
-        {/* ═══ FOOTER ═══ */}
-        <div className="ism-footer">
-          <button
-            className="ism-footer-btn ism-footer-btn--outline"
-            disabled={!row.clientId}
-            onClick={() => {
-              if (row.clientId && onClientClick) {
-                onClose();
-                onClientClick(String(row.clientId));
-              }
-            }}
-          >
-            Ugrás ügyfélprofilra
-          </button>
-          <button
-            className={`ism-footer-btn ${showCalendarButton ? 'ism-footer-btn--calendar' : 'ism-footer-btn--solid'}`}
-            // EAISY-241 §2.5: „Ugrás teendőkre" inaktív admin/manager-nél (adminnak
-            // minden ügy látszik, nincs saját teendőlista); „Ugrás naptárra" AKTÍV.
-            disabled={isAdmin && !showCalendarButton}
-            style={(isAdmin && !showCalendarButton) ? { opacity: 0.5, cursor: 'not-allowed' } : undefined}
-            onClick={() => {
-              if (isAdmin && !showCalendarButton) return;
-              onClose();
-              navigate(showCalendarButton ? '/calendar' : '/dashboard');
-            }}
-          >
-            {showCalendarButton ? 'Ugrás naptárra' : 'Ugrás teendőkre'}
-          </button>
-        </div>
+
       </div>
     </div>
   );
