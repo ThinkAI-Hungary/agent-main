@@ -3358,7 +3358,7 @@ def admin_task_update_text(task_id: int, req: TaskTextRequest, _auth = Depends(r
 
 
 @app.delete("/admin/api/tasks/{task_id}")
-def admin_task_delete(task_id: int, _auth = Depends(require_admin_or_manager)):
+def admin_task_delete(task_id: int, _auth = Depends(verify_jwt)):
     """Delete a task."""
     res = db.delete_task(task_id)
     if not res:
@@ -3406,7 +3406,7 @@ class InteractionStatusUpdateRequest(BaseModel):
     status: str
 
 @app.patch("/admin/api/interactions/{id}/status")
-def update_interaction_status(id: int, req: InteractionStatusUpdateRequest, _auth = Depends(require_admin_or_manager)):
+def update_interaction_status(id: int, req: InteractionStatusUpdateRequest, _auth = Depends(verify_jwt)):
     """Safe status update that handles both approval_status and classification override."""
     if req.status != "lezárt":
         raise HTTPException(status_code=400, detail="Érvénytelen státusz érték. Csak a 'lezárt' támogatott.")
@@ -4360,7 +4360,7 @@ def get_approvals_api(status: str = "pending", username: str = Depends(verify_jw
     return {"approvals": approvals}
 
 @app.post("/admin/api/approvals/{id}/reject")
-def reject_approval_api(id: int, _auth = Depends(require_admin_or_manager)):
+def reject_approval_api(id: int, _auth = Depends(verify_jwt)):
     success = db.update_approval_status(id, "rejected")
     if success: return {"status": "success"}
     raise HTTPException(status_code=500, detail="Hiba az elutasítás során")
@@ -4380,7 +4380,7 @@ class ApproveRequest(BaseModel):
     modified_drafts: dict | None = None
 
 @app.post("/admin/api/approvals/{id}/approve")
-async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(require_admin_or_manager)):
+async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(verify_jwt)):
     import json
     import httpx
     import base64 as b64module

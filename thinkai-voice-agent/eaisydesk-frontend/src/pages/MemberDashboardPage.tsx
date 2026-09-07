@@ -1,91 +1,124 @@
 /**
- * MemberDashboardPage – "Irányítópult" for member users.
- * Mimics InteractionsPage (assigned client interactions only).
+ * MemberDashboardPage – "Irányítópult" a member napi teendőivel.
+ *
+ * Design: user által adott HTML-mockup (hero + 3 KPI-kártya + 2 szekció).
+ * A dashboard SZŰRŐKÉNT működik: csak a nyitott/sürgős interakciók látszanak;
+ * a pipával lezártak eltűnnek (az interakciós naplóban maradnak Lezártan).
+ *
+ * Szekciók:
+ *  - Sürgős / lejárt: Sürgős státuszúak + minden nyitott, ami ma 00:00 ELŐTT
+ *    keletkezett (24 órás válaszablak-szabály — státusz nem változik, csak
+ *    a szekcióba feljebb kerül).
+ *  - Nyitott teendők: az aznapi nyitott interakciók + kézi teendők.
+ *
+ * Minden member MINDEN interakciót lát és dolgozhat velük (felelőshozrendelés
+ * nem hozzáférés-vezérlés); a jóváhagyás/küldés minden szerep számára nyitott.
  */
-import React, { useState, useEffect, useCallback, useMemo, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { useApproval } from '../context/ApprovalContext';
+import { showToast } from '../components/ui/Toast';
 import { authFetch } from '../api/client';
 import { useClients } from '../hooks/useClients';
 import { useSessions, type SessionSummary, type SessionInteraction } from '../hooks/useSessions';
 import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import ClientDetailView from '../components/clients/ClientDetailView';
+import InteractionSummaryModal from '../components/interactions/InteractionSummaryModal';
 import {
   resolveClientName,
   getRowChannel,
   parseCustomData,
-  isAssignedToMe,
   bestClientName,
 } from '../helpers/clientResolvers';
-import { StatuszBadge, DirectionBadge } from '../components/ui/Badge';
-import { TableSkeleton } from '../components/ui/Skeleton';
-import { useConfirm } from '../components/ui/ConfirmDialog';
-import { showToast } from '../components/ui/Toast';
-import InteractionSummaryModal from '../components/interactions/InteractionSummaryModal';
 import {
   detectStatusz,
   detectUgyTipus,
   detectEredmeny,
   detectTeendo,
 } from '../helpers/interactionClassifiers';
-import { fmtDt, cleanStr } from '../helpers/formatters';
-import { useIsMobile } from '../hooks/useIsMobile';
-import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import type { InteractionRow } from './InteractionsPage';
+import { useTheme } from '../context/ThemeContext';
 
-// ── Column visibility keys ──
-const ALL_COLUMNS = [
-  { key: 'date', label: 'Időpont' },
-  { key: 'client', label: 'Ügyfél' },
-  { key: 'channel', label: 'Csatorna' },
-  { key: 'direction', label: 'Irány' },
-  { key: 'ugyTipus', label: 'Ügytípus' },
-  { key: 'eredmeny', label: 'Eredmény' },
-  { key: 'statusz', label: 'Státusz' },
-  { key: 'teendo', label: 'Teendő' },
-  { key: 'done', label: 'Elvégezve' },
-] as const;
+// ── Segédek ──
+function pad2(n: number) { return (n < 10 ? '0' : '') + n; }
 
-// ── Filter options ──
-const UGYTIPUS_OPTIONS = ['Időpont', 'Kérdés', 'Kérés', 'Panasz', 'Egyéb'];
-const CSATORNA_OPTIONS = ['Messenger', 'Telefon', 'Email', 'Instagram', 'WhatsApp'];
-const IRANY_OPTIONS = ['Bejövő', 'Kimenő'];
-const STATUSZ_OPTIONS = ['Lezárt', 'Nyitott', 'Sürgős'];
+const HU_DAYS = ['vasárnap', 'hétfő', 'kedd', 'szerda', 'csütörtök', 'péntek', 'szombat'];
+const HU_MONTHS_SHORT = ['jan.', 'febr.', 'márc.', 'ápr.', 'máj.', 'jún.', 'júl.', 'aug.', 'szept.', 'okt.', 'nov.', 'dec.'];
 
-const SORT_OPTIONS = [
-  { value: 'date_desc', label: 'Legújabb elöl' },
-  { value: 'date_asc', label: 'Legrégebbi elöl' },
-  { value: 'client_asc', label: 'Ügyfélnév szerint A–Z' },
-  { value: 'topic_asc', label: 'Ügytípus szerint A–Z' },
-];
+const CHANNEL_META: Record<string, { label: string; icon: React.ReactNode }> = {
+  Telefon: { label: 'Telefon', icon: <path d="M22 16.92v3a2 2 0 0 1-2.18 2 19.79 19.79 0 0 1-8.63-3.07 19.5 19.5 0 0 1-6-6A19.79 19.79 0 0 1 2.12 4.18 2 2 0 0 1 4.11 2h3a2 2 0 0 1 2 1.72 12.84 12.84 0 0 0 .7 2.81 2 2 0 0 1-.45 2.11L8.09 9.91a16 16 0 0 0 6 6l1.27-1.27a2 2 0 0 1 2.11-.45 12.84 12.84 0 0 0 2.81.7A2 2 0 0 1 22 16.92z" /> },
+  Email: { label: 'Email', icon: <><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22 6 12 13 2 6" /></> },
+  WhatsApp: { label: 'WhatsApp', icon: <path d="M12 3a9 9 0 0 0-7.72 13.44L3 21l4.78-1.22A9 9 0 1 0 12 3z" /> },
+  Messenger: { label: 'Messenger', icon: <path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /> },
+  Instagram: { label: 'Instagram', icon: <><rect x="2" y="2" width="20" height="20" rx="5" /><path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z" /><line x1="17.5" y1="6.5" x2="17.51" y2="6.5" /></> },
+};
+const CHANNEL_ICON_FALLBACK = <><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></>;
 
-const DAYS_HU = ['vasárnap', 'hétfő', 'kedd', 'szerda', 'csütörtök', 'péntek', 'szombat'];
-const MONTHS_HU = ['január', 'február', 'március', 'április', 'május', 'június', 'július', 'augusztus', 'szeptember', 'október', 'november', 'december'];
-
-function formatGreetingDate(d: Date): string {
-  return `${d.getFullYear()}. ${MONTHS_HU[d.getMonth()]} ${d.getDate()}., ${DAYS_HU[d.getDay()]}`;
+function ChannelChip({ name, t }: { name: string; t: ReturnType<typeof tokens> }) {
+  const meta = CHANNEL_META[name] || { label: name || 'Üzenet', icon: CHANNEL_ICON_FALLBACK };
+  return (
+    <span style={{ display: 'flex', alignItems: 'center', gap: 8, whiteSpace: 'nowrap' }}>
+      <span style={{ width: 28, height: 28, flex: 'none', borderRadius: 8, background: t.surface, border: `1px solid ${t.border}`, display: 'flex', alignItems: 'center', justifyContent: 'center', color: t.text2 }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}>{meta.icon}</svg>
+      </span>
+      {meta.label}
+    </span>
+  );
 }
 
+function StatusBadge({ value, t }: { value: string; t: ReturnType<typeof tokens> }) {
+  const v = value.toLowerCase();
+  const cfg = v === 'sürgős' || v === 'surgos'
+    ? { bg: '#fff2f0', bd: '#ffccc7', fg: '#d9363d', dot: '#ff4d4f' }
+    : v === 'nyitott'
+      ? { bg: '#fffbe6', bd: '#ffe58f', fg: '#d48806', dot: '#faad14' }
+      : { bg: '#f6ffed', bd: '#b6eb8f', fg: '#389e0d', dot: '#52c41a' };
+  return (
+    <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, padding: '3px 10px', borderRadius: 8, fontSize: 12, fontWeight: 500, whiteSpace: 'nowrap', border: `1px solid ${cfg.bd}`, background: cfg.bg, color: cfg.fg }}>
+      <span style={{ width: 6, height: 6, borderRadius: 8, flex: 'none', background: cfg.dot }} />
+      {value}
+    </span>
+  );
+}
+
+function TeendoText({ value, t }: { value: string; t: ReturnType<typeof tokens> }) {
+  if (/nincs további teendő/i.test(value || '')) {
+    return (
+      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6, color: t.muted, fontSize: 12.5, whiteSpace: 'nowrap' }}>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" style={{ width: 14, height: 14 }}><polyline points="20 6 9 17 4 12" /></svg>
+        {value}
+      </span>
+    );
+  }
+  return <span style={{ color: t.text2, fontSize: 13 }}>{value}</span>;
+}
+
+function initialsOf(name: string) {
+  return (name || '?').trim().split(/\s+/).map(w => w[0]).join('').toUpperCase().slice(0, 2) || '?';
+}
+
+// ── Mockup tokenek (világos / sötét) ──
+const tokens = (dark: boolean) => ({
+  bg: dark ? '#141414' : '#ffffff',
+  surface: dark ? '#1d1d1d' : '#f5f5f5',
+  fg: dark ? '#dcdcdc' : '#000000',
+  muted: dark ? '#7e7e7e' : '#8c8c8c',
+  border: dark ? '#3e3e3e' : '#dbdbdb',
+  text2: dark ? '#adadad' : '#595959',
+  accent: dark ? '#3fd8c8' : '#1ceee0',
+  accent2: dark ? '#3fd8c8' : '#186d98',
+});
+
 export default function MemberDashboardPage() {
-  const isMobile = useIsMobile(768);
-  const { user, isAdmin } = useAuth();
-  const { openApproval, registerOnApproved } = useApproval();
-  const navigate = useNavigate();
-  
-  const { clients: hookClients, clientsMap, loading: loadingClients } = useClients();
-  const { sessions: hookSessions, loading: loadingSessions, refetch: refetchSessions } = useSessions(100);
+  const { isDark } = useTheme();
+  const t = tokens(isDark);
+  const { user } = useAuth();
+  const { clients, clientsMap } = useClients();
+  const { sessions: hookSessions, loading: loadingSessions, refetch: refetchSessions } = useSessions(300);
   const { events, loading: loadingEvents } = useCalendarEvents();
-  const { confirm, ConfirmDialog } = useConfirm();
+  const username = user?.username || '';
+  const fullName = user?.fullName || '';
+  const firstName = fullName ? fullName.split(' ').pop() || fullName : username;
 
-  const pullInteractions = usePullToRefresh({ onRefresh: refetchSessions, enabled: isMobile });
-
-  // Register refetch so approval triggers data refresh
-  useEffect(() => {
-    registerOnApproved(refetchSessions);
-  }, [registerOnApproved, refetchSessions]);
-
-  // ── Kézi teendők (ügyfélprofil „Teendő hozzáadása" → tasks tábla) ──
   const [manualTasks, setManualTasks] = useState<Array<{ id: number; text: string; priority: string; completed: number; created_at: string; client_id: number | null }>>([]);
   const loadManualTasks = useCallback(async () => {
     try {
@@ -94,135 +127,24 @@ export default function MemberDashboardPage() {
         const d = await res.json();
         setManualTasks(Array.isArray(d.tasks) ? d.tasks : []);
       }
-    } catch { /* néma — a dashboard többi része működik nélküle is */ }
+    } catch { /* néma */ }
   }, []);
   useEffect(() => { loadManualTasks(); }, [loadManualTasks]);
 
-  const handleMarkDone = async (e: React.MouseEvent, row: InteractionRow) => {
-    e.stopPropagation();
-    // Kézi teendő: completed toggle (a Lezárt szűrőből újra nyitható)
-    const manual = row as InteractionRow & { isManual?: boolean; taskId?: number; taskCompleted?: boolean };
-    if (manual.isManual && manual.taskId) {
-      try {
-        const res = await authFetch(`/admin/api/tasks/${manual.taskId}/complete`, { method: 'PATCH' });
-        if (!res.ok) throw new Error('task toggle failed');
-        showToast(manual.taskCompleted ? 'Teendő újraaktiválva' : 'Teendő elkészültnek jelölve', 'success');
-        loadManualTasks();
-      } catch {
-        showToast('Hiba a teendő frissítésekor', 'error');
-      }
-      return;
-    }
-    if (row.statusz === 'Lezárt') return;
-
-    try {
-      const response = await authFetch(`/admin/api/interactions/${row.interactionId}/status`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status: 'lezárt' }),
-      });
-
-      if (!response.ok) throw new Error('Failed to update status');
-      
-      showToast('Interakció lezárva', 'success');
-      refetchSessions();
-    } catch (err) {
-      console.error('Error marking done:', err);
-      showToast('Hiba a lezárás során', 'error');
-    }
-  };
-
-  // UI state
-  const [searchQuery, setSearchQuery] = useState('');
-  const [sortBy, setSortBy] = useState('date_desc');
-  const [filterOpen, setFilterOpen] = useState(false);
-  const [colDropdownOpen, setColDropdownOpen] = useState(false);
-  const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
-  const [visibleCols, setVisibleCols] = useState<Set<string>>(
-    new Set(ALL_COLUMNS.map((c) => c.key))
-  );
-  
   const [summaryModalRow, setSummaryModalRow] = useState<InteractionRow | null>(null);
-  const [autoExpandApproval, setAutoExpandApproval] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
+  const [apptExpanded, setApptExpanded] = useState(false);
 
-  // Filters
-  const [filterUgyTipus, setFilterUgyTipus] = useState<Set<string>>(new Set());
-  const [filterCsatorna, setFilterCsatorna] = useState<Set<string>>(new Set());
-  const [filterIrany, setFilterIrany] = useState<Set<string>>(new Set());
-  const [filterStatusz, setFilterStatusz] = useState<Set<string>>(new Set());
-  const [filterDateFrom, setFilterDateFrom] = useState('');
-  const [filterDateTo, setFilterDateTo] = useState('');
-
-  // Dashboard quick filters
-  const [dashboardFilter, setDashboardFilter] = useState<'all' | 'today' | 'overdue' | 'completed'>('all');
-
-  const filterContainerRef = useRef<HTMLDivElement>(null);
-  const colDropdownRef = useRef<HTMLDivElement>(null);
-  const sortDropdownRef = useRef<HTMLDivElement>(null);
-
-  const username = user?.username || '';
-  const fullName = user?.fullName || '';
-  const firstName = fullName ? fullName.split(' ').pop() || fullName : username;
-  const initials = fullName
-    ? fullName.split(' ').map(w => w[0]).join('').toUpperCase().slice(0, 2)
-    : username.substring(0, 2).toUpperCase();
-
-  const [avatarUrl, setAvatarUrl] = useState<string | null>(null);
-
-  // Load avatar
-  useEffect(() => {
-    if (!username) return;
-    authFetch(`/admin/api/users/${username}/avatar`)
-      .then(r => r.json())
-      .then(d => { if (d.avatar_url) setAvatarUrl(d.avatar_url); })
-      .catch(() => {});
-  }, [username]);
-
-  // Outside click to close dropdowns
-  useEffect(() => {
-    function handleClick(e: MouseEvent) {
-      if (filterContainerRef.current && !filterContainerRef.current.contains(e.target as Node)) {
-        setFilterOpen(false);
-      }
-      if (colDropdownRef.current && !colDropdownRef.current.contains(e.target as Node)) {
-        setColDropdownOpen(false);
-      }
-      if (sortDropdownRef.current && !sortDropdownRef.current.contains(e.target as Node)) {
-        setSortDropdownOpen(false);
-      }
-    }
-    document.addEventListener('click', handleClick);
-    return () => document.removeEventListener('click', handleClick);
-  }, []);
-
-  // ── Compile flat rows (copied 1:1 from InteractionsPage.tsx) ──
+  // ── Flat interakció-sorok (minden session, felelőshozrendelés nélkül) ──
   const allRows = useMemo<InteractionRow[]>(() => {
     const rows: InteractionRow[] = [];
-    const sessions = hookSessions;
-    const clients = hookClients;
-
-    sessions.forEach((s: SessionSummary) => {
+    hookSessions.forEach((s: SessionSummary) => {
       const sessionDate = s.started_at || '';
       const sRoom = (s.room_name || '').toLowerCase();
-
       if (s.interactions && s.interactions.length > 0) {
         s.interactions.forEach((r: SessionInteraction) => {
           if (r.approval_status === 'spam') return;
-
-          const clientInfo = resolveClientName(
-            r,
-            { session_id: s.session_id, participant: s.participant, client_name: s.client_name },
-            clientsMap,
-            clients
-          );
-
-          let clientTags: string[] = [];
-          if (clientInfo.id && clientsMap[String(clientInfo.id)]) {
-            const cd = parseCustomData(clientsMap[String(clientInfo.id)].custom_data);
-            clientTags = (cd?.tags as string[]) || [];
-          }
-
+          const clientInfo = resolveClientName(r, { session_id: s.session_id, participant: s.participant, client_name: s.client_name }, clientsMap, clients);
           rows.push({
             date: r.created_at || sessionDate,
             channel: getRowChannel(r.type || '', sRoom, s.session_id || '', s.channel),
@@ -235,7 +157,7 @@ export default function MemberDashboardPage() {
             eredmeny: detectEredmeny(r),
             statusz: detectStatusz(r),
             teendo: detectTeendo(r),
-            tags: clientTags,
+            tags: [],
             type: r.type || '-',
             topic: r.topic || '-',
             summary: r.summary || '-',
@@ -246,75 +168,31 @@ export default function MemberDashboardPage() {
             approval_status: r.approval_status || null,
           });
         });
-      } else {
-        const clientInfo = resolveClientName(
-          {},
-          { session_id: s.session_id, participant: s.participant, client_name: s.client_name },
-          clientsMap,
-          clients
-        );
-        rows.push({
-          date: sessionDate,
-          channel: getRowChannel('', sRoom, s.session_id || '', s.channel),
-          client: clientInfo.name,
-          clientId: clientInfo.id,
-          clientStatus: clientInfo.status,
-          clientCreatedAt: clientInfo.created_at,
-          direction: 'Bejövő',
-          ugyTipus: detectUgyTipus({ topic: '', summary: s.summary || '' }),
-          eredmeny: detectEredmeny({ topic: '', summary: s.summary || '', approval_status: 'approved' }),
-          statusz: 'Lezárt',
-          teendo: 'Nincs további teendő',
-          tags: [],
-          type: 'session',
-          topic: '-',
-          summary: s.summary || '-',
-          result: '',
-          interactionId: null,
-          sessionId: s.session_id || null,
-          ai_draft_response: null,
-          approval_status: null,
-        });
       }
     });
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     return rows;
-  }, [hookSessions, hookClients, clientsMap]);
+  }, [hookSessions, clients, clientsMap]);
 
-  // ── EAISY-241 §4: Minden nyitott/sürgős ügy bekerül, felelőstől függetlenül.
-  // Lezárt ügyeknél marad az assignee-szűrés (azokat csak a saját klienseidnél látod).
-  const myRows = useMemo(() => {
-    return allRows.filter(r => {
-      const sz = (r.statusz || '').toLowerCase();
-      const isOpenOrUrgent = sz === 'nyitott' || sz === 'sürgős' || sz === 'surgos';
-      if (isOpenOrUrgent) return true;   // minden nyitott/sürgős ügy — felelőstől függetlenül
-      // Lezáttaknál assignee-szűrés
-      if (!r.clientId) return false;
-      const client = clientsMap[String(r.clientId)];
-      if (!client) return false;
-      return isAssignedToMe(client, username, fullName);
-    });
-  }, [allRows, clientsMap, username, fullName]);
-
-  // ── Kézi teendők sorokká alakítva (ügyfélprofil „Teendő hozzáadása") ──
-  const manualRows = useMemo(() => {
+  // ── Kézi teendők sorokká ──
+  const manualRows = useMemo<InteractionRow[]>(() => {
     return manualTasks
-      .filter((t) => t.client_id)
-      .map((t) => {
-        const client = clientsMap[String(t.client_id)];
+      .filter(task => !task.completed)
+      .map(task => {
+        const client = task.client_id ? clientsMap[String(task.client_id)] : undefined;
         const clientName = client ? (bestClientName(client) || client.name || 'Névtelen') : 'Névtelen';
         return {
-          date: t.created_at || '',
+          date: task.created_at || '',
           channel: 'Hozzáadott feladat',
           client: clientName,
-          clientId: t.client_id,
-          clientStatus: null,
-          clientCreatedAt: null,
+          clientId: task.client_id,
+          clientStatus: '',
+          clientCreatedAt: '',
           direction: '',
           ugyTipus: '',
           eredmeny: '',
-          statusz: t.completed ? 'Lezárt' : (t.priority === 'high' ? 'Sürgős' : 'Nyitott'),
-          teendo: t.text,
+          statusz: task.priority === 'high' ? 'Sürgős' : 'Nyitott',
+          teendo: task.text,
           tags: [] as string[],
           type: 'task',
           topic: '',
@@ -325,204 +203,184 @@ export default function MemberDashboardPage() {
           ai_draft_response: null,
           approval_status: null,
           isManual: true,
-          taskId: t.id,
-          taskCompleted: !!t.completed,
-        };
+          taskId: task.id,
+          taskCompleted: !!task.completed,
+        } as InteractionRow & { isManual?: boolean; taskId?: number };
       });
   }, [manualTasks, clientsMap]);
 
-  const combinedRows = useMemo(() => [...manualRows, ...myRows], [manualRows, myRows]);
+  // ── 24 órás szabály: Sürgős/lejárt vs Nyitott ──
+  const { urgentRows, openRows } = useMemo(() => {
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
+    const urgent: InteractionRow[] = [];
+    const open: InteractionRow[] = [];
+    const consider = (r: InteractionRow) => {
+      const sz = (r.statusz || '').toLowerCase();
+      if (sz !== 'nyitott' && sz !== 'sürgős' && sz !== 'surgos') return; // Lezárt → kizárva
+      const created = r.date ? new Date(r.date) : new Date();
+      const fromBeforeToday = created < startOfToday;
+      if (sz === 'sürgős' || sz === 'surgos' || fromBeforeToday) urgent.push(r);
+      else open.push(r);
+    };
+    allRows.forEach(consider);
+    manualRows.forEach(consider);
+    urgent.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    open.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
+    return { urgentRows: urgent, openRows: open };
+  }, [allRows, manualRows]);
 
-  // ── KPI Calculations ──
-  const myClients = useMemo(() => {
-    return hookClients.filter(c => isAssignedToMe(c, username, fullName));
-  }, [hookClients, username, fullName]);
+  // ── Mai időpontok (minden esemény) ──
+  const todayAppts = useMemo(() => {
+    const todayKey = new Date().toDateString();
+    return events
+      .filter(ev => ev.start_dt && new Date(ev.start_dt).toDateString() === todayKey)
+      .sort((a, b) => (a.start_dt || '').localeCompare(b.start_dt || ''));
+  }, [events]);
 
-  const clientCount = myClients.length;
-
-  const nextAppointment = useMemo(() => {
-    const now = new Date();
-    const assignedClientIds = new Set(myClients.map(c => Number(c.id)));
-    const assignedNames = new Set(myClients.map(c => (bestClientName(c) || c.name || '').toLowerCase().trim()));
-    const assignedEmails = new Set(myClients.map(c => (c.email || '').toLowerCase().trim()));
-
-    const myEvents = events.filter(ev => {
-      if (ev.client_id && assignedClientIds.has(Number(ev.client_id))) return true;
-      const attendee = ((ev.attendee || '') as string).toLowerCase().trim();
-      const attendeeEmail = ((ev.attendee_email || '') as string).toLowerCase().trim();
-      const title = ((ev.title || '') as string).toLowerCase().trim();
-      if (attendeeEmail && assignedEmails.has(attendeeEmail)) return true;
-      if (attendee && assignedNames.has(attendee)) return true;
-      for (const name of assignedNames) {
-        if (!name) continue;
-        if (attendee && (attendee.includes(name) || name.includes(attendee))) return true;
-        if (title && title.includes(name)) return true;
-      }
-      for (const email of assignedEmails) {
-        if (!email) continue;
-        if (attendeeEmail && attendeeEmail === email) return true;
-        if (title && title.includes(email)) return true;
-      }
-      return false;
-    });
-
-    const futureEvents = myEvents
-      .filter(ev => new Date(ev.start_dt as string) > now)
-      .sort((a, b) => new Date(a.start_dt as string).getTime() - new Date(b.start_dt as string).getTime());
-
-    if (futureEvents.length > 0) {
-      const next = futureEvents[0];
-      const nextDt = new Date(next.start_dt as string);
-      return {
-        text: nextDt.toLocaleString('hu-HU', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' }),
-        sub: (next.attendee || next.title || 'naptárban') as string,
-      };
+  // ── Elvégezve pipa ──
+  const handleMarkDone = useCallback(async (e: React.MouseEvent, row: InteractionRow) => {
+    e.stopPropagation();
+    const manual = row as InteractionRow & { isManual?: boolean; taskId?: number };
+    if (manual.isManual && manual.taskId) {
+      try {
+        const res = await authFetch(`/admin/api/tasks/${manual.taskId}/complete`, { method: 'PATCH' });
+        if (!res.ok) throw new Error('task complete failed');
+        showToast('Teendő elkészültnek jelölve');
+        loadManualTasks();
+      } catch { showToast('Hiba a teendő frissítésekor', 'error'); }
+      return;
     }
-    return { text: 'Nincs közelgő', sub: 'naptárban' };
-  }, [events, myClients]);
+    if (!row.interactionId || row.statusz === 'Lezárt') return;
+    try {
+      const res = await authFetch(`/admin/api/interactions/${row.interactionId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'lezárt' }),
+      });
+      if (!res.ok) throw new Error('close failed');
+      showToast('Interakció lezárva');
+      refetchSessions();
+    } catch { showToast('Hiba a lezárás során', 'error'); }
+  }, [loadManualTasks, refetchSessions]);
 
-  // ── Calculate Today and Overdue thresholds ──
-  const now = useMemo(() => new Date(), []);
-  const todayStart = useMemo(() => new Date(now.getFullYear(), now.getMonth(), now.getDate()), [now]);
-  const todayEnd = useMemo(() => new Date(todayStart.getTime() + 86400000), [todayStart]);
+  // ── Profil megnyitás ügyfélnévre kattintva ──
 
-  // ── Counts for summary cards ──
-  const counts = useMemo(() => {
-    let todayCount = 0;
-    let overdueCount = 0;
-    let completedCount = 0;
-    let activeAllCount = 0;
+  // ── Design tokenek ──
+  const labelStyle: React.CSSProperties = { fontSize: 11, fontWeight: 500, color: t.muted, letterSpacing: '0.02em', paddingLeft: 2, marginBottom: 5 };
+  const sectionTitleStyle: React.CSSProperties = { fontSize: 13, fontWeight: 600, color: t.fg };
+  const sectionCountStyle: React.CSSProperties = { color: t.muted, fontWeight: 500, marginLeft: 6, fontVariantNumeric: 'tabular-nums' };
+  const tableCardStyle: React.CSSProperties = { marginTop: 8, background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, overflow: 'hidden' };
+  const thStyle: React.CSSProperties = { textAlign: 'left', background: t.surface, padding: '0 16px', height: 40, borderBottom: `1px solid ${t.border}`, fontSize: 11.5, fontWeight: 500, color: t.text2 };
+  const tdBase: React.CSSProperties = { padding: '11px 14px', borderBottom: `1px solid ${t.border}`, verticalAlign: 'middle', fontSize: 13, whiteSpace: 'nowrap' };
+  const emptyStyle: React.CSSProperties = { padding: '22px 14px', textAlign: 'center', color: t.muted, fontSize: 12.5 };
 
-    combinedRows.forEach((row) => {
-      const r = row as typeof row & { isManual?: boolean; taskCompleted?: boolean };
-      // Kézi feladatok: aktív → Összes aktív; kész → Lezárt (Mai/Lejárt nem vonatkozik rájuk)
-      if (r.isManual) {
-        if (r.taskCompleted) completedCount++;
-        else activeAllCount++;
-        return;
-      }
-      const rowDate = new Date(r.date);
-      const isCompleted = r.statusz === 'Lezárt';
-      if (isCompleted) {
-        completedCount++;
-      } else {
-        activeAllCount++;
-        if (rowDate >= todayStart && rowDate < todayEnd) {
-          todayCount++;
-        } else if (rowDate < todayStart) {
-          overdueCount++;
-        }
-      }
-    });
+  const contactOf = (row: InteractionRow) => {
+    const c = row.clientId ? clientsMap[String(row.clientId)] : undefined;
+    if (!c) return '';
+    const cd = parseCustomData(c.custom_data);
+    return (cd?.email as string) || c.email || (cd?.telefonszam as string) || (cd?.phone as string) || c.phone || '';
+  };
 
-    return { today: todayCount, overdue: overdueCount, completed: completedCount, all: activeAllCount };
-  }, [combinedRows, todayStart, todayEnd]);
-
-  // ── Dashboard Quick Filters ──
-  const dashboardFilteredRows = useMemo(() => {
-    return combinedRows.filter((row) => {
-      const r = row as typeof row & { isManual?: boolean; taskCompleted?: boolean };
-      // Kézi feladatok: 'Minden aktív' alatt mindig látszanak, 'Lezárt' között a készük; Mai/Lejárt nem vonatkozik rájuk
-      if (r.isManual) {
-        if (dashboardFilter === 'completed') return r.taskCompleted;
-        return !r.taskCompleted && dashboardFilter === 'all';
-      }
-      const rowDate = new Date(r.date);
-      const isCompleted = r.statusz === 'Lezárt';
-      if (dashboardFilter === 'completed') {
-        return isCompleted;
-      }
-      if (isCompleted) return false;
-      if (dashboardFilter === 'today') {
-        return rowDate >= todayStart && rowDate < todayEnd;
-      }
-      if (dashboardFilter === 'overdue') {
-        return rowDate < todayStart;
-      }
-      return true;
-    });
-  }, [combinedRows, dashboardFilter, todayStart, todayEnd]);
-
-  // ── Searching + Dropdown Category Filters ──
-  const filteredRows = useMemo(() => {
-    const q = cleanStr(searchQuery);
-    const rows = dashboardFilteredRows.filter((r) => {
-      if (q) {
-        const searchable = [r.channel, r.client, r.direction, r.ugyTipus, r.eredmeny, r.statusz, r.teendo, r.summary].join(' ');
-        if (!cleanStr(searchable).includes(q)) return false;
-      }
-      if (filterUgyTipus.size > 0 && !r.ugyTipus.split(', ').some(t => filterUgyTipus.has(t))) return false;
-      if (filterCsatorna.size > 0 && !filterCsatorna.has(r.channel)) return false;
-      if (filterIrany.size > 0 && !filterIrany.has(r.direction)) return false;
-      if (filterStatusz.size > 0 && !filterStatusz.has(r.statusz)) return false;
-      if (filterDateFrom || filterDateTo) {
-        const rd = (r.date || '').slice(0, 10);
-        if (filterDateFrom && rd < filterDateFrom) return false;
-        if (filterDateTo && rd > filterDateTo) return false;
-      }
-      return true;
-    });
-
-    rows.sort((a, b) => {
-      if (sortBy === 'date_desc') return (b.date || '').localeCompare(a.date || '');
-      if (sortBy === 'date_asc') return (a.date || '').localeCompare(b.date || '');
-      if (sortBy === 'client_asc') return (a.client || '').localeCompare(b.client || '');
-      if (sortBy === 'topic_asc') return (a.ugyTipus || '').localeCompare(b.ugyTipus || '');
-      return 0;
-    });
-
-    return rows;
-  }, [dashboardFilteredRows, searchQuery, sortBy, filterUgyTipus, filterCsatorna, filterIrany, filterStatusz, filterDateFrom, filterDateTo]);
-
-  const activeFilterCount = filterUgyTipus.size + filterCsatorna.size + filterIrany.size + filterStatusz.size + (filterDateFrom ? 1 : 0) + (filterDateTo ? 1 : 0);
-
-  // ── Filter helpers ──
-  function toggleFilter(set: Set<string>, val: string, setter: (s: Set<string>) => void) {
-    const next = new Set(set);
-    if (next.has(val)) next.delete(val);
-    else next.add(val);
-    setter(next);
-  }
-
-  function resetFilters() {
-    setFilterUgyTipus(new Set());
-    setFilterCsatorna(new Set());
-    setFilterIrany(new Set());
-    setFilterStatusz(new Set());
-    setFilterDateFrom('');
-    setFilterDateTo('');
-  }
-
-  function toggleCol(key: string) {
-    setVisibleCols((prev) => {
-      const next = new Set(prev);
-      if (next.has(key)) next.delete(key);
-      else next.add(key);
-      return next;
-    });
-  }
-
-  // ── Loading state ──
-  const isGlobalLoading = loadingClients || loadingSessions || loadingEvents;
-
-  if (isGlobalLoading) {
+  const renderTaskTable = (rows: InteractionRow[], showCheckbox: boolean) => {
+    if (rows.length === 0) {
+      return <div style={tableCardStyle}><div style={emptyStyle}>Nincs teendő.</div></div>;
+    }
     return (
-      <div className="flex-row member-loading-center">
-        <div className="spinner spinner--brand" />
+      <div style={tableCardStyle}>
+        <div style={{ overflowX: 'auto' }}>
+          <table style={{ width: '100%', borderCollapse: 'collapse', minWidth: 900 }}>
+            <thead>
+              <tr>
+                <th style={thStyle}>Ügyfél</th>
+                <th style={thStyle}>Interakció időpontja</th>
+                <th style={thStyle}>Csatorna</th>
+                <th style={thStyle}>Irány</th>
+                <th style={thStyle}>Ügytípus</th>
+                <th style={thStyle}>Eredmény</th>
+                <th style={thStyle}>Státusz</th>
+                <th style={thStyle}>Teendő</th>
+                {showCheckbox && <th style={{ ...thStyle, width: 70 }}>Elvégezve</th>}
+              </tr>
+            </thead>
+            <tbody>
+              {rows.map((r, i) => {
+                const created = r.date ? new Date(r.date) : null;
+                const dateLabel = created
+                  ? `${created.toDateString() === new Date().toDateString() ? 'Ma' : `${HU_MONTHS_SHORT[created.getMonth()]} ${created.getDate()}.`} · ${pad2(created.getHours())}:${pad2(created.getMinutes())}`
+                  : '—';
+                const manual = r as InteractionRow & { isManual?: boolean };
+                const contact = contactOf(r);
+                const clientIdStr = r.clientId ? String(r.clientId) : null;
+                return (
+                  <tr
+                    key={`${r.interactionId ?? 'task'}-${r.sessionId ?? ''}-${i}`}
+                    style={{ cursor: 'pointer' }}
+                    onClick={() => setSummaryModalRow(r)}
+                    onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = t.surface; }}
+                    onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
+                  >
+                    <td style={tdBase}>
+                      <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        <span style={{ width: 30, height: 30, flex: 'none', borderRadius: '50%', background: `color-mix(in srgb, ${t.accent2} 12%, ${t.bg})`, border: `1px solid color-mix(in srgb, ${t.accent2} 30%, ${t.border})`, color: t.accent2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600 }}>
+                          {initialsOf(r.client)}
+                        </span>
+                        <span style={{ minWidth: 0 }}>
+                          <span
+                            onClick={e => { if (clientIdStr) { e.stopPropagation(); setSelectedClientId(clientIdStr); } }}
+                            style={{ display: 'block', fontWeight: 500, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis', cursor: clientIdStr ? 'pointer' : 'default' }}
+                            onMouseEnter={e => { if (clientIdStr) (e.currentTarget as HTMLElement).style.color = t.accent2; }}
+                            onMouseLeave={e => { (e.currentTarget as HTMLElement).style.color = ''; }}
+                          >
+                            {r.client}
+                          </span>
+                          <span style={{ display: 'block', fontSize: 12, color: t.muted, whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{contact}</span>
+                        </span>
+                      </span>
+                    </td>
+                    <td style={{ ...tdBase, fontVariantNumeric: 'tabular-nums', color: t.text2 }}>{dateLabel}</td>
+                    <td style={tdBase}><ChannelChip name={r.channel} t={t} /></td>
+                    <td style={tdBase}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 8, fontSize: 11.5, fontWeight: 500, border: `1px solid ${t.border}`, whiteSpace: 'nowrap', background: r.direction === 'Kimenő' ? `color-mix(in srgb, ${t.accent2} 10%, ${t.bg})` : 'transparent', color: r.direction === 'Kimenő' ? t.accent2 : t.text2 }}>
+                        {r.direction || 'Bejövő'}
+                      </span>
+                    </td>
+                    <td style={tdBase}>{r.ugyTipus || '—'}</td>
+                    <td style={{ ...tdBase, color: t.text2 }}>{r.eredmeny || '—'}</td>
+                    <td style={tdBase}><StatusBadge value={r.statusz} t={t} /></td>
+                    <td style={tdBase}><TeendoText value={r.teendo} t={t} /></td>
+                    {showCheckbox && (
+                      <td style={{ ...tdBase, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
+                        <input
+                          type="checkbox"
+                          className="done-check"
+                          aria-label="Elvégezve"
+                          title="Kipipálásra az interakció lezártra vált"
+                          style={{ width: 16, height: 16, accentColor: t.accent2, cursor: 'pointer' }}
+                          onClick={e => handleMarkDone(e, r)}
+                          onChange={() => {}}
+                        />
+                      </td>
+                    )}
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        </div>
       </div>
     );
-  }
+  };
 
-  // ── Client Detail Overlay ──
+  // ── Profil overlay (ügyfélnévre kattintva) ──
   if (selectedClientId) {
-    const clientRaw = hookClients.find((c) => String(c.id) === selectedClientId);
+    const clientRaw = clientsMap[String(selectedClientId)];
     if (clientRaw) {
       const cd = parseCustomData(clientRaw.custom_data);
       const enriched = {
         id: clientRaw.id,
         name: bestClientName(clientRaw) || clientRaw.name || 'Névtelen',
         email: (cd?.email as string) || clientRaw.email || '',
-        phone: (cd?.telefonszam as string) || (cd?.phone as string) || (cd?.telefon as string) || clientRaw.phone || '',
+        phone: (cd?.telefonszam as string) || (cd?.phone as string) || clientRaw.phone || '',
         status: clientRaw.status || '',
         created_at: clientRaw.created_at || '',
         tags: (cd?.tags as string[]) || [],
@@ -547,560 +405,136 @@ export default function MemberDashboardPage() {
     }
   }
 
-  // ── Main Render ──
+  const now = new Date();
+  const hour = now.getHours();
+  const greeting = hour < 10 ? 'Jó reggelt' : hour < 18 ? 'Jó napot' : 'Jó estét';
+  const todayLabel = `${HU_DAYS[now.getDay()]}, ${now.getFullYear()}. ${HU_MONTHS_SHORT[now.getMonth()]} ${now.getDate()}.`;
+
+  const kpiIc = (kind: 'err' | 'warn' | 'info' | 'cal'): React.CSSProperties => {
+    if (kind === 'err') return { background: '#fff2f0', color: '#ff4d4f', border: '1px solid #ffccc7' };
+    if (kind === 'warn') return { background: '#fffbe6', color: '#faad14', border: '1px solid #ffe58f' };
+    if (kind === 'cal') return { background: `color-mix(in srgb, ${t.accent2} 10%, ${t.bg})`, color: t.accent2, border: `1px solid color-mix(in srgb, ${t.accent2} 30%, ${t.border})` };
+    return { background: '#ebfffa', color: '#00767a', border: '1px solid #99ffee' };
+  };
+
   return (
-    <div id="member-analytics-shell" className="member-dashboard-shell">
-      <ConfirmDialog />
-
-      {/* Greeting */}
-      <div className="mb-28">
-        <div className="flex-row gap-12 mb-6">
-          <div
-            id="member-avatar"
-            className={`member-avatar ${avatarUrl ? 'member-avatar--transparent' : 'member-avatar--gradient'}`}
-          >
-            {avatarUrl ? (
-              <img src={avatarUrl} alt="Avatar" className="member-avatar-img" />
-            ) : initials}
-          </div>
-          <div>
-            <h2 className="member-greeting-title">
-              Szia, <strong>{firstName}</strong>!
-            </h2>
-            <p className="member-greeting-date">
-              {formatGreetingDate(now)}
-            </p>
-          </div>
+    <div className="page active">
+      {/* ── Hero ── */}
+      <header style={{ display: 'flex', alignItems: 'flex-end', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap' }}>
+        <div>
+          <p style={{ fontSize: 12, color: t.muted, marginBottom: 4 }}>
+            Áttekintés <b style={{ color: t.fg, fontWeight: 600 }}>/ Irányítópult</b>
+          </p>
+          <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.015em', lineHeight: 1.25, color: t.fg }}>Irányítópult</h1>
         </div>
+      </header>
+
+      <section style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap', background: `color-mix(in srgb, ${t.accent} 22%, ${t.bg})`, border: `1px solid color-mix(in srgb, ${t.accent} 40%, ${t.border})`, borderRadius: 8, padding: '18px 20px', marginTop: 14 }}>
+        <div>
+          <h2 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.015em', color: t.fg }}>{greeting}{firstName ? `, ${firstName.split(' ')[0]}!` : '!'}</h2>
+          <p style={{ marginTop: 4, fontSize: 13, color: t.text2 }}>Íme a mai áttekintésed.</p>
+        </div>
+        <span style={{ fontSize: 13, fontWeight: 500, color: t.accent2, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15 }}><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+          {todayLabel}
+        </span>
+      </section>
+
+      {/* ── KPI-kártyák ── */}
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, marginTop: 14 }}>
+        <article style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, padding: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span style={{ ...kpiIc('err'), width: 40, height: 40, flex: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" style={{ width: 19, height: 19 }}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
+          </span>
+          <span>
+            <span style={{ display: 'block', fontSize: 26, fontWeight: 600, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-0.02em', color: t.fg }}>{urgentRows.length}</span>
+            <span style={{ display: 'block', fontSize: 12.5, color: t.muted, fontWeight: 500, marginTop: 3 }}>Sürgős / lejárt teendő</span>
+          </span>
+        </article>
+        <article style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, padding: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span style={{ ...kpiIc('info'), width: 40, height: 40, flex: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" style={{ width: 19, height: 19 }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
+          </span>
+          <span>
+            <span style={{ display: 'block', fontSize: 26, fontWeight: 600, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-0.02em', color: t.fg }}>{openRows.length}</span>
+            <span style={{ display: 'block', fontSize: 12.5, color: t.muted, fontWeight: 500, marginTop: 3 }}>Nyitott teendő</span>
+          </span>
+        </article>
+        <article style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, padding: 16, display: 'flex', alignItems: 'flex-start', gap: 14 }}>
+          <span style={{ ...kpiIc('cal'), width: 40, height: 40, flex: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" style={{ width: 19, height: 19 }}><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>
+          </span>
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
+              <span style={{ fontSize: 12.5, color: t.muted, fontWeight: 500 }}>Mai időpontok</span>
+              <span style={{ fontSize: 11, fontWeight: 600, color: t.fg, background: t.surface, border: `1px solid ${t.border}`, borderRadius: 8, padding: '1px 8px', fontVariantNumeric: 'tabular-nums' }}>{todayAppts.length}</span>
+            </div>
+            {todayAppts.length === 0 ? (
+              <div style={{ marginTop: 8, padding: '9px 12px', border: `1px solid ${t.border}`, background: t.surface, borderRadius: 8, fontSize: 13, color: t.muted }}>Ma nincs időpont</div>
+            ) : (
+              <>
+                <button
+                  onClick={() => setApptExpanded(v => !v)}
+                  aria-expanded={apptExpanded}
+                  style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', border: `1px solid ${t.border}`, background: t.surface, borderRadius: 8, padding: '9px 12px', cursor: 'pointer', color: t.fg, marginTop: 8, fontFamily: 'inherit' }}
+                >
+                  <span style={{ fontSize: 18, fontWeight: 600, color: t.accent2, fontVariantNumeric: 'tabular-nums', lineHeight: 1, flex: 'none' }}>
+                    {(() => { const d = new Date(todayAppts[0].start_dt ?? Date.now()); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; })()}
+                  </span>
+                  <span style={{ minWidth: 0, flex: 1 }}>
+                    <b style={{ display: 'block', fontSize: 13, fontWeight: 600 }}>{todayAppts[0].attendee || '—'}</b>
+                    <span style={{ display: 'block', fontSize: 12, color: t.muted, marginTop: 1 }}>{todayAppts[0].title || ''}</span>
+                  </span>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" style={{ width: 15, height: 15, marginLeft: 'auto', color: t.muted, transition: 'transform .15s', flex: 'none', transform: apptExpanded ? 'rotate(180deg)' : 'none' }}><polyline points="6 9 12 15 18 9" /></svg>
+                </button>
+                {apptExpanded && todayAppts.length > 1 && (
+                  <div style={{ marginTop: 8, padding: '2px 12px', border: `1px solid ${t.border}`, borderRadius: 8 }}>
+                    {todayAppts.slice(1).map(ev => {
+                      const d = new Date(ev.start_dt ?? Date.now());
+                      return (
+                        <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', fontSize: 12.5, borderBottom: `1px solid ${t.border}` }}>
+                          <span style={{ minWidth: 40, fontWeight: 600, color: t.accent2, fontVariantNumeric: 'tabular-nums' }}>{pad2(d.getHours())}:{pad2(d.getMinutes())}</span>
+                          <span style={{ color: t.fg, fontWeight: 500 }}>{ev.attendee || '—'}</span>
+                          <span style={{ color: t.muted, marginLeft: 'auto', whiteSpace: 'nowrap', textAlign: 'right' }}>{ev.title || ''}</span>
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        </article>
       </div>
 
-      {/* KPI Grid */}
-      <div className="m-kpi-grid">
-        <div className="m-kpi-card">
-          <div className="m-kpi-header">
-            <div className="m-kpi-label">Hozzám rendelt ügyfelek</div>
-          </div>
-          <div className="m-kpi-value m-kpi-value--accent">{clientCount}</div>
-          <div className="m-kpi-sub">aktív ügyfél</div>
+      {/* ── Sürgős / lejárt teendők ── */}
+      <section style={{ marginTop: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+          <h3 style={{ ...sectionTitleStyle }}>Sürgős / lejárt teendők<span style={sectionCountStyle}>{urgentRows.length}</span></h3>
         </div>
+        {renderTaskTable(urgentRows, true)}
+      </section>
 
-        <div className="m-kpi-card">
-          <div className="m-kpi-header">
-            <div className="m-kpi-label">Következő időpont</div>
-          </div>
-          <div className="m-kpi-value m-kpi-value--sm">{nextAppointment.text}</div>
-          <div className="m-kpi-sub">{nextAppointment.sub}</div>
+      {/* ── Nyitott teendők ── */}
+      <section style={{ marginTop: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+          <h3 style={{ ...sectionTitleStyle }}>Nyitott teendők<span style={sectionCountStyle}>{openRows.length}</span></h3>
         </div>
-      </div>
+        {renderTaskTable(openRows, true)}
+      </section>
 
-      {/* Todos Section (Interactions log style) */}
-      <div className="m-card todo-section card-container--overflow-visible">
-        <div className="todo-section-header">
-          <div className="todo-section-title">
-            Teendők
-            <span className="todo-section-count">{counts.all}</span>
-          </div>
-          <div className="flex-row gap-8">
-            <select
-              value={dashboardFilter}
-              onChange={e => setDashboardFilter(e.target.value as typeof dashboardFilter)}
-              className="todo-filter-select"
-            >
-              <option value="all">Minden aktív teendő</option>
-              <option value="today">Mai teendők</option>
-              <option value="overdue">Lejárt</option>
-              <option value="completed">Lezárt</option>
-            </select>
-          </div>
-        </div>
-
-        {/* Summary cards */}
-        <div className="todo-summary-grid">
-          <div className={`todo-summary-card todo-summary-card--today${dashboardFilter === 'today' ? ' active' : ''}`} onClick={() => setDashboardFilter('today')}>
-            <div className="todo-summary-row">
-              <span className="todo-summary-lbl-today">Mai teendők</span>
-            </div>
-            <div className="todo-summary-num-today">{counts.today}</div>
-          </div>
-          <div className={`todo-summary-card todo-summary-card--overdue${dashboardFilter === 'overdue' ? ' active' : ''}`} onClick={() => setDashboardFilter('overdue')}>
-            <div className="todo-summary-row">
-              <span className="todo-summary-lbl-overdue">Lejárt teendők</span>
-            </div>
-            <div className="todo-summary-num-overdue">{counts.overdue}</div>
-          </div>
-          <div className={`todo-summary-card todo-summary-card--done${dashboardFilter === 'completed' ? ' active' : ''}`} onClick={() => setDashboardFilter('completed')}>
-            <div className="todo-summary-row">
-              <span className="todo-summary-lbl-done">Lezárt teendők</span>
-            </div>
-            <div className="todo-summary-num-done">{counts.completed}</div>
-          </div>
-          <div className={`todo-summary-card todo-summary-card--all${dashboardFilter === 'all' ? ' active' : ''}`} onClick={() => setDashboardFilter('all')}>
-            <div className="todo-summary-row">
-              <span className="todo-summary-lbl-all">Összes aktív</span>
-            </div>
-            <div className="todo-summary-num-all">{counts.all}</div>
-          </div>
-        </div>
-
-        {/* Section title */}
-        <div className="todo-filter-section-lbl">
-          {dashboardFilter === 'overdue' ? 'Lejárt teendők' : dashboardFilter === 'today' ? 'Mai teendők' : dashboardFilter === 'completed' ? 'Lezárt interakciók' : 'Minden aktív teendő'} ({filteredRows.length})
-        </div>
-
-        {/* Desktop Toolbar strip */}
-        {!isMobile && (
-          <div className="toolbar-strip" style={{ borderTop: '1px solid var(--border-color)', paddingTop: '16px', marginTop: '8px' }}>
-            <div className="flex-row gap-12">
-              <input
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Keresés..."
-                type="text"
-                className="int-toolbar-input int-toolbar-input--w220"
-              />
-              {filteredRows.length > 0 && (
-                <span className="text-desc font-semibold int-count-label">
-                  {filteredRows.length} találat
-                </span>
-              )}
-            </div>
-
-            <div className="flex-row gap-8 flex-wrap">
-              {/* Filter Section */}
-              <div className="relative int-dropdown-wrap" ref={filterContainerRef}>
-                <button
-                  className="int-toolbar-btn flex-row gap-6"
-                  title="Szűrés"
-                  onClick={() => setFilterOpen(!filterOpen)}
-                >
-                  <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-                    <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" />
-                  </svg>
-                  Szűrés
-                  {activeFilterCount > 0 && (
-                    <span className="int-filter-badge">
-                      {activeFilterCount}
-                    </span>
-                  )}
-                </button>
-
-                {filterOpen && (
-                  <div className="dropdown-menu dropdown-menu--filter">
-                    <div className="dropdown-header">Szűrők</div>
-                    <div className="int-filter-list">
-                      <FilterSection title="Dátum">
-                        <div className="flex-row gap-8">
-                          <input className="form-date int-date-input" type="date" lang="hu" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} />
-                          <input className="form-date int-date-input" type="date" lang="hu" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} />
-                        </div>
-                      </FilterSection>
-                      <FilterSection title="Ügytípus" bordered>
-                        {UGYTIPUS_OPTIONS.map((v) => (
-                          <FilterCheckbox key={v} label={v} checked={filterUgyTipus.has(v)} onChange={() => toggleFilter(filterUgyTipus, v, setFilterUgyTipus)} />
-                        ))}
-                      </FilterSection>
-                      <FilterSection title="Csatorna" bordered>
-                        {CSATORNA_OPTIONS.map((v) => (
-                          <FilterCheckbox key={v} label={v} checked={filterCsatorna.has(v)} onChange={() => toggleFilter(filterCsatorna, v, setFilterCsatorna)} />
-                        ))}
-                      </FilterSection>
-                      <FilterSection title="Irány" bordered>
-                        {IRANY_OPTIONS.map((v) => (
-                          <FilterCheckbox key={v} label={v} checked={filterIrany.has(v)} onChange={() => toggleFilter(filterIrany, v, setFilterIrany)} />
-                        ))}
-                      </FilterSection>
-                      <FilterSection title="Státusz" bordered>
-                        {STATUSZ_OPTIONS.map((v) => (
-                          <FilterCheckbox key={v} label={v} checked={filterStatusz.has(v)} onChange={() => toggleFilter(filterStatusz, v, setFilterStatusz)} />
-                        ))}
-                      </FilterSection>
-                    </div>
-                    <div className="flex-row gap-8 int-filter-footer">
-                      <button className="btn btn-outline int-filter-btn" onClick={resetFilters}>Visszaállítás</button>
-                      <button className="btn btn-primary int-filter-btn" onClick={() => setFilterOpen(false)}>Alkalmaz</button>
-                    </div>
-                  </div>
-                )}
-              </div>
-
-              {/* Sort Selection */}
-              <div className="relative int-dropdown-wrap" ref={sortDropdownRef}>
-                <button
-                  className="int-toolbar-btn flex-row gap-6"
-                  onClick={() => setSortDropdownOpen(!sortDropdownOpen)}
-                >
-                  <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-                    <path d="M3 6h18M6 12h12M9 18h6" />
-                  </svg>
-                  {SORT_OPTIONS.find(o => o.value === sortBy)?.label || 'Rendezés'}
-                </button>
-                {sortDropdownOpen && (
-                  <div className="dropdown-menu dropdown-menu--sort">
-                    {SORT_OPTIONS.map((o) => (
-                      <button
-                        key={o.value}
-                        className={`dropdown-item ${sortBy === o.value ? 'active' : ''}`}
-                        onClick={() => { setSortBy(o.value); setSortDropdownOpen(false); }}
-                      >
-                        {sortBy === o.value && <span className="int-sort-check">✓</span>}
-                        {o.label}
-                      </button>
-                    ))}
-                  </div>
-                )}
-              </div>
-
-              {/* Columns Visibility */}
-              <div className="relative int-dropdown-wrap" ref={colDropdownRef}>
-                <button
-                  className="int-toolbar-btn flex-row gap-6"
-                  title="Oszlopok"
-                  onClick={() => setColDropdownOpen(!colDropdownOpen)}
-                >
-                  <svg fill="none" height="14" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14">
-                    <rect height="18" rx="2" ry="2" width="18" x="3" y="3" />
-                    <line x1="9" x2="9" y1="3" y2="21" />
-                  </svg>
-                  Oszlopok
-                </button>
-                {colDropdownOpen && (
-                  <div className="dropdown-menu">
-                    <div className="dropdown-header">Látható oszlopok</div>
-                    {ALL_COLUMNS.map((col) => (
-                      <label key={col.key} className="int-col-label">
-                        <input type="checkbox" checked={visibleCols.has(col.key)} onChange={() => toggleCol(col.key)} className="int-col-cb" />
-                        {col.label}
-                      </label>
-                    ))}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        )}
-
-        {/* ═══ MOBILE: Card view ═══ */}
-        {isMobile && (
-          <div ref={pullInteractions.containerRef} className="int-mobile-scroll">
-            <div className="pull-to-refresh-indicator" style={{ height: pullInteractions.pullDistance > 0 || pullInteractions.isRefreshing ? Math.max(pullInteractions.pullDistance, pullInteractions.isRefreshing ? 36 : 0) : 0 }}>
-              {pullInteractions.isRefreshing ? (
-                <div className="pull-spinner" />
-              ) : pullInteractions.pullDistance > 0 ? (
-                <svg className={`pull-arrow${pullInteractions.pullDistance > 30 ? ' ready' : ''}`} fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24"><polyline points="6 15 12 9 18 15" /></svg>
-              ) : null}
-            </div>
-
-            <div className="mobile-search-sticky">
-              <div className="mobile-search-wrapper">
-                <svg className="search-icon" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-                  <circle cx="11" cy="11" r="8" /><line x1="21" y1="21" x2="16.65" y2="16.65" />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Keresés..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                />
-                {searchQuery && (
-                  <button className="mobile-search-clear" onClick={() => setSearchQuery('')}>✕</button>
-                )}
-              </div>
-              <div className="mobile-search-meta">
-                <span className="int-count-label">
-                  {filteredRows.length} találat
-                </span>
-                <div className="flex-row gap-6">
-                  <div className="relative int-dropdown-wrap" ref={filterContainerRef}>
-                    <button className="int-toolbar-btn int-toolbar-btn--flex" onClick={() => setFilterOpen(!filterOpen)}>
-                      <svg fill="none" height="12" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3" /></svg>
-                      Szűrés
-                      {activeFilterCount > 0 && <span className="int-filter-badge">{activeFilterCount}</span>}
-                    </button>
-                    {filterOpen && (
-                      <div className="int-filter-dropdown">
-                        <div className="int-filter-header">Szűrők</div>
-                        <div className="int-filter-list">
-                          <FilterSection title="Dátum">
-                            <div className="flex-row gap-8">
-                              <input type="date" lang="hu" value={filterDateFrom} onChange={(e) => setFilterDateFrom(e.target.value)} className="int-date-input" />
-                              <input type="date" lang="hu" value={filterDateTo} onChange={(e) => setFilterDateTo(e.target.value)} className="int-date-input" />
-                            </div>
-                          </FilterSection>
-                          <FilterSection title="Ügytípus" bordered>{UGYTIPUS_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterUgyTipus.has(v)} onChange={() => toggleFilter(filterUgyTipus, v, setFilterUgyTipus)} />))}</FilterSection>
-                          <FilterSection title="Csatorna" bordered>{CSATORNA_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterCsatorna.has(v)} onChange={() => toggleFilter(filterCsatorna, v, setFilterCsatorna)} />))}</FilterSection>
-                          <FilterSection title="Irány" bordered>{IRANY_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterIrany.has(v)} onChange={() => toggleFilter(filterIrany, v, setFilterIrany)} />))}</FilterSection>
-                          <FilterSection title="Státusz" bordered>{STATUSZ_OPTIONS.map((v) => (<FilterCheckbox key={v} label={v} checked={filterStatusz.has(v)} onChange={() => toggleFilter(filterStatusz, v, setFilterStatusz)} />))}</FilterSection>
-                        </div>
-                        <div className="flex-row gap-8 int-filter-footer">
-                          <button className="btn btn-outline int-filter-btn" onClick={resetFilters}>Visszaállítás</button>
-                          <button className="btn btn-primary int-filter-btn" onClick={() => setFilterOpen(false)}>Alkalmaz</button>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="relative int-dropdown-wrap" ref={sortDropdownRef}>
-                    <button className="int-toolbar-btn int-toolbar-btn--flex" onClick={() => setSortDropdownOpen(!sortDropdownOpen)}>
-                      <svg fill="none" height="12" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="12"><path d="M3 6h18M6 12h12M9 18h6" /></svg>
-                      Rendezés
-                    </button>
-                    {sortDropdownOpen && (
-                      <div className="int-sort-dropdown">
-                        {SORT_OPTIONS.map((o) => (
-                          <button key={o.value} onClick={() => { setSortBy(o.value); setSortDropdownOpen(false); }} className={`int-sort-option ${sortBy === o.value ? 'active' : ''}`}>
-                            {sortBy === o.value && <span className="int-sort-check">✓</span>}{o.label}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            </div>
-
-            <div className="int-mobile-list">
-              {filteredRows.length === 0 ? (
-                <div className="int-empty-state"><span className="no-data">Nincs találat</span></div>
-              ) : (() => {
-                const todayStr = new Date().toISOString().split('T')[0];
-                const yesterdayStr = new Date(Date.now() - 86400000).toISOString().split('T')[0];
-                let lastDateGroup = '';
-                return filteredRows.map((r, i) => {
-                  const dateStr = (r.date || '').split('T')[0] || (r.date || '').split(' ')[0];
-                  let separator = null;
-                  if (dateStr !== lastDateGroup) {
-                    lastDateGroup = dateStr;
-                    let label = dateStr;
-                    if (dateStr === todayStr) label = 'Ma';
-                    else if (dateStr === yesterdayStr) label = 'Tegnap';
-                    else {
-                      try { label = new Date(dateStr).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric', weekday: 'short' }); } catch { /* */ }
-                    }
-                    separator = (
-                      <div className="mobile-timeline-separator" key={`sep-${dateStr}`}>
-                        <span className="sep-label">{label}</span>
-                        <div className="sep-line" />
-                      </div>
-                    );
-                  }
-
-                  const clientName = r.client || 'Ismeretlen';
-                  const initials = clientName.split(/\s+/).map((w: string) => w[0]).join('').slice(0, 2).toUpperCase();
-                  const avatarColors = ['#6366f1', '#0d9488', '#d946ef', '#f59e0b', '#3b82f6', '#ef4444', '#22c55e', '#8b5cf6'];
-                  const avatarBg = avatarColors[clientName.length % avatarColors.length];
-                  const accentColor = (r.statusz === 'Lezárt') ? '#22c55e' : '#f59e0b';
-
-                  return (
-                    <React.Fragment key={`${r.sessionId}-${r.interactionId}-${i}`}>
-                      {separator}
-                      <div
-                        className="mobile-card"
-                        style={{ '--accent': accentColor } as React.CSSProperties}
-                        onClick={() => { setAutoExpandApproval(false); setSummaryModalRow(r); }}
-                      >
-                        <div className="mobile-card-header">
-                          <div className="mobile-card-avatar" style={{ background: avatarBg }}>
-                            {initials}
-                          </div>
-                          <div className="int-card-inner">
-                            <div className="mobile-card-name">{clientName}</div>
-                            <div className="mobile-card-subtitle">
-                              {(() => { try { return new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; } })()}
-                            </div>
-                          </div>
-                          <StatuszBadge value={r.statusz} />
-                        </div>
-
-                        <div className="mobile-card-details">
-                          <div className="mobile-card-detail-row">
-                            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13"><path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" /></svg>
-                            <span>{r.channel}</span>
-                            <DirectionBadge value={r.direction} />
-                          </div>
-                          <div className="mobile-card-detail-row">
-                            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="13" height="13"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
-                            <span>{r.ugyTipus}</span>
-                          </div>
-                        </div>
-
-                        <div className="mobile-card-footer">
-                          <span className="cp-result">{r.eredmeny}</span>
-                          <span className="int-teendo-text">{r.teendo}</span>
-                        </div>
-                      </div>
-                    </React.Fragment>
-                  );
-                });
-              })()}
-            </div>
-          </div>
-        )}
-
-        {/* ═══ DESKTOP: Table ═══ */}
-        {!isMobile && (
-          <div className="int-table-wrapper todo-table-scroll" style={{ borderTop: 'none' }}>
-            <table className="data-table int-table-norx data-table--full" id="interactions-flat-table">
-              <thead className="int-thead">
-                <tr>
-                  {ALL_COLUMNS.map((col) =>
-                    visibleCols.has(col.key) ? <th key={col.key}>{col.label === 'Időpont' ? 'Interakció időpontja' : col.label === 'Irány' ? 'Interakció iránya' : col.label}</th> : null
-                  )}
-                </tr>
-              </thead>
-              <tbody>
-                {filteredRows.length === 0 ? (
-                  <tr>
-                    <td colSpan={visibleCols.size} className="int-td--pad40">
-                      <span className="no-data">Nincs teendő — szuper!</span>
-                    </td>
-                  </tr>
-                ) : (
-                  filteredRows.map((r, i) => (
-                    <tr
-                      key={`${r.sessionId}-${r.interactionId}-${i}`}
-                      className="int-row cursor-pointer"
-                      onClick={() => { setAutoExpandApproval(false); setSummaryModalRow(r); }}
-                    >
-                      {visibleCols.has('date') && (
-                        <td className="int-td int-td--date">
-                          <div className="int-date-cell">{fmtDt(r.date)}</div>
-                        </td>
-                      )}
-                      {visibleCols.has('client') && (
-                        <td className="int-td">
-                          {r.clientId ? (
-                            <button
-                              className="int-client-link"
-                              title="Ugrás az ügyfél adatlapjára"
-                              onClick={(e) => { e.stopPropagation(); setSelectedClientId(String(r.clientId)); }}
-                              onMouseEnter={(e) => { e.currentTarget.style.borderBottomColor = '#0d9488'; e.currentTarget.style.color = '#0f766e'; }}
-                              onMouseLeave={(e) => { e.currentTarget.style.borderBottomColor = 'transparent'; e.currentTarget.style.color = '#0d9488'; }}
-                            >
-                              {r.client}
-                            </button>
-                          ) : (
-                            <span className="int-client-unknown">{r.client || <span className="no-data">Ismeretlen</span>}</span>
-                          )}
-                        </td>
-                      )}
-                      {visibleCols.has('channel') && (
-                        <td className="int-td int-td--channel">
-                          {(r as typeof r & { isManual?: boolean }).isManual ? (
-                            <span className="cd-task-channel">
-                              <span className="cd-task-channel-ic">
-                                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
-                              </span>
-                              Hozzáadott feladat
-                            </span>
-                          ) : r.channel}
-                        </td>
-                      )}
-                      {visibleCols.has('direction') && (
-                        <td className="int-td">
-                          <DirectionBadge value={r.direction} />
-                        </td>
-                      )}
-                      {visibleCols.has('ugyTipus') && (
-                        <td className="int-td">
-                          {(r as typeof r & { isManual?: boolean }).isManual ? <span className="cd-empty-cell">—</span> : <span className="int-type-label">{r.ugyTipus}</span>}
-                        </td>
-                      )}
-                      {visibleCols.has('eredmeny') && (
-                        <td className="int-td">
-                          {(r as typeof r & { isManual?: boolean }).isManual ? <span className="cd-empty-cell">—</span> : <span className="cp-result">{r.eredmeny}</span>}
-                        </td>
-                      )}
-                      {visibleCols.has('statusz') && (
-                        <td className="int-td">
-                          <StatuszBadge value={r.statusz} />
-                        </td>
-                      )}
-                      {visibleCols.has('teendo') && (
-                        <td className="int-td int-td--truncate" title={r.teendo}>
-                          {(r as typeof r & { isManual?: boolean }).isManual ? (
-                            <div className="todo-frame" title={r.teendo}>{r.teendo}</div>
-                          ) : (
-                            <span className="int-teendo-text">{r.teendo}</span>
-                          )}
-                        </td>
-                      )}
-                      {visibleCols.has('done') && (
-                        <td className="int-td" style={{ textAlign: 'center' }}>
-                          <input
-                            type="checkbox"
-                            checked={r.statusz === 'Lezárt'}
-                            disabled={r.statusz === 'Lezárt' && !(r as typeof r & { isManual?: boolean }).isManual}
-                            onChange={() => {}}
-                            onClick={(e) => handleMarkDone(e, r)}
-                            style={{ 
-                              cursor: r.statusz === 'Lezárt' && !(r as typeof r & { isManual?: boolean }).isManual ? 'default' : 'pointer',
-                              width: '18px',
-                              height: '18px',
-                              accentColor: '#1ceee0'
-                            }}
-                          />
-                        </td>
-                      )}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
-
+      {/* ── Interakciós modal ── */}
       {summaryModalRow && (
         <InteractionSummaryModal
           row={summaryModalRow}
           onClose={() => setSummaryModalRow(null)}
-          clients={hookClients}
+          clients={clients}
           clientsMap={clientsMap}
-          onClientClick={(id) => {
-            setSummaryModalRow(null);
-            setSelectedClientId(id);
-          }}
-          autoExpandApproval={autoExpandApproval}
-          onApproved={() => {
-            refetchSessions();
-          }}
+          onClientClick={cid => { setSummaryModalRow(null); setSelectedClientId(cid); }}
+          autoExpandApproval
+          onApproved={refetchSessions}
         />
       )}
     </div>
-  );
-}
-
-// ── Sub-components (copied 1:1 from InteractionsPage.tsx) ──
-
-function FilterSection({ title, bordered, children }: { title: string; bordered?: boolean; children: React.ReactNode }) {
-  const [open, setOpen] = useState(false);
-  return (
-    <div className={`filter-section${bordered ? ' filter-section--bordered' : ''}`}>
-      <button
-        onClick={() => setOpen(!open)}
-        className="filter-section-btn"
-      >
-        <span>{title}</span>
-        <svg
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2"
-          viewBox="0 0 24 24"
-          className={`filter-section-chevron${open ? ' filter-section-chevron--open' : ''}`}
-        >
-          <polyline points="6 9 12 15 18 9" />
-        </svg>
-      </button>
-      {open && <div className="filter-section-body">{children}</div>}
-    </div>
-  );
-}
-
-function FilterCheckbox({ label, checked, onChange }: { label: string; checked: boolean; onChange: () => void }) {
-  return (
-    <label className="filter-cb-label">
-      <input type="checkbox" checked={checked} onChange={onChange} className="filter-cb-input" />
-      {label}
-    </label>
   );
 }
