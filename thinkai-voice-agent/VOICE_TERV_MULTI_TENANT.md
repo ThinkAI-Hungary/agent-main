@@ -20,6 +20,24 @@
 
 ## 2. AJÁNLOTT ARCHITEKTÚRA (kutatás eredménye)
 
+### 2.0 IZOLÁCIÓ BIZONYÍTVA (2026-09-07, élő párhuzamos teszt a prodon)
+
+Két tenant agentje **EGYIDŐBEN** spawnolt ugyanabban a worker-poolban (`dobozos-ai`):
+```
+dentors-conc-test    → 🏢 Session tenant: f2d98a9a… (Dentors)   ✅ saját context
+rivergate-conc-test  → 🏢 Session tenant: 419ca186… (Rivergate) ✅ saját context
+```
+**Nincs áthallás.** Az izoláció három rétege:
+1. **LiveKit job-szint**: minden room = külön job = külön OS process (worker előforkol)
+2. **Session-state**: task-scoped contextvars (`_session_id_var`, `_caller_phone_var`, `_session_alerts_var`) — párhuzamos jobok nem szennyezik egymást
+3. **DB**: `set_current_tenant(tenant_id)` job-onként (contextvar) — minden lekérdezés a helyes tenant-scope-ban
+
+**Miért NEM kell tenantonként külön agent-név?** Az `agent_name` az agent TÍPUSA (környezet: prod/staging), nem a tenant. Tenantonkénti agent-név = tenantonkénti worker-PROCESSZ (memória, plugin-preload, deploy komplexitás ×N) nulla izolációs haszonnal — a LiveKit hivatalos multi-tenant mintája a **metadata-alapú dispatch** (a rule/szoba hordozza a tenant_id-t, a job pedig per-room izolált). A tenantok csak erőforrást (CPU/RAM) osztoznak — az skálázható (több worker), nem ütközés.
+
+**Amaradó valódi kockázat NEM ütközés, hanem tenant-FELOLDÁS**: bejövő SIP hívásnál még nincs determinisztikus feloldás (FÁZIS 0 — lásd 3.1). A widget/prefixed-room út bizonyítottan izolált.
+
+### 2.1 Ajánlott minta
+
 **Pattern A+módosítva: EGY shared inbound trunk + telefonszámonként EGY dispatch rule.**
 
 ```
