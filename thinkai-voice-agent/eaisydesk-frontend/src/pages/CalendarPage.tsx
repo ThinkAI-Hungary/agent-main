@@ -34,6 +34,7 @@ interface CalendarEventItem {
   attendee_email?: string;
   reminder_sent?: boolean;
   doctor?: string; // {{munkatárs}} — calendar_events.doctor
+  attendance_status?: '' | 'attended' | 'no_show'; // megjelent / no-show jelölés
 }
 
 function pad2(n: number) { return (n < 10 ? '0' : '') + n; }
@@ -461,16 +462,17 @@ export default function CalendarPage() {
   }, [newEvent, refetchEvents]);
 
   // ── No-show jelölés ──
-  const handleMarkNoShow = useCallback(async (eventId: number) => {
+  const handleAttendance = useCallback(async (ev: CalendarEventItem, value: string) => {
     try {
-      const res = await authFetch(`/admin/api/calendar`, {
-        method: 'POST',
+      const res = await authFetch(`/admin/api/calendar/${ev.id}/attendance`, {
+        method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ id: eventId, reminder_sent: true }),
+        body: JSON.stringify({ value }),
       });
-      if (res.ok) { showToast('No-show jelölve'); refetchEvents(); }
-      else showToast('Hiba a no-show jelöléskor', 'error');
-    } catch { showToast('Hiba', 'error'); }
+      if (!res.ok) throw new Error('attendance failed');
+      showToast(value === 'no_show' ? 'No-show jelölve — ügyfél az érdeklődőkezelésbe került' : value === 'attended' ? 'Megjelent jelölve' : 'Jelölés törölve');
+      refetchEvents();
+    } catch { showToast('Hiba a jelöléskor', 'error'); }
   }, [refetchEvents]);
 
   // ── Ügyfél Detail overlay ──
@@ -625,7 +627,7 @@ export default function CalendarPage() {
                         .map(ev => {
                           const t = new Date(ev.start_dt);
                           const isPast = t.getTime() < now.getTime();
-                          const isNoShow = !!ev.reminder_sent && isPast;
+                          const isNoShow = ev.attendance_status === 'no_show';
                           // Dátumszabály: soha "Ma" jellegű jelölés — tényleges dátum
                           const dTxt = `${HU_MONTHS[t.getMonth()]} ${t.getDate()}.`;
                           const emailKey = (ev.attendee_email || '').toLowerCase().trim();
@@ -637,18 +639,28 @@ export default function CalendarPage() {
                                 <span className="t-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
                                 <span className="t-date">{dTxt}</span>
                               </td>
-                              <td>
-                                {isNoShow
-                                  ? <span className="cp-badge cp-camp-closed"><i className="cp-dot" />No-show</span>
-                                  : isPast
-                                    ? <button className="cd-btn btn-sm" onClick={e => { e.stopPropagation(); handleMarkNoShow(ev.id as number); }}>Nem jelent meg</button>
-                                    : <span className="cp-result">Várakozik</span>}
+                              <td onClick={e => e.stopPropagation()}>
+                                {isPast ? (
+                                  <select
+                                    className="cd-form-input"
+                                    style={{ height: 30, fontSize: 12.5, padding: '0 8px', width: '100%', ...(isNoShow ? { color: '#dc2626', borderColor: '#fca5a5' } : {}) }}
+                                    value={ev.attendance_status || ''}
+                                    onChange={e => handleAttendance(ev, e.target.value)}
+                                    aria-label="Megjelenés jelölése"
+                                  >
+                                    <option value="">— válassz —</option>
+                                    <option value="attended">Megjelent</option>
+                                    <option value="no_show">No show</option>
+                                  </select>
+                                ) : (
+                                  <span className="cp-result">Várakozik</span>
+                                )}
                               </td>
                               <td>{ev.attendee || <span className="cp-result">Nincs ügyfél</span>}</td>
                               <td><span className={`cp-badge ${pastEventCountByEmail[emailKey] ? 'cp-navyb' : 'cp-accentb'}`}><i className="cp-dot" />{badge}</span></td>
                               <td>{ev.title}</td>
                               <td>{ev.duration_minutes || 30} perc</td>
-                              <td>{assignee || <span className="cp-result">—</span>}</td>
+                              <td>{ev.doctor || assignee || <span className="cp-result">—</span>}</td>
                             </tr>
                           );
                         })

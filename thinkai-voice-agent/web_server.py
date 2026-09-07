@@ -3277,6 +3277,94 @@ def admin_create_event(req: ManualEventRequest, _auth = Depends(require_admin_or
     return {"status": "success", "event_id": event_id, "message": "Időpont sikeresen létrehozva"}
 
 
+class EventAttendanceRequest(BaseModel):
+    value: str  # '' | 'attended' | 'no_show'
+
+
+@app.patch("/admin/api/calendar/{event_id}/attendance")
+def admin_event_attendance(event_id: int, req: EventAttendanceRequest, _auth = Depends(verify_jwt)):
+    """Megjelent / No-show jelölés a naptár listanézetében.
+
+    no_show esetén automatikusan: 'no-show' címke az ügyfélre + ügyfél az
+    Érdeklődőkezelés UTÁNKÖVETÉS (első) oszlopába. Megjelent/clear esetén a
+    no-show címke eltávolítása."""
+    import unicodedata
+
+    def _norm(s: str) -> str:
+        s = unicodedata.normalize('NFD', s or '')
+        s = ''.join(ch for ch in s if not unicodedata.combining(ch))
+        return s.lower().strip()
+
+    value = req.value if req.value in ('attended', 'no_show', '') else ''
+    ev = db.get_calendar_event(event_id)
+    if not ev:
+        raise HTTPException(status_code=404, detail="Event not found")
+
+    if not db.update_calendar_event(event_id, attendance_status=value):
+        raise HTTPException(status_code=500, detail="Frissítés sikertelen")
+
+    if value == 'no_show':
+        # Ügyfél felkutatása (email, majd név fallback — mint a lemondási flow)
+        client = None
+        email = ev.get("attendee_email")
+        if email and email != "-":
+            client = db.find_client_by_contact(email=email)
+        if not client:
+            name = ev.get("attendee")
+            if name and name != "-":
+                res = db.supabase.table("clients").select("*").ilike("name", f"%{name}%").order("id", desc=True).limit(1).execute()
+                if res.data:
+                    client = res.data[0]
+
+        if client:
+            cd = client.get("custom_data")
+            if isinstance(cd, str):
+                try: cd = json.loads(cd)
+                except: cd = {}
+            if not isinstance(cd, dict):
+                cd = {}
+            tags = cd.get("tags") or []
+            if not isinstance(tags, list):
+                tags = []
+            if "no-show" not in tags:
+                tags.append("no-show")
+            cd["tags"] = tags
+            if "kanban_removed" in cd:
+                del cd["kanban_removed"]
+            db.edit_client_details(client["id"], cd)
+
+            # Érdeklődőkezelés UTÁNKÖVETÉS (védett első) oszlop kanonikus feloldása
+            target_id = "utankovetes"
+            try:
+                cols = db.supabase.table("kanban_columns").select("id,name").execute()
+                for c in (cols.data or []):
+                    if _norm(c.get("name") or "") == "utankovetes":
+                        target_id = c["id"]
+                        break
+            except Exception:
+                pass
+            db.update_client_status(client["id"], target_id)
+            logger.info(f"No-show jelölés: event #{event_id} ({ev.get('title')}) → ügyfél #{client['id']} UTÁNKÖVETÉS + no-show címke")
+    elif value == 'attended':
+        # Megjelent: ha korábban no-show volt, a címke eltávolítása
+        client = None
+        email = ev.get("attendee_email")
+        if email and email != "-":
+            client = db.find_client_by_contact(email=email)
+        if client:
+            cd = client.get("custom_data")
+            if isinstance(cd, str):
+                try: cd = json.loads(cd)
+                except: cd = {}
+            if isinstance(cd, dict):
+                tags = cd.get("tags") or []
+                if isinstance(tags, list) and "no-show" in tags:
+                    cd["tags"] = [x for x in tags if x != "no-show"]
+                    db.edit_client_details(client["id"], cd)
+
+    return {"ok": True, "attendance_status": value}
+
+
 @app.delete("/admin/api/calendar/{event_id}")
 def admin_delete_calendar_event(event_id: int, _auth = Depends(require_admin_or_manager)):
     """Naptár esemény törlése."""
