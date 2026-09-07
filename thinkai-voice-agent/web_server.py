@@ -1599,14 +1599,6 @@ async def get_token(tenant: str = ""):
     })
 
 
-# ── Tenant lista (Voice Agent teszt-tabhoz és admin célokra) ─────────────────
-@app.get("/admin/api/tenants")
-async def list_tenants(_admin: dict = Depends(require_admin)):
-    """Admin-only tenant lista (slug, név, aktivitás) — a Voice Agent teszt-tab választójához."""
-    rows = db.supabase.table("tenants").select("id,slug,name,active,plan").order("name").execute()
-    return {"tenants": rows.data or []}
-
-
 @app.post("/api/session/end")
 async def session_end(request: Request):
     """Called by the widget on disconnect to record session duration."""
@@ -4229,6 +4221,14 @@ async def delete_credential(key: str, _admin: dict = Depends(require_admin)):
         raise HTTPException(status_code=500, detail="Nem sikerült törölni a hitelesítő adatot.")
 
     return {"ok": True, "message": "Hitelesítő adat törölve, visszaállítva a globális beállításra."}
+
+
+# ── Tenant lista (Voice Agent teszt-tabhoz és admin célokra) ─────────────────
+@app.get("/admin/api/tenants")
+async def list_tenants(_admin: dict = Depends(require_admin)):
+    """Admin-only tenant lista (slug, név, aktivitás) — a Voice Agent teszt-tab választójához."""
+    rows = db.supabase.table("tenants").select("id,slug,name,active,plan").order("name").execute()
+    return {"tenants": rows.data or []}
 
 
 @app.get("/admin/api/prices/template/download")
