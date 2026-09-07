@@ -20,6 +20,9 @@ _TIMEOUT = 20
 
 class TelnyxError(Exception):
     """Telnyx API hiba — a message tartalmazza a szerver válaszát."""
+    def __init__(self, message: str, status_code: int | None = None):
+        super().__init__(message)
+        self.status_code = status_code
 
 
 def _headers(api_key: str, json_content: bool = True) -> dict:
@@ -41,7 +44,7 @@ def _request(method: str, path: str, api_key: str, body: dict | None = None) -> 
             return __import__("json").loads(resp.read().decode())
     except urllib.error.HTTPError as e:
         detail = e.read().decode(errors="replace")[:400]
-        raise TelnyxError(f"Telnyx {method} {path} → HTTP {e.code}: {detail}") from e
+        raise TelnyxError(f"Telnyx {method} {path} → HTTP {e.code}: {detail}", status_code=e.code) from e
     except urllib.error.URLError as e:
         raise TelnyxError(f"Telnyx elérhetetlen: {e.reason}") from e
 
@@ -56,12 +59,16 @@ def livekit_sip_host() -> str:
 
 
 def validate_key(api_key: str) -> bool:
-    """Kulcs-érvényesség: 1 szám lekérése is elég."""
+    """Kulcs-érvényesség: 1 szám lekérése is elég.
+    401/403 → False (érvénytelen kulcs); egyéb hiba (pl. hálózat) → TelnyxError,
+    hogy a felhasználó ne 'érvénytelen kulcs' üzenetet láthasson kiesésnél."""
     try:
         _request("GET", "/phone_numbers?limit=1", api_key)
         return True
-    except TelnyxError:
-        return False
+    except TelnyxError as e:
+        if e.status_code in (401, 403):
+            return False
+        raise
 
 
 def list_numbers(api_key: str) -> list[dict]:
@@ -90,24 +97,22 @@ def ensure_outbound_voice_profile(api_key: str, saved_id: str | None, name: str)
     return data.get("data", {}).get("id", "")
 
 
-def ensure_fqdn_connection(api_key: str, saved_id: str | None, ovp_id: str, name: str) -> tuple[str, str, str]:
-    """FQDN connection (TCP, +E.164). Visszaad: (connection_id, auth_user, auth_pass).
-    Az auth a LiveKit KIMENŐ trunkjának authentikációjához kell (V2)."""
+def ensure_fqdn_connection(api_key: str, saved_id: str | None, ovp_id: str, name: str) -> str:
+    """FQDN connection (TCP, +E.164 ANI/DNIS formátumok). Visszaad: connection_id.
+    NOTE: a CreateFqdnConnection sémához NEM tartoznak user_name/password mezők
+    (azok a credential_connections-hoz valók) — a digest-auth külön FQDN auth
+    endpointokon kezelhető, ha egyszer szükség lesz rá."""
     if saved_id:
-        return saved_id, "", ""
-    auth_user = f"eaisy-{secrets.token_hex(4)}"
-    auth_pass = secrets.token_urlsafe(16)
+        return saved_id
     data = _request("POST", "/fqdn_connections", api_key, {
         "active": True,
         "anchorsite_override": "Latency",
         "connection_name": name,
-        "user_name": auth_user,
-        "password": auth_pass,
         "inbound": {"ani_number_format": "+E.164", "dnis_number_format": "+e164"},
         "outbound": {"outbound_voice_profile_id": ovp_id},
         "transport_protocol": "TCP",
     })
-    return data.get("data", {}).get("id", ""), auth_user, auth_pass
+    return data.get("data", {}).get("id", "")
 
 
 def ensure_fqdn(api_key: str, connection_id: str, sip_host: str) -> str:

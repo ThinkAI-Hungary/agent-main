@@ -4294,7 +4294,6 @@ async def voice_validate_telnyx_key(payload: TelnyxValidateRequest, _admin: dict
     api_key = (payload.api_key or "").strip()
     if not api_key:
         raise HTTPException(status_code=400, detail="Adj meg egy Telnyx API kulcsot")
-    import asyncio
     try:
         valid = await asyncio.to_thread(telnyx_provision.validate_key, api_key)
     except telnyx_provision.TelnyxError as e:
@@ -4333,7 +4332,6 @@ async def voice_provision(payload: VoiceProvisionRequest, _admin: dict = Depends
     """Teljes telefonbeállítás a tenant saját Telnyx kulcsával:
     outbound profile → FQDN connection → FQDN → szám hozzárendelés →
     LiveKit inbound trunk numbers[] bővítés → cred-ek mentése."""
-    import asyncio
     tid = db.get_current_tenant()
     api_key = db.get_credential(tid, "telnyx_api_key", default=None)
     if not api_key:
@@ -4354,13 +4352,22 @@ async def voice_provision(payload: VoiceProvisionRequest, _admin: dict = Depends
 
     results: dict = {}
     try:
+        # Fail fast: trunk ID nélkül a bejövő hívás csendben nem működne
+        inbound_trunk = os.getenv("SIP_INBOUND_TRUNK_ID", "")
+        if not inbound_trunk:
+            raise HTTPException(status_code=500, detail="Szerver-oldali hiba: SIP_INBOUND_TRUNK_ID nincs beállítva")
+
         ovp_id = await asyncio.to_thread(
             telnyx_provision.ensure_outbound_voice_profile, api_key, saved_ovp, f"eaisyDesk-{slug}")
         results["outbound_profile_id"] = ovp_id
+        # BUG-2 fix: azonnali mentés — félbeszakadásnál ne keletkezzen duplikált,
+        # számlázott erőforrás a tenant Telnyx fiókjában
+        db.set_credential(tid, "telnyx_outbound_profile_id", ovp_id)
 
-        conn_id, auth_user, auth_pass = await asyncio.to_thread(
+        conn_id = await asyncio.to_thread(
             telnyx_provision.ensure_fqdn_connection, api_key, saved_conn, ovp_id, f"eaisyDesk-{slug}")
         results["connection_id"] = conn_id
+        db.set_credential(tid, "telnyx_connection_id", conn_id)
 
         sip_host = telnyx_provision.livekit_sip_host()
         fqdn_id = await asyncio.to_thread(telnyx_provision.ensure_fqdn, api_key, conn_id, sip_host)
@@ -4377,27 +4384,17 @@ async def voice_provision(payload: VoiceProvisionRequest, _admin: dict = Depends
         results["number_associated"] = True
 
         # LiveKit: szám felvétele a shared inbound trunk numbers[] listájába
-        inbound_trunk = os.getenv("SIP_INBOUND_TRUNK_ID", "")
-        if inbound_trunk:
-            lk = lk_api_module.LiveKitAPI(url=os.getenv("LIVEKIT_URL"),
-                                          api_key=os.getenv("LIVEKIT_API_KEY"),
-                                          api_secret=os.getenv("LIVEKIT_API_SECRET"))
-            try:
-                await lk.sip.update_sip_inbound_trunk_fields(
-                    inbound_trunk, numbers=lk_api_module.ListUpdate(add=[phone]))
-            finally:
-                await lk.aclose()
-            results["inbound_trunk_updated"] = inbound_trunk
-        else:
-            logger.warning("SIP_INBOUND_TRUNK_ID nincs beállítva — a szám nem került fel a trunkra")
+        lk = lk_api_module.LiveKitAPI(url=os.getenv("LIVEKIT_URL"),
+                                      api_key=os.getenv("LIVEKIT_API_KEY"),
+                                      api_secret=os.getenv("LIVEKIT_API_SECRET"))
+        try:
+            await lk.sip.update_sip_inbound_trunk_fields(
+                inbound_trunk, numbers=lk_api_module.ListUpdate(add=[phone]))
+        finally:
+            await lk.aclose()
+        results["inbound_trunk_updated"] = inbound_trunk
 
-        # Cred-ek mentése
-        db.set_credential(tid, "telnyx_connection_id", conn_id)
-        db.set_credential(tid, "telnyx_outbound_profile_id", ovp_id)
         db.set_credential(tid, "sip_phone_number", phone)
-        if auth_user:
-            # a LiveKit KIMENŐ trunk authjához kell majd (V2) — log, hogy ne vesszen el
-            logger.info(f"Telnyx connection auth user={auth_user} (pass a Telnyx-ben)")
     except telnyx_provision.TelnyxError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
