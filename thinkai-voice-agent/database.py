@@ -1478,25 +1478,6 @@ def update_client_status(client_id: int, status: str) -> bool:
     except Exception:
         return False
 
-def update_calendar_event(event_id: int, title: str = None, start_dt: str = None,
-                          end_dt: str = None, duration_minutes: int = None,
-                          attendee: str = None, attendee_email: str = None) -> bool:
-    if not supabase: return False
-    try:
-        updates = {}
-        if title is not None: updates['title'] = title
-        if start_dt is not None: updates['start_dt'] = start_dt
-        if end_dt is not None: updates['end_dt'] = end_dt
-        if duration_minutes is not None: updates['duration_minutes'] = duration_minutes
-        if attendee is not None: updates['attendee'] = attendee
-        if attendee_email is not None: updates['attendee_email'] = attendee_email
-        if not updates: return False
-        _tenant_eq(supabase.table('calendar_events').update(updates)).eq('id', event_id).execute()
-        return True
-    except Exception as e:
-        logger.error(f'Error updating calendar event: {e}')
-        return False
-
 def delete_calendar_event_by_id(event_id: int) -> bool:
     if not supabase: return False
     try:
