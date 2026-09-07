@@ -234,7 +234,7 @@ A user HTML-mockupja alapján (a modal cím és a tooltip eltérő kezelése sze
 - **Utófix 2 — duplikált mezők + üres névlista** (commit `915afc9`): (a) a modalban DUPLÁN szerepelt az „Esemény címe + Munkatárs" blokk (a fix-4 körös szerkesztés törlő lépése hiányzott) — a dátumsor utáni másolat törölve; (b) a `staffOptions` üres volt, mert a `GET /admin/api/services` csupasz tömböt ad, a kód `data.services`-t várta — most mindkét alak kezelve. Élő ellenőrzés: chunkban „Esemény címe" 1×; a valós válasz 7 szolgáltatás → 7 konkrét név (Balogh Pálma, Dr. Hegedűs Eszter, Dr. Kiss Réka, Dr. Kovács Márk, Dr. Molnár Bence, Dr. Varga Anna, Pál Alexandra).
 - **Utófix 3 — Ma gomb** (commit `9bbf344`): a „Ma" gomb mindig a **NAPI nézetet** tölti be (`setCalMode('day')` + cursor azonnai napra) — heti/havi nézetből vagy ellapozás után is az aznapi napot mutatja. Verifikáció: a deployed CalendarPage chunk md5 hashesen egyezik a friss builddel.
 
-### 17. TERVEZETT — Member irányítópult áttervezés + jogosultság-legalizálás (2026-09-07 — user döntések megvannak, implementáció NEM indult el)
+### 17. KÉSZ — Member irányítópult áttervezés + jogosultság-legalizálás (2026-09-07, commit `621a20d` + `ed8baa6`)
 
 **User kérés**: a member irányítópult a user NAPI teendőit mutassa (mockup alapján): hero (üdvözlet + dátum), 3 KPI-kártya (Sürgős/lejárt szám · Nyitott szám · Mai időpontok kártya — első időpont látszik, többi lenyitható), 2 szekció táblázattal: **Sürgős/lejárt** (Sürgős státuszúak + Minden nyitott/sürgős, ami created_at alapján a tegnapi nap előtt keletkezett és nincs lezárva — 24 órás szabály, státusz nem változik, csak a szekcióba feljebb kerül) és **Nyitott teendők** (az aznapi nyitottak). A dashboard szűrőként működik: Lezárt kizárva; pipára az interakció lezárul (eltűnik a dashboardról, a naplóban marad Lezártan). Interakciós modal AI összefoglalóval + Messenger/IG 24h figyelmeztetővel.
 
@@ -245,6 +245,11 @@ A user HTML-mockupja alapján (a modal cím és a tooltip eltérő kezelése sze
 4. **Mai időpontok = MINDEN mai esemény** (nem csak hozzám rendelt ügyfeleké). Kézi teendők a Nyitott szekcióba keverve.
 
 **Implementációs teendők (később)**: backend — approvals approve/reject → verify_jwt; interactions/{id}/status → verify_jwt; tasks delete → verify_jwt (konzisztencia); MemberDashboardPage teljes rewrite a mockup szerint (hero, 3 KPI, Sürgős/lejárt + Nyitott szekciók, interakciós modal jóváhagyás-gombbal, 24h Messenger/IG figyelmeztető); useSessions limit 300; konténer = app szélesség. **Figyelem**: minden role küldhet → a jóváhagyó neve naplózva marad az approvals rekordban.
+
+**MEGVALÓSÍTVA (2026-09-07)**:
+- **Backend jogosultságok** (commit `621a20d` + `ed8baa6`): approvals approve/reject, interactions/{id}/status, tasks DELETE → `verify_jwt` (minden belépett szerep). Utófix: a status endpoint logja `_auth.get('username')` helyett `_auth` (a verify_jwt stringet ad). **Member teszttel verifikálva**: interactions lezárás 200 + classification statusz=Lezárt/teendo=Nincs további teendő; approve nem-létező id-n 404 (auth átment).
+- **Frontend**: `MemberDashboardPage.tsx` teljes rewrite (~400 sor → mockup): hero (napszaki üdvözlet + dátum badge), 3 KPI (Sürgős/lejárt · Nyitott · Mai időpontok kártya — első időpont + chevronnal lenyitható többi), **Sürgős/lejárt** szekció (Sürgős + ma 00:00 előtt keletkezett nyitottak) és **Nyitott** szekció táblázatokkal (Ügyfél avatar+kontakt, időpont, csatorna-chip, irány, ügytípus, eredmény, státusz badge, teendő SIMA SZÖVEG, Elvégezve pipa). `useSessions(300)` — minden interakció, felelőshozrendelés NÉLKÜL. Kézi teendők a Nyitott szekcióba keverve. Sor kattintás → InteractionSummaryModal (AI összefoglaló, draft jóváhagyás/küldés — membernek is engedélyezett, Messenger/IG 24h banner). Ügyfélnévre kattintva ügyfélprofil (member forrással). Design: mockup tokenek light/dark (useTheme).
+- **Következő lépés (user jelezte)**: az interakciós popup átalakítása (InteractionSummaryModal további finomhangolása).
 
 ---
 
