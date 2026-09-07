@@ -563,18 +563,12 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     'törölt időpont',
   ];
 
-  // „Ma · 18:23" stílusú dátum a kézi teendőkhöz
+  // Dátum a kézi teendőkhöz — szabály: SOHA "Ma/Tegnap" jellegű jelölés,
+  // mindig a tényleges dátum (pl. "szept. 7. · 18:23")
   function taskDateLabel(iso: string): string {
     if (!iso) return '—';
     const d = new Date(iso);
-    const today = new Date();
-    const sameDay = d.getFullYear() === today.getFullYear() && d.getMonth() === today.getMonth() && d.getDate() === today.getDate();
     const time = d.toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' });
-    if (sameDay) return `Ma · ${time}`;
-    const yesterday = new Date(today.getTime() - 86400000);
-    if (d.getFullYear() === yesterday.getFullYear() && d.getMonth() === yesterday.getMonth() && d.getDate() === yesterday.getDate()) {
-      return `Tegnap · ${time}`;
-    }
     return `${d.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })} · ${time}`;
   }
 

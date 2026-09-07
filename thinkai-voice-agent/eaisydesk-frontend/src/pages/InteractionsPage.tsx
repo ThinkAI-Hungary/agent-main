@@ -702,20 +702,15 @@ export default function InteractionsPage() {
                 // Lokális dátum (nem UTC) — éjfél körül ne csússzon el a Ma/Tegnap
                 const localDateStr = (d: Date) =>
                   `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-                const todayStr = localDateStr(new Date());
-                const yesterdayStr = localDateStr(new Date(Date.now() - 86400000));
                 let lastDateGroup = '';
                 return filteredRows.map((r, i) => {
                   const dateStr = r.date ? localDateStr(new Date(r.date)) : '';
                   let separator = null;
                   if (dateStr !== lastDateGroup) {
                     lastDateGroup = dateStr;
+                    // Dátumszabály: soha "Ma/Tegnap" — mindig tényleges dátum
                     let label = dateStr;
-                    if (dateStr === todayStr) label = 'Ma';
-                    else if (dateStr === yesterdayStr) label = 'Tegnap';
-                    else {
-                      try { label = new Date(dateStr).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric', weekday: 'short' }); } catch { /* keep dateStr */ }
-                    }
+                    try { label = new Date(dateStr).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric', weekday: 'short' }); } catch { /* keep dateStr */ }
                     separator = (
                       <div className="mobile-timeline-separator" key={`sep-${dateStr}`}>
                         <span className="sep-label">{label}</span>

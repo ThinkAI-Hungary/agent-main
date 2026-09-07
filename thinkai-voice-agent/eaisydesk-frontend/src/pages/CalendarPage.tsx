@@ -626,7 +626,8 @@ export default function CalendarPage() {
                           const t = new Date(ev.start_dt);
                           const isPast = t.getTime() < now.getTime();
                           const isNoShow = !!ev.reminder_sent && isPast;
-                          const dTxt = dateKey(t) === dateKey(new Date()) ? 'Ma' : `${HU_MONTHS[t.getMonth()]} ${t.getDate()}.`;
+                          // Dátumszabály: soha "Ma" jellegű jelölés — tényleges dátum
+                          const dTxt = `${HU_MONTHS[t.getMonth()]} ${t.getDate()}.`;
                           const emailKey = (ev.attendee_email || '').toLowerCase().trim();
                           const assignee = assigneeFor(emailKey);
                           const badge = clientBadgeFor(emailKey);

@@ -347,8 +347,9 @@ export default function MemberDashboardPage() {
             <tbody>
               {rows.map((r, i) => {
                 const created = r.date ? new Date(r.date) : null;
+                // Dátumszabály: soha "Ma" — mindig tényleges dátum
                 const dateLabel = created
-                  ? `${created.toDateString() === new Date().toDateString() ? 'Ma' : `${HU_MONTHS_SHORT[created.getMonth()]} ${created.getDate()}.`} · ${pad2(created.getHours())}:${pad2(created.getMinutes())}`
+                  ? `${HU_MONTHS_SHORT[created.getMonth()]} ${created.getDate()}. · ${pad2(created.getHours())}:${pad2(created.getMinutes())}`
                   : '—';
                 const manualRow = r as InteractionRow & { isManual?: boolean; taskId?: number };
                 const isManualRow = !!manualRow.isManual && !!manualRow.taskId;
