@@ -3435,7 +3435,7 @@ def update_interaction_status(id: int, req: InteractionStatusUpdateRequest, _aut
             updates["classification"] = {"statusz": "Lezárt", "teendo": "Nincs további teendő"}
 
         db.supabase.table("interactions").update(updates).eq("id", id).execute()
-        logger.info(f"Interaction {id} marked as lezárt by {_auth.get('username')}")
+        logger.info(f"Interaction {id} marked as lezárt by {_auth}")
         return {"status": "success", "message": "Interakció lezárva"}
     except Exception as e:
         logger.error(f"Status update error for interaction {id}: {e}")
