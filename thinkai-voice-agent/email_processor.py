@@ -443,7 +443,7 @@ JSON STRUKTÚRA:
 {
     "is_relevant": true|false,
     "email_reply": "A pontos válaszlevél szövege (TILOS HTML TAGEKET HASZNÁLNI! Listákhoz kötőjelet, sortöréshez \n-t használj)",
-    "beszelgetes_naplobejegyzes": "A bejövő levél és a válaszod tömör összefoglalója 1 mondatban (későbbi kontextushoz).",
+    "beszelgetes_naplobejegyzes": "A LEGÚJABB bejövő levél tényállásának tömör 1 mondatos összefoglalója (későbbi kontextushoz). Korábbi foglalások vagy interakciók adatait ne foglald bele — az összefoglaló az aktuális ügyet írja le, a korábbi eseményekre legfeljebb hivatkozással.",
     "kanban_data": {
         "name": "Ügyfél neve (ha tudod, különben az e-mailből)",
         "email": "Ügyfél e-mailje",
