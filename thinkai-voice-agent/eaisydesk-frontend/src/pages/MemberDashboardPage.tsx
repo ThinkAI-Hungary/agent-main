@@ -263,6 +263,48 @@ export default function MemberDashboardPage() {
     } catch { showToast('Hiba a lezárás során', 'error'); }
   }, [loadManualTasks, refetchSessions]);
 
+  // ── Kézi teendő szerkesztő popup (#todoEditOverlay) ──
+  const [editTask, setEditTask] = useState<{ id: number; text: string } | null>(null);
+  const [editTaskText, setEditTaskText] = useState('');
+  const openTaskEdit = useCallback((taskId: number) => {
+    const task = manualTasks.find(x => x.id === taskId);
+    if (!task) return;
+    setEditTask({ id: task.id, text: task.text || '' });
+    setEditTaskText(task.text || '');
+  }, [manualTasks]);
+  const saveTaskEdit = useCallback(async () => {
+    if (!editTask) return;
+    const text = editTaskText.trim();
+    if (!text) { showToast('A teendő szövege kötelező!', 'error'); return; }
+    try {
+      const res = await authFetch(`/admin/api/tasks/${editTask.id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ text }),
+      });
+      if (!res.ok) throw new Error('save failed');
+      setEditTask(null);
+      await loadManualTasks();
+      showToast('Teendő mentve');
+    } catch { showToast('Hiba a mentéskor', 'error'); }
+  }, [editTask, editTaskText, loadManualTasks]);
+  const deleteTaskEdit = useCallback(async () => {
+    if (!editTask) return;
+    try {
+      const res = await authFetch(`/admin/api/tasks/${editTask.id}`, { method: 'DELETE' });
+      if (!res.ok) throw new Error('delete failed');
+      setEditTask(null);
+      await loadManualTasks();
+      showToast('Teendő törölve');
+    } catch { showToast('Hiba a törléskor', 'error'); }
+  }, [editTask, loadManualTasks]);
+  // Escape zárja a szerkesztő popupot
+  useEffect(() => {
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape' && editTask) setEditTask(null); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [editTask]);
+
   // ── Profil megnyitás ügyfélnévre kattintva ──
 
   // ── Design tokenek ──
@@ -308,14 +350,18 @@ export default function MemberDashboardPage() {
                 const dateLabel = created
                   ? `${created.toDateString() === new Date().toDateString() ? 'Ma' : `${HU_MONTHS_SHORT[created.getMonth()]} ${created.getDate()}.`} · ${pad2(created.getHours())}:${pad2(created.getMinutes())}`
                   : '—';
-                const manual = r as InteractionRow & { isManual?: boolean };
+                const manualRow = r as InteractionRow & { isManual?: boolean; taskId?: number };
+                const isManualRow = !!manualRow.isManual && !!manualRow.taskId;
                 const contact = contactOf(r);
                 const clientIdStr = r.clientId ? String(r.clientId) : null;
                 return (
                   <tr
                     key={`${r.interactionId ?? 'task'}-${r.sessionId ?? ''}-${i}`}
+                    className={isManualRow ? 'row-task' : undefined}
+                    tabIndex={isManualRow ? 0 : undefined}
                     style={{ cursor: 'pointer' }}
-                    onClick={() => setSummaryModalRow(r)}
+                    onClick={() => isManualRow && manualRow.taskId ? openTaskEdit(manualRow.taskId) : setSummaryModalRow(r)}
+                    onKeyDown={e => { if (isManualRow && manualRow.taskId && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openTaskEdit(manualRow.taskId); } }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = t.surface; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                   >
@@ -347,7 +393,13 @@ export default function MemberDashboardPage() {
                     <td style={tdBase}>{r.ugyTipus || '—'}</td>
                     <td style={{ ...tdBase, color: t.text2 }}>{r.eredmeny || '—'}</td>
                     <td style={tdBase}><StatusBadge value={r.statusz} t={t} /></td>
-                    <td style={tdBase}><TeendoText value={r.teendo} t={t} /></td>
+                    <td style={tdBase}>
+                      {isManualRow ? (
+                        <div className="todo-frame" title={r.teendo}>{r.teendo}</div>
+                      ) : (
+                        <TeendoText value={r.teendo} t={t} />
+                      )}
+                    </td>
                     {showCheckbox && (
                       <td style={{ ...tdBase, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                         <input
@@ -522,6 +574,40 @@ export default function MemberDashboardPage() {
         </div>
         {renderTaskTable(openRows, true)}
       </section>
+
+      {/* ── Kézi teendő szerkesztő popup (#todoEditOverlay) ── */}
+      {editTask && (
+        <div className="modal-overlay" id="todoEditOverlay" onClick={() => setEditTask(null)}>
+          <div className="cd-task-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Teendő szerkesztése">
+            <div className="cd-task-modal-head">
+              <h3 className="modal-title">Teendő szerkesztése</h3>
+              <button className="cd-task-modal-x" onClick={() => setEditTask(null)} aria-label="Bezárás">
+                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+            <div className="cd-task-modal-body">
+              <label className="cd-task-modal-label" htmlFor="mdTaskEditText">Teendő leírása</label>
+              <textarea
+                id="mdTaskEditText"
+                className="cd-task-textarea"
+                rows={4}
+                value={editTaskText}
+                onChange={e => setEditTaskText(e.target.value)}
+                autoFocus
+                onKeyDown={e => { if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) saveTaskEdit(); }}
+              />
+            </div>
+            <div className="cd-task-modal-foot">
+              <button className="cd-btn cd-btn-danger" style={{ marginRight: 'auto' }} onClick={deleteTaskEdit}>
+                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                Törlés
+              </button>
+              <button className="cd-btn" onClick={() => setEditTask(null)}>Mégse</button>
+              <button className="cd-btn cd-btn-primary" onClick={saveTaskEdit} disabled={!editTaskText.trim()}>Mentés</button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* ── Interakciós modal ── */}
       {summaryModalRow && (
