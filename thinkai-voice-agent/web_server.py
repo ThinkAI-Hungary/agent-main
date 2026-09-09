@@ -4383,18 +4383,42 @@ async def voice_provision(payload: VoiceProvisionRequest, _admin: dict = Depends
         await asyncio.to_thread(telnyx_provision.associate_number, api_key, number_id, conn_id)
         results["number_associated"] = True
 
-        # LiveKit: szám felvétele a shared inbound trunk numbers[] listájába
+        # LiveKit: szám felvétele a shared inbound trunk numbers[] listájába.
+        # Ha az env trunk ID elavult (404), auto-felderítés: első létező inbound trunk.
         lk = lk_api_module.LiveKitAPI(url=os.getenv("LIVEKIT_URL"),
                                       api_key=os.getenv("LIVEKIT_API_KEY"),
                                       api_secret=os.getenv("LIVEKIT_API_SECRET"))
         try:
-            await lk.sip.update_sip_inbound_trunk_fields(
-                inbound_trunk, numbers=lk_api_module.ListUpdate(add=[phone]))
+            try:
+                await lk.sip.update_sip_inbound_trunk_fields(
+                    inbound_trunk, numbers=lk_api_module.ListUpdate(add=[phone]))
+            except Exception as te:
+                if "not found" in str(te).lower() or "404" in str(te):
+                    logger.warning(f"Env trunk ({inbound_trunk}) nem létezik — auto-felderítés")
+                    listing = await lk.sip.list_sip_inbound_trunk(
+                        lk_api_module.ListSIPInboundTrunkRequest())
+                    if not listing.items:
+                        raise HTTPException(status_code=500, detail="Nincs inbound trunk a LiveKit projektben")
+                    inbound_trunk = listing.items[0].sip_trunk_id
+                    await lk.sip.update_sip_inbound_trunk_fields(
+                        inbound_trunk, numbers=lk_api_module.ListUpdate(add=[phone]))
+                else:
+                    raise
+            results["inbound_trunk_updated"] = inbound_trunk
+
+            # Outbound trunk caller-ID pool: a patika száma onnan is hívható
+            outbound_trunk = os.getenv("SIP_OUTBOUND_TRUNK_ID", "")
+            if outbound_trunk:
+                try:
+                    await lk.sip.update_sip_outbound_trunk_fields(
+                        outbound_trunk, numbers=lk_api_module.ListUpdate(add=[phone]))
+                    results["outbound_trunk_updated"] = outbound_trunk
+                except Exception as oe:
+                    logger.warning(f"Outbound trunk szám-pool bővítés sikertelen: {oe}")
+
+            db.set_credential(tid, "sip_phone_number", phone)
         finally:
             await lk.aclose()
-        results["inbound_trunk_updated"] = inbound_trunk
-
-        db.set_credential(tid, "sip_phone_number", phone)
     except telnyx_provision.TelnyxError as e:
         raise HTTPException(status_code=502, detail=str(e))
 
