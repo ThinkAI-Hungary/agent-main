@@ -4365,7 +4365,7 @@ async def voice_provision(payload: VoiceProvisionRequest, _admin: dict = Depends
         db.set_credential(tid, "telnyx_outbound_profile_id", ovp_id)
 
         conn_id = await asyncio.to_thread(
-            telnyx_provision.ensure_fqdn_connection, api_key, saved_conn, ovp_id, f"eaisyDesk-{slug}")
+            telnyx_provision.ensure_fqdn_connection, api_key, saved_conn, f"eaisyDesk-{slug}", ovp_id)
         results["connection_id"] = conn_id
         db.set_credential(tid, "telnyx_connection_id", conn_id)
 

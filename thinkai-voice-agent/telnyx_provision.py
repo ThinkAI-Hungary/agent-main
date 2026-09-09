@@ -104,12 +104,15 @@ def ensure_fqdn_connection(api_key: str, saved_id: str | None, ovp_id: str, name
     endpointokon kezelhető, ha egyszer szükség lesz rá."""
     if saved_id:
         return saved_id
+    # V1: outbound profile NEM megy a create-be — a Telnyx megköveteli, hogy a
+    # connection előbb teljesen konfigurált legyen (FQDN rekord), és a
+    # 'short duration' profilokat 422-vel elutasítja call-control connectionnél.
+    # Az ovp_id V2-ben PATCH-elhető rá, miután a FQDN felkerült.
     data = _request("POST", "/fqdn_connections", api_key, {
         "active": True,
         "anchorsite_override": "Latency",
         "connection_name": name,
         "inbound": {"ani_number_format": "+E.164", "dnis_number_format": "+e164"},
-        "outbound": {"outbound_voice_profile_id": ovp_id},
         "transport_protocol": "TCP",
     })
     return data.get("data", {}).get("id", "")
