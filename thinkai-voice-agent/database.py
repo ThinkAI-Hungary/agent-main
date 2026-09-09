@@ -200,6 +200,25 @@ def delete_credential(tenant_id: str, key: str) -> bool:
         return False
 
 
+def audit_credential(tenant_id: str | None, key: str, admin_user: str = "", action: str = "set") -> bool:
+    """Credential-módosítás naplózása a credential_audit_log táblába (ki/mikor/mit).
+    Az ÉRTÉKEKET soha nem naplózzuk — csak a kulcsnevet és a módosítót.
+    Sosem dob hibát: az audit meghibásodása nem blokkolhatja a fő folyamatot."""
+    if not tenant_id or not supabase:
+        return False
+    try:
+        supabase.table("credential_audit_log").insert({
+            "tenant_id": tenant_id,
+            "key": key,
+            "admin_user": admin_user or "system",
+            "action": action,
+        }).execute()
+        return True
+    except Exception as e:
+        logger.warning(f"audit_credential sikertelen ({key}): {e}")
+        return False
+
+
 def list_credential_keys(tenant_id: str) -> list[str]:
     """Visszaadja a tenant által tárolt credential kulcsok listáját.
     Az értékeket NEM olvassa ki — csak a kulcsneveket a GET API-hoz."""

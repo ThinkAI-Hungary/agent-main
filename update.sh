@@ -33,6 +33,9 @@ case "${1:-update}" in
 
     echo ""
     echo "📥 Git pull..."
+    # Deploy-log zaj: a korábban tévedésből trackelt (most már gitignore-olt)
+    # logrotate fájlok lokális módosítása eltakarná a pullt — eltávolítjuk.
+    rm -f deploy.log deploy.log.*.gz
     git pull --ff-only 2>&1 | sed 's/^/   /'
 
     NEW_SHA=$(git rev-parse HEAD)

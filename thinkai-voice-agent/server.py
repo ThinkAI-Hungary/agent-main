@@ -282,7 +282,16 @@ SZABÁLYOK:
         selected_voice = "Puck"
     logger.info(f"Initializing Gemini Multimodal Live API pipeline (voice={selected_voice})...")
     
-    gemini_api_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
+    # BYOK: tenant-saját Gemini kulcs (tenant_credentials.gemini_api_key),
+    # ha nincs, platform-globális fallback a .env-ből
+    gemini_api_key = None
+    try:
+        gemini_api_key = db.get_credential(db.get_current_tenant() or "", "gemini_api_key", default=None)
+        if gemini_api_key:
+            logger.info("Gemini kulcs: tenant-saját (BYOK)")
+    except Exception as e:
+        logger.warning(f"Tenant Gemini kulcs olvasási hiba (fallback .env-re): {e}")
+    gemini_api_key = gemini_api_key or os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
     if not gemini_api_key:
         raise RuntimeError("GEMINI_API_KEY or GOOGLE_API_KEY must be set in .env")
     from google.genai import types as genai_types

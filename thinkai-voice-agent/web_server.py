@@ -4228,11 +4228,13 @@ async def update_credentials(payload: CredentialUpdateRequest, _admin: dict = De
             # Üres érték = törlés (visszaáll a .env fallback-re)
             if db.delete_credential(tenant_id, key):
                 cleared.append(key)
+                db.audit_credential(tenant_id, key, _admin.get("username", ""), "clear")
             else:
                 errors.append(f"Nem sikerült törölni: {key}")
         else:
             if db.set_credential(tenant_id, key, value):
                 updated.append(key)
+                db.audit_credential(tenant_id, key, _admin.get("username", ""), "set")
             else:
                 errors.append(
                     f"Nem sikerült menteni: {key} "
@@ -4262,6 +4264,7 @@ async def delete_credential(key: str, _admin: dict = Depends(require_admin)):
     if not ok:
         raise HTTPException(status_code=500, detail="Nem sikerült törölni a hitelesítő adatot.")
 
+    db.audit_credential(tenant_id, key, _admin.get("username", ""), "clear")
     return {"ok": True, "message": "Hitelesítő adat törölve, visszaállítva a globális beállításra."}
 
 
@@ -4302,6 +4305,7 @@ async def voice_validate_telnyx_key(payload: TelnyxValidateRequest, _admin: dict
         raise HTTPException(status_code=400, detail="A Telnyx API kulcs érvénytelen vagy lejárt")
     if not db.set_credential(db.get_current_tenant(), "telnyx_api_key", api_key):
         raise HTTPException(status_code=500, detail="Nem sikerült menteni a kulcsot (titkosítási hiba)")
+    db.audit_credential(db.get_current_tenant(), "telnyx_api_key", _admin.get("username", ""), "set")
     try:
         numbers = await asyncio.to_thread(telnyx_provision.list_numbers, api_key)
     except telnyx_provision.TelnyxError as e:
@@ -4331,7 +4335,7 @@ async def voice_status(_admin: dict = Depends(require_admin)):
 async def voice_provision(payload: VoiceProvisionRequest, _admin: dict = Depends(require_admin)):
     """Teljes telefonbeállítás a tenant saját Telnyx kulcsával:
     outbound profile → FQDN connection → FQDN → szám hozzárendelés →
-    LiveKit inbound trunk numbers[] bővítés → cred-ek mentése."""
+    per-tenant LiveKit inbound trunk + dispatch rule → cred-ek mentése."""
     tid = db.get_current_tenant()
     api_key = db.get_credential(tid, "telnyx_api_key", default=None)
     if not api_key:
@@ -4352,11 +4356,6 @@ async def voice_provision(payload: VoiceProvisionRequest, _admin: dict = Depends
 
     results: dict = {}
     try:
-        # Fail fast: trunk ID nélkül a bejövő hívás csendben nem működne
-        inbound_trunk = os.getenv("SIP_INBOUND_TRUNK_ID", "")
-        if not inbound_trunk:
-            raise HTTPException(status_code=500, detail="Szerver-oldali hiba: SIP_INBOUND_TRUNK_ID nincs beállítva")
-
         ovp_id = await asyncio.to_thread(
             telnyx_provision.ensure_outbound_voice_profile, api_key, saved_ovp, f"eaisyDesk-{slug}")
         results["outbound_profile_id"] = ovp_id
@@ -4383,40 +4382,89 @@ async def voice_provision(payload: VoiceProvisionRequest, _admin: dict = Depends
         await asyncio.to_thread(telnyx_provision.associate_number, api_key, number_id, conn_id)
         results["number_associated"] = True
 
-        # LiveKit: szám felvétele a shared inbound trunk numbers[] listájába.
-        # Ha az env trunk ID elavult (404), auto-felderítés: első létező inbound trunk.
+        # LiveKit: PER-TENANT inbound trunk + dispatch rule (Dentors-minta).
+        # A shared trunk numbers[] utólagos bővítése a SIP data-plane-en NEM
+        # propagál megbízhatóan, és a shared trunk dispatch rule-ja más
+        # környezet agentjét célozná — ezért a tenant számával ÚJ trunk + rule
+        # készül, a rule mindig az adott környezet AGENT_NAME-ét dispatcheli.
+        # A Telnyx bejövő IP-tartományait meglévő trunkról másoljuk, ha van.
         lk = lk_api_module.LiveKitAPI(url=os.getenv("LIVEKIT_URL"),
                                       api_key=os.getenv("LIVEKIT_API_KEY"),
                                       api_secret=os.getenv("LIVEKIT_API_SECRET"))
         try:
-            try:
-                await lk.sip.update_sip_inbound_trunk_fields(
-                    inbound_trunk, numbers=lk_api_module.ListUpdate(add=[phone]))
-            except Exception as te:
-                if "not found" in str(te).lower() or "404" in str(te):
-                    logger.warning(f"Env trunk ({inbound_trunk}) nem létezik — auto-felderítés")
-                    listing = await lk.sip.list_sip_inbound_trunk(
+            saved_trunk = db.get_credential(tid, "sip_inbound_trunk_id", default=None)
+            trunk = None
+            if saved_trunk:
+                try:
+                    existing = await lk.sip.list_inbound_trunk(
+                        lk_api_module.ListSIPInboundTrunkRequest(trunk_ids=[saved_trunk]))
+                    if existing.items:
+                        trunk = existing.items[0]
+                except Exception:
+                    pass
+            if trunk is None:
+                allowed: list[str] = []
+                try:
+                    all_trunks = await lk.sip.list_inbound_trunk(
                         lk_api_module.ListSIPInboundTrunkRequest())
-                    if not listing.items:
-                        raise HTTPException(status_code=500, detail="Nincs inbound trunk a LiveKit projektben")
-                    inbound_trunk = listing.items[0].sip_trunk_id
-                    await lk.sip.update_sip_inbound_trunk_fields(
-                        inbound_trunk, numbers=lk_api_module.ListUpdate(add=[phone]))
-                else:
-                    raise
-            results["inbound_trunk_updated"] = inbound_trunk
+                    for t in all_trunks.items:
+                        if t.allowed_addresses:
+                            allowed = list(t.allowed_addresses)
+                            break
+                except Exception:
+                    pass
+                trunk = await lk.sip.create_inbound_trunk(
+                    lk_api_module.CreateSIPInboundTrunkRequest(
+                        trunk=lk_api_module.SIPInboundTrunkInfo(
+                            name=f"Telnyx HU inbound - {slug}",
+                            numbers=[phone],
+                            krisp_enabled=True,
+                            allowed_addresses=allowed,
+                        )))
+            results["inbound_trunk_id"] = trunk.sip_trunk_id
+            db.set_credential(tid, "sip_inbound_trunk_id", trunk.sip_trunk_id)
+            db.audit_credential(tid, "sip_inbound_trunk_id", _admin.get("username", ""), "provision")
 
-            # Outbound trunk caller-ID pool: a patika száma onnan is hívható
+            saved_rule = db.get_credential(tid, "sip_dispatch_rule_id", default=None)
+            rule_id = None
+            if saved_rule:
+                try:
+                    rules = await lk.sip.list_dispatch_rule(
+                        lk_api_module.ListSIPDispatchRuleRequest(dispatch_rule_ids=[saved_rule]))
+                    if rules.items:
+                        rule_id = saved_rule
+                except Exception:
+                    pass
+            if not rule_id:
+                rule = await lk.sip.create_dispatch_rule(
+                    lk_api_module.CreateSIPDispatchRuleRequest(
+                        name=f"{slug} Inbound → {AGENT_NAME}",
+                        trunk_ids=[trunk.sip_trunk_id],
+                        rule=lk_api_module.SIPDispatchRule(
+                            dispatch_rule_individual=lk_api_module.SIPDispatchRuleIndividual(
+                                room_prefix="call-")),
+                        room_config=lk_api_module.RoomConfiguration(
+                            agents=[lk_api_module.RoomAgentDispatch(agent_name=AGENT_NAME)]),
+                    ))
+                rule_id = rule.sip_dispatch_rule_id
+                db.set_credential(tid, "sip_dispatch_rule_id", rule_id)
+                db.audit_credential(tid, "sip_dispatch_rule_id", _admin.get("username", ""), "provision")
+            results["dispatch_rule_id"] = rule_id
+
+            # Outbound trunk caller-ID pool: a patika száma onnan is hívható.
+            # (best effort — a Telnyx-oldali OVP destinations whitelistjének is
+            # tartalmaznia kell a célországot, különben 403: D13-as hibakód)
             outbound_trunk = os.getenv("SIP_OUTBOUND_TRUNK_ID", "")
             if outbound_trunk:
                 try:
-                    await lk.sip.update_sip_outbound_trunk_fields(
+                    await lk.sip.update_outbound_trunk_fields(
                         outbound_trunk, numbers=lk_api_module.ListUpdate(add=[phone]))
                     results["outbound_trunk_updated"] = outbound_trunk
                 except Exception as oe:
                     logger.warning(f"Outbound trunk szám-pool bővítés sikertelen: {oe}")
 
             db.set_credential(tid, "sip_phone_number", phone)
+            db.audit_credential(tid, "sip_phone_number", _admin.get("username", ""), "provision")
         finally:
             await lk.aclose()
     except telnyx_provision.TelnyxError as e:
