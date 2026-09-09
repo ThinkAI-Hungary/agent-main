@@ -1,10 +1,10 @@
-# HANDOFF — eaisyDesk | 2026-09-06
+# HANDOFF — eaisyDesk | 2026-09-09
 
 ## ⚠️ ÁLLANDÓ MUNKAREND — minden sessionnek
 
 - **Ezt a HANDOFF.md-t MINDEN utasítás elvégzése UTÁN frissíteni kell** (mit csináltunk, hol állunk, mi a következő lépés), majd commit + push `origin/rebuild`-re. Cél: bármikor indulhat új session, ebből a fájlból kell tudnia folytatni.
 - Deploy után verifikálni (konténer healthy, logok tiszták), és az eredményt is beírni.
-- A friss, teljes rendszerdokumentáció: `/root/eaisydesk-context-2026-09.md` (a repón KÍVÜL van, mert kulcsokat tartalmaz — soha ne commitold!). A repóban lévő régi dokik (`dokumentumok/`, AGENT_DOCS, RENDSZERLEIRAS) elavultak.
+- A friss, teljes rendszerdokumentáció: `/root/eaisydesk-handoff-final.md` (a repón KÍVÜL van, mert kulcsokat tartalmaz — soha ne commitold!). A repóban lévő régi dokik (`dokumentumok/`, AGENT_DOCS, RENDSZERLEIRAS) elavultak.
 
 ## Projekt áttekintés
 
@@ -14,6 +14,28 @@
 - **Supabase**: `qhhnqqsthdrwacsxommt.supabase.co` (service_role kulcs a `.env`-ben)
 - **Admin login**: `.env` → `ADMIN_USERNAME` / `ADMIN_PASSWORD`
 - **Management API**: Supabase MCP configban `sbp_*` token — élő DB DDL futtatható vele
+
+---
+
+## ✅ 2026-09-09 (délután/este) — Voice multi-tenant rendrakás (commit `61dae72`, stagingen ÉS prodon él)
+
+Teljes részletes handoff: `/root/eaisydesk-handoff-final.md` (2026-09-09 esti, frissítve — a repón kívül, kulcsokkal).
+
+**1. Staging SIP szétválasztás — KÉSZ és igazolt.** A +3612114217 (Rivergate) mostantól per-tenant trunkon fut: `ST_mzBTHyNM2VAM` + rule `SDR_5jxsceMCrkBo` → `dobozos-ai-staging`. A régi shared trunk (`ST_8TJDMbQySNAb`) és rule (`SDR_bdaLWQNyei6E` — ez a PROD agentre célozott!) törölve. Prod-páros (`ST_cvpEpZ3hEejS` + `SDR_cDqqZp5sbiaz` → `dobozos-ai`) érintetlen. Staging teszt: hívás a +3612114217-re → staging agent veszi fel; worker job-felvétellel igazolva. **További javítás a staging DB-ben**: a rivergate `sip_phone_number` cred +3617001622 volt (rossz!) → +3612114217; a régi cred-trunk ID-k (ST_2qAvbcUp66QV, ST_2wJZqGsWZBC3 — nem létező trunkok) javítva.
+
+**2. voice_provision átírva per-tenant mintára.** A régi logika (shared trunk `numbers[]` bővítés + „első létező trunk" auto-felderítés) idegen környezet agentjére irányíthatta volna az új tenant hívásait. Most: új trunk + dispatch rule tenantonként, a rule mindig a helyi `AGENT_NAME`-t dispatcheli; a Telnyx IP-tartományok meglévő trunkról másolódnak; a LiveKit nem enged dupla számot trunkok közt (cserénél a régi trunkot előbb kell törölni).
+
+**3. Credential audit log — KÉSZ mindkét DB-n.** Új `credential_audit_log` tábla (tenant_id, key, admin_user, action: set/clear/provision, created_at — ÉRTÉK SOHA nem naplózódik). Hookok: PUT/DELETE `/admin/api/credentials`, Telnyx-kulcs validálás, voice provisioning. DDL a staging branch-en ÉS a prod main-en lefutott (Management API: `POST /v1/projects/{ref}/database/query`), élőben tesztelve mindkettőn.
+
+**4. Gemini BYOK bekötve.** A `gemini_api_key` tenant-cred a UI-ban létezett, de a worker NEM olvasta — mostantól a `server.py` tenant-feloldás után a tenant saját kulcsát használja, ha van, különben platform-fallback.
+
+**5. deploy.log git-zaj — MEGOLDVA.** A trackelt `deploy.log.*.gz` fájlok kikerültek a gitből (+ `.gitignore`); az `update.sh` pull ELŐTT törli őket, hogy a prod deploy el ne akadjon a lokálisan módosult változatokon.
+
+**6. Prod `.env` rendezve.** `SIP_INBOUND_TRUNK_ID`/`SIP_DISPATCH_RULE_ID`/`SIP_PHONE_NUMBER` (volt: +3612114217!) a valós prod értékekre írva. A `SIP_PHONE_NUMBER`-módosítás a következő konténer-recreatekor élesedik (inert: a Dentorsnak van saját credje).
+
+**⚠️ LEGFONTOSABB NYITOTT TÉTEL — kimenő kampányhívások 403 HU-ra:** a közös outbound trunk (`ST_g6C475gozrfE`) mögötti régi Rivergate Telnyx fiók OVP `destinations` listája csak USA/CAN — minden HU-címzett kimenő hívás 403-at kap ("not included in whitelisted countries"). **Portál UI-ban** bővíteni HU-val (a fiók API kulcsa sehol nincs eltárolva). Érinti a prod kampányait is. Az OVP→FQDN connection hozzárendelés (tenantonként egyszer, portál UI) szintén nyitott — a pontos állapot a külső handoff 8. szakaszában.
+
+**Deploy verifikáció:** `git push` + staging `update.sh` + prod `deploy-prod.sh --yes` → mindkét konténer a `61dae72`-t futtatja, healthy; audit-írás stagingen és prodon is tesztelve; LiveKit végső állapot visszailleszve (2 inbound trunk, 2 dispatch rule, 1 outbound trunk caller-ID pooljal).
 
 ---
 
