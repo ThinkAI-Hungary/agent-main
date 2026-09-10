@@ -76,6 +76,10 @@ export default function InteractionSummaryModal({
   const [showDetails, setShowDetails] = useState(!!autoExpandApproval);
   const [chatBlocks, setChatBlocks] = useState<ChatBlock[]>([]);
   const [summaryText, setSummaryText] = useState('');
+  // Korábbi levelezések (a 30 perces session-határokkal tagolt diary-szeletek,
+  // amelyek NEM az aktuális interakcióhoz legközelebbiek) — popup alján lenyitható
+  const [historyGroups, setHistoryGroups] = useState<{ label: string; blocks: ChatBlock[] }[]>([]);
+  const [historyOpen, setHistoryOpen] = useState(false);
   const [notificationText, setNotificationText] = useState('');
 
   // Appointment result data
@@ -322,13 +326,17 @@ export default function InteractionSummaryModal({
       let parsedBlocks: ChatBlock[];
 
       const allEntries = parseLogEntries(fullLog);
+      let historyGroups: { label: string; blocks: ChatBlock[] }[] = [];
       if (allEntries.length > 0 && row.date) {
         const interactionTime = new Date(row.date).getTime();
         const sessionGroups = groupIntoSessions(allEntries);
 
-        let bestSession = sessionGroups[0];
+        // A legközelebbi session = az aktuális csere (chat); a TÖBBI session
+        // a korábbi levelezés — popup alján lenyitható előzményként jelenik meg
+        // (259-es ügy: korábban a régebbi cserék teljesen kiszűrődtek)
+        let bestIdx = 0;
         let bestDistance = Infinity;
-        for (const group of sessionGroups) {
+        sessionGroups.forEach((group, gi) => {
           const groupStart = group[0].time;
           const groupEnd = group[group.length - 1].time;
           const dist =
@@ -340,12 +348,12 @@ export default function InteractionSummaryModal({
                 );
           if (dist < bestDistance) {
             bestDistance = dist;
-            bestSession = group;
+            bestIdx = gi;
           }
-        }
+        });
 
         const blocks: ChatBlock[] = [];
-        for (const entry of bestSession) {
+        for (const entry of sessionGroups[bestIdx]) {
           blocks.push({
             sender: entry.sender,
             text: entry.text,
@@ -353,11 +361,32 @@ export default function InteractionSummaryModal({
           });
         }
         parsedBlocks = blocks;
+
+        historyGroups = sessionGroups
+          .map((g, gi) => ({ g, gi }))
+          .filter(({ gi }) => gi !== bestIdx)
+          .sort((a, b) => a.g[0].time - b.g[0].time)
+          .map(({ g }) => ({
+            label: (() => {
+              try {
+                const first = new Date(g[0].time);
+                const last = new Date(g[g.length - 1].time);
+                const d = first.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
+                const t1 = `${String(first.getHours()).padStart(2, '0')}:${String(first.getMinutes()).padStart(2, '0')}`;
+                const t2 = `${String(last.getHours()).padStart(2, '0')}:${String(last.getMinutes()).padStart(2, '0')}`;
+                return `${d} ${t1}${g.length > 1 ? ' – ' + t2 : ''}`;
+              } catch {
+                return 'Korábbi levelezés';
+              }
+            })(),
+            blocks: g.map(e => ({ sender: e.sender, text: e.text, timestamp: e.timestamp })),
+          }));
       } else if (fullLog) {
         parsedBlocks = parseSimpleLog(fullLog);
       } else {
         parsedBlocks = [];
       }
+      setHistoryGroups(historyGroups);
 
       // ── Fallback ha nincs user blokk a logban, de a topic tartalmazza az email szövegét és csatolmányát ──
       if (!parsedBlocks.some((b) => b.sender === 'user') && row.topic) {
@@ -891,6 +920,46 @@ export default function InteractionSummaryModal({
                           </div>
                         </div>
                       )
+                    )}
+
+                    {/* ── Korábbi levelezések (előzmények) — 259-es ügy ── */}
+                    {historyGroups.length > 0 && (
+                      <div className="ism-history">
+                        <button
+                          className="ism-history-toggle"
+                          onClick={() => setHistoryOpen(v => !v)}
+                          aria-expanded={historyOpen}
+                        >
+                          <svg
+                            className={`ism-chevron${historyOpen ? ' ism-chevron--open' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            viewBox="0 0 24 24"
+                          >
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                          Előzmények megtekintése ({historyGroups.length} korábbi levelezés)
+                        </button>
+                        {historyOpen &&
+                          historyGroups.map((g, gi) => (
+                            <div key={gi} className="ism-history-group">
+                              <div className="ism-history-label">{g.label}</div>
+                              {g.blocks.map((b, bi) => (
+                                <div key={bi} className="ism-history-entry">
+                                  <span className={`ism-history-who ism-history-who--${b.sender}`}>
+                                    {b.sender === 'user'
+                                      ? (row.client || 'Ügyfél')
+                                      : b.sender === 'ai'
+                                        ? 'eaisyDesk'
+                                        : 'Rendszer'}
+                                  </span>
+                                  <span className="ism-history-text">{b.text}</span>
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                      </div>
                     )}
 
                     {/* ── Pending Approval Draft ── */}

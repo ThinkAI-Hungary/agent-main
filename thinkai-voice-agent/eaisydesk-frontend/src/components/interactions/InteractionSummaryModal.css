@@ -1006,3 +1006,61 @@
 }
 
 
+
+/* ── Korábbi levelezések (előzmények) lenyitható ── */
+.ism-history {
+  margin-top: 10px;
+  border: 1px dashed var(--border, #dbdbdb);
+  border-radius: 8px;
+  overflow: hidden;
+}
+.ism-history-toggle {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 0;
+  background: var(--surface, #f5f5f5);
+  color: var(--text, #082432);
+  font-family: inherit;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  text-align: left;
+}
+.ism-history-toggle:hover { color: var(--accent-2, #186d98); }
+.ism-history-toggle .ism-chevron { width: 14px; height: 14px; margin-left: auto; }
+.ism-history-group { padding: 10px 12px; border-top: 1px solid var(--border, #dbdbdb); }
+.ism-history-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.03em;
+  color: var(--accent-2, #186d98);
+  text-transform: uppercase;
+  margin-bottom: 6px;
+}
+.ism-history-entry {
+  display: flex;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px dashed var(--border, #dbdbdb);
+}
+.ism-history-entry:last-child { border-bottom: none; }
+.ism-history-who {
+  flex: none;
+  width: 76px;
+  font-size: 11px;
+  font-weight: 600;
+  padding-top: 1px;
+}
+.ism-history-who--user { color: var(--text-muted, #8c8c8c); }
+.ism-history-who--ai { color: var(--accent-2, #186d98); }
+.ism-history-who--system { color: var(--text-muted, #8c8c8c); }
+.ism-history-text {
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-2, #595959);
+  white-space: pre-line;
+  min-width: 0;
+}
