@@ -252,7 +252,20 @@ A user HTML-mockupja alapján (a modal cím és a tooltip eltérő kezelése sze
 6. **Vissza-gomb címkéje**: „Vissza az interakciós listához" → **„Vissza az interakciós naplóhoz"**. (Member dashboard saját: „Vissza az irányítópulthoz".)
 - **Verifikáció**: deploy `33c5085` — chunkok tartalom szerint ellenőrizve (címkék, editEventId, Munkatárs select, location.key logika a forrásban); „Elvégezte" nem maradt sehol. Konténer healthy.
 
-### 17. Klasszifikáció hot fix — meglévő időponthoz kapcsolódó kérdés (2026-09-07, commit `d23c3f0`, 257-es ügy / 782-es interakció)
+### 19. TERVEZETT — Email thread előzmények + napló count (2026-09-07, kérdések függőben — MÉG NEM INDULT EL)
+
+**User észrevétel (259-es ügy)**: az első email után minden jó; a MÁSODIK email után (ugyanaz a thread, session `email_{email}`) a napló 1 sorban összefűzi (OK), DE a popup már NEM mutatja a beszélgetés előzményét. Ügyfélprofilban a két email külön sor, külön összefoglalóval (ez OK).
+
+**Gyökérok (megtalálva)**: `InteractionSummaryModal.load()` — a kliens `beszelgetes_naplo` diaryjából a `groupIntoSessions` (30 perc görget) KÜLÖN szeleteket vág, és csak az interakció idejéhez LEGKÖZELEBBI szeletet jeleníti meg. 259: 13:14 + 13:52 → 38 perc → két szelet → a második email popupja az elsőt nem mutatja. **Adatvesztés nincs** — a diary mindkét emailt teljesen tartalmazza.
+
+**Tervezett javítás (user szabályokkal)**:
+1. Popup: a teljes diary időrendben jelenjen meg — a legutóbbi csere kibontva, a korábbi cserék az alján „Előzmények megtekintése" alatt ÖSSZECSUKVA (session-határok = vizuális elválasztók).
+2. Napló: a grouped RPC `interaction_count`-ja chipben a csatorna mellett („Email 2") — az RPC már adja, csak UI kell.
+3. Thread-összefoglaló: az email-Gemini summary utaljon a korábbi üzenetre is („korábban érdeklődött az implantáció iránt, most a gyógyulási időről kérdez") — FIGYELEM: finom ellentmondás a korábbi „summary = csak legutolsó üzenet" szabállyal (18. tétel előtti kérés) → hibrid javaslat: aktuális ügy + egy mondat utalás.
+
+**User kérdésre válasz (megvolt)**: member dashboardon minden interakció KÜLÖN sor (259 = 2 sor + kézi teendők külön) — a pipás lezárás per-interakció, így marad.
+
+ — meglévő időponthoz kapcsolódó kérdés (2026-09-07, commit `d23c3f0`, 257-es ügy / 782-es interakció)
 
 - **Probléma**: lefoglalt időpont után a „hol található a rendelő?" kérdésre az LLM helyesen Kérdés+Időpontot detektált, de a **vegyes-típus priorítás (Időpont > Kérdés)** átvágta Időpont dominánsra → eredmény „Foglalási szándék rögzítve" / teendő „Időpont véglegesítése" — pedig egyértelműen Kérdés (Válasz előkészítve / Nyitott / Jóváhagyás szükséges).
 - **Javítás** (commit `d23c3f0`):
