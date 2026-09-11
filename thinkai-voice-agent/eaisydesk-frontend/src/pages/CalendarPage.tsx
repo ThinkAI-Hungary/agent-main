@@ -35,6 +35,8 @@ interface CalendarEventItem {
   reminder_sent?: boolean;
   doctor?: string; // {{munkatárs}} — calendar_events.doctor
   attendance_status?: '' | 'attended' | 'no_show'; // megjelent / no-show jelölés
+  status?: string | null; // 'confirmed' (végleges) | 'pending' (függő — 24 órás fenntartás)
+  pending_until?: string | null; // függő foglalás fenntartási határideje
 }
 
 function pad2(n: number) { return (n < 10 ? '0' : '') + n; }
@@ -208,11 +210,13 @@ export default function CalendarPage() {
   // ── Esemény-kártya (hónap/nap) ──
   function renderEv(ev: CalendarEventItem, compact: boolean) {
     const t = new Date(ev.start_dt);
+    const pending = ev.status === 'pending';
     return (
-      <div className={`cal-ev${compact ? ' cal-ev-xs' : ''}`} onClick={e => { e.stopPropagation(); openEventEdit(ev); }}>
+      <div className={`cal-ev${compact ? ' cal-ev-xs' : ''}${pending ? ' cal-ev-pending' : ''}`} onClick={e => { e.stopPropagation(); openEventEdit(ev); }}>
         <span className="cal-ev-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
         <span className="cal-ev-title">{ev.title}</span>
         {!compact && <span className="cal-ev-name">{ev.attendee || ''}</span>}
+        {pending && <span className="cal-pend-pill">függőben</span>}
       </div>
     );
   }
@@ -265,29 +269,31 @@ export default function CalendarPage() {
       const day = (eventsByDate[key] || []).slice().sort((a, b) => (a.start_dt || '').localeCompare(b.start_dt || ''));
       const slots: React.ReactNode[] = [];
       for (let h = CAL_DAY_START; h <= CAL_DAY_END; h++) slots.push(<div key={h} className="cal-wslot" />);
-      const evs = day.map(ev => {
-        const t = new Date(ev.start_dt);
-        const startMin = (t.getHours() - CAL_DAY_START) * 60 + t.getMinutes();
-        const top = (startMin / 60) * CAL_HOUR_PX;
-        const dur = ev.duration_minutes || 30;
-        const hpx = Math.max(22, (dur / 60) * CAL_HOUR_PX);
-        const emailKey = (ev.attendee_email || '').toLowerCase().trim();
-        const staff = ev.doctor || assigneeFor(emailKey);
-        return (
-          <div
-            key={ev.id}
-            className={`cal-ev-abs${hpx < 28 ? ' cal-ev-xs' : hpx < 44 ? ' cal-ev-sm' : ''}`}
-            style={{ top: Math.round(top), height: Math.round(hpx) }}
-            onClick={e => { e.stopPropagation(); openEventEdit(ev); }}
-            onMouseEnter={e => showEventTip(ev, e.currentTarget)}
-            onMouseLeave={hideEventTip}
-          >
-            <span className="cal-ev-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
-            <span className="cal-ev-name">{ev.attendee || ''}</span>
-            <span className="cal-ev-title">{ev.title}</span>
-          </div>
-        );
-      });
+        const evs = day.map(ev => {
+          const t = new Date(ev.start_dt);
+          const startMin = (t.getHours() - CAL_DAY_START) * 60 + t.getMinutes();
+          const top = (startMin / 60) * CAL_HOUR_PX;
+          const dur = ev.duration_minutes || 30;
+          const hpx = Math.max(22, (dur / 60) * CAL_HOUR_PX);
+          const pending = ev.status === 'pending';
+          const emailKey = (ev.attendee_email || '').toLowerCase().trim();
+          const staff = ev.doctor || assigneeFor(emailKey);
+          return (
+            <div
+              key={ev.id}
+              className={`cal-ev-abs${hpx < 28 ? ' cal-ev-xs' : hpx < 44 ? ' cal-ev-sm' : ''}${pending ? ' cal-ev-pending' : ''}`}
+              style={{ top: Math.round(top), height: Math.round(hpx) }}
+              onClick={e => { e.stopPropagation(); openEventEdit(ev); }}
+              onMouseEnter={e => showEventTip(ev, e.currentTarget)}
+              onMouseLeave={hideEventTip}
+            >
+              <span className="cal-ev-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
+              <span className="cal-ev-name">{ev.attendee || ''}</span>
+              <span className="cal-ev-title">{ev.title}</span>
+              {pending && <span className="cal-pend-pill">függőben</span>}
+            </div>
+          );
+        });
       cols.push(<div key={j} className={`cal-wcol${isToday ? ' is-today' : ''}`}>{slots}{evs}</div>);
     }
     return (
@@ -318,10 +324,12 @@ export default function CalendarPage() {
         const day = eventsByDate[key] || [];
         const evHtml = day.slice(0, 2).map(ev => {
           const t = new Date(ev.start_dt);
+          const pending = ev.status === 'pending';
           return (
-            <div key={ev.id} className="cal-ev" onClick={e => { e.stopPropagation(); openEventEdit(ev); }}>
+            <div key={ev.id} className={`cal-ev${pending ? ' cal-ev-pending' : ''}`} onClick={e => { e.stopPropagation(); openEventEdit(ev); }}>
               <span className="cal-ev-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
               <span className="cal-ev-title">{ev.title}</span>
+              {pending && <span className="cal-pend-pill">függőben</span>}
             </div>
           );
         });
@@ -591,7 +599,7 @@ export default function CalendarPage() {
                 role="tooltip"
               >
                 <div className="cal-tip-time">
-                  {pad2(t.getHours())}:{pad2(t.getMinutes())} · {dur} perc
+                  {pad2(t.getHours())}:{pad2(t.getMinutes())} · {dur} perc{eventTip.ev.status === 'pending' ? ' · függőben (24 órás fenntartás)' : ''}
                 </div>
                 <div className="cal-tip-title">{eventTip.ev.title}</div>
                 <div className="cal-tip-name">{eventTip.ev.attendee || '—'}</div>
@@ -652,8 +660,10 @@ export default function CalendarPage() {
                                     <option value="attended">Megjelent</option>
                                     <option value="no_show">No show</option>
                                   </select>
+                                ) : ev.status === 'pending' ? (
+                                  <span className="cp-badge cp-warn"><i className="cp-dot" />Függőben</span>
                                 ) : (
-                                  <span className="cp-result">Várakozik</span>
+                                  <span className="cp-badge cp-navyb"><i className="cp-dot" />Foglalt</span>
                                 )}
                               </td>
                               <td>{ev.attendee || <span className="cp-result">Nincs ügyfél</span>}</td>

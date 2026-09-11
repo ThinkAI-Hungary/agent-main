@@ -1204,6 +1204,49 @@ body.dark .cd-table-card tbody tr.cd-is-urgent td { background: var(--cp-err-row
 .cal-ev-abs.cal-ev-xs .cal-ev-title { display: none; }
 .cal-ev-abs.cal-ev-sm .cal-ev-title { display: none; }
 
+/* ── Függő (ideiglenes) időpont — 24 órás fenntartás (259-es ügy) ──
+   A mockup szerint: halványsárga háttér + szaggatott sárga körvonal + sárga
+   "függőben" pill jobb felül; a bal élön marad a tömör kiemelő sáv. */
+.cal-ev { position: relative; }
+.cal-ev-pending,
+.cal-ev-abs.cal-ev-pending {
+  background: #fef9c3;
+  border: 1.5px dashed #eab308;
+  border-left: 3px solid #eab308;
+}
+.cal-ev-abs.cal-ev-pending:hover { background: #fdf0a8; }
+.cal-ev-pending .cal-ev-time { color: #a16207; }
+body.dark .cal-ev-pending,
+body.dark .cal-ev-abs.cal-ev-pending {
+  background: #2b250e;
+  border-color: #ca8a04;
+}
+body.dark .cal-ev-abs.cal-ev-pending:hover { background: #383012; }
+body.dark .cal-ev-pending .cal-ev-time { color: #eab308; }
+.cal-pend-pill {
+  position: absolute;
+  top: 4px;
+  right: 6px;
+  padding: 1px 9px;
+  font-size: 10px;
+  font-weight: 700;
+  line-height: 1.5;
+  color: #713f12;
+  background: #fde047;
+  border-radius: 999px;
+  white-space: nowrap;
+  pointer-events: none;
+}
+body.dark .cal-pend-pill { background: #eab308; color: #201a05; }
+/* Keskeny kártyákon a cím ne a pill alá csússzon; mini kártyákon a pill rejtve */
+.cal-ev-pending .cal-ev-title,
+.cal-ev-pending .cal-ev-name { padding-right: 60px; }
+.cal-ev-pending.cal-ev-xs .cal-pend-pill,
+.cal-ev-pending.cal-ev-sm .cal-pend-pill { display: none; }
+.cal-ev-pending.cal-ev-xs .cal-ev-title,
+.cal-ev-pending.cal-ev-sm .cal-ev-name { padding-right: 0; }
+.cp-warn .cp-dot { background: var(--warning, #faad14); }
+
 /* ── HÓNAP nézet ── */
 .cal-month-head {
   display: grid;

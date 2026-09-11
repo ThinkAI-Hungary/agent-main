@@ -4771,23 +4771,44 @@ async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(ver
                     # Jóváhagyás-mód: a halasztott foglalás (pending_meeting) CSAK most,
                     # a jóváhagyott válasz kiküldésével egyidőben jön létre — korábban
                     # a visszaigazoló már kiment, miközben a válasz még pending volt
-                    # (257-es ügy). A létrejövő event_id kerül a levél lemondási linkjébe.
+                    # (257-es ügy).
+                    # 259-es ügy: ha a levél FELAJÁNLJA az időpontot (confirmed_by_client
+                    # false — az ügyfél még nem erősítette meg), az esemény IDEIGLENES
+                    # (függő, 24 órás fenntartás) — ilyenkor NINCS visszaigazoló email,
+                    # ICS és Lemondom CTA, helyette a fenntartási tudnivaló megy a levélben.
                     _pm_created_event_id = None
+                    _pm_confirmed = False
                     _pm = send_draft.get("pending_meeting")
                     if _pm and not send_draft.get("event_id"):
+                        _pm_confirmed = bool(_pm.get("confirmed_by_client"))
                         try:
-                            _pm_created_event_id = email_processor.create_event_from_pending_meeting(_pm)
+                            _pm_created_event_id = email_processor.create_event_from_pending_meeting(
+                                _pm, status="confirmed" if _pm_confirmed else "pending"
+                            )
                             if _pm_created_event_id:
                                 send_draft["event_id"] = _pm_created_event_id
-                                print(f"[Approval] Halasztott foglalás létrehozva: event #{_pm_created_event_id} ({_pm.get('date')} {_pm.get('time')})")
+                                print(f"[Approval] Halasztott foglalás létrehozva ({'végleges' if _pm_confirmed else 'függő, 24 órás fenntartás'}): event #{_pm_created_event_id} ({_pm.get('date')} {_pm.get('time')})")
                             else:
                                 print(f"[Approval] Halasztott foglalás NEM jött létre: {_pm}")
                         except Exception as pm_err:
                             print(f"[Approval] Halasztott foglalás hiba: {pm_err}")
 
                     html_body = f'<div style="font-family: Arial, sans-serif;">{send_text.replace(chr(10), "<br>")}</div>'
+                    # Lemondom CTA kizárólag a hivatalos, VÉGLEGES foglaláshoz —
+                    # függő időpont-felajánlásba nem kerül (nincs még mit lemondani)
                     if send_draft.get("event_id"):
-                        html_body += email_processor.get_cancellation_html(send_draft.get("event_id"))
+                        _cta_event = None
+                        try:
+                            _cta_event = db.get_calendar_event(send_draft.get("event_id"))
+                        except Exception:
+                            pass
+                        if not _cta_event or _cta_event.get("status") != "pending":
+                            html_body += email_processor.get_cancellation_html(send_draft.get("event_id"))
+                    if _pm_created_event_id and not _pm_confirmed:
+                        html_body += (
+                            f'<p style="margin-top:24px; font-size:13px; color:#6b7280; '
+                            f'font-style:italic;">{email_processor.PENDING_HOLD_NOTICE}</p>'
+                        )
 
                     _sender = email_processor._get_sender()
                     email_payload = {
@@ -4813,8 +4834,9 @@ async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(ver
                     print(f"[Approval] Email elküldve: {send_draft.get('to_email')}")
 
                     # Visszaigazoló (ICS + lemondási link) az újonnan létrehozott
-                    # eseményhez — a jóváhagyott válasszal egyidőben megy ki
-                    if _pm_created_event_id:
+                    # eseményhez — CSAK VÉGLEGES foglalásnál; a függő fenntartásnál
+                    # a visszaigazoló az ügyfél későbbi 'igen' válaszakor megy ki
+                    if _pm_created_event_id and _pm_confirmed:
                         _pm_att_email = send_draft.get("to_email") or _pm.get("attendee_email") or ""
                         if _pm_att_email and _pm_att_email != "-":
                             asyncio.create_task(

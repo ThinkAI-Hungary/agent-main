@@ -456,7 +456,8 @@ JSON STRUKTÚRA:
         "date": "YYYY-MM-DD",
         "time": "HH:MM",
         "duration_minutes": 30,
-        "assigned_to": "A felelős munkatárs neve (ha releváns), különben null"
+        "assigned_to": "A felelős munkatárs neve (CSAK ha az ügyfél kifejezetten, név szerint kérte!), különben null",
+        "confirmed_by_client": "true|false — lásd az IDŐPONT-FOGLALÁSI SZABÁLYOK blokkot"
     },
     "action_modify_meeting": {
         "event_title_to_modify": "A módosítandó esemény címe vagy része",
@@ -470,7 +471,10 @@ JSON STRUKTÚRA:
     "secondary_tags": [],
     "handover_reason": "Az átadás oka, ha emberi beavatkozás szükséges. Válaszd ezek közül: 'Összetett kérdés', 'Sürgős / triázs', 'Hiányzó info', 'Foglalási kivétel', 'Emberi döntés'. Ha az AI mindent meg tudott oldani, ez legyen null."
 }
-Ha az ügyfél nem jelölt meg konkrét és pontos foglalási időpontot (konkrét napot és órát), a "meeting" értéke KÖTELEZŐEN null legyen.
+IDŐPONT-FOGLALÁSI SZABÁLYOK (függő vs. végleges foglalás — KRITIKUS!):
+- "confirmed_by_client": true CSAK akkor, ha (a) az ügyfél MAGA adott meg konkrét napot ÉS órát a levelében, VAGY (b) az ügyfél EGYÉRTELMESEN elfogadta a korábban felajánlott időpontunkat ("igen, jó", "megfelel", "foglalom" stb.). ilyenkor a meeting objektumba A KORÁBBIAN FELAJÁNLOTT időpontot írd (az Előző üzenetekből)!
+- "confirmed_by_client": false, ha TE javasolsz időpontot, amit az ügyfél még nem látott és nem erősített meg (pl. az ügyfél időpontot kér, de konkrét órát nem jelölt). Ekkor a meeting objektumot töltsd ki a javasolt konkrét nappal és órával — a rendszer ideiglenes (függő) foglalásként kezeli, és a válaszlevél automatikusan kiegészül a 24 órás fenntartási tudnivalóval, EZT A SZÖVEGET TE NE ÍRD KI! A válaszban úgy fogalmazz, hogy javaslat: kérdezd meg, megfelel-e az ügyfélnek.
+- Ha az ügyfélnek NINCS foglalási szándéka (tisztán kérdés, ár-információ, tájékoztatás), a "meeting" értéke null.
 FIGYELEM: Ha az eset Sürgős vagy Kiemelt prioritású, VAGY a kérés szerepel a Kivételek (Exceptions) listájában, a "meeting" értéke KÖTELEZŐEN null kell legyen (SZIGORÚAN TILOS időpontot foglalni!), és a "handover_reason" legyen 'Sürgős / triázs' vagy 'Foglalási kivétel'.
 Ebben az esetben a válaszlevélben se ígérj egyeztetést konkrét időpontokról, kizárólag azt jelezd, hogy az ügyét azonnal továbbítottad egy élő kollégának/munkatársnak!
 KIVÉTEL a fenti tiltás alól: FÁJDALOM / fizikai panasz — lásd a "SZABÁLY — FÁJDALOM" blokkot lent, ott TILOS a lerázás, és KÖTELEZŐ az időpont!
@@ -478,14 +482,14 @@ KIVÉTEL a fenti tiltás alól: FÁJDALOM / fizikai panasz — lásd a "SZABÁLY
 SZABÁLY — DENTÁLHIGIÉNIÁS KEZELÉSEK: Dentálhigiénés kezeléseket (pl. EMS fogkő-eltávolítás, Air-Flow) ÚJ ÜGYFÉLNEK IS KÖZVETLENÜL LE LEHET FOGLALNI — nem szükséges előtte konzultáció, és NE kérj rá identitás-ellenőrzést (a nyilvántartás alapján a rendszer tudja, ki az ügyfél). Ha az ügyfél kezelést megnevezve kér időpontot, az esemény címe A KEZELÉS NEVE legyen (pl. "EMS fogkő-eltávolítás"), nem "Konzultáció".
 
 SZABÁLY — FÁJDALOM, FIZIKAI PANASZ (KRITIKUS!): A fogfájás, erős fájdalom, bölcsességfog-fájdalom, duzzanat, vérzés ORVOSI fizikai tünet — NEM reklamáció ("Panasz"), és NEM "Sürgős / triázs" handover! Fájdalomra SOHA ne válaszolj úgy, hogy "az ügyét továbbítottuk kollégáinknak" — ez a szolgáltató oldaláról elutasítás lenne! Ha az ügyfél fájdalom vagy más akut fizikai tünet miatt jelentkezik (akkor is, ha konkrét napot/órát NEM jelölt meg):
-(1) töltsd ki a "meeting" objektumot a lehető LEGKORÁBBI reális munkaidőbeli időpontra (lehetőleg 24-48 órán belül), az esemény címe az ellátás legyen (pl. "Sürgős konzultáció - fájdalom");
+(1) töltsd ki a "meeting" objektumot a lehető LEGKORÁBBI reális munkaidőbeli időpontra (lehetőleg 24-48 órán belül), az esemény címe az ellátás legyen (pl. "Sürgős konzultáció - fájdalom"), confirmed_by_client: false (a rendszer ideiglenes foglalásként fenntartja);
 (2) a válaszlevélben erősítsd meg ezt az időpontot, jelezd, hogy panaszát sürgősségiként kezeljük, és adhatsz rövid, általános tájékoztatást a fájdalomcsillapításról az időpontig (vény nélkül kapható fájdalomcsillapító), de állapotot ne diagnosztizálj;
 (3) az alert_tags tartalmazza az "urgent" értéket;
 (4) a handover_reason legyen null.
 Csak akkor térj el ettől, ha az ügyfél kifejezetten a SZOLGÁLTATÁSSAL (a kezelés minőségével, elbánással, számlázással) van elégedetlen — az valódi Panasz, ott marad a handover.
 
 KIVÉTEL A TILTÁS ALÓL (FONTOS!):
-Ha a felhasználó egyértelműen időpontot kér, de NEM adja meg, hogy milyen panasza/kezelése van, AKKOR IS FOGLALD LE az időpontot (a "meeting" objektum kitöltésével, pl. "Konzultáció" vagy "Általános vizsgálat" címmel)! Ne tagadd meg a foglalást és ne kérj vissza pontosítást csak azért, mert nem tudod a kezelés típusát. Csak akkor tilos a foglalás, ha a megadott panasz egyértelműen Sürgős/Kiemelt, vagy egyértelműen szerepel a Kivételek között. Ha nincs panasz megadva, feltételezd, hogy Normál eset!
+Ha a felhasználó egyértelműen időpontot kér, de NEM adja meg, hogy milyen panasza/kezelése van, AKKOR IS JAVASOLJ időpontot (a "meeting" objektum kitöltésével, pl. "Konzultáció" vagy "Általános vizsgálat" címmel, confirmed_by_client: false — ideiglenes foglalás)! Ne tagadd meg a foglalást és ne kérj vissza pontosítást csak azért, mert nem tudod a kezelés típusát. Csak akkor tilos, ha a megadott panasz egyértelműen Sürgős/Kiemelt, vagy egyértelműen szerepel a Kivételek között. Ha nincs panasz megadva, feltételezd, hogy Normál eset!
 A lehetséges alert_tags értékek:
 - "urgent": ha nagyon sürgős az ügy
 - "exception": ha a kérés szerepel a Kivételek listájában
@@ -541,6 +545,7 @@ Ha egyik sem releváns, legyen üres lista [].
     sys_prompt += "1. SOHA ne írd, hogy 'Jó napot!' vagy más sablonos köszönést, ha a beszélgetés már elkezdődött (lásd Előző üzenetek). Ha ez a legelső üzenet, akkor is maximum egy 'Üdvözlöm!' elegendő.\n"
     sys_prompt += "2. SOHA ne kérdezd meg, hogy 'Miben segíthetek?', ha az ügyfél már konkrét kérdést tett fel (pl. 'érdeklődnék hogy foglalkoznak-e fogkőeltávolítással'). Válaszolj közvetlenül és felesleges udvariaskodás nélkül a kérdésére (pl. 'Igen, foglalkozunk fogkőeltávolítással, az áraink...', stb.)! Ne fárasszuk az ügyfelet felesleges kérdésekkel, ha már tudjuk mit akar.\n"
     sys_prompt += "3. Légy célratörő, lényegretörő és emberi.\n"
+    sys_prompt += "4. A válaszlevélben SOHA ne nevezz meg konkrét ellátó munkatársat (orvos, dentálhigiénikus, kolléga nevét) — azt, hogy ki látja el az ügyfelet, a hivatalos visszaigazoló email tartalmazza. A meeting.assigned_to mezőt is CSAK akkor töltsd ki, ha az ügyfél kifejezetten, név szerint kért munkatársat!\n"
     sys_prompt += f"\n\n--- JSON UTASÍTÁS ---\n{json_instruction}"
 
     logger.info(f"Gemini 2.5 Flash elemzi az e-mailt: {from_email} - {subject}")
@@ -711,8 +716,10 @@ Ha egyik sem releváns, legyen üres lista [].
                     # Módosítás-visszaigazoló: jóváhagyás-módban a jóváhagyott
                     # válasszal együtt megy ki (pending_modification), autonóm
                     # módban azonnal — a döntés a klasszifikáció után történik.
+                    # FÜGGŐ (ideiglenes) foglalásnál NINCS módosítás-visszaigazoló:
+                    # még nincs hivatalos időpont, amit visszaigazolnánk (259-es ügy).
                     attendee_email_m = found.get("attendee_email")
-                    if attendee_email_m and attendee_email_m != "-":
+                    if found.get("status") != "pending" and attendee_email_m and attendee_email_m != "-":
                         modification_info = {
                             "attendee": found.get("attendee", "Ügyfél"),
                             "attendee_email": attendee_email_m,
@@ -730,7 +737,13 @@ Ha egyik sem releváns, legyen üres lista [].
         try:
             ev_title = delete_action["event_title_to_delete"]
             found = db.find_calendar_event_by_title(ev_title)
-            if found:
+            if found and found.get("status") == "pending":
+                # Függő (ideiglenes) javaslat lemondása: csak felszabadul —
+                # ügyfél-státusz módosítás és lemondó-email NEM kell, mert
+                # hivatalos időpont sosem volt (259-es ügy)
+                db.delete_calendar_event(found["id"])
+                logger.info(f"Függő időpont-javaslat felszabadítva (e-mailből): {found['title']}")
+            elif found:
                 # Mark client as cancelled
                 client = None
                 email = found.get("attendee_email")
@@ -843,32 +856,55 @@ Ha egyik sem releváns, legyen üres lista [].
 
         # ── Esemény-létrehozás: CSAK akkor, ha a válasz is azonnal megy ──
         # Jóváhagyás-módban a meeting-javaslat a draftba kerül (pending_meeting),
-        # az esemény + visszaigazoló a jóváhagyáskor készül el (approve endpoint).
+        # az esemény a jóváhagyáskor készül el (approve endpoint).
+        # 259-es ügy: ha a rendszer javasolta az időpontot (confirmed_by_client=false),
+        # az IDEIGLENES (függő) foglalás — 24 órás fenntartás, nincs visszaigazoló/ICS/
+        # Lemondom, és a válaszlevél kapja a fenntartási tudnivalót. Végleges foglalás
+        # (+ visszaigazoló ICS-sel) csak az ügyfél egyértelmű visszaigazolásakor.
         if meeting and meeting.get("date") and meeting.get("time") and not meeting_failed:
+            confirmed_by_client = bool(meeting.get("confirmed_by_client"))
             if is_autonomous_email:
-                created_event_id = create_event_from_pending_meeting({
-                    "title": meeting.get("title", f"Megbeszélés: {from_name}"),
-                    "date": meeting.get("date"),
-                    "time": meeting.get("time"),
-                    "duration_minutes": meeting.get("duration_minutes", 30),
-                    "attendee": from_name,
-                    "attendee_email": from_email,
-                })
+                created_event_id = None
+                if confirmed_by_client:
+                    # (b) Az ügyfél elfogadta a korábban felajánlott időpontot →
+                    # a függő foglalást véglegesítjük (nem keletkezik új esemény)
+                    created_event_id = _confirm_pending_event(from_email, meeting.get("date"), meeting.get("time"))
+                if not created_event_id:
+                    created_event_id = create_event_from_pending_meeting(
+                        {
+                            "title": meeting.get("title", f"Megbeszélés: {from_name}"),
+                            "date": meeting.get("date"),
+                            "time": meeting.get("time"),
+                            "duration_minutes": meeting.get("duration_minutes", 30),
+                            "attendee": from_name,
+                            "attendee_email": from_email,
+                        },
+                        status="confirmed" if confirmed_by_client else "pending",
+                    )
                 if created_event_id:
-                    logger.info(f"Naptár esemény sikeresen létrehozva: {meeting.get('title')} (event #{created_event_id})")
-                    # Hivatalos visszaigazoló email ICS naptárfájllal (beállításokból:
-                    # sablon, lemondási link)
-                    if from_email and from_email != "-":
-                        asyncio.create_task(
-                            send_booking_confirmation_email(
-                                event_id=created_event_id,
-                                title=meeting.get("title", f"Megbeszélés: {from_name}"),
-                                date=meeting.get("date"),
-                                time=meeting.get("time"),
-                                attendee=from_name,
-                                attendee_email=from_email
+                    if confirmed_by_client:
+                        logger.info(f"Végleges naptár esemény: {meeting.get('title')} (event #{created_event_id})")
+                        # Végleges foglalás után a már felesleges függő javaslatok felszabadítása
+                        _release_other_pending_events(from_email, keep_event_id=created_event_id)
+                        # Hivatalos visszaigazoló email ICS naptárfájllal (beállításokból:
+                        # sablon, lemondási link) — CSAK végleges foglaláshoz
+                        if from_email and from_email != "-":
+                            asyncio.create_task(
+                                send_booking_confirmation_email(
+                                    event_id=created_event_id,
+                                    title=meeting.get("title", f"Megbeszélés: {from_name}"),
+                                    date=meeting.get("date"),
+                                    time=meeting.get("time"),
+                                    attendee=from_name,
+                                    attendee_email=from_email
+                                )
                             )
-                        )
+                    else:
+                        # Ideiglenes foglalás: a válaszlevél kiegészül a 24 órás
+                        # fenntartási tudnivalóval (pontos, beégetett szöveg)
+                        if PENDING_HOLD_NOTICE not in email_reply:
+                            email_reply = email_reply.rstrip() + "\n\n" + PENDING_HOLD_NOTICE
+                        draft_payload["body"] = email_reply
                 else:
                     logger.error(f"Naptár esemény létrehozása sikertelen: {meeting.get('title')}")
                     meeting_failed = True
@@ -881,6 +917,7 @@ Ha egyik sem releváns, legyen üres lista [].
                     "duration_minutes": meeting.get("duration_minutes", 30),
                     "attendee": from_name,
                     "attendee_email": from_email,
+                    "confirmed_by_client": bool(meeting.get("confirmed_by_client")),
                 }
                 logger.info(f"Naptár-foglalás a jóváhagyásig halasztva: {meeting.get('title')} ({meeting.get('date')} {meeting.get('time')}) — pending_meeting")
 
@@ -1687,6 +1724,7 @@ async def _run_reminders_for_tenant(tenant: dict):
         return
 
     events = db.get_upcoming_events_for_reminders(hours_offset=24)
+
     for ev in events:
         # Per-event védelem: egy rossz esemény ne áldozza fel a teljes
         # 15 perces iteráció maradékát
@@ -1702,6 +1740,12 @@ async def _run_reminders_for_tenant(tenant: dict):
                 attendee_email=ev.get('attendee_email'),
             )
             subject, html_msg, _plain = _render_notification("reminder", vars)
+
+            # Lemondom CTA az emlékeztetőben is (a visszaigazoló után ez a második
+            # hivatalos pont — függő foglalásba soha nem kerül, azokat a lekérdezés
+            # eleve kiszűri)
+            if ev.get('id'):
+                html_msg += get_cancellation_html(ev.get('id'))
 
             success = await send_reminder_email(
                 to_email=ev.get('attendee_email'),
@@ -1731,6 +1775,13 @@ async def reminder_worker_loop():
             import asyncio
             for tenant in db.get_active_tenants():
                 try:
+                    # Lejárt függő (ideiglenes) foglalások felszabadítása — a 24 órás
+                    # fenntartási határidő (259-es ügy) a toggle-öktől függetlenül fut
+                    db.set_current_tenant(tenant["id"])
+                    db.release_expired_pending_events()
+                except Exception as rel_err:
+                    logger.error(f'Lejárt függő foglalások felszabadítási hiba (tenant={tenant.get("slug")}): {rel_err}')
+                try:
                     await _run_reminders_for_tenant(tenant)
                 except Exception as t_err:
                     logger.error(f'Emlékeztető worker hiba (tenant={tenant.get("slug")}): {t_err}')
@@ -1759,12 +1810,74 @@ def _loads_lenient(raw: str):
     return json.loads(fixed)
 
 
-def create_event_from_pending_meeting(pm: dict):
+# 259-es ügy: a felajánlott (még ügyfél-visszaigazolást nem kapott) időpont 24 órás
+# fenntartási tudnivalója — ez a PONTOS szöveg kerül a felajánló válaszemail végére.
+PENDING_HOLD_NOTICE = (
+    "Tájékoztatjuk, hogy a felajánlott időpontot 24 órán keresztül tudjuk tartani. "
+    "Amennyiben ez idő alatt nem érkezik megerősítés az Ön részéről, az időpont "
+    "felszabadul, és a foglalási folyamatot újra szükséges egyeztetni."
+)
+
+PENDING_HOURS = 24
+
+
+def _pending_deadline_iso(hours: float = PENDING_HOURS) -> str:
+    """A függő foglalás fenntartási határideje (pending_until) Budapesti idő szerint."""
+    from datetime import timedelta
+    from zoneinfo import ZoneInfo
+    return (datetime.now(ZoneInfo("Europe/Budapest")) + timedelta(hours=hours)).isoformat()
+
+
+def _confirm_pending_event(attendee_email: str, date_str: str, time_str: str) -> int | None:
+    """Az ügyfél aktív függő foglalásának véglegesítése (egyértelmű 'igen' válaszra).
+    Csak akkor sikerül, ha a megadott dátum/idő EGYEZIK a fenntartott időponttal;
+    ilyenkor status='confirmed', a pending_until törlődik, és az esemény id-je jön vissza."""
+    if not attendee_email or not date_str or not time_str:
+        return None
+    try:
+        m_time = _re.match(r"^(\d{1,2}:\d{2})", str(time_str).strip())
+        t_norm = m_time.group(1) if m_time else None
+        if not t_norm:
+            return None
+        target = _to_budapest_tz(f"{date_str}T{t_norm}:00")
+        pe = db.find_pending_event_for_attendee(attendee_email.strip())
+        if not pe:
+            return None
+        try:
+            pe_start = _to_budapest_tz(pe.get("start_dt"))
+        except Exception:
+            return None
+        if pe_start.strftime("%Y-%m-%d %H:%M") == target.strftime("%Y-%m-%d %H:%M"):
+            if db.update_calendar_event(pe["id"], status="confirmed", pending_until=None):
+                logger.info(f"Függő foglalás véglegesítve az ügyfél visszaigazolásával: event #{pe['id']} ({attendee_email})")
+                return pe["id"]
+        return None
+    except Exception as e:
+        logger.error(f"_confirm_pending_event hiba: {e}")
+        return None
+
+
+def _release_other_pending_events(attendee_email: str, keep_event_id: int | None = None):
+    """Végleges foglalás után az ügyfél egyéb (elavult) függő foglalásainak felszabadítása."""
+    try:
+        pe = db.find_pending_event_for_attendee((attendee_email or "").strip())
+        if pe and pe.get("id") != keep_event_id:
+            db.delete_calendar_event(pe["id"])
+            logger.info(f"Elavult függő foglalás felszabadítva: event #{pe['id']} ({attendee_email})")
+    except Exception as e:
+        logger.error(f"_release_other_pending_events hiba: {e}")
+
+
+def create_event_from_pending_meeting(pm: dict, status: str = "confirmed", pending_hours: float = PENDING_HOURS):
     """Naptáresemény létrehozása egy halasztott foglalásból.
 
     Két helyről hívódik: (1) process_single_email autonóm ága, (2) az approve
     endpoint (jóváhagyás-mód: a "pending_meeting" javaslat csak a jóváhagyott
     válasz kiküldésekor válik eseménnyé). Visszaadja az event id-t, hibánál None-t.
+
+    status='pending': IDEIGLENES foglalás — a felajánlott időpont fenntartása a
+    259-es ügy szabálya szerint: 24 órás határidő (pending_until), a naptárban
+    'függőben' státusz, ügyfél-visszaigazolásig NINCS visszaigazoló email/ICS/Lemondom.
     """
     from datetime import timedelta
     date_str = pm.get("date")
@@ -1784,6 +1897,10 @@ def create_event_from_pending_meeting(pm: dict):
     try:
         start_dt = _to_budapest_tz(f"{date_str}T{time_str}:00")
         end_dt = start_dt + timedelta(minutes=dur)
+        extra = {}
+        if status == "pending":
+            extra["status"] = "pending"
+            extra["pending_until"] = _pending_deadline_iso(pending_hours)
         event_id = db.add_calendar_event(
             title=title,
             start_dt=start_dt.isoformat(),
@@ -1792,11 +1909,14 @@ def create_event_from_pending_meeting(pm: dict):
             attendee=pm.get("attendee", ""),
             attendee_email=pm.get("attendee_email", ""),
             assigned_to=assigned_staff,
+            **extra,
         )
         if assigned_staff:
             logger.info(f"Foglalás munkatárshoz rendelve: {assigned_staff} ({title})")
         if not event_id:
             return None
+        if status == "pending":
+            logger.info(f"Ideiglenes (függő) foglalás létrehozva: {title} ({date_str} {time_str}) — {pending_hours} órás fenntartással")
         return event_id
     except Exception as e:
         logger.error(f"create_event_from_pending_meeting hiba ({title}): {e}")

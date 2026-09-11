@@ -567,7 +567,7 @@ def get_calendar_events() -> list[dict]:
     except Exception:
         return []
 
-def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", attendee_email="", assigned_to="") -> int:
+def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", attendee_email="", assigned_to="", status="", pending_until=None) -> int:
     if not supabase: return 0
     try:
         insert_data = _with_tenant({
@@ -581,6 +581,12 @@ def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", a
         # Munkatárs ({{munkatárs}} változó): calendar_events.doctor oszlop
         if assigned_to:
             insert_data["doctor"] = assigned_to
+        # Függő (tentative) foglalás: status='pending' + 24 órás fenntartási határidő.
+        # status üresen → DB default 'confirmed' (végleges).
+        if status:
+            insert_data["status"] = status
+        if pending_until:
+            insert_data["pending_until"] = pending_until
         res = supabase.table("calendar_events").insert(insert_data).execute()
         return res.data[0]["id"] if res.data else 0
     except Exception as e:
@@ -589,7 +595,7 @@ def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", a
 
 def update_calendar_event(event_id: int, **fields) -> bool:
     if not supabase: return False
-    allowed = {"title", "start_dt", "end_dt", "duration_minutes", "attendee", "attendee_email", "completed", "doctor", "attendance_status"}
+    allowed = {"title", "start_dt", "end_dt", "duration_minutes", "attendee", "attendee_email", "completed", "doctor", "attendance_status", "status", "pending_until"}
     updates = {k: v for k, v in fields.items() if k in allowed}
     if not updates: return False
     try:
@@ -597,6 +603,50 @@ def update_calendar_event(event_id: int, **fields) -> bool:
         return True
     except Exception:
         return False
+
+
+def find_pending_event_for_attendee(email: str) -> dict | None:
+    """Az ügyfél AKTÍV (le nem járt) függő — még visszaigazolásra váró — foglalása.
+    A 24 órás fenntartási határidő (pending_until) után már nem számít fennállónak."""
+    if not supabase or not email: return None
+    try:
+        from datetime import datetime, timezone
+        now_iso = datetime.now(timezone.utc).isoformat()
+        res = (
+            _tenant_eq(supabase.table("calendar_events").select("*"))
+            .eq("attendee_email", email)
+            .eq("status", "pending")
+            .gt("pending_until", now_iso)
+            .order("start_dt", desc=False)
+            .limit(1)
+            .execute()
+        )
+        return res.data[0] if res.data else None
+    except Exception as e:
+        logger.error(f"Find pending event error: {e}")
+        return None
+
+
+def release_expired_pending_events() -> int:
+    """Lejárt függő foglalások felszabadítása (24 órán belül nem erősítette meg
+    az ügyfél → az időpont felszabadul). A felszabadított sorok törlődnek."""
+    if not supabase: return 0
+    try:
+        from datetime import datetime, timezone
+        now_iso = datetime.now(timezone.utc).isoformat()
+        res = (
+            _tenant_eq(supabase.table("calendar_events").delete())
+            .eq("status", "pending")
+            .lt("pending_until", now_iso)
+            .execute()
+        )
+        n = len(res.data or [])
+        if n:
+            logger.info(f"{n} lejárt függő foglalás felszabadítva (24 órás határidő)")
+        return n
+    except Exception as e:
+        logger.error(f"Release expired pending events error: {e}")
+        return 0
 
 def delete_calendar_event(event_id: int) -> bool:
     if not supabase: return False
@@ -2206,7 +2256,7 @@ def get_upcoming_events_for_reminders(hours_offset: int):
         now = datetime.now(timezone.utc)
         target_start = now + timedelta(hours=hours_offset)
         target_end = target_start + timedelta(minutes=15)
-        res = _tenant_eq(supabase.table('calendar_events').select('*')).gte('start_dt', target_start.isoformat()).lt('start_dt', target_end.isoformat()).execute()
+        res = _tenant_eq(supabase.table('calendar_events').select('*')).gte('start_dt', target_start.isoformat()).lt('start_dt', target_end.isoformat()).neq('status', 'pending').execute()
         events = []
         for e in res.data:
             if not e.get('reminder_sent'):
