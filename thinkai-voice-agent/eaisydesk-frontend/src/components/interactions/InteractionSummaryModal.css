@@ -1114,26 +1114,27 @@
 /* ══ Interakciós popup redesign (2026-09-11, I. kör) ══ */
 
 /* Standard csatorna chip — a szoftver általános megjelenése (nem fekete pill) */
+/* Pontosan a listanézetek csatorna-chipje (kit 07 — interactions.css .int-channel-chip) */
 .ism-channel-chip {
   display: inline-flex;
   align-items: center;
-  gap: 10px;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--text, #1f2937);
+  gap: 8px;
   white-space: nowrap;
 }
 .ism-channel-chip-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 12px;
-  background: #f9fafb;
+  width: 28px;
+  height: 28px;
+  flex: none;
+  border-radius: 8px;
+  background: var(--bg3, #f3f4f6);
   border: 1px solid var(--border, #e5e7eb);
-  display: flex;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  color: #374151;
+  color: var(--text-muted, #6b7280);
 }
+.ism-channel-chip-icon svg { width: 15px; height: 15px; }
+.ism-channel-chip-name { font-size: 13px; color: var(--text, #374151); }
 .ism-header-right {
   display: flex;
   flex-direction: column;

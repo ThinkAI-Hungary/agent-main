@@ -844,12 +844,12 @@ export default function InteractionSummaryModal({
             <span className="ism-channel-chip">
               <span className="ism-channel-chip-icon">
                 {CHANNEL_ICONS[channelUpper] && (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
                     {CHANNEL_ICONS[channelUpper]}
                   </svg>
                 )}
               </span>
-              {channel}
+              <span className="ism-channel-chip-name">{channel}</span>
             </span>
           </div>
         </div>
