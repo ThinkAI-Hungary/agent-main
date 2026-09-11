@@ -49,6 +49,7 @@ export interface InteractionRow {
   interactionId: number | null;
   sessionId: string | null;
   ai_draft_response: string | null;
+  interactionCount?: number;
   approval_status: string | null;
   aiDraftResponse?: string | null;
   approvalStatus?: string | null;
@@ -200,6 +201,7 @@ export default function InteractionsPage() {
 
       rows.push({
         date: g.last_created_at || representative.created_at || '',
+        interactionCount: g.interaction_count,
         channel: getRowChannel(representative.type || '', sRoom, g.session_id || '', representative.type || ''),
         client: clientInfo.name,
         clientId: clientInfo.id,
@@ -866,7 +868,26 @@ export default function InteractionsPage() {
                     )}
                     {visibleCols.has('channel') && (
                       <td className="int-td int-td--channel">
-                        <ChannelChip name={r.channel} />
+                        <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                          <ChannelChip name={r.channel} />
+                          {(r.interactionCount ?? 0) > 1 && (
+                            <span
+                              title={`${r.interactionCount} interakció a szálban`}
+                              style={{
+                                fontSize: 11,
+                                fontWeight: 600,
+                                color: '#0d9488',
+                                background: 'rgba(13, 148, 136, 0.1)',
+                                border: '1px solid rgba(13, 148, 136, 0.3)',
+                                borderRadius: 8,
+                                padding: '1px 7px',
+                                fontVariantNumeric: 'tabular-nums',
+                              }}
+                            >
+                              {r.interactionCount}
+                            </span>
+                          )}
+                        </span>
                       </td>
                     )}
                     {visibleCols.has('ugyTipus') && (

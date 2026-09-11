@@ -206,7 +206,7 @@ export default function VoiceProvisioningSection() {
   );
 }
 
-function StatusItem({ label, ok, neutral, value }: { label: string; ok?: boolean; neutral?: boolean; value?: string }) {
+function StatusItem({ label, ok, neutral, value, extra }: { label: string; ok?: boolean; neutral?: boolean; value?: string; extra?: string }) {
   return (
     <div className="tel-status-item">
       <div className="tel-status-label">{label}</div>
@@ -214,6 +214,7 @@ function StatusItem({ label, ok, neutral, value }: { label: string; ok?: boolean
         {neutral ? (value || '…') : ok ? '🟢 beállítva' : '⚪ nincs beállítva'}
         {ok && value ? ` (${value})` : ''}
       </div>
+      {extra ? <div style={{ fontSize: 11, color: 'var(--text-muted, #5F7D95)', marginTop: 2 }}>{extra}</div> : null}
     </div>
   );
 }
