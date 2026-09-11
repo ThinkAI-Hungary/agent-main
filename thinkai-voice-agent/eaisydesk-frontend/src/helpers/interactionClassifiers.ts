@@ -10,7 +10,7 @@
  *   eredmény:   Megválaszolt kérdés | Válasz előkészítve | Kérdés rögzítve |
  *               Igény rögzítve | Panasz rögzítve |
  *               Új időpont | Módosított időpont | Törölt időpont |
- *               Foglalási szándék rögzítve | Foglalási igény rögzítve |
+ *               Foglalási szándék rögzítve |
  *               Módosítási szándék rögzítve | Lemondási szándék rögzítve |
  *               Sürgős időpont-kérés
  *   státusz:    Lezárt | Nyitott | Sürgős

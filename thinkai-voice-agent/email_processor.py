@@ -989,10 +989,10 @@ Ha egyik sem releváns, legyen üres lista [].
         email_funnel = "valaszolt" if (is_autonomous_email and send_ok) else f_stage
 
         # 260-as ügy: javaslati szakaszban (függő foglalás, az ügyfél még nem
-        # erősítette meg) az eredmény ne 'Új időpont' legyen — a szakaszok
-        # így követhetők az ügyfélprofil külön soraiában
+        # erősítette meg) az eredmény ne 'Új időpont' legyen, hanem a kanonikus
+        # 'Foglalási szándék rögzítve' — a szakaszok így követhetők
         if proposal_stage and isinstance(classification, dict):
-            classification["eredmeny"] = "Foglalási igény rögzítve"
+            classification["eredmeny"] = "Foglalási szándék rögzítve"
 
         _logged_interaction_id = db.log_interaction(
             type="email",
