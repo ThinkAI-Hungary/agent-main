@@ -468,6 +468,11 @@ JSON STRUKTÚRA:
         "event_title_to_delete": "A törlendő esemény címe vagy része"
     },
     "alert_tags": ["urgent", "complaint", "callback", "recurring"], // Válaszd ki, ha releváns, különben üres lista []
+    "stale_offer": {
+        "detected": "true|false — true, ha a válaszodba BEKERÜLNE egy kedvezmény/akció/csomagajánlat, ami a céginfóban vagy a tudásbázisban bekapcsolva maradt, DE a lejárati dátuma a mai dátumhoz (AKTUÁLIS DÁTUM blokk) képest már eltelt, vagy a szöveg alapján egyértelműen nem aktuális (lejárt szezon, megszűnt ajánlat)",
+        "name": "az érintett kedvezmény/akció megnevezése a céginfóból/tudásbázisból",
+        "note": "1 mondatos indoklás (pl. 'a szeptember 30-i lejárat már elmúlt')"
+    },
     "secondary_tags": [],
     "handover_reason": "Az átadás oka, ha emberi beavatkozás szükséges. Válaszd ezek közül: 'Összetett kérdés', 'Sürgős / triázs', 'Hiányzó info', 'Foglalási kivétel', 'Emberi döntés'. Ha az AI mindent meg tudott oldani, ez legyen null."
 }
@@ -475,6 +480,11 @@ IDŐPONT-FOGLALÁSI SZABÁLYOK (függő vs. végleges foglalás — KRITIKUS!):
 - "confirmed_by_client": true CSAK akkor, ha (a) az ügyfél MAGA adott meg konkrét napot ÉS órát a levelében, VAGY (b) az ügyfél EGYÉRTELMESEN elfogadta a korábban felajánlott időpontunkat ("igen, jó", "megfelel", "foglalom" stb.). ilyenkor a meeting objektumba A KORÁBBIAN FELAJÁNLOTT időpontot írd (az Előző üzenetekből)!
 - "confirmed_by_client": false, ha TE javasolsz időpontot, amit az ügyfél még nem látott és nem erősített meg (pl. az ügyfél időpontot kér, de konkrét órát nem jelölt). Ekkor a meeting objektumot töltsd ki a javasolt konkrét nappal és órával — a rendszer ideiglenes (függő) foglalásként kezeli, és a válaszlevél automatikusan kiegészül a 24 órás fenntartási tudnivalóval, EZT A SZÖVEGET TE NE ÍRD KI! A válaszban úgy fogalmazz, hogy javaslat: kérdezd meg, megfelel-e az ügyfélnek.
 - Ha az ügyfélnek NINCS foglalási szándéka (tisztán kérdés, ár-információ, tájékoztatás), a "meeting" értéke null.
+
+SZABÁLY — LEJÁRT / NEM AKTUÁLIS KEDVEZMÉNY (260-as ügy — KRITIKUS!):
+Ha a válaszod kedvezményt, akciót, bevezető árat vagy csomagajánlatot említene, ELŐBB ellenőrizd az érvényességét az AKTUÁLIS DÁTUM blokkhoz képest! A céginfóban/tudásbázisban előfordulhat, hogy egy ajánlat BEKAPCSOLVA maradt, pedig már lejárt — ilyet SOHA ne közölj érvényes ajánlatként az ügyféllel.
+- Ha az ajánlat lejárt vagy egyértelműen nem aktuális: a "stale_offer.detected" legyen true (name = az ajánlat megnevezése, note = rövid indoklás), és a válaszlevélben NE ígérd és NE tüntesd fel érvényes ajánlatként. A rendszer ilyenkor a választ NEM küldi ki automatikusan, naptári akció nem fut, és a rendszergazdáknak finomhangolási javaslatot rögzít ("érdemes kikapcsolni vagy frissíteni").
+- Aktuális, még érvényes ajánlatnál a "stale_offer.detected" legyen false.
 FIGYELEM: Ha az eset Sürgős vagy Kiemelt prioritású, VAGY a kérés szerepel a Kivételek (Exceptions) listájában, a "meeting" értéke KÖTELEZŐEN null kell legyen (SZIGORÚAN TILOS időpontot foglalni!), és a "handover_reason" legyen 'Sürgős / triázs' vagy 'Foglalási kivétel'.
 Ebben az esetben a válaszlevélben se ígérj egyeztetést konkrét időpontokról, kizárólag azt jelezd, hogy az ügyét azonnal továbbítottad egy élő kollégának/munkatársnak!
 KIVÉTEL a fenti tiltás alól: FÁJDALOM / fizikai panasz — lásd a "SZABÁLY — FÁJDALOM" blokkot lent, ott TILOS a lerázás, és KÖTELEZŐ az időpont!
@@ -613,6 +623,14 @@ Ha egyik sem releváns, legyen üres lista [].
     alert_tags = data.get("alert_tags", [])
     handover_reason = data.get("handover_reason")
     secondary_tags = data.get("secondary_tags", [])
+
+    # 260-as ügy: a válasz lejárt / nem aktuális kedvezményt említene, ami a
+    # céginfóban bekapcsolva maradt → a válasz NEM megy ki automatikusan,
+    # naptári akció nem fut, és finomhangolási javaslat rögzül
+    stale_offer = data.get("stale_offer") or {}
+    if not isinstance(stale_offer, dict):
+        stale_offer = {}
+    stale_offer_detected = bool(stale_offer.get("detected"))
     
     # Fallback emberi döntés — szóhatáros regex (a „hív" substring kihívás-ra,
     # felhív-ra stb. is matchelt; téves pozitívokat okozott)
@@ -696,7 +714,7 @@ Ha egyik sem releváns, legyen üres lista [].
 
     modification_info = None
     modify_action = data.get("action_modify_meeting")
-    if modify_action and modify_action.get("event_title_to_modify"):
+    if modify_action and modify_action.get("event_title_to_modify") and not stale_offer_detected:
         try:
             ev_title = modify_action["event_title_to_modify"]
             found = db.find_calendar_event_by_title(ev_title)
@@ -733,7 +751,7 @@ Ha egyik sem releváns, legyen üres lista [].
             logger.error(f"Hiba a naptáresemény módosításakor: {e}")
 
     delete_action = data.get("action_delete_meeting")
-    if delete_action and delete_action.get("event_title_to_delete"):
+    if delete_action and delete_action.get("event_title_to_delete") and not stale_offer_detected:
         try:
             ev_title = delete_action["event_title_to_delete"]
             found = db.find_calendar_event_by_title(ev_title)
@@ -818,6 +836,9 @@ Ha egyik sem releváns, legyen üres lista [].
         if message_id:
             draft_payload["in_reply_to"] = message_id
 
+        if stale_offer_detected:
+            draft_payload["stale_offer"] = stale_offer
+
         # Naplózás
         session_id = f"email_{from_email}"
         db.create_session(session_id=session_id, room_name="Email Thread", participant=from_name)
@@ -847,12 +868,19 @@ Ha egyik sem releváns, legyen üres lista [].
         # (Megválaszolt kérdés / Új időpont / stb.), teendő: Nincs további teendő.
         # Ellenkező esetben a státusz NEM lehet Lezárt (Nyitott vagy Sürgős),
         # és az interakció pending marad (emberi beavatkozás szükséges).
+        # 260-as ügy: lejárt/nem aktuális kedvezmény említésekor a válasz SOHA nem
+        # autonóm — pending draft marad emberi átnézésre.
         is_autonomous_email = (
             bool(classification.get("autonomous"))
             and classification.get("restriction") == "none"
             and ai_answered
             and not meeting_failed
+            and not stale_offer_detected
         )
+
+        if stale_offer_detected:
+            logger.warning(f"Lejárt/nem aktuális kedvezmény a válaszban — a válasz nem megy ki automatikusan, akció nem fut: {stale_offer.get('name', '')} ({from_email})")
+            _append_stale_offer_insight(stale_offer.get("name", ""), stale_offer.get("note", ""))
 
         # ── Esemény-létrehozás: CSAK akkor, ha a válasz is azonnal megy ──
         # Jóváhagyás-módban a meeting-javaslat a draftba kerül (pending_meeting),
@@ -1866,6 +1894,26 @@ def _release_other_pending_events(attendee_email: str, keep_event_id: int | None
             logger.info(f"Elavult függő foglalás felszabadítva: event #{pe['id']} ({attendee_email})")
     except Exception as e:
         logger.error(f"_release_other_pending_events hiba: {e}")
+
+
+def _append_stale_offer_insight(name: str, note: str = ""):
+    """260-as ügy: a válasz lejárt / nem aktuális kedvezményt említett, ami a
+    céginfóban bekapcsolva maradt — finomhangolási javaslat rögzítése az
+    ai_insights listába ('érdemes kikapcsolni vagy frissíteni'). Deduplikált,
+    a lista hosszát 8 elemen tartja."""
+    insight = f"Lejárt / nem aktuális kedvezmény a céginfóban: {(name or 'megnevezetlen ajánlat').strip()} — érdemes kikapcsolni vagy frissíteni."
+    note_txt = (note or "").strip()
+    if note_txt:
+        insight = f"{insight} ({note_txt})"
+    try:
+        current = db.get_latest_ai_insights()
+        if any(insight == s for s in current):
+            return
+        updated = (current + [insight])[-8:]
+        db.save_ai_insights(updated)
+        logger.info(f"Finomhangolási javaslat rögzítve (lejárt kedvezmény): {name}")
+    except Exception as e:
+        logger.error(f"Stale offer insight rögzítési hiba: {e}")
 
 
 def create_event_from_pending_meeting(pm: dict, status: str = "confirmed", pending_hours: float = PENDING_HOURS):
