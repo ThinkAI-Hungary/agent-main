@@ -4781,12 +4781,30 @@ async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(ver
                     _pm = send_draft.get("pending_meeting")
                     if _pm and not send_draft.get("event_id"):
                         _pm_confirmed = bool(_pm.get("confirmed_by_client"))
+                        _pm_email = (send_draft.get("to_email") or _pm.get("attendee_email") or "").strip()
                         try:
-                            _pm_created_event_id = email_processor.create_event_from_pending_meeting(
-                                _pm, status="confirmed" if _pm_confirmed else "pending"
-                            )
+                            if _pm_confirmed:
+                                # 260-as ügy: ha az ügyfél egy korábbi FÜGGŐ javaslatot
+                                # erősített meg, azt magát véglegesítjük (nem keletkezik
+                                # mellette második esemény)
+                                _pm_created_event_id = email_processor._confirm_pending_event(
+                                    _pm_email, _pm.get("date") or "", _pm.get("time") or ""
+                                )
+                            if not _pm_created_event_id:
+                                _pm_created_event_id = email_processor.create_event_from_pending_meeting(
+                                    _pm, status="confirmed" if _pm_confirmed else "pending"
+                                )
                             if _pm_created_event_id:
                                 send_draft["event_id"] = _pm_created_event_id
+                                if _pm_confirmed:
+                                    # A véglegesítés után az ügyfél esetleges, még
+                                    # kóborló függő javaslatainak felszabadítása
+                                    try:
+                                        email_processor._release_other_pending_events(
+                                            _pm_email, keep_event_id=_pm_created_event_id
+                                        )
+                                    except Exception as rel_err:
+                                        print(f"[Approval] függő javaslatok felszabadítása sikertelen: {rel_err}")
                                 print(f"[Approval] Halasztott foglalás létrehozva ({'végleges' if _pm_confirmed else 'függő, 24 órás fenntartás'}): event #{_pm_created_event_id} ({_pm.get('date')} {_pm.get('time')})")
                             else:
                                 print(f"[Approval] Halasztott foglalás NEM jött létre: {_pm}")
@@ -5812,6 +5830,44 @@ async def public_cancel_appointment(token: str):
                         assigned_to=event.get("doctor", ""),
                     )
                 )
+
+        # ── Interakció naplózása (260-as ügy): az ügyfél a lemondási linken
+        # kezdeményezte a lemondást — bejövő interakcióként kerül a naplóba és
+        # az ügyfélprofilba (ügytípus: Időpont, eredmény: Törölt időpont, Lezárt)
+        try:
+            if event:
+                _cancel_email = (event.get("attendee_email") or "").strip()
+                if _cancel_email and _cancel_email != "-":
+                    _cancel_session = f"email_{_cancel_email}"
+                    _cancel_participant = event.get("attendee") or ""
+                    _cancel_title = event.get("title", "Időpont")
+                    try:
+                        from zoneinfo import ZoneInfo
+                        _cancel_start = datetime.fromisoformat(event.get("start_dt")).astimezone(ZoneInfo("Europe/Budapest")).strftime("%Y.%m.%d. %H:%M")
+                    except Exception:
+                        _cancel_start = (event.get("start_dt") or "")[:16]
+                    db.create_session(session_id=_cancel_session, room_name="Email Thread", participant=_cancel_participant)
+                    db.log_interaction(
+                        type="email",
+                        topic=f"Időpont lemondás (lemondási link): {_cancel_title} — {_cancel_start}",
+                        summary=f"Az ügyfél lemondta az időpontját a visszaigazoló email lemondási linkjén keresztül: {_cancel_title} ({_cancel_start}).",
+                        result="Törölt időpont",
+                        tool_name="cancel_link",
+                        session_id=_cancel_session,
+                        funnel_stage="lemondott",
+                        direction="inbound",
+                        approval_status="approved",
+                        client_id=client["id"] if client else None,
+                        classification={
+                            "ugytipus": "Időpont",
+                            "idopont_altipus": "Lemondás",
+                            "eredmeny": "Törölt időpont",
+                            "statusz": "Lezárt",
+                            "teendo": "Nincs további teendő",
+                        },
+                    )
+        except Exception as cancel_log_err:
+            print(f"[Cancel] lemondási interakció naplózása sikertelen: {cancel_log_err}")
 
         # Delete from calendar
         success = db.delete_calendar_event(event_id)
