@@ -843,11 +843,11 @@ export default function InteractionSummaryModal({
             {/* Csatorna-címke: ikon-tile + csatorna neve — a bezárás gomb ALATT */}
             <span className="ism-channel-chip">
               <span className="ism-channel-chip-icon">
-                {CHANNEL_ICONS[channelUpper] && (
+                {(CHANNEL_ICONS[channel] || CHANNEL_ICONS[channelUpper]) ? (
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-                    {CHANNEL_ICONS[channelUpper]}
+                    {CHANNEL_ICONS[channel] || CHANNEL_ICONS[channelUpper]}
                   </svg>
-                )}
+                ) : null}
               </span>
               <span className="ism-channel-chip-name">{channel}</span>
             </span>
