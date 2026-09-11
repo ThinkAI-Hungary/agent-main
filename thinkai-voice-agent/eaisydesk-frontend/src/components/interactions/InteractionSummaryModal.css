@@ -1117,17 +1117,29 @@
 .ism-channel-chip {
   display: inline-flex;
   align-items: center;
-  gap: 7px;
-  padding: 7px 14px;
-  border-radius: 10px;
-  background: #f3f4f6;
-  border: 1px solid var(--border, #e5e7eb);
-  font-size: 12.5px;
+  gap: 10px;
+  font-size: 15px;
   font-weight: 600;
-  color: var(--text, #374151);
+  color: var(--text, #1f2937);
   white-space: nowrap;
 }
-.ism-header-right { display: flex; align-items: center; gap: 10px; }
+.ism-channel-chip-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
+  background: #f9fafb;
+  border: 1px solid var(--border, #e5e7eb);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #374151;
+}
+.ism-header-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 10px;
+}
 
 /* ÖSSZEFOGLALÁS kártya: halványtürkiz háttér + türkiz border, FIX MAGASSÁG,
    hosszú szövegnél belső scroll */
@@ -1308,3 +1320,16 @@
   cursor: pointer;
 }
 .ism-24h-ok:hover { background: #245d7a; }
+
+
+/* ── Hot fixek (2026-09-11 este) ── */
+/* Előzmény-sáv: felirat balra, chevron közvetlenül a felirat után */
+.ism-history-toggle .ism-chevron { margin-left: 6px; }
+
+/* Bezárás gomb fehér fejlécre */
+.ism-close-btn {
+  background: transparent;
+  color: #374151;
+  font-size: 18px;
+}
+.ism-close-btn:hover { background: #f3f4f6; }

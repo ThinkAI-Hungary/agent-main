@@ -833,15 +833,6 @@ export default function InteractionSummaryModal({
             <div className="ism-header-date">{fmtDt(row.received_at || row.date)}</div>
           </div>
           <div className="ism-header-right">
-            {/* Standard csatorna chip (a szoftver általános megjelenése) */}
-            <span className="ism-channel-chip">
-              {CHANNEL_ICONS[channelUpper] && (
-                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
-                  {CHANNEL_ICONS[channelUpper]}
-                </svg>
-              )}
-              {channel}
-            </span>
             <button
               className="ism-close-btn"
               onClick={onClose}
@@ -849,6 +840,17 @@ export default function InteractionSummaryModal({
             >
               ✕
             </button>
+            {/* Csatorna-címke: ikon-tile + csatorna neve — a bezárás gomb ALATT */}
+            <span className="ism-channel-chip">
+              <span className="ism-channel-chip-icon">
+                {CHANNEL_ICONS[channelUpper] && (
+                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" style={{ width: 18, height: 18 }}>
+                    {CHANNEL_ICONS[channelUpper]}
+                  </svg>
+                )}
+              </span>
+              {channel}
+            </span>
           </div>
         </div>
 
@@ -905,6 +907,7 @@ export default function InteractionSummaryModal({
                           onClick={() => setHistoryOpen(v => !v)}
                           aria-expanded={historyOpen}
                         >
+                          <span>Előzmények megtekintése ({historyGroups.length})</span>
                           <svg
                             className={`ism-chevron${historyOpen ? ' ism-chevron--open' : ''}`}
                             fill="none"
@@ -914,24 +917,34 @@ export default function InteractionSummaryModal({
                           >
                             <polyline points="6 9 12 15 18 9" />
                           </svg>
-                          Előzmények megtekintése ({historyGroups.length})
                         </button>
                         {historyOpen &&
                           historyGroups.map((g, gi) => (
                             <div key={gi} className="ism-history-group">
                               <div className="ism-history-label">{g.label}</div>
                               {g.blocks.map((b, bi) => (
-                                <div key={bi} className="ism-history-row">
-                                  <div className="ism-history-meta">
-                                    <span className={`ism-history-who ism-history-who--${b.sender}`}>
+                                <div key={bi} className="ism-chat-entry">
+                                  <div className="ism-chat-meta">
+                                    {b.sender === 'user' ? (
+                                      <div className="ism-chat-avatar ism-chat-avatar--user">
+                                        {clientInitials}
+                                      </div>
+                                    ) : (
+                                      <div className="ism-chat-avatar ism-chat-avatar--sent">
+                                        <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="15" height="15">
+                                          <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+                                        </svg>
+                                      </div>
+                                    )}
+                                    <span className="ism-chat-sender">
                                       {b.sender === 'user'
                                         ? (row.client || 'Ügyfél')
                                         : b.sender === 'ai'
-                                          ? 'eaisyDesk'
+                                          ? 'Elküldött válasz'
                                           : 'Rendszer'}
                                     </span>
                                     {b.timestamp && (
-                                      <span className="ism-history-time">
+                                      <span className="ism-chat-time">
                                         {fmtDt(
                                           b.timestamp.includes('+') || b.timestamp.includes('Z')
                                             ? b.timestamp
@@ -939,11 +952,8 @@ export default function InteractionSummaryModal({
                                         )}
                                       </span>
                                     )}
-                                    {b.sender === 'ai' && (
-                                      <span className="ism-history-tag">kiküldött válasz</span>
-                                    )}
                                   </div>
-                                  <div className={`ism-history-bubble${b.sender === 'ai' ? ' ism-history-bubble--ai' : ''}`}>
+                                  <div className={`ism-chat-bubble ${b.sender === 'user' ? 'ism-chat-bubble--user' : 'ism-chat-bubble--sent'}`}>
                                     <FormattedMessage text={b.text} />
                                   </div>
                                 </div>
