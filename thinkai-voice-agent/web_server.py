@@ -4833,6 +4833,12 @@ async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(ver
                     resp.raise_for_status()
                     print(f"[Approval] Email elküldve: {send_draft.get('to_email')}")
 
+                    # A válasz VALÓS kiküldési ideje — a popup és a listanézet ebből mutatja
+                    try:
+                        db.set_interaction_sent_at(id, datetime.utcnow().isoformat())
+                    except Exception as sent_err:
+                        print(f"[Approval] sent_at rögzítés sikertelen: {sent_err}")
+
                     # Visszaigazoló (ICS + lemondási link) az újonnan létrehozott
                     # eseményhez — CSAK VÉGLEGES foglalásnál; a függő fenntartásnál
                     # a visszaigazoló az ügyfél későbbi 'igen' válaszakor megy ki

@@ -4,6 +4,8 @@ import { authFetch } from '../api/client';
 export interface SessionInteraction {
   id?: number;
   created_at?: string;
+  received_at?: string | null; // a bejövő levél VALÓS beérkezési ideje (Date fejléc)
+  sent_at?: string | null;     // a válasz tényleges kiküldési ideje
   type?: string;
   topic?: string;
   summary?: string;

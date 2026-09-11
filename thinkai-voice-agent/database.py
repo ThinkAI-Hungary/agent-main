@@ -514,8 +514,8 @@ def get_sessions(limit: int = 50) -> list[dict]:
 # INTERACTIONS
 # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
-def log_interaction(type: str, topic: str = "", summary: str = "", result: str = "", tool_name: str = "", session_id: str = "", funnel_stage: str = "relevant", alert_tags: list = None, handover_reason: str = None, direction: str = "inbound", approval_status: str = "pending", ai_draft_response: str = None, clinic_id: int = None, classification: dict = None, client_id: int = None) -> None:
-    if not supabase: return
+def log_interaction(type: str, topic: str = "", summary: str = "", result: str = "", tool_name: str = "", session_id: str = "", funnel_stage: str = "relevant", alert_tags: list = None, handover_reason: str = None, direction: str = "inbound", approval_status: str = "pending", ai_draft_response: str = None, clinic_id: int = None, classification: dict = None, client_id: int = None, received_at: str = None) -> int | None:
+    if not supabase: return None
     try:
         data = {
             "session_id": session_id or None,
@@ -536,7 +536,12 @@ def log_interaction(type: str, topic: str = "", summary: str = "", result: str =
             data["client_id"] = client_id
         if classification is not None:
             data["classification"] = classification
-        supabase.table("interactions").insert(_with_tenant(data)).execute()
+        if received_at:
+            # A bejövő levél VALÓS beérkezési ideje (Date fejléc) — a
+            # feldolgozási idő pontatlan lehet (IMAP poll késése)
+            data["received_at"] = received_at
+        res = supabase.table("interactions").insert(_with_tenant(data)).execute()
+        return res.data[0]["id"] if res.data else None
     except Exception as e:
         logger.error(f"Error logging interaction: {e}")
         # Fallback: try dropping optional columns that may not exist in the schema
@@ -547,13 +552,31 @@ def log_interaction(type: str, topic: str = "", summary: str = "", result: str =
         if classification is not None and "classification" in data:
             del data["classification"]
             dropped.append("classification")
+        if received_at is not None and "received_at" in data:
+            del data["received_at"]
+            dropped.append("received_at")
         if dropped:
             logger.info(f"Attempting fallback log without {', '.join(dropped)}...")
             try:
-                supabase.table("interactions").insert(_with_tenant(data)).execute()
+                res = supabase.table("interactions").insert(_with_tenant(data)).execute()
                 logger.info(f"Fallback log successful ({', '.join(dropped)} dropped)!")
+                return res.data[0]["id"] if res.data else None
             except Exception as fe:
                 logger.error(f"Fallback log failed: {fe}")
+        return None
+
+
+def set_interaction_sent_at(interaction_id: int, sent_at_iso: str) -> bool:
+    """A válasz VALÓS kiküldési idejének rögzítése (interactions.sent_at).
+    Autonóm küldés és jóváhagyás utáni küldés esetén is hívódik."""
+    if not supabase or not interaction_id:
+        return False
+    try:
+        _tenant_eq(supabase.table("interactions").update({"sent_at": sent_at_iso})).eq("id", interaction_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Set interaction sent_at error: {e}")
+        return False
 
 # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # CALENDAR

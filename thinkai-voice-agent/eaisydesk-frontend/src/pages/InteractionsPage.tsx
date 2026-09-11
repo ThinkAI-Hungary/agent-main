@@ -53,6 +53,10 @@ export interface InteractionRow {
   approval_status: string | null;
   aiDraftResponse?: string | null;
   approvalStatus?: string | null;
+  // Valós eseményidők (2026-09-11): a levél beérkezésének (Date fejléc) és a
+  // válasz tényleges kiküldésének ideje — a popup és a lista ezekből mutat
+  received_at?: string | null;
+  sent_at?: string | null;
   // EAISY-241 — strukturált klasszifikáció a backend classifier.py-től
   classification?: {
     ugytipus?: string;
@@ -200,7 +204,9 @@ export default function InteractionsPage() {
       }
 
       rows.push({
-        date: g.last_created_at || representative.created_at || '',
+        // A lista a popuppal azonos időt mutassa: emailnél a VALÓS beérkezési
+        // idő (Date fejléc), egyébként a keletkezés ideje
+        date: representative.received_at || g.last_created_at || representative.created_at || '',
         interactionCount: g.interaction_count,
         channel: getRowChannel(representative.type || '', sRoom, g.session_id || '', representative.type || ''),
         client: clientInfo.name,
@@ -225,6 +231,8 @@ export default function InteractionsPage() {
         ai_draft_response: representative.ai_draft_response || null,
         approval_status: representative.approval_status || null,
         classification: representative.classification || null,  // EAISY-241
+        received_at: representative.received_at || null,
+        sent_at: representative.sent_at || null,
       });
     });
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));

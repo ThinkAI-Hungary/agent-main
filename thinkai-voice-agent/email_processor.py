@@ -309,7 +309,7 @@ def is_spam_email(from_email: str, from_name: str, subject: str, text_content: s
     return False
 
 
-async def process_single_email(from_email: str, from_name: str, subject: str, text_content: str, message_id: str = ""):
+async def process_single_email(from_email: str, from_name: str, subject: str, text_content: str, message_id: str = "", received_at: str = ""):
     # ── SPAM CHECK — before any AI call ──────────────────────────────
     if is_spam_email(from_email, from_name, subject, text_content):
         logger.info(f"SPAM szűrve (silent drop): {from_email} — {subject}")
@@ -984,7 +984,7 @@ Ha egyik sem releváns, legyen üres lista [].
         email_approval = "approved" if (is_autonomous_email and send_ok) else "pending"
         email_funnel = "valaszolt" if (is_autonomous_email and send_ok) else f_stage
 
-        db.log_interaction(
+        _logged_interaction_id = db.log_interaction(
             type="email",
             topic=f"Email AI válasz - {subject}: {text_content[:200]}",
             summary=classification.get("osszefoglalas") or f"Bejövő e-mail {from_email} címről",
@@ -997,8 +997,13 @@ Ha egyik sem releváns, legyen üres lista [].
             approval_status=email_approval,
             ai_draft_response=draft_json,
             client_id=email_client_id if email_client_id else None,
-            classification=classification
+            classification=classification,
+            received_at=received_at or None,
         )
+
+        # A válasz VALÓS kiküldési ideje — a popup és a listanézet ebből mutatja
+        if is_autonomous_email and send_ok and _logged_interaction_id:
+            db.set_interaction_sent_at(_logged_interaction_id, datetime.now(ZoneInfo("Europe/Budapest")).isoformat())
 
         if is_autonomous_email and send_ok:
             logger.info(f"✅ Autonóm email válasz kiküldve: {from_email} — {classification.get('eredmeny','')}")
@@ -1007,7 +1012,7 @@ Ha egyik sem releváns, legyen üres lista [].
             # küldött draftját is „sent"-re állította)
             try:
                 if email_log_id:
-                    db.supabase.table("email_logs").update({"status": "sent"}).eq("id", email_log_id).execute()
+                    db.supabase.table("email_logs").update({"status": "sent", "sent_at": datetime.now(ZoneInfo("Europe/Budapest")).isoformat()}).eq("id", email_log_id).execute()
             except Exception as elu_err:
                 logger.warning(f"email_log státusz-frissítés sikertelen: {elu_err}")
 
@@ -1103,6 +1108,16 @@ def check_imap_sync(server: str = "", user: str = "", pwd: str = "", port: int =
                     subject = decode_mime_words(msg.get("Subject", ""))
                     from_header = decode_mime_words(msg.get("From", ""))
                     message_id = (msg.get("Message-ID") or "").strip()
+                    # A levél VALÓS beérkezési ideje (Date fejléc) — a feldolgozási
+                    # idő az IMAP poll késése miatt pontatlan
+                    email_received_at = ""
+                    try:
+                        from email.utils import parsedate_to_datetime
+                        _dt_hdr = msg.get("Date")
+                        if _dt_hdr:
+                            email_received_at = parsedate_to_datetime(_dt_hdr).isoformat()
+                    except Exception:
+                        email_received_at = ""
 
                     from_name = from_header
                     from_email = from_header
@@ -1293,7 +1308,7 @@ async def _poll_tenant_mailbox(tenant: dict):
                     logger.info(f"Duplikált levél kihagyva (már feldolgozva): {message_id}")
                     seen_uids.append(uid)
                     continue
-                await process_single_email(from_email, from_name, subject, text_content, message_id=message_id)
+                await process_single_email(from_email, from_name, subject, text_content, message_id=message_id, received_at=email_received_at)
             except Exception as proc_err:
                 logger.error(f"Email feldolgozási hiba ({from_email} — {subject}): {proc_err}")
                 if message_id:

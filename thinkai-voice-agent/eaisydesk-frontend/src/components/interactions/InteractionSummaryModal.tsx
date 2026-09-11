@@ -128,6 +128,28 @@ export default function InteractionSummaryModal({
   // Formatted date
   const formattedDate = row.date ? fmtDt(row.date) : '';
 
+  // ── 24 órás válaszablak info modal (Messenger/Instagram) — a korábbi
+  // banner helyett; „Értem"-nel véglegesen eltűnik (localStorage) ──
+  const [show24hModal, setShow24hModal] = useState(false);
+  useEffect(() => {
+    if (!isMessengerOrInsta) return;
+    let dismissed = false;
+    try {
+      dismissed = !!localStorage.getItem('ism_24h_info_dismissed');
+    } catch {
+      dismissed = false;
+    }
+    if (!dismissed) setShow24hModal(true);
+  }, [isMessengerOrInsta]);
+  const dismiss24hModal = () => {
+    try {
+      localStorage.setItem('ism_24h_info_dismissed', '1');
+    } catch {
+      /* private mode — csak bezárjuk */
+    }
+    setShow24hModal(false);
+  };
+
   // ── Load profile picture for Messenger/Instagram ──
   useEffect(() => {
     if (!row.clientId) return;
@@ -731,6 +753,7 @@ export default function InteractionSummaryModal({
   const showCalendarButton = isAppointmentType && appointmentInfo && appointmentInfo.date !== '-';
 
   return (
+    <>
     <div
       className="ism-overlay"
       ref={overlayRef}
@@ -754,9 +777,19 @@ export default function InteractionSummaryModal({
                 </span>
               )}
             </div>
-            <div className="ism-header-date">{formattedDate}</div>
+            {/* A fejléc dátuma a VALÓS beérkezési idő (email Date fejléc) */}
+            <div className="ism-header-date">{fmtDt(row.received_at || row.date)}</div>
           </div>
           <div className="ism-header-right">
+            {/* Standard csatorna chip (a szoftver általános megjelenése) */}
+            <span className="ism-channel-chip">
+              {CHANNEL_ICONS[channelUpper] && (
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" style={{ width: 13, height: 13 }}>
+                  {CHANNEL_ICONS[channelUpper]}
+                </svg>
+              )}
+              {channel}
+            </span>
             <button
               className="ism-close-btn"
               onClick={onClose}
@@ -764,16 +797,6 @@ export default function InteractionSummaryModal({
             >
               ✕
             </button>
-            <div className="ism-pills">
-              <span className="ism-pill ism-pill--filled">
-                {CHANNEL_ICONS[channelUpper] && (
-                  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.9} strokeLinecap="round" strokeLinejoin="round" style={{ width: 12, height: 12 }}>
-                    {CHANNEL_ICONS[channelUpper]}
-                  </svg>
-                )}
-                {channelUpper}
-              </span>
-            </div>
           </div>
         </div>
 
@@ -781,90 +804,26 @@ export default function InteractionSummaryModal({
         <div className="ism-body">
           {/* Summary + Status Box */}
           <div className="ism-summary-row">
-            <div className="ism-summary-content">
+            <div className="ism-summary-card">
               <div className="ism-section-label">ÖSSZEFOGLALÁS</div>
-              <div className="ism-summary-text">
-                {summaryText ||
-                  'Az asszisztens rögzítette az interakció adatait.'}
+              <div className="ism-summary-scroll">
+                <div className="ism-summary-text">
+                  {summaryText ||
+                    'Az asszisztens rögzítette az interakció adatait.'}
+                </div>
               </div>
             </div>
-            <div className="ism-status-box">
-              <div className="ism-status-row">
-                <span className="ism-status-label">Státusz:</span>
+            <div className="ism-side-col">
+              <div className="ism-meta-card">
+                <div className="ism-meta-label">Státusz</div>
                 <StatuszBadge value={row.statusz} />
               </div>
-              <div className="ism-status-row">
-                <span className="ism-status-label">Eredmény:</span>
-                <span className="cp-result">{row.eredmeny}</span>
+              <div className="ism-meta-card">
+                <div className="ism-meta-label">Teendő</div>
+                <div className="ism-meta-value">{row.teendo || '—'}</div>
               </div>
-              {(notificationText || (isSurgos && surgosEmail)) && (
-                <div className="ism-status-row">
-                  <span className="ism-status-label">Értesítés:</span>
-                  <span className="ism-status-value">
-                    {isSurgos && surgosEmail ? surgosEmail : notificationText}
-                  </span>
-                </div>
-              )}
             </div>
           </div>
-
-          {/* Warning Banner for Messenger/Instagram */}
-          {isMessengerOrInsta && (() => {
-            const msgDate = new Date(row.date);
-            const now = new Date();
-            const hoursDiff = (now.getTime() - msgDate.getTime()) / (1000 * 60 * 60);
-            const isExpired = hoursDiff >= 24;
-
-            if (isExpired) {
-              return (
-                <div className="ism-warning-banner ism-warning-banner--expired">
-                  <svg
-                    className="ism-warning-icon"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"
-                    />
-                  </svg>
-                  <span>
-                    A válaszadási időablak lejárt, ezért Messenger/Instagram
-                    csatornán már nem küldhető válasz.
-                  </span>
-                </div>
-              );
-            }
-
-            if (isPendingApproval) {
-              return (
-                <div className="ism-warning-banner">
-                  <svg
-                    className="ism-warning-icon"
-                    fill="none"
-                    stroke="currentColor"
-                    strokeWidth="2"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4.5c-.77-.833-2.694-.833-3.464 0L3.34 16.5c-.77.833.192 2.5 1.732 2.5z"
-                    />
-                  </svg>
-                  <span>
-                    Messenger/Instagram csatornán 24 órás időablak áll
-                    rendelkezésre a válaszadásra.
-                  </span>
-                </div>
-              );
-            }
-
-            return null;
-          })()}
 
           {/* ═══ INTERAKCIÓ RÉSZLETEI ═══ */}
           <div className="ism-details-section">
@@ -886,6 +845,62 @@ export default function InteractionSummaryModal({
 
             {showDetails && (
               <div className="ism-chat-list">
+                    {/* ── Korábbi levelezések (előzmények) — 259-es ügy ── */}
+                    {historyGroups.length > 0 && (
+                      <div className="ism-history">
+                        <button
+                          className="ism-history-toggle"
+                          onClick={() => setHistoryOpen(v => !v)}
+                          aria-expanded={historyOpen}
+                        >
+                          <svg
+                            className={`ism-chevron${historyOpen ? ' ism-chevron--open' : ''}`}
+                            fill="none"
+                            stroke="currentColor"
+                            strokeWidth="2.5"
+                            viewBox="0 0 24 24"
+                          >
+                            <polyline points="6 9 12 15 18 9" />
+                          </svg>
+                          Előzmények megtekintése ({historyGroups.length})
+                        </button>
+                        {historyOpen &&
+                          historyGroups.map((g, gi) => (
+                            <div key={gi} className="ism-history-group">
+                              <div className="ism-history-label">{g.label}</div>
+                              {g.blocks.map((b, bi) => (
+                                <div key={bi} className="ism-history-row">
+                                  <div className="ism-history-meta">
+                                    <span className={`ism-history-who ism-history-who--${b.sender}`}>
+                                      {b.sender === 'user'
+                                        ? (row.client || 'Ügyfél')
+                                        : b.sender === 'ai'
+                                          ? 'eaisyDesk'
+                                          : 'Rendszer'}
+                                    </span>
+                                    {b.timestamp && (
+                                      <span className="ism-history-time">
+                                        {fmtDt(
+                                          b.timestamp.includes('+') || b.timestamp.includes('Z')
+                                            ? b.timestamp
+                                            : b.timestamp.replace(' ', 'T')
+                                        )}
+                                      </span>
+                                    )}
+                                    {b.sender === 'ai' && (
+                                      <span className="ism-history-tag">kiküldött válasz</span>
+                                    )}
+                                  </div>
+                                  <div className={`ism-history-bubble${b.sender === 'ai' ? ' ism-history-bubble--ai' : ''}`}>
+                                    <FormattedMessage text={b.text} />
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          ))}
+                      </div>
+                    )}
+
                 {chatBlocks.length === 0 && !isPendingApproval ? (
                   <div className="ism-no-history">Nincs előzmény</div>
                 ) : (
@@ -928,106 +943,62 @@ export default function InteractionSummaryModal({
                                 )}
                               </div>
                             ) : (
-                              <div className="ism-chat-avatar ism-chat-avatar--ai">
+                              /* Elküldött válasz — papírrepülő ikon (261-es ügy) */
+                              <div className="ism-chat-avatar ism-chat-avatar--sent">
                                 <svg
                                   fill="none"
                                   stroke="currentColor"
                                   strokeWidth="2"
                                   viewBox="0 0 24 24"
-                                  width="16"
-                                  height="16"
+                                  width="15"
+                                  height="15"
                                 >
-                                  <path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 16l-6.4 5.2L8 14 2 9.2h7.6z" />
+                                  <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
                                 </svg>
                               </div>
                             )}
                             <span className="ism-chat-sender">
                               {block.sender === 'user'
                                 ? clientName
-                                : 'eaisyDesk'}
+                                : 'Elküldött válasz'}
                             </span>
-                            {block.timestamp && (
+                            {/* A kiküldött válasz a VALÓS küldési időt mutatja */}
+                            {block.sender === 'ai' && row.sent_at ? (
                               <span className="ism-chat-time">
-                                {fmtDt(
-                                  block.timestamp.includes('+') || block.timestamp.includes('Z')
-                                    ? block.timestamp
-                                    : block.timestamp.replace(' ', 'T')
+                                {fmtDt(String(row.sent_at))}
+                              </span>
+                            ) : (
+                              <>
+                                {block.timestamp && (
+                                  <span className="ism-chat-time">
+                                    {fmtDt(
+                                      block.timestamp.includes('+') || block.timestamp.includes('Z')
+                                        ? block.timestamp
+                                        : block.timestamp.replace(' ', 'T')
+                                    )}
+                                  </span>
                                 )}
-                              </span>
-                            )}
-                            {!block.timestamp && row.date && (
-                              <span className="ism-chat-time">
-                                {formattedDate}
-                              </span>
+                                {!block.timestamp && row.date && (
+                                  <span className="ism-chat-time">
+                                    {formattedDate}
+                                  </span>
+                                )}
+                              </>
                             )}
                           </div>
                           <div
                             className={`ism-chat-bubble ${
                               block.sender === 'user'
                                 ? 'ism-chat-bubble--user'
-                                : 'ism-chat-bubble--ai'
+                                : block.sender === 'ai'
+                                  ? 'ism-chat-bubble--sent'
+                                  : 'ism-chat-bubble--ai'
                             }`}
                           >
                             <FormattedMessage text={block.text} />
                           </div>
                         </div>
                       )
-                    )}
-
-                    {/* ── Korábbi levelezések (előzmények) — 259-es ügy ── */}
-                    {historyGroups.length > 0 && (
-                      <div className="ism-history">
-                        <button
-                          className="ism-history-toggle"
-                          onClick={() => setHistoryOpen(v => !v)}
-                          aria-expanded={historyOpen}
-                        >
-                          <svg
-                            className={`ism-chevron${historyOpen ? ' ism-chevron--open' : ''}`}
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2.5"
-                            viewBox="0 0 24 24"
-                          >
-                            <polyline points="6 9 12 15 18 9" />
-                          </svg>
-                          Előzmények megtekintése ({historyGroups.length} korábbi levelezés)
-                        </button>
-                        {historyOpen &&
-                          historyGroups.map((g, gi) => (
-                            <div key={gi} className="ism-history-group">
-                              <div className="ism-history-label">{g.label}</div>
-                              {g.blocks.map((b, bi) => (
-                                <div key={bi} className="ism-history-row">
-                                  <div className="ism-history-meta">
-                                    <span className={`ism-history-who ism-history-who--${b.sender}`}>
-                                      {b.sender === 'user'
-                                        ? (row.client || 'Ügyfél')
-                                        : b.sender === 'ai'
-                                          ? 'eaisyDesk'
-                                          : 'Rendszer'}
-                                    </span>
-                                    {b.timestamp && (
-                                      <span className="ism-history-time">
-                                        {fmtDt(
-                                          b.timestamp.includes('+') || b.timestamp.includes('Z')
-                                            ? b.timestamp
-                                            : b.timestamp.replace(' ', 'T')
-                                        )}
-                                      </span>
-                                    )}
-                                    {b.sender === 'ai' && (
-                                      <span className="ism-history-tag">kiküldött válasz</span>
-                                    )}
-                                  </div>
-                                  <div className={`ism-history-bubble${b.sender === 'ai' ? ' ism-history-bubble--ai' : ''}`}>
-                                    <FormattedMessage text={b.text} />
-                                  </div>
-                                </div>
-                              ))}
-                            </div>
-                          ))}
-                      </div>
                     )}
 
                     {/* ── Kiküldött válasz NEM jelenik meg külön szekcióként ──
@@ -1051,15 +1022,9 @@ export default function InteractionSummaryModal({
                     {isPendingApproval && draftText && (
                       <div className="ism-draft-section ism-draft-section--pending" ref={approvalRef}>
                         <div className="ism-draft-header">
-                          <svg
-                            className="ism-draft-icon"
-                            fill="none"
-                            stroke="currentColor"
-                            strokeWidth="2"
-                            viewBox="0 0 24 24"
-                          >
-                            <path d="M12 2l2.4 7.2H22l-6 4.8 2.4 7.2L12 16l-6.4 5.2L8 14 2 9.2h7.6z" />
-                          </svg>
+                          <div className="ism-chat-avatar ism-chat-avatar--brand">
+                            <img src="/eaisydesk-logo.png" alt="eaisyDesk" />
+                          </div>
                           <span className="ism-draft-label">
                             eaisyDesk választerv
                           </span>
@@ -1124,7 +1089,7 @@ export default function InteractionSummaryModal({
                           >
                             {submittingApproval
                               ? 'Küldés...'
-                              : 'Jóváhagyás és küldés'}
+                              : 'Jóváhagyás és elküldés'}
                           </button>
                         </div>
                       </div>
@@ -1141,5 +1106,30 @@ export default function InteractionSummaryModal({
 
       </div>
     </div>
+
+    {/* ═══ 24 órás válaszablak info modal (Messenger/Instagram) ═══ */}
+    {show24hModal && (
+      <div className="ism-24h-overlay" onClick={dismiss24hModal}>
+        <div className="ism-24h-card" onClick={(e) => e.stopPropagation()}>
+          <div className="ism-24h-icon">
+            <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="22" height="22">
+              <circle cx="12" cy="12" r="10" />
+              <polyline points="12 6 12 12 16 14" />
+            </svg>
+          </div>
+          <h3 className="ism-24h-title">24 órás válaszablak</h3>
+          <p className="ism-24h-text">
+            A Messenger és Instagram üzenetekre csak <b>24 órán belül</b> lehet
+            ügyfélként válaszolni. Ha az ablak lejár, a válasz már „fizetett
+            hirdetésként" vagy új üzenetként kezelődik — ezért a nyitott
+            ügyeket érdemes mielőbb lezárni.
+          </p>
+          <div className="ism-24h-actions">
+            <button className="ism-24h-ok" onClick={dismiss24hModal}>Értem</button>
+          </div>
+        </div>
+      </div>
+    )}
+    </>
   );
 }
