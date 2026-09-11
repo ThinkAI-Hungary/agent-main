@@ -169,9 +169,14 @@ export default function CalendarPage() {
     return m;
   }, [myEvents]);
 
-  const clientBadgeFor = useCallback((email: string) => {
+  // Ügyfélstátusz chip: felirat ÉS szín ugyanabból a számításból — korábban a
+  // felirat 2+ múltbeli időpontnál, a szín már 1-nél váltott, így navy hátterű
+  // „Új ügyfél" chipek jelentek meg. Küszöb azonos a ClientsPage (<=1 múltbeli → Új).
+  const clientStatusFor = useCallback((email: string): { label: string; cls: string } => {
     const past = pastEventCountByEmail[email.toLowerCase().trim()] || 0;
-    return past > 1 ? 'Visszatérő ügyfél' : 'Új ügyfél';
+    return past >= 2
+      ? { label: 'Visszatérő ügyfél', cls: 'cp-navyb' }
+      : { label: 'Új ügyfél', cls: 'cp-accentb' };
   }, [pastEventCountByEmail]);
 
   // ── Navigáció ──
@@ -640,7 +645,7 @@ export default function CalendarPage() {
                           const dTxt = `${HU_MONTHS[t.getMonth()]} ${t.getDate()}.`;
                           const emailKey = (ev.attendee_email || '').toLowerCase().trim();
                           const assignee = assigneeFor(emailKey);
-                          const badge = clientBadgeFor(emailKey);
+                          const badge = clientStatusFor(emailKey);
                           return (
                             <tr key={ev.id} className="cursor-pointer" onClick={() => openClientFromEvent(ev.attendee || '', ev.attendee_email || '')}>
                               <td className="cd-time-cell">
@@ -667,7 +672,7 @@ export default function CalendarPage() {
                                 )}
                               </td>
                               <td>{ev.attendee || <span className="cp-result">Nincs ügyfél</span>}</td>
-                              <td><span className={`cp-badge ${pastEventCountByEmail[emailKey] ? 'cp-navyb' : 'cp-accentb'}`}><i className="cp-dot" />{badge}</span></td>
+                              <td><span className={`cp-badge ${badge.cls}`}><i className="cp-dot" />{badge.label}</span></td>
                               <td>{ev.title}</td>
                               <td>{ev.duration_minutes || 30} perc</td>
                               <td>{ev.doctor || assignee || <span className="cp-result">—</span>}</td>

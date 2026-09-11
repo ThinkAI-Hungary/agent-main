@@ -254,6 +254,8 @@ A user HTML-mockupja alapján (a modal cím és a tooltip eltérő kezelése sze
 
 ### 20. KÉSZ — Függő időpont-fenntartás, Lemondom-CTA szabály, munkatárs-konzisztencia (2026-09-11, commit `e510289`, deploy staging)
 
+**Utófix — ügyfélstátusz chip szín-inkonzisztencia (2026-09-11 délután)**: a Naptár listanézet Ügyfélstátusz chipjében a FELIRAT (`past > 1 → Visszatérő`) és a SZÍN (`past >= 1 → navy`) két külön számítás volt — 1 múltbeli időpontnál navy hátterű „Új ügyfél" chip jelent meg. Fix: egyetlen `clientStatusFor()` helper adja a {label, cls} párt (past >= 2 → „Visszatérő ügyfél" navy, egyébként „Új ügyfél" teal/accent) — küszöb azonos a ClientsPage `isNew = pastEvents.length <= 1` szabályával, így ugyanaz az ügyfél ugyanolyan chipet kap Naptárban és Ügyféllistán. Megjegyzés: a kapcsolódó popup (InteractionSummaryModal ÚJ ÜGYFÉL/VISSZATÉRŐ pill) saját, regisztráció-dátum alapú (≤30 nap = ÚJ) szabályt használ — ha ez is esetleges, külön tétel. Deploy verifikálva: a bundle-ben a régi inline színszámítás nincs meg, 0 ERROR.
+
 **User észrevételek (259-es ügy, 3 tétel + 1 kiegészítés)**: (1) a foglalás előreszalad — a rendszer által felajánlott időpontot az ügyfél visszaigazolása ELŐTT véglegesen lefoglalta a naptárban; (2) a felajánló válaszemailben már volt Lemondom CTA, pedig még nincs mit lemondani; (3) az ellátó munkatárs neve keveredik (összefoglaló/email/naptár mást-mást mutat). Kiegészítés: a függő időpontot csak **24 óráig** tartjuk fenn, és a felajánló email a pontos beégetett szöveggel jelzi ezt.
 
 **Megvalósítás**:
