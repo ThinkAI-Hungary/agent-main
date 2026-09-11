@@ -252,6 +252,22 @@ A user HTML-mockupja alapján (a modal cím és a tooltip eltérő kezelése sze
 6. **Vissza-gomb címkéje**: „Vissza az interakciós listához" → **„Vissza az interakciós naplóhoz"**. (Member dashboard saját: „Vissza az irányítópulthoz".)
 - **Verifikáció**: deploy `33c5085` — chunkok tartalom szerint ellenőrizve (címkék, editEventId, Munkatárs select, location.key logika a forrásban); „Elvégezte" nem maradt sehol. Konténer healthy.
 
+### 20. KÉSZ — Függő időpont-fenntartás, Lemondom-CTA szabály, munkatárs-konzisztencia (2026-09-11, commit `e510289`, deploy staging)
+
+**User észrevételek (259-es ügy, 3 tétel + 1 kiegészítés)**: (1) a foglalás előreszalad — a rendszer által felajánlott időpontot az ügyfél visszaigazolása ELŐTT véglegesen lefoglalta a naptárban; (2) a felajánló válaszemailben már volt Lemondom CTA, pedig még nincs mit lemondani; (3) az ellátó munkatárs neve keveredik (összefoglaló/email/naptár mást-mást mutat). Kiegészítés: a függő időpontot csak **24 óráig** tartjuk fenn, és a felajánló email a pontos beégetett szöveggel jelzi ezt.
+
+**Megvalósítás**:
+- **DB migráció (stagingen ÉLŐN lefutott, Management API-val)**: `calendar_events.status TEXT DEFAULT 'confirmed'` + `calendar_events.pending_until TIMESTAMPTZ`; meglévő sorok `status='confirmed'`-ra backfillelve. ⚠️ **MCP-tanulság**: a Supabase MCP default projektje `dsiluafthysysnstszbd` (ÉLES projekt — a staging `qhhnqqsthdrwacsxommt`!). Az első migráció-futtatás oda ment — ártalmatlan, additív (a következő prod-deployhoz pont kell, ott hagyva). Stagingre a Management API `POST /v1/projects/qhhnqqsthdrwacsxommt/database/query`-vel futott (sbp token: `/root/.zcode/cli/config.json`).
+- **Prompt (`email_processor.py` json_instruction)**: új `meeting.confirmed_by_client` mező + „IDŐPONT-FOGLALÁSI SZABÁLYOK" blokk: true CSAK ha az ügyfél maga adott napot+órát VAGY egyértelműen elfogadta a korábbi javaslatot (akkor a felajánlott időpontot írja a meetingbe); false, ha az AI javasol (a rendszer függő foglalást készít, a 24h-s tudnivalót a rendszer fűzi a levélhez — az AI NE írja ki); foglalási szándék nélkül meeting null. Fájdalom- és „KIVÉTEL" szabályok confirmed_by_client=false-ra átírva. **ÚJ VISELKEDÉSI SZABÁLY 4**: a válaszlevélben SOHA nem nevezünk ellátó munkatársat (a 3. tétel gyökérorvosa — a név egyetlen helyen, az event.doctor-ban oldódik meg); `meeting.assigned_to` csak név szerinti ügyfél-kérésnél.
+- **Függő foglalás flow**: `create_event_from_pending_meeting(pm, status="confirmed"|"pending")` — pendingnél `status='pending'` + `pending_until = most+24h`. Autonóm ág: confirmed → (`_confirm_pending_event` előbb próbálja a meglévő függőt véglegesíteni, hogy NE legyen dupla esemény; utána `_release_other_pending_events`) + visszaigazoló ICS-sel; pending → NINCS visszaigazoló/ICS/Lemondom, a válasz végére fűződik a `PENDING_HOLD_NOTICE` pontos szövege („Tájékoztatjuk, hogy a felajánlott időpontot 24 órán keresztül tudjuk tartani. Amennyiben ez idő alatt nem érkezik megerősítés az Ön részéről, az időpont felszabadul, és a foglalási folyamatot újra szükséges egyeztetni."), a draft body-ja is ezt tartalmazza.
+- **Approve endpoint (`web_server.py`)**: jóváhagyáskor a pending_meetingből `confirmed_by_client` szerint végleges VAGY függő esemény készül; függőnél NINCS visszaigazoló és NINCS `get_cancellation_html` a levélben (CTA-gate a meglévő event_id-knál az esemény status-át is nézi), helyette a `PENDING_HOLD_NOTICE` megy a levél végére.
+- **Módosítás/törlés**: függő esemény módosításánál NINCS módosítás-visszaigazoló email; függő törlésénél NINCS lemondó-email, „lemondott" státusz és „törölt időpont" tag — csak felszabadul.
+- **Felszabadítás**: `db.release_expired_pending_events()` törli a lejárt (`pending_until < now`) függő sorokat — a reminder worker MINDEN tenanton lefuttatja 15 percenként (a toggle-öktől függetlenül). Az emlékeztető-lekérdezés (`get_upcoming_events_for_reminders`) kiszűri a pendingeket (függőre soha nem megy emlékeztető).
+- **Lemondom CTA szabály (2. tétel)**: visszaigazoló (ICS) + emlékeztető (ÚJ) + approve-végleges — másikba soha.
+- **Frontend (`CalendarPage.tsx` + clientprofile.css)**: `CalendarEventItem` + `status`/`pending_until`; heti abszolút kártya, hónap/nap kártya és listanézet: pending → halványsárga háttér (#fef9c3) + szaggatott sárga keret (#eab308, bal élön tömör sáv) + sárga „függőben" pill jobb felül (xs/sm kártyákon rejtve), dark mode változattal; tooltip: „· függőben (24 órás fenntartás)"; **listanézet Időpont státusza oszlop: jövőbeli végleges → „Foglalt" (navy badge), függő → „Függőben" (sárga cp-warn badge) — a korábbi „Várakozik" felirat megszűnt**.
+- **Verifikáció**: 85/85 python teszt zöld; frontend build zöld; konténerben funkcionális tesztek (NOTICE szöveg, deadline, prompt/approve forrás); ÉLŐ életciklus-teszt a staging DB-n: függő létrejött (status+pending_until) → azonos időpontra véglegesítés ugyanazt az id-t flipelte (confirmed, pending_until üres) → eltérő időpontot visszautasított → lejárt függőt a sweep törölte; deployed chunkokban „Függőben"/`cal-ev-pending`/`cal-pend-pill` megvan; restart óta 0 ERROR.
+- **Nyitott**: élő E2E valódi emailekkel (user tesztlevelei): (a) általános időpont-kérés → függő esemény a naptárban + tudnivaló a levélben, (b) „igen" válasz → véglegesítés + ICS-es visszaigazoló Lemondommal, (c) 24 óra passzív → esemény felszabadul. ⚠️ **Prod-deploykor**: a prod DB-be a migrációnak KELL lennie — ha a prod a `dsiluafthysysnstszbd`, már megvan (első próbálkozásból); deploy előtt `information_schema.columns` ellenőrzés!
+
 ### 19. KÉSZ — Email thread előzmények + napló count + thread-összefoglaló (2026-09-07, commit `1f517a2`+`63c11c5`, deploy `63c11c5`)
 
 **User észrevétel (259-es ügy)**: az első email után minden jó; a MÁSODIK email után (ugyanaz a thread, session `email_{email}`) a napló 1 sorban összefűzi (OK), DE a popup már NEM mutatja a beszélgetés előzményét. Ügyfélprofilban a két email külön sor, külön összefoglalóval (ez OK).
@@ -356,6 +372,15 @@ DELETE FROM public.processed_emails
 WHERE from_email ILIKE '%@yahoo.ie' OR from_email ILIKE '%@molaire.hu' OR from_email ILIKE '%@feedbacks.hu';
 ```
 **Ok**: a user ismét törölte a saját ügyfélrekordjait, hogy tiszta lappal tesztelhessen — 16 claim törlödött (et_orosz@yahoo.ie ×5, erika@molaire.hu ×10, erika@feedbacks.hu ×1). Konténer-restart NEM történt (szándékosan): a friss levelek új UID-del a high-water mark fölé esnek, így úgyis feldolgozásra kerülnek; a restart a 3 napos ablakban lévő régi tesztemaileket újraküldené.
+
+### Migráció 6: `calendar_events.status` + `pending_until` (2026-09-11, stagingen lefutott)
+```sql
+ALTER TABLE public.calendar_events ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'confirmed';
+ALTER TABLE public.calendar_events ADD COLUMN IF NOT EXISTS pending_until TIMESTAMPTZ;
+UPDATE public.calendar_events SET status = 'confirmed' WHERE status IS NULL;
+NOTIFY pgrst, 'reload schema';
+```
+**Ok**: függő (ideiglenes) időpont-foglalás — 259-es ügy, lásd a 20. tételt. ⚠️ A prod DB-n is meg kell legyen a prod-deploy előtt (a `dsiluafthysysnstszbd` projektre már kiment — lásd a 20. tétel MCP-tanulságát).
 
 ---
 
