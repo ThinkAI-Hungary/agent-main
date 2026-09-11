@@ -324,6 +324,7 @@ export default function InteractionSummaryModal({
 
       // Find the session closest to the interaction's date
       let parsedBlocks: ChatBlock[];
+      const isEmailThread = (row.channel || '').toLowerCase() === 'email';
 
       const allEntries = parseLogEntries(fullLog);
       let historyGroups: { label: string; blocks: ChatBlock[] }[] = [];
@@ -352,8 +353,22 @@ export default function InteractionSummaryModal({
           }
         });
 
+        // 261-es ügy: e-mail szálban az AKTUÁLIS csere = az ügyfél LEGUTÓBBi
+        // levele (+ a hozzá tartozó válasz) — a szessionben korábban lévő
+        // további üzenetek (korábbi levél + kiküldött válasza) az ELŐZMÉNYEKBE
+        // kerülnek, nem a kibontott részbe.
+        const curSession = sessionGroups[bestIdx];
+        let curStart = 0;
+        if (isEmailThread) {
+          for (let i = 0; i < curSession.length; i++) {
+            if (curSession[i].sender === 'user') curStart = i;
+          }
+        }
+        const preEntries = curSession.slice(0, curStart);
+        const currentEntries = curSession.slice(curStart);
+
         const blocks: ChatBlock[] = [];
-        for (const entry of sessionGroups[bestIdx]) {
+        for (const entry of currentEntries) {
           blocks.push({
             sender: entry.sender,
             text: entry.text,
@@ -362,25 +377,62 @@ export default function InteractionSummaryModal({
         }
         parsedBlocks = blocks;
 
-        historyGroups = sessionGroups
+        // Ha a válasz MÁR KIKÜLDÉSRE került (approved/autonóm), a naplóban lévő
+        // eredeti AI-szöveg helyett a ténylegesen kiküldött (esetleg SZERKESZTETT)
+        // szöveg jelenik meg — az approve endpoint a rekordot frissíti.
+        // Csak e-mail szálon (telefonosnál a napló a tényleges beszélgetést őrzi).
+        let sentBody = '';
+        if (isEmailThread && !isPendingApproval) {
+          try {
+            const d: unknown = typeof rawDraft === 'string' ? JSON.parse(rawDraft) : rawDraft;
+            sentBody = String((d as Record<string, unknown> | null)?.body || '');
+          } catch {
+            sentBody = '';
+          }
+        }
+        if (sentBody) {
+          let replaced = false;
+          for (let i = parsedBlocks.length - 1; i >= 0; i--) {
+            if (parsedBlocks[i].sender === 'user') break;
+            if (parsedBlocks[i].sender === 'ai') {
+              parsedBlocks[i] = { ...parsedBlocks[i], text: sentBody };
+              replaced = true;
+              break;
+            }
+          }
+          if (!replaced && parsedBlocks.length > 0) {
+            parsedBlocks.push({
+              sender: 'ai',
+              text: sentBody,
+              timestamp: row.date ? row.date.replace('T', ' ').slice(0, 16) : undefined,
+            });
+          }
+        }
+
+        // Előzmények: a régebbi sessionök + az aktuális sessionből korábban
+        // kivágott csere (időrendben)
+        const olderGroups = sessionGroups
           .map((g, gi) => ({ g, gi }))
           .filter(({ gi }) => gi !== bestIdx)
-          .sort((a, b) => a.g[0].time - b.g[0].time)
-          .map(({ g }) => ({
-            label: (() => {
-              try {
-                const first = new Date(g[0].time);
-                const last = new Date(g[g.length - 1].time);
-                const d = first.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
-                const t1 = `${String(first.getHours()).padStart(2, '0')}:${String(first.getMinutes()).padStart(2, '0')}`;
-                const t2 = `${String(last.getHours()).padStart(2, '0')}:${String(last.getMinutes()).padStart(2, '0')}`;
-                return `${d} ${t1}${g.length > 1 ? ' – ' + t2 : ''}`;
-              } catch {
-                return 'Korábbi levelezés';
-              }
-            })(),
-            blocks: g.map(e => ({ sender: e.sender, text: e.text, timestamp: e.timestamp })),
-          }));
+          .map(({ g }) => g);
+        const allHistory: typeof olderGroups = preEntries.length
+          ? [...olderGroups, preEntries].sort((a, b) => a[0].time - b[0].time)
+          : olderGroups.sort((a, b) => a[0].time - b[0].time);
+        historyGroups = allHistory.map(g => ({
+          label: (() => {
+            try {
+              const first = new Date(g[0].time);
+              const last = new Date(g[g.length - 1].time);
+              const d = first.toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' });
+              const t1 = `${String(first.getHours()).padStart(2, '0')}:${String(first.getMinutes()).padStart(2, '0')}`;
+              const t2 = `${String(last.getHours()).padStart(2, '0')}:${String(last.getMinutes()).padStart(2, '0')}`;
+              return `${d} ${t1}${g.length > 1 ? ' – ' + t2 : ''}`;
+            } catch {
+              return 'Korábbi levelezés';
+            }
+          })(),
+          blocks: g.map(e => ({ sender: e.sender, text: e.text, timestamp: e.timestamp })),
+        }));
       } else if (fullLog) {
         parsedBlocks = parseSimpleLog(fullLog);
       } else {
@@ -946,15 +998,31 @@ export default function InteractionSummaryModal({
                             <div key={gi} className="ism-history-group">
                               <div className="ism-history-label">{g.label}</div>
                               {g.blocks.map((b, bi) => (
-                                <div key={bi} className="ism-history-entry">
-                                  <span className={`ism-history-who ism-history-who--${b.sender}`}>
-                                    {b.sender === 'user'
-                                      ? (row.client || 'Ügyfél')
-                                      : b.sender === 'ai'
-                                        ? 'eaisyDesk'
-                                        : 'Rendszer'}
-                                  </span>
-                                  <span className="ism-history-text">{b.text}</span>
+                                <div key={bi} className="ism-history-row">
+                                  <div className="ism-history-meta">
+                                    <span className={`ism-history-who ism-history-who--${b.sender}`}>
+                                      {b.sender === 'user'
+                                        ? (row.client || 'Ügyfél')
+                                        : b.sender === 'ai'
+                                          ? 'eaisyDesk'
+                                          : 'Rendszer'}
+                                    </span>
+                                    {b.timestamp && (
+                                      <span className="ism-history-time">
+                                        {fmtDt(
+                                          b.timestamp.includes('+') || b.timestamp.includes('Z')
+                                            ? b.timestamp
+                                            : b.timestamp.replace(' ', 'T')
+                                        )}
+                                      </span>
+                                    )}
+                                    {b.sender === 'ai' && (
+                                      <span className="ism-history-tag">kiküldött válasz</span>
+                                    )}
+                                  </div>
+                                  <div className={`ism-history-bubble${b.sender === 'ai' ? ' ism-history-bubble--ai' : ''}`}>
+                                    <FormattedMessage text={b.text} />
+                                  </div>
                                 </div>
                               ))}
                             </div>
@@ -962,23 +1030,10 @@ export default function InteractionSummaryModal({
                       </div>
                     )}
 
-                    {/* ── Pending Approval Draft ── */}
-                    {/* EAISY-241 §2.2b — „Önállóan válaszolhat" mód: Kiküldött válasz, gombok nélkül */}
-                    {isAutonomous && draftText && !isPendingApproval && (
-                      <div className="ism-draft-section">
-                        <div className="ism-draft-header">
-                          <svg className="ism-draft-icon" fill="none" stroke="#22c55e" strokeWidth="2" viewBox="0 0 24 24">
-                            <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
-                          </svg>
-                          <span className="ism-draft-label">Kiküldött válasz</span>
-                          {/* Manuálisan jóváhagyott ≠ automatikus küldés */}
-                          <span style={{ fontSize: 11, color: '#22c55e', marginLeft: 'auto' }}>
-                            {isAutoSent ? '✓ automatikus' : '✓ jóváhagyva'}
-                          </span>
-                        </div>
-                        <div className="ism-draft-box">{draftText}</div>
-                      </div>
-                    )}
+                    {/* ── Kiküldött válasz NEM jelenik meg külön szekcióként ──
+                    /* 261-es ügy: kiküldést követően a választerv nem marad meg
+                    /* a popupban (nem duplikálódik) — a kiküldött (esetleg
+                    /* szerkesztett) szöveg a chatben látszik, szürke blokkban. */}
 
                     {/* EAISY-241 §2.2c — Sürgős (panasz): mutatjuk a választ/átadási szöveget, gombok nélkül */}
                     {!isAutonomous && !isPendingApproval && (row.statusz === 'Sürgős' || row.statusz === 'SÜRGŐS') && draftText && (
@@ -994,7 +1049,7 @@ export default function InteractionSummaryModal({
                     )}
 
                     {isPendingApproval && draftText && (
-                      <div className="ism-draft-section" ref={approvalRef}>
+                      <div className="ism-draft-section ism-draft-section--pending" ref={approvalRef}>
                         <div className="ism-draft-header">
                           <svg
                             className="ism-draft-icon"

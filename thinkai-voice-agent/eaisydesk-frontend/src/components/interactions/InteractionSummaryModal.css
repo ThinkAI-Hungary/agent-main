@@ -1064,3 +1064,46 @@
   white-space: pre-line;
   min-width: 0;
 }
+
+/* ══ 261-es ügy: thread-megjelenítési szabályok ══
+   1) A függőben lévő eaisyDesk választerv halvány TÜRKIZ kiemelt háttérrel.
+   2) A korábbi levelezések (Előzmények) chat-szerű, SZÜRKE, nem kiemelt
+      buborékokban — a kiküldött válasz is szürke. */
+
+.ism-draft-section--pending .ism-draft-box,
+.ism-draft-section--pending .ism-draft-textarea {
+  background: #e6faf7;
+  border-color: #99e6dc;
+}
+
+.ism-history-row { padding: 8px 0 4px; }
+.ism-history-meta {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+.ism-history-time { font-size: 11px; color: var(--text-muted, #8c8c8c); }
+.ism-history-tag {
+  font-size: 10px;
+  font-weight: 600;
+  color: var(--text-muted, #8c8c8c);
+  border: 1px solid var(--border, #dbdbdb);
+  border-radius: 999px;
+  padding: 0 7px;
+  line-height: 1.6;
+}
+.ism-history-bubble {
+  padding: 10px 14px;
+  border-radius: 10px;
+  font-size: 12.5px;
+  line-height: 1.55;
+  background: #f3f4f6;
+  border: 1px solid var(--border, #e5e7eb);
+  color: var(--text, #1f2937);
+  white-space: pre-wrap;
+  word-break: break-word;
+  opacity: 0.95;
+}
+/* A kiküldött eaisyDesk válasz is SZÜRKE az előzményekben — nem a türkiz kiemelés */
+.ism-history-bubble--ai { background: #f3f4f6; }
