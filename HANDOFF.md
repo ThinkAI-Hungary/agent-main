@@ -252,6 +252,8 @@ A user HTML-mockupja alapján (a modal cím és a tooltip eltérő kezelése sze
 6. **Vissza-gomb címkéje**: „Vissza az interakciós listához" → **„Vissza az interakciós naplóhoz"**. (Member dashboard saját: „Vissza az irányítópulthoz".)
 - **Verifikáció**: deploy `33c5085` — chunkok tartalom szerint ellenőrizve (címkék, editEventId, Munkatárs select, location.key logika a forrásban); „Elvégezte" nem maradt sehol. Konténer healthy.
 
+**Popup hot fix (commit `0c0dc31`)**: a fejléc chipjében hiányzott az ikon — a lookup `CHANNEL_ICONS['EMAIL']`-lal keresett, de a kulcsok címcasesek („Email"). Most mindkét kulcsalakra keres.
+
 **Popup hot fix (commit `9e6a15e`)**: a fejléc csatorna-chipje PONTOSAN a listanézetek (kit 07 — `.int-channel-chip`) megjelenése: 28×28 tile, radius 8, --bg3 háttér + muted 15px ikon, utána 13px csatornanév.
 
 **Popup hot fixek (2026-09-11 éjszaka, commit `47d5abe`)**: (1) fejléc — a bezárás gomb a jobb felső sarokban, ALATTA a csatorna-címke (ikon-tile + csatorna neve, a user által csatolt megjelenítés szerint); (2) előzmény-sáv felirata balra rendezve (szöveg előre, chevron közvetlenül utána); (3) az előzmény-bejegyzések ugyanúgy jelennek meg, mint az aktuális részben (avatar + név + időpont + buborék) — a felesleges „kiküldött válasz" chip eltűnt; (4) válasz-típus elnevezések: „eaisyDesk választerv" (jóváhagyás és elküldés előtt) / „Elküldött válasz" (utána).
