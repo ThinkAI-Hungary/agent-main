@@ -889,6 +889,7 @@ Ha egyik sem releváns, legyen üres lista [].
         # az IDEIGLENES (függő) foglalás — 24 órás fenntartás, nincs visszaigazoló/ICS/
         # Lemondom, és a válaszlevél kapja a fenntartási tudnivalót. Végleges foglalás
         # (+ visszaigazoló ICS-sel) csak az ügyfél egyértelmű visszaigazolásakor.
+        proposal_stage = False
         if meeting and meeting.get("date") and meeting.get("time") and not meeting_failed:
             confirmed_by_client = bool(meeting.get("confirmed_by_client"))
             if is_autonomous_email:
@@ -933,6 +934,7 @@ Ha egyik sem releváns, legyen üres lista [].
                         if PENDING_HOLD_NOTICE not in email_reply:
                             email_reply = email_reply.rstrip() + "\n\n" + PENDING_HOLD_NOTICE
                         draft_payload["body"] = email_reply
+                        proposal_stage = True
                 else:
                     logger.error(f"Naptár esemény létrehozása sikertelen: {meeting.get('title')}")
                     meeting_failed = True
@@ -947,6 +949,8 @@ Ha egyik sem releváns, legyen üres lista [].
                     "attendee_email": from_email,
                     "confirmed_by_client": bool(meeting.get("confirmed_by_client")),
                 }
+                if not confirmed_by_client:
+                    proposal_stage = True
                 logger.info(f"Naptár-foglalás a jóváhagyásig halasztva: {meeting.get('title')} ({meeting.get('date')} {meeting.get('time')}) — pending_meeting")
 
         # Módosítás-visszaigazoló: autonóm módban azonnal kimegy, jóváhagyás-módban
@@ -983,6 +987,12 @@ Ha egyik sem releváns, legyen üres lista [].
 
         email_approval = "approved" if (is_autonomous_email and send_ok) else "pending"
         email_funnel = "valaszolt" if (is_autonomous_email and send_ok) else f_stage
+
+        # 260-as ügy: javaslati szakaszban (függő foglalás, az ügyfél még nem
+        # erősítette meg) az eredmény ne 'Új időpont' legyen — a szakaszok
+        # így követhetők az ügyfélprofil külön soraiában
+        if proposal_stage and isinstance(classification, dict):
+            classification["eredmeny"] = "Foglalási igény rögzítve"
 
         _logged_interaction_id = db.log_interaction(
             type="email",

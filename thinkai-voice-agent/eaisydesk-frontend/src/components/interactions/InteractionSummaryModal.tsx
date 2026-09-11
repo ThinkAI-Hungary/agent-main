@@ -31,6 +31,9 @@ interface Props {
   autoExpandApproval?: boolean;
   /** Called after successful approval to let parent refresh data */
   onApproved?: () => void;
+  /** 'thread' (alapértelmezett): az Interakciós napló összefűzött nézete előzmény-sávval.
+      'single': ügyfélprofil / irányítópult — CSAK az adott interakció, előzménykezelés nélkül. */
+  mode?: 'thread' | 'single';
 }
 
 interface ChatBlock {
@@ -56,6 +59,7 @@ export default function InteractionSummaryModal({
   onClientClick,
   autoExpandApproval,
   onApproved,
+  mode = 'thread',
 }: Props) {
   // EAISY-241 §1.2.3 — CTA gombok jogosultság-kezelése.
   // Jogosultság-konzisztencia: ugyanaz az admin-VAGY-manager szabály, mint a
@@ -79,6 +83,8 @@ export default function InteractionSummaryModal({
   // Korábbi levelezések (a 30 perces session-határokkal tagolt diary-szeletek,
   // amelyek NEM az aktuális interakcióhoz legközelebbiek) — popup alján lenyitható
   const [historyGroups, setHistoryGroups] = useState<{ label: string; blocks: ChatBlock[] }[]>([]);
+  // Single módban kimenő sornál a kiküldött üzenet tárgya (fejléc-címke)
+  const [outboundSubject, setOutboundSubject] = useState('');
   const [historyOpen, setHistoryOpen] = useState(false);
   const [notificationText, setNotificationText] = useState('');
 
@@ -206,6 +212,36 @@ export default function InteractionSummaryModal({
           return cn && cn === rn;
         });
         if (match) cData = parseCustomData(match.custom_data);
+      }
+
+      // ── KIMENŐ kommunikáció (visszaigazolás/emlékeztető/kampány) single módban:
+      // csak a KIKÜLDÖTT ÜZENET jelenik meg, közvetlen előzmény nélkül (260-as ügy) ──
+      const isOutboundRow = /kimenő|outbound/i.test(row.direction || '');
+      if (mode === 'single' && isOutboundRow) {
+        let oBody = '';
+        let oSubject = '';
+        try {
+          const d: unknown = typeof rawDraft === 'string' ? JSON.parse(rawDraft) : rawDraft;
+          oBody = String((d as Record<string, unknown>)?.body || '');
+          oSubject = String((d as Record<string, unknown>)?.subject || '');
+        } catch {
+          oBody = '';
+        }
+        if (!cancelled) {
+          setOutboundSubject(oSubject);
+          setHistoryGroups([]);
+          setChatBlocks(
+            oBody
+              ? [{
+                  sender: 'ai' as const,
+                  text: oBody,
+                  timestamp: (row.sent_at || row.date || '').replace('T', ' ').slice(0, 16) || undefined,
+                }]
+              : []
+          );
+          setSummaryText(oSubject || row.ugyTipus || '');
+        }
+        return;
       }
 
       let fullLog = (cData.beszelgetes_naplo as string) || '';
@@ -382,8 +418,23 @@ export default function InteractionSummaryModal({
         const curSession = sessionGroups[bestIdx];
         let curStart = 0;
         if (isEmailThread) {
-          for (let i = 0; i < curSession.length; i++) {
-            if (curSession[i].sender === 'user') curStart = i;
+          if (mode === 'single') {
+            // Ügyfélprofil/irányítópult: az EHHEZ az interakcióhoz tartozó üzenet —
+            // időben legközelebbi ügyfél-bejegyzés a sor idejéhez
+            let bestDist = Infinity;
+            for (let i = 0; i < curSession.length; i++) {
+              if (curSession[i].sender !== 'user') continue;
+              const dist = Math.abs(curSession[i].time - interactionTime);
+              if (dist < bestDist) {
+                bestDist = dist;
+                curStart = i;
+              }
+            }
+          } else {
+            // Interakciós napló (thread): a LEGUTÓBBi ügyfélüzenet az aktuális
+            for (let i = 0; i < curSession.length; i++) {
+              if (curSession[i].sender === 'user') curStart = i;
+            }
           }
         }
         const preEntries = curSession.slice(0, curStart);
@@ -460,6 +511,7 @@ export default function InteractionSummaryModal({
       } else {
         parsedBlocks = [];
       }
+      if (mode === 'single') historyGroups = []; // nincs előzménykezelés — csak önálló interakció
       setHistoryGroups(historyGroups);
 
       // ── Fallback ha nincs user blokk a logban, de a topic tartalmazza az email szövegét és csatolmányát ──
@@ -845,8 +897,8 @@ export default function InteractionSummaryModal({
 
             {showDetails && (
               <div className="ism-chat-list">
-                    {/* ── Korábbi levelezések (előzmények) — 259-es ügy ── */}
-                    {historyGroups.length > 0 && (
+                    {/* ── Korábbi levelezések (előzmények) — csak thread (napló) módban ── */}
+                    {mode === 'thread' && historyGroups.length > 0 && (
                       <div className="ism-history">
                         <button
                           className="ism-history-toggle"
@@ -960,7 +1012,9 @@ export default function InteractionSummaryModal({
                             <span className="ism-chat-sender">
                               {block.sender === 'user'
                                 ? clientName
-                                : 'Elküldött válasz'}
+                                : mode === 'single' && outboundSubject
+                                  ? outboundSubject
+                                  : 'Elküldött válasz'}
                             </span>
                             {/* A kiküldött válasz a VALÓS küldési időt mutatja */}
                             {block.sender === 'ai' && row.sent_at ? (

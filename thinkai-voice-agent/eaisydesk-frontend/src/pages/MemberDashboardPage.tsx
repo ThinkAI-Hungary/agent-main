@@ -620,6 +620,7 @@ export default function MemberDashboardPage() {
           onClientClick={cid => { setSummaryModalRow(null); setSelectedClientId(cid); }}
           autoExpandApproval
           onApproved={refetchSessions}
+          mode="single"
         />
       )}
     </div>

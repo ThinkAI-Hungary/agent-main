@@ -64,6 +64,8 @@ interface InteractionRowDetail {
   result: string;
   ai_draft_response: string | null;
   approval_status: string | null;
+  received_at?: string | null;
+  sent_at?: string | null;
 }
 
 interface ManualTask {
@@ -378,7 +380,8 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           const channel = r.type || s.channel || 'Telefon';
           const direction = (r.direction || 'inbound').toLowerCase() === 'outbound' ? 'Kimenő' : 'Bejövő';
           rows.push({
-            date: r.created_at || s.started_at || '',
+            // Valós beérkezési idő (email Date fejléc), fallback a keletkezés ideje
+            date: (r as Record<string, unknown>).received_at as string || r.created_at || s.started_at || '',
             channel,
             direction,
             ugyTipus: detectUgyTipus(r),
@@ -394,6 +397,8 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             result: r.result || '',
             ai_draft_response: r.ai_draft_response || null,
             approval_status: r.approval_status || null,
+            received_at: (r as Record<string, unknown>).received_at as string | null || null,
+            sent_at: (r as Record<string, unknown>).sent_at as string | null || null,
           });
         });
       } else {
@@ -1176,7 +1181,10 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             sessionId: summaryModalRow.sessionId,
             ai_draft_response: summaryModalRow.ai_draft_response,
             approval_status: summaryModalRow.approval_status,
+            received_at: summaryModalRow.received_at,
+            sent_at: summaryModalRow.sent_at,
           }}
+          mode="single"
           onClose={() => setSummaryModalRow(null)}
           clients={Object.values(clientsMap)}
           clientsMap={clientsMap}
