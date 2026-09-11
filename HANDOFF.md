@@ -252,7 +252,7 @@ A user HTML-mockupja alapján (a modal cím és a tooltip eltérő kezelése sze
 6. **Vissza-gomb címkéje**: „Vissza az interakciós listához" → **„Vissza az interakciós naplóhoz"**. (Member dashboard saját: „Vissza az irányítópulthoz".)
 - **Verifikáció**: deploy `33c5085` — chunkok tartalom szerint ellenőrizve (címkék, editEventId, Munkatárs select, location.key logika a forrásban); „Elvégezte" nem maradt sehol. Konténer healthy.
 
-### 19. TERVEZETT — Email thread előzmények + napló count (2026-09-07, kérdések függőben — MÉG NEM INDULT EL)
+### 19. KÉSZ — Email thread előzmények + napló count + thread-összefoglaló (2026-09-07, commit `1f517a2`+`63c11c5`, deploy `63c11c5`)
 
 **User észrevétel (259-es ügy)**: az első email után minden jó; a MÁSODIK email után (ugyanaz a thread, session `email_{email}`) a napló 1 sorban összefűzi (OK), DE a popup már NEM mutatja a beszélgetés előzményét. Ügyfélprofilban a két email külön sor, külön összefoglalóval (ez OK).
 
