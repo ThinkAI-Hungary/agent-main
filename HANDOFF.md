@@ -280,6 +280,8 @@ A user HTML-mockupja alapján (a modal cím és a tooltip eltérő kezelése sze
 
 **Profil szerkesztése modal redesign (2026-09-12, commit `77ed726`+`bff32f2`)**: a kebab menü Profil szerkesztése modalja a mockup szerint újraítíva: cím + X (vékony), Név/Telefonszám/Email mezők kitöltött értékkel, üresnél szürke „Nincs megadva” placeholder (`.form-input::placeholder{color:var(--muted)}`), Mégse/Mentés (navy) a láblécben. Mégse/X/Escape/backdrop zár; a mezők megnyitáskor az AKTUÁLIS adatokkal initálnak; mentés → PUT /admin/api/clients/{id} → hero-frissítés + monogram újraszámítás + onRefresh (lista), toast: „Profil frissítve”.
 
+**Lemondó email szöveg (commit `8863435`)**: a cancellation sablon szövege: „Időpontját kérésére töröltük:” (volt: „Időpontját lemondtuk”).
+
 **Ügyféllista szűrőpanel redesign + Felelős dropdown-fix (2026-09-12, commit `5a90ae7`)**: a szűrőpanel a mockup szerint újraítíva: Utolsó interakció tól/ig dátum-mezők (ÚJ szűrő a lastInteraction alapján, téglalap-inputokkal), Ügyfélstátusz/Értékesítési státusz/Felelős design-selectek (Mind = üres), lábléc „Nincs aktív szűrő” + „✕ Szűrők törlése”. A Felelős sor-dropdown panelje FIXED pozíciós (flip a képernyő alján) — a táblázat overflow-ja egyetlen sor esetén is levágta a panelt. ⚠️ Lemezkimerülés (24G/100%) a build közben — docker builder prune ért felszabadított ~14 GB-ot; a HANDOFF-szabály: pród buildeknél figyelni kell a docker build cache-t (periodikus prune).
 
 ### 31. KÉSZ — lemondás → UTÁNKÖVETÉS oszlop (nem Elveszett), 265-ös ügy (2026-09-12, commit `f9e0967`)
