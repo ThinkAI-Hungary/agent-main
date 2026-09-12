@@ -1029,7 +1029,9 @@ Ha egyik sem releváns, legyen üres lista [].
             client_id=email_client_id if email_client_id else None,
             classification=classification,
             received_at=received_at or None,
-            diary_fragment=log_szoveg,
+            # A fragment időbélyege az ügyfél-napló formátumával egyező —
+            # enélkül a popup parse-ja 0 bejegyzést talál (265-ös ügy)
+            diary_fragment="[" + datetime.now(ZoneInfo("Europe/Budapest")).strftime("%Y-%m-%d %H:%M") + "]\n" + log_szoveg,
         )
 
         # A válasz VALÓS kiküldési ideje — a popup és a listanézet ebből mutatja

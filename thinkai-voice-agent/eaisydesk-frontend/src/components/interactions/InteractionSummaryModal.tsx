@@ -257,7 +257,14 @@ export default function InteractionSummaryModal({
       const isSingleEmail = mode === 'single' && (row.channel || '').toLowerCase() === 'email';
       let fullLog = '';
       if (mode === 'single' && isSingleEmail) {
-        fullLog = row.diary_fragment ? String(row.diary_fragment) : '';
+        let frag = row.diary_fragment ? String(row.diary_fragment) : '';
+        // Régi fragmensek időbélyeg nélkül (265-ös ügy): a parse a [ts]
+        // markert keresi — ilyenkor a sor idejét előre tesszük
+        if (frag && !frag.trimStart().startsWith('[')) {
+          const fragTs = (row.received_at || row.date || '').replace('T', ' ').slice(0, 16);
+          if (fragTs) frag = `[${fragTs}]\n${frag}`;
+        }
+        fullLog = frag;
       } else {
         fullLog = (cData.beszelgetes_naplo as string) || '';
         if (!fullLog && row.result && row.result.trim()) {
