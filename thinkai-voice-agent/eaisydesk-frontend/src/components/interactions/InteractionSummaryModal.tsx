@@ -249,19 +249,23 @@ export default function InteractionSummaryModal({
         return;
       }
 
-      // 263-as ügy: single módban az interakció SAJÁT napló-fragmensét használjuk
-      // (egy interakció = egy ügy) — nem a közös ügyfél-naplót szálazzuk
+      // 263-as ügy: single módban (ügyfélprofil/irányítópult) email-nél KIZÁRÓLAG
+      // az interakció SAJÁT napló-fragmensét használjuk — a közös ügyfél-naplóból
+      // soha nem töltünk be tartalmat (egy interakció = egy ügy). Nem-email
+      // csatornánál (telefon stb.) a napló-marad.
+      const isSingleEmail = mode === 'single' && (row.channel || '').toLowerCase() === 'email';
       let fullLog = '';
-      if (mode === 'single' && row.diary_fragment) {
-        fullLog = String(row.diary_fragment);
-      }
-      if (!fullLog) fullLog = (cData.beszelgetes_naplo as string) || '';
-      if (!fullLog && row.result && row.result.trim()) {
-        if (row.result.trim().startsWith('[')) {
-          fullLog = row.result;
-        } else {
-          const dateStr = row.date ? row.date.replace('T', ' ').slice(0, 16) : new Date().toISOString().replace('T', ' ').slice(0, 16);
-          fullLog = `[${dateStr}]\n${row.result}`;
+      if (mode === 'single' && isSingleEmail) {
+        fullLog = row.diary_fragment ? String(row.diary_fragment) : '';
+      } else {
+        fullLog = (cData.beszelgetes_naplo as string) || '';
+        if (!fullLog && row.result && row.result.trim()) {
+          if (row.result.trim().startsWith('[')) {
+            fullLog = row.result;
+          } else {
+            const dateStr = row.date ? row.date.replace('T', ' ').slice(0, 16) : new Date().toISOString().replace('T', ' ').slice(0, 16);
+            fullLog = `[${dateStr}]\n${row.result}`;
+          }
         }
       }
 
@@ -397,7 +401,15 @@ export default function InteractionSummaryModal({
 
       const allEntries = parseLogEntries(fullLog);
       let historyGroups: { label: string; blocks: ChatBlock[] }[] = [];
-      if (allEntries.length > 0 && row.date) {
+      if (mode === 'single' && isSingleEmail) {
+        // Determinisztikus: a fragment CSAK ezt az interakciót tartalmazza —
+        // minden bejegyzése megjelenik, szálazás/vágás nélkül
+        parsedBlocks = allEntries.map(entry => ({
+          sender: entry.sender,
+          text: entry.text,
+          timestamp: entry.timestamp,
+        }));
+      } else if (allEntries.length > 0 && row.date) {
         const interactionTime = new Date(row.date).getTime();
         const sessionGroups = groupIntoSessions(allEntries);
 
@@ -429,30 +441,10 @@ export default function InteractionSummaryModal({
         const curSession = sessionGroups[bestIdx];
         let curStart = 0;
         if (isEmailThread) {
-          if (mode === 'single') {
-            // Ügyfélprofil/irányítópult: az EHHEZ az interakcióhoz tartozó üzenet —
-            // időben legközelebbi ügyfél-bejegyzés a sor idejéhez, de MAX 30 percre
-            // (azon túl nem ez az interakció — nem tölt be idegen váltást)
-            let bestDist = Infinity;
-            let bestI = -1;
-            for (let i = 0; i < curSession.length; i++) {
-              if (curSession[i].sender !== 'user') continue;
-              const dist = Math.abs(curSession[i].time - interactionTime);
-              if (dist < bestDist) {
-                bestDist = dist;
-                bestI = i;
-              }
-            }
-            if (bestI >= 0 && bestDist <= 30 * 60 * 1000) {
-              curStart = bestI;
-            } else {
-              sessionGroups[bestIdx] = [];
-            }
-          } else {
-            // Interakciós napló (thread): a LEGUTÓBBi ügyfélüzenet az aktuális
-            for (let i = 0; i < curSession.length; i++) {
-              if (curSession[i].sender === 'user') curStart = i;
-            }
+          // Interakciós napló (thread): a LEGUTÓBBi ügyfélüzenet az aktuális csere;
+          // a korábbi cserék az előzmény-sávba kerülnek
+          for (let i = 0; i < curSession.length; i++) {
+            if (curSession[i].sender === 'user') curStart = i;
           }
         }
         const preEntries = curSession.slice(0, curStart);
