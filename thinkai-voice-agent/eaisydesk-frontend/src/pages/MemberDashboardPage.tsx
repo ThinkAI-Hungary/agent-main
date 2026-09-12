@@ -23,6 +23,7 @@ import { useSessions, type SessionSummary, type SessionInteraction } from '../ho
 import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import ClientDetailView from '../components/clients/ClientDetailView';
 import InteractionSummaryModal from '../components/interactions/InteractionSummaryModal';
+import { isUnread, markInteractionRead } from '../helpers/unreadInteractions';
 import {
   resolveClientName,
   getRowChannel,
@@ -132,6 +133,7 @@ export default function MemberDashboardPage() {
   useEffect(() => { loadManualTasks(); }, [loadManualTasks]);
 
   const [summaryModalRow, setSummaryModalRow] = useState<InteractionRow | null>(null);
+  const [readVersion, setReadVersion] = useState(0);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   const [apptExpanded, setApptExpanded] = useState(false);
 
@@ -360,13 +362,14 @@ export default function MemberDashboardPage() {
                     className={isManualRow ? 'row-task' : undefined}
                     tabIndex={isManualRow ? 0 : undefined}
                     style={{ cursor: 'pointer' }}
-                    onClick={() => isManualRow && manualRow.taskId ? openTaskEdit(manualRow.taskId) : setSummaryModalRow(r)}
+                    onClick={() => isManualRow && manualRow.taskId ? openTaskEdit(manualRow.taskId) : (markInteractionRead(r.interactionId), setReadVersion(v => v + 1), setSummaryModalRow(r))}
                     onKeyDown={e => { if (isManualRow && manualRow.taskId && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); openTaskEdit(manualRow.taskId); } }}
                     onMouseEnter={e => { (e.currentTarget as HTMLElement).style.background = t.surface; }}
                     onMouseLeave={e => { (e.currentTarget as HTMLElement).style.background = 'transparent'; }}
                   >
                     <td style={tdBase}>
                       <span style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                        {isUnread(r.interactionId) && <span className="unread-dot" title="Olvasatlan" />}
                         <span style={{ width: 30, height: 30, flex: 'none', borderRadius: '50%', background: `color-mix(in srgb, ${t.accent2} 12%, ${t.bg})`, border: `1px solid color-mix(in srgb, ${t.accent2} 30%, ${t.border})`, color: t.accent2, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 11, fontWeight: 600 }}>
                           {initialsOf(r.client)}
                         </span>

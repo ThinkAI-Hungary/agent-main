@@ -18,6 +18,7 @@ import {
   detectTeendo,
 } from '../helpers/interactionClassifiers';
 import { fmtDt, cleanStr } from '../helpers/formatters';
+import { isUnread, markInteractionRead } from '../helpers/unreadInteractions';
 import { StatuszBadge } from '../components/ui/Badge';
 import { TableSkeleton } from '../components/ui/Skeleton';
 import { useConfirm } from '../components/ui/ConfirmDialog';
@@ -138,6 +139,8 @@ export default function InteractionsPage() {
   const [selectedRows, setSelectedRows] = useState<Set<string>>(new Set());
   const [isDeleting, setIsDeleting] = useState(false);
   const [summaryModalRow, setSummaryModalRow] = useState<InteractionRow | null>(null);
+  // Olvasatlan pöttyök újrarenderelése kattintáskor
+  const [readVersion, setReadVersion] = useState(0);
   const [autoExpandApproval, setAutoExpandApproval] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   // Sidebar „Interakciós napló" kattintás is zárja be a profilt (ugyanazon
@@ -745,7 +748,7 @@ export default function InteractionsPage() {
                       <div
                         className="mobile-card"
                         style={{ '--accent': accentColor } as React.CSSProperties}
-                        onClick={() => { setAutoExpandApproval(false); setSummaryModalRow(r); }}
+                        onClick={() => { setAutoExpandApproval(false); markInteractionRead(r.interactionId); setReadVersion(v => v + 1); setSummaryModalRow(r); }}
                       >
                         {/* Header: avatar + name + status */}
                         <div className="mobile-card-header">
@@ -753,7 +756,7 @@ export default function InteractionsPage() {
                             {initials}
                           </div>
                           <div className="int-card-inner">
-                            <div className="mobile-card-name">{clientName}</div>
+                            <div className="mobile-card-name">{isUnread(r.interactionId) && <span className="unread-dot" title="Olvasatlan" />}{clientName}</div>
                             <div className="mobile-card-subtitle">
                               {(() => { try { return new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' }); } catch { return ''; } })()}
                             </div>
@@ -844,7 +847,7 @@ export default function InteractionsPage() {
                   <tr
                     key={`${r.sessionId}-${r.interactionId}-${i}`}
                     className={`int-row cursor-pointer${r.statusz === 'Sürgős' || r.statusz === 'SÜRGŐS' ? ' is-urgent' : ''}`}
-                    onClick={() => { setAutoExpandApproval(false); setSummaryModalRow(r); }}
+                    onClick={() => { setAutoExpandApproval(false); markInteractionRead(r.interactionId); setReadVersion(v => v + 1); setSummaryModalRow(r); }}
                   >
                     {isAdmin && (
                     <td className="int-checkbox-col int-td-checkbox" onClick={(e) => e.stopPropagation()}>
@@ -858,7 +861,7 @@ export default function InteractionsPage() {
                     )}
                     {visibleCols.has('date') && (
                       <td className="int-td int-td--date">
-                        <div className="int-date-cell">{fmtDt(r.date)}</div>
+                        <div className="int-date-cell">{isUnread(r.interactionId) && <span className="unread-dot" title="Olvasatlan" />}{fmtDt(r.date)}</div>
                       </td>
                     )}
                     {visibleCols.has('client') && (

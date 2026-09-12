@@ -494,3 +494,15 @@
 @media (max-width: 1080px) {
   .int-filter-pop { width: 100%; right: 0; left: 0; }
 }
+
+/* Olvasatlan interakció jelölése — kis kék pötty a sor elején */
+.unread-dot {
+  display: inline-block;
+  width: 7px;
+  height: 7px;
+  flex: none;
+  border-radius: 50%;
+  background: #2563eb;
+  margin-right: 7px;
+  vertical-align: middle;
+}
