@@ -1066,7 +1066,7 @@ def check_imap_sync(server: str = "", user: str = "", pwd: str = "", port: int =
     UID-alapú műveletek (a message sequence numberök EXPUNGE esetén elcsúszhatnak).
     A leveleket NEM jelöljük olvasottnak — azt a worker teszi meg a feldolgozás
     UTÁN (mark_emails_seen_sync), így crash esetén a levél nem vész el.
-    Visszatérés: [(uid, message_id, from_email, from_name, subject, text), ...]
+    Visszatérés: [(uid, message_id, from_email, from_name, subject, text, received_at), ...]
 
     A hitelesítő adatok paraméterben is jöhetnek (multi-mailbox); ha üresek,
     a globális .env-ből olvassuk (visszafelé kompatibilitás).
@@ -1206,7 +1206,7 @@ def check_imap_sync(server: str = "", user: str = "", pwd: str = "", port: int =
                                     text_content = (text_content.rstrip() + f"\n\n[Melléklet: {fn}]({url})").strip()
 
                     text_content = clean_email_body(text_content)
-                    emails_to_process.append((uid, message_id, from_email, from_name, subject, text_content))
+                    emails_to_process.append((uid, message_id, from_email, from_name, subject, text_content, email_received_at))
                 except Exception as fe:
                     logger.error(f"Levél fetch/parse hiba (uid={uid}): {fe}")
 
@@ -1311,14 +1311,14 @@ async def _poll_tenant_mailbox(tenant: dict):
         emails = await asyncio.to_thread(check_imap_sync, server, user, pwd, port)
 
         seen_uids = []
-        for uid, message_id, from_email, from_name, subject, text_content in emails:
+        for uid, message_id, from_email, from_name, subject, text_content, received_at in emails:
             try:
                 # Dedup-claim: ha már feldolgoztuk, kihagyjuk
                 if message_id and not db.claim_processed_email(message_id, from_email, f"email_{from_email}"):
                     logger.info(f"Duplikált levél kihagyva (már feldolgozva): {message_id}")
                     seen_uids.append(uid)
                     continue
-                await process_single_email(from_email, from_name, subject, text_content, message_id=message_id, received_at=email_received_at)
+                await process_single_email(from_email, from_name, subject, text_content, message_id=message_id, received_at=received_at)
             except Exception as proc_err:
                 logger.error(f"Email feldolgozási hiba ({from_email} — {subject}): {proc_err}")
                 if message_id:
