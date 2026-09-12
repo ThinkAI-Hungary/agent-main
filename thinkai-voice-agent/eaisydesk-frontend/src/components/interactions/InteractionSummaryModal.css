@@ -1334,3 +1334,13 @@
   font-size: 18px;
 }
 .ism-close-btn:hover { background: #f3f4f6; }
+
+/* Tárgy sor az email-buborék tetején (264-es ügy) */
+.ism-msg-subject {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-muted, #6b7280);
+  margin-bottom: 6px;
+  padding-bottom: 6px;
+  border-bottom: 1px dashed var(--border, #e5e7eb);
+}

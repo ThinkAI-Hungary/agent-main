@@ -40,6 +40,7 @@ interface ChatBlock {
   sender: 'user' | 'ai' | 'system';
   text: string;
   timestamp?: string;
+  subject?: string;
 }
 
 // Csatorna ikonok (UI Kit: ikon + csatornanév pill a modál fejlécében)
@@ -275,6 +276,7 @@ export default function InteractionSummaryModal({
         time: number;
         sender: 'user' | 'ai' | 'system';
         text: string;
+        subject?: string;
       }
 
       function parseLogEntries(log: string): LogEntry[] {
@@ -306,9 +308,13 @@ export default function InteractionSummaryModal({
             // doboz felül már megmutatja (duplikáció volt, 257-es ügy).
             if (emailIncoming) {
               const emailSubject = emailIncoming[1].trim();
-              const emailBody = emailIncoming[2].trim();
-              const userText = emailBody;
-              entries.push({ timestamp, time, sender: 'user', text: userText });
+              let emailBody = emailIncoming[2].trim();
+              // Ha a törzs elején mégis benne maradt a tárgy ("Implantáció: ..."),
+              // eltávolítjuk — a tárgy külön sorban jelenik majd meg (264-es ügy)
+              if (emailSubject && emailBody.toLowerCase().startsWith(emailSubject.toLowerCase() + ':')) {
+                emailBody = emailBody.slice(emailSubject.length + 1).trimStart();
+              }
+              entries.push({ timestamp, time, sender: 'user', text: emailBody, subject: emailSubject });
             }
             if (aiResponseSplit.length > 1) {
               const aiText = aiResponseSplit.slice(1).join('\n').trim();
@@ -408,6 +414,7 @@ export default function InteractionSummaryModal({
           sender: entry.sender,
           text: entry.text,
           timestamp: entry.timestamp,
+          subject: (entry as LogEntry).subject,
         }));
       } else if (allEntries.length > 0 && row.date) {
         const interactionTime = new Date(row.date).getTime();
@@ -456,6 +463,7 @@ export default function InteractionSummaryModal({
             sender: entry.sender,
             text: entry.text,
             timestamp: entry.timestamp,
+            subject: entry.subject,
           });
         }
         parsedBlocks = blocks;
@@ -1069,6 +1077,9 @@ export default function InteractionSummaryModal({
                                   : 'ism-chat-bubble--ai'
                             }`}
                           >
+                            {block.sender === 'user' && block.subject && (
+                              <div className="ism-msg-subject">Tárgy: {block.subject}</div>
+                            )}
                             <FormattedMessage text={block.text} />
                           </div>
                         </div>

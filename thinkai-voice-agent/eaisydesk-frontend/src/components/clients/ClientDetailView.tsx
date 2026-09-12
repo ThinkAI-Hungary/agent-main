@@ -45,6 +45,7 @@ interface Props {
   source: 'clients' | 'interactions' | 'calendar' | 'kanban' | 'member';
   onBack: () => void;
   onRefresh: () => void;
+  onSessionsRefetch?: () => void;
 }
 
 interface InteractionRowDetail {
@@ -136,7 +137,7 @@ function CpDirBadge({ value }: { value: string }) {
   );
 }
 
-export default function ClientDetailView({ client, clientsMap, sessions, events, source, onBack, onRefresh }: Props) {
+export default function ClientDetailView({ client, clientsMap, sessions, events, source, onBack, onRefresh, onSessionsRefetch }: Props) {
   const navigate = useNavigate();
   const [notes, setNotes] = useState(() => {
     const cd = parseCustomData(client.raw.custom_data);
@@ -1187,6 +1188,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             sent_at: summaryModalRow.sent_at,
             diary_fragment: summaryModalRow.diary_fragment,
           }}
+          onApproved={() => onSessionsRefetch?.()}
           mode="single"
           onClose={() => setSummaryModalRow(null)}
           clients={Object.values(clientsMap)}

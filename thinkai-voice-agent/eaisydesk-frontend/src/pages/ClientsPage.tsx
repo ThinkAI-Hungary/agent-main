@@ -71,7 +71,7 @@ export default function ClientsPage() {
   const isMobile = useIsMobile(768);
   const { user, isAdmin } = useAuth();
   const { clients, clientsMap, refetch: refetchClients } = useClients();
-  const { sessions } = useSessions(500);
+  const { sessions, refetch: refetchSessions } = useSessions(500);
   const { events } = useCalendarEvents();
   const { confirm, ConfirmDialog } = useConfirm();
   const { columns: kanbanColumns } = useKanbanColumns();
@@ -457,6 +457,7 @@ export default function ClientsPage() {
           source={detailSource}
           onBack={closeClientDetail}
           onRefresh={refetchClients}
+          onSessionsRefetch={refetchSessions}
         />
       );
     }
