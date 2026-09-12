@@ -424,7 +424,7 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
         else:
             client_context = (
                 "--- AZ ÜGYFÉL STÁTUSZA A NYILVÁNTARTÁSBAN ---\n"
-                "AZ ÜGYFÉL ÚJ ÜGYFÉL: még nem szerepel a nyilvántartásban, korábbi foglalása vagy interakciója nincs.\n"
+                "AZ ÜGYFÉL ÚJ ÜGYFÉL: még nem szerepel a nyilvántartásban, korábbi foglalása vagy interakciója nincs. Ennek alapján NE kérdezd rá, hogy járt-e már nálunk korábban — a rendszer ezt tudja.\n"
                 + adatkeresi_szabalyok
             )
     except Exception as ctx_err:
@@ -573,6 +573,7 @@ Ha egyik sem releváns, legyen üres lista [].
     sys_prompt += "2. SOHA ne kérdezd meg, hogy 'Miben segíthetek?', ha az ügyfél már konkrét kérdést tett fel (pl. 'érdeklődnék hogy foglalkoznak-e fogkőeltávolítással'). Válaszolj közvetlenül és felesleges udvariaskodás nélkül a kérdésére (pl. 'Igen, foglalkozunk fogkőeltávolítással, az áraink...', stb.)! Ne fárasszuk az ügyfelet felesleges kérdésekkel, ha már tudjuk mit akar.\n"
     sys_prompt += "3. Légy célratörő, lényegretörő és emberi.\n"
     sys_prompt += "4. A válaszlevélben SOHA ne nevezz meg konkrét ellátó munkatársat (orvos, dentálhigiénikus, kolléga nevét) — azt, hogy ki látja el az ügyfelet, a hivatalos visszaigazoló email tartalmazza. A meeting.assigned_to mezőt is CSAK akkor töltsd ki, ha az ügyfél kifejezetten, név szerint kért munkatársat!\n"
+    sys_prompt += "5. SOHA ne kérdezd meg, hogy az ügyfél JÁRT-E MÁR NÁLUNK KORÁBBAN — ezt a rendszer a nyilvántartásból és a korábbi levelezésekből pontosan tudja (264-es ügy).\n"
     sys_prompt += f"\n\n--- JSON UTASÍTÁS ---\n{json_instruction}"
 
     logger.info(f"Gemini 2.5 Flash elemzi az e-mailt: {from_email} - {subject}")

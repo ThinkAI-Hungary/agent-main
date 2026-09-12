@@ -298,7 +298,11 @@ def get_system_prompt(channel: str = None) -> str:
             "mutatja, melyik címről érkezett, a rendszer ismeri a feladót. Ez attól "
             "függetlenül érvényes, hogy az ügyfél szerepel-e a nyilvántartásban — "
             "rákérdezni kontraproduktív. A hiányzó, az ügyintézéshez szükséges egyéb "
-            "adatokat (pl. teljes név, telefonszám) természetesen el lehet kérni."
+            "adatokat (pl. teljes név, telefonszám) természetesen el lehet kérni.\n"
+            "A „JÁRT MÁR NÁLUNK KORÁBBAN?” KÉRDÉST IS SOHA NE TEDD FEL írásos "
+            "kommunikációban: a rendszer a nyilvántartásból és a korábbi levelezésekből "
+            "pontosan tudja, az ügyfél új vagy visszatérő vendég — rákérdezni "
+            "kontraproduktív és bizalmatlanságot sugall (264-es ügy)."
         )
 
     # ── EAISY-241 §1.1.1/§2 — Eljárás-szabályok injektálása a promptba ────────
