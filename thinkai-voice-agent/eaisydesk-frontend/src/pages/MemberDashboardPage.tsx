@@ -336,7 +336,6 @@ export default function MemberDashboardPage() {
                 <th style={thStyle}>Ügyfél</th>
                 <th style={thStyle}>Interakció időpontja</th>
                 <th style={thStyle}>Csatorna</th>
-                <th style={thStyle}>Irány</th>
                 <th style={thStyle}>Ügytípus</th>
                 <th style={thStyle}>Eredmény</th>
                 <th style={thStyle}>Státusz</th>
@@ -386,11 +385,6 @@ export default function MemberDashboardPage() {
                     </td>
                     <td style={{ ...tdBase, fontVariantNumeric: 'tabular-nums', color: t.text2 }}>{dateLabel}</td>
                     <td style={tdBase}><ChannelChip name={r.channel} t={t} /></td>
-                    <td style={tdBase}>
-                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 5, padding: '2px 8px', borderRadius: 8, fontSize: 11.5, fontWeight: 500, border: `1px solid ${t.border}`, whiteSpace: 'nowrap', background: r.direction === 'Kimenő' ? `color-mix(in srgb, ${t.accent2} 10%, ${t.bg})` : 'transparent', color: r.direction === 'Kimenő' ? t.accent2 : t.text2 }}>
-                        {r.direction || 'Bejövő'}
-                      </span>
-                    </td>
                     <td style={tdBase}>{r.ugyTipus || '—'}</td>
                     <td style={{ ...tdBase, color: t.text2 }}>{r.eredmeny || '—'}</td>
                     <td style={tdBase}><StatusBadge value={r.statusz} t={t} /></td>
