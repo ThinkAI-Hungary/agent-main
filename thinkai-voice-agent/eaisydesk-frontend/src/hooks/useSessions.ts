@@ -94,6 +94,9 @@ export function useSessions(limit = 100): UseSessionsReturn {
         sessionMap.get(sid)!.interactions!.push({
           id: row.id,
           created_at: row.created_at,
+          received_at: row.received_at, // a levél VALÓS beérkezési ideje
+          sent_at: row.sent_at,         // a válasz tényleges kiküldési ideje
+          diary_fragment: row.diary_fragment, // az interakció saját napló-fragmense
           type: row.type,
           topic: row.topic,
           summary: row.summary,
