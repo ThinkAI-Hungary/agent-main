@@ -735,7 +735,9 @@ Ha egyik sem releváns, legyen üres lista [].
     if modify_action and modify_action.get("event_title_to_modify") and not stale_offer_detected:
         try:
             ev_title = modify_action["event_title_to_modify"]
-            found = db.find_calendar_event_by_title(ev_title)
+            # 265-ös ügy: a keresés az ügyfél SAJÁT eseményeire szűkítve —
+            # korábban bárki azonos című eseményét módosította
+            found = db.find_calendar_event_by_title(ev_title, attendee_email=from_email)
             if found:
                 updates = {}
                 if modify_action.get("new_date") or modify_action.get("new_time"):
@@ -772,7 +774,7 @@ Ha egyik sem releváns, legyen üres lista [].
     if delete_action and delete_action.get("event_title_to_delete") and not stale_offer_detected:
         try:
             ev_title = delete_action["event_title_to_delete"]
-            found = db.find_calendar_event_by_title(ev_title)
+            found = db.find_calendar_event_by_title(ev_title, attendee_email=from_email)
             if found and found.get("status") == "pending":
                 # Függő (ideiglenes) javaslat lemondása: csak felszabadul —
                 # ügyfél-státusz módosítás és lemondó-email NEM kell, mert

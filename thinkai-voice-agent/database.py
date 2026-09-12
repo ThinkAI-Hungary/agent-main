@@ -686,11 +686,39 @@ def delete_calendar_event(event_id: int) -> bool:
     except Exception:
         return False
 
-def find_calendar_event_by_title(title_fragment: str) -> dict | None:
+def find_calendar_event_by_title(title_fragment: str, attendee_email: str = None) -> dict | None:
+    """Cím-töredék alapján keres eseményt. 265-ös ügy javítás: HA megvan a
+    kérelmező email címe, CSAK az ő eseményei közül keres, és jövőbeli
+    időpontot preferál — korábban bárki azonos című eseményét eltalálta
+    (Lederer Balázs júniusi teszteseménye került át a módosításba)."""
     if not supabase: return None
     try:
-        res = _tenant_eq(supabase.table("calendar_events").select("*")).ilike("title", f"%{title_fragment}%").order("start_dt", desc=False).limit(1).execute()
-        return res.data[0] if res.data else None
+        from datetime import datetime, timezone
+        now_iso = datetime.now(timezone.utc).isoformat()
+
+        def _query(ae: str = None, future_only: bool = False):
+            q = _tenant_eq(supabase.table("calendar_events").select("*")).ilike("title", f"%{title_fragment}%")
+            if ae and ae != "-":
+                q = q.eq("attendee_email", ae)
+            if future_only:
+                q = q.gte("start_dt", now_iso)
+            return q.order("start_dt", desc=False).limit(1).execute()
+
+        # 1) az ügyfél jövőbeli eseménye; 2) az ügyfél bármely eseménye;
+        # 3) jövőbeli bárkié (ügyfél nélküli kérelmeknél); 4) legacy: bárkié
+        ae = (attendee_email or "").strip()
+        if ae and ae != "-":
+            res = _query(ae, future_only=True).data
+            if res:
+                return res[0]
+            res = _query(ae).data
+            if res:
+                return res[0]
+        res = _query(future_only=True).data
+        if res:
+            return res[0]
+        res = _query().data
+        return res[0] if res else None
     except Exception:
         return None
 
