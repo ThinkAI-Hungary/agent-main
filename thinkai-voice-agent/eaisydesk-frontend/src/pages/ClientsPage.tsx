@@ -161,20 +161,25 @@ export default function ClientsPage() {
   const [filterKategoria, setFilterKategoria] = useState<Set<string>>(new Set());
   const [filterErtStatusz, setFilterErtStatusz] = useState<Set<string>>(new Set());
   const [filterFelelos, setFilterFelelos] = useState<Set<string>>(new Set());
+  const [filterDateFrom, setFilterDateFrom] = useState('');
+  const [filterDateTo, setFilterDateTo] = useState('');
   
   const [sortDropdownOpen, setSortDropdownOpen] = useState(false);
   const sortDropdownRef = useRef<HTMLDivElement>(null);
   const [sortBy, setSortBy] = useState('date_desc');
   // Szűrő/keresés/sorrend változásakor vissza az első oldalra
-  useEffect(() => { setPage(1); }, [searchQuery, filterKategoria, filterErtStatusz, filterFelelos, sortBy]);
+  useEffect(() => { setPage(1); }, [searchQuery, filterKategoria, filterErtStatusz, filterFelelos, filterDateFrom, filterDateTo, sortBy]);
 
   const ALL_KATEGORIA = ['Új ügyfél', 'Visszatérő', 'Inaktív'];
   
-  const activeFilterCount = filterKategoria.size + filterErtStatusz.size + filterFelelos.size;
+  const activeFilterCount = filterKategoria.size + filterErtStatusz.size + filterFelelos.size + (filterDateFrom ? 1 : 0) + (filterDateTo ? 1 : 0);
+  const firstOf = (s: Set<string>): string => (s.size > 0 ? [...s][0] : '');
   const resetFilters = () => {
     setFilterKategoria(new Set());
     setFilterErtStatusz(new Set());
     setFilterFelelos(new Set());
+    setFilterDateFrom('');
+    setFilterDateTo('');
   };
 
 
@@ -316,7 +321,17 @@ export default function ClientsPage() {
   // ── Search & filter ──
   const filteredClients = useMemo(() => {
     let result = myClients;
-    
+
+    // Dátum-szűrés (Utolsó interakció tól/ig)
+    if (filterDateFrom || filterDateTo) {
+      result = result.filter(c => {
+        const d = (c.lastInteraction || '').slice(0, 10);
+        if (filterDateFrom && (!d || d < filterDateFrom)) return false;
+        if (filterDateTo && (!d || d > filterDateTo)) return false;
+        return true;
+      });
+    }
+
     // Filters
     if (filterKategoria.size > 0 || filterErtStatusz.size > 0 || filterFelelos.size > 0) {
       result = result.filter(c => {
@@ -677,30 +692,55 @@ export default function ClientsPage() {
                 {activeFilterCount > 0 && <span className="int-filter-badge">{activeFilterCount}</span>}
               </button>
               {filterOpen && (
-                <div className="dropdown-menu dropdown-menu--filter">
-                  <div className="dropdown-header">Szűrők</div>
-                  <div className="int-filter-list">
-                    <FilterSection title="Ügyfél kategória">
-                      {ALL_KATEGORIA.map((v) => (
-                        <FilterCheckbox key={v} label={v} checked={filterKategoria.has(v)} onChange={() => toggleFilter(filterKategoria, v, setFilterKategoria)} />
-                      ))}
-                    </FilterSection>
-                    <FilterSection title="Értékesítési státusz" bordered>
-                      {ALL_ERT_STATUSZ.map((v) => (
-                        <FilterCheckbox key={v} label={v} checked={filterErtStatusz.has(v)} onChange={() => toggleFilter(filterErtStatusz, v, setFilterErtStatusz)} />
-                      ))}
-                    </FilterSection>
-                    <FilterSection title="Felelős" bordered>
-                      {ALL_FELELOS.map((v) => (
-                        <FilterCheckbox key={v} label={v} checked={filterFelelos.has(v)} onChange={() => toggleFilter(filterFelelos, v, setFilterFelelos)} />
-                      ))}
-                    </FilterSection>
+                <div className="dropdown-menu dropdown-menu--filter cpf-panel">
+                  <div className="cpf-grid">
+                    <div className="cpf-field">
+                      <span className="cpf-label">Utolsó interakció tól</span>
+                      <input type="date" className="cpf-input" value={filterDateFrom} onChange={e => setFilterDateFrom(e.target.value)} />
+                    </div>
+                    <div className="cpf-field">
+                      <span className="cpf-label">Utolsó interakció ig</span>
+                      <input type="date" className="cpf-input" value={filterDateTo} onChange={e => setFilterDateTo(e.target.value)} />
+                    </div>
+                    <div className="cpf-field">
+                      <span className="cpf-label">Ügyfélstátusz</span>
+                      <div className="cpf-select-wrap">
+                        <select className="cpf-select" value={firstOf(filterKategoria)} onChange={e => setFilterKategoria(e.target.value ? new Set([e.target.value]) : new Set())}>
+                          <option value="">Mind</option>
+                          {ALL_KATEGORIA.map(v => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                        <svg className="cpf-chev" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
+                      </div>
+                    </div>
+                    <div className="cpf-field">
+                      <span className="cpf-label">Értékesítési státusz</span>
+                      <div className="cpf-select-wrap">
+                        <select className="cpf-select" value={firstOf(filterErtStatusz)} onChange={e => setFilterErtStatusz(e.target.value ? new Set([e.target.value]) : new Set())}>
+                          <option value="">Mind</option>
+                          {ALL_ERT_STATUSZ.map(v => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                        <svg className="cpf-chev" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
+                      </div>
+                    </div>
+                    <div className="cpf-field cpf-span2">
+                      <span className="cpf-label">Felelős</span>
+                      <div className="cpf-select-wrap">
+                        <select className="cpf-select" value={firstOf(filterFelelos)} onChange={e => setFilterFelelos(e.target.value ? new Set([e.target.value]) : new Set())}>
+                          <option value="">Mind</option>
+                          {ALL_FELELOS.map(v => <option key={v} value={v}>{v}</option>)}
+                        </select>
+                        <svg className="cpf-chev" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
+                      </div>
+                    </div>
                   </div>
-                  <div className="int-filter-actions">
-                    <span className="int-filter-hint">
+                  <div className="cpf-foot">
+                    <span className="cpf-hint">
                       {activeFilterCount > 0 ? `${activeFilterCount} aktív szűrő` : 'Nincs aktív szűrő'}
                     </span>
-                    <button className="btn btn-sm" onClick={resetFilters}>Szűrők törlése</button>
+                    <button className="cpf-clear" onClick={resetFilters}>
+                      <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                      Szűrők törlése
+                    </button>
                   </div>
                 </div>
               )}
@@ -965,6 +1005,7 @@ export default function ClientsPage() {
 
 function AssigneeDropdown({ value, members, onChange }: { value: string; members: MemberUser[]; onChange: (val: string) => void }) {
   const [open, setOpen] = useState(false);
+  const [panelPos, setPanelPos] = useState<{ top: number; left: number; width: number } | null>(null);
   const ref = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -976,6 +1017,18 @@ function AssigneeDropdown({ value, members, onChange }: { value: string; members
     return () => document.removeEventListener('mousedown', handleClick);
   }, [open]);
 
+  // A panel FIXED pozíciója — a táblázat overflow-ja különben levágja (egy sor esetén is)
+  const toggleOpen = () => {
+    if (!open && ref.current) {
+      const rect = ref.current.getBoundingClientRect();
+      const panelH = Math.min(options.length * 36 + 8, 260);
+      let top = rect.bottom + 4;
+      if (top + panelH > window.innerHeight - 12) top = Math.max(12, rect.top - panelH - 4);
+      setPanelPos({ top, left: rect.left, width: Math.max(rect.width, 180) });
+    }
+    setOpen(!open);
+  };
+
   const options = [
     { value: '', label: 'Nincs hozzárendelve' },
     ...members.map(m => ({ value: m.full_name || m.username, label: m.full_name || m.username }))
@@ -986,14 +1039,14 @@ function AssigneeDropdown({ value, members, onChange }: { value: string; members
 
   return (
     <div ref={ref} className="role-dd-wrap" onClick={e => e.stopPropagation()}>
-      <button type="button" onClick={(e) => { e.stopPropagation(); setOpen(!open); }} className={`role-dd-btn${open ? ' role-dd-btn--open' : ''}`} style={{ minWidth: '160px', justifyContent: 'space-between' }}>
+      <button type="button" onClick={(e) => { e.stopPropagation(); toggleOpen(); }} className={`role-dd-btn${open ? ' role-dd-btn--open' : ''}`} style={{ minWidth: '160px', justifyContent: 'space-between' }}>
         <span style={{ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>{displayLabel}</span>
         <svg fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="12" height="12" className={`role-dd-chevron${open ? ' role-dd-chevron--open' : ''}`}>
           <path d="M6 9l6 6 6-6" />
         </svg>
       </button>
-      {open && (
-        <div className="role-dd-panel" style={{ minWidth: '100%', left: 0, right: 'auto', zIndex: 9999 }}>
+      {open && panelPos && (
+        <div className="role-dd-panel" style={{ position: 'fixed', top: panelPos.top, left: panelPos.left, width: panelPos.width, maxHeight: 260, overflowY: 'auto', zIndex: 10000 }}>
           {options.map(o => (
             <button key={o.value} type="button" onClick={(e) => { e.stopPropagation(); onChange(o.value); setOpen(false); }} className={`role-dd-option ${o.value === value ? 'role-dd-option--active' : 'role-dd-option--idle'}`}>
               {o.value === value && (
