@@ -1499,7 +1499,7 @@ _APPOINTMENT_NOTIFICATIONS = {
         "subject": "Időpont lemondás",
         "body": (
             "Kedves {{név}} !\n\n"
-            "Időpontját lemondtuk:\n\n"
+            "Időpontját kérésére töröltük:\n\n"
             "Időpont: {{időpont}}\n"
             "Szolgáltatás: {{szolgáltatás}} – {{munkatárs}}\n\n"
             "Amennyiben szeretne új időpontot egyeztetni, állunk rendelkezésére.\n\n"
