@@ -6,6 +6,7 @@ export interface SessionInteraction {
   created_at?: string;
   received_at?: string | null; // a bejövő levél VALÓS beérkezési ideje (Date fejléc)
   sent_at?: string | null;     // a válasz tényleges kiküldési ideje
+  diary_fragment?: string | null; // az interakció saját napló-fragmense (263-as ügy)
   type?: string;
   topic?: string;
   summary?: string;

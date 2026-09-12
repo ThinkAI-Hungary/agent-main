@@ -57,6 +57,7 @@ export interface InteractionRow {
   // válasz tényleges kiküldésének ideje — a popup és a lista ezekből mutat
   received_at?: string | null;
   sent_at?: string | null;
+  diary_fragment?: string | null;
   // EAISY-241 — strukturált klasszifikáció a backend classifier.py-től
   classification?: {
     ugytipus?: string;
@@ -233,6 +234,7 @@ export default function InteractionsPage() {
         classification: representative.classification || null,  // EAISY-241
         received_at: representative.received_at || null,
         sent_at: representative.sent_at || null,
+        diary_fragment: representative.diary_fragment || null,
       });
     });
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));

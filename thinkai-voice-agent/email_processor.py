@@ -1026,6 +1026,7 @@ Ha egyik sem releváns, legyen üres lista [].
             client_id=email_client_id if email_client_id else None,
             classification=classification,
             received_at=received_at or None,
+            diary_fragment=log_szoveg,
         )
 
         # A válasz VALÓS kiküldési ideje — a popup és a listanézet ebből mutatja

@@ -249,7 +249,13 @@ export default function InteractionSummaryModal({
         return;
       }
 
-      let fullLog = (cData.beszelgetes_naplo as string) || '';
+      // 263-as ügy: single módban az interakció SAJÁT napló-fragmensét használjuk
+      // (egy interakció = egy ügy) — nem a közös ügyfél-naplót szálazzuk
+      let fullLog = '';
+      if (mode === 'single' && row.diary_fragment) {
+        fullLog = String(row.diary_fragment);
+      }
+      if (!fullLog) fullLog = (cData.beszelgetes_naplo as string) || '';
       if (!fullLog && row.result && row.result.trim()) {
         if (row.result.trim().startsWith('[')) {
           fullLog = row.result;
@@ -425,15 +431,22 @@ export default function InteractionSummaryModal({
         if (isEmailThread) {
           if (mode === 'single') {
             // Ügyfélprofil/irányítópult: az EHHEZ az interakcióhoz tartozó üzenet —
-            // időben legközelebbi ügyfél-bejegyzés a sor idejéhez
+            // időben legközelebbi ügyfél-bejegyzés a sor idejéhez, de MAX 30 percre
+            // (azon túl nem ez az interakció — nem tölt be idegen váltást)
             let bestDist = Infinity;
+            let bestI = -1;
             for (let i = 0; i < curSession.length; i++) {
               if (curSession[i].sender !== 'user') continue;
               const dist = Math.abs(curSession[i].time - interactionTime);
               if (dist < bestDist) {
                 bestDist = dist;
-                curStart = i;
+                bestI = i;
               }
+            }
+            if (bestI >= 0 && bestDist <= 30 * 60 * 1000) {
+              curStart = bestI;
+            } else {
+              sessionGroups[bestIdx] = [];
             }
           } else {
             // Interakciós napló (thread): a LEGUTÓBBi ügyfélüzenet az aktuális

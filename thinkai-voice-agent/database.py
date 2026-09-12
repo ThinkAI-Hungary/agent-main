@@ -514,7 +514,7 @@ def get_sessions(limit: int = 50) -> list[dict]:
 # INTERACTIONS
 # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
-def log_interaction(type: str, topic: str = "", summary: str = "", result: str = "", tool_name: str = "", session_id: str = "", funnel_stage: str = "relevant", alert_tags: list = None, handover_reason: str = None, direction: str = "inbound", approval_status: str = "pending", ai_draft_response: str = None, clinic_id: int = None, classification: dict = None, client_id: int = None, received_at: str = None) -> int | None:
+def log_interaction(type: str, topic: str = "", summary: str = "", result: str = "", tool_name: str = "", session_id: str = "", funnel_stage: str = "relevant", alert_tags: list = None, handover_reason: str = None, direction: str = "inbound", approval_status: str = "pending", ai_draft_response: str = None, clinic_id: int = None, classification: dict = None, client_id: int = None, received_at: str = None, diary_fragment: str = None) -> int | None:
     if not supabase: return None
     try:
         data = {
@@ -540,6 +540,10 @@ def log_interaction(type: str, topic: str = "", summary: str = "", result: str =
             # A bejövő levél VALÓS beérkezési ideje (Date fejléc) — a
             # feldolgozási idő pontatlan lehet (IMAP poll késése)
             data["received_at"] = received_at
+        if diary_fragment:
+            # Az interakció SAJÁT napló-fragmense (263-as ügy): egy interakció =
+            # egy ügy — a popup ebből dolgozik, nem a közös ügyfél-naplóból
+            data["diary_fragment"] = diary_fragment
         res = supabase.table("interactions").insert(_with_tenant(data)).execute()
         return res.data[0]["id"] if res.data else None
     except Exception as e:
@@ -555,6 +559,9 @@ def log_interaction(type: str, topic: str = "", summary: str = "", result: str =
         if received_at is not None and "received_at" in data:
             del data["received_at"]
             dropped.append("received_at")
+        if diary_fragment is not None and "diary_fragment" in data:
+            del data["diary_fragment"]
+            dropped.append("diary_fragment")
         if dropped:
             logger.info(f"Attempting fallback log without {', '.join(dropped)}...")
             try:
@@ -1583,7 +1590,10 @@ def upsert_client(custom_data: dict, additional_log: str = "", status: str | Non
         
         if additional_log:
             old_log = curr_data.get("beszelgetes_naplo", "")
-            now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+            # Budapesti idő! (a konténer UTC-ben fut — a naive UTC időbélyeg
+            # 2 órával korábbi megjelenítést adott, 263-as ügy)
+            from zoneinfo import ZoneInfo
+            now_str = datetime.now(ZoneInfo("Europe/Budapest")).strftime("%Y-%m-%d %H:%M")
             new_entry = f"[{now_str}]\n{additional_log}\n"
             curr_data["beszelgetes_naplo"] = (old_log + "\n" + new_entry).strip()
             
@@ -1593,7 +1603,8 @@ def upsert_client(custom_data: dict, additional_log: str = "", status: str | Non
         return existing["id"]
     else:
         if additional_log:
-            now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+            from zoneinfo import ZoneInfo
+            now_str = datetime.now(ZoneInfo("Europe/Budapest")).strftime("%Y-%m-%d %H:%M")
             custom_data["beszelgetes_naplo"] = f"[{now_str}]\n{additional_log}"
         return add_client(custom_data, status if status is not None else "uj")
 

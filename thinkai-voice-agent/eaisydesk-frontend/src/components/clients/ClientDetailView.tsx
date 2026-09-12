@@ -66,6 +66,7 @@ interface InteractionRowDetail {
   approval_status: string | null;
   received_at?: string | null;
   sent_at?: string | null;
+  diary_fragment?: string | null;
 }
 
 interface ManualTask {
@@ -399,6 +400,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             approval_status: r.approval_status || null,
             received_at: (r as Record<string, unknown>).received_at as string | null || null,
             sent_at: (r as Record<string, unknown>).sent_at as string | null || null,
+            diary_fragment: (r as Record<string, unknown>).diary_fragment as string | null || null,
           });
         });
       } else {
@@ -1183,6 +1185,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             approval_status: summaryModalRow.approval_status,
             received_at: summaryModalRow.received_at,
             sent_at: summaryModalRow.sent_at,
+            diary_fragment: summaryModalRow.diary_fragment,
           }}
           mode="single"
           onClose={() => setSummaryModalRow(null)}
