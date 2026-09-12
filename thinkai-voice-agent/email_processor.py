@@ -111,17 +111,37 @@ _FALLBACK_CHARSETS = ['iso-8859-2', 'windows-1250', 'latin-1', 'iso-8859-1', 'cp
 
 
 def _decode_payload(raw_payload: bytes | None, declared_charset: str) -> str:
-    """Decode email payload with universal charset detection using charset-normalizer."""
+    """Decode email payload.
+
+    263-as ügy: rövid MAGYAR szövegeknél a charset-normalizer gyakran rossz
+    kódolást talál (ékezetek → 'ı' jellegű karakterek), ezért a sorrend:
+    deklarált charset → UTF-8 (strict) → ismert közép-európai kódolások →
+    charset-normalizer (csak végső esetre) → utf-8 replace.
+    """
     if raw_payload is None:
         return ""
 
-    # 1. First, try decoding as UTF-8 (strict)
+    # 1. Deklarált charset (ha van és nem utf-8 — azt lentebb strict kipróbáljuk)
+    if declared_charset:
+        try:
+            return raw_payload.decode(declared_charset)
+        except (UnicodeDecodeError, LookupError):
+            pass
+
+    # 2. UTF-8 (strict) — a legtöbb levél ez
     try:
         return raw_payload.decode('utf-8')
     except UnicodeDecodeError:
         pass
 
-    # 2. Use charset-normalizer for intelligent detection
+    # 3. Ismert közép-európai / nyugati kódolások (a magyar ügyfeleknél ezek)
+    for cs in ('windows-1250', 'iso-8859-2', 'windows-1252', 'iso-8859-1'):
+        try:
+            return raw_payload.decode(cs)
+        except (UnicodeDecodeError, LookupError):
+            continue
+
+    # 4. charset-normalizer — csak végső esetre
     try:
         detection = from_bytes(raw_payload).best()
         if detection:
@@ -129,11 +149,8 @@ def _decode_payload(raw_payload: bytes | None, declared_charset: str) -> str:
     except Exception:
         pass
 
-    # 3. Fallback to declared charset or utf-8 with replacement
-    try:
-        return raw_payload.decode(declared_charset or 'utf-8', errors='replace')
-    except Exception:
-        return raw_payload.decode('utf-8', errors='replace')
+    # 5. Végső fallback: utf-8 replace
+    return raw_payload.decode('utf-8', errors='replace')
 
 
 def decode_mime_words(s):

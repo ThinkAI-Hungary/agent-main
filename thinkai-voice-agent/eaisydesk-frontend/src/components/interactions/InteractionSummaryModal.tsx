@@ -111,6 +111,11 @@ export default function InteractionSummaryModal({
   // ── Derived values ──
   const channel = row.channel || 'Telefon';
   const channelUpper = channel.toUpperCase();
+  // Kanonikus csatornakulcs: a profilból kisbetűs ('email') érték is jöhet —
+  // az ikon és a felirat a CHANNEL_ICONS címcases kulcsával jelenik meg
+  const channelKey = CHANNEL_ICONS[channel]
+    ? channel
+    : Object.keys(CHANNEL_ICONS).find(k => k.toLowerCase() === channel.toLowerCase()) || '';
   const isMessengerOrInsta = channel === 'Messenger' || channel === 'Instagram';
   // A 'IDŐPONT' (nagybetűs) összevetés halott ág volt — a detectUgyTipus mindig
   // 'Időpont'-ot ad. A szándék-címkék (Foglalási/Módosítási/Lemondási szándék
@@ -843,13 +848,13 @@ export default function InteractionSummaryModal({
             {/* Csatorna-címke: ikon-tile + csatorna neve — a bezárás gomb ALATT */}
             <span className="ism-channel-chip">
               <span className="ism-channel-chip-icon">
-                {(CHANNEL_ICONS[channel] || CHANNEL_ICONS[channelUpper]) ? (
+                {channelKey && (
                   <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round">
-                    {CHANNEL_ICONS[channel] || CHANNEL_ICONS[channelUpper]}
+                    {CHANNEL_ICONS[channelKey]}
                   </svg>
-                ) : null}
+                )}
               </span>
-              <span className="ism-channel-chip-name">{channel}</span>
+              <span className="ism-channel-chip-name">{channelKey || channel}</span>
             </span>
           </div>
         </div>
@@ -1087,7 +1092,7 @@ export default function InteractionSummaryModal({
                       <div className="ism-draft-section ism-draft-section--pending" ref={approvalRef}>
                         <div className="ism-draft-header">
                           <div className="ism-chat-avatar ism-chat-avatar--brand">
-                            <img src="/eaisydesk-logo.png" alt="eaisyDesk" />
+                            <img src="/admin/eaisydesk-logo.png" alt="eaisyDesk" />
                           </div>
                           <span className="ism-draft-label">
                             eaisyDesk választerv
