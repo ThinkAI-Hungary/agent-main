@@ -461,6 +461,14 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
   });
 
   // Save notes
+  // Escape zárja a Profil szerkesztése modalt
+  useEffect(() => {
+    if (!showProfileEdit) return;
+    const onKey = (e: KeyboardEvent) => { if (e.key === 'Escape') setShowProfileEdit(false); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [showProfileEdit]);
+
   const saveNotes = useCallback(async (value: string) => {
     setSaving(true);
     try {
@@ -526,7 +534,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         setDisplayName(editName);
         setDisplayPhone(editPhone);
         setDisplayEmail(editEmail);
-        showToast('Profil mentve');
+        showToast('Profil frissítve');
         setShowProfileEdit(false);
         setNotes(editNotes);
         onRefresh();
@@ -618,7 +626,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             </button>
             {showOverflowMenu && (
               <div className="cd-overflow-menu" role="menu">
-                <button onClick={() => { setShowOverflowMenu(false); setShowProfileEdit(true); }}>
+                <button onClick={() => { setShowOverflowMenu(false); setEditName(displayName); setEditEmail(displayEmail); setEditPhone(displayPhone); setShowProfileEdit(true); }}>
                   <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="4" y1="21" x2="4" y2="14" /><line x1="4" y1="10" x2="4" y2="3" /><line x1="12" y1="21" x2="12" y2="12" /><line x1="12" y1="8" x2="12" y2="3" /><line x1="20" y1="21" x2="20" y2="16" /><line x1="20" y1="12" x2="20" y2="3" /><line x1="1" y1="14" x2="7" y2="14" /><line x1="9" y1="8" x2="15" y2="8" /><line x1="17" y1="16" x2="23" y2="16" /></svg>
                   Profil szerkesztése
                 </button>
@@ -1037,38 +1045,33 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         )}
       </div>
 
-      {/* • • •  Profile Edit Modal • • •  */}
+      {/* • • •  Profile Edit Modal — redesign (mockup szerint) • • •  */}
       {showProfileEdit && (
         <div className="modal-overlay" onClick={() => setShowProfileEdit(false)}>
-          <div className="modal-card modal-card--480" onClick={e => e.stopPropagation()}>
-            <div className="cd-modal-header">
-              <div className="flex-between">
-                <div>
-                  <div className="text-xs font-bold cd-modal-label">Ügyfélkezelés</div>
-                  <h3 className="text-xl font-bold cd-modal-title">Profil szerkesztése</h3>
-                </div>
-                <button className="modal-close cd-modal-close" onClick={() => setShowProfileEdit(false)}>✕</button>
+          <div className="pe-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Profil szerkesztése">
+            <div className="pe-head">
+              <h3 className="pe-title">Profil szerkesztése</h3>
+              <button className="pe-x" onClick={() => setShowProfileEdit(false)} aria-label="Bezárás">
+                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" viewBox="0 0 24 24" width="15" height="15"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+            <div className="pe-body">
+              <div className="pe-field">
+                <label className="pe-label" htmlFor="peName">Név</label>
+                <input id="peName" className="pe-input form-input" value={editName} onChange={e => setEditName(e.target.value)} placeholder="Nincs megadva" autoFocus />
+              </div>
+              <div className="pe-field">
+                <label className="pe-label" htmlFor="pePhone">Telefonszám</label>
+                <input id="pePhone" className="pe-input form-input" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="Nincs megadva" />
+              </div>
+              <div className="pe-field">
+                <label className="pe-label" htmlFor="peEmail">Email cím</label>
+                <input id="peEmail" className="pe-input form-input" value={editEmail} onChange={e => setEditEmail(e.target.value)} placeholder="Nincs megadva" />
               </div>
             </div>
-
-            <div className="modal-body flex-col gap-16">
-              <div className="form-group">
-                <label className="form-label">Név</label>
-                <input className="input" value={editName} onChange={e => setEditName(e.target.value)} placeholder={client.name} />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Telefonszám</label>
-                <input className="input" value={editPhone} onChange={e => setEditPhone(e.target.value)} placeholder="+36 30 ..." />
-              </div>
-              <div className="form-group">
-                <label className="form-label">Email cím</label>
-                <input className="input" value={editEmail} onChange={e => setEditEmail(e.target.value)} placeholder="email@példa.hu" />
-              </div>
-            </div>
-
-            <div className="modal-footer">
-              <button className="btn btn-outline" onClick={() => setShowProfileEdit(false)}>Mégsem</button>
-              <button className="btn btn-primary" onClick={saveProfile} disabled={saving}>{saving ? 'Mentés...' : 'Mentés'}</button>
+            <div className="pe-foot">
+              <button className="pe-btn-ghost" onClick={() => setShowProfileEdit(false)}>Mégse</button>
+              <button className="pe-btn-primary" onClick={saveProfile} disabled={saving}>{saving ? 'Mentés...' : 'Mentés'}</button>
             </div>
           </div>
         </div>
