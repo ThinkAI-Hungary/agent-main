@@ -1480,3 +1480,22 @@ body.dark .cal-pend-pill { background: #eab308; color: #201a05; }
   color: var(--text-muted, #6b7280);
 }
 .cal-att-badge { cursor: pointer; }
+
+/* ── Profil szerkesztése modal (mockup redesign) ── */
+.pe-modal { width: 560px; max-width: 100%; background: var(--card, #fff); border-radius: 14px; box-shadow: 0 24px 60px rgba(0,0,0,.3); overflow: hidden; }
+.pe-head { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 16px; border-bottom: 1px solid var(--border, #e5e7eb); }
+.pe-title { margin: 0; font-size: 18px; font-weight: 700; color: var(--text, #1f2937); }
+.pe-x { width: 28px; height: 28px; display: flex; align-items: center; justify-content: center; background: transparent; border: none; border-radius: 8px; color: var(--text-muted, #6b7280); cursor: pointer; }
+.pe-x:hover { background: #f3f4f6; color: var(--text, #1f2937); }
+.pe-body { padding: 20px 24px 12px; display: flex; flex-direction: column; gap: 16px; }
+.pe-field { display: flex; flex-direction: column; gap: 7px; }
+.pe-label { font-size: 12.5px; font-weight: 500; color: var(--text-muted, #6b7280); }
+.pe-input { height: 44px; padding: 0 14px; border: 1px solid var(--border, #e5e7eb); border-radius: 10px; background: var(--card, #fff); font-size: 14px; font-family: inherit; color: var(--text, #1f2937); }
+.pe-input:focus { outline: none; border-color: var(--cp-a2, #186d98); box-shadow: 0 0 0 3px rgba(24, 109, 152, 0.12); }
+.pe-input::placeholder, .form-input::placeholder { color: var(--muted, var(--text-muted, #9ca3af)); }
+.pe-foot { display: flex; justify-content: flex-end; gap: 10px; padding: 14px 24px 18px; border-top: 1px solid var(--border, #e5e7eb); margin-top: 8px; }
+.pe-btn-ghost { padding: 10px 20px; border: 1px solid var(--border, #d1d5db); border-radius: 10px; background: var(--card, #fff); font-size: 13.5px; font-weight: 600; color: var(--text, #374151); cursor: pointer; font-family: inherit; }
+.pe-btn-ghost:hover { background: #f3f4f6; }
+.pe-btn-primary { padding: 10px 24px; border: none; border-radius: 10px; background: #2c6e8f; color: #fff; font-size: 13.5px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.pe-btn-primary:hover { background: #245d7a; }
+.pe-btn-primary:disabled { opacity: .5; cursor: default; }
