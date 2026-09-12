@@ -39,6 +39,45 @@ interface CalendarEventItem {
   pending_until?: string | null; // függő foglalás fenntartási határideje
 }
 
+// Múltbeli esemény megjelenés-jelölése: kiválasztás után BADGE (Megjelent /
+// No show), amely kattintásra visszaadja a jelölőmezőt; natív dropdown stílus
+// helyett az app designjába illő select (appearance: none + chevron).
+function AttendanceCell({ ev, onChange }: { ev: CalendarEventItem; onChange: (ev: CalendarEventItem, value: string) => void }) {
+  const [editing, setEditing] = useState(false);
+  const val = ev.attendance_status || '';
+  if (val && !editing) {
+    return (
+      <span
+        className={`cp-badge ${val === 'no_show' ? 'cp-err' : 'cp-closed'} cal-att-badge`}
+        role="button"
+        tabIndex={0}
+        title="Kattints a módosításhoz"
+        onClick={() => setEditing(true)}
+        onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setEditing(true); } }}
+      >
+        <i className="cp-dot" />{val === 'no_show' ? 'No show' : 'Megjelent'}
+      </span>
+    );
+  }
+  return (
+    <span className="cal-att-select-wrap">
+      <select
+        className="cal-att-select"
+        autoFocus
+        value={val}
+        onChange={(e) => { onChange(ev, e.target.value); setEditing(false); }}
+        onBlur={() => setEditing(false)}
+        aria-label="Megjelenés jelölése"
+      >
+        <option value="">— válassz —</option>
+        <option value="attended">Megjelent</option>
+        <option value="no_show">No show</option>
+      </select>
+      <svg className="cal-att-chev" fill="none" stroke="currentColor" strokeWidth="2.5" viewBox="0 0 24 24" width="12" height="12" aria-hidden="true"><polyline points="6 9 12 15 18 9" /></svg>
+    </span>
+  );
+}
+
 function pad2(n: number) { return (n < 10 ? '0' : '') + n; }
 function dateKey(d: Date) { return `${d.getFullYear()}-${pad2(d.getMonth() + 1)}-${pad2(d.getDate())}`; }
 function startOfWeek(d: Date) {
@@ -654,17 +693,7 @@ export default function CalendarPage() {
                               </td>
                               <td onClick={e => e.stopPropagation()}>
                                 {isPast ? (
-                                  <select
-                                    className="cd-form-input"
-                                    style={{ height: 30, fontSize: 12.5, padding: '0 8px', width: '100%', ...(isNoShow ? { color: '#dc2626', borderColor: '#fca5a5' } : {}) }}
-                                    value={ev.attendance_status || ''}
-                                    onChange={e => handleAttendance(ev, e.target.value)}
-                                    aria-label="Megjelenés jelölése"
-                                  >
-                                    <option value="">— válassz —</option>
-                                    <option value="attended">Megjelent</option>
-                                    <option value="no_show">No show</option>
-                                  </select>
+                                  <AttendanceCell ev={ev} onChange={handleAttendance} />
                                 ) : ev.status === 'pending' ? (
                                   <span className="cp-badge cp-warn"><i className="cp-dot" />Függőben</span>
                                 ) : (
