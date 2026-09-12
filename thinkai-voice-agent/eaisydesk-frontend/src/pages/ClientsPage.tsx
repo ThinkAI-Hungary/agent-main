@@ -295,17 +295,11 @@ export default function ClientsPage() {
     });
   }, [clients, sessions, events, members]);
 
-  // ── Member filtering: non-admins only see assigned or unassigned clients ──
-  const myClients = useMemo(() => {
-    if (isAdmin) return enrichedClients;
-    const username = user?.username || '';
-    const fullName = user?.fullName || '';
-    return enrichedClients.filter(c => {
-      const assignedTo = c.assignee;
-      if (!assignedTo) return true;
-      return assignedTo === username || (!!fullName && assignedTo === fullName);
-    });
-  }, [enrichedClients, isAdmin, user]);
+  // 18. tétel („aki kapja, marja" recepció-modell): minden member MINDEN
+  // ügyfelet lát — az assignee-szűrő a demo-default felelős (Kis Béla) miatt
+  // minden member elől elrejtette a listát (üres Ügyféllista memberként).
+  // Az isAdmin itt már csak a műveletek gatingjéhez kell (bulk törlés, felelős).
+  const myClients = useMemo(() => enrichedClients, [enrichedClients]);
 
   const { ALL_ERT_STATUSZ, ALL_FELELOS } = useMemo(() => {
     const statuses = kanbanColumns.map(col => col.name);
