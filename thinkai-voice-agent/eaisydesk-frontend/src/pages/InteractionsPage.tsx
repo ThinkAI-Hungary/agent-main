@@ -141,6 +141,7 @@ export default function InteractionsPage() {
   const [summaryModalRow, setSummaryModalRow] = useState<InteractionRow | null>(null);
   // Olvasatlan pöttyök újrarenderelése kattintáskor
   const [readVersion, setReadVersion] = useState(0);
+  const handledOpenId = useRef<string | null>(null);
   const [autoExpandApproval, setAutoExpandApproval] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<string | null>(null);
   // Sidebar „Interakciós napló" kattintás is zárja be a profilt (ugyanazon
@@ -149,6 +150,7 @@ export default function InteractionsPage() {
   useEffect(() => {
     setSelectedClientId(null);
   }, [location.key]);
+
 
   // Filters
   const [filterUgyTipus, setFilterUgyTipus] = useState<Set<string>>(new Set());
@@ -245,6 +247,22 @@ export default function InteractionsPage() {
   }, [groups, clients, clientsMap]);
 
   // ── Member filtering: non-admins only see assigned or unassigned interactions ──
+  // Értesítési központból érkező ugrás: az adott interakció popupjának megnyitása
+  useEffect(() => {
+    const st = location.state as { openInteractionId?: number | string; openSessionId?: string } | null;
+    const openId = st?.openInteractionId;
+    if (!openId || handledOpenId.current === String(openId)) return;
+    const row = allRows.find(r => String(r.interactionId) === String(openId)) ||
+      (st?.openSessionId ? allRows.find(r => r.sessionId === st.openSessionId) : undefined);
+    if (row) {
+      handledOpenId.current = String(openId);
+      setAutoExpandApproval(false);
+      markInteractionRead(row.interactionId);
+      setReadVersion(v => v + 1);
+      setSummaryModalRow(row);
+    }
+  }, [location.state, allRows]);
+
   const myRows = useMemo(() => {
     if (isAdmin) return allRows;
     const username = user?.username || '';
