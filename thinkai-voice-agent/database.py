@@ -1644,6 +1644,26 @@ def get_clients(limit: int = 500) -> list[dict]:
     except Exception:
         return []
 
+def resolve_utankovetes_column_id() -> str:
+    """Az első (védett) UTÁNKÖVETÉS kanban-oszlop kanonikus id-jának feloldása
+    név szerint (tenantonként eltérhet). Fallback: 'utankovetes'."""
+    if not supabase:
+        return "utankovetes"
+    try:
+        import unicodedata
+        def _norm(s: str) -> str:
+            s = unicodedata.normalize('NFD', s or '')
+            s = ''.join(ch for ch in s if not unicodedata.combining(ch))
+            return s.lower().strip()
+        cols = _tenant_eq(supabase.table("kanban_columns").select("id,name")).execute()
+        for c in (cols.data or []):
+            if _norm(c.get("name") or "") == "utankovetes":
+                return c["id"]
+    except Exception:
+        pass
+    return "utankovetes"
+
+
 def update_client_status(client_id: int, status: str) -> bool:
     if not supabase: return False
     try:

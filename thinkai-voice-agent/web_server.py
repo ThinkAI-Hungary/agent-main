@@ -2431,14 +2431,15 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                     attendee_email=kanban.get("email", "-")
                 )
                 
-                # Visszaállítjuk a státuszt "uj"-ra, hogy kikerüljön a "lemondott" oszlopból
+                # Értékesítési címke ('törölt időpont') → az ELSŐ UTÁNKÖVETÉS oszlop
+                # (korábban 'uj'-ra állítottuk, ami lelökte a kanbáról — 265-ös ügy)
                 client_to_reset = db.find_client_by_contact(messenger_id=sender_id)
                 if client_to_reset:
                     c_data = client_to_reset.get("custom_data", {})
                     if "cancelled_viewed" in c_data:
                         del c_data["cancelled_viewed"]
                     db.edit_client_details(client_to_reset["id"], c_data)
-                    db.update_client_status(client_to_reset["id"], "uj")
+                    db.update_client_status(client_to_reset["id"], db.resolve_utankovetes_column_id())
                     
                 db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Naptár bejegyzés létrehozva: {start_dt_val}")
                 booked_meeting = True
@@ -2531,7 +2532,8 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                         existing_tags.append("törölt időpont")
                         c_data["tags"] = existing_tags
                     db.edit_client_details(client_to_cancel["id"], c_data)
-                    db.update_client_status(client_to_cancel["id"], "lemondott")
+                    # Értékesítési címke ('törölt időpont') → az ELSŐ UTÁNKÖVETÉS oszlop
+                    db.update_client_status(client_to_cancel["id"], db.resolve_utankovetes_column_id())
                 
                 db.upsert_client({"messenger_id": sender_id}, additional_log=f"[Rendszer] Naptár bejegyzés törölve: {found['title']}")
             else:
@@ -3650,8 +3652,18 @@ def admin_alerts_cancelled(username: str = Depends(verify_jwt)):
     cancelled_clients = []
     
     for c in clients:
-        status = c.get("status", "uj")
-        if status != "lemondott":
+        # A lemondás mostantól UTÁNKÖVETÉS-be viszi az ügyfelet (265-ös ügy) —
+        # a riasztás ezért a 'törölt időpont' címkére szűr, nem a státuszra
+        custom_data_tmp = c.get("custom_data")
+        if isinstance(custom_data_tmp, str):
+            try:
+                import json as _json
+                custom_data_tmp = _json.loads(custom_data_tmp)
+            except Exception:
+                custom_data_tmp = {}
+        if not isinstance(custom_data_tmp, dict):
+            custom_data_tmp = {}
+        if "törölt időpont" not in (custom_data_tmp.get("tags") or []):
             continue
             
         custom_data = c.get("custom_data")
@@ -5790,7 +5802,7 @@ async def public_cancel_appointment(token: str):
                         "email": email,
                         "phone": "",
                         "forras_csatorna": "Rendszer (Lemondás)"
-                    }, status="lemondott")
+                    }, status=db.resolve_utankovetes_column_id())
                     if new_client_id:
                         client = {"id": new_client_id, "custom_data": {}}
 
@@ -5812,7 +5824,9 @@ async def public_cancel_appointment(token: str):
                     existing_tags.append("törölt időpont")
                     custom_data["tags"] = existing_tags
                 db.edit_client_details(client["id"], custom_data)
-                db.update_client_status(client["id"], "lemondott")
+                # Értékesítési címke ('törölt időpont') → az ELSŐ UTÁNKÖVETÉS oszlop
+                # (nem 'Elveszett' — az csak manuálisan) — 265-ös ügy
+                db.update_client_status(client["id"], db.resolve_utankovetes_column_id())
                 # Reset automation sent log so cancelled_no_rebook can fire again
                 db.clear_automation_sent(client["id"])
 

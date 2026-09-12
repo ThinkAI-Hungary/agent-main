@@ -812,7 +812,9 @@ Ha egyik sem releváns, legyen üres lista [].
                         existing_tags.append("törölt időpont")
                         custom_data["tags"] = existing_tags
                     db.edit_client_details(client["id"], custom_data)
-                    db.update_client_status(client["id"], "lemondott")
+                    # Értékesítési címke ('törölt időpont') → az ELSŐ UTÁNKÖVETÉS
+                    # oszlopba kerül (nem 'Elveszett'!) — innen csak kézzel mozgatható
+                    db.update_client_status(client["id"], db.resolve_utankovetes_column_id())
 
                 db.delete_calendar_event(found["id"])
                 logger.info(f"Naptár esemény törölve (e-mailből): {found['title']}")
