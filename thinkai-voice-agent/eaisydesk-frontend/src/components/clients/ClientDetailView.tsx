@@ -393,7 +393,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             topic,
             summary,
             status: r.approval_status || 'lezárt',
-            done: (r.approval_status || '').toLowerCase() === 'approved' || (r.approval_status || '').toLowerCase() === 'lezárt',
+            done: (r.approval_status || '').toLowerCase() === 'approved' || (r.approval_status || '').toLowerCase() === 'lezárt' || (detectStatusz(r) || '').toLowerCase() === 'lezárt',
             sessionId: s.session_id || null,
             interactionId: r.id || null,
             result: r.result || '',
@@ -441,7 +441,11 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
   const openInteractions = clientInteractions.filter((r) => {
     const sz = (r.statusz || '').toLowerCase();
     const st = (r.status || '').toLowerCase();
-    const isPending = st === 'pending';
+    // A Lezárt státusz MINDIG győz — bárhol zárták le az interakciót (265-ös
+    // ügy szabálya), az itt is Lezárt szekcióba kerül, még ha az approval-flow
+    // státusza pending is (a lezárás-endpoint csak a classification.statusz-t írja).
+    const isClosed = sz === 'lezárt';
+    const isPending = !isClosed && st === 'pending';
     const isOpenStatus = sz === 'nyitott' || sz === 'sürgős';
 
     // If it's an appointment preparation, check if it was resolved by a later booking
