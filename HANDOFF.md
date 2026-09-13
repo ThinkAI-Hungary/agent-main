@@ -28,6 +28,8 @@ User-instrukció alapján, 4 pont:
 
 Verifikáció: tsc+vite build tiszta; konténer healthy, 0 ERROR; a bundle-ban nincs „Értesítendő" string; konténerben a `_format_cancellation_policy` a DB-értékekre a 24 órás figyelmeztetést adja, üres mezőkre „Nincs külön…"-et. (Böngészős vizuális teszt nem volt elérhető ebben a sessionben — a co-* minta 1:1 újrafelhasználás.)
 
+**Design hot fixek ugyanaznap (commit `b8c8535`)**: 1) mindkét oldal címe `.page-title` (20px/700, egységes a többi oldallal); 2) a fejléc sorokra bontva — 1. sor cím balra, 2. sor mentés-CTA jobbra, alatta a tartalom — mert a fix pozíciójú notif-bell (`top/right:32px`) letakarta a jobb felső CTA-t (a cím-blokk `padding-right:64px`); 3) a Szabályok oldalon a duplikált mentés-gomb megszűnt — az IssueHandlingRules szekciós gombja kikerült, az oldal-CTA `ih-save-request` eseménnyel menti az ügykezelési szabályokat is (silent); 4) `co-sec-title` 14/600 → 15/700 a címhierarchiáért.
+
 ---
 
 ## ✅ 2026-09-13 (este) — „Manuálisan lezárt (X)" wrapper pótlása a detectEredmeny-ben
