@@ -525,10 +525,10 @@ A lehetséges alert_tags értékek:
 - "recurring": ha egy gyakori ismétlődő hibát/kérdést vetnek fel.
 
 A "secondary_tags" mező: válaszd ki azokat a másodlagos címkéket, amelyek relevánsak az interakcióra.
-Lehetséges értékek:
+Lehetséges értékek (kanonikus címkekör — PONTOSAN így, egybeírva/szóközzel ahogy itt áll):
 - "árkérdés": ha az ügyfél árról, díjakról, kedvezményekről érdeklődik
-- "ajánlatkérés": ha az ügyfél konkrét ajánlatot kér
-- "kampány lead": ha az ügyfél egy kampányra/akcióra reagált
+- "kampánylead": ha az ügyfél egy kampányra/akcióra reagált
+- "potenciális ügyfél": ha az ügyfél érdeklődik a szolgáltatások iránt, de még nem foglalt időpontot
 Ha egyik sem releváns, legyen üres lista [].
 """
 

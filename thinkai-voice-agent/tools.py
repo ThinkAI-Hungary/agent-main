@@ -1067,14 +1067,16 @@ async def report_alert(
 # 10. TAG CLIENT (auto-tagging based on conversation topics)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-PREDEFINED_CLIENT_TAGS = ["árkérdés", "kampány lead", "ajánlatkérés", "törölt időpont", "no-show", "VIP"]
+# Kanonikus értékesítési címkekör (user-döntés 2026-09-13) + VIP attribútum-címke.
+# A sales-címkék (VIP kivételével) az érdeklődőkezelés első oszlopába triggerelnek.
+PREDEFINED_CLIENT_TAGS = ["árkérdés", "kampánylead", "potenciális ügyfél", "törölt időpont", "no-show", "VIP"]
 
 @function_tool(description=(
     "Ügyfél címkézése a beszélgetés témája alapján. "
     "HASZNÁLD AUTOMATIKUSAN a háttérben, amikor a beszélgetés során felismered az alábbi témákat:\n"
     "- 'árkérdés': ha az ügyfél árakról, költségekről, díjakról érdeklődik\n"
-    "- 'ajánlatkérés': ha az ügyfél konkrét ajánlatot, árajánlatot kér\n"
-    "- 'kampány lead': ha az ügyfél egy kampány/akció hatására keresi a rendelőt\n"
+    "- 'kampánylead': ha az ügyfél egy kampány/akció hatására keresi a rendelőt\n"
+    "- 'potenciális ügyfél': ha az ügyfél érdeklődik a szolgáltatások iránt, de még nem foglalt\n"
     "- 'törölt időpont': ha az ügyfél időpontot mondott le vagy módosított\n"
     "- 'no-show': ha az ügyfél nem jelent meg egy foglalt időponton\n"
     "- 'VIP': ha az ügyfél rendszeres, fontos, vagy kiemelt ügyfél\n"
@@ -1084,7 +1086,7 @@ PREDEFINED_CLIENT_TAGS = ["árkérdés", "kampány lead", "ajánlatkérés", "t�
 async def tag_client(
     ctx: RunContext,
     client_name: Annotated[str, "Az ügyfél neve (kötelező)"],
-    tags: Annotated[list[str], "A hozzáadandó címkék listája (pl. ['árkérdés'] vagy ['VIP', 'ajánlatkérés'])"],
+    tags: Annotated[list[str], "A hozzáadandó címkék listája (pl. ['árkérdés'] vagy ['VIP', 'kampánylead'])"],
     client_email: Annotated[str, "Az ügyfél email címe (ha ismert)"] = "",
     client_phone: Annotated[str, "Az ügyfél telefonszáma (ha ismert)"] = "",
 ) -> str:

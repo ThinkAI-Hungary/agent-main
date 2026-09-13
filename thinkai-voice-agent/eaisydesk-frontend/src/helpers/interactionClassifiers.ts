@@ -449,10 +449,12 @@ export const EREDMENY_COLORS: Record<string, { bg: string; color: string }> = {
   'Panasz rögzítve': { bg: '#fee2e2', color: '#b91c1c' },
 };
 
-/** Értékesítési címkék — ezek alapján kerül az ügyfél az érdeklődőkezelésbe */
+/** Értékesítési címkék — ezek alapján kerül az ügyfél az érdeklődőkezelésbe.
+ *  KANONIKUS KÖR (user-döntés 2026-09-13): az ügyfélprofil címke-dropdownja.
+ *  Bármelyik címke (automatikus VAGY manuális) az első oszlopba triggerel. */
 export const SALES_TAGS = [
   'kampánylead',
-  'potenciális vásárló',
+  'potenciális ügyfél',
   'árkérdés',
   'törölt időpont',
   'no-show',
@@ -489,6 +491,8 @@ export const DIRECTION_COLORS: Record<string, { bg: string; color: string }> = {
 export const TAG_COLORS: Record<string, { bg: string; color: string }> = {
   árkérdés: { bg: '#fce4ec', color: '#c62828' },
   kampánylead: { bg: '#e8f5e9', color: '#2e7d32' },
+  'potenciális ügyfél': { bg: '#e3f2fd', color: '#1565c0' },
+  // Legacy címkék — a régi adatok megjelenítéséhez (újat már nem osztunk ki)
   'kampány lead': { bg: '#e8f5e9', color: '#2e7d32' },
   ajánlatkérés: { bg: '#fff3e0', color: '#e65100' },
   'törölt időpont': { bg: '#fce4ec', color: '#c62828' },

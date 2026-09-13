@@ -601,11 +601,15 @@ npx playwright test tests/audit-clients.spec.ts
 
 ## Értékesítési címkék (SALES_TAGS) — a kanbába kerülés szabálya
 
+**KANONIKUS KÖR (user-döntés 2026-09-13) = az ügyfélprofil címke-dropdownja:**
+
 ```typescript
-const SALES_TAGS = ['kampánylead', 'potenciális vásárló', 'árkérdés', 'törölt időpont', 'no-show'];
+const SALES_TAGS = ['kampánylead', 'potenciális ügyfél', 'árkérdés', 'törölt időpont', 'no-show'];
 ```
 
-- Ezek bármelyikével rendelkező ügyfél automatikusan az érdeklőkezelésbe kerül
+- Ezek bármelyike (automatikus VAGY manuális kiosztás) az érdeklődőkezelés ELSŐ oszlopába triggerel (innét csak kézzel mozgatható)
+- 2026-09-13-i konszolidáció: a backend régi írásmódjai (`kampány lead` szóközzel, `ajánlatkérés`) megszűntek mindhárom kiosztási ponton (web_server kulcsszavas, tools.py voice PREDEFINED_CLIENT_TAGS, email_processor Gemini secondary_tags — utóbbi kettőbe a `potenciális ügyfél` került helyettük); staging DB-ben 4 ügyfél `kampány lead` → `kampánylead` átnevezve (id: 175, 178, 202, 265). ⚠️ Prod-deploykor ez a normalizálás is kell!
+- A `TAG_COLORS`-ban a legacy címkék színei megmaradtak (régi adatok megjelenítéséhez); a CampaignWizardModal címkelistája szándékosan bővebb (targeting-szűrő, pl. VIP)
 - Kézzel is felvehető (ügyfélprofil kebab → Felvétel Érdeklődőkezelésbe)
 - Ném kötelező konzultáció: dentálhigiénia (EMS, Air-Flow) közvetlenül foglalható
 - Foglaláskor kanba KERÜL — de konvertált ügyfélként ez az elvárás

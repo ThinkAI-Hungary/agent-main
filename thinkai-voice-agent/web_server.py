@@ -2370,15 +2370,12 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 if "árkérdés" not in new_tags:
                     new_tags.append("árkérdés")
             
-            # Ajánlatkérés: ha ajánlatot, árajánlatot kér
-            if any(kw in combined_text for kw in ["ajánlat", "árajánlat", "kérek ajánlatot", "ajánlatot kér"]):
-                if "ajánlatkérés" not in new_tags:
-                    new_tags.append("ajánlatkérés")
-            
-            # Kampány lead: ha kampányból érkezett vagy marketing tartalom
+            # Kampánylead: ha kampányból érkezett vagy marketing tartalom
+            # (kanonikus címkekör 2026-09-13: 'kampánylead' egybeírva; a régi
+            # 'kampány lead'/'ajánlatkérés' kiosztás megszűnt)
             if any(kw in combined_text for kw in ["kampány", "promóció", "hírlevél", "newsletter"]):
-                if "kampány lead" not in new_tags:
-                    new_tags.append("kampány lead")
+                if "kampánylead" not in new_tags:
+                    new_tags.append("kampánylead")
             
             if new_tags != existing_tags:
                 custom_data["tags"] = new_tags
