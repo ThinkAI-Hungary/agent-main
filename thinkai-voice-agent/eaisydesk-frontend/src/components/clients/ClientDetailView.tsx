@@ -438,6 +438,11 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       return d > latest ? d : latest;
     }, '');
 
+  // Optimista lezárás (265-ös ügy): a pipa és a szekcióváltás AZONNAL megjelenik,
+  // a PATCH a háttérben fut; hiba esetén visszavonás + hibajelzés
+  const [optimisticClosed, setOptimisticClosed] = useState<Set<number>>(new Set());
+  const isOptimisticClosed = useCallback((id: number | null) => id != null && optimisticClosed.has(id), [optimisticClosed]);
+
   const openInteractions = clientInteractions.filter((r) => {
     if (isOptimisticClosed(r.interactionId)) return false; // 265-ös ügy: azonnali szekcióváltás
     const sz = (r.statusz || '').toLowerCase();
@@ -543,11 +548,6 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     } catch { showToast('Hiba', 'error'); }
     finally { setSaving(false); }
   }, [cd, client.id, editName, editEmail, editPhone, editNotes, onRefresh]);
-
-  // Optimista lezárás (265-ös ügy): a pipa és a szekcióváltás AZONNAL megjelenik,
-  // a PATCH a háttérben fut; hiba esetén visszavonás + hibajelzés
-  const [optimisticClosed, setOptimisticClosed] = useState<Set<number>>(new Set());
-  const isOptimisticClosed = useCallback((id: number | null) => id != null && optimisticClosed.has(id), [optimisticClosed]);
 
   // „Elvégezve" checkbox — interakció státusz „Lezárt"-ra
   const handleMarkDone = useCallback(async (e: React.MouseEvent, interactionId: number | null) => {
