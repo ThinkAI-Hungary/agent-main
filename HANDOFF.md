@@ -27,6 +27,12 @@
 
 **Tanulság**: commit-üzenet/HANDOFF-állítás ≠ implementáció — a „kész" funkciókat a tényleges diff ellenőrzésével kell lezárni.
 
+**Ugyanaznap**: a „Kimenő kommunikáció indítása" opció kikerült az ügyfélprofil kebab-menüjéből (user-kérés; az /outbound oldal a főmenüből továbbra is elérhető). Commit `90bb7e0`.
+
+**Felmérés (döntésre vár)**:
+- **Triage „Értesítendő" email mezők funkciótlanok**: a küldő kód `surgos/kiemelt/urgent` priority-t keres, a UI csak `onallo/jovahagyas/ember`-t ment → sosem illeszkedik; normál interakcióra nincs értesítési útvonal; a mentés-toast res.ok nélkül is „mentve"-t mutat (member 403-nál is). User jelezte: valószínűleg megszüntetjük.
+- **Foglalási szabályok enum-törés ÉLŐ**: az új UI `onalloKezeles/handoff/urgent`-et ment `modositas_eng`/`lemondas_24h`-be, a `_format_cancellation_policy` csak a legacy `igen/nem` + `elfogadhato/figyelmeztetoSzoveggel/eloAtadas` értékeket ismeri → a DB-ben most `lemondas_24h='urgent'` van, így a promptba „Nincs külön lemondási/módosítási szabály" kerül (a figyelmeztető szöveg elvész); „Önállóan kezelheti" választásnál a backend fordítva, „módosítás NEM engedélyezett" szabályt generálna.
+
 ---
 
 ## ✅ 2026-09-09 (délután/este) — Voice multi-tenant rendrakás (commit `61dae72`, stagingen ÉS prodon él)
