@@ -686,17 +686,17 @@ export default function SettingsPage() {
         {/* ═══════════ CÉGINFORMÁCIÓK TAB ═══════════ */}
         {activeTab === 'basic' && (
           <div>
-            {/* ── Fejléc (mockup) ── */}
+            {/* ── Fejléc (mockup) — 1. sor cím, 2. sor CTA (a bell nem takarja) ── */}
             <header className="co-page-head">
-              <div>
+              <div className="co-head-title">
                 <p className="co-crumb">Tudástár <b>/ Cég- és szolgáltatásinformációk</b></p>
-                <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.015em', lineHeight: 1.25, margin: 0 }}>Cég- és szolgáltatásinformációk</h1>
+                <h1 className="page-title" style={{ margin: 0 }}>Cég- és szolgáltatásinformációk</h1>
                 <p className="co-lastmod">
                   <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
                   <span>{lastModText}</span>
                 </p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+              <div className="co-head-cta">
                 <button className="beallitasok-save-btn" onClick={saveAll} aria-label={dirty ? 'Változtatások mentése (nem mentett módosítások)' : 'Változtatások mentése'}>
                   <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
                   Változtatások mentése
@@ -994,18 +994,20 @@ export default function SettingsPage() {
         {/* ═══════════ SZABÁLYOK TAB ═══════════ */}
         {activeTab === 'szabalyok' && (
           <div>
-            {/* ── Fejléc (céginfo-minta: crumb + utolsó módosítás + mentés CTA) ── */}
+            {/* ── Fejléc (céginfo-minta) — 1. sor cím, 2. sor CTA; a CTA a
+                business-mentés mellett az ügykezelési szabályok mentését is
+                kiváltja (ih-save-request esemény — így EGY mentés-gomb van) ── */}
             <header className="co-page-head">
-              <div>
+              <div className="co-head-title">
                 <p className="co-crumb">Tudástár <b>/ Ügykezelési és foglalási szabályok</b></p>
-                <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.015em', lineHeight: 1.25, margin: 0 }}>Ügykezelési és foglalási szabályok</h1>
+                <h1 className="page-title" style={{ margin: 0 }}>Ügykezelési és foglalási szabályok</h1>
                 <p className="co-lastmod">
                   <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
                   <span>{lastModText}</span>
                 </p>
               </div>
-              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
-                <button className="beallitasok-save-btn" onClick={saveAll} aria-label={dirty ? 'Változtatások mentése (nem mentett módosítások)' : 'Változtatások mentése'}>
+              <div className="co-head-cta">
+                <button className="beallitasok-save-btn" onClick={() => { saveAll(); window.dispatchEvent(new CustomEvent('ih-save-request')); }} aria-label={dirty ? 'Változtatások mentése (nem mentett módosítások)' : 'Változtatások mentése'}>
                   <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
                   Változtatások mentése
                 </button>
@@ -1236,7 +1238,7 @@ function IssueHandlingRulesSection() {
       .catch(() => {});
   }, []);
 
-  const handleSave = useCallback(async () => {
+  const handleSave = useCallback(async (opts?: { silent?: boolean }) => {
     if (saving) return;
     setSaving(true);
     localStorage.setItem(ISSUE_RULES_LS_KEY, JSON.stringify(state));
@@ -1249,13 +1251,21 @@ function IssueHandlingRulesSection() {
         body: JSON.stringify(state),
       });
       if (!res.ok) throw new Error('save failed');
-      showToast('Ügykezelési szabályok mentve', 'success');
+      if (!opts?.silent) showToast('Ügykezelési szabályok mentve', 'success');
     } catch {
       showToast('Hiba a mentés során — a beállítások csak helyben mentődtek!', 'error');
     } finally {
       setSaving(false);
     }
   }, [state, saving]);
+
+  // A mentés az oldal-fejléc EGYETLEN CTA-jából történik (ih-save-request
+  // esemény) — a szekcióban nincs külön mentés-gomb (design hot fix 2026-09-13)
+  useEffect(() => {
+    const onSaveRequest = () => { handleSave({ silent: true }); };
+    window.addEventListener('ih-save-request', onSaveRequest);
+    return () => window.removeEventListener('ih-save-request', onSaveRequest);
+  }, [handleSave]);
 
   const updateCustomRule = (idx: number, field: string, value: string) => {
     setState(prev => {
@@ -1285,10 +1295,6 @@ function IssueHandlingRulesSection() {
           <div className="co-sec-title"><svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" /></svg>Ügykezelési szabályok</div>
           <div className="co-sec-sub">Melyik ügytípust kezelheti az eaisyDesk önállóan, és mit ad tovább embernek</div>
         </div>
-        <button className="beallitasok-save-btn" onClick={handleSave} disabled={saving}>
-          <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
-          {saving ? 'Mentés…' : 'Változtatások mentése'}
-        </button>
       </div>
 
       <div className="co-sec-body">

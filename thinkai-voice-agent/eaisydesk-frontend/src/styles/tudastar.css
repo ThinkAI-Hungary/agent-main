@@ -560,7 +560,7 @@
 
 .co-section { background: var(--card, #fff); border: 1px solid var(--border, #dbdbdb); border-radius: 8px; margin-top: 12px; overflow: hidden; scroll-margin-top: 64px; }
 .co-sec-head { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 13px 16px; border-bottom: 1px solid var(--border, #dbdbdb); background: var(--surface, #f5f5f5); }
-.co-sec-title { display: flex; align-items: center; gap: 8px; font-size: 14px; font-weight: 600; color: var(--text, #000); }
+.co-sec-title { display: flex; align-items: center; gap: 8px; font-size: 15px; font-weight: 700; color: var(--text, #000); }
 .co-sec-title .ic-tile {
   width: 16px; height: 16px; color: var(--cp-a2, #186d98); flex: none; box-sizing: content-box;
   padding: 6px; background: color-mix(in srgb, var(--accent, #1ceee0) 18%, var(--card, #fff)); border-radius: 8px;
@@ -665,7 +665,12 @@ select.co-input { cursor: pointer; }
 .co-crumb b { color: var(--text, #000); font-weight: 600; }
 .co-lastmod { display: inline-flex; align-items: center; gap: 6px; margin-top: 6px; font-size: 12px; color: var(--muted, #8c8c8c); }
 .co-lastmod .ic { width: 13px; height: 13px; }
-.co-page-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 20px; flex-wrap: wrap; }
+/* Sorokra bontott fejléc (design hot fix 2026-09-13): 1. sor cím (bal),
+   2. sor mentés-CTA (jobb) — a jobb felső sarkot a fix pozíciójú
+   értesítési bell (top/right:32px) foglalja, oda semmi nem kerülhet. */
+.co-page-head { display: flex; flex-direction: column; gap: 12px; }
+.co-head-title { padding-right: 64px; }
+.co-head-cta { display: flex; justify-content: flex-end; }
 
 @media (max-width: 720px) {
   .co-grid { grid-template-columns: 1fr; }
