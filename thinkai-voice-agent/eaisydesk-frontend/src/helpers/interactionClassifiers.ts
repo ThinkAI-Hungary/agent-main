@@ -36,6 +36,8 @@ export interface Classification {
   statusz?: string;
   teendo?: string;
   osszefoglalas?: string;
+  closed_manually?: boolean; // 265-ös ügy: manuális lezárás (user felülírta a rendszer viselkedését)
+  closed_by?: string;        // a lezáró felhasználó neve
 }
 
 // ── EAISY-241 §2.2 vegyes ügytípus prioritás (legmagasabb → legalacsonyabb) ──

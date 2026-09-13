@@ -439,6 +439,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     }, '');
 
   const openInteractions = clientInteractions.filter((r) => {
+    if (isOptimisticClosed(r.interactionId)) return false; // 265-ös ügy: azonnali szekcióváltás
     const sz = (r.statusz || '').toLowerCase();
     const st = (r.status || '').toLowerCase();
     // A Lezárt státusz MINDIG győz — bárhol zárták le az interakciót (265-ös
@@ -543,10 +544,17 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     finally { setSaving(false); }
   }, [cd, client.id, editName, editEmail, editPhone, editNotes, onRefresh]);
 
+  // Optimista lezárás (265-ös ügy): a pipa és a szekcióváltás AZONNAL megjelenik,
+  // a PATCH a háttérben fut; hiba esetén visszavonás + hibajelzés
+  const [optimisticClosed, setOptimisticClosed] = useState<Set<number>>(new Set());
+  const isOptimisticClosed = useCallback((id: number | null) => id != null && optimisticClosed.has(id), [optimisticClosed]);
+
   // „Elvégezve" checkbox — interakció státusz „Lezárt"-ra
   const handleMarkDone = useCallback(async (e: React.MouseEvent, interactionId: number | null) => {
     e.stopPropagation();
     if (!interactionId) { showToast('Nem azonosítható interakció', 'error'); return; }
+    setOptimisticClosed(prev => new Set(prev).add(interactionId));
+    showToast('Interakció lezárva');
     try {
       const res = await authFetch(`/admin/api/interactions/${interactionId}/status`, {
         method: 'PATCH',
@@ -554,12 +562,13 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         body: JSON.stringify({ status: 'lezárt' }),
       });
       if (res.ok) {
-        showToast('Interakció lezárva');
         onRefresh();
       } else {
+        setOptimisticClosed(prev => { const n = new Set(prev); n.delete(interactionId); return n; });
         showToast('Hiba a lezáráskor', 'error');
       }
     } catch {
+      setOptimisticClosed(prev => { const n = new Set(prev); n.delete(interactionId); return n; });
       showToast('Hiba', 'error');
     }
   }, [onRefresh]);
@@ -925,7 +934,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                       <td><CpDirBadge value={r.direction} /></td>
                       <td>{r.ugyTipus}</td>
                       <td className="cp-result">{r.eredmeny}</td>
-                      <td><CpStatusBadge value={r.statusz} /></td>
+                      <td><CpStatusBadge value={isOptimisticClosed(r.interactionId) ? 'Lezárt' : r.statusz} /></td>
                       <td><CpTeendoCell value={r.teendo} /></td>
                       {/* Elvégezve checkbox */}
                       <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
@@ -1027,7 +1036,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                       <td><CpDirBadge value={r.direction} /></td>
                       <td>{r.ugyTipus}</td>
                       <td className="cp-result">{r.eredmeny}</td>
-                      <td><CpStatusBadge value={r.statusz} /></td>
+                      <td><CpStatusBadge value={isOptimisticClosed(r.interactionId) ? 'Lezárt' : r.statusz} /></td>
                       <td><CpTeendoCell value={r.teendo} /></td>
                       <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
                         <input type="checkbox" className="cp-done-check" checked disabled aria-label="Elvégezve" />

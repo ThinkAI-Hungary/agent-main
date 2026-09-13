@@ -3567,6 +3567,10 @@ def update_interaction_status(id: int, req: InteractionStatusUpdateRequest, _aut
                 updates["classification"] = {"statusz": "Lezárt", "teendo": "Nincs további teendő"}
         else:
             updates["classification"] = {"statusz": "Lezárt", "teendo": "Nincs további teendő"}
+        # Manuális felülírás jelölése (265-ös ügy): a user döntött a rendszer
+        # automatikus viselkedése ellen — az eredmény-sorban „Manuálisan lezárt (X)"
+        updates["classification"]["closed_manually"] = True
+        updates["classification"]["closed_by"] = _auth
 
         db.supabase.table("interactions").update(updates).eq("id", id).execute()
         logger.info(f"Interaction {id} marked as lezárt by {_auth}")
