@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { authFetch } from '../api/client';
 
 export interface KanbanColumn {
@@ -21,16 +21,22 @@ export function useKanbanColumns(): UseKanbanColumnsReturn {
   const [columns, setColumns] = useState<KanbanColumn[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Csendes háttér-poll (glitch-fix): a loading-skeleton csak az ELSŐ
+  // betöltésig jelenik meg; a 30 mp-es körök a meglévő tartalom mögött futnak
+  const hasData = useRef(false);
 
   const fetchColumns = useCallback(async () => {
-    setLoading(true);
+    if (!hasData.current) setLoading(true);
     setError(null);
     try {
       const res = await authFetch('/admin/api/kanban_columns');
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
       const cols = data?.columns || data;
-      setColumns(Array.isArray(cols) ? cols as KanbanColumn[] : []);
+      const nextCols: KanbanColumn[] = Array.isArray(cols) ? cols as KanbanColumn[] : [];
+      hasData.current = true;
+      // No-op szűrő: változatlan adatnál nincs újrarenderelés
+      setColumns(prev => JSON.stringify(prev) === JSON.stringify(nextCols) ? prev : nextCols);
     } catch (e) {
       setError('Hiba az oszlopok betöltésekor');
       console.error('useKanbanColumns error:', e);

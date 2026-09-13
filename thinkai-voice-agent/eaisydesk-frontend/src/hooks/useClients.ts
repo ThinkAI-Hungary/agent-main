@@ -42,8 +42,9 @@ export function useClients(): UseClientsReturn {
       _cachedClientsMap = map;
       _cacheReady = true;
 
-      setClients(list);
-      setClientsMap(map);
+      // No-op szűrő: változatlan adatnál nincs újrarenderelés (glitch-fix)
+      setClients(prev => JSON.stringify(prev) === JSON.stringify(list) ? prev : list);
+      setClientsMap(prev => JSON.stringify(prev) === JSON.stringify(map) ? prev : map);
     } catch (e) {
       setError('Hiba az ügyfelek betöltésekor');
       console.error('useClients error:', e);

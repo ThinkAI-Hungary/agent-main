@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { authFetch } from '../api/client';
 import type { SessionInteraction } from './useSessions';
 
@@ -32,16 +32,23 @@ export function useGroupedSessions(limit = 100): UseGroupedSessionsReturn {
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Csendes háttér-poll (glitch-fix): a loading-skeleton csak az ELSŐ
+  // betöltésig jelenik meg; a 30 mp-es körök a meglévő tartalom mögött futnak
+  const hasData = useRef(false);
 
   const fetchGroups = useCallback(async () => {
-    setLoading(true);
+    if (!hasData.current) setLoading(true);
     setError(null);
     try {
       const res = await authFetch(`/admin/api/interactions/grouped?limit=${limit}`);
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
-      setGroups(Array.isArray(data?.sessions) ? data.sessions : []);
-      setTotal(typeof data?.total === 'number' ? data.total : 0);
+      const nextGroups: GroupedSession[] = Array.isArray(data?.sessions) ? data.sessions : [];
+      const nextTotal = typeof data?.total === 'number' ? data.total : 0;
+      hasData.current = true;
+      // No-op szűrő: változatlan adatnál nincs újrarenderelés
+      setGroups(prev => JSON.stringify(prev) === JSON.stringify(nextGroups) ? prev : nextGroups);
+      setTotal(prev => prev === nextTotal ? prev : nextTotal);
     } catch (e) {
       setError('Hiba az interakciók betöltésekor');
       console.error('useGroupedSessions error:', e);

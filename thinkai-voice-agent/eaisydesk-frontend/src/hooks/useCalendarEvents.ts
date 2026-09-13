@@ -1,4 +1,4 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { authFetch } from '../api/client';
 
 export interface CalendarEvent {
@@ -28,16 +28,22 @@ export function useCalendarEvents(): UseCalendarEventsReturn {
   const [events, setEvents] = useState<CalendarEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Csendes háttér-poll (glitch-fix): a loading-skeleton csak az ELSŐ
+  // betöltésig jelenik meg; a 30 mp-es körök a meglévő tartalom mögött futnak
+  const hasData = useRef(false);
 
   const fetchEvents = useCallback(async () => {
-    setLoading(true);
+    if (!hasData.current) setLoading(true);
     setError(null);
     try {
       const res = await authFetch('/admin/api/calendar');
       if (!res.ok) throw new Error('fetch failed');
       const data = await res.json();
       const evts = data?.events || data;
-      setEvents(Array.isArray(evts) ? evts as CalendarEvent[] : []);
+      const nextEvents: CalendarEvent[] = Array.isArray(evts) ? evts as CalendarEvent[] : [];
+      hasData.current = true;
+      // No-op szűrő: változatlan adatnál nincs újrarenderelés
+      setEvents(prev => JSON.stringify(prev) === JSON.stringify(nextEvents) ? prev : nextEvents);
     } catch (e) {
       setError('Hiba a naptári események betöltésekor');
       console.error('useCalendarEvents error:', e);
