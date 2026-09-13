@@ -17,6 +17,18 @@
 
 ---
 
+## ✅ 2026-09-13 (este) — „Manuálisan lezárt (X)" wrapper pótlása a detectEredmeny-ben
+
+**Jelenség**: a 265-ös interakció manuális lezárása után az ügyfélprofilon az eredmény továbbra is az eredeti („Válasz előkészítve") maradt — a HANDOFF/commit-üzenet által ígért „Manuálisan lezárt (X)" jelölés nem jelent meg.
+
+**Ok**: a `75a8eca` commit a classifierbe csak a `closed_manually`/`closed_by` **típusmezőket** tette be (2 sor) + a backend flag-et — a wrapper-logika a commit-üzenet ellenére sosem került a kódba. A `detectEredmeny` első sora a `classification.eredmeny`-t változtatás nélkül adta vissza.
+
+**Javítás**: `interactionClassifiers.ts` — a `detectEredmeny` elején `closed_manually` esetén rekurzív wrapper: az alap-eredmény a flag nélküli classification-nel számolódik, a kimenet `Manuálisan lezárt (<alap>)`. Adat továbbra is tiszta (eredeti eredmény megőrizve), a wrapper tisztán megjelenítési szabály — minden nézetben érvényes (profil, napló, irányítópult), mert mindhárom ezt a függvényt hívja. `tsc --noEmit` tiszta, tsx szanity-teszt OK (wrapper + nem-lezárt + heuristic ág is).
+
+**Tanulság**: commit-üzenet/HANDOFF-állítás ≠ implementáció — a „kész" funkciókat a tényleges diff ellenőrzésével kell lezárni.
+
+---
+
 ## ✅ 2026-09-09 (délután/este) — Voice multi-tenant rendrakás (commit `61dae72`, stagingen ÉS prodon él)
 
 Teljes részletes handoff: `/root/eaisydesk-handoff-final.md` (2026-09-09 esti, frissítve — a repón kívül, kulcsokkal).

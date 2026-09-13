@@ -239,6 +239,13 @@ export function detectEredmeny(r: {
   badge?: string | null;
   classification?: Classification | null;
 }): string {
+  // 265-ös ügy: manuális lezárásnál az eredeti eredmény megmarad az adatban,
+  // a megjelenítés tekeri körül — „Manuálisan lezárt (eredeti eredmény)"
+  if (r.classification?.closed_manually) {
+    const { closed_manually: _cm, closed_by: _cb, ...baseCls } = r.classification;
+    return `Manuálisan lezárt (${detectEredmeny({ ...r, classification: baseCls })})`;
+  }
+
   if (r.classification?.eredmeny) return r.classification.eredmeny;
 
   const fs = (r.funnel_stage || '').toLowerCase();
