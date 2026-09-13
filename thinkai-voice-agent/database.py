@@ -2222,7 +2222,7 @@ def get_business_info() -> dict:
         if res.data:
             row = res.data[0]
             row.pop("id", None)
-            row.pop("updated_at", None)
+            # az updated_at a mockup 'Utolsó módosítás' fejléc-jelzéséhez KELL
             return row
         return {}
     except Exception as e:
