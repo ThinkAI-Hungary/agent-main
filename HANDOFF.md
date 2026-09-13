@@ -30,6 +30,8 @@ Verifikáció: tsc+vite build tiszta; konténer healthy, 0 ERROR; a bundle-ban n
 
 **Design hot fixek ugyanaznap (commit `b8c8535`)**: 1) mindkét oldal címe `.page-title` (20px/700, egységes a többi oldallal); 2) a fejléc sorokra bontva — 1. sor cím balra, 2. sor mentés-CTA jobbra, alatta a tartalom — mert a fix pozíciójú notif-bell (`top/right:32px`) letakarta a jobb felső CTA-t (a cím-blokk `padding-right:64px`); 3) a Szabályok oldalon a duplikált mentés-gomb megszűnt — az IssueHandlingRules szekciós gombja kikerült, az oldal-CTA `ih-save-request` eseménnyel menti az ügykezelési szabályokat is (silent); 4) `co-sec-title` 14/600 → 15/700 a címhierarchiáért.
 
+**Periodikus skeleton-glitch fix (commit `d84ed0a`)**: a 30 mp-es polling-hookok (useSessions, useGroupedSessions, useCalendarEvents, useKanbanColumns) minden körben `setLoading(true)`-t hívtak → a lapok a TELJES tartalmat skeletonra cserélték 30 mp-ként. Most a useClients-féle őr él mindben (skeleton csak első betöltésre) + no-op JSON-szűrő mind az 5 hookon (változatlan adat → nincs setState/újrarenderelés → lenyitott sorok/görgetés sem ugrik). Tanulság-minta: új polling-hooknál ezt a két szabályt követni.
+
 ---
 
 ## ✅ 2026-09-13 (este) — „Manuálisan lezárt (X)" wrapper pótlása a detectEredmeny-ben
