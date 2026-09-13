@@ -17,6 +17,19 @@
 
 ---
 
+## ✅ 2026-09-13 (késő este) — Ügykezelési/foglalási szabályok redesign + értesítési emailek megszüntetése (commit `113fb8b`, stagingen ÉL)
+
+User-instrukció alapján, 4 pont:
+
+1. **Design**: a szabályok fül a céginfo-oldal co-* mintáját követi (`co-page-head`/`co-section`/`co-sec-head`, `ic-tile` ikonok türkiz háttérrel, `co-input`/`co-textarea`/`select.co-input`, `co-add-row`/`co-del` CTA-k, `beallitasok-save-btn`). Új CSS: `.co-sub`, `.co-rule-row`, `.co-rule-name`, `.co-rule-tag`(+`--urgent`) a tudastar.css-ben. A régi `AddBtn`/`DeleteBtn` helper komponensek törölve.
+2. **Fejléc**: breadcrumbs („Tudástár / Ügykezelési és foglalási szabályok") + „Utolsó módosítás: <név>, <időpont>" — a `save_issue_handling` endpoint is bumpolja a `business_info.updated_by/updated_at` mezőket (a céginfo-oldallal osztott jelzés).
+3. **Értesítendő email mezők MEGSZŰNTETVE mindenhol**: IssueHandlingRules §1 notify-inputok + §3 custom-rule notify + az agent-fül triage-táblájának Értesítendő oszlopa. (A funkció sosem volt bekötve — a küldő kód `surgos/kiemelt/urgent` priority-t keresett, a UI `onallo/jovahagyas/ember`-t mentett. A backend endpointok+oszlopok megmaradtak, dead-but-harmless.)
+4. **Időpont módosítás/lemondás: eljárás-dropdownök KIVÉVE** — csak a két szabad-szöveges mező maradt (`modositas_szoveg`, `figyelmezteto_szoveg`). A `_format_cancellation_policy` mostantól **text-vezérelt** (ami ki van töltve, az kerül a promptba; a `modositas_eng`/`lemondas_24h` enumokat figyelmen kívül hagyja). **Ez az élő bugot is javítja**: a DB-ben `lemondas_24h='urgent'` volt, amit a régi kód nem ismert → a 24 órás figyelmeztetés EDDIG EGYÁLTALÁN nem került a promptba, most igen. Kockázat: nincs visszaesés (az autonóm módosítás/lemondás eddig is az effektív viselkedés volt), a prompt csak nyer.
+
+Verifikáció: tsc+vite build tiszta; konténer healthy, 0 ERROR; a bundle-ban nincs „Értesítendő" string; konténerben a `_format_cancellation_policy` a DB-értékekre a 24 órás figyelmeztetést adja, üres mezőkre „Nincs külön…"-et. (Böngészős vizuális teszt nem volt elérhető ebben a sessionben — a co-* minta 1:1 újrafelhasználás.)
+
+---
+
 ## ✅ 2026-09-13 (este) — „Manuálisan lezárt (X)" wrapper pótlása a detectEredmeny-ben
 
 **Jelenség**: a 265-ös interakció manuális lezárása után az ügyfélprofilon az eredmény továbbra is az eredeti („Válasz előkészítve") maradt — a HANDOFF/commit-üzenet által ígért „Manuálisan lezárt (X)" jelölés nem jelent meg.
