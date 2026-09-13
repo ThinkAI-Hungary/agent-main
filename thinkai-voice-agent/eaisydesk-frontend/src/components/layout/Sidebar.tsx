@@ -72,7 +72,7 @@ const NAV_ITEMS: NavItem[] = [
         icon: <><path d="m3 11 18-5v12L3 14v-3z" /><path d="M11.6 16.8a3 3 0 1 1-5.8-1.6" /></>,
       },
       {
-        id: 'automatizaciok', label: 'Automatikus értesítések', path: '/automatizaciok',
+        id: 'automatizaciok', label: 'Automatikus értesítések', path: '/automatizaciok', adminOnly: true,
         icon: <><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></>,
       },
     ],
@@ -237,9 +237,7 @@ export default function Sidebar() {
       ? (impersonatedTenant ? 'Bérlői Admin (Megszemélyesítve)' : 'Superadmin')
       : user?.role === 'admin'
         ? 'Adminisztrátor'
-        : user?.role === 'manager'
-          ? 'Manager'
-          : 'Member';
+        : 'Member';
 
   // rövid szerep-jelölő a brand pillhez (UI Kit 11 · sb-badge)
   const rolePill =
@@ -247,9 +245,7 @@ export default function Sidebar() {
       ? 'Superadmin'
       : user?.role === 'admin'
         ? 'Admin'
-        : user?.role === 'manager'
-          ? 'Manager'
-          : 'Member';
+        : 'Member';
 
   return (
     <>

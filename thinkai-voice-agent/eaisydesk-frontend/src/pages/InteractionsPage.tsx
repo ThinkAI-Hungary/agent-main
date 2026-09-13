@@ -10,7 +10,7 @@ import { useApproval } from '../context/ApprovalContext';
 import { useClients } from '../hooks/useClients';
 import { useSessions, type SessionSummary, type SessionInteraction } from '../hooks/useSessions';
 import { useGroupedSessions } from '../hooks/useGroupedSessions';
-import { resolveClientName, getRowChannel, parseCustomData, isAssignedToMe } from '../helpers/clientResolvers';
+import { resolveClientName, getRowChannel, parseCustomData } from '../helpers/clientResolvers';
 import {
   detectUgyTipus,
   detectEredmeny,
@@ -263,20 +263,9 @@ export default function InteractionsPage() {
     }
   }, [location.state, allRows]);
 
-  const myRows = useMemo(() => {
-    if (isAdmin) return allRows;
-    const username = user?.username || '';
-    const fullName = user?.fullName || '';
-    return allRows.filter(r => {
-      if (!r.clientId) return true;
-      const client = clientsMap[String(r.clientId)];
-      if (!client) return true;
-      const cd = parseCustomData(client.custom_data);
-      const assignedTo = ((cd.assigned_to || cd.felelos || '') as string).trim();
-      if (!assignedTo) return true;
-      return isAssignedToMe(client, username, fullName);
-    });
-  }, [allRows, isAdmin, user, clientsMap]);
+  // Jogosultság-mátrix (2026-09-13): a member MINDEN interakciót lát —
+  // a korábbi assigned-szűrés kivezetve.
+  const myRows = useMemo(() => allRows, [allRows]);
 
   // ── Filter + sort ──
   // preStatusRows: minden szűrő ÉRVÉNYESül a státuszon kívül — ez adja a KPI

@@ -28,7 +28,7 @@ import { useClients } from '../hooks/useClients';
 import { useSessions } from '../hooks/useSessions';
 import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import { useKanbanColumns } from '../hooks/useKanbanColumns';
-import { parseCustomData, bestClientName, isAssignedToMe, type ClientRecord } from '../helpers/clientResolvers';
+import { parseCustomData, bestClientName, type ClientRecord } from '../helpers/clientResolvers';
 import { SALES_TAGS } from '../helpers/interactionClassifiers';
 import { normalizeNameKey } from '../helpers/formatters';
 import { useAuth } from '../context/AuthContext';
@@ -143,15 +143,8 @@ export default function KanbanPage() {
     sortedColumns.forEach((col) => { map[col.id] = []; });
 
     clients.forEach((c) => {
-      // Member filtering: non-admins only see their assigned clients or unassigned ones
-      if (!isAdmin) {
-        const username = user?.username || '';
-        const fullName = user?.fullName || '';
-        const cd0 = parseCustomData(c.custom_data);
-        const assignedTo = ((cd0.assigned_to || cd0.felelos || '') as string).trim();
-        if (assignedTo && !isAssignedToMe(c, username, fullName)) return;
-      }
-
+      // Jogosultság-mátrix (2026-09-13): a member MINDEN ügyfelet lát —
+      // a korábbi assigned-szűrés kivezetve.
       const cd = parseCustomData(c.custom_data);
       // Kanbanról eltávolítva jelző — nem jelenik meg újra automatikusan
       if (cd.kanban_removed) return;
@@ -463,6 +456,7 @@ export default function KanbanPage() {
                 column={col}
                 cards={cardsByColumn[col.id] || []}
                 protectedColumn={col.id === firstColId}
+                canManage={isAdmin}
                 onRename={handleRenameColumn}
                 onDelete={handleDeleteColumn}
                 onRemoveClient={handleRemoveFromKanban}
@@ -471,7 +465,8 @@ export default function KanbanPage() {
               />
             ))}
 
-            {/* Oszlop hozzáadása — muted, szaggatott oszlop a sor végén */}
+            {/* Oszlop hozzáadása — admin-only (jogosultság-mátrix 2026-09-13) */}
+            {isAdmin && (
             <div className="kanban-add-col">
               {showAddCol ? (
                 <div className="kanban-add-col-form" onClick={(e) => e.stopPropagation()}>
@@ -496,6 +491,7 @@ export default function KanbanPage() {
                 </button>
               )}
             </div>
+            )}
           </div>
 
           {/* Drag Overlay */}

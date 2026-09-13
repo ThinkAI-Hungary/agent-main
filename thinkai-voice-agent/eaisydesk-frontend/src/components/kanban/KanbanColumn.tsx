@@ -12,6 +12,7 @@ interface Props {
   column: KanbanColumnType;
   cards: KanbanCardData[];
   protectedColumn?: boolean;
+  canManage?: boolean; // oszlop átnevezés/törlés engedélyezett-e (membernél nem)
   onRename: (id: string, name: string) => void;
   onDelete: (id: string) => void;
   onRemoveClient: (clientId: string | number) => void;
@@ -19,7 +20,7 @@ interface Props {
   onRemoveTag?: (clientId: string | number, tag: string) => void;
 }
 
-export default function KanbanColumn({ column, cards, protectedColumn, onRename, onDelete, onRemoveClient, onCardClick, onRemoveTag }: Props) {
+export default function KanbanColumn({ column, cards, protectedColumn, canManage = true, onRename, onDelete, onRemoveClient, onCardClick, onRemoveTag }: Props) {
   const { setNodeRef, isOver } = useDroppable({ id: column.id });
   const [editing, setEditing] = useState(false);
   const [editName, setEditName] = useState(column.name);
@@ -65,15 +66,15 @@ export default function KanbanColumn({ column, cards, protectedColumn, onRename,
         ) : (
           <span
             className="kanban-col-name"
-            onDoubleClick={() => { if (!protectedColumn) { setEditName(column.name); setEditing(true); } }}
-            title={protectedColumn ? undefined : 'Kattints duplán az átnevezéshez'}
+            onDoubleClick={() => { if (!protectedColumn && canManage) { setEditName(column.name); setEditing(true); } }}
+            title={protectedColumn || !canManage ? undefined : 'Kattints duplán az átnevezéshez'}
           >
             {column.name}
           </span>
         )}
         {protectedColumn && <span className="kanban-col-auto">Automatikus</span>}
         <span className="kanban-col-count">{cards.length}</span>
-        {!protectedColumn && !editing && (
+        {!protectedColumn && !editing && canManage && (
           <span className="kanban-col-actions">
             <button
               className="kanban-col-icon-btn"

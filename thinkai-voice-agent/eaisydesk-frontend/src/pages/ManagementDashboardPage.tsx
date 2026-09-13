@@ -1823,7 +1823,6 @@ export default function ManagementDashboardPage() {
                 <option value="">Minden szerepkör</option>
                 <option value="superadmin">Superadmin</option>
                 <option value="admin">Admin</option>
-                <option value="manager">Manager</option>
                 <option value="member">Member</option>
               </select>
             </div>

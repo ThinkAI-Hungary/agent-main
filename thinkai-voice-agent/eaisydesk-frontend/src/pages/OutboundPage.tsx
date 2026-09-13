@@ -9,6 +9,7 @@ import { authFetch } from '../api/client';
 import { OutboundSkeleton } from '../components/ui/Skeleton';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
+import { useAuth } from '../context/AuthContext';
 import CampaignWizardModal from '../components/outbound/CampaignWizardModal';
 import CampaignCard from '../components/outbound/CampaignCard';
 import CampaignDetailPanel from '../components/outbound/CampaignDetailPanel';
@@ -48,6 +49,10 @@ const STATUS_MAP: Record<string, string> = {
 // ── Component ─────────────────────────────────────────────────────────────────
 
 export default function OutboundPage() {
+  const { isAdmin } = useAuth();
+  // Jogosultság-mátrix (2026-09-13): member csak tervezetet hozhat létre/
+  // szerkeszthet/törölhet; indítás/leállítás/ütemezés/nem-tervezet törlés admin-only.
+  const canDeleteCampaign = (status: string) => isAdmin || status === 'Vázlat' || status === 'Tervezet';
   const [campaigns, setCampaigns] = useState<Campaign[]>([]);
   const [loading, setLoading] = useState(true);
   const [activeFilter, setActiveFilter] = useState('Összes');
@@ -247,6 +252,8 @@ export default function OutboundPage() {
                 <CampaignCard
                   key={c.id}
                   campaign={c}
+                  canManage={isAdmin}
+                  canDelete={canDeleteCampaign(c.status)}
                   onOpenDetail={setShowDetail}
                   onStart={handleStartCampaign}
                   onStop={handleStopCampaign}
@@ -277,6 +284,8 @@ export default function OutboundPage() {
                       <CampaignListRow
                         key={c.id}
                         campaign={c}
+                        canManage={isAdmin}
+                        canDelete={canDeleteCampaign(c.status)}
                         onOpenDetail={setShowDetail}
                         onStart={handleStartCampaign}
                         onStop={handleStopCampaign}
@@ -297,6 +306,8 @@ export default function OutboundPage() {
       {showDetail && (
         <CampaignDetailPanel
           campaign={showDetail}
+          canManage={isAdmin}
+          canDelete={canDeleteCampaign(showDetail.status)}
           onClose={() => setShowDetail(null)}
           onStart={handleStartCampaign}
           onDelete={handleDeleteCampaign}
@@ -360,6 +371,8 @@ export default function OutboundPage() {
 /** Listanézet egy sora — a kártyával azonos kebab logikával */
 export function CampaignListRow({
   campaign: c,
+  canManage = true,
+  canDelete = true,
   onOpenDetail,
   onStart,
   onStop,
@@ -368,6 +381,8 @@ export function CampaignListRow({
   onSchedule,
 }: {
   campaign: Campaign;
+  canManage?: boolean;
+  canDelete?: boolean;
   onOpenDetail: (campaign: Campaign) => void;
   onStart: (id: number) => void;
   onStop: (id: number) => void;
@@ -410,6 +425,8 @@ export function CampaignListRow({
       <td className="cd-done-col" onClick={e => e.stopPropagation()}>
         <CampaignMenu
           statusKey={campaignStatusKey(c.status)}
+          canManage={canManage}
+          canDelete={canDelete}
           onStart={() => onStart(c.id)}
           onStop={() => onStop(c.id)}
           onClose={() => onClose(c.id)}

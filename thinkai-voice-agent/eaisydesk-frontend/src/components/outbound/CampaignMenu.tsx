@@ -41,6 +41,8 @@ export function fmtCreatedDate(iso: string | null): string {
 
 interface Props {
   statusKey: CampaignStatusKey;
+  canManage?: boolean; // indítás/leállítás/ütemezés (admin-only)
+  canDelete?: boolean; // törlés (member csak tervezetnél)
   onStart: () => void;
   onStop: () => void;
   onClose: () => void;
@@ -48,7 +50,7 @@ interface Props {
   onSchedule: () => void;
 }
 
-export default function CampaignMenu({ statusKey, onStart, onStop, onClose, onDelete, onSchedule }: Props) {
+export default function CampaignMenu({ statusKey, canManage = true, canDelete = true, onStart, onStop, onClose, onDelete, onSchedule }: Props) {
   const [open, setOpen] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
 
@@ -75,23 +77,27 @@ export default function CampaignMenu({ statusKey, onStart, onStop, onClose, onDe
     strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, viewBox: '0 0 24 24', width: 15, height: 15,
   };
 
-  if (statusKey === 'tervezet') {
+  if (canManage && statusKey === 'tervezet') {
     items.push(
       { label: 'Indítás', icon: <svg {...iconProps}><polygon points="5 3 19 12 5 21 5 3" /></svg>, handler: onStart },
       { label: 'Ütemezés', icon: <svg {...iconProps}><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>, handler: onSchedule },
     );
-  } else if (statusKey === 'utemezett') {
+  } else if (canManage && statusKey === 'utemezett') {
     items.push(
       { label: 'Indítás most', icon: <svg {...iconProps}><polygon points="5 3 19 12 5 21 5 3" /></svg>, handler: onStart },
       { label: 'Átütemezés', icon: <svg {...iconProps}><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></svg>, handler: onSchedule },
     );
-  } else if (statusKey === 'aktiv') {
+  } else if (canManage && statusKey === 'aktiv') {
     items.push(
       { label: 'Szüneteltetés', icon: <svg {...iconProps}><rect x="6" y="4" width="4" height="16" /><rect x="14" y="4" width="4" height="16" /></svg>, handler: onStop },
       { label: 'Leállítás', icon: <svg {...iconProps}><rect x="3" y="3" width="18" height="18" rx="2" /></svg>, handler: onClose },
     );
   }
-  items.push({ label: 'Törlés', icon: <svg {...iconProps}><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>, handler: onDelete, danger: true });
+  if (canDelete) {
+    items.push({ label: 'Törlés', icon: <svg {...iconProps}><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>, handler: onDelete, danger: true });
+  }
+  // Membernél és nem-törölhető kampánynál a kebab egyáltalán nem kell
+  if (items.length === 0) return null;
 
   return (
     <div className="camp-menu" ref={menuRef}>

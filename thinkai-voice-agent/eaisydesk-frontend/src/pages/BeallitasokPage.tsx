@@ -432,8 +432,7 @@ export default function BeallitasokPage() {
                 {isAdminOnly ? (
                   <div className="beal-grid-3">
                     {[
-                      { value: 'member', label: 'Munkatárs', desc: 'Saját ügyfelek kezelése' },
-                      { value: 'manager', label: 'Manager', desc: 'Csapatirányítás' },
+                      { value: 'member', label: 'Munkatárs', desc: 'Recepciós munka — ügyfelek, naptár, teendők' },
                       { value: 'admin', label: 'Admin', desc: 'Teljes hozzáférés' },
                     ].map((r) => {
                       const isSelected = newUser.role === r.value;
@@ -1065,7 +1064,6 @@ function ChannelsSection({ channels, setChannels }: any) {
 // ── Custom role dropdown (dark mode safe) ────────────────────────────────────
 const ROLES = [
   { value: 'member', label: 'Munkatárs' },
-  { value: 'manager', label: 'Manager' },
   { value: 'admin', label: 'Admin' },
 ];
 

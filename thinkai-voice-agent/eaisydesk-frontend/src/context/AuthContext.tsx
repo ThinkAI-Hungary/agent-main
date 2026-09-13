@@ -3,7 +3,7 @@ import { loginApi, setToken, clearToken, setOnUnauthorized, clearStoredUser as c
 
 export interface User {
   username: string;
-  role: 'admin' | 'manager' | 'member' | 'superadmin';
+  role: 'admin' | 'member' | 'superadmin';
   fullName: string;
   email: string;
   tenantId?: string;
@@ -23,7 +23,6 @@ interface AuthContextType {
   isAdmin: boolean;
   isAdminOnly: boolean;
   isSuperAdmin: boolean;
-  isManager: boolean;
   isMember: boolean;
   impersonatedTenant: ImpersonatedTenant | null;
   impersonateTenant: (token: string, tenant: ImpersonatedTenant) => void;
@@ -42,7 +41,10 @@ function getStoredUser(): User | null {
   try {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return null;
-    return JSON.parse(raw) as User;
+    const u = JSON.parse(raw) as User;
+    // Legacy 'manager' role → admin (kivezetett szerepkör, régi tárolt sessionök)
+    if ((u.role as string) === 'manager') u.role = 'admin';
+    return u;
   } catch {
     return null;
   }
@@ -154,9 +156,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
     // Store JWT token for authFetch
     setToken(data.token);
 
+    // Legacy 'manager' role → admin (a manager szerepkör kivezetett, a
+    // meglévő managerek adminná minősültek át — régi JWT-k miatt normalizálunk)
+    const rawRole = data.role === 'manager' ? 'admin' : (data.role || 'member');
     const newUser: User = {
       username: data.username,
-      role: (data.role || 'member') as User['role'],
+      role: rawRole as User['role'],
       fullName: data.full_name || '',
       email: email,
       tenantId: data.tenant_id || undefined,
@@ -179,9 +184,8 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const isAuthenticated = user !== null;
   const isSuperAdmin = user?.role === 'superadmin';
-  const isAdmin = user?.role === 'admin' || user?.role === 'manager' || isSuperAdmin;
+  const isAdmin = user?.role === 'admin' || isSuperAdmin;
   const isAdminOnly = user?.role === 'admin' || isSuperAdmin;
-  const isManager = user?.role === 'manager';
   const isMember = user?.role === 'member';
 
   return (
@@ -192,7 +196,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         isAdmin,
         isAdminOnly,
         isSuperAdmin,
-        isManager,
         isMember,
         impersonatedTenant,
         impersonateTenant,

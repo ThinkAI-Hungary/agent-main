@@ -42,6 +42,8 @@ const STATUS_COLORS: Record<string, StatusInfo> = {
 };
 
 interface Props {
+  canManage?: boolean; // indítás/ütemezés (admin-only)
+  canDelete?: boolean; // törlés (member csak tervezetnél)
   campaign: Campaign;
   onClose: () => void;
   onStart: (id: number) => void;
@@ -49,7 +51,7 @@ interface Props {
   onSchedule: (id: number) => void;
 }
 
-export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onDelete, onSchedule }: Props) {
+export default function CampaignDetailPanel({ campaign: c, canManage = true, canDelete = true, onClose, onStart, onDelete, onSchedule }: Props) {
   const channels = c.channels || (c.channel ? [c.channel] : ['email']);
   const clientCount = c.client_ids?.length || 0;
   const delivered = c.processed_count || 0;
@@ -263,6 +265,7 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
         {/* ── Footer ── */}
         <div className="cpv-footer">
           {/* EAISY-241 §1.6.4: törlés piros trash ikonként (minden státusznál) */}
+          {canDelete && (
           <button
             className="cpv-trash-btn"
             title="Kampány törlése"
@@ -273,9 +276,10 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
               <path d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
             </svg>
           </button>
+          )}
 
           {/* Draft: Ütemezés (schedule CTA) + Kampány indítása (primary) — right-aligned */}
-          {isDraft && (
+          {canManage && isDraft && (
             <>
               <button className="cpv-btn-schedule cpv-btn-close-right" onClick={() => { onSchedule(c.id); onClose(); }}>
                 Ütemezés
@@ -287,7 +291,7 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
           )}
 
           {/* Megállítva: Kampány indítása + Ütemezés */}
-          {c.status === 'Megállítva' && (
+          {canManage && c.status === 'Megállítva' && (
             <>
               <button className="cpv-btn cpv-btn-primary" onClick={() => { onStart(c.id); onClose(); }}>
                 Kampány indítása
@@ -299,7 +303,7 @@ export default function CampaignDetailPanel({ campaign: c, onClose, onStart, onD
           )}
 
           {/* Ütemezett: Átütemezés right */}
-          {isUtemezett && (
+          {canManage && isUtemezett && (
             <button className="cpv-btn-schedule cpv-btn-close-right" onClick={() => { onSchedule(c.id); onClose(); }}>
               Átütemezés
             </button>

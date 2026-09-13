@@ -2819,32 +2819,6 @@ def require_admin(credentials: HTTPAuthorizationCredentials = Depends(bearer_sch
     return user
 
 
-def require_admin_or_manager(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
-    """Dependency: admin or manager role can access."""
-    if not credentials:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Nincs token")
-    try:
-        payload = pyjwt.decode(credentials.credentials, JWT_SECRET, algorithms=[JWT_ALGO])
-        username = payload["sub"]
-    except pyjwt.ExpiredSignatureError:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Token lejárt")
-    except Exception:
-        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Érvénytelen token")
-    
-    try:
-        user = db.get_admin_user_by_username(username)
-    except Exception as e:
-        logger.warning(f"DB error fetching admin user {username}: {e}")
-        user = None
-
-    user_role = (user.get("role") if user else None) or payload.get("role")
-    if user_role not in ("admin", "manager", "superadmin"):
-        raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Csak admin/manager jogosultsággal elérhető")
-    if not user:
-        user = {"username": username, "role": user_role, "tenant_id": payload.get("tenant_id", "")}
-    return user
-
-
 def require_superadmin(credentials: HTTPAuthorizationCredentials = Depends(bearer_scheme)):
     """Dependency: strictly superadmin role required."""
     if not credentials:
@@ -2897,20 +2871,16 @@ class ChangePasswordRequest(BaseModel):
     user_id: Optional[int] = None
 
 @app.get("/admin/api/users")
-def api_get_users(caller: dict = Depends(require_admin_or_manager)):
-    """List admin users. Manager only sees members."""
+def api_get_users(caller: dict = Depends(require_admin)):
+    """List admin users (admin only)."""
     all_users = db.get_admin_users()
-    if caller.get("role") == "manager":
-        all_users = [u for u in all_users if u.get("role") == "member"]
     return {"status": "success", "data": all_users}
 
 @app.post("/admin/api/users")
-def api_create_user(req: CreateUserRequest, caller: dict = Depends(require_admin_or_manager)):
-    """Create a new user. Manager can only create members."""
-    if req.role not in ("admin", "manager", "member"):
-        raise HTTPException(400, "Érvénytelen szerepkör. Lehetséges: admin, manager, member")
-    if caller.get("role") == "manager" and req.role != "member":
-        raise HTTPException(403, "Manager csak member jogosultságú felhasználót hozhat létre")
+def api_create_user(req: CreateUserRequest, caller: dict = Depends(require_admin)):
+    """Create a new user (admin only). A manager szerepkör 2026-09-13-tól kivezetett."""
+    if req.role not in ("admin", "member"):
+        raise HTTPException(400, "Érvénytelen szerepkör. Lehetséges: admin, member")
     success = db.create_admin_user(req.username, req.password, req.email, req.role, caller["username"], req.full_name)
     if not success:
         raise HTTPException(400, "A felhasználónév már foglalt")
@@ -2919,6 +2889,8 @@ def api_create_user(req: CreateUserRequest, caller: dict = Depends(require_admin
 @app.put("/admin/api/users/{user_id}/role")
 def api_update_user_role(user_id: int, req: RoleUpdateRequest, admin: dict = Depends(require_admin)):
     """Update user role (admin only). Cannot demote self."""
+    if req.role not in ("admin", "member"):
+        raise HTTPException(400, "Érvénytelen szerepkör. Lehetséges: admin, member")
     if admin["id"] == user_id and req.role != "admin":
         raise HTTPException(400, "Nem módosíthatod a saját szerepkörödet")
     success = db.update_admin_role(user_id, req.role)
@@ -3015,18 +2987,10 @@ async def api_get_avatar(username_or_id: str, _: str = Depends(verify_jwt)):
         return {"avatar_url": None}
 
 @app.delete("/admin/api/users/{user_id}")
-def api_delete_user(user_id: int, caller: dict = Depends(require_admin_or_manager)):
-    """Delete a user. Manager can only delete members. Cannot delete self."""
+def api_delete_user(user_id: int, caller: dict = Depends(require_admin)):
+    """Delete a user (admin only). Cannot delete self."""
     if caller["id"] == user_id:
         raise HTTPException(400, "Nem törölheted saját magadat")
-    if caller.get("role") == "manager":
-        target_user = db.get_admin_user_by_id(user_id) if hasattr(db, 'get_admin_user_by_id') else None
-        if target_user is None:
-            # Fallback: look up from all users
-            all_users = db.get_admin_users()
-            target_user = next((u for u in all_users if u.get("id") == user_id), None)
-        if target_user and target_user.get("role") != "member":
-            raise HTTPException(403, "Manager csak member felhasználót törölhet")
     success = db.delete_admin_user(user_id)
     if not success:
         raise HTTPException(400, "Törlés sikertelen")
@@ -3058,9 +3022,9 @@ def api_change_password(req: ChangePasswordRequest, username: str = Depends(veri
 
 @app.get("/admin/api/members")
 def api_get_members(username: str = Depends(verify_jwt)):
-    """List all member+manager users (for Felelős dropdown). Any logged-in user can access."""
+    """List all member users (for Felelős dropdown). Any logged-in user can access."""
     users = db.get_admin_users()
-    members = [{"id": u["id"], "username": u["username"], "full_name": u.get("full_name", ""), "role": u.get("role", "member")} for u in users if u.get("role") in ("member", "manager")]
+    members = [{"id": u["id"], "username": u["username"], "full_name": u.get("full_name", ""), "role": u.get("role", "member")} for u in users if u.get("role") == "member"]
     return {"status": "success", "data": members}
 
 
@@ -3104,7 +3068,7 @@ def admin_get_insights(username: str = Depends(verify_jwt)):
     return {"status": "success", "insights": insights}
 
 @app.post("/admin/api/analytics/insights/generate")
-async def admin_generate_insights(_auth = Depends(require_admin_or_manager)):
+async def admin_generate_insights(_auth = Depends(require_admin)):
     """Generate new AI insights based on stats."""
     stats = db.get_stats(period="month")
     google_key = os.getenv("GEMINI_API_KEY") or os.getenv("GOOGLE_API_KEY")
@@ -3221,7 +3185,7 @@ class ManualEventRequest(BaseModel):
     assigned_to: str = ""  # munkatárs ({{munkatárs}} változó)
 
 @app.post("/admin/api/calendar")
-def admin_create_event(req: ManualEventRequest, _auth = Depends(require_admin_or_manager)):
+def admin_create_event(req: ManualEventRequest, _user = Depends(get_current_user)):
     """Create or update a manual calendar event."""
     from datetime import datetime, timedelta
 
@@ -3409,7 +3373,7 @@ def admin_event_attendance(event_id: int, req: EventAttendanceRequest, _auth = D
 
 
 @app.delete("/admin/api/calendar/{event_id}")
-def admin_delete_calendar_event(event_id: int, _auth = Depends(require_admin_or_manager)):
+def admin_delete_calendar_event(event_id: int, _user = Depends(get_current_user)):
     """Naptár esemény törlése."""
     # A törlés ELŐTT kiszedjük az adatokat a lemondás-visszaigazolóhoz
     ev = db.get_calendar_event(event_id) or {}
@@ -3477,7 +3441,7 @@ class TaskTextRequest(BaseModel):
     text: str
 
 @app.patch("/admin/api/tasks/{task_id}")
-def admin_task_update_text(task_id: int, req: TaskTextRequest, _auth = Depends(require_admin_or_manager)):
+def admin_task_update_text(task_id: int, req: TaskTextRequest, _user = Depends(get_current_user)):
     """Hozzáadott feladat szövegének szerkesztése (ügyfélprofil popup)."""
     text = (req.text or "").strip()
     if not text:
@@ -3514,7 +3478,7 @@ class BulkDeleteInteractionsRequest(BaseModel):
     session_ids: list[str] = []
 
 @app.post("/admin/api/interactions/delete")
-def admin_delete_interactions(req: BulkDeleteInteractionsRequest, _auth = Depends(require_admin_or_manager)):
+def admin_delete_interactions(req: BulkDeleteInteractionsRequest, _auth = Depends(require_admin)):
     """Delete interactions and/or sessions by ID."""
     deleted_interactions = 0
     deleted_sessions = 0
@@ -3726,19 +3690,19 @@ def admin_clients(username: str = Depends(verify_jwt)):
     return {"clients": clients}
 
 @app.post("/admin/api/clients")
-def admin_add_client(req: ClientCreateRequest, _auth = Depends(require_admin_or_manager)):
+def admin_add_client(req: ClientCreateRequest, _user = Depends(get_current_user)):
     """Add a new client."""
     client_id = db.add_client(req.custom_data, "uj")
     return {"ok": True, "id": client_id}
 
 @app.patch("/admin/api/clients/{client_id}/status")
-def admin_update_client_status(client_id: int, req: ClientStatusUpdateRequest, _auth = Depends(require_admin_or_manager)):
+def admin_update_client_status(client_id: int, req: ClientStatusUpdateRequest, _user = Depends(get_current_user)):
     """Update client status (drag & drop)."""
     db.update_client_status(client_id, req.status)
     return {"ok": True}
 
 @app.delete("/admin/api/clients/{client_id}")
-def admin_delete_client(client_id: int, _auth = Depends(require_admin_or_manager)):
+def admin_delete_client(client_id: int, _auth = Depends(require_admin)):
     """Delete client."""
     db.delete_client(client_id)
     return {"ok": True}
@@ -3747,16 +3711,33 @@ class BulkDeleteClientsRequest(BaseModel):
     client_ids: list[int]
 
 @app.post("/admin/api/clients/bulk_delete")
-def admin_bulk_delete_clients(req: BulkDeleteClientsRequest, _auth = Depends(require_admin_or_manager)):
+def admin_bulk_delete_clients(req: BulkDeleteClientsRequest, _auth = Depends(require_admin)):
     """Delete multiple clients."""
     for cid in req.client_ids:
         db.delete_client(cid)
     return {"ok": True}
 
 @app.put("/admin/api/clients/{client_id}")
-def admin_update_client_details(client_id: int, req: ClientCreateRequest, _auth = Depends(require_admin_or_manager)):
-    """Update client basic details."""
-    db.edit_client_details(client_id, req.custom_data)
+def admin_update_client_details(client_id: int, req: ClientCreateRequest, user = Depends(get_current_user)):
+    """Update client basic details. A felelős-hozzárendelés (assigned_to/felelos)
+    admin-only — member mentésnél a meglévő értéket tartjuk meg (a mátrix:
+    profil szerkesztése membernek OK, felelős-hozzárendelés nem)."""
+    cd = dict(req.custom_data or {})
+    if user.get("role") not in ("admin", "superadmin"):
+        try:
+            existing = db.get_clients_by_ids([client_id])
+            if existing:
+                ecd = existing[0].get("custom_data") or {}
+                if isinstance(ecd, str):
+                    ecd = json.loads(ecd)
+                for k in ("assigned_to", "felelos"):
+                    if k in ecd:
+                        cd[k] = ecd[k]
+                    else:
+                        cd.pop(k, None)
+        except Exception as e:
+            logger.warning(f"Felelős-megőrzés member mentésnél sikertelen (client {client_id}): {e}")
+    db.edit_client_details(client_id, cd)
     return {"ok": True}
 
 class ClientFieldCreateRequest(BaseModel):
@@ -3772,19 +3753,19 @@ def admin_get_client_fields(username: str = Depends(verify_jwt)):
     return {"fields": db.get_client_fields()}
 
 @app.post("/admin/api/client_fields")
-def admin_add_client_field(req: ClientFieldCreateRequest, _admin = Depends(require_admin)):
+def admin_add_client_field(req: ClientFieldCreateRequest, _user = Depends(get_current_user)):
     success = db.add_client_field(req.id, req.name, req.order_index)
     if not success:
         raise HTTPException(status_code=400, detail="Field ID already exists")
     return {"ok": True}
 
 @app.put("/admin/api/client_fields/{field_id}")
-def admin_update_client_field(field_id: str, req: ClientFieldUpdateRequest, _admin = Depends(require_admin)):
+def admin_update_client_field(field_id: str, req: ClientFieldUpdateRequest, _user = Depends(get_current_user)):
     db.update_client_field(field_id, req.name)
     return {"ok": True}
 
 @app.delete("/admin/api/client_fields/{field_id}")
-def admin_delete_client_field(field_id: str, _admin = Depends(require_admin)):
+def admin_delete_client_field(field_id: str, _user = Depends(get_current_user)):
     db.delete_client_field(field_id)
     return {"ok": True}
 
@@ -4119,20 +4100,20 @@ def api_get_services(admin: dict = Depends(verify_jwt)):
     return db.get_services()
 
 @app.post("/admin/api/services")
-def api_post_services(svc: ServiceCreate, _auth = Depends(require_admin_or_manager)):
+def api_post_services(svc: ServiceCreate, _auth = Depends(require_admin)):
     new_id = db.add_service(svc.service_name, svc.duration_minutes, svc.description, svc.assigned_to, svc.note)
     if new_id:
         return {"ok": True, "id": new_id}
     raise HTTPException(status_code=500, detail="Hiba a létrehozáskor")
 
 @app.put("/admin/api/services/{srv_id}")
-def api_put_services(srv_id: int, svc: ServiceCreate, _auth = Depends(require_admin_or_manager)):
+def api_put_services(srv_id: int, svc: ServiceCreate, _auth = Depends(require_admin)):
     if db.update_service(srv_id, svc.service_name, svc.duration_minutes, svc.description, svc.assigned_to, svc.note):
         return {"ok": True}
     raise HTTPException(status_code=400, detail="Hiba a frissítéskor")
 
 @app.delete("/admin/api/services/{srv_id}")
-def api_delete_services(srv_id: int, _auth = Depends(require_admin_or_manager)):
+def api_delete_services(srv_id: int, _auth = Depends(require_admin)):
     if db.delete_service(srv_id):
         return {"ok": True}
     raise HTTPException(status_code=400, detail="Hiba a törléskor")
@@ -4638,7 +4619,7 @@ class SipCallRequest(BaseModel):
     client_name: str = ""  # Ügyfél neve (személyre szabáshoz)
 
 @app.post("/admin/api/sip/call")
-async def sip_outbound_call(req: SipCallRequest, _auth = Depends(require_admin_or_manager)):
+async def sip_outbound_call(req: SipCallRequest, _auth = Depends(require_admin)):
     """Kimenő SIP hívás indítása az AI agenttel — opcionális scripttel."""
     from livekit import api as lk_api_module
 
@@ -4736,7 +4717,7 @@ class DeleteApprovalsRequest(BaseModel):
     ids: list[int]
 
 @app.delete("/admin/api/approvals")
-def delete_approvals_api(req: DeleteApprovalsRequest, _auth = Depends(require_admin_or_manager)):
+def delete_approvals_api(req: DeleteApprovalsRequest, _auth = Depends(require_admin)):
     success = db.delete_approvals(req.ids)
     if success: return {"status": "success"}
     raise HTTPException(status_code=500, detail="Hiba a törlés során")
@@ -5071,13 +5052,13 @@ def get_clinics_api(admin: dict = Depends(verify_jwt)):
     return db.get_clinics()
 
 @app.post("/admin/api/clinics")
-def save_clinics_api(clinics: list[dict], _auth = Depends(require_admin_or_manager)):
+def save_clinics_api(clinics: list[dict], _auth = Depends(require_admin)):
     success = db.save_clinics(clinics)
     if success: return {"status": "ok"}
     raise HTTPException(status_code=500, detail="Failed to save clinics")
 
 @app.delete("/admin/api/clinics/{clinic_id}")
-def delete_clinic_api(clinic_id: int, _auth = Depends(require_admin_or_manager)):
+def delete_clinic_api(clinic_id: int, _auth = Depends(require_admin)):
     """Delete a single clinic by ID."""
     try:
         if db.supabase:
@@ -5251,7 +5232,7 @@ def get_campaigns_api(username: str = Depends(verify_jwt)):
     return {"campaigns": campaigns}
 
 @app.post("/admin/api/campaigns")
-def create_campaign_api(req: CampaignCreateRequest, _auth = Depends(require_admin_or_manager)):
+def create_campaign_api(req: CampaignCreateRequest, _user = Depends(get_current_user)):
     instructions = req.ai_instructions
     if req.subject:
         instructions = f"SUBJECT:{req.subject}|{instructions}"
@@ -5274,7 +5255,7 @@ def create_campaign_api(req: CampaignCreateRequest, _auth = Depends(require_admi
     raise HTTPException(status_code=500, detail="Kampány létrehozása sikertelen")
 
 @app.post("/admin/api/campaigns/{campaign_id}/start")
-async def start_campaign_api(campaign_id: int, _auth = Depends(require_admin_or_manager)):
+async def start_campaign_api(campaign_id: int, _auth = Depends(require_admin)):
     campaign = db.get_campaign(campaign_id)
     if not campaign:
         raise HTTPException(status_code=404, detail="Kampány nem található")
@@ -5317,7 +5298,7 @@ async def start_campaign_api(campaign_id: int, _auth = Depends(require_admin_or_
     return {"status": "success", "message": f"Kampány elindítva ({ch_str}) — {', '.join(msg_parts)}."}
 
 @app.post("/admin/api/campaigns/{campaign_id}/stop")
-def stop_campaign_api(campaign_id: int, _auth = Depends(require_admin_or_manager)):
+def stop_campaign_api(campaign_id: int, _auth = Depends(require_admin)):
     campaign = db.get_campaign(campaign_id)
     if not campaign:
         raise HTTPException(status_code=404, detail="Kampány nem található")
@@ -5325,7 +5306,7 @@ def stop_campaign_api(campaign_id: int, _auth = Depends(require_admin_or_manager
     return {"status": "success"}
 
 @app.post("/admin/api/campaigns/{campaign_id}/close")
-def close_campaign_api(campaign_id: int, _auth = Depends(require_admin_or_manager)):
+def close_campaign_api(campaign_id: int, _auth = Depends(require_admin)):
     campaign = db.get_campaign(campaign_id)
     if not campaign:
         raise HTTPException(status_code=404, detail="Kampány nem található")
@@ -5333,14 +5314,21 @@ def close_campaign_api(campaign_id: int, _auth = Depends(require_admin_or_manage
     return {"status": "success"}
 
 @app.delete("/admin/api/campaigns/{campaign_id}")
-def delete_campaign_api(campaign_id: int, _auth = Depends(require_admin_or_manager)):
+def delete_campaign_api(campaign_id: int, user = Depends(get_current_user)):
+    # Member csak tervezetet (Vázlat/Tervezet) törölhet — aktív/ütemezett/lezárt admin-only
+    if user.get("role") not in ("admin", "superadmin"):
+        campaign = db.get_campaign(campaign_id)
+        if not campaign:
+            raise HTTPException(status_code=404, detail="Kampány nem található")
+        if campaign.get("status") not in ("Vázlat", "Tervezet"):
+            raise HTTPException(status_code=403, detail="Csak tervezet kampány törölhető ezzel a jogosultsággal")
     success = db.delete_campaign(campaign_id)
     if success:
         return {"status": "success"}
     raise HTTPException(status_code=500, detail="Törlés sikertelen")
 
 @app.put("/admin/api/campaigns/{campaign_id}")
-async def update_campaign_content_api(campaign_id: int, request: Request, _auth = Depends(require_admin_or_manager)):
+async def update_campaign_content_api(campaign_id: int, request: Request, user = Depends(get_current_user)):
     """EAISY-241 §1.6.2 — Kampány üzenet + subject szerkesztése (csak Tervezet/Ütemezett)."""
     data = await request.json()
     ai_instructions = (data.get("ai_instructions") or "").strip()
@@ -5354,6 +5342,9 @@ async def update_campaign_content_api(campaign_id: int, request: Request, _auth 
     # Csak nem-indult kampányok szerkeszthetők
     if campaign.get("status") not in ("Vázlat", "Ütemezett", "Tervezet", "Megállítva"):
         raise HTTPException(status_code=409, detail="Csak tervezet/ütemezett/megállított kampány szerkeszthető")
+    # Member csak tervezetet szerkeszthet (ütemezett/megállított admin-only)
+    if user.get("role") not in ("admin", "superadmin") and campaign.get("status") not in ("Vázlat", "Tervezet"):
+        raise HTTPException(status_code=403, detail="Csak tervezet kampány szerkeszthető ezzel a jogosultsággal")
 
     success = db.update_campaign_content(campaign_id, ai_instructions, subject)
     if success:
@@ -5361,7 +5352,7 @@ async def update_campaign_content_api(campaign_id: int, request: Request, _auth 
     raise HTTPException(status_code=500, detail="Mentés sikertelen")
 
 @app.post("/admin/api/campaigns/{campaign_id}/schedule")
-async def schedule_campaign_api(campaign_id: int, request: Request, _auth = Depends(require_admin_or_manager)):
+async def schedule_campaign_api(campaign_id: int, request: Request, _auth = Depends(require_admin)):
     """Kampány ütemezése jövőbeli időpontra (campaigns tábla)."""
     data = await request.json()
     scheduled_at = data.get("scheduled_at")
@@ -5391,7 +5382,7 @@ async def schedule_campaign_api(campaign_id: int, request: Request, _auth = Depe
 
 
 @app.post("/admin/api/campaigns/generate_message")
-async def generate_campaign_message(request: Request, _auth = Depends(require_admin_or_manager)):
+async def generate_campaign_message(request: Request, _user = Depends(get_current_user)):
     """AI kampány varázsló — üzenet generálás Gemini-vel."""
     data = await request.json()
     brief = data.get("brief", "")
@@ -8517,7 +8508,7 @@ async def update_management_user(user_id: int, req: ManagementUserUpdateRequest,
         # 1. Role validation
         if req.role is not None:
             clean_role = req.role.strip().lower()
-            valid_roles = ["superadmin", "admin", "manager", "member"]
+            valid_roles = ["superadmin", "admin", "member"]
             if clean_role not in valid_roles:
                 raise HTTPException(status_code=400, detail=f"Érvénytelen szerepkör: {clean_role}. Lehetséges értékek: {', '.join(valid_roles)}")
 

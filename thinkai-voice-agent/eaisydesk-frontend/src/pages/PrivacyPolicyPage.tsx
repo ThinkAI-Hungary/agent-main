@@ -58,7 +58,7 @@ const sections = [
   },
   {
     title: '6. Adatbiztonság',
-    content: 'A rendszer az alábbi biztonsági intézkedéseket alkalmazza:\n• JWT token alapú hitelesítés\n• Munkamenet időtúllépés konfigurálható időközönként\n• Hozzáférési napló minden felhasználói műveletről\n• Jelszó-kivonat tárolás (bcrypt)\n• Szerepkör-alapú hozzáférés-vezérlés (admin, manager, member)',
+    content: 'A rendszer az alábbi biztonsági intézkedéseket alkalmazza:\n• JWT token alapú hitelesítés\n• Munkamenet időtúllépés konfigurálható időközönként\n• Hozzáférési napló minden felhasználói műveletről\n• Jelszó-kivonat tárolás (bcrypt)\n• Szerepkör-alapú hozzáférés-vezérlés (admin, member)',
   },
   {
     title: '7. Sütik (Cookie-k)',

@@ -10,7 +10,7 @@ import { useAuth } from '../context/AuthContext';
 import { useClients } from '../hooks/useClients';
 import { useSessions } from '../hooks/useSessions';
 import { useCalendarEvents, type CalendarEvent } from '../hooks/useCalendarEvents';
-import { parseCustomData, bestClientName, isAssignedToMe, type ClientRecord } from '../helpers/clientResolvers';
+import { parseCustomData, bestClientName, type ClientRecord } from '../helpers/clientResolvers';
 import { fmtDt, cleanStr, formatPhoneHu } from '../helpers/formatters';
 import { TagBadge } from '../components/ui/Badge';
 import { SALES_TAGS, getTagColor } from '../helpers/interactionClassifiers';

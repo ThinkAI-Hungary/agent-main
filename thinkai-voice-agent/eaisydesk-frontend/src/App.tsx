@@ -77,6 +77,20 @@ function TenantUserRoute({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+// AdminOnlyRoute: member ne nyithassa meg URL-ből sem (jogosultság-mátrix:
+// Tudástár és Automatikus értesítések admin-only — a menürejtés önmagában nem védelem)
+function AdminOnlyRoute({ children }: { children: React.ReactNode }) {
+  const { isSuperAdmin, user, impersonatedTenant } = useAuth();
+  if (!impersonatedTenant && (isSuperAdmin || user?.role === 'superadmin')) {
+    return <Navigate to="/management" replace />;
+  }
+  const isAdmin = user?.role === 'admin' || isSuperAdmin;
+  if (!isAdmin) {
+    return <Navigate to="/dashboard" replace />;
+  }
+  return <>{children}</>;
+}
+
 const PageLoader = () => (
   <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', height: '60vh' }}>
     <Spinner />
@@ -107,14 +121,14 @@ function AuthGate() {
         <Route element={<AppLayout />}>
           <Route index element={<SmartRedirect />} />
           <Route path="dashboard" element={<TenantUserRoute><MemberDashboardPage /></TenantUserRoute>} />
-          <Route path="analytics" element={<TenantUserRoute><AnalyticsPage /></TenantUserRoute>} />
+          <Route path="analytics" element={<AdminOnlyRoute><AnalyticsPage /></AdminOnlyRoute>} />
           <Route path="interactions" element={<TenantUserRoute><InteractionsPage /></TenantUserRoute>} />
           <Route path="clients" element={<TenantUserRoute><ClientsPage /></TenantUserRoute>} />
           <Route path="kanban" element={<TenantUserRoute><KanbanPage /></TenantUserRoute>} />
           <Route path="calendar" element={<TenantUserRoute><CalendarPage /></TenantUserRoute>} />
           <Route path="outbound" element={<TenantUserRoute><OutboundPage /></TenantUserRoute>} />
-          <Route path="automatizaciok" element={<TenantUserRoute><AutomatizaciokPage /></TenantUserRoute>} />
-          <Route path="settings/*" element={<TenantUserRoute><SettingsPage /></TenantUserRoute>} />
+          <Route path="automatizaciok" element={<AdminOnlyRoute><AutomatizaciokPage /></AdminOnlyRoute>} />
+          <Route path="settings/*" element={<AdminOnlyRoute><SettingsPage /></AdminOnlyRoute>} />
           <Route path="beallitasok" element={<TenantUserRoute><BeallitasokPage /></TenantUserRoute>} />
           <Route path="help" element={<HelpPage />} />
           <Route path="marketing/*" element={<TenantUserRoute><MarketingPage /></TenantUserRoute>} />

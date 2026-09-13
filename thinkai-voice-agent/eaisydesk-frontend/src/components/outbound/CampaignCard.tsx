@@ -25,6 +25,8 @@ interface Campaign {
 interface CampaignCardProps {
   campaign: Campaign;
   onOpenDetail: (campaign: Campaign) => void;
+  canManage?: boolean; // indítás/leállítás/ütemezés (admin-only)
+  canDelete?: boolean; // törlés engedélyezett-e ennél a kártyánál
   onStart: (id: number) => void;
   onStop: (id: number) => void;
   onClose: (id: number) => void;
@@ -40,6 +42,8 @@ function getInitials(name: string): string {
 const CampaignCard = memo(function CampaignCard({
   campaign: c,
   onOpenDetail,
+  canManage = true,
+  canDelete = true,
   onStart,
   onStop,
   onClose,
@@ -93,6 +97,8 @@ const CampaignCard = memo(function CampaignCard({
         <div className="camp-card-title">{c.name}</div>
         <CampaignMenu
           statusKey={statusKey}
+          canManage={canManage}
+          canDelete={canDelete}
           onStart={() => onStart(c.id)}
           onStop={() => onStop(c.id)}
           onClose={() => onClose(c.id)}
