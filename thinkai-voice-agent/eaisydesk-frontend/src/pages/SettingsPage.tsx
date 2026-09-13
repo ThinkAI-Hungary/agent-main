@@ -4,7 +4,7 @@
  * All reads/writes directly to Supabase.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate, useBlocker } from 'react-router-dom';
 import { authFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import CustomSelect from '../components/settings/CustomSelect';
@@ -185,6 +185,8 @@ export default function SettingsPage() {
   const [priceRows, setPriceRows] = useState<{ category: string; service: string; price: string; currency: string; note: string }[]>([]);
   const [priceSaving, setPriceSaving] = useState(false);
   const [lastSavedAt, setLastSavedAt] = useState<string>('');
+  // MOCKUP: dirty-tracking a kilépés-figyelmeztető modalhoz
+  const [dirty, setDirty] = useState(false);
 
   const openPriceModal = useCallback(() => {
     const pl = (business as Record<string, unknown>).price_list;
@@ -371,8 +373,15 @@ export default function SettingsPage() {
         body: JSON.stringify(business),
       });
       if (res.ok) {
-        showToast('Céginformációk mentve!', 'success');
-        setLastSavedAt(new Date().toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }));
+        showToast('Változtatások elmentve', 'success');
+        const data = await res.json().catch(() => ({}));
+        businessSavedRef.current = JSON.stringify(business);
+        setDirty(false);
+        setBusiness(prev => ({
+          ...prev,
+          updated_by: data.updated_by || prev.updated_by,
+          updated_at: new Date().toISOString(),
+        } as typeof prev));
       } else {
         showToast('Hiba a mentésnél', 'error');
       }
@@ -395,17 +404,43 @@ export default function SettingsPage() {
     }
   }, [loading]);
 
+  // MOCKUP-MODELL: a basic (Céginformációk) fül KÉZI mentésű — a debounced
+  // auto-save kikapcsolva, helyette a globális „Változtatások mentése" gomb +
+  // dirty-tracking + kilépés-figyelmeztető modal (a mockup szerint).
   useEffect(() => {
     if (!businessLoaded.current) return;
     const currentJson = JSON.stringify(business);
-    if (currentJson === businessSavedRef.current) return;
-    if (businessTimerRef.current) clearTimeout(businessTimerRef.current);
-    businessTimerRef.current = setTimeout(() => {
-      saveBusiness();
-      businessSavedRef.current = currentJson;
-    }, 1500);
-    return () => { if (businessTimerRef.current) clearTimeout(businessTimerRef.current); };
-  }, [business, saveBusiness]);
+    if (currentJson !== businessSavedRef.current) setDirty(true);
+  }, [business]);
+
+  // ── MOCKUP: lastmod szöveg a fejléchez ──
+  const HU_MONTHS = ['január', 'február', 'március', 'április', 'május', 'június', 'július', 'augusztus', 'szeptember', 'október', 'november', 'december'];
+  const lastModText = (() => {
+    const by = (business as Record<string, unknown>).updated_by as string | undefined;
+    const at = (business as Record<string, unknown>).updated_at as string | undefined;
+    if (!by && !at) return 'Még nem volt módosítás';
+    let dt = '';
+    if (at) {
+      try {
+        const d = new Date(at);
+        dt = ` ${d.getFullYear()}. ${HU_MONTHS[d.getMonth()]} ${d.getDate()}. ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+      } catch { dt = ''; }
+    }
+    return `Utolsó módosítás: ${by || '—'}${dt ? ',' + dt : ''}`;
+  })();
+
+  // ── MOCKUP: globális mentés (business info) ──
+  const saveAll = useCallback(() => { saveBusiness(); }, [saveBusiness]);
+
+  // ── MOCKUP: kilépés-figyelmeztető modal (nem mentett módosítás esetén) ──
+  const blocker = useBlocker(dirty);
+  useEffect(() => {
+    const onUnload = (e: BeforeUnloadEvent) => {
+      if (dirty) { e.preventDefault(); e.returnValue = ''; }
+    };
+    window.addEventListener('beforeunload', onUnload);
+    return () => window.removeEventListener('beforeunload', onUnload);
+  }, [dirty]);
 
   // ── Agent auto-save (debounced, only when data actually changed) ──
   const agentSavedRef = useRef<string>('');
@@ -654,111 +689,159 @@ export default function SettingsPage() {
         {/* ═══════════ CÉGINFORMÁCIÓK TAB ═══════════ */}
         {activeTab === 'basic' && (
           <div>
-            <div className="page-header" style={{ marginBottom: '16px' }}>
-              <div className="page-title">Cég- és szolgáltatásinformációk</div>
-            </div>
+            {/* ── Fejléc (mockup) ── */}
+            <header className="co-page-head">
+              <div>
+                <p className="co-crumb">Tudástár <b>/ Cég- és szolgáltatásinformációk</b></p>
+                <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.015em', lineHeight: 1.25, margin: 0 }}>Cég- és szolgáltatásinformációk</h1>
+                <p className="co-lastmod">
+                  <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
+                  <span>{lastModText}</span>
+                </p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <button className="beallitasok-save-btn" onClick={saveAll} aria-label={dirty ? 'Változtatások mentése (nem mentett módosítások)' : 'Változtatások mentése'}>
+                  <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
+                  Változtatások mentése
+                </button>
+              </div>
+            </header>
 
-            <div className="ih-save-row" style={{ marginBottom: '16px' }}>
-              <button className="beallitasok-save-btn" onClick={saveBusiness}>
-                Változtatások mentése
-              </button>
-            </div>
-
-            {/* Quick-nav pills */}
-            <div className="flex-row gap-8 mb-16 flex-wrap">
+            {/* ── Sticky mini-nav (mockup) ── */}
+            <nav className="co-mininav" aria-label="Szakasz navigáció">
               {[
-                { id: 'sec-cegadatok', label: 'Cégadatok' },
-                { id: 'sec-szolgaltatasok', label: 'Szolgáltatás leírása' },
-                { id: 'sec-nyitvatartas', label: 'Nyitvatartás' },
-                { id: 'sec-arak', label: 'Árak' },
-                { id: 'sec-kedvezmenyek', label: 'Kedvezmények' },
-                { id: 'sec-gyik', label: 'GYIK' },
+                { id: 'sec-cegadatok', label: 'Cégadatok', icon: 'M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2zM9 22V12h6v10' },
+                { id: 'sec-szolgaltatasok', label: 'Szolgáltatás leírása', icon: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8' },
+                { id: 'sec-nyitvatartas', label: 'Nyitvatartás', icon: 'M12 22a10 10 0 100-20 10 10 0 000 20zM12 7v5l3 2' },
+                { id: 'sec-arak', label: 'Árak', icon: 'M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82zM7 7h.01' },
+                { id: 'sec-kedvezmenyek', label: 'Kedvezmények', icon: 'M19 5L5 19M6.5 9A2.5 2.5 0 106.5 4 2.5 2.5 0 006.5 9zM17.5 20a2.5 2.5 0 100-5 2.5 2.5 0 000 5z' },
+                { id: 'sec-gyik', label: 'GYIK', icon: 'M12 22a10 10 0 100-20 10 10 0 000 20zM9.1 9a3 3 0 015.8 1c0 2-3 3-3 3M12 17h.01' },
               ].map(s => (
-                <button key={s.id} className="btn ci-pill-tab" onClick={() => document.getElementById(s.id)?.scrollIntoView({ behavior: 'smooth', block: 'start' })}
-                >{s.label}</button>
+                <button key={s.id} type="button" onClick={() => { const el = document.getElementById(s.id); if (el) { const top = el.getBoundingClientRect().top + window.pageYOffset - 70; window.scrollTo({ top, behavior: 'smooth' }); } }}>
+                  <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d={s.icon} /></svg>
+                  {s.label}
+                </button>
               ))}
-            </div>
+            </nav>
 
             {/* ══════ 1. Cégadatok ══════ */}
             <div id="sec-cegadatok" className="scroll-anchor" />
-            <SectionCard title="Cégadatok" svgPath="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2zM9 22V12h6v10" className="ci-card">
-              <div className="grid-2col gap-16 mb-20">
-                <LabelInput label="Cég neve" value={business.practice_name} onChange={v => setBusiness({ ...business, practice_name: v })} placeholder="pl. Rivergate Bútoráruház Kft." />
-                <LabelInput label="Cég rövid (hivatkozási) neve" value={business.markanev} onChange={v => setBusiness({ ...business, markanev: v })} placeholder="pl. Rivergate" />
-                <LabelInput label="Szakterület" value={business.szakterulet} onChange={v => setBusiness({ ...business, szakterulet: v })} placeholder="pl. IT tanácsadás, marketing" />
-                <LabelInput label="Fő profil" value={business.kulcsszavak} onChange={v => setBusiness({ ...business, kulcsszavak: v })} placeholder="pl. Bútor kis-és nagykereskedés" />
-              </div>
-              {/* Telephely column labels */}
-              <div className="settings-clinic-labels">
-                <span className="tt-label">Telephely</span>
-                <span className="tt-label">Megközelítés</span>
-                <span></span>
-              </div>
-              {clinics.map((c, i) => (
-                <div key={c.id || i} className="settings-clinic-row">
-                  <input className="tt-input" value={c.name_and_address} onChange={e => setClinics(prev => prev.map((x, j) => j === i ? { ...x, name_and_address: e.target.value } : x))} placeholder="Telephely / üzlet címe" onBlur={() => saveClinic(c, i)} />
-                  <input className="tt-input" value={c.access_info || ''} onChange={e => setClinics(prev => prev.map((x, j) => j === i ? { ...x, access_info: e.target.value } : x))} placeholder="Megközelítés (opcionális)" onBlur={() => saveClinic(c, i)} />
-                  <DeleteBtn onClick={() => deleteClinic(c.id, i)} />
+            <section className="co-section" id="sec-cegadatok">
+              <div className="co-sec-head">
+                <div>
+                  <div className="co-sec-title"><svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2zM9 22V12h6v10" /></svg>Cégadatok</div>
+                  <div className="co-sec-sub">A vállalkozás alapvető adatai</div>
                 </div>
-              ))}
-              <AddBtn label="Telephely hozzáadása" onClick={() => setClinics(prev => [...prev, { name_and_address: '', access_info: '' }])} />
-            </SectionCard>
+              </div>
+              <div className="co-sec-body">
+                <div className="co-grid">
+                  <label className="co-field"><span>Cég neve</span><input className="co-input" value={business.practice_name} onChange={e => setBusiness({ ...business, practice_name: e.target.value })} placeholder="pl. Rivergate Bútoráruház Kft." /></label>
+                  <label className="co-field"><span>Cég rövid (hivatkozási) neve</span><input className="co-input" value={business.markanev} onChange={e => setBusiness({ ...business, markanev: e.target.value })} placeholder="pl. Rivergate" /></label>
+                  <label className="co-field"><span>Szakterület</span><input className="co-input" value={business.szakterulet} onChange={e => setBusiness({ ...business, szakterulet: e.target.value })} placeholder="pl. IT tanácsadás, marketing" /></label>
+                  <label className="co-field"><span>Fő profil / specializáció</span><input className="co-input" value={business.kulcsszavak} onChange={e => setBusiness({ ...business, kulcsszavak: e.target.value })} placeholder="pl. Bútor kis-és nagykereskedés" /></label>
+                </div>
+                <div className="co-field" style={{ marginTop: 18 }}>
+                  <span>Telephelyek</span>
+                  <div className="co-list">
+                    {clinics.map((c, i) => (
+                      <div key={c.id || i} className="co-item">
+                        <div className="co-body loc-card">
+                          <div className="loc-row">
+                            <label className="co-field"><span>Telephely címe</span><input className="co-input" value={c.name_and_address} onChange={e => setClinics(prev => prev.map((x, j) => j === i ? { ...x, name_and_address: e.target.value } : x))} onBlur={() => saveClinic(c, i)} placeholder="Pl. 1051 Budapest, Kossuth tér 1." /></label>
+                            <label className="co-field"><span>Megközelítés</span><input className="co-input" value={c.access_info || ''} onChange={e => setClinics(prev => prev.map((x, j) => j === i ? { ...x, access_info: e.target.value } : x))} onBlur={() => saveClinic(c, i)} placeholder="Pl. metróval, parkolási lehetőséggel" /></label>
+                          </div>
+                        </div>
+                        <button className="co-del" type="button" aria-label="Telephely törlése" onClick={() => deleteClinic(c.id, i)}>
+                          <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" /></svg>
+                        </button>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+                <div className="co-sec-foot">
+                  <button className="co-add-row" type="button" onClick={() => setClinics(prev => [...prev, { name_and_address: '', access_info: '' }])}>
+                    <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    Telephely hozzáadása
+                  </button>
+                </div>
+              </div>
+            </section>
 
             {/* ══════ 2. Szolgáltatással kapcsolatos információk ══════ */}
             <div id="sec-szolgaltatasok" className="scroll-anchor" />
-            <div className="tt-section ci-desc-card">
-              <div className="tt-section-title mb-16">
-                <div className="icon-box">
-                  <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" /></svg>
-                </div>
-                Szolgáltatás leírása
-                <div className="settings-info-circle" title={"Mire használja az eaisyDesk?\n\nItt adható meg a cég működésének, kínálatának és fő profiljának rövid, összefüggő leírása. Az eaisyDesk ezt a szöveget háttérinformációként használja az általános érdeklődések megválaszolásához."}>
-                  <span className="settings-info-circle-i">i</span>
+            <section className="co-section" id="sec-szolgaltatasok">
+              <div className="co-sec-head">
+                <div>
+                  <div className="co-sec-title"><svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" /></svg>Szolgáltatás leírása</div>
+                  <div className="co-sec-sub">Bemutatkozó szöveg — az eaisyDesk háttérinformációként használja</div>
                 </div>
               </div>
-              <textarea className="tt-textarea" value={business.service_description || ''} onChange={e => setBusiness({ ...business, service_description: e.target.value })} placeholder="Írja le részletesen a cég fő szolgáltatásait..." />
-            </div>
+              <div className="co-sec-body">
+                <textarea className="co-textarea" value={business.service_description || ''} onChange={e => setBusiness({ ...business, service_description: e.target.value })} placeholder="Írd le röviden, mivel foglalkoztok, miben tudtok segíteni…" />
+              </div>
+            </section>
 
             {/* ══════ 3. Nyitvatartás ══════ */}
             <div id="sec-nyitvatartas" className="scroll-anchor" />
-            <SectionCard title="Nyitvatartás" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM12 6v6l4 2">
-              <table className="data-table">
-                <tbody>
-                  {DAY_KEYS.map((key, i) => {
-                    const raw = agent.business_hours[key] || { open: '08:00', close: '17:00', enabled: true };
-                    const bh = { open: raw.open || '', close: raw.close || '', enabled: !!raw.enabled };
-                    return (
-                      <tr key={key} className="int-row">
-                        <td className="int-td">{DAYS[i]}</td>
-                        <td className="int-td">
-                          <input type="time" value={bh.open} onChange={(e) => setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: { ...bh, open: e.target.value } } })} className="sett-time-input" disabled={!bh.enabled} />
-                        </td>
-                        <td className="int-td">
-                          <input type="time" value={bh.close} onChange={(e) => setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: { ...bh, close: e.target.value } } })} className="sett-time-input" disabled={!bh.enabled} />
-                        </td>
-                        <td className="int-td int-td--center">
-                          <label className="tt-toggle settings-toggle-inline">
-                            <input type="checkbox" checked={bh.enabled} onChange={(e) => {
-                              const newEnabled = e.target.checked;
-                              setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: {
-                                open: newEnabled && !bh.open ? '09:00' : bh.open,
-                                close: newEnabled && !bh.close ? '18:00' : bh.close,
-                                enabled: newEnabled,
-                              } } });
-                            }} />
-                            <span className="tt-toggle-slider" />
-                          </label>
-                        </td>
+            <section className="co-section" id="sec-nyitvatartas">
+              <div className="co-sec-head">
+                <div>
+                  <div className="co-sec-title"><svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>Nyitvatartás</div>
+                  <div className="co-sec-sub">Állítsd be az elérhetőség napjait és időpontjait</div>
+                </div>
+              </div>
+              <div className="co-sec-body">
+                <div className="co-table">
+                  <table>
+                    <thead>
+                      <tr>
+                        <th scope="col" style={{ width: 96 }}>Nap</th>
+                        <th scope="col" style={{ width: 74 }}>Nyitva</th>
+                        <th scope="col">Nyitás</th>
+                        <th scope="col">Zárás</th>
                       </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </SectionCard>
+                    </thead>
+                    <tbody>
+                      {DAY_KEYS.map((key, i) => {
+                        const raw = agent.business_hours[key] || { open: '08:00', close: '17:00', enabled: true };
+                        const bh = { open: raw.open || '', close: raw.close || '', enabled: !!raw.enabled };
+                        return (
+                          <tr key={key} className={bh.enabled ? '' : 'day-off'}>
+                            <th scope="row">{DAYS[i]}</th>
+                            <td>
+                              <label className="co-switch">
+                                <input type="checkbox" checked={bh.enabled} onChange={(e) => {
+                                  const newEnabled = e.target.checked;
+                                  setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: {
+                                    open: newEnabled && !bh.open ? '09:00' : bh.open,
+                                    close: newEnabled && !bh.close ? '18:00' : bh.close,
+                                    enabled: newEnabled,
+                                  } } });
+                                }} aria-label={`${DAYS[i]} nyitva`} />
+                                <span className="co-sw-track"><span className="co-sw-thumb" /></span>
+                              </label>
+                            </td>
+                            <td className="co-time"><input className="co-input" type="time" value={bh.open} onChange={(e) => setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: { ...bh, open: e.target.value } } })} aria-label={`${DAYS[i]} nyitás`} /></td>
+                            <td className="co-time"><input className="co-input" type="time" value={bh.close} onChange={(e) => setAgent({ ...agent, business_hours: { ...agent.business_hours, [key]: { ...bh, close: e.target.value } } })} aria-label={`${DAYS[i]} zárás`} /></td>
+                          </tr>
+                        );
+                      })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            </section>
 
             {/* ══════ 4. Árak ══════ */}
             <div id="sec-arak" className="scroll-anchor" />
-            <SectionCard title="Árak" svgPath="M12 2C6.48 2 2 4.02 2 6.5v11C2 19.98 6.48 22 12 22s10-2.02 10-4.5v-11C22 4.02 17.52 2 12 2zM2 11c0 2.48 4.48 4.5 10 4.5s10-2.02 10-4.5">
+            <section className="co-section" id="sec-arak">
+              <div className="co-sec-head">
+                <div>
+                  <div className="co-sec-title"><svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>Árak</div>
+                  <div className="co-sec-sub">A szolgáltatások árainak feltöltése</div>
+                </div>
+              </div>
+              <div className="co-sec-body">
 
               {(() => {
                 const pl = (business as Record<string, unknown>).price_list;
@@ -794,82 +877,118 @@ export default function SettingsPage() {
                   </>
                 );
               })()}
-            </SectionCard>
+              </div>
+            </section>
 
             {/* ══════ 5. Akciók, kedvezmények ══════ */}
             <div id="sec-kedvezmenyek" className="scroll-anchor" />
-            <SectionCard title="Akciók, kedvezmények" svgPath="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" className="ci-camp-card">
-
-              {(business.campaigns || []).map((c: { active: boolean; text: string, name?: string }, i: number) => (
-                <div key={i} className="campaign-card">
-                  <div className="campaign-card-header">
-                    <div className="campaign-card-title">KEDVEZMÉNY #{i + 1}</div>
-                    <label className="tt-toggle" style={{ margin: 0 }}>
-                      <input type="checkbox" checked={c.active !== false} onChange={e => { const campaigns = [...(business.campaigns || [])]; campaigns[i] = { ...campaigns[i], active: e.target.checked }; setBusiness({ ...business, campaigns }); }} />
-                      <span className="tt-toggle-slider" />
-                    </label>
-                  </div>
-                  <div className="campaign-card-body">
-                    <div className="campaign-field">
-                      <label className="campaign-label">Kedvezmény neve</label>
-                      <input className="tt-input" style={{ width: '100%' }} value={c.name || ''} onChange={e => { const campaigns = [...(business.campaigns || [])]; campaigns[i] = { ...campaigns[i], name: e.target.value }; setBusiness({ ...business, campaigns }); }} placeholder="pl. Nyári 10% akció" />
-                    </div>
-                    <div className="campaign-field mt-16">
-                      <label className="campaign-label">Kedvezmény leírása</label>
-                      <textarea className="tt-input" style={{ width: '100%', resize: 'vertical' }} value={c.text || ''} onChange={e => { const campaigns = [...(business.campaigns || [])]; campaigns[i] = { ...campaigns[i], text: e.target.value }; setBusiness({ ...business, campaigns }); }} placeholder="Írd ide a kedvezmény részleteit..." rows={3} />
-                    </div>
-                  </div>
-                  <div className="campaign-card-footer">
-                    <DeleteBtn onClick={() => { const campaigns = (business.campaigns || []).filter((_: unknown, j: number) => j !== i); setBusiness({ ...business, campaigns }); }} />
-                  </div>
+            <section className="co-section" id="sec-kedvezmenyek">
+              <div className="co-sec-head">
+                <div>
+                  <div className="co-sec-title"><svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><line x1="19" y1="5" x2="5" y2="19" /><circle cx="6.5" cy="6.5" r="2.5" /><circle cx="17.5" cy="17.5" r="2.5" /></svg>Kedvezmények</div>
+                  <div className="co-sec-sub">Aktuális akciók és kedvezmények</div>
                 </div>
-              ))}
-              <div className="mt-16">
-                <button
-                  className="campaign-add-btn"
-                  onClick={() => setBusiness({ ...business, campaigns: [...(business.campaigns || []), { active: true, name: '', text: '' }] })}
-                >
-                  + Kedvezmény hozzáadása
-                </button>
               </div>
-            </SectionCard>
+              <div className="co-sec-body">
+                <div className="co-list">
+                  {(business.campaigns || []).map((c: { active: boolean; text: string, name?: string }, i: number) => (
+                    <div key={i} className="co-item">
+                      <div className="co-body disc-card">
+                        <div className="disc-top">
+                          <label className="co-field" style={{ flex: 1 }}><span>Kedvezmény neve</span><input className="co-input" value={c.name || ''} onChange={e => { const campaigns = [...(business.campaigns || [])]; campaigns[i] = { ...campaigns[i], name: e.target.value }; setBusiness({ ...business, campaigns }); }} placeholder="pl. Nyári 10% akció" /></label>
+                          <span className="disc-toggle">Aktív
+                            <label className="co-switch">
+                              <input type="checkbox" checked={c.active !== false} onChange={e => { const campaigns = [...(business.campaigns || [])]; campaigns[i] = { ...campaigns[i], active: e.target.checked }; setBusiness({ ...business, campaigns }); }} aria-label="Kedvezmény aktív" />
+                              <span className="co-sw-track"><span className="co-sw-thumb" /></span>
+                            </label>
+                          </span>
+                        </div>
+                        <label className="co-field"><span>Leírás</span><textarea className="co-textarea" value={c.text || ''} onChange={e => { const campaigns = [...(business.campaigns || [])]; campaigns[i] = { ...campaigns[i], text: e.target.value }; setBusiness({ ...business, campaigns }); }} placeholder="Kedvezmény leírása…" /></label>
+                      </div>
+                      <button className="co-del" type="button" aria-label="Kedvezmény törlése" onClick={() => { const campaigns = (business.campaigns || []).filter((_: unknown, j: number) => j !== i); setBusiness({ ...business, campaigns }); }}>
+                        <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" /></svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="co-sec-foot">
+                  <button className="co-add-row" type="button" onClick={() => setBusiness({ ...business, campaigns: [...(business.campaigns || []), { active: true, name: '', text: '' }] })}>
+                    <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    Kedvezmény hozzáadása
+                  </button>
+                </div>
+              </div>
+            </section>
 
             {/* ══════ 6. Gyakori Kérdések ══════ */}
             <div id="sec-gyik" className="scroll-anchor" />
-            <SectionCard title="Gyakori Kérdések" svgPath="M12 2a10 10 0 100 20 10 10 0 000-20zM9.09 9a3 3 0 015.83 1c0 2-3 3-3 3M12 17h.01" className="ci-faq-card">
-              {(business.faq || []).length === 0 && (
-                <div className="settings-faq-empty">
-                  <svg fill="none" stroke="var(--text-muted)" strokeWidth="1.5" viewBox="0 0 24 24" width="36" height="36" className="settings-faq-empty-icon">
-                    <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" /><circle cx="12" cy="17" r="0.5" fill="currentColor" />
-                  </svg>
-                  <div className="settings-faq-empty-title">Még nincsenek gyakori kérdések hozzáadva</div>
-                  <div className="settings-faq-empty-sub">Kattints a „Kérdés hozzáadása" gombra az induláshoz</div>
+            <section className="co-section" id="sec-gyik">
+              <div className="co-sec-head">
+                <div>
+                  <div className="co-sec-title"><svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>Gyakori kérdések (GYIK)</div>
+                  <div className="co-sec-sub">A leggyakoribb kérdések és válaszok</div>
                 </div>
-              )}
-              <div className="flex-col gap-16">
-                {(business.faq || []).map((f: { question: string; answer: string }, i: number) => (
-                  <div key={i} className="faq-item-card">
-                    <div className="faq-item-header">
-                      <div className="faq-item-title">Kérdés-válasz #{i + 1}</div>
-                      <DeleteBtn onClick={() => { const faq = (business.faq || []).filter((_: unknown, j: number) => j !== i); setBusiness({ ...business, faq }); }} />
-                    </div>
-                    <div className="faq-2col">
-                      <div>
-                        <label className="tt-label">Kérdés</label>
-                        <textarea className="tt-textarea" value={f.question} onChange={e => { const faq = [...(business.faq || [])]; faq[i] = { ...faq[i], question: e.target.value }; setBusiness({ ...business, faq }); }} placeholder="Írd be a kérdést..." rows={3} />
-                      </div>
-                      <div>
-                        <label className="tt-label">Válasz</label>
-                        <textarea className="tt-textarea" value={f.answer} onChange={e => { const faq = [...(business.faq || [])]; faq[i] = { ...faq[i], answer: e.target.value }; setBusiness({ ...business, faq }); }} placeholder="Írd be a választ..." rows={3} />
-                      </div>
-                    </div>
+              </div>
+              <div className="co-sec-body">
+                {(business.faq || []).length === 0 && (
+                  <div className="settings-faq-empty">
+                    <svg fill="none" stroke="var(--text-muted)" strokeWidth="1.5" viewBox="0 0 24 24" width="36" height="36" className="settings-faq-empty-icon">
+                      <circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" /><circle cx="12" cy="17" r="0.5" fill="currentColor" />
+                    </svg>
+                    <div className="settings-faq-empty-title">Még nincsenek gyakori kérdések hozzáadva</div>
+                    <div className="settings-faq-empty-sub">Kattints a „Gyakori kérdés hozzáadása" gombra az induláshoz</div>
                   </div>
-                ))}
+                )}
+                <div className="co-list">
+                  {(business.faq || []).map((f: { question: string; answer: string }, i: number) => (
+                    <div key={i} className="co-item">
+                      <div className="co-body">
+                        <div className="co-faq-grid">
+                          <label className="co-field"><span>Kérdés</span><textarea className="co-textarea" value={f.question} onChange={e => { const faq = [...(business.faq || [])]; faq[i] = { ...faq[i], question: e.target.value }; setBusiness({ ...business, faq }); }} placeholder="Kérdés…" /></label>
+                          <label className="co-field"><span>Válasz</span><textarea className="co-textarea" value={f.answer} onChange={e => { const faq = [...(business.faq || [])]; faq[i] = { ...faq[i], answer: e.target.value }; setBusiness({ ...business, faq }); }} placeholder="Válasz…" /></label>
+                        </div>
+                      </div>
+                      <button className="co-del" type="button" aria-label="Kérdés törlése" onClick={() => { const faq = (business.faq || []).filter((_: unknown, j: number) => j !== i); setBusiness({ ...business, faq }); }}>
+                        <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6M14 11v6M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2" /></svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+                <div className="co-sec-foot">
+                  <button className="co-add-row" type="button" onClick={() => setBusiness({ ...business, faq: [...(business.faq || []), { question: '', answer: '' }] })}>
+                    <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" viewBox="0 0 24 24"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
+                    Gyakori kérdés hozzáadása
+                  </button>
+                </div>
               </div>
-              <div style={{ paddingTop: '20px' }}>
-                <AddBtn label="Kérdés hozzáadása" onClick={() => setBusiness({ ...business, faq: [...(business.faq || []), { question: '', answer: '' }] })} />
+            </section>
+
+            {/* ── Alsó globális mentés (mockup page-foot) ── */}
+            <div style={{ display: 'flex', justifyContent: 'flex-end', marginTop: 16 }}>
+              <button className="beallitasok-save-btn" onClick={saveAll}>
+                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
+                Változtatások mentése
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* ── Kilépés-figyelmeztető modal (nem mentett módosítás — mockup) ── */}
+        {blocker.state === 'blocked' && (
+          <div className="pe-overlay" role="alertdialog" aria-modal="true" aria-labelledby="exitWarnTitle">
+            <div className="pe-warn">
+              <div className="pe-warn-body">
+                <div className="pe-warn-icon">
+                  <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="20" height="20"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                </div>
+                <h3 className="pe-warn-title" id="exitWarnTitle">Menti a változtatásokat?</h3>
+                <p className="pe-warn-text">Nem mentett módosításai vannak. Ha kilép mentés nélkül, a módosítások elvesznek.</p>
               </div>
-            </SectionCard>
+              <div className="pe-warn-foot">
+                <button className="btn btn-ghost" onClick={() => { setDirty(false); blocker.proceed?.(); }}>Módosítások elvetése</button>
+                <button className="beallitasok-save-btn" onClick={() => { saveBusiness(); setTimeout(() => blocker.proceed?.(), 400); }}>Mentés és kilépés</button>
+              </div>
+            </div>
           </div>
         )}
 

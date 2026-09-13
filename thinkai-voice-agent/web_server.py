@@ -4163,10 +4163,16 @@ async def save_business_info(payload: BusinessInfoSaveRequest, _admin = Depends(
         "sender_name": payload.sender_name,
         "sender_email": payload.sender_email,
     }
+    # Utolsó módosítás (ki + mikor) — a mockup fejléc-jelzéséhez
+    try:
+        user_record = db.get_admin_user_by_username(_admin.get("username", "")) or {}
+        data["updated_by"] = (user_record.get("full_name") or _admin.get("username") or "").strip()
+    except Exception:
+        data["updated_by"] = (_admin.get("username") or "").strip()
     ok = db.update_business_info(data)
     if not ok:
         raise HTTPException(status_code=500, detail="Nem sikerült menteni a céginformációt.")
-    return {"ok": True, "message": "Céginformáció elmentve."}
+    return {"ok": True, "message": "Céginformáció elmentve.", "updated_by": data.get("updated_by")}
 
 
 # ── Credential management (per-tenant API keys) ──────────────────────────────
