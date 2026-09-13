@@ -4,7 +4,7 @@
  * All reads/writes directly to Supabase.
  */
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { useLocation, useNavigate, useBlocker } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import { authFetch } from '../api/client';
 import { useAuth } from '../context/AuthContext';
 import CustomSelect from '../components/settings/CustomSelect';
@@ -433,7 +433,11 @@ export default function SettingsPage() {
   const saveAll = useCallback(() => { saveBusiness(); }, [saveBusiness]);
 
   // ── MOCKUP: kilépés-figyelmeztető modal (nem mentett módosítás esetén) ──
-  const blocker = useBlocker(dirty);
+  // HOT FIX: a useBlocker csak data-routerrel (createBrowserRouter) működik —
+  // az app <BrowserRouter>-t használ, ezért a hook eldobta az oldalt. A
+  // figyelmeztetés ezért a böngészős beforeunloadra korlátozódik (oldalújratöltés/
+  // bezárás/új lap nyitás). Az SPA-belső navigációs blokk külön tétel
+  // (data-router migráció nélkül nem blokkolható).
   useEffect(() => {
     const onUnload = (e: BeforeUnloadEvent) => {
       if (dirty) { e.preventDefault(); e.returnValue = ''; }
@@ -974,7 +978,9 @@ export default function SettingsPage() {
         )}
 
         {/* ── Kilépés-figyelmeztető modal (nem mentett módosítás — mockup) ── */}
-        {blocker.state === 'blocked' && (
+        {/* HOT FIX: a modal csak a data-routeres blokkoló beépülése után jelenik meg;
+             a böngészős beforeunload-védelem (fenti effect) ezalatt is él */}
+        {false && (
           <div className="pe-overlay" role="alertdialog" aria-modal="true" aria-labelledby="exitWarnTitle">
             <div className="pe-warn">
               <div className="pe-warn-body">
@@ -985,8 +991,8 @@ export default function SettingsPage() {
                 <p className="pe-warn-text">Nem mentett módosításai vannak. Ha kilép mentés nélkül, a módosítások elvesznek.</p>
               </div>
               <div className="pe-warn-foot">
-                <button className="btn btn-ghost" onClick={() => { setDirty(false); blocker.proceed?.(); }}>Módosítások elvetése</button>
-                <button className="beallitasok-save-btn" onClick={() => { saveBusiness(); setTimeout(() => blocker.proceed?.(), 400); }}>Mentés és kilépés</button>
+                <button className="btn btn-ghost" onClick={() => setDirty(false)}>Módosítások elvetése</button>
+                <button className="beallitasok-save-btn" onClick={() => saveBusiness()}>Mentés és kilépés</button>
               </div>
             </div>
           </div>
