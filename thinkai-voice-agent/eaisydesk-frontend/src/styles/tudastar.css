@@ -624,6 +624,25 @@ select.co-input { cursor: pointer; }
 .co-add-row .ic { width: 15px; height: 15px; }
 .co-sec-foot { display: flex; align-items: center; justify-content: space-between; gap: 12px; margin-top: 14px; flex-wrap: wrap; }
 
+/* ── Szabályok oldal (co-design kiegészítések) ── */
+.co-sub { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text, #000); margin: 22px 0 10px; }
+.co-sub:first-child { margin-top: 0; }
+.co-sub .ic-tile {
+  width: 14px; height: 14px; color: var(--cp-a2, #186d98); flex: none; box-sizing: content-box;
+  padding: 5px; background: color-mix(in srgb, var(--accent, #1ceee0) 18%, var(--card, #fff)); border-radius: 8px;
+}
+.co-rule-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 12px;
+  padding: 10px 12px; border: 1px solid var(--border, #dbdbdb); border-radius: 8px;
+  background: var(--card, #fff); margin-bottom: 8px;
+}
+.co-rule-name { font-size: 13px; color: var(--text, #000); }
+.co-rule-tag {
+  flex: none; font-size: 12px; font-weight: 600; padding: 4px 10px; border-radius: 999px;
+  background: var(--surface, #f5f5f5); color: var(--cp-a2, #186d98); border: 1px solid var(--border, #dbdbdb);
+}
+.co-rule-tag--urgent { background: var(--error-bg, #fff2f0); color: var(--error-active, #d9363d); border-color: var(--error-border, #ffccc7); }
+
 .loc-card, .disc-card { border: 1px solid var(--border, #dbdbdb); border-radius: 8px; padding: 12px; background: var(--card, #fff); }
 .loc-card .loc-row { display: flex; flex-direction: column; gap: 10px; }
 .disc-card { display: flex; flex-direction: column; gap: 10px; }

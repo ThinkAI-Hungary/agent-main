@@ -650,28 +650,21 @@ export default function SettingsPage() {
                     <tr>
                       <th className="sett-th sett-th--w30">Ügytípus</th>
                       <th className="sett-th sett-th--w30">eaisyDesk eljárás</th>
-                      <th className="sett-th sett-th--w40">Értesítendő</th>
                     </tr>
                   </thead>
                   <tbody>
+                    {/* Értesítendő (escalation_email) oszlop megszűnt 2026-09-13 — a funkció sosem volt bekötve */}
                     {triageRules.map((r, i) => (
                       <tr key={i} className="int-row">
                         <td className="int-td">
                           <span className="font-medium text-md">{r.situation}</span>
                         </td>
                         <td className="int-td">
-                          <select className="tt-select" value={r.priority} onChange={e => { const updated = { ...r, priority: e.target.value, escalation_email: e.target.value === 'onallo' ? '' : r.escalation_email }; setTriageRules(prev => prev.map((x, j) => j === i ? updated : x)); saveTriageRule(updated, i); }}>
+                          <select className="tt-select" value={r.priority} onChange={e => { const updated = { ...r, priority: e.target.value }; setTriageRules(prev => prev.map((x, j) => j === i ? updated : x)); saveTriageRule(updated, i); }}>
                             <option value="onallo">Önállóan kezelhető</option>
                             <option value="jovahagyas">Jóváhagyást igényel</option>
                             <option value="ember">Embernek továbbítandó</option>
                           </select>
-                        </td>
-                        <td className="int-td">
-                          {r.priority === 'onallo' ? (
-                            <span className="text-desc" style={{ opacity: 0.5 }}>Nincs értesítés</span>
-                          ) : (
-                            <input className="tt-input" value={r.escalation_email || ''} onChange={e => setTriageRules(prev => prev.map((x, j) => j === i ? { ...x, escalation_email: e.target.value } : x))} placeholder="Alapértelmezett cím" onBlur={() => saveTriageRule(r, i)} />
-                          )}
                         </td>
                       </tr>
                     ))}
@@ -1001,53 +994,52 @@ export default function SettingsPage() {
         {/* ═══════════ SZABÁLYOK TAB ═══════════ */}
         {activeTab === 'szabalyok' && (
           <div>
-            <div className="page-header">
-              <div className="page-title">Ügykezelési és foglalási szabályok</div>
-            </div>
+            {/* ── Fejléc (céginfo-minta: crumb + utolsó módosítás + mentés CTA) ── */}
+            <header className="co-page-head">
+              <div>
+                <p className="co-crumb">Tudástár <b>/ Ügykezelési és foglalási szabályok</b></p>
+                <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.015em', lineHeight: 1.25, margin: 0 }}>Ügykezelési és foglalási szabályok</h1>
+                <p className="co-lastmod">
+                  <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
+                  <span>{lastModText}</span>
+                </p>
+              </div>
+              <div style={{ display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap' }}>
+                <button className="beallitasok-save-btn" onClick={saveAll} aria-label={dirty ? 'Változtatások mentése (nem mentett módosítások)' : 'Változtatások mentése'}>
+                  <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
+                  Változtatások mentése
+                </button>
+              </div>
+            </header>
 
             {/* ── ÜGYKEZELÉSI SZABÁLYOK ── */}
             <IssueHandlingRulesSection />
 
             {/* ── FOGLALÁSI SZABÁLYOK ── */}
-            <div className="tt-section br-card" style={{ marginTop: 32 }}>
-              <div className="tt-section-title mb-16">
-                <div className="icon-box">
-                  <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
-                    <rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><path d="M16 2v4M8 2v4M3 10h18" />
-                  </svg>
+            <section className="co-section">
+              <div className="co-sec-head">
+                <div>
+                  <div className="co-sec-title"><svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="18" rx="2" ry="2" /><path d="M16 2v4M8 2v4M3 10h18" /></svg>Foglalási szabályok</div>
+                  <div className="co-sec-sub">Új és visszatérő ügyfelek, foglalható szolgáltatások, kivételek, módosítás/lemondás</div>
                 </div>
-                Foglalási szabályok
               </div>
 
-              <div className="br-section-inner">
+              <div className="co-sec-body">
 
               {/* § 1. Új és visszatérő ügyfelek kezelése */}
-              <div className="ih-subsection-title">
-                <div className="ih-subsection-icon">
-                  <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></svg>
-                </div>
+              <div className="co-sub">
+                <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></svg>
                 Új és visszatérő ügyfelek kezelése
               </div>
-              <div className="mb-12">
-                <label className="tt-label">Új ügyfelek beazonosítását szolgáló kérdés</label>
-                <input className="tt-input" value={business.pacient_id_question || ''} onChange={e => setBusiness({ ...business, pacient_id_question: e.target.value })} placeholder="pl. Járt már nálunk korábban?" />
-              </div>
-              <div className="br-clients-2col">
-                <div>
-                  <label className="tt-label">Új ügyféltől bekérendő adat</label>
-                  <input className="tt-input" value={business.new_patient_required || ''} onChange={e => setBusiness({ ...business, new_patient_required: e.target.value })} placeholder="pl. Név, email cím" />
-                </div>
-                <div>
-                  <label className="tt-label">Visszatérő ügyféltől bekérendő adat</label>
-                  <input className="tt-input" value={business.returning_patient_required || ''} onChange={e => setBusiness({ ...business, returning_patient_required: e.target.value })} placeholder="pl. Név, születési év" />
-                </div>
+              <div className="co-grid">
+                <label className="co-field full"><span>Új ügyfelek beazonosítását szolgáló kérdés</span><input className="co-input" value={business.pacient_id_question || ''} onChange={e => setBusiness({ ...business, pacient_id_question: e.target.value })} placeholder="pl. Járt már nálunk korábban?" /></label>
+                <label className="co-field"><span>Új ügyféltől bekérendő adat</span><input className="co-input" value={business.new_patient_required || ''} onChange={e => setBusiness({ ...business, new_patient_required: e.target.value })} placeholder="pl. Név, email cím" /></label>
+                <label className="co-field"><span>Visszatérő ügyféltől bekérendő adat</span><input className="co-input" value={business.returning_patient_required || ''} onChange={e => setBusiness({ ...business, returning_patient_required: e.target.value })} placeholder="pl. Név, születési év" /></label>
               </div>
 
               {/* § 2. Foglalható szolgáltatások, kollégák */}
-              <div className="ih-subsection-title">
-                <div className="ih-subsection-icon">
-                  <svg viewBox="0 0 24 24"><path d="M2 7h20v14a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" /></svg>
-                </div>
+              <div className="co-sub">
+                <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M2 7h20v14a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" /></svg>
                 Foglalható szolgáltatások, kollégák
               </div>
               <div className="br-col-labels-4">
@@ -1056,84 +1048,72 @@ export default function SettingsPage() {
                 <span className="ih-col-label">Időtartam (perc)</span>
                 <span className="ih-col-label">Kolléga</span>
               </div>
-              {services.map((s, i) => (
-                <div key={s.id || i} className="sett-list-item">
-                  <div className="br-grid-4col flex-1">
-                    <input className="tt-input" value={s.service_name} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, service_name: e.target.value } : x))} placeholder="Szolgáltatás neve" onBlur={() => saveService(s, i)} />
-                    <input className="tt-input" value={s.description || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder="Leírás" onBlur={() => saveService(s, i)} />
-                    <input className="tt-input" type="number" value={s.duration_minutes} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, duration_minutes: Number(e.target.value) } : x))} placeholder="Perc" onBlur={() => saveService(s, i)} />
-                    <input className="tt-input" value={s.assigned_to || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, assigned_to: e.target.value } : x))} placeholder="Kolléga" onBlur={() => saveService(s, i)} />
+              <div className="co-list">
+                {services.map((s, i) => (
+                  <div key={s.id || i} className="co-item">
+                    <div className="co-body br-grid-4col">
+                      <input className="co-input" value={s.service_name} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, service_name: e.target.value } : x))} placeholder="Szolgáltatás neve" onBlur={() => saveService(s, i)} />
+                      <input className="co-input" value={s.description || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder="Leírás" onBlur={() => saveService(s, i)} />
+                      <input className="co-input" type="number" value={s.duration_minutes} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, duration_minutes: Number(e.target.value) } : x))} placeholder="Perc" onBlur={() => saveService(s, i)} />
+                      <input className="co-input" value={s.assigned_to || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, assigned_to: e.target.value } : x))} placeholder="Kolléga" onBlur={() => saveService(s, i)} />
+                    </div>
+                    <button className="co-del" type="button" aria-label="Szolgáltatás törlése" onClick={() => deleteService(s.id, i)}>
+                      <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" /></svg>
+                    </button>
                   </div>
-                  <DeleteBtn onClick={() => deleteService(s.id, i)} />
-                </div>
-              ))}
-              <AddBtn label="Szolgáltatás hozzáadása" onClick={() => setServices(prev => [...prev, { service_name: '', description: '', duration_minutes: 30, assigned_to: '', note: '' }])} />
+                ))}
+              </div>
+              <div className="co-sec-foot">
+                <button className="co-add-row" type="button" onClick={() => setServices(prev => [...prev, { service_name: '', description: '', duration_minutes: 30, assigned_to: '', note: '' }])}>
+                  <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                  Szolgáltatás hozzáadása
+                </button>
+              </div>
 
               {/* § 3. Kivételek kezelése */}
-              <div className="ih-subsection-title">
-                <div className="ih-subsection-icon">
-                  <svg viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" /></svg>
-                </div>
+              <div className="co-sub">
+                <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-2-2zM12 9v4M12 17h.01" /></svg>
                 Kivételek kezelése
               </div>
-              {(business.exceptions || []).map((ex: string, i: number) => (
-                <div key={i} className="sett-list-item sett-list-item--mb6">
-                  <input className="tt-input flex-1" value={ex} onChange={e => { const exceptions = [...(business.exceptions || [])]; exceptions[i] = e.target.value; setBusiness({ ...business, exceptions }); }} placeholder="Kivétel leírása..." />
-                  <DeleteBtn onClick={() => { const exceptions = (business.exceptions || []).filter((_: string, j: number) => j !== i); setBusiness({ ...business, exceptions }); }} />
-                </div>
-              ))}
-              <AddBtn label="Kivétel hozzáadása" onClick={() => setBusiness({ ...business, exceptions: [...(business.exceptions || []), ''] })} />
+              <div className="co-list">
+                {(business.exceptions || []).map((ex: string, i: number) => (
+                  <div key={i} className="co-item">
+                    <div className="co-body">
+                      <input className="co-input" value={ex} onChange={e => { const exceptions = [...(business.exceptions || [])]; exceptions[i] = e.target.value; setBusiness({ ...business, exceptions }); }} placeholder="Kivétel leírása..." />
+                    </div>
+                    <button className="co-del" type="button" aria-label="Kivétel törlése" onClick={() => { const exceptions = (business.exceptions || []).filter((_: string, j: number) => j !== i); setBusiness({ ...business, exceptions }); }}>
+                      <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" /></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="co-sec-foot">
+                <button className="co-add-row" type="button" onClick={() => setBusiness({ ...business, exceptions: [...(business.exceptions || []), ''] })}>
+                  <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                  Kivétel hozzáadása
+                </button>
+              </div>
 
-              {/* § 4. Időpont módosítása és lemondása */}
-              <div className="ih-subsection-title">
-                <div className="ih-subsection-icon">
-                  <svg viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM15 9l-6 6M9 9l6 6" /></svg>
-                </div>
+              {/* § 4. Időpont módosítása és lemondása — NINCS eljárás-dropdown
+                  (user-döntés 2026-09-13): a két szabad-szöveges mező tartalma
+                  vezérli a promptot (backend: _format_cancellation_policy). */}
+              <div className="co-sub">
+                <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM15 9l-6 6M9 9l6 6" /></svg>
                 Időpont módosítása és lemondása
               </div>
-
-              {/* Column labels */}
-              <div className="ih-col-labels ih-col-labels-2">
-                <span className="ih-col-label">Ügytípus</span>
-                <span className="ih-col-label">eaisyDesk eljárás</span>
-              </div>
-
-              {/* Row 1: Időpont módosítása / lemondása */}
-              <div className="ih-row ih-row-2">
-                <div className="ih-readonly">Időpont módosítása / lemondása</div>
-                <select className="tt-select" value={(() => { const v = business.modositas_eng; if (v === 'igen') return 'onalloKezeles'; if (v === 'nem') return 'handoff'; return v || 'onalloKezeles'; })()} onChange={e => setBusiness({ ...business, modositas_eng: e.target.value })}>
-                  <option value="onalloKezeles">Önállóan kezelheti</option>
-                  <option value="handoff">Átadás embernek</option>
-                  <option value="urgent">Sürgős átadás embernek</option>
-                </select>
-              </div>
-
-              {/* Modification policy textarea — only when enabled */}
-              {(() => { const v = business.modositas_eng; return v === 'igen' || v === 'onalloKezeles'; })() && (
-                <div className="mt-16">
-                  <label className="tt-label">Tájékoztató szöveg időpont módosítás esetén</label>
-                  <textarea className="tt-textarea" value={business.modositas_szoveg || ''} onChange={e => setBusiness({ ...business, modositas_szoveg: e.target.value })} placeholder="pl. Időpont módosítására az időpont előtti 48 órával van lehetőség." />
-                </div>
-              )}
-
-              {/* Row 2: 24 órán belüli */}
-              <div className="ih-row ih-row-2" style={{ marginBottom: 0 }}>
-                <div className="ih-readonly">24 órán belüli módosítás / lemondás kezelése</div>
-                <select className="tt-select" value={(() => { const v = business.lemondas_24h; if (v === 'elfogadhato' || v === 'figyelmeztetoSzoveggel') return 'onalloKezeles'; if (v === 'eloAtadas') return 'handoff'; return v || 'onalloKezeles'; })()} onChange={e => setBusiness({ ...business, lemondas_24h: e.target.value })}>
-                  <option value="onalloKezeles">Önállóan kezelheti</option>
-                  <option value="handoff">Átadás embernek</option>
-                  <option value="urgent">Sürgős átadás embernek</option>
-                </select>
-              </div>
-
-              {/* Warning textarea — always visible */}
-              <div className="mt-16">
-                <label className="tt-label">Figyelmeztetés 24 órán belüli módosítás / lemondás esetén</label>
-                <textarea className="tt-textarea" value={business.figyelmezteto_szoveg || ''} onChange={e => setBusiness({ ...business, figyelmezteto_szoveg: e.target.value })} placeholder="Tájékoztatjuk, hogy 24 órán belül történő lemondás vagy módosítás esetén rendelőnk rendelkezésre állási díjat számíthat fel." />
+              <div className="co-grid">
+                <label className="co-field full">
+                  <span>Tájékoztató szöveg időpont módosítás esetén</span>
+                  <textarea className="co-textarea" value={business.modositas_szoveg || ''} onChange={e => setBusiness({ ...business, modositas_szoveg: e.target.value })} placeholder="pl. Időpont módosítására az időpont előtti 48 órával van lehetőség." />
+                </label>
+                <label className="co-field full">
+                  <span>Figyelmeztetés 24 órán belüli módosítás / lemondás esetén</span>
+                  <textarea className="co-textarea" value={business.figyelmezteto_szoveg || ''} onChange={e => setBusiness({ ...business, figyelmezteto_szoveg: e.target.value })} placeholder="Tájékoztatjuk, hogy 24 órán belül történő lemondás vagy módosítás esetén rendelőnk rendelkezésre állási díjat számíthat fel." />
+                </label>
               </div>
 
               </div>
-            </div>
+            </section>
 
 
 
@@ -1299,31 +1279,22 @@ function IssueHandlingRulesSection() {
   };
 
   return (
-    <>
-      {/* Save button row */}
-      <div className="ih-save-row">
+    <section className="co-section">
+      <div className="co-sec-head">
+        <div>
+          <div className="co-sec-title"><svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" /></svg>Ügykezelési szabályok</div>
+          <div className="co-sec-sub">Melyik ügytípust kezelheti az eaisyDesk önállóan, és mit ad tovább embernek</div>
+        </div>
         <button className="beallitasok-save-btn" onClick={handleSave} disabled={saving}>
+          <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15"><path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
           {saving ? 'Mentés…' : 'Változtatások mentése'}
         </button>
       </div>
 
-      <div className="tt-section ih-card">
-        {/* ── Card title row ── */}
-        <div className="tt-section-title mb-16">
-          <div className="icon-box">
-            <svg fill="none" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
-              <path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8zM14 2v6h6M16 13H8M16 17H8M10 9H8" />
-            </svg>
-          </div>
-          Ügykezelési szabályok
-        </div>
-
-        <div className="ih-section-inner">
+      <div className="co-sec-body">
         {/* ══════ § 1. Alapértelmezett szabályok ══════ */}
-        <div className="ih-subsection-title">
-          <div className="ih-subsection-icon">
-            <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
-          </div>
+        <div className="co-sub">
+          <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
           Alapértelmezett szabályok
           <InfoIcon onClick={() => toggleInfo('defaults')} />
         </div>
@@ -1335,44 +1306,18 @@ function IssueHandlingRulesSection() {
           />
         )}
 
-        {/* Column labels */}
-        <div className="ih-col-labels ih-col-labels-3">
-          <span className="ih-col-label">Ügytípus</span>
-          <span className="ih-col-label">eaisyDesk eljárás</span>
-          <span className="ih-col-label">Értesítendő</span>
+        <div className="co-rule-row">
+          <span className="co-rule-name">Adminisztratív, vagy fizikai akciót kívánó kérés, igény</span>
+          <span className="co-rule-tag">Átadás embernek</span>
         </div>
-
-        {/* Row 1: Adminisztratív → Átadás embernek */}
-        <div className="ih-row ih-row-3">
-          <div className="ih-readonly">Adminisztratív, vagy fizikai akciót kívánó kérés, igény</div>
-          <div className="ih-readonly">Átadás embernek</div>
-          <input
-            className="tt-input"
-            type="text"
-            value={state.defaultRequestNotify}
-            onChange={e => setState(prev => ({ ...prev, defaultRequestNotify: e.target.value }))}
-            placeholder="pl. vezeto@klinika.hu"
-          />
-        </div>
-
-        {/* Row 2: Reklamáció → Sürgős átadás embernek */}
-        <div className="ih-row ih-row-3" style={{ marginBottom: 0 }}>
-          <div className="ih-readonly">Reklamáció, hiba, elégedetlenség, sérelem, konfliktus</div>
-          <div className="ih-readonly">Sürgős átadás embernek</div>
-          <input
-            className="tt-input"
-            type="text"
-            value={state.defaultComplaintNotify}
-            onChange={e => setState(prev => ({ ...prev, defaultComplaintNotify: e.target.value }))}
-            placeholder="pl. vezeto@klinika.hu"
-          />
+        <div className="co-rule-row">
+          <span className="co-rule-name">Reklamáció, hiba, elégedetlenség, sérelem, konfliktus</span>
+          <span className="co-rule-tag co-rule-tag--urgent">Sürgős átadás embernek</span>
         </div>
 
         {/* ══════ § 2. Írásos kommunikáció beállításai ══════ */}
-        <div className="ih-subsection-title">
-          <div className="ih-subsection-icon">
-            <svg viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-          </div>
+        <div className="co-sub">
+          <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
           Írásos kommunikáció beállításai
           <InfoIcon onClick={() => toggleInfo('written')} />
         </div>
@@ -1384,17 +1329,11 @@ function IssueHandlingRulesSection() {
           />
         )}
 
-        {/* Column labels */}
-        <div className="ih-col-labels ih-col-labels-2">
-          <span className="ih-col-label">Ügytípus</span>
-          <span className="ih-col-label">eaisyDesk eljárás</span>
-        </div>
-
-        {/* Row: Written comm */}
-        <div className="ih-row ih-row-2" style={{ marginBottom: 0 }}>
-          <div className="ih-readonly">Kérdéskezelés a feltöltött cég- és kínálati információk alapján</div>
+        <div className="co-rule-row">
+          <span className="co-rule-name">Kérdéskezelés a feltöltött cég- és kínálati információk alapján</span>
           <select
-            className="tt-select"
+            className="co-input"
+            style={{ maxWidth: 240 }}
             value={state.writtenBehavior}
             onChange={e => setState(prev => ({ ...prev, writtenBehavior: e.target.value }))}
           >
@@ -1404,10 +1343,8 @@ function IssueHandlingRulesSection() {
         </div>
 
         {/* ══════ § 3. Egyedi korlátozó szabályok ══════ */}
-        <div className="ih-subsection-title">
-          <div className="ih-subsection-icon">
-            <svg viewBox="0 0 24 24"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" /><path d="M12 6v6l4 2" /></svg>
-          </div>
+        <div className="co-sub">
+          <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" /><path d="M12 6v6l4 2" /></svg>
           Egyedi korlátozó szabályok
           <InfoIcon onClick={() => toggleInfo('custom')} />
         </div>
@@ -1419,51 +1356,44 @@ function IssueHandlingRulesSection() {
           />
         )}
 
-        {/* Column labels */}
-        <div className="ih-col-labels ih-col-labels-3">
-          <span className="ih-col-label">Ügytípus</span>
-          <span className="ih-col-label">eaisyDesk eljárás</span>
-          <span className="ih-col-label">Értesítendő</span>
+        {/* Editable custom rule rows (Értesítendő mező megszűnt — 2026-09-13) */}
+        <div className="co-list">
+          {state.customRules.map((rule, i) => (
+            <div className="co-item" key={i}>
+              <div className="co-body" style={{ display: 'flex', gap: 10 }}>
+                <input
+                  className="co-input"
+                  style={{ flex: 1 }}
+                  type="text"
+                  value={rule.desc}
+                  onChange={e => updateCustomRule(i, 'desc', e.target.value)}
+                  placeholder="Ügytípus leírása..."
+                />
+                <select
+                  className="co-input"
+                  style={{ width: 220, flex: 'none' }}
+                  value={rule.behavior}
+                  onChange={e => updateCustomRule(i, 'behavior', e.target.value)}
+                >
+                  <option value="handoff">Átadás embernek</option>
+                  <option value="urgent">Sürgős átadás embernek</option>
+                </select>
+              </div>
+              <button className="co-del" type="button" aria-label="Szabály törlése" onClick={() => deleteCustomRule(i)}>
+                <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" /></svg>
+              </button>
+            </div>
+          ))}
         </div>
 
-        {/* Editable custom rule rows */}
-        {state.customRules.map((rule, i) => (
-          <div className="ih-row ih-row-3-del" key={i}>
-            <input
-              className="tt-input"
-              type="text"
-              value={rule.desc}
-              onChange={e => updateCustomRule(i, 'desc', e.target.value)}
-              placeholder="Ügytípus leírása..."
-            />
-            <select
-              className="tt-select"
-              value={rule.behavior}
-              onChange={e => updateCustomRule(i, 'behavior', e.target.value)}
-            >
-              <option value="handoff">Átadás embernek</option>
-              <option value="urgent">Sürgős átadás embernek</option>
-            </select>
-            <input
-              className="tt-input"
-              type="text"
-              value={rule.notify}
-              onChange={e => updateCustomRule(i, 'notify', e.target.value)}
-              placeholder="pl. vezeto@klinika.hu"
-            />
-            <div className="ih-delete-cell">
-              <DeleteBtn onClick={() => deleteCustomRule(i)} />
-            </div>
-          </div>
-        ))}
-
-        {/* Add rule button — scoped turquoise style */}
-        <button className="ih-add-btn" onClick={addCustomRule}>
-          + Szabály hozzáadása
-        </button>
+        <div className="co-sec-foot">
+          <button className="co-add-row" type="button" onClick={addCustomRule}>
+            <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+            Szabály hozzáadása
+          </button>
         </div>
       </div>
-    </>
+    </section>
   );
 }
 
@@ -1520,22 +1450,6 @@ function SaveButton({ saving, onClick }: { saving: boolean; onClick: () => void 
         <polyline points="7 3 7 8 15 8" />
       </svg>
       {saving ? 'Mentés...' : 'Mentés'}
-    </button>
-  );
-}
-
-function AddBtn({ label, onClick }: { label: string; onClick: () => void }) {
-  return (
-    <button className="btn-add" onClick={onClick}>
-      + {label}
-    </button>
-  );
-}
-
-function DeleteBtn({ onClick }: { onClick: () => void }) {
-  return (
-    <button className="btn-icon btn-icon--danger" onClick={onClick} title="Törlés">
-      <svg fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /></svg>
     </button>
   );
 }

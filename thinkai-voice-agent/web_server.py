@@ -4022,6 +4022,13 @@ async def save_issue_handling(payload: IssueHandlingRequest, _admin = Depends(re
     data = payload.model_dump()
     db.update_text_config("issue_handling", json.dumps(data, ensure_ascii=False))
     db.update_text_config("written_behavior", payload.writtenBehavior)
+    # Utolsó módosítás jelzés a szabályok oldal fejlécéhez (a business_info
+    # updated_by/updated_at mezőit osztja meg a céginformációs oldallal)
+    try:
+        user_record = db.get_admin_user_by_username(_admin.get("username", "")) or {}
+        db.update_business_info({"updated_by": (user_record.get("full_name") or _admin.get("username") or "").strip()})
+    except Exception:
+        pass
     import classifier as _clf
     _clf.invalidate_classifier_cache()
     return {"ok": True, "message": "Ügykezelési szabályok elmentve."}

@@ -76,26 +76,23 @@ def _format_knowledge(raw: str) -> str:
     return raw or ""
 
 def _format_cancellation_policy(pi: dict) -> str:
+    """Módosítási/lemondási tájékoztatók — 2026-09-13-től TEXT-VEZÉRELT.
+
+    A korábbi enum-ágak (modositas_eng: igen/nem, lemondas_24h:
+    elfogadhato/figyelmeztetoSzoveggel/eloAtadas) megszűntek, mert az új UI
+    más értékeket mentett (onalloKezeles/handoff/urgent) → a szabályok
+    csendesen kiestek a promptból. Most a két szabad-szöveges mező tartalma
+    dönt: ami ki van töltve, az bekerül a promptba, ami üres, az nem.
+    """
     rules = []
-    
-    # Módosítás
-    if pi.get("modositas_eng", "igen") == "igen":
-        mod_txt = pi.get("modositas_szoveg", "").strip()
-        if mod_txt:
-            rules.append(f"Amikor sikeresen lefoglalsz egy időpontot, TÁJÉKOZTASD az ügyfelet a válaszodban: '{mod_txt}'")
-    else:
-        rules.append("SZIGORÚ SZABÁLY: Időpont módosítása NEM engedélyezett! Ha az ügyfél időpont módosítást kér, tájékoztasd, hogy időpont módosítására sajnos nincs lehetőség, és kérd meg, hogy vegye fel a kapcsolatot egy munkatárssal, vagy mondja le a jelenlegi időpontot és foglaljon újat.")
-        
-    # Lemondás (24 órán belül)
-    lem_24h = pi.get("lemondas_24h", "figyelmeztetoSzoveggel")
-    figy_txt = pi.get("figyelmezteto_szoveg", "")
-    
-    if lem_24h == "elfogadhato":
-        rules.append("Amikor sikeresen lefoglalsz egy időpontot, TÁJÉKOZTASD az ügyfelet a válaszodban, hogy 24 órán belül lemondhatja az időpontot.")
-    elif lem_24h == "figyelmeztetoSzoveggel" and figy_txt:
-        rules.append(f"Amikor sikeresen lefoglalsz egy időpontot, TÁJÉKOZTASD az ügyfelet ezzel a szöveggel a válaszodban: '{figy_txt}'")
-    elif lem_24h == "eloAtadas":
-        rules.append("SZIGORÚ SZABÁLY: Amint az ügyfél egy időpont lemondásáról beszél (lemondásról van szó), AZONNAL adja át a beszélgetést egy élő munkatársnak! Ne próbáld te törölni. Kérj emberi átadást a handover_reason vagy report_alert('urgent') segítségével.")
+
+    mod_txt = (pi.get("modositas_szoveg") or "").strip()
+    if mod_txt:
+        rules.append(f"Időpontfoglaláskor és időpont-módosításkor TÁJÉKOZTASD az ügyfelet a módosítás feltételeiről ezzel a szöveggel: '{mod_txt}'")
+
+    figy_txt = (pi.get("figyelmezteto_szoveg") or "").strip()
+    if figy_txt:
+        rules.append(f"24 órán belüli lemondás vagy módosítás esetén (illetve már foglaláskor megelőlegezve) FIGYELMEZTESD az ügyfelet ezzel a szöveggel: '{figy_txt}'")
 
     return "\n".join(f"- {r}" for r in rules) if rules else "Nincs külön lemondási/módosítási szabály."
 
