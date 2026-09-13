@@ -945,7 +945,7 @@ export default function SettingsPage() {
                 )}
                 <div className="co-list">
                   {(business.faq || []).map((f: { question: string; answer: string }, i: number) => (
-                    <div key={i} className="co-item">
+                    <div key={i} className="co-item co-faq-item">
                       <div className="co-body">
                         <div className="co-faq-grid">
                           <label className="co-field"><span>Kérdés</span><textarea className="co-textarea" value={f.question} onChange={e => { const faq = [...(business.faq || [])]; faq[i] = { ...faq[i], question: e.target.value }; setBusiness({ ...business, faq }); }} placeholder="Kérdés…" /></label>

@@ -652,3 +652,8 @@ select.co-input { cursor: pointer; }
   .co-grid { grid-template-columns: 1fr; }
   .co-faq-grid { grid-template-columns: 1fr; }
 }
+
+/* HOT FIX: mentés-CTA ikon középre igazítása + GYIK törlés-ikon a szövegdoboz felső bordéréhez */
+.beallitasok-save-btn { display: inline-flex; align-items: center; justify-content: center; gap: 7px; }
+.beallitasok-save-btn svg { flex: none; }
+.co-item.co-faq-item .co-del { margin-top: 18px; }
