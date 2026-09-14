@@ -1,4 +1,4 @@
-# HANDOFF — eaisyDesk | 2026-09-09
+# HANDOFF — eaisyDesk | 2026-09-14
 
 ## ⚠️ ÁLLANDÓ MUNKAREND — minden sessionnek
 
@@ -14,6 +14,23 @@
 - **Supabase**: `qhhnqqsthdrwacsxommt.supabase.co` (service_role kulcs a `.env`-ben)
 - **Admin login**: `.env` → `ADMIN_USERNAME` / `ADMIN_PASSWORD`
 - **Management API**: Supabase MCP configban `sbp_*` token — élő DB DDL futtatható vele
+
+---
+
+## ✅ 2026-09-14 — PROD DEPLOY levezényelve: a staging 4 napi lemaradása pótolva (prod HEAD `592f99e`, konténer healthy)
+
+**Előkészület (prod DB, MCP migráció: `staging_sync_2026_09_13_prod`)**: a 7 előírt migrációból 5 már korábban fent volt a prod DB-n — csak `interactions.diary_fragment` és `business_info.updated_by` hiányzott (felvéve), + `UPDATE admin_users SET role='admin' WHERE role='manager'` (2 user: testco_manager, dentors_manager → most már 0 manager, 7 admin). A `campaigns.id` identity prodon OK volt (nem kellett javítani).
+
+**Deploy**: `deploy-prod.sh --yes` → prod HEAD `592f99e`, konténer healthy.
+
+**Verifikáció (mind zöld)**:
+- backend md5-egyezés konténer vs. repo (web_server/email_processor/server/database)
+- frontend: 38 content-hash chunk, nevek megegyeznek a staging builddel → azonos forrás
+- `require_admin_or_manager` a prod konténerben is 0 (a jogosultsági mátrix él)
+- 0 ERROR a deploy óta; `/api/health` OK; worker `dobozos-ai`-ként indult
+- auth: `/admin/api/credentials` token nélkül 401 ✓; login `/admin/login` érvényes creds-szel **200 (0,1–0,2s)** ✓ — az első, közvetlenül deploy utáni 401/32s a hideg-start Supabase-akadozás volt (ld. a reggeli `get_active_tenants: Server disconnected` blipet is)
+
+**Megjegyzés a csapdáról**: a login-smoketest a host-ról `localhost:8000`-en NEM megy (a port csak a docker-hálózaton belülre van exponentálva) — `docker exec`-ből kell; a `.env` a konténerben env-változóként él, nem fájlként.
 
 ---
 
