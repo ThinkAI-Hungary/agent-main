@@ -17,6 +17,21 @@
 
 ---
 
+## ⚠️ KRITIKUS INCIDENS + JAVÍTVA (2026-09-14 délelőtt) — prod hálózati kimaradás deploykor: dockerd kikapcsolja az eth0 IPv6-át
+
+**Tünetek** (mind egyetlen gyökérből): hívások időnként nem mennek („nálam csörög, másnál nem"), login 401/lassú, a felületen időnként „Váratlan hiba történt a felületen" ErrorBoundary, Supabase/IMAP/Gemini hibák a logokban: `[Errno -3] Temporary failure in name resolution`, `[Errno 101] Network is unreachable`, `Server disconnected`.
+
+**Gyökérok (journal-bizonyíték)**: a konténer-recreatekor a dockerd átírja a host sysctl-jét: `net.ipv6.conf/eth0/disable_ipv6: 0→1` (journal: „Foreign process 'dockerd' changed sysctl … conflicting with our setting"). A `systemd-resolved` ekkor az IPv6-os Hetzner DNS-szervert (2a01:4ff:ff00::add:1) használta → a v6 útvonal elvesztésével a DNS és a v6 kimenő forgalom is szakadt ~30-40 percre. **NEM a DB-migráció hibája** (a prod séma kompletten megy a staginggel — összehasonlítva).
+
+**Javítások (mindkettő élesben alkalmazva)**:
+1. **Host**: `resolvectl dns eth0 185.12.64.1 185.12.64.2` (IPv4 resolver-ek, azonnali) + boot-álló `set-v4-dns.service` systemd oneshot (enabled).
+2. **Prod compose** (`/root/ugyfelszolg/docker-compose.yml`, backup: `docker-compose.yml.bak-ipv6fix`): a `dobozos-agent` service kapott `dns: [185.12.64.1, 185.12.64.2]` (közvetlen v4 resolver, kikerüli a resolved-ot) és `sysctls: net.ipv6.conf.all/default.disable_ipv6=1` (a konténer IPv4-only → a host v6-állapota már nem érinti). Recreate megtörtént, verifikálva: DNS 8/8, Supabase élő OK, login 200/0,19s, 0 ERROR, konténer healthy.
+3. **Staging compose**: ugyanez, de `dns: [1.1.1.1, 8.8.8.8]` (a Hetzner resolver a DigitalOcean-ről NEM elérhető — tesztelve). A következő `update.sh` rebuildnél aktiválódik.
+
+**Tanulság**: minden prod deploy (konténer-recreate) válthatja ezt a dockerd–systemd-networkd sysctl-konfliktust. Ha a tünetek visszaadják magukat: `journalctl | grep disable_ipv6` + `resolvectl status` (Current DNS Server v4 legyen) + konténer: `cat /proc/sys/net/ipv6/conf/all/disable_ipv6` = 1. Hosszú távú megoldás lehet a dockerd frissítése vagy a host netplan DNS-beállítása (netplan apply kockázatos SSH-n — karbantartási ablakban).
+
+---
+
 ## ✅ 2026-09-14 — PROD DEPLOY levezényelve: a staging 4 napi lemaradása pótolva (prod HEAD `592f99e`, konténer healthy)
 
 **Előkészület (prod DB, MCP migráció: `staging_sync_2026_09_13_prod`)**: a 7 előírt migrációból 5 már korábban fent volt a prod DB-n — csak `interactions.diary_fragment` és `business_info.updated_by` hiányzott (felvéve), + `UPDATE admin_users SET role='admin' WHERE role='manager'` (2 user: testco_manager, dentors_manager → most már 0 manager, 7 admin). A `campaigns.id` identity prodon OK volt (nem kellett javítani).
