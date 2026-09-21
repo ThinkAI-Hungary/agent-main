@@ -49,6 +49,20 @@
 
 ---
 
+## ✅ 2026-09-21 (6. kör) — Split-brain incidens + duplikátum-kezelő rendszer (commit `0526efd`, stagingen ÉL)
+
+**Incidens**: álnév-teszt („Kiss Gizella" + erika@molaire.hu, hívó +36703200236) — a foglalás az emailhez (új 271-es ügyfél), az átirat/klasszifikáció a telefonhoz (265 = Orosz Erika) kapcsolódott; a profil laza név/telefon session-egyeztetése keresztbe-húzta a két ügyfelet.
+
+**A megoldás (4 rész)**:
+1. **`resolve_client_identity`** (database.py): erős kulcsok KÜLÖN egyeznek (phone > messenger > email primary-sorrend), eltérésnél primary + conflict_id — NEM csendes választás. Bekötve: voice klasszifikáció + `book_meeting`.
+2. **`duplicate_suspect` jelző + merge flow**: konfliktusnál mindkét rekord megkapja (custom_data.duplicate_suspect = {other_id, reason, detected_at}); profilon sárga banner + „Összevonás…" modal mező-szintű keep-választással (név/email/telefon). Backend: `db.merge_clients` + `POST /admin/api/clients/merge` (admin-only) — interakció-átkötés, napló/címke-únió, source `status='merged'` + `merged_into` (visszavonható); a merged rekordok rejtve a listában/kanbanon. A 265/271 pár manuálisan bejelölve — a user a felületen döntheti el az összevonást.
+3. **Profil session-egyeztetés szigorítva**: név-substring és telefon-a-session_id-ben szabályok KIVEZETVE (keresztbe-húzás); a behúzott session interakciói client_id-re újraszűrve.
+4. **Single-módú popup**: nem-email csatornán az interakció SAJÁT átirata (result) az elsődleges, ügyfél-napló csak fallback.
+
+**Nyitva**: a 265/271 tényleges összevonása a USER döntése (a felületen elérhető). A régi, tz-fix előtti naplók kevert időbázisa más ügyfeleknél is okozhat popup-szakadást (ld. 4. kör megjegyzés).
+
+---
+
 ## ✅ 2026-09-21 (5. kör) — MINDEN foglaláshoz ellátó (commit `6bc1256`, stagingen ÉL)
 
 **User-szabály**: foglalás csak ellátó munkatárs hozzárendelésével keletkezhet — függetlenül az ügyfél-preferenciától. A `resolve_assigned_staff` (explicit → `services.assigned_to` névsor → releváns pool; a „minden fogorvos" szöveget kiszűri) már működött a kézi naptár-végponton és az email pending flow-ban, de **két úton hiányzott**: a voice `book_meeting` (ezért maradt a 115-ös esemény doctor nélkül — backfill: Dr. Molnár Bence) és a messenger/web flow eseménylétrehozás. Mindkettő bekötve. Az agent a beszélgetésben továbbra sem nevezi meg az ellátót — a név az `event.doctor`-ban és a visszaigazoló email `{{munkatárs}}` változójában oldódik meg.
