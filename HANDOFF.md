@@ -49,6 +49,14 @@
 
 ---
 
+## ✅ 2026-09-21 (5. kör) — MINDEN foglaláshoz ellátó (commit `6bc1256`, stagingen ÉL)
+
+**User-szabály**: foglalás csak ellátó munkatárs hozzárendelésével keletkezhet — függetlenül az ügyfél-preferenciától. A `resolve_assigned_staff` (explicit → `services.assigned_to` névsor → releváns pool; a „minden fogorvos" szöveget kiszűri) már működött a kézi naptár-végponton és az email pending flow-ban, de **két úton hiányzott**: a voice `book_meeting` (ezért maradt a 115-ös esemény doctor nélkül — backfill: Dr. Molnár Bence) és a messenger/web flow eseménylétrehozás. Mindkettő bekötve. Az agent a beszélgetésben továbbra sem nevezi meg az ellátót — a név az `event.doctor`-ban és a visszaigazoló email `{{munkatárs}}` változójában oldódik meg.
+
+**Megjegyzés (nem javítva, user-döntés kell)**: a 115-ös esemény 30 perces lett, pedig az Implantációs konzultáció a szolgáltatás-tábla szerint 60 perces — az agent a default 30-at adta át. Javaslat: szolgáltatás-egyezésnél a tábla duration-je felülírja az LLM-ét.
+
+---
+
 ## ✅ 2026-09-21 (4. kör) — popup/megjelenítés javítások (commit `25283ce`, stagingen ÉL)
 
 1. **„Szolgáltatás: Implantációs konzultáció - Orosz Erika"** — a popup ÖSSZEFOGLALÁS és a profil Időpont-szekció az esemény nyers címét mutatta, az ügyfél neve feleslegesen ismétlődött. Most a `<szolgáltatás> - <ügyfélnév>` suffix levágódik; az ellátó külön „Ellátó:" sorban (volt „Orvos:").
