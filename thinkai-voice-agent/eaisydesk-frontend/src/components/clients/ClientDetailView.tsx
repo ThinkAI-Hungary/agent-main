@@ -222,6 +222,34 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
   useEffect(() => { loadManualTasks(); }, [loadManualTasks]);
 
   const [showTaskModal, setShowTaskModal] = useState(false);
+
+  // ── Duplikátum-gyanú + összevonás (2026-09-21): ha a rendszer eltérő erős
+  // kulcsot (telefon/email) talált két ügyfélnél, banner + mezőválasztós modal ──
+  const dupSuspect = (cd as Record<string, unknown>).duplicate_suspect as { other_id?: number; reason?: string; detected_at?: string } | undefined;
+  const dupOther = dupSuspect?.other_id != null ? clientsMap[String(dupSuspect.other_id)] : undefined;
+  const [showMergeModal, setShowMergeModal] = useState(false);
+  const [mergeKeep, setMergeKeep] = useState<Record<string, 'target' | 'source'>>({ name: 'target', email: 'target', phone: 'target' });
+  const [merging, setMerging] = useState(false);
+  const handleMerge = useCallback(async () => {
+    if (!dupOther || merging) return;
+    setMerging(true);
+    try {
+      const res = await authFetch('/admin/api/clients/merge', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        // A JELENLEGI profil a cél (ebbe olvad a másik rekord)
+        body: JSON.stringify({ source_id: dupOther.id, target_id: client.id, keep_fields: mergeKeep }),
+      });
+      if (res.ok) {
+        showToast('Ügyfelek összevonva');
+        setShowMergeModal(false);
+        onRefresh();
+      } else {
+        showToast('Hiba az összevonáskor', 'error');
+      }
+    } catch { showToast('Hiba', 'error'); }
+    finally { setMerging(false); }
+  }, [dupOther, client.id, mergeKeep, merging, onRefresh]);
   const [taskText, setTaskText] = useState('');
   const [taskPriority, setTaskPriority] = useState<'normal' | 'high'>('normal');
   const [taskSaving, setTaskSaving] = useState(false);
@@ -342,32 +370,24 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     const messengerId = ((cd?.messenger_id as string) || (cd?.messenger_psid as string) || '').toString().trim();
 
     const matchingSessions = sessions.filter((s) => {
-      const participant = (s.participant || s.client_name || '').toLowerCase().trim();
       const sid = s.session_id || '';
 
-      // 1. Match by participant name (exact or partial)
-      if (name && participant && participant !== 'ismeretlen' && (
-        participant === name ||
-        participant.includes(name) ||
-        (name.length > 2 && name.includes(participant) && participant.length > 2)
-      )) return true;
-
-      // 2. Match by email in session_id
+      // 1. Match by email in session_id (erős kulcs — a session az adott címhez tartozik)
       if (email && sid.includes(email)) return true;
 
-      // 3. Match by messenger_id in session_id (e.g. session_id = "messenger_12345")
+      // 2. Match by messenger_id in session_id (e.g. session_id = "messenger_12345")
       if (messengerId) {
         if (sid === `messenger_${messengerId}` || sid === `instagram_${messengerId}` || sid === `whatsapp_${messengerId}`) return true;
       }
 
-      // 4. Match by client_id from interactions
+      // 3. Match by client_id from interactions (a klasszifikáció által kapcsolt)
       if (s.interactions && s.interactions.length > 0) {
         if (s.interactions.some((r) => r.client_id && String(r.client_id) === clientId)) return true;
       }
 
-      // 5. Match by phone in session_id
-      if (phone && sid.includes(phone)) return true;
-
+      // NÉV- és telefon-substring szabály KIVEZETVE (2026-09-21): álnév/eltérő
+      // átirat esetén másik ügyfél sessionjét húzta be (Kis Gizella profilján
+      // jelent meg Orosz Erika hívása).
       return false;
     });
 
@@ -377,6 +397,11 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
         s.interactions.forEach((r) => {
           // Skip spam interactions
           if (r.approval_status === 'spam') return;
+          // Client-újraszűrés: a behúzott sessionben másik ügyfélhez kapcsolt
+          // interakciók NEM jelennek meg (split-brain hívásoknál látszottak
+          // át — ld. 265/271). A client_id nélküli sorok maradhatnak: azok a
+          // session erős kulcsa (email/messenger) alapján ide tartoznak.
+          if (r.client_id && String(r.client_id) !== clientId) return;
           const summary = r.summary || s.summary || '';
           const topic = r.topic || '';
           // Determinisztikus csatorna-mapping (a nyers r.type — pl. 'voice_alert' —
@@ -717,6 +742,22 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           Regisztráció időpontja: <b>{regDate}</b>
         </div>
       </div>
+
+      {/* ═══ Duplikátum-gyanú banner ═══ */}
+      {dupSuspect && (
+        <div className="cd-dup-banner" role="alert">
+          <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16" height="16"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0zM12 9v4M12 17h.01" /></svg>
+          <span>
+            Lehetséges duplikátum: <b>{dupOther ? (dupOther.name || `#${dupOther.id}`) : `#${dupSuspect.other_id}`}</b>
+            {dupSuspect.reason ? ` — ${dupSuspect.reason}` : ''}
+          </span>
+          {dupOther && (
+            <button type="button" className="cd-dup-merge-btn" onClick={() => setShowMergeModal(true)}>
+              Összevonás…
+            </button>
+          )}
+        </div>
+      )}
 
       {/* ═══ Középső kártyák: Időpontok · Címkék · Megjegyzés ═══ */}
       <div className="cd-middle-grid cd-middle-grid-inner">
@@ -1085,6 +1126,52 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             <div className="pe-foot">
               <button className="pe-btn-ghost" onClick={() => setShowProfileEdit(false)}>Mégse</button>
               <button className="pe-btn-primary" onClick={saveProfile} disabled={saving}>{saving ? 'Mentés...' : 'Mentés'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* • • •  Ügyfél-összevonás Modal (duplikátum-kezelés) • • •  */}
+      {showMergeModal && dupOther && (
+        <div className="modal-overlay" onClick={() => !merging && setShowMergeModal(false)}>
+          <div className="pe-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Ügyfelek összevonása">
+            <div className="pe-head">
+              <h3 className="pe-title">Ügyfelek összevonása</h3>
+              <button className="pe-x" onClick={() => setShowMergeModal(false)} aria-label="Bezárás">
+                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" viewBox="0 0 24 24" width="15" height="15"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+            <div className="pe-body">
+              <p className="cd-merge-desc">
+                A(z) <b>{dupOther.name || `#${dupOther.id}`}</b> rekord beolvad ebbe a profilba
+                (<b>{displayName}</b>). Az interakciók, naplók és címkék egyesülnek; a beolvasztott
+                rekord archiválódik (visszavonható). Mezőnként válaszd ki, melyik érték maradjon:
+              </p>
+              {(['name', 'phone', 'email'] as const).map((field) => {
+                const otherCd = parseCustomData(dupOther.custom_data);
+                const targetVal = field === 'name' ? displayName : field === 'phone' ? displayPhone : displayEmail;
+                const sourceVal = (otherCd[field] as string) || (field === 'name' ? dupOther.name : '') || (field === 'email' ? dupOther.email : '') || '';
+                const label = field === 'name' ? 'Név' : field === 'phone' ? 'Telefonszám' : 'Email cím';
+                return (
+                  <div className="pe-field" key={field}>
+                    <label className="pe-label">{label}</label>
+                    <div className="cd-merge-choices">
+                      <label className="cd-merge-choice">
+                        <input type="radio" name={`merge-${field}`} checked={mergeKeep[field] === 'target'} onChange={() => setMergeKeep(prev => ({ ...prev, [field]: 'target' }))} />
+                        <span>{targetVal || '—'} <em>(ez a profil)</em></span>
+                      </label>
+                      <label className="cd-merge-choice">
+                        <input type="radio" name={`merge-${field}`} checked={mergeKeep[field] === 'source'} onChange={() => setMergeKeep(prev => ({ ...prev, [field]: 'source' }))} />
+                        <span>{sourceVal || '—'} <em>({dupOther.name || 'másik rekord'})</em></span>
+                      </label>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            <div className="pe-foot">
+              <button className="pe-btn-ghost" onClick={() => setShowMergeModal(false)} disabled={merging}>Mégse</button>
+              <button className="pe-btn-primary" onClick={handleMerge} disabled={merging}>{merging ? 'Összevonás…' : 'Összevonás'}</button>
             </div>
           </div>
         </div>

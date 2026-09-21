@@ -299,7 +299,8 @@ export default function ClientsPage() {
   // ügyfelet lát — az assignee-szűrő a demo-default felelős (Kis Béla) miatt
   // minden member elől elrejtette a listát (üres Ügyféllista memberként).
   // Az isAdmin itt már csak a műveletek gatingjéhez kell (bulk törlés, felelős).
-  const myClients = useMemo(() => enrichedClients, [enrichedClients]);
+  // A beolvasztott (merged_into) rekordok nem jelennek meg a listában
+  const myClients = useMemo(() => enrichedClients.filter(c => !parseCustomData(c.raw.custom_data).merged_into), [enrichedClients]);
 
   const { ALL_ERT_STATUSZ, ALL_FELELOS } = useMemo(() => {
     const statuses = kanbanColumns.map(col => col.name);

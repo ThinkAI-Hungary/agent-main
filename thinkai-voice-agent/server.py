@@ -669,13 +669,15 @@ SZABÁLYOK:
                     caller_name = ""
                 if phone_number or caller_name:
                     try:
-                        # Először megkeressük a meglévő klienst telefonszám vagy név alapján
-                        # (a find_client_by_contact név-ága: először pontos, utána substring)
+                        # Egységes identitás-feloldó (2026-09-21): erős kulcsok
+                        # külön-külön, eltérésnél duplikátum-gyanú jelölés —
+                        # nem csendes választás (split-brain precedens: 265/271).
                         existing = None
-                        if phone_number:
-                            existing = db.find_client_by_contact(phone=phone_number)
-                        if not existing and caller_name:
-                            existing = db.find_client_by_contact(name=caller_name)
+                        _primary, _conflict = db.resolve_client_identity(name=caller_name, phone=phone_number)
+                        if _conflict:
+                            db.mark_duplicate_suspect(_primary["id"], _conflict, "voice hívás: a hívó telefonszáma és a beazonosított adatok eltérő ügyfélhez tartoznak")
+                            db.mark_duplicate_suspect(_conflict, _primary["id"], "voice hívás: a hívó telefonszáma és a beazonosított adatok eltérő ügyfélhez tartoznak")
+                        existing = _primary
                         if existing:
                             client_id = existing.get("id")
                             # Frissítjük a phone + name adatokat ha újak lettek megadva —

@@ -256,7 +256,20 @@ export default function InteractionSummaryModal({
       // csatornánál (telefon stb.) a napló-marad.
       const isSingleEmail = mode === 'single' && (row.channel || '').toLowerCase() === 'email';
       let fullLog = '';
-      if (mode === 'single' && isSingleEmail) {
+      if (mode === 'single' && !isSingleEmail) {
+        // Single mód, nem-email (telefon stb.): az interakció SAJÁT tartalma
+        // (átirat a result mezőben) az ELSŐDLEGES — az ügyfél-napló csak
+        // fallback. Különben idegen/üres naplónál az átirat nem látszik
+        // (split-brain hívások, ld. 265/271).
+        const ownResult = (row.result || '').trim();
+        if (ownResult && ownResult !== 'Nincs rögzített hanganyag.') {
+          fullLog = ownResult.startsWith('[')
+            ? ownResult
+            : `[${(row.date || '').replace('T', ' ').slice(0, 16)}]\n${ownResult}`;
+        } else {
+          fullLog = (cData.beszelgetes_naplo as string) || '';
+        }
+      } else if (mode === 'single' && isSingleEmail) {
         let frag = row.diary_fragment ? String(row.diary_fragment) : '';
         // Régi fragmensek időbélyeg nélkül (265-ös ügy): a parse a [ts]
         // markert keresi — ilyenkor a sor idejét előre tesszük

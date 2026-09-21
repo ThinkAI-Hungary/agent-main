@@ -3750,6 +3750,26 @@ def admin_update_client_details(client_id: int, req: ClientCreateRequest, user =
     db.edit_client_details(client_id, cd)
     return {"ok": True}
 
+class ClientMergeRequest(BaseModel):
+    source_id: int
+    target_id: int
+    keep_fields: dict = {}  # {'name'|'email'|'phone': 'source'|'target'}
+
+@app.post("/admin/api/clients/merge")
+def api_merge_clients(req: ClientMergeRequest, _admin = Depends(require_admin)):
+    """Két ügyfél összevonása (duplikátum-kezelés). A source megmarad
+    'merged' státusszal + merged_into jelöléssel (visszavonható).
+    Admin-only: tömeges hatású művelet (a mátrix ügyfél-törlés sorával egy szint)."""
+    if req.source_id == req.target_id:
+        raise HTTPException(400, "A forrás és a cél ügyfél nem lehet ugyanaz")
+    ok = db.merge_clients(req.source_id, req.target_id, req.keep_fields,
+                          merged_by=_admin.get("full_name") or _admin.get("username", ""))
+    if not ok:
+        raise HTTPException(400, "Az összevonás nem sikerült (hiányzó ügyfél?)")
+    logger.info(f"Ügyfél-összevonás: {req.source_id} → {req.target_id} ({_admin.get('username')})")
+    return {"ok": True}
+
+
 class ClientFieldCreateRequest(BaseModel):
     id: str
     name: str

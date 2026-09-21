@@ -1535,3 +1535,27 @@ body.dark .cal-pend-pill { background: #eab308; color: #201a05; }
 }
 .cpf-clear:hover { background: #f3f4f6; }
 @media (max-width: 700px) { .cpf-grid { grid-template-columns: 1fr; } .cpf-span2 { grid-column: auto; } }
+
+/* ── Duplikátum-gyanú banner + összevonás modal (2026-09-21) ── */
+.cd-dup-banner {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  margin: 0 0 12px; padding: 10px 14px; border-radius: 8px;
+  background: var(--warning-bg, #fffbe6); border: 1px solid var(--warning-border, #ffe58f);
+  color: var(--text, #000); font-size: 13px;
+}
+.cd-dup-banner svg { color: #d48806; flex: none; }
+.cd-dup-banner span { flex: 1; min-width: 200px; }
+.cd-dup-merge-btn {
+  border: none; border-radius: 8px; padding: 6px 14px; font-family: inherit;
+  font-size: 12.5px; font-weight: 600; cursor: pointer;
+  background: var(--cp-a2, #186d98); color: #fff; transition: opacity .15s;
+}
+.cd-dup-merge-btn:hover { opacity: .88; }
+.cd-merge-desc { font-size: 13px; color: var(--text-secondary, #595959); margin: 0 0 14px; line-height: 1.5; }
+.cd-merge-choices { display: flex; flex-direction: column; gap: 6px; }
+.cd-merge-choice {
+  display: flex; align-items: center; gap: 8px; font-size: 13px; cursor: pointer;
+  padding: 8px 10px; border: 1px solid var(--border, #dbdbdb); border-radius: 8px;
+}
+.cd-merge-choice:has(input:checked) { border-color: var(--cp-a2, #186d98); background: color-mix(in srgb, var(--cp-a2, #186d98) 7%, transparent); }
+.cd-merge-choice em { color: var(--muted, #8c8c8c); font-style: normal; font-size: 12px; }

@@ -1587,6 +1587,122 @@ def find_client_by_contact(email: str = "", phone: str = "", messenger_id: str =
         logger.error(f"Find client error: {e}")
         return None
 
+def resolve_client_identity(name: str = "", email: str = "", phone: str = "", messenger_id: str = ""):
+    """Egységes ügyfél-feloldó MINDEN úthoz (voice, email, webchat).
+
+    Erős kulcsok (phone, email, messenger_id) KÜLÖN-külön egyeznek; ha eltérő
+    ügyfelet találnak, az NEM csendes választás, hanem duplikátum-gyanú:
+    a (primary, conflict_id) párt adjuk vissza, és a hívó oldal jelölheti mindkét
+    rekordot (mark_duplicate_suspect). Egyik erős kulcs sem talál → gyenge
+    név-egyezés (pontos → substring), az se → (None, None) = új ügyfél.
+
+    A primary sorrend: phone > messenger > email — aki hív/ír, az a tényleges
+    személy; a bemondott/begépelt email cím elírás vagy álnév is lehet.
+    (Split-brain precedens: 2026-09-21, +36703200236 → 265, erika@molaire.hu → 271.)
+    """
+    phone_hit = find_client_by_contact(phone=phone) if phone else None
+    messenger_hit = find_client_by_contact(messenger_id=messenger_id) if messenger_id else None
+    email_hit = find_client_by_contact(email=email) if email else None
+    hits = [h for h in (phone_hit, messenger_hit, email_hit) if h]
+    ids = {h["id"] for h in hits}
+    if len(ids) > 1:
+        primary = phone_hit or messenger_hit or email_hit
+        conflict_id = next((i for i in ids if i != primary["id"]), None)
+        logger.warning(f"⚠️ Ügyfél-identitás konfliktus: erős kulcsok eltérő ügyfelet találtak (primary={primary['id']}, conflict={conflict_id})")
+        return primary, conflict_id
+    if hits:
+        return hits[0], None
+    name_hit = find_client_by_contact(name=name) if name else None
+    if name_hit:
+        return name_hit, None
+    return None, None
+
+
+def mark_duplicate_suspect(client_id: int, other_id: int, reason: str) -> bool:
+    """Duplikátum-gyanú jelölése a custom_data.duplicate_suspect mezőben —
+    a felületen badge + összevonási lehetőség jelenik meg."""
+    if not supabase:
+        return False
+    try:
+        res = _tenant_eq(supabase.table("clients").select("id,custom_data")).eq("id", client_id).limit(1).execute()
+        if not res.data:
+            return False
+        cd = res.data[0].get("custom_data") or {}
+        if isinstance(cd, str):
+            try: cd = json.loads(cd)
+            except Exception: cd = {}
+        from zoneinfo import ZoneInfo
+        cd["duplicate_suspect"] = {
+            "other_id": other_id,
+            "reason": reason,
+            "detected_at": datetime.now(ZoneInfo("Europe/Budapest")).strftime("%Y-%m-%d %H:%M"),
+        }
+        edit_client_details(client_id, cd)
+        return True
+    except Exception as e:
+        logger.warning(f"mark_duplicate_suspect hiba ({client_id}): {e}")
+        return False
+
+
+def merge_clients(source_id: int, target_id: int, keep_fields: dict | None = None, merged_by: str = "") -> bool:
+    """Két ügyfél összevonása a TARGET-be (a source megmarad, merged_into jelöléssel —
+    visszavonható). keep_fields: {'name'|'email'|'phone': 'source'|'target'} — mezőnként
+    dönthető, melyik oldal értéke maradjon. Interakciók átkötése, napló- és
+    címke-únió, audit-bejegyzés a target naplójába."""
+    if not supabase or source_id == target_id:
+        return False
+    try:
+        rows = _tenant_eq(supabase.table("clients").select("*")).in_("id", [source_id, target_id]).execute().data or []
+        source = next((r for r in rows if r["id"] == source_id), None)
+        target = next((r for r in rows if r["id"] == target_id), None)
+        if not source or not target:
+            return False
+
+        def _cd(row):
+            d = row.get("custom_data") or {}
+            if isinstance(d, str):
+                try: d = json.loads(d)
+                except Exception: d = {}
+            return dict(d)
+
+        scd, tcd = _cd(source), _cd(target)
+        keep_fields = keep_fields or {}
+
+        # Mező-szintű választás (alap: target marad)
+        for f in ("name", "email", "phone"):
+            if keep_fields.get(f) == "source" and scd.get(f):
+                tcd[f] = scd[f]
+
+        # Címke-únió
+        tags = list(dict.fromkeys((tcd.get("tags") or []) + (scd.get("tags") or [])))
+        if tags:
+            tcd["tags"] = tags
+
+        # Napló-egyesítés (a source naplója a target végére, fejléccel)
+        from zoneinfo import ZoneInfo
+        s_naplo = (scd.get("beszelgetes_naplo") or "").strip()
+        if s_naplo:
+            now_str = datetime.now(ZoneInfo("Europe/Budapest")).strftime("%Y-%m-%d %H:%M")
+            tcd["beszelgetes_naplo"] = ((tcd.get("beszelgetes_naplo") or "").strip()
+                + f"\n[{now_str}]\n[Rendszer] Összevonva innen: {scd.get('name') or source.get('name')} (#{source_id}) — összevonva: {merged_by or 'ismeretlen'}\n" + s_naplo).strip()
+
+        # A gyanújelzők törlődnek mindkét oldalon
+        tcd.pop("duplicate_suspect", None)
+        scd.pop("duplicate_suspect", None)
+        scd["merged_into"] = target_id
+
+        edit_client_details(target_id, tcd)
+        edit_client_details(source_id, scd)
+        update_client_status(source_id, "merged")
+
+        # Interakciók átkötése
+        supabase.table("interactions").update({"client_id": target_id}).eq("client_id", source_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"merge_clients hiba ({source_id} → {target_id}): {e}")
+        return False
+
+
 def upsert_client(custom_data: dict, additional_log: str = "", status: str | None = None, existing_id: int | None = None) -> int:
     email = custom_data.get("email", "").strip()
     phone = custom_data.get("phone", "").strip()

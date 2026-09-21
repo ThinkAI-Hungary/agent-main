@@ -597,7 +597,15 @@ async def book_meeting(
 
         columns = db.get_kanban_columns()
         first_col_id = columns[0]['id'] if columns else 'uj'
-        db.upsert_client(custom_data, additional_log=f"Hangasszisztens időpontot foglalt: {date} {time}", status=first_col_id)
+        # Egységes identitás-feloldó (2026-09-21): erős kulcsok eltérésénél
+        # duplikátum-gyanú jelölés + a primary (telefon > email) kapja a foglalást.
+        # A név-védelem (upsert_client) így sem írja felül a meglévő valódi nevet.
+        _spoken_phone = attendee_phone if attendee_phone and "Nincs megadva" not in attendee_phone else ""
+        _primary, _conflict = db.resolve_client_identity(name=attendee, email=attendee_email, phone=_spoken_phone)
+        if _conflict and _primary:
+            db.mark_duplicate_suspect(_primary["id"], _conflict, "voice foglalás: a bemondott email/név és a hívó telefonszám eltérő ügyfélhez tartoznak")
+            db.mark_duplicate_suspect(_conflict, _primary["id"], "voice foglalás: a bemondott email/név és a hívó telefonszám eltérő ügyfélhez tartoznak")
+        db.upsert_client(custom_data, additional_log=f"Hangasszisztens időpontot foglalt: {date} {time}", status=first_col_id, existing_id=_primary["id"] if _primary else None)
 
         if attendee and get_session_id():
             db.update_session_participant(get_session_id(), attendee)

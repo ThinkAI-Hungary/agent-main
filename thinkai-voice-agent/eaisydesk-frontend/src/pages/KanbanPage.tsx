@@ -146,6 +146,8 @@ export default function KanbanPage() {
       // Jogosultság-mátrix (2026-09-13): a member MINDEN ügyfelet lát —
       // a korábbi assigned-szűrés kivezetve.
       const cd = parseCustomData(c.custom_data);
+      // Beolvasztott (merged) rekordok nem jelennek meg a kanbanon
+      if (cd.merged_into) return;
       // Kanbanról eltávolítva jelző — nem jelenik meg újra automatikusan
       if (cd.kanban_removed) return;
 
