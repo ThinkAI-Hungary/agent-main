@@ -790,3 +790,5 @@ const SALES_TAGS = ['kampánylead', 'potenciális ügyfél', 'árkérdés', 'tö
 └──────────────────────────────────────────────────────────┘
 │ [tartalom]                                                │
 ```
+
+**Teszt-takarítás (2026-09-21)**: a user kérésére Orosz Erika (265) + Kis Gizella (271) TELJES adattörlése stagingen: clients (már UI-ból törölte), interactions (824/825/828/808), sessions (2), kézi teendők (10/11), processed_emails (9 sor — az email-újrateszt feldolgozhassa), a 115-ös naptáresemény már kaszkádoltan törölve volt. Konténer restart a high-water mark miatt. Tiszta lap az újrateszthez.
