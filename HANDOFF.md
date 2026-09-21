@@ -55,6 +55,8 @@
 
 **Megjegyzés (nem javítva, user-döntés kell)**: a 115-ös esemény 30 perces lett, pedig az Implantációs konzultáció a szolgáltatás-tábla szerint 60 perces — az agent a default 30-at adta át. Javaslat: szolgáltatás-egyezésnél a tábla duration-je felülírja az LLM-ét.
 
+**Időtartam-szabály implementálva (commit `f61ec65` + `b74dbda` + `3d1fbf7`)**: `resolve_service_duration` — szolgáltatás-egyezésnél a TÁBLA időtartama nyer az LLM 30 perces defaultjával szemben (voice + email pending + messenger/web flow; a kézi naptárfelvétel érintetlen). A 115-ös esemény backfillve (60 perc; az email-módosítás 14:00-re vitte, az is rendben — 12:00 UTC = 14:00 CEST). Egyeztetési rangsor mindkét feloldónál (duration + ellátó): **PONTOS > nm⊂cím (leghosszabb) > cím⊂nm (leghosszabb)** — így „Implantációs konzultáció - X" → 60 perc + implant-ellátó, puszta „Konzultáció" → 45 perc, ismeretlen → átadott érték + pool.
+
 ---
 
 ## ✅ 2026-09-21 (4. kör) — popup/megjelenítés javítások (commit `25283ce`, stagingen ÉL)
