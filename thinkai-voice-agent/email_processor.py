@@ -1609,16 +1609,24 @@ def resolve_service_duration(title: str, duration_minutes: int | None) -> int:
     except Exception:
         services = []
     t = (title or "").strip().lower()
-    # A LEGSPECIFIKUSABB (leghosszabb név-) egyezés nyer — különben az
-    # „Implantációs konzultáció"-ra a generikus „Konzultáció" (45 perc)
-    # kapná el az „Implantációs konzultáció" (60 perc) elől
-    best_nm_len, best_dur = 0, None
+    # Egyezési rangsor: PONTOS > a szolgáltatás neve benne van a címben
+    # (leghosszabb) > a cím benne van a szolgáltatás nevében (leghosszabb).
+    # Ez oldja fel mindkét irányú félreillést: az „Implantációs konzultáció
+    # - Orosz Erika" az implantációs (60 perc) szolgáltatást kapja, a puszta
+    # „Konzultáció" pedig a generikust (45 perc) — nem fordítva.
+    best_score, best_nm_len, best_dur = 0, 0, None
     for sv in services:
         nm = (sv.get("service_name") or "").strip().lower()
-        if nm and (nm in t or t in nm) and len(nm) > best_nm_len:
-            d = sv.get("duration_minutes")
-            if isinstance(d, int) and d > 0:
-                best_nm_len, best_dur = len(nm), d
+        if not nm:
+            continue
+        score = 3 if nm == t else (2 if nm in t else (1 if t in nm else 0))
+        if score == 0:
+            continue
+        d = sv.get("duration_minutes")
+        if not (isinstance(d, int) and d > 0):
+            continue
+        if score > best_score or (score == best_score and len(nm) > best_nm_len):
+            best_score, best_nm_len, best_dur = score, len(nm), d
     if best_dur:
         return best_dur
     return int(duration_minutes or 30)
@@ -1637,7 +1645,10 @@ def resolve_assigned_staff(title: str, assigned_to: str = "") -> str:
         services = []
     t = (title or "").strip().lower()
     matched, pool = [], []
-    best_nm_len = 0
+    # Ugyanaz az egyezési rangsor, mint a resolve_service_duration-nél:
+    # pontos > nm⊂t (leghosszabb) > t⊂nm (leghosszabb) — a generikus
+    # „Konzultáció" névsora ne keveredjen specifikusabb szolgáltatásba
+    best_score, best_nm_len = 0, 0
     for sv in services:
         names = _split_staff_names(sv.get("assigned_to") or "")
         if not names:
@@ -1646,15 +1657,17 @@ def resolve_assigned_staff(title: str, assigned_to: str = "") -> str:
             if n not in pool:
                 pool.append(n)
         nm = (sv.get("service_name") or "").strip().lower()
-        if nm and (nm in t or t in nm):
-            if len(nm) > best_nm_len:
-                # A legspecifikusabb szolgáltatás névsora nyer (a generikus
-                # „Konzultáció" ne keveredjen az „Implantációs konzultáció"-ba)
-                best_nm_len, matched = len(nm), []
-            if len(nm) == best_nm_len:
-                for n in names:
-                    if n not in matched:
-                        matched.append(n)
+        if not nm:
+            continue
+        score = 3 if nm == t else (2 if nm in t else (1 if t in nm else 0))
+        if score == 0:
+            continue
+        if score > best_score or (score == best_score and len(nm) > best_nm_len):
+            best_score, best_nm_len, matched = score, len(nm), []
+        if score == best_score and len(nm) == best_nm_len:
+            for n in names:
+                if n not in matched:
+                    matched.append(n)
     import random
     if matched:
         return random.choice(matched)
