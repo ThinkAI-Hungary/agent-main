@@ -49,6 +49,19 @@
 
 ---
 
+## ✅ 2026-09-21 (2. kör) — Voice teszthívás (Orosz Erika) hibáinak javítása (commit `85ada03`, stagingen ÉL)
+
+A 09-21 10:56-os teszthívás (session 825, client 265 = Orosz Erika — az azonosítás és a többforrásos transcript-javítás JÓL működött: „session.history (35 turnus, 17 ügyfél)") 4 új hibát tárt fel:
+
+1. **Foglalás-hallucináció (KRITIKUS)**: az agent ÚGY erősítette meg a szept. 24. 11:00-s foglalást, hogy SOHA nem hívta a `book_meeting` eszközt — nincs naptáresemény, nincs visszaigazoló email. Javítás: `patient_rules` új 8. szabálya — véglegesítés KIZÁRÓLAG sikeres book_meeting-hívás után; hiba esetén őszinte jelzés; betűzött emailnél visszaolvasás + megerősítés.
+2. **Endpointing túl agresszív**: `min_silence_duration` 0.3→0.6s, `min_endpointing_delay` 0.3→0.8s — a betűzés mikró-szüneteinél nem vág turnust, az agent nem szól közbe az email betűzésébe.
+3. **Időbélyegek**: a chat-context turnusok mind a hívás-vége idejét kapták; most szöveg-egyezés alapján az event-list valós idejét öröklik.
+4. **„Ismeretlen hívás" az értesítési központban**: a hívás KÖZBENI interakciók (lookup_info `kérdés` log, voice_alert) `client_id=NULL`-lal maradtak → a klasszifikáció végén backfill a session összes client nélküli interakciójára.
+
+**Ismert korlát (nem javítható kódból)**: a garbled STT-szöveg („Igen, játszottam", „Csücsök Ödön", „oroszkukacyahoo.is") a Gemini magyar STT minősége betűzésnél — az endpointing + a visszaolvasós prompt-szabály csökkenti a gyakorlati kárát, de az átirat gépi jellege megmarad. A szept. 24-i „foglalás" a teszthívásból NEM létezik — új teszthívással ellenőrizendő.
+
+---
+
 ## ✅ 2026-09-21 — Voice-agent javításcsomag (commit `72fceea`, stagingen ÉL)
 
 A voice-felmérés 4 tételéből 3 lezárva (a 267/268 merge user-döntésre vár):
