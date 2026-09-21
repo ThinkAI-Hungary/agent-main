@@ -402,12 +402,13 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           // át — ld. 265/271). A client_id nélküli sorok maradhatnak: azok a
           // session erős kulcsa (email/messenger) alapján ide tartoznak.
           if (r.client_id && String(r.client_id) !== clientId) return;
-          // Tool-log sorok (book_meeting 'foglalás', lookup_info 'kérdés')
-          // kiszűrve — a fő interakció (átirat) már mindent tartalmaz; ezek
-          // átirat nélküli duplikátum-sorok voltak a profilon. A voice_alert
-          // (riasztás) marad.
+          // Csak a TISZTA tool-log sorok zárt ki (book_meeting 'foglalás',
+          // lookup_info 'kérdés', check_calendar) — a fő interakció (átirat)
+          // már mindent tartalmaz. FONTOS: a csatorna-stampeket (imap_worker_ai,
+          // process_meta_message, report_alert, outbound_notification) NEM
+          // szabad kizárni — azok valódi interakciós sorok!
           const toolName = (r as Record<string, unknown>).tool_name as string | undefined;
-          if (toolName && (r.type || '') !== 'voice_alert') return;
+          if (toolName && ['book_meeting', 'lookup_info', 'check_calendar'].includes(toolName)) return;
           const summary = r.summary || s.summary || '';
           const topic = r.topic || '';
           // Determinisztikus csatorna-mapping (a nyers r.type — pl. 'voice_alert' —

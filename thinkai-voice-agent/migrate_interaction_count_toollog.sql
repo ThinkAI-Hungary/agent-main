@@ -1,5 +1,9 @@
 -- 2026-09-21 — a session-számláló és a reprezentatív sor kiszűri a tool-logokat
--- (book_meeting 'foglalás', lookup_info 'kérdés' stb.) — ezek nem önálló
+-- (book_meeting 'foglalás', lookup_info 'kérdés', check_calendar) — ezek nem önálló
+-- interakciók. FIGYELEM: a csatorna-stampeket (imap_worker_ai, process_meta_message,
+-- report_alert, outbound_notification) NEM szabad kizárni — azok valódi sorok!
+-- (2026-09-21 hotfix: a túl tág 'tool_name IS NULL' szűrő az EMAILEKET is elrejtette.)
+-- Eredeti megjegyzés: ezek nem önálló
 -- interakciók, a fő beszélgetés-sor tartalmazza őket. STAGINGEN már ÉL;
 -- prod-deploynál futtatandó!
 CREATE OR REPLACE FUNCTION public.get_grouped_interactions(p_limit integer DEFAULT 100, p_offset integer DEFAULT 0, p_tenant uuid DEFAULT NULL::uuid)
@@ -9,7 +13,7 @@ CREATE OR REPLACE FUNCTION public.get_grouped_interactions(p_limit integer DEFAU
 AS $function$
 WITH per_session AS (
   SELECT COALESCE(session_id, 'noid_' || id::text) AS gid,
-    COUNT(*) FILTER (WHERE tool_name IS NULL) AS interaction_count,
+    COUNT(*) FILTER (WHERE tool_name IS NULL OR tool_name NOT IN ('book_meeting','lookup_info','check_calendar')) AS interaction_count,
     MAX(created_at) AS last_created_at,
     BOOL_OR(direction IS DISTINCT FROM 'outbound') AS has_inbound
   FROM interactions WHERE (p_tenant IS NULL OR tenant_id = p_tenant) GROUP BY 1
@@ -21,7 +25,7 @@ repr AS (
   SELECT DISTINCT ON (COALESCE(i.session_id, 'noid_' || i.id::text)) i.*, COALESCE(i.session_id, 'noid_' || i.id::text) AS gid
   FROM interactions i JOIN filtered f ON f.gid = COALESCE(i.session_id, 'noid_' || i.id::text)
   WHERE (p_tenant IS NULL OR i.tenant_id = p_tenant)
-  AND i.tool_name IS NULL
+  AND (i.tool_name IS NULL OR i.tool_name NOT IN ('book_meeting','lookup_info','check_calendar'))
   ORDER BY gid, i.created_at DESC
 )
 SELECT jsonb_build_object(
