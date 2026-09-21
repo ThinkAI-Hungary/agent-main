@@ -2405,7 +2405,8 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
         # --- ACTION: NAPTÁR FOGLALÁS ---
         if meeting and meeting.get("title") and meeting.get("date") and meeting.get("time"):
             start_dt_val = f"{meeting['date']}T{meeting['time']}:00"
-            dur = int(meeting.get("duration_minutes", 30))
+            # Szolgáltatás-egyezésnél a tábla időtartama az irányadó (user-szabály)
+            dur = email_processor.resolve_service_duration(meeting.get("title", ""), int(meeting.get("duration_minutes", 30)))
             try:
                 import zoneinfo
                 tz = zoneinfo.ZoneInfo("Europe/Budapest")

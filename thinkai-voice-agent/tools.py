@@ -540,6 +540,10 @@ async def book_meeting(
         # (Az agent a beszélgetésben továbbra sem nevezi meg; a név az
         # event.doctor-ban és a visszaigazoló emailben oldódik meg.)
         effective_doctor = email_processor.resolve_assigned_staff(title, assigned_to or "")
+        # Szolgáltatás-egyezésnél a tábla időtartama az irányadó (a 30 perces
+        # LLM-default ne nyomja felül — user-szabály 2026-09-21)
+        duration_minutes = email_processor.resolve_service_duration(title or service_name, duration_minutes)
+        end_dt = start_dt + timedelta(minutes=duration_minutes)
         event_id = db.add_calendar_event(
             title=title,
             start_dt=start_dt.isoformat(),
