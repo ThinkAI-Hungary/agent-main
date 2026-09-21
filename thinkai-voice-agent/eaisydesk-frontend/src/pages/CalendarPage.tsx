@@ -478,7 +478,7 @@ export default function CalendarPage() {
     const ok = await confirm('Biztosan törlöd ezt az időpontot?', { title: 'Időpont törlése', danger: true });
     if (!ok) return;
     try {
-      const res = await authFetch(`/admin/api/clients/calendar/${eventId}`, { method: 'DELETE' });
+      const res = await authFetch(`/admin/api/calendar/${eventId}`, { method: 'DELETE' });
       if (res.ok) { showToast('Időpont törölve'); refetchEvents(); }
       else showToast('Hiba a törléskor', 'error');
     } catch { showToast('Hiba', 'error'); }
