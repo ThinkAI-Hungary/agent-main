@@ -57,6 +57,8 @@
 
 **Időtartam-szabály implementálva (commit `f61ec65` + `b74dbda` + `3d1fbf7`)**: `resolve_service_duration` — szolgáltatás-egyezésnél a TÁBLA időtartama nyer az LLM 30 perces defaultjával szemben (voice + email pending + messenger/web flow; a kézi naptárfelvétel érintetlen). A 115-ös esemény backfillve (60 perc; az email-módosítás 14:00-re vitte, az is rendben — 12:00 UTC = 14:00 CEST). Egyeztetési rangsor mindkét feloldónál (duration + ellátó): **PONTOS > nm⊂cím (leghosszabb) > cím⊂nm (leghosszabb)** — így „Implantációs konzultáció - X" → 60 perc + implant-ellátó, puszta „Konzultáció" → 45 perc, ismeretlen → átadott érték + pool.
 
+**Naptár-törlés javítva (commit `4511d48`)**: a CalendarPage a sosem létezett `/admin/api/clients/calendar/{id}` útvonalat hívta DELETE-tel → 405. Helyes: `/admin/api/calendar/{id}`. E2E tesztelve (tesztesemény create+delete, member 200 — a mátrix szerint member törölhet). Tanulság: a 405-ös válasz útvonal-eltérést jelez, nem jogosultsági hibát.
+
 ---
 
 ## ✅ 2026-09-21 (4. kör) — popup/megjelenítés javítások (commit `25283ce`, stagingen ÉL)
