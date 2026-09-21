@@ -2064,7 +2064,7 @@ def create_event_from_pending_meeting(pm: dict, status: str = "confirmed", pendi
     if not date_str or not time_str:
         logger.error(f"create_event_from_pending_meeting: hiányzó dátum/idő: date={date_str!r} time={time_str!r}")
         return None
-    title = pm.get("title", "Időpont")
+    title = db.normalize_event_title(pm.get("title", "Időpont"), pm.get("attendee", "") or "")
     # Szolgáltatás-egyezésnél a tábla időtartama az irányadó (user-szabály)
     dur = resolve_service_duration(title, pm.get("duration_minutes", 30) or 30)
     # {{munkatárs}}: minden foglalás MINDEN ESETBEN kap munkatársat

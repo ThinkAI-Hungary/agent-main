@@ -597,6 +597,27 @@ def get_calendar_events() -> list[dict]:
     except Exception:
         return []
 
+def normalize_event_title(title: str, attendee: str) -> str:
+    """Egységes eseménycím-formátum: '<szolgáltatás> - <ügyfélnév>' (user-szabály
+    2026-09-21). A rendszer korábban útvonalfüggően mindkét sorrendet generálta
+    ('Orosz Erika - Fogkő-eltávolítás' vs 'Implantációs konzultáció - Orosz Erika').
+    - '<név> - <szolgáltatás>' → felcseréli
+    - ha a név sehol nincs a címben → hozzáfűzi a végére
+    - egyébként változatlanul hagyja
+    """
+    t = (title or "").strip()
+    att = (attendee or "").strip()
+    if not att or not t:
+        return t
+    low, att_low = t.lower(), att.lower()
+    if low.startswith(att_low + " - "):
+        rest = t[len(att) + 3:].strip()
+        return f"{rest} - {att}" if rest else att
+    if att_low not in low:
+        return f"{t} - {att}"
+    return t
+
+
 def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", attendee_email="", assigned_to="", status="", pending_until=None, attendee_phone="") -> int:
     if not supabase: return 0
     try:

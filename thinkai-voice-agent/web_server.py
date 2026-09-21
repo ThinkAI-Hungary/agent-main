@@ -2421,7 +2421,7 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                 db.upsert_client({"messenger_id": sender_id}, additional_log="[Rendszer] Figyelmeztetés: Ebbe az időpontba már van foglalás, nem rögzítve.")
             else:
                 created_event_id = db.add_calendar_event(
-                    title=meeting.get("title", "Konzultáció"),
+                    title=db.normalize_event_title(meeting.get("title", "Konzultáció"), kanban.get("name") or meta_name or ""),
                     start_dt=start_dt_val,
                     end_dt=end_dt_val,
                     duration_minutes=dur,

@@ -535,6 +535,9 @@ async def book_meeting(
                 continue
 
         # ── No conflict — book it in Calendar ───────────────────────────
+        # Egységes cím-formátum: '<szolgáltatás> - <név>' (az LLM-től függetlenül)
+        title = db.normalize_event_title(title, attendee)
+
         # {{munkatárs}}: MINDEN foglaláshoz tartozik ellátó (user-szabály 2026-09-21)
         # — explicit kérés → szolgáltatás-hozzárendelés → releváns munkatárs.
         # (Az agent a beszélgetésben továbbra sem nevezi meg; a név az
