@@ -790,13 +790,20 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                         {upcoming[0].start_dt ? fmtDt(upcoming[0].start_dt) : '—'}
                         {(() => {
                           const ev0 = upcoming[0] as CalendarEvent & { title?: string; attendee?: string };
-                          // A cím „<szolgáltatás> - <ügyfélnév>" — a profilon az
-                          // ügyfélnév-ismétlés felesleges, levágjuk
+                          // SZABÁLY (2026-09-21): a következő időpont kártyán az
+                          // ügyfél neve SOHA nem szerepel — a cím mindkét
+                          // formátumából levágjuk („<szolgáltatás> - <név>" és
+                          // „<név> - <szolgáltatás>" — a rendszer mindkettőt
+                          // generálja különböző útvonalakon).
                           const t = ev0.title || '';
                           const att = (ev0.attendee || '').trim();
-                          const clean = att && t.toLowerCase().endsWith(' - ' + att.toLowerCase())
-                            ? t.slice(0, t.length - att.length - 3).trim()
-                            : t;
+                          let clean = t;
+                          if (att) {
+                            const low = t.toLowerCase();
+                            const attLow = att.toLowerCase();
+                            if (low.endsWith(' - ' + attLow)) clean = t.slice(0, t.length - att.length - 3).trim();
+                            else if (low.startsWith(attLow + ' - ')) clean = t.slice(att.length + 3).trim();
+                          }
                           const doc = (ev0 as CalendarEvent & { doctor?: string }).doctor;
                           return (clean ? ` · ${clean}` : '') + (doc ? ` · ${doc}` : '');
                         })()}

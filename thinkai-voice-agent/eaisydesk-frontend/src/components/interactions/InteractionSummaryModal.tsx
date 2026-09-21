@@ -649,13 +649,18 @@ export default function InteractionSummaryModal({
               apptService = drMatch[1].trim();
               if (!apptDoctor) apptDoctor = drMatch[2].trim();
             } else {
-              // A cím „<szolgáltatás> - <ügyfélnév>" konvenció — a popupban az
-              // ügyfél neve felesleges (ő az alany), az ellátó a releváns adat
+              // A cím „<szolgáltatás> - <ügyfélnév>" VAGY „<ügyfélnév> - <szolgáltatás>"
+              // konvenció — a popupban az ügyfél neve felesleges (ő az alany),
+              // az ellátó a releváns adat. Mindkét formátumról levágjuk.
               const att = (matchedEvent.attendee || '').trim();
-              apptService =
-                att && rawTitle.toLowerCase().endsWith(' - ' + att.toLowerCase())
-                  ? rawTitle.slice(0, rawTitle.length - att.length - 3).trim()
-                  : rawTitle;
+              const low = rawTitle.toLowerCase();
+              const attLow = att.toLowerCase();
+              apptService = rawTitle;
+              if (att && low.endsWith(' - ' + attLow)) {
+                apptService = rawTitle.slice(0, rawTitle.length - att.length - 3).trim();
+              } else if (att && low.startsWith(attLow + ' - ')) {
+                apptService = rawTitle.slice(att.length + 3).trim();
+              }
             }
           }
 
