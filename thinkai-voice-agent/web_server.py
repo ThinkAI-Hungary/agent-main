@@ -4126,32 +4126,14 @@ async def get_business_info(username: str = Depends(verify_jwt)):
 
 @app.post("/admin/api/business-info")
 async def save_business_info(payload: BusinessInfoSaveRequest, _admin = Depends(require_admin)):
-    """Save practice info to Supabase. Business hours are managed separately via /admin/api/settings."""
-    data = {
-        "practice_name": payload.practice_name,
-        "description":   payload.description,
-        "address":       payload.address,
-        "markanev":      payload.markanev,
-        "szakterulet":   payload.szakterulet,
-        "kulcsszavak":   payload.kulcsszavak,
-        "megkozelites":  payload.megkozelites,
-        "price_list":    payload.price_list,
-        "price_list_file_meta": payload.price_list_file_meta,
-        "campaigns":     payload.campaigns,
-        "exceptions":    payload.exceptions,
-        "faq":           payload.faq,
-        "modositas_eng": payload.modositas_eng,
-        "modositas_szoveg": payload.modositas_szoveg,
-        "lemondas_24h":  payload.lemondas_24h,
-        "figyelmezteto_szoveg": payload.figyelmezteto_szoveg,
-        "pacient_id_question": payload.pacient_id_question,
-        "new_patient_required": payload.new_patient_required,
-        "new_patient_auto_visit": payload.new_patient_auto_visit,
-        "returning_patient_required": payload.returning_patient_required,
-        "service_description": payload.service_description,
-        "sender_name": payload.sender_name,
-        "sender_email": payload.sender_email,
-    }
+    """Save practice info to Supabase. Business hours are managed separately via /admin/api/settings.
+
+    VÉDŐFAL (2026-09-21): exclude_unset=True — csak a KÜLDÖTT mezőket írjuk.
+    Korábban a pydantic-defaultokkal töltődött fel a hiányzó mezők listája,
+    így egy részleges POST (pl. API-teszt) az összes többi mezőt kinullázta —
+    így veszett el a staging árlista/GYIK/kampányok tartalma. A frontend
+    továbbra is a teljes objektumot küldi, így a UI-viselkedés változatlan."""
+    data = payload.model_dump(exclude_unset=True)
     # Utolsó módosítás (ki + mikor) — a mockup fejléc-jelzéséhez
     try:
         user_record = db.get_admin_user_by_username(_admin.get("username", "")) or {}
