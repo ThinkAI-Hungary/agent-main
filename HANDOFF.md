@@ -49,6 +49,14 @@
 
 ---
 
+## ✅ 2026-09-21 (4. kör) — popup/megjelenítés javítások (commit `25283ce`, stagingen ÉL)
+
+1. **„Szolgáltatás: Implantációs konzultáció - Orosz Erika"** — a popup ÖSSZEFOGLALÁS és a profil Időpont-szekció az esemény nyers címét mutatta, az ügyfél neve feleslegesen ismétlődött. Most a `<szolgáltatás> - <ügyfélnév>` suffix levágódik; az ellátó külön „Ellátó:" sorban (volt „Orvos:").
+2. **Üres popup / aktuális hívás az Előzményekben (újra)**: a tz-fix (fd5874e) deploy ELŐTT íródott naplóbejegyzések vegyes tz-bázisúak maradtak → a session-grouping szétszakította a hívásokat. Client 265 naplójában 52 UTC-s turnus-időbélyeg Budapestire korrigálva (+2h). ⚠️ Más ügyfelek régi (tz-fix előtti) voice-naplóiban ugyanez előfordulhat — globális normalizálás csak körültekintően (a budapesti fejlécek és UTC-turnusok nem mindig megkülönböztethetők).
+3. **Email thread-popup „előzmény nélkül"**: a profil/single mód TERVEZETTEN csak a saját váltást mutatja (előzmény nélkül); a napló/thread mód mutatja az előzményeket. Ha a thread módban sem látszik, az a 2-es pont adatproblémája volt.
+
+---
+
 ## ✅ 2026-09-21 (3. kör) — foglalás-teszt hibái (commit `fd5874e`, stagingen ÉL)
 
 A második teszthívás (session 826/827) már JÓL foglalt (book_meeting lefutott, esemény 115), 5 új hiba:
