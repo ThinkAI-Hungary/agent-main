@@ -5869,7 +5869,9 @@ async def public_cancel_appointment(token: str):
             if event:
                 _cancel_email = (event.get("attendee_email") or "").strip()
                 if _cancel_email and _cancel_email != "-":
-                    _cancel_session = f"email_{_cancel_email}"
+                    # Tárgy-szintű thread (2026-09-21): a lemondás a visszaigazoló
+                    # email threadjébe tartozik (a sablon-tárgy normalizált kulcsa)
+                    _cancel_session = f"email_{_cancel_email}_{email_processor._email_thread_key('Időpont visszaigazolás')}"
                     _cancel_participant = event.get("attendee") or ""
                     _cancel_title = event.get("title", "Időpont")
                     try:

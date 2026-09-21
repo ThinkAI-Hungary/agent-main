@@ -98,6 +98,26 @@ def _spawn(coro, name: str = "") -> asyncio.Task:
     return task
 
 
+def _email_thread_key(subject: str) -> str:
+    """Email-téma normalizálása thread-kulcsként (a levelezőrendszerek modellje):
+    Re:/Fwd:/Vá: prefixek le, whitespace tömörítés, lowercase, 80 karakter.
+    Ugyanannak az ügynek a levelei így EGY threadbe kerülnek, a külön témák
+    KÜLÖN threadbe (a korábbi „minden levél egy feladótól = egy thread" helyett)."""
+    import re as _re
+    s = (subject or "").strip()
+    prev = None
+    while prev != s:
+        prev = s
+        s = _re.sub(r"^(re|fwd|fw|vá|valasz|válasz)\s*[:\-]\s*", "", s, flags=_re.IGNORECASE).strip()
+    s = _re.sub(r"\s+", " ", s).lower()
+    return s[:80] or "targy_nelkul"
+
+
+def _email_session_id(from_email: str, subject: str) -> str:
+    """Tárgy-szintű email-thread session_id (2026-09-21)."""
+    return f"email_{from_email}_{_email_thread_key(subject)}"
+
+
 def _reply_subject(subject: str) -> str:
     """Válasz-tárgy normalizálás — ne halmozódjon: 'Re: Re: Re: …'."""
     s = (subject or "").strip()
@@ -537,7 +557,7 @@ Ha egyik sem releváns, legyen üres lista [].
     # ELŐZMÉNYEK LEKÉRDEZÉSE — csak az utolsó 3 (nem a teljes szál + Python-szelet)
     history_text = ""
     try:
-        session_id = f"email_{from_email}"
+        session_id = _email_session_id(from_email, subject)
         history_res = db.supabase.table("interactions").select("summary, ai_draft_response").eq("session_id", session_id).order("created_at", desc=True).limit(3).execute()
         if history_res.data:
             recent_history = list(reversed(history_res.data))
@@ -592,14 +612,14 @@ Ha egyik sem releváns, legyen üres lista [].
         logger.error(f"Gemini API hiba: {e}")
         # Hibaágakon is naplózunk interakciót — a levél ne tűnjön el nyomtalanul
         # (a dedup-tábla rögzíti, újrafeldolgozás nem lesz, de az admin látja).
-        db.create_session(session_id=f"email_{from_email}", room_name="Email Thread", participant=from_name)
+        db.create_session(session_id=_email_session_id(from_email, subject), room_name="Email Thread", participant=from_name)
         db.log_interaction(
             type="email",
             topic=f"[FELDOLGOZÁSI HIBA] {subject[:200]}",
             summary=f"Bejövő email feldolgozása meghiúsult (Gemini API hiba): {from_email}",
             result=str(e)[:500],
             tool_name="imap_worker_ai",
-            session_id=f"email_{from_email}",
+            session_id=_email_session_id(from_email, subject),
             funnel_stage="relevant",
             approval_status="pending",
             client_id=email_client_id
@@ -619,14 +639,14 @@ Ha egyik sem releváns, legyen üres lista [].
         data = _loads_lenient(ai_text)
     except json.JSONDecodeError as e:
         logger.error(f"Hibás JSON válasz az AI-tól: {e}\nNyers AI válasz:\n{ai_text}")
-        db.create_session(session_id=f"email_{from_email}", room_name="Email Thread", participant=from_name)
+        db.create_session(session_id=_email_session_id(from_email, subject), room_name="Email Thread", participant=from_name)
         db.log_interaction(
             type="email",
             topic=f"[FELDOLGOZÁSI HIBA] {subject[:200]}",
             summary=f"Bejövő email feldolgozása meghiúsult (hibás AI JSON): {from_email}",
             result=str(e)[:500],
             tool_name="imap_worker_ai",
-            session_id=f"email_{from_email}",
+            session_id=_email_session_id(from_email, subject),
             funnel_stage="relevant",
             approval_status="pending",
             client_id=email_client_id
@@ -862,7 +882,7 @@ Ha egyik sem releváns, legyen üres lista [].
             draft_payload["stale_offer"] = stale_offer
 
         # Naplózás
-        session_id = f"email_{from_email}"
+        session_id = _email_session_id(from_email, subject)
         db.create_session(session_id=session_id, room_name="Email Thread", participant=from_name)
 
         email_log_id = db.add_email_log(
@@ -1339,7 +1359,7 @@ async def _poll_tenant_mailbox(tenant: dict):
         for uid, message_id, from_email, from_name, subject, text_content, received_at in emails:
             try:
                 # Dedup-claim: ha már feldolgoztuk, kihagyjuk
-                if message_id and not db.claim_processed_email(message_id, from_email, f"email_{from_email}"):
+                if message_id and not db.claim_processed_email(message_id, from_email, _email_session_id(from_email, subject)):
                     logger.info(f"Duplikált levél kihagyva (már feldolgozva): {message_id}")
                     seen_uids.append(uid)
                     continue

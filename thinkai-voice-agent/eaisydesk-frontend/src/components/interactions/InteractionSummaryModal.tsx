@@ -297,6 +297,7 @@ export default function InteractionSummaryModal({
         sender: 'user' | 'ai' | 'system';
         text: string;
         subject?: string;
+        channel?: 'email' | 'voice' | 'system';
       }
 
       function parseLogEntries(log: string): LogEntry[] {
@@ -334,12 +335,12 @@ export default function InteractionSummaryModal({
               if (emailSubject && emailBody.toLowerCase().startsWith(emailSubject.toLowerCase() + ':')) {
                 emailBody = emailBody.slice(emailSubject.length + 1).trimStart();
               }
-              entries.push({ timestamp, time, sender: 'user', text: emailBody, subject: emailSubject });
+              entries.push({ timestamp, time, sender: 'user', text: emailBody, subject: emailSubject, channel: 'email' });
             }
             if (aiResponseSplit.length > 1) {
               const aiText = aiResponseSplit.slice(1).join('\n').trim();
               if (aiText) {
-                entries.push({ timestamp, time: time + 1, sender: 'ai', text: aiText });
+                entries.push({ timestamp, time: time + 1, sender: 'ai', text: aiText, channel: 'email' });
               }
             }
             continue;
@@ -361,7 +362,7 @@ export default function InteractionSummaryModal({
           }
 
           if (content) {
-            entries.push({ timestamp, time, sender, text: content.trim() });
+            entries.push({ timestamp, time, sender, text: content.trim(), channel: sender === 'system' ? 'system' : 'voice' });
           }
         }
         return entries;
@@ -430,7 +431,12 @@ export default function InteractionSummaryModal({
       let parsedBlocks: ChatBlock[];
       const isEmailThread = (row.channel || '').toLowerCase() === 'email';
 
-      const allEntries = parseLogEntries(fullLog);
+      const _ch = (row.channel || '').toLowerCase();
+      const allEntries = parseLogEntries(fullLog).filter((e) => {
+        if (_ch === 'email') return e.channel !== 'voice';
+        if (_ch === 'telefon') return e.channel !== 'email';
+        return true; // más csatornáknál nincs szűrés
+      });
       let historyGroups: { label: string; blocks: ChatBlock[] }[] = [];
       if (mode === 'single' && isSingleEmail) {
         // Determinisztikus: a fragment CSAK ezt az interakciót tartalmazza —
