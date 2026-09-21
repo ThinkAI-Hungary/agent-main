@@ -1609,12 +1609,18 @@ def resolve_service_duration(title: str, duration_minutes: int | None) -> int:
     except Exception:
         services = []
     t = (title or "").strip().lower()
+    # A LEGSPECIFIKUSABB (leghosszabb név-) egyezés nyer — különben az
+    # „Implantációs konzultáció"-ra a generikus „Konzultáció" (45 perc)
+    # kapná el az „Implantációs konzultáció" (60 perc) elől
+    best_nm_len, best_dur = 0, None
     for sv in services:
         nm = (sv.get("service_name") or "").strip().lower()
-        if nm and (nm in t or t in nm):
+        if nm and (nm in t or t in nm) and len(nm) > best_nm_len:
             d = sv.get("duration_minutes")
             if isinstance(d, int) and d > 0:
-                return d
+                best_nm_len, best_dur = len(nm), d
+    if best_dur:
+        return best_dur
     return int(duration_minutes or 30)
 
 
@@ -1631,6 +1637,7 @@ def resolve_assigned_staff(title: str, assigned_to: str = "") -> str:
         services = []
     t = (title or "").strip().lower()
     matched, pool = [], []
+    best_nm_len = 0
     for sv in services:
         names = _split_staff_names(sv.get("assigned_to") or "")
         if not names:
@@ -1640,9 +1647,14 @@ def resolve_assigned_staff(title: str, assigned_to: str = "") -> str:
                 pool.append(n)
         nm = (sv.get("service_name") or "").strip().lower()
         if nm and (nm in t or t in nm):
-            for n in names:
-                if n not in matched:
-                    matched.append(n)
+            if len(nm) > best_nm_len:
+                # A legspecifikusabb szolgáltatás névsora nyer (a generikus
+                # „Konzultáció" ne keveredjen az „Implantációs konzultáció"-ba)
+                best_nm_len, matched = len(nm), []
+            if len(nm) == best_nm_len:
+                for n in names:
+                    if n not in matched:
+                        matched.append(n)
     import random
     if matched:
         return random.choice(matched)
