@@ -112,6 +112,7 @@ def _format_patient_rules(pi: dict) -> str:
     
     if pi.get("new_patient_auto_visit", True):
         rules.append("   - SZIGORÚ SZABÁLY: Mivel ő egy ÚJ páciens, az első alkalommal KIZÁRÓLAG állapotfelmérésre / általános vizitre (pl. Konzultáció) foglalhatsz neki időpontot! Semmilyen más konkrét kezelésre (pl. tömés, foghúzás) NEM adhatsz időpontot látatlanban. Mondd el neki, hogy az első alkalommal mindenképp egy állapotfelmérésre van szükség.")
+        rules.append("   - KIVÉTEL (SZIGORÚ!): DENTÁLHIGIÉNIAI kezelésre (fogkő-eltávolítás, EMS fogkő-eltávolítás, Air-Flow, polírozás) ÚJ páciensnek IS KÖZVETLENÜL foglalhatsz időpontot — oda NEM kell konzultáció! Ha az új ügyfél fogkő-eltávolítást kér, NE tereld konzultációra, foglald közvetlenül a dentálhigiénés kezelést.")
 
     # Visszatérő páciens szabályok
     ret_req = pi.get("returning_patient_required", "Páciens azonosító vagy telefonszám")

@@ -102,24 +102,29 @@ async def entrypoint(ctx: JobContext):
     if phantoms_removed:
         await asyncio.sleep(1.5)  # Let room settle after phantom removal
 
-    # ── Korai hívószám-feloldás: a SIP participant már a connect() UTÁN elérhető,
-    # a session.start() ELŐTT — így a telefonszám BEKERÜLHET A PROMPTBA (a
-    # gemini-3.1 mid-session instruction-update ugyanis nem támogatott). Így az
-    # agent nem kéri el újra a hívó számát.
+    # ── Korai hívószám-feloldás: a SIP participant a connect() után ~1-3 mp
+    # késleltetéssel érkezik — VÁRAKOZÓS ciklus kell, különben a prompt a
+    # telefonszám nélkül épül fel (gemini-3.1 nem enged mid-session
+    # instruction-update-et), és az agent újra elkéri a számot.
     early_caller_phone = ""
     try:
         import re as _re_early
-        for p in list(ctx.room.remote_participants.values()):
-            attrs = getattr(p, "attributes", None) or {}
-            sip_phone = attrs.get("sip.phoneNumber")
-            if sip_phone:
-                early_caller_phone = sip_phone
+        _deadline = asyncio.get_event_loop().time() + 5.0
+        while not early_caller_phone:
+            for p in list(ctx.room.remote_participants.values()):
+                attrs = getattr(p, "attributes", None) or {}
+                sip_phone = attrs.get("sip.phoneNumber")
+                if sip_phone:
+                    early_caller_phone = sip_phone
+                    break
+                ident = (p.identity or "")
+                m = _re_early.search(r'\+?\d{9,15}', ident)
+                if m:
+                    early_caller_phone = m.group(0)
+                    break
+            if early_caller_phone or asyncio.get_event_loop().time() >= _deadline:
                 break
-            ident = (p.identity or "")
-            m = _re_early.search(r'\+?\d{9,15}', ident)
-            if m:
-                early_caller_phone = m.group(0)
-                break
+            await asyncio.sleep(0.5)
     except Exception as _ee:
         logger.warning(f"Korai hívószám-feloldás hiba: {_ee}")
     if early_caller_phone:
@@ -358,7 +363,9 @@ SZABÁLYOK:
         min_interruption_words=1,
         max_tool_steps=5,
         user_away_timeout=20.0,
-        preemptive_generation=True,
+        # A modell CSAK a teljes ügyfél-turnus után generáljon — preemptive
+        # módban a fragmentumokra válaszolt (közbevágás, sorrend-zűr, ismétlések)
+        preemptive_generation=False,
     )
 
     logger.info(
