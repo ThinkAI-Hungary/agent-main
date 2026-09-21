@@ -49,6 +49,19 @@
 
 ---
 
+## ✅ 2026-09-21 — Voice-agent javításcsomag (commit `72fceea`, stagingen ÉL)
+
+A voice-felmérés 4 tételéből 3 lezárva (a 267/268 merge user-döntésre vár):
+
+1. **Ügyféloldali átirat-capture (fő javítás)**: a Gemini preview API (`gemini-3.1-flash-live-preview`) az `input_audio_transcription`-t hívásonként inkonzisztensen streameli (09-14: jött; 09-21: nem) — az event-lista ilyenkor csak AI-turnusokat tartalmazott, a popupban eltűnt az ügyféloldal. A klasszifikáció most **4 forrásból** gyűjt (AgentSession `history`, a google realtime session `_chat_ctx`-e — a plugin minden turnust ide ír —, llm chat_ctx, event-list) és azt választja, amelyik ÜGYFÉL-turnust is tartalmaz; ha egyikben sincs, `⚠️`-s WARNING log jelzi. Ellenőrzés a következő teszthívásnál: a logban „Transcript forrás: <név> (N turnus, M ügyfél)".
+2. **Dedup role-onkénti**: a kereszt-role substring-dedup elnyelte a rövid ügyfélválaszokat („Igen", „Jó napot"), ha az AI-szövegben is szerepeltek — most azonos role + teljes szöveg szerinti.
+3. **„voice_alert" csatorna a profilon**: a profil a nyers `interactions.type`-ot mutatta; most a `getRowChannel` determinisztikus mappingje (ismeretlen → Telefon), mint a listanézetekben.
+4. (A „nem mond árat" tétel a business_info-helyreállítással oldódott meg — ld. lentebb.)
+
+**Nyitva**: 267/268 („Pónus"/"Bónus Róbert") merge — user dönti el; telefonszám-rögzítés a SIP trunkon (HidePhoneNumber?) ellenőrizendő, különben a név-duplikátumok újrakeletkezhetnek STT-elírás esetén.
+
+---
+
 ## ✅ 2026-09-21 — business_info adatvesztés: ok, helyreállítás, védőfal (commit `6516bb7`, stagingen ÉL)
 
 **Tünet**: a staging céginformációkból eltűnt az árlista, GYIK, kampányok, kivételek, szabály-szövegek — a voice agent ezért nem tudott árat mondani.
