@@ -49,6 +49,22 @@
 
 ---
 
+## ✅ 2026-09-21 (7. kör) — Tiszta-lap teszthívás 9 hibája (commit `7c07231`, stagingen ÉL)
+
+1. **Átirat-sorrend**: a popup időbélyeg-sortja szedte szét a turnusokat (kevert forrású ts: chat-context fallback vs valós event). A session-szakítás és megjelenítés most a napló append-sorrendje; a ts csak kijelzés.
+2. **Napló számláló**: tool-logok (foglalás/lookup) interakciónak számítottak → `get_grouped_interactions` SQL-függvény: count + reprezentatív sor tool-mentes. **Staging Management API-val ÉL; prod-deploynál a `migrate_interaction_count_toollog.sql` is kell!**
+3. **„potenciális ügyfél" címke** jelentése: „érdeklődött, de NEM foglalt" → sikeres `book_meeting` után automatikusan törlődik (konverzió).
+4. **Profil tool-log sorok** (átirat nélküli duplikátum) kiszűrve (voice_alert marad).
+5. **Profil Időpont**: ellátó (doctor) is látszik.
+6. **„minden fogorvos" poolból dentálhigiénikusok kizárva** (aki csak higiéniai szolgáltatáshoz rendelt — fogkő/dentálhigién/higién/air-flow/políroz név-minta): a Konzultációra véletlenül higiénikus (Balogh Pálma) került.
+7. **Naptár szerkesztő popup**: `attendee_phone` behúzódik (volt: mindig üres mező).
+8. **Hívószám a promptba**: korai SIP-feloldás a `ctx.connect()` után (a gemini-3.1 mid-session instruction-update-et nem támogat!) → az agent nem kéri el újra a hívó számát.
+9. **CalendarPage member-szűrés kivezetve** (a mátrix szerint member minden eseményt lát).
+
+**Ismert korlát (Q9 válasz)**: a „Járt már nálunk korábban?" kérdésre az agent NEM tud hívás közben ügyfelet keresni — nincs `find_client` tool. A név-bekérés után a kapcsolás a hívás VÉGÉN, a klasszifikációban történik (resolve_client_identity). Javasolt fejlesztés: `find_client` tool (név alapú keresés + meglévő adatok visszaolvasása azonosítás után).
+
+---
+
 ## ✅ 2026-09-21 (6. kör) — Split-brain incidens + duplikátum-kezelő rendszer (commit `0526efd`, stagingen ÉL)
 
 **Incidens**: álnév-teszt („Kiss Gizella" + erika@molaire.hu, hívó +36703200236) — a foglalás az emailhez (új 271-es ügyfél), az átirat/klasszifikáció a telefonhoz (265 = Orosz Erika) kapcsolódott; a profil laza név/telefon session-egyeztetése keresztbe-húzta a két ügyfelet.
