@@ -473,10 +473,17 @@ async def book_meeting(
     """Találkozó foglalása a naptárba."""
     attendee_email = _normalize_email(attendee_email)
 
-    # EAISY-241 §6: ha a hívó nem mondott telefonszámot (üres), de a rendszer
-    # kinyerte a SIP-ből (sip.phoneNumber), azt használjuk alapértelmezettként.
-    if not attendee_phone.strip():
-        attendee_phone = get_caller_phone() or "Nincs megadva"
+    # A SIP-ből ismert hívószám az ELSŐDLEGES (ellenőrzött, STT-hibamentes) —
+    # a bemondott szám elírás/kamu is lehet (ld. 09-21: '06301234567' kamu szám
+    # került az eseményre a hívó valós +36703200236 helyett). Ha a bemondott
+    # szám ELTÉR a hívóétól, azt külön 'contact_phone'-ként őrizzük meg
+    # (lehet szándékos alternatív elérhetőség, pl. rokon helyett foglal).
+    _caller_phone_now = get_caller_phone()
+    _spoken_phone_raw = attendee_phone.strip()
+    if _caller_phone_now:
+        attendee_phone = _caller_phone_now
+    elif not _spoken_phone_raw:
+        attendee_phone = "Nincs megadva"
     logger.info(f"Booking meeting: {title} on {date} at {time}, attendee={attendee}, email={attendee_email}, service={service_name}, assigned_to={assigned_to}")
 
     # ── EAISY-241 §1.1.1 / §2 — Autonómia guard ───────────────────────────────
@@ -582,6 +589,8 @@ async def book_meeting(
             "name": attendee,
             "email": attendee_email,
             "phone": attendee_phone,
+            # Eltérő bemondott elérhetőség megőrzése (ha van) — pl. rokon helyett foglal
+            **({"contact_phone": _spoken_phone_raw} if _spoken_phone_raw and _spoken_phone_raw != attendee_phone else {}),
             "forras_csatorna": "Voice Agent",
             "booked_datetime": f"{parsed_date} {parsed_time}",
             "service": service_name,
