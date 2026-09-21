@@ -313,9 +313,13 @@ SZABÁLYOK:
         vad=silero.VAD.load(
             activation_threshold=0.6,
             min_speech_duration=0.25,
-            min_silence_duration=0.3,
+            # 0.6s csend kell a turnus-véghez (volt 0.3): betűzött email címek/
+            # nevek természetes mikró-szünetei ne vágják fel a mondatot —
+            # az agent korábban a betűzés KÖZEPÉN válaszolt (ld. 09-21 teszt)
+            min_silence_duration=0.6,
         ),
-        min_endpointing_delay=0.3,
+        # 0.8s endpointing-késleltetés (volt 0.3) — ugyanannak a célja
+        min_endpointing_delay=0.8,
         max_endpointing_delay=3.0,
         min_interruption_duration=0.5,
         min_interruption_words=1,
@@ -572,14 +576,23 @@ SZABÁLYOK:
                     
                 # Format each turn with a timestamp block so the frontend parser can split them into bubbles.
                 # Az event-alapú turnok már VALÓS időbélyeget kaptak rögzítéskor; a chat-contextből
-                # jövők (timestamp nélküliek) a hívás végének idejét kapják.
+                # jövők (timestamp nélküliek) szöveg-egyezés alapján az event-list valós idejét
+                # öröklik, és csak ha nincs párjuk, kapják a hívás végének idejét.
                 now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+                ts_by_text = {}
+                for ev_entry in transcript_list:
+                    try:
+                        ev_ts, ev_body = ev_entry.split("\n", 1)
+                        ts_by_text[ev_body.strip()] = ev_ts.strip()
+                    except ValueError:
+                        continue
                 formatted_turns = []
                 for turn in final_turns:
                     if turn.lstrip().startswith("["):
                         formatted_turns.append(turn)
                     else:
-                        formatted_turns.append(f"[{now_str}]\n{turn}")
+                        ts = ts_by_text.get(turn.strip(), f"[{now_str}]")
+                        formatted_turns.append(f"{ts}\n{turn}")
                 
                 transcript = "\n\n".join(formatted_turns)
                 logger.info(f"Final transcript built ({len(final_turns)} turns) for session {session_id}")
@@ -700,6 +713,14 @@ SZABÁLYOK:
                 # Update all tool call interactions of this session with the classification
                 if classification:
                     db.supabase.table("interactions").update({"classification": classification}).eq("session_id", session_id).neq("topic", f"Telefonhívás leirata - {room_name}").execute()
+                # client_id backfill: a hívás közben keletkezett, még client nélküli
+                # interakciók (lookup_info, voice_alert) is kapcsolódjanak az ügyfélhez —
+                # különben az értesítési központ „Ismeretlen hívás"-ként mutatja őket
+                if client_id:
+                    try:
+                        db.supabase.table("interactions").update({"client_id": client_id}).eq("session_id", session_id).is_("client_id", "null").execute()
+                    except Exception as bfe:
+                        logger.warning(f"client_id backfill sikertelen: {bfe}")
                 logger.info(f"✅ Voice session {session_id} classified and transcript logged.")
             except Exception as e:
                 logger.error(f"Failed to classify voice session {session_id}: {e}")

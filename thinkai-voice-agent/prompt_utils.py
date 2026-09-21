@@ -137,6 +137,13 @@ def _format_patient_rules(pi: dict) -> str:
      f) Visszaellenőrzés: röviden foglald össze az egyeztetett adatokat, és csak az összefoglalás után véglegesítsd a foglalást.""")
     rules.append("""6. SZOLGÁLTATÁS PONTOSÍTÁSA: Ha a páciens nem mond konkrét szolgáltatást, NE sorolj fel több kérdést. Egyetlen rövid kérdés: 'Röviden elmondaná, milyen problémával vagy céllal szeretne érkezni?' — a válasz alapján ajánld fel a megfelelő, foglalható szolgáltatást.""")
     rules.append("""7. AZONOSÍTÁSI BIZTONSÁG: A hívószám PSTN-en triviálisan hamisítható — érzékeny adat (betegadat) előtt MINDIG kérj egy második azonosítót (születési dátum, TAJ, vagy a rendszerben tárolt adat).""")
+    # 09-21 voice-teszt: az agent ÚGY erősítette meg a foglalást, hogy SOHA nem
+    # hívta a book_meeting eszközt (a naptárban semmi nem jött létre) — ezt
+    # kell megakadályozni a legszigorúbban:
+    rules.append("""8. FOGLALÁS KIZÁRÓLAG A book_meeting ESZKÖZZEL (SZIGORÚ!):
+   - SOHA ne mondd, hogy "lefoglaltam", "rögzítettem", "várjuk Önt" vagy bármi véglegesítés, amíg a book_meeting eszközt SIKERESEN meg nem hívtad, és az sikeres választ nem adott!
+   - Ha az eszköz hibát vagy ütközést jelez, SZÓLJ AZ ÜGYFÉLNEK, hogy a foglalás most nem sikerült, és a kollégánk visszahívja — NE úgy tegyél, mintha a foglalás megtörtént volna.
+   - EMAIL CÍM, NÉV vagy más adat BETŰZÉSEKOR: VÁRD MEG, amíg az ügyfél a VÉGÉIG betűzi — ne szólj közbe, még rövid szünetnél sem! A foglalás előtt a meghallgatott email címet OLVASD VISSZA (pl. 'e-t alulvonás orosz kukac yahoo pont i-e — jól hallottam?'), és csak az ügyfél egyértelmű megerősítése után hívd a book_meeting eszközt.""")
 
     return "\n".join(rules)
 
