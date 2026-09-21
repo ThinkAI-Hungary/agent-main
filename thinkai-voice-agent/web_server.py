@@ -3022,9 +3022,16 @@ def api_change_password(req: ChangePasswordRequest, username: str = Depends(veri
 
 @app.get("/admin/api/members")
 def api_get_members(username: str = Depends(verify_jwt)):
-    """List all member users (for Felelős dropdown). Any logged-in user can access."""
+    """List the CURRENT TENANT's member users (for Felelős dropdown). Any logged-in user can access."""
     users = db.get_admin_users()
-    members = [{"id": u["id"], "username": u["username"], "full_name": u.get("full_name", ""), "role": u.get("role", "member")} for u in users if u.get("role") == "member"]
+    # Tenant-szűrés (volt: az összes tenant membere — a Felelős-dropdown
+    # klinika-idegen neveket, pl. „Dentors Member"t is felkínált)
+    current_tenant = db.get_current_tenant()
+    members = [
+        {"id": u["id"], "username": u["username"], "full_name": u.get("full_name", ""), "role": u.get("role", "member")}
+        for u in users
+        if u.get("role") == "member" and (not current_tenant or u.get("tenant_id") in (None, current_tenant))
+    ]
     return {"status": "success", "data": members}
 
 

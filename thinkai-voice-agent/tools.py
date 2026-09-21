@@ -542,6 +542,8 @@ async def book_meeting(
             duration_minutes=duration_minutes,
             attendee=attendee,
             attendee_email=attendee_email,
+            attendee_phone=attendee_phone,
+            assigned_to=assigned_to.strip() if assigned_to else "",
         )
 
         # Trigger automated confirmation email in the background
@@ -557,26 +559,12 @@ async def book_meeting(
 
         # ── Add to Kanban (Clients Database) ───────────────────────────
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
-        # EAISY-241 §1.5.1: ha nincs megadva felelős, beállítunk egy defaultot,
-        # hogy a naptár member-filter megtalálja a foglalást (különben a tagok
-        # nem látják a voice-agent foglalásokat). Először „Kis Béla"-t keresünk.
+        # Felelős CSIS akkor, ha az ügyfél kifejezetten kért munkatársat —
+        # a korábbi default-assignee (Kis Béla / „első member") KIVEZETVE:
+        # tenant-szűrés nélkül dolgozott (klinika-idegen nevet, pl. „Dentors
+        # Member"t írt az ügyfélre), és a jogosultság-mátrix óta a member
+        # amúgy is minden ügyfelet lát (a member-filter indoklás elavult).
         effective_assigned_to = assigned_to.strip() if assigned_to else ""
-        if not effective_assigned_to:
-            try:
-                members = db.supabase.table("admin_users").select("username,full_name,role").execute()
-                for m in (members.data or []):
-                    full = (m.get("full_name") or m.get("username") or "").lower()
-                    if "kis bél" in full or "kis bel" in full:
-                        effective_assigned_to = m.get("full_name") or m.get("username")
-                        break
-                if not effective_assigned_to and members.data:
-                    # fallback: első member
-                    for m in members.data:
-                        if (m.get("role") or "") in ("member", "manager"):
-                            effective_assigned_to = m.get("full_name") or m.get("username")
-                            break
-            except Exception as e:
-                logger.warning(f"Default assignee lookup failed: {e}")
 
         custom_data = {
             "name": attendee,

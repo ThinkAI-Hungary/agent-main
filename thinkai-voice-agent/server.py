@@ -349,6 +349,16 @@ SZABÁLYOK:
 
         room_input_opts = RoomInputOptions(noise_cancellation=nc_option) if nc_option else None
 
+        # Minden transcript-időbélyeg BUDAPESTI idő — a konténer UTC-ben fut,
+        # a popup a napló-bejegyzéseket lokális (budapesti) időként parse-olja,
+        # és az upsert_client napló-fejléce is budapesti: ha a turnusok UTC-ben
+        # maradnak, a hívás két külön „session"-re szakad a popupban (2 órás gap)
+        # és az aktuális hívás az ELŐZMÉNYEK közé kerül.
+        from zoneinfo import ZoneInfo as _ZI
+        _HU_TZ = _ZI("Europe/Budapest")
+        def _now_hu() -> str:
+            return datetime.now(_HU_TZ).strftime("%Y-%m-%d %H:%M")
+
         transcript_list = []
 
         @session.on("user_input_transcribed")
@@ -359,7 +369,7 @@ SZABÁLYOK:
                 if is_final and transcript.strip():
                     text = transcript.strip()
                     if text and text != ".":
-                        entry = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}]\nFelhasználó: {text}"
+                        entry = f"[{_now_hu()}]\nFelhasználó: {text}"
                         # Role-onkénti dedup (az AI-szövegben szereplő rövid
                         # ügyfélválasz — "Igen", "Jó napot" — ne nyelje el a turnust)
                         if not any(f"Felhasználó: {text}" in item for item in transcript_list[-3:]):
@@ -398,7 +408,7 @@ SZABÁLYOK:
                 text = text.strip()
                 if text and text != ".":
                     role_name = "Felhasználó" if role == "user" else "AI Válasz"
-                    entry = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}]\n{role_name}: {text}"
+                    entry = f"[{_now_hu()}]\n{role_name}: {text}"
                     # Role-onkénti dedup (kereszt-role substring-ütközés kizárva)
                     if not any(f"{role_name}: {text}" in x for x in transcript_list[-3:]):
                         transcript_list.append(entry)
@@ -414,7 +424,7 @@ SZABÁLYOK:
                 if content and isinstance(content, str):
                     text = content.strip()
                     if text and text != ".":
-                        entry = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}]\nAI Válasz: {text}"
+                        entry = f"[{_now_hu()}]\nAI Válasz: {text}"
                         # Role-onkénti dedup
                         if not any(f"AI Válasz: {text}" in item for item in transcript_list[-3:]):
                             transcript_list.append(entry)
@@ -578,7 +588,7 @@ SZABÁLYOK:
                 # Az event-alapú turnok már VALÓS időbélyeget kaptak rögzítéskor; a chat-contextből
                 # jövők (timestamp nélküliek) szöveg-egyezés alapján az event-list valós idejét
                 # öröklik, és csak ha nincs párjuk, kapják a hívás végének idejét.
-                now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
+                now_str = _now_hu()
                 ts_by_text = {}
                 for ev_entry in transcript_list:
                     try:

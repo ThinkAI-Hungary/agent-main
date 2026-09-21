@@ -597,7 +597,7 @@ def get_calendar_events() -> list[dict]:
     except Exception:
         return []
 
-def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", attendee_email="", assigned_to="", status="", pending_until=None) -> int:
+def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", attendee_email="", assigned_to="", status="", pending_until=None, attendee_phone="") -> int:
     if not supabase: return 0
     try:
         insert_data = _with_tenant({
@@ -611,6 +611,8 @@ def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", a
         # Munkatárs ({{munkatárs}} változó): calendar_events.doctor oszlop
         if assigned_to:
             insert_data["doctor"] = assigned_to
+        if attendee_phone:
+            insert_data["attendee_phone"] = attendee_phone
         # Függő (tentative) foglalás: status='pending' + 24 órás fenntartási határidő.
         # status üresen → DB default 'confirmed' (végleges).
         if status:
