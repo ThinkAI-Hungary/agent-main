@@ -740,7 +740,17 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                     <div className="cd-appt-next-value" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8 }}>
                       <span>
                         {upcoming[0].start_dt ? fmtDt(upcoming[0].start_dt) : '—'}
-                        {(upcoming[0] as CalendarEvent & { title?: string }).title ? ` · ${(upcoming[0] as CalendarEvent & { title?: string }).title}` : ''}
+                        {(() => {
+                          const ev0 = upcoming[0] as CalendarEvent & { title?: string; attendee?: string };
+                          // A cím „<szolgáltatás> - <ügyfélnév>" — a profilon az
+                          // ügyfélnév-ismétlés felesleges, levágjuk
+                          const t = ev0.title || '';
+                          const att = (ev0.attendee || '').trim();
+                          const clean = att && t.toLowerCase().endsWith(' - ' + att.toLowerCase())
+                            ? t.slice(0, t.length - att.length - 3).trim()
+                            : t;
+                          return clean ? ` · ${clean}` : '';
+                        })()}
                       </span>
                       <button
                         className="cd-appt-edit-btn"

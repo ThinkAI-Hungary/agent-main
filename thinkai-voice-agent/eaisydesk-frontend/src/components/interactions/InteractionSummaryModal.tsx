@@ -625,7 +625,13 @@ export default function InteractionSummaryModal({
               apptService = drMatch[1].trim();
               if (!apptDoctor) apptDoctor = drMatch[2].trim();
             } else {
-              apptService = rawTitle;
+              // A cím „<szolgáltatás> - <ügyfélnév>" konvenció — a popupban az
+              // ügyfél neve felesleges (ő az alany), az ellátó a releváns adat
+              const att = (matchedEvent.attendee || '').trim();
+              apptService =
+                att && rawTitle.toLowerCase().endsWith(' - ' + att.toLowerCase())
+                  ? rawTitle.slice(0, rawTitle.length - att.length - 3).trim()
+                  : rawTitle;
             }
           }
 
@@ -684,7 +690,7 @@ export default function InteractionSummaryModal({
           if (apptService && apptService !== '-')
             lines.push(`Szolgáltatás:       ${apptService}`);
           if (apptDoctor && apptDoctor !== '-')
-            lines.push(`Orvos:              ${apptDoctor}`);
+            lines.push(`Ellátó:             ${apptDoctor}`);
           setSummaryText(lines.filter(Boolean).join('\n'));
         } else {
           setSummaryText(baseSummary);
