@@ -49,6 +49,20 @@
 
 ---
 
+## ✅ 2026-09-21 — business_info adatvesztés: ok, helyreállítás, védőfal (commit `6516bb7`, stagingen ÉL)
+
+**Tünet**: a staging céginformációkból eltűnt az árlista, GYIK, kampányok, kivételek, szabály-szövegek — a voice agent ezért nem tudott árat mondani.
+
+**Ok (saját hiba, teljes transzparencia)**: a 09-13 23:15-i jogosultsági smoke-teszt `POST /admin/api/business-info`-t hívott RÉSZLEGES body-val (`{"practice_name":"Rivergate"}`). Az endpoint a pydantic-model DEFAULTJAIBAN küldte a hiányzó mezőket (`faq=[]`, `price_list=''` stb.), és az upsert az egész sort felülírta. Bizonyíték: minden mező a default értéket mutatta, `updated_at` = a teszt időpontja. **Tanulság: smoke-tesztnél soha ne POST-oljunk részleges body-t élő adat-endpointra.**
+
+**Helyreállítás**: a PROD Rivergate-sor tartalmát (árlista 731 kar, GYIK 3 tétel, kampány, kivételek, service_description + az összes szabály-mező — a 09-13-i olvasásokkal bitre egyezők) visszamásoltam a stagingre. A GYIK 3. tétele a prodon is üres volt (eredeti állapot). A „Szezonális akció" lejárt (aug 31.) — a `stale_offer` őr kezeli.
+
+**Védőfal**: a `save_business_info` most `payload.model_dump(exclude_unset=True)` — csak a kifejezetten küldött mezők íródnak; részleges POST többé nem tud adatot törölni. A frontend a teljes objektumot küldi → UI-viselkedés változatlan.
+
+**Mellékhatás**: a voice-agent „nem mond árat" probléma (2-es tétel) ezzel megoldódott — ellenőrizve: a rendszerprompt Árlista szekciója ismét tele van.
+
+---
+
 ## ✅ 2026-09-13 (éjjel) — Jogosultsági mátrix (admin/member) + manager szerepkör KIVEZETVE (commit `5a5dcdc`, stagingen ÉL)
 
 User-mátrix alapján: **admin = klinikavezető/tulajdonos, member = recepciós**. Admin kezdőoldal: Analitika; memberé: Irányítópult. **Minden manager ADMINNÁ minősült át** (staging DB: `dentors_manager` → admin — ⚠️ **prod-deploynál is le kell futtatni**: `UPDATE admin_users SET role='admin' WHERE role='manager'`).
