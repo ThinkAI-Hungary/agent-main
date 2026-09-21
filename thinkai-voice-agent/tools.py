@@ -535,6 +535,11 @@ async def book_meeting(
                 continue
 
         # ── No conflict — book it in Calendar ───────────────────────────
+        # {{munkatárs}}: MINDEN foglaláshoz tartozik ellátó (user-szabály 2026-09-21)
+        # — explicit kérés → szolgáltatás-hozzárendelés → releváns munkatárs.
+        # (Az agent a beszélgetésben továbbra sem nevezi meg; a név az
+        # event.doctor-ban és a visszaigazoló emailben oldódik meg.)
+        effective_doctor = email_processor.resolve_assigned_staff(title, assigned_to or "")
         event_id = db.add_calendar_event(
             title=title,
             start_dt=start_dt.isoformat(),
@@ -543,7 +548,7 @@ async def book_meeting(
             attendee=attendee,
             attendee_email=attendee_email,
             attendee_phone=attendee_phone,
-            assigned_to=assigned_to.strip() if assigned_to else "",
+            assigned_to=effective_doctor,
         )
 
         # Trigger automated confirmation email in the background

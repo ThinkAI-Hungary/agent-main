@@ -2425,7 +2425,9 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                     end_dt=end_dt_val,
                     duration_minutes=dur,
                     attendee=kanban.get("name") or meta_name or "Ismeretlen Ügyfél",
-                    attendee_email=kanban.get("email", "-")
+                    attendee_email=kanban.get("email", "-"),
+                    # {{munkatárs}}: minden foglaláshoz tartozik ellátó (user-szabály)
+                    assigned_to=email_processor.resolve_assigned_staff(meeting.get("title", "Konzultáció"), meeting.get("assigned_to", "") or "")
                 )
                 
                 # Értékesítési címke ('törölt időpont') → az ELSŐ UTÁNKÖVETÉS oszlop
