@@ -6,7 +6,7 @@
  */
 import { useState, useMemo, useCallback, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { parseCustomData, type ClientRecord } from '../../helpers/clientResolvers';
+import { parseCustomData, getRowChannel, type ClientRecord } from '../../helpers/clientResolvers';
 import { fmtDt, formatPhoneHu, normalizeNameKey } from '../../helpers/formatters';
 import { authFetch } from '../../api/client';
 import { showToast } from '../ui/Toast';
@@ -379,7 +379,9 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           if (r.approval_status === 'spam') return;
           const summary = r.summary || s.summary || '';
           const topic = r.topic || '';
-          const channel = r.type || s.channel || 'Telefon';
+          // Determinisztikus csatorna-mapping (a nyers r.type — pl. 'voice_alert' —
+          // soha ne jelenjen meg; a getRowChannel minden ismeretlent 'Telefon'-ra képez)
+          const channel = getRowChannel(r.type || '', '', s.session_id || '', s.channel || '');
           const direction = (r.direction || 'inbound').toLowerCase() === 'outbound' ? 'Kimenő' : 'Bejövő';
           rows.push({
             // Valós beérkezési idő (email Date fejléc), fallback a keletkezés ideje

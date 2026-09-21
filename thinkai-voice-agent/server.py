@@ -356,8 +356,9 @@ SZABÁLYOK:
                     text = transcript.strip()
                     if text and text != ".":
                         entry = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}]\nFelhasználó: {text}"
-                        # Check last 3 entries to de-duplicate
-                        if not any(text in item for item in transcript_list[-3:]):
+                        # Role-onkénti dedup (az AI-szövegben szereplő rövid
+                        # ügyfélválasz — "Igen", "Jó napot" — ne nyelje el a turnust)
+                        if not any(f"Felhasználó: {text}" in item for item in transcript_list[-3:]):
                             transcript_list.append(entry)
                             logger.info(f"🎤 User (STT): {text}")
             except Exception as e:
@@ -394,8 +395,8 @@ SZABÁLYOK:
                 if text and text != ".":
                     role_name = "Felhasználó" if role == "user" else "AI Válasz"
                     entry = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}]\n{role_name}: {text}"
-                    # Check last 3 entries to de-duplicate
-                    if not any(text in x for x in transcript_list[-3:]):
+                    # Role-onkénti dedup (kereszt-role substring-ütközés kizárva)
+                    if not any(f"{role_name}: {text}" in x for x in transcript_list[-3:]):
                         transcript_list.append(entry)
                         logger.info(f"💬 Chat item: {role_name}: {text}")
             except Exception as ex:
@@ -410,8 +411,8 @@ SZABÁLYOK:
                     text = content.strip()
                     if text and text != ".":
                         entry = f"[{datetime.now().strftime('%Y-%m-%d %H:%M')}]\nAI Válasz: {text}"
-                        # Check last 3 entries to de-duplicate
-                        if not any(text in item for item in transcript_list[-3:]):
+                        # Role-onkénti dedup
+                        if not any(f"AI Válasz: {text}" in item for item in transcript_list[-3:]):
                             transcript_list.append(entry)
                             logger.info(f"🤖 Agent (Speech): {text}")
             except Exception as e:
@@ -495,19 +496,14 @@ SZABÁLYOK:
         # ── Start Session Classification (Async Background Task) ──
         async def _run_classification():
             try:
-                # 1. Build full transcript from session chat history (tries internal context first, then events)
-                final_turns = []
-                chat_context = None
-                llm_node = getattr(session, "_llm", None)
-                if llm_node:
-                    if hasattr(llm_node, "chat_ctx"):
-                        chat_context = llm_node.chat_ctx
-                    elif hasattr(llm_node, "_chat_ctx"):
-                        chat_context = llm_node._chat_ctx
-                
-                if chat_context:
+                # 1. Build full transcript — TÖBB FORRÁSBÓL, ügyfél-turnus-tudatos
+                # választással. A Gemini input_audio_transcription a preview API-n
+                # NEM megbízható (egyes hívásokban egyáltalán nem streameli), ezért
+                # az event-alapú lista önmagában gyakran csak AI-turnusokat tartalmaz.
+                def _turns_from_chat_ctx(chat_ctx) -> list:
+                    turns = []
                     try:
-                        msgs = chat_context.messages() if callable(getattr(chat_context, "messages", None)) else getattr(chat_context, "messages", [])
+                        msgs = chat_ctx.messages() if callable(getattr(chat_ctx, "messages", None)) else getattr(chat_ctx, "messages", [])
                         for msg in msgs:
                             if msg.role in ("user", "assistant"):
                                 role = "Felhasználó" if msg.role == "user" else "AI Válasz"
@@ -526,16 +522,53 @@ SZABÁLYOK:
                                     text = " ".join(parts)
                                 text = text.strip()
                                 if text and text != ".":
-                                    final_turns.append(f"{role}: {text}")
+                                    turns.append(f"{role}: {text}")
                     except Exception as ex:
-                        logger.warning(f"Failed to read from Gemini internal chat context: {ex}")
-                
-                # Fallback to event-populated transcript_list if internal context was empty
-                if not final_turns:
-                    logger.info("Gemini internal context transcript was empty, falling back to event-based transcript_list")
-                    final_turns = transcript_list
-                else:
-                    logger.info("Successfully loaded transcript from Gemini internal context")
+                        logger.warning(f"chat_ctx olvasási hiba: {ex}")
+                    return turns
+
+                def _user_turn_count(turns) -> int:
+                    return sum(1 for t in turns if t.lstrip().startswith("Felhasználó:"))
+
+                candidates = []
+                # Forrás A: az AgentSession history-ja (framework-szintű — a final
+                # user-turnök ide kerülnek, ha a plugin szállította az átiratot)
+                try:
+                    hist = getattr(session, "history", None)
+                    if hist is not None:
+                        candidates.append(("session.history", _turns_from_chat_ctx(hist)))
+                except Exception:
+                    pass
+                # Forrás B: a Gemini realtime session SAJÁT _chat_ctx-e — a plugin
+                # minden befejeződött turnust (user+assistant) ide ír
+                try:
+                    for rt in list(getattr(live_model, "_sessions", []) or []):
+                        rtx = getattr(rt, "_chat_ctx", None)
+                        if rtx is not None:
+                            candidates.append(("realtime._chat_ctx", _turns_from_chat_ctx(rtx)))
+                except Exception:
+                    pass
+                # Forrás C: régi út — a model-objektum chat_ctx-e (nem-realtime eset)
+                llm_node = getattr(session, "_llm", None)
+                if llm_node:
+                    for attr in ("chat_ctx", "_chat_ctx"):
+                        cc = getattr(llm_node, attr, None)
+                        if cc is not None:
+                            candidates.append(("llm." + attr, _turns_from_chat_ctx(cc)))
+                # Forrás D: az event-alapú transcript_list (valós időbélyegekkel)
+                candidates.append(("event-list", list(transcript_list)))
+
+                # Választás: az ÜGYFÉL-turnust is tartalmazó jelöltek közül a
+                # leghosszabb; ha egyikben sincs ügyfél-turnus, a leghosszabb —
+                # és jelzünk, hogy a hívás ügyféloldala nem rögzült.
+                with_user = [c for c in candidates if _user_turn_count(c[1]) > 0]
+                pool = with_user or candidates
+                final_turns = []
+                if pool:
+                    src_name, final_turns = max(pool, key=lambda c: len(c[1]))
+                    logger.info(f"Transcript forrás: {src_name} ({len(final_turns)} turnus, {_user_turn_count(final_turns)} ügyfél)")
+                if not with_user and final_turns:
+                    logger.warning("⚠️ A hívás ügyféloldala EGYETLEN forrásból sem rögzült (Gemini input_transcription hiány) — a popup csak AI-válaszokat fog mutatni")
                     
                 # Format each turn with a timestamp block so the frontend parser can split them into bubbles.
                 # Az event-alapú turnok már VALÓS időbélyeget kaptak rögzítéskor; a chat-contextből
