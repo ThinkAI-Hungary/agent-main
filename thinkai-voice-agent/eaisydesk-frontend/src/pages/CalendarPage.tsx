@@ -32,6 +32,7 @@ interface CalendarEventItem {
   duration_minutes?: number;
   attendee?: string;
   attendee_email?: string;
+  attendee_phone?: string; // {{telefonszám}} — a szerkesztő popup ebből tölti
   reminder_sent?: boolean;
   doctor?: string; // {{munkatárs}} — calendar_events.doctor
   attendance_status?: '' | 'attended' | 'no_show'; // megjelent / no-show jelölés
@@ -144,30 +145,9 @@ export default function CalendarPage() {
     }
   }, [location.state, events]);
 
-  // Member filtering: nem adminok csak a hozzájuk rendelt ügyfelek eseményeit látják
-  const myEvents = useMemo(() => {
-    if (isAdmin) return events as CalendarEventItem[];
-    const username = user?.username || '';
-    const fullName = user?.fullName || '';
-    const assignedNames = new Set<string>();
-    const assignedEmails = new Set<string>();
-    clients.forEach(c => {
-      if (isAssignedToMe(c, username, fullName)) {
-        const cd = parseCustomData(c.custom_data);
-        const name = ((cd.nev || cd.name || c.name || '') as string).toLowerCase().trim();
-        const email = ((cd.email || c.email || '') as string).toLowerCase().trim();
-        if (name) assignedNames.add(name);
-        if (email) assignedEmails.add(email);
-      }
-    });
-    return (events as CalendarEventItem[]).filter(ev => {
-      const evName = (ev.attendee || '').toLowerCase().trim();
-      const evEmail = (ev.attendee_email || '').toLowerCase().trim();
-      if (evEmail && assignedEmails.has(evEmail)) return true;
-      if (evName && assignedNames.has(evName)) return true;
-      return false;
-    });
-  }, [events, clients, isAdmin, user]);
+  // Jogosultság-mátrix (2026-09-13): a member MINDEN eseményt lát — a korábbi
+  // assigned-szűrés kivezetve (a többi nézettel konzisztensen).
+  const myEvents = useMemo(() => events as CalendarEventItem[], [events]);
 
   // ── Események dátum szerint csoportosítva ──
   const eventsByDate = useMemo(() => {
@@ -425,7 +405,8 @@ export default function CalendarPage() {
     setNewEvent({
       attendee: ev.attendee || '',
       email: ev.attendee_email || '',
-      phone: '',
+      // A mentett telefonszám behúzása szerkesztéskor (volt: mindig üres)
+      phone: ev.attendee_phone || '',
       title: ev.title || '',
       assigned_to: ev.doctor || '',
       date: (ev.start_dt || '').split('T')[0],

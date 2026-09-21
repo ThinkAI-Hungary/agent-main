@@ -102,6 +102,30 @@ async def entrypoint(ctx: JobContext):
     if phantoms_removed:
         await asyncio.sleep(1.5)  # Let room settle after phantom removal
 
+    # ── Korai hívószám-feloldás: a SIP participant már a connect() UTÁN elérhető,
+    # a session.start() ELŐTT — így a telefonszám BEKERÜLHET A PROMPTBA (a
+    # gemini-3.1 mid-session instruction-update ugyanis nem támogatott). Így az
+    # agent nem kéri el újra a hívó számát.
+    early_caller_phone = ""
+    try:
+        import re as _re_early
+        for p in list(ctx.room.remote_participants.values()):
+            attrs = getattr(p, "attributes", None) or {}
+            sip_phone = attrs.get("sip.phoneNumber")
+            if sip_phone:
+                early_caller_phone = sip_phone
+                break
+            ident = (p.identity or "")
+            m = _re_early.search(r'\+?\d{9,15}', ident)
+            if m:
+                early_caller_phone = m.group(0)
+                break
+    except Exception as _ee:
+        logger.warning(f"Korai hívószám-feloldás hiba: {_ee}")
+    if early_caller_phone:
+        set_caller_phone(early_caller_phone)
+        logger.info(f"📞 Hívó telefonszáma (korai feloldás): {early_caller_phone}")
+
     # Initialize DB + log session start
     db.init_db()
     db.create_session(session_id=session_id, room_name=room_name)
@@ -250,6 +274,15 @@ SZABÁLYOK:
         "Ha az ügyfél más nyelven szólal meg (pl. angolul), válts az ő nyelvére."
     )
     system_instruction = language_hint + "\n\n" + system_instruction
+
+    # A hívó telefonszáma ismert → NE kérje el újra (a betűzött szám STT-hibás
+    # lehet; a SIP-ből jövő szám megbízható)
+    if early_caller_phone:
+        system_instruction += (
+            f"\n\nA HÍVÓ TELEFONSZÁMA (a telefonrendszerből automatikusan ismert): {early_caller_phone} — "
+            "a telefonszámot NE KÉRD EL és ne betűztesd! Ha kell, legfeljebb visszaigazolásként "
+            "használd röviden (pl. 'a hívószámán kereshetjük'). A book_meeting eszközbe ezt add át."
+        )
 
     # ── Load agent settings (voice, greeting, etc.) ─────────────────────────
     settings = load_agent_settings()

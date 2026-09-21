@@ -605,7 +605,22 @@ async def book_meeting(
         if _conflict and _primary:
             db.mark_duplicate_suspect(_primary["id"], _conflict, "voice foglalás: a bemondott email/név és a hívó telefonszám eltérő ügyfélhez tartoznak")
             db.mark_duplicate_suspect(_conflict, _primary["id"], "voice foglalás: a bemondott email/név és a hívó telefonszám eltérő ügyfélhez tartoznak")
-        db.upsert_client(custom_data, additional_log=f"Hangasszisztens időpontot foglalt: {date} {time}", status=first_col_id, existing_id=_primary["id"] if _primary else None)
+        _cid = db.upsert_client(custom_data, additional_log=f"Hangasszisztens időpontot foglalt: {date} {time}", status=first_col_id, existing_id=_primary["id"] if _primary else None)
+        # Sikeres foglalás = konverzió: a 'potenciális ügyfél' címke TÖRLŐDIK
+        # (a címke jelentése: „érdeklődött, de NEM foglalt" — foglalásnál már hamis)
+        try:
+            if _cid:
+                _c = db.get_clients_by_ids([_cid])
+                if _c:
+                    _cd = _c[0].get("custom_data") or {}
+                    if isinstance(_cd, str):
+                        _cd = json.loads(_cd)
+                    _tags = _cd.get("tags") or []
+                    if "potenciális ügyfél" in _tags:
+                        _cd["tags"] = [t for t in _tags if t != "potenciális ügyfél"]
+                        db.edit_client_details(_cid, _cd)
+        except Exception as _te:
+            logger.warning(f"potenciális ügyfél címke-törlés hiba: {_te}")
 
         if attendee and get_session_id():
             db.update_session_participant(get_session_id(), attendee)

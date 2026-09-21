@@ -1672,7 +1672,20 @@ def resolve_assigned_staff(title: str, assigned_to: str = "") -> str:
     if matched:
         return random.choice(matched)
     if pool:
-        return random.choice(pool)
+        # „minden fogorvos" jellegű általános hozzárendelésnél a poolból
+        # KIZÁRJUK a dentálhigiénikusokat (user-szabály 2026-09-21): aki CSAK
+        # higiéniai szolgáltatáshoz van rendelve, az nem fogorvos.
+        _HYGIENE_HINTS = ("fogkő", "dentálhigién", "higién", "air-flow", "políroz")
+        hygiene_names, other_names = set(), set()
+        for sv in services:
+            names = _split_staff_names(sv.get("assigned_to") or "")
+            nm = (sv.get("service_name") or "").strip().lower()
+            if any(h in nm for h in _HYGIENE_HINTS):
+                hygiene_names.update(names)
+            else:
+                other_names.update(names)
+        doctor_pool = [n for n in pool if n not in (hygiene_names - other_names)] or pool
+        return random.choice(doctor_pool)
     return ""
 
 

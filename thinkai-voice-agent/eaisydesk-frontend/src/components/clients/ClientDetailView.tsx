@@ -402,6 +402,12 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
           // át — ld. 265/271). A client_id nélküli sorok maradhatnak: azok a
           // session erős kulcsa (email/messenger) alapján ide tartoznak.
           if (r.client_id && String(r.client_id) !== clientId) return;
+          // Tool-log sorok (book_meeting 'foglalás', lookup_info 'kérdés')
+          // kiszűrve — a fő interakció (átirat) már mindent tartalmaz; ezek
+          // átirat nélküli duplikátum-sorok voltak a profilon. A voice_alert
+          // (riasztás) marad.
+          const toolName = (r as Record<string, unknown>).tool_name as string | undefined;
+          if (toolName && (r.type || '') !== 'voice_alert') return;
           const summary = r.summary || s.summary || '';
           const topic = r.topic || '';
           // Determinisztikus csatorna-mapping (a nyers r.type — pl. 'voice_alert' —
@@ -790,7 +796,8 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                           const clean = att && t.toLowerCase().endsWith(' - ' + att.toLowerCase())
                             ? t.slice(0, t.length - att.length - 3).trim()
                             : t;
-                          return clean ? ` · ${clean}` : '';
+                          const doc = (ev0 as CalendarEvent & { doctor?: string }).doctor;
+                          return (clean ? ` · ${clean}` : '') + (doc ? ` · ${doc}` : '');
                         })()}
                       </span>
                       <button

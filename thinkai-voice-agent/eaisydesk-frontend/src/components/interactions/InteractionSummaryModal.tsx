@@ -406,9 +406,14 @@ export default function InteractionSummaryModal({
       }
 
       // Group entries into conversation sessions (30 min gap = new session)
+      // FONTOS: NEM rendezünk időbélyeg szerint — a napló append-sorrendje a
+      // beszélgetés valós sorrendje; a kevert forrású (chat-context fallback
+      // vs valós event) időbélyegek miatt a sort szétszedte a turnusokat
+      // (pl. az „Igen" válasz a kérdés ELÉ került). A gap-detektálás az
+      // eredeti sorrendben is működik, mert a napló kronológiailag bővül.
       function groupIntoSessions(entries: LogEntry[]): LogEntry[][] {
         if (entries.length === 0) return [];
-        const sorted = [...entries].sort((a, b) => a.time - b.time);
+        const sorted = entries;
         const sessions: LogEntry[][] = [[sorted[0]]];
         for (let i = 1; i < sorted.length; i++) {
           const gap = sorted[i].time - sorted[i - 1].time;
