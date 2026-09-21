@@ -49,6 +49,18 @@
 
 ---
 
+## ✅ 2026-09-21 (3. kör) — foglalás-teszt hibái (commit `fd5874e`, stagingen ÉL)
+
+A második teszthívás (session 826/827) már JÓL foglalt (book_meeting lefutott, esemény 115), 5 új hiba:
+
+1. **Visszaigazoló email nem ment ki (Brevo 400)**: a `sender_email`/`sender_name` is áldozatul esett a 09-13-i business_info wipe-nek — a restore-ból kimaradt. Prod-értékek visszaállítva (Rivergate Dental <hello@thinkai.hu>), a 115-ös esemény visszaigazolása kézzel újraküldve (sikeres). ⚠️ Tanulság: a smoke-teszt wipe teljes körét a sender mezők is jelzik — a restore-checklist: price_list, faq, campaigns, exceptions, service_description, kulcsszavak, szakterulet, markanev, szabály-mezők, **sender_name/sender_email**.
+2. **Popup „Előzmények"-ben az aktuális hívás + 2 órás időeltolódás (közös gyökér)**: a napló-fejléc budapesti, a turnus-időbélyegek UTC voltak → a hívás 2 „session"-re szakadt (>30 perces gap), az egyik az előzményekbe került. Minden transcript-időbélyeg most Budapesti (`_now_hu()`).
+3. **„Dentors Member" ellátó**: a book_meeting default-assignee fallbackja (Kis Béla / „első member") tenant-szűrés nélküli volt → KIVEZETVE (a jogosultság-mátrix óta a member minden ügyfelet lát); client 265 felelőse tisztítva; `/admin/api/members` is tenant-szűrt lett.
+4. **Esemény telefonszám hiányzott**: a book_meeting nem adta át az attendee_phone-t → `add_calendar_event` új paraméter + 115-ös esemény backfill.
+5. **15:00-s foglalás 13:00+00:00-ként tárolva** — KORREKT (CEST→UTC), a naptár jól mutatja.
+
+---
+
 ## ✅ 2026-09-21 (2. kör) — Voice teszthívás (Orosz Erika) hibáinak javítása (commit `85ada03`, stagingen ÉL)
 
 A 09-21 10:56-os teszthívás (session 825, client 265 = Orosz Erika — az azonosítás és a többforrásos transcript-javítás JÓL működött: „session.history (35 turnus, 17 ügyfél)") 4 új hibát tárt fel:
