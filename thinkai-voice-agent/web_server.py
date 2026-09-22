@@ -3402,6 +3402,58 @@ async def admin_delete_calendar_event(event_id: int, _user = Depends(get_current
                 assigned_to=ev.get("doctor", ""),
             )
         )
+
+    # 'Törölt időpont' rituálé a kapcsolódó ügyfélhez (2026-09-22): ha a törlés
+    # valós lemondás, a profil jelezze (címke + Utánkövetés oszlop + napló).
+    # Hibás felvitel esetén a címke manuálisan eltávolítható. Ha nem
+    # azonosítható ügyfél (email/telefon/név egyikével sem), nincs címkézés.
+    try:
+        client = None
+        att_phone = (ev.get("attendee_phone") or "").strip()
+        att_name = (ev.get("attendee") or "").strip()
+        if att_email and att_email != "-":
+            client = db.find_client_by_contact(email=att_email)
+        if not client and att_phone and "Nincs megadva" not in att_phone:
+            client = db.find_client_by_contact(phone=att_phone)
+        if not client and att_name and db.is_valid_client_name(att_name):
+            client = db.find_client_by_contact(name=att_name)
+        if client:
+            cd = client.get("custom_data") or {}
+            if isinstance(cd, str):
+                import json as _json
+                try: cd = _json.loads(cd)
+                except Exception: cd = {}
+            tags = cd.get("tags") or []
+            if "törölt időpont" not in tags:
+                tags.append("törölt időpont")
+                cd["tags"] = tags
+            db.edit_client_details(client["id"], cd)
+            db.update_client_status(client["id"], db.resolve_utankovetes_column_id())
+            db.log_interaction(
+                type="naptár",
+                topic="Időpont törölve kézzel a naptárból",
+                summary=f"{ev.get('title', '')} — kézzel törölve",
+                result=f"Kézi törlés a naptárból ({ev.get('start_dt', '')[:16]})",
+                session_id=f"calendar_manual_delete_{event_id}",
+                funnel_stage="relevant",
+                direction="inbound",
+                approval_status="approved",
+                classification={
+                    "ugytipus": "Időpont",
+                    "eredmeny": "Törölt időpont",
+                    "statusz": "Lezárt",
+                    "teendo": "Nincs további teendő",
+                },
+                client_id=client["id"],
+            )
+            db.upsert_client(
+                custom_data={},
+                additional_log=f"Időpont törölve kézzel a naptárból: {ev.get('title', '')} ({ev.get('start_dt', '')[:16]})",
+                existing_id=client["id"],
+            )
+            logger.info(f"'Törölt időpont' rituálé kézi törlésnél: client {client['id']} ({ev.get('title', '')})")
+    except Exception as _ce:
+        logger.warning(f"'Törölt időpont' rituálé hiba kézi törlésnél: {_ce}")
     return {"ok": True}
 
 
