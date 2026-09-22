@@ -465,6 +465,12 @@ export default function CalendarPage() {
       });
       if (res.ok) {
         showToast('Időpont frissítve!');
+        // Név-eltérés jelzése (elgépelés vs rokon): az esemény a meglévő
+        // profilhoz kapcsolódik, de a pontatlanság ne maradjon láthatatlan
+        const data = await res.json().catch(() => null);
+        if (data?.name_hint) {
+          showToast(`Figyelem: a beírt név (${data.name_hint.typed}) eltér a tárolt ügyfélnévtől (${data.name_hint.stored}) — a foglalás a meglévő profilhoz kapcsolódik.`, 'info');
+        }
         setShowNewEventModal(false);
         refetchEvents();
       } else showToast('Hiba a frissítéskor', 'error');
@@ -505,6 +511,10 @@ export default function CalendarPage() {
         }),
       });
       if (!res.ok) { showToast('Hiba az időpont létrehozásakor', 'error'); return; }
+      const created = await res.json().catch(() => null);
+      if (created?.name_hint) {
+        showToast(`Figyelem: a beírt név (${created.name_hint.typed}) eltér a tárolt ügyfélnévtől (${created.name_hint.stored}) — a foglalás a meglévő profilhoz kapcsolódik.`, 'info');
+      }
       setShowNewEventModal(false);
       setNewEvent({ attendee: '', email: '', phone: '', title: '', assigned_to: '', note: '', date: new Date().toISOString().split('T')[0], time: '09:00', duration: '30' });
       setServiceSel('');

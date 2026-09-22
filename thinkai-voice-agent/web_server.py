@@ -3207,6 +3207,38 @@ def _parse_manual_dt(raw: str):
         dt = dt.replace(tzinfo=zoneinfo.ZoneInfo("Europe/Budapest"))
     return dt
 
+def _accent_fold(s: str) -> str:
+    """Kis-nagybetű + ékezet-érzéketlen normalizálás név-összevetéshez
+    ('Oros' vs 'Orosz' elgépelés jelzése, de 'Orosz'/'Orosz' ékezetkülönbség ne jelezzen)."""
+    import unicodedata
+    folded = "".join(c for c in unicodedata.normalize("NFKD", (s or "").strip().lower())
+                     if not unicodedata.combining(c))
+    return " ".join(folded.split())
+
+
+def _name_hint_for_event(typed_name: str, email: str, phone: str) -> dict | None:
+    """Kézi naptárfelvétel név-eltérés jelzése: ha az arbiter ERŐS KULCCsal
+    (email/telefon) talál meglévő ügyfelet, de a beírt név ékezet-hajlítva sem
+    egyezik (részleges begépelés = stored⊃typed megengedett), a UI warningot
+    mutat — az esemény ettől a meglévő profilhoz kapcsolódik (ez a helyes),
+    csak a pontatlanság ne maradjon láthatatlan (user-teszt 2026-09-22:
+    'Oros Erika' elgépelés csendben átment)."""
+    typed = (typed_name or "").strip()
+    if not typed:
+        return None
+    try:
+        primary, _conflict = db.resolve_client_identity(name="", email=email, phone=phone)
+        if not primary:
+            return None
+        stored = (primary.get("name") or "").strip()
+        ft, fs = _accent_fold(typed), _accent_fold(stored)
+        if not stored or not ft or ft == fs or ft in fs:
+            return None
+        return {"typed": typed, "stored": stored, "client_id": primary.get("id")}
+    except Exception:
+        return None
+
+
 def _service_normalized_title(title: str, attendee: str) -> str:
     """Ha a cím pontosan egy foglalható szolgáltatás neve (a kézi popup
     szolgáltatás-dropdownja ilyet küld), az egységes '<szolgáltatás> - <név>'
@@ -3260,7 +3292,11 @@ async def admin_create_event(req: ManualEventRequest, _user = Depends(get_curren
                     assigned_to=getattr(req, 'assigned_to', ''),
                 )
             )
-        return {"ok": True, "id": req.id, "updated": True}
+        resp = {"ok": True, "id": req.id, "updated": True}
+        hint = _name_hint_for_event(req.attendee, req.attendee_email, req.attendee_phone)
+        if hint:
+            resp["name_hint"] = hint
+        return resp
 
     try:
         start = _parse_manual_dt(req.start_dt)
@@ -3327,7 +3363,11 @@ async def admin_create_event(req: ManualEventRequest, _user = Depends(get_curren
         except Exception as _ce:
             logger.warning(f"Kézi naptárfelvétel ügyfél-feloldás hiba (az esemény létrejött): {_ce}")
     
-    return {"status": "success", "event_id": event_id, "message": "Időpont sikeresen létrehozva"}
+    resp = {"status": "success", "event_id": event_id, "message": "Időpont sikeresen létrehozva"}
+    hint = _name_hint_for_event(req.attendee, req.attendee_email, req.attendee_phone)
+    if hint:
+        resp["name_hint"] = hint
+    return resp
 
 
 class EventAttendanceRequest(BaseModel):
