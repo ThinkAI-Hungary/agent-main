@@ -31,7 +31,16 @@ _lk = _stub("livekit")
 _lk_agents = _stub("livekit.agents", function_tool=_function_tool, RunContext=object)
 _lk.agents = _lk_agents
 
-_stub("database")
+def _normalize_phone_digits_stub(p: str) -> str:
+    """A database.normalize_phone_digits tükre — a tools.py wrapperen át hívja."""
+    import re as _re
+    d = _re.sub(r"\D", "", p or "")
+    if d.startswith("06"):
+        d = "36" + d[2:]
+    return d[-9:] if len(d) >= 9 else d
+
+
+_stub("database", normalize_phone_digits=_normalize_phone_digits_stub)
 _stub("email_processor")
 
 import tools

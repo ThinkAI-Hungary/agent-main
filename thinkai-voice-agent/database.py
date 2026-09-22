@@ -4,6 +4,7 @@ All persistent data: calendar, emails, tasks, sessions, interactions, admin user
 """
 
 import os
+import re
 import uuid
 import json
 import hashlib
@@ -1574,22 +1575,59 @@ def is_valid_client_name(name: str | None) -> bool:
     return True
 
 
+def normalize_phone_digits(p: str) -> str:
+    """Telefonszám normalizálás egyeztetéshez: csak számjegyek, 06→36.
+    Visszatérés: az UTOLSÓ 9 számjegy — a +36/06/kötőjeles/szóközös írásmódok
+    ugyanoda vezetnek. Kanonikus helye a database (az arbiter, a find_client_by_contact
+    és a tools.py find_client is ezt használja — a pontos eq-s string-egyezés
+    split-brain-t okozott a heterogén tárolt formátumok miatt)."""
+    d = re.sub(r"\D", "", p or "")
+    if d.startswith("06"):
+        d = "36" + d[2:]
+    return d[-9:] if len(d) >= 9 else d
+
+
+def find_clients_by_phone(phone: str) -> list:
+    """Összes ügyfél, akinek telefonszáma normalizálva (utolsó 9 számjegy) egyezik.
+    Két lépés: 1) gyors ilike a számjegy-szekvenciára (a tárolt számok többsége
+    szeparátor-mentes → egy lekérdezés); 2) ha nincs találat, fallback full-scan a
+    telefonnal rendelkező ügyfelekre (szóközös/kötőjeles tárolás — ott az ilike
+    szubstring nem illeszkedik). A normalizált egyenlőség a tiszta substring-
+    tartalmazásból fakadó hamis találatokat is kiszűri."""
+    pdig = normalize_phone_digits(phone)
+    if not pdig:
+        return []
+    res = _tenant_eq(supabase.table("clients").select("*")).ilike("phone", f"%{pdig}%").order("id", desc=True).execute()
+    hits = [c for c in (res.data or []) if normalize_phone_digits(c.get("phone") or "") == pdig]
+    if hits:
+        return hits
+    # Fallback: szeparátoros tárolás (pl. '06 30 555 4433' nem tartalmazza a '305554433' substringet)
+    res = _tenant_eq(supabase.table("clients").select("*")).not_.is_("phone", "null").order("id", desc=True).execute()
+    return [c for c in (res.data or []) if normalize_phone_digits(c.get("phone") or "") == pdig]
+
+
+def _find_client_by_phone(phone: str) -> dict | None:
+    """Egyetlen ügyfél formátum-független telefon-egyezéssel (legfrissebb találat)."""
+    hits = find_clients_by_phone(phone)
+    return hits[0] if hits else None
+
+
 def find_client_by_contact(email: str = "", phone: str = "", messenger_id: str = "", name: str = "") -> dict | None:
     if not supabase: return None
     try:
         if messenger_id:
             res = _tenant_eq(supabase.table("clients").select("*")).contains("custom_data", {"messenger_id": messenger_id}).order("id", desc=True).limit(1).execute()
             if res.data: return res.data[0]
-        if email and phone:
-            res = _tenant_eq(supabase.table("clients").select("*")).or_(f"email.eq.{email},phone.eq.{phone}").order("id", desc=True).limit(1).execute()
-        elif email:
+        # Telefon: formátum-független egyezés. Ha email is meg van adva, a sorrend
+        # determinisztikus: telefon > email (az arbiter erős-kulcs-prioritása) — a
+        # korábbi OR/eq kombináció pontos stringet követelt, és nem-determinisztikus
+        # sorrendet adott (order id desc).
+        if phone:
+            hit = _find_client_by_phone(phone)
+            if hit: return hit
+        if email:
             res = _tenant_eq(supabase.table("clients").select("*")).eq("email", email).order("id", desc=True).limit(1).execute()
-        elif phone:
-            res = _tenant_eq(supabase.table("clients").select("*")).eq("phone", phone).order("id", desc=True).limit(1).execute()
-        else:
-            res = None
-        if res and res.data:
-            return res.data[0]
+            if res.data: return res.data[0]
         # EAISY-241: név-alapú keresés (case-insensitive) — ha phone/email nem talált.
         # Először PONTOS (teljes név) egyezés, csak utána substring — egy rövid vagy
         # részleges név (pl. „Péter") így nem ír felül egy másik ügyfelet véletlenül.
@@ -1907,9 +1945,11 @@ def delete_client(client_id: int) -> bool:
                 for s in (sess_res.data or []):
                     session_ids_to_delete.add(s["session_id"])
 
-            # By phone
+            # By phone (normalizált utolsó 9 jegy — a tárolt ügyfél-telefon és a
+            # SIP participant formátuma eltérhet)
             if phone and phone not in ("", "-"):
-                sess_res = _tenant_eq(supabase.table("sessions").select("session_id")).ilike("participant", f"%{phone}%").execute()
+                pdig = normalize_phone_digits(phone)
+                sess_res = _tenant_eq(supabase.table("sessions").select("session_id")).ilike("participant", f"%{pdig or phone}%").execute()
                 for s in (sess_res.data or []):
                     session_ids_to_delete.add(s["session_id"])
 

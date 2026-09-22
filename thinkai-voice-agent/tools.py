@@ -1402,13 +1402,11 @@ async def report_alert(
 # ═══════════════════════════════════════════════════════════════════════════════
 
 def _normalize_phone_digits(p: str) -> str:
-    """Telefonszám normalizálás egyeztetéshez: csak számjegyek, 06→36.
-    Visszatérés: az UTOLSÓ 9 számjegy (formátum-független egyezés)."""
-    import re as _re
-    d = _re.sub(r"\D", "", p or "")
-    if d.startswith("06"):
-        d = "36" + d[2:]
-    return d[-9:] if len(d) >= 9 else d
+    """Telefonszám normalizálás egyeztetéshez (utolsó 9 számjegy, formátum-független).
+    A kanonikus implementáció a database.normalize_phone_digits — az arbiterrel
+    (resolve_client_identity / find_client_by_contact) ugyanaz a konvenció, különben
+    a két réteg eltérő ügyfelet oldana fel ugyanarra a számra."""
+    return db.normalize_phone_digits(p)
 
 
 def _mask_email(email: str) -> str:
@@ -1482,15 +1480,11 @@ async def find_client(
 
     hits = []
 
-    # 1. Telefonszám (utolsó 9 számjegy — formátum-független)
-    pdig = _normalize_phone_digits(phone)
-    if pdig:
+    # 1. Telefonszám (utolsó 9 számjegy — formátum-független; a db.find_clients_by_phone
+    #    a szeparátoros tárolást is eltalálja a full-scan fallbackkel)
+    if phone:
         try:
-            res = db._tenant_eq(db.supabase.table("clients").select("*")).ilike("phone", f"%{pdig}%").execute().data or []
-            seen = set()
-            for c in res:
-                if c["id"] not in seen and _normalize_phone_digits(c.get("phone") or "") == pdig:
-                    seen.add(c["id"]); hits.append(c)
+            hits = db.find_clients_by_phone(phone)
         except Exception as e:
             logger.warning(f"find_client phone hiba: {e}")
 
