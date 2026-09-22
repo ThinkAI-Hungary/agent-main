@@ -3195,7 +3195,7 @@ class ManualEventRequest(BaseModel):
     assigned_to: str = ""  # munkatárs ({{munkatárs}} változó)
 
 @app.post("/admin/api/calendar")
-def admin_create_event(req: ManualEventRequest, _user = Depends(get_current_user)):
+async def admin_create_event(req: ManualEventRequest, _user = Depends(get_current_user)):
     """Create or update a manual calendar event."""
     from datetime import datetime, timedelta
 
@@ -3383,7 +3383,7 @@ def admin_event_attendance(event_id: int, req: EventAttendanceRequest, _auth = D
 
 
 @app.delete("/admin/api/calendar/{event_id}")
-def admin_delete_calendar_event(event_id: int, _user = Depends(get_current_user)):
+async def admin_delete_calendar_event(event_id: int, _user = Depends(get_current_user)):
     """Naptár esemény törlése."""
     # A törlés ELŐTT kiszedjük az adatokat a lemondás-visszaigazolóhoz
     ev = db.get_calendar_event(event_id) or {}
