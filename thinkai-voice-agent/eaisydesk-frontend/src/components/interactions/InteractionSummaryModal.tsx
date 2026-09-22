@@ -632,9 +632,22 @@ export default function InteractionSummaryModal({
           )
           .sort(
             (
-              a: { start_dt?: string },
-              b: { start_dt?: string }
-            ) => (b.start_dt || '').localeCompare(a.start_dt || '')
+              a: { start_dt?: string; created_at?: string },
+              b: { start_dt?: string; created_at?: string }
+            ) => {
+              // A BEFOGLALT időpont az adott INTERAKCIÓHOZ tartozó esemény legyen:
+              // a foglalás a beszélgetés során készül → az esemény created_at-je
+              // a legközelebbi az interakció időpontjához. (Korábban a LEGKÉSŐBBI
+              // eseményt választotta start_dt szerint — több jövőbeli foglalásnál
+              // egy KORÁBBI ügy eseményének dátumát mutatta, ld. 132 vs 119.)
+              const t = row.date ? new Date(row.date).getTime() : 0;
+              if (t) {
+                const da = a.created_at ? Math.abs(new Date(a.created_at).getTime() - t) : Number.MAX_SAFE_INTEGER;
+                const db = b.created_at ? Math.abs(new Date(b.created_at).getTime() - t) : Number.MAX_SAFE_INTEGER;
+                if (da !== db) return da - db;
+              }
+              return (b.start_dt || '').localeCompare(a.start_dt || '');
+            }
           )[0];
 
         if (matchedEvent) {
