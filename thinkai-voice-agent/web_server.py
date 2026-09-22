@@ -3429,6 +3429,7 @@ async def admin_delete_calendar_event(event_id: int, _user = Depends(get_current
                 cd["tags"] = tags
             db.edit_client_details(client["id"], cd)
             db.update_client_status(client["id"], db.resolve_utankovetes_column_id())
+            db.create_session(session_id=f"calendar_manual_delete_{event_id}", room_name="Kézi naptár-törlés", participant=att_name or att_email or "Ismeretlen")
             db.log_interaction(
                 type="naptár",
                 topic="Időpont törölve kézzel a naptárból",
