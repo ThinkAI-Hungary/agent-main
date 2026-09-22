@@ -289,6 +289,53 @@ SZABÁLYOK:
             "használd röviden (pl. 'a hívószámán kereshetjük'). A book_meeting eszközbe ezt add át."
         )
 
+        # ── KÓDOLDALI ügyfél-feloldás (2026-09-22): a find_client NEM a modell
+        # kezében van a hívás elején (a GDPR-hozzájárulás megválaszolása ELŐTT
+        # hívta és kifutott a beszélgetésre) — a szerver oldja fel és CSENDES
+        # profil-injekciót ad. A modell az adatokat NEM szólaltathatja meg
+        # automatikusan — csak szükség esetén, megerősítéssel használhatja.
+        try:
+            _id_primary, _id_conflict = db.resolve_client_identity(phone=early_caller_phone)
+            if _id_conflict:
+                db.mark_duplicate_suspect(_id_primary["id"], _id_conflict, "voice hívás: a hívó száma és egy másik erős kulcs eltérő ügyfélhez tartozik")
+                db.mark_duplicate_suspect(_id_conflict, _id_primary["id"], "voice hívás: a hívó száma és egy másik erős kulcs eltérő ügyfélhez tartozik")
+            if _id_primary:
+                _icd = _id_primary.get("custom_data") or {}
+                if isinstance(_icd, str):
+                    try:
+                        import json as _json
+                        _icd = _json.loads(_icd)
+                    except Exception:
+                        _icd = {}
+                _pname = (_icd.get("name") or _id_primary.get("name") or "").strip()
+                _pemail = (_icd.get("email") or _id_primary.get("email") or "").strip()
+                _upcoming_txt = ""
+                try:
+                    from datetime import timezone as _tzu
+                    _now_iso = datetime.now(_tzu.utc).isoformat()
+                    _q = db._tenant_eq(db.supabase.table("calendar_events").select("id")).gte("start_dt", _now_iso)
+                    _q = _q.eq("attendee_email", _pemail) if _pemail else _q.ilike("attendee", _pname)
+                    _upn = len(_q.execute().data or [])
+                    if _upn:
+                        _upcoming_txt = f", közelgő időpontjai: {_upn} db"
+                except Exception:
+                    pass
+                system_instruction += (
+                    f"\n\nA HÍVÓ A NYILVÁNTARTÁS SZERINT: {_pname or 'ismeretlen név'}"
+                    f"{', email: ' + _pemail if _pemail else ''}, telefon: {early_caller_phone}{_upcoming_txt}.\n"
+                    "CSENDES AZONOSÍTÁS SZABÁLYA (SZIGORÚ!): NE szólítsd név szerint az ügyfelet, és NE olvasd be "
+                    "az email címét vagy más adatait automatikusan, a beszélgetés elején sem! Ezeket CSAK akkor "
+                    "használd fel, amikor ténylegesen szükséges — pl. foglaláskor a visszaigazoló email cím "
+                    "megerősítésére ('a rendszerünkben rögzített " + (_pemail or "email") + " címre küldhetjük a "
+                    "visszaigazolást?'), vagy időpont módosításkor/lemondáskor a tulajdon-ellenőrzéshez. "
+                    "Érzékeny adatok (korábbi időpontok) csak a 7. szabály szerinti második azonosító UTÁN olvashatók vissza."
+                )
+                logger.info(f"🔎 Kódoldali azonosítás: #{_id_primary['id']} ({_pname})")
+            else:
+                logger.info("🔎 A hívó nincs a nyilvántartásban — új ügyfél (nincs profil-injekció)")
+        except Exception as _ie:
+            logger.warning(f"Kódoldali ügyfél-feloldás hiba: {_ie}")
+
     # ── Load agent settings (voice, greeting, etc.) ─────────────────────────
     settings = load_agent_settings()
 

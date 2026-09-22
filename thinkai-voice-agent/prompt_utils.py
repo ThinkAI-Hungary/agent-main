@@ -101,12 +101,6 @@ def _format_patient_rules(pi: dict) -> str:
     
     # Kérdés a beazonosításra
     question = pi.get("pacient_id_question", "Korábban járt már a rendelőnkben?")
-    rules.append("""0. HÍVÁS-ELEJI ÜGYFÉL-AZONOSÍTÁS (SZIGORÚ, minden más kérdés ELŐTT!):
-   - A beszélgetés LEGELEJÉN (a köszönés után, mielőtt BÁRMIT kérdeznél) hívd a find_client eszközt PARAMÉTER NÉLKÜL — az a hívó telefonszámára keres a nyilvántartásban.
-   - Ha VISSZATÉRŐ ügyfelet talál: üdvözöld néven (a keresztnevével, természetesen), és a tárolt adatait (email, telefonszám) NE KÉRD BE ÚJRA — legfeljebb ERŐSÍTSD MEG röviden (pl. „a rendszerünkben rögzített email címe maradhat?"). Ha megerősíti, a find_client által adott emailt/telefont használd a book_meeting-hívásban!
-   - Érzékeny adatot (korábbi időpontok, betegadat) CSAK a 7. szabály szerinti második azonosító UTÁN olvass vissza hangosan!
-   - Ha a find_client TÖBB jelöltet ad: kérdezz rá a diszkriminációhoz (email vagy születési év), és hívd újra pontosabb adattal.
-   - Ha NEM talál ügyfelet: új ügyfélként kezeld, a megszokott adatbekéréssel.""")
     if question:
         rules.append(f"1. A beszélgetés elején — a find_client eredménye alapján — tedd fel a következő kérdést az ügyfél beazonosításához, ha még szükséges: '{question}'")
     else:
@@ -128,29 +122,10 @@ def _format_patient_rules(pi: dict) -> str:
     rules.append("4. IDŐPONTFOGLALÁS ESETÉN: Szigorúan kötelező elkérned az ügyfél e-mail címét a foglalás véglegesítése előtt. Tájékoztasd őt róla, hogy erre az e-mail címre fogjuk küldeni a hivatalos visszaigazolást, ami tartalmazza a naptárfájlt és az esetleges lemondáshoz szükséges linket is!")
 
     # EAISY-241 §7 — Időpontfoglalási beszélgetés szabályai (lépésenkénti)
-    rules.append("""5. BESZÉLGETÉS VEZETÉSE IDŐPONTFOGLALÁSKOR (SZIGORÚ!):
-   - Egyszerre CSAK EGY kérdést tegyél fel. SOHA ne sorolj fel több adatot egy mondatban (pl. ne kérdezd egyszerre a szolgáltatást, telefonszámot és e-mailt).
-   - Egy megszólalás legfeljebb KÉT rövid mondatból álljon.
-   - Mindig várd meg a páciens válaszát, mielőtt továbblépsz.
-   - Ha a páciens már megadott egy adatot, NE kérdezd meg újra.
-   - A beszélgetés hangzon PÁRBESZÉDNEK, ne adatfelvételi űrlapnak.
-   - LÉPÉSEK SORRENDJE:
-     a) „Járt már korábban nálunk?" → várd a választ.
-     b) Ha IGEN: „Milyen néven találom meg?" → szükség esetén egy azonosító (egyszerre egyet!).
-        Ha NEM: „Milyen néven rögzíthetem az időpontot?"
-     c) „Milyen szolgáltatásra/időpontra gondolt?" (a szolgáltatás és nap külön-külön, ne egyszerre).
-     d) Időpont pontosítása fokozatosan: „Melyik nap?" → „Délelőtt vagy délután?" → max 2-3 konkrét javaslat.
-     e) Kapcsolattartási adatok EGYESENKÉNT (csak az időpont után): telefonszám, majd e-mail.
-     f) Visszaellenőrzés: röviden foglald össze az egyeztetett adatokat, és csak az összefoglalás után véglegesítsd a foglalást.""")
-    rules.append("""6. SZOLGÁLTATÁS PONTOSÍTÁSA: Ha a páciens nem mond konkrét szolgáltatást, NE sorolj fel több kérdést. Egyetlen rövid kérdés: 'Röviden elmondaná, milyen problémával vagy céllal szeretne érkezni?' — a válasz alapján ajánld fel a megfelelő, foglalható szolgáltatást.""")
     rules.append("""7. AZONOSÍTÁSI BIZTONSÁG: A hívószám PSTN-en triviálisan hamisítható — érzékeny adat (betegadat) előtt MINDIG kérj egy második azonosítót (születési dátum, TAJ, vagy a rendszerben tárolt adat).""")
     # 09-21 voice-teszt: az agent ÚGY erősítette meg a foglalást, hogy SOHA nem
     # hívta a book_meeting eszközt (a naptárban semmi nem jött létre) — ezt
     # kell megakadályozni a legszigorúbban:
-    rules.append("""8. FOGLALÁS KIZÁRÓLAG A book_meeting ESZKÖZZEL (SZIGORÚ!):
-   - SOHA ne mondd, hogy "lefoglaltam", "rögzítettem", "várjuk Önt" vagy bármi véglegesítés, amíg a book_meeting eszközt SIKERESEN meg nem hívtad, és az sikeres választ nem adott!
-   - Ha az eszköz hibát vagy ütközést jelez, SZÓLJ AZ ÜGYFÉLNEK, hogy a foglalás most nem sikerült, és a kollégánk visszahívja — NE úgy tegyél, mintha a foglalás megtörtént volna.
-   - EMAIL CÍM, NÉV vagy más adat BETŰZÉSEKOR: VÁRD MEG, amíg az ügyfél a VÉGÉIG betűzi — ne szólj közbe, még rövid szünetnél sem! A foglalás előtt a meghallgatott email címet OLVASD VISSZA (pl. 'e-t alulvonás orosz kukac yahoo pont i-e — jól hallottam?'), és csak az ügyfél egyértelmű megerősítése után hívd a book_meeting eszközt.""")
 
     rules.append("""9. IDŐPONT MÓDOSÍTÁSA ÉS LEMONDÁSA (SZIGORÚ BIZTONSÁGI SZABÁLYOK):
    - A módosításhoz/lemondáshoz az eseményt az ügyfél EMAIL CÍMÉVEL azonosítod! Ha még nem ismered, KÉRD EL előbb — a tool enélkül visszautasít.
