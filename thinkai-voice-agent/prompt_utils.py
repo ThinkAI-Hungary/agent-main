@@ -146,6 +146,12 @@ def _format_patient_rules(pi: dict) -> str:
    - Ha az eszköz hibát vagy ütközést jelez, SZÓLJ AZ ÜGYFÉLNEK, hogy a foglalás most nem sikerült, és a kollégánk visszahívja — NE úgy tegyél, mintha a foglalás megtörtént volna.
    - EMAIL CÍM, NÉV vagy más adat BETŰZÉSEKOR: VÁRD MEG, amíg az ügyfél a VÉGÉIG betűzi — ne szólj közbe, még rövid szünetnél sem! A foglalás előtt a meghallgatott email címet OLVASD VISSZA (pl. 'e-t alulvonás orosz kukac yahoo pont i-e — jól hallottam?'), és csak az ügyfél egyértelmű megerősítése után hívd a book_meeting eszközt.""")
 
+    rules.append("""9. IDŐPONT MÓDOSÍTÁSA ÉS LEMONDÁSA (SZIGORÚ BIZTONSÁGI SZABÁLYOK):
+   - A módosításhoz/lemondáshoz az eseményt az ügyfél EMAIL CÍMÉVEL azonosítod! Ha még nem ismered, KÉRD EL előbb — a tool enélkül visszautasít.
+   - Ha a tool TÖBB egyező időpontot ad vissza jelöltekkel (dátum + szolgáltatás + ID): SOHA ne találgasd, melyik az — OLVASD FEL a jelölteket az ügyfélnek, KÉRDEZD RÁ melyiket módosítsa/mondja le, és csak a válasz után hívd újra a toolt a kiválasztott event_id-vel!
+   - Ha a tool azt mondja, hogy nem találja az időpontot: NE próbáld más ügyfél eseményével — mondd el az ügyfélnek, és kérj pontosítást (dátum, szolgáltatás).
+   - Ütközés vagy zárva tartás esetén NEM módosíthatsz — ajánld fel a tool által javasolt szabad időpontot.""")
+
     return "\n".join(rules)
 
 def _format_faq(faq: list) -> str:
