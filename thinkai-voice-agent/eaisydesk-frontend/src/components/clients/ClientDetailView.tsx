@@ -655,18 +655,19 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
       <div className="cd-top-card-full cd-hero">
         <div className="cd-hero-top">
           <span className="cd-hero-pill">Ügyfélprofil</span>
-          <button
-            className="cd-history-btn"
-            onClick={() => setShowChangeLog(true)}
-            title="Változási napló"
-            aria-label="Változási napló"
-          >
-            <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="18" height="18">
-              <polyline points="1 4 1 10 7 10" />
-              <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
-            </svg>
-          </button>
-          <div className="cd-overflow-wrap" ref={overflowRef}>
+          <div className="cd-hero-actions">
+            <button
+              className="cd-history-btn"
+              onClick={() => setShowChangeLog(true)}
+              title="Változási napló"
+              aria-label="Változási napló"
+            >
+              <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="18" height="18">
+                <polyline points="1 4 1 10 7 10" />
+                <path d="M3.51 15a9 9 0 1 0 2.13-9.36L1 10" />
+              </svg>
+            </button>
+            <div className="cd-overflow-wrap" ref={overflowRef}>
             <button
               className="cd-overflow-btn"
               onClick={() => setShowOverflowMenu(!showOverflowMenu)}
@@ -725,6 +726,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                 </button>
               </div>
             )}
+            </div>
           </div>
         </div>
 

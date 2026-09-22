@@ -1300,11 +1300,13 @@
 
 /* ═══ EAISY-241 §1.4.2: hárompontos overflow menu ═══ */
 .cd-overflow-btn {
-  background: none; border: 1px solid rgba(24,109,152,0.25); border-radius: 50%;  /* EAISY-241 §3: kör */
-  padding: 8px; width: 36px; height: 36px; cursor: pointer; color: #186D98; display: inline-flex;
-  align-items: center; justify-content: center; transition: background 0.15s, border-color 0.15s;
+  /* Változási napló látványterv (2026-09-22): fehér tile-gomb, a history ikonnal párban */
+  background: #fff; border: 1px solid #e3edf0; border-radius: 12px;
+  padding: 0; width: 40px; height: 40px; cursor: pointer; color: #186D98; display: inline-flex;
+  align-items: center; justify-content: center; transition: box-shadow 0.15s, border-color 0.15s;
+  box-shadow: 0 1px 3px rgba(8,36,50,0.08);
 }
-.cd-overflow-btn:hover { background: rgba(24,109,152,0.08); border-color: #186D98; }
+.cd-overflow-btn:hover { border-color: #186D98; box-shadow: 0 2px 8px rgba(8,36,50,0.14); }
 .cd-overflow-menu {
   background: #fff; border: 1px solid #e5e7eb; border-radius: 10px; box-shadow: 0 8px 28px rgba(0,0,0,0.14);
   padding: 6px; display: flex; flex-direction: column; gap: 2px;
@@ -1462,17 +1464,20 @@
 
 /* History ikon a profil-fejléc kebabja mellett */
 .cd-history-btn {
-  border: none;
-  background: rgba(255, 255, 255, 0.55);
-  color: #0f4c52;
+  /* A kebabbal azonos fehér tile-stílus, pár pixel réssel tőle balra (látványterv) */
+  border: 1px solid #e3edf0;
+  background: #fff;
+  color: #186D98;
   cursor: pointer;
-  width: 36px;
-  height: 36px;
-  border-radius: 10px;
+  width: 40px;
+  height: 40px;
+  border-radius: 12px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  margin-right: 8px;
-  transition: background 0.15s ease;
+  box-shadow: 0 1px 3px rgba(8,36,50,0.08);
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
 }
-.cd-history-btn:hover { background: rgba(255, 255, 255, 0.9); }
+.cd-history-btn:hover { border-color: #186D98; box-shadow: 0 2px 8px rgba(8,36,50,0.14); }
+
+.cd-hero-actions { display: flex; align-items: center; gap: 10px; }

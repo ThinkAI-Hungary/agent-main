@@ -129,20 +129,23 @@ body.dark {
 
 /* ── Kebab (mockup: vízszintes pöttyök, lefelé nyíló menü) ── */
 .cd-overflow-wrap { position: relative; display: inline-block; }
-.cd-overflow-btn {
-  width: 36px;
-  height: 36px;
+/* Változási napló látványterv (2026-09-22): a kebab és a history gomb azonos
+   fehér/téma-tile (40px, 12px sarok), pár pixel réssel egymás mellett */
+.cd-overflow-btn, .cd-history-btn {
+  width: 40px;
+  height: 40px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border: 1px solid var(--border);
-  border-radius: 8px;
+  border-radius: 12px;
   background: var(--card);
   color: var(--text);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
+  box-shadow: 0 1px 3px rgba(8,36,50,0.08);
 }
-.cd-overflow-btn:hover { background: var(--bg3); border-color: var(--text-dim); }
+.cd-overflow-btn:hover, .cd-history-btn:hover { background: var(--bg3); border-color: var(--text-dim); }
 .cd-overflow-menu {
   position: absolute;
   top: calc(100% + 6px);
