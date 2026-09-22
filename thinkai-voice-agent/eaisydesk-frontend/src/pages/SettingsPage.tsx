@@ -1046,17 +1046,15 @@ export default function SettingsPage() {
               </div>
               <div className="br-col-labels-4">
                 <span className="ih-col-label">Szolgáltatás neve</span>
-                <span className="ih-col-label">Leírás</span>
                 <span className="ih-col-label">Időtartam (perc)</span>
                 <span className="ih-col-label">Kolléga</span>
-                <span className="ih-col-label">Megjegyzés (foglalási szabály)</span>
+                <span className="ih-col-label">Megjegyzés</span>
               </div>
               <div className="co-list">
                 {services.map((s, i) => (
                   <div key={s.id || i} className="co-item">
                     <div className="co-body br-grid-4col">
                       <input className="co-input" value={s.service_name} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, service_name: e.target.value } : x))} placeholder="Szolgáltatás neve" onBlur={() => saveService(s, i)} />
-                      <input className="co-input" value={s.description || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder="Leírás" onBlur={() => saveService(s, i)} />
                       <input className="co-input" type="number" value={s.duration_minutes} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, duration_minutes: Number(e.target.value) } : x))} placeholder="Perc" onBlur={() => saveService(s, i)} />
                       <input className="co-input" value={s.assigned_to || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, assigned_to: e.target.value } : x))} placeholder="Kolléga" onBlur={() => saveService(s, i)} />
                     <input className="co-input" value={s.note || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, note: e.target.value } : x))} placeholder="pl. Csak dentálhigiénikushoz foglalható" onBlur={() => saveService(s, i)} />

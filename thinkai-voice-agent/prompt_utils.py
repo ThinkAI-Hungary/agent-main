@@ -37,13 +37,11 @@ def _format_services() -> str:
     lines = []
     for s in services:
         name = s.get("service_name", "")
-        desc = s.get("description", "")
         dur = s.get("duration_minutes", 30)
         assigned = s.get("assigned_to", "")
         note = s.get("note", "")
-        
+
         line = f"- {name} ({dur} perc)"
-        if desc: line += f" — {desc}"
         if assigned: line += f" – Felelős: {assigned}"
         if note: line += f" [Foglalási szabály: {note}]"
         lines.append(line)

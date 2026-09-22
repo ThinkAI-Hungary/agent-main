@@ -2392,18 +2392,18 @@ body.dark .ih-readonly {
   gap: 16px;
 }
 
-/* § 2: 5-column service grid (név, leírás, perc, kolléga, megjegyzés — 2026-09-22) */
+/* § 2: 4-column service grid (név, perc, kolléga, megjegyzés — a Leírás oszlop kivezetve 2026-09-22) */
 .br-grid-4col {
   display: grid;
-  grid-template-columns: 0.9fr 1.3fr 0.45fr 0.9fr 1.3fr;
+  grid-template-columns: 1fr 0.45fr 0.95fr 1.3fr;
   gap: 12px;
   align-items: center;
 }
 
-/* § 2: 5-column label header for services */
+/* § 2: 4-column label header for services */
 .br-col-labels-4 {
   display: grid;
-  grid-template-columns: 0.9fr 1.3fr 0.45fr 0.9fr 1.3fr;
+  grid-template-columns: 1fr 0.45fr 0.95fr 1.3fr;
   gap: 12px;
   margin-bottom: 6px;
   padding-right: 36px;
