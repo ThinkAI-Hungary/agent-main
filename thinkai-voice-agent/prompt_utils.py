@@ -45,7 +45,7 @@ def _format_services() -> str:
         line = f"- {name} ({dur} perc)"
         if desc: line += f" — {desc}"
         if assigned: line += f" – Felelős: {assigned}"
-        if note: line += f" [Megjegyzés: {note}]"
+        if note: line += f" [Foglalási szabály: {note}]"
         lines.append(line)
     return "\n".join(lines) if lines else "Nincs megadva"
 
@@ -118,7 +118,7 @@ def _format_patient_rules(pi: dict) -> str:
     
     if pi.get("new_patient_auto_visit", True):
         rules.append("   - SZIGORÚ SZABÁLY: Mivel ő egy ÚJ páciens, az első alkalommal KIZÁRÓLAG állapotfelmérésre / általános vizitre (pl. Konzultáció) foglalhatsz neki időpontot! Semmilyen más konkrét kezelésre (pl. tömés, foghúzás) NEM adhatsz időpontot látatlanban. Mondd el neki, hogy az első alkalommal mindenképp egy állapotfelmérésre van szükség.")
-        rules.append("   - KIVÉTEL (SZIGORÚ!): DENTÁLHIGIÉNIAI kezelésre (fogkő-eltávolítás, EMS fogkő-eltávolítás, Air-Flow, polírozás) ÚJ páciensnek IS KÖZVETLENÜL foglalhatsz időpontot — oda NEM kell konzultáció! Ha az új ügyfél fogkő-eltávolítást kér, NE tereld konzultációra, foglald közvetlenül a dentálhigiénés kezelést.")
+        rules.append("   - KIVÉTEL-ELSŐBBLISSÉG: a szolgáltatás-listában az egyes szolgáltatásokhoz fűzött [Foglalási szabály: ...] megjegyzések EZT az általános szabályt FELÜLÍRHATJÁK (pl. ha egy kezelésnél a megjegyzés szerint nincs szükség előzetes konzultációra, akkor új páciensnek is közvetlenül foglalhatsz). A szolgáltatás-specifikus megjegyzés mindig erősebb, mint az általános szabály.")
 
     # Visszatérő páciens szabályok
     ret_req = pi.get("returning_patient_required", "Páciens azonosító vagy telefonszám")

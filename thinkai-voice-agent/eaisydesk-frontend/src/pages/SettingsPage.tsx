@@ -1049,6 +1049,7 @@ export default function SettingsPage() {
                 <span className="ih-col-label">Leírás</span>
                 <span className="ih-col-label">Időtartam (perc)</span>
                 <span className="ih-col-label">Kolléga</span>
+                <span className="ih-col-label">Megjegyzés (foglalási szabály)</span>
               </div>
               <div className="co-list">
                 {services.map((s, i) => (
@@ -1058,6 +1059,7 @@ export default function SettingsPage() {
                       <input className="co-input" value={s.description || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, description: e.target.value } : x))} placeholder="Leírás" onBlur={() => saveService(s, i)} />
                       <input className="co-input" type="number" value={s.duration_minutes} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, duration_minutes: Number(e.target.value) } : x))} placeholder="Perc" onBlur={() => saveService(s, i)} />
                       <input className="co-input" value={s.assigned_to || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, assigned_to: e.target.value } : x))} placeholder="Kolléga" onBlur={() => saveService(s, i)} />
+                    <input className="co-input" value={s.note || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, note: e.target.value } : x))} placeholder="pl. Csak dentálhigiénikushoz foglalható" onBlur={() => saveService(s, i)} />
                     </div>
                     <button className="co-del" type="button" aria-label="Szolgáltatás törlése" onClick={() => deleteService(s.id, i)}>
                       <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" /></svg>
