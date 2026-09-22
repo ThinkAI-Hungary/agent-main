@@ -1364,6 +1364,137 @@ async def report_alert(
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
+# 9.5. FIND CLIENT (beszélgetés-közi ügyfél-azonosítás — 2026-09-22)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+def _normalize_phone_digits(p: str) -> str:
+    """Telefonszám normalizálás egyeztetéshez: csak számjegyek, 06→36.
+    Visszatérés: az UTOLSÓ 9 számjegy (formátum-független egyezés)."""
+    import re as _re
+    d = _re.sub(r"\D", "", p or "")
+    if d.startswith("06"):
+        d = "36" + d[2:]
+    return d[-9:] if len(d) >= 9 else d
+
+
+def _mask_email(email: str) -> str:
+    if not email or "@" not in email:
+        return "nincs rögzítve"
+    local, domain = email.split("@", 1)
+    return f"{local[0]}***@{domain}"
+
+
+@function_tool(description=(
+    "Ügyfél keresése a nyilvántartásban — a hívás ELEJÉN használd (paraméter nélkül "
+    "a hívó telefonszámára keres)! Visszatérés: a tárolt profil (név, email, telefon, "
+    "címkék, közelgő időpontok). Visszatérő ügyfélnél üdvözöld néven, a tárolt adatokat "
+    "NE kérd be újra — csak erősítsd meg. Érzékeny adatokat (korábbi időpontok) csak "
+    "második azonosító UTÁN olvass vissza!"
+))
+async def find_client(
+    ctx: RunContext,
+    client_name: Annotated[str, "Az ügyfél neve (részleges is lehet)"] = "",
+    client_email: Annotated[str, "Az ügyfél email címe"] = "",
+    client_phone: Annotated[str, "Telefonszám — ha üres, a hívó számára keres"] = "",
+) -> str:
+    """Ügyfél-keresés telefon/email/név alapján (erős kulcsok előnyben)."""
+    phone = (client_phone or "").strip() or get_caller_phone()
+    email = (client_email or "").strip().lower()
+    name = (client_name or "").strip()
+
+    def _upcoming(c):
+        try:
+            from datetime import timezone as _tzu
+            now_iso = datetime.now(_tzu.utc).isoformat()
+            em = (c.get("email") or "").strip()
+            q = db._tenant_eq(db.supabase.table("calendar_events").select("id,title,start_dt,doctor")).gte("start_dt", now_iso)
+            if em:
+                q = q.eq("attendee_email", em)
+            else:
+                q = q.ilike("attendee", (c.get("name") or "").strip())
+            rows = q.order("start_dt", desc=False).limit(3).execute().data or []
+            if not rows:
+                return "nincs közelgő időpont"
+            nxt = rows[0]
+            try:
+                dt = _to_budapest_tz(nxt["start_dt"]).strftime("%Y.%m.%d. %H:%M")
+            except Exception:
+                dt = str(nxt.get("start_dt", ""))[:16]
+            more = f" (+{len(rows) - 1} további)" if len(rows) > 1 else ""
+            return f"{len(rows)} db — legközelebbi: {nxt.get('title', '?')} ({dt}, {nxt.get('doctor') or 'nincs ellátó'}){more}"
+        except Exception:
+            return "ismeretlen"
+
+    def _fmt_single(c):
+        cd0 = c.get("custom_data") or {}
+        if isinstance(cd0, str):
+            try: cd0 = json.loads(cd0)
+            except Exception: cd0 = {}
+        tags = ", ".join(cd0.get("tags") or []) or "nincs"
+        return (
+            f"ÜGYFÉL AZONOSÍTVA: {c.get('name', 'Névtelen')}\n"
+            f"- Email: {c.get('email') or 'nincs rögzítve'}\n"
+            f"- Telefon: {c.get('phone') or 'nincs rögzítve'}\n"
+            f"- Címkék: {tags}\n"
+            f"- Ügyfél {(c.get('created_at') or '')[:7]} óta\n"
+            f"- Közelgő időpontok: {_upcoming(c)}\n"
+            "Ez VISSZATÉRŐ ügyfél — üdvözöld néven, a tárolt adatokat NE kérd be újra, "
+            "csak erősítsd meg! (Érzékeny adatok visszaolvasása csak második azonosító után.)"
+        )
+
+    hits = []
+
+    # 1. Telefonszám (utolsó 9 számjegy — formátum-független)
+    pdig = _normalize_phone_digits(phone)
+    if pdig:
+        try:
+            res = db._tenant_eq(db.supabase.table("clients").select("*")).ilike("phone", f"%{pdig}%").execute().data or []
+            seen = set()
+            for c in res:
+                if c["id"] not in seen and _normalize_phone_digits(c.get("phone") or "") == pdig:
+                    seen.add(c["id"]); hits.append(c)
+        except Exception as e:
+            logger.warning(f"find_client phone hiba: {e}")
+
+    # 2. Email
+    if not hits and email:
+        try:
+            hit = db.find_client_by_contact(email=email)
+            if hit: hits = [hit]
+        except Exception:
+            pass
+
+    # 3. Név (pontos, aztán részleges >=5 kar)
+    if not hits and name:
+        try:
+            res = db._tenant_eq(db.supabase.table("clients").select("*")).ilike("name", name).execute().data or []
+            if not res and len(name) >= 5:
+                res = db._tenant_eq(db.supabase.table("clients").select("*")).ilike("name", f"%{name}%").limit(5).execute().data or []
+            hits = res
+        except Exception:
+            pass
+
+    if len(hits) == 1:
+        logger.info(f"find_client: azonosítva #{hits[0]['id']} ({hits[0].get('name')})")
+        return _fmt_single(hits[0])
+    if len(hits) > 1:
+        lines = []
+        for c in hits[:5]:
+            cd = c.get("custom_data") or {}
+            if isinstance(cd, str): cd = json.loads(cd)
+            lines.append(
+                f"- {c.get('name', 'Névtelen')} | email: {_mask_email(c.get('email') or (cd.get('email') or ''))} | "
+                f"tel: ...{_normalize_phone_digits(c.get('phone') or '')[-4:]} | közelgő időpont: {_upcoming(c)}"
+            )
+        return (
+            "TÖBB lehetséges ügyfél:\n" + "\n".join(lines) +
+            "\nKérdezd rá a diszkriminációhoz (pl. email cím vagy születési év), "
+            "és hívj újra pontosabb adattal!"
+        )
+    return "Nincs ügyfél ezekkel az adatokkal a nyilvántartásban — ÚJ ügyfélként kezeld."
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
 # 10. TAG CLIENT (auto-tagging based on conversation topics)
 # ═══════════════════════════════════════════════════════════════════════════════
 
@@ -1447,6 +1578,7 @@ ALL_TOOLS = [
     # send_followup_email KIVEZETVE a registry-ből (2026-09-21): a foglalási
     # értesítések rendszer-sablonosak (confirmation/modification/cancellation),
     # az agent ne küldjön külön emailt — a függvény megmarad egyéb hívókra.
+    find_client,
     check_calendar,
     book_meeting,
     modify_meeting,

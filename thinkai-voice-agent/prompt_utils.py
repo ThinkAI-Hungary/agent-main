@@ -101,10 +101,16 @@ def _format_patient_rules(pi: dict) -> str:
     
     # Kérdés a beazonosításra
     question = pi.get("pacient_id_question", "Korábban járt már a rendelőnkben?")
+    rules.append("""0. HÍVÁS-ELEJI ÜGYFÉL-AZONOSÍTÁS (SZIGORÚ, minden más kérdés ELŐTT!):
+   - A beszélgetés LEGELEJÉN (a köszönés után, mielőtt BÁRMIT kérdeznél) hívd a find_client eszközt PARAMÉTER NÉLKÜL — az a hívó telefonszámára keres a nyilvántartásban.
+   - Ha VISSZATÉRŐ ügyfelet talál: üdvözöld néven (a keresztnevével, természetesen), és a tárolt adatait (email, telefonszám) NE KÉRD BE ÚJRA — legfeljebb ERŐSÍTSD MEG röviden (pl. „a rendszerünkben rögzített email címe maradhat?"). Ha megerősíti, a find_client által adott emailt/telefont használd a book_meeting-hívásban!
+   - Érzékeny adatot (korábbi időpontok, betegadat) CSAK a 7. szabály szerinti második azonosító UTÁN olvass vissza hangosan!
+   - Ha a find_client TÖBB jelöltet ad: kérdezz rá a diszkriminációhoz (email vagy születési év), és hívd újra pontosabb adattal.
+   - Ha NEM talál ügyfelet: új ügyfélként kezeld, a megszokott adatbekéréssel.""")
     if question:
-        rules.append(f"1. A beszélgetés elején, amint lehetőség van rá, tedd fel a következő kérdést az ügyfél beazonosításához: '{question}'")
+        rules.append(f"1. A beszélgetés elején — a find_client eredménye alapján — tedd fel a következő kérdést az ügyfél beazonosításához, ha még szükséges: '{question}'")
     else:
-        rules.append("1. A beszélgetés elején derítsd ki, hogy az ügyfél járt-e már a rendelőben (új vagy visszatérő páciens).")
+        rules.append("1. A beszélgetés elején derítsd ki, hogy az ügyfél járt-e már a rendelőben (új vagy visszatérő páciens) — a find_client eredménye alapján.")
 
     # Új páciens szabályok
     new_req = pi.get("new_patient_required", "Születési dátum, teljes név")
