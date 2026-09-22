@@ -38,6 +38,7 @@ interface CalendarEventItem {
   attendance_status?: '' | 'attended' | 'no_show'; // megjelent / no-show jelölés
   status?: string | null; // 'confirmed' (végleges) | 'pending' (függő — 24 órás fenntartás)
   pending_until?: string | null; // függő foglalás fenntartási határideje
+  note?: string | null; // szabad megjegyzés (kézi popup, 2026-09-22)
 }
 
 // Múltbeli esemény megjelenés-jelölése: kiválasztás után BADGE (Megjelent /
@@ -104,9 +105,12 @@ export default function CalendarPage() {
   const [eventTip, setEventTip] = useState<{ ev: CalendarEventItem; x: number; y: number } | null>(null);
 
   const [newEvent, setNewEvent] = useState({
-    attendee: '', email: '', phone: '', title: '', assigned_to: '',
+    attendee: '', email: '', phone: '', title: '', assigned_to: '', note: '',
     date: new Date().toISOString().split('T')[0], time: '09:00', duration: '30',
   });
+  // Szolgáltatás-dropdown: '' = üres, '__custom__' = egyéni (free-text) cím
+  const [serviceSel, setServiceSel] = useState('');
+  const [serviceOptions, setServiceOptions] = useState<{ name: string; duration: number }[]>([]);
   // Munkatárs-opciók (foglalási szabályok: services.assigned_to névsor)
   const [staffOptions, setStaffOptions] = useState<string[]>([]);
   // Ügyfélprofil „Következő időpont" ceruza → naptár bejegyzés szerkesztése
@@ -119,6 +123,9 @@ export default function CalendarPage() {
         const res = await authFetch('/admin/api/services');
         const data = await res.json();
         const list = Array.isArray(data) ? data : (Array.isArray(data?.services) ? data.services : []);
+        setServiceOptions(list
+          .filter((x: { service_name?: string }) => (x.service_name || '').trim())
+          .map((x: { service_name: string; duration_minutes?: number }) => ({ name: x.service_name.trim(), duration: x.duration_minutes || 30 })));
         // A Kolléga mező vesszővel elválasztott névlista — egyedi nevekre bontjuk,
         // a "minden fogorvos" jellegű szabad szövegeket kiszűrjük
         const names = new Set<string>();
@@ -407,15 +414,22 @@ export default function CalendarPage() {
       email: ev.attendee_email || '',
       // A mentett telefonszám behúzása szerkesztéskor (volt: mindig üres)
       phone: ev.attendee_phone || '',
-      title: ev.title || '',
+      title: ev.title || '', // a szolgáltatás-feloldás (lent) felülírja a base-címmel
       assigned_to: ev.doctor || '',
       date: (ev.start_dt || '').split('T')[0],
       time: (ev.start_dt || '').split('T')[1]?.substring(0, 5) || '09:00',
       duration: String(ev.duration_minutes || 30),
+      note: ev.note || '',
     });
+    // A rendszer-útvonalak '<szolgáltatás> - <név>' címet adnak — a dropdownhoz
+    // a név-suffixet levágjuk, és ha szolgáltatás-listás, előre kiválasztjuk
+    const suffix = ` - ${(ev.attendee || '').trim()}`;
+    const base = suffix.length > 4 && (ev.title || '').endsWith(suffix) ? (ev.title || '').slice(0, -suffix.length) : (ev.title || '');
+    setServiceSel(base && serviceOptions.some(o => o.name === base) ? base : (base ? '__custom__' : ''));
+    setNewEvent(prev => ({ ...prev, title: base }));
     setEditingEventId(ev.id);
     setShowNewEventModal(true);
-  }, []);
+  }, [serviceOptions]);
 
   // Ügyfélprofil megnyitás (a szerkesztő panelből külön gombbal)
   const openClientFromEvent = useCallback((attendeeName: string, attendeeEmail: string) => {
@@ -427,8 +441,9 @@ export default function CalendarPage() {
   // ── Esemény frissítése / törlése ──
   const handleUpdateEvent = useCallback(async () => {
     if (!editingEventId) return;
-    if (!newEvent.attendee || !newEvent.title || !newEvent.date || !newEvent.time) {
-      showToast('Név, esemény címe, dátum és időpont kötelező!', 'error');
+    const resolvedTitle = serviceSel === '__custom__' ? newEvent.title.trim() : serviceSel;
+    if (!newEvent.attendee || !resolvedTitle || !newEvent.date || !newEvent.time) {
+      showToast('Név, szolgáltatás, dátum és időpont kötelező!', 'error');
       return;
     }
     const start_dt = `${newEvent.date}T${newEvent.time}:00`;
@@ -438,13 +453,14 @@ export default function CalendarPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           id: editingEventId,
-          title: newEvent.title,
+          title: resolvedTitle,
           attendee: newEvent.attendee,
           attendee_email: newEvent.email,
           attendee_phone: newEvent.phone,
           start_dt,
           duration_minutes: parseInt(newEvent.duration) || 30,
           assigned_to: newEvent.assigned_to,
+          note: newEvent.note,
         }),
       });
       if (res.ok) {
@@ -467,8 +483,9 @@ export default function CalendarPage() {
 
   // ── Új esemény ──
   const handleSubmitEvent = useCallback(async () => {
-    if (!newEvent.attendee || !newEvent.title || !newEvent.date || !newEvent.time) {
-      showToast('Ügyfél neve, esemény címe, dátum és időpont kötelező!', 'error');
+    const resolvedTitle = serviceSel === '__custom__' ? newEvent.title.trim() : serviceSel;
+    if (!newEvent.attendee || !resolvedTitle || !newEvent.date || !newEvent.time) {
+      showToast('Ügyfél neve, szolgáltatás, dátum és időpont kötelező!', 'error');
       return;
     }
     const start_dt = `${newEvent.date}T${newEvent.time}:00`;
@@ -477,18 +494,20 @@ export default function CalendarPage() {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          title: newEvent.title,
+          title: resolvedTitle,
           attendee: newEvent.attendee,
           attendee_email: newEvent.email,
           attendee_phone: newEvent.phone,
           start_dt,
           duration_minutes: parseInt(newEvent.duration) || 30,
           assigned_to: newEvent.assigned_to,
+          note: newEvent.note,
         }),
       });
       if (!res.ok) { showToast('Hiba az időpont létrehozásakor', 'error'); return; }
       setShowNewEventModal(false);
-      setNewEvent({ attendee: '', email: '', phone: '', title: '', assigned_to: '', date: new Date().toISOString().split('T')[0], time: '09:00', duration: '30' });
+      setNewEvent({ attendee: '', email: '', phone: '', title: '', assigned_to: '', note: '', date: new Date().toISOString().split('T')[0], time: '09:00', duration: '30' });
+      setServiceSel('');
       showToast('Időpont sikeresen létrehozva!');
       refetchEvents();
     } catch { showToast('Hiba az időpont létrehozásakor', 'error'); }
@@ -597,7 +616,7 @@ export default function CalendarPage() {
                   </button>
                 ))}
               </div>
-              <button className="cp-btn-accent" onClick={() => setShowNewEventModal(true)}>
+              <button className="cp-btn-accent" onClick={() => { setEditingEventId(null); setServiceSel(''); setNewEvent({ attendee: '', email: '', phone: '', title: '', assigned_to: '', note: '', date: new Date().toISOString().split('T')[0], time: '09:00', duration: '30' }); setShowNewEventModal(true); }}>
                 <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15"><line x1="12" y1="5" x2="12" y2="19" /><line x1="5" y1="12" x2="19" y2="12" /></svg>
                 Időpont hozzáadása
               </button>
@@ -724,8 +743,27 @@ export default function CalendarPage() {
                 </div>
               </div>
               <div className="form-group">
-                <label className="cd-task-modal-label">Esemény címe</label>
-                <input className="cd-form-input" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} placeholder="pl. Konzultáció" />
+                <label className="cd-task-modal-label">Szolgáltatás</label>
+                <select className="cd-form-input" value={serviceSel} onChange={e => {
+                  const v = e.target.value;
+                  setServiceSel(v);
+                  // A szolgáltatáshoz tartozó időtartam automatikus betöltése (felülírható)
+                  const svc = serviceOptions.find(o => o.name === v);
+                  if (svc) setNewEvent(prev => ({ ...prev, duration: String(svc.duration) }));
+                }}>
+                  <option value="">— Válassz szolgáltatást —</option>
+                  {serviceOptions.map(o => (
+                    <option key={o.name} value={o.name}>{o.name}</option>
+                  ))}
+                  <option value="__custom__">Egyéni…</option>
+                </select>
+                {serviceSel === '__custom__' && (
+                  <input className="cd-form-input" style={{ marginTop: 8 }} value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} placeholder="Egyéni eseménycím, pl. Munkahelyi szűrés" autoFocus />
+                )}
+              </div>
+              <div className="form-group">
+                <label className="cd-task-modal-label">Megjegyzés</label>
+                <textarea className="cd-form-input" rows={2} value={newEvent.note} onChange={e => setNewEvent({ ...newEvent, note: e.target.value })} placeholder="Szabad megjegyzés az időponthoz…" />
               </div>
               <div className="form-group">
                 <label className="cd-task-modal-label">Munkatárs</label>
@@ -769,7 +807,7 @@ export default function CalendarPage() {
                 </button>
               )}
               <button className="cd-btn" onClick={() => { setShowNewEventModal(false); setEditingEventId(null); }}>Mégse</button>
-              <button className="cd-btn cd-btn-primary" onClick={editingEventId ? handleUpdateEvent : handleSubmitEvent} disabled={!newEvent.attendee || !newEvent.title || !newEvent.date || !newEvent.time}>
+              <button className="cd-btn cd-btn-primary" onClick={editingEventId ? handleUpdateEvent : handleSubmitEvent} disabled={!newEvent.attendee || !(serviceSel === '__custom__' ? newEvent.title.trim() : serviceSel) || !newEvent.date || !newEvent.time}>
                 {editingEventId ? 'Mentés' : 'Létrehozás'}
               </button>
             </div>

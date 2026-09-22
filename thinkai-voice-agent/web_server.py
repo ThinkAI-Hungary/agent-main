@@ -3193,6 +3193,35 @@ class ManualEventRequest(BaseModel):
     duration_minutes: int = 30
     id: int | None = None  # ha megvan, frissítés (szerkesztés)
     assigned_to: str = ""  # munkatárs ({{munkatárs}} változó)
+    note: str = ""  # szabad megjegyzés (calendar_events.note, 2026-09-22)
+
+
+
+def _parse_manual_dt(raw: str):
+    """Kézi naptárfelvétel dátum-parse: a form naív (tz-nélküli) helyi időt küld
+    (Budapest) — korábban UTC-ként tárolódott → a grid +2 órával későbbre mutatta.
+    Tz-aware inputot változatlanul fogadunk."""
+    import zoneinfo
+    dt = datetime.fromisoformat((raw or "").replace("Z", "+00:00"))
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=zoneinfo.ZoneInfo("Europe/Budapest"))
+    return dt
+
+def _service_normalized_title(title: str, attendee: str) -> str:
+    """Ha a cím pontosan egy foglalható szolgáltatás neve (a kézi popup
+    szolgáltatás-dropdownja ilyet küld), az egységes '<szolgáltatás> - <név>'
+    formára hozza. Egyedi (free-text) címet NEM bánt — a kézi felvétel
+    szabadsága megmarad (user-döntés 2026-09-22: 'Egyéni…' opció)."""
+    t = (title or "").strip()
+    if not t:
+        return title
+    try:
+        svc_names = { (s.get("service_name") or "").strip().lower() for s in (db.get_services() or []) }
+        if t.lower() in svc_names:
+            return db.normalize_event_title(t, attendee)
+    except Exception:
+        pass
+    return title
 
 @app.post("/admin/api/calendar")
 async def admin_create_event(req: ManualEventRequest, _user = Depends(get_current_user)):
@@ -3201,22 +3230,31 @@ async def admin_create_event(req: ManualEventRequest, _user = Depends(get_curren
 
     # Ha id van megadva → meglévő esemény frissítés (szerkesztés)
     if getattr(req, 'id', None):
-        start = datetime.fromisoformat(req.start_dt.replace("Z", "+00:00"))
-        end = start + timedelta(minutes=req.duration_minutes)
-        ok = db.update_calendar_event(req.id, title=req.title, start_dt=start.isoformat(),
-            end_dt=end.isoformat(), duration_minutes=req.duration_minutes,
+        # A RÉGI start_dt kell a módosítás-emailhez (a req.start_dt már az új —
+        # korábban old_datetime=new_datetime ment ki a levélbe)
+        old_ev = db.get_calendar_event(req.id) or {}
+        start = _parse_manual_dt(req.start_dt)
+        # Szolgáltatás-listás cím → egységes '<szolgáltatás> - <név>' forma + a
+        # TÁBLA időtartama az irányadó (a voice-szabállyal azonos); egyedi cím érintetlen
+        title = _service_normalized_title(req.title, req.attendee)
+        duration = email_processor.resolve_service_duration(title, req.duration_minutes) if title != req.title else req.duration_minutes
+        end = start + timedelta(minutes=duration)
+        ok = db.update_calendar_event(req.id, title=title, start_dt=start.isoformat(),
+            end_dt=end.isoformat(), duration_minutes=duration,
             attendee=req.attendee, attendee_email=req.attendee_email,
-            doctor=getattr(req, 'assigned_to', '') or None)
+            doctor=getattr(req, 'assigned_to', '') or None,
+            note=req.note)
         if not ok:
             raise HTTPException(500, "Frissítés sikertelen")
         # Módosítás-visszaigazoló (beégetett sablon, toggle-ölt) — kézi szerkesztés
+        # KIZÁRÓLAG ez megy: booking-visszaigazoló csak létrehozáskor (user-szabály 2026-09-22)
         if req.attendee_email and req.attendee_email != "-":
             asyncio.create_task(
                 email_processor.send_modification_confirmation_email(
                     attendee=req.attendee,
                     attendee_email=req.attendee_email,
-                    title=req.title,
-                    old_datetime=req.start_dt,
+                    title=title,
+                    old_datetime=old_ev.get("start_dt", ""),
                     new_datetime=start.isoformat(),
                     event_id=req.id,
                     assigned_to=getattr(req, 'assigned_to', ''),
@@ -3225,23 +3263,29 @@ async def admin_create_event(req: ManualEventRequest, _user = Depends(get_curren
         return {"ok": True, "id": req.id, "updated": True}
 
     try:
-        start = datetime.fromisoformat(req.start_dt.replace("Z", "+00:00"))
+        start = _parse_manual_dt(req.start_dt)
     except Exception:
         raise HTTPException(400, "Érvénytelen dátum formátum")
 
-    end = start + timedelta(minutes=req.duration_minutes)
+    # Szolgáltatás-listás cím → egységes forma + a szolgáltatás-TÁBLA időtartama;
+    # egyedi címnél az űrlap értéke marad
+    title = _service_normalized_title(req.title, req.attendee)
+    duration = email_processor.resolve_service_duration(title, req.duration_minutes) if title != req.title else req.duration_minutes
+    end = start + timedelta(minutes=duration)
 
     # {{munkatárs}}: minden esemény kap munkatársat (explicit → szolgáltatás → random)
-    assigned_staff = email_processor.resolve_assigned_staff(req.title, getattr(req, 'assigned_to', ''))
+    assigned_staff = email_processor.resolve_assigned_staff(title, getattr(req, 'assigned_to', ''))
 
     event_id = db.add_calendar_event(
-        title=req.title,
+        title=title,
         start_dt=start.isoformat(),
         end_dt=end.isoformat(),
-        duration_minutes=req.duration_minutes,
+        duration_minutes=duration,
         attendee=req.attendee,
         attendee_email=req.attendee_email,
-        assigned_to=assigned_staff
+        assigned_to=assigned_staff,
+        attendee_phone=req.attendee_phone,
+        note=req.note or None
     )
 
     # Visszaigazoló email (beégetett sablon, toggle-ölt) — kézi foglalás esetén is
@@ -3249,7 +3293,7 @@ async def admin_create_event(req: ManualEventRequest, _user = Depends(get_curren
         asyncio.create_task(
             email_processor.send_booking_confirmation_email(
                 event_id=event_id,
-                title=req.title,
+                title=title,
                 date=start.strftime("%Y-%m-%d"),
                 time=start.strftime("%H:%M"),
                 attendee=req.attendee,
@@ -3257,39 +3301,31 @@ async def admin_create_event(req: ManualEventRequest, _user = Depends(get_curren
             )
         )
     
-    # Auto-create client if not exists
+    # Ügyfél-feloldás/létrehozás az ARBITERREL (erős kulcsok: phone > messenger > email).
+    # Létrehozás CSAK erős kulccsal (email/telefon) — puszta névvel soha (a voice
+    # tag_client szabállyal azonos elv, adatszegény torzók ellen). Erős-kulcs-konfliktnál
+    # duplicate_suspect jelzés mindkét rekordon → a profil banneren merge-elhető.
+    # A blokk hibája SOHA nem fordíthatja 500-ba a már létrejött eseményt
+    # (korábbi `_auth` NameError: az esemény létrejött, a toast mégis hibát mutatott).
     if req.attendee:
-        existing = db.get_clients()
-        found = False
-        for c in existing:
-            cd = c.get("custom_data")
-            if isinstance(cd, str):
-                try:
-                    import json
-                    cd = json.loads(cd)
-                except:
-                    cd = {}
-            elif cd is None:
-                cd = {}
-            c_name = (cd.get("nev") or cd.get("name") or c.get("name") or "").lower().strip()
-            c_email = (cd.get("email") or c.get("email") or "").lower().strip()
-            if (req.attendee.lower().strip() == c_name) or (req.attendee_email and req.attendee_email.lower().strip() == c_email):
-                found = True
-                break
-        
-        if not found:
-            # Get user's full_name for felelos
-            felelos = _auth.get("full_name", "") or _auth.get("username", "")
-            
-            custom_data = {
-                "name": req.attendee,
-                "nev": req.attendee,
-                "email": req.attendee_email,
-                "phone": req.attendee_phone,
-                "telefonszam": req.attendee_phone,
-                "felelos": felelos
-            }
-            db.add_client(custom_data, "uj")
+        try:
+            primary, conflict_id = db.resolve_client_identity(
+                name=req.attendee, email=req.attendee_email, phone=req.attendee_phone)
+            if conflict_id:
+                db.mark_duplicate_suspect(primary["id"], conflict_id, "kézi naptárfelvétel: eltérő erős kulcsok")
+                db.mark_duplicate_suspect(conflict_id, primary["id"], "kézi naptárfelvétel: eltérő erős kulcsok")
+            if not primary and ((req.attendee_email or "").strip() or (req.attendee_phone or "").strip()):
+                db.add_client({
+                    "name": req.attendee,
+                    "nev": req.attendee,
+                    "email": req.attendee_email,
+                    "phone": req.attendee_phone,
+                    "telefonszam": req.attendee_phone,
+                    "felelos": _user.get("username", ""),
+                }, "uj")
+                logger.info(f"Kézi naptárfelvétel: ügyfél létrehozva ({req.attendee})")
+        except Exception as _ce:
+            logger.warning(f"Kézi naptárfelvétel ügyfél-feloldás hiba (az esemény létrejött): {_ce}")
     
     return {"status": "success", "event_id": event_id, "message": "Időpont sikeresen létrehozva"}
 

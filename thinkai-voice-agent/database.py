@@ -619,7 +619,7 @@ def normalize_event_title(title: str, attendee: str) -> str:
     return t
 
 
-def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", attendee_email="", assigned_to="", status="", pending_until=None, attendee_phone="") -> int:
+def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", attendee_email="", assigned_to="", status="", pending_until=None, attendee_phone="", note=None) -> int:
     if not supabase: return 0
     try:
         insert_data = _with_tenant({
@@ -635,6 +635,8 @@ def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", a
             insert_data["doctor"] = assigned_to
         if attendee_phone:
             insert_data["attendee_phone"] = attendee_phone
+        if note:
+            insert_data["note"] = note
         # Függő (tentative) foglalás: status='pending' + 24 órás fenntartási határidő.
         # status üresen → DB default 'confirmed' (végleges).
         if status:
@@ -649,8 +651,10 @@ def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", a
 
 def update_calendar_event(event_id: int, **fields) -> bool:
     if not supabase: return False
-    allowed = {"title", "start_dt", "end_dt", "duration_minutes", "attendee", "attendee_email", "completed", "doctor", "attendance_status", "status", "pending_until"}
-    updates = {k: v for k, v in fields.items() if k in allowed}
+    allowed = {"title", "start_dt", "end_dt", "duration_minutes", "attendee", "attendee_email", "completed", "doctor", "attendance_status", "status", "pending_until", "note"}
+    # None értékeket nem írunk — a kézi szerkesztés '' assigned_to-t küldhet,
+    # és az ne törölje a meglévő ellátót (2026-09-22 E2E: doctor nullázódott)
+    updates = {k: v for k, v in fields.items() if k in allowed and v is not None}
     if not updates: return False
     try:
         _tenant_eq(supabase.table("calendar_events").update(updates)).eq("id", event_id).execute()

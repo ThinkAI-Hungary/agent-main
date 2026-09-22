@@ -2199,6 +2199,7 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
         logger.info(f"Booking confirmation email sent to {attendee_email} with cancel link.")
         # Ügyfélprofil log: Lezárt / Kiküldve sor (naplóba NEM kerül)
         log_outbound_message("confirmation", attendee, attendee_email, subject, _plain)
+        db.add_email_log(attendee, attendee_email, subject, _plain or "", "sent")
     except Exception as e:
         logger.error(f"Failed to send booking confirmation email: {e}")
 
@@ -2294,6 +2295,7 @@ async def send_modification_confirmation_email(attendee: str, attendee_email: st
         logger.info(f"Modification confirmation email sent to {attendee_email}.")
         # Ügyfélprofil log: Lezárt / Kiküldve sor (naplóba NEM kerül)
         log_outbound_message("modification", attendee, attendee_email, subject, _plain)
+        db.add_email_log(attendee, attendee_email, subject, _plain or "", "sent")
     except Exception as e:
         logger.error(f"Failed to send modification confirmation email: {e}")
 
@@ -2331,6 +2333,7 @@ async def send_cancellation_email(attendee: str, attendee_email: str, title: str
         logger.info(f"Cancellation email sent to {attendee_email}.")
         # Ügyfélprofil log: Lezárt / Kiküldve sor (naplóba NEM kerül)
         log_outbound_message("cancellation", attendee, attendee_email, subject, _plain)
+        db.add_email_log(attendee, attendee_email, subject, _plain or "", "sent")
     except Exception as e:
         logger.error(f"Failed to send cancellation email: {e}")
 
