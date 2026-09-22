@@ -40,6 +40,10 @@ THIS_DIR = Path(__file__).resolve().parent
 _session_id_var: contextvars.ContextVar[str] = contextvars.ContextVar("eaisydesk_session_id", default="")
 _caller_phone_var: contextvars.ContextVar[str] = contextvars.ContextVar("eaisydesk_caller_phone", default="")
 _session_alerts_var: contextvars.ContextVar[frozenset] = contextvars.ContextVar("eaisydesk_session_alerts", default=frozenset())
+# Lemondás→újrafoglalás ugyanabban a sessionben: a 'törölt időpont' címke csak
+# akkor törlődik újrafoglalásnál, ha UGYANEBBEN a sessionben került fel
+# (történelmi lemondás-címkét az új foglalás NEM törölhet — user-szabály).
+_session_cancel_tagged_var: contextvars.ContextVar[frozenset] = contextvars.ContextVar("eaisydesk_session_cancel_tagged", default=frozenset())
 
 
 def set_session_id(sid: str):
@@ -514,32 +518,10 @@ async def book_meeting(
 
         events = db.get_calendar_events()
 
-        # ── Conflict detection ────────────────────────────────────────
-        for ev in events:
-            try:
-                ev_start = _to_budapest_tz(ev["start_dt"])
-                ev_end = ev_start + timedelta(minutes=ev.get("duration_minutes", 30))
-                if start_dt < ev_end and end_dt > ev_start:
-                    ev_title = ev.get("title", "Névtelen esemény")
-                    ev_time = ev_start.strftime("%H:%M")
-                    # A PARSE-OLT ISO dátumot adjuk át (a nyers „március 11"-hez
-                    # a strftime-összevetés sosem találna aznapi eseményt)
-                    suggestion = _find_next_slot(events, parsed_date, duration_minutes, start_dt)
-                    msg = (
-                        f"Ütközés! {ev_time}-kor már van egy foglalás: \"{ev_title}\" "
-                        f"({ev.get('duration_minutes', 30)} perc)."
-                    )
-                    if suggestion:
-                        msg += f" Javaslat: {suggestion} lenne szabad. Foglaljam erre?"
-                    else:
-                        msg += " Ezen a napon nincs több szabad hely. Válassz egy másik napot!"
-                    return msg
-            except Exception as ev_err:
-                # Egy rossz formátumú meglévő esemény ne akadályozza az ütközés-
-                # ellenőrzést a többinél — de naplózzuk, mert ilyenkor az adott
-                # eseménnyel nem detektálunk ütközést.
-                logger.debug(f"Ütközés-ellenőrzés: esemény kihagyva parse-hiba miatt: {ev_err}")
-                continue
+        # ── Közös validátor: nyitvatartás (új, kódoldali!) + ütközés + javaslat ──
+        _slot_err = _validate_slot(events, start_dt, duration_minutes, parsed_date)
+        if _slot_err:
+            return _slot_err
 
         # ── No conflict — book it in Calendar ───────────────────────────
         # Egységes cím-formátum: '<szolgáltatás> - <név>' (az LLM-től függetlenül)
@@ -643,8 +625,19 @@ async def book_meeting(
                     if isinstance(_cd, str):
                         _cd = json.loads(_cd)
                     _tags = _cd.get("tags") or []
+                    _changed = False
                     if "potenciális ügyfél" in _tags:
                         _cd["tags"] = [t for t in _tags if t != "potenciális ügyfél"]
+                        _changed = True
+                    # Lemondás→újrafoglalás UGYANEBBEN a sessionben: a 'törölt időpont'
+                    # címke lekerül (csak ha ebben a sessionben került fel — a
+                    # történelmi lemondás-címke érintetlen marad).
+                    if "törölt időpont" in _cd.get("tags", []) and _cid in _session_cancel_tagged_var.get():
+                        _cd["tags"] = [t for t in _cd["tags"] if t != "törölt időpont"]
+                        _session_cancel_tagged_var.set(_session_cancel_tagged_var.get() - {_cid})
+                        _changed = True
+                        logger.info(f"'törölt időpont' címke törölve (session-beli újrafoglalás, client {_cid})")
+                    if _changed:
                         db.edit_client_details(_cid, _cd)
         except Exception as _te:
             logger.warning(f"potenciális ügyfél címke-törlés hiba: {_te}")
@@ -680,11 +673,170 @@ async def book_meeting(
         return f"Hiba a találkozó foglalásakor: {str(e)}"
 
 
-def _find_next_slot(events: list, date: str, duration: int, after: datetime) -> str | None:
+# ═══════════════════════════════════════════════════════════════════════════════
+# KÖZÖS BIZTONSÁGI HELPEREK (2026-09-21 A–C javítási kör)
+# ═══════════════════════════════════════════════════════════════════════════════
+
+_DAY_KEYS_EN = ["monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "sunday"]
+
+def _opening_hours_for(dt: datetime) -> tuple:
+    """Az adott nap nyitvatartása (open, close) vagy None, ha zárva. Hiba esetén engedékeny."""
+    try:
+        from prompt_utils import load_agent_settings
+        bh = (load_agent_settings() or {}).get("business_hours") or {}
+        day = bh.get(_DAY_KEYS_EN[dt.weekday()]) or {}
+        if not day.get("enabled", False):
+            return None
+        return (str(day.get("open", "08:00")), str(day.get("close", "17:00")))
+    except Exception:
+        return ("08:00", "18:00")
+
+
+def _validate_slot(events, start_dt, duration_minutes, parsed_date, exclude_event_id=None):
+    """Közös időpont-validátor (book + modify): nyitvatartás + ütközés.
+    None = rendben; egyébként ügyfélnek szóló hibaüzenet (javaslattal).
+    Az exclude_event_id (a módosított saját esemény) kimarad az ütközésből."""
+    end_dt = start_dt + timedelta(minutes=duration_minutes)
+    hours = _opening_hours_for(start_dt)
+    if hours is None:
+        return "Ezen a napon zárva tartunk. Kérem válasszon egy nyitvatartási napot!"
+    open_t, close_t = hours
+    if start_dt.strftime("%H:%M") < open_t or end_dt.strftime("%H:%M") > close_t or end_dt.date() > start_dt.date():
+        return f"Ez az időpont a nyitvatartáson kívül esik ({open_t}–{close_t}). Kérem válasszon nyitvatartási időn belüli időpontot!"
+    for ev in events:
+        try:
+            if exclude_event_id and ev.get("id") == exclude_event_id:
+                continue
+            ev_start = _to_budapest_tz(ev["start_dt"])
+            ev_end = ev_start + timedelta(minutes=ev.get("duration_minutes", 30))
+            if start_dt < ev_end and end_dt > ev_start:
+                ev_title = ev.get("title", "Névtelen esemény")
+                ev_time = ev_start.strftime("%H:%M")
+                suggestion = _find_next_slot(events, parsed_date, duration_minutes, start_dt, exclude_event_id=exclude_event_id)
+                msg = f"Ütközés! {ev_time}-kor már van egy foglalás: \"{ev_title}\" ({ev.get('duration_minutes', 30)} perc)."
+                if suggestion:
+                    msg += f" Javaslat: {suggestion} lenne szabad. Foglaljam vagy módosítsam erre?"
+                else:
+                    msg += " Ezen a napon nincs több szabad hely. Válassz egy másik napot!"
+                return msg
+        except Exception as ev_err:
+            logger.debug(f"Ütközés-ellenőrzés: esemény kihagyva parse-hiba miatt: {ev_err}")
+            continue
+    return None
+
+
+def _resolve_ownership_email(attendee_email_param: str = "") -> str:
+    """A modify/delete TULAJDON-ellenőrzésének email-kulcsa.
+    Sorrend: explicit paraméter (amit az agent bekért) → a hívó (SIP) ügyfelének
+    emailje. Üres string, ha egyik sem áll rendelkezésre."""
+    p = (attendee_email_param or "").strip()
+    if p:
+        return p
+    caller = get_caller_phone()
+    if caller:
+        try:
+            hit = db.find_client_by_contact(phone=caller)
+            if hit:
+                cd = hit.get("custom_data") or {}
+                if isinstance(cd, str):
+                    cd = json.loads(cd)
+                return (cd.get("email") or hit.get("email") or "").strip()
+        except Exception:
+            pass
+    return ""
+
+
+def _format_event_candidate(ev: dict) -> str:
+    try:
+        dt = _to_budapest_tz(ev["start_dt"]).strftime("%Y.%m.%d. %H:%M")
+    except Exception:
+        dt = str(ev.get("start_dt", "?"))[:16]
+    doc = ev.get("doctor") or "nincs ellátó"
+    return f"{ev.get('title', '?')} — {dt} ({doc}) [ID: {ev.get('id')}]"
+
+
+def _find_event_secure(event_id: int, event_title: str, owner_email: str, original_start_dt: str = ""):
+    """Biztonságos eseményazonosítás modify/delete-hez (2026-09-21, A pont).
+    Visszatérés: ("ok", event) | ("not_found", None) | ("multiple_matches", [events]) | ("need_email", None)
+    Szabályok:
+      - event_id esetén TULAJDON-ellenőrzés (az esemény attendee_email-je = owner_email),
+        máskülönben not_found (idegen ügyfél eseményének létezését sem fedjük fel);
+      - cím-keresésnél az owner_email KÖTELEZŐ szűrő — nincs „bárki jövőbeli" fallback;
+      - 1-nél több találat → multiple_matches; original_start_dt-vel pontosítható."""
+    owner = (owner_email or "").strip()
+    if not owner:
+        return ("need_email", None)
+    if event_id:
+        try:
+            res = db._tenant_eq(db.supabase.table("calendar_events").select("*")).eq("id", event_id).limit(1).execute()
+            ev = res.data[0] if res.data else None
+        except Exception:
+            ev = None
+        if not ev or (ev.get("attendee_email") or "").strip().lower() != owner.lower():
+            return ("not_found", None)
+        return ("ok", ev)
+    frag = (event_title or "").strip()
+    if not frag:
+        return ("not_found", None)
+    from datetime import timezone as _tzu
+    def _q(future_only):
+        q = db._tenant_eq(db.supabase.table("calendar_events").select("*")).ilike("title", f"%{frag}%").eq("attendee_email", owner)
+        if future_only:
+            q = q.gte("start_dt", datetime.now(_tzu.utc).isoformat())
+        return q.order("start_dt", desc=False).limit(5).execute().data or []
+    matches = _q(True) or _q(False)
+    if len(matches) > 1 and original_start_dt:
+        try:
+            target = _to_budapest_tz(original_start_dt).isoformat()
+            exact = [m for m in matches if _to_budapest_tz(m["start_dt"]).isoformat() == target]
+            if len(exact) == 1:
+                return ("ok", exact[0])
+        except Exception:
+            pass
+    if not matches:
+        return ("not_found", None)
+    if len(matches) > 1:
+        return ("multiple_matches", matches)
+    return ("ok", matches[0])
+
+
+def _log_calendar_action(client, action, event_title, detail, eredmeny):
+    """Naplózás modify/delete után — CSAK sikeres naptárműveletnél hívandó.
+    Interakció + ügyfél-napló. Új profilt SOHA nem hoz létre."""
+    cid = client.get("id") if client else None
+    db.log_interaction(
+        type="telefon",
+        topic=f"Időpont {action} (hangasszisztens)",
+        summary=f"{event_title} — {detail}",
+        result=detail,
+        tool_name=None,
+        session_id=get_session_id(),
+        funnel_stage="relevant",
+        direction="inbound",
+        approval_status="approved",
+        classification={
+            "ugytipus": "Időpont",
+            "eredmeny": eredmeny,
+            "statusz": "Lezárt",
+            "teendo": "Nincs további teendő",
+        },
+        client_id=cid,
+    )
+    if client:
+        db.upsert_client(
+            custom_data={},
+            additional_log=f"Hangasszisztens {action}: {event_title} — {detail}",
+            existing_id=client["id"],
+        )
+
+
+def _find_next_slot(events: list, date: str, duration: int, after: datetime, exclude_event_id=None) -> str | None:
     """Find the next available slot on the given date after the specified time."""
     day_events = []
     for ev in events:
         try:
+            if exclude_event_id and ev.get("id") == exclude_event_id:
+                continue
             ev_start = _to_budapest_tz(ev["start_dt"])
             if ev_start.strftime("%Y-%m-%d") == date:
                 ev_end = ev_start + timedelta(minutes=ev.get("duration_minutes", 30))
@@ -694,9 +846,11 @@ def _find_next_slot(events: list, date: str, duration: int, after: datetime) -> 
 
     day_events.sort(key=lambda x: x[0])
 
-    # Try slots from after_time to 18:00 in 30-min increments
+    # Try slots from after_time to napzárás (nyitvatartás szerint) 30 perces lépésközben
+    _hours = _opening_hours_for(after)
+    _close_h = int((_hours[1] if _hours else "18:00").split(":")[0])
     candidate = after.replace(second=0)
-    end_of_day = after.replace(hour=18, minute=0, second=0)
+    end_of_day = after.replace(hour=_close_h, minute=0, second=0)
 
     while candidate + timedelta(minutes=duration) <= end_of_day:
         candidate_end = candidate + timedelta(minutes=duration)
@@ -927,21 +1081,28 @@ async def lookup_info(
 # 7. MODIFY CALENDAR EVENT (voice command)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@function_tool(description="Naptári esemény módosítása. Használd, ha a felhasználó meg akarja változtatni egy meglévő találkozó időpontját, címét vagy időtartamát.")
+@function_tool(description=(
+    "Naptári esemény módosítása. Használd, ha a felhasználó meg akarja változtatni egy meglévő "
+    "találkozó időpontját, címét vagy időtartamát. FONTOS (biztonsági szabály): az eseményt az "
+    "ügyfél EMAIL CÍMÉVEL azonosítod — ha nem ismered, előbb kérdezd meg! Ha több egyező időpont "
+    "van, a tool jelölteket ad: olvasd fel őket, kérdezd rá melyiket módosítsa, majd hívj újra "
+    "a kiválasztott event_id-vel."
+))
 async def modify_meeting(
     ctx: RunContext,
-    event_title: Annotated[str, "A módosítandó esemény címe (vagy egy része, ami azonosítja)"],
+    event_title: Annotated[str, "A módosítandó esemény címe vagy töredéke (ha event_id-t adsz, lehet üres)"] = "",
     new_title: Annotated[str, "Az új cím (ha változik, különben hagyd üresen)"] = "",
     new_date: Annotated[str, "Az új dátum (pl. 2026-03-11, március 12, márc 12)"] = "",
     new_time: Annotated[str, "Az új időpont (pl. 10:00, 10 óra, 14:30)"] = "",
     new_duration_minutes: Annotated[int, "Az új időtartam percben (ha változik)"] = 0,
+    event_id: Annotated[int, "A módosítandó esemény azonosítója (multiple_matches után, a kiválasztott jelölt ID-je)"] = 0,
+    attendee_email: Annotated[str, "Az ügyfél email címe — a tulajdon-ellenőrzéshez (ha korábban megadta, add át)"] = "",
+    original_start_dt: Annotated[str, "A módosítandó esemény EREDETI kezdőidőpontja ISO formában (pontosítás több találatnál)"] = "",
 ) -> str:
-    """Naptári esemény módosítása."""
-    logger.info(f"Modifying meeting: {event_title}")
+    """Naptári esemény módosítása — biztonságos azonosítással (2026-09-21 A–C kör)."""
+    logger.info(f"Modifying meeting: title='{event_title}' id={event_id}")
 
-    # ── EAISY-241 — Autonómia guard (ugyanaz, mint book_meeting-nél) ─────────
-    # Panasz/kérés esetén, vagy ha a triage konfig nem engedi az autonóm
-    # módosítást, az AI nem módosít önállóan.
+    # ── EAISY-241 — Autonómia guard (változatlan) ─────────────────────────────
     if _session_has_complaint_or_request():
         logger.info("EAISY-241: modify blocked — complaint/request flagged in session")
         return _autonomy_blocked_message()
@@ -949,25 +1110,57 @@ async def modify_meeting(
         logger.info("EAISY-241: modify blocked — Módosítás not autonomous in triage config")
         return _autonomy_blocked_message()
 
-    found = db.find_calendar_event_by_title(event_title)
-    if not found:
-        events = db.get_calendar_events()
-        titles = ", ".join(e.get("title", "?") for e in events)
-        return f"Nem találtam ilyen eseményt. A naptárban ezek vannak: {titles}"
+    if not any([new_title, new_date, new_time, new_duration_minutes]):
+        return "Nem kaptam módosítási adatot. Mit szeretnél változtatni? (új dátum, új időpont, új cím, vagy új időtartam)"
 
+    # ── Tulajdon-kulcs feloldása (explicit → hívó ügyfele) ────────────────────
+    owner_email = _resolve_ownership_email(attendee_email)
+    if not owner_email:
+        return (
+            "A módosításhoz biztonsági okból szükségem van az ügyfél email címére. "
+            "Kérdezd meg az email címét, majd hívj meg újra az attendee_email paraméterrel!"
+        )
+
+    # ── Biztonságos eseményazonosítás (id+ownership VAGY cím+email-szűrő) ─────
+    status, payload = _find_event_secure(event_id, event_title, owner_email, original_start_dt)
+    if status == "need_email":
+        return "A módosításhoz szükségem van az ügyfél email címére — kérdezd meg, majd hívj újra!"
+    if status == "not_found":
+        return (
+            "Nem találom ezt az időpontot az ügyfél email címéhez tartozó események között. "
+            "Ellenőrizd a címet vagy az event_id-t! (Más ügyfél eseményét biztonsági okból nem módosíthatom.)"
+        )
+    if status == "multiple_matches":
+        lines = "\n".join(f"- {_format_event_candidate(ev)}" for ev in payload)
+        return (
+            "Több egyező időpontot találtam ennél az ügyfélnél:\n" + lines +
+            "\nOlvasd fel a jelölteket, kérdezd meg melyiket módosítsam, "
+            "majd hívj újra a kiválasztott event_id paraméterrel!"
+        )
+
+    found = payload
     try:
-        if not any([new_title, new_date, new_time, new_duration_minutes]):
-            return "Nem kaptam módosítási adatot. Mit szeretnél változtatni? (új dátum, új időpont, új cím, vagy új időtartam)"
-
         updates = {}
         if new_title:
-            updates["title"] = new_title
+            updates["title"] = db.normalize_event_title(new_title, found.get("attendee", ""))
         if new_date or new_time:
             old_dt = _to_budapest_tz(found["start_dt"])
             d = _parse_hungarian_date(new_date) if new_date else old_dt.strftime("%Y-%m-%d")
             t = _parse_hungarian_time(new_time) if new_time else old_dt.strftime("%H:%M")
             new_start = _to_budapest_tz(f"{d}T{t}:00")
             dur = new_duration_minutes or found.get("duration_minutes", 30)
+
+            # Múltbeli időpont tiltása
+            if new_start + timedelta(minutes=dur) <= datetime.now(BUDAPEST_TZ):
+                return "Az új időpont már elmúlt. Kérem adj meg jövőbeli időpontot!"
+
+            # ── C pont: ugyanaz a nyitvatartás+ütközés-validáció, mint a book_meeting,
+            # a SAJÁT esemény kizárásával ──
+            events = db.get_calendar_events()
+            _slot_err = _validate_slot(events, new_start, dur, d, exclude_event_id=found["id"])
+            if _slot_err:
+                return _slot_err
+
             updates["start_dt"] = new_start.isoformat()
             updates["end_dt"] = (new_start + timedelta(minutes=dur)).isoformat()
             updates["duration_minutes"] = dur
@@ -978,24 +1171,36 @@ async def modify_meeting(
 
         db.update_calendar_event(found["id"], **updates)
 
-        # Módosítás-visszaigazoló az ügyfélnek (beégetett sablon, toggle-ölt)
+        # Emlékeztető-reset: az új időpontra fusson le újra a 24 órás emlékeztető
+        try:
+            db.supabase.table("calendar_events").update({"reminder_sent": False}).eq("id", found["id"]).execute()
+        except Exception as _re:
+            logger.warning(f"Emlékeztető-reset sikertelen: {_re}")
+
+        changes = []
+        if new_title: changes.append(f"cím: {updates['title']}")
+        if new_date: changes.append(f"dátum: {new_date}")
+        if new_time: changes.append(f"idő: {new_time}")
+        if new_duration_minutes: changes.append(f"időtartam: {new_duration_minutes} perc")
+        detail = "módosítva: " + ", ".join(changes)
+
+        # ── B pont: napló + ügyfél-napló (csak sikeres módosítás után!) ──────
+        _client = db.find_client_by_contact(email=owner_email)
+        _log_calendar_action(_client, "módosította", found.get("title", ""), detail, "Módosított időpont")
+
+        # Módosítás-visszaigazoló az ügyfélnek (beégetett sablon — VÁLTOZATLAN)
         att_email = found.get("attendee_email")
         if att_email and att_email != "-":
             _spawn(email_processor.send_modification_confirmation_email(
                 attendee=found.get("attendee", "Ügyfél"),
                 attendee_email=att_email,
-                title=found.get("title", "Konzultáció"),
+                title=updates.get("title", found.get("title", "Konzultáció")),
                 old_datetime=found["start_dt"],
                 new_datetime=updates.get("start_dt", found["start_dt"]),
                 event_id=found.get("id"),
                 assigned_to=found.get("doctor", ""),
             ))
 
-        changes = []
-        if new_title: changes.append(f"cím: {new_title}")
-        if new_date: changes.append(f"dátum: {new_date}")
-        if new_time: changes.append(f"idő: {new_time}")
-        if new_duration_minutes: changes.append(f"időtartam: {new_duration_minutes} perc")
         return f"Esemény módosítva ({found['title']}): {', '.join(changes)}."
     except Exception as e:
         logger.error(f"Modify error: {e}")
@@ -1006,15 +1211,23 @@ async def modify_meeting(
 # 8. DELETE CALENDAR EVENT (voice command)
 # ═══════════════════════════════════════════════════════════════════════════════
 
-@function_tool(description="Naptári esemény törlése. Használd, ha a felhasználó le akarja mondani vagy törölni akar egy találkozót.")
+@function_tool(description=(
+    "Naptári esemény törlése (időpont lemondása). FONTOS (biztonsági szabály): az eseményt az "
+    "ügyfél EMAIL CÍMÉVEL azonosítod — ha nem ismered, előbb kérdezd meg! Ha több egyező időpont "
+    "van, a tool jelölteket ad: olvasd fel őket, kérdezd rá melyiket mondja le, majd hívj újra "
+    "a kiválasztott event_id-vel."
+))
 async def delete_meeting(
     ctx: RunContext,
-    event_title: Annotated[str, "A törlendő esemény címe (vagy egy része, ami azonosítja)"],
+    event_title: Annotated[str, "A törlendő esemény címe vagy töredéke (ha event_id-t adsz, lehet üres)"] = "",
+    event_id: Annotated[int, "A törlendő esemény azonosítója (multiple_matches után, a kiválasztott jelölt ID-je)"] = 0,
+    attendee_email: Annotated[str, "Az ügyfél email címe — a tulajdon-ellenőrzéshez (ha korábban megadta, add át)"] = "",
+    original_start_dt: Annotated[str, "A törlendő esemény EREDETI kezdőidőpontja ISO formában (pontosítás több találatnál)"] = "",
 ) -> str:
-    """Naptári esemény törlése."""
-    logger.info(f"Deleting meeting: {event_title}")
+    """Naptári esemény törlése — biztonságos azonosítással (2026-09-21 A–C kör)."""
+    logger.info(f"Deleting meeting: title='{event_title}' id={event_id}")
 
-    # ── EAISY-241 — Autonómia guard (ugyanaz, mint book_meeting-nél) ─────────
+    # ── EAISY-241 — Autonómia guard (változatlan) ─────────────────────────────
     if _session_has_complaint_or_request():
         logger.info("EAISY-241: delete blocked — complaint/request flagged in session")
         return _autonomy_blocked_message()
@@ -1022,15 +1235,35 @@ async def delete_meeting(
         logger.info("EAISY-241: delete blocked — Lemondás not autonomous in triage config")
         return _autonomy_blocked_message()
 
-    found = db.find_calendar_event_by_title(event_title)
-    if not found:
-        events = db.get_calendar_events()
-        titles = ", ".join(e.get("title", "?") for e in events)
-        return f"Nem találtam ilyen eseményt. A naptárban ezek vannak: {titles}"
+    # ── Tulajdon-kulcs feloldása (explicit → hívó ügyfele) ────────────────────
+    owner_email = _resolve_ownership_email(attendee_email)
+    if not owner_email:
+        return (
+            "A lemondáshoz biztonsági okból szükségem van az ügyfél email címére. "
+            "Kérdezd meg az email címét, majd hívj meg újra az attendee_email paraméterrel!"
+        )
 
+    # ── Biztonságos eseményazonosítás ─────────────────────────────────────────
+    status, payload = _find_event_secure(event_id, event_title, owner_email, original_start_dt)
+    if status == "need_email":
+        return "A lemondáshoz szükségem van az ügyfél email címére — kérdezd meg, majd hívj újra!"
+    if status == "not_found":
+        return (
+            "Nem találom ezt az időpontot az ügyfél email címéhez tartozó események között. "
+            "Ellenőrizd a címet vagy az event_id-t! (Más ügyfél eseményét biztonsági okból nem törölhetem.)"
+        )
+    if status == "multiple_matches":
+        lines = "\n".join(f"- {_format_event_candidate(ev)}" for ev in payload)
+        return (
+            "Több egyező időpontot találtam ennél az ügyfélnél:\n" + lines +
+            "\nOlvasd fel a jelölteket, kérdezd meg melyiket mondja le, "
+            "majd hívj újra a kiválasztott event_id paraméterrel!"
+        )
+
+    found = payload
     db.delete_calendar_event(found["id"])
 
-    # Lemondás-visszaigazoló az ügyfélnek (beégetett sablon, toggle-ölt)
+    # Lemondás-visszaigazoló az ügyfélnek (beégetett sablon — VÁLTOZATLAN)
     att_email = found.get("attendee_email")
     if att_email and att_email != "-":
         _spawn(email_processor.send_cancellation_email(
@@ -1041,7 +1274,27 @@ async def delete_meeting(
             assigned_to=found.get("doctor", ""),
         ))
 
-    return f"Esemény törölve: {event_title}."
+    # ── B pont: napló + ügyfél-napló + 'törölt időpont' címke + Utánkövetés ───
+    # (a lemondási link-flow-val azonos üzleti logika; CSAK sikeres törlés után)
+    _client = db.find_client_by_contact(email=owner_email)
+    _log_calendar_action(_client, "lemondotta", found.get("title", ""), f"törölve ({found.get('start_dt', '')[:16]})", "Törölt időpont")
+    if _client:
+        try:
+            _cd = _client.get("custom_data") or {}
+            if isinstance(_cd, str):
+                _cd = json.loads(_cd)
+            _tags = _cd.get("tags") or []
+            if "törölt időpont" not in _tags:
+                _tags.append("törölt időpont")
+                _cd["tags"] = _tags
+            db.edit_client_details(_client["id"], _cd)
+            db.update_client_status(_client["id"], db.resolve_utankovetes_column_id())
+            # Session-flag: ha UGYANEBBEN a hívásban újrafoglal, a címke lekerül
+            _session_cancel_tagged_var.set(_session_cancel_tagged_var.get() | {_client["id"]})
+        except Exception as _te:
+            logger.warning(f"'törölt időpont' címke/státusz hiba: {_te}")
+
+    return f"Esemény törölve: {found.get('title', event_title)}."
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -1191,7 +1444,9 @@ async def tag_client(
 
 # All tools for easy import
 ALL_TOOLS = [
-    send_followup_email,
+    # send_followup_email KIVEZETVE a registry-ből (2026-09-21): a foglalási
+    # értesítések rendszer-sablonosak (confirmation/modification/cancellation),
+    # az agent ne küldjön külön emailt — a függvény megmarad egyéb hívókra.
     check_calendar,
     book_meeting,
     modify_meeting,
