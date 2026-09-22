@@ -586,6 +586,41 @@ def set_interaction_sent_at(interaction_id: int, sent_at_iso: str) -> bool:
         logger.error(f"Set interaction sent_at error: {e}")
         return False
 
+
+def log_client_change(client_id: int, action: str, label: str, new_value: str = "", related_ref: str = "", actor: str = "eaisyDesk") -> bool:
+    """Változási napló (ügyfélprofil modalja): ki/mikor/mit módosított.
+    action: profile_edit | tag_added | tag_removed | status_changed | event_created
+            | event_modified | event_deleted | task_added | task_deleted
+    A régi értéket a v1 szándékosan NEM tárolja (user-döntés 2026-09-22).
+    Sosem dob hibát: a napló meghibásodása nem blokkolhatja a fő folyamatot."""
+    if not supabase or not client_id:
+        return False
+    try:
+        supabase.table("client_change_log").insert(_with_tenant({
+            "client_id": int(client_id),
+            "actor": (actor or "eaisyDesk")[:120],
+            "action": action,
+            "label": label[:300],
+            "new_value": (new_value or "")[:500] or None,
+            "related_ref": (related_ref or "")[:300] or None,
+        })).execute()
+        return True
+    except Exception as e:
+        logger.warning(f"log_client_change hiba (client {client_id}, {action}): {e}")
+        return False
+
+
+def get_client_change_log(client_id: int, limit: int = 300) -> list[dict]:
+    """Az ügyfél változási naplója, legfrissebb elöl (a profil modalja olvassa)."""
+    if not supabase or not client_id:
+        return []
+    try:
+        res = _tenant_eq(supabase.table("client_change_log").select("*")).eq("client_id", int(client_id)).order("created_at", desc=True).limit(limit).execute()
+        return res.data or []
+    except Exception as e:
+        logger.warning(f"get_client_change_log hiba (client {client_id}): {e}")
+        return []
+
 # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 # CALENDAR
 # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ

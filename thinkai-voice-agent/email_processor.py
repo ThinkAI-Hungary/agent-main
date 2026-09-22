@@ -2091,6 +2091,15 @@ def create_event_from_pending_meeting(pm: dict, status: str = "confirmed", pendi
             logger.info(f"Foglalás munkatárshoz rendelve: {assigned_staff} ({title})")
         if not event_id:
             return None
+        # Változási napló: email-útú foglalás (aktor: eaisyDesk)
+        try:
+            _pmclient = db.find_client_by_contact(email=pm.get("attendee_email", "")) if pm.get("attendee_email") else None
+            if _pmclient:
+                db.log_client_change(_pmclient["id"], "event_created",
+                    f"Új időpont rögzítve: {date_str} {time_str}",
+                    new_value=f"{date_str} {time_str}", related_ref=title, actor="eaisyDesk")
+        except Exception:
+            pass
         if status == "pending":
             logger.info(f"Ideiglenes (függő) foglalás létrehozva: {title} ({date_str} {time_str}) — {pending_hours} órás fenntartással")
         return event_id

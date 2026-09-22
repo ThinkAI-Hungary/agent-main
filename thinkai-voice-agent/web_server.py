@@ -2430,6 +2430,17 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
                     # {{munkatárs}}: minden foglaláshoz tartozik ellátó (user-szabály)
                     assigned_to=email_processor.resolve_assigned_staff(meeting.get("title", "Konzultáció"), meeting.get("assigned_to", "") or "")
                 )
+                if created_event_id:
+                    # Változási napló: a kapcsolódó ügyfél feloldása email/telefon alapján
+                    try:
+                        _kclient = db.find_client_by_contact(email=kanban.get("email", "")) if kanban.get("email") not in ("", "-", None) else None
+                        if _kclient:
+                            db.log_client_change(_kclient["id"], "event_created",
+                                f"Új időpont rögzítve: {meeting.get('date', '')} {meeting.get('time', '')}",
+                                new_value=f"{meeting.get('date', '')} {meeting.get('time', '')}".strip(),
+                                related_ref=meeting.get("title", "Konzultáció"), actor="eaisyDesk")
+                    except Exception:
+                        pass
                 
                 # Értékesítési címke ('törölt időpont') → az ELSŐ UTÁNKÖVETÉS oszlop
                 # (korábban 'uj'-ra állítottuk, ami lelökte a kanbáról — 265-ös ügy)
@@ -3197,6 +3208,69 @@ class ManualEventRequest(BaseModel):
 
 
 
+# ── Változási napló (2026-09-22) ────────────────────────────────────────────
+# A naplózás a profil-modal „Változási napló" felületét táplálja. Csak szándékos
+# (emberi) módosítások + időpont-életciklus kerül bele — az AI/upsert mező-írások
+# NEM (user-döntés: „AI felülírás ne, egyelőre").
+
+_CHANGELOG_IGNORE_KEYS = {
+    "tags", "beszelgetes_naplo", "reminder_sent_at", "booked_datetime", "service",
+    "forras_csatorna", "duplicate_suspect", "merged_into", "messenger_id",
+    "messenger_psid", "contact_phone", "problem_description", "updated_at",
+}
+_CHANGELOG_FIELD_LABELS = {
+    "name": "név", "nev": "név", "email": "email", "telefonszam": "telefonszám",
+    "phone": "telefonszám", "telefon": "telefonszám", "notes": "megjegyzés",
+    "felelos": "felelős", "assigned_to": "felelős",
+}
+
+
+def _actor_name(user: dict) -> str:
+    """A módosító megjelenítendő neve (full_name → username fallback)."""
+    uname = (user or {}).get("username", "")
+    if not uname:
+        return "eaisyDesk"
+    try:
+        u = db.get_admin_user_by_username(uname) or {}
+        return u.get("full_name") or uname
+    except Exception:
+        return uname
+
+
+def _changelog_profile_diff(client_id: int, old_cd: dict, new_cd: dict, actor: str):
+    """Profil-PUT diff naplózása: címke +/- és mező-módosítások (a v1 csak az
+    ÚJ értéket tárolja — user-döntés). Belső/volatilis kulcsok kizárva."""
+    try:
+        old_tags = set(old_cd.get("tags") or [])
+        new_tags = set(new_cd.get("tags") or [])
+        for t in sorted(new_tags - old_tags):
+            db.log_client_change(client_id, "tag_added", f"Címke hozzáadva: {t}", new_value=str(t), actor=actor)
+        for t in sorted(old_tags - new_tags):
+            db.log_client_change(client_id, "tag_removed", f"Címke eltávolítva: {t}", new_value=str(t), actor=actor)
+        for k, v in (new_cd or {}).items():
+            if k in _CHANGELOG_IGNORE_KEYS:
+                continue
+            if v is None or str(v).strip() == "":
+                continue
+            if old_cd.get(k) == v:
+                continue
+            label = _CHANGELOG_FIELD_LABELS.get(k, str(k))
+            db.log_client_change(client_id, "profile_edit", f"Profil szerkesztve ({label})", new_value=str(v)[:300], actor=actor)
+    except Exception as e:
+        logger.warning(f"changelog diff hiba (client {client_id}): {e}")
+
+
+def _kanban_column_name(status: str) -> str:
+    """Kanban oszlop-id → megjelenítendő név (fallback: a nyers érték)."""
+    try:
+        for c in (db.get_kanban_columns() or []):
+            if str(c.get("id")) == str(status):
+                return c.get("name") or str(status)
+    except Exception:
+        pass
+    return str(status)
+
+
 def _parse_manual_dt(raw: str):
     """Kézi naptárfelvétel dátum-parse: a form naív (tz-nélküli) helyi időt küld
     (Budapest) — korábban UTC-ként tárolódott → a grid +2 órával későbbre mutatta.
@@ -3278,6 +3352,15 @@ async def admin_create_event(req: ManualEventRequest, _user = Depends(get_curren
             note=req.note)
         if not ok:
             raise HTTPException(500, "Frissítés sikertelen")
+        # Változási napló: időpont módosítva (a kapcsolódó ügyfélre, ha feloldható)
+        try:
+            _mclient = db.find_client_by_contact(email=req.attendee_email) or db.find_client_by_contact(phone=req.attendee_phone or "")
+            if _mclient:
+                db.log_client_change(_mclient["id"], "event_modified",
+                    f"Időpont módosítva: {title}",
+                    new_value=start.strftime('%Y-%m-%d %H:%M'), related_ref=title, actor=_actor_name(_user))
+        except Exception as _me:
+            logger.warning(f"changelog (event_modified) hiba: {_me}")
         # Módosítás-visszaigazoló (beégetett sablon, toggle-ölt) — kézi szerkesztés
         # KIZÁRÓLAG ez megy: booking-visszaigazoló csak létrehozáskor (user-szabály 2026-09-22)
         if req.attendee_email and req.attendee_email != "-":
@@ -3343,6 +3426,7 @@ async def admin_create_event(req: ManualEventRequest, _user = Depends(get_curren
     # duplicate_suspect jelzés mindkét rekordon → a profil banneren merge-elhető.
     # A blokk hibája SOHA nem fordíthatja 500-ba a már létrejött eseményt
     # (korábbi `_auth` NameError: az esemény létrejött, a toast mégis hibát mutatott).
+    _client_id = None
     if req.attendee:
         try:
             primary, conflict_id = db.resolve_client_identity(
@@ -3350,18 +3434,25 @@ async def admin_create_event(req: ManualEventRequest, _user = Depends(get_curren
             if conflict_id:
                 db.mark_duplicate_suspect(primary["id"], conflict_id, "kézi naptárfelvétel: eltérő erős kulcsok")
                 db.mark_duplicate_suspect(conflict_id, primary["id"], "kézi naptárfelvétel: eltérő erős kulcsok")
-            if not primary and ((req.attendee_email or "").strip() or (req.attendee_phone or "").strip()):
-                db.add_client({
+            if primary:
+                _client_id = primary["id"]
+            elif ((req.attendee_email or "").strip() or (req.attendee_phone or "").strip()):
+                _client_id = db.add_client({
                     "name": req.attendee,
                     "nev": req.attendee,
                     "email": req.attendee_email,
                     "phone": req.attendee_phone,
                     "telefonszam": req.attendee_phone,
                     "felelos": _user.get("username", ""),
-                }, "uj")
-                logger.info(f"Kézi naptárfelvétel: ügyfél létrehozva ({req.attendee})")
+                }, "uj") or None
+                if _client_id:
+                    logger.info(f"Kézi naptárfelvétel: ügyfél létrehozva ({req.attendee})")
         except Exception as _ce:
             logger.warning(f"Kézi naptárfelvétel ügyfél-feloldás hiba (az esemény létrejött): {_ce}")
+    if _client_id and event_id:
+        db.log_client_change(_client_id, "event_created",
+            f"Új időpont rögzítve: {start.strftime('%Y-%m-%d %H:%M')}",
+            new_value=start.strftime('%Y-%m-%d %H:%M'), related_ref=title, actor=_actor_name(_user))
     
     resp = {"status": "success", "event_id": event_id, "message": "Időpont sikeresen létrehozva"}
     hint = _name_hint_for_event(req.attendee, req.attendee_email, req.attendee_phone)
@@ -3528,6 +3619,10 @@ async def admin_delete_calendar_event(event_id: int, _user = Depends(get_current
                 additional_log=f"Időpont törölve kézzel a naptárból: {ev.get('title', '')} ({ev.get('start_dt', '')[:16]})",
                 existing_id=client["id"],
             )
+            db.log_client_change(client["id"], "event_deleted",
+                f"Időpont törölve: {ev.get('title', '')}",
+                new_value=str(ev.get('start_dt', ''))[:16], related_ref=ev.get('title', ''),
+                actor=_actor_name(_user))
             logger.info(f"'Törölt időpont' rituálé kézi törlésnél: client {client['id']} ({ev.get('title', '')})")
     except Exception as _ce:
         logger.warning(f"'Törölt időpont' rituálé hiba kézi törlésnél: {_ce}")
@@ -3564,6 +3659,10 @@ def admin_task_create(payload: dict, username: str = Depends(verify_jwt)):
     )
     if not task_id:
         raise HTTPException(status_code=500, detail="A teendő mentése nem sikerült")
+    if payload.get("client_id"):
+        _u = db.get_admin_user_by_username(username) or {}
+        db.log_client_change(int(payload["client_id"]), "task_added", f"Teendő hozzáadva: {text}",
+            new_value=text, actor=_u.get("full_name") or username or "eaisyDesk")
     return {"ok": True, "id": task_id}
 
 
@@ -3594,9 +3693,20 @@ def admin_task_update_text(task_id: int, req: TaskTextRequest, _user = Depends(g
 @app.delete("/admin/api/tasks/{task_id}")
 def admin_task_delete(task_id: int, _auth = Depends(verify_jwt)):
     """Delete a task."""
+    # A naplóhoz a törlés ELŐTT kell a szöveg + a client_id
+    _task = None
+    try:
+        _rows = db._tenant_eq(db.supabase.table("tasks").select("client_id,text")).eq("id", task_id).limit(1).execute()
+        _task = (_rows.data or [None])[0]
+    except Exception:
+        pass
     res = db.delete_task(task_id)
     if not res:
         raise HTTPException(status_code=404, detail="Delete failed")
+    if _task and _task.get("client_id"):
+        _u = db.get_admin_user_by_username(_auth) or {}
+        db.log_client_change(int(_task["client_id"]), "task_deleted", f"Teendő törölve: {_task.get('text', '')}",
+            new_value=_task.get("text", ""), actor=_u.get("full_name") or _auth or "eaisyDesk")
     return {"ok": True}
 
 
@@ -3838,6 +3948,9 @@ def admin_add_client(req: ClientCreateRequest, _user = Depends(get_current_user)
 def admin_update_client_status(client_id: int, req: ClientStatusUpdateRequest, _user = Depends(get_current_user)):
     """Update client status (drag & drop)."""
     db.update_client_status(client_id, req.status)
+    db.log_client_change(client_id, "status_changed",
+        f"Érdeklődőkezelés — áthelyezve: {_kanban_column_name(req.status)}",
+        new_value=_kanban_column_name(req.status), actor=_actor_name(_user))
     return {"ok": True}
 
 @app.delete("/admin/api/clients/{client_id}")
@@ -3862,22 +3975,31 @@ def admin_update_client_details(client_id: int, req: ClientCreateRequest, user =
     admin-only — member mentésnél a meglévő értéket tartjuk meg (a mátrix:
     profil szerkesztése membernek OK, felelős-hozzárendelés nem)."""
     cd = dict(req.custom_data or {})
+    # A változási napló diffjéhez a RÉGI állapot kell (címke +/- és mező-diff)
+    old_cd = {}
+    try:
+        existing = db.get_clients_by_ids([client_id])
+        if existing:
+            old_cd = existing[0].get("custom_data") or {}
+            if isinstance(old_cd, str):
+                old_cd = json.loads(old_cd)
+    except Exception:
+        old_cd = {}
     if user.get("role") not in ("admin", "superadmin"):
-        try:
-            existing = db.get_clients_by_ids([client_id])
-            if existing:
-                ecd = existing[0].get("custom_data") or {}
-                if isinstance(ecd, str):
-                    ecd = json.loads(ecd)
-                for k in ("assigned_to", "felelos"):
-                    if k in ecd:
-                        cd[k] = ecd[k]
-                    else:
-                        cd.pop(k, None)
-        except Exception as e:
-            logger.warning(f"Felelős-megőrzés member mentésnél sikertelen (client {client_id}): {e}")
+        for k in ("assigned_to", "felelos"):
+            if k in old_cd:
+                cd[k] = old_cd[k]
+            else:
+                cd.pop(k, None)
     db.edit_client_details(client_id, cd)
+    _changelog_profile_diff(client_id, old_cd, cd, _actor_name(user))
     return {"ok": True}
+
+@app.get("/admin/api/clients/{client_id}/changes")
+def admin_client_change_log(client_id: int, username: str = Depends(verify_jwt)):
+    """Változási napló (profil modal) — member is olvashatja (user-döntés 2026-09-22)."""
+    return {"changes": db.get_client_change_log(client_id)}
+
 
 class ClientMergeRequest(BaseModel):
     source_id: int

@@ -1339,3 +1339,140 @@
 .cd-appt-next-value { display: flex; align-items: center; gap: 6px; font-size: 13px; color: #082432; font-weight: 600; }
 .cd-appt-empty-next { font-style: italic; color: #9ca3af; font-size: 12px; }
 .cd-appt-past { background: #f8fafc; border-radius: 8px; padding: 10px 12px; flex: 1; }
+
+/* === Változási napló modal (2026-09-22) === */
+.chlog-modal {
+  background: #fff;
+  border-radius: 18px;
+  box-shadow: 0 24px 64px -12px rgba(8, 36, 50, 0.28), 0 8px 24px -8px rgba(8, 36, 50, 0.14);
+  width: min(560px, calc(100vw - 48px));
+  max-height: min(640px, calc(100vh - 96px));
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.chlog-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 18px 20px 14px;
+  border-bottom: 1px solid #eef2f5;
+}
+
+.chlog-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 700;
+  color: #0f172a;
+}
+
+.chlog-x {
+  border: none;
+  background: transparent;
+  color: #94a3b8;
+  cursor: pointer;
+  padding: 6px;
+  border-radius: 8px;
+  display: inline-flex;
+}
+.chlog-x:hover { background: #f1f5f9; color: #475569; }
+
+.chlog-search {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 14px 20px;
+  padding: 0 14px;
+  border: 1.5px solid #dbe4ea;
+  border-radius: 12px;
+  color: #94a3b8;
+}
+.chlog-search:focus-within { border-color: #7fc4c9; }
+.chlog-search-input {
+  flex: 1;
+  border: none;
+  outline: none;
+  padding: 12px 0;
+  font-size: 14.5px;
+  color: #0f172a;
+  background: transparent;
+}
+
+.chlog-list {
+  overflow-y: auto;
+  padding: 0 8px 12px;
+}
+
+.chlog-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 12px;
+  padding: 14px 12px;
+  border-bottom: 1px solid #f1f5f9;
+}
+.chlog-row:last-child { border-bottom: none; }
+
+.chlog-tile {
+  flex-shrink: 0;
+  width: 34px;
+  height: 34px;
+  border-radius: 10px;
+  background: #f0f7f7;
+  color: #2a8a8f;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-top: 2px;
+}
+
+.chlog-main { flex: 1; min-width: 0; }
+
+.chlog-label {
+  display: block;
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #0f172a;
+  line-height: 1.35;
+}
+
+.chlog-meta {
+  display: block;
+  margin-top: 3px;
+  font-size: 13px;
+  color: #94a3b8;
+}
+.chlog-value { color: #64748b; }
+.chlog-ref { color: #94a3b8; }
+
+.chlog-date {
+  flex-shrink: 0;
+  font-size: 13px;
+  color: #94a3b8;
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+.chlog-empty {
+  padding: 40px 20px;
+  text-align: center;
+  color: #94a3b8;
+  font-size: 14px;
+}
+
+/* History ikon a profil-fejléc kebabja mellett */
+.cd-history-btn {
+  border: none;
+  background: rgba(255, 255, 255, 0.55);
+  color: #0f4c52;
+  cursor: pointer;
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 8px;
+  transition: background 0.15s ease;
+}
+.cd-history-btn:hover { background: rgba(255, 255, 255, 0.9); }

@@ -635,6 +635,9 @@ async def book_meeting(
                 db.mark_duplicate_suspect(_other, _primary["id"], "voice foglalás: a hívó neve és az erős kulcsok (email/telefon) eltérő rekordhoz tartoznak — lehetséges duplikátum")
                 logger.warning(f"⚠️ Név-eltérés a foglalásnál: rekord '{_primary.get('name')}' vs bemondott '{attendee}' — duplicate_suspect jelölve ({_primary['id']} ↔ {_other})")
         _cid = db.upsert_client(custom_data, additional_log=f"Hangasszisztens időpontot foglalt: {date} {time}", status=first_col_id, existing_id=_primary["id"] if _primary else None)
+        if _cid:
+            db.log_client_change(_cid, "event_created", f"Új időpont rögzítve: {date} {time}",
+                new_value=f"{date} {time}", related_ref=title, actor="eaisyDesk")
         # Sikeres foglalás = konverzió: a 'potenciális ügyfél' címke TÖRLŐDIK
         # (a címke jelentése: „érdeklődött, de NEM foglalt" — foglalásnál már hamis)
         try:
@@ -1207,6 +1210,9 @@ async def modify_meeting(
         # ── B pont: napló + ügyfél-napló (csak sikeres módosítás után!) ──────
         _client = db.find_client_by_contact(email=owner_email)
         _log_calendar_action(_client, "módosította", found.get("title", ""), detail, "Módosított időpont")
+        if _client:
+            db.log_client_change(_client["id"], "event_modified", f"Időpont módosítva: {found.get('title', '')}",
+                new_value=detail, related_ref=found.get("title", ""), actor="eaisyDesk")
 
         # Módosítás-visszaigazoló az ügyfélnek (beégetett sablon — VÁLTOZATLAN)
         att_email = found.get("attendee_email")
@@ -1312,6 +1318,9 @@ async def delete_meeting(
     # (a lemondási link-flow-val azonos üzleti logika; CSAK sikeres törlés után)
     _client = db.find_client_by_contact(email=owner_email)
     _log_calendar_action(_client, "lemondotta", found.get("title", ""), f"törölve ({found.get('start_dt', '')[:16]})", "Törölt időpont")
+    if _client:
+        db.log_client_change(_client["id"], "event_deleted", f"Időpont törölve: {found.get('title', '')}",
+            new_value=str(found.get('start_dt', ''))[:16], related_ref=found.get("title", ""), actor="eaisyDesk")
     if _client:
         try:
             _cd = _client.get("custom_data") or {}
