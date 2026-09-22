@@ -614,6 +614,26 @@ async def book_meeting(
         if _conflict and _primary:
             db.mark_duplicate_suspect(_primary["id"], _conflict, "voice foglalás: a bemondott email/név/telefon és a hívó valós száma eltérő ügyfélhez tartoznak")
             db.mark_duplicate_suspect(_conflict, _primary["id"], "voice foglalás: a bemondott email/név/telefon és a hívó valós száma eltérő ügyfélhez tartoznak")
+        # NÉV-KONZISZTENCIA (konzisztens-de-hamis adatpárok ellen, 2026-09-22):
+        # ha az erős kulcsok által talált ügyfél neve EGYETLEN tokenben sem
+        # ütközik a bemondott névvel (pl. 'Lachner Ödön' vs 'Orosz Erika'), a
+        # foglalás lefut, de mindkét rekord duplikátum-gyanú jelzést kap.
+        def _ntokens(n):
+            return {t for t in (n or "").lower().replace("-", " ").split() if len(t) >= 3}
+        if _primary and attendee and _ntokens(_primary.get("name")) and _ntokens(attendee) and not (_ntokens(_primary.get("name")) & _ntokens(attendee)):
+            _other = None
+            _caller_now = get_caller_phone()
+            if _caller_now:
+                try:
+                    _ch = db.find_client_by_contact(phone=_caller_now)
+                    if _ch and _ch["id"] != _primary["id"]:
+                        _other = _ch["id"]
+                except Exception:
+                    pass
+            if _other:
+                db.mark_duplicate_suspect(_primary["id"], _other, "voice foglalás: az erős kulcsok (email/telefon) ehhez a rekordhoz tartoznak, de a bemondott NÉV eltér — lehetséges duplikátum")
+                db.mark_duplicate_suspect(_other, _primary["id"], "voice foglalás: a hívó neve és az erős kulcsok (email/telefon) eltérő rekordhoz tartoznak — lehetséges duplikátum")
+                logger.warning(f"⚠️ Név-eltérés a foglalásnál: rekord '{_primary.get('name')}' vs bemondott '{attendee}' — duplicate_suspect jelölve ({_primary['id']} ↔ {_other})")
         _cid = db.upsert_client(custom_data, additional_log=f"Hangasszisztens időpontot foglalt: {date} {time}", status=first_col_id, existing_id=_primary["id"] if _primary else None)
         # Sikeres foglalás = konverzió: a 'potenciális ügyfél' címke TÖRLŐDIK
         # (a címke jelentése: „érdeklődött, de NEM foglalt" — foglalásnál már hamis)
@@ -1223,6 +1243,7 @@ async def delete_meeting(
     event_id: Annotated[int, "A törlendő esemény azonosítója (multiple_matches után, a kiválasztott jelölt ID-je)"] = 0,
     attendee_email: Annotated[str, "Az ügyfél email címe — a tulajdon-ellenőrzéshez (ha korábban megadta, add át)"] = "",
     original_start_dt: Annotated[str, "A törlendő esemény EREDETI kezdőidőpontja ISO formában (pontosítás több találatnál)"] = "",
+    confirmed: Annotated[bool, "Az ügyfél EGYÉRTELMŰEN megerősítette a lemondást? (első hívásnál hagyd false-n — a tool először megerősítést kér)"] = False,
 ) -> str:
     """Naptári esemény törlése — biztonságos azonosítással (2026-09-21 A–C kör)."""
     logger.info(f"Deleting meeting: title='{event_title}' id={event_id}")
@@ -1261,6 +1282,19 @@ async def delete_meeting(
         )
 
     found = payload
+
+    # ── Megerősítés-kapu (destruktív művelet — kódoldali, nem prompt-ígéret) ──
+    if not confirmed:
+        try:
+            _dt = _to_budapest_tz(found["start_dt"]).strftime("%Y.%m.%d. %H:%M")
+        except Exception:
+            _dt = str(found.get("start_dt", ""))[:16]
+        return (
+            f"MEGERŐSÍTÉS SZÜKSÉGES: a(z) '{found.get('title', '?')}' ({_dt}, {found.get('doctor') or 'nincs ellátó'}) "
+            "esemény törlésére készülsz. Kérdezd meg az ügyfelet, hogy BIZTOSAN lemondja-e ezt az időpontot, "
+            "és csak egyértelmű igazolás után hívj újra confirmed=true paraméterrel!"
+        )
+
     db.delete_calendar_event(found["id"])
 
     # Lemondás-visszaigazoló az ügyfélnek (beégetett sablon — VÁLTOZATLAN)
@@ -1534,30 +1568,24 @@ async def tag_client(
     if not client_name.strip():
         return "Az ügyfél neve szükséges a címkézéshez."
 
-    # Find existing client
-    existing = db.find_client_by_contact(
-        email=client_email.strip(),
-        phone=client_phone.strip(),
-    )
-
-    # If not found by contact, try name-based search
-    if not existing:
-        try:
-            all_clients = db.get_clients(limit=500)
-            name_lower = client_name.strip().lower()
-            for c in all_clients:
-                if c.get("name", "").strip().lower() == name_lower:
-                    existing = c
-                    break
-        except Exception as nc_err:
-            logger.debug(f"tag_client név-keresés sikertelen: {nc_err}")
+    # Meglévő ügyfél az arbiteren (erős kulcsok előnyben + hívó-fallback) —
+    # a korábbi név-exact keresés és a vak létrehozás helyett (2026-09-22)
+    _email = client_email.strip()
+    _phone = client_phone.strip() or get_caller_phone()
+    _primary, _ = db.resolve_client_identity(name=client_name.strip(), email=_email, phone=_phone)
+    existing = _primary
 
     if not existing:
-        # Create a new client with the tags
+        # Létrehozás CSAK erős kulccsal (email VAGY telefon) — puszta névvel
+        # SOHA (adatszegény torzó-rekordok ellen; az új ügyfél profilja a
+        # foglaláskor jön létre teljes adattal).
+        if not _email and not _phone:
+            return ("A címkézéshez email cím vagy telefonszám szükséges — az ügyfél még nincs a "
+                    "nyilvántartásban. Kérdezd meg az egyiket, vagy a foglalás hozza létre a profilt.")
         custom_data = {
             "name": client_name.strip(),
-            "email": client_email.strip(),
-            "phone": client_phone.strip(),
+            "email": _email,
+            "phone": _phone,
             "tags": tags,
             "forras_csatorna": "Voice Agent (auto-tag)",
         }
