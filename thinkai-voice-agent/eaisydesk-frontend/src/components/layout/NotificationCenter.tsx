@@ -97,24 +97,30 @@ export default function NotificationCenter() {
 
     async function poll() {
       try {
-        const res = await authFetch('/admin/api/interactions?limit=250');
+        // A grouped végpontot kérdezzük (ugyanaz, mint az Interakciós napló):
+        // 1 thread = 1 értesítés, az olvasottság a REPREZENTATÍV interakció
+        // id-jén megy — a listában megnyitott thread itt is olvasott lesz,
+        // és a tool-log sorok nem duzzasztják a badge-et (2026-09-22 user-jelzés:
+        // „a csengő megállás nélkül jelzett").
+        const res = await authFetch('/admin/api/interactions/grouped?limit=100');
         if (!res.ok) return;
         const data = await res.json();
-        const rows = data?.interactions || data;
-        if (!Array.isArray(rows)) return;
+        const groups = data?.sessions || [];
+        if (!Array.isArray(groups)) return;
 
         // Csak bejövő, emberi ügyfél-interakciók — automatikus kimenő üzenetek nem
-        const visible = rows.filter((r: any) =>
-          (r.direction || 'inbound').toLowerCase() !== 'outbound' &&
-          r.tool_name !== 'outbound_notification' &&
-          r.approval_status !== 'spam'
-        );
+        const visible = groups.filter((g: any) => {
+          const r = g.representative || {};
+          return (r.direction || 'inbound').toLowerCase() !== 'outbound' &&
+            r.tool_name !== 'outbound_notification' &&
+            r.approval_status !== 'spam';
+        });
 
         // Sürgős új beérkezésre: toast + hang (időalapú, a lastSeen mechanizmus)
         const sorted = [...visible].sort((a: any, b: any) =>
-          (b.created_at || '').localeCompare(a.created_at || '')
+          (b.last_created_at || b.representative?.created_at || '').localeCompare(a.last_created_at || a.representative?.created_at || '')
         );
-        const latestTime = sorted[0]?.created_at || '';
+        const latestTime = sorted[0]?.last_created_at || sorted[0]?.representative?.created_at || '';
         if (isFirstPollRef.current) {
           isFirstPollRef.current = false;
           lastSeenTimeRef.current = localStorage.getItem('notif_lastSeenTime') || latestTime;
@@ -123,14 +129,15 @@ export default function NotificationCenter() {
           }
         }
         if (latestTime > lastSeenTimeRef.current) {
-          const fresh = visible.filter((r: any) => (r.created_at || '') > lastSeenTimeRef.current);
-          for (const r of fresh) {
+          const fresh = visible.filter((g: any) => (g.last_created_at || g.representative?.created_at || '') > lastSeenTimeRef.current);
+          for (const g of fresh) {
+            const r = g.representative || {};
             const tags = r.alert_tags || [];
             const urgent = Array.isArray(tags)
               ? tags.includes('urgent')
               : String(tags).includes('urgent');
             if (urgent) {
-              const item = toItem(r);
+              const item = toItem(g);
               setToasts(prev => [...prev.slice(-3), item]);
               urgentAudio.current?.play().catch(() => {});
             }
@@ -139,27 +146,28 @@ export default function NotificationCenter() {
           localStorage.setItem('notif_lastSeenTime', latestTime);
         }
 
-        // Az olvasatlan bejövő interakciók — érkezési sorrend, felül a legújabb
+        // Az olvasatlan threadek — érkezési sorrend, felül a legújabb
         const unread: UnreadItem[] = sorted
-          .filter((r: any) => isUnread(r.id))
+          .filter((g: any) => isUnread(g.representative?.id))
           .map(toItem);
         setItems(unread);
       } catch { /* polling error */ }
     }
 
-    function toItem(r: any): UnreadItem {
+    function toItem(g: any): UnreadItem {
+      const r = g.representative || {};
       const tags = r.alert_tags || [];
       const urgent = Array.isArray(tags)
         ? tags.includes('urgent')
         : String(tags).includes('urgent');
       return {
         id: r.id,
-        sessionId: r.session_id || '',
-        clientName: r.client_name || r.participant || 'Ismeretlen',
-        channel: getRowChannel(r.type || '', r.room_name || '', r.session_id || ''),
+        sessionId: g.session_id || '',
+        clientName: r.client_name || g.client_name || g.participant || 'Ismeretlen',
+        channel: getRowChannel(r.type || '', (g.room_name || '').toLowerCase(), g.session_id || ''),
         ugyTipus: detectUgyTipus(r),
-        statusz: detectStatusz(r),
-        time: r.created_at || '',
+        statusz: g.session_statusz || detectStatusz(r),
+        time: g.last_created_at || r.created_at || '',
         isUrgent: urgent,
       };
     }
@@ -198,7 +206,6 @@ export default function NotificationCenter() {
             <path d="M13.73 21a2 2 0 0 1-3.46 0" />
           </svg>
           {count > 0 && <span className="notif-badge">{count > 99 ? '99+' : count}</span>}
-          {count > 0 && <span className="notif-bell-pulse" />}
         </button>
 
         {open && (
