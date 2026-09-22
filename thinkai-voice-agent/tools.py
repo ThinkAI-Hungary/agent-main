@@ -1398,7 +1398,11 @@ async def find_client(
     client_phone: Annotated[str, "Telefonszám — ha üres, a hívó számára keres"] = "",
 ) -> str:
     """Ügyfél-keresés telefon/email/név alapján (erős kulcsok előnyben)."""
-    phone = (client_phone or "").strip() or get_caller_phone()
+    # A caller-fallback CSAK akkor, ha EGYETLEN explicit paramétert sem adott meg
+    # (különben az agent által megadott email/név helyett mindig a hívó ügyfelére
+    # találna rá — a hívás-eleji paraméter nélküli hívás marad a fő use-case)
+    _explicit = bool((client_phone or "").strip() or (client_email or "").strip() or (client_name or "").strip())
+    phone = (client_phone or "").strip() or ("" if _explicit else get_caller_phone())
     email = (client_email or "").strip().lower()
     name = (client_name or "").strip()
 
