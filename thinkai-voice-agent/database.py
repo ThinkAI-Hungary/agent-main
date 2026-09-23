@@ -686,7 +686,7 @@ def add_calendar_event(title, start_dt, end_dt, duration_minutes, attendee="", a
 
 def update_calendar_event(event_id: int, **fields) -> bool:
     if not supabase: return False
-    allowed = {"title", "start_dt", "end_dt", "duration_minutes", "attendee", "attendee_email", "completed", "doctor", "attendance_status", "status", "pending_until", "note"}
+    allowed = {"title", "start_dt", "end_dt", "duration_minutes", "attendee", "attendee_email", "attendee_phone", "completed", "doctor", "attendance_status", "status", "pending_until", "note"}
     # None értékeket nem írunk — a kézi szerkesztés '' assigned_to-t küldhet,
     # és az ne törölje a meglévő ellátót (2026-09-22 E2E: doctor nullázódott)
     updates = {k: v for k, v in fields.items() if k in allowed and v is not None}

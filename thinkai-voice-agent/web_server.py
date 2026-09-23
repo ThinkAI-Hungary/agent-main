@@ -3295,6 +3295,37 @@ def _kanban_column_name(status: str) -> str:
     return str(status)
 
 
+def _fill_client_phone_if_empty(client: dict, phone: str, actor: str):
+    """Ha a kapcsolódó ügyfél telefonja ÜRES, a naptárfelvételen megadott szám
+    rákerül a profilra (normalizálva) + változási napló. Meglévő számot sosem
+    ír felül (user-teszt 2026-09-23: a telefon felvitele életszerűen a naptár
+    panelről indul, nem a profilról)."""
+    try:
+        if not client or not (phone or "").strip():
+            return
+        cd = client.get("custom_data") or {}
+        if isinstance(cd, str):
+            import json as _json
+            try:
+                cd = _json.loads(cd)
+            except Exception:
+                cd = {}
+        existing = next((str(cd.get(k)).strip() for k in ("phone", "telefonszam", "telefon")
+                         if cd.get(k) and str(cd[k]).strip()), "") or (client.get("phone") or "").strip()
+        if existing:
+            return
+        cd["telefonszam"] = db.normalize_phone_hu(str(phone).strip())
+        if not cd.get("name"):
+            cd["name"] = client.get("name") or ""
+        if not cd.get("email"):
+            cd["email"] = client.get("email") or ""
+        db.edit_client_details(client["id"], cd)
+        db.log_client_change(client["id"], "profile_edit", "Profil szerkesztve (telefonszám)",
+                             new_value=cd["telefonszam"], actor=actor)
+    except Exception as e:
+        logger.warning(f"_fill_client_phone_if_empty hiba: {e}")
+
+
 def _parse_manual_dt(raw: str):
     """Kézi naptárfelvétel dátum-parse: a form naív (tz-nélküli) helyi időt küld
     (Budapest) — korábban UTC-ként tárolódott → a grid +2 órával későbbre mutatta.
@@ -3364,14 +3395,24 @@ async def admin_create_event(req: ManualEventRequest, _user = Depends(get_curren
         # korábban old_datetime=new_datetime ment ki a levélbe)
         old_ev = db.get_calendar_event(req.id) or {}
         start = _parse_manual_dt(req.start_dt)
-        # Szolgáltatás-listás cím → egységes '<szolgáltatás> - <név>' forma + a
-        # TÁBLA időtartama az irányadó (a voice-szabállyal azonos); egyedi cím érintetlen
-        title = _service_normalized_title(req.title, req.attendee)
-        duration = email_processor.resolve_service_duration(title, req.duration_minutes) if title != req.title else req.duration_minutes
+        # A normalizálás (cím '<szolgáltatás> - <név>' + TÁBLA-időtartam) CSAK
+        # akkor fusson, ha a szolgáltatás/cím mező TÉNYLEG változott — különben
+        # egy telefon-/megjegyzés-szerkesztés is csendben átírja a címet és az
+        # időtartamot (és „módosítás"-emailt triggerel), ld. 2026-09-23 teszt
+        _old_title = old_ev.get("title", "") or ""
+        _suffix = f" - {(req.attendee or '').strip()}"
+        _base_old = _old_title[:-len(_suffix)] if len(_suffix) > 4 and _old_title.endswith(_suffix) else _old_title
+        if _accent_fold(req.title) != _accent_fold(_base_old):
+            title = _service_normalized_title(req.title, req.attendee)
+            duration = email_processor.resolve_service_duration(title, req.duration_minutes) if title != req.title else req.duration_minutes
+        else:
+            title = _old_title
+            duration = old_ev.get("duration_minutes") or req.duration_minutes
         end = start + timedelta(minutes=duration)
         ok = db.update_calendar_event(req.id, title=title, start_dt=start.isoformat(),
             end_dt=end.isoformat(), duration_minutes=duration,
             attendee=req.attendee, attendee_email=req.attendee_email,
+            attendee_phone=db.normalize_phone_hu(req.attendee_phone or "") or None,
             doctor=getattr(req, 'assigned_to', '') or None,
             note=req.note)
         if not ok:
@@ -3405,6 +3446,8 @@ async def admin_create_event(req: ManualEventRequest, _user = Depends(get_curren
         # note-only → „Megjegyzés módosítva" (user-szabály 2026-09-23)
         try:
             _mclient = db.find_client_by_contact(email=req.attendee_email) or db.find_client_by_contact(phone=req.attendee_phone or "")
+            if _mclient and (req.attendee_phone or "").strip():
+                _fill_client_phone_if_empty(_mclient, req.attendee_phone, _actor_name(_user))
             if _mclient:
                 if _schedule_changes:
                     db.log_client_change(_mclient["id"], "event_modified",
@@ -3459,7 +3502,7 @@ async def admin_create_event(req: ManualEventRequest, _user = Depends(get_curren
         attendee=req.attendee,
         attendee_email=req.attendee_email,
         assigned_to=assigned_staff,
-        attendee_phone=req.attendee_phone,
+        attendee_phone=db.normalize_phone_hu(req.attendee_phone or ""),
         note=req.note or None
     )
 
@@ -3492,6 +3535,8 @@ async def admin_create_event(req: ManualEventRequest, _user = Depends(get_curren
                 db.mark_duplicate_suspect(conflict_id, primary["id"], "kézi naptárfelvétel: eltérő erős kulcsok")
             if primary:
                 _client_id = primary["id"]
+                if (req.attendee_phone or "").strip():
+                    _fill_client_phone_if_empty(primary, req.attendee_phone, _actor_name(_user))
             elif ((req.attendee_email or "").strip() or (req.attendee_phone or "").strip()):
                 _client_id = db.add_client({
                     "name": req.attendee,
