@@ -3237,9 +3237,28 @@ def _actor_name(user: dict) -> str:
         return uname
 
 
+# A kulcs-aliászok EGY logikai mezőt jelentenek (az email-pipeline 'phone'-ra,
+# a profil-form 'telefonszam'-ra ír — kulcsszintű diff fantom "módosítva"
+# bejegyzést gyártott, 2026-09-23 user-teszt, 288-as ügyfél)
+_CHANGELOG_ALIAS_GROUPS = {
+    "telefonszám": ("telefonszam", "phone", "telefon"),
+    "név": ("name", "nev"),
+}
+_CHANGELOG_ALIAS_KEYS = {k for keys in _CHANGELOG_ALIAS_GROUPS.values() for k in keys}
+
+
+def _first_non_empty(cd: dict, keys) -> str:
+    for k in keys:
+        v = cd.get(k)
+        if v is not None and str(v).strip():
+            return str(v).strip()
+    return ""
+
+
 def _changelog_profile_diff(client_id: int, old_cd: dict, new_cd: dict, actor: str):
     """Profil-PUT diff naplózása: címke +/- és mező-módosítások (a v1 csak az
-    ÚJ értéket tárolja — user-döntés). Belső/volatilis kulcsok kizárva."""
+    ÚJ értéket tárolja — user-döntés). Belső/volatilis kulcsok kizárva;
+    a kulcs-aliászok (phone/telefonszam, name/nev) érték-szinten összevetve."""
     try:
         old_tags = set(old_cd.get("tags") or [])
         new_tags = set(new_cd.get("tags") or [])
@@ -3247,8 +3266,13 @@ def _changelog_profile_diff(client_id: int, old_cd: dict, new_cd: dict, actor: s
             db.log_client_change(client_id, "tag_added", f"Címke hozzáadva: {t}", new_value=str(t), actor=actor)
         for t in sorted(old_tags - new_tags):
             db.log_client_change(client_id, "tag_removed", f"Címke eltávolítva: {t}", new_value=str(t), actor=actor)
+        # Aliász-csoportok: érték-összevetés az első nemüres értéken
+        for label, keys in _CHANGELOG_ALIAS_GROUPS.items():
+            ov, nv = _first_non_empty(old_cd, keys), _first_non_empty(new_cd, keys)
+            if nv and nv != ov:
+                db.log_client_change(client_id, "profile_edit", f"Profil szerkesztve ({label})", new_value=nv[:300], actor=actor)
         for k, v in (new_cd or {}).items():
-            if k in _CHANGELOG_IGNORE_KEYS:
+            if k in _CHANGELOG_IGNORE_KEYS or k in _CHANGELOG_ALIAS_KEYS:
                 continue
             if v is None or str(v).strip() == "":
                 continue

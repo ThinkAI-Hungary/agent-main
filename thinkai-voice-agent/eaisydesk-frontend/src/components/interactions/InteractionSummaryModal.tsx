@@ -565,8 +565,11 @@ export default function InteractionSummaryModal({
 
       // ── Fallback ha nincs user blokk a logban, de a topic tartalmazza az email szövegét és csatolmányát ──
       if (!parsedBlocks.some((b) => b.sender === 'user') && row.topic) {
+        // Régi („Email AI válasz -") és új („Bejövő e-mail —", 2026-09-23)
+        // topic-formátumot is elfogad — az új formátum preview-t hordoz, a
+        // teljes törzs a diary_fragmentben marad
         const emailTopicMatch = row.topic.match(
-          /^Email AI válasz\s*-\s*[^:]*:\s*([\s\S]+)$/i
+          /^(?:Email AI válasz\s*-|Bejövő e-mail\s*—)\s*[^:]*:\s*([\s\S]+)$/i
         );
         if (emailTopicMatch) {
           const userMsg = emailTopicMatch[1].trim();

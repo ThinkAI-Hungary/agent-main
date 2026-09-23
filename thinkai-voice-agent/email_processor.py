@@ -682,7 +682,9 @@ Ha egyik sem releváns, legyen üres lista [].
 
     # Ügyfél és beszélgetés napló mentése MINDEN bejövő emailhez
     kanban = kanban or {}
-    name = kanban.get("name") or from_name or "Névtelen E-mail lead"
+    # A kliens neve a tényleges FELADÓ (From-fejléc) — a tartalomból kinyert
+    # név (kanban.name) a PÁCIENS lehet rokon-foglalásnál, az nem a kapcsolattartó
+    name = from_name or kanban.get("name") or "Névtelen E-mail lead"
     # A KLIENS IDENTITÁSA a tényleges feladó
     kanban_email = (kanban.get("email") or "").strip()
     if kanban_email and kanban_email.lower() != from_email.lower():
@@ -1038,7 +1040,7 @@ Ha egyik sem releváns, legyen üres lista [].
 
         _logged_interaction_id = db.log_interaction(
             type="email",
-            topic=f"Email AI válasz - {subject}: {text_content[:200]}",
+            topic=f"Bejövő e-mail — {subject}: {text_content[:80].strip()}{'…' if len(text_content) > 80 else ''}",
             summary=classification.get("osszefoglalas") or f"Bejövő e-mail {from_email} címről",
             result=classification.get("eredmeny", "Várakozik jóváhagyásra"),
             tool_name="imap_worker_ai",

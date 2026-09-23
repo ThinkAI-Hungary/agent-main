@@ -1577,6 +1577,7 @@ def migrate_from_json():
 
 def add_client(custom_data: dict, status: str = "uj") -> int:
     if not supabase: return 0
+    custom_data = _normalize_phone_fields(dict(custom_data))
     name = custom_data.get("name", "Névtelen").strip() or "Névtelen"
     try:
         res = supabase.table("clients").insert(_with_tenant({
@@ -1624,6 +1625,48 @@ def normalize_phone_digits(p: str) -> str:
     if d.startswith("06"):
         d = "36" + d[2:]
     return d[-9:] if len(d) >= 9 else d
+
+
+def normalize_phone_hu(raw: str) -> str:
+    """Kanonikus TÁROLÁSI/megjelenítési telefonszám-formátum (user-szabály
+    2026-09-23: a szoftver egészében egyféle forma — '+36 30 234 5678').
+    Kezeli a 06-os, +36-os és prefix nélküli magyar számokat; a nem-magyar
+    (10+ jegy, nem 36-os) vagy anomál (túl rövid/hosszú) értékeket
+    VÁLTOZATLANUL hagyja — ott nincs mit normalizálni."""
+    raw_s = (raw or "").strip()
+    d = re.sub(r"\D", "", raw_s)
+    if not d:
+        return raw_s
+    if d.startswith("0036"):
+        d = "36" + d[4:]
+    elif d.startswith("06"):
+        d = "36" + d[2:]
+    if d.startswith("36") and len(d) == 11:          # +36 + 9 jegy (mobil)
+        n = d[2:]
+        return f"+36 {n[:2]} {n[2:5]} {n[5:]}"
+    if d.startswith("36") and len(d) == 10:          # +36 + 8 jegy (vezetékes)
+        n = d[2:]
+        if n.startswith("1"):
+            return f"+36 1 {n[1:4]} {n[4:]}"
+        return f"+36 {n[:2]} {n[2:5]} {n[5:]}"
+    if len(d) == 9 and d[:2] in ("20", "30", "31", "50", "70"):  # prefix nélküli mobil
+        return f"+36 {d[:2]} {d[2:5]} {d[5:]}"
+    if len(d) == 8 and d.startswith("1"):            # prefix nélküli budapesti
+        return f"+36 1 {d[1:4]} {d[4:]}"
+    return raw_s
+
+
+def _normalize_phone_fields(cd: dict) -> dict:
+    """A custom_data telefon-aliász kulcsainak (telefonszam/phone/telefon)
+    értékeit kanonikus formára hozza — aliász-egységesítést NEM végez
+    (a meglévő kulcsszerkezet marad)."""
+    for k in ("telefonszam", "phone", "telefon"):
+        v = cd.get(k)
+        if isinstance(v, str) and v.strip():
+            nv = normalize_phone_hu(v)
+            if nv != v.strip():
+                cd[k] = nv
+    return cd
 
 
 def find_clients_by_phone(phone: str) -> list:
@@ -1802,6 +1845,7 @@ def merge_clients(source_id: int, target_id: int, keep_fields: dict | None = Non
 
 
 def upsert_client(custom_data: dict, additional_log: str = "", status: str | None = None, existing_id: int | None = None) -> int:
+    custom_data = _normalize_phone_fields(dict(custom_data))
     email = custom_data.get("email", "").strip()
     phone = custom_data.get("phone", "").strip()
     messenger_id = custom_data.get("messenger_id", "").strip()
@@ -2021,13 +2065,19 @@ def delete_client(client_id: int) -> bool:
         return False
 
 def edit_client_details(client_id: int, custom_data: dict) -> bool:
+    custom_data = _normalize_phone_fields(custom_data)
     if not supabase: return False
     name = custom_data.get("name", "Névtelen").strip() or "Névtelen"
+    # A phone OSZLÓP az aliászok bármelyikéből töltődik (a profil-form
+    # 'telefonszam'-ot, az email-pipeline 'phone'-t ír — a puszta
+    # custom_data.get("phone") az oszlop KINULLÁZÁSÁVAL járt, 2026-09-23)
+    phone_val = next((str(custom_data[k]).strip() for k in ("phone", "telefonszam", "telefon")
+                      if custom_data.get(k) and str(custom_data[k]).strip()), "")
     try:
         _tenant_eq(supabase.table("clients").update({
             "name": name,
             "email": custom_data.get("email", ""),
-            "phone": custom_data.get("phone", ""),
+            "phone": phone_val,
             "custom_data": custom_data
         })).eq("id", client_id).execute()
         return True
