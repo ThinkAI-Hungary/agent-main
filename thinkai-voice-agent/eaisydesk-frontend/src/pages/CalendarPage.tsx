@@ -410,6 +410,24 @@ export default function CalendarPage() {
 
   // Esemény kattintás → szerkesztő panel megnyitása
   const openEventEdit = useCallback((ev: CalendarEventItem) => {
+    // A prefill BUDAPESTI idő szerint történik (volt: nyers UTC-szöveg szelet —
+    // a 10:00-s esemény 08:00-ként jelent meg, és a mentés 2 órával eltolta
+    // volna az eseményt, 2026-09-23 user-teszt)
+    let dateStr = new Date().toISOString().split('T')[0];
+    let timeStr = '09:00';
+    if (ev.start_dt) {
+      const d = new Date(ev.start_dt);
+      if (!isNaN(d.getTime())) {
+        const parts = new Intl.DateTimeFormat('hu-HU', {
+          timeZone: 'Europe/Budapest',
+          year: 'numeric', month: '2-digit', day: '2-digit',
+          hour: '2-digit', minute: '2-digit', hour12: false,
+        }).formatToParts(d);
+        const g = (t: string) => parts.find(p => p.type === t)?.value || '';
+        dateStr = `${g('year')}-${g('month')}-${g('day')}`;
+        timeStr = `${g('hour')}:${g('minute')}`;
+      }
+    }
     setNewEvent({
       attendee: ev.attendee || '',
       email: ev.attendee_email || '',
@@ -417,8 +435,8 @@ export default function CalendarPage() {
       phone: ev.attendee_phone || '',
       title: ev.title || '', // a szolgáltatás-feloldás (lent) felülírja a base-címmel
       assigned_to: ev.doctor || '',
-      date: (ev.start_dt || '').split('T')[0],
-      time: (ev.start_dt || '').split('T')[1]?.substring(0, 5) || '09:00',
+      date: dateStr,
+      time: timeStr,
       duration: String(ev.duration_minutes || 30),
       note: ev.note || '',
     });

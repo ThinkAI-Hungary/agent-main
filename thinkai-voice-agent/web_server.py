@@ -3376,18 +3376,50 @@ async def admin_create_event(req: ManualEventRequest, _user = Depends(get_curren
             note=req.note)
         if not ok:
             raise HTTPException(500, "Frissítés sikertelen")
-        # Változási napló: időpont módosítva (a kapcsolódó ügyfélre, ha feloldható)
+
+        # Ütemezés-releváns változás-detektálás: a módosítás-EMAIL csak ezekre
+        # megy (user-szabály 2026-09-23: megjegyzés-szerkesztésre NE menjen
+        # "Időpontját módosítottuk" visszaigazolás)
+        def _ev_instant(val):
+            try:
+                return datetime.fromisoformat(str(val).replace("Z", "+00:00"))
+            except Exception:
+                return None
+        _schedule_changes = []
+        _old_start = _ev_instant(old_ev.get("start_dt"))
+        if _old_start is None or _old_start != start:
+            _schedule_changes.append("időpont")
+        if (old_ev.get("duration_minutes") or None) != duration:
+            _schedule_changes.append("időtartam")
+        if (old_ev.get("title") or "") != title:
+            _schedule_changes.append("cím")
+        # Üres assigned_to = „nem nyúlt hozzá" (a DB-ben is megmarad a régi —
+        # None-szűrő), így az összevetésben a RÉGI értékkel helyettesítjük,
+        # különben minden munkatárs-nélküli mentés „ellátó-változásnak" tűnne
+        _assigned = (getattr(req, 'assigned_to', '') or "").strip() or (old_ev.get("doctor") or "")
+        if (old_ev.get("doctor") or "") != _assigned:
+            _schedule_changes.append("ellátó")
+        _note_changed = (old_ev.get("note") or "") != (req.note or "")
+
+        # Változási napló: ütemezés-változás → „Időpont módosítva",
+        # note-only → „Megjegyzés módosítva" (user-szabály 2026-09-23)
         try:
             _mclient = db.find_client_by_contact(email=req.attendee_email) or db.find_client_by_contact(phone=req.attendee_phone or "")
             if _mclient:
-                db.log_client_change(_mclient["id"], "event_modified",
-                    f"Időpont módosítva: {title}",
-                    new_value=start.strftime('%Y-%m-%d %H:%M'), related_ref=title, actor=_actor_name(_user))
+                if _schedule_changes:
+                    db.log_client_change(_mclient["id"], "event_modified",
+                        f"Időpont módosítva: {title}",
+                        new_value=start.strftime('%Y-%m-%d %H:%M'), related_ref=title, actor=_actor_name(_user))
+                elif _note_changed:
+                    db.log_client_change(_mclient["id"], "event_modified",
+                        f"Megjegyzés módosítva: {title}",
+                        new_value=(req.note or "")[:200], related_ref=title, actor=_actor_name(_user))
         except Exception as _me:
             logger.warning(f"changelog (event_modified) hiba: {_me}")
-        # Módosítás-visszaigazoló (beégetett sablon, toggle-ölt) — kézi szerkesztés
-        # KIZÁRÓLAG ez megy: booking-visszaigazoló csak létrehozáskor (user-szabály 2026-09-22)
-        if req.attendee_email and req.attendee_email != "-":
+
+        # Módosítás-visszaigazoló (beégetett sablon, toggle-ölt) — KIZÁRÓLAG
+        # ütemezés-releváns változásra; booking-visszaigazoló csak létrehozáskor
+        if _schedule_changes and req.attendee_email and req.attendee_email != "-":
             asyncio.create_task(
                 email_processor.send_modification_confirmation_email(
                     attendee=req.attendee,
