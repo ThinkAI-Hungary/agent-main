@@ -472,3 +472,125 @@
       --fc-border-color: var(--border);
       --fc-today-bg-color: rgba(28, 238, 224, 0.05);
     }
+
+/* === Időpont-modal — open-design spec (2026-09-23) ===
+   A mockup szerinti 560px-es, felülre igazított modal: 2-oszlopos grid,
+   36px inputok fókusz-gyűrűvel, nem-natív Cdd dropdownok, CTA-lábléc. */
+
+.appt-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.42);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding: 64px 16px;
+  z-index: 9999;
+}
+
+.appt-modal {
+  width: 560px;
+  max-width: 100%;
+  background: var(--card);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  box-shadow: 0 24px 64px -16px rgba(0, 0, 0, 0.32);
+  animation: appt-modalin 0.18s ease-out;
+}
+@keyframes appt-modalin {
+  from { opacity: 0; transform: translateY(-6px); }
+  to { opacity: 1; transform: none; }
+}
+
+.appt-modal-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 16px 18px;
+  border-bottom: 1px solid var(--border);
+  border-radius: 8px 8px 0 0;
+}
+.appt-modal-title { margin: 0; font-size: 16px; font-weight: 600; letter-spacing: -0.01em; color: var(--text); }
+.appt-modal-x {
+  width: 30px; height: 30px; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; background: none; border-radius: 8px; color: var(--text-dim); cursor: pointer;
+}
+.appt-modal-x:hover { background: var(--bg3); color: var(--text); }
+
+.appt-modal-body { padding: 18px; }
+
+.appt-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px 16px; }
+.appt-grid .appt-full { grid-column: 1 / -1; }
+@media (max-width: 720px) { .appt-grid { grid-template-columns: 1fr; } }
+
+.appt-field { display: flex; flex-direction: column; gap: 5px; }
+.appt-field > span {
+  font-size: 11px; font-weight: 500; color: var(--text-dim);
+  letter-spacing: 0.02em; padding-left: 2px;
+}
+
+.appt-input {
+  width: 100%; height: 36px; padding: 0 12px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--card); font-family: inherit; font-size: 13.5px; color: var(--text);
+}
+.appt-input:focus { outline: none; border-color: #186D98; box-shadow: 0 0 0 3px rgba(24, 109, 152, 0.16); }
+.appt-input::placeholder { color: var(--text-dim); }
+
+.appt-textarea {
+  width: 100%; min-height: 76px; padding: 9px 12px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--card); font-family: inherit; font-size: 13.5px; color: var(--text);
+  resize: vertical; line-height: 1.5;
+}
+.appt-textarea:focus { outline: none; border-color: #186D98; box-shadow: 0 0 0 3px rgba(24, 109, 152, 0.16); }
+.appt-textarea::placeholder { color: var(--text-dim); }
+
+/* --- CTA lábléc --- */
+.appt-modal-foot {
+  display: flex; align-items: center; justify-content: flex-end; gap: 8px;
+  padding: 14px 18px; border-top: 1px solid var(--border);
+  background: var(--bg3); border-radius: 0 0 8px 8px;
+}
+.appt-btn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  height: 36px; padding: 0 14px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--card); color: var(--text);
+  font-size: 13px; font-weight: 500; cursor: pointer; white-space: nowrap;
+  transition: background 0.15s, border-color 0.15s, color 0.15s; font-family: inherit;
+}
+.appt-btn:hover { background: var(--bg3); }
+.appt-btn:disabled { opacity: 0.55; cursor: not-allowed; }
+.appt-btn--primary { background: #186D98; border-color: #186D98; color: #fff; font-weight: 600; }
+.appt-btn--primary:hover { background: #135a7d; }
+.appt-btn--danger { background: #fff2f0; border-color: #ffccc7; color: #d9363d; margin-right: auto; }
+.appt-btn--danger:hover { background: #ffe3e0; }
+
+/* --- Nem-natív Cdd dropdown --- */
+.cdd { position: relative; }
+.cdd-trigger {
+  display: flex; align-items: center; gap: 8px; width: 100%; height: 36px; padding: 0 10px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+  font-family: inherit; font-size: 13px; color: var(--text); cursor: pointer; text-align: left;
+}
+.cdd-trigger:hover { border-color: color-mix(in srgb, var(--border) 55%, var(--text-dim)); }
+.cdd.is-open .cdd-trigger { border-color: #186D98; box-shadow: 0 0 0 3px rgba(24, 109, 152, 0.16); }
+.cdd-chev { color: var(--text-dim); flex: none; margin-left: auto; transition: transform 0.15s; }
+.cdd.is-open .cdd-chev { transform: rotate(180deg); }
+.cdd-value { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cdd-value.is-placeholder { color: var(--text-dim); }
+.cdd-menu {
+  position: absolute; top: calc(100% + 6px); left: 0; right: 0; z-index: 30;
+  background: var(--card); border: 1px solid var(--border); border-radius: 8px; padding: 4px;
+  box-shadow: 0 16px 40px -12px rgba(0, 0, 0, 0.18);
+  max-height: 260px; overflow-y: auto;
+}
+.cdd-opt {
+  display: flex; align-items: center; gap: 8px; width: 100%; padding: 8px 10px;
+  border: 0; background: none; border-radius: 8px;
+  font-family: inherit; font-size: 13px; color: var(--text); cursor: pointer; text-align: left;
+}
+.cdd-opt:hover { background: var(--bg3); }
+.cdd-opt.is-on { background: rgba(24, 109, 152, 0.09); color: #186D98; font-weight: 600; }
+.cdd-check { flex: none; margin-left: auto; }

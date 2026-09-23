@@ -13,6 +13,7 @@ import { parseCustomData, isAssignedToMe, bestClientName } from '../helpers/clie
 import { CalendarSkeleton } from '../components/ui/Skeleton';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
+import Cdd from '../components/ui/Cdd';
 import { authFetch } from '../api/client';
 import ClientDetailView from '../components/clients/ClientDetailView';
 
@@ -729,95 +730,98 @@ export default function CalendarPage() {
 
       {/* Új esemény modál */}
       {showNewEventModal && (
-        <div className="modal-overlay" onClick={() => setShowNewEventModal(false)}>
-          <div className="cd-task-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={editingEventId ? 'Időpont szerkesztése' : 'Új időpont'}>
-            <div className="cd-task-modal-head">
-              <h3 className="modal-title">{editingEventId ? 'Időpont szerkesztése' : 'Új időpont létrehozása'}</h3>
-              <button className="cd-task-modal-x" onClick={() => setShowNewEventModal(false)} aria-label="Bezárás">
+        <div className="appt-overlay" onClick={() => { setShowNewEventModal(false); setEditingEventId(null); }}>
+          <div className="appt-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-labelledby="appt-modal-title">
+            <div className="appt-modal-head">
+              <h3 className="appt-modal-title" id="appt-modal-title">{editingEventId ? 'Időpont szerkesztése' : 'Új időpont'}</h3>
+              <button className="appt-modal-x" onClick={() => { setShowNewEventModal(false); setEditingEventId(null); }} aria-label="Bezárás">
                 <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16" height="16"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
               </button>
             </div>
-            <div className="cd-task-modal-body">
-              <div className="form-group">
-                <label className="cd-task-modal-label">Ügyfél neve</label>
-                <input className="cd-form-input" value={newEvent.attendee} onChange={e => setNewEvent({ ...newEvent, attendee: e.target.value })} placeholder="pl. Kiss Anna" />
-              </div>
-              <div className="flex-row gap-10">
-                <div className="flex-1">
-                  <label className="cd-task-modal-label">Email</label>
-                  <input className="cd-form-input" type="email" value={newEvent.email} onChange={e => setNewEvent({ ...newEvent, email: e.target.value })} placeholder="email@pelda.hu" />
+            <div className="appt-modal-body">
+              <div className="appt-grid">
+                <div className="appt-field">
+                  <span>Ügyfél neve</span>
+                  <input className="appt-input" value={newEvent.attendee} onChange={e => setNewEvent({ ...newEvent, attendee: e.target.value })} placeholder="pl. Kiss Anna" autoComplete="off" />
                 </div>
-                <div className="flex-1">
-                  <label className="cd-task-modal-label">Telefon</label>
-                  <input className="cd-form-input" type="tel" value={newEvent.phone} onChange={e => setNewEvent({ ...newEvent, phone: e.target.value })} placeholder="+36 20 123 4567" />
+                <div className="appt-field">
+                  <span>Email</span>
+                  <input className="appt-input" type="email" value={newEvent.email} onChange={e => setNewEvent({ ...newEvent, email: e.target.value })} placeholder="kissanna@pelda.hu" autoComplete="off" />
                 </div>
-              </div>
-              <div className="form-group">
-                <label className="cd-task-modal-label">Szolgáltatás</label>
-                <select className="cd-form-input" value={serviceSel} onChange={e => {
-                  const v = e.target.value;
-                  setServiceSel(v);
-                  // A szolgáltatáshoz tartozó időtartam automatikus betöltése (felülírható)
-                  const svc = serviceOptions.find(o => o.name === v);
-                  if (svc) setNewEvent(prev => ({ ...prev, duration: String(svc.duration) }));
-                }}>
-                  <option value="">— Válassz szolgáltatást —</option>
-                  {serviceOptions.map(o => (
-                    <option key={o.name} value={o.name}>{o.name}</option>
-                  ))}
-                  <option value="__custom__">Egyéni…</option>
-                </select>
+                <div className="appt-field">
+                  <span>Telefon</span>
+                  <input className="appt-input" type="tel" value={newEvent.phone} onChange={e => setNewEvent({ ...newEvent, phone: e.target.value })} placeholder="pl. +36 20 123 4567" autoComplete="off" />
+                </div>
+                <div className="appt-field">
+                  <span>Munkatárs</span>
+                  <Cdd
+                    value={newEvent.assigned_to}
+                    options={[
+                      ...staffOptions.map(name => ({ value: name, label: name })),
+                      ...(newEvent.assigned_to && !staffOptions.includes(newEvent.assigned_to) ? [{ value: newEvent.assigned_to, label: newEvent.assigned_to }] : []),
+                    ]}
+                    placeholder="Munkatárs választás"
+                    onChange={v => setNewEvent({ ...newEvent, assigned_to: v })}
+                    ariaLabel="Munkatárs"
+                  />
+                </div>
+                <div className="appt-field appt-full">
+                  <span>Szolgáltatás</span>
+                  <Cdd
+                    value={serviceSel}
+                    options={[
+                      ...serviceOptions.map(o => ({ value: o.name, label: o.name })),
+                      { value: '__custom__', label: 'Egyéni' },
+                    ]}
+                    placeholder="Válassz szolgáltatást"
+                    onChange={v => {
+                      setServiceSel(v);
+                      // A szolgáltatáshoz tartozó időtartam automatikus betöltése (felülírható)
+                      const svc = serviceOptions.find(o => o.name === v);
+                      if (svc) setNewEvent(prev => ({ ...prev, duration: String(svc.duration) }));
+                    }}
+                    ariaLabel="Szolgáltatás"
+                  />
+                </div>
                 {serviceSel === '__custom__' && (
-                  <input className="cd-form-input" style={{ marginTop: 8 }} value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} placeholder="Egyéni eseménycím, pl. Munkahelyi szűrés" autoFocus />
+                  <div className="appt-field appt-full">
+                    <span>Egyéni szolgáltatás</span>
+                    <input className="appt-input" value={newEvent.title} onChange={e => setNewEvent({ ...newEvent, title: e.target.value })} placeholder="Add meg a szolgáltatás nevét" autoComplete="off" autoFocus />
+                  </div>
                 )}
-              </div>
-              <div className="form-group">
-                <label className="cd-task-modal-label">Megjegyzés</label>
-                <textarea className="cd-form-input" rows={2} value={newEvent.note} onChange={e => setNewEvent({ ...newEvent, note: e.target.value })} placeholder="Szabad megjegyzés az időponthoz…" />
-              </div>
-              <div className="form-group">
-                <label className="cd-task-modal-label">Munkatárs</label>
-                <select className="cd-form-input" value={newEvent.assigned_to} onChange={e => setNewEvent({ ...newEvent, assigned_to: e.target.value })}>
-                  <option value="">— Munkatárs választás —</option>
-                  {staffOptions.map(name => (
-                    <option key={name} value={name}>{name}</option>
-                  ))}
-                  {newEvent.assigned_to && !staffOptions.includes(newEvent.assigned_to) && (
-                    <option value={newEvent.assigned_to}>{newEvent.assigned_to}</option>
-                  )}
-                </select>
-              </div>
-              <div className="flex-row gap-10">
-                <div className="flex-1">
-                  <label className="cd-task-modal-label">Dátum</label>
-                  <input className="cd-form-input" type="date" lang="hu" value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} />
+                <div className="appt-field">
+                  <span>Dátum</span>
+                  <input className="appt-input" type="date" lang="hu" value={newEvent.date} onChange={e => setNewEvent({ ...newEvent, date: e.target.value })} />
                 </div>
-                <div className="flex-1">
-                  <label className="cd-task-modal-label">Időpont</label>
-                  <input className="cd-form-input" type="time" value={newEvent.time} onChange={e => setNewEvent({ ...newEvent, time: e.target.value })} />
+                <div className="appt-field">
+                  <span>Időpont</span>
+                  <input className="appt-input" type="time" value={newEvent.time} onChange={e => setNewEvent({ ...newEvent, time: e.target.value })} />
                 </div>
-                <div className="flex-1">
-                  <label className="cd-task-modal-label">Időtartam</label>
-                  <select className="cd-form-input" value={newEvent.duration} onChange={e => setNewEvent({ ...newEvent, duration: e.target.value })}>
-                    <option value="15">15 perc</option>
-                    <option value="30">30 perc</option>
-                    <option value="45">45 perc</option>
-                    <option value="60">60 perc</option>
-                    <option value="90">90 perc</option>
-                    <option value="120">120 perc</option>
-                  </select>
+                <div className="appt-field">
+                  <span>Időtartam</span>
+                  <Cdd
+                    value={newEvent.duration}
+                    options={['15', '30', '45', '60', '90', '120'].map(d => ({ value: d, label: `${d} perc` }))}
+                    placeholder="Időtartam"
+                    onChange={v => setNewEvent({ ...newEvent, duration: v })}
+                    ariaLabel="Időtartam"
+                  />
+                </div>
+                <div className="appt-field appt-full">
+                  <span>Megjegyzés</span>
+                  <textarea className="appt-textarea" value={newEvent.note} onChange={e => setNewEvent({ ...newEvent, note: e.target.value })} placeholder="Írj megjegyzést az időponthoz." />
                 </div>
               </div>
             </div>
-            <div className="cd-task-modal-foot">
+            <div className="appt-modal-foot">
               {editingEventId && (
-                <button className="cd-btn cd-btn-danger" style={{ marginRight: 'auto' }} onClick={() => { handleDeleteEvent(editingEventId); setShowNewEventModal(false); }}>
-                  <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /></svg>
+                <button className="appt-btn appt-btn--danger" onClick={() => { handleDeleteEvent(editingEventId); setShowNewEventModal(false); }}>
+                  <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15"><polyline points="3 6 5 6 21 6" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><path d="M10 11v6" /><path d="M14 11v6" /><path d="M9 6V4a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v2" /></svg>
                   Időpont törlése
                 </button>
               )}
-              <button className="cd-btn" onClick={() => { setShowNewEventModal(false); setEditingEventId(null); }}>Mégse</button>
-              <button className="cd-btn cd-btn-primary" onClick={editingEventId ? handleUpdateEvent : handleSubmitEvent} disabled={!newEvent.attendee || !(serviceSel === '__custom__' ? newEvent.title.trim() : serviceSel) || !newEvent.date || !newEvent.time}>
+              <button className="appt-btn" onClick={() => { setShowNewEventModal(false); setEditingEventId(null); }}>Mégse</button>
+              <button className="appt-btn appt-btn--primary" onClick={editingEventId ? handleUpdateEvent : handleSubmitEvent} disabled={!newEvent.attendee || !(serviceSel === '__custom__' ? newEvent.title.trim() : serviceSel) || !newEvent.date || !newEvent.time}>
                 {editingEventId ? 'Mentés' : 'Létrehozás'}
               </button>
             </div>
