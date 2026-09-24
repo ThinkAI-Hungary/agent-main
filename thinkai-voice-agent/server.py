@@ -6,6 +6,7 @@ Powered by LiveKit + Google Gemini Multimodal Live API (gemini-3.1-flash-live-pr
 import asyncio
 import json
 import os
+import re
 import sys
 from datetime import datetime
 from pathlib import Path
@@ -65,6 +66,24 @@ class ThinkAIAgent(Agent):
         self.campaign_data = campaign_data
 
 
+def _is_eval_caller(phone: str) -> bool:
+    """MU-0.3: a hívószám szerepel-e az EVAL_CALLER_NUMBERS env-ben (vessző-
+    elválasztott E.164 lista). Az eval-tesztszámokra az agent NEM kap tárolt
+    ügyfél-kontextust (név, email, közelgő időpontok) — minden hívás „új
+    ügyfélként" fut, különben a 2. hívástól a diktálás elmaradna. A +36/06
+    előtag különbségeket az utolsó 9 számjegy összehasonlítása hidalja."""
+    raw = (os.getenv("EVAL_CALLER_NUMBERS", "") or "").strip()
+    if not raw or not phone:
+        return False
+    digits = re.sub(r"\D", "", phone)
+    if len(digits) < 7:
+        return False
+    tail = digits[-9:]
+    for entry in raw.split(","):
+        e = re.sub(r"\D", "", entry or "")
+        if len(e) >= 7 and e[-9:] == tail:
+            return True
+    return False
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -308,8 +327,15 @@ SZABÁLYOK:
         # hívta és kifutott a beszélgetésre) — a szerver oldja fel és CSENDES
         # profil-injekciót ad. A modell az adatokat NEM szólaltathatja meg
         # automatikusan — csak szükség esetén, megerősítéssel használhatja.
+        # MU-0.3: EVAL_CALLER_NUMBERS számokra a feloldás KIHAGYVA — a
+        # teszthívások minden kontextus nélkül, „új ügyfélként" futjanak,
+        # különben a 2. hívástól a diktálás elmaradna (a mérés érvénytelenne).
         try:
-            _id_primary, _id_conflict = db.resolve_client_identity(phone=early_caller_phone)
+            if _is_eval_caller(early_caller_phone):
+                logger.info("EVAL hívószám: ügyfél-kontextus injectálás KIHAGYVA (MU-0.3)")
+                _id_primary = _id_conflict = None
+            else:
+                _id_primary, _id_conflict = db.resolve_client_identity(phone=early_caller_phone)
             if _id_conflict:
                 db.mark_duplicate_suspect(_id_primary["id"], _id_conflict, "voice hívás: a hívó száma és egy másik erős kulcs eltérő ügyfélhez tartozik")
                 db.mark_duplicate_suspect(_id_conflict, _id_primary["id"], "voice hívás: a hívó száma és egy másik erős kulcs eltérő ügyfélhez tartozik")

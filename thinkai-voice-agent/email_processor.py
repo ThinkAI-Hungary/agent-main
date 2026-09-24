@@ -30,6 +30,29 @@ from classifier import classify_interaction
 
 import call_recorder
 
+# ── MU-0.1: EMAIL_DRY_RUN — teszthívások küldés-tiltalmа ─────────────────────
+# EMAIL_DRY_RUN=1 esetén a Brevo-hívás HELYETT logolunk (címzett, sablon,
+# session) és email_logs sor status="dry_run"-nal keletkezik. Cél: az 50
+# teszthívás kitalált címei NE menjenek ki valós levélként (idegen címmegcímzés
+# + bounce-ok rontják a hello@thinkai.hu Brevo-reputációját).
+def _dry_run_email(kind: str, to_email: str, to_name: str, subject: str,
+                   session_id: str = "") -> bool:
+    """Dry-run küldés: NEM hívja a Brevo-klienst. Siker-True-t ad vissza, hogy
+    a hívó logika (audit, lánc) továbbfusson. Sosem dob."""
+    logger.info(f"[EMAIL_DRY_RUN] {kind} → {to_email} ({to_name!r}) "
+                f"tárgy: {subject!r} session={session_id or '-'}")
+    try:
+        db.add_email_log(to_name or to_email.split("@")[0], to_email, subject,
+                         f"[DRY-RUN] {kind}", "dry_run",
+                         session_id=session_id or "")
+    except Exception as exc:
+        logger.warning(f"Dry-run email_logs írás sikertelen: {exc}")
+    return True
+
+
+def _email_dry_run_enabled() -> bool:
+    return (os.getenv("EMAIL_DRY_RUN", "0") or "0").strip() == "1"
+
 # Hívásrögzítés-retention: naponta egyszer futó takarítás (utolsó futás napja)
 _last_recording_purge_day: str = ""
 
@@ -1898,6 +1921,10 @@ async def send_reminder_email(to_email: str, subject: str, html_content: str) ->
     if not api_key:
         logger.error('Nincs beállítva BREVO_API_KEY az emlékeztető e-mailhez.')
         return False
+    # MU-0.1: dry-run — emlékeztető út valós küldés nélkül (ügyfél-címzett,
+    # a tesztablakban ez is kitalált címre menne)
+    if _email_dry_run_enabled():
+        return _dry_run_email("reminder", to_email, "", subject)
     import httpx
     try:
         async with httpx.AsyncClient() as client:
@@ -2243,6 +2270,12 @@ async def send_booking_confirmation_email(event_id: int, title: str, date: str, 
             logger.error("Nincs beállítva BREVO_API_KEY az időpont visszaigazoló e-mailhez.")
             return
 
+        # MU-0.1: dry-run — visszaigazoló (és legacy) út valós küldés nélkül
+        if _email_dry_run_enabled():
+            _dry_run_email("booking_confirmation", attendee_email, attendee,
+                           subject, session_id="")
+            return
+
         email_payload = {
             "sender": _get_sender(),
             "to": [{"email": attendee_email, "name": attendee}],
@@ -2362,6 +2395,12 @@ async def send_email_verification_email(session_id: str, event_ids: list, attend
     api_key = _get_brevo_api_key()
     if not api_key:
         logger.error("Nincs beállítva BREVO_API_KEY az e-mail-ellenőrző (dupla opt-in) levélhez.")
+        return
+
+    # MU-0.1: dry-run — dupla opt-in út valós küldés nélkül
+    if _email_dry_run_enabled():
+        _dry_run_email("double_opt_in", attendee_email, name, subject,
+                       session_id=session_id or "")
         return
 
     try:

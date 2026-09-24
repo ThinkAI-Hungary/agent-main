@@ -59,6 +59,12 @@ def _confidence_threshold() -> float:
     except (TypeError, ValueError):
         return 0.99
 
+
+def _pipeline_version() -> str:
+    """MU-0.2: az email_verify_runs.pipeline_version címke. Az 50 teszthívás
+    alatt a bevetett kód 'baseline' — az MU-1/2 deploy után 'wp-e2'."""
+    return (os.getenv("EMAIL_VERIFY_PIPELINE_VERSION", "baseline") or "baseline").strip()
+
 # A tools._EMAIL_RE-vel azonos laza szintaxis-szabály
 EMAIL_SYNTAX_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
 # Kinyeréshez szigorúbb minta (proza pontok ne csaljanak)
@@ -950,7 +956,8 @@ def extract_scribe_name(caller_text: str) -> str:
 
 # ── Orchisztrátor ────────────────────────────────────────────────────────────
 def run_harness(session_id: str, tenant_id=None, interaction_id=None, turns=None,
-                booking_email: str = "", booking_name: str = "", client_id=None) -> dict:
+                booking_email: str = "", booking_name: str = "", client_id=None,
+                caller_number: str = "") -> dict:
     """A teljes ellenőrzési folyamat. SOHA nem dob kivételt — hiba esetén
     {"status": "error"} (a hívó fail-open legacy küldésre vált)."""
     try:
@@ -958,6 +965,7 @@ def run_harness(session_id: str, tenant_id=None, interaction_id=None, turns=None
             session_id, tenant_id=tenant_id, interaction_id=interaction_id,
             turns=turns or [], booking_email=booking_email,
             booking_name=booking_name, client_id=client_id,
+            caller_number=caller_number,
         )
     except Exception as exc:
         logger.warning(f"Email-ellenőrző harness hiba (fail-open): {exc}")
@@ -965,7 +973,8 @@ def run_harness(session_id: str, tenant_id=None, interaction_id=None, turns=None
 
 
 def _run_harness_inner(session_id, tenant_id, interaction_id, turns,
-                       booking_email, booking_name, client_id) -> dict:
+                       booking_email, booking_name, client_id,
+                       caller_number="") -> dict:
     if tenant_id:
         try:
             db.set_current_tenant(tenant_id)
@@ -995,8 +1004,14 @@ def _run_harness_inner(session_id, tenant_id, interaction_id, turns,
         return {"status": "no_recording"}
 
     # b) Scribe újraátirat (hívó = bal csatorna)
+    _t0 = time.monotonic()
     scribe = transcribe_wav_bytes(data)
+    _stt_ms = int((time.monotonic() - _t0) * 1000)
     if not scribe:
+        db.log_email_verify_run(
+            session_id, tenant_id=tenant_id, caller_number=caller_number,
+            mode="live", pipeline_version=_pipeline_version(),
+            readings={}, verdict="error", winner="")
         return {"status": "error"}
     channels = _channel_texts(scribe)
     # A hívó a BAL csatorna (kisebb channel_index); az agent-szöveg csak kontextus
@@ -1084,6 +1099,23 @@ def _run_harness_inner(session_id, tenant_id, interaction_id, turns,
         scribe_lp = _min_logprob_for_email(caller_words, caller_text)
     except Exception:
         pass
+
+    # MU-0.2: futás-napló (baseline) — a verdikt hívásonként kereshetően
+    db.log_email_verify_run(
+        session_id, tenant_id=tenant_id, caller_number=caller_number,
+        mode="live", pipeline_version=_pipeline_version(),
+        readings={
+            "live": live_email, "llm": llm_email,
+            "llm_confidence": llm.get("confidence", 0.0),
+            "scribe": scribe_email, "jev": {"choice": winner,
+                                            "confidence": arb.get("confidence"),
+                                            "source": arb.get("source")},
+        },
+        gate={"agree": bool(agree), "syntax": validation.get("syntax"),
+              "mx": validation.get("mx"), "threshold": _confidence_threshold()},
+        timings_ms={"soniox": _stt_ms},
+        winner=new_email or "", verdict="green" if green else "non_green",
+    )
 
     return {
         "status": "green" if green else "non_green",
@@ -1297,6 +1329,7 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
             booking_email=booking_email,
             booking_name=booking_name,
             client_id=client_id,
+            caller_number=(tools.get_caller_phone() or ""),
         )
     except Exception as exc:
         logger.warning(f"Email-ellenőrző harness hiba (fail-open): {exc}")

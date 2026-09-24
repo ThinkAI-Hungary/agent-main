@@ -1680,6 +1680,50 @@ def is_valid_client_name(name: str | None) -> bool:
     return True
 
 
+def log_email_verify_run(session_id: str, tenant_id=None, caller_number: str = "",
+                         mode: str = "live", pipeline_version: str = "baseline",
+                         readings=None, gate=None, audio_detail=None,
+                         timings_ms=None, winner: str = "", verdict: str = "",
+                         audio_qc=None, ground_truth: str | None = None) -> bool:
+    """WP-E2 MU-0.2: hívásonkénti futás-napló (email_verify_runs). A két
+    tesztelő ugyanarról a számról hív, így a clients-sori audit felülíródna —
+    a verdiktek itt maradnak hívásonként. Fail-open: sosem dob."""
+    try:
+        row = {
+            "session_id": session_id,
+            "caller_number": caller_number or None,
+            "mode": mode,
+            "pipeline_version": pipeline_version,
+            "readings": readings,
+            "gate": gate,
+            "audio_detail": audio_detail,
+            "timings_ms": timings_ms,
+            "winner": winner or None,
+            "verdict": verdict or None,
+            "audio_qc": audio_qc,
+            "ground_truth": ground_truth,
+        }
+        if tenant_id:
+            row["tenant_id"] = tenant_id
+        supabase.table("email_verify_runs").insert(_with_tenant(row)).execute()
+        return True
+    except Exception as e:
+        logger.warning(f"email_verify_runs írás sikertelen ({session_id}): {e}")
+        return False
+
+
+def set_email_verify_run_ground_truth(session_id: str, ground_truth: str) -> bool:
+    """MU-3.2 replay: a ground truth visszairása a baseline (mode=live) sorokra."""
+    try:
+        supabase.table("email_verify_runs").update(
+            {"ground_truth": ground_truth}
+        ).eq("session_id", session_id).eq("mode", "live").execute()
+        return True
+    except Exception as e:
+        logger.warning(f"email_verify_runs ground_truth írás sikertelen ({session_id}): {e}")
+        return False
+
+
 def normalize_phone_digits(p: str) -> str:
     """Telefonszám normalizálás egyeztetéshez: csak számjegyek, 06→36.
     Visszatérés: az UTOLSÓ 9 számjegy — a +36/06/kötőjeles/szóközös írásmódok
