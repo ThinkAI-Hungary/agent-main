@@ -159,3 +159,14 @@ LiveKit SIP dokumentáció szerint a **G.722 out-of-the-box támogatott** — a 
 - **Döntő ellenőrzés (user, 1 perc)**: Telnyx portal → Logs → Calls → a 11:25-ös teszthívás → részletek: a két call leg kodekje ott látszik. Ha a Telnyx→LiveKit láb OPUS/G722 → a szűksáv a hívó upstreamből jön (akkor konfiggal nem javítható); ha G711 → LiveKit válasz-oldali kérdés (LiveKit Cloud support).
 - A `call_events` API ezzel a kulccsal is 0 eseményt ad (scope-korlát) — a codec-információ csak a portálon látszik.
 - **A rögzítő hibái ettől függetlenül javítandók** (tail-append + wall-clock grid + drop-oldest) — ezek a hallható "darabosság" gyanúsítottjai akkor is, ha a forrás szűksáv.
+
+## Kiegészítés 3 (2026-09-24, este) — Telnyx CDR: a kodek-egyeztetés JOÓ (a szűksáv upstreamről jön)
+
+A user a Telnyx portál **CDR-exportját** adta a 11:25-ös teszthívásról (`+36706369528` → `+3612114217`):
+- **`Rtp codec: G722`** — a Telnyx↔LiveKit lábon SZÉLESSÁV egyezett (nem G.711!)
+- **`MoS: 4,49`**, `Quality percentage: 98,75%` — a szállítás minősége kiváló
+- PDD 0,5 s, hangup 16 = NORMAL_CLEARING, connection: `LiveKit SIP Trunk` (2973359939059189470)
+
+**Következtetés (a korábbi diagnózis pontosítása)**: a Telnyx→LiveKit láb rendben van — G.722-t vitt, jó minőségben. A felvételben mért 3,4 kHz-es vágás tehát **az upstreamből** jön: a hívó mobilja → Telnyx HU DID összeköttetés szűksávot (AMR-NB) szolgáltatott, amit a G.722 "átfektet" (a tartalom marad 3,4 kHz). Ez konfigurációval NEM javítható — a Telnyx magyar DID-jeinek nemzetközi bejárata szűksáv. Opciók: magyar szélessáv-­képes SIP-origination (HU helyi trunk provider), vagy elfogadjuk a telefónia-természetes szűksávot.
+
+**Továbbra is javítandó (kód-oldal)**: a rögzítő idővonal-hibái (tail-append sorrend, wall-clock grid jitter, drop-oldest) — ezek a felvételt a forráshoz képest TOVÁBB rontják, és kijavíthatók. A harness főmotor → Soniox váltás ezen belül következik (user-döntés).
