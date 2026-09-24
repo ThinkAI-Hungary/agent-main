@@ -424,15 +424,17 @@ class TestSttDispatcher:
 
 
 class TestSonioxTokens:
-    def test_async_tokenek_to_words(self):
+    def test_fragment_tokenek_szohatarral(self):
+        # Soniox: szub-szavas fragmentek, a szóhatár a token szövegének
+        # VEZETŐ SZÓKÖZÉBEN van (dokumentáció szerint direkt összefűzendők)
         toks = [
-            {"text": "kovacs", "start_ms": 0, "end_ms": 300, "confidence": 0.95},
-            {"text": "akos", "start_ms": 300, "end_ms": 600},
+            {"text": "kovacs", "confidence": 0.95},
+            {"text": " akos"},
             {"text": "", "confidence": 0.9},
             "szemét",
             {"text": "<end>"},
         ]
-        words = evh._soniox_async_tokens_to_words(toks)
+        words = evh._soniox_tokens_to_words(toks)
         assert [w["text"] for w in words] == ["kovacs", "akos"]
         assert words[0]["logprob"] == pytest.approx(math.log(0.95))
         assert words[1]["logprob"] == -0.7  # nincs confidence → semleges
@@ -483,15 +485,13 @@ class TestCandidateVariants:
 
 class TestSonioxAsyncTokens:
     def test_konverzio(self):
-        import math
         toks = [
             {"text": "kovacs", "confidence": 0.95},
-            {"text": "akos"},
+            {"text": " akos"},
             {"text": "", "confidence": 0.9},
             "szemét",
             {"text": "<end>"},
         ]
-        words = evh._soniox_async_tokens_to_words(toks)
+        words = evh._soniox_tokens_to_words(toks)
         assert [w["text"] for w in words] == ["kovacs", "akos"]
-        assert words[0]["logprob"] == pytest.approx(math.log(0.95))
         assert words[1]["logprob"] == -0.7

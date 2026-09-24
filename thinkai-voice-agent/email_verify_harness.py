@@ -507,23 +507,41 @@ def _soniox_headers():
     return {"Authorization": f"Bearer {key}"} if key else None
 
 
-def _soniox_async_tokens_to_words(tokens: list) -> list:
-    """Soniox async transcript tokenek (text, start_ms, end_ms, confidence?) →
-    Scribe-kompatibilis word-lista. Nincs confidence → semleges logprob (-0,7):
-    a token számít szónak, de a logprob-kapu nem utasítja el."""
+def _soniox_tokens_to_words(tokens: list) -> list:
+    """Soniox async tokenek (szub-szavas fragmentek, a szóhatár a token
+    szövegének vezető szóközében) → szó-lista ({text, logprob}).
+    Konfidencia nélküli token → -0,7 (semleges logprob)."""
     words = []
+    buf = ""
+    buf_lp = None
+
+    def _flush():
+        nonlocal buf, buf_lp
+        if buf:
+            words.append({"text": buf,
+                          "logprob": buf_lp if buf_lp is not None else -0.7})
+        buf = ""
+        buf_lp = None
+
     for t in tokens:
         if not isinstance(t, dict):
             continue
-        text = str(t.get("text") or "")
-        if not text or text in ("<end>", "<fin>"):
+        tt = str(t.get("text") or "")
+        if not tt or tt in ("<end>", "<fin>"):
             continue
         conf = t.get("confidence")
         try:
             lp = math.log(max(float(conf), 1e-6)) if conf is not None else -0.7
         except (TypeError, ValueError):
             lp = -0.7
-        words.append({"text": text, "type": "word", "logprob": lp})
+        parts = tt.split(" ")
+        for j, part in enumerate(parts):
+            if j > 0:
+                _flush()
+            if part:
+                buf += part
+                buf_lp = min(buf_lp, lp) if buf_lp is not None else lp
+    _flush()
     return words
 
 
@@ -587,7 +605,9 @@ def _transcribe_soniox(data: bytes) -> dict:
             try:
                 r2 = requests.get(_SONIOX_API + f"/v1/transcriptions/{tr_id}/transcript",
                                   headers=H, timeout=60)
-                tokens = (r2.json() or {}).get("tokens")
+                tr_json = r2.json() or {}
+                tokens = tr_json.get("tokens")
+                transcript_text = tr_json.get("text")
             except Exception as exc:
                 logger.warning(f"Soniox transcript letöltés hiba: {exc}")
             break
@@ -602,11 +622,12 @@ def _transcribe_soniox(data: bytes) -> dict:
         except Exception:
             pass
 
-    words = _soniox_async_tokens_to_words(tokens or [])
+    words = _soniox_tokens_to_words(tokens or [])
     if not words:
         logger.warning("Soniox STT: üres átirat")
         return {}
-    text = re.sub(r"\s+", " ", " ".join(w["text"] for w in words)).strip()
+    text = (transcript_text or "").strip() or \
+        re.sub(r"\s+", " ", " ".join(w["text"] for w in words)).strip()
     return {"text": text, "words": words}
 
 
