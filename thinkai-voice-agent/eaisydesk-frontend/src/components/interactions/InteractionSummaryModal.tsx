@@ -883,6 +883,17 @@ export default function InteractionSummaryModal({
   const isPhoneChannel = channelKey === 'Telefon';
   const hasRecording = isPhoneChannel && !!row.recording_url && !!row.sessionId;
   const turns: TranscriptTurn[] = row.transcript_turns || [];
+  // WP D: rögzítés + turnuslista esetén a bubble-ök KÖZVETLENÜL a
+  // transcript_turns-ból épülnek — a diary-alapú parse telefonnál üres lehet,
+  // és így a start_s offsetek 1:1 illeszkednek a hanghoz (index = turnus).
+  const displayBlocks = useMemo<ChatBlock[]>(() => {
+    if (!hasRecording || turns.length === 0) return chatBlocks;
+    return turns.map((t) => ({
+      sender: t.role === 'user' ? ('user' as const) : ('ai' as const),
+      text: t.text,
+      timestamp: (row.date || '').replace('T', ' ').slice(0, 16) || undefined,
+    }));
+  }, [hasRecording, turns, chatBlocks, row.date]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const audioUrlRef = useRef<string>('');
   const [audioUrl, setAudioUrl] = useState('');
@@ -947,32 +958,13 @@ export default function InteractionSummaryModal({
     try { audioRef.current?.pause(); } catch { /* már eltávolítva */ }
   }, []);
 
-  // Bubble → seek-pont hozzárendelés: sorrend szerint (a turnusok a beszélgetés
-  // valós sorrendjében rögzülnek), eltérésnél szöveg-egyezés fallback.
+  // Bubble → seek-pont hozzárendelés: rögzítés + turnuslista esetén a
+  // displayBlocks közvetlenül a turns-ból épül → index-alapú, determinisztikus.
   // Régi hívások turnusok NÉLKÜL: turnSeek mindenhol -1 → sima bubble-ök.
   const turnSeek = useMemo<number[]>(() => {
-    const res: number[] = chatBlocks.map(() => -1);
-    if (!hasRecording || turns.length === 0) return res;
-    const norm = (s: string) => (s || '').replace(/\s+/g, ' ').trim().toLowerCase();
-    const byText = new Map<string, number>();
-    turns.forEach((t) => {
-      const k = norm(t.text);
-      if (k && !byText.has(k)) byText.set(k, t.start_s);
-    });
-    let p = 0;
-    chatBlocks.forEach((b, i) => {
-      if (b.sender === 'system') return;
-      const role = b.sender === 'user' ? 'user' : 'ai';
-      while (p < turns.length && turns[p].role !== role) p++;
-      if (p < turns.length && norm(turns[p].text) === norm(b.text)) {
-        res[i] = turns[p].start_s;
-        p++;
-      } else {
-        res[i] = byText.get(norm(b.text)) ?? -1;
-      }
-    });
-    return res;
-  }, [chatBlocks, turns, hasRecording]);
+    if (!hasRecording || turns.length === 0) return displayBlocks.map(() => -1);
+    return displayBlocks.map((b, i) => (turns[i] && b.sender !== 'system' ? turns[i].start_s : -1));
+  }, [displayBlocks, turns, hasRecording]);
 
   // ── Avatar helper ──
   const clientName = row.client || 'Ismeretlen';  const clientInitials = clientName
@@ -1201,14 +1193,14 @@ export default function InteractionSummaryModal({
                       </div>
                     )}
 
-                {chatBlocks.length === 0 && !isPendingApproval ? (
+                {displayBlocks.length === 0 && !isPendingApproval ? (
                   <div className="ism-no-history">Nincs előzmény</div>
                 ) : (
                   <>
                     {/* Chat messages — hide AI blocks when pending approval (shown as draft below) */}
                     {(isPendingApproval
-                      ? chatBlocks.filter((b) => b.sender !== 'ai')
-                      : chatBlocks
+                      ? displayBlocks.filter((b) => b.sender !== 'ai')
+                      : displayBlocks
                     ).map((block, i) =>
                       block.sender === 'system' ? (
                         <div key={i} className="ism-chat-system">
