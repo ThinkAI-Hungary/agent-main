@@ -66,6 +66,20 @@ Külső szemléletű review-agent nézte át a teljes WP-E3 láncot (1 BLOCKER +
 - **HOTFIX közben**: rossz modulról importált `validate_confirmation_email` → web_server nem indult (unhealthy) — javítva, health 200.
 - **Review-maradvány (nem blokkoló, később)**: m3 (+1h clamp a foglalás után), m4 (bookings[0] vs legkorábbi), m5 (nem egyetlen tranzakció), m6 (holt helper), m8 (bérlőnkénti sms-kapcsolók), m9–m11 (nem-hermetikus teszt, körkörös signature-teszt, szinkron I/O az /e/ végpontban), n1–n7 nitek, és a teszt-fájlok sys.modules sorrend-érzékenysége.
 
+## 1g. KÖVETKEZŐ LÉPÉS — 10 hívásos teszt (2026-09-24 zárás)
+
+A user döntése: a teszt **10 hívással** fut (nem 50+12). A staging a review-javított állapotot futtatja (`6d19fff`), env: `EMAIL_VERIFY_FLOW=smsfirst`, `EMAIL_VERIFY_SMS_MODE=nongreen`, `SMS_DRY_RUN=0` (valódi SMS a +36707177914-ről), `EMAIL_DRY_RUN=1`, `EVAL_CALLER_NUMBERS` beállítva. Prompt: az email TERMÉSZETESEN kérendő — betűzés/visszaolvasás/igazoltatás tiltva (prompt_utils 4. szabály).
+
+**A 10 hívás után:**
+1. `python scripts/check_eval_isolation.py --hours 12 --callers +36709436426,+36706369528` (konténerben) — session-izoláció bizonyítás.
+2. `python scripts/replay_harness.py --csv tesztlista_50_hivas.csv --date <nap> --callers A=+36709436426,B=+36706369528` — összesítő (audio/stt pontosság, zöld precizitás, SMS-kézbesítés, korrekciós arány).
+3. Döntés: ha az audio-olvasat hibája ~0 és a kattintási arány jó → az smsfirst marad; egyébként finomhangolás.
+
+**Nyitott user-döntések:**
+- Visszatérő-ügyfél cím-felolvasás (`server.py:355`): az agent a TÁROLT címet felolvassa megerősítésként ('a rögzített címre küldhetjük?') — privacy-kockázat (nem tulaj hívhat a számról). Átírni: 'a rendszerünkben rögzített e-mail címre küldhetjük?' — user dönt.
+- `PUBLIC_CONFIRM_BASE_URL` publikus domain (most az admin domain esik be).
+- Review-maradványok (nem blokkoló): m3/m4/m5/m6/m8–m11 + n1–n7 a HANDOFF 1f-ben; bérlőnkénti sms-kapcsolók.
+
 ## 1b. Élő rendszer (staging, `4d9c21f`)
 
 - **wp-e2 pipeline ÉL** (nem baseline!): független kapu (live+stt+audio readings, GREEN_3OF3 / GREEN_2OF2_KNOWN / NG_CONTRADICTION / NG_NO_EMAIL…), Soniox a kinyontott HÍVÓ csatornán + audio-LLM (gemini-3.8-flash inline audio) PÁRHUZAMOSAN (mérés: soniox 6–10 s, audio 2–4 s, total 10–21 s), JEV csak rangsorol (`EMAIL_VERIFY_JEV_GREEN=0`).
