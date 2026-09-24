@@ -868,16 +868,24 @@ SZABÁLYOK:
                 # A foglalás közben NEM ment ki visszaigazoló (tools.book_meeting
                 # késleltet): zöld verdict → most, nem-zöld → dupla opt-in. Minden
                 # hiba fail-open: a harness maga küldi legacy-ben, ha elhasal.
+                # FONTOS: await — fire-and-forget task kilépéskor elhalna, mert a
+                # worker-folyamat az entrypoint visszaadása után leáll (a Scribe/
+                # Soniox átirat 30-90 s-ig is futhat, ezért timeout-ban védve).
                 if os.getenv("EMAIL_VERIFY_MODE", "0") == "1":
                     try:
                         from email_verify_harness import run_and_apply_email_verification
-                        _spawn(run_and_apply_email_verification(
-                            session_id=session_id,
-                            tenant_id=tenant_id,
-                            interaction_id=interaction_id,
-                            turns=(recorder.turns if recorder and recorder.turns else []),
-                            client_id=client_id,
-                        ), name=f"verify-{session_id}")
+                        await asyncio.wait_for(
+                            run_and_apply_email_verification(
+                                session_id=session_id,
+                                tenant_id=tenant_id,
+                                interaction_id=interaction_id,
+                                turns=(recorder.turns if recorder and recorder.turns else []),
+                                client_id=client_id,
+                            ),
+                            timeout=240,
+                        )
+                    except asyncio.TimeoutError:
+                        logger.warning("Email-ellenőrző harness timeout (fail-open legacy küldés)")
                     except Exception as hve:
                         logger.warning(f"Email-ellenőrző harness indítása sikertelen (fail-open legacy küldés): {hve}")
                         try:
