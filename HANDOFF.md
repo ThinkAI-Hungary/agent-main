@@ -4,7 +4,56 @@
 
 - **Ezt a HANDOFF.md-t MINDEN utasítás elvégzése UTÁN frissíteni kell** (mit csináltunk, hol állunk, mi a következő lépés), majd commit + push `origin/rebuild`-re. Cél: bármikor indulhat új session, ebből a fájlból kell tudnia folytatni.
 - Deploy után verifikálni (konténer healthy, logok tiszták), és az eredményt is beírni.
-- A friss, teljes rendszerdokumentáció: `/root/eaisydesk-handoff-final.md` (a repón KÍVÜL van, mert kulcsokat tartalmaz — soha ne commitold!). A repóban lévő régi dokik (`dokumentumok/`, AGENT_DOCS, RENDSZERLEIRAS) elavultak.
+- A friss, teljes rendszerdokumentáció: `/root/eaisydesk-handoff-final.md` (a repón KÍVÜL van, mert kulcsokat tartalmaz — soha ne commitold!)
+
+---
+
+# 🎯 START CSOMAG — WP-E folytatás új sessionben (2026-09-24 este; ELSŐNEK Ezt olvasd)
+
+**Állapot egy mondatban**: az 5 Dentors-feladat közül 4 él a stagingen (WP-A feladó-szűrő, WP-B szerkesztett-válasz jelző, WP-C dashboard, WP-D hívásrögzítés+lejátszó); az 5. (WP-E post-call email-verifikációs harness) fel van építve és deployolva, DE a valódi teszthívások **két hibát tártak fel, amit a user LLM+JEV redesignnal rendelt el javítani** — ezt kell elsőnek megcsinálni.
+
+**Environment gyorsan**: staging `https://digideskadmin.molaire.hu` (konténer: ez a host, `/root/ugyfelszolg/docker-compose.yml` → `dobozos-agent`); branch `rebuild`, utolsó commit: `2374b28` + docs; Supabase staging = `qhhnqqsthdrwacsxommt`, **prod = `dsiluafthysysnstszbd` (az MCP defaultja EZ — vigyázz!)**. Staging DDL/SELECT: Management API `POST https://api.supabase.com/v1/projects/qhhnqqsthdrwacsxommt/database/query`, Bearer = sbp token (a `/root/.zcode/cli/config.json` → `.mcp.servers.supabase.args[3]`; jq-vel kiszedhető, soha ne írasd ki). Staging-identitás ellenőrzés: a `client_change_log` tábla csak stagingen létezik.
+
+## 1. WP-E jelenlegi (működő, de redesignalandó) állapot
+
+- `email_verify_harness.py`: hívás vége → felvétel letöltése a `recordings` bucketből → **Soniox async fájl-átirat** (`stt-async-v5`, fallback `v4`; api.soniox.com: `/v1/files` upload → `/v1/transcriptions` → poll → `/transcript`; Bearer SONIOX_API_KEY) → magyar normalizáló → email-jelöltek → JEV arbitráció → verdict.
+- `EMAIL_VERIFY_MODE=1` él a staging .env-ben. Green → visszaigazoló megy; non-green → **dupla opt-in** („Kérjük, erősítse meg az e-mail címét" + `/api/public/verify-email?token=` JWT-link; kattintásra megy a visszaigazolás).
+- Élő E2E igazolva: felvétel → átírás → dupla opt-in levél → kattintás → visszaigazolás (email_logs: clicked → sent).
+
+## 2. 🔴 A user által elrendelt REDESIGN (ez az első feladat)
+
+**A user szavainak értelme**: a harness **NEM hasonlítja össze a kinyert címet az ügyfél nevével vagy a korábbi emailjével** — egy diktált címfelismerésnek semmi köze az ügyfél nevéhez. A címet **önmagában a SZÖVEGBŐL** kell értelmezni. Az extraction lehet LLM-alapú (nem csak regex). **LLM + JEV együtt.**
+
+Megvalósítandó terv:
+1. **LLM-extrakció**: egy Gemini Flash-hívás kapja a KÉT átiratot (élő Gemini-transzkripció + Soniox-async átirat, mindkettő magyar) és JSON-ban adja vissza: `{"email": str|null, "name": str|null, "variants": [minden hallott változat], "confidence": float}`. Prompt: a diktálás magyar konvencióival (kukac=@, pont=., betűzés, „egybe kell írni"), és hogy az agent neve/mondatai NEM ügyféladatok.
+2. **JEV-verification**: a jelöltekre choice-kérdés („melyik a hihetőbb írásmodell?") + konfidencia. Autonóm korrekció csak conf ≥ 0,99-nél (EMAIL_VERIFY_CONF_THRESHOLD); alatta → non-green.
+3. **Döntési mátrix változatlan**: green → visszaigazoló most; non-green → dupla opt-in + audit.
+4. **NÉV-út hiba (élőben előfordult)**: a harness a hívó által az AGENT-nek mondott nevet („Gábor") írta az ügyfél nevének → **ügyfél-név-felülírás csak akkor, ha a hívásban book_meeting valóban rögzített nevet; az agent-persona név („Gábor") és az agent megszólítás tiltólistán**. E nélkül: EMAIL_VERIFY_MODE=0-ra állítandó, vagy a user tudjon róla.
+
+## 3. Élő rendszer-állapot (staging)
+
+- Deployolt HEAD: `2374b28` + `6fd74e4` (Soniox async) + `293f4b3` (jelölt-tisztítás) + `3890fe5` (harness await) + `c270cd3`/`e1271b4` (audio_qc + audit) + `0a0b699` (rögzítő jitter-tűrő writer + Krisp de-stack) + `6290100` (Soniox async végleges).
+- Konténer healthy, EMAIL_VERIFY_MODE=1, RECORDINGS_ENABLED=1 (retention 30 nap).
+- Staging DB **TISZTÍTVA**: 0 ügyfél / 0 interakció / 0 session / 0 email_log / 0 processed_email / 0 task; calendar_events (12 demo) maradt. A tiszta lap szándékos — az 5 teszthívás előtt ez volt az állapot.
+- Telnyx staging fiók: kulcs a rivergate `tenant_credentials.telnyx_api_key`-ben; a `LiveKit SIP Trunk` connection (+3612114217) `inbound.codecs = ["OPUS","G722"]` — szélessávot AJÁNL, mégis szűksáv mérve → a szűk részt a **hívó upstream** (mobil → Telnyx HU DID) adja, konfiggal nem javítható. Ellenőrzés: Telnyx portal → Logs → Calls → lánconkénti kodek.
+
+## 4. Tesztelési protokoll (5 hívás — a user vállalta, hogy elvégzi)
+
+Minden hívás után: (1) `python3 scripts/audio_qc.py <wav> --channel 0` és `--channel 1` — sávszélesség, SNR, rések/perc, dupla frame-ek; (2) Soniox-async átirat vs Gemini-élő átirat összehasonlítás (email-span pontosság); (3) harness verdict + ügyfél-audit (custom_data.email_verification); (4) non-greennél a dupla opt-in levél + kattintás-lánc; (5) regresszió: audio_qc alapszint az auditban.
+
+A felvétel a `recordings` bucketben: `rivergate/<dátum>/<session_id>.wav` — letöltés: a web_server `/admin/api/sessions/{id}/recording?token=<jwt>` végponton vagy storage downloaddal.
+
+## 5. Nyitott tételek (user-döntést várnak)
+
+1. **14 vs 30 nap GDPR-szöveg**: az agent 14 napot mond a rögzítésről, a retention 30 — melyik legyen (prompt + env összehangolása).
+2. **Szélessávú HU bejövő**: a Telnyx HU DID upstream szűksáv — magyar szélessáv-képes SIP-origination provider (üzleti döntés).
+3. **Prod-deploy checklist**: `migrate_recording_columns.sql`, `migrate_interaction_count_toollog.sql`, `migrate_calendar_events_note.sql`, `migrate_client_change_log.sql`, `migrate_completion_timestamps.sql`, `migrate_client_change_log.sql`, prod `text_configs.system_prompt` címkeblokk + `EMAIL_VERIFY_MODE`/`SONIOX_API_KEY` prod env.
+
+---
+
+*WP-D/WP-E részletes történet: lásd a „✅ 2026-09-24" bejegyzéseket lent + HANGFELVETEL_AUDIT.md.*
+
+. A repóban lévő régi dokik (`dokumentumok/`, AGENT_DOCS, RENDSZERLEIRAS) elavultak.
 
 ## Projekt áttekintés
 
