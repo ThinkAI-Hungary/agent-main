@@ -44,3 +44,6 @@ NOTIFY pgrst, 'reload schema';
 
 -- 2026-09-24 esti javítás: event_ids INT kell (calendar_events.id INT), UUID[] nem volt jó
 ALTER TABLE public.email_confirm_tokens ALTER COLUMN event_ids TYPE INT[] USING NULL;
+
+-- 2026-09-24 review-fix (M7): a token visszaviszi az ügyfél-ID-t (a régi címre keresés más ügyfelet írhatott volna át)
+ALTER TABLE public.email_confirm_tokens ADD COLUMN IF NOT EXISTS client_id INT;

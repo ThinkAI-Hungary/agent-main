@@ -40,6 +40,7 @@ from email_confirm_page import (
     render_confirm_page,
     apply_confirmation,
 )
+from email_verify_harness import validate_confirmation_email
 
 THIS_DIR = Path(__file__).resolve().parent
 load_dotenv(THIS_DIR / ".env")
@@ -6446,10 +6447,19 @@ async def twilio_status_callback(request: Request):
 async def email_confirm_page_get(token: str, request: Request):
     """A megerősítő SMS linkjének céloldala (mobil-első űrlap)."""
     try:
-        client_ip = request.client.host if (request and request.client) else "ismeretlen"
+        xff = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+        client_ip = xff or (request.client.host if (request and request.client) else "ismeretlen")
         if rate_limited(client_ip):
             return HTMLResponse(content=_RATE_LIMIT_HTML, status_code=429)
         ctx = load_token_context(token)
+        try:
+            cand = ((ctx.get("row") or {}).get("candidate_email") or "").strip()
+            if cand and not ctx.get("already_confirmed"):
+                v = validate_confirmation_email(cand)
+                if v.get("suggestion"):
+                    ctx["suggestion"] = v["suggestion"]
+        except Exception:
+            pass
         return HTMLResponse(content=render_confirm_page(ctx), status_code=200)
     except Exception as exc:
         logger.warning(f"[EmailConfirmPage] GET hiba (fail-open): {exc}")
@@ -6461,7 +6471,8 @@ async def email_confirm_page_post(token: str, request: Request, email: str = For
     """Űrlap beküldése: apply_confirmation (idempotens 4.3-as hatások) →
     köszönő oldal vagy hibaüzenet."""
     try:
-        client_ip = request.client.host if (request and request.client) else "ismeretlen"
+        xff = (request.headers.get("x-forwarded-for") or "").split(",")[0].strip()
+        client_ip = xff or (request.client.host if (request and request.client) else "ismeretlen")
         if rate_limited(client_ip):
             return HTMLResponse(content=_RATE_LIMIT_HTML, status_code=429)
         res = apply_confirmation(token, email or "")
@@ -6469,6 +6480,13 @@ async def email_confirm_page_post(token: str, request: Request, email: str = For
         if res.get("ok"):
             return HTMLResponse(
                 content=render_confirm_page(ctx, confirmed_email=res.get("email") or ""),
+                status_code=200)
+        if res.get("needs_suggestion"):
+            # B1: gépelés-javaslat — az oldal a javaslattal jön vissza
+            # ('Erre gondolt: …?' gomb), megerősítés NEM történt
+            return HTMLResponse(
+                content=render_confirm_page(ctx, error=res.get("error"),
+                                            suggestion=res.get("suggestion") or ""),
                 status_code=200)
         return HTMLResponse(
             content=render_confirm_page(ctx, error=res.get("error") or "feldolgozási hiba"),

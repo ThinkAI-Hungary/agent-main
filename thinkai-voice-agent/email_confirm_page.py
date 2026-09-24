@@ -314,11 +314,14 @@ def render_confirm_page(ctx: dict, error: str = "", suggestion: str = "",
         sugg_html = ""
         sugg = (suggestion or "").strip()
         if sugg:
-            js_val = _esc(sugg)
+            # M1-fix: Nincs onclick/JS (a laza email-regex megenged ';" karaktereket
+            # → JS-injektálás lett volna) — külön FORM hidden inputtal, csak
+            # html.escape-elt értékkel.
             sugg_html = (
-                f"<button type=\"button\" class=\"ghost\" onclick=\""
-                f"var e=document.getElementById('em');e.value='{js_val}';"
-                f"e.focus();\">Erre gondolt: {_esc(sugg)}?</button>"
+                "<form method=\"post\" action=\"/e/" + _esc(token) + "\">"
+                "<input type=\"hidden\" name=\"email\" value=\"" + _esc(sugg) + "\">"
+                "<button type=\"submit\" class=\"ghost\">Erre gondolt: "
+                + _esc(sugg) + "?</button></form>"
             )
         form = (
             f"<p class=\"idopont\">{_esc(ev_line)}</p>"
@@ -355,15 +358,24 @@ _AUDIT_STATUS = {
 }
 
 
-def _update_client(old_email: str, new_email: str, action: str) -> None:
+def _update_client(old_email: str, new_email: str, action: str,
+                   client_id=None) -> None:
     """Az ügyfél emailjének frissítése audit-nyomvonallal
     (custom_data.email_verification). A régi cím SOHA nem törlődik el
-    hallgatagon: previous mező. Csak az ELSŐ esemény RÉGI címével keres."""
-    if not old_email:
+    hallgatagon: previous mező. M7-fix: ügyfél-ID alapján frissít, ha van
+    (a tokenből jön — MÉRVE hiba volt a régi címre keresés: más ügyfél
+    rekordját írhatta volna át); a cím-keresés csak fallback."""
+    if not old_email and not client_id:
         return
     try:
         import database as db
-        client = db.find_client_by_contact(email=old_email)
+        client = None
+        if client_id:
+            rows = db._tenant_eq(db.supabase.table("clients").select("*")
+                                 ).eq("id", client_id).limit(1).execute().data or []
+            client = rows[0] if rows else None
+        if not client:
+            client = db.find_client_by_contact(email=old_email)
         if not client:
             return
         cd = client.get("custom_data") or {}
@@ -500,6 +512,24 @@ def apply_confirmation(token: str, email: str) -> dict:
                     "error": v.get("error") or "érvénytelen e-mail cím",
                     "already": False}
 
+        # B1-fix (review): gépelés-javaslat esetén NINCS azonnali megerősítés —
+        # az oldal újratölt a javaslattal ('Erre gondolt: …?'), a user dönt.
+        # (MX-t birtokló elgépelt domain különben egy kattintással
+        # megerősítetté vált volna.)
+        if v.get("suggestion"):
+            return {"ok": False, "action": "", "email": clean,
+                    "suggestion": v["suggestion"], "error": None,
+                    "needs_suggestion": True, "already": False}
+
+        # M6-fix: a token tenant_id-je beállítja a kontextust — multi-tenant
+        # prodnál enélkül a frissítések 0 sort találnának (default tenant).
+        try:
+            import database as _db
+            if row.get("tenant_id"):
+                _db.set_current_tenant(row["tenant_id"])
+        except Exception:
+            pass
+
         candidate = (row.get("candidate_email") or "").strip()
         if not candidate:
             action = "provided"
@@ -524,7 +554,8 @@ def apply_confirmation(token: str, email: str) -> dict:
                     "already": False}
 
         old_email = ((events[0].get("attendee_email") if events else "") or "")
-        _update_client(old_email.strip(), clean, action)
+        _update_client(old_email.strip(), clean, action,
+                       client_id=row.get("client_id"))
         _update_events(event_ids, clean)
         # Recepció-jelzés a naptárban: a függő sor helyett megerősítve (WP-E3)
         try:

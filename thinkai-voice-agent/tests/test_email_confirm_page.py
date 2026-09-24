@@ -376,3 +376,33 @@ def test_render_lejart_es_ismeretlen_hibaoldal():
         {"row": None, "events": [], "expired": False,
          "already_confirmed": False, "rendelo": "Rendelő"})
     assert "Érvénytelen link" in ismeretlen
+
+
+# ── review-fix (B1): gépelés-javaslat BLOKKOLJA az azonnali megerősítést ────
+def test_suggestion_blokkolja_majr_az_elfogadas_megerosit(monkeypatch):
+    seq = {}
+
+    def fake_validate(email):
+        return {"ok": True, "error": None,
+                "suggestion": "x@gmail.com" if "gmial" in email else None}
+
+    monkeypatch.setattr(ecp, "validate_confirmation_email", fake_validate, raising=False)
+    monkeypatch.setattr(ecp, "get_confirm_token", lambda t: {
+        "token": t, "session_id": "s1", "tenant_id": None, "event_ids": [7],
+        "phone": "+36709436426", "candidate_email": "x@gmial.com",
+        "expires_at": "2099-01-01T00:00:00Z", "confirmed_at": None,
+        "client_id": 31}, raising=False)
+    monkeypatch.setattr(ecp, "token_is_confirmed", lambda r: False, raising=False)
+    marked = []
+    monkeypatch.setattr(ecp, "mark_confirmed",
+                        lambda t, e, a: marked.append((t, e, a)) or True, raising=False)
+
+    res = ecp.apply_confirmation("tok", "x@gmial.com")
+    assert res.get("needs_suggestion") is True
+    assert res["suggestion"] == "x@gmail.com"
+    assert marked == []  # NEM erősített meg azonnal (élő-incidens B1)
+
+    # a user elfogadja a javaslatot → most már megerősít
+    res2 = ecp.apply_confirmation("tok", "x@gmail.com")
+    assert res2["ok"] is True and res2["action"] == "corrected"
+    assert len(marked) == 1 and marked[0][1] == "x@gmail.com"

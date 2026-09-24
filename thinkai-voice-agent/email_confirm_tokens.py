@@ -76,7 +76,7 @@ def _generate_token() -> str:
 
 def create_confirm_token(session_id: str, tenant_id=None, event_ids=None,
                          phone: str = "", candidate_email=None,
-                         first_booking_start=None) -> dict:
+                         first_booking_start=None, client_id=None) -> dict:
     """Token létrehozása + insert az email_confirm_tokens táblába.
 
     - Token: 12 karakteres véletlen base62, ütközés esetén max. 3 újrapróbálás.
@@ -114,6 +114,7 @@ def create_confirm_token(session_id: str, tenant_id=None, event_ids=None,
                     "event_ids": ev_ids,
                     "phone": phone or "",
                     "candidate_email": candidate_email,
+        "client_id": client_id,
                     "created_at": _iso(now),
                     "expires_at": expires_iso,
                 }

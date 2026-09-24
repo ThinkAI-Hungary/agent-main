@@ -360,3 +360,53 @@ def test_sikeres_kuldes_update_row_id_alapjan(monkeypatch):
     assert res["ok"] is True
     # az update a SOR-ID-n futott, nem a (még üres) provider_sid-en
     assert ("id", "row-42") in calls["eq"]
+
+
+def test_delivered_propagalo_daz_email_verify_runs_ba(monkeypatch):
+    """Review M3: a Twilio-callback delivered státusza fusson be az
+    email_verify_runs.sms_status-ba is (a kézbesítési arány metrika ennélkül
+    mindig 0 lett volna)."""
+    import sys as _sys
+    stub_db = _sys.modules.get("database") or _stub("database")
+    rows = [{"session_id": "s1", "purpose": "email_confirm"}]
+    runs_upd = {}
+
+    class _Res:
+        data = rows
+
+    class _Chain:
+        def __init__(self, kind):
+            self.kind = kind
+
+        def select(self, cols):
+            return self
+
+        def update(self, payload):
+            if self.kind == "runs":
+                runs_upd["payload"] = payload
+            return self
+
+        def eq(self, c, v):
+            if self.kind == "sms_logs":
+                runs_upd["sms_eq"] = (c, v)
+            return self
+
+        def limit(self, n):
+            return self
+
+        def execute(self):
+            return _Res()
+
+    def table(name):
+        return _Chain("sms_logs") if name == "sms_logs" else _Chain("runs")
+
+    monkeypatch.setattr(stub_db, "supabase",
+                        types.SimpleNamespace(table=table), raising=False)
+    monkeypatch.setattr(stub_db, "update_email_verify_run_sms",
+                        lambda sid, sent, status:
+                        runs_upd.update(sid=sid, sent=sent, status=status) or True,
+                        raising=False)
+    ok = ss.update_sms_status("SMdeliv", "delivered")
+    assert ok is True
+    assert runs_upd["sid"] == "s1" and runs_upd["sent"] is True \
+        and runs_upd["status"] == "delivered"

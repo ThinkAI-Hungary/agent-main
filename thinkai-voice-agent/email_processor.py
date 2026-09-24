@@ -1956,13 +1956,32 @@ async def _send_reminder_sms(ev: dict, token_row: dict) -> dict:
     {"ok": False} (a hívó e-mail emlékeztetőre esik vissza)."""
     try:
         from sms_sender import send_sms
-        from email_confirm_tokens import build_reminder_sms_text
+        from email_confirm_tokens import build_reminder_sms_text, create_confirm_token
         session_id = token_row.get("session_id") or ""
         if db.session_has_sms_purpose(session_id, "reminder_sms"):
             return {"ok": True, "status": "already_sent", "dedup": True}
         phone = token_row.get("phone") or ""
         if not phone:
             return {"ok": False, "error": "nincs hívószám a tokenben"}
+        # M4 (review): a token lejárata min(72h, foglalás kezdete) — 4+ napos
+        # távlatnál a T-24h emlékeztető HALOTT linket vinne. Lejárt/lejáró
+        # tokennél ÚJ token készül (friss 72 órával).
+        from datetime import datetime as _dt, timezone as _tz
+        link_token = token_row.get("token")
+        try:
+            exp = _dt.fromisoformat(str(token_row.get("expires_at")).replace("Z", "+00:00"))
+            if exp <= _dt.now(_tz.utc) + timedelta(hours=24):
+                fresh = create_confirm_token(
+                    session_id=token_row.get("session_id") or "",
+                    tenant_id=token_row.get("tenant_id"),
+                    event_ids=token_row.get("event_ids") or [],
+                    phone=phone, candidate_email=token_row.get("candidate_email"),
+                )
+                if fresh.get("ok"):
+                    link_token = fresh["token"]
+                    logger.info("Emlékeztető: lejárt/lejáró token → új token kibocsátva")
+        except Exception:
+            pass  # frissítés sikertelenül a régi linkkel próbálkozunk (fail-open)
         base = (os.getenv("PUBLIC_CONFIRM_BASE_URL") or os.getenv("APP_BASE_URL")
                 or os.getenv("SERVER_URL") or "").rstrip("/")
         start = (ev.get("start_dt") or "")
@@ -1972,7 +1991,7 @@ async def _send_reminder_sms(ev: dict, token_row: dict) -> dict:
         except Exception:
             datum, ido = start[:10], start[11:16]
         rendelo = os.getenv("RENDELO_NAME", "") or "Rendelo"
-        body = build_reminder_sms_text(link=f"{base}/e/{token_row.get('token')}",
+        body = build_reminder_sms_text(link=f"{base}/e/{link_token}",
                                        rendelo=rendelo, datum=datum, ido=ido)
         return await asyncio.to_thread(
             send_sms, phone, body,
@@ -2018,7 +2037,16 @@ async def _run_reminders_for_tenant(tenant: dict):
                 if sms_res.get('ok'):
                     db.mark_reminder_sent(ev.get('id'))
                     continue  # e-mail emlékeztető NEM megy a megerősítetlen címre
-                # SMS nem ment ki → esik vissza az e-mail emlékeztetőre
+                # M5 (review): SMS-sikertelenségnül NEM esik vissza e-mailre —
+                # a megerősítetlen cím rossz is lehet (egészségügyi adat nem
+                # megy oda). A worker a következő iterációban újrapróbálja az
+                # SMS-t; a churn ellen a mark_reminder_sent NEM fut (15 percen
+                # belüli ismétlődés az sms_logs dedupnak köszönhetően nem küld
+                # újra — purpose dedup a _send_reminder_sms-ben).
+                logger.warning('SMS-emlékeztető sikertelen — e-mail NEM megy a '
+                               f'megerősítetlen címre (esemény #{ev.get("id")})')
+                db.mark_reminder_sent(ev.get('id'))
+                continue
 
             vars = _notification_vars(
                 ev.get('attendee', 'Páciens'),
@@ -2248,6 +2276,10 @@ def create_event_from_pending_meeting(pm: dict, status: str = "confirmed", pendi
 
 
 async def send_booking_confirmation_email(event_id: int, title: str, date: str, time: str, attendee: str, attendee_email: str):
+    # review m7: üres/érvénytelen címre soha ne próbáljunk küldeni (legacy út)
+    if not attendee_email or "@" not in attendee_email:
+        logger.warning("Visszaigazoló email kihagyva: nincs érvényes címzett.")
+        return
     import jwt as pyjwt
     import os
     import base64 as b64module

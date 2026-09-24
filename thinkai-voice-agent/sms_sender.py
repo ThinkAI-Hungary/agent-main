@@ -271,7 +271,22 @@ def update_sms_status(provider_sid: str, status: str, error_code=None) -> bool:
         payload["error_code"] = code
     if status in ("undelivered", "failed"):
         payload["error_message"] = f"Twilio status-callback: {status}"
-    return _update_sms_log(provider_sid=provider_sid, payload=payload)
+    ok = _update_sms_log(provider_sid=provider_sid, payload=payload)
+    # M3 (review): a delivered/failed státusz fusson be az email_verify_runs
+    # sorba is (a kézbesítési arány metrika ebből számol — különben mindig 0)
+    try:
+        import database as db
+        rows = (db.supabase.table("sms_logs")
+                .select("session_id,purpose")
+                .eq("provider_sid", provider_sid)
+                .limit(1).execute().data or [])
+        if rows:
+            r0 = rows[0]
+            if r0.get("purpose") == "email_confirm" and r0.get("session_id"):
+                db.update_email_verify_run_sms(r0["session_id"], True, status)
+    except Exception as exc:
+        logger.warning(f"runs SMS-státusz propagálás kihagyva (fail-open): {exc}")
+    return ok
 
 
 def validate_twilio_signature(url: str, params: dict, signature: str,

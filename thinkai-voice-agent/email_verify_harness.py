@@ -1527,6 +1527,19 @@ def _run_harness_inner(session_id, tenant_id, interaction_id, turns,
         green = False
         gate = dict(gate, reason="NG_JEV_CONFIDENCE")
 
+    # EMAIL_VERIFY_FLOW (célkép): smsfirst módban a gyorsítósáv CSAK akkor,
+    # ha az audio ÉS az stt olvasat (két független utólagos forrás) egyezett
+    # ÉS ismert domain — a live-olvasat önmagában nem adhat zöldet. Nem
+    # gyorsítósávú green → SMS-first, az ügyfél-írás is csak megerősítés után.
+    flow = _verify_flow()
+    if flow == "smsfirst":
+        fast_lane = bool(green and "stt" in gate.get("present", [])
+                         and "audio" in gate.get("present", [])
+                         and gate.get("known_domain") is True)
+    else:
+        fast_lane = bool(green)
+    green_effective = fast_lane
+
     # Nyertes (MU-1.5): green → a kapu top értéke; 2:1 többség → a többségi;
     # különben a JEV dönt a jelöltek közt
     if gate_green:
@@ -1572,14 +1585,16 @@ def _run_harness_inner(session_id, tenant_id, interaction_id, turns,
     name_result = None
     if apply_side_effects:
         stored_email, client_row = _stored_email(client_id)
-        changed = bool(green and winner and stored_email
+        # smsfirst: a nem-gyorsítósávos green NEM ír autonom módon (SMS-first —
+        # az ügyfél e-mail-je a megerősítés után íródik)
+        changed = bool(green_effective and winner and stored_email
                        and winner != stored_email.strip().lower())
         new_email = winner if (winner and (changed or not stored_email)) \
             else (stored_email or winner)
-        status = ("corrected" if changed else "green") if green else "non_green"
+        status = ("corrected" if changed else "green") if green_effective else "non_green"
         _apply_email_correction(
             client_row, stored_email, new_email, audit, status,
-            changed=changed, interaction_id=interaction_id, apply=green,
+            changed=changed, interaction_id=interaction_id, apply=green_effective,
         )
         if changed and stored_email:
             _update_session_events_email(stored_email, new_email, started_at)
@@ -1593,7 +1608,8 @@ def _run_harness_inner(session_id, tenant_id, interaction_id, turns,
             mode=mode, pipeline_version=_pipeline_version(),
             readings=audit["readings"], gate=audit["gate"],
             audio_detail=audit["audio_detail"], timings_ms=audit["timings_ms"],
-            winner=new_email or "", verdict="green" if green else "non_green",
+            winner=new_email or "",
+            verdict="green" if green_effective else "non_green",
             ground_truth=ground_truth,
         )
 
@@ -1603,8 +1619,9 @@ def _run_harness_inner(session_id, tenant_id, interaction_id, turns,
     except Exception:
         pass
 
+    audit["gate"]["fast_lane"] = fast_lane
     return {
-        "status": "green" if green else "non_green",
+        "status": "green" if green_effective else "non_green",
         "email": {
             "winner": new_email or "",
             "previous": stored_email or "",
@@ -1807,6 +1824,13 @@ def _sms_mode() -> str:
     return mode if mode in ("off", "nongreen", "all") else "nongreen"
 
 
+def _verify_flow() -> str:
+    """EMAIL_VERIFY_FLOW: 'gate' (default) — a kapu dönt az e-mailről;
+    'smsfirst' — gyorsítósáv csak audio+stt egyezéssel, minden más SMS-first."""
+    flow = (os.getenv("EMAIL_VERIFY_FLOW", "gate") or "gate").strip().lower()
+    return flow if flow in ("gate", "smsfirst") else "gate"
+
+
 def sms_eligible(caller_number: str, bookings: list, session_id: str) -> tuple[bool, str]:
     """MU-2.2 jogosultság: E.164 magyar mobil (+3620/30/31/50/70), van foglalás
     a hívásban, és ehhez a sessionhöz még nem ment SMS (idempotencia).
@@ -1828,7 +1852,8 @@ def sms_eligible(caller_number: str, bookings: list, session_id: str) -> tuple[b
 
 
 def _send_confirm_sms(session_id: str, tenant_id, bookings: list,
-                      caller_number: str, candidate_email) -> dict:
+                      caller_number: str, candidate_email,
+                      client_id=None) -> dict:
     """MU-2.3: megerősítő SMS küldése token-linkkel (candidate előtöltve, vagy
     üres email-mező ha nincs jelölt). Vissza: {"ok": ..., "status": ...} — sosem dob."""
     try:
@@ -1848,7 +1873,7 @@ def _send_confirm_sms(session_id: str, tenant_id, bookings: list,
             session_id=session_id, tenant_id=tenant_id,
             event_ids=[b.get("event_id") for b in bookings if b.get("event_id")],
             phone=caller_number, candidate_email=(candidate_email or None),
-            first_booking_start=first_start,
+            first_booking_start=first_start, client_id=client_id,
         )
         if not tok.get("ok"):
             return {"ok": False, "status": "failed", "error": tok.get("error")}
@@ -1917,13 +1942,16 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
     optin_with_sms = (os.getenv("EMAIL_VERIFY_OPTIN_EMAIL_WITH_SMS", "0") or "0") == "1"
 
     audit = verdict.get("audit") or {}
-    gate_present = (audit.get("gate") or {}).get("present") or []
+    gate_audit = (audit.get("gate") or {})
+    gate_present = gate_audit.get("present") or []
     readings = audit.get("readings") or {}
+    # a gyorsítósáv-döntés a harnessben született (audit); hiányában fallback
+    fast_lane = gate_audit.get("fast_lane")
+    if fast_lane is None:
+        fast_lane = status == "green"
     if flow == "smsfirst":
-        fast_lane = status == "green" and "stt" in gate_present and "audio" in gate_present
         sms_candidate = (readings.get("audio") or winner or "").strip().lower() or None
     else:
-        fast_lane = status == "green"
         sms_candidate = None
 
     async def _send_optin_email(candidate: str):
@@ -1959,7 +1987,8 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
         send_empty = flow == "smsfirst" or not (winner or booking_email)
         if cand or send_empty:
             sms = _send_confirm_sms(session_id, tenant_id, bookings,
-                                    caller_number, candidate_email=cand)
+                                    caller_number, candidate_email=cand,
+                                    client_id=client_id)
             db.update_email_verify_run_sms(session_id, bool(sms.get("ok")),
                                            sms.get("status", "failed"))
             if sms.get("ok"):

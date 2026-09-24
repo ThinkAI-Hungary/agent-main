@@ -135,9 +135,10 @@ def _run(monkeypatch, verdict, caller="+36709436426"):
 def _sms_ok(monkeypatch):
     calls = []
 
-    def fake_sms(session_id, tenant_id, bookings, caller_number, candidate_email):
+    def fake_sms(session_id, tenant_id, bookings, caller_number,
+                 candidate_email=None, client_id=None):
         calls.append({"session_id": session_id, "candidate": candidate_email,
-                      "phone": caller_number})
+                      "phone": caller_number, "client_id": client_id})
         return {"ok": True, "status": "sent"}
 
     monkeypatch.setattr(evh, "_send_confirm_sms", fake_sms, raising=False)
@@ -260,10 +261,15 @@ class TestSmsEligible:
 # ── CÉLKÉP: EMAIL_VERIFY_FLOW=smsfirst ──────────────────────────────────────
 def _verdict_smsfirst(status="green", winner="winner@freemail.hu",
                       present=("stt", "audio"), audio="audio@freemail.hu",
-                      live="live@freemail.hu", stt="stt@freemail.hu"):
+                      live="live@freemail.hu", stt="stt@freemail.hu",
+                      fast_lane=None):
+    if fast_lane is None:
+        fast_lane = bool(status == "green" and "stt" in present
+                         and "audio" in present)
     return {"status": status, "email": {"winner": winner}, "audit": {
         "gate": {"reason": "GREEN_2OF2_KNOWN" if status == "green" else "NG_X",
-                 "present": list(present), "known_domain": True, "mx": True},
+                 "present": list(present), "known_domain": True, "mx": True,
+                 "fast_lane": fast_lane},
         "readings": {"live": live, "stt": stt, "audio": audio,
                      "stt_regex": None, "reconcile": None, "jev": {}},
     }, "name": None, "llm": {}}
