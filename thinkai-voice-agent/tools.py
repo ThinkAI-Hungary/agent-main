@@ -461,9 +461,10 @@ async def check_calendar(
             formatted = dt.strftime("%m/%d %H:%M")
         except Exception:
             formatted = ev["start_dt"]
-        title = ev.get("title", "Névtelen esemény")
         duration = ev.get("duration_minutes", 30)
-        event_list.append(f"- {formatted}: {title} ({duration} perc)")
+        # ADATVÉDELEM: a cím/attendee (más ügyfél neve!) NEM megy a modellnek —
+        # csak a foglalt idősáv. (incidens: a modell a nevekkel 'mutatkozott be')
+        event_list.append(f"- {formatted}: foglalt ({duration} perc)")
 
     result_text = f"A következő {days_ahead} napban {len(upcoming)} esemény van:\n" + "\n".join(event_list)
     db.log_interaction(
@@ -806,10 +807,13 @@ def _validate_slot(events, start_dt, duration_minutes, parsed_date, exclude_even
             ev_start = _to_budapest_tz(ev["start_dt"])
             ev_end = ev_start + timedelta(minutes=ev.get("duration_minutes", 30))
             if start_dt < ev_end and end_dt > ev_start:
-                ev_title = ev.get("title", "Névtelen esemény")
+                # ADATVÉDELEM (2026-09-24 incidens): az ütköző esemény CÍME/
+                # attendee-neve SOHA nem megy ki a modellnek — a modell a
+                # korábbi ügyfél nevével mutatkozott be ('Bertalan vagyok').
+                # A hívónak más ügyfél adatai egyébként sem továbbíthatók.
                 ev_time = ev_start.strftime("%H:%M")
                 suggestion = _find_next_slot(events, parsed_date, duration_minutes, start_dt, exclude_event_id=exclude_event_id)
-                msg = f"Ütközés! {ev_time}-kor már van egy foglalás: \"{ev_title}\" ({ev.get('duration_minutes', 30)} perc)."
+                msg = f"Ütközés! {ev_time}-kor már van foglalás a naptárban ({ev.get('duration_minutes', 30)} perc)."
                 if suggestion:
                     msg += f" Javaslat: {suggestion} lenne szabad. Foglaljam vagy módosítsam erre?"
                 else:
