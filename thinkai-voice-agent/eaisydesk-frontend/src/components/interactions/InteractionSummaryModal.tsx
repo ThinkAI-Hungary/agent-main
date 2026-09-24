@@ -15,7 +15,7 @@ import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { fmtDt } from '../../helpers/formatters';
 import { parseCustomData, type ClientRecord } from '../../helpers/clientResolvers';
 import { FormattedMessage } from '../../helpers/messageFormatter';
-import { authFetch } from '../../api/client';
+import { authFetch, getToken } from '../../api/client';
 import { showToast } from '../ui/Toast';
 import { StatuszBadge } from '../ui/Badge';
 import type { InteractionRow } from '../../pages/InteractionsPage';
@@ -895,59 +895,31 @@ export default function InteractionSummaryModal({
     }));
   }, [hasRecording, turns, chatBlocks, row.date]);
   const audioRef = useRef<HTMLAudioElement | null>(null);
-  const audioUrlRef = useRef<string>('');
-  const [audioUrl, setAudioUrl] = useState('');
-  const [audioLoading, setAudioLoading] = useState(false);
   const [isPlaying, setIsPlaying] = useState(false);
   const [audioTime, setAudioTime] = useState({ cur: 0, dur: 0 });
+  // WP D: same-origin stream (JWT query paramban — a <audio> nem küld fejlécet)
+  const recordingSrc = useMemo(
+    () => (hasRecording && row.sessionId ? `/admin/api/sessions/${row.sessionId}/recording?token=${encodeURIComponent(getToken())}` : ''),
+    [hasRecording, row.sessionId]
+  );
 
-  const ensureAudioUrl = useCallback(async (): Promise<string | null> => {
-    if (audioUrlRef.current) return audioUrlRef.current;
-    if (!row.sessionId || audioLoading) return null;
-    setAudioLoading(true);
-    try {
-      const res = await authFetch(`/admin/api/sessions/${row.sessionId}/recording`);
-      if (!res.ok) throw new Error('fetch failed');
-      const data = await res.json();
-      if (!data?.url) throw new Error('no url');
-      audioUrlRef.current = data.url;
-      setAudioUrl(data.url);
-      return data.url as string;
-    } catch {
-      showToast('A hívásrögzítés nem érhető el', 'error');
-      return null;
-    } finally {
-      setAudioLoading(false);
-    }
-  }, [row.sessionId, audioLoading]);
-
-  const handlePlayPause = useCallback(async () => {
+  const handlePlayPause = useCallback(() => {
     const el = audioRef.current;
-    if (!el) return;
-    if (!el.paused) {
-      el.pause();
-      return;
+    if (!el || !recordingSrc) return;
+    if (!el.src) {
+      el.src = recordingSrc;
+      el.load();
     }
-    const url = await ensureAudioUrl();
-    if (!url) return;
-    if (!el.src) el.src = url;
-    try {
-      await el.play();
-    } catch {
-      /* a böngésző elutasíthatta — nincs teendő */
-    }
-  }, [ensureAudioUrl]);
+    if (el.paused) el.play().catch(() => { /* autoplay elutasítva */ });
+    else el.pause();
+  }, [recordingSrc]);
 
   // Bubble-szintű seek: az audio a turnus start_s pontjára ugrik és elindul
-  const seekToTurn = useCallback(async (startS: number) => {
+  const seekToTurn = useCallback((startS: number) => {
     const el = audioRef.current;
-    if (!el) return;
-    const url = await ensureAudioUrl();
-    if (!url) return;
-    // Imperatív src + load(): a React-state commit és a play() közötti race
-    // (preload="none" + üres src → a play() azonnal rejectel) kerülhető ki így.
-    if (!el.src || el.src !== url) {
-      el.src = url;
+    if (!el || !recordingSrc) return;
+    if (!el.src) {
+      el.src = recordingSrc;
       el.load();
     }
     const apply = () => {
@@ -960,7 +932,7 @@ export default function InteractionSummaryModal({
       el.addEventListener('loadedmetadata', () => { apply(); el.play().catch(() => {}); }, { once: true });
       el.play().catch(() => { /* autoplay elutasítva */ });
     }
-  }, [ensureAudioUrl]);
+  }, [recordingSrc]);
 
   // Modal bezárásnál álljon meg a hang
   useEffect(() => () => {
@@ -1080,11 +1052,8 @@ export default function InteractionSummaryModal({
                 onClick={handlePlayPause}
                 aria-label={isPlaying ? 'Szünet' : 'Lejátszás'}
                 title={isPlaying ? 'Szünet' : 'Hívásrögzítés lejátszása'}
-                disabled={audioLoading}
               >
-                {audioLoading ? (
-                  <span className="ism-recording-spinner" />
-                ) : isPlaying ? (
+                {isPlaying ? (
                   <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
                     <rect x="6" y="5" width="4" height="14" rx="1" />
                     <rect x="14" y="5" width="4" height="14" rx="1" />
@@ -1103,8 +1072,8 @@ export default function InteractionSummaryModal({
               </div>
               <audio
                 ref={audioRef}
-                src={audioUrl || undefined}
-                preload="none"
+                src={recordingSrc || undefined}
+                preload="metadata"
                 onPlay={() => setIsPlaying(true)}
                 onPause={() => setIsPlaying(false)}
                 onEnded={() => setIsPlaying(false)}
