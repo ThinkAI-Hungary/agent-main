@@ -923,7 +923,17 @@ SZABÁLYOK:
             except Exception as e:
                 logger.error(f"Failed to classify voice session {session_id}: {e}")
 
-        _spawn(_run_classification(recorder), name=f"classify-{session_id}")
+        # HOTFIX (WP-E2, 50 hívás incidens): KÖTELEZŐ az await — a spawn-olt
+        # task a folyamat kilépésekor elhal: az entrypoint visszatérése után a
+        # LiveKit ~10 s múlva SIGUSR1-gyel kilövi a processzt, így a
+        # klasszifikáció utáni WP-E harness (Soniox + LLM-ek, 40-180 s) SOHA
+        # nem ért véget (12/12 hívásnál elveszett a verdikt + az emailek).
+        # Az awaitelt változatnál az entrypoint addig él, amíg a munka kész
+        # lesz; a belső 240 s-os harness-határidő felett 280 s a plafon.
+        try:
+            await asyncio.wait_for(_run_classification(recorder), timeout=280)
+        except asyncio.TimeoutError:
+            logger.error("Klasszifikáció/harness nem ért véget 280 s alatt (fail-open)")
         logger.info(f"Session closed and duration saved: {session_id}")
 
 
