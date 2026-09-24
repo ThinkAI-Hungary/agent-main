@@ -1080,9 +1080,12 @@ export default function InteractionSummaryModal({
                 onTimeUpdate={(e) =>
                   setAudioTime({ cur: e.currentTarget.currentTime, dur: e.currentTarget.duration || 0 })
                 }
-                onLoadedMetadata={(e) =>
-                  setAudioTime((t) => ({ ...t, dur: e.currentTarget.duration || 0 }))
-                }
+                onLoadedMetadata={(e) => {
+                  // Az updater a handler UTÁN fut → e.currentTarget addigra null
+                  // (React pooled-event viselkedés) — az értéket szinkronban mentjük.
+                  const d = e.currentTarget.duration || 0;
+                  setAudioTime((t) => ({ ...t, dur: d }));
+                }}
               />
             </div>
           )}
