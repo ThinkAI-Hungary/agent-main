@@ -11,7 +11,7 @@
  * - Draft approval: Szerkesztés + Jóváhagyás és küldés
  * - Dynamic footer: "Ugrás teendőkre" vs "Ugrás naptárra"
  */
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo, useCallback } from 'react';
 import { fmtDt } from '../../helpers/formatters';
 import { parseCustomData, type ClientRecord } from '../../helpers/clientResolvers';
 import { FormattedMessage } from '../../helpers/messageFormatter';
@@ -19,6 +19,7 @@ import { authFetch } from '../../api/client';
 import { showToast } from '../ui/Toast';
 import { StatuszBadge } from '../ui/Badge';
 import type { InteractionRow } from '../../pages/InteractionsPage';
+import type { TranscriptTurn } from '../../hooks/useSessions';
 import './InteractionSummaryModal.css';
 
 interface Props {
@@ -41,6 +42,14 @@ interface ChatBlock {
   text: string;
   timestamp?: string;
   subject?: string;
+}
+
+// Hívásrögzítés lejátszási idő formázása (m:ss)
+function fmtRecTime(s: number): string {
+  if (!isFinite(s) || s < 0) s = 0;
+  const m = Math.floor(s / 60);
+  const sec = Math.floor(s % 60);
+  return `${m}:${String(sec).padStart(2, '0')}`;
 }
 
 // Csatorna ikonok (UI Kit: ikon + csatornanév pill a modál fejlécében)
@@ -869,9 +878,104 @@ export default function InteractionSummaryModal({
     }
   };
 
+  // ── Hívásrögzítés lejátszó (WP D) — csak telefon csatorna + recording_url ──
+  // Az audio src ON PLAY érkezik (signed URL az endpointtól), majd cache-elődik.
+  const isPhoneChannel = channelKey === 'Telefon';
+  const hasRecording = isPhoneChannel && !!row.recording_url && !!row.sessionId;
+  const turns: TranscriptTurn[] = row.transcript_turns || [];
+  const audioRef = useRef<HTMLAudioElement | null>(null);
+  const audioUrlRef = useRef<string>('');
+  const [audioUrl, setAudioUrl] = useState('');
+  const [audioLoading, setAudioLoading] = useState(false);
+  const [isPlaying, setIsPlaying] = useState(false);
+  const [audioTime, setAudioTime] = useState({ cur: 0, dur: 0 });
+
+  const ensureAudioUrl = useCallback(async (): Promise<string | null> => {
+    if (audioUrlRef.current) return audioUrlRef.current;
+    if (!row.sessionId || audioLoading) return null;
+    setAudioLoading(true);
+    try {
+      const res = await authFetch(`/admin/api/sessions/${row.sessionId}/recording`);
+      if (!res.ok) throw new Error('fetch failed');
+      const data = await res.json();
+      if (!data?.url) throw new Error('no url');
+      audioUrlRef.current = data.url;
+      setAudioUrl(data.url);
+      return data.url as string;
+    } catch {
+      showToast('A hívásrögzítés nem érhető el', 'error');
+      return null;
+    } finally {
+      setAudioLoading(false);
+    }
+  }, [row.sessionId, audioLoading]);
+
+  const handlePlayPause = useCallback(async () => {
+    const el = audioRef.current;
+    if (!el) return;
+    if (!el.paused) {
+      el.pause();
+      return;
+    }
+    const url = await ensureAudioUrl();
+    if (!url) return;
+    if (!el.src) el.src = url;
+    try {
+      await el.play();
+    } catch {
+      /* a böngésző elutasíthatta — nincs teendő */
+    }
+  }, [ensureAudioUrl]);
+
+  // Bubble-szintű seek: az audio a turnus start_s pontjára ugrik és elindul
+  const seekToTurn = useCallback(async (startS: number) => {
+    const el = audioRef.current;
+    if (!el) return;
+    const url = await ensureAudioUrl();
+    if (!url) return;
+    if (!el.src) el.src = url;
+    const apply = () => {
+      el.currentTime = startS;
+      el.play().catch(() => { /* autoplay elutasítva */ });
+    };
+    if (el.readyState >= 1) apply();
+    else el.addEventListener('loadedmetadata', apply, { once: true });
+  }, [ensureAudioUrl]);
+
+  // Modal bezárásnál álljon meg a hang
+  useEffect(() => () => {
+    try { audioRef.current?.pause(); } catch { /* már eltávolítva */ }
+  }, []);
+
+  // Bubble → seek-pont hozzárendelés: sorrend szerint (a turnusok a beszélgetés
+  // valós sorrendjében rögzülnek), eltérésnél szöveg-egyezés fallback.
+  // Régi hívások turnusok NÉLKÜL: turnSeek mindenhol -1 → sima bubble-ök.
+  const turnSeek = useMemo<number[]>(() => {
+    const res: number[] = chatBlocks.map(() => -1);
+    if (!hasRecording || turns.length === 0) return res;
+    const norm = (s: string) => (s || '').replace(/\s+/g, ' ').trim().toLowerCase();
+    const byText = new Map<string, number>();
+    turns.forEach((t) => {
+      const k = norm(t.text);
+      if (k && !byText.has(k)) byText.set(k, t.start_s);
+    });
+    let p = 0;
+    chatBlocks.forEach((b, i) => {
+      if (b.sender === 'system') return;
+      const role = b.sender === 'user' ? 'user' : 'ai';
+      while (p < turns.length && turns[p].role !== role) p++;
+      if (p < turns.length && norm(turns[p].text) === norm(b.text)) {
+        res[i] = turns[p].start_s;
+        p++;
+      } else {
+        res[i] = byText.get(norm(b.text)) ?? -1;
+      }
+    });
+    return res;
+  }, [chatBlocks, turns, hasRecording]);
+
   // ── Avatar helper ──
-  const clientName = row.client || 'Ismeretlen';
-  const clientInitials = clientName
+  const clientName = row.client || 'Ismeretlen';  const clientInitials = clientName
     .split(/\s+/)
     .map((w: string) => w[0])
     .join('')
@@ -966,6 +1070,52 @@ export default function InteractionSummaryModal({
               </div>
             </div>
           </div>
+
+          {/* ═══ HÍVÁSRÖGZÍTÉS LEJÁTSZÓ (WP D) — csak telefon + recording_url ═══ */}
+          {hasRecording && (
+            <div className="ism-recording">
+              <button
+                className="ism-recording-btn"
+                onClick={handlePlayPause}
+                aria-label={isPlaying ? 'Szünet' : 'Lejátszás'}
+                title={isPlaying ? 'Szünet' : 'Hívásrögzítés lejátszása'}
+                disabled={audioLoading}
+              >
+                {audioLoading ? (
+                  <span className="ism-recording-spinner" />
+                ) : isPlaying ? (
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                    <rect x="6" y="5" width="4" height="14" rx="1" />
+                    <rect x="14" y="5" width="4" height="14" rx="1" />
+                  </svg>
+                ) : (
+                  <svg viewBox="0 0 24 24" fill="currentColor" width="16" height="16">
+                    <path d="M8 5.14v14.72a1 1 0 0 0 1.5.86l11-7.36a1 1 0 0 0 0-1.72l-11-7.36a1 1 0 0 0-1.5.86z" />
+                  </svg>
+                )}
+              </button>
+              <div className="ism-recording-info">
+                <span className="ism-recording-label">Hívásrögzítés</span>
+                <span className="ism-recording-time">
+                  {fmtRecTime(audioTime.cur)} / {fmtRecTime(audioTime.dur)}
+                </span>
+              </div>
+              <audio
+                ref={audioRef}
+                src={audioUrl || undefined}
+                preload="none"
+                onPlay={() => setIsPlaying(true)}
+                onPause={() => setIsPlaying(false)}
+                onEnded={() => setIsPlaying(false)}
+                onTimeUpdate={(e) =>
+                  setAudioTime({ cur: e.currentTarget.currentTime, dur: e.currentTarget.duration || 0 })
+                }
+                onLoadedMetadata={(e) =>
+                  setAudioTime((t) => ({ ...t, dur: e.currentTarget.duration || 0 }))
+                }
+              />
+            </div>
+          )}
 
           {/* ═══ INTERAKCIÓ RÉSZLETEI ═══ */}
           <div className="ism-details-section">
@@ -1145,6 +1295,23 @@ export default function InteractionSummaryModal({
                                   </span>
                                 )}
                               </>
+                            )}
+                            {/* Bubble-szintű seek (WP D): csak ha van rögzítés ÉS
+                                a bubble-hez tartozik turnus (start_s) */}
+                            {hasRecording && turnSeek[i] >= 0 && (
+                              <button
+                                className="ism-bubble-play"
+                                title="Lejátszás ettől a ponttól"
+                                aria-label="Lejátszás ettől a ponttól"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  seekToTurn(turnSeek[i]);
+                                }}
+                              >
+                                <svg viewBox="0 0 24 24" fill="currentColor" width="11" height="11">
+                                  <path d="M8 5.14v14.72a1 1 0 0 0 1.5.86l11-7.36a1 1 0 0 0 0-1.72l-11-7.36a1 1 0 0 0-1.5.86z" />
+                                </svg>
+                              </button>
                             )}
                           </div>
                           <div

@@ -19,6 +19,8 @@ export interface SessionInteraction {
   ai_draft_response?: string;
   alert_tags?: string[];
   funnel_stage?: string;
+  // Hívásrögzítés (WP D): turnusonkénti {role,text,start_s} JSONB a bubble-szintű seekhez
+  transcript_turns?: unknown;
   classification?: {
     ugytipus?: string;
     idopont_altipus?: string | null;
@@ -41,6 +43,35 @@ export interface SessionSummary {
   summary?: string;
   channel?: string;
   interactions?: SessionInteraction[];
+}
+
+// Hívásrögzítés (WP D): a worker által rögzített egy turnus a hang időtengelyén
+export interface TranscriptTurn {
+  role: string;    // 'user' | 'ai'
+  text: string;
+  start_s: number; // másodperc a felvétel elejétől
+}
+
+/** A interactions.transcript_turns JSONB (tömb VAGY string) biztonságos parse-ja.
+    Régi/hibás soroknál üres tömb — a bubble-ök akkor sima, ikon nélküliek. */
+export function parseTranscriptTurns(value: unknown): TranscriptTurn[] {
+  if (!value) return [];
+  let raw = value;
+  if (typeof raw === 'string') {
+    try {
+      raw = JSON.parse(raw);
+    } catch {
+      return [];
+    }
+  }
+  if (!Array.isArray(raw)) return [];
+  return raw.filter(
+    (t): t is TranscriptTurn =>
+      !!t &&
+      typeof t === 'object' &&
+      typeof (t as TranscriptTurn).text === 'string' &&
+      typeof (t as TranscriptTurn).start_s === 'number'
+  );
 }
 
 interface UseSessionsReturn {

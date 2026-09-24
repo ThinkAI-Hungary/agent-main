@@ -28,6 +28,26 @@ import database as db
 import jev_classifier
 from classifier import classify_interaction
 
+import call_recorder
+
+# Hívásrögzítés-retention: naponta egyszer futó takarítás (utolsó futás napja)
+_last_recording_purge_day: str = ""
+
+
+def _maybe_purge_recordings() -> None:
+    """RECORDINGS_ENABLED=1 esetén naponta EGSZER takarítja a lejárt
+    hívásrögzítéseket (RECORDINGS_RETENTION_DAYS). Sosem dob."""
+    global _last_recording_purge_day
+    if os.getenv("RECORDINGS_ENABLED", "0") != "1":
+        return
+    today = datetime.now(BUDAPEST_TZ).strftime("%Y-%m-%d")
+    if _last_recording_purge_day == today:
+        return
+    _last_recording_purge_day = today
+    purged = call_recorder.purge_expired_recordings()
+    if purged:
+        logger.info(f'Hívásrögzítés retention: {purged} lejárt fájl törölve.')
+
 THIS_DIR = Path(__file__).resolve().parent
 
 
@@ -1963,6 +1983,12 @@ async def reminder_worker_loop():
     while True:
         try:
             import asyncio
+            # Hívásrögzítés-retention (WP D): belső napi gate-szel, 15 percenkénti
+            # körben olcsó ellenőrzés
+            try:
+                _maybe_purge_recordings()
+            except Exception as rec_err:
+                logger.error(f'Hívásrögzítés retention hiba: {rec_err}')
             for tenant in db.get_active_tenants():
                 try:
                     # Lejárt függő (ideiglenes) foglalások felszabadítása — a 24 órás

@@ -8,9 +8,10 @@ import { usePullToRefresh } from '../hooks/usePullToRefresh';
 import { useAuth } from '../context/AuthContext';
 import { useApproval } from '../context/ApprovalContext';
 import { useClients } from '../hooks/useClients';
-import { useSessions, type SessionSummary, type SessionInteraction } from '../hooks/useSessions';
+import { useSessions, type SessionSummary, type SessionInteraction, parseTranscriptTurns } from '../hooks/useSessions';
 import { useGroupedSessions } from '../hooks/useGroupedSessions';
 import { resolveClientName, getRowChannel, parseCustomData } from '../helpers/clientResolvers';
+import type { TranscriptTurn } from '../hooks/useSessions';
 import {
   detectUgyTipus,
   detectEredmeny,
@@ -59,6 +60,9 @@ export interface InteractionRow {
   received_at?: string | null;
   sent_at?: string | null;
   diary_fragment?: string | null;
+  // Hívásrögzítés (WP D): a session storage-útja + turnusonkénti seek-pontok
+  recording_url?: string | null;
+  transcript_turns?: TranscriptTurn[];
   // A lezárás ideje — a member dashboard „Ma elvégzett" szekciója ebből dolgozik
   closed_at?: string | null;
   // EAISY-241 — strukturált klasszifikáció a backend classifier.py-től
@@ -242,6 +246,9 @@ export default function InteractionsPage() {
         received_at: representative.received_at || null,
         sent_at: representative.sent_at || null,
         diary_fragment: representative.diary_fragment || null,
+        // Hívásrögzítés (WP D): a lejátszó csak telefon soroknál, recording_url-lal jelenik meg
+        recording_url: g.recording_url || null,
+        transcript_turns: parseTranscriptTurns(representative.transcript_turns),
       });
     });
     rows.sort((a, b) => (b.date || '').localeCompare(a.date || ''));

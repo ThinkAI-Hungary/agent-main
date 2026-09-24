@@ -10,6 +10,8 @@ export interface GroupedSession {
   room_name?: string | null;
   participant?: string | null;
   client_name?: string | null;
+  // Hívásrögzítés (WP D): a sessions.recording_url — a popup lejátszója ebből dolgozik
+  recording_url?: string | null;
   representative: SessionInteraction;
 }
 

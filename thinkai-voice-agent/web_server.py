@@ -3006,6 +3006,33 @@ async def api_get_avatar(username_or_id: str, _: str = Depends(verify_jwt)):
     except Exception:
         return {"avatar_url": None}
 
+@app.get("/admin/api/sessions/{session_id}/recording")
+def api_get_session_recording(session_id: str, _: str = Depends(verify_jwt)):
+    """Hívásrögzítés aláírt letöltési URL-jének kiadása (WP D).
+
+    A 'recordings' bucket privát, ezért a kliens 1 órán át érvényes signed
+    URL-t kap a playbackhez. Nincs rögzítés → 404; egyéb hiba → 404/500."""
+    try:
+        res = db._tenant_eq(
+            db.supabase.table("sessions").select("recording_url")
+        ).eq("session_id", session_id).limit(1).execute()
+        path = (res.data or [{}])[0].get("recording_url")
+        if not path:
+            raise HTTPException(404, "Nincs rögzítés ehhez a híváshoz")
+        signed = db.supabase.storage.from_("recordings").create_signed_url(path, 3600)
+        if isinstance(signed, dict):
+            url = signed.get("signedURL") or signed.get("signedUrl")
+        else:
+            url = getattr(signed, "signedURL", None) or getattr(signed, "signedUrl", None)
+        if not url:
+            raise HTTPException(404, "A rögzítés már nem érhető el (retention)")
+        return {"url": url}
+    except HTTPException:
+        raise
+    except Exception as e:
+        print(f"[Recording URL Error] {e}")
+        raise HTTPException(500, "Hívásrögzítés URL generálása sikertelen")
+
 @app.delete("/admin/api/users/{user_id}")
 def api_delete_user(user_id: int, caller: dict = Depends(require_admin)):
     """Delete a user (admin only). Cannot delete self."""

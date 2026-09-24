@@ -66,6 +66,23 @@ def _resolve_tenant_id(slug: str) -> str | None:
         return None
 
 
+def get_tenant_slug(tenant_id: str | None) -> str | None:
+    """tenant uuid → slug (a hívásrögzítés storage-útjának építéséhez). Cache-elve."""
+    if not tenant_id:
+        return None
+    for slug, tid in _tenant_id_cache.items():
+        if tid == tenant_id:
+            return slug
+    if not supabase:
+        return None
+    try:
+        res = supabase.table("tenants").select("slug").eq("id", tenant_id).limit(1).execute()
+        return res.data[0]["slug"] if res.data else None
+    except Exception as e:
+        logger.error(f"get_tenant_slug hiba: {e}")
+        return None
+
+
 def set_current_tenant(tenant_id: str | None):
     """Beállítja a jelenlegi coroutine tenantját (uuid). Request-middleware és
     worker-iteráció hívja."""
@@ -504,6 +521,18 @@ def update_session_participant(session_id: str, participant: str) -> None:
     except Exception as e:
         logger.error(f"Error updating session participant: {e}")
 
+def set_session_recording(session_id: str, path: str) -> bool:
+    """Hívásrögzítés storage-útjának mentése (sessions.recording_url, WP D).
+    Sosem dob — a rögzítés elszámolása nem blokkolhatja a hívás lezárását."""
+    if not supabase or not session_id or not path:
+        return False
+    try:
+        _tenant_eq(supabase.table("sessions").update({"recording_url": path})).eq("session_id", session_id).execute()
+        return True
+    except Exception as e:
+        logger.error(f"Error setting session recording: {e}")
+        return False
+
 def get_sessions(limit: int = 50) -> list[dict]:
     if not supabase: return []
     try:
@@ -515,7 +544,7 @@ def get_sessions(limit: int = 50) -> list[dict]:
 # INTERACTIONS
 # âââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââââ
 
-def log_interaction(type: str, topic: str = "", summary: str = "", result: str = "", tool_name: str = "", session_id: str = "", funnel_stage: str = "relevant", alert_tags: list = None, handover_reason: str = None, direction: str = "inbound", approval_status: str = "pending", ai_draft_response: str = None, clinic_id: int = None, classification: dict = None, client_id: int = None, received_at: str = None, diary_fragment: str = None) -> int | None:
+def log_interaction(type: str, topic: str = "", summary: str = "", result: str = "", tool_name: str = "", session_id: str = "", funnel_stage: str = "relevant", alert_tags: list = None, handover_reason: str = None, direction: str = "inbound", approval_status: str = "pending", ai_draft_response: str = None, clinic_id: int = None, classification: dict = None, client_id: int = None, received_at: str = None, diary_fragment: str = None, transcript_turns: str = None) -> int | None:
     if not supabase: return None
     try:
         data = {
@@ -545,6 +574,13 @@ def log_interaction(type: str, topic: str = "", summary: str = "", result: str =
             # Az interakció SAJÁT napló-fragmense (263-as ügy): egy interakció =
             # egy ügy — a popup ebből dolgozik, nem a közös ügyfél-naplóból
             data["diary_fragment"] = diary_fragment
+        if transcript_turns:
+            # WP D: hang-hívás turnusai ({role,text,start_s}) — a JSONB oszlopba
+            # ÉRVÉNYES JSON-ként megy (a hívó JSON-stringet array-ra bontjuk)
+            try:
+                data["transcript_turns"] = json.loads(transcript_turns)
+            except (ValueError, TypeError):
+                data["transcript_turns"] = transcript_turns
         res = supabase.table("interactions").insert(_with_tenant(data)).execute()
         return res.data[0]["id"] if res.data else None
     except Exception as e:
@@ -563,6 +599,9 @@ def log_interaction(type: str, topic: str = "", summary: str = "", result: str =
         if diary_fragment is not None and "diary_fragment" in data:
             del data["diary_fragment"]
             dropped.append("diary_fragment")
+        if transcript_turns is not None and "transcript_turns" in data:
+            del data["transcript_turns"]
+            dropped.append("transcript_turns")
         if dropped:
             logger.info(f"Attempting fallback log without {', '.join(dropped)}...")
             try:
@@ -865,16 +904,17 @@ def get_grouped_interactions(limit: int = 100, offset: int = 0) -> dict:
         data = res.data
         if not isinstance(data, dict):
             return {"sessions": [], "total": 0}
-        # Participant/room kiegészítés a sessions táblából
+        # Participant/room/recording kiegészítés a sessions táblából
         try:
             sids = [s.get("session_id") for s in data.get("sessions", []) if s.get("session_id")]
             if sids:
-                sres = _tenant_eq(supabase.table("sessions").select("session_id, room_name, participant")).in_("session_id", sids).execute()
+                sres = _tenant_eq(supabase.table("sessions").select("session_id, room_name, participant, recording_url")).in_("session_id", sids).execute()
                 smap = {s["session_id"]: s for s in (sres.data or [])}
                 for s in data.get("sessions", []):
                     sess = smap.get(s.get("session_id"), {})
                     s["room_name"] = sess.get("room_name")
                     s["participant"] = sess.get("participant")
+                    s["recording_url"] = sess.get("recording_url")  # WP D: lejátszó a popupban
         except Exception as se:
             logger.warning(f"grouped sessions participant enrich hiba: {se}")
         return data

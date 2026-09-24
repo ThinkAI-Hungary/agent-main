@@ -36,6 +36,7 @@ from classifier import classify_interaction
 sys.path.insert(0, str(THIS_DIR))
 from tools import ALL_TOOLS, set_session_id, reset_session_alerts, set_caller_phone, get_caller_phone, session_has_complaint_or_request, _spawn
 import database as db
+import call_recorder
 
 # ── Google credentials setup (still needed for Gemini LLM) ───────────────────
 def _setup_google_credentials():
@@ -221,6 +222,19 @@ async def entrypoint(ctx: JobContext):
         logger.info(f" Inbound SIP call — room: {room_name}")
     else:
         logger.info(f"Session started: {session_id}")
+
+    # ── Hívásrögzítés (WP D): mindkét hangirány in-worker capture. A
+    # session.start() ELŐTT indul, hogy a RoomIO által lazy publikált agent
+    # tracket is elkapja. Bármilyen hiba esetén a hívás rögzítés NÉLKÜL megy. ──
+    recorder = None
+    if os.getenv("RECORDINGS_ENABLED", "0") == "1":
+        try:
+            recorder = call_recorder.CallRecorder(ctx.room)
+            await recorder.start()
+            logger.info(f"🎙️ Hívásrögzítés elindult ({room_name})")
+        except Exception as rec_e:
+            logger.warning(f"Hívásrögzítés indítása sikertelen (a hívás folytatódik): {rec_e}")
+            recorder = None
 
     # Determine instructions / system prompt
     if campaign_data and campaign_data.get("script"):
@@ -461,6 +475,8 @@ SZABÁLYOK:
                         # ügyfélválasz — "Igen", "Jó napot" — ne nyelje el a turnust)
                         if not any(f"Felhasználó: {text}" in item for item in transcript_list[-3:]):
                             transcript_list.append(entry)
+                            if recorder:
+                                recorder.add_turn("user", text)
                             logger.info(f"🎤 User (STT): {text}")
             except Exception as e:
                 logger.warning(f"Error in user_input_transcribed: {e}")
@@ -499,6 +515,8 @@ SZABÁLYOK:
                     # Role-onkénti dedup (kereszt-role substring-ütközés kizárva)
                     if not any(f"{role_name}: {text}" in x for x in transcript_list[-3:]):
                         transcript_list.append(entry)
+                        if recorder:
+                            recorder.add_turn("user" if role == "user" else "ai", text)
                         logger.info(f"💬 Chat item: {role_name}: {text}")
             except Exception as ex:
                 logger.warning(f"Error in conversation_item_added event handler: {ex}")
@@ -515,6 +533,8 @@ SZABÁLYOK:
                         # Role-onkénti dedup
                         if not any(f"AI Válasz: {text}" in item for item in transcript_list[-3:]):
                             transcript_list.append(entry)
+                            if recorder:
+                                recorder.add_turn("ai", text)
                             logger.info(f"🤖 Agent (Speech): {text}")
             except Exception as e:
                 logger.warning(f"Error in agent speech event: {e}")
@@ -591,11 +611,24 @@ SZABÁLYOK:
         # Block here until the room disconnects
         await room_disconnected.wait()
     finally:
+        # ── Hívásrögzítés feltöltése + sessionhöz kötése (WP D) — a
+        # klasszifikáció ELŐTT fut, hogy a recording_url akkor is beállódjon,
+        # ha a klasszifikáció később elhasal. Bármilyen hiba nem blokkolja
+        # a hívás lezárását. ──
+        if recorder is not None:
+            try:
+                tenant_slug = db.get_tenant_slug(tenant_id) or "tenant"
+                recording_path = await recorder.finish_and_upload(tenant_slug, session_id)
+                if recording_path:
+                    db.set_session_recording(session_id, recording_path)
+            except Exception as rec_e:
+                logger.error(f"Hívásrögzítés feldolgozása sikertelen (a hívás lezárul): {rec_e}")
+
         # Record session end + duration
         db.close_session(session_id)
-        
+
         # ── Start Session Classification (Async Background Task) ──
-        async def _run_classification():
+        async def _run_classification(recorder=None):
             try:
                 # 1. Build full transcript — TÖBB FORRÁSBÓL, ügyfél-turnus-tudatos
                 # választással. A Gemini input_audio_transcription a preview API-n
@@ -806,7 +839,10 @@ SZABÁLYOK:
                     direction="outbound" if is_outbound_call else "inbound",
                     approval_status="approved", # calls don't need approval
                     classification=classification,
-                    client_id=client_id
+                    client_id=client_id,
+                    # WP D: bubble-szintű seekhez (role/text/start_s) — a rögzítő
+                    # turnusai a hívás valós időtengelyét hordozzák
+                    transcript_turns=(json.dumps(recorder.turns) if recorder and recorder.turns else None),
                 )
                 
                 # Update all tool call interactions of this session with the classification
@@ -824,7 +860,7 @@ SZABÁLYOK:
             except Exception as e:
                 logger.error(f"Failed to classify voice session {session_id}: {e}")
 
-        _spawn(_run_classification(), name=f"classify-{session_id}")
+        _spawn(_run_classification(recorder), name=f"classify-{session_id}")
         logger.info(f"Session closed and duration saved: {session_id}")
 
 
