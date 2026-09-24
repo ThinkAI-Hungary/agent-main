@@ -900,3 +900,14 @@ A `balazs_backlog_0922.md` mellett a Dentors-kommentek táblából (Státusz=Bal
 **Tesztek**: pytest 123→**140 zöld** (17 call_recorder unit), tsc 0, build OK, Playwright 35/0, konténer healthy 0 ERROR, md5-egyezés.
 
 **NYITVA — valódi teszthívás kell (user)**: (1) a HÍVÓ-csatorna (SIP remote track) capture valódi hívásban igazolandó; (2) a `transcript_turns` handler-es rögzítése és a bubble-seek valódi beszélgetéssel tesztelendő (probe-szobában a greeting más úton kerül az átiratba → turns NULL volt). Demo megmaradt a naplóban: `rec-e2e3-63804427` (lejátszóval, csendes hanggal).
+
+**✅ WP-D VÉGLEGES LEZÁRÁS — valódi teszthívással verifikálva (2026-09-24, commitok `3982a8c`→`27dc124`, stagingen ÉL)**
+
+A user elvégezte a valódi teszthívást (Lederer Balázs, +36706369528, 92 mp — session `call-_+36706369528_WVqaSCoczQqV`). Eredmények:
+1. **Rögzítés mindkét csatornán**: hívó BAL (peak 32762, 17 hangos mp), agent JOBB (peak 28834, 48 hangos mp) — a WAV 16 kHz/16-bit sztereó, fejléc-mezők ellenőrizve.
+2. **`transcript_turns` = 8 turnus** `start_s` offsetekkel (a handler-es rögzítés valódi hívásban működik).
+3. **Popup lejátszó + bubble-szintű seek ÉL**: 8 seek-ikon, ikonra kattintás → hang betöltés + seek + lejátszás (ellenőrizve: paused=false, currentTime≈turnus start_s, kijelzés 0:00/1:31).
+4. **Közben javított hibák** (élő verifikáció során): (a) `track_publications` lista VAGY dict lehet SDK-verziótól; (b) `recordings` bucket `allowed_mime_types`-ába `audio/wav` (415-ös feltöltési hiba volt); (c) agent-track poll 30→120 s (a track az első beszédnél publikálódik); (d) **bubble-seek holtpont**: `preload="none"` + React-state src-commit race → imperatív `el.src`+`load()`+`play()`; (e) **popup-krash**: `onLoadedMetadata` React state-updaterben `e.currentTarget` null (pooled-event) → érték szinkronban kimentve; (f) a naplós popup telefonnál a diary-parse-t használta, ami üres lehet → **ha van rögzítés + turns, a bubble-ök közvetlenül a `transcript_turns`-ból épülnek** (index = turnus); (g) a lejátszás **same-origin streamre** átírva: `GET /admin/api/sessions/{id}/recording?token=<jwt>` — a médiaelem a külső signed URL-t nem nyitotta meg (demuxer-hiba), a JWT-t query paramban fogadjuk (fejlécet az <audio> nem tud küldeni).
+5. **Lemez**: a buildek feltöltötték a diszket (97%) → `docker builder prune` (714 MB) + a build ezután kifért (78%). Ismételt figyelmeztetés: deploy előtt nézni a df-et.
+6. **Tartalom-inkonzisztencia (user-döntés kell)**: az agent a GDPR-szövegben **14 napos** törlést mond, a rendszer 30 napot állít — a retention-t vagy a mondatszöveget összehangolni (a 14/30 nap a `RECORDINGS_RETENTION_DAYS` env + prompt/GDPR-szöveg).
+7. Tesztadatok: a probe/demo felvételek törölve; a valódi hívás felvétele megmaradt a naplóban (lejátszóval).
