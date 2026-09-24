@@ -6407,6 +6407,41 @@ _SMS_ALREADY_CONFIRMED_HTML = """
 """
 
 
+@app.post("/api/public/twilio/status")
+async def twilio_status_callback(request: Request):
+    """WP-E3 MU-1.3: Twilio kézbesítési státusz-callback. KÖTELEZŐ az
+    X-Twilio-Signature ellenőrzés (a Twilio a nekünk küldött callback URL-t
+    írja alá — proxy mögött a PUBLIC bázisról rekonstruáljuk); érvénytelen
+    aláírás → 403. Frissíti az sms_logs.status-t (sent/delivered/undelivered/failed)."""
+    try:
+        form = await request.form()
+        params = {k: v for k, v in form.items()}
+    except Exception:
+        return PlainTextResponse("bad request", status_code=400)
+    sig = request.headers.get("X-Twilio-Signature", "")
+    base = (os.getenv("PUBLIC_CONFIRM_BASE_URL") or os.getenv("APP_BASE_URL")
+            or os.getenv("SERVER_URL") or "").rstrip("/")
+    url = f"{base}/api/public/twilio/status"
+    try:
+        from sms_sender import validate_twilio_signature, update_sms_status
+        if not sig or not validate_twilio_signature(
+                url, params, sig, os.getenv("TWILIO_AUTH_TOKEN", "")):
+            logger.warning("Twilio status-callback: érvénytelen aláírás (403)")
+            return PlainTextResponse("forbidden", status_code=403)
+        sid = params.get("MessageSid") or ""
+        msg_status = (params.get("MessageStatus") or "").strip().lower()
+        err = params.get("ErrorCode")
+        try:
+            err = int(err) if err not in (None, "") else None
+        except (TypeError, ValueError):
+            err = None
+        ok = update_sms_status(sid, msg_status, err)
+        return PlainTextResponse("ok" if ok else "ignored")
+    except Exception as cb_err:
+        logger.warning(f"Twilio status-callback hiba (fail-open): {cb_err}")
+        return PlainTextResponse("ok")
+
+
 @app.get("/e/{token}")
 async def email_confirm_page_get(token: str, request: Request):
     """A megerősítő SMS linkjének céloldala (mobil-első űrlap)."""
