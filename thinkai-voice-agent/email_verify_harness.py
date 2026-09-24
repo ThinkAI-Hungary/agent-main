@@ -1964,6 +1964,13 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
                                            sms.get("status", "failed"))
             if sms.get("ok"):
                 logger.info(f"Megerősítő SMS elküldve ({caller_number}), email a megerősítés után")
+                # Recepció-jelzés az eseményen: megerősítés függőben (WP-E3)
+                for b in bookings:
+                    if b.get("event_id"):
+                        db.append_calendar_note(
+                            b["event_id"],
+                            "📧 E-mail megerősítés függőben — SMS kiküldve az ügyfélnek. "
+                            "Megerősítés után ez a sor frissül.")
                 if optin_with_sms and winner:
                     await _send_optin_email(winner)
             elif winner:

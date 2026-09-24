@@ -1759,6 +1759,55 @@ def session_has_sms(session_id: str) -> bool:
         return False
 
 
+def get_confirm_token_by_event(event_id) -> dict | None:
+    """WP-E3: az eseményhez tartozó SMS-megerősítő token-sor (email_confirm_tokens,
+    event_ids tartalmazza az eseményt). None, ha nincs (gyorsítósáv/legacy). Fail-open."""
+    try:
+        res = (supabase.table("email_confirm_tokens")
+               .select("*")
+               .contains("event_ids", [event_id])
+               .order("created_at", desc=True)
+               .limit(1)
+               .execute())
+        return (res.data or [None])[0]
+    except Exception as e:
+        logger.warning(f"get_confirm_token_by_event sikertelen (#{event_id}): {e}")
+        return None
+
+
+def session_has_sms_purpose(session_id: str, purpose: str) -> bool:
+    """Emlékeztető-SMS dedup: az adott sessionhez ment már ilyen célú SMS?"""
+    try:
+        res = (supabase.table("sms_logs")
+               .select("id")
+               .eq("session_id", session_id)
+               .eq("purpose", purpose)
+               .limit(1)
+               .execute())
+        return bool(res.data)
+    except Exception:
+        return False
+
+
+def append_calendar_note(event_id, line: str) -> bool:
+    """Sor hozzáfűzése a naptárevent note-jához (WP-E3: 'SMS kiküldve /
+    megerősítve' jelzés a recepciónak). Fail-open, sosem dob."""
+    try:
+        from zoneinfo import ZoneInfo
+        res = _tenant_eq(supabase.table("calendar_events")
+                         .select("note")).eq("id", event_id).limit(1).execute()
+        old = ((res.data or [{}])[0].get("note") or "").strip()
+        stamp = datetime.now(timezone.utc).astimezone(
+            ZoneInfo("Europe/Budapest")).strftime("%Y.%m.%d. %H:%M")
+        new_note = (old + ("\n" if old else "") + f"[{stamp}] {line}")
+        _tenant_eq(supabase.table("calendar_events")
+                   .update({"note": new_note})).eq("id", event_id).execute()
+        return True
+    except Exception as e:
+        logger.warning(f"append_calendar_note sikertelen (#{event_id}): {e}")
+        return False
+
+
 def normalize_phone_digits(p: str) -> str:
     """Telefonszám normalizálás egyeztetéshez: csak számjegyek, 06→36.
     Visszatérés: az UTOLSÓ 9 számjegy — a +36/06/kötőjeles/szóközös írásmódok

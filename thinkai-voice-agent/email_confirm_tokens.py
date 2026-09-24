@@ -217,3 +217,17 @@ def validate_sms_template(template: str, max_segments: int = 2) -> tuple[bool, i
         return validate_template(template, max_segments)
     except Exception as exc:
         return False, 0, f"sablon-validációs hiba: {exc}"
+
+
+DEFAULT_SMS_TEMPLATE_REMINDER = (
+    "{rendelo}: Emlékezteto — idopontja {datum} {ido}. Ha meg nem "
+    "erositette e-mail cimet, itt teheti meg: {link}"
+)
+
+
+def build_reminder_sms_text(link: str, rendelo: str = "", datum: str = "",
+                            ido: str = "") -> str:
+    """Emlékeztető-SMS szöveg (megerősítetlen foglaláshoz, ugyanazzal a
+    linkkel — a token a foglalás kezdetéig él)."""
+    return DEFAULT_SMS_TEMPLATE_REMINDER.format(
+        rendelo=rendelo or "Rendelo", datum=datum or "-", ido=ido or "-", link=link)

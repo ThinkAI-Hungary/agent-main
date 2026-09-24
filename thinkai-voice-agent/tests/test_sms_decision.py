@@ -21,8 +21,23 @@ def _stub(name, **attrs):
     return mod
 
 
+# A valódi email_processor/databaseegyüttes kell (a dry_run-minta): a
+# database STUBOLVA marad, az email_processor VALÓDI importot kap (a google
+# és a classifier stub csak a nehéz függőségei miatt kell)
+_STUBBED = ("database", "classifier", "google", "google.genai", "google.genai.types")
+_prev_modules = {n: sys.modules.get(n) for n in _STUBBED}
+for _n in _STUBBED:
+    sys.modules.pop(_n, None)
 _stub("database")
-_stub("email_processor")
+_stub("classifier", classify_interaction=lambda *a, **k: None)
+google_mod = _stub("google")
+genai_mod = _stub("google.genai", Client=lambda **k: None)
+types_mod = _stub("google.genai.types")
+google_mod.genai = genai_mod
+sys.modules["google"] = google_mod
+sys.modules["google.genai"] = genai_mod
+sys.modules["google.genai.types"] = types_mod
+
 BOOKINGS = [{"event_id": 7, "title": "Konzultáció", "date": "2026-10-01",
              "time": "16:30", "attendee": "Teszt Elek", "attendee_email": "live@freemail.hu"}]
 
@@ -38,6 +53,14 @@ TOOLS = _stub("tools", pop_session_bookings=lambda sid: list(BOOKINGS),
 
 import email_verify_harness as evh  # noqa: E402
 
+# a sys.modules-t az import ELŐTTI állapotra állítjuk vissza (a többi
+# tesztmodul a saját stubját/valós modulját importálhatja); az evh.db és az
+# evh.email_processor referenciái megmaradnak
+for _n, _m in _prev_modules.items():
+    if _m is not None:
+        sys.modules[_n] = _m
+    else:
+        sys.modules.pop(_n, None)
 if _prev_tools is not None:
     sys.modules["tools"] = _prev_tools
 else:
@@ -56,9 +79,11 @@ class _Captures:
         self.optin = []
         self.confirm = []
         self.legacy = []
+        self.notes = []
 
     def reset(self):
         self.sms.clear(); self.optin.clear(); self.confirm.clear(); self.legacy.clear()
+        self.notes.clear()
 
 
 CAP = _Captures()
@@ -67,11 +92,18 @@ CAP = _Captures()
 @pytest.fixture()
 def env(monkeypatch):
     monkeypatch.setenv("EMAIL_VERIFY_SMS_MODE", "nongreen")
+    monkeypatch.setenv("EMAIL_VERIFY_FLOW", "gate")  # a .env dotenv-e ellenére
+    # a futásidejű `import database` is a stubot oldja meg (a .env dotenv
+    # miatt a valódi database is élne — az élő staginget ne írjuk)
+    monkeypatch.setitem(sys.modules, "database", evh.db)
     monkeypatch.delenv("EMAIL_VERIFY_OPTIN_EMAIL_WITH_SMS", raising=False)
     CAP.reset()
     monkeypatch.setattr(evh.db, "session_has_sms", lambda sid: False, raising=False)
     monkeypatch.setattr(evh.db, "update_email_verify_run_sms",
                         lambda sid, sent, status: True, raising=False)
+    monkeypatch.setattr(evh.db, "append_calendar_note",
+                        lambda eid, line: CAP.notes.append((eid, line)) or True,
+                        raising=False)
 
     async def _optin(**kw):
         CAP.optin.append(kw)
@@ -128,6 +160,7 @@ def test_nongreen_jogosult_sms_megy_optin_nem(env, monkeypatch):
     assert calls[0]["candidate"] == "jelolt@citromail.hu"
     assert calls[0]["phone"] == "+36709436426"
     assert env.optin == []
+    assert env.notes and "függőben" in env.notes[0][1]  # recepció-jelzés az eseményen
 
 
 def test_nongreen_nem_jogosult_optin_megy(env, monkeypatch):
@@ -218,6 +251,7 @@ class TestSmsEligible:
         assert ok is False
 
     def test_idempotencia_masodik_sms_nem_megy(self, monkeypatch):
+        monkeypatch.setitem(sys.modules, "database", evh.db)
         monkeypatch.setattr(evh.db, "session_has_sms", lambda sid: True, raising=False)
         ok, reason = evh.sms_eligible("+36709436426", BOOKINGS, "sess-1")
         assert ok is False and "már ment SMS" in reason
@@ -244,6 +278,9 @@ def smsfirst_env(monkeypatch):
     monkeypatch.setattr(evh.db, "session_has_sms", lambda sid: False, raising=False)
     monkeypatch.setattr(evh.db, "update_email_verify_run_sms",
                         lambda sid, sent, status: True, raising=False)
+    monkeypatch.setattr(evh.db, "append_calendar_note",
+                        lambda eid, line: CAP.notes.append((eid, line)) or True,
+                        raising=False)
 
     async def _optin(**kw):
         CAP.optin.append(kw)

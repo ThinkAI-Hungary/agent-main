@@ -23,7 +23,7 @@ CREATE TABLE IF NOT EXISTS public.email_confirm_tokens (
   token TEXT PRIMARY KEY,
   session_id TEXT NOT NULL,
   tenant_id UUID,
-  event_ids UUID[],
+  event_ids INT[],  -- calendar_events.id (INT!) — UUID[] volt, javítva
   phone TEXT,
   candidate_email TEXT,
   created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
@@ -41,3 +41,6 @@ ALTER TABLE public.email_verify_runs
   ADD COLUMN IF NOT EXISTS confirmed_at TIMESTAMPTZ,
   ADD COLUMN IF NOT EXISTS confirm_action TEXT;
 NOTIFY pgrst, 'reload schema';
+
+-- 2026-09-24 esti javítás: event_ids INT kell (calendar_events.id INT), UUID[] nem volt jó
+ALTER TABLE public.email_confirm_tokens ALTER COLUMN event_ids TYPE INT[] USING NULL;

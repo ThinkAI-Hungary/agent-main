@@ -1949,6 +1949,40 @@ async def send_reminder_email(to_email: str, subject: str, html_content: str) ->
         logger.error(f'Hiba az emlékeztető e-mail küldésekor: {e}')
         return False
 
+async def _send_reminder_sms(ev: dict, token_row: dict) -> dict:
+    """WP-E3: SMS-emlékeztető megerősítetlen foglaláshoz — ugyanazzal a
+    megerősítő linkkel (a token a foglalás kezdetéig él). Idempotens: session
+    + 'reminder_sms' cél alapján csak egyszer megy. Sosem dob — hibánál
+    {"ok": False} (a hívó e-mail emlékeztetőre esik vissza)."""
+    try:
+        from sms_sender import send_sms
+        from email_confirm_tokens import build_reminder_sms_text
+        session_id = token_row.get("session_id") or ""
+        if db.session_has_sms_purpose(session_id, "reminder_sms"):
+            return {"ok": True, "status": "already_sent", "dedup": True}
+        phone = token_row.get("phone") or ""
+        if not phone:
+            return {"ok": False, "error": "nincs hívószám a tokenben"}
+        base = (os.getenv("PUBLIC_CONFIRM_BASE_URL") or os.getenv("APP_BASE_URL")
+                or os.getenv("SERVER_URL") or "").rstrip("/")
+        start = (ev.get("start_dt") or "")
+        try:
+            dt = _to_budapest_tz(start)
+            datum, ido = dt.strftime("%Y.%m.%d."), dt.strftime("%H:%M")
+        except Exception:
+            datum, ido = start[:10], start[11:16]
+        rendelo = os.getenv("RENDELO_NAME", "") or "Rendelo"
+        body = build_reminder_sms_text(link=f"{base}/e/{token_row.get('token')}",
+                                       rendelo=rendelo, datum=datum, ido=ido)
+        return await asyncio.to_thread(
+            send_sms, phone, body,
+            session_id=session_id, tenant_id=token_row.get("tenant_id"),
+            purpose="reminder_sms")
+    except Exception as exc:
+        logger.warning(f"SMS-emlékeztető küldés hiba (fail-open): {exc}")
+        return {"ok": False, "error": str(exc)}
+
+
 async def _run_reminders_for_tenant(tenant: dict):
     """Egy tenant emlékeztetőinek kiküldése (FÁZIS 6 multi-tenant).
 
@@ -1968,6 +2002,23 @@ async def _run_reminders_for_tenant(tenant: dict):
         try:
             if not ev.get('attendee_email') or ev.get('attendee_email') == '-':
                 continue
+
+            # ── WP-E3: megerősítettség szerinti csatorna-választás ──
+            # Ha a hívás utáni ellenőrzés SMS-t küldött, de az ügyfél nem
+            # erősített meg: az E-MAIL emlékeztető a (esetleg rossz) címre
+            # menne — helyette SMS-emlékeztető megy a hívó jó számára,
+            # ugyanazzal a megerősítő linkkel. Megerősített/gyorsítósávos
+            # foglalásnál marad a rendes e-mail emlékeztető.
+            try:
+                token_row = db.get_confirm_token_by_event(ev.get('id'))
+            except Exception:
+                token_row = None
+            if token_row and not token_row.get('confirmed_at'):
+                sms_res = await _send_reminder_sms(ev, token_row)
+                if sms_res.get('ok'):
+                    db.mark_reminder_sent(ev.get('id'))
+                    continue  # e-mail emlékeztető NEM megy a megerősítetlen címre
+                # SMS nem ment ki → esik vissza az e-mail emlékeztetőre
 
             vars = _notification_vars(
                 ev.get('attendee', 'Páciens'),

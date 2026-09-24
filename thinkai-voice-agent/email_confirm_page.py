@@ -526,6 +526,15 @@ def apply_confirmation(token: str, email: str) -> dict:
         old_email = ((events[0].get("attendee_email") if events else "") or "")
         _update_client(old_email.strip(), clean, action)
         _update_events(event_ids, clean)
+        # Recepció-jelzés a naptárban: a függő sor helyett megerősítve (WP-E3)
+        try:
+            import database as _db
+            stamp = datetime.now(timezone.utc).strftime("%Y.%m.%d. %H:%M UTC")
+            for _eid in (event_ids or []):
+                _db.append_calendar_note(
+                    _eid, f"✅ E-mail megerősítve SMS-ből: {clean} ({action}) — {stamp}")
+        except Exception as _note_err:
+            logger.warning("naptár-note frissítés kihagyva: {}", _note_err)
         _send_emails(events, clean)
         _update_verify_runs(row.get("session_id") or "", clean, action)
         logger.info("SMS-es e-mail-megerősítés: action={} token=…{}",
