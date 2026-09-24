@@ -588,35 +588,46 @@ class TestParseLlmExtract:
 
 class TestLlmExtractHivas:
     def test_nincs_kliens_fail_open(self, monkeypatch):
-        monkeypatch.setattr(evh, "_new_genai_client", lambda: None)
+        monkeypatch.setattr(evh, "_new_genai_client", lambda *a: None)
         assert evh.llm_extract("a", "b") == {}
 
     def test_kivetel_fail_open(self, monkeypatch):
-        def _boom():
+        def _boom(*a):
             raise RuntimeError("API down")
         monkeypatch.setattr(evh, "_new_genai_client", _boom)
         assert evh.llm_extract("a", "b") == {}
 
     def test_modell_es_json_config(self, monkeypatch):
+        # MU-refaktor óta a közös mag a _genai_generate_json — a prompt és a
+        # parse él; a hívás részleteit ez a teszt a magon át ellenőrzi
         calls = {}
 
-        class _Resp:
-            text = '{"email": "a@b.hu", "name": null, "variants": [], "confidence": 0.9}'
+        def fake_gen(prompt, timeout_ms=90_000, delays=(0, 6, 15)):
+            calls.update(prompt=prompt, timeout_ms=timeout_ms)
+            return '{"email": "a@b.hu", "name": null, "variants": [], "confidence": 0.9}'
 
-        class _Models:
-            def generate_content(self, model, config, contents):
-                calls.update(model=model, config=config, contents=contents)
-                return _Resp()
-
-        class _Client:
-            models = _Models()
-
-        monkeypatch.setattr(evh, "_new_genai_client", lambda: _Client())
+        monkeypatch.setattr(evh, "_genai_generate_json", fake_gen)
         d = evh.llm_extract("élő", "utólagos")
         assert d["email"] == "a@b.hu"
-        assert calls["model"] == "gemini-3.8-flash"
-        assert calls["config"] == {"response_mime_type": "application/json"}
-        assert "élő" in calls["contents"] and "utólagos" in calls["contents"]
+        assert "élő" in calls["prompt"] and "utólagos" in calls["prompt"]
+
+    def test_stt_only_prompt_forrasa_csak_hivo(self, monkeypatch):
+        # MU-1.2 elfogadás: az stt-extrakció promptja NEM tartalmazhatja az
+        # élő átiratot és az agent szövegét (a forrás-függetlenség alapja)
+        prompts = []
+
+        def fake_gen(prompt, timeout_ms=90_000, delays=(0, 6, 15)):
+            prompts.append(prompt)
+            return '{"email": null, "name": null, "variants": [], "confidence": 0.5}'
+
+        monkeypatch.setattr(evh, "_genai_generate_json", fake_gen)
+        evh.llm_extract_stt_only("a nevem kovacs bela kukac gmail pont hu")
+        assert "HÍVÓ ÁTIRAT" in prompts[0]
+        assert "ÉLŐ ÁTIRAT" not in prompts[0] and "UTÓLAGOS ÁTIRAT" not in prompts[0]
+
+    def test_stt_only_fail_open(self, monkeypatch):
+        monkeypatch.setattr(evh, "_genai_generate_json", lambda *a, **k: None)
+        assert evh.llm_extract_stt_only("szöveg") == {}
 
 
 class TestMergeEmailCandidates:

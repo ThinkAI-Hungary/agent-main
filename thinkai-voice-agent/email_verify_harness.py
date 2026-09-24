@@ -22,12 +22,17 @@ a küszöb feletti bizalommal (green):
  Aktiválás: EMAIL_VERIFY_MODE=1 env (l. server.py hook és tools.book_meeting).
 """
 import asyncio
+import io
 import json
 import math
 import os
 import re
 import socket
+import struct
 import time
+import unicodedata
+import wave
+from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
 
 import requests
@@ -42,11 +47,20 @@ _STT_URL = "https://api.elevenlabs.io/v1/speech-to-text"
 _STT_TIMEOUT = 120  # mp — a rögzítés akár ~10 perces is lehet
 _STT_RETRY_DELAYS = (2, 5)
 
-# A diktálásban leggyakoribb domainek (Scribe keyterms + domain-javítás)
-KNOWN_DOMAINS = (
-    "gmail.com", "freemail.hu", "citromail.hu", "indamail.hu",
-    "outlook.com", "hotmail.com", "yahoo.com",
+# A diktálásban leggyakoribb domainek (MU-1.4: GREEN_2OF2 csak ismert domainnél).
+# Env: EMAIL_VERIFY_KNOWN_DOMAINS (vesszőlista) bővíti.
+_BASE_KNOWN_DOMAINS = (
+    "gmail.com", "freemail.hu", "citromail.hu", "hotmail.com", "hotmail.hu",
+    "outlook.com", "outlook.hu", "live.com", "yahoo.com", "icloud.com",
+    "t-online.hu", "indamail.hu", "vipmail.hu", "invitel.hu", "chello.hu",
+    "upcmail.hu",
 )
+KNOWN_DOMAINS = tuple(dict.fromkeys(
+    list(_BASE_KNOWN_DOMAINS)
+    + [d.strip().lower()
+       for d in (os.getenv("EMAIL_VERIFY_KNOWN_DOMAINS", "") or "").split(",")
+       if d.strip()]
+))
 # A Scribe keyterms mező PLAIN form-értékeket vár (JSON-lista 400-as hiba),
 # és csak betű/szám/pont karaktereket fogad — a "+36" ezért kimaradt
 # (a telefon ellenőrzés amúgy is skipped: a SIP caller id a mérvadó).
@@ -61,9 +75,87 @@ def _confidence_threshold() -> float:
 
 
 def _pipeline_version() -> str:
-    """MU-0.2: az email_verify_runs.pipeline_version címke. Az 50 teszthívás
-    alatt a bevetett kód 'baseline' — az MU-1/2 deploy után 'wp-e2'."""
-    return (os.getenv("EMAIL_VERIFY_PIPELINE_VERSION", "baseline") or "baseline").strip()
+    """MU-0.2: az email_verify_runs.pipeline_version címke. A bevetett build
+    címkéje — 'baseline' (MU-0) vagy 'wp-e2' (az új kapus pipeline)."""
+    return (os.getenv("EMAIL_VERIFY_PIPELINE_VERSION", "wp-e2") or "wp-e2").strip()
+
+
+def _jev_green_enabled() -> bool:
+    """MU-1.6: EMAIL_VERIFY_JEV_GREEN=1 esetén a JEV-konfidencia ÉS-kapcsolatban
+    adhat csak zöldet az 1.4-es feltételek mellett; default 0 → a JEV SOHA nem
+    ad zöldet, csak a nem-zöld jelöltet rangsorolja."""
+    return (os.getenv("EMAIL_VERIFY_JEV_GREEN", "0") or "0").strip() == "1"
+
+
+def canon_email(s) -> str | None:
+    """MU-1.3 kanonizálás: MINDEN forrás-egyeztetés CSAK ezen fut.
+    strip+kisbetű → minden whitespace törlése → NFKD + kombináló jelek törlése
+    (ékezet-foldolás) → záró írásjel levágása → laza szintaxis-ellenőrzés.
+    Érvénytelen → None."""
+    if s is None:
+        return None
+    t = str(s).strip().lower()
+    if not t:
+        return None
+    t = re.sub(r"\s+", "", t)
+    folded = unicodedata.normalize("NFKD", t)
+    t = "".join(ch for ch in folded if not unicodedata.combining(ch))
+    t = t.strip(".,;:")
+    return t if EMAIL_SYNTAX_RE.match(t) else None
+
+
+def majority_reading(readings: dict):
+    """MU-1.5: ha ≥2 szavazó forrás UGYANAZT az értéket látja (pl. 2:1
+    ellentmondás), az a többségi érték a non-green jelölt."""
+    present = [v for v in (readings or {}).values() if v]
+    for v in set(present):
+        if present.count(v) >= 2:
+            return v
+    return None
+
+
+def evaluate_gate(readings: dict, known_domains=None, mx_resolver=None) -> dict:
+    """MU-1.4: az új zöld-kapu — CSAK egymástól FÜGGETLEN források
+    karakterpontos (kanonizált) egyezése ad zöldet, legalább kettő jelenléte
+    mellett; ismeretlen domainnél mind a három kell. Egy kiesett forrás
+    (hiba/timeout) nem ellentmondás, csak kevesebb szavazat.
+    readings: {"live": canon|None, "stt": canon|None, "audio": canon|None}
+    → {"reason", "present", "known_domain", "mx", "top"}; green = reason GREEN-nel kezdődik."""
+    kd = known_domains if known_domains is not None else KNOWN_DOMAINS
+    mxr = mx_resolver or mx_resolves
+    present = {k: v for k, v in (readings or {}).items() if v}
+    values = set(present.values())
+    out = {"reason": "NG_NO_EMAIL", "present": sorted(present),
+           "known_domain": None, "mx": None, "top": None}
+    if not present:
+        return out
+    if len(values) > 1:
+        # BÁRMELY két jelen lévő forrás eltér → ellentmondás (a fő mérce:
+        # rossz címre SOHA ne menjen — inkább non-green)
+        out["reason"] = "NG_CONTRADICTION"
+        return out
+    if len(present) == 1:
+        out["reason"] = "NG_SINGLE_SOURCE"
+        return out
+    top = next(iter(values))
+    out["top"] = top
+    if not EMAIL_SYNTAX_RE.match(top):
+        out["reason"] = "NG_SYNTAX"
+        return out
+    dom = top.partition("@")[2]
+    mx = mxr(dom)
+    out["mx"] = mx
+    out["known_domain"] = dom in kd
+    if mx is False:
+        out["reason"] = "NG_MX_NXDOMAIN"
+        return out
+    if len(present) == 3:
+        out["reason"] = "GREEN_3OF3"
+    elif dom in kd:
+        out["reason"] = "GREEN_2OF2_KNOWN"
+    else:
+        out["reason"] = "NG_UNKNOWN_DOMAIN_2OF2"
+    return out
 
 # A tools._EMAIL_RE-vel azonos laza szintaxis-szabály
 EMAIL_SYNTAX_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
@@ -370,7 +462,25 @@ def extract_name_candidates(live_name: str, scribe_name: str) -> list:
 # USER-szabály: a harness NEM hasonlítja össze a kinyert címet az ügyfél
 # nevével vagy korábbi emailjével — a diktált címet a beszédből kell
 # értelmezni, LLM-mel (nem csak regexszel), JEV verifikációval.
+# MU-1.1/MU-1.2: a források FÜGGETLENSÉGE a kapu alapja — az 'stt' szavazó
+# olvasat CSAK a hívó csatorna szövegét kaphatja (élő átirat és agent-beszéd
+# NEM mehet bele, különben a live olvasat „hátsó ajtón" szivárogna vissza).
 EMAIL_VERIFY_LLM_MODEL = os.getenv("EMAIL_VERIFY_LLM_MODEL", "gemini-3.8-flash")
+EMAIL_VERIFY_AUDIO_MODEL = os.getenv("EMAIL_VERIFY_AUDIO_MODEL", "") or EMAIL_VERIFY_LLM_MODEL
+
+# MU-1.2: a teljes diktálási konvenció-lista (mindkét prompttal közös)
+_CONVENTIONS = (
+    "A diktálás magyar konvenciói: „kukac\" = @, „pont\" = ., „kötőjel\" = -, "
+    "„mínusz\" = -, „aláhúzás\" = _, „alulvonás\" = _, „alsóvonás\" = _, "
+    "„dupla x\" = xx, „dupla vé\" = w, „ipszilon\" = y, „iksz\" = x, „kú\" = q; "
+    "a betűzött betűneveket (bé, cé, dé, gé, há, ká, el, em, en, er, esz, té, "
+    "zé stb.) egy-egy betűként értsd; a számdiktálást értelmezni kell "
+    "(„tizenhárom\" = 13, „kettő nulla nulla\" = 200); az emailcímet EGYBE "
+    "kell írni — a benne lévő szóközök a diktálás műtermékei.\n"
+    "Elválasztójelet (pont, kötőjel, aláhúzás) a címbe CSAK akkor írj, ha az "
+    "elhangzott. A lokális részt (a kukac előtti részt) SOHA ne „javítsd\" "
+    "valószínűbbnek tűnő formára.\n"
+)
 
 _LLM_EXTRACT_SYSTEM = (
     "Te egy magyar fogászati rendelő telefonos AI-asszisztensének "
@@ -378,10 +488,7 @@ _LLM_EXTRACT_SYSTEM = (
     "beszédfelismerő készített átiratot (élő valós idejű és utólagos). "
     "Feladatod: a HÍVÓ (ügyfél) által diktált/közölt EMAIL CÍMET és — ha "
     "elhangzott — a NEVÉT kiolvasni.\n"
-    "A diktálás magyar konvenciói: „kukac\" = @, „pont\" = ., „kötőjel\" = -, "
-    "„aláhúzás\" = _, „dupla x\" = xx; a betűzést és a számdiktálást "
-    "(„tizenhárom\" = 13) értelmezni kell; az emailcímet EGYBE kell írni — a "
-    "benne lévő szóközök a diktálás műtermékei.\n"
+    + _CONVENTIONS +
     "CSAK az ügyfél által mondott adatot add meg! Az ASSZISZTENS (az AI-agent) "
     "saját neve, bemutatkozása és mondatai SOHA nem ügyféladatok — ha csak az "
     "agent neve hangzott el, a name legyen null.\n"
@@ -396,15 +503,44 @@ _LLM_EXTRACT_SYSTEM = (
     '"confidence": number}'
 )
 
+# MU-1.2: egyforrású (stt) prompt — a bemenete CSAK a hívó csatorna átirata
+_STT_EXTRACT_SYSTEM = (
+    "Te egy magyar fogászati rendelő telefonos AI-asszisztensének "
+    "UTÓELLENŐRZŐ motorja vagy. Egy beszédfelismerő átírta egy hívás CSAK A "
+    "HÍVÓ (ügyfél) SZAVAIT. Feladatod: a hívó által diktált/közölt EMAIL CÍMET "
+    "és — ha elhangzott — a NEVÉT kiolvasni az átiratból.\n"
+    + _CONVENTIONS +
+    "Ha a hívó nem diktált emailcímet → email: null; ha a neve nem hangzott "
+    "el → name: null. Semmit nem szabad kitalálni.\n"
+    "A variants mező a bemondott cím MINDEN hihető írásformáját tartalmazza "
+    "(ékezetes és ékezet nélküli lokál, gyanús domain-változat is).\n"
+    "A confidence 0 és 1 közti szám: mennyire vagy biztos a kinyert "
+    "értékekben.\n"
+    "Válasz KIZÁRÓLAG JSON-objektum: "
+    '{"email": string|null, "name": string|null, "variants": [string], '
+    '"confidence": number}'
+)
+
 
 def build_llm_extract_prompt(transcript_live: str, transcript_stt: str) -> str:
-    """Az extrakciós prompt összeállítása (pure — tesztelhető)."""
+    """A KÉT-forrású (reconcile) extrakciós prompt összeállítása (pure).
+    Ez NEM szavaz a kapuban (MU-1.1) — csak jelölt-rangsorolás + audit."""
     return (
         f"{_LLM_EXTRACT_SYSTEM}\n\n"
         "── ÉLŐ ÁTIRAT ──\n"
         f"{(transcript_live or '').strip()[:6000]}\n\n"
         "── UTÓLAGOS ÁTIRAT ──\n"
         f"{(transcript_stt or '').strip()[:6000]}"
+    )
+
+
+def build_stt_extract_prompt(caller_text: str) -> str:
+    """MU-1.2: az 'stt' SZAVAZÓ olvasat promptja — CSAK a hívó csatorna
+    szövege mehet bele (élő átirat/agent-beszéd szigorúan tilos)."""
+    return (
+        f"{_STT_EXTRACT_SYSTEM}\n\n"
+        "── HÍVÓ ÁTIRAT ──\n"
+        f"{(caller_text or '').strip()[:6000]}"
     )
 
 
@@ -451,8 +587,8 @@ def parse_llm_extract(raw: str) -> dict:
     return out
 
 
-def _new_genai_client():
-    """BYOK Gemini-kliens (classifier mintájára), 90 mp timeout-tal.
+def _new_genai_client(timeout_ms: int = 90_000):
+    """BYOK Gemini-kliens (classifier mintájára), paraméterezhető timeout-tal.
     Hiba/nincs kulcs → None."""
     try:
         from google import genai
@@ -463,41 +599,273 @@ def _new_genai_client():
             return None
         return genai.Client(
             api_key=api_key,
-            http_options=types.HttpOptions(timeout=90_000),
+            http_options=types.HttpOptions(timeout=timeout_ms),
         )
     except Exception as exc:
         logger.warning(f"Gemini kliens indítási hiba: {exc}")
         return None
 
 
-def llm_extract(transcript_live: str, transcript_stt: str) -> dict:
-    """Gemini Flash (EMAIL_VERIFY_LLM_MODEL, default gemini-3.8-flash): a KÉT
-    átiratból kiolvassa a diktált emailcímet és a nevet. 429/5xx-re rövid
-    backoff-fal újrapróbál. SOSEM dob kivételt — hibánál {} (fail-open)."""
-    contents = build_llm_extract_prompt(transcript_live, transcript_stt)
-    delays = (0, 6, 15)  # első próbálkozás azonnal, majd backoff
+def _genai_generate_json(prompt: str, timeout_ms: int = 90_000,
+                         delays=(0, 6, 15)):
+    """Közös szöveg-LLM mag: model = EMAIL_VERIFY_LLM_MODEL,
+    response_mime_type = json, 429/5xx-re backoff-fal újrapróbál.
+    Sikerre a válasz-szöveg, hibára None (fail-open)."""
     last_err = ""
     for attempt, delay in enumerate(delays):
         try:
             if delay:
                 time.sleep(delay)
-            client = _new_genai_client()
+            client = _new_genai_client(timeout_ms)
             if client is None:
-                logger.warning("LLM-extrakció kihagyva (nincs Gemini-kulcs)")
-                return {}
+                logger.warning("LLM-hívás kihagyva (nincs Gemini-kulcs)")
+                return None
             response = client.models.generate_content(
                 model=EMAIL_VERIFY_LLM_MODEL,
                 config={"response_mime_type": "application/json"},
-                contents=contents,
+                contents=prompt,
             )
-            return parse_llm_extract(getattr(response, "text", "") or "")
+            return getattr(response, "text", "") or ""
         except Exception as exc:
             last_err = str(exc)
             if attempt < len(delays) - 1 and _is_retryable_llm_error(last_err):
                 continue
-            logger.warning(f"LLM-extrakció hiba (fail-open): {last_err}")
+            logger.warning(f"LLM-hívás hiba (fail-open): {last_err}")
+            return None
+    return None
+
+
+def llm_extract(transcript_live: str, transcript_stt: str) -> dict:
+    """KÉT-forrású 'reconcile' olvasat (MU-1.1: NEM szavaz — jelölt-rangsor +
+    audit): a KÉT átiratból kiolvassa a diktált emailcímet és a nevet.
+    SOSEM dob kivételt — hibánál {} (fail-open)."""
+    text = _genai_generate_json(build_llm_extract_prompt(transcript_live, transcript_stt))
+    return parse_llm_extract(text or "")
+
+
+def llm_extract_stt_only(caller_text: str) -> dict:
+    """MU-1.2: az 'stt' SZAVAZÓ olvasat — KIZÁRÓLAG a hívó csatorna
+    (STT-)szövegéből. Ugyanaz a modell/retry/parse. Fail-open: {}."""
+    text = _genai_generate_json(build_stt_extract_prompt(caller_text))
+    return parse_llm_extract(text or "")
+
+
+# ── MU-2: hangalapú olvasat (audio-LLM) ─────────────────────────────────────
+# Közvetlenül a hívó csatorna HANGJÁBÓL olvas — nem függ egyetlen STT-től sem.
+_EMAIL_SIGNAL_WORD_RE = re.compile(
+    r"(kukac|@|" + "|".join(d.replace(".", r"\.") for d in _BASE_KNOWN_DOMAINS) + r"|pont)",
+    re.IGNORECASE,
+)
+
+# MU-2.3: a prompt szó szerint (munkautalvány)
+_AUDIO_EXTRACT_PROMPT = (
+    "Egy magyar fogorvosi rendelő telefonhívásának CSAK A HÍVÓ OLDALÁT hallod "
+    "(telefonos minőség). Az ügyfél a hívás során egy email címet diktál. Írd "
+    "le a diktált email címet karakterről karakterre, KIZÁRÓLAG abból, amit "
+    "hallasz.\n"
+    "\n"
+    "Diktálási konvenciók: „kukac\" = @, „pont\" = ., „kötőjel\" / „mínusz\" "
+    "= -, „aláhúzás\" / „alulvonás\" / „alsóvonás\" = _, „dupla vé\" = w, "
+    "„ipszilon\" = y, „iksz\" = x, „kú\" = q. A betűzött betűneveket (bé, cé, "
+    "dé, gé, há, ká, el, em, en, er, esz, té, zé stb.) egy-egy betűként "
+    "érd. A számokat számjegyekkel írd („tizenhárom\" = 13, „kettő nulla "
+    "nulla\" = 200). Az ékezeteket hagyd el. A címben nincs szóköz.\n"
+    "\n"
+    "Elválasztójelet (. - _) CSAK akkor írj, ha elhangzott. Ismert szolgáltató "
+    "domainjét (gmail.com, freemail.hu, citromail.hu, hotmail.com, "
+    "outlook.com, icloud.com, t-online.hu stb.) a helyes írásmóddal írd, ha "
+    "egyértelműen azt hallod; egyébként úgy írd le, ahogy hallod. A lokális "
+    "részt (a kukac előtti részt) SOHA ne „javítsd\" valószínűbbnek tűnő "
+    "formára.\n"
+    "\n"
+    "Ha az ügyfél javította magát, a VÉGSŐ változatot add meg. Ha nem diktált "
+    "email címet, az email legyen null. Semmit ne találj ki.\n"
+    "\n"
+    "Válasz KIZÁRÓLAG JSON:\n"
+    '{"email": string|null, "heard_raw": string, "spelled": boolean, '
+    '"uncertain": [{"segment": string, "alternatives": [string]}], '
+    '"confidence": number}\n'
+    "ahol heard_raw a cím úgy, ahogy magyar szavakkal elhangzott; spelled = "
+    "betűzött-e; uncertain a bizonytalanul hallott szakaszok és hihető "
+    "alternatíváik."
+)
+
+
+def _parse_audio_extract(raw: str) -> dict:
+    """MU-2.4: az audio-LLM válaszának értelmezése. Az email → canon_email;
+    az uncertain alternatívákból kanonizált teljes címek is kijönnek
+    (jelöltek lesznek, NEM szavaznak). Érvénytelen válasz → {} (fail-open)."""
+    if not raw:
+        return {}
+    text = raw.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-zA-Z]*\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+    try:
+        data = json.loads(text)
+    except (ValueError, TypeError):
+        try:
+            data = json.loads(re.sub(r'\\(?!["\\/bfnrtu])', "", text))
+        except (ValueError, TypeError):
             return {}
-    return {}
+    if not isinstance(data, dict):
+        return {}
+    out = {"email": canon_email(data.get("email")),
+           "heard_raw": str(data.get("heard_raw") or ""),
+           "spelled": bool(data.get("spelled")),
+           "uncertain": [], "candidate_emails": [], "confidence": 0.0}
+    uncertain = data.get("uncertain")
+    if isinstance(uncertain, list):
+        for u in uncertain:
+            if not isinstance(u, dict):
+                continue
+            alts = u.get("alternatives")
+            entry = {"segment": str(u.get("segment") or ""),
+                     "alternatives": [str(a) for a in alts if isinstance(a, str)] if isinstance(alts, list) else []}
+            out["uncertain"].append(entry)
+            for a in entry["alternatives"]:
+                c = canon_email(a)
+                if c and c not in out["candidate_emails"]:
+                    out["candidate_emails"].append(c)
+    try:
+        conf = float(data.get("confidence") or 0.0)
+    except (TypeError, ValueError):
+        conf = 0.0
+    out["confidence"] = min(max(conf, 0.0), 1.0)
+    return out
+
+
+def llm_audio_extract(wav_bytes: bytes) -> dict:
+    """MU-2: a hívó csatorna hangjából olvassa a diktált címet (inline audio,
+    temperature=0, 60 s timeout, 2 próbálkozás 429/5xx-re). Bármilyen hiba →
+    {} (audio olvasat kiesik, a pipeline megy tovább). SOSEM dob."""
+    if not wav_bytes:
+        return {}
+    try:
+        from google.genai import types
+
+        client = _new_genai_client(60_000)
+        if client is None:
+            logger.warning("Audio-LLM kihagyva (nincs Gemini-kulcs)")
+            return {}
+        contents = [
+            _AUDIO_EXTRACT_PROMPT,
+            types.Part.from_bytes(data=wav_bytes, mime_type="audio/wav"),
+        ]
+        for attempt, delay in enumerate((0, 6)):
+            try:
+                if delay:
+                    time.sleep(delay)
+                response = client.models.generate_content(
+                    model=EMAIL_VERIFY_AUDIO_MODEL,
+                    config={"response_mime_type": "application/json",
+                            "temperature": 0},
+                    contents=contents,
+                )
+                return _parse_audio_extract(getattr(response, "text", "") or "")
+            except Exception as exc:
+                if attempt == 0 and _is_retryable_llm_error(str(exc)):
+                    logger.warning(f"Audio-LLM átmeneti hiba, retry: {str(exc)[:120]}")
+                    continue
+                logger.warning(f"Audio-LLM hiba (fail-open): {str(exc)[:160]}")
+                return {}
+        return {}
+    except Exception as exc:
+        logger.warning(f"Audio-LLM hiba (fail-open): {exc}")
+        return {}
+
+
+def _extract_caller_channel_wav(wav_bytes: bytes) -> bytes:
+    """A sztereó WAV 0. csatornája (hívó = BAL) mono WAV-ként. Mono bemenet →
+    változatlanul megy tovább; nem 16-bit → szintén (fail-open)."""
+    if not wav_bytes:
+        return wav_bytes
+    try:
+        with wave.open(io.BytesIO(wav_bytes), "rb") as w:
+            nch, sw, fr, nf = (w.getnchannels(), w.getsampwidth(),
+                               w.getframerate(), w.getnframes())
+            if nch == 1 or sw != 2:
+                return wav_bytes
+            frames = w.readframes(nf)
+        samples = struct.unpack(f"<{nf * nch}h", frames[:nf * nch * 2])
+        caller = samples[0::nch]
+        out = io.BytesIO()
+        with wave.open(out, "wb") as w:
+            w.setnchannels(1)
+            w.setsampwidth(2)
+            w.setframerate(fr)
+            w.writeframes(struct.pack(f"<{len(caller)}h", *caller))
+        return out.getvalue()
+    except Exception as exc:
+        logger.warning(f"Hívó-csatorna kivonás sikertelen (teljes WAV megy): {exc}")
+        return wav_bytes
+
+
+def _wav_duration_s(wav_bytes: bytes) -> float:
+    """A WAV hossza másodpercben; hibánál 0.0."""
+    try:
+        with wave.open(io.BytesIO(wav_bytes or b""), "rb") as w:
+            return w.getnframes() / float(w.getframerate() or 1)
+    except Exception:
+        return 0.0
+
+
+def _slice_wav(wav_bytes: bytes, start_s: float, end_s: float) -> bytes:
+    """WAV-időszelet (frame-pontos); hibánál az eredeti bytes megy."""
+    try:
+        with wave.open(io.BytesIO(wav_bytes), "rb") as w:
+            params = w.getparams()
+            fr = params.framerate or 1
+            a = max(0, int(start_s * fr))
+            b = min(params.nframes, int(end_s * fr))
+            w.setpos(a)
+            frames = w.readframes(b - a)
+        out = io.BytesIO()
+        with wave.open(out, "wb") as w:
+            w.setnchannels(params.nchannels)
+            w.setsampwidth(params.sampwidth)
+            w.setframerate(fr)
+            w.writeframes(frames)
+        return out.getvalue()
+    except Exception as exc:
+        logger.warning(f"WAV-szeletelés sikertelen (teljes megy): {exc}")
+        return wav_bytes
+
+
+def _email_signal_window_ms(words: list, dur_s: float, max_s: float = 300.0,
+                            pad_s: float = 5.0):
+    """MU-2.2: a diktálás ablaka a Soniox tokenekből (kukac/@/pont/domain
+    jelzőszavak start/end_ms-e) ±5 s — 300 s-nál HOSSZABB hívásokhoz.
+    Nincs jelző → (0, max_s)."""
+    starts, ends = [], []
+    for w in words or []:
+        if not isinstance(w, dict):
+            continue
+        if not _EMAIL_SIGNAL_WORD_RE.search(str(w.get("text") or "")):
+            continue
+        s, e = w.get("start_ms"), w.get("end_ms")
+        if isinstance(s, (int, float)):
+            starts.append(s)
+        if isinstance(e, (int, float)):
+            ends.append(e)
+    if not starts:
+        return 0.0, max_s
+    win_start = max(0.0, (min(starts) / 1000.0) - pad_s)
+    win_end = min(dur_s, (max(ends) / 1000.0 if ends else min(starts) / 1000.0 + 30.0) + pad_s)
+    if win_end - win_start > max_s:
+        win_end = win_start + max_s
+    return win_start, win_end
+
+
+def _caller_audio_window(wav_bytes: bytes, words: list) -> bytes:
+    """MU-2.2: a hívó csatorna teljes, ha ≤300 s; hosszabbnál a diktálás
+    ablaka (Soniox jelzőtokenek ±5 s), jelzők nélkül az első 300 s."""
+    dur = _wav_duration_s(wav_bytes)
+    if dur <= 0 or dur <= 300.0:
+        return wav_bytes
+    start, end = _email_signal_window_ms(words, dur)
+    logger.info(f"Hosszú hívás ({dur:.0f} s) — audio-LLM ablak: {start:.0f}–{end:.0f} s")
+    return _slice_wav(wav_bytes, start, end)
 
 
 def _is_retryable_llm_error(err: str) -> bool:
@@ -708,19 +1076,29 @@ def _soniox_headers():
 
 def _soniox_tokens_to_words(tokens: list) -> list:
     """Soniox async tokenek (szub-szavas fragmentek, a szóhatár a token
-    szövegének vezető szóközében) → szó-lista ({text, logprob}).
-    Konfidencia nélküli token → -0,7 (semleges logprob)."""
+    szövegének vezető szóközében) → szó-lista ({text, logprob, start_ms,
+    end_ms}). Konfidencia nélküli token → -0,7 (semleges logprob).
+    Az időbélyegek (ha vannak) a hosszú-hívás audio-ablakhoz kellenek (MU-2.2)."""
     words = []
     buf = ""
     buf_lp = None
+    buf_start = None
+    buf_end = None
 
     def _flush():
-        nonlocal buf, buf_lp
+        nonlocal buf, buf_lp, buf_start, buf_end
         if buf:
-            words.append({"text": buf,
-                          "logprob": buf_lp if buf_lp is not None else -0.7})
+            entry = {"text": buf,
+                     "logprob": buf_lp if buf_lp is not None else -0.7}
+            if buf_start is not None:
+                entry["start_ms"] = buf_start
+            if buf_end is not None:
+                entry["end_ms"] = buf_end
+            words.append(entry)
         buf = ""
         buf_lp = None
+        buf_start = None
+        buf_end = None
 
     for t in tokens:
         if not isinstance(t, dict):
@@ -733,6 +1111,8 @@ def _soniox_tokens_to_words(tokens: list) -> list:
             lp = math.log(max(float(conf), 1e-6)) if conf is not None else -0.7
         except (TypeError, ValueError):
             lp = -0.7
+        s_ms = t.get("start_ms")
+        e_ms = t.get("end_ms")
         parts = tt.split(" ")
         for j, part in enumerate(parts):
             if j > 0:
@@ -740,6 +1120,10 @@ def _soniox_tokens_to_words(tokens: list) -> list:
             if part:
                 buf += part
                 buf_lp = min(buf_lp, lp) if buf_lp is not None else lp
+                if isinstance(s_ms, (int, float)) and buf_start is None:
+                    buf_start = s_ms
+                if isinstance(e_ms, (int, float)):
+                    buf_end = e_ms
     _flush()
     return words
 
@@ -957,67 +1341,116 @@ def extract_scribe_name(caller_text: str) -> str:
 # ── Orchisztrátor ────────────────────────────────────────────────────────────
 def run_harness(session_id: str, tenant_id=None, interaction_id=None, turns=None,
                 booking_email: str = "", booking_name: str = "", client_id=None,
-                caller_number: str = "") -> dict:
+                caller_number: str = "", wav_bytes=None,
+                apply_side_effects: bool = True, mode: str = "live",
+                ground_truth=None) -> dict:
     """A teljes ellenőrzési folyamat. SOHA nem dob kivételt — hiba esetén
-    {"status": "error"} (a hívó fail-open legacy küldésre vált)."""
+    {"status": "error"} (a hívó fail-open legacy küldésre vált).
+    wav_bytes: előre letöltött rögzítés (replay); None → bucketből tölt.
+    apply_side_effects=False (replay): NINCS ügyfél/event/név-írás, NINCS
+    futás-sor — csak a verdikt + audit."""
     try:
         return _run_harness_inner(
             session_id, tenant_id=tenant_id, interaction_id=interaction_id,
             turns=turns or [], booking_email=booking_email,
             booking_name=booking_name, client_id=client_id,
-            caller_number=caller_number,
+            caller_number=caller_number, wav_bytes=wav_bytes,
+            apply_side_effects=apply_side_effects, mode=mode,
+            ground_truth=ground_truth,
         )
     except Exception as exc:
         logger.warning(f"Email-ellenőrző harness hiba (fail-open): {exc}")
         return {"status": "error"}
 
 
+def run_harness_offline(session_id: str, wav_bytes: bytes, turns=None,
+                        booking_email: str = "", booking_name: str = "",
+                        tenant_id=None) -> dict:
+    """MU-3.2: replay-belépő — ugyanaz a pipeline NULLA mellékhatással (nincs
+    ügyfél/event írás, nincs email; a replay-sorokat a szkript írja a
+    ground_truth-val együtt)."""
+    return run_harness(session_id, tenant_id=tenant_id, interaction_id=None,
+                       turns=turns, booking_email=booking_email,
+                       booking_name=booking_name, client_id=None,
+                       caller_number="", wav_bytes=wav_bytes,
+                       apply_side_effects=False, mode="replay")
+
+
+def _timed(fn, *args):
+    """(eredmény, eltelt_ms) — a futásidő-mérés az audit-timingshez."""
+    t = time.monotonic()
+    try:
+        res = fn(*args)
+    except Exception as exc:
+        logger.warning(f"Mért hívás hiba (fail-open): {exc}")
+        res = {}
+    return res, int((time.monotonic() - t) * 1000)
+
+
 def _run_harness_inner(session_id, tenant_id, interaction_id, turns,
                        booking_email, booking_name, client_id,
-                       caller_number="") -> dict:
+                       caller_number="", wav_bytes=None,
+                       apply_side_effects=True, mode="live",
+                       ground_truth=None) -> dict:
+    _t_start = time.monotonic()
+    # MU-2.1: belső határidő a külső 240 s-os wait_for alatt
+    deadline = _t_start + 220.0
     if tenant_id:
         try:
             db.set_current_tenant(tenant_id)
         except Exception:
             pass
 
-    # a) Rögzítés letöltése a privát recordings bucketből
-    path = None
+    # a) Rögzítés: bucketből (élő) vagy kapott bytes-ből (replay)
     started_at = None
-    try:
-        res = db._tenant_eq(
-            db.supabase.table("sessions").select("recording_url,started_at")
-        ).eq("session_id", session_id).limit(1).execute()
-        row = (res.data or [{}])[0]
-        path = row.get("recording_url")
-        started_at = row.get("started_at")
-    except Exception as exc:
-        logger.warning(f"Session/recording lekérdezés sikertelen ({session_id}): {exc}")
-    if not path:
-        return {"status": "no_recording"}
-    try:
-        data = db.supabase.storage.from_("recordings").download(path)
-    except Exception as exc:
-        logger.warning(f"Rögzítés letöltés sikertelen ({path}): {exc}")
-        return {"status": "no_recording"}
-    if not data or isinstance(data, dict):
-        return {"status": "no_recording"}
+    if wav_bytes:
+        data = wav_bytes
+    else:
+        path = None
+        try:
+            res = db._tenant_eq(
+                db.supabase.table("sessions").select("recording_url,started_at")
+            ).eq("session_id", session_id).limit(1).execute()
+            row = (res.data or [{}])[0]
+            path = row.get("recording_url")
+            started_at = row.get("started_at")
+        except Exception as exc:
+            logger.warning(f"Session/recording lekérdezés sikertelen ({session_id}): {exc}")
+        if not path:
+            return {"status": "no_recording"}
+        try:
+            data = db.supabase.storage.from_("recordings").download(path)
+        except Exception as exc:
+            logger.warning(f"Rögzítés letöltés sikertelen ({path}): {exc}")
+            return {"status": "no_recording"}
+        if not data or isinstance(data, dict):
+            return {"status": "no_recording"}
 
-    # b) Scribe újraátirat (hívó = bal csatorna)
-    _t0 = time.monotonic()
-    scribe = transcribe_wav_bytes(data)
-    _stt_ms = int((time.monotonic() - _t0) * 1000)
+    # b) CSATORNASZÉPARÁTÁS + párhuzamos olvasatok (MU-1.1/MU-2.1)
+    caller_wav = _extract_caller_channel_wav(data)
+    audio_deferred = _wav_duration_s(caller_wav) > 300.0
+    with ThreadPoolExecutor(max_workers=2) as pool:
+        stt_fut = pool.submit(_timed, transcribe_wav_bytes, caller_wav)
+        audio_fut = (None if audio_deferred
+                     else pool.submit(_timed, llm_audio_extract, caller_wav))
+        scribe, _stt_ms = stt_fut.result()
+        audio_res, _audio_ms = (audio_fut.result() if audio_fut else ({}, 0))
     if not scribe:
-        db.log_email_verify_run(
-            session_id, tenant_id=tenant_id, caller_number=caller_number,
-            mode="live", pipeline_version=_pipeline_version(),
-            readings={}, verdict="error", winner="")
+        if apply_side_effects:
+            db.log_email_verify_run(
+                session_id, tenant_id=tenant_id, caller_number=caller_number,
+                mode=mode, pipeline_version=_pipeline_version(),
+                readings={}, verdict="error", winner="")
         return {"status": "error"}
+    if audio_deferred:
+        # 300 s-nál hosszabb hívás: az ablak a Soniox jelzőtokenjeiből (MU-2.2)
+        audio_res, _audio_ms = _timed(
+            llm_audio_extract,
+            _caller_audio_window(caller_wav, scribe.get("words") or []))
+
     channels = _channel_texts(scribe)
-    # A hívó a BAL csatorna (kisebb channel_index); az agent-szöveg csak kontextus
     caller_key = min(channels) if channels else 0
     caller_text = channels.get(caller_key, "")
-    agent_text = " ".join(t for k, t in sorted(channels.items()) if k != caller_key)
     caller_words = []
     for tr in (scribe.get("transcripts") or []):
         wl = (tr or {}).get("words") or []
@@ -1027,95 +1460,147 @@ def _run_harness_inner(session_id, tenant_id, interaction_id, turns,
             caller_words = wl
             break
     if not caller_words:
-        # egycsatornás válasz: a word-ök a gyökérben vannak
         caller_words = scribe.get("words") or []
 
-    # c) Normalizáció + jelölt-kinyerés MINDKÉT átiratból
+    # c) Normalizáció (regex-út) + élő átirat
     norm_scribe_caller = normalize_spoken_hu(caller_text)
-    norm_scribe_all = normalize_spoken_hu((caller_text + " " + agent_text).strip())
     live_text = " ".join((t.get("text") or "") for t in turns if isinstance(t, dict))
     norm_live = normalize_spoken_hu(live_text)
 
-    # c2) LLM-extrakció (REDESIGN): a diktált cím önmagában a SZÖVEGBŐL
-    # értendő — az ügyfél nevével/korábbi elérhetőségével NINCS összehasonlítás.
-    llm = llm_extract(_live_transcript_text(turns),
-                      f"user: {caller_text}\nai: {agent_text}".strip())
-    llm_email = (llm.get("email") or "").strip().lower()
-    llm_name = (llm.get("name") or "").strip()
-
-    # d) NÉV-ellenőrzés (csak akkor írhat, ha a foglalás valóban rögzített nevet)
-    name_result = _verify_name(
-        booking_name, caller_text, norm_live, norm_scribe_caller,
-        llm_name=llm_name, client_id=client_id, interaction_id=interaction_id,
-    )
-
-    # e) EMAIL-ellenőrzés: jelöltek = LLM-olvasat + variánsai ELÖL, utána a
-    # regulázissal nyert jelöltek (élő + utólagos átirat) és a javítottak.
+    # d) OLVASATOK — a 'live' a foglalási élő olvasat; ha nincs, regex a live
+    # átirat user turnusaiból (MU-1.1)
     live_email = (booking_email or "").strip().lower()
+    if not live_email:
+        live_user_text = " ".join((t.get("text") or "") for t in turns
+                                  if isinstance(t, dict) and (t.get("role") or "") == "user")
+        _lc = extract_email_candidates(normalize_spoken_hu(live_user_text))
+        live_email = _lc[0] if _lc else ""
+
+    # 'stt' szavazó olvasat — KIZÁRÓLAG a hívó csatorna szövegéből (MU-1.2)
+    stt_llm, _stt_llm_ms = ({}, 0)
+    if time.monotonic() < deadline - 30:
+        stt_llm, _stt_llm_ms = _timed(llm_extract_stt_only, caller_text)
+
+    # 'reconcile' NEM szavazó olvasat — a KÉT átirat együtt (rangsor + audit)
+    reconcile, _recon_ms = ({}, 0)
+    if time.monotonic() < deadline - 20:
+        reconcile, _recon_ms = _timed(
+            llm_extract, _live_transcript_text(turns), caller_text)
+
+    readings = {
+        "live": canon_email(live_email),
+        "stt": canon_email(stt_llm.get("email")),
+        "audio": canon_email(audio_res.get("email")),
+    }
+
+    # e) AZ ÚJ KAPU (MU-1.4) + JEV-rangsorolás
+    gate = evaluate_gate(readings)
+    gate_green = gate["reason"].startswith("GREEN")
+
+    stt_regex_cands = extract_email_candidates(norm_scribe_caller)
     live_cands = extract_email_candidates(norm_live)
-    scribe_cands = (extract_email_candidates(norm_scribe_caller)
-                    or extract_email_candidates(norm_scribe_all))
-    scribe_email = scribe_cands[0] if scribe_cands else ""
-    cands = merge_email_candidates(live_email, llm, live_cands, scribe_cands)
+    scribe_email = stt_regex_cands[0] if stt_regex_cands else ""
+    cands = merge_email_candidates(live_email, reconcile, live_cands, stt_regex_cands)
+    # az stt/audio olvasat + variánsok és az audio-uncertain jelöltek ELŐRE (MU-1.5)
+    front = []
+    for v in ([readings["stt"], readings["audio"]]
+              + [canon_email(x) for x in (stt_llm.get("variants") or [])]
+              + list(audio_res.get("candidate_emails") or [])):
+        if v and v not in front:
+            front.append(v)
+    cands = front + [c for c in cands if c not in front]
+
     arb = arbitrate(cands, context={
         "kind": "email",
         "live": live_email,
         "scribe": scribe_email,
-        "llm_value": llm_email,
-        "llm_confidence": llm.get("confidence", 0.0),
+        "llm_value": (reconcile.get("email") or ""),
+        "llm_confidence": reconcile.get("confidence", 0.0),
         "transcript_live": norm_live[:600],
-        "transcript_scribe": (norm_scribe_caller + " || " + norm_scribe_all)[:600],
+        "transcript_scribe": norm_scribe_caller[:600],
     })
-    winner = (arb.get("choice") or "").strip().lower()
+
+    green = gate_green
+    if gate_green and _jev_green_enabled() \
+            and float(arb.get("confidence") or 0.0) < _confidence_threshold():
+        green = False
+        gate = dict(gate, reason="NG_JEV_CONFIDENCE")
+
+    # Nyertes (MU-1.5): green → a kapu top értéke; 2:1 többség → a többségi;
+    # különben a JEV dönt a jelöltek közt
+    if gate_green:
+        winner = gate["top"] or ""
+        winner_source = "gate"
+    else:
+        maj = majority_reading(readings)
+        if maj:
+            winner = maj
+            winner_source = "majority"
+        else:
+            winner = (arb.get("choice") or "").strip().lower()
+            winner_source = arb.get("source", "")
     validation = validate_email(winner) if winner else {"syntax": False, "mx": None, "known_domain": False}
-    # Egyetértés = két FÜGGETLEN olvasat ugyanazt hallotta (foglalás közbeni
-    # élő felismerés ÉS az utólagos LLM-kiolvasás, vagy a regulázisos átirat)
-    agree = bool(live_email and (
-        (llm_email and live_email == llm_email)
-        or (scribe_email and live_email == scribe_email)))
-    green = email_is_green(winner, validation, agree, arb.get("confidence"))
 
-    # f) Korrekció az ügyfélen: AUTONÓM írás CSAK green verdict esetén —
-    # non-greennél az ügyfél email-oszlopa ÉRINTETTLEN marad (csak audit +
-    # dupla opt-in a jelöltekre; a verdict.winner mindig a JELÖLT, mert erre
-    # megy a dupla opt-in).
-    stored_email, client_row = _stored_email(client_id)
-    changed = bool(green and winner and stored_email
-                   and winner != stored_email.strip().lower())
-    new_email = winner if (winner and (changed or not stored_email)) \
-        else (stored_email or winner)
-    email_audit_status = ("corrected" if changed else "green") if green else "non_green"
-    _apply_email_correction(
-        client_row, stored_email, new_email, arb, email_audit_status,
-        changed=changed, interaction_id=interaction_id, apply=green,
-    )
+    # f) AUDIT (MU-1.7)
+    total_ms = int((time.monotonic() - _t_start) * 1000)
+    audit = {
+        "readings": {
+            "live": readings["live"], "stt": readings["stt"], "audio": readings["audio"],
+            "stt_regex": canon_email(scribe_email),
+            "reconcile": canon_email(reconcile.get("email")),
+            "jev": {"choice": (arb.get("choice") or "").strip().lower(),
+                    "confidence": arb.get("confidence", 0.0)},
+        },
+        "audio_detail": {
+            "heard_raw": audio_res.get("heard_raw", ""),
+            "spelled": bool(audio_res.get("spelled")),
+            "uncertain": audio_res.get("uncertain") or [],
+        },
+        "gate": {"reason": gate["reason"], "present": gate["present"],
+                 "known_domain": gate["known_domain"], "mx": gate["mx"]},
+        "stt_engine": (os.getenv("HARNESS_STT_ENGINE", "soniox") or "soniox"),
+        "timings_ms": {"soniox": _stt_ms, "stt_llm": _stt_llm_ms,
+                       "audio_llm": _audio_ms, "reconcile_llm": _recon_ms,
+                       "total": total_ms},
+    }
 
-    # g) A hívásban létrejott események attendee_email-jének követése
-    if changed and stored_email:
-        _update_session_events_email(stored_email, new_email, started_at)
+    # g) Mellékhatások — CSAK élő módban (a replay NULLA írást végez)
+    stored_email, client_row = ("", None)
+    changed = False
+    new_email = winner
+    name_result = None
+    if apply_side_effects:
+        stored_email, client_row = _stored_email(client_id)
+        changed = bool(green and winner and stored_email
+                       and winner != stored_email.strip().lower())
+        new_email = winner if (winner and (changed or not stored_email)) \
+            else (stored_email or winner)
+        status = ("corrected" if changed else "green") if green else "non_green"
+        _apply_email_correction(
+            client_row, stored_email, new_email, audit, status,
+            changed=changed, interaction_id=interaction_id, apply=green,
+        )
+        if changed and stored_email:
+            _update_session_events_email(stored_email, new_email, started_at)
+        name_result = _verify_name(
+            booking_name, caller_text, norm_live, norm_scribe_caller,
+            llm_name=(reconcile.get("name") or ""),
+            client_id=client_id, interaction_id=interaction_id,
+        )
+        db.log_email_verify_run(
+            session_id, tenant_id=tenant_id, caller_number=caller_number,
+            mode=mode, pipeline_version=_pipeline_version(),
+            readings=audit["readings"], gate=audit["gate"],
+            audio_detail=audit["audio_detail"], timings_ms=audit["timings_ms"],
+            winner=new_email or "", verdict="green" if green else "non_green",
+            ground_truth=ground_truth,
+        )
 
     scribe_lp = None
     try:
         scribe_lp = _min_logprob_for_email(caller_words, caller_text)
     except Exception:
         pass
-
-    # MU-0.2: futás-napló (baseline) — a verdikt hívásonként kereshetően
-    db.log_email_verify_run(
-        session_id, tenant_id=tenant_id, caller_number=caller_number,
-        mode="live", pipeline_version=_pipeline_version(),
-        readings={
-            "live": live_email, "llm": llm_email,
-            "llm_confidence": llm.get("confidence", 0.0),
-            "scribe": scribe_email, "jev": {"choice": winner,
-                                            "confidence": arb.get("confidence"),
-                                            "source": arb.get("source")},
-        },
-        gate={"agree": bool(agree), "syntax": validation.get("syntax"),
-              "mx": validation.get("mx"), "threshold": _confidence_threshold()},
-        timings_ms={"soniox": _stt_ms},
-        winner=new_email or "", verdict="green" if green else "non_green",
-    )
 
     return {
         "status": "green" if green else "non_green",
@@ -1124,13 +1609,14 @@ def _run_harness_inner(session_id, tenant_id, interaction_id, turns,
             "previous": stored_email or "",
             "changed": changed,
             "confidence": arb.get("confidence", 0.0),
-            "source": arb.get("source", ""),
+            "source": winner_source,
             "validation": validation,
         },
+        "audit": audit,
         "llm": {
-            "email": llm_email,
-            "name": llm_name,
-            "confidence": llm.get("confidence", 0.0),
+            "email": (reconcile.get("email") or ""),
+            "name": (reconcile.get("name") or ""),
+            "confidence": reconcile.get("confidence", 0.0),
             "model": EMAIL_VERIFY_LLM_MODEL,
         },
         "name": name_result,
@@ -1160,15 +1646,18 @@ def _stored_email(client_id):
     return stored, row
 
 
-def _apply_email_correction(client_row, stored_email, new_email, arb, audit_status,
+def _apply_email_correction(client_row, stored_email, new_email, audit, audit_status,
                             changed, interaction_id, apply=True):
     """Ügyfél email frissítése + audit-nyomvonal (custom_data.email_verification).
     A régi érték SOHA nem törlődik el hallgatagon: previous mező + interakció.
     apply=False (non-green): az email-oszlop ÉRINTETLEN marad — csak az audit
-    íródik (a jelölt nem kerül autonom módon az ügyfélre)."""
+    íródik (a jelölt nem kerül autonom módon az ügyfélre).
+    audit: az MU-1.7 szerkezet (readings/audio_detail/gate/stt_engine/timings)."""
     if not client_row:
         return
     try:
+        audit = audit if isinstance(audit, dict) else {}
+        jev = (audit.get("readings") or {}).get("jev") or {}
         cd = client_row.get("custom_data") or {}
         if isinstance(cd, str):
             try:
@@ -1180,10 +1669,11 @@ def _apply_email_correction(client_row, stored_email, new_email, arb, audit_stat
         if not changed and already:
             return  # változatlan + már auditált — felesleges írás elkerülése
         cd["email_verification"] = {
+            **audit,
             "previous": stored_email or "",
             "value": new_email or "",
-            "confidence": arb.get("confidence", 0.0),
-            "source": arb.get("source", ""),
+            "confidence": jev.get("confidence", 0.0),
+            "source": jev.get("source", ""),
             "status": audit_status,
             "applied": bool(apply),
             "ts": datetime.now(timezone.utc).isoformat(),
@@ -1200,7 +1690,7 @@ def _apply_email_correction(client_row, stored_email, new_email, arb, audit_stat
             db.log_interaction(
                 type="email",
                 topic="Email cím automatikus javítása (hívás utáni ellenőrzés)",
-                summary=f"{stored_email} → {new_email} (bizalom: {arb.get('confidence')}, forrás: {arb.get('source')})",
+                summary=f"{stored_email} → {new_email} (gate: {audit.get('gate', {}).get('reason')})",
                 result=audit_status,
                 tool_name="email_verify_harness",
                 funnel_stage="relevant",

@@ -15,14 +15,22 @@ def _stub(name, **attrs):
     mod = types.ModuleType(name)
     for k, v in attrs.items():
         setattr(mod, k, v)
-    sys.modules.setdefault(name, mod)
+    sys.modules[name] = mod
     return mod
 
 
+# A harness-tesztek üres stubokat hagynak a sys.modules-ban — azokat el kell
+# távolítani, hogy az email_processor VALÓDI modulja töltődjön be. Csak a
+# nehéz/DB függőségek stubok (jev_classifier, classifier, call_recorder és a
+# http-kliensek valósan importálódnak).
+_STUBBED = ("database", "classifier", "google", "google.genai",
+            "google.genai.types")
+_prev_modules = {n: sys.modules.get(n) for n in _STUBBED}
+for _m in _STUBBED:
+    sys.modules.pop(_m, None)
+
 _stub("database")
-_stub("jev_classifier")
 _stub("classifier", classify_interaction=lambda *a, **k: None)
-# google.genai nincs a teszt-venvben — email_processor top-level importja miatt stub
 google_mod = _stub("google")
 genai_mod = _stub("google.genai", Client=lambda **k: None)
 types_mod = _stub("google.genai.types")
@@ -32,6 +40,15 @@ sys.modules["google.genai"] = genai_mod
 sys.modules["google.genai.types"] = types_mod
 
 import email_processor as ep
+
+# A stubok NE szivárgjanak a többi tesztmodulba: az `ep.db` és a többi modul-
+# referencia megmarad az email_processorban, a sys.modules viszont pontosan
+# az import ELŐTTI állapotba áll vissza (a korábban betöltött valós modulokkal).
+for _n, _mod in _prev_modules.items():
+    if _mod is not None:
+        sys.modules[_n] = _mod
+    else:
+        sys.modules.pop(_n, None)
 
 
 @pytest.fixture()

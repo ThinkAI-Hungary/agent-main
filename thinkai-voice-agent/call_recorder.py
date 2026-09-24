@@ -410,6 +410,29 @@ class CallRecorder:
 # RETENTION — lejárt rögzítések törlése (email_processor naponta egyszer hívja)
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _eval_protected_session_ids() -> set:
+    """MU-3.4: az EVAL_CALLER_NUMBERS számokról érkezett hívások session_id-jei —
+    ezek rögzítése a retention NEM törli (a replay/kiértékeléshez megmaradnak).
+    Fail-open: hibánál üres halmaz."""
+    numbers = [n.strip() for n in (os.getenv("EVAL_CALLER_NUMBERS", "") or "").split(",")
+               if n.strip()]
+    if not numbers:
+        return set()
+    try:
+        import database as db
+        res = (
+            db.supabase.table("email_verify_runs")
+            .select("session_id")
+            .in_("caller_number", numbers)
+            .limit(1000)
+            .execute()
+        )
+        return {r["session_id"] for r in (res.data or []) if r.get("session_id")}
+    except Exception as e:
+        logger.warning(f"Retention: eval-védett sessionek lekérése sikertelen: {e}")
+        return set()
+
+
 def purge_expired_recordings() -> int:
     """A RECORDINGS_RETENTION_DAYS napnál régebbi, lezárt hívások rögzítéseit
     törli a storage-ból és nullázza a sessions.recording_url-t.
@@ -434,8 +457,11 @@ def purge_expired_recordings() -> int:
             .execute()
         )
         rows = res.data or []
+        protected = _eval_protected_session_ids()
         purged = 0
         for row in rows:
+            if row.get("session_id") in protected:
+                continue  # MU-3.4: eval-felvétel megőrzése a replay-hez
             path = row.get("recording_url")
             try:
                 db.supabase.storage.from_(RECORDINGS_BUCKET).remove([path])
