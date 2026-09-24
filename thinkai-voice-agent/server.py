@@ -34,7 +34,7 @@ from classifier import classify_interaction
 
 # ── Import tools ──────────────────────────────────────────────────────────────
 sys.path.insert(0, str(THIS_DIR))
-from tools import ALL_TOOLS, set_session_id, reset_session_alerts, set_caller_phone, get_caller_phone, session_has_complaint_or_request, _spawn
+from tools import ALL_TOOLS, set_session_id, reset_session_alerts, set_caller_phone, get_caller_phone, session_has_complaint_or_request, _spawn, send_session_confirmations
 import database as db
 import call_recorder
 
@@ -829,7 +829,7 @@ SZABÁLYOK:
                     except Exception as ce:
                         logger.error(f"Failed to upsert client by phone: {ce}")
                         
-                db.log_interaction(
+                interaction_id = db.log_interaction(
                     type="telefon",
                     topic=f"Telefonhívás leirata - {room_name}",
                     summary=summary_text,
@@ -856,6 +856,28 @@ SZABÁLYOK:
                         db.supabase.table("interactions").update({"client_id": client_id}).eq("session_id", session_id).is_("client_id", "null").execute()
                     except Exception as bfe:
                         logger.warning(f"client_id backfill sikertelen: {bfe}")
+
+                # ── WP-E: hívás utáni email/név ellenőrzés (EMAIL_VERIFY_MODE=1) ──
+                # A foglalás közben NEM ment ki visszaigazoló (tools.book_meeting
+                # késleltet): zöld verdict → most, nem-zöld → dupla opt-in. Minden
+                # hiba fail-open: a harness maga küldi legacy-ben, ha elhasal.
+                if os.getenv("EMAIL_VERIFY_MODE", "0") == "1":
+                    try:
+                        from email_verify_harness import run_and_apply_email_verification
+                        _spawn(run_and_apply_email_verification(
+                            session_id=session_id,
+                            tenant_id=tenant_id,
+                            interaction_id=interaction_id,
+                            turns=(recorder.turns if recorder and recorder.turns else []),
+                            client_id=client_id,
+                        ), name=f"verify-{session_id}")
+                    except Exception as hve:
+                        logger.warning(f"Email-ellenőrző harness indítása sikertelen (fail-open legacy küldés): {hve}")
+                        try:
+                            _spawn(send_session_confirmations(session_id), name=f"verify-fallback-{session_id}")
+                        except Exception as fbe:
+                            logger.error(f"Legacy visszaigazoló tartalék küldés is sikertelen: {fbe}")
+
                 logger.info(f"✅ Voice session {session_id} classified and transcript logged.")
             except Exception as e:
                 logger.error(f"Failed to classify voice session {session_id}: {e}")

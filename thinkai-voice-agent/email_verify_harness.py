@@ -1,0 +1,907 @@
+# -*- coding: utf-8 -*-
+"""WP-E: hívás utáni email/név ellenőrző harness (ElevenLabs Scribe + JEV).
+
+A hívás végén (server.py _run_classification) a rögzített WAV-ot ÚJRA
+átírjuk a Scribe v2-vel (hu), és a két átirat (élő Gemini + Scribe) alapján
+ellenőrizzük a foglaláskor rögzített EMAIL CÍMET és NEVET:
+
+  - mindig AUTOKORREKCIÓ: a legjobb jelölt kerül az ügyfélre (audit-
+    nyomvonal: custom_data.email_verification / name_verification);
+  - ZÖLD verdict (egyetértenek VAGY JEV-bizalom ≥ küszöb ÉS az MX nem
+    cárol) → a visszazigazoló email most megy ki;
+  - NEM-ZÖLD → dupla opt-in „erősítse meg az e-mail címét" levél megy,
+    a tényleges visszaigazolás csak a linkre kattintás után (web_server
+    /api/public/verify-email);
+  - MINDEN hiba FAIL-OPEN: a harness soha nem dob a hívó folyamatnak,
+    hiba esetén legacy azonnali küldés fut (a visszaigazolás sosem veszik el).
+
+ Aktiválás: EMAIL_VERIFY_MODE=1 env (l. server.py hook és tools.book_meeting).
+"""
+import asyncio
+import json
+import os
+import re
+import socket
+import time
+from datetime import datetime, timedelta, timezone
+
+import requests
+from loguru import logger
+
+import database as db
+import email_processor
+from jev_classifier import _post_decisions
+
+# ── Konfiguráció ─────────────────────────────────────────────────────────────
+_STT_URL = "https://api.elevenlabs.io/v1/speech-to-text"
+_STT_TIMEOUT = 120  # mp — a rögzítés akár ~10 perces is lehet
+_STT_RETRY_DELAYS = (2, 5)
+
+# A diktálásban leggyakoribb domainek (Scribe keyterms + domain-javítás)
+KNOWN_DOMAINS = (
+    "gmail.com", "freemail.hu", "citromail.hu", "indamail.hu",
+    "outlook.com", "hotmail.com", "yahoo.com",
+)
+# A Scribe keyterms mező PLAIN form-értékeket vár (JSON-lista 400-as hiba),
+# és csak betű/szám/pont karaktereket fogad — a "+36" ezért kimaradt
+# (a telefon ellenőrzés amúgy is skipped: a SIP caller id a mérvadó).
+_KEYTERMS = list(KNOWN_DOMAINS) + ["kukac"]
+
+# Autonóm korrekciós küszöb (JEV-bizalom) — env-ből felülírható
+def _confidence_threshold() -> float:
+    try:
+        return float(os.getenv("EMAIL_VERIFY_CONF_THRESHOLD", "0.99"))
+    except (TypeError, ValueError):
+        return 0.99
+
+# A tools._EMAIL_RE-vel azonos laza szintaxis-szabály
+EMAIL_SYNTAX_RE = re.compile(r"^[^@\s]+@[^@\s]+\.[^@\s]+$")
+# Kinyeréshez szigorúbb minta (proza pontok ne csaljanak)
+_EMAIL_TIGHT_RE = re.compile(r"[a-z0-9._%+\-]+@[a-z0-9.\-]+\.[a-z]{2,}")
+
+_ACCENT_FOLD = str.maketrans("áéíóöőúüűÁÉÍÓÖŐÚÜŰ", "aeiooouuuAEIOOOUUU")
+
+# ── Magyar bemondás → írás normalizáció ─────────────────────────────────────
+# Betűrendben: töltelékszavak → dupla → kukac/pont/kötőjel → számszavak.
+# A töltelékszó ELŐTTI írásjel („Kovács, szóval Bertalan") is elnyelődik.
+_FILLER_RE = re.compile(
+    r"(?<=[a-záéíóöőúüű])[,.!?;:]?\s+(?:izé|vagyok|szóval)\s+(?=[a-záéíóöőúüű])",
+    re.IGNORECASE,
+)
+# „dupla l" → „ll" — a Scribe gyakran ékezetesen írja („duplá E")
+_DOUBLE_RE = re.compile(r"\bdupl[áa]?\s+([a-z0-9])\b")
+_HU_DIGIT_WORDS = {
+    "nulla": "0", "egy": "1", "kettő": "2", "ketto": "2", "három": "3",
+    "harom": "3", "négy": "4", "negy": "4", "öt": "5", "ot": "5",
+    "hat": "6", "hét": "7", "het": "7", "nyolc": "8", "kilenc": "9",
+}
+_HU_TENS = {
+    "húsz": "20", "husz": "20", "harminc": "30", "negyven": "40",
+    "ötven": "50", "otven": "50", "hatvan": "60", "hetven": "70",
+    "nyolcvan": "80", "kilencven": "90",
+}
+# Egy tokenbe írt összetett tizesek: „harminchat" = harminc + hat → 36
+_HU_TENS_COMPOUND_RE = re.compile(
+    r"^(húsz|husz|harminc|negyven|ötven|otven|hatvan|hetven|nyolcvan|kilencven)"
+    r"(egy|kettő|ketto|három|harom|négy|negy|öt|ot|hat|hét|het|nyolc|kilenc)$"
+)
+_DIGIT_WORD_RE = re.compile(
+    r"\b(?:nulla|egy|kettő|ketto|három|harom|négy|negy|öt|ot|hat|hét|het|"
+    r"nyolc|kilenc|húsz|husz|harminc|negyven|ötven|otven|hatvan|hetven|"
+    r"nyolcvan|kilencven)\b", re.IGNORECASE,
+)
+_PHONE_TRIGGER_RE = re.compile(
+    r"(\+36|0036|\b06\d{1,2}\b|telefon(?:szám|szam)?|hívószám|hivoszam|"
+    r"hívjon|hivjon|meghív)",
+    re.IGNORECASE,
+)
+
+
+def _is_digit_token(low: str) -> bool:
+    return (low in _HU_DIGIT_WORDS or low in _HU_TENS
+            or bool(_HU_TENS_COMPOUND_RE.match(low)))
+
+
+def fold_accents(text: str) -> str:
+    """Ékezetek levágása (á→a, ő→o, ű→u… ) — email/nevek egyeztetéséhez."""
+    return (text or "").translate(_ACCENT_FOLD)
+
+
+def _convert_digit_words(text: str) -> str:
+    """Számszavak → számjegyek. CSAK telefon-kontextusban hívandó: az 'egy',
+    'hat', 'hét' közszavak szabad szövegben mást jelentenek."""
+    out = []
+    for tok in text.split():
+        low = tok.lower()
+        m = _HU_TENS_COMPOUND_RE.match(low)
+        if m:
+            tens = _HU_TENS.get(m.group(1), "")
+            unit = _HU_DIGIT_WORDS.get(m.group(2), "")
+            # 'harminchat' = 30 + 6 = 36 (kétjegyű tizes + egyjegyű)
+            out.append(str(int(tens) + int(unit)) if tens and unit else tok)
+            continue
+        if low in _HU_TENS:
+            out.append(_HU_TENS[low])
+        elif low in _HU_DIGIT_WORDS:
+            out.append(_HU_DIGIT_WORDS[low])
+        else:
+            out.append(tok)
+    return " ".join(out)
+
+
+def normalize_spoken_hu(text: str) -> str:
+    """Determinisztikus bemondás→írás: kukac→@, pont→., kötőjel→-, aláhúzás→_,
+    „dupla x"→xx, töltelékszavak kihagyása, számszavak telefon-kontextusban."""
+    t = (text or "").strip().lower()
+    if not t:
+        return ""
+    # Töltelékszavak: csak szóhatáron, betűtokenek KÖZÖTT (konzervatív)
+    for _ in range(3):
+        if not _FILLER_RE.search(t):
+            break
+        t = _FILLER_RE.sub(" ", t)
+    # „dupla l" → „ll"
+    t = _DOUBLE_RE.sub(r"\1\1", t)
+    # Speciális formák előbb, aztán a puszta szócsere
+    t = t.replace("(kukac)", " @ ").replace("kukac", " @ ")
+    t = t.replace(" [at] ", " @ ").replace(" at ", " @ ")
+    t = re.sub(r"\bpont\b", " . ", t)
+    t = re.sub(r"\bkötőjel\b|\bvonal\b", " - ", t)
+    t = re.sub(r"\baláhúzás\b", " _ ", t)
+    # Számszavak: telefon-kontextusban (trigger + futam) VAGY ≥3-as számszó-futam
+    # (email lokálban diktált számjegyek — pl. „kettő nulla nulla @ …"). A ≥3-as
+    # futam önmagában is egyértelmű digit-sorozatjel („egy kettő három" = 1 2 3).
+    trig = _PHONE_TRIGGER_RE.search(t)
+    run = best = 0
+    for tok in t.split():
+        if _is_digit_token(tok):
+            run += 1
+            best = max(best, run)
+        else:
+            run = 0
+    if best >= 3 or (trig and (best >= 2 or trig.group(0).lower() in ("+36", "0036"))):
+        t = _convert_digit_words(t)
+    return re.sub(r"\s+", " ", t).strip()
+
+
+def extract_email_candidates(normalized_text: str) -> list:
+    """Email-jelöltek kinyerése a normalizált szövegből. A szóközös
+    műtermékeket („a @ b . c") is összefűzi, dedup, sorrend-tartó.
+    Az összefűzés ÉKEZET-NYÍRT másolaton fut — a „szőke árpád @"-típusú
+    lokálokat egyébként az ékezetek szétszakítanák."""
+    text = normalized_text or ""
+    found = []
+
+    def _scan(t):
+        for m in _EMAIL_TIGHT_RE.finditer(t):
+            v = m.group(0).strip(".").lower()
+            if v and EMAIL_SYNTAX_RE.match(v) and v not in found:
+                found.append(v)
+
+    _scan(text)
+    # Ékezet-nyírás ITT (a normalizált szöveg neveinek ékezetét megtartja)
+    folded = fold_accents(text)
+    # Szóközös tagolás összefűzése: „kovacs @ gmail . com" → „kovacs@gmail.com".
+    # A lokál NEVÉT is össze kell fűzni („kovacs bertalan @") — de CSAK akkor,
+    # ha a @ eredetileg szóközzel separált volt (kukac-diktálás); írásos emailnél
+    # („írjon a kovacs@gmail.com") a lokál már kész, ott az összefűzés az
+    # előző szót ragasztaná rá.
+    squeezed = re.sub(r"\s*([@._])\s*", r"\1", folded)
+    if " @" in folded or "@ " in folded:
+        merged = squeezed
+        for _ in range(3):
+            new = re.sub(r"([a-z0-9._%+\-]+) ([a-z0-9._%+\-]+)@", r"\1\2@", merged)
+            if new == merged:
+                break
+            merged = new
+        _scan(merged)
+    _scan(squeezed)
+    return found
+
+
+def _levenshtein(a: str, b: str, cap: int = 3) -> int:
+    if a == b:
+        return 0
+    if abs(len(a) - len(b)) > cap:
+        return cap + 1
+    prev = list(range(len(b) + 1))
+    for i, ca in enumerate(a, 1):
+        cur = [i]
+        for j, cb in enumerate(b, 1):
+            cur.append(min(prev[j] + 1, cur[j - 1] + 1, prev[j - 1] + (ca != cb)))
+        prev = cur
+    return prev[-1]
+
+
+def _domain_fixes(domain: str) -> list:
+    """Whitelist-domain javítások Levenshtein ≤ 2-ig (pl. gmial.com→gmail.com)."""
+    d = (domain or "").strip().lower()
+    if not d or d in KNOWN_DOMAINS:
+        return []
+    scored = sorted(
+        ((_levenshtein(d, k), k) for k in KNOWN_DOMAINS),
+        key=lambda x: x[0],
+    )
+    return [k for dist, k in scored if dist <= 2]
+
+
+def generate_email_candidates(live_email: str, scribe_email: str) -> list:
+    """Jelöltlista a két STT-menetből: eredetiek + ékezet-nyírt változatok +
+    domain-whitelist javítottak + kereszt-lokál@domén kombinációk.
+    Dedup, sorrend-tartó (legplauzibilisebb elöl)."""
+    bases = []
+    for raw in (live_email, scribe_email):
+        e = (raw or "").strip().lower()
+        if e and "@" in e and e not in bases:
+            bases.append(e)
+
+    out = []
+
+    def _add(c):
+        c = (c or "").strip().lower()
+        if c and EMAIL_SYNTAX_RE.match(c) and c not in out:
+            out.append(c)
+
+    for e in bases:
+        _add(e)
+        f = fold_accents(e)
+        _add(f)
+        local, _, dom = f.partition("@")
+        for d in _domain_fixes(dom):
+            _add(f"{local}@{d}")
+
+    # Kereszt-kombináció: az egyik menet lokálja a másik doménjével —
+    # ha mindkét oldalon részben sikerült a felismerés
+    if len(bases) == 2:
+        lf = fold_accents(bases[0])
+        sf = fold_accents(bases[1])
+        l_local, _, l_dom = lf.partition("@")
+        s_local, _, s_dom = sf.partition("@")
+        if l_dom != s_dom:
+            _add(f"{l_local}@{s_dom}")
+            _add(f"{s_local}@{l_dom}")
+    return out
+
+
+def extract_name_candidates(live_name: str, scribe_name: str) -> list:
+    """Név-jelöltek: mindkét menet eredeti + ékezet-nyírt változata."""
+    out = []
+    for raw in (live_name, scribe_name):
+        n = (raw or "").strip()
+        if not n:
+            continue
+        for v in (n, fold_accents(n)):
+            if v not in out:
+                out.append(v)
+    return out
+
+
+# ── JEV döntetlen-feloldás ───────────────────────────────────────────────────
+_JEV_INSTRUCTIONS = (
+    "Egy magyar telefonos email/név-diktálást KÉT különböző beszédfelismerő "
+    "(élő Gemini és utólagos ElevenLabs Scribe) eltérően írt át. Döntsd el, "
+    "melyik jelölt a hívó által valójában bemondott érték. Vegye figyelembe: "
+    "a magyar nevek ékezetesek lehetnek, az email címekben a kukac/pont "
+    "kimondása és a gyakori domainek (gmail.com, freemail.hu, citromail.hu, "
+    "indamail.hu, outlook.com, hotmail.com, yahoo.com) a mérvadóak."
+)
+
+
+def arbitrate(candidates: list, context: dict = None) -> dict:
+    """Jelöltek közül a nyertes: {choice, confidence, source}.
+    source: agree (a két menet egyezik, conf 1.0) | single (egy jelölt,
+    conf 0.5) | jev (OpenRouter döntés) | error (fail-open: első jelölt,
+    conf 0.0 — így a hívás soha nem akad el a döntetlenen)."""
+    context = context or {}
+    live = (context.get("live") or "").strip().lower()
+    scribe = (context.get("scribe") or "").strip().lower()
+    cands = [c for c in candidates if (c or "").strip()]
+    if not cands:
+        return {"choice": "", "confidence": 0.0, "source": "empty"}
+    # A két menet megegyezik → ez a legmagasabb bizonyosság
+    if live and scribe and live == scribe:
+        match = next((c for c in cands if c.strip().lower() == live), cands[0])
+        return {"choice": match, "confidence": 1.0, "source": "agree"}
+    if len(cands) == 1:
+        return {"choice": cands[0], "confidence": 0.5, "source": "single"}
+
+    try:
+        payload = {
+            "model": os.getenv("OPENROUTER_JEV_MODEL", "typesafe/jev-1.13"),
+            "state": {
+                "kind": context.get("kind", ""),
+                "live_value": context.get("live", ""),
+                "scribe_value": context.get("scribe", ""),
+                "transcript_live": (context.get("transcript_live") or "")[:800],
+                "transcript_scribe": (context.get("transcript_scribe") or "")[:800],
+                "note": "magyarul diktált email cím vagy név, két STT-átirat eltér",
+            },
+            "questions": {
+                "pick": {
+                    "type": "choice",
+                    "instructions": _JEV_INSTRUCTIONS,
+                    "criteria": {c: c for c in cands},
+                }
+            },
+        }
+        status, data = _post_decisions(payload)
+        answers = data.get("answers") if isinstance(data, dict) else None
+        pick = answers.get("pick") if isinstance(answers, dict) else None
+        if status == 200 and isinstance(pick, dict):
+            choice = str(pick.get("choice") or "").strip()
+            try:
+                conf = float(pick.get("confidence") or 0.0)
+            except (TypeError, ValueError):
+                conf = 0.0
+            match = next((c for c in cands if c.strip().lower() == choice.lower()), None)
+            if match:
+                return {"choice": match, "confidence": conf, "source": "jev"}
+        logger.warning(f"JEV döntetlen-feloldás: érvénytelen válasz (HTTP {status}) — fail-open")
+    except Exception as exc:
+        logger.warning(f"JEV döntetlen-feloldás hiba (fail-open): {exc}")
+    return {"choice": cands[0], "confidence": 0.0, "source": "error"}
+
+
+# ── MX / domain validáció ────────────────────────────────────────────────────
+def mx_resolves(domain: str):
+    """True = van MX/A rekord; False = a domainnek nincs semmilyen rekordja;
+    None = ismeretlen (timeout/nincs resolver). Soha nem dob kivételt."""
+    d = (domain or "").strip().lower().strip(".")
+    if not d:
+        return None
+    # 1. MX rekord (dnspython, ha telepítve van)
+    try:
+        import dns.resolver
+        try:
+            answers = dns.resolver.resolve(d, "MX", lifetime=5)
+            if answers:
+                return True
+        except dns.resolver.NXDOMAIN:
+            return False
+        except (dns.resolver.NoAnswer, dns.resolver.NoNameservers):
+            pass  # MX nincs / DNS-zavar — A-rekord dönt
+        except Exception:
+            pass
+    except ImportError:
+        pass
+    except Exception:
+        pass
+    # 2. Fallback: A rekord (socket) — MX nélküli, de létező domainekhez
+    try:
+        socket.setdefaulttimeout(5)
+        socket.getaddrinfo(d, None)
+        return True
+    except socket.gaierror as exc:
+        # Nincs névfeloldás — de az ideiglenes resolver-hiba ne cároljon
+        return False if "Name or service not known" in str(exc) else None
+    except OSError:
+        return None
+
+
+def validate_email(email: str) -> dict:
+    e = (email or "").strip().lower()
+    syntax = bool(EMAIL_SYNTAX_RE.match(e))
+    domain = e.partition("@")[2].strip() if "@" in e else ""
+    return {
+        "syntax": syntax,
+        "mx": mx_resolves(domain) if (syntax and domain) else None,
+        "known_domain": domain in KNOWN_DOMAINS,
+    }
+
+
+def email_is_green(winner: str, validation: dict, passes_agree: bool, confidence: float) -> bool:
+    """A zöld/non-zöld kapu: érvényes szintaxis ÉS (a két menet egyezik VAGY
+    a JEV-bizalom eléri a küszöböt) ÉS az MX nem cárolja a domaint.
+    mx=None (ismeretlen) NEM blokkol — a hálózati hiba ne küldjön dupla opt-nt."""
+    return bool(
+        (winner or "").strip()
+        and validation.get("syntax")
+        and (passes_agree or float(confidence or 0.0) >= _confidence_threshold())
+        and validation.get("mx") is not False
+    )
+
+
+# ── ElevenLabs Scribe kliens ────────────────────────────────────────────────
+def transcribe_wav_bytes(data: bytes) -> dict:
+    """Szinkron Scribe v2 STT-hívás. Soha nem dob kivételt — hibánál {}.
+    Multichannel (hívó BAL / agent JOBB) → válaszban 'transcripts' lista."""
+    api_key = os.getenv("ELEVENLABS_API_KEY", "")
+    if not api_key or not data:
+        logger.warning("Scribe STT kihagyva (nincs kulcs vagy hanganyag)")
+        return {}
+    form = [
+        ("model_id", (None, "scribe_v2")),
+        ("language_code", (None, "hu")),
+        ("timestamps_granularity", (None, "word")),
+        ("use_multi_channel", (None, "true")),
+        # keyterms: SORONKÉNTI plain mezők (JSON-lista invalid_keyword 400-at ad)
+        *[("keyterms", (None, kt)) for kt in _KEYTERMS],
+        ("file", ("audio.wav", data, "audio/wav")),
+    ]
+    last_error = ""
+    for attempt in range(len(_STT_RETRY_DELAYS) + 1):
+        try:
+            resp = requests.post(
+                _STT_URL, headers={"xi-api-key": api_key},
+                files=form, timeout=_STT_TIMEOUT,
+            )
+            if resp.status_code == 200:
+                try:
+                    return resp.json()
+                except ValueError:
+                    logger.warning("Scribe STT: nem JSON válasz")
+                    return {}
+            if resp.status_code == 429 or resp.status_code >= 500:
+                last_error = f"HTTP {resp.status_code}"  # újrapróbálható
+            else:
+                logger.warning(f"Scribe STT hiba: HTTP {resp.status_code} — nem újrapróbálható")
+                return {}
+        except requests.RequestException as exc:
+            last_error = type(exc).__name__
+        if attempt < len(_STT_RETRY_DELAYS):
+            time.sleep(_STT_RETRY_DELAYS[attempt])
+    logger.warning(f"Scribe STT sikertelen ({last_error})")
+    return {}
+
+
+def _words_join(words: list) -> tuple:
+    """Scribe word-tokenek → (sima szöveg, [(start, end, token)] span-lista).
+    'word' tokenek szóközzel fűzve, 'spacing' (írásjel/szóköz) változatlanul,
+    'audio_event' kihagyva."""
+    parts = []
+    for w in words or []:
+        if not isinstance(w, dict):
+            continue
+        wtype = w.get("type") or "word"
+        text = str(w.get("text") or "")
+        if not text:
+            continue
+        if wtype == "word":
+            parts.append((" " if parts else "") + text)
+        elif wtype == "spacing":
+            parts.append(text)
+    text = re.sub(r"\s+", " ", "".join(parts)).strip()
+    # Span-építés: a 'word' tokenek szövegbeli helyének soros keresése
+    spans = []
+    pos = 0
+    for w in words or []:
+        if not isinstance(w, dict) or (w.get("type") or "word") != "word":
+            continue
+        t = str(w.get("text") or "")
+        if not t:
+            continue
+        idx = text.find(t, pos)
+        if idx < 0:
+            continue
+        spans.append((idx, idx + len(t), w))
+        pos = idx + len(t)
+    return text, spans
+
+
+def _channel_texts(scribe: dict) -> dict:
+    """csatorna_index → szöveg. Multichannel: 'transcripts' lista (mindben
+    channel_index-es word-ök); egycsatornás: 'words' a gyökérben."""
+    channels = {}
+    transcripts = scribe.get("transcripts")
+    if isinstance(transcripts, list) and transcripts:
+        for idx, tr in enumerate(transcripts):
+            words = (tr or {}).get("words") or []
+            ch = None
+            for w in words:
+                if isinstance(w, dict) and w.get("channel_index") is not None:
+                    ch = int(w["channel_index"])
+                    break
+            text, _spans = _words_join(words)
+            channels[ch if ch is not None else idx] = text
+    else:
+        text, _spans = _words_join(scribe.get("words") or [])
+        channels[0] = text
+    return channels
+
+
+# Email-span a nyers token-összefűzésben is (a 'word' tokenek közt szóköz van)
+_EMAIL_SPAN_RE = re.compile(r"[a-z0-9._%+\-]+\s*@\s*[a-z0-9.\-]+\s*\.\s*[a-z]{2,}")
+
+
+def _min_logprob_for_email(words: list, text: str):
+    """A kinyert email-jelölt tokenjeinek MINIMÁLIS logprobja (a felismerés
+    bizonytalanságának mértéke). Nincs adat → None."""
+    m = _EMAIL_SPAN_RE.search(text or "")
+    if not m:
+        return None
+    _text, spans = _words_join(words or [])
+    lps = [
+        float(w["logprob"])
+        for s, e, w in spans
+        if s < m.end() and e > m.start() and isinstance(w.get("logprob"), (int, float))
+    ]
+    return min(lps) if lps else None
+
+
+_NAME_CAPITALIZED_RES = (
+    # „a nevem Kovács Béla" / „nevem Kovács"
+    re.compile(r"\b(?:a\s+)?nevem\s+([A-ZÁÉÍÓÖŐÚÜŰ][\wáéíóöőúüű\-]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\wáéíóöőúüű\-]+)?)"),
+    # „Kovács Béla vagyok"
+    re.compile(r"\b([A-ZÁÉÍÓÖŐÚÜŰ][\wáéíóöőúüű\-]+(?:\s+[A-ZÁÉÍÓÖŐÚÜŰ][\wáéíóöőúüű\-]+)?)\s+vagyok\b"),
+)
+_NAME_LOWER_RE = re.compile(
+    r"\b(?:a\s+)?nevem\s+([a-záéíóöőúüű][\wáéíóöőúüű\-]+(?:\s+[a-záéíóöőúüű][\wáéíóöőúüű\-]+)?)"
+)
+
+
+def extract_scribe_name(caller_text: str) -> str:
+    """Név-heurisztika a HÍVÓ csatorna szövegéből: „a nevem X" / „X vagyok".
+    Üres string, ha nincs találat."""
+    t = (caller_text or "").strip()
+    if not t:
+        return ""
+    for pat in _NAME_CAPITALIZED_RES:
+        m = pat.search(t)
+        if m:
+            return m.group(1).strip()
+    m = _NAME_LOWER_RE.search(t)
+    if m:
+        return m.group(1).strip().title()
+    return ""
+
+
+# ── Orchisztrátor ────────────────────────────────────────────────────────────
+def run_harness(session_id: str, tenant_id=None, interaction_id=None, turns=None,
+                booking_email: str = "", booking_name: str = "", client_id=None) -> dict:
+    """A teljes ellenőrzési folyamat. SOHA nem dob kivételt — hiba esetén
+    {"status": "error"} (a hívó fail-open legacy küldésre vált)."""
+    try:
+        return _run_harness_inner(
+            session_id, tenant_id=tenant_id, interaction_id=interaction_id,
+            turns=turns or [], booking_email=booking_email,
+            booking_name=booking_name, client_id=client_id,
+        )
+    except Exception as exc:
+        logger.warning(f"Email-ellenőrző harness hiba (fail-open): {exc}")
+        return {"status": "error"}
+
+
+def _run_harness_inner(session_id, tenant_id, interaction_id, turns,
+                       booking_email, booking_name, client_id) -> dict:
+    if tenant_id:
+        try:
+            db.set_current_tenant(tenant_id)
+        except Exception:
+            pass
+
+    # a) Rögzítés letöltése a privát recordings bucketből
+    path = None
+    started_at = None
+    try:
+        res = db._tenant_eq(
+            db.supabase.table("sessions").select("recording_url,started_at")
+        ).eq("session_id", session_id).limit(1).execute()
+        row = (res.data or [{}])[0]
+        path = row.get("recording_url")
+        started_at = row.get("started_at")
+    except Exception as exc:
+        logger.warning(f"Session/recording lekérdezés sikertelen ({session_id}): {exc}")
+    if not path:
+        return {"status": "no_recording"}
+    try:
+        data = db.supabase.storage.from_("recordings").download(path)
+    except Exception as exc:
+        logger.warning(f"Rögzítés letöltés sikertelen ({path}): {exc}")
+        return {"status": "no_recording"}
+    if not data or isinstance(data, dict):
+        return {"status": "no_recording"}
+
+    # b) Scribe újraátirat (hívó = bal csatorna)
+    scribe = transcribe_wav_bytes(data)
+    if not scribe:
+        return {"status": "error"}
+    channels = _channel_texts(scribe)
+    # A hívó a BAL csatorna (kisebb channel_index); az agent-szöveg csak kontextus
+    caller_key = min(channels) if channels else 0
+    caller_text = channels.get(caller_key, "")
+    agent_text = " ".join(t for k, t in sorted(channels.items()) if k != caller_key)
+    caller_words = []
+    for tr in (scribe.get("transcripts") or []):
+        wl = (tr or {}).get("words") or []
+        ch = next((int(w["channel_index"]) for w in wl
+                   if isinstance(w, dict) and w.get("channel_index") is not None), None)
+        if ch is None or ch == caller_key:
+            caller_words = wl
+            break
+    if not caller_words:
+        # egycsatornás válasz: a word-ök a gyökérben vannak
+        caller_words = scribe.get("words") or []
+
+    # c) Normalizáció + jelölt-kinyerés MINDKÉT átiratból
+    norm_scribe_caller = normalize_spoken_hu(caller_text)
+    norm_scribe_all = normalize_spoken_hu((caller_text + " " + agent_text).strip())
+    live_text = " ".join((t.get("text") or "") for t in turns if isinstance(t, dict))
+    norm_live = normalize_spoken_hu(live_text)
+
+    # d) NÉV-ellenőrzés (mindig autokorrektív, audit-nyomvonallal)
+    name_result = _verify_name(
+        booking_name, caller_text, norm_live, norm_scribe_caller,
+        client_id=client_id, interaction_id=interaction_id,
+    )
+
+    # e) EMAIL-ellenőrzés
+    live_email = (booking_email or "").strip().lower()
+    scribe_cands = (extract_email_candidates(norm_scribe_caller)
+                    or extract_email_candidates(norm_scribe_all))
+    scribe_email = scribe_cands[0] if scribe_cands else ""
+    cands = generate_email_candidates(live_email, scribe_email)
+    arb = arbitrate(cands, context={
+        "kind": "email",
+        "live": live_email,
+        "scribe": scribe_email,
+        "transcript_live": norm_live[:600],
+        "transcript_scribe": (norm_scribe_caller + " || " + norm_scribe_all)[:600],
+    })
+    winner = (arb.get("choice") or "").strip().lower()
+    validation = validate_email(winner) if winner else {"syntax": False, "mx": None, "known_domain": False}
+    agree = bool(live_email and scribe_email and live_email == scribe_email)
+    green = email_is_green(winner, validation, agree, arb.get("confidence"))
+
+    # f) Autokorrekció alkalmazása + audit (ügyfélprofil)
+    stored_email, client_row = _stored_email(client_id)
+    changed = bool(winner and stored_email and winner != stored_email.strip().lower())
+    new_email = winner if (winner and (changed or not stored_email)) else (stored_email or winner)
+    email_audit_status = ("corrected" if changed else "green") if green else "non_green"
+    _apply_email_correction(
+        client_row, stored_email, new_email, arb, email_audit_status,
+        changed=changed, interaction_id=interaction_id,
+    )
+
+    # g) A hívásban létrejott események attendee_email-jének követése
+    if changed and stored_email:
+        _update_session_events_email(stored_email, new_email, started_at)
+
+    scribe_lp = None
+    try:
+        scribe_lp = _min_logprob_for_email(caller_words, caller_text)
+    except Exception:
+        pass
+
+    return {
+        "status": "green" if green else "non_green",
+        "email": {
+            "winner": new_email or "",
+            "previous": stored_email or "",
+            "changed": changed,
+            "confidence": arb.get("confidence", 0.0),
+            "source": arb.get("source", ""),
+            "validation": validation,
+        },
+        "name": name_result,
+        "scribe_logprob_min_email": scribe_lp,
+    }
+
+
+def _stored_email(client_id):
+    """Az ügyfél TÁROLT emailje (oszlop, majd custom_data) + a teljes sor."""
+    if not client_id:
+        return "", None
+    try:
+        res = db._tenant_eq(db.supabase.table("clients").select("*")).eq("id", client_id).limit(1).execute()
+        row = res.data[0] if res.data else None
+    except Exception as exc:
+        logger.warning(f"Ügyfél-lekérdezés sikertelen (#{client_id}): {exc}")
+        return "", None
+    if not row:
+        return "", None
+    cd = row.get("custom_data") or {}
+    if isinstance(cd, str):
+        try:
+            cd = json.loads(cd)
+        except (ValueError, TypeError):
+            cd = {}
+    stored = (row.get("email") or (cd or {}).get("email") or "").strip()
+    return stored, row
+
+
+def _apply_email_correction(client_row, stored_email, new_email, arb, audit_status,
+                            changed, interaction_id):
+    """Ügyfél email frissítése + audit-nyomvonal (custom_data.email_verification).
+    A régi érték SOHA nem törlődik el hallgatagon: previous mező + interakció."""
+    if not client_row:
+        return
+    try:
+        cd = client_row.get("custom_data") or {}
+        if isinstance(cd, str):
+            try:
+                cd = json.loads(cd)
+            except (ValueError, TypeError):
+                cd = {}
+        cd = dict(cd or {})
+        already = isinstance(cd.get("email_verification"), dict)
+        if not changed and already:
+            return  # változatlan + már auditált — felesleges írás elkerülése
+        cd["email_verification"] = {
+            "previous": stored_email or "",
+            "value": new_email or "",
+            "confidence": arb.get("confidence", 0.0),
+            "source": arb.get("source", ""),
+            "status": audit_status,
+            "ts": datetime.now(timezone.utc).isoformat(),
+        }
+        update = {
+            "name": client_row.get("name") or cd.get("name") or "Névtelen",
+            "email": new_email or client_row.get("email") or "",
+            "phone": client_row.get("phone") or "",
+            "custom_data": cd,
+        }
+        db.edit_client_details(client_row["id"], update)
+        if changed:
+            db.log_interaction(
+                type="email",
+                topic="Email cím automatikus javítása (hívás utáni ellenőrzés)",
+                summary=f"{stored_email} → {new_email} (bizalom: {arb.get('confidence')}, forrás: {arb.get('source')})",
+                result=audit_status,
+                tool_name="email_verify_harness",
+                funnel_stage="relevant",
+                direction="inbound",
+                approval_status="approved",
+                client_id=client_row.get("id"),
+                session_id=None,
+            )
+    except Exception as exc:
+        logger.warning(f"Email-korrekció írása sikertelen (#{client_row.get('id')}): {exc}")
+
+
+def _update_session_events_email(old_email, new_email, started_at):
+    """A hívás során keletkezett események attendee_email mezőjének frissítése
+    (created_at >= session kezdete — régebbi eseményeket soha nem nyúlunk)."""
+    try:
+        cutoff = started_at or (datetime.now(timezone.utc) - timedelta(hours=24)).isoformat()
+        db._tenant_eq(
+            db.supabase.table("calendar_events").update({"attendee_email": new_email})
+        ).eq("attendee_email", old_email).gte("created_at", cutoff).execute()
+    except Exception as exc:
+        logger.warning(f"Esemény email-frissítés sikertelen ({old_email} → {new_email}): {exc}")
+
+
+def _verify_name(booking_name, caller_text, norm_live, norm_scribe_caller,
+                 client_id=None, interaction_id=None):
+    """Név-jelöltek döntetlen-feloldása + autokorrekció (mindig, audit-tal).
+    Zöld csak a küszöb feletti bizalommal."""
+    try:
+        live_name = (booking_name or "").strip()
+        scribe_name = extract_scribe_name(caller_text)
+        cands = extract_name_candidates(live_name, scribe_name)
+        if not cands:
+            return None
+        arb = arbitrate(cands, context={
+            "kind": "name",
+            "live": live_name,
+            "scribe": scribe_name,
+            "transcript_live": norm_live[:600],
+            "transcript_scribe": norm_scribe_caller[:600],
+        })
+        winner = (arb.get("choice") or "").strip()
+        conf = float(arb.get("confidence") or 0.0)
+        changed = False
+        if client_id and winner and db.is_valid_client_name(winner) and winner.lower() != live_name.lower():
+            changed = _apply_name_correction(client_id, live_name, winner, arb)
+        return {
+            "winner": winner,
+            "previous": live_name,
+            "changed": changed,
+            "confidence": conf,
+            "source": arb.get("source", ""),
+            "green": conf >= _confidence_threshold(),
+        }
+    except Exception as exc:
+        logger.warning(f"Név-ellenőrzés hiba (kihagyva): {exc}")
+        return None
+
+
+def _apply_name_correction(client_id, old_name, new_name, arb) -> bool:
+    """Név felülírása az ügyfélen (audit: custom_data.name_verification)."""
+    try:
+        res = db._tenant_eq(db.supabase.table("clients").select("*")).eq("id", client_id).limit(1).execute()
+        row = res.data[0] if res.data else None
+        if not row:
+            return False
+        cd = row.get("custom_data") or {}
+        if isinstance(cd, str):
+            try:
+                cd = json.loads(cd)
+            except (ValueError, TypeError):
+                cd = {}
+        cd = dict(cd or {})
+        cd["name_verification"] = {
+            "previous": old_name or "",
+            "value": new_name,
+            "confidence": arb.get("confidence", 0.0),
+            "source": arb.get("source", ""),
+            "ts": datetime.now(timezone.utc).isoformat(),
+        }
+        return db.edit_client_details(client_id, {
+            "name": new_name,
+            "email": row.get("email") or cd.get("email") or "",
+            "phone": row.get("phone") or "",
+            "custom_data": cd,
+        })
+    except Exception as exc:
+        logger.warning(f"Név-korrekció írása sikertelen (#{client_id}): {exc}")
+        return False
+
+
+# ── Async belépési pont (server.py _spawn-ból) ───────────────────────────────
+async def run_and_apply_email_verification(session_id: str, tenant_id=None,
+                                           interaction_id=None, turns=None,
+                                           client_id=None) -> dict:
+    """A hívás végén futó vezérlő: harness verdict → email-küldés.
+    green → visszaigazolás MOST; non_green → dupla opt-in; error/no_recording →
+    legacy azonnali küldés (fail-open). A booking-adatokat a
+    tools.SESSION_BOOKING_DATA-ból veszi (book_meeting tölti, verify módban)."""
+    import tools  # lazy: a livekit-függő modult csak futásidőben érintjük
+
+    bookings = tools.pop_session_bookings(session_id)
+    booking_email = (bookings[0].get("attendee_email") or "") if bookings else ""
+    booking_name = (bookings[0].get("attendee") or "") if bookings else ""
+
+    try:
+        # A Scribe/DB/ JE V hívások szinkronok — thread-ben futtatjuk, hogy a
+        # worker event loopja ne álljon le akár 2 percre
+        verdict = await asyncio.to_thread(
+            run_harness,
+            session_id=session_id,
+            tenant_id=tenant_id,
+            interaction_id=interaction_id,
+            turns=turns or [],
+            booking_email=booking_email,
+            booking_name=booking_name,
+            client_id=client_id,
+        )
+    except Exception as exc:
+        logger.warning(f"Email-ellenőrző harness hiba (fail-open): {exc}")
+        verdict = {"status": "error"}
+
+    status = verdict.get("status")
+    winner = ((verdict.get("email") or {}).get("winner") or "").strip().lower()
+
+    if status == "green":
+        for b in bookings:
+            try:
+                await email_processor.send_booking_confirmation_email(
+                    event_id=b.get("event_id"),
+                    title=b.get("title", "Konzultáció"),
+                    date=b.get("date", ""),
+                    time=b.get("time", ""),
+                    attendee=b.get("attendee", "Ügyfél"),
+                    attendee_email=winner or b.get("attendee_email", ""),
+                )
+            except Exception as exc:
+                logger.warning(f"Visszaigazoló küldés hiba ({b.get('attendee_email')}): {exc}")
+    elif status == "non_green" and winner:
+        try:
+            await email_processor.send_email_verification_email(
+                session_id=session_id,
+                event_ids=[b.get("event_id") for b in bookings if b.get("event_id")],
+                attendee_email=winner,
+                attendee=booking_name,
+            )
+        except Exception as exc:
+            # A dupla opt-in sem ment ki → legacy azonnali küldés (fail-open)
+            logger.warning(f"Dupla opt-in küldés hiba (fail-open legacy): {exc}")
+            await _send_legacy_confirmations(bookings, winner)
+    else:
+        # error / no_recording / nincs ellenőrizhető cím → legacy azonnali küldés
+        await _send_legacy_confirmations(bookings, booking_email or winner)
+    return verdict
+
+
+async def _send_legacy_confirmations(bookings, email: str):
+    for b in bookings:
+        try:
+            await email_processor.send_booking_confirmation_email(
+                event_id=b.get("event_id"),
+                title=b.get("title", "Konzultáció"),
+                date=b.get("date", ""),
+                time=b.get("time", ""),
+                attendee=b.get("attendee", "Ügyfél"),
+                attendee_email=email or b.get("attendee_email", ""),
+            )
+        except Exception as exc:
+            logger.warning(f"Legacy visszaigazoló küldés hiba ({b.get('attendee_email')}): {exc}")

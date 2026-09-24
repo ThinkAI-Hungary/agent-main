@@ -2300,6 +2300,91 @@ def get_cancellation_html(event_id: int) -> str:
     """
 
 
+async def send_email_verification_email(session_id: str, event_ids: list, attendee_email: str, attendee: str = ""):
+    """WP-E dupla opt-in: nem-zöld ellenőrzési verdictnél a visszaigazoló email
+    HELYETT „erősítse meg az e-mail címét" levél megy. A tényleges visszaigazolás
+    csak a linkre kattintás után indul (web_server /api/public/verify-email)."""
+    import jwt as pyjwt
+    import os
+    from datetime import datetime, timedelta
+
+    if not attendee_email or "@" not in attendee_email:
+        logger.warning("Email-ellenőrző levél kihagyva (nincs érvényes cím)")
+        return
+    JWT_SECRET = os.getenv("JWT_SECRET", "thinkai-admin-secret-change-me")
+    JWT_ALGO = "HS256"
+    SERVER_URL = (os.getenv("APP_BASE_URL") or os.getenv("SERVER_URL") or "http://localhost:8000").rstrip("/")
+
+    token = pyjwt.encode(
+        {
+            "session_id": session_id or "",
+            "event_ids": [e for e in (event_ids or []) if e],
+            "email": attendee_email,
+            "exp": datetime.utcnow() + timedelta(days=7),
+        },
+        JWT_SECRET, algorithm=JWT_ALGO,
+    )
+    verify_url = f"{SERVER_URL}/api/public/verify-email?token={token}"
+    name = (attendee or "").strip() or "Ügyfelünk"
+    subject = "Kérjük, erősítse meg az e-mail címét"
+    html_content = f"""
+    <html>
+    <body style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; padding: 0; background: #f9fafb;">
+        <div style="max-width: 600px; margin: 0 auto; padding: 30px 20px;">
+            <div style="background: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center;">
+                <div style="font-size: 48px; margin-bottom: 20px;">✉️</div>
+                <h1 style="color: #111827; font-size: 22px; margin-bottom: 16px;">Kedves {name}!</h1>
+                <p style="font-size: 16px; line-height: 1.6; color: #6b7280; margin-bottom: 10px;">
+                    Nemrég telefonon időpontot foglalt Önnek a rendelőnk virtuális asszisztense.
+                    A visszaigazolás elküldése előtt kérjük, erősítse meg, hogy a következő
+                    e-mail címet helyesen értettük-e:
+                </p>
+                <p style="font-size: 17px; font-weight: bold; color: #111827; background: #f3f4f6; border-radius: 8px; padding: 12px; margin: 20px 0;">
+                    {attendee_email}
+                </p>
+                <p style="font-size: 15px; line-height: 1.6; color: #6b7280; margin-bottom: 24px;">
+                    A lenti gombra kattintva visszaigazoljuk az időpontját erre a címre.
+                </p>
+                <a href="{verify_url}" style="background-color: #2563eb; color: #ffffff; padding: 14px 36px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 16px;">E-mail cím megerősítése</a>
+                <p style="font-size: 12px; color: #9ca3af; margin-top: 24px;">
+                    Ha nem Ön foglalt időpontot, kérjük, hagyja figyelmen kívül ezt a levelet.
+                    A hivatkozás 7 napig érvényes.
+                </p>
+            </div>
+        </div>
+    </body>
+    </html>
+    """
+    plain = (f"Kedves {name}! Nemrég telefonon időpontot foglalt Önnek a rendelőnk. "
+             f"A visszaigazolás előtt kérjük, erősítse meg az e-mail címét ({attendee_email}) "
+             f"itt: {verify_url}")
+
+    api_key = _get_brevo_api_key()
+    if not api_key:
+        logger.error("Nincs beállítva BREVO_API_KEY az e-mail-ellenőrző (dupla opt-in) levélhez.")
+        return
+
+    try:
+        async with httpx.AsyncClient() as http_client:
+            resp = await http_client.post(
+                "https://api.brevo.com/v3/smtp/email",
+                headers={"api-key": api_key, "Content-Type": "application/json"},
+                json={
+                    "sender": _get_sender(),
+                    "to": [{"email": attendee_email, "name": name}],
+                    "subject": subject,
+                    "htmlContent": html_content,
+                },
+                timeout=20,
+            )
+            resp.raise_for_status()
+        logger.info(f"Double opt-in verification email sent to {attendee_email}.")
+        db.add_email_log(name, attendee_email, subject, plain, "sent", session_id=session_id or "")
+    except Exception as e:
+        logger.error(f"Failed to send email verification message: {e}")
+        raise  # a hívó (harness) fail-open tartalékra vált tőle
+
+
 async def send_modification_confirmation_email(attendee: str, attendee_email: str, title: str, old_datetime: str, new_datetime: str, event_id: int | None = None, assigned_to: str = ""):
     """Időpont módosítás visszaigazolás — beégetett sablonnal, toggle-lel."""
     import os

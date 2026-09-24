@@ -6379,6 +6379,119 @@ async def public_cancel_appointment(token: str):
         return HTMLResponse(content=html, status_code=400)
 
 
+@app.get('/api/public/verify-email')
+async def public_verify_email(token: str):
+    """WP-E dupla opt-in: az „erősítse meg az e-mail címét" linkre kattintás
+    (JWT: session_id + event_ids + email, 7 napos lejárat). Megerősítés naplózása
+    után a ELTÁROLT visszaigazoló emailek ténylegesen kimennek. A minta a
+    /api/public/cancel végpontot követi."""
+    import jwt as pyjwt
+    try:
+        payload = pyjwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
+        email = (payload.get("email") or "").strip().lower()
+        session_id = payload.get("session_id") or ""
+        try:
+            event_ids = [int(e) for e in (payload.get("event_ids") or []) if e]
+        except (TypeError, ValueError):
+            event_ids = []
+        if not email:
+            raise ValueError("No email in token")
+
+        client = db.find_client_by_contact(email=email)
+
+        # Megerősítés naplózása (cancel-link mintájára: saját email-thread session)
+        _verify_session = f"email_{email}_{email_processor._email_thread_key('Email cím megerősítés')}"
+        _participant = email.split("@")[0]
+        db.create_session(session_id=_verify_session, room_name="Email Thread", participant=_participant)
+        db.log_interaction(
+            type="email",
+            topic="Email cím megerősítve (dupla opt-in link)",
+            summary=f"Az ügyfél megerősítette az e-mail címét ({email}) a hívás utáni ellenőrzés dupla opt-in linkjén.",
+            result="Megerősítve",
+            tool_name="verify_email_link",
+            session_id=_verify_session or session_id,
+            funnel_stage="relevant",
+            direction="inbound",
+            approval_status="approved",
+            client_id=client["id"] if client else None,
+            classification={
+                "ugytipus": "Időpont",
+                "eredmeny": "Email cím megerősítve",
+                "statusz": "Lezárt",
+                "teendo": "Nincs további teendő",
+            },
+        )
+        db.add_email_log(_participant, email, "E-mail cím megerősítve (kattintás)",
+                         f"A dupla opt-in linkre kattintott: {email}", "clicked",
+                         session_id=session_id or "")
+        if client:
+            try:
+                cd = client.get("custom_data") or {}
+                if isinstance(cd, str):
+                    cd = json.loads(cd)
+                if not isinstance(cd, dict):
+                    cd = {}
+                ev_rec = cd.get("email_verification")
+                cd["email_verification"] = {**(ev_rec if isinstance(ev_rec, dict) else {}),
+                                            "verified_at": datetime.utcnow().isoformat()}
+                db.edit_client_details(client["id"], cd)
+            except Exception as cd_err:
+                print(f"[VerifyEmail] email_verification megjelölés sikertelen: {cd_err}")
+
+        # A visszatartott visszaigazolók TÉNYLEGES kiküldése a megerősített címre
+        sent_count = 0
+        for eid in event_ids:
+            ev = db.get_calendar_event(eid)
+            if not ev:
+                continue
+            start = ev.get("start_dt") or ""
+            asyncio.create_task(email_processor.send_booking_confirmation_email(
+                event_id=eid,
+                title=ev.get("title", "Konzultáció"),
+                date=start[:10],
+                time=start[11:16],
+                attendee=ev.get("attendee", "Ügyfél"),
+                attendee_email=email,
+            ))
+            sent_count += 1
+
+        html = """
+        <html>
+        <head><title>E-mail cím megerősítve</title><meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+            body { font-family: 'Segoe UI', Arial, sans-serif; background: #f9fafb; text-align: center; padding: 50px 20px; color: #333; }
+            .box { background: white; max-width: 500px; margin: 0 auto; padding: 40px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); }
+            h1 { color: #10b981; margin-bottom: 20px; }
+            p { font-size: 16px; line-height: 1.5; color: #6b7280; }
+            .icon { font-size: 48px; margin-bottom: 20px; }
+        </style>
+        </head>
+        <body>
+            <div class="box">
+                <div class="icon">✅</div>
+                <h1>Köszönjük! Az e-mail cím megerősítve.</h1>
+                <p>Időpontjára vonatkozó visszaigazoló e-mailt elküldtük erre a címre.</p>
+            </div>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=html, status_code=200)
+    except Exception as e:
+        html = f"""
+        <html>
+        <head><title>Érvénytelen link</title><meta charset="utf-8">
+        <style>body {{ font-family: sans-serif; text-align: center; padding: 50px; color: #333; }}</style>
+        </head>
+        <body>
+            <h1>Érvénytelen vagy lejárt link</h1>
+            <p>Kérjük, vegye fel a kapcsolatot ügyfélszolgálatunkkal.</p>
+        </body>
+        </html>
+        """
+        return HTMLResponse(content=html, status_code=400)
+
+
 def find_emails_in_html(html_text):
     import re
     email_pattern = r'[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+'

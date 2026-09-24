@@ -83,6 +83,40 @@ def _spawn(coro, name: str = "") -> asyncio.Task:
     return task
 
 
+# ── WP-E: foglalási adatok a hívás utáni email-ellenőrző harnessnek ─────────
+# Modul-szintű dict (session_id → booking-lista): a book_meeting EMAIL_VERIFY_MODE=1
+# esetén IDE teszi a foglalást a konfirmáció elküldése HELYETT — a hívás végén
+# a harness dönt (zöld → konfirmáció, nem-zöld → dupla opt-in). A contextvar
+# itt nem elég, mert a harness a _run_classification-ból spawnolt taskban fut.
+SESSION_BOOKING_DATA: dict = {}
+
+
+def stash_session_booking(session_id: str, booking: dict):
+    if session_id and booking:
+        SESSION_BOOKING_DATA.setdefault(session_id, []).append(booking)
+
+
+def pop_session_bookings(session_id: str) -> list:
+    return SESSION_BOOKING_DATA.pop(session_id or "", [])
+
+
+async def send_session_confirmations(session_id: str, email: str = "") -> None:
+    """Legacy azonnali visszaigazoló-küldés a sessionhez tartozó foglalásoknak.
+    A harness indítási hibájának fail-open tartaléka (EMAIL_VERIFY_MODE=1)."""
+    for b in pop_session_bookings(session_id):
+        try:
+            await email_processor.send_booking_confirmation_email(
+                event_id=b.get("event_id"),
+                title=b.get("title", "Konzultáció"),
+                date=b.get("date", ""),
+                time=b.get("time", ""),
+                attendee=b.get("attendee", "Ügyfél"),
+                attendee_email=email or b.get("attendee_email", ""),
+            )
+        except Exception as e:
+            logger.warning(f"Tartalék visszaigazoló küldés hiba ({b.get('attendee_email')}): {e}")
+
+
 # ── EAISY-241: Voice-agent gating helpers ────────────────────────────────────
 # Ezek a függvények biztosítják, hogy a hang-agent NE cselekedjen önállóan olyan
 # ügytípusoknál, amelyeknél a brief (EAISY-241 §1.1.1/§2) szerint emberi beavatkozás
@@ -549,14 +583,26 @@ async def book_meeting(
 
         # Trigger automated confirmation email in the background
         if attendee_email:
-            _spawn(email_processor.send_booking_confirmation_email(
-                event_id=event_id,
-                title=title,
-                date=parsed_date,
-                time=parsed_time,
-                attendee=attendee,
-                attendee_email=attendee_email
-            ), name="booking-confirmation-email")
+            if os.getenv("EMAIL_VERIFY_MODE", "0") == "1":
+                # WP-E: a visszaigazoló email CSAK a hívás utáni ellenőrzés után
+                # megy ki (zöld → most, nem-zöld → dupla opt-in) — itt NEM küldünk.
+                stash_session_booking(get_session_id(), {
+                    "event_id": event_id,
+                    "title": title,
+                    "date": parsed_date,
+                    "time": parsed_time,
+                    "attendee": attendee,
+                    "attendee_email": attendee_email,
+                })
+            else:
+                _spawn(email_processor.send_booking_confirmation_email(
+                    event_id=event_id,
+                    title=title,
+                    date=parsed_date,
+                    time=parsed_time,
+                    attendee=attendee,
+                    attendee_email=attendee_email
+                ), name="booking-confirmation-email")
 
         # ── Add to Kanban (Clients Database) ───────────────────────────
         now_str = datetime.now().strftime("%Y-%m-%d %H:%M")
