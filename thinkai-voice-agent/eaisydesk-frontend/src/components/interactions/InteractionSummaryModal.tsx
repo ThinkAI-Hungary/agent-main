@@ -944,13 +944,18 @@ export default function InteractionSummaryModal({
     if (!el) return;
     const url = await ensureAudioUrl();
     if (!url) return;
-    if (!el.src) el.src = url;
     const apply = () => {
-      el.currentTime = startS;
-      el.play().catch(() => { /* autoplay elutasítva */ });
+      try { el.currentTime = startS; } catch { /* még nincs metadata */ }
     };
-    if (el.readyState >= 1) apply();
-    else el.addEventListener('loadedmetadata', apply, { once: true });
+    // preload="none" esetén a loadedmetadata CSAK a play()-től indul —
+    // ezért a play() az első lépés, a seek utána fut le.
+    if (el.readyState >= 1) {
+      apply();
+      el.play().catch(() => { /* autoplay elutasítva */ });
+    } else {
+      el.addEventListener('loadedmetadata', apply, { once: true });
+      el.play().catch(() => { /* autoplay elutasítva */ });
+    }
   }, [ensureAudioUrl]);
 
   // Modal bezárásnál álljon meg a hang
