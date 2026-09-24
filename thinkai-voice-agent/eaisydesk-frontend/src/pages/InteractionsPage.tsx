@@ -59,6 +59,8 @@ export interface InteractionRow {
   received_at?: string | null;
   sent_at?: string | null;
   diary_fragment?: string | null;
+  // A lezárás ideje — a member dashboard „Ma elvégzett" szekciója ebből dolgozik
+  closed_at?: string | null;
   // EAISY-241 — strukturált klasszifikáció a backend classifier.py-től
   classification?: {
     ugytipus?: string;

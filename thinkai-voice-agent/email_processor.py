@@ -25,6 +25,7 @@ from google import genai
 from google.genai import types
 
 import database as db
+import jev_classifier
 from classifier import classify_interaction
 
 THIS_DIR = Path(__file__).resolve().parent
@@ -359,6 +360,32 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
             tool_name="spam_filter",
             session_id=f"spam_{from_email}",
             funnel_stage="spam",
+            approval_status="spam"
+        )
+        return
+
+    # ── JEV küldő-szűrő — nem-ügyfél feladók (munkatárs / szolgáltató / marketing)
+    # kiszűrése ügyfél-lookup és AI-hívás ELŐTT. Fail-open: hibánál paciens. ──
+    # A requests-hívás blokkol, ezért thread-ben fut (a scheduler ne álljon le).
+    classification = await asyncio.to_thread(
+        jev_classifier.classify_sender, from_email, from_name, subject, text_content
+    )
+    if jev_classifier.should_filter(classification):
+        label = classification.get("label", "")
+        logger.info(
+            f"Feladó szűrve (JEV): {from_email} — label={label}, "
+            f"confidence={classification.get('confidence')}"
+        )
+        db.create_session(session_id=f"filtered_{from_email}", room_name="Szűrt feladó", participant=from_name)
+        db.log_interaction(
+            type="email",
+            topic=f"Szűrt feladó — {jev_classifier.LABEL_HU.get(label, label)}: {subject[:200]}",
+            summary=f"Nem-ügyfél feladó automatikusan szűrve: {from_email}",
+            result=f"{subject[:200]} {(text_content or '')[:150]}".strip(),
+            tool_name="sender_filter",
+            session_id=f"filtered_{from_email}",
+            funnel_stage="non_patient",
+            direction="inbound",
             approval_status="spam"
         )
         return
@@ -1031,6 +1058,12 @@ Ha egyik sem releváns, legyen üres lista [].
 
         email_approval = "approved" if (is_autonomous_email and send_ok) else "pending"
         email_funnel = "valaszolt" if (is_autonomous_email and send_ok) else f_stage
+
+        if is_autonomous_email and send_ok:
+            # Autonóm kiküldés — a draft jelzi, hogy a választ AI küldte ki
+            # (ember nem szerkesztette); ettől különbözik a jóváhagyási út
+            _stamp_draft_meta(draft_payload, email_reply, "ai")
+            draft_json = json.dumps(draft_payload)
 
         # 260-as ügy: javaslati szakaszban (függő foglalás, az ügyfél még nem
         # erősítette meg) az eredmény ne 'Új időpont' legyen, hanem a kanonikus
@@ -2495,3 +2528,46 @@ async def automation_worker_loop():
             logger.error(f"Automation worker error: {e}")
 
         await asyncio.sleep(5 * 60)  # 5 perc
+
+
+def _stamp_draft_meta(draft: dict, final_text: str, sent_by: str,
+                      edited_by: str | None = None,
+                      channel_texts: dict | None = None) -> dict:
+    """Draft-meta bélyegzés: megkülönbözteti az ember által szerkesztett választ
+    az AI autonóm küldésétől. Az AI eredeti szövegét (original_body) TÖRÖLHETETLENÜL
+    megőrzi — ismételt hívás sem írja felül (az első mentés érvényesül). Az
+    edited/edited_at jelzi, hogy a kiküldött szöveg eltér-e az eredetitől, a
+    sent_by ('human' | 'ai') pedig azt, hogy ki küldte ki.
+
+    channel_texts: multi-channel piszkozatnál {csatorna: végleges szöveg} —
+    minden csatorna-piszkozatra lefut a bélyegzés, a top-level edited akkor
+    True, ha BÁRMELYik csatorna szövege változott."""
+    def _stamp_one(target: dict, text: str) -> bool:
+        original = target.get("original_body") or target.get("body") or ""
+        target.setdefault("original_body", target.get("body") or "")
+        edited = text.strip() != original.strip()
+        target["edited"] = bool(target.get("edited")) or edited
+        if edited and not target.get("edited_at"):
+            target["edited_at"] = datetime.now(BUDAPEST_TZ).isoformat()
+        if edited_by:
+            target["edited_by"] = edited_by
+        target["sent_by"] = sent_by
+        target["body"] = text
+        return edited
+
+    if draft.get("multi_channel") and isinstance(draft.get("drafts"), list):
+        any_edited = False
+        for sub_draft in draft["drafts"]:
+            if not isinstance(sub_draft, dict):
+                continue
+            ch_text = (channel_texts or {}).get(sub_draft.get("channel", ""), sub_draft.get("body", ""))
+            if _stamp_one(sub_draft, ch_text):
+                any_edited = True
+        draft["edited"] = bool(draft.get("edited")) or any_edited
+        if edited_by:
+            draft["edited_by"] = edited_by
+        draft["sent_by"] = sent_by
+        return draft
+
+    _stamp_one(draft, final_text)
+    return draft

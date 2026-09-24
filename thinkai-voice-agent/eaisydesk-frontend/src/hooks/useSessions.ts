@@ -6,6 +6,7 @@ export interface SessionInteraction {
   created_at?: string;
   received_at?: string | null; // a bejövő levél VALÓS beérkezési ideje (Date fejléc)
   sent_at?: string | null;     // a válasz tényleges kiküldési ideje
+  closed_at?: string | null;   // a lezárás ideje — a dashboard „Ma elvégzett" szekcióhoz
   diary_fragment?: string | null; // az interakció saját napló-fragmense (263-as ügy)
   type?: string;
   topic?: string;
@@ -99,6 +100,7 @@ export function useSessions(limit = 100): UseSessionsReturn {
           created_at: row.created_at,
           received_at: row.received_at, // a levél VALÓS beérkezési ideje
           sent_at: row.sent_at,         // a válasz tényleges kiküldési ideje
+          closed_at: row.closed_at,     // a lezárás ideje (dashboard „Ma elvégzett")
           diary_fragment: row.diary_fragment, // az interakció saját napló-fragmense
           type: row.type,
           topic: row.topic,

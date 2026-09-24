@@ -2627,6 +2627,12 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
             approval_status = "approved" if (is_autonomous and send_ok) else "pending"
             funnel_stage_final = "valaszolt" if (is_autonomous and send_ok) else f_stage
 
+            if is_autonomous and send_ok:
+                # Autonóm kiküldés — a draft jelzi, hogy a választ AI küldte ki
+                # (ember nem szerkesztette); ettől különbözik a jóváhagyási út
+                email_processor._stamp_draft_meta(draft_payload, final_text, "ai")
+                draft_json = json.dumps(draft_payload)
+
             # Logolás az interactions táblába + approval
             db.log_interaction(
                 type=source_channel.lower(),
@@ -3866,6 +3872,9 @@ def update_interaction_status(id: int, req: InteractionStatusUpdateRequest, _aut
         # statusz mezője hordozza (a frontend detectStatusz ezt olvassa elsőként).
         updates = {}
 
+        from datetime import datetime, timezone
+        closed_at = datetime.now(timezone.utc).isoformat()
+
         # Fetch existing classification to avoid overriding other fields (ugytipus, eredmeny, etc.)
         res = db.supabase.table("interactions").select("classification").eq("id", id).execute()
         if res.data and len(res.data) > 0:
@@ -3882,6 +3891,9 @@ def update_interaction_status(id: int, req: InteractionStatusUpdateRequest, _aut
         # automatikus viselkedése ellen — az eredmény-sorban „Manuálisan lezárt (X)"
         updates["classification"]["closed_manually"] = True
         updates["classification"]["closed_by"] = _auth
+        # A dashboard „Ma elvégzett" szekciója ebből az oszlopból dolgozik
+        updates["closed_at"] = closed_at
+        updates["classification"]["closed_at"] = closed_at
 
         db.supabase.table("interactions").update(updates).eq("id", id).execute()
         logger.info(f"Interaction {id} marked as lezárt by {_auth}")
@@ -5222,6 +5234,17 @@ async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(ver
                     resp.raise_for_status()
                     print(f"[Approval] Email elküldve: {send_draft.get('to_email')}")
 
+                    # A draft-időben 'pending' email_logs tükrösor lezárása —
+                    # a jóváhagyási útvonal korábban sosem frissítette (elavult
+                    # 'pending' sor maradt). SOHA nem buktathatja el a jóváhagyást.
+                    try:
+                        db.mark_email_log_sent(
+                            target.get("session_id") or "",
+                            send_draft.get("to_email") or "",
+                        )
+                    except Exception as el_err:
+                        print(f"[Approval] email_log 'sent' frissítés sikertelen: {el_err}")
+
                     # A válasz VALÓS kiküldési ideje — a popup és a listanézet ebből mutatja
                     try:
                         db.set_interaction_sent_at(id, datetime.utcnow().isoformat())
@@ -5392,23 +5415,32 @@ async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(ver
     except Exception as e:
         print(f"[Approval Error] Hiba a kiküldéskor: {e}")
         # Küldés sikertelen, de az approve-ot azért mentsük el
-        draft["body"] = final_text
+        _stamp_approved_draft(draft, final_text, req.modified_drafts, _auth)
         new_draft_json = json.dumps(draft)
         db.update_approval_status(id, "approved", new_draft=new_draft_json)
         return {"status": "warning", "message": f"Jóváhagyva, de a küldés sikertelen: {str(e)[:150]}"}
-        
-    # 2. Adatbázis frissítése — a szerkesztett szöveg(ek) elmentése
-    if draft.get("multi_channel") and req.modified_drafts:
-        for sd in draft.get("drafts", []):
-            ch_name = sd.get("channel", "")
-            if ch_name in req.modified_drafts:
-                sd["body"] = req.modified_drafts[ch_name]
-    draft["body"] = final_text
+
+    # 2. Adatbázis frissítése — a szerkesztett szöveg(ek) elmentése.
+    # A bélyegzés az AI eredeti szövegét (original_body) törölhetetlenül megőrzi,
+    # és rögzíti, hogy a kiküldött választ emberi kéz szerkesztette-e
+    # (sent_by='human', edited_by=<jóváhagyó felhasználó>).
+    _stamp_approved_draft(draft, final_text, req.modified_drafts, _auth)
     new_draft_json = json.dumps(draft)
     success = db.update_approval_status(id, "approved", new_draft=new_draft_json)
-    
+
     if success: return {"status": "success"}
     raise HTTPException(status_code=500, detail="Sikeres küldés, de adatbázis frissítés hibás")
+
+
+def _stamp_approved_draft(draft: dict, final_text: str,
+                          modified_drafts: dict | None, username: str) -> None:
+    """A jóváhagyott draft véglegesítése: az emberi szerkesztés meta-bélyegzésével
+    (sent_by='human', edited_by) menti el a szöveget — egy- és multi-channel
+    piszkozatra egyaránt. Az eredeti AI-szöveg (original_body) megőrződik."""
+    email_processor._stamp_draft_meta(
+        draft, final_text, "human", username,
+        channel_texts=modified_drafts or None,
+    )
 
 
 @app.get("/admin/api/clinics")

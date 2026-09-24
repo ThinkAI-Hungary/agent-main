@@ -226,7 +226,7 @@ export default function AutomatizaciokPage() {
           <p style={{ fontSize: 12, color: t.muted, marginBottom: 4 }}>
             Kimenő kommunikáció <b style={{ color: t.fg, fontWeight: 600 }}>/ Értesítések</b>
           </p>
-          <h1 style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.015em', lineHeight: 1.25, color: t.fg }}>
+          <h1 className="page-title" style={{ fontSize: 22, fontWeight: 600, letterSpacing: '-0.015em', lineHeight: 1.25, color: t.fg }}>
             Automatikus értesítések
           </h1>
         </div>

@@ -68,6 +68,18 @@ export default function InteractionSummaryModal({
   // manager-t is adminnak — következetlen volt).
   const rawDraft = row.ai_draft_response || row.aiDraftResponse || null;
   const approvalStatus = row.approval_status || row.approvalStatus || null;
+  // A kiküldött válasz emberi kéz általi szerkesztésének jelölése — az approve
+  // endpoint a draftba bélyegzi az edited/edited_by mezőket (az eredeti
+  // AI-szöveg original_body-ként törölhetetlenül megőrzésre kerül)
+  const draftEdited = (() => {
+    try {
+      const d: unknown = typeof rawDraft === 'string' ? JSON.parse(rawDraft) : rawDraft;
+      const rec = (d && typeof d === 'object' ? d : {}) as Record<string, unknown>;
+      return { edited: rec.edited === true, editedBy: typeof rec.edited_by === 'string' ? rec.edited_by : '' };
+    } catch {
+      return { edited: false, editedBy: '' };
+    }
+  })();
   // EAISY-241 §1.1.2 — Ha az ügytípus eljárása „Önállóan kezelhető" (autonomous),
   // a jóváhagyási/szerkesztési UI nem jelenik meg (a válasz már auto-kiküldésre került).
   // Ez true ha approval folyamat szükséges ÉS nem autonóm.
@@ -1102,6 +1114,15 @@ export default function InteractionSummaryModal({
                                   ? outboundSubject
                                   : 'Elküldött válasz'}
                             </span>
+                            {/* Emberi kéz által szerkesztett kiküldött válasz jelölése */}
+                            {block.sender === 'ai' && draftEdited.edited && (
+                              <span
+                                className="ism-edited-chip"
+                                title="Az eredeti AI-válasz törölhetetlenül tárolva"
+                              >
+                                Szerkesztve{draftEdited.editedBy ? ` · ${draftEdited.editedBy}` : ''}
+                              </span>
+                            )}
                             {/* A kiküldött válasz a VALÓS küldési időt mutatja */}
                             {block.sender === 'ai' && row.sent_at ? (
                               <span className="ism-chat-time">

@@ -834,6 +834,25 @@ def add_email_log(to_name, to_email, subject, message, status, error="", session
     except Exception:
         return 0
 
+def mark_email_log_sent(session_id: str, to_email: str) -> bool:
+    """A draft-időben 'pending' email_logs tükrösor 'sent'-re állítása a jóváhagyás
+    utáni kiküldéskor (a LEGFRISSEBB egyező pending sor). A napló-frissítés
+    meghibásodása nem blokkolhatja a jóváhagyást — sosem dob hibát."""
+    if not supabase or not session_id or not to_email:
+        return False
+    try:
+        res = _tenant_eq(supabase.table("email_logs").select("id")).eq("session_id", session_id).eq("to_email", to_email).eq("status", "pending").order("id", desc=True).limit(1).execute()
+        if not res.data:
+            return False
+        _tenant_eq(supabase.table("email_logs").update({
+            "status": "sent",
+            "sent_at": datetime.utcnow().isoformat(),
+        })).eq("id", res.data[0]["id"]).execute()
+        return True
+    except Exception as e:
+        logger.warning(f"mark_email_log_sent error: {e}")
+        return False
+
 def get_grouped_interactions(limit: int = 100, offset: int = 0) -> dict:
     """Szerver-oldali session-aggregáció (SQL függvény): sessionönként 1 sor,
     reprezentatív interakció + session-max státusz + darabszám. A kliens-oldali
@@ -943,7 +962,10 @@ def update_task_complete(task_id: int) -> dict:
         res = _tenant_eq(supabase.table("tasks").select("completed")).eq("id", task_id).execute()
         if not res.data: return {"ok": False}
         new_val = 0 if res.data[0]["completed"] else 1
-        _tenant_eq(supabase.table("tasks").update({"completed": new_val})).eq("id", task_id).execute()
+        # A dashboard „Ma elvégzett" szekciója a completed_at dátumát nézi;
+        # visszapipálásnál nullázunk, hogy ne maradjon elvégzettnek
+        updates = {"completed": new_val, "completed_at": datetime.now(timezone.utc).isoformat() if new_val else None}
+        _tenant_eq(supabase.table("tasks").update(updates)).eq("id", task_id).execute()
         return {"ok": True, "completed": bool(new_val)}
     except Exception:
         return {"ok": False}
@@ -1484,6 +1506,9 @@ def get_interactions(limit: int = 100, type_filter: str = "") -> list[dict]:
     if not supabase: return []
     try:
         query = _tenant_eq(supabase.table("interactions").select("*")).order("created_at", desc=True).limit(limit)
+        # Nem-ügyfél / spam sorok (JEV küldő-szűrő, spam_filter) soha nem jönnek
+        # le a flat feedből — csak a dedikált szűrt-nézetek láthatják őket.
+        query = query.not_.in_("funnel_stage", ["non_patient", "spam"])
         if type_filter:
             query = query.eq("type", type_filter)
         res = query.execute()
@@ -2394,6 +2419,10 @@ def update_approval_status(interaction_id: int, status: str, new_draft: str = No
                 classification['eredmeny'] = new_result
                 classification['statusz'] = 'Lezárt'
                 classification['teendo'] = 'Nincs további teendő'
+                # A jóváhagyás lezárásnak számít — a dashboard „Ma elvégzett"
+                # szekciója a closed_at alapján veszi fel
+                updates['closed_at'] = datetime.now(timezone.utc).isoformat()
+                classification['closed_at'] = updates['closed_at']
                 
                 updates['classification'] = classification
                 updates['result'] = new_result

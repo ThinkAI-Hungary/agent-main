@@ -1,15 +1,18 @@
 /**
  * MemberDashboardPage – "Irányítópult" a member napi teendőivel.
  *
- * Design: user által adott HTML-mockup (hero + 3 KPI-kártya + 2 szekció).
- * A dashboard SZŰRŐKÉNT működik: csak a nyitott/sürgős interakciók látszanak;
- * a pipával lezártak eltűnnek (az interakciós naplóban maradnak Lezártan).
+ * Design: user által adott HTML-mockup (hero + KPI-kártyák + szekciók).
+ * A pipával lezárt interakciók a „Ma elvégzett" szekcióba kerülnek (az
+ * interakciós naplóban is megmaradnak Lezártan).
  *
- * Szekciók:
- *  - Sürgős / lejárt: Sürgős státuszúak + minden nyitott, ami ma 00:00 ELŐTT
- *    keletkezett (24 órás válaszablak-szabály — státusz nem változik, csak
- *    a szekcióba feljebb kerül).
- *  - Nyitott teendők: az aznapi nyitott interakciók + kézi teendők.
+ * Szekciók (2026-09-24, „1. megoldás"):
+ *  - Sürgős teendők: Sürgős státuszú, nem lezárt sorok (a high priority kézi
+ *    teendők is ide kerülnek).
+ *  - Nyitott teendők: Nyitott, nem lezárt sorok + kézi teendők; ami ma 00:00
+ *    ELŐTT keletkezett, „Lejárt" jelölést kap (a sor nem kerül át másik
+ *    szekcióba, csak a badge jelzi a lejáratot).
+ *  - Ma elvégzett: Lezárt interakciók, amelyeknek a closed_at-je ma van
+ *    (helyi idő), és a ma completed_at-tel befejezett kézi teendők.
  *
  * Minden member MINDEN interakciót lát és dolgozhat velük (felelőshozrendelés
  * nem hozzáférés-vezérlés); a jóváhagyás/küldés minden szerep számára nyitott.
@@ -109,6 +112,21 @@ const tokens = (dark: boolean) => ({
   accent2: dark ? '#3fd8c8' : '#186d98',
 });
 
+// Kézi teendő a GET /admin/api/tasks válaszból
+type ManualTask = {
+  id: number; text: string; priority: string; completed: number;
+  created_at: string; completed_at?: string | null; client_id: number | null;
+};
+
+// A dashboard sorai: InteractionRow + kézi teendő mezők (a completed_at a
+// „Ma elvégzett" szekció rendezési kulcsa a kézi teendőknél)
+type DashboardRow = InteractionRow & {
+  isManual?: boolean;
+  taskId?: number;
+  taskCompleted?: boolean;
+  completed_at?: string | null;
+};
+
 export default function MemberDashboardPage() {
   const { isDark } = useTheme();
   const t = tokens(isDark);
@@ -120,7 +138,7 @@ export default function MemberDashboardPage() {
   const fullName = user?.fullName || '';
   const firstName = fullName ? fullName.split(' ').pop() || fullName : username;
 
-  const [manualTasks, setManualTasks] = useState<Array<{ id: number; text: string; priority: string; completed: number; created_at: string; client_id: number | null }>>([]);
+  const [manualTasks, setManualTasks] = useState<ManualTask[]>([]);
   const loadManualTasks = useCallback(async () => {
     try {
       const res = await authFetch('/admin/api/tasks');
@@ -168,6 +186,7 @@ export default function MemberDashboardPage() {
             sessionId: s.session_id || null,
             ai_draft_response: r.ai_draft_response || null,
             approval_status: r.approval_status || null,
+            closed_at: r.closed_at || null,
           });
         });
       }
@@ -176,60 +195,75 @@ export default function MemberDashboardPage() {
     return rows;
   }, [hookSessions, clients, clientsMap]);
 
-  // ── Kézi teendők sorokká ──
-  const manualRows = useMemo<InteractionRow[]>(() => {
-    return manualTasks
-      .filter(task => !task.completed)
-      .map(task => {
-        const client = task.client_id ? clientsMap[String(task.client_id)] : undefined;
-        const clientName = client ? (bestClientName(client) || client.name || 'Névtelen') : 'Névtelen';
-        return {
-          date: task.created_at || '',
-          channel: 'Hozzáadott feladat',
-          client: clientName,
-          clientId: task.client_id,
-          clientStatus: '',
-          clientCreatedAt: '',
-          direction: '',
-          ugyTipus: '',
-          eredmeny: '',
-          statusz: task.priority === 'high' ? 'Sürgős' : 'Nyitott',
-          teendo: task.text,
-          tags: [] as string[],
-          type: 'task',
-          topic: '',
-          summary: '',
-          result: '',
-          interactionId: null,
-          sessionId: null,
-          ai_draft_response: null,
-          approval_status: null,
-          isManual: true,
-          taskId: task.id,
-          taskCompleted: !!task.completed,
-        } as InteractionRow & { isManual?: boolean; taskId?: number };
-      });
-  }, [manualTasks, clientsMap]);
+  // ── Kézi teendő → sor (a nyitottak a Sürgős/Nyitott szekcióba, a ma
+  //    befejezettek kizárólag a „Ma elvégzett"be kerülnek) ──
+  const manualTaskRow = useCallback((task: ManualTask): DashboardRow => {
+    const client = task.client_id ? clientsMap[String(task.client_id)] : undefined;
+    const clientName = client ? (bestClientName(client) || client.name || 'Névtelen') : 'Névtelen';
+    return {
+      date: task.created_at || '',
+      channel: 'Hozzáadott feladat',
+      client: clientName,
+      clientId: task.client_id,
+      clientStatus: '',
+      clientCreatedAt: '',
+      direction: '',
+      ugyTipus: '',
+      eredmeny: '',
+      statusz: task.priority === 'high' ? 'Sürgős' : 'Nyitott',
+      teendo: task.text,
+      tags: [] as string[],
+      type: 'task',
+      topic: '',
+      summary: '',
+      result: '',
+      interactionId: null,
+      sessionId: null,
+      ai_draft_response: null,
+      approval_status: null,
+      closed_at: null,
+      isManual: true,
+      taskId: task.id,
+      taskCompleted: !!task.completed,
+      completed_at: task.completed_at || null,
+    } as DashboardRow;
+  }, [clientsMap]);
 
-  // ── 24 órás szabály: Sürgős/lejárt vs Nyitott ──
-  const { urgentRows, openRows } = useMemo(() => {
+  const manualRows = useMemo<DashboardRow[]>(() => {
+    return manualTasks.filter(task => !task.completed).map(manualTaskRow);
+  }, [manualTasks, manualTaskRow]);
+
+  // ── Szekciók: Sürgős / Nyitott / Ma elvégzett ──
+  const { urgentRows, openRows, doneRows } = useMemo(() => {
     const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
-    const urgent: InteractionRow[] = [];
-    const open: InteractionRow[] = [];
-    const consider = (r: InteractionRow) => {
+    const urgent: DashboardRow[] = [];
+    const open: DashboardRow[] = [];
+    const done: DashboardRow[] = [];
+    const consider = (r: DashboardRow) => {
       const sz = (r.statusz || '').toLowerCase();
-      if (sz !== 'nyitott' && sz !== 'sürgős' && sz !== 'surgos') return; // Lezárt → kizárva
-      const created = r.date ? new Date(r.date) : new Date();
-      const fromBeforeToday = created < startOfToday;
-      if (sz === 'sürgős' || sz === 'surgos' || fromBeforeToday) urgent.push(r);
+      if (sz === 'lezárt' || sz === 'lezart') {
+        // Korlátozás: a closed_at oszlopot (2026-09-24) megelőzően lezárt soroknak
+        // nincs closed_at-je — ezek a történelmi Lezárt sorok soha nem jelennek
+        // meg a „Ma elvégzett" szekcióban.
+        if (r.closed_at && new Date(r.closed_at) >= startOfToday) done.push(r);
+        return;
+      }
+      if (sz !== 'nyitott' && sz !== 'sürgős' && sz !== 'surgos') return;
+      if (sz === 'sürgős' || sz === 'surgos') urgent.push(r);
       else open.push(r);
     };
     allRows.forEach(consider);
     manualRows.forEach(consider);
+    // Befejezett kézi teendők kizárólag a „Ma elvégzett"be kerülnek
+    manualTasks
+      .filter(task => task.completed && task.completed_at && new Date(task.completed_at) >= startOfToday)
+      .forEach(task => done.push(manualTaskRow(task)));
+    const doneAtOf = (r: DashboardRow) => r.closed_at || r.completed_at || '';
     urgent.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
     open.sort((a, b) => (b.date || '').localeCompare(a.date || ''));
-    return { urgentRows: urgent, openRows: open };
-  }, [allRows, manualRows]);
+    done.sort((a, b) => doneAtOf(b).localeCompare(doneAtOf(a)));
+    return { urgentRows: urgent, openRows: open, doneRows: done };
+  }, [allRows, manualRows, manualTasks, manualTaskRow]);
 
   // ── Mai időpontok (minden esemény) ──
   const todayAppts = useMemo(() => {
@@ -325,10 +359,12 @@ export default function MemberDashboardPage() {
     return (cd?.email as string) || c.email || (cd?.telefonszam as string) || (cd?.phone as string) || c.phone || '';
   };
 
-  const renderTaskTable = (rows: InteractionRow[], showCheckbox: boolean) => {
+  const renderTaskTable = (rows: DashboardRow[], showCheckbox: boolean, emptyText = 'Nincs teendő.') => {
     if (rows.length === 0) {
-      return <div style={tableCardStyle}><div style={emptyStyle}>Nincs teendő.</div></div>;
+      return <div style={tableCardStyle}><div style={emptyStyle}>{emptyText}</div></div>;
     }
+    // „Lejárt" jelölés: a mai 00:00 ELŐTT keletkezett nyitott/sürgős sorokon
+    const startOfToday = new Date(); startOfToday.setHours(0, 0, 0, 0);
     return (
       <div style={tableCardStyle}>
         <div style={{ overflowX: 'auto' }}>
@@ -352,8 +388,11 @@ export default function MemberDashboardPage() {
                 const dateLabel = created
                   ? `${HU_MONTHS_SHORT[created.getMonth()]} ${created.getDate()}. · ${pad2(created.getHours())}:${pad2(created.getMinutes())}`
                   : '—';
-                const manualRow = r as InteractionRow & { isManual?: boolean; taskId?: number };
+                const manualRow = r;
                 const isManualRow = !!manualRow.isManual && !!manualRow.taskId;
+                // „Lejárt" csak a nem lezárt sorokat illeti (a Ma elvégzett sorai soha)
+                const szLower = (r.statusz || '').toLowerCase();
+                const expired = !!created && szLower !== 'lezárt' && szLower !== 'lezart' && created < startOfToday;
                 const contact = contactOf(r);
                 const clientIdStr = r.clientId ? String(r.clientId) : null;
                 return (
@@ -390,7 +429,14 @@ export default function MemberDashboardPage() {
                     <td style={tdBase}><ChannelChip name={r.channel} t={t} /></td>
                     <td style={tdBase}>{r.ugyTipus || '—'}</td>
                     <td style={{ ...tdBase, color: t.text2 }}>{r.eredmeny || '—'}</td>
-                    <td style={tdBase}><StatusBadge value={r.statusz} t={t} /></td>
+                    <td style={tdBase}>
+                      <span style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
+                        <StatusBadge value={r.statusz} t={t} />
+                        {expired && (
+                          <span title="Ma 00:00 előtt keletkezett" style={{ display: 'inline-flex', alignItems: 'center', padding: '2px 8px', borderRadius: 8, fontSize: 11, fontWeight: 500, whiteSpace: 'nowrap', border: `1px solid ${t.border}`, background: t.surface, color: t.muted }}>Lejárt</span>
+                        )}
+                      </span>
+                    </td>
                     <td style={tdBase}>
                       {isManualRow ? (
                         <div className="todo-frame" title={r.teendo}>{r.teendo}</div>
@@ -460,10 +506,15 @@ export default function MemberDashboardPage() {
   const greeting = hour < 10 ? 'Jó reggelt' : hour < 18 ? 'Jó napot' : 'Jó estét';
   const todayLabel = `${HU_DAYS[now.getDay()]}, ${now.getFullYear()}. ${HU_MONTHS_SHORT[now.getMonth()]} ${now.getDate()}.`;
 
-  const kpiIc = (kind: 'err' | 'warn' | 'info' | 'cal'): React.CSSProperties => {
+  const kpiIc = (kind: 'err' | 'warn' | 'info' | 'cal' | 'done'): React.CSSProperties => {
     if (kind === 'err') return { background: '#fff2f0', color: '#ff4d4f', border: '1px solid #ffccc7' };
     if (kind === 'warn') return { background: '#fffbe6', color: '#faad14', border: '1px solid #ffe58f' };
     if (kind === 'cal') return { background: `color-mix(in srgb, ${t.accent2} 10%, ${t.bg})`, color: t.accent2, border: `1px solid color-mix(in srgb, ${t.accent2} 30%, ${t.border})` };
+    // zöld „Ma elvégzett" — color-mix + témafüggő szöveg, hogy sötét módban is olvasható legyen
+    if (kind === 'done') {
+      const fg = isDark ? '#95de64' : '#389e0d';
+      return { background: `color-mix(in srgb, #52c41a 14%, ${t.bg})`, color: fg, border: `1px solid color-mix(in srgb, ${fg} 35%, ${t.border})` };
+    }
     return { background: '#ebfffa', color: '#00767a', border: '1px solid #99ffee' };
   };
 
@@ -481,7 +532,7 @@ export default function MemberDashboardPage() {
 
       <section style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 20, flexWrap: 'wrap', background: `color-mix(in srgb, ${t.accent} 22%, ${t.bg})`, border: `1px solid color-mix(in srgb, ${t.accent} 40%, ${t.border})`, borderRadius: 8, padding: '18px 20px', marginTop: 14 }}>
         <div>
-          <h2 style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.015em', color: t.fg }}>{greeting}{firstName ? `, ${firstName.split(' ')[0]}!` : '!'}</h2>
+          <h2 className="member-greeting-title" style={{ fontSize: 20, fontWeight: 600, letterSpacing: '-0.015em', color: t.fg }}>{greeting}{firstName ? `, ${firstName.split(' ')[0]}!` : '!'}</h2>
           <p style={{ marginTop: 4, fontSize: 13, color: t.text2 }}>Íme a mai áttekintésed.</p>
         </div>
         <span style={{ fontSize: 13, fontWeight: 500, color: t.accent2, display: 'inline-flex', alignItems: 'center', gap: 7 }}>
@@ -491,23 +542,32 @@ export default function MemberDashboardPage() {
       </section>
 
       {/* ── KPI-kártyák ── */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, minmax(0, 1fr))', gap: 12, marginTop: 14 }}>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, minmax(0, 1fr))', gap: 12, marginTop: 14 }}>
         <article style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, padding: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
           <span style={{ ...kpiIc('err'), width: 40, height: 40, flex: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" style={{ width: 19, height: 19 }}><polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2" /></svg>
           </span>
           <span>
             <span style={{ display: 'block', fontSize: 26, fontWeight: 600, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-0.02em', color: t.fg }}>{urgentRows.length}</span>
-            <span style={{ display: 'block', fontSize: 12.5, color: t.muted, fontWeight: 500, marginTop: 3 }}>Sürgős / lejárt teendő</span>
+            <span style={{ display: 'block', fontSize: 12.5, color: t.muted, fontWeight: 500, marginTop: 3 }}>Sürgős teendő</span>
           </span>
         </article>
         <article style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, padding: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
-          <span style={{ ...kpiIc('info'), width: 40, height: 40, flex: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+          <span style={{ ...kpiIc('warn'), width: 40, height: 40, flex: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" style={{ width: 19, height: 19 }}><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
           </span>
           <span>
             <span style={{ display: 'block', fontSize: 26, fontWeight: 600, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-0.02em', color: t.fg }}>{openRows.length}</span>
             <span style={{ display: 'block', fontSize: 12.5, color: t.muted, fontWeight: 500, marginTop: 3 }}>Nyitott teendő</span>
+          </span>
+        </article>
+        <article style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, padding: 16, display: 'flex', alignItems: 'center', gap: 14 }}>
+          <span style={{ ...kpiIc('done'), width: 40, height: 40, flex: 'none', borderRadius: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={1.7} strokeLinecap="round" strokeLinejoin="round" style={{ width: 19, height: 19 }}><polyline points="20 6 9 17 4 12" /></svg>
+          </span>
+          <span>
+            <span style={{ display: 'block', fontSize: 26, fontWeight: 600, fontVariantNumeric: 'tabular-nums', lineHeight: 1, letterSpacing: '-0.02em', color: t.fg }}>{doneRows.length}</span>
+            <span style={{ display: 'block', fontSize: 12.5, color: t.muted, fontWeight: 500, marginTop: 3 }}>Ma elvégzett</span>
           </span>
         </article>
         <article style={{ background: t.bg, border: `1px solid ${t.border}`, borderRadius: 8, padding: 16, display: 'flex', alignItems: 'flex-start', gap: 14 }}>
@@ -557,10 +617,10 @@ export default function MemberDashboardPage() {
         </article>
       </div>
 
-      {/* ── Sürgős / lejárt teendők ── */}
+      {/* ── Sürgős teendők ── */}
       <section style={{ marginTop: 20 }}>
         <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
-          <h3 style={{ ...sectionTitleStyle }}>Sürgős / lejárt teendők<span style={sectionCountStyle}>{urgentRows.length}</span></h3>
+          <h3 style={{ ...sectionTitleStyle }}>Sürgős teendők<span style={sectionCountStyle}>{urgentRows.length}</span></h3>
         </div>
         {renderTaskTable(urgentRows, true)}
       </section>
@@ -571,6 +631,14 @@ export default function MemberDashboardPage() {
           <h3 style={{ ...sectionTitleStyle }}>Nyitott teendők<span style={sectionCountStyle}>{openRows.length}</span></h3>
         </div>
         {renderTaskTable(openRows, true)}
+      </section>
+
+      {/* ── Ma elvégzett ── */}
+      <section style={{ marginTop: 20 }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, marginBottom: 10, flexWrap: 'wrap' }}>
+          <h3 style={{ ...sectionTitleStyle }}>Ma elvégzett<span style={sectionCountStyle}>{doneRows.length}</span></h3>
+        </div>
+        {renderTaskTable(doneRows, true, 'Ma még nincs elvégzett teendő')}
       </section>
 
       {/* ── Kézi teendő szerkesztő popup (#todoEditOverlay) ── */}
