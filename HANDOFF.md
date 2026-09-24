@@ -42,6 +42,15 @@ A user által rendelt célkép DEPLOYOLVA és a stagingen ÉL:
 - Env: `EMAIL_VERIFY_FLOW=smsfirst`, `EMAIL_VERIFY_SMS_MODE=nongreen`, `SMS_DRY_RUN=0` (valódi SMS), `EMAIL_DRY_RUN=1` (email dry-run).
 - **A hívásos tesztek innentől ezt a folyót mérik** — minden nem-gyorsítósávos foglalásnál a tesztelő éles SMS-t kap a saját telefonjára, a linken megerősít/kijavít/megad. A `confirmed_email` a kalibrációs ground truth.
 
+## 1e. Nem-erősített foglalás kezelése (`724f3f2`)
+
+Ha az SMS kimegy, de az ügyfél nem erősít meg:
+- a foglalás érvényes marad (naptárban él), visszaigazoló email NEM ment;
+- **24 órával az esemény előtt** az emlékeztető-worker **SMS-emlékeztetőt** küld ugyanazzal a linkkel (idempotens, `purpose=reminder_sms`) — e-mail emlékeztető a megerősítetlen címre NEM megy;
+- a naptár-esemény note-jában jelzés fut: „📧 megerősítés függőben" (SMS-küldéskor) → „✅ megerősítve SMS-ből: <cím>" (kattintáskor) — a recepció látja;
+- a token a foglalás kezdetéig él, késői kattintásra is megy a visszaigazolás.
+- **DDL-fix**: `email_confirm_tokens.event_ids` INT[] (volt UUID[] — az első valódi nem-zöld hívásnál elhasalt volna). PROD-deploynál a migrate_sms_confirm.sql teljes futtatása kell.
+
 ## 1b. Élő rendszer (staging, `4d9c21f`)
 
 - **wp-e2 pipeline ÉL** (nem baseline!): független kapu (live+stt+audio readings, GREEN_3OF3 / GREEN_2OF2_KNOWN / NG_CONTRADICTION / NG_NO_EMAIL…), Soniox a kinyontott HÍVÓ csatornán + audio-LLM (gemini-3.8-flash inline audio) PÁRHUZAMOSAN (mérés: soniox 6–10 s, audio 2–4 s, total 10–21 s), JEV csak rangsorol (`EMAIL_VERIFY_JEV_GREEN=0`).
