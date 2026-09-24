@@ -35,7 +35,7 @@ from classifier import classify_interaction
 
 # ── Import tools ──────────────────────────────────────────────────────────────
 sys.path.insert(0, str(THIS_DIR))
-from tools import ALL_TOOLS, set_session_id, reset_session_alerts, set_caller_phone, get_caller_phone, session_has_complaint_or_request, _spawn, send_session_confirmations
+from tools import ALL_TOOLS, set_session_id, reset_session_alerts, set_caller_phone, get_caller_phone, session_has_complaint_or_request, _spawn, send_session_confirmations, is_eval_caller
 import database as db
 import call_recorder
 
@@ -66,24 +66,10 @@ class ThinkAIAgent(Agent):
         self.campaign_data = campaign_data
 
 
+# _is_eval_caller a tools.is_eval_caller-re delegál (MU-0.3 — egy implementáció,
+# hogy a book_meeting és az entrypoint ugyanazt a kaput használja)
 def _is_eval_caller(phone: str) -> bool:
-    """MU-0.3: a hívószám szerepel-e az EVAL_CALLER_NUMBERS env-ben (vessző-
-    elválasztott E.164 lista). Az eval-tesztszámokra az agent NEM kap tárolt
-    ügyfél-kontextust (név, email, közelgő időpontok) — minden hívás „új
-    ügyfélként" fut, különben a 2. hívástól a diktálás elmaradna. A +36/06
-    előtag különbségeket az utolsó 9 számjegy összehasonlítása hidalja."""
-    raw = (os.getenv("EVAL_CALLER_NUMBERS", "") or "").strip()
-    if not raw or not phone:
-        return False
-    digits = re.sub(r"\D", "", phone)
-    if len(digits) < 7:
-        return False
-    tail = digits[-9:]
-    for entry in raw.split(","):
-        e = re.sub(r"\D", "", entry or "")
-        if len(e) >= 7 and e[-9:] == tail:
-            return True
-    return False
+    return is_eval_caller(phone)
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

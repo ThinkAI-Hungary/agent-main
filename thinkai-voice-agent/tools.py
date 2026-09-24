@@ -65,6 +65,28 @@ def get_caller_phone() -> str:
     return _caller_phone_var.get()
 
 
+def is_eval_caller(phone: str) -> bool:
+    """MU-0.3 (közös — server.py is ezt használja): a hívószám szerepel-e az
+    EVAL_CALLER_NUMBERS env-ben. Az eval hívásoknál (1) az agent NEM kap
+    tárolt ügyfél-kontextust, (2) a book_meeting NEM fésüli össze az új
+    foglalást a korábbi, azonos számról érkező hívás ügyfelével — különben
+    a teszthívások egymás alá írják a nevemet/emailcímeket."""
+    import os
+    import re as _re
+    raw = (os.getenv("EVAL_CALLER_NUMBERS", "") or "").strip()
+    if not raw or not phone:
+        return False
+    digits = _re.sub(r"\D", "", phone)
+    if len(digits) < 7:
+        return False
+    tail = digits[-9:]
+    for entry in raw.split(","):
+        e = _re.sub(r"\D", "", entry or "")
+        if len(e) >= 7 and e[-9:] == tail:
+            return True
+    return False
+
+
 # ── Háttér-task registry — a fire-and-forget taskok kivételei ne vesszenek el ──
 _background_tasks: set = set()
 
@@ -646,8 +668,13 @@ async def book_meeting(
         # kamu is lehet (ld. 09-21: a kamu +36201234567 egy RÉGI tesztügyfélre,
         # a 175-ösre vitte a foglalást, mert az email is annak volt). Ha a
         # hívó száma MÁS ügyfelet talál → konfliktus + duplicate_suspect.
+        # EVAL hívásnál (MU-0.3) ez a merge KIHAGYVA: ugyanarról a tesztszámról
+        # érkező hívások külön ügyfélként futnak, NE írják egymás alá a
+        # nevemet/emailcímeket (13 hívás incidense: 'Kovács Bertalan' ügyfélben
+        # 'kis_anna05@gmail.com' — az utolsó hívás felülírta az előzőt).
         _caller = get_caller_phone()
-        if _caller and _caller != _spoken_phone:
+        _eval_call = bool(_caller and is_eval_caller(_caller))
+        if _caller and _caller != _spoken_phone and not _eval_call:
             try:
                 _caller_hit = db.find_client_by_contact(phone=_caller)
             except Exception:
@@ -669,7 +696,7 @@ async def book_meeting(
         if _primary and attendee and _ntokens(_primary.get("name")) and _ntokens(attendee) and not (_ntokens(_primary.get("name")) & _ntokens(attendee)):
             _other = None
             _caller_now = get_caller_phone()
-            if _caller_now:
+            if _caller_now and not _eval_call:
                 try:
                     _ch = db.find_client_by_contact(phone=_caller_now)
                     if _ch and _ch["id"] != _primary["id"]:
