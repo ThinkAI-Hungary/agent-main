@@ -23,6 +23,15 @@ A 13 próbahívásnál a user session-keveredést látott (az agent „Bertalank
 
 ⚠️ A naptári név-szivárgás PROD-ban is él (privacy: az agent kimondhatja más ügyfél foglalását) — a javítás ezzel prod-ba is kerül.
 
+## 1c. WP-E3 — SMS-megerősítés (Twilio) (`6f0336d`, deployolva)
+
+- **Teljes lánc él a stagingen**: nem-zöld verdiktnél / email nélkül a harness SMS-t küld a hívó magyar mobilszámára (`sms_sender.py`, Twilio REST) `/e/{token}` megerősítő linkkel (`email_confirm_page.py` — mobil-első oldal, rate-limit, MX + gépelés-javaslat). Megerősítés → ügyfél + esemény + audit frissítés → visszaigazoló email a jó címre; régi opt-in JWT ekkor érvénytelen. Minden fail-open: SMS-hibánál opt-in levél tartalék.
+- **Kapcsolók**: `EMAIL_VERIFY_SMS_MODE` = off|nongreen (default nongreen), `SMS_DRY_RUN` (default 1 — Twilio-hívás helyett `sms_logs.status=dry_run`), `EMAIL_VERIFY_OPTIN_EMAIL_WITH_SMS` (default 0), `PUBLIC_CONFIRM_BASE_URL` (ÜRESEN — user-döntés melyik publikus domain).
+- **BLOKKOLÓ — Twilio-fiók zárolt**: a megadott fiók (AC263e…79e5a) API-válasza: „status 4 is not active" — nincs küldőszám, nem is lehet +36-os SMS-számot venni rajta. Éles SMS-hez: fiók reaktiválása VAGY aktív fiók kulcsai; utána SMS-képes küldőszám keresése (TWILIO_FROM) és a magyar irányú kézbesítés tesztje. Alternatíva: magyar SMS-átjáró (a sms_sender cserélhető).
+- **DB él**: `sms_logs`, `email_confirm_tokens`, `email_verify_runs` SMS/confirm oszlopok (migrate_sms_confirm.sql — PROD-deploynál futtatandó!).
+- **Tesztek**: 341 zöld (sms_sender 14, tokens 14, confirm_page 15, sms_decision 15 + korábbi 283).
+- **Következő**: (1) 1 próbahívás → futás-sor + dry_run email + nincs process-kill; (2) a 50 hívás befejezése; (3) Twilio-reaktiválás után a 12 hívásos SMS-tesztsorozat (munkautalvány tesztprotokoll).
+
 ## 1b. Élő rendszer (staging, `4d9c21f`)
 
 - **wp-e2 pipeline ÉL** (nem baseline!): független kapu (live+stt+audio readings, GREEN_3OF3 / GREEN_2OF2_KNOWN / NG_CONTRADICTION / NG_NO_EMAIL…), Soniox a kinyontott HÍVÓ csatornán + audio-LLM (gemini-3.8-flash inline audio) PÁRHUZAMOSAN (mérés: soniox 6–10 s, audio 2–4 s, total 10–21 s), JEV csak rangsorol (`EMAIL_VERIFY_JEV_GREEN=0`).
