@@ -299,7 +299,10 @@ class CallRecorder:
             track = None
             while not self._stopped and time.monotonic() < deadline:
                 lp = getattr(self.room, "local_participant", None)
-                for pub in list(getattr(lp, "track_publications", {}) or {}).values():
+                pubs = getattr(lp, "track_publications", None) or {}
+                # SDK-verziónként eltér: dict (id→pub) vagy sima lista is lehet
+                pub_iter = pubs.values() if hasattr(pubs, "values") else list(pubs)
+                for pub in list(pub_iter):
                     t = getattr(pub, "track", None)
                     if t and _is_audio_track(t):
                         track = t
