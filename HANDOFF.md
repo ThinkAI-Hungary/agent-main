@@ -51,6 +51,21 @@ Ha az SMS kimegy, de az ügyfél nem erősít meg:
 - a token a foglalás kezdetéig él, késői kattintásra is megy a visszaigazolás.
 - **DDL-fix**: `email_confirm_tokens.event_ids` INT[] (volt UUID[] — az első valódi nem-zöld hívásnál elhasalt volna). PROD-deploynál a migrate_sms_confirm.sql teljes futtatása kell.
 
+## 1f. Review-compact (`6d19fff`): adversarialis kód-review lefutva, blokkolók javítva
+
+Külső szemléletű review-agent nézte át a teljes WP-E3 láncot (1 BLOCKER + 7 MAJOR + minorok):
+- **B1 javítva**: gépelés-javaslat (pl. gmial.com → gmail.com) most már a valós oldalon megjelenik és BLOKKOLJA az azonnali megerősítést — korábban egy MX-t birtokló elgépelt domain egy kattintással megerősítetté vált volna.
+- **M1**: javaslat-gomb JS/onclick nélkül (form + escape) — a laza email-regexen átment JS-injektálás zárva.
+- **M2**: rate-limit kulcs X-Forwarded-Forból (proxy mögött minden páciens közös 429-vödörben lett volna).
+- **M3**: Twilio-callback delivered/failed beírja az `email_verify_runs.sms_status`-ba (kézbesítési arány metrika él).
+- **M4**: emlékeztető-SMS lejárt/lejáró tokennél ÚJ tokent bocsát ki (4+ napos távolabbé foglalásnál halott link lett volna).
+- **M5**: SMS-emlékeztető hibájánál NEM megy e-mail a megerősítetlen címre.
+- **M6**: megerősítéskor a token tenant_id-je állítja a kontextust (multi-tenant prod).
+- **M7**: a token viszi az ügyfél-ID-t — a megerősítés ID alapján ír (régi címre keresés más ügyfelet írhatott volna át); cím-keresés csak fallback.
+- **m1/m2**: smsfirst gyorsítósáv ismert domainhez kötve; nem-gyorsítósávos green NEM ír autonom módon (green_effective); m7: üres című legacy küldés guard.
+- **HOTFIX közben**: rossz modulról importált `validate_confirmation_email` → web_server nem indult (unhealthy) — javítva, health 200.
+- **Review-maradvány (nem blokkoló, később)**: m3 (+1h clamp a foglalás után), m4 (bookings[0] vs legkorábbi), m5 (nem egyetlen tranzakció), m6 (holt helper), m8 (bérlőnkénti sms-kapcsolók), m9–m11 (nem-hermetikus teszt, körkörös signature-teszt, szinkron I/O az /e/ végpontban), n1–n7 nitek, és a teszt-fájlok sys.modules sorrend-érzékenysége.
+
 ## 1b. Élő rendszer (staging, `4d9c21f`)
 
 - **wp-e2 pipeline ÉL** (nem baseline!): független kapu (live+stt+audio readings, GREEN_3OF3 / GREEN_2OF2_KNOWN / NG_CONTRADICTION / NG_NO_EMAIL…), Soniox a kinyontott HÍVÓ csatornán + audio-LLM (gemini-3.8-flash inline audio) PÁRHUZAMOSAN (mérés: soniox 6–10 s, audio 2–4 s, total 10–21 s), JEV csak rangsorol (`EMAIL_VERIFY_JEV_GREEN=0`).
