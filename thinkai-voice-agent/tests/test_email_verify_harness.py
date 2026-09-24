@@ -94,10 +94,14 @@ class TestNormalizeSpokenHu:
         assert normalize_spoken_hu("hívjon a harminchat négy nulla kettes számon") == \
             "hívjon a 36 4 0 kettes számon"
 
-    def test_nem_telefon_kontextus_nincs_szamvaltas(self):
-        """'egy'/'hat' közszavak email-diktálásban NEM alakulnak számmá."""
+    def test_email_kontextusban_a_szamszavak_szamjegyye_valnak(self):
+        """@-kontextusban a számszavak számjegyek („egy hat" = 16)."""
         assert normalize_spoken_hu("egy hat kukac freemail pont hu") == \
-            "egy hat @ freemail . hu"
+            "1 6 @ freemail . hu"
+
+    def test_nem_email_kontextusban_nincs_szamvaltas(self):
+        """@ nélkül a közszó szám-szavak változatlanok."""
+        assert normalize_spoken_hu("három napja fáj") == "három napja fáj"
 
     def test_ekezetes_bevitel_nem_torik(self):
         assert normalize_spoken_hu("Szőke Árpád kukac freemail pont hu") == \
@@ -495,3 +499,20 @@ class TestSonioxAsyncTokens:
         words = evh._soniox_tokens_to_words(toks)
         assert [w["text"] for w in words] == ["kovacs", "akos"]
         assert words[1]["logprob"] == -0.7
+
+
+class TestEmailKontextusSzamszavak:
+    def test_tizenharom_emailben(self):
+        t = evh.normalize_spoken_hu("hodi akos tizenharom kukac citromail pont hu")
+        # a számszó → 13 (a diktálásban nem hangzott el pont a lokálban)
+        assert "hodiakos13@citromail.hu" in evh.extract_email_candidates(t)
+
+    def test_osszetett_tizes_egyssel(self):
+        t = evh.normalize_spoken_hu("kovacs akos otvenhat kukac gmail pont com")
+        assert "kovacsakos56@gmail.com" in evh.extract_email_candidates(t)
+
+    def test_nincs_szamszo_valtozatlan(self):
+        t = evh.normalize_spoken_hu("balazs liderer kukac skyrocketgroup pont hu")
+        cands = evh.extract_email_candidates(t)
+        # pont nélküli lokál: összefűzve a helyes olvasat
+        assert "balazsliderer@skyrocketgroup.hu" in cands

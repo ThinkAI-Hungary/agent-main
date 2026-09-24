@@ -75,21 +75,23 @@ _HU_DIGIT_WORDS = {
     "nulla": "0", "egy": "1", "kettő": "2", "ketto": "2", "három": "3",
     "harom": "3", "négy": "4", "negy": "4", "öt": "5", "ot": "5",
     "hat": "6", "hét": "7", "het": "7", "nyolc": "8", "kilenc": "9",
+    "tíz": "10", "tiz": "10",
 }
 _HU_TENS = {
-    "húsz": "20", "husz": "20", "harminc": "30", "negyven": "40",
-    "ötven": "50", "otven": "50", "hatvan": "60", "hetven": "70",
-    "nyolcvan": "80", "kilencven": "90",
+    "tizen": "10", "húsz": "20", "husz": "20", "huszon": "20",
+    "harminc": "30", "negyven": "40", "ötven": "50", "otven": "50",
+    "hatvan": "60", "hetven": "70", "nyolcvan": "80", "kilencven": "90",
 }
 # Egy tokenbe írt összetett tizesek: „harminchat" = harminc + hat → 36
 _HU_TENS_COMPOUND_RE = re.compile(
-    r"^(húsz|husz|harminc|negyven|ötven|otven|hatvan|hetven|nyolcvan|kilencven)"
+    r"^(tizen|húsz|husz|huszon|harminc|negyven|ötven|otven|hatvan|hetven|"
+    r"nyolcvan|kilencven)"
     r"(egy|kettő|ketto|három|harom|négy|negy|öt|ot|hat|hét|het|nyolc|kilenc)$"
 )
 _DIGIT_WORD_RE = re.compile(
     r"\b(?:nulla|egy|kettő|ketto|három|harom|négy|negy|öt|ot|hat|hét|het|"
-    r"nyolc|kilenc|húsz|husz|harminc|negyven|ötven|otven|hatvan|hetven|"
-    r"nyolcvan|kilencven)\b", re.IGNORECASE,
+    r"nyolc|kilenc|tizen|tíz|tiz|húsz|husz|huszon|harminc|negyven|ötven|"
+    r"otven|hatvan|hetven|nyolcvan|kilencven)\b", re.IGNORECASE,
 )
 _PHONE_TRIGGER_RE = re.compile(
     r"(\+36|0036|\b06\d{1,2}\b|telefon(?:szám|szam)?|hívószám|hivoszam|"
@@ -161,6 +163,13 @@ def normalize_spoken_hu(text: str) -> str:
         else:
             run = 0
     if best >= 3 or (trig and (best >= 2 or trig.group(0).lower() in ("+36", "0036"))):
+        t = _convert_digit_words(t)
+    # Email-kontextus (@ = diktált cím): OTT is számjegy, ahol számszó áll —
+    # „akos tizenharom" → „akos13" (a felvétel-audit mérte: egyetlen számszó
+    # email-lokálban word maradt → rossz cím). Az @-kontextusban a szám-
+    # közszavak („egy", „hat") félreértelmezési kockázata kicsi a nyereséghez
+    # képest.
+    if "@" in t:
         t = _convert_digit_words(t)
     return re.sub(r"\s+", " ", t).strip()
 
