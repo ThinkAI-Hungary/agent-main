@@ -33,6 +33,15 @@ A 13 próbahívásnál a user session-keveredést látott (az agent „Bertalank
 - **Tesztek**: 341 zöld (sms_sender 14, tokens 14, confirm_page 15, sms_decision 15 + korábbi 283).
 - **Következő**: (1) 1 próbahívás → futás-sor + dry_run email + nincs process-kill; (2) a 50 hívás befejezése; (3) Twilio-reaktiválás után a 12 hívásos SMS-tesztsorozat (munkautalvány tesztprotokoll).
 
+## 1d. CÉLKÉP ÉL: EMAIL_VERIFY_FLOW=smsfirst (`5fd7bc7`, 2026-09-24 éjjel)
+
+A user által rendelt célkép DEPLOYOLVA és a stagingen ÉL:
+- **Gyorsítósáv**: email azonnal CSAK ha az audio ÉS az stt olvasat (két független utólagos forrás) karakterben egyezik + ismert domain + MX ok. A live-olvasat NEM adhat zöldet.
+- **Minden más eset**: SMS a hívó magyar mobilszámára (+36707177914-ről), a jelölttel előtöltve (smsfirst-ben a jelölt előnyben az AUDIO olvasat) → kattintás → visszaigazoló email a megerősített/kijavított címre. SMS-sikertelenségnél opt-in levél / legacy tartalék.
+- **Prompt (UX)**: az agent az emailt TERMÉSZETESEN kéri — betűzés/visszaolvasás/betűnkénti igazoltatás tiltva (prompt_utils 4. szabály).
+- Env: `EMAIL_VERIFY_FLOW=smsfirst`, `EMAIL_VERIFY_SMS_MODE=nongreen`, `SMS_DRY_RUN=0` (valódi SMS), `EMAIL_DRY_RUN=1` (email dry-run).
+- **A hívásos tesztek innentől ezt a folyót mérik** — minden nem-gyorsítósávos foglalásnál a tesztelő éles SMS-t kap a saját telefonjára, a linken megerősít/kijavít/megad. A `confirmed_email` a kalibrációs ground truth.
+
 ## 1b. Élő rendszer (staging, `4d9c21f`)
 
 - **wp-e2 pipeline ÉL** (nem baseline!): független kapu (live+stt+audio readings, GREEN_3OF3 / GREEN_2OF2_KNOWN / NG_CONTRADICTION / NG_NO_EMAIL…), Soniox a kinyontott HÍVÓ csatornán + audio-LLM (gemini-3.8-flash inline audio) PÁRHUZAMOSAN (mérés: soniox 6–10 s, audio 2–4 s, total 10–21 s), JEV csak rangsorol (`EMAIL_VERIFY_JEV_GREEN=0`).
