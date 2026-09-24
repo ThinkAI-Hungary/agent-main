@@ -161,7 +161,9 @@ def test_sikeres_kuldes(monkeypatch, logs):
     upd = logs["update"][0]
     assert upd["payload"]["status"] == "sent"
     assert upd["payload"]["provider_sid"] == "SM123"
-    assert upd["eq"] == ("provider_sid", "SM123")  # provider_sid alapján update
+    # ÉLŐ-INCIDENS javítás: a beszúrt sor provider_sid-je még NULL → az update
+    # a sor-ID alapján fut (a provider_sid-szűrő 0 sort talált volna)
+    assert upd["eq"] == ("id", "row-1")
 
 
 def test_from_fallback_messaging_service_nelkul(monkeypatch, logs):
@@ -178,7 +180,7 @@ def test_from_fallback_messaging_service_nelkul(monkeypatch, logs):
     res = ss.send_sms("+36301234567", "Hello")
     assert res["ok"] is True and res["sid"] == "SM777"
     # a POST data-ját a fake nem rögzítette itt — update-ből ellenőrizzük a sid-et
-    assert logs["update"][0]["eq"] == ("provider_sid", "SM777")
+    assert logs["update"][0]["eq"] == ("id", "row-1")  # sor-ID alapján (élő-incidens javítás)
 
 
 # ── 4) validate_twilio_signature: függetlenül számolt aláírással ─────────────
@@ -317,3 +319,44 @@ def test_update_sms_status(monkeypatch, logs):
     # undelivered + error_code → int-ként kerül be
     assert ss.update_sms_status("SM123", "undelivered", "30006") is True
     assert logs["update"][1]["payload"]["error_code"] == 30006
+
+
+def test_sikeres_kuldes_update_row_id_alapjan(monkeypatch):
+    """Élő-incidens regresszió: sikeres küldésnél a 'sent'+provider_sid update
+    a sor-ID alapján fusson (a beszúrt sor provider_sid-je még NULL, a
+    provider_sid-szűrő 0 sort talált)."""
+    calls = {}
+
+    class _Eq:
+        def __init__(self, parent, col, val):
+            calls.setdefault("eq", []).append((col, val))
+
+        def execute(self):
+            return types.SimpleNamespace(data=[{"id": 1}])
+
+    class _Table:
+        def update(self, payload):
+            calls["payload"] = payload
+            return self
+
+        def eq(self, col, val):
+            return _Eq(self, col, val)
+
+    import sys as _sys
+    stub_db = _sys.modules.get("database")
+    monkeypatch.setattr(stub_db, "supabase",
+                        types.SimpleNamespace(table=lambda n: _Table()), raising=False)
+    monkeypatch.setattr(ss, "_post_twilio",
+                        lambda sid, tok, data: (201, {"sid": "SMreg", "status": "queued"}, None),
+                        raising=False)
+    monkeypatch.setattr(ss, "_insert_sms_log", lambda row: "row-42", raising=False)
+    monkeypatch.setattr(ss, "_get_twilio_creds" if hasattr(ss, "_get_twilio_creds") else "_sms_dry_run_enabled",
+                        lambda *a, **k: (False and True), raising=False)
+    monkeypatch.setenv("SMS_DRY_RUN", "0")
+    monkeypatch.setenv("TWILIO_ACCOUNT_SID", "ACtest")
+    monkeypatch.setenv("TWILIO_AUTH_TOKEN", "tok")
+    monkeypatch.setenv("TWILIO_FROM", "+15005550006")
+    res = ss.send_sms("+36709436426", "teszt", session_id="s", purpose="t")
+    assert res["ok"] is True
+    # az update a SOR-ID-n futott, nem a (még üres) provider_sid-en
+    assert ("id", "row-42") in calls["eq"]

@@ -107,17 +107,19 @@ def _insert_sms_log(row: dict):
 
 def _update_sms_log(provider_sid: str = "", row_id=None,
                     payload: dict | None = None) -> bool:
-    """sms_logs sor frissítése provider_sid (elsődleges) vagy sor-id alapján.
-    Fail-open: hibánál False, sosem dob."""
+    """sms_logs sor frissítése: sor-ID alapján, ha ismert (a beszúrt sorban a
+    provider_sid még NULL — a 'provider_sid = X' szűrő 0 sort találna, l.
+    élő teszt: sor queued maradt); callback-nél (nincs row_id) a provider_sid
+    alapján. Fail-open: hibánál False, sosem dob."""
     if not payload:
         return False
     try:
         import database as db
         query = db.supabase.table("sms_logs").update(payload)
-        if provider_sid:
-            query = query.eq("provider_sid", provider_sid)
-        elif row_id is not None:
+        if row_id is not None:
             query = query.eq("id", row_id)
+        elif provider_sid:
+            query = query.eq("provider_sid", provider_sid)
         else:
             return False
         query.execute()
