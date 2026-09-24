@@ -466,22 +466,40 @@ def _new_genai_client():
 
 def llm_extract(transcript_live: str, transcript_stt: str) -> dict:
     """Gemini Flash (EMAIL_VERIFY_LLM_MODEL, default gemini-3.8-flash): a KÉT
-    átiratból kiolvassa a diktált emailcímet és a nevet. SOSEM dob kivételt —
-    hibánál {} (fail-open)."""
-    try:
-        client = _new_genai_client()
-        if client is None:
-            logger.warning("LLM-extrakció kihagyva (nincs Gemini-kulcs)")
+    átiratból kiolvassa a diktált emailcímet és a nevet. 429/5xx-re rövid
+    backoff-fal újrapróbál. SOSEM dob kivételt — hibánál {} (fail-open)."""
+    contents = build_llm_extract_prompt(transcript_live, transcript_stt)
+    delays = (0, 6, 15)  # első próbálkozás azonnal, majd backoff
+    last_err = ""
+    for attempt, delay in enumerate(delays):
+        try:
+            if delay:
+                time.sleep(delay)
+            client = _new_genai_client()
+            if client is None:
+                logger.warning("LLM-extrakció kihagyva (nincs Gemini-kulcs)")
+                return {}
+            response = client.models.generate_content(
+                model=EMAIL_VERIFY_LLM_MODEL,
+                config={"response_mime_type": "application/json"},
+                contents=contents,
+            )
+            return parse_llm_extract(getattr(response, "text", "") or "")
+        except Exception as exc:
+            last_err = str(exc)
+            if attempt < len(delays) - 1 and _is_retryable_llm_error(last_err):
+                continue
+            logger.warning(f"LLM-extrakció hiba (fail-open): {last_err}")
             return {}
-        response = client.models.generate_content(
-            model=EMAIL_VERIFY_LLM_MODEL,
-            config={"response_mime_type": "application/json"},
-            contents=build_llm_extract_prompt(transcript_live, transcript_stt),
-        )
-        return parse_llm_extract(getattr(response, "text", "") or "")
-    except Exception as exc:
-        logger.warning(f"LLM-extrakció hiba (fail-open): {exc}")
-        return {}
+    return {}
+
+
+def _is_retryable_llm_error(err: str) -> bool:
+    """429/5xx/terhelés-jellegű hibák újrapróbálhatók (SDK üzenetszövegből)."""
+    low = (err or "").lower()
+    return ("429" in low or "500" in low or "503" in low
+            or "unavailable" in low or "rate" in low
+            or "deadline" in low or "timeout" in low)
 
 
 def _live_transcript_text(turns: list) -> str:
