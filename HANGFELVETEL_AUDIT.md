@@ -36,11 +36,17 @@ WAV 16 kHz / 16 bit / sztereó (hívó BAL, agent JOBB) → Supabase `recordings
 - FQDN rekord (:128-133): `<project>.sip.livekit.cloud:5060`, A-rekord
 - Szám-hozzárendelés (:137-139): PATCH `/phone_numbers/{id}` → `connection_id`
 
-**Élő állapot**: a rivergate tenant `tenant_credentials`-ében **nincs** `telnyx_api_key` (ellenőrizve: csak imap/brevo/whatsapp/sip_* kulcsok), és a `.env`-ben sincs `TELNYX_API_KEY` → a Telnyx-oldali konfig (engedélyezett kodekek, HD voice) **jelenleg sehonnan nem olvasható/beállítható** — csak portálról, vagy ha a user ad egy Telnyx API kulcsot.
+**Élő állapot** (2026-09-24, javítva): a Telnyx kulcs **NINCS a staging stackben** (rivergate tenant cred + .env üres) — DE a **PROD adatbázisban a dentors tenant** tartalmazza: `telnyx_api_key` + `telnyx_connection_id` + `telnyx_outbound_profile_id` (Fernet-titkosítva; SSH-n a prod konténerből dekriptálva — a kulcsérték soha nem íródott ki).
+
+**PROD Dentors FQDN connection (élő Telnyx API-lekérdezés, `3045144115042845855` = "eaisyDesk-dentors-inbound", +3662207766)**:
+- `inbound.codecs: ["G722", "G711U", "G711A", "G729"]` — **a G.722 az ELSŐ helyen (HD voice engedélyezve a Telnyx oldalon!)**
+- `noise_suppression: "disabled"`, `jitter_buffer: disabled`, `anchorsite_override: "Latency"`, `transport_protocol: "TCP"`, `dtmf_type: RFC 2833`
+- `media_encryption`: nincs beállítva (titkosítatlan RTP a Telnyx→LiveKit lábon)
+- Következtetés: a PROD hívásokon a szélessáv (G.722) **elvileg egyeztethető** — a prod minőséget a következő prod teszthívásnál kell mérni (jelenleg prod rögzítés még nem fut). **A staging rivergate szám (+3612114217) egy MÁSIK Telnyx fiókon van, amelynek a kulcsa nincs tárolva** — a staging mérés (G.711 szűksáv) azt jelzi, hogy azon a kapcsolaton a G.711 él; javítása: portálon G.722 engedélyezése, vagy a kulcs megadása.
 
 **Dokumentált (elavult) állapot**: `AGENT_DOCS.md:91-99` (2026-06-02, multi-tenant ELŐTTI) G.722 16 kHz „HD Voice" trunkot állít (`ST_ef3HCCiTmxfv`) — a mai provisioning kód ezt **nem** teszi meg.
 
-**Mérés szerint a hívó lánc ma G.711** (lásd 5. szekció) — a 3,4 kHz feletti sáv hiánya egyértelmű bizonyíték.
+**Mérés szerint a staging hívó lánc G.711** (lásd 5. szekció) — a 3,4 kHz feletti sáv hiánya egyértelmű bizonyíték.
 
 ---
 
@@ -137,3 +143,11 @@ LiveKit SIP dokumentáció szerint a **G.722 out-of-the-box támogatott** — a 
 ---
 
 *Mérés részletei: FFT 6 s Hann-ablakon; szintek RMS; a 100 ms-os felbontású RMS-idővonalak a mérési szekcióban. A vizsgált fájl: `recordings/rivergate/2026-09-24/call-_+36706369528_WVqaSCoczQqV.wav`.*
+
+---
+
+## Kiegészítés (2026-09-24, délután)
+
+- **Prod hívás megtalálva**: a prod DB szerint a legutóbbi hívás **2026-09-23 13:41 UTC** (`call-_+36206698257_M5Wq8nAku3gA`, +36206698257 → Dentors). ⚠️ `duration_seconds` NULL és a résztvevő üres — a `close_session` nem futott le (a prod worker nem zárta le korrekten a szobát). Prod-egészségügyi tétel, külön megvizsgálandó.
+- **Telnyx `call_events` API 0 eseményt ad** (connection-szűrővel és anélkül, időablakkal is) — valószínű ok: a dentors Telnyx kulcs **korlátozott scope-ú** (a connection/number olvasás megy, a call-events olvasás nem). Ezért a prod hívás ténylegesen egyeztetett kodekje itt nem ellenőrizhető; megbízható ellenőrzés: prod-deploy + `RECORDINGS_ENABLED=1` után a prod felvételen ugyanez az FFT-mérés.
+- **Prod kodek-állapot**: a connection beállítása szerint a G.722 az első ajánlott kodek (HD voice a Telnyx oldalon engedélyezve) — ha a LiveKit SIP válasza elfogadja, a prod hívások szélessávúak lehetnek; ez mérés alapján igazolandó.
