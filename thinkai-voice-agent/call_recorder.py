@@ -36,8 +36,9 @@ FRAME_MS = 20
 FRAME_SAMPLES = SAMPLE_RATE * FRAME_MS // 1000   # 320 minta / 20 ms
 FRAME_BYTES = FRAME_SAMPLES * 2                  # 16-bit mono
 
-# Drop-oldest küszöb: ~15 s torlódás-tartalék oldalonként (20 ms-os frame-ekkel)
-MAX_QUEUE_FRAMES = 750
+# Drop-oldest biztonsági plafon: 2500 chunk = 50 s oldalonként (a stall-waites
+# writer miatt csak extrém esetben activity — memória: ~1,6 MB / oldal)
+MAX_QUEUE_FRAMES = 2500
 # Biztonsági plafon a memóriavédelemhez (2 óra beszélgetés után levágjuk)
 MAX_DURATION_S = 2 * 3600
 
@@ -115,6 +116,10 @@ class FrameBuffer:
             self.dropped_samples += len(old) // 2
         self.chunks.append(chunk)
         self.produced_samples += n
+
+    def available_samples(self) -> int:
+        """A bufferben várakozó minták száma (a writer stall-döntéséhez)."""
+        return sum(len(c) for c in self.chunks) // 2
 
     def drain(self, need_samples: int) -> bytes:
         """Pontosan need_samples mintát ad vissza: ami nincs, csend.
@@ -343,10 +348,18 @@ class CallRecorder:
             logger.warning(f"Hívásrögzítés: {label} stream olvasási hiba: {e}")
 
     async def _writer(self) -> None:
-        """20 ms-os rácsra igazítja mindkét oldalt: hiányzó frame → csend,
-        lemaradás → drop-oldest (FrameBuffer.maxlen)."""
+        """20 ms-os rácsra igazítja mindkét oldalt — JITTER-TŰRŐ módon.
+
+        A rács csak akkor lép, ha mindkét rögzítés alatt álló oldalon megvan a
+        minta, VAGY az oldal stall-tűrése (STALL_PATIENCE_S, 1 s) lejárt — az
+        utóbbi csak igazi csend/DTX esetén fordul elő. Ez megakadályozza, hogy
+        a hálózati/loop-jitter csend-réseket égessen a beszédbe és
+        elcsúsztassa a csatornákat. A lemaradt tail-t a finish_and_upload
+        rendezeti sorrendben (drain a rács után)."""
         frame_s = FRAME_MS / 1000.0
+        stall_patience = 1.0
         written = 0
+        stall_since: dict = {"left": None, "right": None}
         try:
             while not self._stopped:
                 if self._t0 is None:
@@ -355,15 +368,38 @@ class CallRecorder:
                 target = int(self.elapsed() / frame_s)
                 need = target - written
                 if need > 0:
-                    self._pcm_extend("left", self._left.drain(need * FRAME_SAMPLES))
-                    self._pcm_extend("right", self._right.drain(need * FRAME_SAMPLES))
+                    need_samples = need * FRAME_SAMPLES
+                    now = time.monotonic()
+                    waiting = False
+                    active = {
+                        "left": self._remote_stream is not None,
+                        "right": self._local_stream is not None,
+                    }
+                    for side in ("left", "right"):
+                        if not active[side]:
+                            stall_since[side] = None
+                            continue
+                        buf = getattr(self, f"_{side}")
+                        if buf.available_samples() < need_samples:
+                            if stall_since[side] is None:
+                                stall_since[side] = now
+                            if now - stall_since[side] < stall_patience:
+                                waiting = True
+                        else:
+                            stall_since[side] = None
+                    if waiting:
+                        await asyncio.sleep(0.005)
+                        continue
+                    self._pcm_extend("left", self._left.drain(need_samples))
+                    self._pcm_extend("right", self._right.drain(need_samples))
                     written = target
-                # A tick a monotonic órához igazodik, nehogy kicsússzon
-                next_tick = self._t0 + (written * frame_s)
-                await asyncio.sleep(max(0.0, next_tick - time.monotonic()) or frame_s / 2)
+                    stall_since = {"left": None, "right": None}
                 if self.elapsed() > MAX_DURATION_S:
                     logger.warning("Hívásrögzítés: elérte a 2 órás plafont — capture leállítva")
                     break
+                # A tick a monotonic órához igazodik, nehogy kicsússzon
+                next_tick = self._t0 + (written * frame_s)
+                await asyncio.sleep(max(0.004, next_tick - time.monotonic()))
         except asyncio.CancelledError:
             pass
         except Exception as e:

@@ -396,3 +396,54 @@ class TestTranscribeClient:
         monkeypatch.setattr(evh.requests, "post", fake_post)
         assert evh.transcribe_wav_bytes(b"abc") == {}
         assert calls["n"] == 1
+
+
+class TestSttDispatcher:
+    """HARNESS_STT_ENGINE diszpécser: soniox főmotor + scribe fallback."""
+
+    def test_soniox_ures_fallback_scribe(self, monkeypatch):
+        monkeypatch.setenv("HARNESS_STT_ENGINE", "soniox")
+        monkeypatch.setattr(evh, "_transcribe_soniox", lambda d: {})
+        monkeypatch.setattr(evh, "_transcribe_scribe", lambda d: {"words": [1]})
+        assert evh.transcribe_wav_bytes(b"x") == {"words": [1]}
+
+    def test_soniox_eredmeny_nem_hiv_scribe(self, monkeypatch):
+        monkeypatch.setenv("HARNESS_STT_ENGINE", "soniox")
+        calls = []
+        monkeypatch.setattr(evh, "_transcribe_soniox", lambda d: calls.append("s") or {"words": [1]})
+        monkeypatch.setattr(evh, "_transcribe_scribe", lambda d: calls.append("b") or {})
+        assert evh.transcribe_wav_bytes(b"x") == {"words": [1]}
+        assert calls == ["s"]
+
+    def test_scribe_engine_beallitva(self, monkeypatch):
+        monkeypatch.setenv("HARNESS_STT_ENGINE", "scribe")
+        monkeypatch.setattr(evh, "_transcribe_soniox", lambda d: (_ for _ in ()).throw(AssertionError("soniox nem hívódhat")))
+        monkeypatch.setattr(evh, "_transcribe_scribe", lambda d: {"words": []})
+        assert evh.transcribe_wav_bytes(b"x") == {"words": []}
+
+
+class TestSonioxTokens:
+    def test_tokenek_to_words(self):
+        toks = [
+            {"text": "kovacs", "is_final": True, "confidence": 0.95},
+            {"text": "<fin>", "is_final": True, "confidence": 1.0},
+            {"text": "", "confidence": 0.9},
+            "szemét",
+        ]
+        words = evh._soniox_tokens_to_words(toks)
+        assert [w["text"] for w in words] == ["kovacs"]
+        assert words[0]["logprob"] < -0.04
+
+    def test_wav_left_channel_mono(self):
+        import io as _io
+        import wave as _wave
+        import struct as _struct
+        buf = _io.BytesIO()
+        w = _wave.open(buf, "wb")
+        w.setnchannels(2); w.setsampwidth(2); w.setframerate(16000)
+        w.writeframes(_struct.pack("<hhhh", 100, -200, 300, -400))
+        w.close()
+        pcm, sr = evh._wav_left_channel_pcm(buf.getvalue())
+        import array as _a
+        a = _a.array("h"); a.frombytes(pcm)
+        assert sr == 16000 and list(a) == [100, 300]

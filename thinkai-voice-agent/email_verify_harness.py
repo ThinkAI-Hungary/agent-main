@@ -19,6 +19,7 @@ ellenőrizzük a foglaláskor rögzített EMAIL CÍMET és NEVET:
 """
 import asyncio
 import json
+import math
 import os
 import re
 import socket
@@ -401,8 +402,8 @@ def email_is_green(winner: str, validation: dict, passes_agree: bool, confidence
     )
 
 
-# ── ElevenLabs Scribe kliens ────────────────────────────────────────────────
-def transcribe_wav_bytes(data: bytes) -> dict:
+# ── ElevenLabs Scribe kliens (fallback motor) ────────────────────────────────
+def _transcribe_scribe(data: bytes) -> dict:
     """Szinkron Scribe v2 STT-hívás. Soha nem dob kivételt — hibánál {}.
     Multichannel (hívó BAL / agent JOBB) → válaszban 'transcripts' lista."""
     api_key = os.getenv("ELEVENLABS_API_KEY", "")
@@ -442,6 +443,145 @@ def transcribe_wav_bytes(data: bytes) -> dict:
             time.sleep(_STT_RETRY_DELAYS[attempt])
     logger.warning(f"Scribe STT sikertelen ({last_error})")
     return {}
+
+
+# ── Soniox kliens (főmotor) ─────────────────────────────────────────────────
+_SONIOX_WS_URL = "wss://stt-rt.soniox.com/transcribe-websocket"
+
+
+def _wav_left_channel_pcm(data: bytes) -> tuple:
+    """WAV bájtok → (mono PCM a BAL/hívó csatornáról, sample_rate).
+    Mono bemenet változatlanul megy tovább; hibánál (b'', 0)."""
+    import io as _io
+    import wave as _wave
+    try:
+        w = _wave.open(_io.BytesIO(data), "rb")
+        ch = w.getnchannels()
+        sr = w.getframerate()
+        frames = w.readframes(w.getnframes())
+        w.close()
+    except Exception:
+        return b"", 0
+    if ch <= 1:
+        return frames, sr
+    import array as _array
+    a = _array.array("h")
+    usable = frames[: len(frames) - (len(frames) % 2)]
+    a.frombytes(usable)
+    return a[0::ch].tobytes(), sr
+
+
+def _soniox_tokens_to_words(tokens: list) -> list:
+    """Soniox tokenek (text, is_final, confidence) → Scribe-kompatibilis
+    word-lista (logprob = ln(confidence), hogy a meglévő logprob-kapu működjön)."""
+    words = []
+    for t in tokens:
+        if not isinstance(t, dict):
+            continue
+        text = str(t.get("text") or "")
+        if not text or text in ("<end>", "<fin>"):
+            continue
+        try:
+            conf = float(t.get("confidence") or 0.0)
+        except (TypeError, ValueError):
+            conf = 0.0
+        words.append({
+            "text": text,
+            "type": "word",
+            "logprob": math.log(max(conf, 1e-6)),
+        })
+    return words
+
+
+def _transcribe_soniox(data: bytes) -> dict:
+    """Soniox stt-rt-v4 websocket fájl-átirat a hívó (BAL) csatornáról.
+    Scribe-kompatibilis dict ({words: [...]}) — hibánál {} (fail-open)."""
+    api_key = os.getenv("SONIOX_API_KEY", "")
+    if not api_key or not data:
+        logger.warning("Soniox STT kihagyva (nincs kulcs vagy hanganyag)")
+        return {}
+    try:
+        import aiohttp
+    except ImportError:
+        logger.warning("Soniox STT kihagyva: aiohttp nem elérhető")
+        return {}
+    pcm, sr = _wav_left_channel_pcm(data)
+    if not pcm:
+        return {}
+    tokens: list = []
+
+    async def _run():
+        timeout = aiohttp.ClientWSTimeout(ws_close=30)
+        async with aiohttp.ClientSession() as session:
+            async with session.ws_connect(_SONIOX_WS_URL, timeout=timeout) as ws:
+                await ws.send_str(json.dumps({
+                    "api_key": api_key,
+                    "model": "stt-rt-v4",
+                    "audio_format": "pcm_s16le",
+                    "num_channels": 1,
+                    "sample_rate": sr or SAMPLE_RATE,
+                    "language_hints": ["hu"],
+                    "enable_endpoint_detection": False,
+                }))
+
+                async def _sender():
+                    chunk = 6400  # 200 ms mono 16 bit
+                    for off in range(0, len(pcm), chunk):
+                        await ws.send_bytes(pcm[off:off + chunk])
+                        await asyncio.sleep(0.01)
+                    await asyncio.sleep(2.0)  # a vég-tokenek kifolyása
+                    await ws.close()
+
+                sender = asyncio.create_task(_sender())
+                try:
+                    async for msg in ws:
+                        if msg.type != aiohttp.WSMsgType.TEXT:
+                            continue
+                        try:
+                            payload = json.loads(msg.data)
+                        except ValueError:
+                            continue
+                        tokens.extend(
+                            t for t in payload.get("tokens") or []
+                            if isinstance(t, dict)
+                        )
+                except Exception:
+                    pass  # a ws bezárult
+                sender.cancel()
+
+    try:
+        asyncio.run(_run())
+    except Exception as exc:
+        logger.warning(f"Soniox STT hiba (fail-open): {exc}")
+        return {}
+    words = _soniox_tokens_to_words(tokens)
+    if not words:
+        return {}
+    text = re.sub(r"\s+", " ", " ".join(w["text"] for w in words)).strip()
+    return {"text": text, "words": words}
+
+
+def transcribe_wav_bytes(data: bytes) -> dict:
+    """STT diszpécser: HARNESS_STT_ENGINE (default 'soniox') az elsődleges
+    motor; ha üres eredményt ad, a másik (Scribe) fallback fut."""
+    engine = (os.getenv("HARNESS_STT_ENGINE", "soniox") or "soniox").strip().lower()
+    primary, fallback = (
+        (_transcribe_soniox, _transcribe_scribe)
+        if engine == "soniox" else (_transcribe_scribe, _transcribe_soniox)
+    )
+    try:
+        result = primary(data) or {}
+    except Exception as exc:
+        logger.warning(f"Elsődleges STT ({engine}) hiba: {exc}")
+        result = {}
+    if result:
+        return result
+    logger.warning(f"Elsődleges STT ({engine}) nem adott eredményt — fallback")
+    try:
+        return fallback(data) or {}
+    except Exception as exc:
+        logger.warning(f"Fallback STT hiba: {exc}")
+        return {}
 
 
 def _words_join(words: list) -> tuple:

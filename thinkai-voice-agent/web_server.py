@@ -4833,7 +4833,9 @@ async def voice_provision(payload: VoiceProvisionRequest, _admin: dict = Depends
                         trunk=lk_api_module.SIPInboundTrunkInfo(
                             name=f"Telnyx HU inbound - {slug}",
                             numbers=[phone],
-                            krisp_enabled=True,
+                            # Krisp de-stacking: a session-szintű BVCTelephony
+                            # az egyetlen zajszűrő-réteg (trunk-Krisp ki)
+                            krisp_enabled=False,
                             allowed_addresses=allowed,
                         )))
             results["inbound_trunk_id"] = trunk.sip_trunk_id
@@ -5077,7 +5079,7 @@ async def sip_outbound_call(req: SipCallRequest, _auth = Depends(require_admin))
                 participant_identity="phone-caller",
                 participant_name=phone,
                 wait_until_answered=True,
-                krisp_enabled=True,
+                krisp_enabled=False,
                 sip_number=caller_number or None,
             )
         )
@@ -5430,7 +5432,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(ver
                             participant_identity="phone-caller",
                             participant_name=call_phone,
                             wait_until_answered=True,
-                            krisp_enabled=True,
+                            krisp_enabled=False,
                             sip_number=caller_number or None,
                         )
                     )
@@ -6151,7 +6153,7 @@ async def _run_phone_campaign(campaign: dict):
                     participant_identity="phone-caller",
                     participant_name=phone,
                     wait_until_answered=True,
-                    krisp_enabled=True,
+                    krisp_enabled=False,
                     sip_number=caller_number or None,
                 )
             )

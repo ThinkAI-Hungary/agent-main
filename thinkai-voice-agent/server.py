@@ -442,11 +442,18 @@ SZABÁLYOK:
         room_disconnected.set()
 
     try:
-        nc_option = noise_cancellation.BVC()
+        # Krisp de-stacking: PONTOSAN EGY zajszűrő-réteg hívásonként.
+        # - inbound: a trunk-szintű Krisp (élő trunkon hagyva — az SDK-ban nincs
+        #   trunk-update, az újrateremtés élő telefónia-műtét lenne)
+        # - outbound: session-szintű BVCTelephony (a participant krisp_enabled
+        #   False-ra állítva a web_serverben — réteg-csökkentés)
+        # - widget: session-szintű BVC
         if is_inbound_call:
             nc_option = None
         elif is_outbound_call:
             nc_option = noise_cancellation.BVCTelephony()
+        else:
+            nc_option = noise_cancellation.BVC()
 
         room_input_opts = RoomInputOptions(noise_cancellation=nc_option) if nc_option else None
 
