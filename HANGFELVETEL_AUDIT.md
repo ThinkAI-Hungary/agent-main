@@ -170,3 +170,12 @@ A user a Telnyx portál **CDR-exportját** adta a 11:25-ös teszthívásról (`+
 **Következtetés (a korábbi diagnózis pontosítása)**: a Telnyx→LiveKit láb rendben van — G.722-t vitt, jó minőségben. A felvételben mért 3,4 kHz-es vágás tehát **az upstreamből** jön: a hívó mobilja → Telnyx HU DID összeköttetés szűksávot (AMR-NB) szolgáltatott, amit a G.722 "átfektet" (a tartalom marad 3,4 kHz). Ez konfigurációval NEM javítható — a Telnyx magyar DID-jeinek nemzetközi bejárata szűksáv. Opciók: magyar szélessáv-­képes SIP-origination (HU helyi trunk provider), vagy elfogadjuk a telefónia-természetes szűksávot.
 
 **Továbbra is javítandó (kód-oldal)**: a rögzítő idővonal-hibái (tail-append sorrend, wall-clock grid jitter, drop-oldest) — ezek a felvételt a forráshoz képest TOVÁBB rontják, és kijavíthatók. A harness főmotor → Soniox váltás ezen belül következik (user-döntés).
+
+## Kiegészítés 4 (2026-09-24, este) — JAVÍTÁSOK DEPLOYOLVA (`0a0b699`, stagingen ÉL)
+
+1. **Rögzítő**: a writer most **stall-tűrő** — a rács csak akkor lép, ha mindkét aktív oldalon megvan a minta, vagy az oldal 1 s stall-tűrése lejár (igazi csend/DTX); a hálózati/loop-jitter már NEM éget csend-réseket a beszédbe. Buffer-plafon 15 s → 50 s oldalonként. A tail a `finish_and_upload`-ban sorrendben van.
+2. **Krisp de-stacking**: outbound hívásokon a participant `krisp_enabled=False` (3 hívóhely) → ott csak a session-szintű BVCTelephony marad. Inboundon a trunk-Krisp maradt (az SDK-ban nincs trunk-update; az újrateremtés élő telefónia-műtét lenne) — inbound tehát egy réteg, outbound egy réteg. Új trunk-létrehozáskor is Krisp ki.
+3. **Harness főmotor**: `HARNESS_STT_ENGINE=soniox` (default) → `stt-rt-v4` websocket a hívó BAL csatornáján, token-konfidencia → logprob-kapu; Scribe v2 fallback. Scribe/Deepgram kulcsok változatlanul fent tartalékként.
+4. **Staging Telnyx kulcs**: a rivergate tenant `tenant_credentials.telnyx_api_key`-be téve (titkosítva + audit).
+
+**Következő verifikáció**: a user **5 email-diktálásos teszthívása** stagingen → ezeken mérjük: (a) a rögzítő minőség-javulást (hallgatói A/B), (b) a Soniox-főmotor átiratának email-pontosságát a Scribe/Gemini árnyékkal szemben, (c) a harness green/non-green döntéseit és a dupla opt-in flow-t. Utána: prod-deploy döntés.
