@@ -188,3 +188,10 @@ A user a Telnyx portál **CDR-exportját** adta a 11:25-ös teszthívásról (`+
 - Hívó (ch0): **HATÁRESET** — rolloff99 2250 Hz (szűksáv forrás), 4 digitális rés beszéd közben (2,6/perc, medián 15 ms = a régi grid-artefakt), szint −18,4 dBFS, SNR ~80 dB, dupla frame 0
 - Agent (ch1): **OK** — rolloff99 5843 Hz (szélessáv), 1 kis rés, 1,97 kattanás/perc
 Ez az A/B kiindulópont: az 5 új teszthíváson a gaps_per_min és a hallható minőség javulását mérjük.
+
+## Kiegészítés 6 — Soniox-főmotor + harness élő E2E az 5 teszthíváson (`293f4b3`+`3890fe5`)
+
+- **Harness await-elve** a hívás végén (a fire-and-forget task a worker kilépésekor elhalt) — 240 s timeout, fail-open.
+- **Jelölt-tisztítás**: TLD utáni levágás + lokál eleji kontextus-szó lehúzás (`_candidate_variants`) — a „…hu.koszonom" / „…megjegyezted" / „hogy…" ragadványok tisztítva.
+- **Élő eredmények az 5 híváson**: tiszta kinyerések — `balazs.lederer@skyrocketgroup.hu` (MX ✓), `hodi.akostizenharom@citromail.hu` (ismert domain ✓); mindegyik non-green (egyedüli forrás, conf 0,5 < 0,99) → **dupla opt-in levelek kimentek**; név-JEV: „Balázs" 0,83-0,86 → non-green, nem írta felül. Audit-lábak a 149-es ügyfél custom_data-jában.
+- **Audio-QC az 5 híváson** (audio_qc): hívó csatorna gaps 6-24/perc (ROSSZ 4/5, medián 15 ms) — a szakadások a **forrás-streamben** vannak (Telnyx→LiveKit RTP), nem a writerben; a rögzítő most már nem ront rajta (nincs dup frame, nincs nagy rések). A végleges javítás forrás-oldali (szélessávú HU ingress) vagy SDK-szintű jitter-buffer — nyitva.
