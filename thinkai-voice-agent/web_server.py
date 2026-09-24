@@ -17,7 +17,7 @@ from pathlib import Path
 
 import httpx
 from dotenv import load_dotenv
-from fastapi import FastAPI, Depends, HTTPException, Request, status, File, UploadFile
+from fastapi import FastAPI, Depends, HTTPException, Request, status, File, UploadFile, Form
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, HTMLResponse, JSONResponse, PlainTextResponse, RedirectResponse, Response
 from fastapi.staticfiles import StaticFiles
@@ -34,6 +34,12 @@ import email_processor
 import telnyx_provision
 from classifier import classify_interaction
 from anthropic import AsyncAnthropic
+from email_confirm_page import (
+    rate_limited,
+    load_token_context,
+    render_confirm_page,
+    apply_confirmation,
+)
 
 THIS_DIR = Path(__file__).resolve().parent
 load_dotenv(THIS_DIR / ".env")
@@ -6381,6 +6387,63 @@ async def public_cancel_appointment(token: str):
         return HTMLResponse(content=html, status_code=400)
 
 
+# ── WP-E3 MU-4/MU-5: SMS-es e-mail-megerősítő oldal (/e/{token}) ─────────────
+# VÉKONY bekötés: a logika a pure email_confirm_page modulban él (a teszt-venv
+# fastapi nélkül is tesztelheti). Fail-open: egyetlen ág sem 500-özzön.
+_RATE_LIMIT_HTML = """
+<html><head><title>Túl sok kérés</title><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body { font-family: 'Segoe UI', Arial, sans-serif; text-align: center; padding: 50px 20px; color: #333; }</style>
+</head><body><h1>Túl sok kérés</h1>
+<p>Kérjük, próbálja újra egy perc múlva, vagy hívjon minket telefonon.</p></body></html>
+"""
+
+_SMS_ALREADY_CONFIRMED_HTML = """
+<html><head><title>Már megerősítve</title><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<style>body { font-family: 'Segoe UI', Arial, sans-serif; text-align: center; padding: 50px 20px; color: #333; }</style>
+</head><body><h1>Ezt a foglalást SMS-ben már megerősítették.</h1>
+<p>Nincs további teendő — a visszaigazoló e-mailt elküldtük.</p></body></html>
+"""
+
+
+@app.get("/e/{token}")
+async def email_confirm_page_get(token: str, request: Request):
+    """A megerősítő SMS linkjének céloldala (mobil-első űrlap)."""
+    try:
+        client_ip = request.client.host if (request and request.client) else "ismeretlen"
+        if rate_limited(client_ip):
+            return HTMLResponse(content=_RATE_LIMIT_HTML, status_code=429)
+        ctx = load_token_context(token)
+        return HTMLResponse(content=render_confirm_page(ctx), status_code=200)
+    except Exception as exc:
+        logger.warning(f"[EmailConfirmPage] GET hiba (fail-open): {exc}")
+        return HTMLResponse(content=render_confirm_page({}), status_code=200)
+
+
+@app.post("/e/{token}")
+async def email_confirm_page_post(token: str, request: Request, email: str = Form("")):
+    """Űrlap beküldése: apply_confirmation (idempotens 4.3-as hatások) →
+    köszönő oldal vagy hibaüzenet."""
+    try:
+        client_ip = request.client.host if (request and request.client) else "ismeretlen"
+        if rate_limited(client_ip):
+            return HTMLResponse(content=_RATE_LIMIT_HTML, status_code=429)
+        res = apply_confirmation(token, email or "")
+        ctx = load_token_context(token)
+        if res.get("ok"):
+            return HTMLResponse(
+                content=render_confirm_page(ctx, confirmed_email=res.get("email") or ""),
+                status_code=200)
+        return HTMLResponse(
+            content=render_confirm_page(ctx, error=res.get("error") or "feldolgozási hiba"),
+            status_code=200)
+    except Exception as exc:
+        logger.warning(f"[EmailConfirmPage] POST hiba (fail-open): {exc}")
+        return HTMLResponse(content=render_confirm_page({}, error="feldolgozási hiba"),
+                            status_code=200)
+
+
 @app.get('/api/public/verify-email')
 async def public_verify_email(token: str):
     """WP-E dupla opt-in: az „erősítse meg az e-mail címét" linkre kattintás
@@ -6392,6 +6455,19 @@ async def public_verify_email(token: str):
         payload = pyjwt.decode(token, JWT_SECRET, algorithms=[JWT_ALGO])
         email = (payload.get("email") or "").strip().lower()
         session_id = payload.get("session_id") or ""
+        # WP-E3 MU-5: ha a sessionhöz már tartozik SMS-megerősítés
+        # (email_confirm_tokens.confirmed_at), a régi opt-in JWT érvénytelenné
+        # válik (4.3/6) — ne menjen második visszaigazoló sorozat.
+        try:
+            _sms_tok = (db._tenant_eq(
+                db.supabase.table("email_confirm_tokens").select("token")
+            ).eq("session_id", session_id)
+              .not_.is_("confirmed_at", "null").limit(1).execute())
+            if getattr(_sms_tok, "data", None):
+                return HTMLResponse(content=_SMS_ALREADY_CONFIRMED_HTML,
+                                    status_code=403)
+        except Exception as _sms_err:
+            print(f"[VerifyEmail] SMS-megerősítés-ellenőrzés kihagyva: {_sms_err}")
         try:
             event_ids = [int(e) for e in (payload.get("event_ids") or []) if e]
         except (TypeError, ValueError):
@@ -6439,6 +6515,16 @@ async def public_verify_email(token: str):
                 db.edit_client_details(client["id"], cd)
             except Exception as cd_err:
                 print(f"[VerifyEmail] email_verification megjelölés sikertelen: {cd_err}")
+
+        # A megerősített címre írjuk a foglalás eseményeit is — a későbbi
+        # emlékeztetők így a JÓ címre mennek (WP-E2 rést javítás, 2026-09-24)
+        try:
+            for eid in event_ids:
+                db._tenant_eq(
+                    db.supabase.table("calendar_events").update({"attendee_email": email})
+                ).eq("id", eid).execute()
+        except Exception as ev_err:
+            print(f"[VerifyEmail] esemény attendee_email frissítés sikertelen: {ev_err}")
 
         # A visszatartott visszaigazolók TÉNYLEGES kiküldése a megerősített címre
         sent_count = 0

@@ -34,6 +34,7 @@ import unicodedata
 import wave
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timedelta, timezone
+from zoneinfo import ZoneInfo
 
 import requests
 from loguru import logger
@@ -1794,6 +1795,78 @@ def _apply_name_correction(client_id, old_name, new_name, arb) -> bool:
 
 
 # ── Async belépési pont (server.py _spawn-ból) ───────────────────────────────
+# ── WP-E3 MU-2: SMS-megerősítés döntési logika ───────────────────────────────
+_HU_MOBILE_PREFIXES = ("+3620", "+3630", "+3631", "+3650", "+3670")
+
+
+def _sms_mode() -> str:
+    """EMAIL_VERIFY_SMS_MODE: 'off' = mai viselkedés (nincs SMS);
+    'nongreen' (default) = SMS nem-zöld verdiktnél és email nélkül;
+    'all' (P1) egyelőre 'nongreen'-ként viselkedik."""
+    mode = (os.getenv("EMAIL_VERIFY_SMS_MODE", "nongreen") or "nongreen").strip().lower()
+    return mode if mode in ("off", "nongreen", "all") else "nongreen"
+
+
+def sms_eligible(caller_number: str, bookings: list, session_id: str) -> tuple[bool, str]:
+    """MU-2.2 jogosultság: E.164 magyar mobil (+3620/30/31/50/70), van foglalás
+    a hívásban, és ehhez a sessionhöz még nem ment SMS (idempotencia).
+    Vissza: (jogosult, ok). Sosem dob."""
+    p = (caller_number or "").strip()
+    if not p or not p.startswith("+") or p.lower().startswith("+0"):
+        return False, "nem E.164 / rejtett vagy anonim szám"
+    if not p.startswith(_HU_MOBILE_PREFIXES):
+        return False, "nem magyar mobilszám"
+    if not bookings:
+        return False, "nincs foglalás a hívásban"
+    try:
+        import database as db
+        if db.session_has_sms(session_id):
+            return False, "ehhez a sessionhöz már ment SMS"
+    except Exception:
+        pass
+    return True, "ok"
+
+
+def _send_confirm_sms(session_id: str, tenant_id, bookings: list,
+                      caller_number: str, candidate_email) -> dict:
+    """MU-2.3: megerősítő SMS küldése token-linkkel (candidate előtöltve, vagy
+    üres email-mező ha nincs jelölt). Vissza: {"ok": ..., "status": ...} — sosem dob."""
+    try:
+        from sms_sender import send_sms
+        from email_confirm_tokens import create_confirm_token, build_sms_text
+
+        first_start = None
+        try:
+            b0 = bookings[0] if bookings else {}
+            if b0.get("date") and b0.get("time"):
+                first_start = datetime.fromisoformat(
+                    f"{b0['date']}T{b0['time']}:00").replace(
+                    tzinfo=ZoneInfo("Europe/Budapest"))
+        except Exception:
+            first_start = None
+        tok = create_confirm_token(
+            session_id=session_id, tenant_id=tenant_id,
+            event_ids=[b.get("event_id") for b in bookings if b.get("event_id")],
+            phone=caller_number, candidate_email=(candidate_email or None),
+            first_booking_start=first_start,
+        )
+        if not tok.get("ok"):
+            return {"ok": False, "status": "failed", "error": tok.get("error")}
+        base = (os.getenv("PUBLIC_CONFIRM_BASE_URL")
+                or os.getenv("APP_BASE_URL")
+                or os.getenv("SERVER_URL") or "").rstrip("/")
+        link = f"{base}/e/{tok['token']}"
+        b0 = bookings[0] if bookings else {}
+        body = build_sms_text(link=link, datum=b0.get("date", ""), ido=b0.get("time", ""),
+                              has_candidate=bool(candidate_email))
+        res = send_sms(caller_number, body, session_id=session_id,
+                       tenant_id=tenant_id, purpose="email_confirm")
+        return res
+    except Exception as exc:
+        logger.warning(f"Megerősítő SMS küldés hiba (fail-open): {exc}")
+        return {"ok": False, "status": "failed", "error": str(exc)}
+
+
 async def run_and_apply_email_verification(session_id: str, tenant_id=None,
                                            interaction_id=None, turns=None,
                                            client_id=None) -> dict:
@@ -1827,6 +1900,28 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
 
     status = verdict.get("status")
     winner = ((verdict.get("email") or {}).get("winner") or "").strip().lower()
+    caller_number = (tools.get_caller_phone() or "")
+
+    # ── WP-E3 MU-2.3: SMS döntési tábla ──
+    sms_mode = _sms_mode()
+    sms_on = sms_mode != "off"
+    eligible = False
+    if sms_on:
+        eligible, _elig_reason = sms_eligible(caller_number, bookings, session_id)
+    optin_with_sms = (os.getenv("EMAIL_VERIFY_OPTIN_EMAIL_WITH_SMS", "0") or "0") == "1"
+
+    async def _send_optin_email(candidate: str):
+        try:
+            await email_processor.send_email_verification_email(
+                session_id=session_id,
+                event_ids=[b.get("event_id") for b in bookings if b.get("event_id")],
+                attendee_email=candidate,
+                attendee=booking_name,
+            )
+        except Exception as exc:
+            # A dupla opt-in sem ment ki → legacy azonnali küldés (fail-open)
+            logger.warning(f"Dupla opt-in küldés hiba (fail-open legacy): {exc}")
+            await _send_legacy_confirmations(bookings, candidate)
 
     if status == "green":
         for b in bookings:
@@ -1842,20 +1937,40 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
             except Exception as exc:
                 logger.warning(f"Visszaigazoló küldés hiba ({b.get('attendee_email')}): {exc}")
     elif status == "non_green" and winner:
-        try:
-            await email_processor.send_email_verification_email(
-                session_id=session_id,
-                event_ids=[b.get("event_id") for b in bookings if b.get("event_id")],
-                attendee_email=winner,
-                attendee=booking_name,
-            )
-        except Exception as exc:
-            # A dupla opt-in sem ment ki → legacy azonnali küldés (fail-open)
-            logger.warning(f"Dupla opt-in küldés hiba (fail-open legacy): {exc}")
-            await _send_legacy_confirmations(bookings, winner)
+        if sms_on and eligible:
+            sms = _send_confirm_sms(session_id, tenant_id, bookings,
+                                    caller_number, candidate_email=winner)
+            if db.update_email_verify_run_sms(session_id, bool(sms.get("ok")),
+                                              sms.get("status", "failed")):
+                pass
+            if sms.get("ok"):
+                logger.info(f"Megerősítő SMS elküldve ({caller_number}), opt-in levél elmarad")
+                if optin_with_sms:
+                    await _send_optin_email(winner)
+            else:
+                # SMS sikertelen → visszaesés az opt-in levélre (MU-2.3 utolsó sor)
+                await _send_optin_email(winner)
+        else:
+            await _send_optin_email(winner)
+    elif not winner and not booking_email and sms_on and eligible:
+        # Nincs email/semmi jelölt → SMS üres email-mezővel ('adja meg a címét')
+        sms = _send_confirm_sms(session_id, tenant_id, bookings,
+                                caller_number, candidate_email=None)
+        db.update_email_verify_run_sms(session_id, bool(sms.get("ok")),
+                                       sms.get("status", "failed"))
+    elif not winner and not booking_email:
+        pass  # nincs email, nincs SMS-jogosultság → nincs küldés (MU-2.3)
     else:
-        # error / no_recording / nincs ellenőrizhető cím → legacy azonnali küldés
-        await _send_legacy_confirmations(bookings, booking_email or winner)
+        # error / no_recording / ellenőrizhetetlen cím
+        if sms_on and eligible:
+            sms = _send_confirm_sms(session_id, tenant_id, bookings,
+                                    caller_number, candidate_email=booking_email or winner)
+            db.update_email_verify_run_sms(session_id, bool(sms.get("ok")),
+                                           sms.get("status", "failed"))
+            if not sms.get("ok"):
+                await _send_legacy_confirmations(bookings, booking_email or winner)
+        else:
+            await _send_legacy_confirmations(bookings, booking_email or winner)
     return verdict
 
 

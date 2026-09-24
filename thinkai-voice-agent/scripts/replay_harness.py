@@ -262,6 +262,51 @@ def aggregate(results):
           "a biztonság bizonyítására nem. Ha nincs egyetlen rossz zöld sem, az "
           "95%-os szinten csak annyit jelent, hogy a rossz-zöld arány ~6% alatt "
           "van (3/n szabály). Az autonóm zöld élesítéséhez nagyobb szet kell.")
+    print_sms_confirm_metrics([r["session_id"] for r in results])
+
+
+def print_sms_confirm_metrics(session_ids):
+    """WP-E3 MU-5: SMS kézbesítés, megerősítési arány, medián idő,
+    korrekciós arány — az email_verify_runs sorokból."""
+    import statistics
+    if not session_ids:
+        return
+    try:
+        res = (db.supabase.table("email_verify_runs")
+               .select("session_id,created_at,sms_sent,sms_status,confirmed_email,confirmed_at,confirm_action")
+               .in_("session_id", session_ids)
+               .limit(500)
+               .execute())
+    except Exception as exc:
+        print(f"  (SMS-metrikák lekérés sikertelen: {exc})")
+        return
+    rows = res.data or []
+    if not rows:
+        return
+    sent = [r for r in rows if r.get("sms_sent")]
+    delivered = [r for r in sent if (r.get("sms_status") or "") == "delivered"]
+    confirmed = [r for r in rows if r.get("confirmed_email")]
+    print("\n══ SMS / MEGERŐSÍTÉS (wp-e3) ══")
+    print(f"  SMS kiküldve: {len(sent)} | kézbesítve (delivered): {len(delivered)}")
+    if confirmed:
+        actions = {}
+        for r in confirmed:
+            actions[r.get("confirm_action") or "?"] = actions.get(r.get("confirm_action") or "?", 0) + 1
+        print(f"  Megerősítések: {len(confirmed)} | bontás: {actions}")
+        corr = actions.get("corrected", 0)
+        print(f"  KORREKCIÓS ARÁNY: {corr}/{len(confirmed)} "
+              "(corrected / összes megerősítés — közvetlenül méri a nem-zöld jelölt jóvoltát)")
+        times = []
+        for r in confirmed:
+            try:
+                t0 = datetime.fromisoformat(r["created_at"].replace("Z", "+00:00"))
+                t1 = datetime.fromisoformat(r["confirmed_at"].replace("Z", "+00:00"))
+                times.append((t1 - t0).total_seconds() / 60.0)
+            except Exception:
+                pass
+        if times:
+            print(f"  Medián idő a megerősítésig: {statistics.median(times):.1f} perc "
+                  f"(min {min(times):.1f}, max {max(times):.1f})")
 
 
 def main():

@@ -1724,6 +1724,41 @@ def set_email_verify_run_ground_truth(session_id: str, ground_truth: str) -> boo
         return False
 
 
+def update_email_verify_run_sms(session_id: str, sms_sent: bool, sms_status: str = "") -> bool:
+    """WP-E3 MU-5: az adott session futás-sorainak SMS-mezői (sms_sent/sms_status)."""
+    try:
+        supabase.table("email_verify_runs").update(
+            {"sms_sent": bool(sms_sent), "sms_status": sms_status or None}
+        ).eq("session_id", session_id).execute()
+        return True
+    except Exception as e:
+        logger.warning(f"email_verify_runs SMS-mező írás sikertelen ({session_id}): {e}")
+        return False
+
+
+def update_email_verify_run_confirm(session_id: str, confirmed_email: str,
+                                    confirmed_at: str, confirm_action: str) -> bool:
+    """WP-E3 MU-5: SMS-megerősítés visszairása a session futás-soraira."""
+    try:
+        supabase.table("email_verify_runs").update(
+            {"confirmed_email": confirmed_email, "confirmed_at": confirmed_at,
+             "confirm_action": confirm_action}
+        ).eq("session_id", session_id).execute()
+        return True
+    except Exception as e:
+        logger.warning(f"email_verify_runs confirm írás sikertelen ({session_id}): {e}")
+        return False
+
+
+def session_has_sms(session_id: str) -> bool:
+    """MU-2.2 idempotencia: ehhez a sessionhöz már ment-e SMS (sms_logs)."""
+    try:
+        res = supabase.table("sms_logs").select("id").eq("session_id", session_id).limit(1).execute()
+        return bool(res.data)
+    except Exception:
+        return False
+
+
 def normalize_phone_digits(p: str) -> str:
     """Telefonszám normalizálás egyeztetéshez: csak számjegyek, 06→36.
     Visszatérés: az UTOLSÓ 9 számjegy — a +36/06/kötőjeles/szóközös írásmódok
