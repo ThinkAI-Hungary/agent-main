@@ -944,16 +944,20 @@ export default function InteractionSummaryModal({
     if (!el) return;
     const url = await ensureAudioUrl();
     if (!url) return;
+    // Imperatív src + load(): a React-state commit és a play() közötti race
+    // (preload="none" + üres src → a play() azonnal rejectel) kerülhető ki így.
+    if (!el.src || el.src !== url) {
+      el.src = url;
+      el.load();
+    }
     const apply = () => {
       try { el.currentTime = startS; } catch { /* még nincs metadata */ }
     };
-    // preload="none" esetén a loadedmetadata CSAK a play()-től indul —
-    // ezért a play() az első lépés, a seek utána fut le.
     if (el.readyState >= 1) {
       apply();
       el.play().catch(() => { /* autoplay elutasítva */ });
     } else {
-      el.addEventListener('loadedmetadata', apply, { once: true });
+      el.addEventListener('loadedmetadata', () => { apply(); el.play().catch(() => {}); }, { once: true });
       el.play().catch(() => { /* autoplay elutasítva */ });
     }
   }, [ensureAudioUrl]);
