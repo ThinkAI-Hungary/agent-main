@@ -117,7 +117,7 @@ def _format_patient_rules(pi: dict) -> str:
     rules.append(f"3. HA AZ ÜGYFÉL VISSZATÉRŐ PÁCIENS: Kötelezően kérd be a következő adatokat az azonosításhoz: '{ret_req}'. Szintén kötelezően kérd be az e-mail címét is!")
 
     # Email bekérése kötelező
-    rules.append("4. IDŐPONTFOGLALÁS ESETÉN: Szigorúan kötelező elkérned az ügyfél e-mail címét a foglalás véglegesítése előtt. Tájékoztasd őt róla, hogy erre az e-mail címre fogjuk küldeni a hivatalos visszaigazolást, ami tartalmazza a naptárfájlt és az esetleges lemondáshoz szükséges linket is!")
+    rules.append("4. IDŐPONTFOGLALÁS ESETÉN: Szigorúan kötelező elkérned az ügyfél e-mail címét a foglalás véglegesítése előtt. Tájékoztasd őt róla, hogy erre az e-mail címre fogjuk küldeni a hivatalos visszaigazolást, ami tartalmazza a naptárfájlt és az esetleges lemondáshoz szükséges linket is! AZ E-MAIL CÍMET TERMÉSZETESEN KÉRD BE: NE kérj betűzésenkénti diktálást, NE mondatd vissza betűnként vagy részenként, és NE igazoltasd vissza szó szerint — a rendszer a hívás után automatikusan ellenőrzi a címet, és ha kell, SMS-ben küld megerősítő linket. Csak akkor kérj pontosítást, ha a hívó maga javít, vagy amit mondott, annyira érthetetlen, hogy teljes egészében kimaradt.")
 
     # EAISY-241 §7 — Időpontfoglalási beszélgetés szabályai (lépésenkénti)
     rules.append("""7. AZONOSÍTÁSI BIZTONSÁG: A hívószám PSTN-en triviálisan hamisítható — érzékeny adat (betegadat) előtt MINDIG kérj egy második azonosítót (születési dátum, TAJ, vagy a rendszerben tárolt adat).""")

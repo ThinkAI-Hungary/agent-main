@@ -1902,13 +1902,29 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
     winner = ((verdict.get("email") or {}).get("winner") or "").strip().lower()
     caller_number = (tools.get_caller_phone() or "")
 
-    # ── WP-E3 MU-2.3: SMS döntési tábla ──
+    # ── WP-E3 MU-2.3: SMS döntési tábla + EMAIL_VERIFY_FLOW ──
+    # flow='gate' (default): a kapu green-je → email azonnal (mai viselkedés).
+    # flow='smsfirst' (célkép): gyorsítósáv CSAK ha az audio ÉS az stt
+    # olvasat (két FÜGGETLEN utólagos forrás) egyezett → email azonnal;
+    # minden más eset → SMS a hívónak a jelölttel, email CSAK a kattintás
+    # után (a jó ember a jó címet erősíti meg).
     sms_mode = _sms_mode()
+    flow = (os.getenv("EMAIL_VERIFY_FLOW", "gate") or "gate").strip().lower()
     sms_on = sms_mode != "off"
     eligible = False
     if sms_on:
         eligible, _elig_reason = sms_eligible(caller_number, bookings, session_id)
     optin_with_sms = (os.getenv("EMAIL_VERIFY_OPTIN_EMAIL_WITH_SMS", "0") or "0") == "1"
+
+    audit = verdict.get("audit") or {}
+    gate_present = (audit.get("gate") or {}).get("present") or []
+    readings = audit.get("readings") or {}
+    if flow == "smsfirst":
+        fast_lane = status == "green" and "stt" in gate_present and "audio" in gate_present
+        sms_candidate = (readings.get("audio") or winner or "").strip().lower() or None
+    else:
+        fast_lane = status == "green"
+        sms_candidate = None
 
     async def _send_optin_email(candidate: str):
         try:
@@ -1923,7 +1939,7 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
             logger.warning(f"Dupla opt-in küldés hiba (fail-open legacy): {exc}")
             await _send_legacy_confirmations(bookings, candidate)
 
-    if status == "green":
+    if fast_lane:
         for b in bookings:
             try:
                 await email_processor.send_booking_confirmation_email(
@@ -1936,41 +1952,37 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
                 )
             except Exception as exc:
                 logger.warning(f"Visszaigazoló küldés hiba ({b.get('attendee_email')}): {exc}")
-    elif status == "non_green" and winner:
-        if sms_on and eligible:
+    elif sms_on and eligible:
+        # SMS-út: jelölt = smsfirst-ben az audio-olvasat, különben a kapu nyertese;
+        # jelölt nélkül (smsfirst) is megy — 'adja meg a címét' üres mezővel
+        cand = sms_candidate if sms_candidate else (winner or booking_email or None)
+        send_empty = flow == "smsfirst" or not (winner or booking_email)
+        if cand or send_empty:
             sms = _send_confirm_sms(session_id, tenant_id, bookings,
-                                    caller_number, candidate_email=winner)
-            if db.update_email_verify_run_sms(session_id, bool(sms.get("ok")),
-                                              sms.get("status", "failed")):
-                pass
-            if sms.get("ok"):
-                logger.info(f"Megerősítő SMS elküldve ({caller_number}), opt-in levél elmarad")
-                if optin_with_sms:
-                    await _send_optin_email(winner)
-            else:
-                # SMS sikertelen → visszaesés az opt-in levélre (MU-2.3 utolsó sor)
-                await _send_optin_email(winner)
-        else:
-            await _send_optin_email(winner)
-    elif not winner and not booking_email and sms_on and eligible:
-        # Nincs email/semmi jelölt → SMS üres email-mezővel ('adja meg a címét')
-        sms = _send_confirm_sms(session_id, tenant_id, bookings,
-                                caller_number, candidate_email=None)
-        db.update_email_verify_run_sms(session_id, bool(sms.get("ok")),
-                                       sms.get("status", "failed"))
-    elif not winner and not booking_email:
-        pass  # nincs email, nincs SMS-jogosultság → nincs küldés (MU-2.3)
-    else:
-        # error / no_recording / ellenőrizhetetlen cím
-        if sms_on and eligible:
-            sms = _send_confirm_sms(session_id, tenant_id, bookings,
-                                    caller_number, candidate_email=booking_email or winner)
+                                    caller_number, candidate_email=cand)
             db.update_email_verify_run_sms(session_id, bool(sms.get("ok")),
                                            sms.get("status", "failed"))
-            if not sms.get("ok"):
-                await _send_legacy_confirmations(bookings, booking_email or winner)
+            if sms.get("ok"):
+                logger.info(f"Megerősítő SMS elküldve ({caller_number}), email a megerősítés után")
+                if optin_with_sms and winner:
+                    await _send_optin_email(winner)
+            elif winner:
+                # SMS sikertelen → visszaesés az opt-in levélre (MU-2.3)
+                await _send_optin_email(winner)
+            else:
+                await _send_legacy_confirmations(bookings, booking_email)
+        elif winner:
+            await _send_optin_email(winner)
         else:
-            await _send_legacy_confirmations(bookings, booking_email or winner)
+            await _send_legacy_confirmations(bookings, booking_email)
+    else:
+        # SMS ki-/nem jogosult — a régi tábla
+        if winner:
+            await _send_optin_email(winner)
+        elif not booking_email:
+            pass  # nincs email, nincs SMS-jogosultság → nincs küldés
+        else:
+            await _send_legacy_confirmations(bookings, booking_email)
     return verdict
 
 

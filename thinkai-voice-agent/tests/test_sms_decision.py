@@ -221,3 +221,96 @@ class TestSmsEligible:
         monkeypatch.setattr(evh.db, "session_has_sms", lambda sid: True, raising=False)
         ok, reason = evh.sms_eligible("+36709436426", BOOKINGS, "sess-1")
         assert ok is False and "már ment SMS" in reason
+
+
+# ── CÉLKÉP: EMAIL_VERIFY_FLOW=smsfirst ──────────────────────────────────────
+def _verdict_smsfirst(status="green", winner="winner@freemail.hu",
+                      present=("stt", "audio"), audio="audio@freemail.hu",
+                      live="live@freemail.hu", stt="stt@freemail.hu"):
+    return {"status": status, "email": {"winner": winner}, "audit": {
+        "gate": {"reason": "GREEN_2OF2_KNOWN" if status == "green" else "NG_X",
+                 "present": list(present), "known_domain": True, "mx": True},
+        "readings": {"live": live, "stt": stt, "audio": audio,
+                     "stt_regex": None, "reconcile": None, "jev": {}},
+    }, "name": None, "llm": {}}
+
+
+@pytest.fixture()
+def smsfirst_env(monkeypatch):
+    monkeypatch.setenv("EMAIL_VERIFY_SMS_MODE", "nongreen")
+    monkeypatch.setenv("EMAIL_VERIFY_FLOW", "smsfirst")
+    monkeypatch.delenv("EMAIL_VERIFY_OPTIN_EMAIL_WITH_SMS", raising=False)
+    CAP.reset()
+    monkeypatch.setattr(evh.db, "session_has_sms", lambda sid: False, raising=False)
+    monkeypatch.setattr(evh.db, "update_email_verify_run_sms",
+                        lambda sid, sent, status: True, raising=False)
+
+    async def _optin(**kw):
+        CAP.optin.append(kw)
+
+    async def _confirm(**kw):
+        CAP.confirm.append(kw)
+
+    async def _legacy(bookings, email):
+        CAP.legacy.append(email)
+
+    monkeypatch.setattr(evh.email_processor, "send_email_verification_email", _optin, raising=False)
+    monkeypatch.setattr(evh.email_processor, "send_booking_confirmation_email", _confirm, raising=False)
+    monkeypatch.setattr(evh, "_send_legacy_confirmations", _legacy, raising=False)
+    return CAP
+
+
+def test_smsfirst_gyorsitosav_audio_stt_egyezik_email_menv(smsfirst_env, monkeypatch):
+    # gyorsítósáv: audio + stt független egyezés → email azonnal, NEM megy SMS
+    calls = _sms_ok(monkeypatch)
+    _run(monkeypatch, _verdict_smsfirst("green", present=("audio", "stt"),
+                                        audio="audio@freemail.hu", stt="audio@freemail.hu"))
+    assert len(smsfirst_env.confirm) == 1
+    assert calls == []
+
+
+def test_smsfirst_live_vel_zold_de_audio_hianyzik_sms_megy(smsfirst_env, monkeypatch):
+    # green live+stt-vel, audio NINCS → NEM gyorsítósáv → SMS, email csak kattintás után
+    calls = _sms_ok(monkeypatch)
+    _run(monkeypatch, _verdict_smsfirst("green", present=("live", "stt"), audio=None))
+    assert len(calls) == 1
+    assert smsfirst_env.confirm == []
+
+
+def test_smsfirst_jelolt_az_audio_olvasat(smsfirst_env, monkeypatch):
+    # non-green: az SMS jelöltje az AUDIO olvasat (nem a kapu nyertese)
+    calls = _sms_ok(monkeypatch)
+    _run(monkeypatch, _verdict_smsfirst("non_green", winner="winner@freemail.hu",
+                                        present=("live", "audio"), audio="audio@freemail.hu"))
+    assert len(calls) == 1
+    assert calls[0]["candidate"] == "audio@freemail.hu"
+    assert smsfirst_env.optin == []
+
+
+def test_smsfirst_sms_sikertelen_optin_tartalek(smsfirst_env, monkeypatch):
+    monkeypatch.setattr(evh, "_send_confirm_sms",
+                        lambda *a, **k: {"ok": False, "status": "failed"}, raising=False)
+    _run(monkeypatch, _verdict_smsfirst("non_green"))
+    assert len(smsfirst_env.optin) == 1
+
+
+def test_smsfirst_jelolt_nelkul_ures_sms(smsfirst_env, monkeypatch):
+    # nincs audio/winner/foglalási email → SMS üres email-mezővel ('adja meg a címét')
+    BOOKINGS[0]["attendee_email"] = ""
+    try:
+        calls = _sms_ok(monkeypatch)
+        _run(monkeypatch, _verdict_smsfirst("non_green", winner="",
+                                            present=("live",), audio=None, live=None, stt=None))
+    finally:
+        BOOKINGS[0]["attendee_email"] = "live@freemail.hu"
+    assert len(calls) == 1
+    assert calls[0]["candidate"] is None
+
+
+def test_gate_flow_alapertelmezett_smaradt(env, monkeypatch):
+    # EMAIL_VERIFY_FLOW alapból 'gate' — green → email, viselkedés változatlan
+    monkeypatch.delenv("EMAIL_VERIFY_FLOW", raising=False)
+    calls = _sms_ok(monkeypatch)
+    _run(monkeypatch, _verdict("green", "jo@gmail.com"))
+    assert len(env.confirm) == 1
+    assert calls == []
