@@ -295,7 +295,7 @@ class CallRecorder:
     async def _capture_local(self) -> None:
         """Az agent SAJÁT audio trackjének megvárása (RoomIO lazy publikál) és lecsapolása."""
         try:
-            deadline = time.monotonic() + 30.0
+            deadline = time.monotonic() + 120.0
             track = None
             while not self._stopped and time.monotonic() < deadline:
                 lp = getattr(self.room, "local_participant", None)
@@ -311,7 +311,7 @@ class CallRecorder:
                     break
                 await asyncio.sleep(0.5)
             if not track:
-                logger.warning("Hívásrögzítés: az agent audio trackje 30 s alatt nem jelent meg — agent csatorna csend lesz")
+                logger.warning("Hívásrögzítés: az agent audio trackje 120 s alatt nem jelent meg — agent csatorna csend lesz")
                 return
             await self._consume(track, self._right, "local", "local")
         except asyncio.CancelledError:
