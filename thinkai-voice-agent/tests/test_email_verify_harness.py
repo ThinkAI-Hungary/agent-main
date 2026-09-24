@@ -516,3 +516,213 @@ class TestEmailKontextusSzamszavak:
         cands = evh.extract_email_candidates(t)
         # pont nélküli lokál: összefűzve a helyes olvasat
         assert "balazsliderer@skyrocketgroup.hu" in cands
+
+
+# ── REDESIGN: LLM-extrakció (gemini-3.8-flash) + JEV + green-gated írás ──────
+class TestLlmExtractPrompt:
+    def test_tartalmazza_mindket_atiratot(self):
+        p = evh.build_llm_extract_prompt("élő szöveg", "utólagos szöveg")
+        assert "ÉLŐ ÁTIRAT" in p and "élő szöveg" in p
+        assert "UTÓLAGOS ÁTIRAT" in p and "utólagos szöveg" in p
+
+    def test_konvencioek_a_promptban(self):
+        p = evh.build_llm_extract_prompt("", "")
+        assert "kukac" in p and "EGYBE" in p  # diktálási konvenciók
+
+    def test_trapcso_6000_karakter(self):
+        p = evh.build_llm_extract_prompt("x" * 9000, "")
+        assert "x" * 6001 not in p
+
+    def test_ures_bemenet_nem_tori(self):
+        p = evh.build_llm_extract_prompt(None, None)
+        assert "ÉLŐ ÁTIRAT" in p
+
+
+class TestParseLlmExtract:
+    def test_valid_json(self):
+        d = evh.parse_llm_extract(
+            '{"email": "Kovacs.Bertalan@Gmail.com", "name": "Kovács Bertalan", '
+            '"variants": ["kovacsbertalan@gmail.com"], "confidence": 0.93}')
+        assert d["email"] == "kovacs.bertalan@gmail.com"
+        assert d["name"] == "Kovács Bertalan"
+        # az email maga a variánsok ELSŐ helyére kerül
+        assert d["variants"][0] == "kovacs.bertalan@gmail.com"
+        assert d["variants"][1] == "kovacsbertalan@gmail.com"
+        assert d["confidence"] == pytest.approx(0.93)
+
+    def test_nullak(self):
+        d = evh.parse_llm_extract(
+            '{"email": null, "name": null, "variants": [], "confidence": 0.9}')
+        assert d["email"] is None and d["name"] is None
+        assert d["variants"] == []
+
+    def test_szemet(self):
+        assert evh.parse_llm_extract("") == {}
+        assert evh.parse_llm_extract("nem json") == {}
+        assert evh.parse_llm_extract("[1, 2, 3]") == {}
+
+    def test_markdown_fenced(self):
+        d = evh.parse_llm_extract(
+            '```json\n{"email": "a@b.hu", "name": null, "variants": [], '
+            '"confidence": 0.8}\n```')
+        assert d["email"] == "a@b.hu"
+
+    def test_ervenytelen_escape_megengedo(self):
+        d = evh.parse_llm_extract(
+            '{"email": "a@b.hu", "name": null, "variants": [], "confidence": 0.5, '
+            '"note": "C:\\Temp"}')
+        assert d["email"] == "a@b.hu"
+
+    def test_konfidencia_klamplazas(self):
+        d = evh.parse_llm_extract(
+            '{"email": null, "name": null, "variants": [], "confidence": 7}')
+        assert d["confidence"] == 1.0
+
+    def test_semmi_email_nem_szivarghat_at(self):
+        d = evh.parse_llm_extract(
+            '{"email": "nem valodi cim", "name": null, "variants": [], '
+            '"confidence": 0.5}')
+        assert d["email"] is None
+        assert d["variants"] == []
+
+
+class TestLlmExtractHivas:
+    def test_nincs_kliens_fail_open(self, monkeypatch):
+        monkeypatch.setattr(evh, "_new_genai_client", lambda: None)
+        assert evh.llm_extract("a", "b") == {}
+
+    def test_kivetel_fail_open(self, monkeypatch):
+        def _boom():
+            raise RuntimeError("API down")
+        monkeypatch.setattr(evh, "_new_genai_client", _boom)
+        assert evh.llm_extract("a", "b") == {}
+
+    def test_modell_es_json_config(self, monkeypatch):
+        calls = {}
+
+        class _Resp:
+            text = '{"email": "a@b.hu", "name": null, "variants": [], "confidence": 0.9}'
+
+        class _Models:
+            def generate_content(self, model, config, contents):
+                calls.update(model=model, config=config, contents=contents)
+                return _Resp()
+
+        class _Client:
+            models = _Models()
+
+        monkeypatch.setattr(evh, "_new_genai_client", lambda: _Client())
+        d = evh.llm_extract("élő", "utólagos")
+        assert d["email"] == "a@b.hu"
+        assert calls["model"] == "gemini-3.8-flash"
+        assert calls["config"] == {"response_mime_type": "application/json"}
+        assert "élő" in calls["contents"] and "utólagos" in calls["contents"]
+
+
+class TestMergeEmailCandidates:
+    def test_llm_olvasat_all_elol(self):
+        merged = evh.merge_email_candidates(
+            "rossz@freemail.hu",
+            {"email": "jo@gmail.com", "variants": ["jo1@gmail.com"]},
+            ["live@freemail.hu"], ["utolagos@citromail.hu"])
+        assert merged[0] == "jo@gmail.com"
+        assert merged[1] == "jo1@gmail.com"
+        # a többi jelölt megmarad mögötte
+        assert "rossz@freemail.hu" in merged
+        assert "utolagos@citromail.hu" in merged
+
+    def test_llm_hianyaban_regi_sorrend(self):
+        merged = evh.merge_email_candidates(
+            "booking@gmail.com", {},
+            [], ["scribe@gmail.com"])
+        assert merged[0] == "booking@gmail.com"
+
+    def test_ekezet_nyirt_es_szintaxis_szures(self):
+        merged = evh.merge_email_candidates(
+            "", {"email": "NEM EMAIL", "variants": ["árvíztűrő@hu", "ok@teszt.hu"]},
+            [], [])
+        assert merged[0] == "ok@teszt.hu"
+        assert all(evh.EMAIL_SYNTAX_RE.match(c) for c in merged)
+
+    def test_dedup(self):
+        merged = evh.merge_email_candidates(
+            "a@b.hu", {"email": "a@b.hu", "variants": ["a@b.hu"]}, ["a@b.hu"], [])
+        assert merged.count("a@b.hu") == 1
+
+
+class TestArbitrateLlmState:
+    def test_state_tartalmaz_llm_olvasatot(self, monkeypatch):
+        captured = {}
+
+        def fake_post(payload):
+            captured.update(payload)
+            return 200, {"answers": {"pick": {"choice": "a@b.hu",
+                                              "confidence": 0.97}}}
+
+        monkeypatch.setattr(evh, "_post_decisions", fake_post)
+        arb = arbitrate(["a@b.hu", "a@d.hu"], context={
+            "kind": "email", "live": "a@b.hu", "scribe": "a@d.hu",
+            "llm_value": "a@b.hu", "llm_confidence": 0.88})
+        assert arb == {"choice": "a@b.hu", "confidence": 0.97, "source": "jev"}
+        assert captured["state"]["llm_value"] == "a@b.hu"
+        assert captured["state"]["llm_confidence"] == 0.88
+
+
+class TestNameGuard:
+    def test_booking_nev_nelkul_nincs_nev_feldolgozas(self, monkeypatch):
+        # USER-szabály (élő incidens): booking-név nélkül a harness NEM ír
+        # nevet — a "Gábor vagyok" az AGENT bemutatkozása, nem ügyfélnév.
+        def _boom(t):
+            raise AssertionError("extract_scribe_name nem hívódhat")
+        monkeypatch.setattr(evh, "extract_scribe_name", _boom)
+        assert evh._verify_name("", "gábor vagyok", "", "") is None
+
+    def test_llm_nev_belep_a_jeloltek_koze(self, monkeypatch):
+        captured = {}
+
+        def fake_arb(cands, context):
+            captured["cands"] = list(cands)
+            return {"choice": cands[0], "confidence": 1.0, "source": "agree"}
+
+        monkeypatch.setattr(evh, "arbitrate", fake_arb)
+        res = evh._verify_name("Kovács Béla", "a nevem Kovács Béla", "", "",
+                               llm_name="Kovács Béla")
+        assert "Kovács Béla" in captured["cands"]
+        assert res["winner"] == "Kovács Béla"
+
+
+class TestApplyEmailCorrectionGating:
+    def _row(self):
+        return {"id": 7, "name": "Teszt Elemér", "email": "regi@freemail.hu",
+                "phone": "+36301234567", "custom_data": {}}
+
+    def test_non_green_az_email_oszlop_erintetlen(self, monkeypatch):
+        upd = {}
+        monkeypatch.setattr(evh.db, "edit_client_details",
+                            lambda cid, u: upd.update(cid=cid, u=u) or True,
+                            raising=False)
+        monkeypatch.setattr(evh.db, "log_interaction", lambda **kw: None,
+                            raising=False)
+        evh._apply_email_correction(
+            self._row(), "regi@freemail.hu", "jelolt@citromail.hu",
+            {"confidence": 0.4, "source": "jev"}, "non_green",
+            changed=False, interaction_id=None, apply=False)
+        assert upd["u"]["email"] == "regi@freemail.hu"  # RÉGI cím marad
+        audit = upd["u"]["custom_data"]["email_verification"]
+        assert audit["status"] == "non_green"
+        assert audit["applied"] is False
+        assert audit["value"] == "jelolt@citromail.hu"  # a jelölt az auditban
+
+    def test_green_felulirja_es_audit(self, monkeypatch):
+        upd = {}
+        monkeypatch.setattr(evh.db, "edit_client_details",
+                            lambda cid, u: upd.update(cid=cid, u=u) or True,
+                            raising=False)
+        monkeypatch.setattr(evh.db, "log_interaction", lambda **kw: None,
+                            raising=False)
+        evh._apply_email_correction(
+            self._row(), "regi@freemail.hu", "uj@gmail.com",
+            {"confidence": 1.0, "source": "agree"}, "corrected",
+            changed=True, interaction_id=None, apply=True)
+        assert upd["u"]["email"] == "uj@gmail.com"
+        assert upd["u"]["custom_data"]["email_verification"]["applied"] is True

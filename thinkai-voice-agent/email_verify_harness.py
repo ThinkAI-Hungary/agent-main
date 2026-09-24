@@ -1,17 +1,21 @@
 # -*- coding: utf-8 -*-
-"""WP-E: hívás utáni email/név ellenőrző harness (ElevenLabs Scribe + JEV).
+"""WP-E: hívás utáni email/név ellenőrző harness (STT + LLM + JEV — REDESIGN).
 
 A hívás végén (server.py _run_classification) a rögzített WAV-ot ÚJRA
-átírjuk a Scribe v2-vel (hu), és a két átirat (élő Gemini + Scribe) alapján
-ellenőrizzük a foglaláskor rögzített EMAIL CÍMET és NEVET:
+átírjuk (Soniox async, fallback Scribe v2), ÉS a KÉT átiratot (élő Gemini +
+utólagos STT) egy Gemini Flash LLM kiolvassa: a diktált email cím önmagában
+a SZÖVEGBŐL értendő — az ügyfél nevével/korábbi elérhetőségével NINCS
+összehasonlítás. A jelöltekre JEV dönt (OpenRouter), autonóm korrekció CSAK
+a küszöb feletti bizalommal (green):
 
-  - mindig AUTOKORREKCIÓ: a legjobb jelölt kerül az ügyfélre (audit-
-    nyomvonal: custom_data.email_verification / name_verification);
-  - ZÖLD verdict (egyetértenek VAGY JEV-bizalom ≥ küszöb ÉS az MX nem
-    cárol) → a visszazigazoló email most megy ki;
-  - NEM-ZÖLD → dupla opt-in „erősítse meg az e-mail címét" levél megy,
-    a tényleges visszaigazolás csak a linkre kattintás után (web_server
-    /api/public/verify-email);
+  - ZÖLD verdict (két független olvasat egyetértenek VAGY JEV-bizalom ≥
+    küszöb ÉS az MX nem cárol) → az ügyfél email-je frissíthető, a
+    visszazigazoló email most megy ki;
+  - NEM-ZÖLD → az ügyfél email-je ÉRINTETLEN marad; dupla opt-in „erősítse
+    meg az e-mail címét" levél megy a jelöltre, a tényleges visszaigazolás
+    csak a linkre kattintás után (web_server /api/public/verify-email);
+  - NÉV: csak akkor írható, ha a foglalás (book_meeting) valóban rögzített
+    nevet; az agent-persona név (pl. „Gábor") tiltólistán;
   - MINDEN hiba FAIL-OPEN: a harness soha nem dob a hívó folyamatnak,
     hiba esetén legacy azonnali küldés fut (a visszaigazolás sosem veszik el).
 
@@ -259,6 +263,26 @@ def extract_email_candidates(normalized_text: str) -> list:
     return expanded
 
 
+def merge_email_candidates(booking_email: str, llm: dict,
+                           live_cands: list, scribe_cands: list) -> list:
+    """Teljes jelöltlista (REDESIGN): az LLM-olvasat és variánsai ÁLLNAK ELÖL,
+    utána a foglalás közbeni élő olvasat és a regulázissal nyert jelöltek
+    (ékezet-nyírva, domain-javítva, kereszt-kombinálva). Dedup, sorrend-tartó."""
+    scribe_email = scribe_cands[0] if scribe_cands else ""
+    cands = generate_email_candidates(booking_email, scribe_email)
+    for extra in list(live_cands) + list(scribe_cands):
+        for v in (extra, fold_accents(extra)):
+            vv = (v or "").strip().lower()
+            if vv and EMAIL_SYNTAX_RE.match(vv) and vv not in cands:
+                cands.append(vv)
+    prioritized = []
+    for v in [(llm.get("email") or "")] + list(llm.get("variants") or []):
+        vv = (v or "").strip().lower()
+        if vv and EMAIL_SYNTAX_RE.match(vv) and vv not in prioritized:
+            prioritized.append(vv)
+    return prioritized + [c for c in cands if c not in prioritized]
+
+
 def _levenshtein(a: str, b: str, cap: int = 3) -> int:
     if a == b:
         return 0
@@ -336,14 +360,154 @@ def extract_name_candidates(live_name: str, scribe_name: str) -> list:
     return out
 
 
+# ── LLM-extrakció (REDESIGN: a cím önmagában a SZÖVEGBŐL értendő) ────────────
+# USER-szabály: a harness NEM hasonlítja össze a kinyert címet az ügyfél
+# nevével vagy korábbi emailjével — a diktált címet a beszédből kell
+# értelmezni, LLM-mel (nem csak regexszel), JEV verifikációval.
+EMAIL_VERIFY_LLM_MODEL = os.getenv("EMAIL_VERIFY_LLM_MODEL", "gemini-3.8-flash")
+
+_LLM_EXTRACT_SYSTEM = (
+    "Te egy magyar fogászati rendelő telefonos AI-asszisztensének "
+    "UTÓELLENŐRZŐ motorja vagy. Ugyanarról a hívásról két különböző "
+    "beszédfelismerő készített átiratot (élő valós idejű és utólagos). "
+    "Feladatod: a HÍVÓ (ügyfél) által diktált/közölt EMAIL CÍMET és — ha "
+    "elhangzott — a NEVÉT kiolvasni.\n"
+    "A diktálás magyar konvenciói: „kukac\" = @, „pont\" = ., „kötőjel\" = -, "
+    "„aláhúzás\" = _, „dupla x\" = xx; a betűzést és a számdiktálást "
+    "(„tizenhárom\" = 13) értelmezni kell; az emailcímet EGYBE kell írni — a "
+    "benne lévő szóközök a diktálás műtermékei.\n"
+    "CSAK az ügyfél által mondott adatot add meg! Az ASSZISZTENS (az AI-agent) "
+    "saját neve, bemutatkozása és mondatai SOHA nem ügyféladatok — ha csak az "
+    "agent neve hangzott el, a name legyen null.\n"
+    "Ha az ügyfél nem diktált emailcímet → email: null; ha a neve nem hangzott "
+    "el → name: null. Semmit nem szabad kitalálni.\n"
+    "A variants mező a bemondott cím MINDEN hihető írásformáját tartalmazza "
+    "(ékezetes és ékezet nélküli lokál, gyanús domain-változat is).\n"
+    "A confidence 0 és 1 közti szám: mennyire vagy biztos a kinyert "
+    "értékekben.\n"
+    "Válasz KIZÁRÓLAG JSON-objektum: "
+    '{"email": string|null, "name": string|null, "variants": [string], '
+    '"confidence": number}'
+)
+
+
+def build_llm_extract_prompt(transcript_live: str, transcript_stt: str) -> str:
+    """Az extrakciós prompt összeállítása (pure — tesztelhető)."""
+    return (
+        f"{_LLM_EXTRACT_SYSTEM}\n\n"
+        "── ÉLŐ ÁTIRAT ──\n"
+        f"{(transcript_live or '').strip()[:6000]}\n\n"
+        "── UTÓLAGOS ÁTIRAT ──\n"
+        f"{(transcript_stt or '').strip()[:6000]}"
+    )
+
+
+def parse_llm_extract(raw: str) -> dict:
+    """A modell JSON-válaszának értelmezése + szigorú validáció (pure).
+    Érvénytelen válasz → {} (fail-open). Az email a variánsok elejére kerül."""
+    if not raw:
+        return {}
+    text = raw.strip()
+    if text.startswith("```"):
+        text = re.sub(r"^```[a-zA-Z]*\s*", "", text)
+        text = re.sub(r"\s*```$", "", text)
+    try:
+        data = json.loads(text)
+    except (ValueError, TypeError):
+        # megengedő: érvénytelen escape-ek eldobása (classifier mintájára)
+        try:
+            data = json.loads(re.sub(r'\\(?!["\\/bfnrtu])', "", text))
+        except (ValueError, TypeError):
+            return {}
+    if not isinstance(data, dict):
+        return {}
+    out = {"email": None, "name": None, "variants": [], "confidence": 0.0}
+    email = data.get("email")
+    if isinstance(email, str) and EMAIL_SYNTAX_RE.match(email.strip().lower()):
+        out["email"] = email.strip().lower()
+    name = data.get("name")
+    if isinstance(name, str) and name.strip():
+        out["name"] = name.strip()
+    variants = data.get("variants")
+    if isinstance(variants, list):
+        for v in variants:
+            if isinstance(v, str) and EMAIL_SYNTAX_RE.match(v.strip().lower()):
+                vv = v.strip().lower()
+                if vv not in out["variants"]:
+                    out["variants"].append(vv)
+    try:
+        conf = float(data.get("confidence") or 0.0)
+    except (TypeError, ValueError):
+        conf = 0.0
+    out["confidence"] = min(max(conf, 0.0), 1.0)
+    if out["email"] and out["email"] not in out["variants"]:
+        out["variants"].insert(0, out["email"])
+    return out
+
+
+def _new_genai_client():
+    """BYOK Gemini-kliens (classifier mintájára), 90 mp timeout-tal.
+    Hiba/nincs kulcs → None."""
+    try:
+        from google import genai
+        from google.genai import types
+
+        api_key = db.get_gemini_api_key()
+        if not api_key:
+            return None
+        return genai.Client(
+            api_key=api_key,
+            http_options=types.HttpOptions(timeout=90_000),
+        )
+    except Exception as exc:
+        logger.warning(f"Gemini kliens indítási hiba: {exc}")
+        return None
+
+
+def llm_extract(transcript_live: str, transcript_stt: str) -> dict:
+    """Gemini Flash (EMAIL_VERIFY_LLM_MODEL, default gemini-3.8-flash): a KÉT
+    átiratból kiolvassa a diktált emailcímet és a nevet. SOSEM dob kivételt —
+    hibánál {} (fail-open)."""
+    try:
+        client = _new_genai_client()
+        if client is None:
+            logger.warning("LLM-extrakció kihagyva (nincs Gemini-kulcs)")
+            return {}
+        response = client.models.generate_content(
+            model=EMAIL_VERIFY_LLM_MODEL,
+            config={"response_mime_type": "application/json"},
+            contents=build_llm_extract_prompt(transcript_live, transcript_stt),
+        )
+        return parse_llm_extract(getattr(response, "text", "") or "")
+    except Exception as exc:
+        logger.warning(f"LLM-extrakció hiba (fail-open): {exc}")
+        return {}
+
+
+def _live_transcript_text(turns: list) -> str:
+    """A recorder turnusaiból beszélő-címkézett szöveg (user/ai) — az LLM így
+    látja, melyik mondat kié (az agent-mondatok nem ügyféladatok)."""
+    parts = []
+    for t in turns or []:
+        if not isinstance(t, dict):
+            continue
+        txt = (t.get("text") or "").strip()
+        if not txt:
+            continue
+        role = (t.get("role") or "ismeretlen").strip()
+        parts.append(f"{role}: {txt}")
+    return "\n".join(parts)
+
+
 # ── JEV döntetlen-feloldás ───────────────────────────────────────────────────
 _JEV_INSTRUCTIONS = (
-    "Egy magyar telefonos email/név-diktálást KÉT különböző beszédfelismerő "
-    "(élő Gemini és utólagos ElevenLabs Scribe) eltérően írt át. Döntsd el, "
-    "melyik jelölt a hívó által valójában bemondott érték. Vegye figyelembe: "
-    "a magyar nevek ékezetesek lehetnek, az email címekben a kukac/pont "
-    "kimondása és a gyakori domainek (gmail.com, freemail.hu, citromail.hu, "
-    "indamail.hu, outlook.com, hotmail.com, yahoo.com) a mérvadóak."
+    "Egy magyar telefonos email/név-diktálást több olvasat írt le: élő "
+    "valós idejű beszédfelismerő, utólagos beszédfelismerő és egy LLM-"
+    "kiolvasás. Döntsd el, melyik jelölt a hívó által valójában bemondott "
+    "érték. Vegye figyelembe: a magyar nevek ékezetesek lehetnek, az email "
+    "címekben a kukac/pont kimondása és a gyakori domainek (gmail.com, "
+    "freemail.hu, citromail.hu, indamail.hu, outlook.com, hotmail.com, "
+    "yahoo.com) a mérvadóak."
 )
 
 
@@ -372,9 +536,11 @@ def arbitrate(candidates: list, context: dict = None) -> dict:
                 "kind": context.get("kind", ""),
                 "live_value": context.get("live", ""),
                 "scribe_value": context.get("scribe", ""),
+                "llm_value": context.get("llm_value", ""),
+                "llm_confidence": context.get("llm_confidence", ""),
                 "transcript_live": (context.get("transcript_live") or "")[:800],
                 "transcript_scribe": (context.get("transcript_scribe") or "")[:800],
-                "note": "magyarul diktált email cím vagy név, két STT-átirat eltér",
+                "note": "magyarul diktált email cím vagy név, több STT/LLM-olvasat eltér",
             },
             "questions": {
                 "pick": {
@@ -837,38 +1003,58 @@ def _run_harness_inner(session_id, tenant_id, interaction_id, turns,
     live_text = " ".join((t.get("text") or "") for t in turns if isinstance(t, dict))
     norm_live = normalize_spoken_hu(live_text)
 
-    # d) NÉV-ellenőrzés (mindig autokorrektív, audit-nyomvonallal)
+    # c2) LLM-extrakció (REDESIGN): a diktált cím önmagában a SZÖVEGBŐL
+    # értendő — az ügyfél nevével/korábbi elérhetőségével NINCS összehasonlítás.
+    llm = llm_extract(_live_transcript_text(turns),
+                      f"user: {caller_text}\nai: {agent_text}".strip())
+    llm_email = (llm.get("email") or "").strip().lower()
+    llm_name = (llm.get("name") or "").strip()
+
+    # d) NÉV-ellenőrzés (csak akkor írhat, ha a foglalás valóban rögzített nevet)
     name_result = _verify_name(
         booking_name, caller_text, norm_live, norm_scribe_caller,
-        client_id=client_id, interaction_id=interaction_id,
+        llm_name=llm_name, client_id=client_id, interaction_id=interaction_id,
     )
 
-    # e) EMAIL-ellenőrzés
+    # e) EMAIL-ellenőrzés: jelöltek = LLM-olvasat + variánsai ELÖL, utána a
+    # regulázissal nyert jelöltek (élő + utólagos átirat) és a javítottak.
     live_email = (booking_email or "").strip().lower()
+    live_cands = extract_email_candidates(norm_live)
     scribe_cands = (extract_email_candidates(norm_scribe_caller)
                     or extract_email_candidates(norm_scribe_all))
     scribe_email = scribe_cands[0] if scribe_cands else ""
-    cands = generate_email_candidates(live_email, scribe_email)
+    cands = merge_email_candidates(live_email, llm, live_cands, scribe_cands)
     arb = arbitrate(cands, context={
         "kind": "email",
         "live": live_email,
         "scribe": scribe_email,
+        "llm_value": llm_email,
+        "llm_confidence": llm.get("confidence", 0.0),
         "transcript_live": norm_live[:600],
         "transcript_scribe": (norm_scribe_caller + " || " + norm_scribe_all)[:600],
     })
     winner = (arb.get("choice") or "").strip().lower()
     validation = validate_email(winner) if winner else {"syntax": False, "mx": None, "known_domain": False}
-    agree = bool(live_email and scribe_email and live_email == scribe_email)
+    # Egyetértés = két FÜGGETLEN olvasat ugyanazt hallotta (foglalás közbeni
+    # élő felismerés ÉS az utólagos LLM-kiolvasás, vagy a regulázisos átirat)
+    agree = bool(live_email and (
+        (llm_email and live_email == llm_email)
+        or (scribe_email and live_email == scribe_email)))
     green = email_is_green(winner, validation, agree, arb.get("confidence"))
 
-    # f) Autokorrekció alkalmazása + audit (ügyfélprofil)
+    # f) Korrekció az ügyfélen: AUTONÓM írás CSAK green verdict esetén —
+    # non-greennél az ügyfél email-oszlopa ÉRINTETTLEN marad (csak audit +
+    # dupla opt-in a jelöltekre; a verdict.winner mindig a JELÖLT, mert erre
+    # megy a dupla opt-in).
     stored_email, client_row = _stored_email(client_id)
-    changed = bool(winner and stored_email and winner != stored_email.strip().lower())
-    new_email = winner if (winner and (changed or not stored_email)) else (stored_email or winner)
+    changed = bool(green and winner and stored_email
+                   and winner != stored_email.strip().lower())
+    new_email = winner if (winner and (changed or not stored_email)) \
+        else (stored_email or winner)
     email_audit_status = ("corrected" if changed else "green") if green else "non_green"
     _apply_email_correction(
         client_row, stored_email, new_email, arb, email_audit_status,
-        changed=changed, interaction_id=interaction_id,
+        changed=changed, interaction_id=interaction_id, apply=green,
     )
 
     # g) A hívásban létrejott események attendee_email-jének követése
@@ -890,6 +1076,12 @@ def _run_harness_inner(session_id, tenant_id, interaction_id, turns,
             "confidence": arb.get("confidence", 0.0),
             "source": arb.get("source", ""),
             "validation": validation,
+        },
+        "llm": {
+            "email": llm_email,
+            "name": llm_name,
+            "confidence": llm.get("confidence", 0.0),
+            "model": EMAIL_VERIFY_LLM_MODEL,
         },
         "name": name_result,
         "scribe_logprob_min_email": scribe_lp,
@@ -919,9 +1111,11 @@ def _stored_email(client_id):
 
 
 def _apply_email_correction(client_row, stored_email, new_email, arb, audit_status,
-                            changed, interaction_id):
+                            changed, interaction_id, apply=True):
     """Ügyfél email frissítése + audit-nyomvonal (custom_data.email_verification).
-    A régi érték SOHA nem törlődik el hallgatagon: previous mező + interakció."""
+    A régi érték SOHA nem törlődik el hallgatagon: previous mező + interakció.
+    apply=False (non-green): az email-oszlop ÉRINTETLEN marad — csak az audit
+    íródik (a jelölt nem kerül autonom módon az ügyfélre)."""
     if not client_row:
         return
     try:
@@ -941,11 +1135,13 @@ def _apply_email_correction(client_row, stored_email, new_email, arb, audit_stat
             "confidence": arb.get("confidence", 0.0),
             "source": arb.get("source", ""),
             "status": audit_status,
+            "applied": bool(apply),
             "ts": datetime.now(timezone.utc).isoformat(),
         }
         update = {
             "name": client_row.get("name") or cd.get("name") or "Névtelen",
-            "email": new_email or client_row.get("email") or "",
+            "email": (new_email or client_row.get("email") or "") if apply
+            else (client_row.get("email") or cd.get("email") or ""),
             "phone": client_row.get("phone") or "",
             "custom_data": cd,
         }
@@ -980,26 +1176,37 @@ def _update_session_events_email(old_email, new_email, started_at):
 
 
 def _verify_name(booking_name, caller_text, norm_live, norm_scribe_caller,
-                 client_id=None, interaction_id=None):
-    """Név-jelöltek döntetlen-feloldása + autokorrekció (mindig, audit-tal).
-    Zöld csak a küszöb feletti bizalommal."""
+                 llm_name="", client_id=None, interaction_id=None):
+    """Név-jelöltek döntetlen-feloldása + autokorrekció. USER-SZABÁLY (élő
+    incidens: az agent bemutatkozóneve került ügyfél-névnek): ha a foglalás
+    NEM rögzített nevet, a harness NEM ír nevet — booking-név nélkül nincs
+    mit ellenőrizni, és a kinyért „név" az agent beszéde lehet."""
     try:
         live_name = (booking_name or "").strip()
+        if not live_name:
+            return None
         scribe_name = extract_scribe_name(caller_text)
         cands = extract_name_candidates(live_name, scribe_name)
+        if llm_name:
+            for v in (llm_name, fold_accents(llm_name)):
+                if v and v not in cands:
+                    cands.append(v)
         if not cands:
             return None
         arb = arbitrate(cands, context={
             "kind": "name",
             "live": live_name,
             "scribe": scribe_name,
+            "llm_value": (llm_name or "").strip(),
             "transcript_live": norm_live[:600],
             "transcript_scribe": norm_scribe_caller[:600],
         })
         winner = (arb.get("choice") or "").strip()
         conf = float(arb.get("confidence") or 0.0)
         changed = False
-        if client_id and winner and db.is_valid_client_name(winner) and winner.lower() != live_name.lower():
+        if (client_id and winner
+                and winner.lower() != live_name.lower()
+                and db.is_valid_client_name(winner)):
             changed = _apply_name_correction(client_id, live_name, winner, arb)
         return {
             "winner": winner,
