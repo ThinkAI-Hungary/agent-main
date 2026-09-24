@@ -165,6 +165,49 @@ def normalize_spoken_hu(text: str) -> str:
     return re.sub(r"\s+", " ", t).strip()
 
 
+# A diktálás körüli kontextus-szavak, amik a jelölthöz ragadhatnak
+_KNOWN_TLDS = ("com", "hu", "net", "org", "eu", "info", "gov", "edu")
+_LEAD_CONTEXT_WORDS = ("hogy", "tehat", "akkor", "ugy", "szoval")
+
+
+def _candidate_variants(cand: str) -> list:
+    """Jelölt-változatok a diktálás-környék szavainak levágásával:
+    - domain: az ISMERT TLD utáni rész levágva („citromail.hu.megjegyezted"
+      → „citromail.hu");
+    - lokál: az eleji kontextus-szó lehúzva („hogybalazs..." → „balazs...").
+    A leginkább tisztított változat áll előre (a felismerés az első
+    MX/whitelist-találatnál megáll), az eredeti az utolsó helyen marad."""
+    m = re.match(r"^([a-z0-9._%+\-]+)@([a-z0-9.\-]+)$", cand)
+    if not m:
+        return [cand]
+    local, domain = m.group(1), m.group(2)
+    cut = None
+    for tld in _KNOWN_TLDS:
+        marker = "." + tld
+        idx = domain.find(marker)
+        if idx != -1:
+            end = idx + len(marker)
+            cut = domain[:end] if (cut is None or end < len(cut)) else cut
+    domains = []
+    if cut and cut != domain:
+        domains.append(cut)
+    domains.append(domain)
+    variants = []
+    for d in domains:
+        loc = local
+        for w in _LEAD_CONTEXT_WORDS:
+            if loc.startswith(w) and len(loc) > len(w) + 2:
+                loc = loc[len(w):]
+                break
+        v = f"{loc}@{d}"
+        if v not in variants:
+            variants.append(v)
+    # Az EREDETI jelölt mindig megmarad (utolsó helyen) — a levágás tévedhet
+    if cand not in variants:
+        variants.append(cand)
+    return variants
+
+
 def extract_email_candidates(normalized_text: str) -> list:
     """Email-jelöltek kinyerése a normalizált szövegből. A szóközös
     műtermékeket („a @ b . c") is összefűzi, dedup, sorrend-tartó.
@@ -197,7 +240,14 @@ def extract_email_candidates(normalized_text: str) -> list:
             merged = new
         _scan(merged)
     _scan(squeezed)
-    return found
+    # Kontextus-szó variánsok: a tisztított változat ELŐRE („...hu.koszonom",
+    # „hogyvalaki@..." típusok), az eredeti az utolsó helyen megmarad.
+    expanded = []
+    for c in found:
+        for v in _candidate_variants(c):
+            if v not in expanded:
+                expanded.append(v)
+    return expanded
 
 
 def _levenshtein(a: str, b: str, cap: int = 3) -> int:

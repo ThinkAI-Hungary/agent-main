@@ -447,3 +447,23 @@ class TestSonioxTokens:
         import array as _a
         a = _a.array("h"); a.frombytes(pcm)
         assert sr == 16000 and list(a) == [100, 300]
+
+
+class TestCandidateVariants:
+    def test_tld_utani_levagas(self):
+        vs = evh._candidate_variants("hodi.akos13@citromail.hu.megjegyezted")
+        assert vs[0] == "hodi.akos13@citromail.hu"
+        assert vs[-1] == "hodi.akos13@citromail.hu.megjegyezted"
+
+    def test_lead_kontextus_lehuzas(self):
+        vs = evh._candidate_variants("hogybalazs.lederer@skyrocketgroup.hu.koszonom")
+        assert vs[0] == "balazs.lederer@skyrocketgroup.hu"
+        assert vs[-1] == "hogybalazs.lederer@skyrocketgroup.hu.koszonom"
+
+    def test_utolso_eredeti_megmarad(self):
+        vs = evh._candidate_variants("hodi.akos13@citromail.hu.megjegyezted")
+        assert vs[0] == "hodi.akos13@citromail.hu"
+        assert vs[-1] == "hodi.akos13@citromail.hu.megjegyezted"
+
+    def test_tiszta_jelolt_valtozatlan(self):
+        assert evh._candidate_variants("kovacs@gmail.com") == ["kovacs@gmail.com"]
