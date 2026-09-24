@@ -10,6 +10,7 @@ import sys
 import types
 from pathlib import Path
 
+import math
 import pytest
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -363,11 +364,11 @@ class TestChannelParsing:
 class TestTranscribeClient:
     def test_nincs_kulcs_ures(self, monkeypatch):
         monkeypatch.setenv("ELEVENLABS_API_KEY", "")
-        assert evh.transcribe_wav_bytes(b"abc") == {}
+        assert evh._transcribe_scribe(b"abc") == {}
 
     def test_ures_adat_ures(self, monkeypatch):
         monkeypatch.setenv("ELEVENLABS_API_KEY", "kulcs")
-        assert evh.transcribe_wav_bytes(b"") == {}
+        assert evh._transcribe_scribe(b"") == {}
 
     def test_ujraprobal_5xx_utan(self, monkeypatch):
         """429/5xx után újrapróbál, 200-nál visszaadja a JSON-t (sleep stub)."""
@@ -382,7 +383,7 @@ class TestTranscribeClient:
             return _FakeResponse(200, {"words": []})
 
         monkeypatch.setattr(evh.requests, "post", fake_post)
-        assert evh.transcribe_wav_bytes(b"abc") == {"words": []}
+        assert evh._transcribe_scribe(b"abc") == {"words": []}
         assert calls["n"] == 3
 
     def test_4xx_nincs_ujraproba(self, monkeypatch):
@@ -394,7 +395,7 @@ class TestTranscribeClient:
             return _FakeResponse(401)
 
         monkeypatch.setattr(evh.requests, "post", fake_post)
-        assert evh.transcribe_wav_bytes(b"abc") == {}
+        assert evh._transcribe_scribe(b"abc") == {}
         assert calls["n"] == 1
 
 
@@ -423,30 +424,41 @@ class TestSttDispatcher:
 
 
 class TestSonioxTokens:
-    def test_tokenek_to_words(self):
+    def test_async_tokenek_to_words(self):
         toks = [
-            {"text": "kovacs", "is_final": True, "confidence": 0.95},
-            {"text": "<fin>", "is_final": True, "confidence": 1.0},
+            {"text": "kovacs", "start_ms": 0, "end_ms": 300, "confidence": 0.95},
+            {"text": "akos", "start_ms": 300, "end_ms": 600},
             {"text": "", "confidence": 0.9},
             "szemét",
+            {"text": "<end>"},
         ]
-        words = evh._soniox_tokens_to_words(toks)
-        assert [w["text"] for w in words] == ["kovacs"]
-        assert words[0]["logprob"] < -0.04
+        words = evh._soniox_async_tokens_to_words(toks)
+        assert [w["text"] for w in words] == ["kovacs", "akos"]
+        assert words[0]["logprob"] == pytest.approx(math.log(0.95))
+        assert words[1]["logprob"] == -0.7  # nincs confidence → semleges
 
-    def test_wav_left_channel_mono(self):
-        import io as _io
-        import wave as _wave
-        import struct as _struct
-        buf = _io.BytesIO()
-        w = _wave.open(buf, "wb")
-        w.setnchannels(2); w.setsampwidth(2); w.setframerate(16000)
-        w.writeframes(_struct.pack("<hhhh", 100, -200, 300, -400))
-        w.close()
-        pcm, sr = evh._wav_left_channel_pcm(buf.getvalue())
-        import array as _a
-        a = _a.array("h"); a.frombytes(pcm)
-        assert sr == 16000 and list(a) == [100, 300]
+class TestSttDispatcher:
+    """HARNESS_STT_ENGINE diszpécser: soniox főmotor + scribe fallback."""
+
+    def test_soniox_ures_fallback_scribe(self, monkeypatch):
+        monkeypatch.setenv("HARNESS_STT_ENGINE", "soniox")
+        monkeypatch.setattr(evh, "_transcribe_soniox", lambda d: {})
+        monkeypatch.setattr(evh, "_transcribe_scribe", lambda d: {"words": [1]})
+        assert evh.transcribe_wav_bytes(b"x") == {"words": [1]}
+
+    def test_soniox_eredmeny_nem_hiv_scribe(self, monkeypatch):
+        monkeypatch.setenv("HARNESS_STT_ENGINE", "soniox")
+        calls = []
+        monkeypatch.setattr(evh, "_transcribe_soniox", lambda d: calls.append("s") or {"words": [1]})
+        monkeypatch.setattr(evh, "_transcribe_scribe", lambda d: calls.append("b") or {})
+        assert evh.transcribe_wav_bytes(b"x") == {"words": [1]}
+        assert calls == ["s"]
+
+    def test_scribe_engine_beallitva(self, monkeypatch):
+        monkeypatch.setenv("HARNESS_STT_ENGINE", "scribe")
+        monkeypatch.setattr(evh, "_transcribe_soniox", lambda d: (_ for _ in ()).throw(AssertionError("soniox nem hívódhat")))
+        monkeypatch.setattr(evh, "_transcribe_scribe", lambda d: {"words": []})
+        assert evh.transcribe_wav_bytes(b"x") == {"words": []}
 
 
 class TestCandidateVariants:
@@ -467,3 +479,19 @@ class TestCandidateVariants:
 
     def test_tiszta_jelolt_valtozatlan(self):
         assert evh._candidate_variants("kovacs@gmail.com") == ["kovacs@gmail.com"]
+
+
+class TestSonioxAsyncTokens:
+    def test_konverzio(self):
+        import math
+        toks = [
+            {"text": "kovacs", "confidence": 0.95},
+            {"text": "akos"},
+            {"text": "", "confidence": 0.9},
+            "szemét",
+            {"text": "<end>"},
+        ]
+        words = evh._soniox_async_tokens_to_words(toks)
+        assert [w["text"] for w in words] == ["kovacs", "akos"]
+        assert words[0]["logprob"] == pytest.approx(math.log(0.95))
+        assert words[1]["logprob"] == -0.7

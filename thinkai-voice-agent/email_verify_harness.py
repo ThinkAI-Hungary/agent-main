@@ -495,35 +495,22 @@ def _transcribe_scribe(data: bytes) -> dict:
     return {}
 
 
-# ── Soniox kliens (főmotor) ─────────────────────────────────────────────────
-_SONIOX_WS_URL = "wss://stt-rt.soniox.com/transcribe-websocket"
+# ── Soniox kliens (főmotor) — async fájl-átirat ─────────────────────────────
+_SONIOX_API = "https://api.soniox.com"
+_SONIOX_ASYNC_MODELS = ("stt-async-v5", "stt-async-v4")
+_SONIOX_POLL_INTERVAL_S = 3
+_SONIOX_POLL_MAX = 60          # ~3 perc — az átirat jellemzően 1-2 percen belül kész
 
 
-def _wav_left_channel_pcm(data: bytes) -> tuple:
-    """WAV bájtok → (mono PCM a BAL/hívó csatornáról, sample_rate).
-    Mono bemenet változatlanul megy tovább; hibánál (b'', 0)."""
-    import io as _io
-    import wave as _wave
-    try:
-        w = _wave.open(_io.BytesIO(data), "rb")
-        ch = w.getnchannels()
-        sr = w.getframerate()
-        frames = w.readframes(w.getnframes())
-        w.close()
-    except Exception:
-        return b"", 0
-    if ch <= 1:
-        return frames, sr
-    import array as _array
-    a = _array.array("h")
-    usable = frames[: len(frames) - (len(frames) % 2)]
-    a.frombytes(usable)
-    return a[0::ch].tobytes(), sr
+def _soniox_headers():
+    key = os.getenv("SONIOX_API_KEY", "")
+    return {"Authorization": f"Bearer {key}"} if key else None
 
 
-def _soniox_tokens_to_words(tokens: list) -> list:
-    """Soniox tokenek (text, is_final, confidence) → Scribe-kompatibilis
-    word-lista (logprob = ln(confidence), hogy a meglévő logprob-kapu működjön)."""
+def _soniox_async_tokens_to_words(tokens: list) -> list:
+    """Soniox async transcript tokenek (text, start_ms, end_ms, confidence?) →
+    Scribe-kompatibilis word-lista. Nincs confidence → semleges logprob (-0,7):
+    a token számít szónak, de a logprob-kapu nem utasítja el."""
     words = []
     for t in tokens:
         if not isinstance(t, dict):
@@ -531,81 +518,93 @@ def _soniox_tokens_to_words(tokens: list) -> list:
         text = str(t.get("text") or "")
         if not text or text in ("<end>", "<fin>"):
             continue
+        conf = t.get("confidence")
         try:
-            conf = float(t.get("confidence") or 0.0)
+            lp = math.log(max(float(conf), 1e-6)) if conf is not None else -0.7
         except (TypeError, ValueError):
-            conf = 0.0
-        words.append({
-            "text": text,
-            "type": "word",
-            "logprob": math.log(max(conf, 1e-6)),
-        })
+            lp = -0.7
+        words.append({"text": text, "type": "word", "logprob": lp})
     return words
 
 
 def _transcribe_soniox(data: bytes) -> dict:
-    """Soniox stt-rt-v4 websocket fájl-átirat a hívó (BAL) csatornáról.
-    Scribe-kompatibilis dict ({words: [...]}) — hibánál {} (fail-open)."""
-    api_key = os.getenv("SONIOX_API_KEY", "")
-    if not api_key or not data:
+    """Soniox async fájl-átirat: WAV feltöltés → transcription job → poll →
+    tokenek. Scribe-kompatibilis dict ({words: [...], text}) — hibánál {}
+    (fail-open). SOSEM dob kivételt."""
+    H = _soniox_headers()
+    if not H or not data:
         logger.warning("Soniox STT kihagyva (nincs kulcs vagy hanganyag)")
         return {}
+
+    # 1) fájl feltöltés
     try:
-        import aiohttp
-    except ImportError:
-        logger.warning("Soniox STT kihagyva: aiohttp nem elérhető")
+        r = requests.post(_SONIOX_API + "/v1/files", headers=H,
+                          files={"file": ("audio.wav", data, "audio/wav")},
+                          timeout=120)
+        if r.status_code not in (200, 201):
+            logger.warning(f"Soniox file upload hiba: HTTP {r.status_code} {r.text[:150]}")
+            return {}
+        file_id = r.json().get("id")
+    except requests.RequestException as exc:
+        logger.warning(f"Soniox file upload hiba: {exc}")
         return {}
-    pcm, sr = _wav_left_channel_pcm(data)
-    if not pcm:
+    if not file_id:
+        logger.warning("Soniox file upload: nincs file_id a válaszban")
         return {}
-    tokens: list = []
 
-    async def _run():
-        timeout = aiohttp.ClientWSTimeout(ws_close=30)
-        async with aiohttp.ClientSession() as session:
-            async with session.ws_connect(_SONIOX_WS_URL, timeout=timeout) as ws:
-                await ws.send_str(json.dumps({
-                    "api_key": api_key,
-                    "model": "stt-rt-v4",
-                    "audio_format": "pcm_s16le",
-                    "num_channels": 1,
-                    "sample_rate": sr or SAMPLE_RATE,
-                    "language_hints": ["hu"],
-                    "enable_endpoint_detection": False,
-                }))
-
-                async def _sender():
-                    chunk = 6400  # 200 ms mono 16 bit
-                    for off in range(0, len(pcm), chunk):
-                        await ws.send_bytes(pcm[off:off + chunk])
-                        await asyncio.sleep(0.01)
-                    await asyncio.sleep(2.0)  # a vég-tokenek kifolyása
-                    await ws.close()
-
-                sender = asyncio.create_task(_sender())
-                try:
-                    async for msg in ws:
-                        if msg.type != aiohttp.WSMsgType.TEXT:
-                            continue
-                        try:
-                            payload = json.loads(msg.data)
-                        except ValueError:
-                            continue
-                        tokens.extend(
-                            t for t in payload.get("tokens") or []
-                            if isinstance(t, dict)
-                        )
-                except Exception:
-                    pass  # a ws bezárult
-                sender.cancel()
-
-    try:
-        asyncio.run(_run())
-    except Exception as exc:
-        logger.warning(f"Soniox STT hiba (fail-open): {exc}")
+    # 2) transcription job (modell-verzió fallback: v5 → v4)
+    tr_id = None
+    last_err = ""
+    for model in _SONIOX_ASYNC_MODELS:
+        try:
+            r = requests.post(_SONIOX_API + "/v1/transcriptions", headers=H,
+                              json={"file_id": file_id, "model": model,
+                                    "language_hints": ["hu"]},
+                              timeout=60)
+        except requests.RequestException as exc:
+            last_err = str(exc)
+            continue
+        if r.status_code in (200, 201):
+            tr_id = (r.json() or {}).get("id")
+            break
+        last_err = f"HTTP {r.status_code} {r.text[:120]}"
+    if not tr_id:
+        logger.warning(f"Soniox transcription create sikertelen: {last_err}")
         return {}
-    words = _soniox_tokens_to_words(tokens)
+
+    # 3) poll: completed → transcript letöltés
+    tokens = None
+    for _ in range(_SONIOX_POLL_MAX):
+        time.sleep(_SONIOX_POLL_INTERVAL_S)
+        try:
+            r = requests.get(_SONIOX_API + f"/v1/transcriptions/{tr_id}",
+                             headers=H, timeout=30)
+            status = (r.json() or {}).get("status")
+        except Exception as exc:
+            logger.warning(f"Soniox poll hiba: {exc}")
+            continue
+        if status == "completed":
+            try:
+                r2 = requests.get(_SONIOX_API + f"/v1/transcriptions/{tr_id}/transcript",
+                                  headers=H, timeout=60)
+                tokens = (r2.json() or {}).get("tokens")
+            except Exception as exc:
+                logger.warning(f"Soniox transcript letöltés hiba: {exc}")
+            break
+        if status in ("error", "failed"):
+            logger.warning("Soniox transcription error státusz")
+            break
+
+    # 4) fiók-rendezés: transcription + file törlése (a tartalom már nálunk)
+    for path in (f"/v1/transcriptions/{tr_id}", f"/v1/files/{file_id}"):
+        try:
+            requests.delete(_SONIOX_API + path, headers=H, timeout=30)
+        except Exception:
+            pass
+
+    words = _soniox_async_tokens_to_words(tokens or [])
     if not words:
+        logger.warning("Soniox STT: üres átirat")
         return {}
     text = re.sub(r"\s+", " ", " ".join(w["text"] for w in words)).strip()
     return {"text": text, "words": words}
