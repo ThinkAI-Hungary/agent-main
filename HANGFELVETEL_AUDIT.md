@@ -179,3 +179,12 @@ A user a Telnyx portál **CDR-exportját** adta a 11:25-ös teszthívásról (`+
 4. **Staging Telnyx kulcs**: a rivergate tenant `tenant_credentials.telnyx_api_key`-be téve (titkosítva + audit).
 
 **Következő verifikáció**: a user **5 email-diktálásos teszthívása** stagingen → ezeken mérjük: (a) a rögzítő minőség-javulást (hallgatói A/B), (b) a Soniox-főmotor átiratának email-pontosságát a Scribe/Gemini árnyékkal szemben, (c) a harness green/non-green döntéseit és a dupla opt-in flow-t. Utána: prod-deploy döntés.
+
+## Kiegészítés 5 — audio_qc eszköz (user-adta) minden hívásra
+
+`scripts/audio_qc.py` — referencia nélküli hangminőség-mérés WAV-on (numpy): beszédszint, SNR, digitális nullás rések beszéd közben, dupla 20 ms-os frame-ek, kattanások, clipping, rolloff99 (szűksáv-jelzés), DC offset → OK / HATÁRESET / ROSSZ verdikt. **A folyamat része: minden új hívásrögzítésen lefuttatjuk mindkét csatornára** a harness-verdikt mellett.
+
+**Alapvonal a RÉGI rögzítővel** (`call-_+36706369528_WVqaSCoczQqV`, 92 s):
+- Hívó (ch0): **HATÁRESET** — rolloff99 2250 Hz (szűksáv forrás), 4 digitális rés beszéd közben (2,6/perc, medián 15 ms = a régi grid-artefakt), szint −18,4 dBFS, SNR ~80 dB, dupla frame 0
+- Agent (ch1): **OK** — rolloff99 5843 Hz (szélessáv), 1 kis rés, 1,97 kattanás/perc
+Ez az A/B kiindulópont: az 5 új teszthíváson a gaps_per_min és a hallható minőség javulását mérjük.
