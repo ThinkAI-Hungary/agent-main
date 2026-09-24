@@ -8,51 +8,34 @@
 
 ---
 
-# 🎯 START CSOMAG — WP-E2 folytatás új sessionben (2026-09-24; ELSŐNEK Ezt olvasd)
+# 🎯 START CSOMAG — WP-E2 folytatás új sessionben (2026-09-24 éjszaka; ELSŐNEK Ezt olvasd)
 
-**Állapot egy mondatban**: a WP-E LLM+JEV redesign él (deployolva), és a **WP-E2 munkautalvány** (független zöld-kapu + audio-LLM olvasat + 50 teszthívás + replay) készre van fejlesztve: az **MU-0 deployolva (`9282fd4`)** — a 50 hívás EZZEL fusson (baseline) —, az **MU-1/MU-2/MU-3 kód kész a repóban (`9c7e459`), TILOS deployolni az 50 hívás VÉGÉIG**.
+**Állapot egy mondatban**: az 50 hívás ELŐKÉSZÍTÉSE megvolt, de az első ~13 próbahívás felfedte egy **kritikus worker-hibát** (a klasszifikáció spawn-olt taskként a process-kilépéskor elhalt — 12× „process did not exit in time", 0 harness-eredmény); **HOTFIX deployolva (`46f9195`**: `_run_classification` awaitelve 280 s plafonnal), a 13 hívás adatait **recovery-vel visszanyertük** (`scripts/recover_eval_calls.py`, replay sorok + ground_truth DB-ben) — az első 11 párosítható híváson az **audio-olvasat 11/11, stt 9/9 pontos, zöld precizitás 6/6, 0 rossz zöld** (nyitott: B21 pinter.szilvia.92 vs pinter.szilvia92 pontkérdés a usernek). Most: 1 próbahívással ellenőrizni az await-fixet („✅ Voice session" log + `email_verify_runs` live sor + `dry_run` email), aztán folytatni a 50 hívást.
 
-**Environment gyorsan**: staging `https://digideskadmin.molaire.hu` (konténer: ez a host, `/root/ugyfelszolg/docker-compose.yml` → `dobozos-agent`); branch `rebuild`, HEAD `9c7e459` (deployolt build: `9282fd4`); Supabase staging = `qhhnqqsthdrwacsxommt`, **prod = `dsiluafthysysnstszbd` (az MCP defaultja EZ — vigyázz!)**. Staging DDL/SELECT: Management API `POST https://api.supabase.com/v1/projects/qhhnqqsthdrwacsxommt/database/query`, Bearer = sbp token (`/root/.zcode/cli/config.json` → `.mcp.servers.supabase.args[3]`). Staging-identitás: a `client_change_log` tábla csak stagingen létezik.
+**Environment gyorsan**: staging `https://digideskadmin.molaire.hu` (konténer: ez a host, `/root/ugyfelszolg/docker-compose.yml` → `dobozos-agent`); branch `rebuild`, deployolt HEAD `46f9195`; Supabase staging = `qhhnqqsthdrwacsxommt`, **prod = `dsiluafthysysnstszbd` (az MCP defaultja EZ — vigyázz!)**. Staging DDL/SELECT: Management API `POST https://api.supabase.com/v1/projects/qhhnqqsthdrwacsxommt/database/query`, Bearer = sbp token (`/root/.zcode/cli/config.json` → `.mcp.servers.supabase.args[3]`).
 
-## 1. Mi él MOST a stagingen (baseline, `9282fd4`)
+## 1. Élő rendszer (staging, `46f9195`)
 
-- **EMAIL_DRY_RUN=1**: minden ügyfélnek menő email (visszaigazoló, dupla opt-in, emlékeztető) Brevo-hívás helyett logol, `email_logs.status="dry_run"`. Idegen/kitalált címre NEM megy valós levél. (Éles küldéshez: `EMAIL_DRY_RUN=0`!)
-- **`email_verify_runs` tábla** (migrate_email_verify_runs.sql futtatva): minden hívás után a harness ír egy sort (mode=live, pipeline_version=baseline, readings/gate/timings/winner/verdict, caller_number).
-- **EVAL_CALLER_NUMBERS**: a szerver kihagyja az ügyfél-kontextus injectálást (`server.py _is_eval_caller`) ezekre a számokra. ⚠️ **A `.env`-be MÉG BE KELL ÍRNI a két tesztelő számát a hívások ELŐTT** (`# EVAL_CALLER_NUMBERS=...` komment van a helyén), majd `update.sh`.
-- EMAIL_VERIFY_MODE=1, RECORDINGS_ENABLED=1, harness: Soniox→LLM(gemini-3.8-flash)→jelöltek→JEV→verdict; non-green → dupla opt-in, ügyfél-oszlop érintetlen; booking-név nélkül név-írás nincs.
+- **wp-e2 pipeline ÉL** (nem baseline!): független kapu (live+stt+audio readings, GREEN_3OF3 / GREEN_2OF2_KNOWN / NG_CONTRADICTION / NG_NO_EMAIL…), Soniox a kinyontott HÍVÓ csatornán + audio-LLM (gemini-3.8-flash inline audio) PÁRHUZAMOSAN (mérés: soniox 6–10 s, audio 2–4 s, total 10–21 s), JEV csak rangsorol (`EMAIL_VERIFY_JEV_GREEN=0`).
+- **EMAIL_DRY_RUN=1** — nincs valódi email; `email_logs.status="dry_run"` sor keletkezik.
+- **EVAL_CALLER_NUMBERS=+36709436426,+36706369528** — ezekre a számokra az agent nem kap ügyfél-kontextust (`server.py _is_eval_caller`).
+- **HOTFIX `46f9195`**: `_run_classification` most `await asyncio.wait_for(..., timeout=280)` — a korábbi `_spawn` miatt a folyamat kilépett, mielőtt a harness kész lett volna (gyökérok: WP-D óta spawn; LiveKit `close_timeout` 10 s).
+- `email_verify_runs` tábla: minden futás (live ÉS replay) ide ír.
 
-## 2. A 50 teszthívás menete (a user vállalta)
+## 2. Teendők a következő sessionben
 
-1. `.env`: `EVAL_CALLER_NUMBERS=<A száma>,<B száma>` beírása + deploy.
-2. Ellenőrzés: ≥60 szabad időpont a staging naptárban; 1 próbahívás → `email_verify_runs`-ban pontosan 1 baseline sor + `email_logs`-ban `dry_run` sor + Brevo-dashboardon nincs küldés.
-3. A hívások a `tesztlista_50_hivas.csv` szerint (sor 1–15 csend, 16+ utca, kijelölt sorok kihangosító). Hívás után a tesztelő kitölti: `idopont` (HH:MM) és `statusz` (üres/`ok`).
-4. ⚠️ **Az 50 hívás alatt NEM deployolunk** — a wp-e2 build (`9c7e459`) a repóban vár. Ha muszáj deployolni más okból, előtte `EMAIL_VERIFY_PIPELINE_VERSION=baseline` env kell, hogy a runs-címke ne keveredjen.
+1. **1 próbahívás** (bármelyik eval számról, diktáljunk címet) → ellenőrzés: logban „✅ Voice session … classified" + nincs „process did not exit"; `email_verify_runs`-ban mode=live sor; `email_logs`-ban dry_run sor. HA a live sor megvan → mehet a 50 hívás.
+2. 50 hívás a `tesztlista_50_hivas.csv` szerint; hívás után `idopont` + `statusz` kitöltése (a párosítás ETTŐL függ).
+3. A hívások után: `scripts/replay_harness.py --csv ... --date <nap> --callers A=+36709436426,B=+36706369528` (konténerben) → baseline vs wp-e2 összesítő. A már meglévő 11+2 hívás recovery-replay sorai DB-ben vannak (ground_truth-val) — az összesítőbe beleszámítanak.
+4. **USER-kérdés**: B21-nél a CSV `pinter.szilvia.92@gmail.com` (pont a 92 előtt) — a beolvasatok mind `pinter.szilvia92`-t hallottak. Mit diktáltak pontosan? Ennyi a különbség: 0 vagy 1 rossz zöld az eddigi szettben.
+5. HANDOFF-ba az 50 hívás végső eredménye; élesítés (EMAIL_DRY_RUN=0) csak user-döntés után.
 
-## 3. A hívások UTÁN: wp-e2 deploy + replay
+## 3. Nyitott tételek (user-döntést várnak)
 
-1. `bash update.sh` (a wp-e2 pipeline él — live sorok innentől `pipeline_version=wp-e2`).
-2. Replay (konténerben):
-   ```
-   docker exec digidesk-dobozos-agent sh -c "cd /app && python scripts/replay_harness.py \
-     --csv tesztlista_50_hivas.csv --date <tesztnap> --callers A=+36...,B=+36..."
-   ```
-   Dry-run replay: nincs email/ügyfél-írás; `email_verify_runs`-ba mode=replay sorok ground_truth-val; a baseline sorokba is beírja a ground_truth-t; audio_qc mindkét csatornán; végül baseline vs wp-e2 összesítő (zöld precizitás, rossz-zöld darabszám = a FŐ mérce, bontások, 3/n korlát-kiírás).
-3. A mérés eredménye a HANDOFF-ba, majd a user dönt az élesítésről (EMAIL_DRY_RUN=0; autonom zöld ennél a szettnél NEM élesíthető — 50 hívás kevés a biztonsághoz).
-
-## 4. WP-E2 kulcsdöntések (ami a kódban él)
-
-- A kapu CSAK **független** források karakterpontos (kanonizált) egyezésénél ad zöldet: `live` (foglalási élő olvasat) + `stt` (LLM KIZÁRÓLAG a hívó-csatorna STT-szövegből) + `audio` (LLM közvetlenül a hívó csatorna HANGJából). Ismert domainnél 2 egyező elég, ismeretlennél 3 kell; bármely két forrás eltérése → NG_CONTRADICTION (dupla opt-in).
-- Az STT mostantól a kinyontott hívó csatornán fut → a szöveg biztosan hívó-only (az agent-beszéd nem szivároghat az stt olvasatba).
-- Soniox vs audio-LLM párhuzamosan fut (220 s belső deadline); hosszú (>300 s) hívásnál az audio-ablak a Soniox jelzőtokenjeiből vágódik.
-- JEV: `EMAIL_VERIFY_JEV_GREEN=0` (default) → csak rangsorol. `=1` → ÉS-kapcsolat a kapuval.
-- Autonóm korrekció (ügyfél email-oszlop írása) CSAK green verdictnél; a dupla opt-in a jelöltre megy.
-
-## 5. Nyitott tételek (user-döntést várnak)
-
-1. **14 vs 30 nap GDPR-szöveg**: az agent 14 napot mond, a retention 30 — összehangolás.
-2. **Szélessávú HU bejövő**: a Telnyx HU DID upstream szűksáv — provider-döntés.
-3. **Prod-deploy checklist**: `migrate_recording_columns.sql`, `migrate_interaction_count_toollog.sql`, `migrate_calendar_events_note.sql`, `migrate_client_change_log.sql`, `migrate_completion_timestamps.sql`, `migrate_email_verify_runs.sql`, prod `text_configs.system_prompt` címkeblokk + prod env (EMAIL_VERIFY_MODE, EMAIL_DRY_RUN=0, SONIOX_API_KEY, stb.).
-4. Részletes stack-leírás külső agentnek: `WP_E_STACK_BRIEF.md` (a WP-E2 munkautalvány mellé).
+1. **14 vs 30 nap GDPR-szöveg** összehangolása.
+2. **Szélessávú HU bejövő** (Telnyx DID upstream szűksáv) — provider-döntés.
+3. **Prod-deploy checklist**: `migrate_recording_columns.sql`, `migrate_interaction_count_toollog.sql`, `migrate_calendar_events_note.sql`, `migrate_client_change_log.sql`, `migrate_completion_timestamps.sql`, `migrate_email_verify_runs.sql` + prod env (EMAIL_VERIFY_MODE, EMAIL_DRY_RUN=0, SONIOX_API_KEY, EVAL_CALLER_NUMBERS NEM kell prodra).
+4. Részletes stack-leírás: `WP_E_STACK_BRIEF.md`.
 
 ---
 
