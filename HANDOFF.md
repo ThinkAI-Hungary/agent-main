@@ -14,7 +14,16 @@
 
 **Environment gyorsan**: staging `https://digideskadmin.molaire.hu` (konténer: ez a host, `/root/ugyfelszolg/docker-compose.yml` → `dobozos-agent`); branch `rebuild`, deployolt HEAD `46f9195`; Supabase staging = `qhhnqqsthdrwacsxommt`, **prod = `dsiluafthysysnstszbd` (az MCP defaultja EZ — vigyázz!)**. Staging DDL/SELECT: Management API `POST https://api.supabase.com/v1/projects/qhhnqqsthdrwacsxommt/database/query`, Bearer = sbp token (`/root/.zcode/cli/config.json` → `.mcp.servers.supabase.args[3]`).
 
-## 1. Élő rendszer (staging, `46f9195`)
+## 1.1 Session-keveredés incidens (2026-09-24 éjjel) + javítások (`4d9c21f`)
+
+A 13 próbahívásnál a user session-keveredést látott (az agent „Bertalanként mutatkozott be"). Gyökerek, mind javítva:
+1. **book_meeting hívószám-ügyfél merge**: ugyanarról a tesztszámról a hívások EGY ügyfél-bejegyzést folyamatosan felülírtak (303 = „Kovács Bertalan" név + „kis_anna05@gmail.com"). EVAL hívószámon a merge KIHAGYVA (`tools.is_eval_caller` — közös helper, az entrypoint is ezt használja).
+2. **Névv leaking a tool-kimenetekből**: a book_meeting ütközés-üzenet a másik esemény CÍMÉT is tartalmazta („Konzultáció - Kovács Bertalan") — ebből mondta a modell, hogy Bertalan. + `check_calendar` eseménycímeket listázott. Mindkettő mostanra csak idősávot ad (ADATVÉDELEM — prod releváns is: más ügyfél neve nem mehet ki hívónak).
+3. Staging DB tiszta lap (calendar_events 18 db demo+teszt, clients, interactions, sessions, email_logs törölve; **email_verify_runs 13 recovery mérés megőrizve**).
+
+⚠️ A naptári név-szivárgás PROD-ban is él (privacy: az agent kimondhatja más ügyfél foglalását) — a javítás ezzel prod-ba is kerül.
+
+## 1b. Élő rendszer (staging, `4d9c21f`)
 
 - **wp-e2 pipeline ÉL** (nem baseline!): független kapu (live+stt+audio readings, GREEN_3OF3 / GREEN_2OF2_KNOWN / NG_CONTRADICTION / NG_NO_EMAIL…), Soniox a kinyontott HÍVÓ csatornán + audio-LLM (gemini-3.8-flash inline audio) PÁRHUZAMOSAN (mérés: soniox 6–10 s, audio 2–4 s, total 10–21 s), JEV csak rangsorol (`EMAIL_VERIFY_JEV_GREEN=0`).
 - **EMAIL_DRY_RUN=1** — nincs valódi email; `email_logs.status="dry_run"` sor keletkezik.
