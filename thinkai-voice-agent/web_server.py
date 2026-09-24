@@ -39,8 +39,8 @@ from email_confirm_page import (
     load_token_context,
     render_confirm_page,
     apply_confirmation,
+    validate_confirmation_email,
 )
-from email_verify_harness import validate_confirmation_email
 
 THIS_DIR = Path(__file__).resolve().parent
 load_dotenv(THIS_DIR / ".env")
