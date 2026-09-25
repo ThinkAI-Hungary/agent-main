@@ -8,6 +8,8 @@
 - **Prod system_prompt szinkron** (3418 → 7234, staging 09-22-es verzió).
 - **Verifikáció**: konténer healthy, 0 ERROR, health 200, /e/{token} él, twilio-callback 403 aláírás nélkül, md5-egyezés (harness/sms_sender/confirm_page/email_processor), 4 prod tenant (Dentors Szeged, Rivergate, TestCo, Demo) — az M6 tenant-fix itt kritikus.
 - **GDPR**: user döntés — prompt 14 napot mond, retention 30 nap marad (nem egységesítettük).
+- **KÖZBEN ELKAPVA**: RECORDINGS_ENABLED hiányzott a prod envből (default 0 → a rögzítés ÉS az egész hívás utáni ellenőrzés kikapcsolt volna) — pótolva (REC=1, RET=30), konténer recreate + healthy.
+- **Kulcs-leltár (prod)**: env-ben minden szükséges megvan (SONIOX, GOOGLE/GEMINI, ELEVENLABS, OPENROUTER, BREVO, JWT, LIVEKIT, TWILIO*, RECORDINGS_*). Tenant-kulcsok DB-ben: Dentors Szeged komplett (Brevo+IMAP+Telnyx+sip_phone_number), Rivergate: Brevo+IMAP megvan, **Telnyx + sip_phone_number NINCS** (ha Rivergate-nek is kell prod voice-hívás, azt pótolni kell — Telnyx portal + tenant_credentials), Demo/TestCo: nincs kulcs (demo-bérlők). EVAL_CALLER_NUMBERS szándékosan NINCS prodban.
 - **Következő napok figyelendő**: első éles hívások után email_verify_runs / sms_logs / email_logs sorok, dupla opt-in kattintások; a review-maradványok (HANDOFF 1f) és a PUBLIC domain-döntés ismert nyitott tétel maradt.
 
 ## ⚠️ ÁLLANDÓ MUNKAREND — minden sessionnek
