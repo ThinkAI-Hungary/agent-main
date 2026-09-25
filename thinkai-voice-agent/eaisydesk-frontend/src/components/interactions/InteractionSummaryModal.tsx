@@ -903,10 +903,12 @@ export default function InteractionSummaryModal({
     [hasRecording, row.sessionId]
   );
 
+  // WP-E3 review: a lejárt token (8 óra) miatt a metadata-kérés csendben 401-ezett
+  // → 0:00/0:00 maradt. A src mindig PLAY-kor friss token-nel állítódik be.
   const handlePlayPause = useCallback(() => {
     const el = audioRef.current;
     if (!el || !recordingSrc) return;
-    if (!el.src) {
+    if (el.error || !el.currentSrc) {
       el.src = recordingSrc;
       el.load();
     }
@@ -1085,6 +1087,15 @@ export default function InteractionSummaryModal({
                   // (React pooled-event viselkedés) — az értéket szinkronban mentjük.
                   const d = e.currentTarget.duration || 0;
                   setAudioTime((t) => ({ ...t, dur: d }));
+                }}
+                onError={(e) => {
+                  // Lejárt token (401) → egyszeri újrapróbálás friss token-nel
+                  const a = e.currentTarget;
+                  if (!a.dataset.retried) {
+                    a.dataset.retried = '1';
+                    a.src = `/admin/api/sessions/${row.sessionId}/recording?token=${encodeURIComponent(getToken())}`;
+                    a.load();
+                  }
                 }}
               />
             </div>

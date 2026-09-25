@@ -1328,6 +1328,14 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             result: summaryModalRow.result,
             interactionId: summaryModalRow.interactionId,
             sessionId: summaryModalRow.sessionId,
+            // Hívásrögzítés (WP D): a profilból nyitott popupban is legyen lejátszó —
+            // a recording_url a sessions-sorból, a transcript_turns az interakcióból
+            recording_url: summaryModalRow.recording_url
+              || (sessions || []).find((x) => x.session_id === summaryModalRow.sessionId)?.recording_url
+              || null,
+            transcript_turns: summaryModalRow.transcript_turns
+              ?? summaryModalRow.interactions?.find((i) => i.transcript_turns)?.transcript_turns
+              ?? null,
             ai_draft_response: summaryModalRow.ai_draft_response,
             approval_status: summaryModalRow.approval_status,
             received_at: summaryModalRow.received_at,

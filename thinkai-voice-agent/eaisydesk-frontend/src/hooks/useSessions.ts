@@ -43,6 +43,9 @@ export interface SessionSummary {
   summary?: string;
   channel?: string;
   interactions?: SessionInteraction[];
+  // Hívásrögzítés (WP D/E3): a profil-popup lejátszója is ebből dolgozik
+  recording_url?: string | null;
+  transcript_turns?: unknown;
 }
 
 // Hívásrögzítés (WP D): a worker által rögzített egy turnus a hang időtengelyén
