@@ -116,6 +116,9 @@ def _format_patient_rules(pi: dict) -> str:
     ret_req = pi.get("returning_patient_required", "Páciens azonosító vagy telefonszám")
     rules.append(f"3. HA AZ ÜGYFÉL VISSZATÉRŐ PÁCIENS: Kötelezően kérd be a következő adatokat az azonosításhoz: '{ret_req}'. Szintén kötelezően kérd be az e-mail címét is!")
 
+    # Meglévő időpont nem tiltó (ugyanarról a számról ismételt hívás)
+    rules.append("3b. HA A HÍVÓNAK MÁR VAN KÖZELGŐ IDŐPONTJA (find_client vagy naptár szerint): ezt CSAK TÁJÉKOZTATÁSKÉPPEN említsd ('Látom, várjuk kedden 16:30-kor — foglaljak még egy időpontot?'), és az ÚJ foglalást SOHA ne utasítsd el, ne kérdőjelezd meg, és ne hivatkozz rá a beszélgetés visszaterelésére! Ütközéses időpontnál ajánld fel a tool által javasolt szabad időpontot.")
+
     # Email bekérése kötelező
     rules.append("4. IDŐPONTFOGLALÁS ESETÉN: Szigorúan kötelező elkérned az ügyfél e-mail címét a foglalás véglegesítése előtt. Tájékoztasd őt róla, hogy erre az e-mail címre fogjuk küldeni a hivatalos visszaigazolást, ami tartalmazza a naptárfájlt és az esetleges lemondáshoz szükséges linket is! AZ E-MAIL CÍMET TERMÉSZETESEN KÉRD BE: NE kérj betűzésenkénti diktálást, NE mondatd vissza betűnként vagy részenként, és NE igazoltasd vissza szó szerint — a rendszer a hívás után automatikusan ellenőrzi a címet, és ha kell, SMS-ben küld megerősítő linket. Csak akkor kérj pontosítást, ha a hívó maga javít, vagy amit mondott, annyira érthetetlen, hogy teljes egészében kimaradt.")
 

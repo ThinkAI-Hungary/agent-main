@@ -1506,8 +1506,11 @@ def _mask_email(email: str) -> str:
     "Ügyfél keresése a nyilvántartásban — a hívás ELEJÉN használd (paraméter nélkül "
     "a hívó telefonszámára keres)! Visszatérés: a tárolt profil (név, email, telefon, "
     "címkék, közelgő időpontok). Visszatérő ügyfélnél üdvözöld néven, a tárolt adatokat "
-    "NE kérd be újra — csak erősítsd meg. Érzékeny adatokat (korábbi időpontok) csak "
-    "második azonosító UTÁN olvass vissza!"
+    "NE kérd be újra — csak erősítsd meg. A KÖZELGŐ IDŐPONTOK TÁJÉKOZTATÓK, NEM TILTÓK: "
+    "ha az ügyfélnek van már időpontja, azt legfeljebb röviden említsd ('Látom, várjuk …' "
+    "— foglaljak még egyet?') és az ÚJ foglalást SOHA ne utasítsd el és ne kérdőjelezd "
+    "meg miatta! Érzékeny adatokat (korábbi időpontok) csak második azonosító UTÁN "
+    "olvass vissza!"
 ))
 async def find_client(
     ctx: RunContext,
