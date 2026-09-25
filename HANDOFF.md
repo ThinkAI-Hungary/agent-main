@@ -1,5 +1,15 @@
 # HANDOFF — eaisyDesk | 2026-09-14
 
+## 🚀 PROD ÉLESÍTÉS (2026-09-25, user döntésre — a 10 hívásos teszt KIHAGYVA)
+
+**A teljes Balázs-scope + WP-E/E2/E3 stack ÉLESBEN van** (`65a3b6f` a prodon, előtte `ee8ea20` volt):
+- **Prod-migrációk 14/14 él** (recording_url, transcript_turns, closed_at/completed_at, calendar note, client_change_log, email_verify_runs + SMS/confirm oszlopok, sms_logs, email_confirm_tokens event_ids INT[] + client_id, get_grouped_interactions RPC, recordings bucket privát).
+- **Prod env**: EMAIL_VERIFY_MODE=1, FLOW=smsfirst, SMS_MODE=nongreen, **EMAIL_DRY_RUN=0** (éles email — user OK), **SMS_DRY_RUN=0** (éles SMS a +36707177914-ről — user OK), TWILIO_* + OPENROUTER_API_KEY fent, PUBLIC_CONFIRM_BASE_URL=https://desk.eaisy.hu. RENDELO_NAME szándékosan NINCS (multi-tenant: a tenants.name-ad megy az SMS-be).
+- **Prod system_prompt szinkron** (3418 → 7234, staging 09-22-es verzió).
+- **Verifikáció**: konténer healthy, 0 ERROR, health 200, /e/{token} él, twilio-callback 403 aláírás nélkül, md5-egyezés (harness/sms_sender/confirm_page/email_processor), 4 prod tenant (Dentors Szeged, Rivergate, TestCo, Demo) — az M6 tenant-fix itt kritikus.
+- **GDPR**: user döntés — prompt 14 napot mond, retention 30 nap marad (nem egységesítettük).
+- **Következő napok figyelendő**: első éles hívások után email_verify_runs / sms_logs / email_logs sorok, dupla opt-in kattintások; a review-maradványok (HANDOFF 1f) és a PUBLIC domain-döntés ismert nyitott tétel maradt.
+
 ## ⚠️ ÁLLANDÓ MUNKAREND — minden sessionnek
 
 - **Ezt a HANDOFF.md-t MINDEN utasítás elvégzése UTÁN frissíteni kell** (mit csináltunk, hol állunk, mi a következő lépés), majd commit + push `origin/rebuild`-re. Cél: bármikor indulhat új session, ebből a fájlból kell tudnia folytatni.
