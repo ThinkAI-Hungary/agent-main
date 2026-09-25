@@ -566,6 +566,13 @@ def log_interaction(type: str, topic: str = "", summary: str = "", result: str =
             data["client_id"] = client_id
         if classification is not None:
             data["classification"] = classification
+            # WP-C review-javítás: a MÓDOSÍTÁS-kerülő autonóm lezárások (voice
+            # klasszifikáció 'Lezárt' + approval_status='approved') is kaptak
+            # closed_at-et — nélkülük a 'Ma elvégzett' sistemésen alulmért
+            if (approval_status == "approved"
+                    and isinstance(classification, dict)
+                    and (classification.get("statusz") or "") == "Lezárt"):
+                data["closed_at"] = datetime.now(timezone.utc).isoformat()
         if received_at:
             # A bejövő levél VALÓS beérkezési ideje (Date fejléc) — a
             # feldolgozási idő pontatlan lehet (IMAP poll késése)
@@ -1554,15 +1561,18 @@ def get_interactions(limit: int = 100, type_filter: str = "") -> list[dict]:
         res = query.execute()
         interactions = res.data
         
-        # Enrich with session participant names
+        # Enrich with session participant names + hívásrögzítés (WP D/E3:
+        # a profil-popup lejátszója a flat feedből is megkapja a recording_url-t)
         session_ids = list(set(i.get("session_id") for i in interactions if i.get("session_id")))
         if session_ids:
-            sess_res = _tenant_eq(supabase.table("sessions").select("session_id, participant")).in_("session_id", session_ids).execute()
-            sess_map = {s["session_id"]: s.get("participant", "") for s in (sess_res.data or [])}
+            sess_res = _tenant_eq(supabase.table("sessions").select("session_id, participant, room_name, recording_url")).in_("session_id", session_ids).execute()
+            sess_map = {s["session_id"]: s for s in (sess_res.data or [])}
             for i in interactions:
                 sid = i.get("session_id")
                 if sid and sid in sess_map:
-                    i["participant"] = sess_map[sid]
+                    i["participant"] = sess_map[sid].get("participant", "")
+                    i["room_name"] = sess_map[sid].get("room_name")
+                    i["recording_url"] = sess_map[sid].get("recording_url")
         
         return interactions
     except Exception:

@@ -19,7 +19,8 @@ export interface SessionInteraction {
   ai_draft_response?: string;
   alert_tags?: string[];
   funnel_stage?: string;
-  // Hívásrögzítés (WP D): turnusonkénti {role,text,start_s} JSONB a bubble-szintű seekhez
+  // Hívásrögzítés (WP D): turnusonkénti {role,text,start_s  transcript_turns?: unknown;
+} JSONB a bubble-szintű seekhez
   transcript_turns?: unknown;
   classification?: {
     ugytipus?: string;
@@ -125,6 +126,10 @@ export function useSessions(limit = 100): UseSessionsReturn {
             started_at: row.session_started_at || row.created_at,
             summary: row.summary,
             channel: row.type,
+            // Hívásrögzítés (WP-D review): a profil-popup lejátszója a
+            // flat feedből is megkapja a rögzítést + turnusokat
+            recording_url: row.recording_url || null,
+            transcript_turns: row.transcript_turns ?? null,
             interactions: [],
           });
         }

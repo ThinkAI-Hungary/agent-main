@@ -3014,7 +3014,7 @@ async def api_get_avatar(username_or_id: str, _: str = Depends(verify_jwt)):
         return {"avatar_url": None}
 
 @app.get("/admin/api/sessions/{session_id}/recording")
-def api_get_session_recording(session_id: str, token: str = ""):
+def api_get_session_recording(session_id: str, token: str = "", request: Request = None):
     """Hívásrögzítés streamelése (WP D).
 
     A <audio> elem nem tud Authorization fejlécet küldeni, ezért a JWT-t
@@ -3038,7 +3038,40 @@ def api_get_session_recording(session_id: str, token: str = ""):
         data = db.supabase.storage.from_("recordings").download(path)
         if not data or isinstance(data, dict):
             raise HTTPException(404, "A rögzítés már nem érhető el (retention)")
-        return Response(content=data, media_type="audio/wav", headers={"Cache-Control": "private, no-store"})
+
+        # ── HTTP Range támogatás (WP-D review): a böngésző audio-elemének a
+        # SEEK-hoz 206 Partial Content kell — 200 full-response mellett a
+        # currentTime-állítás visszapult 0-ra, a 'kérdéses mondatra ugrás'
+        # használhatatlan volt. Egyszerű single-range: bytes=start-end|start-.
+        total = len(data)
+        range_header = (request.headers.get("range") or "").strip().lower()
+        base_headers = {
+            "Accept-Ranges": "bytes",
+            "Cache-Control": "private, no-store",
+            "Content-Type": "audio/wav",
+        }
+        if range_header.startswith("bytes="):
+            try:
+                spec = range_header[6:].split(",")[0].strip()
+                start_s, _, end_s = spec.partition("-")
+                if start_s == "":
+                    # utolsó N bájt: bytes=-N
+                    n = int(end_s)
+                    start, end = max(0, total - n), total - 1
+                else:
+                    start = int(start_s)
+                    end = min(int(end_s), total - 1) if end_s else total - 1
+                if start > end or start >= total:
+                    return Response(status_code=416, headers={
+                        "Content-Range": f"bytes */{total}"})
+                chunk = data[start:end + 1]
+                return Response(content=chunk, status_code=206, headers={
+                    **base_headers,
+                    "Content-Range": f"bytes {start}-{end}/{total}",
+                })
+            except (ValueError, IndexError):
+                pass  # rossz formátum → 200 full
+        return Response(content=data, media_type="audio/wav", headers=base_headers)
     except HTTPException:
         raise
     except Exception as e:
