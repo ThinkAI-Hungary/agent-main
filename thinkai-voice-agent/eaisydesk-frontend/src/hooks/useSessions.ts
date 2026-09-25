@@ -19,8 +19,7 @@ export interface SessionInteraction {
   ai_draft_response?: string;
   alert_tags?: string[];
   funnel_stage?: string;
-  // Hívásrögzítés (WP D): turnusonkénti {role,text,start_s  transcript_turns?: unknown;
-} JSONB a bubble-szintű seekhez
+  // Hívásrögzítés (WP D): turnusonkénti {role,text,start_s} JSONB a bubble-szintű seekhez
   transcript_turns?: unknown;
   classification?: {
     ugytipus?: string;
