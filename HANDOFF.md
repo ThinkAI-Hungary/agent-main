@@ -76,8 +76,9 @@ A user döntése: a teszt **10 hívással** fut (nem 50+12). A staging a review-
 3. Döntés: ha az audio-olvasat hibája ~0 és a kattintási arány jó → az smsfirst marad; egyébként finomhangolás.
 
 **Nyitott user-döntések:**
-- Visszatérő-ügyfél cím-felolvasás (`server.py:355`): az agent a TÁROLT címet felolvassa megerősítésként ('a rögzített címre küldhetjük?') — privacy-kockázat (nem tulaj hívhat a számról). Átírni: 'a rendszerünkben rögzített e-mail címre küldhetjük?' — user dönt.
+- ✅ Visszatérő-ügyfél cím-felolvasás JAVÍTVA (`4d2c875`): az agent a tárolt címet NEM olvassa fel ('a rendszerünkben rögzített e-mail címre küldhetjük?' általános kérdés; tulajdon-ellenőrzés a hívótól).
 - `PUBLIC_CONFIRM_BASE_URL` publikus domain (most az admin domain esik be).
+- ✅ SMS {rendelo} mező javítva (`4d2c875`): a harness-SMS is megkapja a rendelő-nevet (korábban üresen kezdődött a szöveg); a {datum}/{ido} a book_meeting-ből (YYYY-MM-DD / HH:MM), sablon hardcoded (user-döntés szerint egyelőre elegendő a dinamikus változó).
 - Review-maradványok (nem blokkoló): m3/m4/m5/m6/m8–m11 + n1–n7 a HANDOFF 1f-ben; bérlőnkénti sms-kapcsolók.
 
 ## 1b. Élő rendszer (staging, `4d9c21f`)
