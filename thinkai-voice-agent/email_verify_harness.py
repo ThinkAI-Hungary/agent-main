@@ -1851,6 +1851,27 @@ def sms_eligible(caller_number: str, bookings: list, session_id: str) -> tuple[b
     return True, "ok"
 
 
+def _rendelo_name() -> str:
+    """Az SMS {rendelo} helyettesítője: RENDELO_NAME env → tenants.name →
+    'Rendelo' (ugyanaz a lánc, mint a confirm oldalon). Fail-open."""
+    try:
+        env_name = (os.getenv("RENDELO_NAME") or "").strip()
+        if env_name:
+            return env_name
+        import database as _db
+        tid = _db.get_current_tenant()
+        if tid:
+            res = (_db.supabase.table("tenants").select("name")
+                   .eq("id", tid).limit(1).execute())
+            rows = getattr(res, "data", None) or []
+            name = (rows[0].get("name") or "").strip() if rows else ""
+            if name:
+                return name
+    except Exception:
+        pass
+    return "Rendelo"
+
+
 def _send_confirm_sms(session_id: str, tenant_id, bookings: list,
                       caller_number: str, candidate_email,
                       client_id=None) -> dict:
@@ -1882,7 +1903,8 @@ def _send_confirm_sms(session_id: str, tenant_id, bookings: list,
                 or os.getenv("SERVER_URL") or "").rstrip("/")
         link = f"{base}/e/{tok['token']}"
         b0 = bookings[0] if bookings else {}
-        body = build_sms_text(link=link, datum=b0.get("date", ""), ido=b0.get("time", ""),
+        body = build_sms_text(link=link, rendelo=_rendelo_name(),
+                              datum=b0.get("date", ""), ido=b0.get("time", ""),
                               has_candidate=bool(candidate_email))
         res = send_sms(caller_number, body, session_id=session_id,
                        tenant_id=tenant_id, purpose="email_confirm")

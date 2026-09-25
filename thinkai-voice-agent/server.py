@@ -352,9 +352,12 @@ SZABÁLYOK:
                     "CSENDES AZONOSÍTÁS SZABÁLYA (SZIGORÚ!): NE szólítsd név szerint az ügyfelet, és NE olvasd be "
                     "az email címét vagy más adatait automatikusan, a beszélgetés elején sem! Ezeket CSAK akkor "
                     "használd fel, amikor ténylegesen szükséges — pl. foglaláskor a visszaigazoló email cím "
-                    "megerősítésére ('a rendszerünkben rögzített " + (_pemail or "email") + " címre küldhetjük a "
-                    "visszaigazolást?'), vagy időpont módosításkor/lemondáskor a tulajdon-ellenőrzéshez. "
-                    "Érzékeny adatok (korábbi időpontok) csak a 7. szabály szerinti második azonosító UTÁN olvashatók vissza."
+                    "megerősítésére: 'a rendszerünkben rögzített e-mail címre küldhetjük a visszaigazolást?' — "
+                    "ADATVÉDELMI SZABÁLY: az e-mail címet NE OLVASD FEL betűről betűre, szó szerint se (a hívó "
+                    "lehet nem-tulajdonos a számról!); ha igent mond, a rögzített címre megy, ha nemet, "
+                    "kérj tőle új címet. Időpont módosításkor/lemondáskor a tulajdon-ellenőrzéshez a rögzített "
+                    "cím ELLENŐRZÉSRE használható (a hívótól kérdezd, ő mondja). Érzékeny adatok (korábbi "
+                    "időpontok) csak a 7. szabály szerinti második azonosító UTÁN olvashatók vissza."
                 )
                 logger.info(f"🔎 Kódoldali azonosítás: #{_id_primary['id']} ({_pname})")
             else:
