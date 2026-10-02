@@ -138,8 +138,10 @@ async def entrypoint(ctx: JobContext):
         logger.info(f"📞 Hívó telefonszáma (korai feloldás): {early_caller_phone}")
 
     # Initialize DB + log session start
+    # (a create_session a tenant-feloldás UTÁN fut — l. lent, több-bérlős
+    # prod: korábban a DEFAULT tenant alá került a session-sor, és a
+    # rögzítés/ellenőrzés tenant-szűrése 0 sort talált)
     db.init_db()
-    db.create_session(session_id=session_id, room_name=room_name)
     set_session_id(session_id)
     reset_session_alerts()  # EAISY-241: tiszta kontextus minden új sessionnél
     set_caller_phone("")    # ne szivárogjon át az ELŐZŐ hívó telefonszáma
@@ -218,6 +220,18 @@ async def entrypoint(ctx: JobContext):
     if tenant_id:
         db.set_current_tenant(tenant_id)
         logger.info(f"🏢 Session tenant: {tenant_id}")
+
+    # Session-sor a HELYES tenant alá (multi-tenant prod fix): létrehozás a
+    # feloldás UTÁN, és ha korábban (bármely úton) mégis más tenant alá
+    # került volna, átírjuk. Fail-open.
+    try:
+        db.create_session(session_id=session_id, room_name=room_name)
+        if tenant_id:
+            db._tenant_eq(db.supabase.table("sessions")
+                          .update({"tenant_id": tenant_id})
+                          ).eq("session_id", session_id).execute()
+    except Exception as _cs_err:
+        logger.warning(f"Session-sor létrehozás/tenant-javítás sikertelen (fail-open): {_cs_err}")
 
     if is_campaign_call:
         logger.info(f" Campaign outbound SIP call — room: {room_name}")
