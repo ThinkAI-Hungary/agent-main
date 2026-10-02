@@ -705,6 +705,11 @@ export default function SettingsPage() {
               </div>
             </header>
 
+        {/* Kizárt feladók — user-kezelt lista (csak admin), azonnal látható helyen */}
+        {isAdminOnly && (
+          <ExcludedSendersCard />
+        )}
+
             {/* ── Sticky mini-nav (mockup) ── */}
             <nav className="co-mininav" aria-label="Szakasz navigáció">
               {[
@@ -990,11 +995,6 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
-        )}
-
-        {/* Kizárt feladók — user-kezelt lista (csak admin) */}
-        {activeTab === 'basic' && isAdminOnly && (
-          <ExcludedSendersCard />
         )}
 
         {/* ═══════════ SZABÁLYOK TAB ═══════════ */}
