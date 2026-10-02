@@ -2776,7 +2776,9 @@ def get_excluded_senders() -> dict:
     feladó e-mailek és domainek (text_configs 'excluded_senders' kulcs).
     Fail-open: üres lista."""
     try:
-        res = _tenant_eq(supabase.table("text_configs").select("content")).eq("key", "excluded_senders").limit(1).execute()
+        # GLOBÁLIS lista (text_configs PK = key): a kizárt stáf-/forwardoló
+        # címek rendszerszintűek — a feldolgozás tenantjától függetlenül él.
+        res = supabase.table("text_configs").select("content").eq("key", "excluded_senders").limit(1).execute()
         if res.data:
             import json as _json
             raw = (res.data[0].get("content") or "{}")
