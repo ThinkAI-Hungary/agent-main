@@ -17,6 +17,7 @@
   - **MAJOR ('Ma elvégzett' alulmérés) JAVÍTVA**: log_interaction mostantól closed_at-et ír autonóm Lezárt+approved sorokra is — az AI által lezárt munka is megjelenik a KPI-ban (szemantika-bővítés, user figyelmébe).
   - 1. feladat (szűrő): mechanizmus élő unit-teszttel bizonyított (marketing 0.96 → filter), de valódi non_patient sor még nem keletkezett (nem küldtünk belső levelet) — e2e e-mail forgalommal igazolható majd.
   - Tanulság: az update.sh 'Nincs új commit' shortcutja lokális commit után NEM rebuildel — forced rebuild kellett; közben egy regex-beillesztés megsértett a useSessions.ts-t (vite build elhasalt) — javítva.
+- **TENANT-RENDELÉS BUG JAVÍTVA (`f673d2c`, staging+prod)**: a create_session a tenant-feloldás ELŐTT futott → minden hívás-session a DEFAULT (Rivergate) tenant alá került, miközben a rögzítés/ellenőrzés Dentors-ként írt → 0 sortalált frissítés, nincs lejátszó/ellenőrzés (szept. 28-29: 4 éles hívás érintve — recording_url + tenant visszatöltve MCP-vel). Most: create_session a feloldás UTÁN + tenant-javító update. **A szűrő élesben dolgozik**: okt 1-2-án 5 'Szűrt feladó' + 2 'Spam' session keletkezett valódi levelekből.
 - **Következő napok figyelendő**: első éles hívások után email_verify_runs / sms_logs / email_logs sorok, dupla opt-in kattintások; a review-maradványok (HANDOFF 1f) és a PUBLIC domain-döntés ismert nyitott tétel maradt.
 
 ## ⚠️ ÁLLANDÓ MUNKAREND — minden sessionnek
