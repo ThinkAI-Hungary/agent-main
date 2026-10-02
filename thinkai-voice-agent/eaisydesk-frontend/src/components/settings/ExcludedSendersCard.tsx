@@ -119,7 +119,7 @@ export default function ExcludedSendersCard() {
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <input style={inputStyle} placeholder="uj cim (pl. munkatars@gmail.com)"
+                <input style={inputStyle} placeholder="munkatars@gmail.com"
                   value={newEmail} onChange={e => setNewEmail(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') addEmail(); }} />
                 <button style={btnStyle} onClick={addEmail}>Hozzáadás</button>
@@ -139,7 +139,7 @@ export default function ExcludedSendersCard() {
                 ))}
               </div>
               <div style={{ display: 'flex', gap: 8 }}>
-                <input style={inputStyle} placeholder="uj domain (pl. ceg.hu)"
+                <input style={inputStyle} placeholder="ceg.hu"
                   value={newDomain} onChange={e => setNewDomain(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') addDomain(); }} />
                 <button style={btnStyle} onClick={addDomain}>Hozzáadás</button>
