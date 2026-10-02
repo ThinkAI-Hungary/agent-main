@@ -5588,6 +5588,36 @@ class ReminderSettingsRequest(BaseModel):
     confirmation_template: str | None = None
     confirmation_cancel_link: bool | None = None
 
+class ExcludedSendersRequest(BaseModel):
+    emails: list[str] = []
+    domains: list[str] = []
+
+
+@app.get("/admin/api/settings/excluded-senders")
+def api_get_excluded_senders(username: str = Depends(verify_jwt)):
+    """User-kezelt kizárólista: ezekről a címekről/doménekről érkező levelek
+    soha nem csinálnak ügyfelet és nem indítanak feldolgozást (pl. munkatársi
+    címek). A beállítás tenant-szinten tárolódik."""
+    return db.get_excluded_senders()
+
+
+@app.post("/admin/api/settings/excluded-senders")
+def api_set_excluded_senders(req: ExcludedSendersRequest, _admin = Depends(require_admin)):
+    def _clean(lst):
+        out, seen = [], set()
+        for item in (lst or []):
+            v = (item or "").strip().lower().lstrip("@")
+            if v and "@" not in v and "." in v or "@" in v:
+                v2 = v if "@" in v else v
+                if v2 and v2 not in seen:
+                    seen.add(v2); out.append(v2)
+        return out
+    emails = _clean(req.emails)
+    domains = _clean(req.domains)
+    ok = db.set_excluded_senders(emails, domains)
+    return {"ok": ok, **db.get_excluded_senders()}
+
+
 @app.get('/admin/api/settings/reminder')
 async def get_reminder_settings_endpoint(username: str = Depends(verify_jwt)):
     import database as db

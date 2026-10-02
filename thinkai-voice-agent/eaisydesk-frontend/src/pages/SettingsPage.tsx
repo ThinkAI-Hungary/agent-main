@@ -6,6 +6,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { authFetch } from '../api/client';
+import ExcludedSendersCard from '../components/settings/ExcludedSendersCard';
 import { useAuth } from '../context/AuthContext';
 import CustomSelect from '../components/settings/CustomSelect';
 
@@ -989,6 +990,11 @@ export default function SettingsPage() {
               </div>
             </div>
           </div>
+        )}
+
+        {/* Kizárt feladók — user-kezelt lista (csak admin) */}
+        {activeTab === 'basic' && isAdminOnly && (
+          <ExcludedSendersCard />
         )}
 
         {/* ═══════════ SZABÁLYOK TAB ═══════════ */}

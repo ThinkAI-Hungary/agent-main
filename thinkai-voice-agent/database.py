@@ -2771,6 +2771,56 @@ def update_text_config(key: str, content: str) -> bool:
         return False
 
 
+def get_excluded_senders() -> dict:
+    """WP-E3 review utáni user-kezelt kizárólista: a tenant által kizárt
+    feladó e-mailek és domainek (text_configs 'excluded_senders' kulcs).
+    Fail-open: üres lista."""
+    try:
+        res = _tenant_eq(supabase.table("text_configs").select("content")).eq("key", "excluded_senders").limit(1).execute()
+        if res.data:
+            import json as _json
+            raw = (res.data[0].get("content") or "{}")
+            data = _json.loads(raw) if isinstance(raw, str) else (raw or {})
+            return {"emails": list((data or {}).get("emails") or []),
+                    "domains": list((data or {}).get("domains") or [])}
+    except Exception as e:
+        logger.warning(f"get_excluded_senders sikertelen (fail-open): {e}")
+    return {"emails": [], "domains": []}
+
+
+def set_excluded_senders(emails: list, domains: list) -> bool:
+    """Kizárt feladók mentése (tenant scope). Fail-open."""
+    try:
+        import json as _json
+        content = _json.dumps({"emails": emails or [], "domains": domains or []},
+                              ensure_ascii=False)
+        return update_text_config("excluded_senders", content)
+    except Exception as e:
+        logger.warning(f"set_excluded_senders sikertelen: {e}")
+        return False
+
+
+def is_excluded_sender(from_email: str) -> str:
+    """A feladó szerepel-e a tenant kizárólistáján (pontos e-mail, vagy
+    domain — 'valaki@dentors.com' → 'dentors.com'). Vissza: a találat típusa
+    ('email' | 'domain' | ''). Fail-open: hibánál '' (nem zárjuk ki)."""
+    fe = (from_email or "").strip().lower()
+    if not fe or "@" not in fe:
+        return ""
+    try:
+        cfg = get_excluded_senders()
+        domain = "@" + fe.rsplit("@", 1)[1]
+        if fe in [e.strip().lower() for e in cfg.get("emails", [])]:
+            return "email"
+        for d in cfg.get("domains", []):
+            d = d.strip().lower().lstrip("@")
+            if d and domain == f"@{d}":
+                return "domain"
+    except Exception as e:
+        logger.warning(f"is_excluded_sender hiba (fail-open): {e}")
+    return ""
+
+
 def get_reminder_settings() -> dict:
     if not supabase: return {}
     try:

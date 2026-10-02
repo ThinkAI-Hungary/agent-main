@@ -407,6 +407,26 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
         )
         return
 
+    # ── User-kezelt KIZÁRÓLISTA (review: 'Laura forward' incidens) — a stáf/
+    # kizárt feladók itt DETERMINISZTIKUSAN ki vannak szűrve, minden más
+    # ellenőrzés (ügyfél-létrehozás, AI, JEV) ELŐTT. ──
+    excluded = db.is_excluded_sender(from_email)
+    if excluded:
+        logger.info(f"Feladó szűrve (kizárólista/{excluded}): {from_email}")
+        db.create_session(session_id=f"excluded_{from_email}", room_name="Kizárt feladó", participant=from_name)
+        db.log_interaction(
+            type="email",
+            topic=f"Kizárt feladó ({excluded}): {subject[:200]}",
+            summary=f"Kizárt feladó automatikusan szűrve: {from_email}",
+            result=f"{subject[:200]} {(text_content or '')[:150]}".strip(),
+            tool_name="excluded_sender",
+            session_id=f"excluded_{from_email}",
+            funnel_stage="non_patient",
+            direction="inbound",
+            approval_status="spam"
+        )
+        return
+
     # ── JEV küldő-szűrő — nem-ügyfél feladók (munkatárs / szolgáltató / marketing)
     # kiszűrése ügyfél-lookup és AI-hívás ELŐTT. Fail-open: hibánál paciens. ──
     # A requests-hívás blokkol, ezért thread-ben fut (a scheduler ne álljon le).
