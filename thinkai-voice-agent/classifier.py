@@ -783,16 +783,12 @@ async def classify_interaction(
         idopont_altipus=altipus,
     )
 
-    # Fizikai/orvosi sürgősség (fájdalom stb.) + ÚJ időpont-kérés: a cél a mielőbbi
-    # időpontadás, nem a lerázás (ügyfél-visszajelzés, 254-es ügy). A sürgősség a
-    # STÁTUSZON jelenik meg ("Sürgős"), nem az autonómia letiltásán — ezért az
-    # urgent/handover restriction (pl. "Erős fájdalom" kontextus-szabály) itt none-ra
-    # oldódik, hogy a döntési fa auto_booking útvonala működhessen.
+    # Fizikai/orvosi sürgősség jelző (fájdalom stb.) — 2026-10-06 user-elv: a
+    # sürgősség CSAK a státuszban jelenjen meg, a restriction (és így az
+    # eredmény/teendő) a mátrixból jön. (A 254-es ügy korábbi restriction→none
+    # kényszerítése és címke-override-ja visszavonva — az autonóm foglalás
+    # engedélyezése túllépte az eredeti szándékot.)
     urgens = bool(intent.get("urgens"))
-    if urgens and dominant_ugytipus == "Időpont" and altipus == "Új" and restriction in ("urgent", "handover"):
-        logger.info("🚨 Urgens fizikai panasz + új időpont-kérés: restriction "
-                    f"{restriction} → none (mielőbbi időpontadás érdekében)")
-        restriction = "none"
 
     # 5. Döntési fa alkalmazása — konfig-vezérelt (triage_rules.routing)
     decision = _apply_decision_tree(
@@ -817,13 +813,14 @@ async def classify_interaction(
         **{k: v for k, v in decision.items() if k != "automation"},
     }
 
-    # Sürgős fizikai panasz + új időpont-kérés: a státusz "Sürgős" és a teendő a
-    # mielőbbi időpontadás — az ügy típusa Időpont marad (nem Panasz, nem lerázás).
+    # Sürgős fizikai panasz + új időpont-kérés (254-es ügy): az ügy típusa Időpont
+    # marad (nem Panasz), és a sürgősség a STÁTUSZON jelenik meg — az eredmény és
+    # teendő NEM tér el a mátrixtól (2026-10-06 user-elv). Lezárt (autonóm foglalás
+    # megtörtént) ügyet nem nyitunk újra Sürgősre.
     if urgens and dominant_ugytipus == "Időpont" and altipus == "Új":
         result["urgens"] = True
-        result["statusz"] = "Sürgős"
-        result["eredmeny"] = "Sürgős időpont-kérés"
-        result["teendo"] = "Mielőbbi időpont adása"
+        if result.get("statusz") != "Lezárt":
+            result["statusz"] = "Sürgős"
 
     logger.info(f"🏷️ Classification [{channel}]: {result}")
     return result

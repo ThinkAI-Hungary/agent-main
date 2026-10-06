@@ -307,6 +307,16 @@ class TestKeywordFallback:
         r = _detect_intent_keyword("Holnap szeretnék időpontot foglalni")
         assert r["urgens"] is False
 
+    def test_surgos_idopont_matrix_konform(self):
+        """2026-10-06 user-elv: sürgős (fájdalmos) időpontkérésnél az eredmény/teendő a
+        mátrixból jön — NINCS 'Sürgős időpont-kérés'/'Mielőbbi időpont adása' override
+        (a 254-es ügy 09-06-os címkéi visszavonva); a sürgősség csak a státuszban."""
+        d = _apply_decision_tree("Időpont", "Új", "urgent", False, "telefon", None)
+        assert d["eredmeny"] == "Foglalási szándék rögzítve"
+        assert d["statusz"] == "Sürgős"
+        assert d["teendo"] == "Időpont véglegesítése"
+        assert d["automation"] == "handover"
+
     def test_holnap_not_kerdes_hol(self):
         r = _detect_intent_keyword("Holnap szeretnék időpontot foglalni")
         assert r["ugytipus"] == "Időpont"
