@@ -6,7 +6,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { authFetch } from '../api/client';
-import ExcludedSendersCard from '../components/settings/ExcludedSendersCard';
 import { useAuth } from '../context/AuthContext';
 import CustomSelect from '../components/settings/CustomSelect';
 
@@ -708,11 +707,6 @@ export default function SettingsPage() {
                 </button>
               </div>
             </header>
-
-        {/* Kizárt feladók — user-kezelt lista (csak admin), azonnal látható helyen */}
-        {isAdminOnly && (
-          <ExcludedSendersCard />
-        )}
 
             {/* ── Sticky mini-nav (mockup) ── */}
             <nav className="co-mininav" aria-label="Szakasz navigáció">

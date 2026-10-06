@@ -8,6 +8,7 @@ import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { authFetch } from '../api/client';
 import { showToast } from '../components/ui/Toast';
+import Cdd from '../components/ui/Cdd';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import Spinner from '../components/ui/Spinner';
 import ProfileAvatarUpload from '../components/settings/ProfileAvatarUpload';
@@ -489,16 +490,20 @@ function EaisyDeskSettingsTab() {
   const [greeting, setGreeting] = useState('');
   const [senderName, setSenderName] = useState('');
   const [senderEmail, setSenderEmail] = useState('');
-  const [channels, setChannels] = useState<ChannelConfig[]>(loadChannels);
+  const [exclEmails, setExclEmails] = useState<string[]>([]);
+  const [exclDomains, setExclDomains] = useState<string[]>([]);
+  const [newEmail, setNewEmail] = useState('');
+  const [newDomain, setNewDomain] = useState('');
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
 
   useEffect(() => {
     (async () => {
       try {
-        const [settRes, busRes] = await Promise.all([
+        const [settRes, busRes, exclRes] = await Promise.all([
           authFetch('/admin/api/settings'),
-          authFetch('/admin/api/business-info')
+          authFetch('/admin/api/business-info'),
+          authFetch('/admin/api/settings/excluded-senders'),
         ]);
         const sett = await settRes.json();
         const bus = await busRes.json();
@@ -511,6 +516,11 @@ function EaisyDeskSettingsTab() {
         if (bus && !bus.error) {
           setSenderName(bus.sender_name || '');
           setSenderEmail(bus.sender_email || '');
+        }
+        if (exclRes.ok) {
+          const d = await exclRes.json();
+          setExclEmails(d.emails || []);
+          setExclDomains(d.domains || []);
         }
       } catch { /* ignore */ }
       setLoading(false);
@@ -532,536 +542,202 @@ function EaisyDeskSettingsTab() {
 
       await Promise.all([
         authFetch('/admin/api/settings', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(settMerged) }),
-        authFetch('/admin/api/business-info', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(busMerged) })
+        authFetch('/admin/api/business-info', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(busMerged) }),
       ]);
-
-      saveChannels(channels);
       showToast('Összes beállítás mentve!', 'success');
     } catch { showToast('Hiba a mentésnél', 'error'); }
     setSaving(false);
-  }, [lang, tone, toneCustom, greeting, senderName, senderEmail, channels]);
+  }, [lang, tone, toneCustom, greeting, senderName, senderEmail]);
+
+  // ── Kizárt feladók: azonnali mentés (saját endpoint) ──
+  const saveExcl = useCallback(async (emailsNext: string[], domainsNext: string[]) => {
+    setExclEmails(emailsNext);
+    setExclDomains(domainsNext);
+    try {
+      const res = await authFetch('/admin/api/settings/excluded-senders', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ emails: emailsNext, domains: domainsNext }),
+      });
+      const d = await res.json().catch(() => ({}));
+      showToast(d.ok ? 'Kizárt feladók mentve.' : 'Mentés sikertelen.', d.ok ? 'success' : 'error');
+    } catch { showToast('Mentés sikertelen.', 'error'); }
+  }, []);
+
+  const addExclEmail = () => {
+    const v = newEmail.trim().toLowerCase();
+    if (!v || !v.includes('@')) { showToast('Érvényes e-mail címet adj meg.', 'error'); return; }
+    if (exclEmails.includes(v)) { showToast('Már a listán van.', 'info'); return; }
+    setNewEmail('');
+    saveExcl([...exclEmails, v], exclDomains);
+  };
+  const addExclDomain = () => {
+    let v = newDomain.trim().toLowerCase().replace(/^@+/, '');
+    if (!v || !v.includes('.')) { showToast('Érvényes domaint adj meg (pl. ceg.hu).', 'error'); return; }
+    if (exclDomains.includes(v)) { showToast('Már a listán van.', 'info'); return; }
+    setNewDomain('');
+    saveExcl(exclEmails, [...exclDomains, v]);
+  };
+  const removeExcl = (kind: 'email' | 'domain', value: string) => {
+    if (kind === 'email') saveExcl(exclEmails.filter(x => x !== value), exclDomains);
+    else saveExcl(exclEmails, exclDomains.filter(x => x !== value));
+  };
 
   if (loading) return <div className="beal-empty-center"><Spinner /></div>;
 
   return (
     <div className="ed-settings-container">
-      <style>{`
-        .ed-settings-container {
-          font-family: 'Inter', sans-serif;
-        }
-        .ed-card {
-          background: #FFFFFF;
-          border: 1px solid #D9D9D9;
-          border-radius: 12px;
-          padding: 32px 40px;
-          margin-bottom: 24px;
-        }
-        .ed-card-header {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          margin-bottom: 24px;
-        }
-        .ed-icon-box {
-          width: 30px;
-          height: 30px;
-          border-radius: 6px;
-          background: #082432;
-          color: #FFFFFF;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          flex-shrink: 0;
-        }
-        .ed-icon-box svg {
-          width: 16px;
-          height: 16px;
-          stroke-width: 1px !important;
-        }
-        .ed-card-title {
-          font-size: 18px;
-          font-weight: 700;
-          color: #082432;
-          line-height: 1.2;
-          display: flex;
-          align-items: center;
-          gap: 8px;
-        }
-        .ed-label {
-          font-size: 12px;
-          font-weight: 600;
-          color: #5F7D95;
-          line-height: 1.2;
-          margin-bottom: 8px;
-          display: block;
-        }
-        .ed-input {
-          height: 40px;
-          background: #FFFFFF;
-          border: 1px solid #D9D9D9;
-          border-radius: 8px;
-          padding: 0 14px;
-          font-size: 13px;
-          font-weight: 400;
-          color: #082432;
-          width: 100%;
-          outline: none;
-          transition: all 0.2s;
-        }
-        .ed-input:focus {
-          border-color: #186D98;
-          box-shadow: 0 0 0 2px rgba(24, 109, 152, 0.08);
-        }
-        .ed-select-refined {
-          height: 40px;
-          outline: none;
-          position: relative;
-        }
-        .ed-textarea {
-          min-height: 96px;
-          max-height: 320px;
-          background: #FFFFFF;
-          border: 1px solid #D9D9D9;
-          border-radius: 8px;
-          padding: 12px 14px;
-          font-size: 13px;
-          font-weight: 400;
-          color: #082432;
-          line-height: 1.5;
-          width: 100%;
-          outline: none;
-          resize: vertical;
-          transition: all 0.2s;
-        }
-        .ed-textarea:focus {
-          border-color: #1CEEE0;
-          box-shadow: 0 0 0 3px rgba(28, 238, 224, 0.15);
-        }
-        .ed-grid-2 {
-          display: grid;
-          grid-template-columns: 1fr 1fr;
-          gap: 20px 16px;
-        }
-        .ed-info-icon {
-          width: 18px;
-          height: 18px;
-          border-radius: 50%;
-          border: 1px solid #8CA0AF;
-          color: #5F7D95;
-          font-size: 12px;
-          font-weight: 600;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          cursor: help;
-        }
-        /* Refined Select Styling — Exactly matching legacy rules page */
-        .ed-settings-container .settings-lang-trigger,
-        .ed-settings-container .custom-select-trigger {
-          height: 40px !important;
-          background: #FFFFFF !important;
-          border: 1px solid #D9D9D9 !important;
-          border-radius: 8px !important;
-          padding: 0 14px !important;
-          font-family: 'Inter', sans-serif !important;
-          font-size: 13px !important;
-          font-weight: 400 !important;
-          color: #082432 !important;
-          box-shadow: 0 1px 4px 0 rgba(0, 0, 0, 0.15) !important;
-          outline: none !important;
-          display: flex !important;
-          align-items: center !important;
-          justify-content: space-between !important;
-          width: 100% !important;
-          transition: all 0.2s ease-out !important;
-        }
 
-        /* Focus / Pressed / Open State */
-        .ed-settings-container .settings-lang-trigger:focus-within,
-        .ed-settings-container .custom-select-trigger:focus,
-        .ed-settings-container .settings-lang-trigger--open,
-        .ed-settings-container .custom-select-trigger--open {
-          border-color: #1CEEE0 !important;
-          background: #FFFFFF !important;
-          box-shadow: 0 0 0 3px rgba(28, 238, 224, 0.15), 0 1px 4px 0 rgba(0, 0, 0, 0.15) !important;
-        }
-
-        .ed-settings-container .custom-select-chevron,
-        .ed-settings-container .settings-lang-chevron {
-          color: #082432 !important;
-          stroke: #082432 !important;
-          transition: transform 0.2s ease-out !important;
-        }
-        
-        .ed-textarea {
-          background: #FFFFFF !important;
-          border: 1px solid #D9D9D9 !important;
-          color: #082432 !important;
-        }
-
-        /* Channels Section Restoration */
-        .channels-list {
-          display: flex;
-          flex-direction: column;
-          gap: 4px;
-        }
-        .channels-row {
-          display: flex;
-          align-items: center;
-          gap: 16px;
-          padding: 12px 20px;
-          border-radius: 12px;
-          transition: background 0.2s;
-        }
-        .channels-row--even {
-          background: #F3F4F6;
-        }
-        .channels-row--odd {
-          background: #FFFFFF;
-        }
-        .channels-icon {
-          width: 32px;
-          height: 32px;
-          border-radius: 50%;
-          background: #E5E7EB;
-          display: flex;
-          align-items: center;
-          justify-content: center;
-          color: #5F7D95;
-          flex-shrink: 0;
-        }
-        .channels-label {
-          width: 140px;
-          font-weight: 600;
-          color: #082432;
-          font-size: 14px;
-        }
-        .channels-toggle {
-          display: flex;
-          align-items: center;
-          margin-right: 8px;
-        }
-        .channels-input {
-          flex: 1;
-          height: 36px;
-          background: #F9FAFB;
-          border: none;
-          border-radius: 6px;
-          padding: 0 12px;
-          font-size: 13px;
-          color: #4B5563;
-          outline: none;
-        }
-        .toggle-pill {
-          width: 36px;
-          height: 20px;
-          border-radius: 10px;
-          border: none;
-          padding: 2px;
-          cursor: pointer;
-          transition: background 0.2s;
-          display: flex;
-          align-items: center;
-        }
-        .toggle-pill--on {
-          background: #1CEEE0;
-        }
-        .toggle-pill--off {
-          background: #D1D5DB;
-        }
-        .toggle-circle {
-          width: 16px;
-          height: 16px;
-          background: white;
-          border-radius: 50%;
-          transition: transform 0.2s;
-        }
-        .toggle-circle--on {
-          transform: translateX(16px);
-        }
-        .toggle-circle--off {
-          transform: translateX(0);
-        }
-      `}</style>
-
-      <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: 16 }}>
-        <button className="beallitasok-save-btn" onClick={handleSaveAll} disabled={saving}>
-          {saving ? 'Mentés...' : 'Változtatások mentése'}
-        </button>
-      </div>
-      <CommunicationSettingsSection lang={lang} setLang={setLang} tone={tone} setTone={setTone} toneCustom={toneCustom} setToneCustom={setToneCustom} greeting={greeting} setGreeting={setGreeting} />
-      <EmailSenderSettingsSection senderName={senderName} setSenderName={setSenderName} senderEmail={senderEmail} setSenderEmail={setSenderEmail} />
-      <ChannelsSection channels={channels} setChannels={setChannels} />
-    </div>
-  );
-}
-
-// ── Communication settings (eaisyDesk beállítások tab) ──────────────────────
-
-// SVG Flag components
-const COMM_FLAGS: Record<string, React.ReactNode> = {
-  hu: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="36" height="8" fill="#cd2a3e" /><rect y="8" width="36" height="8" fill="#fff" /><rect y="16" width="36" height="8" fill="#436f4d" /></svg>,
-  en: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="36" height="24" fill="#012169" /><path d="M0 0L36 24M36 0L0 24" stroke="#fff" strokeWidth="4" /><path d="M0 0L36 24M36 0L0 24" stroke="#C8102E" strokeWidth="2.5" /><path d="M18 0v24M0 12h36" stroke="#fff" strokeWidth="6" /><path d="M18 0v24M0 12h36" stroke="#C8102E" strokeWidth="3.5" /></svg>,
-  de: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="36" height="8" fill="#000" /><rect y="8" width="36" height="8" fill="#D00" /><rect y="16" width="36" height="8" fill="#FFCE00" /></svg>,
-  sk: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="36" height="8" fill="#fff" /><rect y="8" width="36" height="8" fill="#0B4EA2" /><rect y="16" width="36" height="8" fill="#EE1C25" /><path d="M5 4v16c0 3 4 5 7 6 3-1 7-3 7-6V4z" fill="#EE1C25" stroke="#fff" strokeWidth="1" /></svg>,
-  ro: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="12" height="24" fill="#002B7F" /><rect x="12" width="12" height="24" fill="#FCD116" /><rect x="24" width="12" height="24" fill="#CE1126" /></svg>,
-  sr: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="36" height="8" fill="#C6363C" /><rect y="8" width="36" height="8" fill="#0C4076" /><rect y="16" width="36" height="8" fill="#fff" /></svg>,
-  hr: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="36" height="8" fill="#FF0000" /><rect y="8" width="36" height="8" fill="#fff" /><rect y="16" width="36" height="8" fill="#171796" /></svg>,
-  fr: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="12" height="24" fill="#002395" /><rect x="12" width="12" height="24" fill="#fff" /><rect x="24" width="12" height="24" fill="#ED2939" /></svg>,
-  es: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="36" height="6" fill="#c60b1e" /><rect y="6" width="36" height="12" fill="#ffc400" /><rect y="18" width="36" height="6" fill="#c60b1e" /></svg>,
-  it: <svg viewBox="0 0 36 24" width="22" height="15"><rect width="12" height="24" fill="#009246" /><rect x="12" width="12" height="24" fill="#fff" /><rect x="24" width="12" height="24" fill="#CE2B37" /></svg>,
-};
-
-const COMM_LANGUAGE_OPTIONS = [
-  { code: 'hu', label: 'magyar' },
-  { code: 'en', label: 'angol' },
-  { code: 'de', label: 'német' },
-  { code: 'sk', label: 'szlovák' },
-  { code: 'ro', label: 'román' },
-  { code: 'sr', label: 'szerb' },
-  { code: 'hr', label: 'horvát' },
-  { code: 'fr', label: 'francia' },
-  { code: 'es', label: 'spanyol' },
-  { code: 'it', label: 'olasz' },
-];
-
-function CommunicationSettingsSection({ lang, setLang, tone, setTone, toneCustom, setToneCustom, greeting, setGreeting }: any) {
-  const [showLangDropdown, setShowLangDropdown] = useState(false);
-  const [showGreetingInfo, setShowGreetingInfo] = useState(false);
-
-  return (
-    <div className="ed-card">
-      <div className="ed-card-header">
-        <div className="ed-icon-box">
-          <svg fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16" height="16"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"></path></svg>
-        </div>
-        <div className="ed-card-title">Kommunikáció beállításai</div>
-      </div>
-
-      <div className="ed-grid-2 mb-24">
-        {/* Nyelv */}
-        <div>
-          <label className="ed-label">Nyelv</label>
-          <div className="relative ed-select-refined">
-            <div 
-              onClick={() => setShowLangDropdown(!showLangDropdown)} 
-              className={`settings-lang-trigger ${showLangDropdown ? 'settings-lang-trigger--open' : ''}`}
-            >
-              <div className="settings-flag-wrap">{COMM_FLAGS[lang] || COMM_FLAGS.hu}</div>
-              <span className="flex-1 text-md font-medium settings-lang-text">{COMM_LANGUAGE_OPTIONS.find(l => l.code === lang)?.label || 'magyar'}</span>
-              <svg fill="none" stroke="#082432" strokeWidth="2" viewBox="0 0 24 24" width="14" height="14" className={`settings-lang-chevron ${showLangDropdown ? 'settings-lang-chevron--open' : 'settings-lang-chevron--closed'}`}><path d="M6 9l6 6 6-6" /></svg>
+      {/* ── 1. Kommunikáció beállításai ── */}
+      <section className="co-section">
+        <div className="co-sec-head">
+          <div>
+            <div className="co-sec-title">
+              <svg className="ic" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" /></svg>
+              Kommunikáció beállításai
             </div>
-            {showLangDropdown && (
-              <>
-                <div className="dropdown-backdrop" onClick={() => setShowLangDropdown(false)} />
-                <div className="settings-lang-dropdown">
-                  {COMM_LANGUAGE_OPTIONS.map(l => (
-                    <div key={l.code} onClick={() => { setLang(l.code); setShowLangDropdown(false); }} className={`settings-lang-option ${lang === l.code ? 'settings-lang-option--active' : 'settings-lang-option--idle'}`}>
-                      <div className="settings-flag-wrap">{COMM_FLAGS[l.code]}</div>
-                      <span className={`${lang === l.code ? 'settings-lang-option-text--active' : 'settings-lang-option-text--idle'}`}>{l.label}</span>
-                      {lang === l.code && <svg fill="none" strokeWidth="2.5" viewBox="0 0 24 24" width="14" height="14" className="settings-lang-check"><polyline points="20 6 9 17 4 12" /></svg>}
-                    </div>
-                  ))}
-                </div>
-              </>
-            )}
+            <div className="co-sec-sub">Az eaisyDesk által használt nyelv, stílus és üdvözlőszöveg</div>
           </div>
         </div>
-
-        {/* Kommunikációs stílus */}
-        <div>
-          <label className="ed-label">Kommunikációs stílus</label>
-          <div className="settings-tone-select-wrap ed-select-refined">
-            <CustomSelect value={tone} onChange={(v) => setTone(v)} options={[
-              { value: 'professional_friendly', label: 'Professzionális, segítőkész' },
-              { value: 'formal', label: 'Formális, tárgyszerű' },
-              { value: 'informal', label: 'Informális, közvetlen' },
-              { value: 'empathetic', label: 'Empatikus, támogató' },
-              { value: 'custom', label: 'Egyedi leírás...' },
-            ]} />
-          </div>
-          {tone === 'custom' && <textarea className="ed-textarea" style={{ marginTop: 12 }} value={toneCustom} onChange={(e) => setToneCustom(e.target.value)} placeholder="Írd le a kívánt kommunikációs stílust..." />}
-        </div>
-      </div>
-
-      {/* Üdvözlőszöveg */}
-      <div>
-        <div className="flex-row gap-8 mb-8">
-          <label className="ed-label" style={{ marginBottom: 0 }}>Üdvözlőszöveg beállítása (Voice Agent)</label>
-          <div onClick={() => setShowGreetingInfo(!showGreetingInfo)} className="ed-info-icon" title="Súgó">i</div>
-        </div>
-        {showGreetingInfo && (
-          <div className="settings-greeting-info" style={{ marginBottom: 12, background: '#F8FAFC', border: '1px solid #E2E8F0', padding: '12px', borderRadius: '8px', fontSize: '13px', color: '#475569' }}>
-            Az üdvözlőszöveg legyen rövid, természetes és egyértelmű. A Voice Agentet nevezheted egyszerűen virtuális asszisztensnek és/vagy adhatsz neki nevet is. Kerüld a túl hosszú vagy túl információsűrű megfogalmazást.
-          </div>
-        )}
-        <textarea className="ed-textarea" value={greeting} onChange={(e) => setGreeting(e.target.value)} placeholder="Írd ide az üdvözlőszöveget..." />
-      </div>
-    </div>
-  );
-}
-
-
-
-function EmailSenderSettingsSection({ senderName, setSenderName, senderEmail, setSenderEmail }: any) {
-  return (
-    <div className="ed-card">
-      <div className="ed-card-header">
-        <div className="ed-icon-box">
-          <svg fill="none" stroke="currentColor" strokeWidth="1" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="16" height="16"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
-        </div>
-        <div className="ed-card-title">
-          E-mail feladó beállítások
-          <div className="ed-info-icon" style={{ marginLeft: 4 }} title={"Az e-mail értesítések feladójaként megjelenő név és e-mail cím.\n\nFontos: A feladó e-mail címnek a Brevo-ban hitelesítve kell lennie!"}>i</div>
-        </div>
-      </div>
-
-      <div className="ed-grid-2">
-        <div>
-          <label className="ed-label">Feladó neve</label>
-          <input className="ed-input" value={senderName} onChange={e => setSenderName(e.target.value)} placeholder="pl. RiverGate Dental Asszisztens" />
-        </div>
-        <div>
-          <label className="ed-label">Feladó e-mail</label>
-          <input className="ed-input" type="email" value={senderEmail} onChange={e => setSenderEmail(e.target.value)} placeholder="pl. info@rivergate.hu" />
-        </div>
-      </div>
-    </div>
-  );
-}
-
-
-// ── Channel settings (frontend-only, localStorage) ──────────────────────────
-
-interface ChannelConfig {
-  id: string;
-  label: string;
-  icon: React.ReactNode;
-  placeholder: string;
-  enabled: boolean;
-  value: string;
-}
-
-const STORAGE_KEY = 'eaisydesk_channels';
-
-const DEFAULT_CHANNELS: Omit<ChannelConfig, 'enabled' | 'value'>[] = [
-  {
-    id: 'phone',
-    label: 'Telefon',
-    icon: (
-      <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="svg-18">
-        <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.362 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.338 1.85.573 2.81.7A2 2 0 0122 16.92z" />
-      </svg>
-    ),
-    placeholder: '+36 1 234 5678',
-  },
-  {
-    id: 'email',
-    label: 'E-mail',
-    icon: (
-      <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="svg-18">
-        <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-        <polyline points="22,6 12,13 2,6" />
-      </svg>
-    ),
-    placeholder: 'info@ceg.hu',
-  },
-  {
-    id: 'messenger',
-    label: 'Messenger',
-    icon: (
-      <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="svg-18">
-        <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
-      </svg>
-    ),
-    placeholder: 'fb.com/oldal',
-  },
-  {
-    id: 'instagram',
-    label: 'Instagram üzenet',
-    icon: (
-      <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="svg-18">
-        <rect x="2" y="2" width="20" height="20" rx="5" ry="5" />
-        <path d="M16 11.37A4 4 0 1112.63 8 4 4 0 0116 11.37z" />
-        <line x1="17.5" y1="6.5" x2="17.51" y2="6.5" />
-      </svg>
-    ),
-    placeholder: 'Profil link vagy azonosító',
-  },
-  {
-    id: 'whatsapp',
-    label: 'WhatsApp',
-    icon: (
-      <svg fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" className="svg-18">
-        <path d="M21 11.5a8.38 8.38 0 01-.9 3.8 8.5 8.5 0 01-7.6 4.7 8.38 8.38 0 01-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 01-.9-3.8 8.5 8.5 0 014.7-7.6 8.38 8.38 0 013.8-.9h.5a8.48 8.48 0 018 8v.5z" />
-      </svg>
-    ),
-    placeholder: '+36 30 123 4567',
-  },
-];
-
-function loadChannels(): ChannelConfig[] {
-  try {
-    const raw = localStorage.getItem(STORAGE_KEY);
-    if (raw) {
-      const saved: Record<string, { enabled: boolean; value: string }> = JSON.parse(raw);
-      return DEFAULT_CHANNELS.map(ch => ({
-        ...ch,
-        enabled: saved[ch.id]?.enabled ?? false,
-        value: saved[ch.id]?.value ?? '',
-      }));
-    }
-  } catch { /* ignore */ }
-  return DEFAULT_CHANNELS.map(ch => ({ ...ch, enabled: false, value: '' }));
-}
-
-function saveChannels(channels: ChannelConfig[]) {
-  const data: Record<string, { enabled: boolean; value: string }> = {};
-  channels.forEach(ch => { data[ch.id] = { enabled: ch.enabled, value: ch.value }; });
-  localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-}
-
-function ChannelsSection({ channels, setChannels }: any) {
-  const update = useCallback((id: string, patch: Partial<ChannelConfig>) => {
-    setChannels((prev: ChannelConfig[]) => prev.map(ch => ch.id === id ? { ...ch, ...patch } : ch));
-  }, [setChannels]);
-
-  return (
-    <div className="mb-24">
-      <div style={{ marginBottom: 16 }}>
-        <h3 style={{ fontSize: '16px', fontWeight: 700, margin: '0 0 4px 0', color: '#082432' }}>Csatornák</h3>
-        <div style={{ fontSize: '13px', color: '#5F7D95' }}>Kommunikációs csatornák kezelése</div>
-      </div>
-      
-      <div className="channels-list">
-        {channels.map((ch: ChannelConfig, i: number) => (
-          <div key={ch.id} className={`channels-row ${i % 2 === 0 ? 'channels-row--even' : 'channels-row--odd'}`}>
-            <div className="channels-icon">
-              {ch.icon}
+        <div className="co-sec-body">
+          <div className="co-grid2">
+            <div className="co-field">
+              <span>Alapértelmezett nyelv</span>
+              <Cdd
+                value={lang}
+                options={[{ value: 'hu', label: 'Magyar' }, { value: 'en', label: 'Angol' }, { value: 'de', label: 'Német' }]}
+                onChange={setLang}
+                ariaLabel="Alapértelmezett nyelv"
+              />
             </div>
-            <div className="channels-label">{ch.label}</div>
-            <div className="channels-toggle">
-              <button
-                onClick={() => update(ch.id, { enabled: !ch.enabled })}
-                className={`toggle-pill ${ch.enabled ? 'toggle-pill--on' : 'toggle-pill--off'}`}
-              >
-                <div className={`toggle-circle ${ch.enabled ? 'toggle-circle--on' : 'toggle-circle--off'}`} />
+            <div className="co-field">
+              <span>Kommunikációs stílus</span>
+              <Cdd
+                value={tone}
+                options={[
+                  { value: 'professional_friendly', label: 'Professzionális, segítőkész' },
+                  { value: 'friendly', label: 'Barátságos, közvetlen' },
+                  { value: 'formal', label: 'Formális, távolságtartó' },
+                  { value: 'short', label: 'Tömör, lényegretörő' },
+                  ...(tone === 'custom' || toneCustom ? [{ value: 'custom', label: 'Egyéni' }] : []),
+                ]}
+                onChange={setTone}
+                ariaLabel="Kommunikációs stílus"
+              />
+            </div>
+          </div>
+          {tone === 'custom' && (
+            <div className="co-field" style={{ marginTop: 12 }}>
+              <span>Egyéni stílus leírása</span>
+              <input className="co-input" value={toneCustom} onChange={e => setToneCustom(e.target.value)} placeholder="Pl. Rövid, lényegretörő, humoros" />
+            </div>
+          )}
+          <div className="co-field" style={{ marginTop: 14 }}>
+            <div className="field-head">
+              <span>Üdvözlőszöveg (Voice Agent)</span>
+              <button className="info-tip" type="button" aria-label="Üdvözlőszöveg magyarázata">
+                <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                <span className="tip" role="tooltip">Ezt a szöveget mondja be a hangasszisztens minden beérkező hívás elején. A szövegnek tartalmaznia kell, hogy AI-asszisztens beszél, tájékoztatást kell adnia az adatkezelésről és a hangfelvételről, valamint meg kell adnia, hol érhető el a teljes tájékoztató.</span>
               </button>
             </div>
-            <input
-              className="channels-input"
-              value={ch.value}
-              onChange={(e) => update(ch.id, { value: e.target.value })}
-              placeholder={ch.placeholder}
-            />
+            <textarea className="co-textarea" rows={4} value={greeting} onChange={e => setGreeting(e.target.value)} placeholder="Pl.: Üdvözlöm, (név) vagyok, a (szolgáltató) virtuális asszisztense. A beszélgetést minőségbiztosítás és az esetleges hibák kivizsgálása érdekében rögzítjük. A felvételt (napok száma) nap után automatikusan töröljük. Részletes adatkezelési tájékoztatónkat a (weboldal) oldalon találja. Miben segíthetek?" />
           </div>
-        ))}
-      </div>
+        </div>
+      </section>
+
+      {/* ── 2. E-mail feladó beállítások ── */}
+      <section className="co-section">
+        <div className="co-sec-head">
+          <div>
+            <div className="co-sec-title">
+              <svg className="ic" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" /><polyline points="22,6 12,13 2,6" /></svg>
+              E-mail feladó beállítások
+            </div>
+            <div className="co-sec-sub">A kimenő e-mailekben megjelenő feladó neve és címe</div>
+          </div>
+          <button className="info-tip" type="button" aria-label="E-mail feladó magyarázata">
+            <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+            <span className="tip" role="tooltip">Az eaisyDesk által küldött e-mailek ezzel a névvel és címmel jelennek meg a címzettek postaládájában. A feladó e-mail-cím meghatározza azt is, hová érkeznek a válaszok.</span>
+          </button>
+        </div>
+        <div className="co-sec-body">
+          <div className="co-grid2">
+            <label className="co-field">
+              <span>Feladó neve</span>
+              <input className="co-input" type="text" value={senderName} onChange={e => setSenderName(e.target.value)} placeholder="pl. Rivergate Dental" />
+            </label>
+            <label className="co-field">
+              <span>Feladó e-mail</span>
+              <input className="co-input" type="email" value={senderEmail} onChange={e => setSenderEmail(e.target.value)} placeholder="pl. hello@ceg.hu" />
+            </label>
+          </div>
+        </div>
+      </section>
+
+      {/* ── 3. Kizárt feladók ── */}
+      <section className="co-section">
+        <div className="co-sec-head">
+          <div>
+            <div className="co-sec-title">
+              <svg className="ic" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /></svg>
+              Kizárt feladók
+            </div>
+            <div className="co-sec-sub">Az itt megadott feladóktól érkező e-maileket az eaisyDesk figyelmen kívül hagyja</div>
+          </div>
+          <button className="info-tip" type="button" aria-label="Kizárt feladók magyarázata">
+            <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+            <span className="tip" role="tooltip">A kizárt e-mail-címekről vagy domainekről érkező leveleket az eaisyDesk nem dolgozza fel, nem hoz létre belőlük ügyet, és nem küld rájuk automatikus választ. Használd például hírlevelek, rendszerüzenetek vagy belső címek kizárására.</span>
+          </button>
+        </div>
+        <div className="co-sec-body">
+          <div className="excl-block">
+            <div className="excl-title">
+              <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4" /><path d="M16 8v5a3 3 0 006 0v-1a10 10 0 10-3.92 7.94" /></svg>
+              Kizárt e-mail-címek
+            </div>
+            <div className="chips">
+              {exclEmails.length === 0 && <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>— nincs —</span>}
+              {exclEmails.map(e => (
+                <span key={e} className="chip">
+                  {e}
+                  <button className="chip-x" type="button" aria-label={e + ' eltávolítása'} onClick={() => removeExcl('email', e)}>
+                    <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="11" height="11"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="excl-add">
+              <input className="co-input" type="email" placeholder="munkatars@gmail.com" value={newEmail} onChange={e => setNewEmail(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addExclEmail(); }} />
+              <button className="appt-btn" type="button" onClick={addExclEmail}>Hozzáadás</button>
+            </div>
+          </div>
+
+          <div className="excl-block">
+            <div className="excl-title">
+              <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" /></svg>
+              Kizárt domainek
+            </div>
+            <div className="chips">
+              {exclDomains.length === 0 && <span style={{ fontSize: 12, color: 'var(--text-dim)' }}>— nincs —</span>}
+              {exclDomains.map(d => (
+                <span key={d} className="chip">
+                  @{d}
+                  <button className="chip-x" type="button" aria-label={d + ' eltávolítása'} onClick={() => removeExcl('domain', d)}>
+                    <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="11" height="11"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+                  </button>
+                </span>
+              ))}
+            </div>
+            <div className="excl-add">
+              <input className="co-input" type="text" placeholder="ceg.hu" value={newDomain} onChange={e => setNewDomain(e.target.value)} onKeyDown={e => { if (e.key === 'Enter') addExclDomain(); }} />
+              <button className="appt-btn" type="button" onClick={addExclDomain}>Hozzáadás</button>
+            </div>
+          </div>
+        </div>
+      </section>
     </div>
   );
 }
 
-// ── Custom role dropdown (dark mode safe) ────────────────────────────────────
 const ROLES = [
   { value: 'member', label: 'Munkatárs' },
   { value: 'admin', label: 'Admin' },

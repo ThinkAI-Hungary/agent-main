@@ -2601,3 +2601,32 @@ body.dark .rb-badge--err { background: #32191a; color: #e89590; border-color: #5
 
 /* A nyitott Cdd a szakaszrétegek fölé kerüljön (a co-section már nem vág) */
 .cdd.is-open { z-index: 40; }
+
+/* === Kizárt feladók (Beállítások → eaisyDesk beállítások, 2026-09-23 mockup) === */
+.excl-block + .excl-block { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--border); }
+.excl-title { display: flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: var(--text); margin-bottom: 4px; }
+.excl-title .ic { width: 15px; height: 15px; color: #186D98; flex: none; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; margin: 10px 0 12px; }
+.chip {
+  display: inline-flex; align-items: center; gap: 7px; height: 28px; padding: 0 6px 0 10px;
+  border: 1px solid var(--border); border-radius: 8px; background: var(--card);
+  font-size: 12.5px; color: var(--text);
+}
+.chip .chip-x {
+  width: 18px; height: 18px; flex: none; display: inline-flex; align-items: center; justify-content: center;
+  border: 0; background: none; border-radius: 8px; color: var(--text-dim); cursor: pointer;
+}
+.chip .chip-x:hover { color: #d9363d; background: #fff2f0; }
+.chip .chip-x .ic { width: 11px; height: 11px; }
+.excl-add { display: flex; gap: 8px; max-width: 460px; }
+.excl-add .co-input { flex: 1; }
+.excl-add .appt-btn { flex: none; }
+@media (max-width: 720px) { .excl-add { flex-direction: column; } }
+
+/* Beállítások oldal (BeallitasokPage): szekciócím-ikon méret + tile */
+.co-sec-title .ic { width: 16px; height: 16px; flex: none; }
+.co-sec-title svg.ic {
+  box-sizing: content-box; padding: 6px;
+  background: color-mix(in srgb, var(--accent, #1ceee0) 18%, var(--card, #fff));
+  border-radius: 8px; color: #186D98;
+}
