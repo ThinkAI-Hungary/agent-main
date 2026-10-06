@@ -398,6 +398,32 @@ def _apply_decision_tree(
     """
     channel_cat = _channel_category(channel)
 
+    # ── BOOKING-MODE OVERRIDE (2026-10-06): a foglalási mód a triage FÖLÖTT áll ──
+    # handoff/none (vagy custom op=handoff) esetén az Időpont-ügy a szándék-
+    # rögzítés ágra kerül és SOHA nem zárhat le (Nyitott + „Időpont véglegesítése"
+    # teendő — volt: a triage 'onallo' restriction=none-t adott → „Új időpont /
+    # Lezárt" lett, pedig nem történt foglalás; user-teszt 2026-10-06).
+    if ugytipus == "Időpont":
+        try:
+            import database as _db
+            _bmode = _db.get_booking_mode()
+            _bcustom = _db.get_booking_custom()
+        except Exception:
+            _bmode, _bcustom = "auto", {}
+        _alt0 = _normalize_altipus(idopont_altipus)
+        _op = {"Új": "book", "Módosítás": "modify", "Lemondás": "delete"}.get(_alt0, "book")
+        _blocked = _bmode in ("handoff", "none") or (_bmode == "custom" and _bcustom.get(_op) == "handoff")
+        if _blocked:
+            _szandek = {
+                "Új": "Foglalási szándék rögzítve",
+                "Módosítás": "Módosítási szándék rögzítve",
+                "Lemondás": "Lemondási szándék rögzítve",
+            }.get(_alt0, "Foglalási szándék rögzítve")
+            return {"eredmeny": _szandek,
+                    "statusz": "Nyitott" if restriction != "urgent" else "Sürgős",
+                    "teendo": "Időpont véglegesítése",
+                    "automation": "handover"}
+
     # ── KONFIG-VEZÉRELT ÚTVONAL (rules-list mátrix) ──
     if triage_rules:
         rule_entry = None

@@ -22,6 +22,15 @@ from classifier import (
 )
 
 
+# A booking_mode-override a valós DB-módot olvasná — a tesztek mindig auto-val
+# fussanak (a TestBookingModeOverride osztály saját fixture-e felülírja).
+@pytest.fixture(autouse=True)
+def _pin_booking_mode_auto(monkeypatch):
+    import database
+    monkeypatch.setattr(database, "get_booking_mode", lambda: "auto")
+    monkeypatch.setattr(database, "get_booking_custom", lambda: {})
+
+
 # ── Teszt triage konfig (a seed rules-list struktúra tükrözve) ──────────────
 
 CORE_RULES = [
@@ -360,3 +369,52 @@ class TestHelpers:
 
     def test_type_priority_order(self):
         assert TYPE_PRIORITY == ["Panasz", "Időpont", "Kérés", "Kérdés", "Egyéb"]
+
+
+class TestBookingModeOverride:
+    """A booking_mode a triage FÖLÖTT áll (2026-10-06): handoff/none esetén az
+    Időpont-ügy a szándék-rögzítés ágra kerül, és sosem zárhat le."""
+
+    @pytest.fixture(autouse=True)
+    def _patch_mode(self, monkeypatch):
+        import database
+        monkeypatch.setattr(database, "get_booking_mode", lambda: "handoff")
+        monkeypatch.setattr(database, "get_booking_custom", lambda: {})
+        yield
+
+    def test_handoff_uj_idopont_nem_zarhat(self):
+        d = _apply_decision_tree("Időpont", "Új", "none", True, "telefon", None)
+        assert d["eredmeny"] == "Foglalási szándék rögzítve"
+        assert d["statusz"] == "Nyitott"
+        assert d["teendo"] == "Időpont véglegesítése"
+        assert d["automation"] == "handover"
+
+    def test_handoff_modositas(self):
+        d = _apply_decision_tree("Időpont", "Módosítás", "none", True, "email", None)
+        assert d["eredmeny"] == "Módosítási szándék rögzítve"
+        assert d["statusz"] == "Nyitott"
+
+    def test_handoff_lemondas(self):
+        d = _apply_decision_tree("Időpont", "Lemondás", "none", True, "email", None)
+        assert d["eredmeny"] == "Lemondási szándék rögzítve"
+        assert d["statusz"] == "Nyitott"
+
+    def test_handoff_urgent_megorzi_a_surgosseget(self):
+        d = _apply_decision_tree("Időpont", "Új", "urgent", True, "telefon", None)
+        assert d["statusz"] == "Sürgős"
+
+    def test_auto_modon_nincs_override(self, monkeypatch):
+        import database
+        monkeypatch.setattr(database, "get_booking_mode", lambda: "auto")
+        d = _apply_decision_tree("Időpont", "Új", "none", True, "telefon", ALL_RULES)
+        # auto-módban a konfig-vezérelt út marad (a teszt-konfig szabálya szerint)
+        assert d["eredmeny"] != "Foglalási szándék rögzítve"
+
+    def test_custom_book_handoff_csak_az_erintett_muvelet(self, monkeypatch):
+        import database
+        monkeypatch.setattr(database, "get_booking_mode", lambda: "custom")
+        monkeypatch.setattr(database, "get_booking_custom", lambda: {"book": "handoff", "modify": "self", "delete": "self"})
+        d_book = _apply_decision_tree("Időpont", "Új", "none", True, "telefon", None)
+        d_mod = _apply_decision_tree("Időpont", "Módosítás", "none", True, "telefon", ALL_RULES)
+        assert d_book["eredmeny"] == "Foglalási szándék rögzítve"
+        assert d_mod["eredmeny"] != "Módosítási szándék rögzítve"
