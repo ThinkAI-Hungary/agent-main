@@ -617,7 +617,7 @@ select.co-input { cursor: pointer; }
 .co-del .ic { width: 14px; height: 14px; }
 .co-add-row {
   display: inline-flex; align-items: center; gap: 7px; height: 34px; padding: 0 14px; border-radius: 8px;
-  border: 1px dashed var(--border, #dbdbdb); background: transparent; color: var(--cp-a2, #186d98); font-family: inherit; font-size: 13px;
+  border: 1px dashed #186D98; background: transparent; color: var(--cp-a2, #186d98); font-family: inherit; font-size: 13px;
   font-weight: 600; cursor: pointer;
 }
 .co-add-row:hover { border-color: var(--cp-a2, #186d98); background: var(--surface, #f5f5f5); }

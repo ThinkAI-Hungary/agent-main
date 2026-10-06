@@ -1481,7 +1481,6 @@ function IssueHandlingRulesSection() {
             </button>
           </div>
           <div className="co-field co-field-narrow">
-            <span>Választervek elküldése</span>
             <Cdd
               value={state.writtenBehavior}
               options={[
