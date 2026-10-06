@@ -3301,6 +3301,19 @@ _CHANGELOG_FIELD_LABELS = {
 }
 
 
+def _touch_business_lastmod(username: str) -> None:
+    """'Utolsó módosítás' bélyeg a Tudástár fejlécéhez (2026-10-06 user-elv: minden
+    szekció-mentés — auto-save és azonnali — frissítse a logot, ne csak a nagy
+    'Változások mentése' gomb). A business_info updated_by/updated_at mezőit
+    osztja meg az összes Tudástár-szekció; hiba esetén némán elmegy (a mentés
+    már sikerült, a bélyeg nem kritikus)."""
+    try:
+        user_record = db.get_admin_user_by_username(username or "") or {}
+        db.update_business_info({"updated_by": (user_record.get("full_name") or username or "").strip()})
+    except Exception:
+        pass
+
+
 def _actor_name(user: dict) -> str:
     """A módosító megjelenítendő neve (full_name → username fallback)."""
     uname = (user or {}).get("username", "")
@@ -4427,6 +4440,7 @@ async def save_settings(payload: SettingsSaveRequest, _admin = Depends(require_a
                 raise HTTPException(status_code=400, detail=f"Hibás JSON formátum: {e}")
         db.update_knowledge_base(payload.knowledge_format, payload.knowledge_content)
 
+    _touch_business_lastmod(_admin.get("username", ""))
     return {"ok": True, "message": "Beállítások elmentve. A változtatások a következő hívásnál már érvényesek."}
 
 
@@ -4523,11 +4537,7 @@ async def save_issue_handling(payload: IssueHandlingRequest, _admin = Depends(re
     db.update_text_config("written_behavior", payload.writtenBehavior)
     # Utolsó módosítás jelzés a szabályok oldal fejlécéhez (a business_info
     # updated_by/updated_at mezőit osztja meg a céginformációs oldallal)
-    try:
-        user_record = db.get_admin_user_by_username(_admin.get("username", "")) or {}
-        db.update_business_info({"updated_by": (user_record.get("full_name") or _admin.get("username") or "").strip()})
-    except Exception:
-        pass
+    _touch_business_lastmod(_admin.get("username", ""))
     import classifier as _clf
     _clf.invalidate_classifier_cache()
     return {"ok": True, "message": "Ügykezelési szabályok elmentve."}
@@ -4588,6 +4598,7 @@ def api_post_triage_rules(rule: TriageRuleCreate, _admin = Depends(require_admin
     if new_id:
         import classifier as _clf
         _clf.invalidate_classifier_cache()
+        _touch_business_lastmod(_admin.get("username", ""))
         return {"ok": True, "id": new_id}
     raise HTTPException(status_code=500, detail="Hiba a létrehozáskor")
 
@@ -4596,6 +4607,7 @@ def api_put_triage_rules(rule_id: int, rule: TriageRuleCreate, _admin = Depends(
     if db.update_triage_rule(rule_id, rule.situation, rule.priority, rule.escalation_email):
         import classifier as _clf
         _clf.invalidate_classifier_cache()
+        _touch_business_lastmod(_admin.get("username", ""))
         return {"ok": True}
     raise HTTPException(status_code=400, detail="Hiba a frissítéskor")
 
@@ -4604,6 +4616,7 @@ def api_delete_triage_rules(rule_id: int, _admin = Depends(require_admin)):
     if db.delete_triage_rule(rule_id):
         import classifier as _clf
         _clf.invalidate_classifier_cache()
+        _touch_business_lastmod(_admin.get("username", ""))
         return {"ok": True}
     raise HTTPException(status_code=400, detail="Hiba a törléskor")
 
@@ -4625,18 +4638,21 @@ def api_get_services(admin: dict = Depends(verify_jwt)):
 def api_post_services(svc: ServiceCreate, _auth = Depends(require_admin)):
     new_id = db.add_service(svc.service_name, svc.duration_minutes, svc.description, svc.assigned_to, svc.note)
     if new_id:
+        _touch_business_lastmod(_auth.get("username", ""))
         return {"ok": True, "id": new_id}
     raise HTTPException(status_code=500, detail="Hiba a létrehozáskor")
 
 @app.put("/admin/api/services/{srv_id}")
 def api_put_services(srv_id: int, svc: ServiceCreate, _auth = Depends(require_admin)):
     if db.update_service(srv_id, svc.service_name, svc.duration_minutes, svc.description, svc.assigned_to, svc.note):
+        _touch_business_lastmod(_auth.get("username", ""))
         return {"ok": True}
     raise HTTPException(status_code=400, detail="Hiba a frissítéskor")
 
 @app.delete("/admin/api/services/{srv_id}")
 def api_delete_services(srv_id: int, _auth = Depends(require_admin)):
     if db.delete_service(srv_id):
+        _touch_business_lastmod(_auth.get("username", ""))
         return {"ok": True}
     raise HTTPException(status_code=400, detail="Hiba a törléskor")
 
@@ -5086,7 +5102,12 @@ async def upload_prices(file: UploadFile = File(...), _admin = Depends(require_a
         "filename": file.filename,
         "uploaded_at": datetime.now().strftime("%Y. %m. %d.")
     }
-    
+
+    try:
+        user_record = db.get_admin_user_by_username(_admin.get("username", "")) or {}
+        data["updated_by"] = (user_record.get("full_name") or _admin.get("username") or "").strip()
+    except Exception:
+        pass
     db.update_business_info(data)
     
     return {
@@ -5580,7 +5601,9 @@ def get_clinics_api(admin: dict = Depends(verify_jwt)):
 @app.post("/admin/api/clinics")
 def save_clinics_api(clinics: list[dict], _auth = Depends(require_admin)):
     success = db.save_clinics(clinics)
-    if success: return {"status": "ok"}
+    if success:
+        _touch_business_lastmod(_auth.get("username", ""))
+        return {"status": "ok"}
     raise HTTPException(status_code=500, detail="Failed to save clinics")
 
 @app.delete("/admin/api/clinics/{clinic_id}")
@@ -5589,6 +5612,7 @@ def delete_clinic_api(clinic_id: int, _auth = Depends(require_admin)):
     try:
         if db.supabase:
             db.supabase.table("clinics").delete().eq("id", clinic_id).execute()
+        _touch_business_lastmod(_auth.get("username", ""))
         return {"ok": True}
     except Exception as e:
         raise HTTPException(status_code=500, detail=str(e))
@@ -5734,6 +5758,7 @@ async def toggle_notification_endpoint(req: NotificationToggleRequest, _admin = 
         cancellation_enabled=target['cancellation_enabled'],
     )
     if success:
+        _touch_business_lastmod(_admin.get("username", ""))
         return {'ok': True, 'message': 'Értesítés beállítva.'}
     raise HTTPException(status_code=500, detail='Adatbázis hiba mentéskor')
 
@@ -5748,6 +5773,7 @@ async def save_reminder_settings_endpoint(payload: ReminderSettingsRequest, _adm
         confirmation_cancel_link=payload.confirmation_cancel_link,
     )
     if success:
+        _touch_business_lastmod(_admin.get("username", ""))
         return {'ok': True, 'message': 'Emlékeztető beállítások mentve.'}
     raise HTTPException(status_code=500, detail='Adatbázis hiba mentéskor')
 
@@ -5767,6 +5793,7 @@ async def update_outbound_automation_endpoint(automation_id: int, request: Reque
     data = await request.json()
     success = db.update_outbound_automation(automation_id, data)
     if success:
+        _touch_business_lastmod(_admin.get("username", ""))
         return {'ok': True, 'message': 'Automatizáció frissítve.'}
     raise HTTPException(status_code=500, detail='Hiba az automatizáció mentésekor.')
 

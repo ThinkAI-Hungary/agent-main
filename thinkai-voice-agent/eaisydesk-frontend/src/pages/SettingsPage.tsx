@@ -226,6 +226,7 @@ export default function SettingsPage() {
         const newBusiness = { ...business, price_list: priceText } as BusinessInfo;
         setBusiness(newBusiness);
         showToast('Árlista mentve!');
+        refreshLastMod();
         setShowPriceModal(false);
       } else {
         showToast('Mentési hiba', 'error');
@@ -361,12 +362,13 @@ export default function SettingsPage() {
       if (res.ok) {
         showToast('Beállítások mentve!', 'success');
         setLastSavedAt(new Date().toLocaleString('hu-HU', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }));
+        refreshLastMod();
       } else {
         showToast('Hiba a mentésnél', 'error');
       }
     } catch { showToast('Hiba a mentésnél', 'error'); }
     setSaving(false);
-  }, [agent]);
+  }, [agent, refreshLastMod]);
 
   const saveBusiness = useCallback(async () => {
     setSaving(true);
@@ -397,6 +399,31 @@ export default function SettingsPage() {
   const businessLoaded = useRef(false);
   const businessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const businessSavedRef = useRef<string>('');
+
+  // ── 'Utolsó módosítás' bélyeg frissítése (2026-10-06 user-elv): a backend
+  // minden szekció-mentést bélyegez — a fejléc-szöveget refetch nélkül tartjuk
+  // frissen. Dirty-safe: ha a usernek nem mentett céginfo-módosításai vannak,
+  // a dirty-bázis refet NEM írjuk felül (különben „elnézné" azokat).
+  const refreshLastMod = useCallback(async () => {
+    try {
+      const res = await authFetch('/admin/api/business-info');
+      if (!res.ok) return;
+      const d = await res.json();
+      setBusiness(prev => {
+        const wasClean = JSON.stringify(prev) === businessSavedRef.current;
+        const next = { ...prev, updated_by: d.updated_by ?? prev.updated_by, updated_at: d.updated_at ?? prev.updated_at };
+        if (wasClean) businessSavedRef.current = JSON.stringify(next);
+        return next as typeof prev;
+      });
+    } catch { /* a bélyeg frissítése nem kritikus */ }
+  }, []);
+
+  // Az ügykezelési szabályok kártya saját mentése után is frissül a bélyeg
+  useEffect(() => {
+    const onSaved = () => refreshLastMod();
+    window.addEventListener('ih-saved', onSaved);
+    return () => window.removeEventListener('ih-saved', onSaved);
+  }, [refreshLastMod]);
 
   useEffect(() => {
     if (!loading) {
@@ -487,8 +514,9 @@ export default function SettingsPage() {
         if (res.ok) { const data = await res.json(); if (data.clinics) setClinics(prev => prev.map((c, i) => i === idx ? (data.clinics[idx] || c) : c)); }
       }
       showToast('Telephely mentve');
+      refreshLastMod();
     } catch { showToast('Hiba', 'error'); }
-  }, []);
+  }, [refreshLastMod]);
 
   const deleteClinic = useCallback(async (id: number | undefined, idx: number) => {
     if (id) {
@@ -498,7 +526,8 @@ export default function SettingsPage() {
     }
     setClinics(prev => prev.filter((_, i) => i !== idx));
     showToast('Telephely törölve');
-  }, []);
+    if (id) refreshLastMod();
+  }, [refreshLastMod]);
 
 
 
@@ -511,8 +540,9 @@ export default function SettingsPage() {
         if (res.ok) { const data = await res.json(); if (data.id) setServices(prev => prev.map((s, i) => i === idx ? { ...svc, id: data.id } : s)); }
       }
       showToast('Szolgáltatás mentve');
+      refreshLastMod();
     } catch { showToast('Hiba', 'error'); }
-  }, []);
+  }, [refreshLastMod]);
 
   const deleteService = useCallback(async (id: number | undefined, idx: number) => {
     if (id) {
@@ -522,7 +552,8 @@ export default function SettingsPage() {
     }
     setServices(prev => prev.filter((_, i) => i !== idx));
     showToast('Szolgáltatás törölve');
-  }, []);
+    if (id) refreshLastMod();
+  }, [refreshLastMod]);
 
   const saveTriageRule = useCallback(async (rule: TriageRule, idx: number) => {
     try {
@@ -533,8 +564,9 @@ export default function SettingsPage() {
         if (res.ok) { const data = await res.json(); if (data.id) setTriageRules(prev => prev.map((r, i) => i === idx ? { ...rule, id: data.id } : r)); }
       }
       showToast('Ügykezelési szabály mentve');
+      refreshLastMod();
     } catch { showToast('Hiba', 'error'); }
-  }, []);
+  }, [refreshLastMod]);
 
   const deleteTriageRule = useCallback(async (id: number | undefined, idx: number) => {
     if (id) {
@@ -544,7 +576,8 @@ export default function SettingsPage() {
     }
     setTriageRules(prev => prev.filter((_, i) => i !== idx));
     showToast('Szabály törölve');
-  }, []);
+    if (id) refreshLastMod();
+  }, [refreshLastMod]);
 
   const _saveReminder = useCallback(async () => {
     setSaving(true);
@@ -554,11 +587,11 @@ export default function SettingsPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ reminder_enabled: reminder.reminder_enabled, reminder_hours: reminder.reminder_hours, reminder_template: reminder.reminder_template }),
       });
-      if (res.ok) showToast('Emlékeztető mentve');
+      if (res.ok) { showToast('Emlékeztető mentve'); refreshLastMod(); }
       else showToast('Hiba', 'error');
     } catch { showToast('Hiba', 'error'); }
     setSaving(false);
-  }, [reminder]);
+  }, [reminder, refreshLastMod]);
 
   const handleSave = useCallback(() => {
     if (activeTab === 'agent') saveAgent();
@@ -860,7 +893,7 @@ export default function SettingsPage() {
                   <>
                     {rows.length === 0 && (
                       <div className="grid-2col gap-12 mb-16">
-                        <button className="btn-settings-save settings-upload-btn" onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv,.xlsx'; input.onchange = async (e: any) => { const file = e.target.files?.[0]; if (!file) return; const formData = new FormData(); formData.append('file', file); try { const res = await authFetch('/admin/api/upload_prices', { method: 'POST', body: formData }); if (res.ok) { const data = await res.json(); showToast('Árlista feltöltve!', 'success'); if (data.price_list) { setBusiness({ ...business, price_list: data.price_list, price_list_file_meta: data.price_list_file_meta }); } } else { const errData = await res.json().catch(() => null); showToast(errData?.detail || 'Feltöltési hiba', 'error'); } } catch { showToast('Feltöltési hiba', 'error'); } }; input.click(); }}>
+                        <button className="btn-settings-save settings-upload-btn" onClick={() => { const input = document.createElement('input'); input.type = 'file'; input.accept = '.csv,.xlsx'; input.onchange = async (e: any) => { const file = e.target.files?.[0]; if (!file) return; const formData = new FormData(); formData.append('file', file); try { const res = await authFetch('/admin/api/upload_prices', { method: 'POST', body: formData }); if (res.ok) { const data = await res.json(); showToast('Árlista feltöltve!', 'success'); refreshLastMod(); if (data.price_list) { setBusiness({ ...business, price_list: data.price_list, price_list_file_meta: data.price_list_file_meta }); } } else { const errData = await res.json().catch(() => null); showToast(errData?.detail || 'Feltöltési hiba', 'error'); } } catch { showToast('Feltöltési hiba', 'error'); } }; input.click(); }}>
                           Új árlista feltöltése
                         </button>
                         <button className="btn btn-accent-outline settings-download-btn" onClick={async () => { try { const res = await authFetch('/admin/api/prices/template/download'); if (res.ok) { const blob = await res.blob(); const url = URL.createObjectURL(blob); const a = document.createElement('a'); a.href = url; a.download = 'arlista_minta.xlsx'; a.click(); URL.revokeObjectURL(url); } else { showToast('Letöltési hiba', 'error'); } } catch { showToast('Letöltési hiba', 'error'); } }}>
@@ -1395,6 +1428,8 @@ function IssueHandlingRulesSection() {
       });
       if (!res.ok) throw new Error('save failed');
       if (!opts?.silent) showToast('Ügykezelési szabályok mentve', 'success');
+      // A fejléc 'Utolsó módosítás' bélyegének frissítése a főkomponensben
+      window.dispatchEvent(new CustomEvent('ih-saved'));
     } catch {
       showToast('Hiba a mentés során — a beállítások csak helyben mentődtek!', 'error');
     } finally {
