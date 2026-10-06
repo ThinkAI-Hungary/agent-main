@@ -21,6 +21,7 @@ import {
 } from '../../helpers/interactionClassifiers';
 import InteractionSummaryModal from '../interactions/InteractionSummaryModal';
 import ChangeLogModal from './ChangeLogModal';
+import { markInteractionRead } from '../../helpers/unreadInteractions';
 
 interface EnrichedClient {
   id: number | string;
@@ -613,6 +614,9 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
   const handleMarkDone = useCallback(async (e: React.MouseEvent, interactionId: number | null) => {
     e.stopPropagation();
     if (!interactionId) { showToast('Nem azonosítható interakció', 'error'); return; }
+    // Lezárás = foglalkoztak vele → a kék pötty (olvasatlan-jelölés) is törlődik,
+    // akkor is, ha a részletezőt sosem nyitották meg (ügyfél-visszajelzés, prod)
+    markInteractionRead(interactionId);
     setOptimisticClosed(prev => new Set(prev).add(interactionId));
     showToast('Interakció lezárva');
     try {
@@ -1032,7 +1036,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                     <tr
                       key={item.key}
                       className={`cursor-pointer${(r.statusz || '').toLowerCase() === 'sürgős' ? ' cd-is-urgent' : ''}`}
-                      onClick={() => setSummaryModalRow(r)}
+                      onClick={() => { markInteractionRead(r.interactionId); setSummaryModalRow(r); }}
                     >
                       <td className="cd-time-cell">{r.date ? `${new Date(r.date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })} · ${new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}` : '-'}</td>
                       <td><CpChannelCell name={r.channel} /></td>
@@ -1134,7 +1138,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                     <tr
                       key={item.key}
                       className="cursor-pointer"
-                      onClick={() => setSummaryModalRow(r)}
+                      onClick={() => { markInteractionRead(r.interactionId); setSummaryModalRow(r); }}
                     >
                       <td className="cd-time-cell">{r.date ? `${new Date(r.date).toLocaleDateString('hu-HU', { month: 'short', day: 'numeric' })} · ${new Date(r.date).toLocaleTimeString('hu-HU', { hour: '2-digit', minute: '2-digit' })}` : '-'}</td>
                       <td><CpChannelCell name={r.channel} /></td>

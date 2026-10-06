@@ -287,6 +287,8 @@ export default function MemberDashboardPage() {
       return;
     }
     if (!row.interactionId || row.statusz === 'Lezárt') return;
+    // Lezárás = foglalkoztak vele → a kék pötty is törlődik (megnyitás nélkül is)
+    markInteractionRead(row.interactionId);
     try {
       const res = await authFetch(`/admin/api/interactions/${row.interactionId}/status`, {
         method: 'PATCH',
