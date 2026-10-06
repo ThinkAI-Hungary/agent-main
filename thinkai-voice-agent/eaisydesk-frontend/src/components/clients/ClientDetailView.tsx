@@ -362,6 +362,23 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     } catch { showToast('Hiba', 'error'); }
   }, [loadManualTasks]);
 
+  // Lezárt interakció ÚJRANYITÁSA (a zöld pipa visszavétele) — backend 'nyitott' ág
+  const handleReopen = useCallback(async (interactionId: number | null) => {
+    if (!interactionId) { showToast('Nem azonosítható interakció', 'error'); return; }
+    try {
+      const res = await authFetch(`/admin/api/interactions/${interactionId}/status`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: 'nyitott' }),
+      });
+      if (res.ok) {
+        setOptimisticClosed(prev => { const n = new Set(prev); n.delete(interactionId); return n; });
+        showToast('Interakció újranyitva');
+        onRefresh();
+      } else showToast('Hiba az újranyitáskor', 'error');
+    } catch { showToast('Hiba', 'error'); }
+  }, [onRefresh]);
+
   const openManualTasks = useMemo(() => manualTasks.filter(t => !t.completed), [manualTasks]);
   const closedManualTasks = useMemo(() => manualTasks.filter(t => !!t.completed), [manualTasks]);
 
@@ -1128,7 +1145,9 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                           <div className="todo-frame" title={t.text}>{t.text}</div>
                         </td>
                         <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
-                          <input type="checkbox" className="cp-done-check" checked disabled aria-label="Elvégezve" />
+                          <input type="checkbox" className="cp-done-check" checked
+                            aria-label="Elvégezve" title="Visszavétel: a teendő újranyílik"
+                            onChange={() => toggleManualTask(t)} />
                         </td>
                       </tr>
                     );
@@ -1148,7 +1167,9 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                       <td><CpStatusBadge value={isOptimisticClosed(r.interactionId) ? 'Lezárt' : r.statusz} /></td>
                       <td><CpTeendoCell value={r.teendo} /></td>
                       <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
-                        <input type="checkbox" className="cp-done-check" checked disabled aria-label="Elvégezve" />
+                        <input type="checkbox" className="cp-done-check" checked
+                          aria-label="Elvégezve" title="Visszavétel: az interakció újranyílik"
+                          onChange={() => handleReopen(r.interactionId)} />
                       </td>
                     </tr>
                   );

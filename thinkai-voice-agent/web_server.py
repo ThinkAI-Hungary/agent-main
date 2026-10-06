@@ -3928,10 +3928,11 @@ class InteractionStatusUpdateRequest(BaseModel):
 
 @app.patch("/admin/api/interactions/{id}/status")
 def update_interaction_status(id: int, req: InteractionStatusUpdateRequest, _auth = Depends(verify_jwt)):
-    """Safe status update that handles both approval_status and classification override."""
-    if req.status != "lezárt":
-        raise HTTPException(status_code=400, detail="Érvénytelen státusz érték. Csak a 'lezárt' támogatott.")
-    
+    """Safe status update that handles both approval_status and classification override.
+    'lezárt' = manuális lezárás; 'nyitott' = újranyitás (a zöld pipa visszavétele)."""
+    if req.status not in ("lezárt", "nyitott"):
+        raise HTTPException(status_code=400, detail="Érvénytelen státusz érték. Csak a 'lezárt' és 'nyitott' támogatott.")
+
     try:
         if not db.supabase:
             raise Exception("Database connection not available")
@@ -3941,6 +3942,26 @@ def update_interaction_status(id: int, req: InteractionStatusUpdateRequest, _aut
         # statusz-értékkészlet szennyezése volt. A lezárást a classification
         # statusz mezője hordozza (a frontend detectStatusz ezt olvassa elsőként).
         updates = {}
+
+        # ── ÚJRANYITÁS (2026-10-06, user-spec: a lezárt állapot visszavehető a
+        # jelölőnégyzettel). A lezáráskor felülírt teendő nem állítható vissza —
+        # mátrix-konform generikus „Intézkedés" kerül be. ──
+        if req.status == "nyitott":
+            res = db.supabase.table("interactions").select("classification").eq("id", id).execute()
+            cls = {}
+            if res.data and isinstance(res.data[0].get("classification"), dict):
+                cls = res.data[0]["classification"]
+            cls["statusz"] = "Nyitott"
+            cls["teendo"] = "Intézkedés"
+            cls.pop("closed_at", None)
+            cls.pop("closed_manually", None)
+            cls["reopened_manually"] = True
+            cls["reopened_by"] = _auth
+            updates["classification"] = cls
+            updates["closed_at"] = None
+            db.supabase.table("interactions").update(updates).eq("id", id).execute()
+            logger.info(f"Interaction {id} reopened (nyitott) by {_auth}")
+            return {"status": "success", "message": "Interakció újranyitva"}
 
         from datetime import datetime, timezone
         closed_at = datetime.now(timezone.utc).isoformat()

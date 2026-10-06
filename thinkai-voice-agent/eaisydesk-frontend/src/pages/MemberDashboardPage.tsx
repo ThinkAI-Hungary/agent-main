@@ -210,7 +210,7 @@ export default function MemberDashboardPage() {
       direction: '',
       ugyTipus: '',
       eredmeny: '',
-      statusz: task.priority === 'high' ? 'Sürgős' : 'Nyitott',
+      statusz: task.completed ? 'Lezárt' : (task.priority === 'high' ? 'Sürgős' : 'Nyitott'),
       teendo: task.text,
       tags: [] as string[],
       type: 'task',
@@ -276,17 +276,31 @@ export default function MemberDashboardPage() {
   // ── Elvégezve pipa ──
   const handleMarkDone = useCallback(async (e: React.MouseEvent, row: InteractionRow) => {
     e.stopPropagation();
-    const manual = row as InteractionRow & { isManual?: boolean; taskId?: number };
+    const manual = row as InteractionRow & { isManual?: boolean; taskId?: number; taskCompleted?: boolean };
     if (manual.isManual && manual.taskId) {
       try {
         const res = await authFetch(`/admin/api/tasks/${manual.taskId}/complete`, { method: 'PATCH' });
         if (!res.ok) throw new Error('task complete failed');
-        showToast('Teendő elkészültnek jelölve');
+        showToast(manual.taskCompleted ? 'Teendő újraaktiválva' : 'Teendő elkészültnek jelölve');
         loadManualTasks();
       } catch { showToast('Hiba a teendő frissítésekor', 'error'); }
       return;
     }
-    if (!row.interactionId || row.statusz === 'Lezárt') return;
+    if (!row.interactionId) return;
+    if (row.statusz === 'Lezárt') {
+      // Újranyitás (a zöld pipa visszavétele) — a backend 'nyitott' ága
+      try {
+        const res = await authFetch(`/admin/api/interactions/${row.interactionId}/status`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'nyitott' }),
+        });
+        if (!res.ok) throw new Error('reopen failed');
+        showToast('Interakció újranyitva');
+        refetchSessions();
+      } catch { showToast('Hiba az újranyitás során', 'error'); }
+      return;
+    }
     // Lezárás = foglalkoztak vele → a kék pötty is törlődik (megnyitás nélkül is)
     markInteractionRead(row.interactionId);
     try {
@@ -386,6 +400,8 @@ export default function MemberDashboardPage() {
             <tbody>
               {rows.map((r, i) => {
                 const created = r.date ? new Date(r.date) : null;
+                // Lezárt/„pressed" állapot: teljesített kézi teendő VAGY Lezárt státuszú sor
+                const isClosed = !!r.taskCompleted || (r.statusz || '').toLowerCase() === 'lezárt';
                 // Dátumszabály: soha "Ma" — mindig tényleges dátum
                 const dateLabel = created
                   ? `${HU_MONTHS_SHORT[created.getMonth()]} ${created.getDate()}. · ${pad2(created.getHours())}:${pad2(created.getMinutes())}`
@@ -452,10 +468,10 @@ export default function MemberDashboardPage() {
                           type="checkbox"
                           className="done-check"
                           aria-label="Elvégezve"
-                          title="Kipipálásra az interakció lezártra vált"
-                          style={{ width: 16, height: 16, accentColor: t.accent2, cursor: 'pointer' }}
-                          onClick={e => handleMarkDone(e, r)}
-                          onChange={() => {}}
+                          title={isClosed ? 'Visszavétel: az ügy újranyílik' : 'Kipipálásra az ügy lezártra vált'}
+                          checked={isClosed}
+                          style={{ width: 16, height: 16, accentColor: isClosed ? '#52c41a' : t.accent2, cursor: 'pointer' }}
+                          onChange={e => handleMarkDone(e as unknown as React.MouseEvent, r)}
                         />
                       </td>
                     )}
