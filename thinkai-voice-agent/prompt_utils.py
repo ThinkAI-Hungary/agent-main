@@ -348,15 +348,21 @@ def get_system_prompt(channel: str = None) -> str:
     # ── EAISY-241 §1.1.1/§2 — Eljárás-szabályok injektálása a promptba ────────
     # Dinamikusan felépíti a „mit tehet önállóan / mit nem" szabályokat a triage_rules
     # eljárás értékeiből, hogy a hang-agent betartsa a brief non-autonomy követelményeit.
-    result += _format_eljaras_rules()
+    result += _format_eljaras_rules(pi)
 
     return result
 
 
-def _format_eljaras_rules() -> str:
+def _format_eljaras_rules(pi: dict | None = None) -> str:
     """
     EAISY-241 — A triage_rules eljárás (onallo/jovahagyas/ember) értékeiből
     felépít egy explicit szabály-blokkot a rendszerprompt számára.
+
+    2026-10-06: a booking_mode FELÜLÍRJA az „Időpont" sort (a két igazságforrás
+    korábban ellentmondott egymásnak: a prompt eleje „csak igényrögzítés",
+    a végén ez a blokk „önállóan kezelhető" — a modell a vége felé nyert).
+    handoff/none → az Időpont átkerül a NEM autonóm listába; custom → a
+    műveletenkénti bontás a mód-blokkban (patient_rules eleje) látható.
     """
     try:
         rules = database.get_triage_rules()
@@ -377,10 +383,17 @@ def _format_eljaras_rules() -> str:
     lines = ["", "--- EAISY-241 ELJÁRÁS SZABÁLYOK (Szigorú!) ---",
              "Az ügytípusok kezelésének módja a rendszer beállításai szerint:"]
     non_autonomous = []
+    _mode = ((pi or {}).get("booking_mode") or "auto").strip().lower()
     for r in rules:
         situation = (r.get("situation") or "").strip()
         priority = (r.get("priority") or "").lower()
         if situation in ("Kérdés", "Kérés", "Panasz", "Időpont", "Egyéb", "Vegyes ügytípus"):
+            # booking_mode felülírás az Időpont sorra (mesterkapcsoló)
+            if situation == "Időpont" and _mode in ("handoff", "none"):
+                label = "NEM autonóm — csak igényrögzítés, átadás embernek (a foglalási mód felülírja)"
+                lines.append(f"- {situation}: {label}")
+                non_autonomous.append(situation)
+                continue
             label = ELJARAS_LABEL.get(priority, priority)
             lines.append(f"- {situation}: {label}")
             if priority in ("ember", "jovahagyas"):

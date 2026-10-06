@@ -560,7 +560,24 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
         pass
 
     # Utasítás a strukturált JSON outputra
-    json_instruction = """
+    # Foglalási mód kikényszerítése a JSON-kimenetre (2026-10-06): handoff/none
+    # (vagy custom book=handoff) esetén a meeting KÖTELEZŐEN null — a kódoldali
+    # kapu mellett így a prompt VÉGÉN lévő JSON-task sem húz foglalás felé
+    # (a handoff-blokk a prompt közepén a recency-hatás miatt gyengébb volt).
+    _bmode_json = db.get_booking_mode()
+    _book_blocked_json = _bmode_json in ("none", "handoff") or (
+        _bmode_json == "custom" and db.get_booking_custom().get("book") == "handoff")
+    _mode_json_rule = ""
+    if _book_blocked_json:
+        _mode_json_rule = (
+            "FOGLALÁSI MÓD KÖTELEZŐ SZABÁLY: jelenleg CSAK igényrögzítés és átadás "
+            "engedélyezett — a 'meeting' értéke KÖTELEZŐEN null, és a válaszlevél "
+            "NEM ajánlhat fel és NEM erősíthet meg konkrét időpontot; az ügyfelet "
+            "biztosítsd, hogy igényét rögzítetted, és munkatársunk felveszi vele "
+            "a kapcsolatot az egyeztetéshez.\n\n"
+        )
+
+    json_instruction = _mode_json_rule + """
 TE FELADATOD:
 Értékeld a beérkezett e-mailt a Tudásbázis és a Rendszer Prompt alapján.
 A kimeneted KIZÁRÓLAG egyetlen valid JSON objektum legyen, minden további markdown formázás (pl. ```json) NÉLKÜL.
