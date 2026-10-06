@@ -2574,3 +2574,27 @@ body.dark .ih-readonly {
 .cdd-opt-txt { display: flex; flex-direction: column; gap: 1px; min-width: 0; }
 .cdd-opt-sub { display: block; font-size: 11px; font-weight: 400; color: var(--text-dim); line-height: 1.4; }
 @media (max-width: 720px) { .cdd-wide .cdd-menu { min-width: 0; } }
+
+/* === Ügykezelési szabályok redesign (2026-09-23) === */
+.rules-fixed { border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.rf-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; background: var(--card); padding: 11px 13px; }
+.rf-row + .rf-row { border-top: 1px solid var(--border); }
+.rf-txt { font-size: 13px; color: var(--text); line-height: 1.45; }
+
+/* Státusz-labelek a default szabályokon (mockup: sárga / piros) */
+.rb-badge {
+  display: inline-flex; align-items: center; gap: 6px; padding: 3px 10px;
+  border-radius: 8px; font-size: 12px; font-weight: 500; white-space: nowrap;
+  border: 1px solid transparent;
+}
+.rb-dot { width: 6px; height: 6px; border-radius: 50%; flex: none; }
+.rb-badge--open { background: #fffbe6; color: #d48806; border-color: #ffe58f; }
+.rb-badge--open .rb-dot { background: #faad14; }
+.rb-badge--err { background: #fff2f0; color: #d9363d; border-color: #ffccc7; }
+.rb-badge--err .rb-dot { background: #ff4d4f; }
+body.dark .rb-badge--open { background: #312512; color: #e8c35e; border-color: #5b4920; }
+body.dark .rb-badge--err { background: #32191a; color: #e89590; border-color: #5b3231; }
+
+/* Keskeny mező (mockup: max 420px — a konténer-széles mezők helyett) */
+.co-field-narrow { max-width: 420px; }
+@media (max-width: 720px) { .co-field-narrow { max-width: none; } }

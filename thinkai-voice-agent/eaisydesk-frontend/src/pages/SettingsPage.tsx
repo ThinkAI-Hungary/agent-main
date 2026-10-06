@@ -1448,104 +1448,104 @@ function IssueHandlingRulesSection() {
 
       <div className="co-sec-body">
         {/* ══════ § 1. Alapértelmezett szabályok ══════ */}
-        <div className="co-sub">
-          <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
-          Alapértelmezett szabályok
-          <InfoIcon onClick={() => toggleInfo('defaults')} />
-        </div>
-        {openInfo === 'defaults' && (
-          <IhInfoBanner
-            title="Nem automatizálható ügyek"
-            body="Olyan ügytípusok, amelyeknél az eaisyDesk nem adhat végleges választ vagy nem hajthat végre önálló intézkedést. Az ügyet rögzíti és embernek továbbítja, mert adminisztratív, fizikai, jogi vagy felelősségi döntést igényelhet."
-            onClose={() => setOpenInfo(null)}
-          />
-        )}
-
-        <div className="co-rule-row">
-          <span className="co-rule-name">Adminisztratív, vagy fizikai akciót kívánó kérés, igény</span>
-          <span className="co-rule-tag">Átadás embernek</span>
-        </div>
-        <div className="co-rule-row">
-          <span className="co-rule-name">Reklamáció, hiba, elégedetlenség, sérelem, konfliktus</span>
-          <span className="co-rule-tag co-rule-tag--urgent">Sürgős átadás embernek</span>
+        <div className="rules-block">
+          <div className="rules-block-head">
+            <div className="co-sub" style={{ margin: 0 }}>
+              <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></svg>
+              Alapértelmezett szabályok
+            </div>
+            <button className="info-tip" type="button" aria-label="Alapértelmezett szabályok magyarázata">
+              <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+              <span className="tip" role="tooltip">Nem automatizálható ügyek: olyan ügytípusok, amelyeknél az eaisyDesk nem adhat végleges választ vagy nem hajthat végre önálló intézkedést. Az ügyet rögzíti és embernek továbbítja, mert adminisztratív, fizikai, jogi vagy felelősségi döntést igényelhet. Ezek a rendszer által alkalmazott alapbeállítások, nem módosíthatók.</span>
+            </button>
+          </div>
+          <div className="rules-fixed">
+            <div className="rf-row"><span className="rf-txt">Adminisztratív, vagy fizikai akciót kívánó kérés, igény</span><span className="rb-badge rb-badge--open"><span className="rb-dot"></span>Átadás embernek</span></div>
+            <div className="rf-row"><span className="rf-txt">Reklamáció, hiba, elégedetlenség, sérelem, konfliktus</span><span className="rb-badge rb-badge--err"><span className="rb-dot"></span>Sürgős átadás embernek</span></div>
+          </div>
         </div>
 
         {/* ══════ § 2. Írásos kommunikáció beállításai ══════ */}
-        <div className="co-sub">
-          <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
-          Írásos kommunikáció beállításai
-          <InfoIcon onClick={() => toggleInfo('written')} />
-        </div>
-        {openInfo === 'written' && (
-          <IhInfoBanner
-            title="Küldés előtti jóváhagyás"
-            body="Az írásos megkereséseknél beállítható, hogy az eaisyDesk önállóan válaszoljon-e a tudástár alapján, vagy csak jóváhagyásra készítsen elő választervet."
-            onClose={() => setOpenInfo(null)}
-          />
-        )}
-
-        <div className="co-rule-row">
-          <span className="co-rule-name">Kérdéskezelés a feltöltött cég- és kínálati információk alapján</span>
-          <select
-            className="co-input"
-            style={{ maxWidth: 240 }}
-            value={state.writtenBehavior}
-            onChange={e => setState(prev => ({ ...prev, writtenBehavior: e.target.value }))}
-          >
-            <option value="autonomous">Önállóan válaszolhat</option>
-            <option value="approval">Jóváhagyás szükséges</option>
-          </select>
-        </div>
-
-        {/* ══════ § 3. Egyedi korlátozó szabályok ══════ */}
-        <div className="co-sub">
-          <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z" /><path d="M12 6v6l4 2" /></svg>
-          Egyedi korlátozó szabályok
-          <InfoIcon onClick={() => toggleInfo('custom')} />
-        </div>
-        {openInfo === 'custom' && (
-          <IhInfoBanner
-            title="Speciális helyzetek kezelése"
-            body="Olyan speciális helyzetek, amikor az eaisyDesk nem válaszolhat vagy intézkedhet önállóan."
-            onClose={() => setOpenInfo(null)}
-          />
-        )}
-
-        {/* Editable custom rule rows (Értesítendő mező megszűnt — 2026-09-13) */}
-        <div className="co-list">
-          {state.customRules.map((rule, i) => (
-            <div className="co-item" key={i}>
-              <div className="co-body" style={{ display: 'flex', gap: 10 }}>
-                <input
-                  className="co-input"
-                  style={{ flex: 1 }}
-                  type="text"
-                  value={rule.desc}
-                  onChange={e => updateCustomRule(i, 'desc', e.target.value)}
-                  placeholder="Ügytípus leírása..."
-                />
-                <select
-                  className="co-input"
-                  style={{ width: 220, flex: 'none' }}
-                  value={rule.behavior}
-                  onChange={e => updateCustomRule(i, 'behavior', e.target.value)}
-                >
-                  <option value="handoff">Átadás embernek</option>
-                  <option value="urgent">Sürgős átadás embernek</option>
-                </select>
+        <div className="rules-block">
+          <div className="rules-block-head">
+            <div>
+              <div className="co-sub" style={{ margin: 0 }}>
+                <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M22 2L11 13" /><path d="M22 2l-7 20-4-9-9-4 20-7z" /></svg>
+                Írásos kommunikáció beállításai
               </div>
-              <button className="co-del" type="button" aria-label="Szabály törlése" onClick={() => deleteCustomRule(i)}>
-                <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" /></svg>
-              </button>
+              <div className="co-sec-sub" style={{ marginLeft: 36 }}>Kérdéskezelés a feltöltött cég- és kínálati információk alapján.</div>
             </div>
-          ))}
-        </div>
+            <button className="info-tip" type="button" aria-label="Írásos kommunikáció magyarázata">
+              <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+              <span className="tip" role="tooltip">Küldés előtti jóváhagyás: az írásos megkereséseknél beállítható, hogy az eaisyDesk önállóan válaszoljon-e a tudástár alapján, vagy csak jóváhagyásra készítsen elő választervet.</span>
+            </button>
+          </div>
+          <div className="co-field co-field-narrow">
+            <span>Választervek elküldése</span>
+            <Cdd
+              value={state.writtenBehavior}
+              options={[
+                { value: 'approval', label: 'Jóváhagyás szükséges' },
+                { value: 'autonomous', label: 'Önállóan válaszolhat' },
+              ]}
+              onChange={v => setState(prev => ({ ...prev, writtenBehavior: v }))}
+              ariaLabel="Választervek elküldése"
+            />
+          </div>
 
-        <div className="co-sec-foot">
-          <button className="co-add-row" type="button" onClick={addCustomRule}>
-            <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
-            Szabály hozzáadása
-          </button>
+          {/* ══════ § 3. Egyedi korlátozó szabályok — CSAK önálló válaszadásnál
+              (jóváhagyás-módban nincs értelme: minden válasz úgyis emberi
+              jóváhagyáson megy át — user-döntés 2026-09-23) ══════ */}
+          {state.writtenBehavior === 'autonomous' && (
+            <div className="bk-cond">
+              <div className="rules-block-head">
+                <div className="co-sub" style={{ margin: 0 }}>
+                  <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M12 6v6l4 2" /></svg>
+                  Egyedi korlátozó szabályok
+                </div>
+                <button className="info-tip" type="button" aria-label="Egyedi korlátozó szabályok magyarázata">
+                  <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                  <span className="tip" role="tooltip">Olyan speciális helyzetek, amikor az eaisyDesk nem válaszolhat önállóan.</span>
+                </button>
+              </div>
+              <div className="co-list">
+                {state.customRules.map((rule, i) => (
+                  <div className="co-item" key={i}>
+                    <div className="co-body" style={{ display: 'flex', gap: 10 }}>
+                      <input
+                        className="co-input"
+                        style={{ flex: 1 }}
+                        type="text"
+                        value={rule.desc}
+                        onChange={e => updateCustomRule(i, 'desc', e.target.value)}
+                        placeholder="Ügytípus leírása..."
+                      />
+                      <div style={{ width: 220, flex: 'none' }}>
+                        <Cdd
+                          value={rule.behavior}
+                          options={[
+                            { value: 'handoff', label: 'Átadás embernek' },
+                            { value: 'urgent', label: 'Sürgős átadás embernek' },
+                          ]}
+                          onChange={v => updateCustomRule(i, 'behavior', v)}
+                          ariaLabel="Eljárási mód"
+                        />
+                      </div>
+                    </div>
+                    <button className="co-del" type="button" aria-label="Szabály törlése" onClick={() => deleteCustomRule(i)}>
+                      <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" /></svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <div className="co-sec-foot">
+                <button className="co-add-row" type="button" onClick={addCustomRule}>
+                  <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                  Szabály hozzáadása
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </div>
     </section>
