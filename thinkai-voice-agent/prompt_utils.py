@@ -134,8 +134,11 @@ def _format_patient_rules(pi: dict) -> str:
                 "időpontot SOHA ne foglalj, ne erősíts meg, és NE ígérj visszaigazolást "
                 "(még preferált időpont megjelölését se erősítsd meg — a naptárhoz a te "
                 "döntésedhez NINCS hozzáférésed, az időpontot a munkatárs egyezteti)! "
-                f"Kérd be az igényfelmérési adatokat ({needs_txt}), majd biztosítsd az ügyfelet, "
-                "hogy az igényét rögzítetted, és munkatársunk hamarosan felveszi vele a "
+                f"A válaszban KÖTELEZŐEN kérdezz rá a HIÁNYZÓ igényfelmérési adatokra ({needs_txt}) — "
+                "amit az ügyfél a levelében már megadott, azt NE kérdezd újra (pl. ha megadta a "
+                "napot, csak a napsakot kérdezd). Formulád legyen könnyed: pl. 'Addig is, ha van "
+                "preferenciája a napszakot illetően, kérjük, jelezze felénk.' Ezután biztosítsd az "
+                "ügyfelet, hogy az igényét rögzítetted, és munkatársunk hamarosan felveszi vele a "
                 "kapcsolatot az időpont véglegesítése érdekében.")
     if mode == "custom":
         _hun = {"book": "időpontFOGLALÁS", "modify": "időpont-MÓDOSÍTÁS", "delete": "időpont-LEMONDÁS"}
