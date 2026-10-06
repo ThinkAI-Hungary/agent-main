@@ -2689,6 +2689,36 @@ def update_agent_settings(data: dict) -> bool:
         return False
 
 
+_BOOKING_INFO_CACHE: dict = {"data": None, "ts": 0.0}
+
+def get_booking_mode() -> str:
+    """A foglalási mód (auto|handoff|custom|none) — 60 mp TTL-cache-szel
+    (a voice toolok hívásonként többször is olvashatják). Ismeretlen/üres
+    értékre 'auto' (a mai viselkedés marad a default)."""
+    import time as _time
+    now = _time.time()
+    if _BOOKING_INFO_CACHE["data"] is not None and now - _BOOKING_INFO_CACHE["ts"] < 60:
+        mode = _BOOKING_INFO_CACHE["data"]
+    else:
+        try:
+            info = get_business_info() or {}
+            mode = (info.get("booking_mode") or "auto").strip().lower()
+        except Exception:
+            mode = "auto"
+        _BOOKING_INFO_CACHE["data"] = mode
+        _BOOKING_INFO_CACHE["ts"] = now
+    return mode if mode in ("auto", "handoff", "custom", "none") else "auto"
+
+
+def get_booking_custom() -> dict:
+    """Custom mód műveletenkénti beállításai: {'book'|'modify'|'delete': 'self'|'handoff'}."""
+    try:
+        v = (get_business_info() or {}).get("booking_custom") or {}
+        return v if isinstance(v, dict) else {}
+    except Exception:
+        return {}
+
+
 def get_business_info() -> dict:
     """Read the current tenant's business_info row from Supabase (singleton per tenant)."""
     if not supabase: return {}

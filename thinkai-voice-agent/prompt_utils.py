@@ -73,15 +73,29 @@ def _format_knowledge(raw: str) -> str:
         pass
     return raw or ""
 
+def _booking_self_ops(pi: dict) -> set:
+    """A booking_mode szerinti ÖNÁLLÓ műveletek halmaza.
+    auto → mind; none/handoff → üres; custom → a booking_custom self-jelű műveletei."""
+    mode = (pi.get("booking_mode") or "auto").strip().lower()
+    if mode == "auto":
+        return {"book", "modify", "delete"}
+    if mode == "custom":
+        custom = pi.get("booking_custom") or {}
+        if isinstance(custom, dict):
+            return {k for k in ("book", "modify", "delete") if custom.get(k) == "self"}
+        return set()
+    return set()
+
+
 def _format_cancellation_policy(pi: dict) -> str:
     """Módosítási/lemondási tájékoztatók — 2026-09-13-től TEXT-VEZÉRELT.
 
-    A korábbi enum-ágak (modositas_eng: igen/nem, lemondas_24h:
-    elfogadhato/figyelmeztetoSzoveggel/eloAtadas) megszűntek, mert az új UI
-    más értékeket mentett (onalloKezeles/handoff/urgent) → a szabályok
-    csendesen kiestek a promptból. Most a két szabad-szöveges mező tartalma
-    dönt: ami ki van töltve, az bekerül a promptba, ami üres, az nem.
-    """
+    2026-09-23: csak akkor renderelődik, ha a booking_mode enged önálló
+    foglalást (user-döntés: a szövegeknek csak önálló időpontkezelésnél van
+    értelme — a UI-ban is csak ekkor láthatók)."""
+    if "book" not in _booking_self_ops(pi) and "modify" not in _booking_self_ops(pi):
+        return "Nincs külön lemondási/módosítási szabály."
+
     rules = []
 
     mod_txt = (pi.get("modositas_szoveg") or "").strip()
@@ -96,7 +110,38 @@ def _format_cancellation_policy(pi: dict) -> str:
 
 def _format_patient_rules(pi: dict) -> str:
     rules = []
-    
+
+    # ── Foglalási mód (2026-09-23): a FŐ KAPCSOLÓ — a többi szabály elé ──
+    self_ops = _booking_self_ops(pi)
+    mode = (pi.get("booking_mode") or "auto").strip().lower()
+    if mode == "none":
+        return ("0. FOGLALÁS NEM KÉRHETŐ: ebben a rendszerben időpontot NEM kezelsz — "
+                "ne foglalj, ne ajánlj fel és ne erősíts meg időpontot. Udvariasan közöld, "
+                "hogy időpontfoglalás ezen a csatornán nem érhető el, és ajánld fel, hogy "
+                "üzenetet rögzítesz a munkatársaknak.")
+    if mode == "handoff":
+        _need_std = {"date": "preferált dátum", "daypart": "preferált napszak", "colleague": "preferált munkatárs"}
+        _needs = pi.get("booking_needs")
+        if isinstance(_needs, dict):
+            _parts = [_need_std[k] for k in (_needs.get("standard") or []) if k in _need_std] \
+                + [str(t) for t in (_needs.get("other") or []) if str(t).strip()]
+        elif isinstance(_needs, list):
+            _parts = [str(t) for t in _needs]
+        else:
+            _parts = []
+        needs_txt = ", ".join(_parts) if _parts else "preferált dátum, napszak"
+        return ("0. CSAK IGÉNYRÖGZÍTÉS ÉS ÁTADÁS: időpontot SOHA ne foglalj, ne erősíts meg, "
+                "és NE ígérj visszaigazolást (még preferált időpont megjelölését se erősítsd meg)! "
+                f"Kérd be az igényfelmérési adatokat ({needs_txt}), majd biztosítsd az ügyfelet, "
+                "hogy az igényét rögzítetted, és munkatársunk hamarosan felveszi vele a "
+                "kapcsolatot az időpont véglegesítése érdekében.")
+    if mode == "custom":
+        _hun = {"book": "időpontFOGLALÁS", "modify": "időpont-MÓDOSÍTÁS", "delete": "időpont-LEMONDÁS"}
+        _lines = [f"   - {_hun[op]}: {'önállóan kezelheted' if op in self_ops else 'NE kezeld önállóan — rögzítsd az igényt és jelezd, hogy munkatársunk felveszi a kapcsolatot'}" for op in ("book", "modify", "delete")]
+        rules.append("0. EGYEDI IDŐPONTKEZELÉS — műveletenként:\n" + "\n".join(_lines))
+        if "book" not in self_ops:
+            rules.append("   (Foglalni tehát NEM foglalsz önállóan — a többi foglalási lépésszabály csak az önálló műveletekre érvényes.)")
+
     # Kérdés a beazonosításra
     question = pi.get("pacient_id_question", "Korábban járt már a rendelőnkben?")
     if question:
@@ -112,9 +157,9 @@ def _format_patient_rules(pi: dict) -> str:
         rules.append("   - SZIGORÚ SZABÁLY: Mivel ő egy ÚJ páciens, az első alkalommal KIZÁRÓLAG állapotfelmérésre / általános vizitre (pl. Konzultáció) foglalhatsz neki időpontot! Semmilyen más konkrét kezelésre (pl. tömés, foghúzás) NEM adhatsz időpontot látatlanban. Mondd el neki, hogy az első alkalommal mindenképp egy állapotfelmérésre van szükség.")
         rules.append("   - KIVÉTEL-ELSŐBBLISSÉG: a szolgáltatás-listában az egyes szolgáltatásokhoz fűzött [Foglalási szabály: ...] megjegyzések EZT az általános szabályt FELÜLÍRHATJÁK (pl. ha egy kezelésnél a megjegyzés szerint nincs szükség előzetes konzultációra, akkor új páciensnek is közvetlenül foglalhatsz). A szolgáltatás-specifikus megjegyzés mindig erősebb, mint az általános szabály.")
 
-    # Visszatérő páciens szabályok
-    ret_req = pi.get("returning_patient_required", "Páciens azonosító vagy telefonszám")
-    rules.append(f"3. HA AZ ÜGYFÉL VISSZATÉRŐ PÁCIENS: Kötelezően kérd be a következő adatokat az azonosításhoz: '{ret_req}'. Szintén kötelezően kérd be az e-mail címét is!")
+    # (A visszatérő-páciens bekérő sor 2026-09-23-án kivezetve: a mockup
+    # „Új ügyfelek kezelése" blokkja már nem tartalmazza, és a szerveroldali
+    # csendes azonosítás (profil-hint) fedi a funkciót.)
 
     # Meglévő időpont nem tiltó (ugyanarról a számról ismételt hívás)
     rules.append("3b. HA A HÍVÓNAK MÁR VAN KÖZELGŐ IDŐPONTJA (find_client vagy naptár szerint): ezt CSAK TÁJÉKOZTATÁSKÉPPEN említsd ('Látom, várjuk kedden 16:30-kor — foglaljak még egy időpontot?'), és az ÚJ foglalást SOHA ne utasítsd el, ne kérdőjelezd meg, és ne hivatkozz rá a beszélgetés visszaterelésére! Ütközéses időpontnál ajánld fel a tool által javasolt szabad időpontot.")

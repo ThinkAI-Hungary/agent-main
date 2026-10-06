@@ -4514,6 +4514,10 @@ class BusinessInfoSaveRequest(BaseModel):
     service_description: str = ""
     sender_name: str = ""
     sender_email: str = ""
+    # Foglalási mód (2026-09-23): auto | handoff | custom | none
+    booking_mode: str = "auto"
+    booking_custom: dict = {}   # custom módban: {"book"|"modify"|"delete": "self"|"handoff"}
+    booking_needs: dict = {}    # handoff módban: {"standard": ["date","daypart","colleague"], "other": ["…"]}
 
 @app.get("/admin/api/triage_rules")
 def api_get_triage_rules(admin: dict = Depends(verify_jwt)):

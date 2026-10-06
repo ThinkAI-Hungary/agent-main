@@ -11,6 +11,7 @@ import { useAuth } from '../context/AuthContext';
 import CustomSelect from '../components/settings/CustomSelect';
 
 import { showToast } from '../components/ui/Toast';
+import Cdd from '../components/ui/Cdd';
 import { SettingsSkeleton } from '../components/ui/Skeleton';
 
 // ── Tab definitions ──
@@ -312,6 +313,9 @@ export default function SettingsPage() {
           new_patient_required: p.new_patient_required || prev.new_patient_required,
           new_patient_auto_visit: p.new_patient_auto_visit ?? true,
           returning_patient_required: p.returning_patient_required || prev.returning_patient_required,
+          booking_mode: p.booking_mode || 'auto',
+          booking_custom: p.booking_custom || {},
+          booking_needs: p.booking_needs || { standard: [], other: [] },
           price_list: p.price_list || '',
           price_list_file_meta: p.price_list_file_meta || null,
           // EAISY-241: sender_email/sender_name betöltése — eddig hiányzott,
@@ -1034,90 +1038,230 @@ export default function SettingsPage() {
 
               <div className="co-sec-body">
 
-              {/* § 1. Új és visszatérő ügyfelek kezelése */}
-              <div className="co-sub">
-                <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></svg>
-                Új és visszatérő ügyfelek kezelése
-              </div>
-              <div className="co-grid">
-                <label className="co-field full"><span>Új ügyfelek beazonosítását szolgáló kérdés</span><input className="co-input" value={business.pacient_id_question || ''} onChange={e => setBusiness({ ...business, pacient_id_question: e.target.value })} placeholder="pl. Járt már nálunk korábban?" /></label>
-                <label className="co-field"><span>Új ügyféltől bekérendő adat</span><input className="co-input" value={business.new_patient_required || ''} onChange={e => setBusiness({ ...business, new_patient_required: e.target.value })} placeholder="pl. Név, email cím" /></label>
-                <label className="co-field"><span>Visszatérő ügyféltől bekérendő adat</span><input className="co-input" value={business.returning_patient_required || ''} onChange={e => setBusiness({ ...business, returning_patient_required: e.target.value })} placeholder="pl. Név, születési év" /></label>
-              </div>
-
-              {/* § 2. Foglalható szolgáltatások, kollégák */}
-              <div className="co-sub">
-                <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M2 7h20v14a2 2 0 01-2 2H4a2 2 0 01-2-2V7zM16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" /></svg>
-                Foglalható szolgáltatások, kollégák
-              </div>
-              <div className="br-col-labels-4">
-                <span className="ih-col-label">Szolgáltatás neve</span>
-                <span className="ih-col-label">Időtartam (perc)</span>
-                <span className="ih-col-label">Kolléga</span>
-                <span className="ih-col-label">Megjegyzés</span>
-              </div>
-              <div className="co-list">
-                {services.map((s, i) => (
-                  <div key={s.id || i} className="co-item">
-                    <div className="co-body br-grid-4col">
-                      <input className="co-input" value={s.service_name} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, service_name: e.target.value } : x))} placeholder="Szolgáltatás neve" onBlur={() => saveService(s, i)} />
-                      <input className="co-input" type="number" value={s.duration_minutes} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, duration_minutes: Number(e.target.value) } : x))} placeholder="Perc" onBlur={() => saveService(s, i)} />
-                      <input className="co-input" value={s.assigned_to || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, assigned_to: e.target.value } : x))} placeholder="Kolléga" onBlur={() => saveService(s, i)} />
-                    <input className="co-input" value={s.note || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, note: e.target.value } : x))} placeholder="pl. Csak dentálhigiénikushoz foglalható" onBlur={() => saveService(s, i)} />
-                    </div>
-                    <button className="co-del" type="button" aria-label="Szolgáltatás törlése" onClick={() => deleteService(s.id, i)}>
-                      <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" /></svg>
-                    </button>
+              {/* § 1. Szolgáltatáskatalógus (volt: Foglalható szolgáltatások) — 2026-09-23 redesign */}
+              <div className="rules-block">
+                <div className="rules-block-head">
+                  <div className="co-sub" style={{ marginBottom: 0 }}>
+                    <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></svg>
+                    Szolgáltatáskatalógus
                   </div>
-                ))}
-              </div>
-              <div className="co-sec-foot">
-                <button className="co-add-row" type="button" onClick={() => setServices(prev => [...prev, { service_name: '', description: '', duration_minutes: 30, assigned_to: '', note: '' }])}>
-                  <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
-                  Szolgáltatás hozzáadása
-                </button>
-              </div>
-
-              {/* § 3. Kivételek kezelése */}
-              <div className="co-sub">
-                <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-2-2zM12 9v4M12 17h.01" /></svg>
-                Kivételek kezelése
-              </div>
-              <div className="co-list">
-                {(business.exceptions || []).map((ex: string, i: number) => (
-                  <div key={i} className="co-item">
-                    <div className="co-body">
-                      <input className="co-input" value={ex} onChange={e => { const exceptions = [...(business.exceptions || [])]; exceptions[i] = e.target.value; setBusiness({ ...business, exceptions }); }} placeholder="Kivétel leírása..." />
+                  <button className="info-tip" type="button" aria-label="Szolgáltatáskatalógus magyarázata">
+                    <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                    <span className="tip" role="tooltip">Add meg a cég által nyújtott szolgáltatásokat és a hozzájuk kapcsolódó információkat. A katalógust akkor is töltsd ki, ha az eaisyDesk nem kezelhet önállóan időpontokat, vagy a cégnél nem kérhető időpont.</span>
+                  </button>
+                </div>
+                <div className="br-col-labels-4">
+                  <span className="ih-col-label">Szolgáltatás neve</span>
+                  <span className="ih-col-label">Időtartam (perc)</span>
+                  <span className="ih-col-label">Munkatárs / erőforrás</span>
+                  <span className="ih-col-label">Megjegyzés</span>
+                </div>
+                <div className="co-list">
+                  {services.map((s, i) => (
+                    <div key={s.id || i} className="co-item">
+                      <div className="co-body br-grid-4col">
+                        <input className="co-input" value={s.service_name} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, service_name: e.target.value } : x))} placeholder="Szolgáltatás neve" onBlur={() => saveService(s, i)} />
+                        <input className="co-input" type="number" value={s.duration_minutes} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, duration_minutes: Number(e.target.value) } : x))} placeholder="Perc" onBlur={() => saveService(s, i)} />
+                        <input className="co-input" value={s.assigned_to || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, assigned_to: e.target.value } : x))} placeholder="pl. minden orvos / 2-es pálya" onBlur={() => saveService(s, i)} />
+                        {/* A Megjegyzés szélessége fix, a magassága a szöveg terjedelmében nyúlik */}
+                        <textarea
+                          className="co-input svc-note"
+                          rows={1}
+                          value={s.note || ''}
+                          onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, note: e.target.value } : x))}
+                          onInput={e => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 220) + 'px'; }}
+                          ref={t => { if (t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 220) + 'px'; } }}
+                          placeholder="pl. Csak dentálhigiénikushoz foglalható"
+                          onBlur={() => saveService(s, i)}
+                        />
+                      </div>
+                      <button className="co-del" type="button" aria-label="Szolgáltatás törlése" onClick={() => deleteService(s.id, i)}>
+                        <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" /></svg>
+                      </button>
                     </div>
-                    <button className="co-del" type="button" aria-label="Kivétel törlése" onClick={() => { const exceptions = (business.exceptions || []).filter((_: string, j: number) => j !== i); setBusiness({ ...business, exceptions }); }}>
-                      <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" /></svg>
-                    </button>
-                  </div>
-                ))}
-              </div>
-              <div className="co-sec-foot">
-                <button className="co-add-row" type="button" onClick={() => setBusiness({ ...business, exceptions: [...(business.exceptions || []), ''] })}>
-                  <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
-                  Kivétel hozzáadása
-                </button>
+                  ))}
+                </div>
+                <div className="co-sec-foot">
+                  <button className="co-add-row" type="button" onClick={() => setServices(prev => [...prev, { service_name: '', description: '', duration_minutes: 30, assigned_to: '', note: '' }])}>
+                    <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                    Szolgáltatás hozzáadása
+                  </button>
+                </div>
               </div>
 
-              {/* § 4. Időpont módosítása és lemondása — NINCS eljárás-dropdown
-                  (user-döntés 2026-09-13): a két szabad-szöveges mező tartalma
-                  vezérli a promptot (backend: _format_cancellation_policy). */}
-              <div className="co-sub">
-                <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 2a10 10 0 100 20 10 10 0 000-20zM15 9l-6 6M9 9l6 6" /></svg>
-                Időpont módosítása és lemondása
+              {/* § 2. Időponttal kapcsolatos ügyek kezelése — mód-dropdown + feltételes blokkok */}
+              <div className="rules-block">
+                <div className="rules-block-head">
+                  <div className="co-sub" style={{ marginBottom: 0 }}>
+                    <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><polyline points="12 7 12 12 15 14" /></svg>
+                    Időponttal kapcsolatos ügyek kezelése
+                  </div>
+                  <button className="info-tip" type="button" aria-label="Időpontkezelés magyarázata">
+                    <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                    <span className="tip" role="tooltip">Meghatározza, hogy az eaisyDesk önállóan kezelje-e az időpontfoglalást, módosítást és lemondást, vagy csak rögzítse és továbbítsa az ügyfél igényét.</span>
+                  </button>
+                </div>
+                <div className="co-field co-field-narrow">
+                  <span>Hogyan kezelje az eaisyDesk az időponttal kapcsolatos ügyeket?</span>
+                  <Cdd
+                    wide
+                    value={(business.booking_mode as string) || 'auto'}
+                    options={[
+                      { value: 'auto', label: 'Önálló időpontkezelés engedélyezett', sub: 'Az eaisyDesk önállóan rögzíti, módosítja és törli az időpontokat a megadott szabályok szerint.' },
+                      { value: 'handoff', label: 'Csak igényrögzítés és átadás', sub: 'Az eaisyDesk felméri az ügyfél időpont-igényét, majd átadja az ügyet munkatársnak.' },
+                      { value: 'custom', label: 'Egyedi beállítások', sub: 'Műveletenként adható meg, hogy az eaisyDesk önállóan kezelje az időpontot, vagy átadásra kerüljön.' },
+                      { value: 'none', label: 'Nem kérhető időpont', sub: 'Az eaisyDesk nem fogad és nem kezel időponttal kapcsolatos kéréseket.' },
+                    ]}
+                    onChange={v => setBusiness({ ...business, booking_mode: v })}
+                    ariaLabel="Időpontkezelés módja"
+                  />
+                </div>
+
+                {/* auto: kivételek + módosítás/lemondás szövegek */}
+                {(business.booking_mode || 'auto') === 'auto' && (
+                  <div className="bk-cond">
+                    <div className="co-field" style={{ marginBottom: 16 }}>
+                      <span>Kivételek kezelése</span>
+                      <p className="co-note">Add meg, mely esetekben ne foglaljon önállóan az eaisyDesk, hanem adja át az ügyet munkatársnak.</p>
+                      <div className="co-list">
+                        {(business.exceptions || []).map((ex: string, i: number) => (
+                          <div key={i} className="co-item">
+                            <div className="co-body">
+                              <input className="co-input" value={ex} onChange={e => { const exceptions = [...(business.exceptions || [])]; exceptions[i] = e.target.value; setBusiness({ ...business, exceptions }); }} placeholder="Pl. Altatásban végzett fogászati kezelések" />
+                            </div>
+                            <button className="co-del" type="button" aria-label="Kivétel törlése" onClick={() => { const exceptions = (business.exceptions || []).filter((_: string, j: number) => j !== i); setBusiness({ ...business, exceptions }); }}>
+                              <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" /></svg>
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                      <div className="co-sec-foot">
+                        <button className="co-add-row" type="button" onClick={() => setBusiness({ ...business, exceptions: [...(business.exceptions || []), ''] })}>
+                          <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                          Kivétel hozzáadása
+                        </button>
+                      </div>
+                    </div>
+                    <div className="co-grid">
+                      <label className="co-field full">
+                        <span>Tájékoztató szöveg időpont módosítás esetén</span>
+                        <textarea className="co-textarea" value={business.modositas_szoveg || ''} onChange={e => setBusiness({ ...business, modositas_szoveg: e.target.value })} placeholder="pl. Időpont módosítására az időpont előtti 48 órával van lehetőség." />
+                      </label>
+                      <label className="co-field full">
+                        <span>Figyelmeztetés 24 órán belüli módosítás / lemondás esetén</span>
+                        <textarea className="co-textarea" value={business.figyelmezteto_szoveg || ''} onChange={e => setBusiness({ ...business, figyelmezteto_szoveg: e.target.value })} placeholder="Tájékoztatjuk, hogy 24 órán belül történő lemondás vagy módosítás esetén rendelőnk rendelkezésre állási díjat számíthat fel." />
+                      </label>
+                    </div>
+                  </div>
+                )}
+
+                {/* handoff: igényfelmérés multi-select + egyéb lista */}
+                {business.booking_mode === 'handoff' && (
+                  <div className="bk-cond">
+                    <div className="co-field co-field-narrow">
+                      <span>Igények felmérése</span>
+                      <p className="co-note">Jelöld meg, milyen adatokat kérjen be az eaisyDesk, mielőtt átadja az ügyet munkatársnak. Többet is választhatsz.</p>
+                      <Cdd
+                        multi
+                        values={((business.booking_needs as { standard?: string[] })?.standard) || []}
+                        options={[
+                          { value: 'date', label: 'Preferált dátum' },
+                          { value: 'daypart', label: 'Preferált napszak' },
+                          { value: 'colleague', label: 'Preferált munkatárs' },
+                          { value: 'other', label: 'Egyéb' },
+                        ]}
+                        placeholder="Válassz igényeket…"
+                        onChangeMulti={vals => {
+                          const prevOther = ((business.booking_needs as { other?: string[] })?.other) || [];
+                          setBusiness({ ...business, booking_needs: { standard: vals, other: prevOther } });
+                        }}
+                        ariaLabel="Igények felmérése"
+                      />
+                    </div>
+                    {(((business.booking_needs as { standard?: string[] })?.standard) || []).includes('other') && (
+                      <div className="co-field" style={{ marginTop: 12 }}>
+                        <span>Egyéb igények</span>
+                        <div className="co-list">
+                          {((((business.booking_needs as { other?: string[] })?.other) || [])).map((txt: string, i: number) => (
+                            <div key={i} className="co-item">
+                              <div className="co-body">
+                                <input className="co-input" value={txt} onChange={e => {
+                                  const needs = { ...((business.booking_needs as object) || {}) } as { standard?: string[]; other?: string[] };
+                                  const other = [...(needs.other || [])]; other[i] = e.target.value; needs.other = other;
+                                  setBusiness({ ...business, booking_needs: needs });
+                                }} placeholder="Írd be, milyen egyéb adatot kérjen be…" />
+                              </div>
+                              <button className="co-del" type="button" aria-label="Igény törlése" onClick={() => {
+                                const needs = { ...((business.booking_needs as object) || {}) } as { standard?: string[]; other?: string[] };
+                                needs.other = (needs.other || []).filter((_: string, j: number) => j !== i);
+                                setBusiness({ ...business, booking_needs: needs });
+                              }}>
+                                <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2m3 0v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6h14z" /></svg>
+                              </button>
+                            </div>
+                          ))}
+                        </div>
+                        <div className="co-sec-foot" style={{ marginTop: 8 }}>
+                          <button className="co-add-row" type="button" onClick={() => {
+                            const needs = { ...((business.booking_needs as object) || {}) } as { standard?: string[]; other?: string[] };
+                            needs.other = [...(needs.other || []), ''];
+                            setBusiness({ ...business, booking_needs: needs });
+                          }}>
+                            <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14" /></svg>
+                            Igény hozzáadása
+                          </button>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* custom: műveletenkénti önálló/átadás */}
+                {business.booking_mode === 'custom' && (
+                  <div className="bk-cond">
+                    <div className="bk-rows">
+                      {([
+                        { key: 'book', t: 'Időpontfoglalás', s: 'Új időpont rögzítése az ügyfél kérésére' },
+                        { key: 'modify', t: 'Időpont módosítása', s: 'Meglévő időpont átütemezése' },
+                        { key: 'delete', t: 'Időpont törlése', s: 'Meglévő időpont lemondása' },
+                      ] as const).map(row => (
+                        <div className="bk-row" key={row.key}>
+                          <div className="bk-row-label">
+                            <span className="t">{row.t}</span>
+                            <span className="s">{row.s}</span>
+                          </div>
+                          <Cdd
+                            value={((business.booking_custom as Record<string, string>) || {})[row.key] || (row.key === 'book' ? 'self' : 'handoff')}
+                            options={[
+                              { value: 'self', label: 'Önállóan kezelheti' },
+                              { value: 'handoff', label: 'Átadás szükséges' },
+                            ]}
+                            onChange={v => setBusiness({ ...business, booking_custom: { ...((business.booking_custom as object) || {}), [row.key]: v } })}
+                            ariaLabel={row.t}
+                          />
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                )}
               </div>
-              <div className="co-grid">
-                <label className="co-field full">
-                  <span>Tájékoztató szöveg időpont módosítás esetén</span>
-                  <textarea className="co-textarea" value={business.modositas_szoveg || ''} onChange={e => setBusiness({ ...business, modositas_szoveg: e.target.value })} placeholder="pl. Időpont módosítására az időpont előtti 48 órával van lehetőség." />
-                </label>
-                <label className="co-field full">
-                  <span>Figyelmeztetés 24 órán belüli módosítás / lemondás esetén</span>
-                  <textarea className="co-textarea" value={business.figyelmezteto_szoveg || ''} onChange={e => setBusiness({ ...business, figyelmezteto_szoveg: e.target.value })} placeholder="Tájékoztatjuk, hogy 24 órán belül történő lemondás vagy módosítás esetén rendelőnk rendelkezésre állási díjat számíthat fel." />
-                </label>
+
+              {/* § 3. Új ügyfelek kezelése (a visszatérő-mező kivezetve — a csendes azonosítás fedi) */}
+              <div className="rules-block">
+                <div className="rules-block-head">
+                  <div className="co-sub" style={{ marginBottom: 0 }}>
+                    <svg className="ic-tile" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75" /></svg>
+                    Új ügyfelek kezelése
+                  </div>
+                  <button className="info-tip" type="button" aria-label="Új ügyfelek kezelése magyarázata">
+                    <svg className="ic" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9" /><path d="M9.1 9a3 3 0 015.8 1c0 2-3 3-3 3" /><line x1="12" y1="17" x2="12.01" y2="17" /></svg>
+                    <span className="tip" role="tooltip">Meghatározza, milyen adatot kérjen be az eaisyDesk az első alkalommal foglaló ügyfelektől.</span>
+                  </button>
+                </div>
+                <div className="co-grid">
+                  <label className="co-field full"><span>Új ügyfelek beazonosítását szolgáló kérdés</span><input className="co-input" value={business.pacient_id_question || ''} onChange={e => setBusiness({ ...business, pacient_id_question: e.target.value })} placeholder="pl. Járt már nálunk korábban?" /></label>
+                  <label className="co-field full"><span>Új ügyféltől bekérendő adat</span><input className="co-input" value={business.new_patient_required || ''} onChange={e => setBusiness({ ...business, new_patient_required: e.target.value })} placeholder="pl. Név, email cím" /></label>
+                </div>
               </div>
 
               </div>

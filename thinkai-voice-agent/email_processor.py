@@ -1024,7 +1024,16 @@ Ha egyik sem releváns, legyen üres lista [].
         # Lemondom, és a válaszlevél kapja a fenntartási tudnivalót. Végleges foglalás
         # (+ visszaigazoló ICS-sel) csak az ügyfél egyértelmű visszaigazolásakor.
         proposal_stage = False
-        if meeting and meeting.get("date") and meeting.get("time") and not meeting_failed:
+        # Foglalási mód kapu (2026-09-23): none/handoff módban (vagy custom
+        # book=handoff esetén) az email-flow NEM hoz létre eseményt — az ügy
+        # emberi átadásra kerül (handover_reason), a válasz a prompt mód-blokkja
+        # szerint az igényrögzítést erősíti meg.
+        _bmode = db.get_booking_mode()
+        _book_blocked = _bmode in ("none", "handoff") or (_bmode == "custom" and db.get_booking_custom().get("book") == "handoff")
+        if _book_blocked and meeting and (meeting.get("date") or meeting.get("time")):
+            logger.info(f"Email-foglalás blokkolva a booking_mode által ({_bmode}): {meeting.get('title', '')}")
+            handover_reason = handover_reason or "Emberi döntés"
+        if meeting and meeting.get("date") and meeting.get("time") and not meeting_failed and not _book_blocked:
             confirmed_by_client = bool(meeting.get("confirmed_by_client"))
             if is_autonomous_email:
                 created_event_id = None
@@ -1089,6 +1098,11 @@ Ha egyik sem releváns, legyen üres lista [].
 
         # Módosítás-visszaigazoló: autonóm módban azonnal kimegy, jóváhagyás-módban
         # a jóváhagyott válasszal együtt (pending_modification a draftban — Q7 döntés)
+        _modify_blocked = _bmode in ("none", "handoff") or (_bmode == "custom" and db.get_booking_custom().get("modify") == "handoff")
+        if modification_info and _modify_blocked:
+            logger.info(f"Email-módosítás blokkolva a booking_mode által ({_bmode})")
+            modification_info = None
+            handover_reason = handover_reason or "Emberi döntés"
         if modification_info:
             if is_autonomous_email:
                 asyncio.create_task(send_modification_confirmation_email(**modification_info))

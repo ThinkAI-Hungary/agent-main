@@ -193,6 +193,32 @@ def _is_autonomous_allowed(ugytipus: str, idopont_altipus: str = None) -> bool:
         return False
 
 
+def _booking_mode_gate(op: str) -> str | None:
+    """Foglalási mód kapu (2026-09-23, „Időponttal kapcsolatos ügyek kezelése").
+    A booking_mode a triage-mátrix ELŐTT értékelődik (fő kapcsoló):
+    - none: időpont nem kérhető
+    - handoff: az agent csak igényt rögzít és átad — nincs visszaigazolás,
+      az ügyfelet arról kell biztosítania, hogy az igényét rögzítettük és
+      munkatársunk felveszi vele a kapcsolatot (user-döntés)
+    - custom: műveletenként (book/modify/delete) self|handoff
+    None-t ad vissza, ha a művelet mehet tovább a megszokott guardokra."""
+    try:
+        mode = db.get_booking_mode()
+    except Exception:
+        return None  # a mód olvasása sosem blokkolhat (a triage-gate megmarad)
+    if mode == "none":
+        return ("Ebben a rendszerben jelenleg NEM kérhető időpont. Udvariasan közöld, "
+                "hogy időpontfoglalást nem tudsz kezdeményezni; ajánld fel, hogy "
+                "üzenetet rögzítesz a munkatársaknak.")
+    if mode == "handoff" or (mode == "custom" and db.get_booking_custom().get(op) == "handoff"):
+        return ("IGÉNYRÖGZÍTÉS MÓD: időpontot NE foglalj, NE erősíts meg és NE ígérj "
+                "visszaigazolást! Kérdezd meg az igényfelmérési adatokat (preferált dátum, "
+                "napszak, esetleg munkatárs), majd biztosítsd az ügyfelet: az igényét "
+                "rögzítetted, és munkatársunk hamarosan felveszi vele a kapcsolatot "
+                "az időpont véglegesítése érdekében.")
+    return None
+
+
 def _session_has_complaint_or_request() -> bool:
     """Visszaadja, hogy a jelenlegi beszélgetés során panasz/kérés hangzott-e el.
     Ezek blokkolják az autonóm cselekvést (brief §1.1.1)."""
@@ -552,6 +578,10 @@ async def book_meeting(
     # az Időpont eljárása nem enged autonóm foglalást, akkor az AI NEM foglal
     # önállóan — kéri az ügyfelet, hogy vegye fel a kapcsolatot munkatárssal,
     # és az interakciót embernek továbbítja.
+    _bmg = _booking_mode_gate("book")
+    if _bmg:
+        logger.info("booking blocked — booking_mode kapu")
+        return _bmg
     if _session_has_complaint_or_request():
         logger.info("EAISY-241: booking blocked — complaint/request flagged in session")
         return _autonomy_blocked_message()
@@ -1203,6 +1233,10 @@ async def modify_meeting(
     logger.info(f"Modifying meeting: title='{event_title}' id={event_id}")
 
     # ── EAISY-241 — Autonómia guard (változatlan) ─────────────────────────────
+    _bmg = _booking_mode_gate("modify")
+    if _bmg:
+        logger.info("modify blocked — booking_mode kapu")
+        return _bmg
     if _session_has_complaint_or_request():
         logger.info("EAISY-241: modify blocked — complaint/request flagged in session")
         return _autonomy_blocked_message()
@@ -1332,6 +1366,10 @@ async def delete_meeting(
     logger.info(f"Deleting meeting: title='{event_title}' id={event_id}")
 
     # ── EAISY-241 — Autonómia guard (változatlan) ─────────────────────────────
+    _bmg = _booking_mode_gate("delete")
+    if _bmg:
+        logger.info("delete blocked — booking_mode kapu")
+        return _bmg
     if _session_has_complaint_or_request():
         logger.info("EAISY-241: delete blocked — complaint/request flagged in session")
         return _autonomy_blocked_message()
