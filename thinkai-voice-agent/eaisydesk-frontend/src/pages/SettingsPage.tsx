@@ -350,6 +350,26 @@ export default function SettingsPage() {
 
   useEffect(() => { loadAll(); }, [loadAll]);
 
+  // ── 'Utolsó módosítás' bélyeg frissítése (2026-10-06 user-elv): a backend
+  // minden szekció-mentést bélyegez — a fejléc-szöveget refetch nélkül tartjuk
+  // frissen. Dirty-safe: ha a usernek nem mentett céginfo-módosításai vannak,
+  // a dirty-bázis refet NEM írjuk felül (különben „elnézné" azokat).
+  // FONTOS: a saveAgent deps-tömbje hivatkozik rá → a definíciónak a save
+  // handlerek ELŐTT kell állnia (TDZ, ReactErrorBoundary-jelenség 2026-10-06).
+  const refreshLastMod = useCallback(async () => {
+    try {
+      const res = await authFetch('/admin/api/business-info');
+      if (!res.ok) return;
+      const d = await res.json();
+      setBusiness(prev => {
+        const wasClean = JSON.stringify(prev) === businessSavedRef.current;
+        const next = { ...prev, updated_by: d.updated_by ?? prev.updated_by, updated_at: d.updated_at ?? prev.updated_at };
+        if (wasClean) businessSavedRef.current = JSON.stringify(next);
+        return next as typeof prev;
+      });
+    } catch { /* a bélyeg frissítése nem kritikus */ }
+  }, []);
+
   // ── Save handlers ──
   const saveAgent = useCallback(async () => {
     setSaving(true);
@@ -399,24 +419,6 @@ export default function SettingsPage() {
   const businessLoaded = useRef(false);
   const businessTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const businessSavedRef = useRef<string>('');
-
-  // ── 'Utolsó módosítás' bélyeg frissítése (2026-10-06 user-elv): a backend
-  // minden szekció-mentést bélyegez — a fejléc-szöveget refetch nélkül tartjuk
-  // frissen. Dirty-safe: ha a usernek nem mentett céginfo-módosításai vannak,
-  // a dirty-bázis refet NEM írjuk felül (különben „elnézné" azokat).
-  const refreshLastMod = useCallback(async () => {
-    try {
-      const res = await authFetch('/admin/api/business-info');
-      if (!res.ok) return;
-      const d = await res.json();
-      setBusiness(prev => {
-        const wasClean = JSON.stringify(prev) === businessSavedRef.current;
-        const next = { ...prev, updated_by: d.updated_by ?? prev.updated_by, updated_at: d.updated_at ?? prev.updated_at };
-        if (wasClean) businessSavedRef.current = JSON.stringify(next);
-        return next as typeof prev;
-      });
-    } catch { /* a bélyeg frissítése nem kritikus */ }
-  }, []);
 
   // Az ügykezelési szabályok kártya saját mentése után is frissül a bélyeg
   useEffect(() => {
