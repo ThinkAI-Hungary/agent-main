@@ -483,6 +483,22 @@ function Modal({ title, subtitle, children, onClose }: { title: string; subtitle
 
 // ProfileAvatarUpload extracted to src/components/settings/ProfileAvatarUpload.tsx
 
+const FLAG_HU = (
+  <svg width="18" height="13" viewBox="0 0 18 13" style={{ borderRadius: 2, border: '1px solid var(--border, #dbdbdb)', display: 'block' }} aria-hidden="true">
+    <rect x="0" y="0" width="18" height="4.34" fill="#cd2a3e" /><rect x="0" y="4.33" width="18" height="4.34" fill="#ffffff" /><rect x="0" y="8.66" width="18" height="4.34" fill="#436f4d" />
+  </svg>
+);
+const FLAG_EN = (
+  <svg width="18" height="13" viewBox="0 0 18 13" style={{ borderRadius: 2, border: '1px solid var(--border, #dbdbdb)', display: 'block' }} aria-hidden="true">
+    <rect width="18" height="13" fill="#1a47b8" /><path d="M0 0l18 13M18 0L0 13" stroke="#ffffff" strokeWidth="2.4" /><path d="M0 0l18 13M18 0L0 13" stroke="#d80027" strokeWidth="1" /><path d="M9 0v13M0 6.5h18" stroke="#ffffff" strokeWidth="3.6" /><path d="M9 0v13M0 6.5h18" stroke="#d80027" strokeWidth="2.2" />
+  </svg>
+);
+const FLAG_DE = (
+  <svg width="18" height="13" viewBox="0 0 18 13" style={{ borderRadius: 2, border: '1px solid var(--border, #dbdbdb)', display: 'block' }} aria-hidden="true">
+    <rect width="18" height="4.34" fill="#000000" /><rect y="4.33" width="18" height="4.34" fill="#d80027" /><rect y="8.66" width="18" height="4.34" fill="#ffda2c" />
+  </svg>
+);
+
 function EaisyDeskSettingsTab() {
   const [lang, setLang] = useState('hu');
   const [tone, setTone] = useState('professional_friendly');
@@ -604,7 +620,7 @@ function EaisyDeskSettingsTab() {
               <span>Alapértelmezett nyelv</span>
               <Cdd
                 value={lang}
-                options={[{ value: 'hu', label: 'Magyar' }, { value: 'en', label: 'Angol' }, { value: 'de', label: 'Német' }]}
+                options={[{ value: 'hu', label: 'Magyar', icon: FLAG_HU }, { value: 'en', label: 'Angol', icon: FLAG_EN }, { value: 'de', label: 'Német', icon: FLAG_DE }]}
                 onChange={setLang}
                 ariaLabel="Alapértelmezett nyelv"
               />

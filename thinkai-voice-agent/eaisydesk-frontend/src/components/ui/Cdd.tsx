@@ -9,6 +9,7 @@ export interface CddOption {
   value: string;
   label: string;
   sub?: string; // másodlagos magyarázó sor (open-design spec)
+  icon?: React.ReactNode; // pl. zászló a nyelvválasztóban (open-design spec)
 }
 
 export default function Cdd({ value, values, options, placeholder, onChange, onChangeMulti, ariaLabel, multi = false, wide = false }: {
@@ -54,6 +55,7 @@ export default function Cdd({ value, values, options, placeholder, onChange, onC
         onClick={() => setOpen(o => !o)}
       >
         <span className={`cdd-value${isPlaceholder ? ' is-placeholder' : ''}`}>
+          {selected?.icon && <span className="cdd-opt-ic">{selected.icon}</span>}
           {displayText}
         </span>
         <svg className="cdd-chev" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="13" height="13">
@@ -80,9 +82,12 @@ export default function Cdd({ value, values, options, placeholder, onChange, onC
                   }
                 }}
               >
-                <span className="cdd-opt-txt">
-                  {o.label}
-                  {o.sub && <span className="cdd-opt-sub">{o.sub}</span>}
+                <span className="cdd-opt-txt" style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+                  {o.icon && <span className="cdd-opt-ic">{o.icon}</span>}
+                  <span>
+                    {o.label}
+                    {o.sub && <span className="cdd-opt-sub">{o.sub}</span>}
+                  </span>
                 </span>
                 <svg className="cdd-check" style={{ display: on ? 'block' : 'none' }} fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="14" height="14">
                   <polyline points="20 6 9 17 4 12" />
