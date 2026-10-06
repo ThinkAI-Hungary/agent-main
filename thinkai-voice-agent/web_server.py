@@ -4243,17 +4243,18 @@ class ClientMergeRequest(BaseModel):
     keep_fields: dict = {}  # {'name'|'email'|'phone': 'source'|'target'}
 
 @app.post("/admin/api/clients/merge")
-def api_merge_clients(req: ClientMergeRequest, _admin = Depends(require_admin)):
+def api_merge_clients(req: ClientMergeRequest, _user = Depends(get_current_user)):
     """Két ügyfél összevonása (duplikátum-kezelés). A source megmarad
     'merged' státusszal + merged_into jelöléssel (visszavonható).
-    Admin-only: tömeges hatású művelet (a mátrix ügyfél-törlés sorával egy szint)."""
+    2026-10-06 user-döntés: MEMBER is végrehajthatja (a jogosultsági mátrix
+    finomítása külön téma — várhatóan tenantenként eltérő igény)."""
     if req.source_id == req.target_id:
         raise HTTPException(400, "A forrás és a cél ügyfél nem lehet ugyanaz")
     ok = db.merge_clients(req.source_id, req.target_id, req.keep_fields,
-                          merged_by=_admin.get("full_name") or _admin.get("username", ""))
+                          merged_by=_actor_name(_user))
     if not ok:
         raise HTTPException(400, "Az összevonás nem sikerült (hiányzó ügyfél?)")
-    logger.info(f"Ügyfél-összevonás: {req.source_id} → {req.target_id} ({_admin.get('username')})")
+    logger.info(f"Ügyfél-összevonás: {req.source_id} → {req.target_id} ({_user.get('username')})")
     return {"ok": True}
 
 
