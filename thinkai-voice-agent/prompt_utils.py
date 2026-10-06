@@ -348,12 +348,12 @@ def get_system_prompt(channel: str = None) -> str:
     # ── EAISY-241 §1.1.1/§2 — Eljárás-szabályok injektálása a promptba ────────
     # Dinamikusan felépíti a „mit tehet önállóan / mit nem" szabályokat a triage_rules
     # eljárás értékeiből, hogy a hang-agent betartsa a brief non-autonomy követelményeit.
-    result += _format_eljaras_rules(pi)
+    result += _format_eljaras_rules(pi, channel=channel)
 
     return result
 
 
-def _format_eljaras_rules(pi: dict | None = None) -> str:
+def _format_eljaras_rules(pi: dict | None = None, channel: str | None = None) -> str:
     """
     EAISY-241 — A triage_rules eljárás (onallo/jovahagyas/ember) értékeiből
     felépít egy explicit szabály-blokkot a rendszerprompt számára.
@@ -384,16 +384,37 @@ def _format_eljaras_rules(pi: dict | None = None) -> str:
              "Az ügytípusok kezelésének módja a rendszer beállításai szerint:"]
     non_autonomous = []
     _mode = ((pi or {}).get("booking_mode") or "auto").strip().lower()
+    # A mátrix (2026-10-06 user): az Időpont-ügy viselkedése = booking_mode ×
+    # írásos kommunikáció (written_behavior). A written-tengely csak ÍRÁSOS
+    # csatornákon értelmezett (a voice-ban nincs jóváhagyás-fogalom).
+    _is_text = bool(channel) and channel.lower() not in ("voice", "telefon", "phone")
+    _written = ""
+    if _is_text:
+        try:
+            _written = (database.get_text_config("written_behavior") or "autonomous").strip()
+        except Exception:
+            _written = "autonomous"
     for r in rules:
         situation = (r.get("situation") or "").strip()
         priority = (r.get("priority") or "").lower()
         if situation in ("Kérdés", "Kérés", "Panasz", "Időpont", "Egyéb", "Vegyes ügytípus"):
-            # booking_mode felülírás az Időpont sorra (mesterkapcsoló)
-            if situation == "Időpont" and _mode in ("handoff", "none"):
-                label = "NEM autonóm — csak igényrögzítés, átadás embernek (a foglalási mód felülírja)"
-                lines.append(f"- {situation}: {label}")
-                non_autonomous.append(situation)
-                continue
+            # booking_mode felülírás az Időpont sorra (mesterkapcsoló a triage fölött)
+            if situation == "Időpont":
+                if _mode in ("handoff", "none"):
+                    label = "NEM autonóm — csak igényrögzítés, átadás embernek (a foglalási mód felülírja)"
+                    lines.append(f"- {situation}: {label}")
+                    non_autonomous.append(situation)
+                    continue
+                if _mode == "custom":
+                    label = "EGYEDI: műveletenként (foglalás/módosítás/lemondás) a foglalási szabályok szerinti bontásban — a prompt eleji mód-blokk az irányadó"
+                    lines.append(f"- {situation}: {label}")
+                    continue
+                if _is_text and _written == "approval":
+                    label = ("naptár-hozzáférés és időpont-felajánlás ENGEDÉLYEZETT, de a válaszlevél "
+                             "jóváhagyásra kerül, és a VÉGLEGES befoglalás csak az ügyfél visszaigazoló "
+                             "válasza után történik (függő foglalás, 24 órás fenntartás)")
+                    lines.append(f"- {situation}: {label}")
+                    continue
             label = ELJARAS_LABEL.get(priority, priority)
             lines.append(f"- {situation}: {label}")
             if priority in ("ember", "jovahagyas"):
