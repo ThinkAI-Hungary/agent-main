@@ -142,6 +142,13 @@ def _format_patient_rules(pi: dict) -> str:
                 "FELTÉTEL NÉLKÜLI: a kollégák a preferenciáktól FÜGGETLENÜL felveszik a "
                 "kapcsolatot — a preferencia-bekérés csak opcionális kiegészítés, sosem "
                 "feltétele a visszajelzésnek (TILOS: 'amint megkaptuk a preferenciáit…'). "
+                "A kapcsolatfelvételi ígéret formulája: SÜRGŐS ügyben (pl. fájdalom, "
+                "vérzés, duzzanat) így szólj — 'Sürgős ügyként rögzítem, kollégáim "
+                "mihamarabb felveszik Önnel a kapcsolatot'; nem sürgős ügyben — "
+                "'kollégáim hamarosan felveszik Önnel a kapcsolatot'. ÉLŐ ÁTKAPCSOLÁS "
+                "NINCS: soha ne mondd, hogy 'tartsa a vonalat', 'most kapcsolom' vagy "
+                "'várja a hívást' — a kolléga később, saját telefonszámról hívja vissza "
+                "az ügyfelet. "
                 f"A válaszban kérdezz rá a HIÁNYZÓ igényfelmérési adatokra ({needs_txt}) — "
                 "amit az ügyfél a levelében már megadott, azt NE kérdezd újra (pl. ha megadta a "
                 "napot, csak a napsakot kérdezd). Formulád legyen könnyed és opcionális: pl. "
@@ -442,6 +449,14 @@ def _format_eljaras_rules(pi: dict | None = None, channel: str | None = None) ->
             "tájékoztasd az ügyfelet, hogy egy kolléga hamarosan felveszi vele a "
             "kapcsolatot, és adjátok át a beszélgetést embernek."
         )
+    lines.append(
+        "- VISSZAHÍVÁSI ÍGÉRET formulája: SÜRGŐS ügyben (pl. fájdalom, vérzés, "
+        "duzzanat) így szólj: 'Sürgős ügyként rögzítem, kollégáim mihamarabb "
+        "felveszik Önnel a kapcsolatot'; nem sürgős ügyben: 'kollégáim hamarosan "
+        "felveszik Önnel a kapcsolatot'. ÉLŐ ÁTKAPCSOLÁS NINCS: soha ne mondd, hogy "
+        "'tartsa a vonalat', 'most kapcsolom' vagy 'várja a hívást' — a kolléga "
+        "később, saját telefonszámról hívja vissza az ügyfelet."
+    )
     lines.append(
         "- PANASZ esetén MINDIG: ne vitatkozz, ne adj ígéreteket, fogadd el a "
         "panaszt, kérj bocsánatot, és azonnal jelezd report_alert('complaint') "

@@ -214,9 +214,14 @@ def _booking_mode_gate(op: str) -> str | None:
         return ("IGÉNYRÖGZÍTÉS MÓD: konkrét szabad időpontot NE AJÁNLJ FEL, időpontot "
                 "NE foglalj, NE erősíts meg és NE ígérj visszaigazolást! "
                 "Kérdezd meg az igényfelmérési adatokat (preferált dátum, "
-                "napszak, esetleg munkatárs), majd biztosítsd az ügyfelet: az igényét "
-                "rögzítetted, és munkatársunk hamarosan felveszi vele a kapcsolatot "
-                "az időpont véglegesítése érdekében.")
+                "napszak, esetleg munkatárs), majd biztosítsd az ügyfelet, hogy az "
+                "igényét rögzítetted: SÜRGŐS ügyben (pl. fájdalom, vérzés, duzzanat) "
+                "így szólj — 'Sürgős ügyként rögzítem, kollégáim mihamarabb felveszik "
+                "Önnel a kapcsolatot'; egyébként — 'munkatársunk hamarosan felveszi "
+                "vele a kapcsolatot az időpont véglegesítése érdekében'. Élő "
+                "átkapcsolás NINCS: ne mondd, hogy 'tartsa a vonalat', 'most "
+                "kapcsolom' vagy 'várja a hívást' — a kolléga később, saját "
+                "telefonszámról hívja vissza az ügyfelet.")
     return None
 
 
