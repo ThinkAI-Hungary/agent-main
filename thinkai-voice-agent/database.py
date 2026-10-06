@@ -2197,6 +2197,30 @@ def delete_client_by_meta_id(meta_id: str) -> int:
     return deleted
 
 
+def get_client_by_id(client_id: int) -> dict | None:
+    """Egy ügyfél lekérése id alapján (tenant-szűrve)."""
+    if not supabase: return None
+    try:
+        res = _tenant_eq(supabase.table("clients").select("*")).eq("id", client_id).limit(1).execute()
+        return res.data[0] if res.data else None
+    except Exception as e:
+        logger.error(f"get_client_by_id hiba: {e}")
+        return None
+
+
+def delete_interactions_for_client(client_id: int) -> int:
+    """Az ügyfélhez client_id-val kötött ÖSSZES interakció törlése (kizárt-feladó
+    flow, 2026-10-06). A delete_client cascade session-minta alapján töröl — ez a
+    függvény a közvetlen client_id-s kapcsolatokat takarítja. Vissza: törölt sorok."""
+    if not supabase: return 0
+    try:
+        res = _tenant_eq(supabase.table("interactions").delete()).eq("client_id", client_id).execute()
+        return len(res.data or [])
+    except Exception as e:
+        logger.error(f"delete_interactions_for_client hiba: {e}")
+        return 0
+
+
 def delete_client(client_id: int) -> bool:
     if not supabase: return False
     try:
@@ -2830,6 +2854,34 @@ def set_excluded_senders(emails: list, domains: list) -> bool:
     except Exception as e:
         logger.warning(f"set_excluded_senders sikertelen: {e}")
         return False
+
+
+def add_excluded_sender_email(email: str) -> dict:
+    """Egy e-mail cím hozzáfűzése a kizárólistához (kizárt-feladó kebab-művelet).
+
+    A lista egyetlen JSON-dokumentum, ezért a „olvas→módosít→ír" versenyhelyzet
+    itt is elméletileg fennáll — a verify-retry ciklus (max 3 kör) kezeli: ha a
+    mentésünket egy párhuzamos írás felülülte, újrapróbáljuk.
+    Vissza: {"ok": bool, "added": bool, "email": str} — added=False, ha már a
+    listán volt (vagy ha a mentés nem sikerült).
+    """
+    email = (email or "").strip().lower()
+    if not email or "@" not in email:
+        return {"ok": False, "added": False, "email": email}
+    for _attempt in range(3):
+        cfg = get_excluded_senders()
+        emails = [str(e).strip().lower() for e in cfg.get("emails", [])]
+        if email in emails:
+            return {"ok": True, "added": False, "email": email}
+        emails.append(email)
+        if not set_excluded_senders(emails, cfg.get("domains", [])):
+            return {"ok": False, "added": False, "email": email}
+        # verify: újraolvasás — ha párhuzamos írás felülült minket, retry
+        check = get_excluded_senders()
+        if email in [str(e).strip().lower() for e in check.get("emails", [])]:
+            return {"ok": True, "added": True, "email": email}
+    logger.warning(f"add_excluded_sender_email: verify-retry kimerült ({email})")
+    return {"ok": False, "added": False, "email": email}
 
 
 def is_excluded_sender(from_email: str) -> str:

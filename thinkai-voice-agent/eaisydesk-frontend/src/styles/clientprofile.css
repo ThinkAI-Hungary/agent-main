@@ -175,6 +175,9 @@ body.dark {
 }
 .cd-overflow-menu button:hover { background: var(--bg3); }
 .cd-overflow-menu button svg { width: 15px; height: 15px; color: var(--text-muted); flex: none; }
+.cd-overflow-menu button.danger { color: var(--cp-err-fg); }
+.cd-overflow-menu button.danger svg { color: var(--cp-err-fg); }
+.cd-overflow-menu button.danger:hover { background: var(--cp-err-bg); }
 
 /* ── Középső kártyák ── */
 .cd-middle-grid-inner {
@@ -1502,6 +1505,9 @@ body.dark .cal-pend-pill { background: #eab308; color: #201a05; }
 .pe-btn-primary { padding: 10px 24px; border: none; border-radius: 10px; background: #2c6e8f; color: #fff; font-size: 13.5px; font-weight: 700; cursor: pointer; font-family: inherit; }
 .pe-btn-primary:hover { background: #245d7a; }
 .pe-btn-primary:disabled { opacity: .5; cursor: default; }
+.pe-btn-danger { padding: 10px 24px; border: none; border-radius: 10px; background: #d9363d; color: #fff; font-size: 13.5px; font-weight: 700; cursor: pointer; font-family: inherit; }
+.pe-btn-danger:hover { background: #b92d33; }
+.pe-btn-danger:disabled { opacity: .5; cursor: default; }
 
 /* ── Ügyféllista szűrőpanel (mockup redesign) ── */
 .cpf-panel { width: 640px; max-width: calc(100vw - 32px); padding: 18px 20px 12px; }

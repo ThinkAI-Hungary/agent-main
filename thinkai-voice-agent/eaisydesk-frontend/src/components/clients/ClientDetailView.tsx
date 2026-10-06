@@ -160,6 +160,9 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     return () => document.removeEventListener('mousedown', handle);
   }, [showTagPicker]);
   const [showProfileEdit, setShowProfileEdit] = useState(false);
+  // „Felvétel kizárt feladók közé" confirm modal + futó-kérés jelző
+  const [showExcludeConfirm, setShowExcludeConfirm] = useState(false);
+  const [excluding, setExcluding] = useState(false);
   // hárompontos overflow menu a profil-műveletekhez
   const [showOverflowMenu, setShowOverflowMenu] = useState(false);
   const overflowRef = useRef<HTMLDivElement>(null);
@@ -173,6 +176,27 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     document.addEventListener('mousedown', handle);
     return () => document.removeEventListener('mousedown', handle);
   }, [showOverflowMenu]);
+
+  // „Felvétel kizárt feladók közé": a backend egy lépésben kizárja az emailt,
+  // törli az összes interakciót és magát a profilt — utána visszanavigálunk.
+  const handleExcludeSender = async () => {
+    setExcluding(true);
+    try {
+      const res = await authFetch(`/admin/api/clients/${client.id}/exclude_sender`, { method: 'POST' });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok && d.ok) {
+        showToast(`${d.email} felvéve a kizárt feladók közé — interakciók és profil törölve`);
+        setShowExcludeConfirm(false);
+        onRefresh();
+        onBack();
+        return;
+      }
+      showToast(d.detail || 'Hiba a kizárás során', 'error');
+    } catch {
+      showToast('Hiba a kizárás során', 'error');
+    }
+    setExcluding(false);
+  };
   const [summaryModalRow, setSummaryModalRow] = useState<InteractionRowDetail | null>(null);
   const [editName, setEditName] = useState(client.name);
   const [editEmail, setEditEmail] = useState(client.email);
@@ -724,6 +748,12 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                   <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 0 0-3-3.87" /><path d="M16 3.13a4 4 0 0 1 0 7.75" /></svg>
                   Felvétel Érdeklődőkezelésbe
                 </button>
+                {displayEmail && (
+                  <button className="danger" onClick={() => { setShowOverflowMenu(false); setShowExcludeConfirm(true); }}>
+                    <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24"><path d="M18.36 6.64a9 9 0 1 1-12.73 0" /><line x1="12" y1="2" x2="12" y2="12" /></svg>
+                    Felvétel kizárt feladók közé
+                  </button>
+                )}
               </div>
             )}
             </div>
@@ -1202,6 +1232,32 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             <div className="pe-foot">
               <button className="pe-btn-ghost" onClick={() => setShowMergeModal(false)} disabled={merging}>Mégse</button>
               <button className="pe-btn-primary" onClick={handleMerge} disabled={merging}>{merging ? 'Összevonás…' : 'Összevonás'}</button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* • • •  Felvétel kizárt feladók közé — confirm Modal • • •  */}
+      {showExcludeConfirm && (
+        <div className="modal-overlay" onClick={() => !excluding && setShowExcludeConfirm(false)}>
+          <div className="pe-modal" onClick={e => e.stopPropagation()} role="dialog" aria-modal="true" aria-label="Felvétel kizárt feladók közé">
+            <div className="pe-head">
+              <h3 className="pe-title">Felvétel kizárt feladók közé</h3>
+              <button className="pe-x" onClick={() => !excluding && setShowExcludeConfirm(false)} aria-label="Bezárás">
+                <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" viewBox="0 0 24 24" width="15" height="15"><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></svg>
+              </button>
+            </div>
+            <div className="pe-body">
+              <p className="cd-merge-desc">
+                Feladó: <b>{displayEmail}</b>
+              </p>
+              <p className="cd-merge-desc">
+                A feladó a kizárt listára kerül, az interakciói és profilja véglegesen törlődnek. Biztosan törlöd?
+              </p>
+            </div>
+            <div className="pe-foot">
+              <button className="pe-btn-ghost" onClick={() => setShowExcludeConfirm(false)} disabled={excluding}>Mégse</button>
+              <button className="pe-btn-danger" onClick={handleExcludeSender} disabled={excluding}>{excluding ? 'Törlés…' : 'Igen, törlöm'}</button>
             </div>
           </div>
         </div>

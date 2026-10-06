@@ -4144,6 +4144,38 @@ def admin_delete_client(client_id: int, _auth = Depends(require_admin)):
     db.delete_client(client_id)
     return {"ok": True}
 
+
+@app.post("/admin/api/clients/{client_id}/exclude_sender")
+def admin_exclude_client_sender(client_id: int, user: dict = Depends(get_current_user)):
+    """„Felvétel kizárt feladók közé" — ügyfélprofil kebab-menü művelet
+    (2026-10-06 user-döntés: member is használhatja → get_current_user, nem admin).
+    Lépéssor: ① az ügyfél e-mail címe a kizárólistára kerül, ② az összes
+    interakciója törlődik, ③ a profil (cascade) törlődik. A frontend a confirm
+    modal után hívja; nincs undo."""
+    client = db.get_client_by_id(client_id)
+    if not client:
+        raise HTTPException(status_code=404, detail="Ügyfél nem található")
+    email = (client.get("email") or "").strip().lower()
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="Az ügyfélnek nincs e-mail címe — nincs mit kizárni")
+    ex = db.add_excluded_sender_email(email)
+    if not ex.get("ok"):
+        raise HTTPException(status_code=500, detail="A kizárólista mentése sikertelen")
+    deleted_interactions = db.delete_interactions_for_client(client_id)
+    client_deleted = db.delete_client(client_id)
+    logger.info(
+        f"Kizárt feladó (profil-kebab): {email} — actor={user.get('username')}, "
+        f"client_id={client_id}, torolt_interakciok={deleted_interactions}, "
+        f"profil_torolve={client_deleted}, mar_a_listan_volt={not ex.get('added')}"
+    )
+    return {
+        "ok": True,
+        "email": email,
+        "already_excluded": not ex.get("added"),
+        "deleted_interactions": deleted_interactions,
+        "client_deleted": client_deleted,
+    }
+
 class BulkDeleteClientsRequest(BaseModel):
     client_ids: list[int]
 
