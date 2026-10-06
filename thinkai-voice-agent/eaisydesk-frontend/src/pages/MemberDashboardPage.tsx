@@ -20,6 +20,7 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { showToast } from '../components/ui/Toast';
+import DoneCheck from '../components/ui/DoneCheck';
 import { authFetch } from '../api/client';
 import { useClients } from '../hooks/useClients';
 import { useSessions, type SessionSummary, type SessionInteraction } from '../hooks/useSessions';
@@ -464,14 +465,10 @@ export default function MemberDashboardPage() {
                     </td>
                     {showCheckbox && (
                       <td style={{ ...tdBase, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          className="done-check"
-                          aria-label="Elvégezve"
-                          title={isClosed ? 'Visszavétel: az ügy újranyílik' : 'Kipipálásra az ügy lezártra vált'}
+                        <DoneCheck
                           checked={isClosed}
-                          style={{ width: 16, height: 16, accentColor: isClosed ? '#52c41a' : t.accent2, cursor: 'pointer' }}
-                          onChange={e => handleMarkDone(e as unknown as React.MouseEvent, r)}
+                          title={isClosed ? 'Visszavétel: az ügy újranyílik' : 'Kipipálásra az ügy lezártra vált'}
+                          onToggle={(e) => handleMarkDone(e, r)}
                         />
                       </td>
                     )}

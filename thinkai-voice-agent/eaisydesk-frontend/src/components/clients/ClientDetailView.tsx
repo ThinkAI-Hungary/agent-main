@@ -21,6 +21,7 @@ import {
 } from '../../helpers/interactionClassifiers';
 import InteractionSummaryModal from '../interactions/InteractionSummaryModal';
 import ChangeLogModal from './ChangeLogModal';
+import DoneCheck from '../ui/DoneCheck';
 import { markInteractionRead } from '../../helpers/unreadInteractions';
 
 interface EnrichedClient {
@@ -1036,14 +1037,9 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                           <div className="todo-frame" title={t.text}>{t.text}</div>
                         </td>
                         <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
-                          <input
-                            type="checkbox"
-                            className="cp-done-check"
-                            aria-label="Elvégezve"
+                          <DoneCheck checked={false}
                             title="Kipipálásra a teendő lezártra vált"
-                            checked={false}
-                            onChange={() => toggleManualTask(t)}
-                          />
+                            onToggle={() => toggleManualTask(t)} />
                         </td>
                       </tr>
                     );
@@ -1064,14 +1060,9 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                       <td><CpTeendoCell value={r.teendo} /></td>
                       {/* Elvégezve checkbox */}
                       <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          className="cp-done-check"
-                          aria-label="Elvégezve"
+                        <DoneCheck checked={false}
                           title="Kipipálásra az interakció lezártra vált"
-                          checked={false}
-                          onChange={(e) => handleMarkDone(e as unknown as React.MouseEvent, r.interactionId)}
-                        />
+                          onToggle={(e) => handleMarkDone(e, r.interactionId)} />
                       </td>
                     </tr>
                   );
@@ -1145,9 +1136,9 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                           <div className="todo-frame" title={t.text}>{t.text}</div>
                         </td>
                         <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
-                          <input type="checkbox" className="cp-done-check" checked
-                            aria-label="Elvégezve" title="Visszavétel: a teendő újranyílik"
-                            onChange={() => toggleManualTask(t)} />
+                          <DoneCheck checked
+                            title="Visszavétel: a teendő újranyílik"
+                            onToggle={() => toggleManualTask(t)} />
                         </td>
                       </tr>
                     );
@@ -1167,9 +1158,9 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                       <td><CpStatusBadge value={isOptimisticClosed(r.interactionId) ? 'Lezárt' : r.statusz} /></td>
                       <td><CpTeendoCell value={r.teendo} /></td>
                       <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
-                        <input type="checkbox" className="cp-done-check" checked
-                          aria-label="Elvégezve" title="Visszavétel: az interakció újranyílik"
-                          onChange={() => handleReopen(r.interactionId)} />
+                        <DoneCheck checked
+                          title="Visszavétel: az interakció újranyílik"
+                          onToggle={() => handleReopen(r.interactionId)} />
                       </td>
                     </tr>
                   );

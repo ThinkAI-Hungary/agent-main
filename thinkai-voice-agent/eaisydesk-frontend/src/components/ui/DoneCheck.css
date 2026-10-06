@@ -1,0 +1,30 @@
+/* „Elvégezve" jelölő — vékony körvonalas, a rendszer ikonnyelvére illő (mockup) */
+.donecb {
+  width: 18px;
+  height: 18px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: 1.5px solid var(--border, #d1d5db);
+  border-radius: 5px;
+  background: var(--card, #fff);
+  color: transparent;
+  cursor: pointer;
+  padding: 0;
+  vertical-align: middle;
+  transition: border-color .15s ease, color .15s ease;
+}
+.donecb svg { width: 11px; height: 11px; }
+.donecb:hover { border-color: var(--text-muted, #9ca3af); }
+.donecb:focus-visible {
+  outline: 2px solid color-mix(in srgb, var(--success, #52c41a) 55%, transparent);
+  outline-offset: 1px;
+}
+.donecb.checked {
+  border-color: var(--success, #52c41a);
+  color: var(--success, #52c41a);
+}
+.donecb.checked:hover {
+  border-color: color-mix(in srgb, var(--success, #52c41a) 78%, #000);
+  color: color-mix(in srgb, var(--success, #52c41a) 78%, #000);
+}
