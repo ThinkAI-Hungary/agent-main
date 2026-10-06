@@ -2598,3 +2598,6 @@ body.dark .rb-badge--err { background: #32191a; color: #e89590; border-color: #5
 /* Keskeny mező (mockup: max 420px — a konténer-széles mezők helyett) */
 .co-field-narrow { max-width: 420px; }
 @media (max-width: 720px) { .co-field-narrow { max-width: none; } }
+
+/* A nyitott Cdd a szakaszrétegek fölé kerüljön (a co-section már nem vág) */
+.cdd.is-open { z-index: 40; }
