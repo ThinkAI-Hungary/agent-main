@@ -1189,7 +1189,7 @@ export default function SettingsPage() {
                                   const needs = { ...((business.booking_needs as object) || {}) } as { standard?: string[]; other?: string[] };
                                   const other = [...(needs.other || [])]; other[i] = e.target.value; needs.other = other;
                                   setBusiness({ ...business, booking_needs: needs });
-                                }} placeholder="Írd be, milyen egyéb adatot kérjen be…" />
+                                }} placeholder="Pl. Ide írd a további igényeket." />
                               </div>
                               <button className="co-del" type="button" aria-label="Igény törlése" onClick={() => {
                                 const needs = { ...((business.booking_needs as object) || {}) } as { standard?: string[]; other?: string[] };
