@@ -1071,7 +1071,6 @@ export default function SettingsPage() {
                           onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, note: e.target.value } : x))}
                           onInput={e => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 220) + 'px'; }}
                           ref={t => { if (t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 220) + 'px'; } }}
-                          placeholder="pl. Csak dentálhigiénikushoz foglalható"
                           onBlur={() => saveService(s, i)}
                         />
                       </div>
