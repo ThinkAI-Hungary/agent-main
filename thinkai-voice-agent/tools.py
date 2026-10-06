@@ -211,8 +211,9 @@ def _booking_mode_gate(op: str) -> str | None:
                 "hogy időpontfoglalást nem tudsz kezdeményezni; ajánld fel, hogy "
                 "üzenetet rögzítesz a munkatársaknak.")
     if mode == "handoff" or (mode == "custom" and db.get_booking_custom().get(op) == "handoff"):
-        return ("IGÉNYRÖGZÍTÉS MÓD: időpontot NE foglalj, NE erősíts meg és NE ígérj "
-                "visszaigazolást! Kérdezd meg az igényfelmérési adatokat (preferált dátum, "
+        return ("IGÉNYRÖGZÍTÉS MÓD: konkrét szabad időpontot NE AJÁNLJ FEL, időpontot "
+                "NE foglalj, NE erősíts meg és NE ígérj visszaigazolást! "
+                "Kérdezd meg az igényfelmérési adatokat (preferált dátum, "
                 "napszak, esetleg munkatárs), majd biztosítsd az ügyfelet: az igényét "
                 "rögzítetted, és munkatársunk hamarosan felveszi vele a kapcsolatot "
                 "az időpont véglegesítése érdekében.")

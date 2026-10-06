@@ -116,7 +116,7 @@ def _format_patient_rules(pi: dict) -> str:
     mode = (pi.get("booking_mode") or "auto").strip().lower()
     if mode == "none":
         return ("0. FOGLALÁS NEM KÉRHETŐ: ebben a rendszerben időpontot NEM kezelsz — "
-                "ne foglalj, ne ajánlj fel és ne erősíts meg időpontot. Udvariasan közöld, "
+                "konkrét időpontot NE AJÁNLJ FEL, ne foglalj és ne erősíts meg. Udvariasan közöld, "
                 "hogy időpontfoglalás ezen a csatornán nem érhető el, és ajánld fel, hogy "
                 "üzenetet rögzítesz a munkatársaknak.")
     if mode == "handoff":
@@ -130,8 +130,10 @@ def _format_patient_rules(pi: dict) -> str:
         else:
             _parts = []
         needs_txt = ", ".join(_parts) if _parts else "preferált dátum, napszak"
-        return ("0. CSAK IGÉNYRÖGZÍTÉS ÉS ÁTADÁS: időpontot SOHA ne foglalj, ne erősíts meg, "
-                "és NE ígérj visszaigazolást (még preferált időpont megjelölését se erősítsd meg)! "
+        return ("0. CSAK IGÉNYRÖGZÍTÉS ÉS ÁTADÁS: konkrét szabad időpontot NE AJÁNLJ FEL, "
+                "időpontot SOHA ne foglalj, ne erősíts meg, és NE ígérj visszaigazolást "
+                "(még preferált időpont megjelölését se erősítsd meg — a naptárhoz a te "
+                "döntésedhez NINCS hozzáférésed, az időpontot a munkatárs egyezteti)! "
                 f"Kérd be az igényfelmérési adatokat ({needs_txt}), majd biztosítsd az ügyfelet, "
                 "hogy az igényét rögzítetted, és munkatársunk hamarosan felveszi vele a "
                 "kapcsolatot az időpont véglegesítése érdekében.")
