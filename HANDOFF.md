@@ -1,6 +1,6 @@
 # HANDOFF — eaisyDesk | 2026-09-14
 
-## 🫧 BUBORÉK-SORREND + UNIVERZÁLIS SMS-VISSZAIGAZOLÁS + INJEKCIÓ-JAVÍTÁS (2026-10-08, staging `deploy után`)
+## 🫧 BUBORÉK-SORREND + UNIVERZÁLIS SMS-VISSZAIGAZOLÁS + INJEKCIÓ-JAVÍTÁS (2026-10-08, staging `3d006e9`)
 
 Balázs-féle voice-hibajelentés (4 tétel) után feltérképezés, majd 3 munkacsomag megvalósítva és tesztelve:
 
@@ -8,7 +8,7 @@ Balázs-féle voice-hibajelentés (4 tétel) után feltérképezés, majd 3 munk
 2. **Univerzális SMS-visszaigazolás (`EMAIL_VERIFY_SMS_MODE=all`, stagingen ÁTÁLLÍTVA)** — minden SMS-jogosult hívó (magyar mobil + foglalás + idempotencia) SMS-t kap a **rögzített email cím kiírásával** (`DEFAULT_SMS_TEMPLATE` új `{email}` mező, GSM-7, 1 szegmens tipikusan), a visszaigazoló email CSAK a `/e/{token}` jóváhagyás UTÁN megy (az `apply_confirmation` ezt már így csinálta). Zöld verdikt + SMS-fail → gyorsítósáv eredeti viselkedése (visszaigazolás most a nyertesre); nem jogosult szám → mai út; `EMAIL_VERIFY_FLOW=gate` rollback-ág változatlan. Opt-in kísérőlevél univerzálisan kikapcsolva (duplán lenne).
 3. **Profil-injekció elavult cím bug + prompt NO-READ-BACK** — (a) a voice injection most `custom_data.email_verification.value` (harness/SMS-verifikált) → `email` oszlop → `custom_data.email` sorrendet olvassa (korábban az elavult bemondott cím nyert — SMS-korrekció után a rossz cím ment vissza a promptba!); (b) `_update_client` szinkronban tartja a `custom_data.email`-t is; (c) prompt: 4. szabály + quiet-ID blokk kiegészítve — a rögzítés után a bemondott adatok VISSZAOLVASÁSA TILOS (fix zárómondat szándékosan NINCS, user-döntés). A Gemini Live 3.1 visszaolvasási szokása ellen így lépünk: az injektált nyers anyag ritkítása + prompt-korlát; élő mid-call injektálás a harness-eredményből NEM megoldható (a harness a hívás VÉGÉN fut).
 
-**Tesztek**: pytest 378/378 zöld (új: turnus-rendezés/dedup 5, SMS `all` mód 6, sablon `{email}` 2), vite build tiszta (a ClientDetailView tsc-hibák ELŐZETESEK — 10-06 nyitott tétel #6). Staging `.env`: `EMAIL_VERIFY_SMS_MODE=all` (user-OK: minden hívó kap SMS-t). **Élő verifikáció**: teszthívás után — SMS a címmel, jóváhagyás → email + ügyfélrekord (oszlop ÉS custom_data), következő hívás prompt-injekciója a verifikált címet mutatja; buborékok időrendben a popupban (régi híváson is). **4. tétel (ÁSZF/adatvédelem Örsnek) user-oldali, nem kód.**
+**Tesztek**: pytest 378/378 zöld (új: turnus-rendezés/dedup 5, SMS `all` mód 6, sablon `{email}` 2), vite build tiszta (a ClientDetailView tsc-hibák ELŐZETESEK — 10-06 nyitott tétel #6). Staging `.env`: `EMAIL_VERIFY_SMS_MODE=all` (user-OK: minden hívó kap SMS-t). **Deploy-ellenőrzés (3d006e9)**: konténer healthy, worker regisztrált, 0 ERROR; container-env `SMS_MODE=all` él; SMS-sablon a konténerben 170 kar („Email cime: teszt.paciens@freemail.hu…"); a kiszolgált JS-ben ott a `.sort((e,t)=>e.start_s-t)`. **Élő verifikáció (userrel, függőben)**: teszthívás után — SMS a címmel, jóváhagyás → email + ügyfélrekord (oszlop ÉS custom_data), következő hívás prompt-injekciója a verifikált címet mutatja; buborékok időrendben a popupban (régi híváson is). **4. tétel (ÁSZF/adatvédelem Örsnek) user-oldali, nem kód.**
 
 
 ## 🚀 PROD ÉLESÍTÉS (2026-09-25, user döntésre — a 10 hívásos teszt KIHAGYVA)
