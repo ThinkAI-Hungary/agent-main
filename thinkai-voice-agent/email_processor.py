@@ -2660,6 +2660,12 @@ async def send_cancellation_email(attendee: str, attendee_email: str, title: str
     vars = _notification_vars(attendee, title, start_dt_iso, assigned_to=assigned_to, attendee_email=attendee_email)
     subject, html_content, _plain = _render_notification("cancellation", vars)
 
+    # 2026-10-07: a DRY_RUN kapu alá kerül (eddig csak 3 sablont fedett —
+    # a lemondó email alatta is kiment, míg a visszaigazolás nem: aszimmetria)
+    if _email_dry_run_enabled():
+        _dry_run_email("cancellation", attendee_email, attendee, subject)
+        return
+
     api_key = _get_brevo_api_key()
     if not api_key:
         logger.error("Nincs beállítva BREVO_API_KEY a lemondás visszaigazoló e-mailhez.")
