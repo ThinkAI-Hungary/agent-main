@@ -35,7 +35,7 @@ from classifier import classify_interaction
 
 # ── Import tools ──────────────────────────────────────────────────────────────
 sys.path.insert(0, str(THIS_DIR))
-from tools import ALL_TOOLS, set_session_id, reset_session_alerts, set_caller_phone, get_caller_phone, session_has_complaint_or_request, _spawn, send_session_confirmations, is_eval_caller
+from tools import ALL_TOOLS, set_session_id, reset_session_alerts, set_caller_phone, get_caller_phone, session_has_complaint_or_request, _spawn, send_session_confirmations, is_eval_caller, pop_session_bookings
 import database as db
 import call_recorder
 
@@ -916,44 +916,50 @@ SZABÁLYOK:
 
                 # ── WP-E: hívás utáni email/név ellenőrzés (EMAIL_VERIFY_MODE=1) ──
                 # A foglalás közben NEM ment ki visszaigazoló (tools.book_meeting
-                # késleltet): zöld verdict → most, nem-zöld → dupla opt-in. Minden
-                # hiba fail-open: a harness maga küldi legacy-ben, ha elhasal.
-                # FONTOS: await — fire-and-forget task kilépéskor elhalna, mert a
-                # worker-folyamat az entrypoint visszaadása után leáll (a Scribe/
-                # Soniox átirat 30-90 s-ig is futhat, ezért timeout-ban védve).
+                # késleltet). HOTFIX (2026-10-08): a livekit-agents 1.5.x a
+                # shutdown-callbackek után CSAK ~15 s-ot ad az entrypointnak
+                # ("entrypoint did not exit in time, cancelling" → SIGUSR1) — a
+                # 40-180 s-os harness (Soniox + Gemini + JEV) ott SOHA nem fér
+                # bele, a verdikt és az SMS/email elveszett. Ezért a harness a
+                # web_server (uvicorn) HOSSZÚ ÉLETŰ folyamatában fut: a worker
+                # átadja a kontextust HTTP-n, és azonnal visszatérhet.
                 if os.getenv("EMAIL_VERIFY_MODE", "0") == "1":
                     try:
-                        from email_verify_harness import run_and_apply_email_verification
-                        await asyncio.wait_for(
-                            run_and_apply_email_verification(
-                                session_id=session_id,
-                                tenant_id=tenant_id,
-                                interaction_id=interaction_id,
-                                turns=(recorder.turns if recorder and recorder.turns else []),
-                                client_id=client_id,
-                            ),
-                            timeout=240,
+                        _verify_bookings = pop_session_bookings(session_id)
+                        _payload = json.dumps({
+                            "session_id": session_id,
+                            "tenant_id": tenant_id,
+                            "interaction_id": interaction_id,
+                            "client_id": client_id,
+                            "caller_number": (get_caller_phone() or ""),
+                            "turns": (recorder.turns if recorder and recorder.turns else []),
+                            "bookings": _verify_bookings,
+                        }).encode("utf-8")
+                        import urllib.request as _ureq
+                        _req = _ureq.Request(
+                            "http://127.0.0.1:8000/api/internal/run-email-verify",
+                            data=_payload,
+                            headers={"Content-Type": "application/json"},
+                            method="POST",
                         )
-                    except asyncio.TimeoutError:
-                        logger.warning("Email-ellenőrző harness timeout (fail-open legacy küldés)")
+
+                        def _post():
+                            with _ureq.urlopen(_req, timeout=8) as _resp:
+                                return _resp.read()
+
+                        await asyncio.to_thread(_post)
+                        logger.info("Email-ellenőrző harness átadva a web_server folyamatnak (HTTP)")
                     except Exception as hve:
-                        logger.warning(f"Email-ellenőrző harness indítása sikertelen (fail-open legacy küldés): {hve}")
-                        try:
-                            _spawn(send_session_confirmations(session_id), name=f"verify-fallback-{session_id}")
-                        except Exception as fbe:
-                            logger.error(f"Legacy visszaigazoló tartalék küldés is sikertelen: {fbe}")
+                        logger.warning(f"Harness HTTP-átadás sikertelen (fail-open): {hve}")
 
                 logger.info(f"✅ Voice session {session_id} classified and transcript logged.")
             except Exception as e:
                 logger.error(f"Failed to classify voice session {session_id}: {e}")
 
         # HOTFIX (WP-E2, 50 hívás incidens): KÖTELEZŐ az await — a spawn-olt
-        # task a folyamat kilépésekor elhal: az entrypoint visszatérése után a
-        # LiveKit ~10 s múlva SIGUSR1-gyel kilövi a processzt, így a
-        # klasszifikáció utáni WP-E harness (Soniox + LLM-ek, 40-180 s) SOHA
-        # nem ért véget (12/12 hívásnál elveszett a verdikt + az emailek).
-        # Az awaitelt változatnál az entrypoint addig él, amíg a munka kész
-        # lesz; a belső 240 s-os harness-határidő felett 280 s a plafon.
+        # task a folyamat kilépésekor elhal. (A WP-E harness 2026-10-08 óta
+        # HTTP-n a web_server folyamatban fut — ide már csak a klasszifikáció
+        # + log_interaction tartozik, 280 s a plafon.)
         try:
             await asyncio.wait_for(_run_classification(recorder), timeout=280)
         except asyncio.TimeoutError:

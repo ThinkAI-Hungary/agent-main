@@ -1917,14 +1917,20 @@ def _send_confirm_sms(session_id: str, tenant_id, bookings: list,
 
 async def run_and_apply_email_verification(session_id: str, tenant_id=None,
                                            interaction_id=None, turns=None,
-                                           client_id=None) -> dict:
+                                           client_id=None, bookings=None,
+                                           caller_number=None) -> dict:
     """A hívás végén futó vezérlő: harness verdict → email-küldés.
     green → visszaigazolás MOST; non_green → dupla opt-in; error/no_recording →
-    legacy azonnali küldés (fail-open). A booking-adatokat a
-    tools.SESSION_BOOKING_DATA-ból veszi (book_meeting tölti, verify módban)."""
+    legacy azonnali küldés (fail-open). A booking-adatokat alapból a
+    tools.SESSION_BOOKING_DATA-ból veszi (book_meeting tölti, verify módban);
+    HTTP-triggeres futtatásnál (web_server-folyamat) a `bookings` és
+    `caller_number` paraméterben jönnek — ott nincs worker-memória."""
     import tools  # lazy: a livekit-függő modult csak futásidőben érintjük
 
-    bookings = tools.pop_session_bookings(session_id)
+    if bookings is None:
+        bookings = tools.pop_session_bookings(session_id)
+    if not caller_number:
+        caller_number = (tools.get_caller_phone() or "")
     booking_email = (bookings[0].get("attendee_email") or "") if bookings else ""
     booking_name = (bookings[0].get("attendee") or "") if bookings else ""
 
@@ -1948,7 +1954,8 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
 
     status = verdict.get("status")
     winner = ((verdict.get("email") or {}).get("winner") or "").strip().lower()
-    caller_number = (tools.get_caller_phone() or "")
+    if not caller_number:
+        caller_number = (tools.get_caller_phone() or "")
 
     # ── WP-E3 MU-2.3: SMS döntési tábla + EMAIL_VERIFY_FLOW ──
     # flow='gate' (default): a kapu green-je → email azonnal (mai viselkedés).

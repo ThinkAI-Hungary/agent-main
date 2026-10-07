@@ -6583,6 +6583,50 @@ _SMS_ALREADY_CONFIRMED_HTML = """
 """
 
 
+@app.post("/api/internal/run-email-verify")
+async def internal_run_email_verify(request: Request):
+    """WP-E hotfix (2026-10-08): a hívás utáni email-ellenőrző harness ITT,
+    a web_server (uvicorn) hosszú életű folyamatában fut — a worker-folyamatot
+    a LiveKit a shutdown után ~15 s-nál lelövi ("entrypoint did not exit in
+    time"), a 40-180 s-os harness ott soha nem férne bele.
+
+    Csak LOCALHOZRÓL hívható (a worker-folyamat hívja 127.0.0.1-ről; a Caddy-n
+    bejövő kérés a docker-hálózatról érkezik → 403). A válasz azonnal megy,
+    a munka háttér-taskban fut (fail-open: hiba csak log)."""
+    client_host = request.client.host if request.client else ""
+    if client_host not in ("127.0.0.1", "::1", "localhost"):
+        logger.warning("internal run-email-verify nem-localhost hívás (%s) — 403", client_host)
+        raise HTTPException(status_code=403, detail="internal only")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="invalid json")
+    session_id = str(body.get("session_id") or "")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id required")
+
+    async def _run_verify():
+        try:
+            from email_verify_harness import run_and_apply_email_verification
+            verdict = await run_and_apply_email_verification(
+                session_id=session_id,
+                tenant_id=body.get("tenant_id"),
+                interaction_id=body.get("interaction_id"),
+                turns=body.get("turns") or [],
+                client_id=body.get("client_id"),
+                bookings=body.get("bookings") or None,
+                caller_number=body.get("caller_number") or None,
+            )
+            logger.info("HTTP-triggeres email-ellenőrzés kész (%s) → %s",
+                        session_id, verdict.get("status"))
+        except Exception as exc:
+            logger.warning("HTTP-triggeres email-ellenőrzés hiba (%s, fail-open): %s",
+                           session_id, exc)
+
+    asyncio.create_task(_run_verify())
+    return {"ok": True, "triggered": session_id}
+
+
 @app.post("/api/public/twilio/status")
 async def twilio_status_callback(request: Request):
     """WP-E3 MU-1.3: Twilio kézbesítési státusz-callback. KÖTELEZŐ az

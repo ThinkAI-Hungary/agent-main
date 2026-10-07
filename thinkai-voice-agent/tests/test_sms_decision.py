@@ -442,3 +442,26 @@ def test_gate_all_modban_is_regi_viselkedes(env, monkeypatch):
                                         stt="winner@freemail.hu"))
     assert calls == []
     assert len(env.confirm) == 1
+
+
+def test_http_triggeres_futtatas_explicit_bookings(env, monkeypatch):
+    # 2026-10-08 hotfix: a harness a web_server folyamatban fut HTTP-triggerrel —
+    # ott a bookings/caller_number a paraméterben jön, a worker-memória
+    # (tools.pop_session_bookings) NEM kerül felhasználásra
+    pops = []
+    monkeypatch.setattr(TOOLS, "pop_session_bookings",
+                        lambda sid: pops.append(sid) or [], raising=False)
+    monkeypatch.setattr(TOOLS, "get_caller_phone",
+                        lambda: "+36999999999", raising=False)
+    calls = _sms_ok(monkeypatch)
+    explicit = [{"event_id": 9, "title": "Konzultáció", "date": "2026-10-02",
+                 "time": "09:00", "attendee": "HTTP Ügyfél",
+                 "attendee_email": "http@freemail.hu"}]
+    monkeypatch.setattr(evh, "run_harness", lambda **kw: _verdict("non_green", ""),
+                        raising=False)
+    asyncio.run(evh.run_and_apply_email_verification(
+        "sess-http", caller_number="+36709436426", bookings=explicit))
+    assert len(calls) == 1
+    assert calls[0]["candidate"] == "http@freemail.hu"  # az explicit foglalásból
+    assert calls[0]["phone"] == "+36709436426"          # a paraméterből
+    assert pops == []                                   # a pop nem hívódott
