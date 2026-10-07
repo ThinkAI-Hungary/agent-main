@@ -2,9 +2,13 @@
 
 ## 🚀 PROD-DEPLOY (`b2329da` → `acacac4`, 2026-10-09 hajnal, user jóváhagyásra) — EL
 
+> **+1 commit (`f76d724`) utólag szintén prodban**: PER-TENANT fix — a user "biztos? per tenant dolgok?" kérdésére végzett audit TALÁLATJA: a HTTP-triggeres harness a web_server ambient (default = Rivergate) kontextusában futott, így nem-default bérlőknél (Dentors!) a loop-kontextusos tenant-szűrt írások (`append_calendar_note`, a visszaigazoló email event-lekérése) a default tenantra mentek volna. A staging-teszt ezt nem láthatta (teszt-bérlő = default). Fix: `run_and_apply_email_verification` a kapott tenant_id-ra állítja a ContextVar-t a task elején (to_thread szálakat is). +1 teszt (393/393).
+
 - **18 commit felment, migráció nélkül** (tiszta kód-deploy): a 10-08 reggeli 4 váró fix (TZ-audit `bfbbd04`, újranyitás-logika `2946e10`+`d871698`, Beállítások CTA `7c9282e`, lemondó-email DRY_RUN-kapu `c1b325a`) + a teljes mai voice-lánc (buborék-sorrend+dedup, bubble-seek beszéd-szakasz időigazítás, univerzális SMS, harness web_serverre költöztetés, injekció verified-cím, NO-READ-BACK prompt, Twilio queued-status, TZ-permanens `tztime`).
-- **Prod env változás: `EMAIL_VERIFY_SMS_MODE=nongreen → all`** (univerzális SMS-visszaigazolás — stagingen élőben tesztelve, user-döntés). `FLOW=smsfirst`, `EMAIL_DRY_RUN=0`, `SMS_DRY_RUN=0` változatlan.
+- **Prod env változás: `EMAIL_VERIFY_SMS_MODE=nongreen → all`** (univerzális SMS-visszaigazolás — stagingen élőben tesztelve, user-döntés). `FLOW=smsfirst`, `EMAIL_DRY_RUN=0`, `SMS_DRY_RUN=0`, `PUBLIC_CONFIRM_BASE_URL=https://desk.eaisy.hu` változatlan/ellenőrzött.
 - **Deploy-verifikáció (prod)**: konténer healthy; container-env `SMS_MODE=all` él; `tztime` 07Z → „09:00" Budapest; a kiszolgált bundle-ben a transcript-sort + `Europe/Budapest` (CalendarPage + formatters); `/api/internal/run-email-verify` belülről 400 (él), desk.eaisy.hu-ról 403 (védett); logok 0 ERROR.
+- **Prod DB séma read-only ellenőrzés (PROD MCP)**: 4 tenant (Dentors Szeged, Rivergate, TestCo, Demo); `email_verify_runs` SMS-oszlopai, `calendar_events.note`, `sms_logs`, `email_confirm_tokens.client_id/event_ids` mind élnek.
+- **Ismert, elfogadott per-tenant jellemző**: az SMS Minden bérlőnek a Think AI Twilio-számáról (+36707177914) megy — tenantonkénti SMS-szám (pl. Telnyx) külön téma, ha kéri.
 - **Figyelendő prodban**: első éles hívások → „Email-ellenőrző harness átadva a web_server folyamatnak" + „HTTP-triggeres email-ellenőrzés kész" logok, `email_verify_runs.sms_*`, SMS delivered arány, jóváhagyási arány; buborék-seek a valódi popupokban.
 
 
