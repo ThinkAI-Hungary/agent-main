@@ -1905,6 +1905,7 @@ def _send_confirm_sms(session_id: str, tenant_id, bookings: list,
         b0 = bookings[0] if bookings else {}
         body = build_sms_text(link=link, rendelo=_rendelo_name(),
                               datum=b0.get("date", ""), ido=b0.get("time", ""),
+                              email=(candidate_email or ""),
                               has_candidate=bool(candidate_email))
         res = send_sms(caller_number, body, session_id=session_id,
                        tenant_id=tenant_id, purpose="email_confirm")
@@ -1955,9 +1956,14 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
     # olvasat (két FÜGGETLEN utólagos forrás) egyezett → email azonnal;
     # minden más eset → SMS a hívónak a jelölttel, email CSAK a kattintás
     # után (a jó ember a jó címet erősíti meg).
+    # EMAIL_VERIFY_SMS_MODE='all' (univerzális visszaigazolás): smsfirst
+    # alatt a GYORSÍTÓSÁV is SMS-en megy — minden jogosult hívó kap SMS-t
+    # a rögzített címmel, a visszaigazoló email CSAK a jóváhagyás után
+    # megy ki (a felolvasott/félreértett címre soha nem megy email).
     sms_mode = _sms_mode()
     flow = (os.getenv("EMAIL_VERIFY_FLOW", "gate") or "gate").strip().lower()
     sms_on = sms_mode != "off"
+    universal_sms = (flow == "smsfirst" and sms_mode == "all")
     eligible = False
     if sms_on:
         eligible, _elig_reason = sms_eligible(caller_number, bookings, session_id)
@@ -1989,7 +1995,7 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
             logger.warning(f"Dupla opt-in küldés hiba (fail-open legacy): {exc}")
             await _send_legacy_confirmations(bookings, candidate)
 
-    if fast_lane:
+    if fast_lane and not (universal_sms and sms_on and eligible):
         for b in bookings:
             try:
                 await email_processor.send_booking_confirmation_email(
@@ -2004,7 +2010,9 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
                 logger.warning(f"Visszaigazoló küldés hiba ({b.get('attendee_email')}): {exc}")
     elif sms_on and eligible:
         # SMS-út: jelölt = smsfirst-ben az audio-olvasat, különben a kapu nyertese;
-        # jelölt nélkül (smsfirst) is megy — 'adja meg a címét' üres mezővel
+        # jelölt nélkül (smsfirst) is megy — 'adja meg a címét' üres mezővel.
+        # Univerzális módban (all) a zöld verdikt is ide kerül: az SMS a jóváhagyás
+        # kapuja, az email a megerősítés után indul (apply_confirmation küldi).
         cand = sms_candidate if sms_candidate else (winner or booking_email or None)
         send_empty = flow == "smsfirst" or not (winner or booking_email)
         if cand or send_empty:
@@ -2022,8 +2030,26 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
                             b["event_id"],
                             "📧 E-mail megerősítés függőben — SMS kiküldve az ügyfélnek. "
                             "Megerősítés után ez a sor frissül.")
-                if optin_with_sms and winner:
+                # opt-in kísérő levél csak a RÉGI (nem-univerzális) módban él
+                # — univerzálisan az email a jóváhagyás után megy, kettőzne
+                if optin_with_sms and winner and not universal_sms:
                     await _send_optin_email(winner)
+            elif fast_lane and winner:
+                # Univerzális + zöld verdikt, de az SMS nem ment (pl. Twilio-hiba)
+                # → a gyorsítósáv eredeti viselkedése: visszaigazolás most a
+                # nyertesre (a kapu két független forrás egyezését mondta)
+                for b in bookings:
+                    try:
+                        await email_processor.send_booking_confirmation_email(
+                            event_id=b.get("event_id"),
+                            title=b.get("title", "Konzultáció"),
+                            date=b.get("date", ""),
+                            time=b.get("time", ""),
+                            attendee=b.get("attendee", "Ügyfél"),
+                            attendee_email=winner or b.get("attendee_email", ""),
+                        )
+                    except Exception as exc:
+                        logger.warning(f"Visszaigazoló küldés hiba ({b.get('attendee_email')}): {exc}")
             elif winner:
                 # SMS sikertelen → visszaesés az opt-in levélre (MU-2.3)
                 await _send_optin_email(winner)

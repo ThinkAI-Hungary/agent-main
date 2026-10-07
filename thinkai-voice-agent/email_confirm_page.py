@@ -394,6 +394,10 @@ def _update_client(old_email: str, new_email: str, action: str,
             "applied": True,
             "ts": datetime.now(timezone.utc).isoformat(),
         }
+        # A custom_data.email is az ÚJ címre áll — a voice profil-injekció ezt
+        # olvassa (a top-level email oszlop mellett), elavult bemondott cím
+        # nem maradhatott benne a jóváhagyás után.
+        cd["email"] = new_email
         db.edit_client_details(client["id"], {
             "name": client.get("name") or "Névtelen",
             "email": new_email,

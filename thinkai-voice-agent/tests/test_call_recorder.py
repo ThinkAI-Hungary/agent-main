@@ -179,3 +179,52 @@ class TestCallRecorderTurns:
         # A log_interaction JSON-stringet vár — érvényesen sorosítható legyen
         parsed = json.loads(json.dumps(rec.turns))
         assert parsed[1]["start_s"] == rec.turns[1]["start_s"]
+
+    def test_turnus_rendezett_az_esemeny_sorrendtol_fuggetlen(self):
+        """A LiveKit eventek érkezési sorrendje nem kronologikus — a turns
+        property start_s szerint rendezve ad vissza (bubble-sorrend javítás)."""
+        rec = CallRecorder(None)
+        rec._t0 = time.monotonic() - 10.0
+        # érkezési sorrend: user@10s, majd ai@20s, majd user@15s
+        rec.add_turn("user", "Szeretnék időpontot kérni keddre")
+        rec._t0 = time.monotonic() - 20.0
+        rec.add_turn("ai", "Természetesen, mikor jönne Önnek?")
+        rec._t0 = time.monotonic() - 15.0
+        rec.add_turn("user", "Délelőtt lenne jó")
+        turns = rec.turns
+        assert [t["start_s"] for t in turns] == sorted(t["start_s"] for t in turns)
+        assert turns[0]["text"] == "Szeretnék időpontot kérni keddre"  # 10 s
+        assert turns[1]["text"] == "Délelőtt lenne jó"                 # 15 s
+        assert turns[2]["role"] == "ai"                                # 20 s
+        # a belső lista (érkezési sorrend) érintetlen — a rendezés csak a nézet
+        assert rec._turns[1]["role"] == "ai"   # érkezésben 2. — időrendben utolsó
+
+    def test_dupla_esemenyforras_dedup(self):
+        """Ugyanaz a mondás két eseményen (user_input_transcribed final +
+        conversation_item_added) kis írásjelezési eltéréssel érkezik →
+        3 s-es ablakon belül az első számít."""
+        rec = CallRecorder(None)
+        rec._t0 = time.monotonic() - 5.0
+        rec.add_turn("user", "Kiss Péter vagyok, kiss.peter@freemail.hu.")
+        rec.add_turn("user", "Kiss Péter vagyok, kiss.peter@freemail.hu")
+        assert len(rec.turns) == 1
+        # AI oldal is: conversation_item_added + (jövőbeni) speech_committed
+        rec.add_turn("ai", "Köszönöm, rögzítettem.")
+        rec.add_turn("ai", "Köszönöm, rögzítettem")
+        assert len(rec.turns) == 2
+
+    def test_jogos_ismetles_nem_szurodik_ki(self):
+        """Az ablakon KÍVÜLI azonos szöveg (tényleges ismétlés) marad."""
+        rec = CallRecorder(None)
+        rec._t0 = time.monotonic() - 60.0   # elapsed: 60 s
+        rec.add_turn("user", "Igen")
+        rec._t0 = time.monotonic() - 100.0  # elapsed: 100 s — 40 s az első után
+        rec.add_turn("user", "Igen")
+        assert len(rec.turns) == 2
+
+    def test_ures_irasjelek_nem_kerulnek_turnusba(self):
+        rec = CallRecorder(None)
+        rec._t0 = time.monotonic() - 3.0
+        rec.add_turn("user", "...")
+        rec.add_turn("user", "!!")
+        assert rec.turns == []

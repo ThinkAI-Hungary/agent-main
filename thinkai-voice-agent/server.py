@@ -348,7 +348,18 @@ SZABÁLYOK:
                     except Exception:
                         _icd = {}
                 _pname = (_icd.get("name") or _id_primary.get("name") or "").strip()
-                _pemail = (_icd.get("email") or _id_primary.get("email") or "").strip()
+                # A bemondott (esetleg félreértett) custom_data.email helyett a
+                # POST-PROCESSING szerinti cím az elsődleges: ha a harness/SMS-
+                # jóváhagyás verifikálta (email_verification.applied), azt; különben
+                # az email oszlop (a megerősítés ezt is írja); a custom_data.email
+                # csak tartalék — az SMS-jóváhagyás után ELAVULT lehet.
+                _ev = _icd.get("email_verification") or {}
+                _verified_email = ""
+                if isinstance(_ev, dict) and _ev.get("applied"):
+                    _verified_email = (_ev.get("value") or "").strip()
+                _pemail = (_verified_email
+                           or (_id_primary.get("email") or "").strip()
+                           or (_icd.get("email") or "").strip())
                 _upcoming_txt = ""
                 try:
                     from datetime import timezone as _tzu
@@ -369,7 +380,9 @@ SZABÁLYOK:
                     "megerősítésére: 'a rendszerünkben rögzített e-mail címre küldhetjük a visszaigazolást?' — "
                     "ADATVÉDELMI SZABÁLY: az e-mail címet NE OLVASD FEL betűről betűre, szó szerint se (a hívó "
                     "lehet nem-tulajdonos a számról!); ha igent mond, a rögzített címre megy, ha nemet, "
-                    "kérj tőle új címet. Időpont módosításkor/lemondáskor a tulajdon-ellenőrzéshez a rögzített "
+                    "kérj tőle új címet. A rögzítés után NE ISMÉTELD VISSZA a bemondott címet vagy más "
+                    "személyes adatot visszaigazolásként — a rendszer a hívás után automatikusan ellenőrzi. "
+                    "Időpont módosításkor/lemondáskor a tulajdon-ellenőrzéshez a rögzített "
                     "cím ELLENŐRZÉSRE használható (a hívótól kérdezd, ő mondja). Érzékeny adatok (korábbi "
                     "időpontok) csak a 7. szabály szerinti második azonosító UTÁN olvashatók vissza."
                 )
@@ -557,10 +570,16 @@ SZABÁLYOK:
             except Exception as ex:
                 logger.warning(f"Error in conversation_item_added event handler: {ex}")
 
+        # livekit-agents 1.5.x: az agent_speech_* eventek NEM léteznek (a
+        # 0.x API-ból maradtak) — az AI-turnusok a conversation_item_added-ből
+        # jönnek. A handler előre-kompatibilis tartalék marad, ha a későbbi
+        # verziók újra tüzelik őket; az `interrupted` flaggel jelölt (félbeszakadt)
+        # mondás akkor sem kerül bubble-turnusba.
         @session.on("agent_speech_committed")
         @session.on("agent_speech_interrupted")
         def _on_agent_speech(msg):
             try:
+                record_turn = getattr(msg, "interrupted", False) is not True
                 content = getattr(msg, "content", "")
                 if content and isinstance(content, str):
                     text = content.strip()
@@ -569,9 +588,11 @@ SZABÁLYOK:
                         # Role-onkénti dedup
                         if not any(f"AI Válasz: {text}" in item for item in transcript_list[-3:]):
                             transcript_list.append(entry)
-                            if recorder:
+                            # Félbeszakadt (megszakított) mondás a naplóba kerül,
+                            # a bubble-turnusba NEM (részmondat, zavart jelenítene meg)
+                            if recorder and record_turn:
                                 recorder.add_turn("ai", text)
-                            logger.info(f"🤖 Agent (Speech): {text}")
+                            logger.info(f"🤖 Agent (Speech{'-interrupted' if not record_turn else ''}): {text}")
             except Exception as e:
                 logger.warning(f"Error in agent speech event: {e}")
 

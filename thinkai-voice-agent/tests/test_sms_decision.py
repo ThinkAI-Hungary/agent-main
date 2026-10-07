@@ -357,3 +357,88 @@ def test_gate_flow_alapertelmezett_smaradt(env, monkeypatch):
     _run(monkeypatch, _verdict("green", "jo@gmail.com"))
     assert len(env.confirm) == 1
     assert calls == []
+
+
+# ── UNIVERZÁLIS VISSZAIGAZOLÁS: flow=smsfirst + SMS_MODE=all ────────────────
+@pytest.fixture()
+def all_env(smsfirst_env, monkeypatch):
+    """smsfirst + mode='all': minden jogosult hívó SMS-t kap a rögzített
+    címmel; a visszaigazoló email CSAK a jóváhagyás után megy ki."""
+    monkeypatch.setenv("EMAIL_VERIFY_SMS_MODE", "all")
+    return smsfirst_env
+
+
+def test_all_zold_gyorsitosav_is_sms_megy_email_nem(all_env, monkeypatch):
+    # a gyorsítósáv (audio+stt egyezés) is az SMS-jóváhagyáson megy át:
+    # SMS a nyertessel, azonnali visszaigazoló email NINCS
+    calls = _sms_ok(monkeypatch)
+    _run(monkeypatch, _verdict_smsfirst("green", winner="winner@freemail.hu",
+                                        present=("audio", "stt"),
+                                        audio="winner@freemail.hu",
+                                        stt="winner@freemail.hu"))
+    assert len(calls) == 1
+    assert calls[0]["candidate"] == "winner@freemail.hu"
+    assert all_env.confirm == [] and all_env.optin == []
+    assert all_env.notes and "függőben" in all_env.notes[0][1]
+
+
+def test_all_zold_sms_sikertelen_visszaigazolas_azonnal(all_env, monkeypatch):
+    # zöld verdikt + SMS nem ment → a gyorsítósáv eredeti viselkedése:
+    # visszaigazoló email most a nyertesre (nem opt-in, nem legacy)
+    monkeypatch.setattr(evh, "_send_confirm_sms",
+                        lambda *a, **k: {"ok": False, "status": "failed"}, raising=False)
+    _run(monkeypatch, _verdict_smsfirst("green", winner="winner@freemail.hu",
+                                        present=("audio", "stt"),
+                                        audio="winner@freemail.hu",
+                                        stt="winner@freemail.hu"))
+    assert len(all_env.confirm) == 1
+    assert all_env.optin == [] and all_env.legacy == []
+
+
+def test_all_nem_jogosult_zold_email_azonnal(all_env, monkeypatch):
+    # nem magyar mobil → nincs SMS-jogosultság → a mai gyorsítósáv: email most
+    calls = _sms_ok(monkeypatch)
+    _run(monkeypatch, _verdict_smsfirst("green", winner="winner@freemail.hu",
+                                        present=("audio", "stt"),
+                                        audio="winner@freemail.hu",
+                                        stt="winner@freemail.hu"),
+         caller="+3611234567")
+    assert calls == []
+    assert len(all_env.confirm) == 1
+
+
+def test_all_nongreen_sms_marad(all_env, monkeypatch):
+    # nem-zöld + all: ugyanaz, mint az smsfirst nongreen — SMS az audio-olvasattal
+    calls = _sms_ok(monkeypatch)
+    _run(monkeypatch, _verdict_smsfirst("non_green", winner="winner@freemail.hu",
+                                        present=("live", "audio"),
+                                        audio="audio@freemail.hu"))
+    assert len(calls) == 1
+    assert calls[0]["candidate"] == "audio@freemail.hu"
+    assert all_env.confirm == []
+
+
+def test_all_optin_kiserovel_sem_duplaz(all_env, monkeypatch):
+    # EMAIL_VERIFY_OPTIN_EMAIL_WITH_SMS=1 univerzálisan NEM küld kísérő opt-int
+    # (az email a jóváhagyás után megy, duplán lenne)
+    monkeypatch.setenv("EMAIL_VERIFY_OPTIN_EMAIL_WITH_SMS", "1")
+    calls = _sms_ok(monkeypatch)
+    _run(monkeypatch, _verdict_smsfirst("green", winner="winner@freemail.hu",
+                                        present=("audio", "stt"),
+                                        audio="winner@freemail.hu",
+                                        stt="winner@freemail.hu"))
+    assert len(calls) == 1
+    assert all_env.optin == []
+
+
+def test_gate_all_modban_is_regi_viselkedes(env, monkeypatch):
+    # flow=gate mellett az 'all' mód NEM aktiválja az univerzális SMS-t
+    # (a gate a rollback-ág: green → email most)
+    monkeypatch.setenv("EMAIL_VERIFY_SMS_MODE", "all")
+    calls = _sms_ok(monkeypatch)
+    _run(monkeypatch, _verdict_smsfirst("green", winner="winner@freemail.hu",
+                                        present=("audio", "stt"),
+                                        audio="winner@freemail.hu",
+                                        stt="winner@freemail.hu"))
+    assert calls == []
+    assert len(env.confirm) == 1

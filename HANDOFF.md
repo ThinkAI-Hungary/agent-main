@@ -1,5 +1,16 @@
 # HANDOFF — eaisyDesk | 2026-09-14
 
+## 🫧 BUBORÉK-SORREND + UNIVERZÁLIS SMS-VISSZAIGAZOLÁS + INJEKCIÓ-JAVÍTÁS (2026-10-08, staging `deploy után`)
+
+Balázs-féle voice-hibajelentés (4 tétel) után feltérképezés, majd 3 munkacsomag megvalósítva és tesztelve:
+
+1. **Transzkript-buborékok sorrendje (1a-fázis)** — gyökér: a `transcript_turns`-t LiveKit event-handerek töltik, érkezési sorrendjük nem kronologikus (az `agent_speech_*` eventek a livekit-agents 1.5.16-ban MÉG NEM IS LÉTEZNEK — inert handler, komment jelzi). Fix: `CallRecorder.add_turn` duplikátum-védelem (azonos role+normalizált szöveg ≤3 s ablakban → első marad; jogos ismétlés átmegy), a `turns` property `start_s` szerint rendez; a frontend `parseTranscriptTurns` + az `InteractionSummaryModal` is rendez (a MÁR ROSSZUL TÁROLT régi sorok megjelenítéskor javulnak, migráció nélkül). **1b-fázis (Soniox-szavas user-szöveg csere) később, user-döntésre.**
+2. **Univerzális SMS-visszaigazolás (`EMAIL_VERIFY_SMS_MODE=all`, stagingen ÁTÁLLÍTVA)** — minden SMS-jogosult hívó (magyar mobil + foglalás + idempotencia) SMS-t kap a **rögzített email cím kiírásával** (`DEFAULT_SMS_TEMPLATE` új `{email}` mező, GSM-7, 1 szegmens tipikusan), a visszaigazoló email CSAK a `/e/{token}` jóváhagyás UTÁN megy (az `apply_confirmation` ezt már így csinálta). Zöld verdikt + SMS-fail → gyorsítósáv eredeti viselkedése (visszaigazolás most a nyertesre); nem jogosult szám → mai út; `EMAIL_VERIFY_FLOW=gate` rollback-ág változatlan. Opt-in kísérőlevél univerzálisan kikapcsolva (duplán lenne).
+3. **Profil-injekció elavult cím bug + prompt NO-READ-BACK** — (a) a voice injection most `custom_data.email_verification.value` (harness/SMS-verifikált) → `email` oszlop → `custom_data.email` sorrendet olvassa (korábban az elavult bemondott cím nyert — SMS-korrekció után a rossz cím ment vissza a promptba!); (b) `_update_client` szinkronban tartja a `custom_data.email`-t is; (c) prompt: 4. szabály + quiet-ID blokk kiegészítve — a rögzítés után a bemondott adatok VISSZAOLVASÁSA TILOS (fix zárómondat szándékosan NINCS, user-döntés). A Gemini Live 3.1 visszaolvasási szokása ellen így lépünk: az injektált nyers anyag ritkítása + prompt-korlát; élő mid-call injektálás a harness-eredményből NEM megoldható (a harness a hívás VÉGÉN fut).
+
+**Tesztek**: pytest 378/378 zöld (új: turnus-rendezés/dedup 5, SMS `all` mód 6, sablon `{email}` 2), vite build tiszta (a ClientDetailView tsc-hibák ELŐZETESEK — 10-06 nyitott tétel #6). Staging `.env`: `EMAIL_VERIFY_SMS_MODE=all` (user-OK: minden hívó kap SMS-t). **Élő verifikáció**: teszthívás után — SMS a címmel, jóváhagyás → email + ügyfélrekord (oszlop ÉS custom_data), következő hívás prompt-injekciója a verifikált címet mutatja; buborékok időrendben a popupban (régi híváson is). **4. tétel (ÁSZF/adatvédelem Örsnek) user-oldali, nem kód.**
+
+
 ## 🚀 PROD ÉLESÍTÉS (2026-09-25, user döntésre — a 10 hívásos teszt KIHAGYVA)
 
 **A teljes Balázs-scope + WP-E/E2/E3 stack ÉLESBEN van** (`65a3b6f` a prodon, előtte `ee8ea20` volt):

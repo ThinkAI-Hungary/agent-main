@@ -19,7 +19,7 @@ import { authFetch, getToken } from '../../api/client';
 import { showToast } from '../ui/Toast';
 import { StatuszBadge } from '../ui/Badge';
 import type { InteractionRow } from '../../pages/InteractionsPage';
-import type { TranscriptTurn } from '../../hooks/useSessions';
+import { parseTranscriptTurns, type TranscriptTurn } from '../../hooks/useSessions';
 import './InteractionSummaryModal.css';
 
 interface Props {
@@ -882,7 +882,13 @@ export default function InteractionSummaryModal({
   // Az audio src ON PLAY érkezik (signed URL az endpointtól), majd cache-elődik.
   const isPhoneChannel = channelKey === 'Telefon';
   const hasRecording = isPhoneChannel && !!row.recording_url && !!row.sessionId;
-  const turns: TranscriptTurn[] = row.transcript_turns || [];
+  // A turns mindig a közös parse-on megy át (string/tömb tolerancia +
+  // start_s szerinti rendezés — a régi sorok esemény-érkezési sorrendben
+  // tárolódtak, és itt rendezzük a kijelzéshez)
+  const turns: TranscriptTurn[] = useMemo(
+    () => parseTranscriptTurns(row.transcript_turns),
+    [row.transcript_turns]
+  );
   // WP D: rögzítés + turnuslista esetén a bubble-ök KÖZVETLENÜL a
   // transcript_turns-ból épülnek — a diary-alapú parse telefonnál üres lehet,
   // és így a start_s offsetek 1:1 illeszkednek a hanghoz (index = turnus).

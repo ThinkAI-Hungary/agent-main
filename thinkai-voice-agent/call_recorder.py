@@ -15,6 +15,7 @@ soha nem szakíthatja meg a beszélgetést.
 import asyncio
 import io
 import os
+import re
 import struct
 import time
 import wave
@@ -186,16 +187,46 @@ class CallRecorder:
         return time.monotonic() - self._t0
 
     def add_turn(self, role: str, text: str) -> None:
-        """Transcript-turnus rögzítése a bubble-szintű seekhez (start_s = elapsed())."""
-        self._turns.append({
-            "role": role,
-            "text": text,
-            "start_s": round(self.elapsed(), 2),
-        })
+        """Transcript-turnus rögzítése a bubble-szintű seekhez (start_s = elapsed()).
+
+        Duplikátum-védelem: ugyanaz a mondás két esemény-forráson érkezhet
+        (user_input_transcribed + conversation_item_added; conversation_item_added
+        + agent_speech_committed), és a LiveKit event-érkezési sorrendje nem
+        garantáltan kronologikus — ezért (a) az azonos role+szöveg rövid
+        időablakon belül az elsőnek rögzített marad, (b) a `turns` property
+        mindig start_s szerint rendezve ad vissza."""
+        now = round(self.elapsed(), 2)
+        if self._is_duplicate(role, text, now):
+            return
+        self._turns.append({"role": role, "text": text, "start_s": now})
+
+    @staticmethod
+    def _norm_text(text: str) -> str:
+        """Összehasonlító-alak: kisbetűs, csak betű/szám (ékezetekkel) — a
+        két esemény-forrás apró írásjelezési eltérései ne számítsanak eltérésnek."""
+        return re.sub(r"[^a-z0-9áéíóöőúüű]", "", (text or "").lower())
+
+    def _is_duplicate(self, role: str, text: str, now: float,
+                      window_s: float = 3.0) -> bool:
+        """True, ha ugyanez a (role, normalizált szöveg) már rögzítésre került
+        az utolsó `window_s` másodpercben (dupla esemény-forrás). A jogos
+        ismétlések („Igen", „Igen") általában több másodpercet várnak egymásra,
+        ezért nem szűrődnek ki."""
+        key = self._norm_text(text)
+        if not key:
+            return True   # normalizálás után üres → ne szemeteljen a turnus
+        for t in reversed(self._turns[-8:]):
+            if now - t.get("start_s", 0.0) > window_s:
+                break
+            if t.get("role") == role and self._norm_text(t.get("text", "")) == key:
+                return True
+        return False
 
     @property
     def turns(self) -> list:
-        return self._turns
+        """Időrendi turnuslista — az esemény-érkezési sorrendtől függetlenül
+        start_s szerint rendezve (a bubble-sorrend és a seek alapja)."""
+        return sorted(self._turns, key=lambda t: t.get("start_s", 0.0))
 
     async def start(self) -> None:
         """Capture-taskok indítása; sosem dob."""

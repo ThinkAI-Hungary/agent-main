@@ -176,9 +176,13 @@ def test_lejarat_minimum_clamp_foglalas_10_percmulva():
 def test_default_sablon_rovid_es_gsm7():
     text = ect.build_sms_text(link="https://do.bo/Ab12Cd34Ef56",
                               rendelo="DentalCare Rendelo",
-                              datum="2026-09-30", ido="10:00")
-    assert len(text) <= 160, f"a kitöltött default sablon {len(text)} karakter"
+                              datum="2026-09-30", ido="10:00",
+                              email="paciens@freemail.hu")
     assert is_gsm7(text), "a default sablon GSM-7-ben kódolható (ékezet nélküli)"
+    # a kitöltött szöveg (címmel, valós hosszú linkkel) max. 2 szegmens
+    from sms_text import count_segments
+    segs, _enc = count_segments(text)
+    assert segs <= 2, f"a kitöltött default sablon {segs} szegmens"
     # az üres-értékes szélsőség is belefér és valid
     assert is_gsm7(ect.build_sms_text(link="https://do.bo/Ab12Cd34Ef56"))
 
@@ -207,12 +211,26 @@ def test_default_sablon_atmegy_a_validacion():
 def test_build_sms_text_valtozatok():
     link = "https://do.bo/xy123"
     with_c = ect.build_sms_text(link=link, rendelo="R", datum="d", ido="i",
-                                has_candidate=True)
+                                email="paciens@freemail.hu", has_candidate=True)
     no_c = ect.build_sms_text(link=link, rendelo="R", datum="d", ido="i",
                               has_candidate=False)
     assert "erositse meg" in with_c and "adja meg" not in with_c
     assert "adja meg" in no_c and "erositse meg" not in no_c
     assert link in with_c and link in no_c, "a {link} behelyettesítődik"
+
+
+def test_build_sms_text_kiirja_a_rozgzitett_cimet():
+    """Univerzális visszaigazolás: az SMS kiírja a rögzített email címet,
+    amit a hívó jóváhagyhat / kijavíthat."""
+    text = ect.build_sms_text(link="https://do.bo/xy123", rendelo="R",
+                              datum="2026-10-08", ido="14:30",
+                              email="félrehallott@freemail.hu",
+                              has_candidate=True)
+    assert "Email cime: félrehallott@freemail.hu" in text
+    # a címmel együtt is GSM-7-ben marad (é a GSM-7 alapkészletben) és rövid
+    from sms_text import count_segments
+    segs, enc = count_segments(text)
+    assert segs <= 2 and enc == "GSM7"
 
 
 # ── 6. mark_confirmed: where confirmed_at is null + payload ──────────────────

@@ -58,7 +58,10 @@ export interface TranscriptTurn {
 }
 
 /** A interactions.transcript_turns JSONB (tömb VAGY string) biztonságos parse-ja.
-    Régi/hibás soroknál üres tömb — a bubble-ök akkor sima, ikon nélküliek. */
+    Régi/hibás soroknál üres tömb — a bubble-ök akkor sima, ikon nélküliek.
+    A visszaadott lista start_s szerint RENDEZETT: a korai sorok esemény-érkezési
+    sorrendben tárolódtak (LiveKit event-handerek), és a régi sorokat migráció
+    nélkül, megjelenítéskor javítjuk. */
 export function parseTranscriptTurns(value: unknown): TranscriptTurn[] {
   if (!value) return [];
   let raw = value;
@@ -70,13 +73,15 @@ export function parseTranscriptTurns(value: unknown): TranscriptTurn[] {
     }
   }
   if (!Array.isArray(raw)) return [];
-  return raw.filter(
-    (t): t is TranscriptTurn =>
-      !!t &&
-      typeof t === 'object' &&
-      typeof (t as TranscriptTurn).text === 'string' &&
-      typeof (t as TranscriptTurn).start_s === 'number'
-  );
+  return raw
+    .filter(
+      (t): t is TranscriptTurn =>
+        !!t &&
+        typeof t === 'object' &&
+        typeof (t as TranscriptTurn).text === 'string' &&
+        typeof (t as TranscriptTurn).start_s === 'number'
+    )
+    .sort((a, b) => a.start_s - b.start_s);
 }
 
 interface UseSessionsReturn {

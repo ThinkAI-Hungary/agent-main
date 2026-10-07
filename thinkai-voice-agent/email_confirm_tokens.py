@@ -20,9 +20,11 @@ from loguru import logger
 from sms_text import validate_template
 
 # ── SMS-sablonok (szándékosan ékezet nélkül — GSM-7-barát, max. 2 szegmens) ──
+# A van-jelölt változat KIÍRJA a rögzített címet (univerzális visszaigazolás:
+# a hívó látja, mit értett a rendszer, és jóváhagyhatja / kijavíthatja).
 DEFAULT_SMS_TEMPLATE = (
-    "{rendelo}: idopontja rogzitve ({datum} {ido}). Kerjuk, erositse meg "
-    "e-mail cimet a visszaigazolashoz: {link}"
+    "{rendelo}: idopontja rogzitve ({datum} {ido}). Email cime: {email}. "
+    "Ha helyes, erositse meg itt: {link}"
 )
 # Nincs-email jelölt változata: "adja meg" a "erositse meg" helyett.
 DEFAULT_SMS_TEMPLATE_NO_EMAIL = (
@@ -192,19 +194,20 @@ def mark_confirmed(token: str, email: str, action: str) -> bool:
 
 
 def build_sms_text(link: str, rendelo: str = "", datum: str = "", ido: str = "",
-                   has_candidate: bool = True) -> str:
+                   email: str = "", has_candidate: bool = True) -> str:
     """A default SMS-sablon kitöltése. has_candidate=False → az 'adja meg'
-    (nincs-email) változat. Sosem dob."""
+    (nincs-email) változat; van jelölt esetén a {email} a rögzített címet
+    írja ki. Sosem dob."""
     try:
         template = DEFAULT_SMS_TEMPLATE if has_candidate else DEFAULT_SMS_TEMPLATE_NO_EMAIL
         try:
             return template.format(rendelo=rendelo or "", datum=datum or "",
-                                   ido=ido or "", link=link or "")
+                                   ido=ido or "", email=email or "", link=link or "")
         except Exception:
             # fail-open: kézi behelyettesítés
             out = template
             for key, val in (("rendelo", rendelo), ("datum", datum),
-                             ("ido", ido), ("link", link)):
+                             ("ido", ido), ("email", email), ("link", link)):
                 out = out.replace("{" + key + "}", val or "")
             return out
     except Exception:
