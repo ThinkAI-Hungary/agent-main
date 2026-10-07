@@ -1,5 +1,17 @@
 # HANDOFF — eaisyDesk | 2026-09-14
 
+## 🤝 HANDOFF IGÉNYRÖGZÍTÉS-VISSZAIGAZOLÁS (`526934a`, 2026-10-09, staging+prod — EL)
+
+**A két prod-teszt feloldása**: az első hívás auto módban volt (foglalt + SMS — rendben), a második handoff-ban (a user 21:08-kor kapcsolta) — ott a rendszer helyesen nem foglalt, de **semmi sem ment a páciensnek**, csak a régi azonnali opt-in levél. User-döntés: handoff-ban is kell visszaigazolás (SMS + „rögzítettük" email, minden handoff-hívásra, amiben email hangzott el).
+
+- **Új döntési tábla-ág (első helyen)**: `booking_mode=handoff` ÉS nincs foglalás ÉS a harness kiolvasta a diktált címet ÉS a hívó SMS-elérhető (magyar mobil + idempotencia — **foglalás NEM kell**, `sms_eligible` új `require_booking=False` paraméter) → **handoff-SMS**: „{rendelo}: kereset rogzitve. Kollagaink hamarosan felveszik Onnnel a kapcsolatot. Email cime: X. Ha helyes, erositse meg itt: {link}" (`DEFAULT_SMS_TEMPLATE_HANDOFF`, purpose=`handoff_confirm`, esemény-nélküli token).
+- **Jóváhagyás után**: az `/e/{token}` oldal esemény-nélküli esete → NEM visszaigazoló, hanem **„rögzítettük" email** (`email_processor.send_handoff_ack_email` — Brevo + tenant feladó + DRY_RUN kapu; „Rögzítettük az Ön kérését… e-mail címét sikeresen megerősítette"). Az `_update_client` így itt is a jóváhagyott címet írja → a következő hívás injekciója jó.
+- **Fallback**: SMS-fail / nem elérhető szám / nincs cím → a mai opt-in levél (változatlan).
+- **Mellékfix**: `database.get_booking_mode` 60 mp-es cache-e PER-TENANT lett (a korábbi egyetlen globális bejegyzés a web_server-folyamatban tenantok között szennyezett volna).
+- **Tesztek 400/400** (7 új: handoff-ág ×5, sablon ×2). Deploy-ellenőrzés: prod konténerben Dentors mód = handoff, SMS-szöveg él.
+- **Csatorna-prompt térkép (user-kérdésre, dokumentum)**: EGY közös sablon (`text_configs.system_prompt`) + `get_system_prompt(channel)` — voice (`server.py:307`, booking_mode szabályokkal + mátrix), email (`email_processor.py:473`, klasszifikátor + draft két réteg), Messenger/Insta/WhatsApp (`web_server.py:2153`). Részletek a beszélgetésben.
+
+
 ## 🚀 PROD-DEPLOY (`b2329da` → `acacac4`, 2026-10-09 hajnal, user jóváhagyásra) — EL
 
 > **+1 commit (`f76d724`) utólag szintén prodban**: PER-TENANT fix — a user "biztos? per tenant dolgok?" kérdésére végzett audit TALÁLATJA: a HTTP-triggeres harness a web_server ambient (default = Rivergate) kontextusában futott, így nem-default bérlőknél (Dentors!) a loop-kontextusos tenant-szűrt írások (`append_calendar_note`, a visszaigazoló email event-lekérése) a default tenantra mentek volna. A staging-teszt ezt nem láthatta (teszt-bérlő = default). Fix: `run_and_apply_email_verification` a kapott tenant_id-ra állítja a ContextVar-t a task elején (to_thread szálakat is). +1 teszt (393/393).
