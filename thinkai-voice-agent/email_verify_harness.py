@@ -1927,6 +1927,19 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
     `caller_number` paraméterben jönnek — ott nincs worker-memória."""
     import tools  # lazy: a livekit-függő modult csak futásidőben érintjük
 
+    # PER-TENANT kontextus (2026-10-09): a HTTP-triggeres futtatás a web_server
+    # folyamat ambient (default) tenant-kontextusában indul — enélkül a loop-
+    # kontextusban futó tenant-szűrt írások (append_calendar_note, a visszaigazoló
+    # email event-lekérése) a DEFAULT tenantra mentek volna nem-default
+    # bérlőknél (Dentors). A ContextVar itt a task teljes kontextusát beállítja
+    # (a to_thread szálak is ezt öröklik); a run_harness belső beállítása
+    # redundáns, de ártalmatlan.
+    if tenant_id:
+        try:
+            db.set_current_tenant(tenant_id)
+        except Exception:
+            pass
+
     if bookings is None:
         bookings = tools.pop_session_bookings(session_id)
     if not caller_number:

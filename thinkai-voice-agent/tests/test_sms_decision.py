@@ -465,3 +465,22 @@ def test_http_triggeres_futtatas_explicit_bookings(env, monkeypatch):
     assert calls[0]["candidate"] == "http@freemail.hu"  # az explicit foglalásból
     assert calls[0]["phone"] == "+36709436426"          # a paraméterből
     assert pops == []                                   # a pop nem hívódott
+
+
+def test_http_triggeres_tenant_kontextus_beallitva(env, monkeypatch):
+    # PER-TENANT fix (2026-10-09): a HTTP-triggeres futtatás a web_server
+    # ambient (default) kontextusában indul — a run_and_apply-nak a kapott
+    # tenant_id-ra KELL állítania a kontextust, különben a tenant-szűrt
+    # írások (naptár-note, visszaigazoló email event-lekérés) nem-default
+    # bérlőknél a default tenantra mentek volna (stagingen a teszt-bérlő
+    # egyben a default is volt, ezért nem látszott).
+    seen = []
+    monkeypatch.setattr(evh.db, "set_current_tenant",
+                        lambda tid: seen.append(tid), raising=False)
+    monkeypatch.setattr(evh, "run_harness", lambda **kw: _verdict("error", ""),
+                        raising=False)
+    monkeypatch.setattr(evh, "_send_confirm_sms",
+                        lambda *a, **k: {"ok": True, "status": "sent"}, raising=False)
+    asyncio.run(evh.run_and_apply_email_verification(
+        "sess-tenant", tenant_id="tenant-dentors-uuid"))
+    assert "tenant-dentors-uuid" in seen
