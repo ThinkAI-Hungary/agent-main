@@ -750,6 +750,14 @@ function EaisyDeskSettingsTab() {
           </div>
         </div>
       </section>
+
+      {/* ── Globális mentés CTA (a redesignban kihagyott „Változások mentése" — 2026-10-07) ── */}
+      <div className="co-sec-foot" style={{ justifyContent: 'flex-end', marginTop: 16 }}>
+        <button className="beallitasok-save-btn" onClick={handleSaveAll} disabled={saving} aria-label="Változások mentése">
+          <svg fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" viewBox="0 0 24 24" width="15" height="15"><path d="M19 21H5a2 2 0 01-2-2V5a2 2 0 012-2h11l5 5v11a2 2 0 01-2 2z" /><polyline points="17 21 17 13 7 13 7 21" /><polyline points="7 3 7 8 15 8" /></svg>
+          {saving ? 'Mentés…' : 'Változások mentése'}
+        </button>
+      </div>
     </div>
   );
 }
