@@ -1439,10 +1439,14 @@ async def delete_meeting(
     # ── B pont: napló + ügyfél-napló + 'törölt időpont' címke + Utánkövetés ───
     # (a lemondási link-flow-val azonos üzleti logika; CSAK sikeres törlés után)
     _client = db.find_client_by_contact(email=owner_email)
-    _log_calendar_action(_client, "lemondotta", found.get("title", ""), f"törölve ({found.get('start_dt', '')[:16]})", "Törölt időpont")
+    try:
+        _del_dt = _to_budapest_tz(found.get("start_dt", "")).strftime("%Y-%m-%d %H:%M")
+    except Exception:
+        _del_dt = str(found.get('start_dt', ''))[:16]
+    _log_calendar_action(_client, "lemondotta", found.get("title", ""), f"törölve ({_del_dt})", "Törölt időpont")
     if _client:
         db.log_client_change(_client["id"], "event_deleted", f"Időpont törölve: {found.get('title', '')}",
-            new_value=str(found.get('start_dt', ''))[:16], related_ref=found.get("title", ""), actor="eaisyDesk")
+            new_value=_del_dt, related_ref=found.get("title", ""), actor="eaisyDesk")
     if _client:
         try:
             _cd = _client.get("custom_data") or {}

@@ -2478,12 +2478,17 @@ KIVÉTEL A TILTÁS ALÓL: Ha az ügyfél egyértelműen időpontot kér, de NEM 
         # --- ACTION: NAPTÁR MÓDOSÍTÁS ---
         if modify_action and modify_action.get("event_title_to_modify"):
             ev_title = modify_action["event_title_to_modify"]
-            found = db.find_calendar_event_by_title(ev_title)
+            # 265-ös ügy mintájára: CSAK a kérelmező saját eseményei közül keressünk
+            found = db.find_calendar_event_by_title(ev_title, attendee_email=from_email)
             if found:
                 updates = {}
                 old_dt = datetime.fromisoformat(found["start_dt"].replace("Z", "+00:00"))
-                d = modify_action.get("new_date") or old_dt.strftime("%Y-%m-%d")
-                t = modify_action.get("new_time") or old_dt.strftime("%H:%M")
+                # 2026-10-07 TZ-fix: a „megtartandó” dátum/idő defaultokat LOKÁLIS
+                # időben kell venni — a nyers UTC default 2 óráát csúszasztotta
+                import zoneinfo as _zi
+                old_local = old_dt.astimezone(_zi.ZoneInfo("Europe/Budapest"))
+                d = modify_action.get("new_date") or old_local.strftime("%Y-%m-%d")
+                t = modify_action.get("new_time") or old_local.strftime("%H:%M")
                 try:
                     import zoneinfo
                     tz = zoneinfo.ZoneInfo("Europe/Budapest")
@@ -3787,11 +3792,18 @@ async def admin_delete_calendar_event(event_id: int, _user = Depends(get_current
             db.edit_client_details(client["id"], cd)
             db.update_client_status(client["id"], db.resolve_utankovetes_column_id())
             db.create_session(session_id=f"calendar_manual_delete_{event_id}", room_name="Kézi naptár-törlés", participant=att_name or att_email or "Ismeretlen")
+            # 2026-10-07 TZ-fix: a nyers UTC-szelet 8:00-ként mutatta a 10:00-ás
+            # budapesti időpontot a naplókban — lokális konverzió
+            try:
+                from zoneinfo import ZoneInfo as _ZI
+                _ev_local = datetime.fromisoformat(str(ev.get("start_dt") or "").replace("Z", "+00:00")).astimezone(_ZI("Europe/Budapest")).strftime("%Y-%m-%d %H:%M")
+            except Exception:
+                _ev_local = (ev.get("start_dt") or "")[:16]
             db.log_interaction(
                 type="naptár",
                 topic="Időpont törölve kézzel a naptárból",
                 summary=f"{ev.get('title', '')} — kézzel törölve",
-                result=f"Kézi törlés a naptárból ({ev.get('start_dt', '')[:16]})",
+                result=f"Kézi törlés a naptárból ({_ev_local})",
                 session_id=f"calendar_manual_delete_{event_id}",
                 funnel_stage="relevant",
                 direction="inbound",
@@ -3806,12 +3818,12 @@ async def admin_delete_calendar_event(event_id: int, _user = Depends(get_current
             )
             db.upsert_client(
                 custom_data={},
-                additional_log=f"Időpont törölve kézzel a naptárból: {ev.get('title', '')} ({ev.get('start_dt', '')[:16]})",
+                additional_log=f"Időpont törölve kézzel a naptárból: {ev.get('title', '')} ({_ev_local})",
                 existing_id=client["id"],
             )
             db.log_client_change(client["id"], "event_deleted",
                 f"Időpont törölve: {ev.get('title', '')}",
-                new_value=str(ev.get('start_dt', ''))[:16], related_ref=ev.get('title', ''),
+                new_value=_ev_local, related_ref=ev.get('title', ''),
                 actor=_actor_name(_user))
             logger.info(f"'Törölt időpont' rituálé kézi törlésnél: client {client['id']} ({ev.get('title', '')})")
     except Exception as _ce:

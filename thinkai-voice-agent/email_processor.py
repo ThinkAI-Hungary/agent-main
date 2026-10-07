@@ -518,7 +518,21 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
             if int_count: details.append(f"korábbi interakciók: {int_count} db")
             if last_int_dt: details.append(f"utolsó interakció: {last_int_dt}")
             if upcoming:
-                up_str = "; ".join(f"{(e.get('title') or 'időpont')} ({(e.get('start_dt') or '')[:16].replace('T', ' ')})" for e in upcoming)
+                # 2026-10-07 TZ-fix (314-es ügy): a start_dt UTC-ben van — a nyers
+                # [:16] szelet 8:00-ként mutatta a 10:00-ás budapesti időpontot,
+                # és a modell (hűen a kontextusához) „8 órás időpontot" közölt.
+                def _fmt_upcoming(e):
+                    try:
+                        from datetime import datetime as _dtc
+                        from zoneinfo import ZoneInfo as _ZI
+                        d = _dtc.fromisoformat(str(e.get("start_dt") or "").replace("Z", "+00:00"))
+                        if d.tzinfo is None:
+                            d = d.replace(tzinfo=_ZI("UTC"))
+                        local = d.astimezone(_ZI("Europe/Budapest")).strftime("%Y-%m-%d %H:%M")
+                    except Exception:
+                        local = (e.get("start_dt") or "")[:16].replace("T", " ")
+                    return f"{(e.get('title') or 'időpont')} ({local})"
+                up_str = "; ".join(_fmt_upcoming(e) for e in upcoming)
                 details.append(f"bejegyzett jövőbeli időpontja: {up_str}")
             ctags = cd.get("tags", []) or []
             if ctags: details.append("címkék: " + ", ".join(ctags))
@@ -1847,8 +1861,13 @@ def _notification_vars(attendee: str, title: str, start_dt_iso: str,
     nev = (attendee or "").strip() or "Páciens"
     idopont = ""
     try:
+        from zoneinfo import ZoneInfo
         dt = _dt_mod.datetime.fromisoformat(str(start_dt_iso).replace("Z", "+00:00"))
-        idopont = _format_hu_datetime(dt)
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=ZoneInfo("UTC"))
+        # 2026-10-07 TZ-fix: a nyers UTC %H:%M 8:00-ként írta ki a 10:00-ás
+        # budapesti időpontot a lemondó/visszaigazoló emailben (kliens-látható!)
+        idopont = _format_hu_datetime(dt.astimezone(ZoneInfo("Europe/Budapest")))
     except Exception:
         idopont = str(start_dt_iso or "")
     szolgaltatas = (title or "").strip()
@@ -2748,7 +2767,10 @@ async def _run_automations_for_tenant(tenant: dict):
                         if delay_hours <= hours_since <= delay_hours + 24:
                             should_send = True
                             szolgaltatas = ev.get("title", "")
-                            idopont = ev_dt.strftime("%Y.%m.%d %H:%M")
+                            # 2026-10-07 TZ-fix: a follow_up emailben a nyers UTC
+                            # jelent meg — lokális konverzió
+                            from zoneinfo import ZoneInfo as _ZI2
+                            idopont = ev_dt.astimezone(_ZI2("Europe/Budapest")).strftime("%Y.%m.%d %H:%M")
                 except: pass
 
             elif trigger == "price_inquiry_follow" and "árkérdés" in tags:
