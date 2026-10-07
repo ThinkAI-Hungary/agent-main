@@ -2713,24 +2713,29 @@ def update_agent_settings(data: dict) -> bool:
         return False
 
 
-_BOOKING_INFO_CACHE: dict = {"data": None, "ts": 0.0}
+# Per-tenant cache (2026-10-09): a korábbi EGYETLEN globális (data, ts) páros
+# tenantok KÖZÖTT szennyezett — a web_server-folyamatban egy másik bérlő
+# requestje 60 mp-re rárakta a saját módját (Dentors handoff-ja 'auto'-nak
+# olvashatott volna). Kulcs: a get_business_info() által használt aktuális tenant.
+_BOOKING_INFO_CACHE: dict = {}
 
 def get_booking_mode() -> str:
-    """A foglalási mód (auto|handoff|custom|none) — 60 mp TTL-cache-szel
-    (a voice toolok hívásonként többször is olvashatják). Ismeretlen/üres
-    értékre 'auto' (a mai viselkedés marad a default)."""
+    """A foglalási mód (auto|handoff|custom|none) — 60 mp TTL-cache-szel,
+    TENANTONKÉNT (a voice toolok hívásonként többször is olvashatják).
+    Ismeretlen/üres értékre 'auto' (a mai viselkedés marad a default)."""
     import time as _time
+    tid = get_current_tenant() or "_default_"
     now = _time.time()
-    if _BOOKING_INFO_CACHE["data"] is not None and now - _BOOKING_INFO_CACHE["ts"] < 60:
-        mode = _BOOKING_INFO_CACHE["data"]
+    entry = _BOOKING_INFO_CACHE.get(tid)
+    if entry and now - entry["ts"] < 60:
+        mode = entry["data"]
     else:
         try:
             info = get_business_info() or {}
             mode = (info.get("booking_mode") or "auto").strip().lower()
         except Exception:
             mode = "auto"
-        _BOOKING_INFO_CACHE["data"] = mode
-        _BOOKING_INFO_CACHE["ts"] = now
+        _BOOKING_INFO_CACHE[tid] = {"data": mode, "ts": now}
     return mode if mode in ("auto", "handoff", "custom", "none") else "auto"
 
 

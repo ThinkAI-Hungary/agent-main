@@ -500,6 +500,31 @@ def _update_verify_runs(session_id: str, email: str, action: str) -> None:
                        session_id, exc)
 
 
+def _send_handoff_ack(email: str) -> None:
+    """Handoff (igényrögzítés) 'rögzítettük' email a címjóváhagyás után.
+    Ugyanaz a loop-minta, mint a _send_emails: sima kontextusból asyncio.run,
+    FastAPI (futó loop) kontextusból külön szál + új loop. Sosem dob."""
+    if not email:
+        return
+    try:
+        import email_processor
+
+        async def _send():
+            await email_processor.send_handoff_ack_email(email)
+
+        try:
+            loop = asyncio.get_running_loop()
+        except RuntimeError:
+            loop = None
+        if loop is not None and loop.is_running():
+            with ThreadPoolExecutor(max_workers=1) as pool:
+                pool.submit(asyncio.run, _send()).result(timeout=30)
+        else:
+            asyncio.run(_send())
+    except Exception as exc:
+        logger.warning("handoff 'rögzítettük' email küldés hiba (fail-open): {}", exc)
+
+
 def apply_confirmation(token: str, email: str) -> dict:
     """A 4.3-as hatások IDEMPOTENSEN. Vissza:
     {"ok": bool, "action": str, "email": str, "error": str|None, "already": bool}.
@@ -584,7 +609,12 @@ def apply_confirmation(token: str, email: str) -> dict:
                     _eid, f"✅ E-mail megerősítve SMS-ből: {clean} ({action}) — {stamp}")
         except Exception as _note_err:
             logger.warning("naptár-note frissítés kihagyva: {}", _note_err)
-        _send_emails(events, clean)
+        if events:
+            _send_emails(events, clean)
+        else:
+            # HANDOFF igényrögzítés: nincs naptári esemény — a jóváhagyás után
+            # a 'rögzítettük' email megy (nincs visszaigazolandó időpont-adat)
+            _send_handoff_ack(clean)
         _update_verify_runs(row.get("session_id") or "", clean, action)
         logger.info("SMS-es e-mail-megerősítés: action={} token=…{}",
                     action, str(token)[:4])

@@ -484,3 +484,79 @@ def test_http_triggeres_tenant_kontextus_beallitva(env, monkeypatch):
     asyncio.run(evh.run_and_apply_email_verification(
         "sess-tenant", tenant_id="tenant-dentors-uuid"))
     assert "tenant-dentors-uuid" in seen
+
+
+# ── HANDOFF IGÉNYRÖGZÍTÉS-VISSZAIGAZOLÁS (2026-10-09) ───────────────────────
+def _verdict_handoff(winner="handoff@freemail.hu"):
+    # handoff-hívás: nincs foglalás, de a harness kiolvasta a diktált címet
+    return {"status": "non_green", "email": {"winner": winner}, "audit": {},
+            "name": None, "llm": {}}
+
+
+@pytest.fixture()
+def handoff_env(smsfirst_env, monkeypatch):
+    """flow=smsfirst + mode=all + booking_mode=handoff (nincs foglalás)."""
+    monkeypatch.setattr(evh, "_handoff_mode_active", lambda: True, raising=False)
+    # a döntési tábla 'bookings' szűrése: pop üres listát ad (nincs foglalás)
+    monkeypatch.setattr(TOOLS, "pop_session_bookings", lambda sid: [], raising=False)
+    return smsfirst_env
+
+
+def test_handoff_sms_megy_optin_nem(handoff_env, monkeypatch):
+    # handoff + diktált cím + magyar mobil → handoff-SMS; azonnali opt-in NEM
+    calls = []
+
+    def fake_handoff_sms(session_id, tenant_id, caller_number, candidate_email, client_id=None):
+        calls.append({"candidate": candidate_email, "phone": caller_number})
+        return {"ok": True, "status": "sent"}
+
+    monkeypatch.setattr(evh, "_send_handoff_confirm_sms", fake_handoff_sms, raising=False)
+    monkeypatch.setattr(evh, "run_harness", lambda **kw: _verdict_handoff(), raising=False)
+    asyncio.run(evh.run_and_apply_email_verification("sess-handoff"))
+    assert len(calls) == 1
+    assert calls[0]["candidate"] == "handoff@freemail.hu"
+    assert calls[0]["phone"] == "+36709436426"
+    assert handoff_env.optin == [] and handoff_env.confirm == []
+
+
+def test_handoff_sms_sikertelen_optin_tartalek(handoff_env, monkeypatch):
+    monkeypatch.setattr(evh, "_send_handoff_confirm_sms",
+                        lambda *a, **k: {"ok": False, "status": "failed"}, raising=False)
+    monkeypatch.setattr(evh, "run_harness", lambda **kw: _verdict_handoff(), raising=False)
+    asyncio.run(evh.run_and_apply_email_verification("sess-handoff"))
+    assert len(handoff_env.optin) == 1
+
+
+def test_handoff_nem_elheto_optin_marad(handoff_env, monkeypatch):
+    # vezetékes szám → nincs handoff-SMS → a mai opt-in fallback fut
+    calls = []
+    monkeypatch.setattr(evh, "_send_handoff_confirm_sms",
+                        lambda *a, **k: calls.append(1) or {"ok": True}, raising=False)
+    monkeypatch.setattr(evh, "run_harness", lambda **kw: _verdict_handoff(), raising=False)
+    asyncio.run(evh.run_and_apply_email_verification("sess-handoff", caller_number="+3611234567"))
+    assert calls == []
+    assert len(handoff_env.optin) == 1
+
+
+def test_handoff_nincs_cim_semmi_nem_megy(handoff_env, monkeypatch):
+    # handoff + nem hangzott el email → se SMS, se levél (csak a teendő készül)
+    calls = []
+    monkeypatch.setattr(evh, "_send_handoff_confirm_sms",
+                        lambda *a, **k: calls.append(1) or {"ok": True}, raising=False)
+    monkeypatch.setattr(evh, "run_harness",
+                        lambda **kw: _verdict_handoff(winner=""), raising=False)
+    BOOKINGS[0]["attendee_email"] = ""
+    try:
+        asyncio.run(evh.run_and_apply_email_verification("sess-handoff"))
+    finally:
+        BOOKINGS[0]["attendee_email"] = "live@freemail.hu"
+    assert calls == []
+    assert handoff_env.optin == [] and handoff_env.legacy == []
+
+
+def test_handoff_kikapcsolva_regi_tabla(handoff_env, monkeypatch):
+    # nem-handoff bérlőnél (nincs foglalás, van cím) a MAI viselkedés: opt-in
+    monkeypatch.setattr(evh, "_handoff_mode_active", lambda: False, raising=False)
+    monkeypatch.setattr(evh, "run_harness", lambda **kw: _verdict_handoff(), raising=False)
+    asyncio.run(evh.run_and_apply_email_verification("sess-norm"))
+    assert len(handoff_env.optin) == 1

@@ -31,6 +31,12 @@ DEFAULT_SMS_TEMPLATE_NO_EMAIL = (
     "{rendelo}: idopontja rogzitve ({datum} {ido}). Kerjuk, adja meg "
     "e-mail cimet a visszaigazolashoz: {link}"
 )
+# Handoff (igényrögzítés) mód: NINCS naptári időpont — a "rogzitve" a KÉRÉS-re
+# vonatkozik, és a jóváhagyás a későbbi kapcsolatfelvétel e-mail címét erősíti.
+DEFAULT_SMS_TEMPLATE_HANDOFF = (
+    "{rendelo}: kereset rogzitve. Kollagaink hamarosan felveszik Onnnel "
+    "a kapcsolatot. Email cime: {email}. Ha helyes, erositse meg itt: {link}"
+)
 
 # ── Token-paraméterek ────────────────────────────────────────────────────────
 _TOKEN_ALPHABET = string.ascii_letters + string.digits   # base62
@@ -208,6 +214,22 @@ def build_sms_text(link: str, rendelo: str = "", datum: str = "", ido: str = "",
             out = template
             for key, val in (("rendelo", rendelo), ("datum", datum),
                              ("ido", ido), ("email", email), ("link", link)):
+                out = out.replace("{" + key + "}", val or "")
+            return out
+    except Exception:
+        return link or ""
+
+
+def build_handoff_sms_text(link: str, rendelo: str = "", email: str = "") -> str:
+    """Handoff (igényrögzítés) megerősítő SMS. Sosem dob; link nélkül is
+    a szöveg megy (nem történhet, a link mindig létezik)."""
+    try:
+        try:
+            return DEFAULT_SMS_TEMPLATE_HANDOFF.format(
+                rendelo=rendelo or "", email=email or "", link=link or "")
+        except Exception:
+            out = DEFAULT_SMS_TEMPLATE_HANDOFF
+            for key, val in (("rendelo", rendelo), ("email", email), ("link", link)):
                 out = out.replace("{" + key + "}", val or "")
             return out
     except Exception:

@@ -1831,16 +1831,18 @@ def _verify_flow() -> str:
     return flow if flow in ("gate", "smsfirst") else "gate"
 
 
-def sms_eligible(caller_number: str, bookings: list, session_id: str) -> tuple[bool, str]:
+def sms_eligible(caller_number: str, bookings: list, session_id: str,
+                 require_booking: bool = True) -> tuple[bool, str]:
     """MU-2.2 jogosultság: E.164 magyar mobil (+3620/30/31/50/70), van foglalás
-    a hívásban, és ehhez a sessionhöz még nem ment SMS (idempotencia).
+    a hívásban (handoff-igényrögzítésnél kikapcsolható: require_booking=False),
+    és ehhez a sessionhöz még nem ment SMS (idempotencia).
     Vissza: (jogosult, ok). Sosem dob."""
     p = (caller_number or "").strip()
     if not p or not p.startswith("+") or p.lower().startswith("+0"):
         return False, "nem E.164 / rejtett vagy anonim szám"
     if not p.startswith(_HU_MOBILE_PREFIXES):
         return False, "nem magyar mobilszám"
-    if not bookings:
+    if require_booking and not bookings:
         return False, "nincs foglalás a hívásban"
     try:
         import database as db
@@ -1849,6 +1851,49 @@ def sms_eligible(caller_number: str, bookings: list, session_id: str) -> tuple[b
     except Exception:
         pass
     return True, "ok"
+
+
+def _handoff_mode_active() -> bool:
+    """Igényrögzítés (handoff) üzemmód — a handoff-visszaigazolás only-akkor
+    megy, ha a bérlő NEM foglal önállóan (booking_mode=handoff). A custom mód
+    műveletenkénti — azt v1-ben nem kezeljük itt (a foglalás-központú ág viszi).
+    Sosem dob; hiba → False (a régi tábla fut)."""
+    try:
+        import database as db
+        return (db.get_booking_mode() or "").strip().lower() == "handoff"
+    except Exception:
+        return False
+
+
+async def _send_handoff_confirm_sms(session_id: str, tenant_id, caller_number: str,
+                                    candidate_email: str, client_id=None) -> dict:
+    """Handoff igényrögzítés-visszaigazoló SMS: NINCS naptári időpont — a
+    rögzített email címet erősíti meg a hívó a linken (a jóváhagyás után megy
+    a 'rögzítettük' email). Vissza: {"ok": ..., "status": ...} — sosem dob."""
+    try:
+        from sms_sender import send_sms
+        from email_confirm_tokens import create_confirm_token, build_handoff_sms_text
+
+        tok = create_confirm_token(
+            session_id=session_id, tenant_id=tenant_id,
+            event_ids=[], phone=caller_number,
+            candidate_email=(candidate_email or None),
+            first_booking_start=None, client_id=client_id,
+        )
+        if not tok.get("ok"):
+            return {"ok": False, "status": "failed", "error": tok.get("error")}
+        base = (os.getenv("PUBLIC_CONFIRM_BASE_URL")
+                or os.getenv("APP_BASE_URL")
+                or os.getenv("SERVER_URL") or "").rstrip("/")
+        link = f"{base}/e/{tok['token']}"
+        body = build_handoff_sms_text(link=link, rendelo=_rendelo_name(),
+                                      email=candidate_email or "")
+        res = send_sms(caller_number, body, session_id=session_id,
+                       tenant_id=tenant_id, purpose="handoff_confirm")
+        return res
+    except Exception as exc:
+        logger.warning(f"Handoff megerősítő SMS küldés hiba (fail-open): {exc}")
+        return {"ok": False, "status": "failed", "error": str(exc)}
 
 
 def _rendelo_name() -> str:
@@ -2002,6 +2047,19 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
     else:
         sms_candidate = None
 
+    # ── HANDOFF igényrögzítés-visszaigazolás (2026-10-09, user-döntés) ──
+    # handoff módban NINCS foglalás (a gate blokkolja) → a foglalás-központú
+    # ágak sosem tüznének. Ha mégis hangzott el email-cím és a hívó SMS-
+    # elérhető (magyar mobil, idempotencia — foglalás NEM kell), akkor a
+    # rögzített címet tartalmazó jóváhagyó SMS megy; a 'rögzítettük' email a
+    # jóváhagyás UTÁN indul (apply_confirmation esemény-nélküli ága).
+    # Fallback: SMS-fail / nem elérhető / nincs cím → a mai opt-in levél.
+    handoff_active = _handoff_mode_active() and not bookings
+    handoff_eligible = False
+    if sms_on and handoff_active and (winner or sms_candidate):
+        handoff_eligible, _ho_reason = sms_eligible(
+            caller_number, bookings, session_id, require_booking=False)
+
     async def _send_optin_email(candidate: str):
         try:
             await email_processor.send_email_verification_email(
@@ -2015,7 +2073,20 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
             logger.warning(f"Dupla opt-in küldés hiba (fail-open legacy): {exc}")
             await _send_legacy_confirmations(bookings, candidate)
 
-    if fast_lane and not (universal_sms and sms_on and eligible):
+    if handoff_active and sms_on and handoff_eligible:
+        _hc = sms_candidate or winner
+        sms = _send_handoff_confirm_sms(session_id, tenant_id,
+                                        caller_number, _hc, client_id=client_id)
+        db.update_email_verify_run_sms(session_id, bool(sms.get("ok")),
+                                       sms.get("status", "failed"))
+        if not sms.get("ok"):
+            # SMS nem ment → a mai fallback: opt-in levél (ha van cím)
+            if winner:
+                await _send_optin_email(winner)
+        else:
+            logger.info(f"Handoff megerősítő SMS elküldve ({caller_number}), "
+                        "rögzítettük-email a jóváhagyás után")
+    elif fast_lane and not (universal_sms and sms_on and eligible):
         for b in bookings:
             try:
                 await email_processor.send_booking_confirmation_email(

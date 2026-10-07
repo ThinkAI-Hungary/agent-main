@@ -289,3 +289,21 @@ def test_token_is_confirmed():
     assert ect.token_is_confirmed({"confirmed_at": None,
                                    "confirmed_email": "p@pelda.hu"}) is False
     assert ect.token_is_confirmed(None) is False
+
+
+def test_handoff_sms_sablon():
+    """Handoff igényrögzítés: nincs időpont-adat, a rögzített címet írjuk ki."""
+    text = ect.build_handoff_sms_text(
+        link="https://desk.eaisy.hu/e/Ab12Cd34Ef56", rendelo="Dentors Szeged",
+        email="paciens@freemail.hu")
+    assert "kereset rogzitve" in text
+    assert "idopontja" not in text          # nincs időpont-adat a szövegben
+    assert "Email cime: paciens@freemail.hu" in text
+    from sms_text import count_segments
+    segs, enc = count_segments(text)
+    assert segs <= 2 and enc == "GSM7"
+
+
+def test_handoff_sms_default_template_validacio():
+    ok, segs, _ = ect.validate_sms_template(ect.DEFAULT_SMS_TEMPLATE_HANDOFF)
+    assert ok is True and segs <= 2

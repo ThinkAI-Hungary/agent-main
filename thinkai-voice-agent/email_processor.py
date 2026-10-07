@@ -2579,6 +2579,69 @@ async def send_email_verification_email(session_id: str, event_ids: list, attend
         raise  # a hívó (harness) fail-open tartalékra vált tőle
 
 
+async def send_handoff_ack_email(attendee_email: str, attendee: str = ""):
+    """Handoff (igényrögzítés) 'rögzítettük' email — az SMS-es címjóváhagyás
+    UTÁN megy (apply_confirmation esemény-nélküli ága). Nincs naptári adat:
+    a tartalom a kérés rögzítéséről és a kapcsolatfelvételről szól.
+    Brevo + tenant feladó + DRY_RUN kapu — mint az opt-in levél. Sosem dob."""
+    if not attendee_email or "@" not in attendee_email:
+        logger.warning("Handoff 'rögzítettük' email kihagyva (nincs érvényes cím)")
+        return
+    try:
+        import requests as _requests
+
+        name = (attendee or "").strip() or "Ügyfelünk"
+        sender = _get_sender()
+        rendelo = (sender.get("name") or "").strip() or "rendelünk"
+        subject = f"Kérésének rögzítése — {rendelo}"
+        html_content = f"""
+        <html>
+        <body style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; padding: 0; background: #f9fafb;">
+            <div style="max-width: 600px; margin: 0 auto; padding: 30px 20px;">
+                <div style="background: white; border-radius: 12px; padding: 40px; box-shadow: 0 4px 15px rgba(0,0,0,0.05); text-align: center;">
+                    <div style="font-size: 48px; margin-bottom: 20px;">✅</div>
+                    <h1 style="color: #111827; font-size: 22px; margin-bottom: 16px;">Kedves {name}!</h1>
+                    <p style="font-size: 16px; line-height: 1.6; color: #6b7280; margin-bottom: 10px;">
+                        Rögzítettük az Ön kérését. Munkatársunk hamarosan felveszi Önnel
+                        a kapcsolatot, és személyesen egyezteti a részleteket.
+                    </p>
+                    <p style="font-size: 16px; line-height: 1.6; color: #6b7280; margin-bottom: 10px;">
+                        E-mail címét Sikeresen megerősítette — a jövőben erre a címre
+                        küldjük üzeneteinket.
+                    </p>
+                    <p style="font-size: 14px; color: #9ca3af; margin-top: 24px;">
+                        Ez egy automatikus üzenet — kérjük, ne válaszoljon rá.
+                    </p>
+                </div>
+            </div>
+        </body>
+        </html>"""
+
+        # MU-0.1 minta: dry-run — valós küldés nélkül csak napló
+        if _email_dry_run_enabled():
+            _dry_run_email("handoff_ack", attendee_email, name, subject, html_content)
+            return
+        api_key = _get_brevo_api_key()
+        if not api_key:
+            logger.warning("Handoff 'rögzítettük' email kihagyva (nincs Brevo-kulcs)")
+            return
+        res = _requests.post(
+            "https://api.brevo.com/v3/smtp/email",
+            headers={"api-key": api_key, "Content-Type": "application/json",
+                     "accept": "application/json"},
+            json={"sender": sender, "to": [{"email": attendee_email, "name": name}],
+                  "subject": subject, "htmlContent": html_content},
+            timeout=15,
+        )
+        if res.status_code in (200, 201):
+            logger.info(f"Handoff 'rögzítettük' email elküldve: {attendee_email}")
+        else:
+            logger.warning(f"Handoff 'rögzítettük' email hiba: HTTP {res.status_code} "
+                           f"{res.text[:120]}")
+    except Exception as exc:
+        logger.warning(f"Handoff 'rögzítettük' email küldés hiba (fail-open): {exc}")
+
+
 async def send_modification_confirmation_email(attendee: str, attendee_email: str, title: str, old_datetime: str, new_datetime: str, event_id: int | None = None, assigned_to: str = ""):
     """Időpont módosítás visszaigazolás — beégetett sablonnal, toggle-lel."""
     import os
