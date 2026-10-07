@@ -4672,6 +4672,11 @@ async def save_business_info(payload: BusinessInfoSaveRequest, _admin = Depends(
     így veszett el a staging árlista/GYIK/kampányok tartalma. A frontend
     továbbra is a teljes objektumot küldi, így a UI-viselkedés változatlan."""
     data = payload.model_dump(exclude_unset=True)
+    # VÉDŐFAL 2 (2026-10-07): a booking_mode migráció '[]'::jsonb defaultja miatt
+    # a régi sorok listaként adják vissza a booking_needs-et — a frontend visszaküldi,
+    # a pydantic dict-et vár → 422. Objectre normalizáljuk (a frontend mindig dict-et küld).
+    if isinstance(data.get("booking_needs"), list):
+        data["booking_needs"] = {}
     # Utolsó módosítás (ki + mikor) — a mockup fejléc-jelzéséhez
     try:
         user_record = db.get_admin_user_by_username(_admin.get("username", "")) or {}
