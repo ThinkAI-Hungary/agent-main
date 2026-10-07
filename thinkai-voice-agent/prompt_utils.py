@@ -156,7 +156,12 @@ def _format_patient_rules(pi: dict) -> str:
                 "napot, csak a napsakot kérdezd). Formulád legyen könnyed és opcionális: pl. "
                 "'Addig is, ha van elképzelése arról, hogy melyik napon, illetve délelőtt vagy "
                 "délután szeretne érkezni, kérjük, írja meg nekünk.' A kapcsolatfelvételi ígéret "
-                "mindig ÖNMAGÁBAN álljon, a preferencia-kérdés csak utána, külön mondatban jöjjön.")
+                "mindig ÖNMAGÁBAN álljon, a preferencia-kérdés csak utána, külön mondatban jöjjön. "
+                "E-MAIL CÍM A RÖGZÍTÉSHEZ: a beszélgetés végén — ha még nem tudod — kérd el az "
+                "ügyfél e-mail címét ('Hová küldhetjük a megerősítést?'), mert a rendszer SMS-ben "
+                "visszaigazolja a rögzítést; a címet NE kérj betűzésenként, NE ismételd vissza, "
+                "NE igazoltasd vissza szó szerint — a rendszer a hívás után automatikusan "
+                "ellenőrzi és SMS-ben erősíti meg.")
     if mode == "custom":
         _hun = {"book": "időpontFOGLALÁS", "modify": "időpont-MÓDOSÍTÁS", "delete": "időpont-LEMONDÁS"}
         _lines = [f"   - {_hun[op]}: {'önállóan kezelheted' if op in self_ops else 'NE kezeld önállóan — rögzítsd az igényt és jelezd, hogy munkatársunk felveszi a kapcsolatot'}" for op in ("book", "modify", "delete")]
