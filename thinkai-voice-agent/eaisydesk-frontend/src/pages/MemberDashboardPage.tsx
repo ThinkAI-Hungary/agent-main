@@ -188,6 +188,7 @@ export default function MemberDashboardPage() {
             ai_draft_response: r.ai_draft_response || null,
             approval_status: r.approval_status || null,
             closed_at: r.closed_at || null,
+            classification: r.classification,
           });
         });
       }

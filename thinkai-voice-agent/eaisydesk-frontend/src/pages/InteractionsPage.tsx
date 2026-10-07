@@ -76,6 +76,8 @@ export interface InteractionRow {
     osszefoglalas?: string;
     autonomous?: boolean;
     restriction?: string;
+    closed_manually?: boolean;          // manuális lezárás jelző (újranyitási őr)
+    closed_from?: string;               // lezáráskori státusz
   } | null;
 }
 

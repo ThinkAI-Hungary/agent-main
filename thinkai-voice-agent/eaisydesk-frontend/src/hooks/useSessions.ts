@@ -31,6 +31,8 @@ export interface SessionInteraction {
     osszefoglalas?: string;
     autonomous?: boolean;               // EAISY-241 §1.1.2 — jóváhagyás UI gate
     restriction?: string;
+    closed_manually?: boolean;          // manuális lezárás jelző (újranyitási őr)
+    closed_from?: string;               // lezáráskori státusz (újranyitás visszaállítja)
   } | null;
 }
 
