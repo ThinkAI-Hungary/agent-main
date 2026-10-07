@@ -28,6 +28,7 @@ import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import ClientDetailView from '../components/clients/ClientDetailView';
 import InteractionSummaryModal from '../components/interactions/InteractionSummaryModal';
 import { isUnread, markInteractionRead } from '../helpers/unreadInteractions';
+import { huParts, dateKeyHu } from '../helpers/formatters';
 import {
   resolveClientName,
   getRowChannel,
@@ -269,9 +270,9 @@ export default function MemberDashboardPage() {
 
   // ── Mai időpontok (minden esemény) ──
   const todayAppts = useMemo(() => {
-    const todayKey = new Date().toDateString();
+    const todayKey = dateKeyHu(new Date().toISOString());
     return events
-      .filter(ev => ev.start_dt && new Date(ev.start_dt).toDateString() === todayKey)
+      .filter(ev => ev.start_dt && dateKeyHu(ev.start_dt) === todayKey)
       .sort((a, b) => (a.start_dt || '').localeCompare(b.start_dt || ''));
   }, [events]);
 
@@ -409,8 +410,9 @@ export default function MemberDashboardPage() {
                 const canReopen = !!r.taskCompleted || !!(r.classification as { closed_manually?: boolean } | null | undefined)?.closed_manually;
                 const reopenDisabled = isClosed && !canReopen;
                 // Dátumszabály: soha "Ma" — mindig tényleges dátum
-                const dateLabel = created
-                  ? `${HU_MONTHS_SHORT[created.getMonth()]} ${created.getDate()}. · ${pad2(created.getHours())}:${pad2(created.getMinutes())}`
+                const createdP = r.date ? huParts(r.date) : null;
+                const dateLabel = createdP
+                  ? `${HU_MONTHS_SHORT[Number(createdP.mo) - 1]} ${Number(createdP.d)}. · ${createdP.h}:${createdP.mi}`
                   : '—';
                 const manualRow = r;
                 const isManualRow = !!manualRow.isManual && !!manualRow.taskId;
@@ -610,7 +612,7 @@ export default function MemberDashboardPage() {
                   style={{ display: 'flex', alignItems: 'center', gap: 10, width: '100%', textAlign: 'left', border: `1px solid ${t.border}`, background: t.surface, borderRadius: 8, padding: '9px 12px', cursor: 'pointer', color: t.fg, marginTop: 8, fontFamily: 'inherit' }}
                 >
                   <span style={{ fontSize: 18, fontWeight: 600, color: t.accent2, fontVariantNumeric: 'tabular-nums', lineHeight: 1, flex: 'none' }}>
-                    {(() => { const d = new Date(todayAppts[0].start_dt ?? Date.now()); return `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; })()}
+                    {(() => { const p = huParts(todayAppts[0].start_dt); return p ? `${p.h}:${p.mi}` : '—'; })()}
                   </span>
                   <span style={{ minWidth: 0, flex: 1 }}>
                     <b style={{ display: 'block', fontSize: 13, fontWeight: 600 }}>{todayAppts[0].attendee || '—'}</b>
@@ -621,10 +623,10 @@ export default function MemberDashboardPage() {
                 {apptExpanded && todayAppts.length > 1 && (
                   <div style={{ marginTop: 8, padding: '2px 12px', border: `1px solid ${t.border}`, borderRadius: 8 }}>
                     {todayAppts.slice(1).map(ev => {
-                      const d = new Date(ev.start_dt ?? Date.now());
+                      const p = huParts(ev.start_dt);
                       return (
                         <div key={ev.id} style={{ display: 'flex', alignItems: 'center', gap: 10, padding: '8px 0', fontSize: 12.5, borderBottom: `1px solid ${t.border}` }}>
-                          <span style={{ minWidth: 40, fontWeight: 600, color: t.accent2, fontVariantNumeric: 'tabular-nums' }}>{pad2(d.getHours())}:{pad2(d.getMinutes())}</span>
+                          <span style={{ minWidth: 40, fontWeight: 600, color: t.accent2, fontVariantNumeric: 'tabular-nums' }}>{p ? `${p.h}:${p.mi}` : '—'}</span>
                           <span style={{ color: t.fg, fontWeight: 500 }}>{ev.attendee || '—'}</span>
                           <span style={{ color: t.muted, marginLeft: 'auto', whiteSpace: 'nowrap', textAlign: 'right' }}>{ev.title || ''}</span>
                         </div>

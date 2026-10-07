@@ -10,6 +10,9 @@ import { useSessions } from '../hooks/useSessions';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { parseCustomData, isAssignedToMe, bestClientName } from '../helpers/clientResolvers';
+// Budapest-idő konvenció: a start_dt UTC, a megjelenítés mindig Europe/Budapest
+// (a böngésző-zónára bízott getHours() UTC-gépen 07:00-t mutatott a 09:00 helyett)
+import { huParts, dateKeyHu } from '../helpers/formatters';
 import { CalendarSkeleton } from '../components/ui/Skeleton';
 import { useConfirm } from '../components/ui/ConfirmDialog';
 import { showToast } from '../components/ui/Toast';
@@ -162,7 +165,8 @@ export default function CalendarPage() {
     const m: Record<string, CalendarEventItem[]> = {};
     myEvents.forEach(ev => {
       if (!ev.start_dt) return;
-      const k = dateKey(new Date(ev.start_dt));
+      const k = dateKeyHu(ev.start_dt);
+      if (!k) return;
       (m[k] = m[k] || []).push(ev);
     });
     Object.values(m).forEach(list => list.sort((a, b) => (a.start_dt || '').localeCompare(b.start_dt || '')));
@@ -241,11 +245,11 @@ export default function CalendarPage() {
 
   // ── Esemény-kártya (hónap/nap) ──
   function renderEv(ev: CalendarEventItem, compact: boolean) {
-    const t = new Date(ev.start_dt);
+    const t = huParts(ev.start_dt);
     const pending = ev.status === 'pending';
     return (
       <div className={`cal-ev${compact ? ' cal-ev-xs' : ''}${pending ? ' cal-ev-pending' : ''}`} onClick={e => { e.stopPropagation(); openEventEdit(ev); }}>
-        <span className="cal-ev-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
+        <span className="cal-ev-time">{t ? `${t.h}:${t.mi}` : '—'}</span>
         <span className="cal-ev-title">{ev.title}</span>
         {!compact && <span className="cal-ev-name">{ev.attendee || ''}</span>}
         {pending && <span className="cal-pend-pill">függőben</span>}
@@ -259,7 +263,7 @@ export default function CalendarPage() {
     const day = eventsByDate[key] || [];
     const rows: React.ReactNode[] = [];
     for (let h = CAL_DAY_START; h <= CAL_DAY_END; h++) {
-      const evs = day.filter(ev => new Date(ev.start_dt).getHours() === h);
+      const evs = day.filter(ev => { const p = huParts(ev.start_dt); return p && Number(p.h) === h; });
       rows.push(
         <div key={h} className="cal-day-row">
           <div className="cal-day-time">{pad2(h)}:00</div>
@@ -302,8 +306,8 @@ export default function CalendarPage() {
       const slots: React.ReactNode[] = [];
       for (let h = CAL_DAY_START; h <= CAL_DAY_END; h++) slots.push(<div key={h} className="cal-wslot" />);
         const evs = day.map(ev => {
-          const t = new Date(ev.start_dt);
-          const startMin = (t.getHours() - CAL_DAY_START) * 60 + t.getMinutes();
+          const t = huParts(ev.start_dt);
+          const startMin = t ? (Number(t.h) - CAL_DAY_START) * 60 + Number(t.mi) : 0;
           const top = (startMin / 60) * CAL_HOUR_PX;
           const dur = ev.duration_minutes || 30;
           const hpx = Math.max(22, (dur / 60) * CAL_HOUR_PX);
@@ -319,7 +323,7 @@ export default function CalendarPage() {
               onMouseEnter={e => showEventTip(ev, e.currentTarget)}
               onMouseLeave={hideEventTip}
             >
-              <span className="cal-ev-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
+              <span className="cal-ev-time">{t ? `${t.h}:${t.mi}` : '—'}</span>
               <span className="cal-ev-name">{ev.attendee || ''}</span>
               <span className="cal-ev-title">{ev.title}</span>
               {pending && <span className="cal-pend-pill">függőben</span>}
@@ -355,11 +359,11 @@ export default function CalendarPage() {
         const isToday = key === todayKey;
         const day = eventsByDate[key] || [];
         const evHtml = day.slice(0, 2).map(ev => {
-          const t = new Date(ev.start_dt);
+          const t = huParts(ev.start_dt);
           const pending = ev.status === 'pending';
           return (
             <div key={ev.id} className={`cal-ev${pending ? ' cal-ev-pending' : ''}`} onClick={e => { e.stopPropagation(); openEventEdit(ev); }}>
-              <span className="cal-ev-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
+              <span className="cal-ev-time">{t ? `${t.h}:${t.mi}` : '—'}</span>
               <span className="cal-ev-title">{ev.title}</span>
               {pending && <span className="cal-pend-pill">függőben</span>}
             </div>
@@ -661,7 +665,7 @@ export default function CalendarPage() {
 
           {/* Tooltip (hét nézet): időpont · időtartam · ügyfél · munkatárs */}
           {viewMode === 'grid' && calMode === 'week' && eventTip && (() => {
-            const t = new Date(eventTip.ev.start_dt);
+            const t = huParts(eventTip.ev.start_dt);
             const dur = eventTip.ev.duration_minutes || 30;
             const emailKey = (eventTip.ev.attendee_email || '').toLowerCase().trim();
             const staff = eventTip.ev.doctor || assigneeFor(emailKey);
@@ -672,7 +676,7 @@ export default function CalendarPage() {
                 role="tooltip"
               >
                 <div className="cal-tip-time">
-                  {pad2(t.getHours())}:{pad2(t.getMinutes())} · {dur} perc{eventTip.ev.status === 'pending' ? ' · függőben (24 órás fenntartás)' : ''}
+                  {t ? `${t.h}:${t.mi}` : '—'} · {dur} perc{eventTip.ev.status === 'pending' ? ' · függőben (24 órás fenntartás)' : ''}
                 </div>
                 <div className="cal-tip-title">{eventTip.ev.title}</div>
                 <div className="cal-tip-name">{eventTip.ev.attendee || '—'}</div>
@@ -706,7 +710,7 @@ export default function CalendarPage() {
                       [...myEvents]
                         .sort((a, b) => (b.start_dt || '').localeCompare(a.start_dt || ''))
                         .map(ev => {
-                          const t = new Date(ev.start_dt);
+                          const t = huParts(ev.start_dt);
                           const isPast = t.getTime() < now.getTime();
                           const isNoShow = ev.attendance_status === 'no_show';
                           // Dátumszabály: soha "Ma" jellegű jelölés — tényleges dátum
@@ -717,7 +721,7 @@ export default function CalendarPage() {
                           return (
                             <tr key={ev.id} className="cursor-pointer" onClick={() => openClientFromEvent(ev.attendee || '', ev.attendee_email || '')}>
                               <td className="cd-time-cell">
-                                <span className="t-time">{pad2(t.getHours())}:{pad2(t.getMinutes())}</span>
+                                <span className="t-time">{t ? `${t.h}:${t.mi}` : '—'}</span>
                                 <span className="t-date">{dTxt}</span>
                               </td>
                               <td onClick={e => e.stopPropagation()}>

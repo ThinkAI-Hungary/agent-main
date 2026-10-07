@@ -159,7 +159,7 @@ def _token_row(**over):
 
 def _event_row(eid="ev-1", email="regi@pelda.hu"):
     return {"id": eid, "title": "Konzultáció",
-            "start_dt": "2026-09-30T10:00:00", "attendee": "Teszt Elek",
+            "start_dt": "2026-09-30T08:00:00+00:00", "attendee": "Teszt Elek",
             "attendee_email": email, "tenant_id": "t-1"}
 
 
@@ -354,7 +354,7 @@ def test_render_already_confirmed_koszonto():
 def test_render_normal_form_gombokkal():
     ctx = {"row": {"token": TOK, "candidate_email": "jelolt@pelda.hu"},
            "events": [{"id": "ev-1", "title": "Konzultáció",
-                       "start_dt": "2026-09-30T10:00:00",
+                       "start_dt": "2026-09-30T08:00:00+00:00",
                        "attendee": "Teszt Elek", "attendee_email": ""}],
            "expired": False, "already_confirmed": False,
            "rendelo": "DentalCare"}

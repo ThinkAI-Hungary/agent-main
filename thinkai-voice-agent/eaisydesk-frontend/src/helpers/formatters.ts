@@ -2,18 +2,47 @@
  * Formatting helpers – ported 1:1 from legacy admin-core.js
  */
 
+// ── Budapest-idő konvenció (2026-10-08) ─────────────────────────────────────
+// A start_dt/created_at UTC-ben érkezik; a MEGJELENÍTÉS mindig Europe/Budapest
+// EXPLICIT zónával — soha a böngésző lokális zónája (VPS-en/UTC gépen a
+// 09:00-s budapesti időpont 07:00-ként jelent volna meg).
+export const HU_TZ = 'Europe/Budapest';
+
+export interface HuParts { y: string; mo: string; d: string; h: string; mi: string }
+
+/** ISO-string → Budapest-idő részek (hibás/üres bemenetre null). */
+export function huParts(isoStr: string | undefined | null): HuParts | null {
+  if (!isoStr) return null;
+  try {
+    const d = new Date(isoStr);
+    if (isNaN(d.getTime())) return null;
+    const parts = new Intl.DateTimeFormat('hu-HU', {
+      timeZone: HU_TZ, year: 'numeric', month: '2-digit', day: '2-digit',
+      hour: '2-digit', minute: '2-digit', hourCycle: 'h23',
+    }).formatToParts(d);
+    const g = (t: string) => parts.find(p => p.type === t)?.value || '';
+    return { y: g('year'), mo: g('month'), d: g('day'), h: g('hour'), mi: g('minute') };
+  } catch {
+    return null;
+  }
+}
+
+/** ISO-string → 'YYYY-MM-DD' a BUDAPESTI naptári nap szerint. */
+export function dateKeyHu(isoStr: string | undefined | null): string {
+  const p = huParts(isoStr);
+  return p ? `${p.y}-${p.mo}-${p.d}` : '';
+}
+
 /** Format ISO datetime string to Hungarian display format */
 export function fmtDt(isoStr: string): string {
   if (!isoStr) return '—';
+  const p = huParts(isoStr);
+  if (p) return `${p.y}. ${p.mo}. ${p.d}. ${p.h}:${p.mi}`;
+  // nem parszolható ISO → adjuk vissza, ahogy jött
   try {
     const d = new Date(isoStr);
     if (isNaN(d.getTime())) return isoStr;
-    const y = d.getFullYear();
-    const m = String(d.getMonth() + 1).padStart(2, '0');
-    const day = String(d.getDate()).padStart(2, '0');
-    const h = String(d.getHours()).padStart(2, '0');
-    const min = String(d.getMinutes()).padStart(2, '0');
-    return `${y}. ${m}. ${day}. ${h}:${min}`;
+    return isoStr;
   } catch {
     return isoStr;
   }

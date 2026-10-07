@@ -6805,11 +6805,20 @@ async def public_verify_email(token: str):
             if not ev:
                 continue
             start = ev.get("start_dt") or ""
+            # TZ-fix (2026-10-08): a start_dt UTC — a nyers szelet 07:00-t írt
+            # a 09:00-s budapesti időpont helyett a visszaigazoló emailben
+            try:
+                from tztime import local_date, local_time
+                _date, _time = local_date(start), local_time(start)
+            except Exception:
+                _date, _time = start[:10], start[11:16]
+            if not _date or not _time:
+                _date, _time = start[:10], start[11:16]
             asyncio.create_task(email_processor.send_booking_confirmation_email(
                 event_id=eid,
                 title=ev.get("title", "Konzultáció"),
-                date=start[:10],
-                time=start[11:16],
+                date=_date,
+                time=_time,
                 attendee=ev.get("attendee", "Ügyfél"),
                 attendee_email=email,
             ))

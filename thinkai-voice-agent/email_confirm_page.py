@@ -247,12 +247,17 @@ def _esc(value) -> str:
 
 
 def _event_line(events: list) -> str:
-    """Az első eseményből emberi olvasatú időpont-sor (vagy üres)."""
+    """Az első eseményből emberi olvasatú időpont-sor (vagy üres).
+    2026-10-08 TZ-fix: a start_dt UTC — a nyers [:10]/[11:16] szelet a
+    09:00-s budapesti időpontot 07:00-ként mutatta a páciensnek."""
     ev = (events or [{}])[0] or {}
     start = (ev.get("start_dt") or "")
     if not start:
         return ""
-    datum, ido = start[:10], start[11:16]
+    from tztime import local_date, local_time
+    datum, ido = local_date(start), local_time(start)
+    if not datum or not ido:
+        datum, ido = start[:10], start[11:16]   # nem parszolható → régi viselkedés
     title = ev.get("title") or "Konzultáció"
     return f"{datum}. {ido} — {title}"
 
@@ -438,14 +443,23 @@ def _send_emails(events, email: str) -> None:
         import email_processor
 
         async def _send_all():
+            from tztime import local_date, local_time
             for ev in events:
                 start = ev.get("start_dt") or ""
+                # TZ-fix (2026-10-08): a start_dt UTC — a nyers [:10]/[11:16]
+                # szelet a visszaigazoló emailben 07:00-t írt a 09:00 helyett
+                try:
+                    date, time_s = local_date(start), local_time(start)
+                except Exception:
+                    date, time_s = start[:10], start[11:16]
+                if not date or not time_s:
+                    date, time_s = start[:10], start[11:16]
                 try:
                     await email_processor.send_booking_confirmation_email(
                         event_id=ev.get("id"),
                         title=ev.get("title") or "Konzultáció",
-                        date=start[:10],
-                        time=start[11:16],
+                        date=date,
+                        time=time_s,
                         attendee=ev.get("attendee") or "Ügyfél",
                         attendee_email=email,
                     )
