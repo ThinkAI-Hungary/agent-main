@@ -28,3 +28,15 @@
   border-color: color-mix(in srgb, var(--success, #52c41a) 78%, #000);
   color: color-mix(in srgb, var(--success, #52c41a) 78%, #000);
 }
+/* Autonóm módon lezárt sor — újranyitás nincs: világosszürke alap, sötétebb szürke pipa */
+.donecb:disabled {
+  cursor: default;
+  background: var(--bg3, #f3f4f6);
+  border-color: var(--border, #d1d5db);
+  color: var(--text-muted, #9ca3af);
+  opacity: 1;
+}
+.donecb:disabled:hover {
+  border-color: var(--border, #d1d5db);
+  color: var(--text-muted, #9ca3af);
+}

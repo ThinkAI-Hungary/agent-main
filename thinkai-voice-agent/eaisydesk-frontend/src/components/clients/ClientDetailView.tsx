@@ -71,6 +71,7 @@ interface InteractionRowDetail {
   received_at?: string | null;
   sent_at?: string | null;
   diary_fragment?: string | null;
+  classification?: { closed_manually?: boolean } | Record<string, unknown> | null;
 }
 
 interface ManualTask {
@@ -481,6 +482,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             received_at: (r as Record<string, unknown>).received_at as string | null || null,
             sent_at: (r as Record<string, unknown>).sent_at as string | null || null,
             diary_fragment: (r as Record<string, unknown>).diary_fragment as string | null || null,
+            classification: (r as Record<string, unknown>).classification as InteractionRowDetail['classification'] ?? null,
           });
         });
       } else {
@@ -1159,7 +1161,8 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
                       <td><CpTeendoCell value={r.teendo} /></td>
                       <td className="cd-done-col" onClick={(e) => e.stopPropagation()}>
                         <DoneCheck checked
-                          title="Visszavétel: az interakció újranyílik"
+                          disabled={!(r.classification as { closed_manually?: boolean } | null | undefined)?.closed_manually}
+                          title={r.classification?.closed_manually ? 'Visszavétel: az interakció újranyílik' : 'Automatikusan lezárt — újranyitás nincs'}
                           onToggle={() => handleReopen(r.interactionId)} />
                       </td>
                     </tr>

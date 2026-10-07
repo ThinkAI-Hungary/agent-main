@@ -3976,10 +3976,17 @@ def update_interaction_status(id: int, req: InteractionStatusUpdateRequest, _aut
             cls = {}
             if res.data and isinstance(res.data[0].get("classification"), dict):
                 cls = res.data[0]["classification"]
-            cls["statusz"] = "Nyitott"
+            # SZABÁLY (2026-10-07): csak MANUÁLISAN lezárt interakció nyitható
+            # újra — az autonóm módon lezárt (pl. auto_booking) nem.
+            if not cls.get("closed_manually"):
+                raise HTTPException(status_code=400, detail="Csak manuálisan lezárt interakció nyitható újra.")
+            restore_sz = cls.get("closed_from")
+            cls["statusz"] = restore_sz if restore_sz in ("Nyitott", "Sürgős") else "Nyitott"
             cls["teendo"] = "Intézkedés"
             cls.pop("closed_at", None)
             cls.pop("closed_manually", None)
+            cls.pop("closed_by", None)
+            cls.pop("closed_from", None)
             cls["reopened_manually"] = True
             cls["reopened_by"] = _auth
             updates["classification"] = cls
@@ -3996,13 +4003,15 @@ def update_interaction_status(id: int, req: InteractionStatusUpdateRequest, _aut
         if res.data and len(res.data) > 0:
             cls = res.data[0].get("classification")
             if isinstance(cls, dict):
+                # closed_from: a lezáráskori státusz — az újranyitás ezt állítja vissza
+                cls["closed_from"] = cls.get("statusz") if cls.get("statusz") in ("Nyitott", "Sürgős") else "Nyitott"
                 cls["statusz"] = "Lezárt"
                 cls["teendo"] = "Nincs további teendő"
                 updates["classification"] = cls
             else:
-                updates["classification"] = {"statusz": "Lezárt", "teendo": "Nincs további teendő"}
+                updates["classification"] = {"statusz": "Lezárt", "teendo": "Nincs további teendő", "closed_from": "Nyitott"}
         else:
-            updates["classification"] = {"statusz": "Lezárt", "teendo": "Nincs további teendő"}
+            updates["classification"] = {"statusz": "Lezárt", "teendo": "Nincs további teendő", "closed_from": "Nyitott"}
         # Manuális felülírás jelölése (265-ös ügy): a user döntött a rendszer
         # automatikus viselkedése ellen — az eredmény-sorban „Manuálisan lezárt (X)"
         updates["classification"]["closed_manually"] = True

@@ -403,6 +403,10 @@ export default function MemberDashboardPage() {
                 const created = r.date ? new Date(r.date) : null;
                 // Lezárt/„pressed" állapot: teljesített kézi teendő VAGY Lezárt státuszú sor
                 const isClosed = !!r.taskCompleted || (r.statusz || '').toLowerCase() === 'lezárt';
+                // Újranyitás CSAK manuálisan lezárt soroknál (2026-10-07): a
+                // autonóm módon lezárt interakciók pipája disabled (szürke).
+                const canReopen = !!r.taskCompleted || !!(r.classification as { closed_manually?: boolean } | null | undefined)?.closed_manually;
+                const reopenDisabled = isClosed && !canReopen;
                 // Dátumszabály: soha "Ma" — mindig tényleges dátum
                 const dateLabel = created
                   ? `${HU_MONTHS_SHORT[created.getMonth()]} ${created.getDate()}. · ${pad2(created.getHours())}:${pad2(created.getMinutes())}`
@@ -467,7 +471,8 @@ export default function MemberDashboardPage() {
                       <td style={{ ...tdBase, textAlign: 'center' }} onClick={e => e.stopPropagation()}>
                         <DoneCheck
                           checked={isClosed}
-                          title={isClosed ? 'Visszavétel: az ügy újranyílik' : 'Kipipálásra az ügy lezártra vált'}
+                          disabled={reopenDisabled}
+                          title={reopenDisabled ? 'Automatikusan lezárt — újranyitás nincs' : (isClosed ? 'Visszavétel: az ügy újranyílik' : 'Kipipálásra az ügy lezártra vált')}
                           onToggle={(e) => handleMarkDone(e, r)}
                         />
                       </td>
