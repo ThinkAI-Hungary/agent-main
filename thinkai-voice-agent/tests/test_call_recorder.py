@@ -36,6 +36,7 @@ from call_recorder import (
     CallRecorder,
     FrameBuffer,
     build_stereo_wav,
+    frame_rms,
     recording_storage_path,
     retention_cutoff,
     silence_bytes,
@@ -228,3 +229,76 @@ class TestCallRecorderTurns:
         rec.add_turn("user", "...")
         rec.add_turn("user", "!!")
         assert rec.turns == []
+
+
+class TestSpeechSegmentSeek:
+    """A bubble-seek időigazítása: a turnus start_s-e a TÉNYLEGES beszédkezdet
+    (csatorna-energiából), nem a chat-item eseményének időpontja — az eventek
+    a beszéd VÉGE körül tüzelnek, eseményidőre seekelve a mondat eleje
+    lemaradt („a következő páciens hangjától indul")."""
+
+    @staticmethod
+    def _speak(rec, channel, t0, t1, step=0.02, rms=2000.0):
+        t = t0
+        while t <= t1:
+            rec.note_audio(channel, t, rms)
+            t += step
+
+    @staticmethod
+    def _silence(rec, channel, t0, t1, step=0.02):
+        t = t0
+        while t <= t1:
+            rec.note_audio(channel, t, 5.0)
+            t += step
+
+    def test_frame_rms(self):
+        loud = struct.pack("<320h", *([8000] * 320))
+        quiet = struct.pack("<320h", *([5] * 320))
+        assert frame_rms(loud) == 8000.0
+        assert frame_rms(quiet) == 5.0
+        assert frame_rms(b"") == 0.0
+
+    def test_user_turn_a_beszede_kezdetere_seekel(self):
+        rec = CallRecorder(None)
+        rec._t0 = time.monotonic() - 14.0
+        # hívó beszél 10.0–13.0 s között (bal csatorna), a STT-final ~14.0-nál tüzel
+        self._speak(rec, "left", 10.0, 13.0)
+        self._silence(rec, "left", 13.02, 14.0)
+        rec.add_turn("user", "Szeretnék időpontot kérni keddre")
+        start = rec.turns[0]["start_s"]
+        assert abs(start - (10.0 - 0.15)) < 0.05, f"kaptunk: {start}"
+
+    def test_ai_turn_a_sajat_csatornajarol(self):
+        rec = CallRecorder(None)
+        rec._t0 = time.monotonic() - 19.0
+        # agent beszél 15.0–18.0 s között (jobb csatorna), item-commit ~19.0-nál
+        self._speak(rec, "right", 15.0, 18.0)
+        self._silence(rec, "right", 18.02, 19.0)
+        rec.add_turn("ai", "Természetesen, segítek.")
+        start = rec.turns[0]["start_s"]
+        assert abs(start - (15.0 - 0.15)) < 0.05, f"kaptunk: {start}"
+
+    def test_esemeny_a_szakasz_kozben_is_jo(self):
+        # streamelt item a beszéd KÖZBEN kerül be → az adott szakasz eleje
+        rec = CallRecorder(None)
+        rec._t0 = time.monotonic() - 20.0
+        self._speak(rec, "right", 16.0, 19.0)
+        rec.add_turn("ai", "Részmondás közben rögzített item")   # elapsed ≈ 20
+        # 20.0 az utolsó voice 19.0 + 1.0 → szakaszon belüli/közel — start 16.0
+        start = rec.turns[0]["start_s"]
+        assert abs(start - (16.0 - 0.15)) < 0.05, f"kaptunk: {start}"
+
+    def test_nincs_szakasz_esemenyido_marad(self):
+        rec = CallRecorder(None)
+        rec._t0 = time.monotonic() - 5.0
+        rec.add_turn("user", "Halló?")
+        assert abs(rec.turns[0]["start_s"] - 5.0) < 0.05
+
+    def test_foldologan_regi_szakasz_nem_tapat(self):
+        # a 4 s-nál régebben véget ért szakasz már NEM az eseményé
+        rec = CallRecorder(None)
+        rec._t0 = time.monotonic() - 30.0
+        self._speak(rec, "left", 10.0, 11.0)
+        self._silence(rec, "left", 11.02, 12.0)
+        rec.add_turn("user", "Késői esemény")   # elapsed ≈ 30 — 19 s a szakasz után
+        assert abs(rec.turns[0]["start_s"] - 30.0) < 0.05

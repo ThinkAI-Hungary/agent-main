@@ -151,6 +151,17 @@ def recording_storage_path(tenant_slug: str, day: str, session_id: str) -> str:
     return f"{(tenant_slug or 'tenant').strip('/')}/{day}/{session_id}.wav"
 
 
+def frame_rms(pcm: bytes) -> float:
+    """20 ms-os mono int16 PCM-frame-effektív értéke (beszéd/csend határhoz)."""
+    n = len(pcm) // 2
+    if not n:
+        return 0.0
+    acc = 0
+    for s in struct.unpack(f"<{n}h", pcm[:n * 2]):
+        acc += s * s
+    return (acc / n) ** 0.5
+
+
 # ═══════════════════════════════════════════════════════════════════════════════
 # ÉLŐ RÖGZÍTŐ — csak workerben fut (rtc szükséges hozzá)
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -177,6 +188,12 @@ class CallRecorder:
         self._local_stream: object | None = None
         # PCM-töredékek listában (a bytes += O(n²) lenne hosszú hívásnál)
         self._pcm_parts: dict = {"left": [], "right": []}
+        # Beszéd-szakasz nyilvántartás csatornánként — a bubble-seek azért
+        # kell, mert a chat-item eventek a beszéd VÉGE körül tüzelnek (a
+        # user-final a STT-finalizálásnál, az AI-item a generáció commitjánál),
+        # így az esemény-időpontra seekelve a kimondott mondat lemaradt.
+        self._voice_segments: dict = {"left": [], "right": []}
+        self._voice_state: dict = {}
 
     # ──publikus API──
 
@@ -187,18 +204,80 @@ class CallRecorder:
         return time.monotonic() - self._t0
 
     def add_turn(self, role: str, text: str) -> None:
-        """Transcript-turnus rögzítése a bubble-szintű seekhez (start_s = elapsed()).
+        """Transcript-turnus rögzítése a bubble-szintű seekhez.
+
+        start_s NEM az esemény-időpont, hanem a szerep csatornáján a
+        TÉNYLEGES beszédkezdet (speech_start_for) — a chat-item eventek a
+        beszéd végéhez közel tüzelnek, eseményidőre seekelve a mondat
+        eleje lemaradt („a következő páciens hangjától indul").
 
         Duplikátum-védelem: ugyanaz a mondás két esemény-forráson érkezhet
-        (user_input_transcribed + conversation_item_added; conversation_item_added
-        + agent_speech_committed), és a LiveKit event-érkezési sorrendje nem
-        garantáltan kronologikus — ezért (a) az azonos role+szöveg rövid
-        időablakon belül az elsőnek rögzített marad, (b) a `turns` property
-        mindig start_s szerint rendezve ad vissza."""
+        (user_input_transcribed + conversation_item_added), az azonos
+        role+szöveg rövid időablakon belül az elsőnek rögzített marad."""
         now = round(self.elapsed(), 2)
         if self._is_duplicate(role, text, now):
             return
-        self._turns.append({"role": role, "text": text, "start_s": now})
+        seg_start = self.speech_start_for(role, now)
+        if seg_start is not None:
+            start_s = round(max(0.0, seg_start - 0.15), 2)  # kis előfutam
+        else:
+            start_s = now   # nincs szakasz (pl. felvétel-indítás előtt) → eseményidő
+        self._turns.append({"role": role, "text": text, "start_s": start_s})
+
+    # ── beszéd-szakasz nyilvántartás (bubble-seek időigazítás) ──
+
+    VOICE_RMS_THRESHOLD = 350.0   # int16 RMS — efelett beszéd, alatta csend
+    SEGMENT_MIN_S = 0.18          # rövidebb lobanás = zajlökés, szakasz nem
+    SEGMENT_HANGOVER_S = 0.35     # ennyi folyamatos csend zárja a szakaszt
+    TURN_SEGMENT_GAP_S = 4.0      # esemény és szakaszvég max. távolsága
+
+    def note_audio(self, channel: str, t: float, rms: float) -> None:
+        """20 ms-os rácson hívandó (a capture-loopból): csatorna-energia →
+        beszéd-szakasz nyitás/zárás. channel: 'left' (hívó) | 'right' (agent)."""
+        st = self._voice_state.setdefault(channel, {"open": None, "last": None})
+        if rms >= self.VOICE_RMS_THRESHOLD:
+            if st["open"] is None:
+                st["open"] = t
+            st["last"] = t
+            return
+        if st["open"] is None:
+            return
+        if (t - st["last"]) >= self.SEGMENT_HANGOVER_S:
+            if (st["last"] - st["open"]) >= self.SEGMENT_MIN_S:
+                self._voice_segments[channel].append(
+                    {"start": round(st["open"], 2), "end": round(st["last"], 2)})
+            st["open"] = None
+            st["last"] = None
+
+    def speech_start_for(self, role: str, t_event: float,
+                         max_gap_s: float | None = None) -> float | None:
+        """Az esemény-időponthoz tartozó TÉNYLEGES beszédkezdet a szerep
+        csatornáján: az a szakasz, ami közvetlenül az esemény ELŐTT ért véget
+        (a user-final a STT-finalizálásnál, az AI-item a generáció commitjánál
+        kerül a kontextusba — a mondat tehát MEGELŐZI az eseményt), vagy amit
+        az esemény még átfed (streamelés közbeni item). Nyitott szakasz
+        (folyó beszéd) is jelölt. Nincs jelölt → None (hívó oldalon ilyenkor
+        az eseményidő marad)."""
+        gap = self.TURN_SEGMENT_GAP_S if max_gap_s is None else max_gap_s
+        channel = "left" if role == "user" else "right"
+        best = None
+        for seg in self._voice_segments.get(channel, []):
+            if seg["end"] <= t_event + 0.5 and (t_event - seg["end"]) <= gap:
+                if best is None or seg["end"] > best["end"]:
+                    best = seg
+        # nyitott szakasz (beszéd még folyamatban az eseménykor)
+        st = self._voice_state.get(channel) or {}
+        if st.get("open") is not None:
+            open_end = st.get("last") or t_event
+            if open_end <= t_event + 0.5 and (t_event - open_end) <= gap:
+                if best is None or open_end > best["end"]:
+                    best = {"start": st["open"], "end": open_end}
+        # esemény a szakasz KÖZBEN (pl. streamelt AI-item a beszéd elején)
+        if best is None:
+            for seg in self._voice_segments.get(channel, []):
+                if seg["start"] <= t_event <= seg["end"]:
+                    return seg["start"]
+        return best["start"] if best else None
 
     @staticmethod
     def _norm_text(text: str) -> str:
@@ -372,7 +451,14 @@ class CallRecorder:
             async for ev in stream:
                 if self._stopped:
                     break
-                buf.push(bytes(ev.frame.data))
+                pcm = bytes(ev.frame.data)
+                buf.push(pcm)
+                # beszéd-szakasz nyilvántartás a bubble-seekhez (20 ms-os frame)
+                try:
+                    channel = "left" if side == "remote" else "right"
+                    self.note_audio(channel, self.elapsed(), frame_rms(pcm))
+                except Exception:
+                    pass  # a seek-igazítás soha ne zavarja a rögzítést
         except asyncio.CancelledError:
             pass
         except Exception as e:
