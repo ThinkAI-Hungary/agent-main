@@ -40,6 +40,9 @@ _SMS_TIMEOUT = 15        # mp — Twilio REST-hívás timeoutja
 _SMS_RETRY_DELAY = 2     # mp — egyetlen retry 429/5xx válaszra
 # A status-callbackből elfogadott végállapotok (update_sms_status)
 _VALID_CALLBACK_STATUSES = ("sent", "delivered", "undelivered", "failed")
+# Twilio átmeneti állapotok (queued/accepted): nem írnak felül semmit (a
+# küldéskor beállított 'sent' jobb információ), csak NEM szólnak rá figyelmeztetéssel
+_TWILIO_TRANSIENT_STATUSES = ("queued", "accepted")
 
 
 def _sms_dry_run_enabled() -> bool:
@@ -261,6 +264,8 @@ def update_sms_status(provider_sid: str, status: str, error_code=None) -> bool:
     if not provider_sid:
         return False
     status = (status or "").strip().lower()
+    if status in _TWILIO_TRANSIENT_STATUSES:
+        return True   # átmeneti állapot — a küldéskori 'sent' marad
     if status not in _VALID_CALLBACK_STATUSES:
         logger.warning(f"update_sms_status: ismeretlen status {status!r} "
                        f"(sid={provider_sid})")
