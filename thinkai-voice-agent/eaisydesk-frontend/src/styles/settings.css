@@ -2565,8 +2565,10 @@ body.dark .ih-readonly {
 
 /* Szolgáltatás-megjegyzés: fix szélesség, a szöveg terjedelmében nyúló magasság */
 .svc-note {
+  /* border-box kell: content-box örökölt height:+padding mellett 54px doboz és
+     felül ülő szöveg lett (user-jelzés 2026-10-07). 1 sor = 36px, mint a szomszéd inputok. */
   min-height: 36px; resize: none; overflow: hidden; line-height: 1.45;
-  padding: 8px 12px; height: auto;
+  padding: 7px 12px; height: auto; box-sizing: border-box;
 }
 
 /* Széles dropdown (alcímes opciók) */

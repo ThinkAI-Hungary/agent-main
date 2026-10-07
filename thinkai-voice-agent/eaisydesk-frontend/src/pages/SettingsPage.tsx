@@ -1092,14 +1092,15 @@ export default function SettingsPage() {
                         <input className="co-input" value={s.service_name} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, service_name: e.target.value } : x))} placeholder="Szolgáltatás neve" onBlur={() => saveService(s, i)} />
                         <input className="co-input" type="number" value={s.duration_minutes} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, duration_minutes: Number(e.target.value) } : x))} placeholder="Perc" onBlur={() => saveService(s, i)} />
                         <input className="co-input" value={s.assigned_to || ''} onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, assigned_to: e.target.value } : x))} placeholder="pl. minden orvos / 2-es pálya" onBlur={() => saveService(s, i)} />
-                        {/* A Megjegyzés szélessége fix, a magassága a szöveg terjedelmében nyúlik */}
+                        {/* A Megjegyzés szélessége fix, a magassága a szöveg terjedelmében nyúlik.
+                            +2px: a border-box magasságba a felső/alsó border is beleszámít. */}
                         <textarea
                           className="co-input svc-note"
                           rows={1}
                           value={s.note || ''}
                           onChange={e => setServices(prev => prev.map((x, j) => j === i ? { ...x, note: e.target.value } : x))}
-                          onInput={e => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 220) + 'px'; }}
-                          ref={t => { if (t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight, 220) + 'px'; } }}
+                          onInput={e => { const t = e.currentTarget; t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 220) + 'px'; }}
+                          ref={t => { if (t) { t.style.height = 'auto'; t.style.height = Math.min(t.scrollHeight + 2, 220) + 'px'; } }}
                           onBlur={() => saveService(s, i)}
                         />
                       </div>
