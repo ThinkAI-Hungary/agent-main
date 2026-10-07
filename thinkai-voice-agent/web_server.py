@@ -4579,7 +4579,10 @@ class BusinessInfoSaveRequest(BaseModel):
     # Foglalási mód (2026-09-23): auto | handoff | custom | none
     booking_mode: str = "auto"
     booking_custom: dict = {}   # custom módban: {"book"|"modify"|"delete": "self"|"handoff"}
-    booking_needs: dict = {}    # handoff módban: {"standard": ["date","daypart","colleague"], "other": ["…"]}
+    # handoff módban: {"standard": [...], "other": [...]}. A régi sorokból a
+    # migráció '[]' defaultja listaként juthat vissza — Union + handler-koerció
+    # (VÉDŐFAL 2), különben a pydantic már a body-validációval 422-t ad.
+    booking_needs: dict | list = {}
 
 @app.get("/admin/api/triage_rules")
 def api_get_triage_rules(admin: dict = Depends(verify_jwt)):
