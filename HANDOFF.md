@@ -1,8 +1,10 @@
 # HANDOFF — eaisyDesk | 2026-09-14
 
-## 🤝 HANDOFF IGÉNYRÖGZÍTÉS-VISSZAIGAZOLÁS (`526934a`, 2026-10-09, staging+prod — EL)
+## 🤝 HANDOFF IGÉNYRÖGZÍTÉS-VISSZAIGAZOLÁS (`526934a` + prompt `85bb660`, 2026-10-09, staging+prod — EL)
 
 **A két prod-teszt feloldása**: az első hívás auto módban volt (foglalt + SMS — rendben), a második handoff-ban (a user 21:08-kor kapcsolta) — ott a rendszer helyesen nem foglalt, de **semmi sem ment a páciensnek**, csak a régi azonnali opt-in levél. User-döntés: handoff-ban is kell visszaigazolás (SMS + „rögzítettük" email, minden handoff-hívásra, amiben email hangzott el).
+
+**+1 tanulság a harmadik (éles) handoff-tesztből (`85bb660`)**: nem hangzott el email — az agent nem is kérte be (a handoff 0. szabály nem tartalmazott email-bekérést) → SMS nem indult, JOGANOSAN. Fix: a handoff prompt-blokk kiegészítve — a rögzítés végén az agent bekéri a címet („Hová küldhetjük a megerősítést?"), betűzés-/visszaolvasás-tilalommal. **Tesztnél MOST MÁR az agent fogja kérni a címet — anélkül a folyamat (helyesen) nem indul.**
 
 - **Új döntési tábla-ág (első helyen)**: `booking_mode=handoff` ÉS nincs foglalás ÉS a harness kiolvasta a diktált címet ÉS a hívó SMS-elérhető (magyar mobil + idempotencia — **foglalás NEM kell**, `sms_eligible` új `require_booking=False` paraméter) → **handoff-SMS**: „{rendelo}: kereset rogzitve. Kollagaink hamarosan felveszik Onnnel a kapcsolatot. Email cime: X. Ha helyes, erositse meg itt: {link}" (`DEFAULT_SMS_TEMPLATE_HANDOFF`, purpose=`handoff_confirm`, esemény-nélküli token).
 - **Jóváhagyás után**: az `/e/{token}` oldal esemény-nélküli esete → NEM visszaigazoló, hanem **„rögzítettük" email** (`email_processor.send_handoff_ack_email` — Brevo + tenant feladó + DRY_RUN kapu; „Rögzítettük az Ön kérését… e-mail címét sikeresen megerősítette"). Az `_update_client` így itt is a jóváhagyott címet írja → a következő hívás injekciója jó.
