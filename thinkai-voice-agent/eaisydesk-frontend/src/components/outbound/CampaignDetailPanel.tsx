@@ -39,6 +39,9 @@ const STATUS_COLORS: Record<string, StatusInfo> = {
   'Befejezett': { bg: '#9D9D9D',                color: '#fff',              label: 'Lezárt' },
   'Megállítva': { bg: '#9D9D9D',                color: '#fff',              label: 'Lezárt' },
   'Ütemezett':  { bg: 'rgba(139,92,246,0.1)',   color: '#C43284',           label: 'Ütemezett' },
+  // 2026-10-09: őszinte záróstátuszok (korábban 'Tervezet'-ként jelenetek meg)
+  'Részben sikeres': { bg: 'rgba(245,158,11,0.15)', color: '#B45309',      label: 'Részben sikeres' },
+  'Sikertelen':      { bg: 'rgba(239,68,68,0.12)',  color: '#DC2626',      label: 'Sikertelen' },
 };
 
 interface Props {
@@ -88,6 +91,24 @@ export default function CampaignDetailPanel({ campaign: c, canManage = true, can
   const [editContent, setEditContent] = useState(emailContent);
   const [editSubject, setEditSubject] = useState(parsedSubject || c.subject || c.email_subject || '');
   const [savingContent, setSavingContent] = useState(false);
+
+  // Script-jóváhagyás (2026-10-09): telefon-kampány indítása ELŐTT adminnak
+  // jóvá kell hagynia a scriptet (APPROVED: prefix — start enélkül 409-et dob)
+  const isPhoneChannel = channels.some(ch => ch.toLowerCase().includes('telefon'));
+  const scriptApproved = emailContent.trim().startsWith('APPROVED:') ||
+    (c.ai_instructions || '').startsWith('APPROVED:');
+  const [approvingScript, setApprovingScript] = useState(false);
+
+  async function approveScript() {
+    setApprovingScript(true);
+    try {
+      const res = await authFetch(`/admin/api/campaigns/${c.id}/approve-script`, { method: 'POST' });
+      const d = await res.json().catch(() => ({}));
+      if (res.ok) { showToast(d.already ? 'A script már jóváhagyásra került' : 'Script jóváhagyva — a kampány indítható'); }
+      else { showToast(d.detail || 'Hiba a jóváhagyáskor', 'error'); }
+    } catch { showToast('Hiba', 'error'); }
+    finally { setApprovingScript(false); }
+  }
 
   async function saveContent() {
     setSavingContent(true);
@@ -279,6 +300,12 @@ export default function CampaignDetailPanel({ campaign: c, canManage = true, can
           )}
 
           {/* Draft: Ütemezés (schedule CTA) + Kampány indítása (primary) — right-aligned */}
+          {canManage && isDraft && isPhoneChannel && !scriptApproved && (
+            <button className="cpv-btn-schedule cpv-btn-close-right" disabled={approvingScript}
+                    onClick={async () => { await approveScript(); onClose(); }}>
+              {approvingScript ? 'Jóváhagyás…' : 'Script jóváhagyása'}
+            </button>
+          )}
           {canManage && isDraft && (
             <>
               <button className="cpv-btn-schedule cpv-btn-close-right" onClick={() => { onSchedule(c.id); onClose(); }}>
@@ -290,7 +317,13 @@ export default function CampaignDetailPanel({ campaign: c, canManage = true, can
             </>
           )}
 
-          {/* Megállítva: Kampány indítása + Ütemezés */}
+          {/* Megállítva: Kampány indítása + Ütemezés (+ telefonnál jóváhagyás, ha hiányzik) */}
+          {canManage && c.status === 'Megállítva' && isPhoneChannel && !scriptApproved && (
+            <button className="cpv-btn-schedule cpv-btn-close-right" disabled={approvingScript}
+                    onClick={async () => { await approveScript(); onClose(); }}>
+              {approvingScript ? 'Jóváhagyás…' : 'Script jóváhagyása'}
+            </button>
+          )}
           {canManage && c.status === 'Megállítva' && (
             <>
               <button className="cpv-btn cpv-btn-primary" onClick={() => { onStart(c.id); onClose(); }}>

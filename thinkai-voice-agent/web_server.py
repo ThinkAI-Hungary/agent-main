@@ -5310,7 +5310,7 @@ class ApproveRequest(BaseModel):
     modified_drafts: dict | None = None
 
 @app.post("/admin/api/approvals/{id}/approve")
-async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(verify_jwt)):
+async def approve_approval_api(id: int, req: ApproveRequest, current_user: dict = Depends(get_current_user)):
     import json
     import httpx
     import base64 as b64module
@@ -5564,6 +5564,11 @@ async def approve_approval_api(id: int, req: ApproveRequest, _auth = Depends(ver
                     print(f"[Approval] {ch.capitalize()} elküldve: {send_draft.get('sender_id', '')[:10]}...")
 
                 elif ch == "telefon":
+                    # 2026-10-09 (user-döntés): kimenő hívás indítása CSAK admin —
+                    # a jóváhagyó végpont membernek is nyitott (email-piszkozatokhoz
+                    # kell maradnia), a telefon-ágat lezárjuk.
+                    if current_user.get("role") != "admin":
+                        raise HTTPException(status_code=403, detail="Kimenő hívás indítása csak admin jogosultsággal lehetséges")
                     # Telefonhívás indítása a jóváhagyott szöveggel mint AI script
                     from livekit import api as lk_api_module
 
@@ -5911,6 +5916,17 @@ async def start_campaign_api(campaign_id: int, _auth = Depends(require_admin)):
     if not active_channels:
         raise HTTPException(status_code=400, detail="Jelenleg csak email, messenger és telefon kampányok támogatottak")
 
+    # 2026-10-09 (user-döntés): telefon-kampány indítása CSAK JÓVÁHAGYOTT
+    # scripttel — az ai_instructions elején lévő 'APPROVED:<iso>|' prefixet a
+    # /approve-script végpont (admin) teszi oda. Séma-változtatás nélkül,
+    # ugyanaz a minta mint a SCHED:/SUBJECT: prefixek.
+    if "telefon" in active_channels:
+        instructions = campaign.get("ai_instructions") or ""
+        if not instructions.startswith("APPROVED:"):
+            raise HTTPException(status_code=409, detail=(
+                "A telefon-kampány indításához előbb jóvá kell hagyni a scriptet "
+                "(admin: 'Script jóváhagyása' gomb a kampány részleteinél)."))
+
     db.update_campaign_status(campaign_id, "Aktív")
 
     # Text-based channels (email, messenger) → draft generation
@@ -5934,6 +5950,25 @@ async def start_campaign_api(campaign_id: int, _auth = Depends(require_admin)):
     if "telefon" in active_channels:
         msg_parts.append("AI telefonhívások indulnak")
     return {"status": "success", "message": f"Kampány elindítva ({ch_str}) — {', '.join(msg_parts)}."}
+
+@app.post("/admin/api/campaigns/{campaign_id}/approve-script")
+async def approve_campaign_script(campaign_id: int, _auth = Depends(require_admin)):
+    """2026-10-09 (user-döntés): telefon-kampány scriptjének admin-jóváhagyása.
+    Az ai_instructions elejére 'APPROVED:<iso>|' prefix kerül (idempotens) — a
+    start-endpoint ez nélkül 409-t dob. Séma-változtatás nélkül, mint a
+    SCHED:/SUBJECT: prefixek."""
+    campaign = db.get_campaign(campaign_id)
+    if not campaign:
+        raise HTTPException(status_code=404, detail="Kampány nem található")
+    instructions = campaign.get("ai_instructions") or ""
+    if instructions.startswith("APPROVED:"):
+        return {"ok": True, "already": True}
+    from datetime import timezone as _tz
+    approved = f"APPROVED:{datetime.now(_tz.utc).isoformat()}|{instructions}"
+    if not db.update_campaign_content(campaign_id, approved):
+        raise HTTPException(status_code=500, detail="Jóváhagyás mentése sikertelen")
+    return {"ok": True, "already": False}
+
 
 @app.post("/admin/api/campaigns/{campaign_id}/stop")
 def stop_campaign_api(campaign_id: int, _auth = Depends(require_admin)):
@@ -6319,6 +6354,20 @@ async def _run_phone_campaign(campaign: dict):
             print(f"[PhoneCampaign] Kampány megállítva: {campaign_name}")
             return
 
+        # Hívási időablak (2026-10-09, user-döntés): kampányhívás csak H–P
+        # 09:00–17:00 Budapest között — korláton kívül a loop várakozik
+        # (a kampány 'Aktív' marad, a nyitáskor automatikusan folytatódik).
+        while True:
+            from zoneinfo import ZoneInfo as _ZI
+            _now_hu = datetime.now(_ZI("Europe/Budapest"))
+            _in_window = (_now_hu.weekday() < 5 and 9 <= _now_hu.hour < 17)
+            if _in_window:
+                break
+            _next_try = 300
+            print(f"[PhoneCampaign] Időablakon kívül (H-P 09-17) — várakozás "
+                  f"{_next_try} s: {campaign_name}")
+            await asyncio.sleep(_next_try)
+
         if processed + failed >= daily_limit - daily_used:
             print(f"[PhoneCampaign] Napi limit elérve ({daily_limit}), kampány szünetel: {campaign_name}")
             db.update_campaign_status(campaign_id, "Megállítva", processed_count=processed)
@@ -6420,8 +6469,9 @@ async def _run_phone_campaign(campaign: dict):
                                    session_id=session_id)
             print(f"[PhoneCampaign] Hivas inditva ({processed}/{len(clients)}): {client_name} -> {phone}")
 
-            # Wait between calls (15 sec) to avoid overwhelming + let calls finish
-            await asyncio.sleep(15)
+            # Wait between calls (60 sec) — arányos terhelés + költség-fék
+            # (2026-10-09: 15 mp-ről 60 mp-re, research-javaslat)
+            await asyncio.sleep(60)
 
         except Exception as e:
             failed += 1

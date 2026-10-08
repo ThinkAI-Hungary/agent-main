@@ -4,20 +4,24 @@
  */
 import React, { useState, useEffect, useRef } from 'react';
 
-export type CampaignStatusKey = 'tervezet' | 'aktiv' | 'utemezett' | 'lezart';
+export type CampaignStatusKey = 'tervezet' | 'aktiv' | 'utemezett' | 'lezart' | 'sikertelen';
 
 export function campaignStatusKey(status: string): CampaignStatusKey {
   if (status === 'Aktív') return 'aktiv';
   if (status === 'Ütemezett') return 'utemezett';
-  if (status === 'Befejezett' || status === 'Megállítva') return 'lezart';
+  // 2026-10-09: őszinte záróstátuszok (korábban 'Tervezet'-ként jelentek meg,
+  // és admin Indítás gombot kaptak)
+  if (status === 'Sikertelen') return 'sikertelen';
+  if (status === 'Befejezett' || status === 'Megállítva' || status === 'Részben sikeres') return 'lezart';
   return 'tervezet';
 }
 
-/** Mockup szerinti badge: Aktív → zöld, Ütemezett → sárga, Tervezet → teal, Lezárt → szürke */
+/** Mockup szerinti badge: Aktív → zöld, Ütemezett → sárga, Tervezet → teal, Lezárt → szürke, Sikertelen → piros */
 export function campaignStatusDisplay(status: string): { label: string; cls: string } {
   const key = campaignStatusKey(status);
   if (key === 'aktiv') return { label: 'Aktív', cls: 'cp-camp-active' };
   if (key === 'utemezett') return { label: 'Ütemezett', cls: 'cp-camp-scheduled' };
+  if (key === 'sikertelen') return { label: 'Sikertelen', cls: 'cp-camp-failed' };
   if (key === 'lezart') return { label: 'Lezárt', cls: 'cp-camp-closed' };
   return { label: 'Tervezet', cls: 'cp-camp-draft' };
 }
