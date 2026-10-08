@@ -924,6 +924,26 @@ def get_grouped_interactions(limit: int = 100, offset: int = 0) -> dict:
                     s["recording_url"] = sess.get("recording_url")  # WP D: lejátszó a popupban
         except Exception as se:
             logger.warning(f"grouped sessions participant enrich hiba: {se}")
+        # Ügyfélnév kiegészítés (2026-10-09): a voice sessionök participant-ja
+        # üres, így az értesítési központ minden telefonos megkeresést
+        # 'Ismeretlen'-ként mutatott. A reprezentatív sor client_id-jából
+        # (tenant-szűrt) a clients.name kerül a groupra.
+        try:
+            cids = sorted({
+                (s.get("representative") or {}).get("client_id")
+                for s in data.get("sessions", [])
+                if (s.get("representative") or {}).get("client_id")
+            })
+            if cids:
+                cres = _tenant_eq(supabase.table("clients").select("id, name")).in_("id", cids).execute()
+                cmap = {c["id"]: c.get("name") for c in (cres.data or [])}
+                for s in data.get("sessions", []):
+                    rep = s.get("representative") or {}
+                    name = cmap.get(rep.get("client_id"))
+                    if name:
+                        s["client_name"] = name
+        except Exception as ce:
+            logger.warning(f"grouped client_name enrich hiba: {ce}")
         return data
     except Exception as e:
         logger.error(f"get_grouped_interactions error: {e}")
