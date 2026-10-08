@@ -1,5 +1,10 @@
 # HANDOFF — eaisyDesk | 2026-09-14
 
+## 🔔 NOTIFICATION 'ISMERETLEN' FIX (`b099485`, 2026-10-09, staging+prod — EL)
+
+A prod értesítési központjában minden telefonos megkeresés 'Ismeretlen'-ként jelent meg. Gyökér: a notification a `grouped` válasz `r.client_name || g.client_name || g.participant` láncot olvassa — de a `get_grouped_interactions` RPC **sosem adott vissza client_name-et**, a voice sessionök `sessions.participant`-ja pedig ÜRES (create_session nem tölti voice-nál) → a lánc mindig 'Ismeretlen'-re esett. Az adat rendben volt (minden telefonos interakción megvan a client_id). Fix: a `database.get_grouped_interactions` Python-oldali enrichjébe **client_name** is került — a reprezentatív sor client_id-jából tenant-szűrt `clients.name` lookup. Élő verifikáció (prod): telefon sorokon 'Orosz Erika', 'Kereplő Edward'; email sorokon is felold. 402/402 teszt zöld.
+
+
 ## 🤝 HANDOFF IGÉNYRÖGZÍTÉS-VISSZAIGAZOLÁS (`526934a` + prompt `85bb660`, 2026-10-09, staging+prod — EL)
 
 **A két prod-teszt feloldása**: az első hívás auto módban volt (foglalt + SMS — rendben), a második handoff-ban (a user 21:08-kor kapcsolta) — ott a rendszer helyesen nem foglalt, de **semmi sem ment a páciensnek**, csak a régi azonnali opt-in levél. User-döntés: handoff-ban is kell visszaigazolás (SMS + „rögzítettük" email, minden handoff-hívásra, amiben email hangzott el).
