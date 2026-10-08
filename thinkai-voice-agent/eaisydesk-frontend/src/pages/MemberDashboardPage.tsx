@@ -23,7 +23,7 @@ import { showToast } from '../components/ui/Toast';
 import DoneCheck from '../components/ui/DoneCheck';
 import { authFetch } from '../api/client';
 import { useClients } from '../hooks/useClients';
-import { useSessions, type SessionSummary, type SessionInteraction } from '../hooks/useSessions';
+import { useSessions, parseTranscriptTurns, type SessionSummary, type SessionInteraction } from '../hooks/useSessions';
 import { useCalendarEvents } from '../hooks/useCalendarEvents';
 import ClientDetailView from '../components/clients/ClientDetailView';
 import InteractionSummaryModal from '../components/interactions/InteractionSummaryModal';
@@ -186,6 +186,10 @@ export default function MemberDashboardPage() {
             result: r.result || '',
             interactionId: r.id || null,
             sessionId: s.session_id || null,
+            // Hívásrögzítés + bubble-seek a member dashboard popupjában is
+            // (korábban ezek nélkül a lejátszó sosem jelent meg)
+            recording_url: s.recording_url || null,
+            transcript_turns: parseTranscriptTurns(s.transcript_turns),
             ai_draft_response: r.ai_draft_response || null,
             approval_status: r.approval_status || null,
             closed_at: r.closed_at || null,
