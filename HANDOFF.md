@@ -1,5 +1,10 @@
 # HANDOFF — eaisyDesk | 2026-09-14
 
+## ▶️ MEMBER DASHBOARD — HIÁNYZÓ HÍVÁSVISSZAHALLGATÁS (`64fe8b1`, 2026-10-09, staging+prod — EL)
+
+User-jelzés: „Windowson a member profiloknál nincs call-visszahallgatás". Gyökér (OS-FÜGGETLEN hiba volt): a MemberDashboardPage sorfelépítése átadta a `sessionId`-t, de a `recording_url`-t és a `transcript_turns`-t NEM — a modál lejátszó-feltétele (`Telefon && recording_url && sessionId`) sosem teljesült a member dashboardon. Fix: a két mező átadva (`parseTranscriptTurns`-szel, mint az InteractionsPage-en). Megjegyzés: a „Windowson" megfigyelés véletlen egybeesés — a feltétel OS-független; a WAV-lejátszás minden platformon működik.
+
+
 ## 🔔 NOTIFICATION 'ISMERETLEN' FIX (`b099485`, 2026-10-09, staging+prod — EL)
 
 A prod értesítési központjában minden telefonos megkeresés 'Ismeretlen'-ként jelent meg. Gyökér: a notification a `grouped` válasz `r.client_name || g.client_name || g.participant` láncot olvassa — de a `get_grouped_interactions` RPC **sosem adott vissza client_name-et**, a voice sessionök `sessions.participant`-ja pedig ÜRES (create_session nem tölti voice-nál) → a lánc mindig 'Ismeretlen'-re esett. Az adat rendben volt (minden telefonos interakción megvan a client_id). Fix: a `database.get_grouped_interactions` Python-oldali enrichjébe **client_name** is került — a reprezentatív sor client_id-jából tenant-szűrt `clients.name` lookup. Élő verifikáció (prod): telefon sorokon 'Orosz Erika', 'Kereplő Edward'; email sorokon is felold. 402/402 teszt zöld.
