@@ -1,5 +1,10 @@
 # HANDOFF — eaisyDesk | 2026-10-09 (kampány-üzemeltetés)
 
+## 🖥️ UI: ŐSZINTE ZÁRÓSTÁTUSZOK + SMS-KAMPÁNY RESEARCH INDÍTVA (`694251d`, 2026-10-09, staging)
+
+- **UI státusz-leképezés befejezve** (a research A/8/1 jelzett hézag): `CampaignMenu.campaignStatusKey` + `campaignStatusDisplay` ('Sikertelen' → piros badge), `CampaignDetailPanel` STATUS_COLORS, és most az `OutboundPage` Lezárt-chip/szűrő is számolja a `Részben sikeres`/`Sikertelen` kampányokat — **additív változtatás, a meglévő státuszok viselkedése változatlan**. Build zöld, staging deploy (694251d).
+- **SMS-kampány research elindítva** (subagent): a meglévő SMS-infra (sms_sender Twilio-út, sms_logs + delivered callback, sms_text szegmens-kezelés, tenant kredenciák, DRY_RUN kapu) teljes térképe + minimál-kódú megvalósítási terv az SMS-kampányhoz. Jelentés érkezéskor kerül be a döntésekhez.
+
 ## 📣 TELEFON-KAMPÁNY: SCRIPT-JÓVÁHAGYÁS + HÍVÁSI IDŐABLAK (`e4d08e7`, 2026-10-09, staging — élőben verifikálva)
 
 A kampány-üzemeltetési research (CAMPAIGN_OPERATION_RESEARCH_REPORT.md) user-döntései: (1) csak marketing-nyilatkozatott ügyfelek kerülnek a rendszerbe — felelősség a rendelőé; (2) jóváhagyás/indítás: **csak admin**; (3) extra költségkeret-építés egyelőre nem kell, a funkció működjön; (4) automatikus úrahívás **ne legyen** (a dedup marad szigorú: minden kísérlet záról).
