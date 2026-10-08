@@ -1,5 +1,16 @@
 # HANDOFF — eaisyDesk | 2026-09-14
 
+## 🧰 KIMENŐ HÍVÁS MEGBÍZHATÓSÁG — STAGINGRE MEGÉPÍTVE (`4af701b` + `02b2eb6`, 2026-10-09)
+
+A research-jelentés „közös alap" csomagja stagingre implementálva (prodra a migrációval együtt, user-jóváhagyással):
+- **Staging-migráció (`call_attempts_outbound_visibility`)**: új `call_attempts` tábla (MINDEN kimenő hívási kísérlet eredménnyel: answered/no_answer/busy/rejected/rejected_whitelist/invalid_number/failed — eddig a sikertelenek DB nélkül elillantak és a kampány „Befejezett"-re állt) + `get_grouped_interactions` RPC láthatósági javítás (a régi `has_inbound` filter a tisztán kimenő sessionöket is elrejtette → új `has_visible`).
+- **Telnyx öngyógyítás**: `ensure_outbound_voice_profile` új profilra `whitelisted_destinations=['HU']`-t állít; új `ensure_whitelist` (meglévőhöz HOZZÁAD, felül nem ír); `ensure_fqdn_connection` az OVP-t LÉTREHOZÁSKOR is linkeli + saved_id-nél is PATCH-eli; a voice_provision végpont mindezt meghívja.
+- **Eredmény-osztályozás**: `telnyx_provision.classify_sip_error` (whitelist/busy/no_answer/rejected/invalid_number/failed); script-végpont hibánál strukturált 502 (`ok:false, result`) 500 helyett; kampány-loop: **dedup** (`campaign_already_called` — újraindítás ne úrahívja), **napi limit** (`OUTBOUND_DAILY_CALL_LIMIT`, default 200), minden kísérlet DB-be, őszinte záróstátusz (Befejezett/Részben sikeres/Sikertelen).
+- **Rögzítés-tájékoztatás (GDPR)**: mindkét kimenő prompt elejére — élő hívásban bizonyítva: „Felhívom a figyelmed, hogy ezt a hívást rögzítjük."
+- **Élő verifikáció (2 hívás)**: call_attempts sor `script/answered` ✓; outbound sessionök látszanak a grouped listában client_name-nel ✓. Fix közben: call_attempts INSERT `_with_tenant`-tel (az `_tenant_eq` eq-szűrő POST-on érvénytelen volt).
+- **PROD-ra váltáskor**: a migrációt (call_attempts + RPC) prod MCP-n futtatni kell; a közös trunk Telnyx-fiókjának OVP whitelistjét is (US/CA → +HU).
+409→413 teszt zöld.
+
 ## ☎️ KIMENŐ HÍVÁS ÉLŐBEN IGAZOLVA + TELNYX ORSZÁG-FEHÉRLISTA FIX (2026-10-09, staging)
 
 - **`POST /admin/api/sip/call`** (admin JWT; {phone_number, script?, client_name?, note?}) → LiveKit `call-out-` room + `create_sip_participant` (`wait_until_answered=True`) → worker outbound ága (script-felismerés, tenant room-metadata-ból, BVC Telephony) → agent kimondta a scriptet → interakció `direction=outbound`-dal naplózva. **Végig élőben tesztelve** (call-out-49546f6f, interaction #1061, a hívás bejött és a script elhangzott).
