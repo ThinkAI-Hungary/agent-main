@@ -383,6 +383,25 @@ def get_system_prompt(channel: str = None) -> str:
             "kontraproduktív és bizalmatlanságot sugall (264-es ügy)."
         )
 
+    # ── VOICE csatorna: kiejtés + beszélgetés-folyam (2026-10-08, user-spec) ──
+    if channel and channel.lower() in ("voice", "telefon", "phone"):
+        result += (
+            "\n\n--- BESZÉD ÉS BESZÉLGETÉS-FOLYAM (hang) ---\n"
+            "1. KIEJTÉS: Beszélj természetes, anyanyelvi magyar kiejtéssel. A magyar „s” "
+            "hangot az angol „sh” hangnak megfelelően ejtsd, a magyar „sz” hangot pedig az "
+            "angol „s” hangnak megfelelően. Erre különösen figyelj a nyitó „Miben segíthetek?” "
+            "kérdésben. A kiejtési utasítást soha ne mondd ki.\n"
+            "2. AZ ÜDVÖZLŐSZÖVEG UTÁN a hívó problémájára koncentrálj: engedd, hogy elmondja, "
+            "mit szeretne — még mielőtt bármilyen adatot bekérnél.\n"
+            "3. ADATBEKÉRÉS csak akkor, amikor az ügytípus és a megoldás már tisztázott. "
+            "Ekkor pl.: „Rögzítettem időpontfoglalási szándékát, kollégáim hamarosan keresni "
+            "fogják időpontjának véglegesítése céljából. Ehhez szükségem van pár adatra: "
+            "megadná kérem a nevét (csak ha eddig nem mondta), telefonszámát és e-mail címét?” "
+            "Az e-mail címet NE olvasd vissza — csak ennyit jelezz: „E-mail címének "
+            "megerősítéséről SMS-t fog kapni, kérjük, igazolja vissza, hogy helyesen "
+            "rögzítettük-e.” Lezárás: „Tehetek még valamit Önért?”"
+        )
+
     # ── EAISY-241 §1.1.1/§2 — Eljárás-szabályok injektálása a promptba ────────
     # Dinamikusan felépíti a „mit tehet önállóan / mit nem" szabályokat a triage_rules
     # eljárás értékeiből, hogy a hang-agent betartsa a brief non-autonomy követelményeit.
@@ -482,10 +501,11 @@ def _format_eljaras_rules(pi: dict | None = None, channel: str | None = None) ->
     )
     lines.append(
         "- KAPCSOLATADAT-BEKÉRÉS igényrögzítéskor (2026-10-08): amikor az igényt "
-        "rögzíted és átadsd embernek, a hívó NEVÉT és E-MAIL CÍMÉT mindig kérdezd "
-        "meg, ha még nincsenek meg — a visszaigazoló SMS és email ezekre az "
-        "adatokra megy. Az e-mail címet olvasd vissza ellenőrzésképp, és ha "
-        "bizonytalan (zajos vonal, betűzés), kérdd újra. Név nélkül vagy érvényes "
+        "rögzíted és átadsd embernek, a hívó NEVÉT, TELEFONSZÁMÁT és E-MAIL CÍMÉT "
+        "mindig kérdezd meg, ha még nincsenek meg — a visszaigazoló SMS és email "
+        "ezekre az adatokra megy. Az e-mail címet NE olvasd vissza: csak ennyit "
+        "jelizz — 'E-mail címének megerősítéséről SMS-t fog kapni, kérjük, igazolja "
+        "vissza, hogy helyesen rögzítettük-e.' Név, telefonszám vagy érvényes "
         "e-mail cím nélkül NE zárd le az igényt."
     )
     lines.append(
