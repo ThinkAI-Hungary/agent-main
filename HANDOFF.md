@@ -1,5 +1,11 @@
 # HANDOFF — eaisyDesk | 2026-09-14
 
+## ☎️ KIMENŐ HÍVÁS ÉLŐBEN IGAZOLVA + TELNYX ORSZÁG-FEHÉRLISTA FIX (2026-10-09, staging)
+
+- **`POST /admin/api/sip/call`** (admin JWT; {phone_number, script?, client_name?, note?}) → LiveKit `call-out-` room + `create_sip_participant` (`wait_until_answered=True`) → worker outbound ága (script-felismerés, tenant room-metadata-ból, BVC Telephony) → agent kimondta a scriptet → interakció `direction=outbound`-dal naplózva. **Végig élőben tesztelve** (call-out-49546f6f, interaction #1061, a hívás bejött és a script elhangzott).
+- **Akadály, amit útközben javítottam**: a Rivergate Telnyx-account 'Default' outbound voice profiljának `whitelisted_destinations`-je `['US','CA']` volt → magyar számra SIP 403 („not included in whitelisted countries USA,CAN D13"). Javítás API-ból: PATCH `/outbound_voice_profiles/{id}` → `whitelisted_destinations = ['HU']` (FIGYELEM: a mezőnév `whitelisted_destinations`, a `destinations` mező nem működik; a FQDN connectionhez explicit OVP-hozzárendelés is beállítva).
+- **FIGYELMEZTETÉSEK**: (1) ezzel az US/CA engedély ELTŰNT a Rivergate Default profilról (magyar klinika magyar ügyfelet hív — ha kell nemzetközi, vissza kell venni); (2) a PROD-tenantok (Dentors stb.) SAJÁT Telnyx-accountján valószínűleg ugyanez a US/CA default áll — prod kimenő hívás előtt ott is átállítandó (tenant `telnyx_api_key`-vel, ugyanez a PATCH); (3) UI-gomb nincs (`api/sip/call` API-only); (4) research-subagent a teljes térképet külön jelentésben adja (`OUTBOUND_CALLS_RESEARCH_BRIEF.md` alapján).
+
 ## 🔀 KÉTSPROMPTOS ÍGÉRET + 'EMAIL MEGGERŐSÍTVE' SOR (`d95a80f`, 2026-10-09, staging+prod — EL)
 
 User-jelzés (staging): (a) az agent 'visszaigazoló emailt küldünk, meg SMS-t is fog kapni' — melyik és milyen sorrendben? (b) az interakciós listán önálló 'Email cím megerősítve / Időpont / Lezárt / Nincs teendő' sor jelent meg értelmetlenül. Gyökér + fix:
