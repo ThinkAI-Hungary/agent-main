@@ -207,6 +207,11 @@ def _format_patient_rules(pi: dict) -> str:
     # Email bekérése kötelező
     rules.append("4. IDŐPONTFOGLALÁS ESETÉN: Szigorúan kötelező elkérned az ügyfél e-mail címét a foglalás véglegesítése előtt. Tájékoztasd őt róla, hogy erre az e-mail címre fogjuk küldeni a hivatalos visszaigazolást, ami tartalmazza a naptárfájlt és az esetleges lemondáshoz szükséges linket is! AZ E-MAIL CÍMET TERMÉSZETESEN KÉRD BE: NE kérj betűzésenkénti diktálást, NE mondatd vissza betűnként vagy részenként, és NE igazoltasd vissza szó szerint — a rendszer a hívás után automatikusan ellenőrzi a címet. Csak akkor kérj pontosítást, ha a hívó maga javít, vagy amit mondott, annyira érthetetlen, hogy teljes egészében kimaradt. A RÖGZÍTÉS UTÁN NE ISMÉTELD VISSZA a bemondott címet vagy más adatokat (név, telefonszám, időpont) ellenőrzésképpen — elég egy rövid, udvarias igazolás; a pontos ellenőrzést a rendszer végzi el a hívás után. A HÍVÓT TÁJÉKOZTATD az SMS-jóváhagyásról: foglalás után a rendszer SMS-ben elküldi a rögzített e-mail címet, és az SMS-ben lévő linken egy kattintással jóvá tudja hagyni vagy ki tudja javítani — pl. 'Rögzítettem az adatait; e-mail címét SMS-ben elküldjük, ott egy kattintással tudja jóváhagyni, és a visszaigazolás garantáltan a helyes címre érkezik.'")
 
+    # 2026-10-08 staging-teszt: az agent szóban 'rögzítem az időpontot'-ot
+    # mondott, a book_meeting eszközt MEGHÍVTA SEM — naptárba semmi nem került,
+    # az SMS-visszaigazolás nem tudott elindulni. Determinisztikus nyelvi kapu:
+    rules.append("5. ÚJ FOGLALÁS KIZÁRÓLAG A TOOLLAL (SZIGORÚ): időpont rögzítésére utaló mondatot ('rögzítem', 'lefoglaltam', 'várjuk') KIZÁRÓLAG a book_meeting eszköz SIKERES visszajelzése UTÁN mondhatsz — a foglalás minden alkalommal a tool tényleges meghívásával történik, soha nem 'fejből'. Ha a tool hibát vagy 'nincs szabad slot' választ ad, azt mondd el, és ajánlj fel más időpontot. A tool meghívása nélkül kimondott foglalás HAMIS ígéret — szigorúan tilos!")
+
     # EAISY-241 §7 — Időpontfoglalási beszélgetés szabályai (lépésenkénti)
     rules.append("""7. AZONOSÍTÁSI BIZTONSÁG: A hívószám PSTN-en triviálisan hamisítható — érzékeny adat (betegadat) előtt MINDIG kérj egy második azonosítót (születési dátum, TAJ, vagy a rendszerben tárolt adat).""")
     # 09-21 voice-teszt: az agent ÚGY erősítette meg a foglalást, hogy SOHA nem
