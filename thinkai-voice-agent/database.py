@@ -3108,17 +3108,17 @@ def create_call_attempt(tenant_id, phone: str, result: str, scenario: str = "cam
     """Kimenő hívási KÍSÉRLET rögzítése (2026-10-09): sikertelen kampány-hívások
     eddig DB nélkül 'elillantak' és a kampány 'Befejezett'-re állt. Fail-open."""
     try:
-        payload = {
-            "tenant_id": tenant_id, "phone": phone, "result": result,
+        payload = _with_tenant({
+            "phone": phone, "result": result,
             "scenario": scenario, "detail": (detail or "")[:500],
-        }
+        }, tenant_id)
         if campaign_id:
             payload["campaign_id"] = campaign_id
         if client_id:
             payload["client_id"] = client_id
         if session_id:
             payload["session_id"] = session_id
-        _tenant_eq(supabase.table("call_attempts").insert(payload), tenant_id).execute()
+        supabase.table("call_attempts").insert(payload).execute()
         return True
     except Exception as e:
         logger.warning(f"create_call_attempt hiba (fail-open): {e}")
