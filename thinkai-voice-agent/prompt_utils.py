@@ -509,13 +509,32 @@ def _format_eljaras_rules(pi: dict | None = None, channel: str | None = None) ->
         "saját telefonszámról hívja vissza az ügyfelet."
     )
     lines.append(
-        "- KAPCSOLATADAT-BEKÉRÉS igényrögzítéskor (2026-10-08): amikor az igényt "
-        "rögzíted és átadsd embernek, a hívó NEVÉT, TELEFONSZÁMÁT és E-MAIL CÍMÉT "
-        "mindig kérdezd meg, ha még nincsenek meg — a visszaigazoló SMS és email "
-        "ezekre az adatokra megy. Az e-mail címet NE olvasd vissza: csak ennyit "
-        "jelizz — 'E-mail címének megerősítéséről SMS-t fog kapni, kérjük, igazolja "
-        "vissza, hogy helyesen rögzítettük-e.' Név, telefonszám vagy érvényes "
-        "e-mail cím nélkül NE zárd le az igényt."
+        *(
+            [
+                # ÍRÁSOS csatornák (2026-10-08): az email cím ISMERT (a levél
+                # feladója) — kérni, illetve SMS-megerősítést ígérni hibás volt
+                # (Egri Éva / erika@molaire.hu jelenség). Csak név + telefonszám.
+                "- KAPCSOLATADAT-BEKÉRÉS írásos csatornán: amikor az igényt rögzíted "
+                "és átadsd embernek, az ügyfél NEVÉT és TELEFONSZÁMÁT kérd meg, ha "
+                "még nincsenek meg (a telefonszám azért kell, hogy kollégáid szükség "
+                "esetén telefonon is fel tudják venni Önnel a kapcsolatot). AZ "
+                "E-MAIL CÍMÉT SOHA NE KÉRDEZD MEG — az a levélből ismert —, és "
+                "SMS-megerősítést NE ígérj: a visszaigazolás ebben a csatornában "
+                "EMAILBEN történik. Név vagy telefonszám nélkül NE zárd le az igényt."
+            ]
+            if _is_text
+            else [
+                # HANG csatorna: hívószám ismert (caller ID), az email címét bekérjük,
+                # visszaolvasás helyett az SMS-megerősítést jelezzük
+                "- KAPCSOLATADAT-BEKÉRÉS igényrögzítéskor: amikor az igényt rögzíted és "
+                "átadsd embernek, a hívó NEVÉT, TELEFONSZÁMÁT és E-MAIL CÍMÉT mindig "
+                "kérdezd meg, ha még nincsenek meg — a visszaigazoló SMS és email "
+                "ezekre az adatokra megy. Az e-mail címet NE olvasd vissza: csak "
+                "ennyit jelizz — 'E-mail címének megerősítéséről SMS-t fog kapni, "
+                "kérjük, igazolja vissza, hogy helyesen rögzítettük-e.' Név, "
+                "telefonszám vagy érvényes e-mail cím nélkül NE zárd le az igényt."
+            ]
+        )
     )
     lines.append(
         "- PANASZ esetén MINDIG: ne vitatkozz, ne adj ígéreteket, fogadd el a "

@@ -711,10 +711,14 @@ export default function CalendarPage() {
                         .sort((a, b) => (b.start_dt || '').localeCompare(a.start_dt || ''))
                         .map(ev => {
                           const t = huParts(ev.start_dt);
-                          const isPast = t.getTime() < now.getTime();
+                          // isPast a BUDAPESTI lokális idő szerint (huParts string-részekkel —
+                          // a régi Date-API (t.getTime/getMonth) TypeError-t okozott: crash)
+                          const nowP = huParts(new Date().toISOString());
+                          const isPast = !!t && !!nowP &&
+                            `${t.y}${t.mo}${t.d}${t.h}${t.mi}` < `${nowP.y}${nowP.mo}${nowP.d}${nowP.h}${nowP.mi}`;
                           const isNoShow = ev.attendance_status === 'no_show';
                           // Dátumszabály: soha "Ma" jellegű jelölés — tényleges dátum
-                          const dTxt = `${HU_MONTHS[t.getMonth()]} ${t.getDate()}.`;
+                          const dTxt = t ? `${HU_MONTHS[Number(t.mo) - 1]} ${Number(t.d)}.` : '—';
                           const emailKey = (ev.attendee_email || '').toLowerCase().trim();
                           const assignee = assigneeFor(emailKey);
                           const badge = clientStatusFor(emailKey);
