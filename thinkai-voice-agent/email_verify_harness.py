@@ -1963,7 +1963,8 @@ def _send_confirm_sms(session_id: str, tenant_id, bookings: list,
 async def run_and_apply_email_verification(session_id: str, tenant_id=None,
                                            interaction_id=None, turns=None,
                                            client_id=None, bookings=None,
-                                           caller_number=None) -> dict:
+                                           caller_number=None,
+                                           classification=None) -> dict:
     """A hívás végén futó vezérlő: harness verdict → email-küldés.
     green → visszaigazolás MOST; non_green → dupla opt-in; error/no_recording →
     legacy azonnali küldés (fail-open). A booking-adatokat alapból a
@@ -1989,6 +1990,25 @@ async def run_and_apply_email_verification(session_id: str, tenant_id=None,
         bookings = tools.pop_session_bookings(session_id)
     if not caller_number:
         caller_number = (tools.get_caller_phone() or "")
+
+    # ── FOGLALÁS-EGYEZTETÉS (2026-10-09, 'foglaltam'-tool nélkül incidens) ──
+    # Ha a klasszifikáció foglalást állít, de a hívásban nem lett regisztrálva
+    # foglalás (az agent a book_meeting meghívása nélkül mondott 'rögzítem'),
+    # a harness determinisztikusan javít: konkrét megerősített időpont esetén
+    # pótolja az eseményt (ugyanazokkal a kapukkal), egyébként őszintén
+    # újraklasszifikálja a sort. Fail-open: hibánál a régi út fut.
+    if not bookings and classification:
+        try:
+            from booking_reconcile import reconcile_enabled, reconcile_missing_booking
+            if reconcile_enabled():
+                _reconciled = await asyncio.to_thread(
+                    reconcile_missing_booking, session_id, tenant_id, turns,
+                    classification, caller_number, client_id, interaction_id)
+                if _reconciled:
+                    bookings = _reconciled
+        except Exception as _rc_err:
+            logger.warning(f"foglalás-egyeztetés indítása sikertelen (fail-open): {_rc_err}")
+
     booking_email = (bookings[0].get("attendee_email") or "") if bookings else ""
     booking_name = (bookings[0].get("attendee") or "") if bookings else ""
 

@@ -937,6 +937,7 @@ SZABÁLYOK:
                             "caller_number": (get_caller_phone() or ""),
                             "turns": (recorder.turns if recorder and recorder.turns else []),
                             "bookings": _verify_bookings,
+                            "classification": classification,
                         }).encode("utf-8")
                         import urllib.request as _ureq
                         _req = _ureq.Request(

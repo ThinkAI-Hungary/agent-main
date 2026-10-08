@@ -6616,6 +6616,7 @@ async def internal_run_email_verify(request: Request):
                 client_id=body.get("client_id"),
                 bookings=body.get("bookings") or None,
                 caller_number=body.get("caller_number") or None,
+                classification=body.get("classification") or None,
             )
             logger.info("HTTP-triggeres email-ellenőrzés kész (%s) → %s",
                         session_id, verdict.get("status"))
