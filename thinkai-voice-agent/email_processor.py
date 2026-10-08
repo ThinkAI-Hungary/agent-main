@@ -665,12 +665,23 @@ A lehetséges alert_tags értékek:
 - "callback": ha telefonos visszahívást kérnek
 - "recurring": ha egy gyakori ismétlődő hibát/kérdést vetnek fel.
 
-A "secondary_tags" mező: válaszd ki azokat a másodlagos címkéket, amelyek relevánsak az interakcióra.
-Lehetséges értékek (kanonikus címkekör — PONTOSAN így, egybeírva/szóközzel ahogy itt áll):
-- "árkérdés": ha az ügyfél árról, díjakról, kedvezményekről érdeklődik
-- "kampánylead": ha az ügyfél egy kampányra/akcióra reagált
-- "potenciális ügyfél": ha az ügyfél érdeklődik a szolgáltatások iránt, de még nem foglalt időpontot
-Ha egyik sem releváns, legyen üres lista [].
+A "secondary_tags" mező: a következő SZIGORÚ definíciók szerint válassz címkéket
+(félreklasszifikáció-elleni szabályok, 2026-10-08). Kanonikus címkekör — PONTOSAN
+így, egybeírva/szóközzel ahogy itt áll:
+- "árkérdés": KIZÁRÓLAG akkor, ha az ügyfél a LEVELÉBEN ténylegesen árat, díjat
+  vagy költséget kérdezett (pl. „mennyibe kerül?", „mennyi a treating ára?").
+  A kezelés/szolgáltatás iránti általános érdeklődés (pl. All-on-4, implantáció)
+  NEM árkérdés — akkor sem, ha a válaszodban árinformáció szerepel.
+- "kampánylead": KIZÁRÓLAG akkor, ha a KAMPÁNYOK blokkban van AKTUÁLIS, ÉRVÉNYES
+  kampány ÉS az ügyfél a levelében kifejezetten ahhoz a kampányhoz/akcióhoz
+  kapcsolódóan érdeklődik (pl. az akció nevét vagy ajánlatát említi). Ha nincs
+  aktív kampány, vagy a levél más témájú, SOHA ne add ezt a címkét.
+- "potenciális ügyfél": ha az ügyfél a szolgáltatásokkal vagy a fogászattal
+  kapcsolatban érdeklődik, de a LEVELÉBEN NINCS foglalási szándék (se új, se
+  módosítandó időpont). Ha időpontot kér vagy foglalni szeretne, ez NEM
+  „potenciális ügyfél".
+Ha egyik feltétel sem teljesül, a "secondary_tags" legyen üres lista []. Bizonytalan
+esetben NE válassz címkét.
 """
 
     client = genai.Client(api_key=google_key)
