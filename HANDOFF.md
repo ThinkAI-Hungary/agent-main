@@ -1,4 +1,14 @@
-# HANDOFF — eaisyDesk | 2026-09-14
+# HANDOFF — eaisyDesk | 2026-10-09 (kampány-üzemeltetés)
+
+## 📣 TELEFON-KAMPÁNY: SCRIPT-JÓVÁHAGYÁS + HÍVÁSI IDŐABLAK (`e4d08e7`, 2026-10-09, staging — élőben verifikálva)
+
+A kampány-üzemeltetési research (CAMPAIGN_OPERATION_RESEARCH_REPORT.md) user-döntései: (1) csak marketing-nyilatkozatott ügyfelek kerülnek a rendszerbe — felelősség a rendelőé; (2) jóváhagyás/indítás: **csak admin**; (3) extra költségkeret-építés egyelőre nem kell, a funkció működjön; (4) automatikus úrahívás **ne legyen** (a dedup marad szigorú: minden kísérlet záról).
+
+- **Script-jóváhagyás (admin)**: `POST /admin/api/campaigns/{id}/approve-script` → `APPROVED:<iso>|` prefix az `ai_instructions` elejére (idempotens, séma nélkül — mint `SCHED:`/`SUBJECT:`). A **start-endpoint telefon csatornán APPROVED nélkül 409-t dob**. UI: a részletpanelen „Script jóváhagyása" gomb (telefon csatornánál, jóváhagyatlan scriptnél).
+- **Jóváhagyás-telefon ág: CSAK admin** (`approve_approval_api` — a member-ed email-piszkozatokhoz maradt, a telefon-ág 403-mal zár).
+- **Hívási időablak**: telefon-kampány csak **H–P 09:00–17:00 Budapest** között hív; korláton kívül a loop 5 percenként újraellenőriz és VÁRAKOZIK (a kampány Aktív marad, automatikusan folytatódik). Hívásközi szünet 15 → **60 mp**.
+- **Élő verifikáció (API-tesztsorozat)**: jóváhagyás nélküli start → **409** üzenettel ✓; approve-script → 200 ✓; jóváhagyott start → Aktív, és az időablakon kívül **várakozik, hívás nem megy ki** ✓. Teszt-kampányok törölve.
+- **Érintett kutatási leletek, amik NEM készültek el (nyitottak)**: UI státusz-leképezés `Részben sikeres/Sikertelen`-re (CampaignMenu/CampaignDetailPanel/OutboundPage — a „Sikertelen" kampány most 'Tervezet'-ként látszik!), SMS szellemscsatorna eltávolítása a wizardból, member-telefon-ág zárása a jóváhagyó végponton **MEGTÖRTÉNT** ✓, call_attempts prod-migráció (fájl kész, prod futtatás user-jóváhagyással), eredmény-nézet a UI-ban.
 
 ## 🧰 KIMENŐ HÍVÁS MEGBÍZHATÓSÁG — STAGINGRE MEGÉPÍTVE (`4af701b` + `02b2eb6`, 2026-10-09)
 
