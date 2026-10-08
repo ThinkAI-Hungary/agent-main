@@ -1,5 +1,12 @@
 # HANDOFF — eaisyDesk | 2026-09-14
 
+## 🔀 KÉTSPROMPTOS ÍGÉRET + 'EMAIL MEGGERŐSÍTVE' SOR (`d95a80f`, 2026-10-09, staging+prod — EL)
+
+User-jelzés (staging): (a) az agent 'visszaigazoló emailt küldünk, meg SMS-t is fog kapni' — melyik és milyen sorrendben? (b) az interakciós listán önálló 'Email cím megerősítve / Időpont / Lezárt / Nincs teendő' sor jelent meg értelmetlenül. Gyökér + fix:
+- **(a)** a 4. szabály BELSŐ ELLENTMONDÁSA volt: a régi nyitás ('erre a címre fogjuk küldeni a hivatalos visszaigazolást') + az új SMS-first utasítás — az agent mindkettőt ígérte. Most: egyetlen sorrend a promptban — (1) SMS a rögzített címmel → (2) CSAK jóváhagyás után a hivatalos visszaigazoló email (naptárfájl + lemondási link); az azonnali email-ígéret explicit tilos. (A DB-beli system_prompt sablon tiszta volt, onnan nem jött.)
+- **(b)** a `/api/public/verify-email` kattintás-napló `ugytipus: Időpont`-tal írt 'Lezárt / Nincs teendő' időpont-sorokat — pedig csak az email cím lett jóváhagyva. Most: `ugytipus: Egyéb` (a sor tartalma, eredménye változatlanul hasznos).
+409/409 teszt zöld.
+
 ## 🧰 FOGLALÁS-EGYEZTETÉSI HARNESS (`d1425ec`, 2026-10-09, staging+prod — EL) — a 'foglaltam'-tool nélkül eset determinisztikus fedése
 
 Az 5. szabály (prompt) MELLETT most már kódoldali háló is van: hívás végén, ha a klasszifikáció foglalást állít ('Új időpont'), de a `book_meeting` nem futott, a `booking_reconcile` a leiratból (Gemini flash, temperature=0) ellenőrzi, hogy az agent KONKRÉT időpontot erősített-e meg:
