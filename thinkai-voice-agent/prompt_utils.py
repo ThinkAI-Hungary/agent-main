@@ -133,6 +133,8 @@ def _format_patient_rules(pi: dict) -> str:
         else:
             _parts = []
         needs_txt = ", ".join(_parts) if _parts else "preferált dátum, napszak"
+        # 2026-10-08: a név + email ALWAYS-kérés — a visszaigazoló SMS/email ezekre megy
+        needs_txt = "a hívó NEVE és E-MAIL CÍME (a visszaigazoláshoz kellenek), továbbá: " + needs_txt
         return ("0. CSAK IGÉNYRÖGZÍTÉS ÉS ÁTADÁS: konkrét szabad időpontot NE AJÁNLJ FEL, "
                 "időpontot SOHA ne foglalj, ne erősíts meg, és NE ígérj visszaigazolást "
                 "(még preferált időpont megjelölését se erősítsd meg — a naptárhoz a te "
@@ -477,6 +479,14 @@ def _format_eljaras_rules(pi: dict | None = None, channel: str | None = None) ->
         "kapcsolatot'. ÉLŐ ÁTKAPCSOLÁS NINCS: soha ne mondd, hogy 'tartsa a "
         "vonalat', 'most kapcsolom' vagy 'várja a hívást' — a kolléga később, "
         "saját telefonszámról hívja vissza az ügyfelet."
+    )
+    lines.append(
+        "- KAPCSOLATADAT-BEKÉRÉS igényrögzítéskor (2026-10-08): amikor az igényt "
+        "rögzíted és átadsd embernek, a hívó NEVÉT és E-MAIL CÍMÉT mindig kérdezd "
+        "meg, ha még nincsenek meg — a visszaigazoló SMS és email ezekre az "
+        "adatokra megy. Az e-mail címet olvasd vissza ellenőrzésképp, és ha "
+        "bizonytalan (zajos vonal, betűzés), kérdd újra. Név nélkül vagy érvényes "
+        "e-mail cím nélkül NE zárd le az igényt."
     )
     lines.append(
         "- PANASZ esetén MINDIG: ne vitatkozz, ne adj ígéreteket, fogadd el a "
