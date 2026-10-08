@@ -1865,8 +1865,8 @@ def _handoff_mode_active() -> bool:
         return False
 
 
-async def _send_handoff_confirm_sms(session_id: str, tenant_id, caller_number: str,
-                                    candidate_email: str, client_id=None) -> dict:
+def _send_handoff_confirm_sms(session_id: str, tenant_id, caller_number: str,
+                              candidate_email: str, client_id=None) -> dict:
     """Handoff igényrögzítés-visszaigazoló SMS: NINCS naptári időpont — a
     rögzített email címet erősíti meg a hívó a linken (a jóváhagyás után megy
     a 'rögzítettük' email). Vissza: {"ok": ..., "status": ...} — sosem dob."""

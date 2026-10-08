@@ -560,3 +560,46 @@ def test_handoff_kikapcsolva_regi_tabla(handoff_env, monkeypatch):
     monkeypatch.setattr(evh, "run_harness", lambda **kw: _verdict_handoff(), raising=False)
     asyncio.run(evh.run_and_apply_email_verification("sess-norm"))
     assert len(handoff_env.optin) == 1
+
+
+def test_handoff_valodi_kuldo_fuggveny_sync(monkeypatch):
+    """REGRESSZIÓ (Kereplő Edward-incidens): a _send_handoff_confirm_sms-t
+    VALÓDI (nem stubolt) függvényként kell hívni — ha valaki újra async-ndef
+    await nélkül mintát gyárt, a coroutine soha nem fut le és az SMS elvész.
+    A küldést ALACSONYABB szinten (sms_sender.send_sms) stuboljuk."""
+    import sms_sender as real_sms_sender
+    import email_confirm_tokens as real_ect
+
+    sent = []
+
+    def fake_send(phone, body, session_id=None, tenant_id=None, purpose=""):
+        sent.append({"phone": phone, "body": body, "purpose": purpose})
+        return {"ok": True, "status": "sent", "sid": "SMx"}
+
+    monkeypatch.setattr(real_sms_sender, "send_sms", fake_send, raising=False)
+    monkeypatch.setattr(real_ect, "create_confirm_token",
+                        lambda **kw: {"ok": True, "token": "Ab12Cd34Ef56"}, raising=False)
+    res = evh._send_handoff_confirm_sms(
+        "sess-edward", "tenant-uuid", "+36304677722", "mr.byus@gmail.com", client_id=391)
+    assert res.get("ok") is True
+    assert len(sent) == 1 and sent[0]["purpose"] == "handoff_confirm"
+    assert "mr.byus@gmail.com" in sent[0]["body"]
+    assert "kereset rogzitve" in sent[0]["body"]
+
+
+def test_handoff_dontesi_tabba_valodi_fuggvennyel(handoff_env, monkeypatch):
+    """A döntési tábla a VALÓDI _send_handoff_confirm_sms-sel fut végig
+    (az alacsony szintű küldő stubolva) — kivédje az async/sync elcsúszást."""
+    import sms_sender as real_sms_sender
+    import email_confirm_tokens as real_ect
+
+    sent = []
+    monkeypatch.setattr(real_sms_sender, "send_sms",
+                        lambda phone, body, **kw: sent.append({"phone": phone}) or
+                        {"ok": True, "status": "sent"}, raising=False)
+    monkeypatch.setattr(real_ect, "create_confirm_token",
+                        lambda **kw: {"ok": True, "token": "Ab12Cd34Ef56"}, raising=False)
+    monkeypatch.setattr(evh, "run_harness", lambda **kw: _verdict_handoff(), raising=False)
+    asyncio.run(evh.run_and_apply_email_verification("sess-edward2"))
+    assert len(sent) == 1
+    assert handoff_env.optin == []
