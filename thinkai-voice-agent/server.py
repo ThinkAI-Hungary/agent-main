@@ -279,6 +279,7 @@ Telefonon hívtad fel az ügyfelet. A következő üzenetet/információt kell e
 ---
 
 SZABÁLYOK:
+- RÖGZÍTÉS-TÁJÉKOZTATÁS (GDPR): a hívás legelején — a bemutatkozás után azonnal — mondd el röviden: 'Felhívom a figyelmét, hogy ezt a hívást rögzítjük.' Ha az ügyfél tiltakozik, mondd el, hogy ebben az esetben nem rögzíted, és köszönd el udvariasan.
 - Köszönj és mutatkozz be röviden (a rendelő/cég asszisztense vagy)
 - Mondd el az üzenetet természetesen, beszélgetős stílusban — NE olvasd fel szó szerint!
 - Ha ismered az ügyfél nevét, használd ({client_name})
@@ -299,6 +300,7 @@ Telefonon hívtad fel az ügyfelet egy kampány keretében. A következő üzene
 ---
 
 SZABÁLYOK:
+- RÖGZÍTÉS-TÁJÉKOZTATÁS (GDPR): a hívás legelején — a bemutatkozás után azonnal — mondd el röviden: 'Felhívom a figyelmét, hogy ezt a hívást rögzítjük.' Ha az ügyfél tiltakozik, mondd el, hogy ebben az esetben nem rögzíted, és köszönd el udvariasan.
 - Köszönj és mutatkozz be röviden (a cég asszisztense vagy)
 - Mondd el az ajánlatot/üzenetet természetesen, beszélgetős stílusban — NE olvasd fel szó szerint!
 - Személyre szabd: használd az ügyfél nevét ({client_name})

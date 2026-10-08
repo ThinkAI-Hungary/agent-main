@@ -32,6 +32,7 @@ import asyncio
 import database as db
 import email_processor
 import telnyx_provision
+from telnyx_provision import classify_sip_error as _classify_sip_error
 from classifier import classify_interaction
 from anthropic import AsyncAnthropic
 from email_confirm_page import (
@@ -4938,6 +4939,18 @@ async def voice_provision(payload: VoiceProvisionRequest, _admin: dict = Depends
         await asyncio.to_thread(telnyx_provision.associate_number, api_key, number_id, conn_id)
         results["number_associated"] = True
 
+        # HU whitelist a kimenő profilon (2026-10-09 — a US/CA default miatt
+        # magyar számra SIP 403 jött kimenő hívásnál). Idempotens, fail-open.
+        try:
+            ovp_id = await asyncio.to_thread(
+                telnyx_provision.ensure_outbound_voice_profile,
+                api_key, db.get_credential(tid, "telnyx_outbound_profile_id", default=None),
+                f"eaisyDesk-{slug}")
+            await asyncio.to_thread(telnyx_provision.ensure_whitelist, api_key, ovp_id)
+            results["ovp_whitelist"] = "HU"
+        except Exception as _wl_err:
+            results["ovp_whitelist"] = f"kihagyva: {_wl_err}"
+
         # LiveKit: PER-TENANT inbound trunk + dispatch rule (Dentors-minta).
         # A shared trunk numbers[] utólagos bővítése a SIP data-plane-en NEM
         # propagál megbízhatóan, és a shared trunk dispatch rule-ja más
@@ -5241,6 +5254,10 @@ async def sip_outbound_call(req: SipCallRequest, _auth = Depends(require_admin))
 
         await lk.aclose()
 
+        # 2026-10-09: sikeres kimenő hívás KÍSÉRLETE is rögzítésre kerül
+        db.create_call_attempt(db.get_current_tenant(), phone, "answered",
+                               scenario="script", session_id=room_name)
+
         return {
             "ok": True,
             "room": room_name,
@@ -5249,7 +5266,16 @@ async def sip_outbound_call(req: SipCallRequest, _auth = Depends(require_admin))
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Hívás sikertelen: {str(e)}")
+        result = _classify_sip_error(e)
+        try:
+            db.create_call_attempt(db.get_current_tenant(), phone, result,
+                                   scenario="script", detail=str(e)[:400])
+        except Exception:
+            pass
+        # strukturált válasz (nem 500): a hívás-eredmény kategóriát a hívó UI lássa
+        return JSONResponse(status_code=502, content={
+            "ok": False, "result": result, "detail": str(e)[:400],
+        })
 
 
 
@@ -6275,6 +6301,16 @@ async def _run_phone_campaign(campaign: dict):
 
     processed = 0
     failed = 0
+    skipped = 0
+    tenant_id_now = db.get_current_tenant()
+
+    # Napi híváslimit (2026-10-09 — korlátlanul futott végig a lista; költség-védelem)
+    daily_limit = int(os.getenv("OUTBOUND_DAILY_CALL_LIMIT", "200") or "200")
+    daily_used = db.count_call_attempts_today(tenant_id_now, scenario="campaign")
+    if daily_used >= daily_limit:
+        print(f"[PhoneCampaign] Napi kimenő hívás-limit elérve ({daily_used}/{daily_limit}), kampány szünetel: {campaign_name}")
+        db.update_campaign_status(campaign_id, "Megállítva", processed_count=0)
+        return
 
     for client in clients:
         # Check if campaign was stopped
@@ -6282,6 +6318,16 @@ async def _run_phone_campaign(campaign: dict):
         if not current or current.get("status") == "Megállítva":
             print(f"[PhoneCampaign] Kampány megállítva: {campaign_name}")
             return
+
+        if processed + failed >= daily_limit - daily_used:
+            print(f"[PhoneCampaign] Napi limit elérve ({daily_limit}), kampány szünetel: {campaign_name}")
+            db.update_campaign_status(campaign_id, "Megállítva", processed_count=processed)
+            return
+
+        # Dedup (2026-10-09): kampány-újraindítás ne úrahívja a már hívott ügyfelet
+        if db.campaign_already_called(campaign_id, client.get("id")):
+            skipped += 1
+            continue
 
         custom_data = client.get("custom_data", {})
         if isinstance(custom_data, str):
@@ -6369,6 +6415,9 @@ async def _run_phone_campaign(campaign: dict):
 
             processed += 1
             db.update_campaign_status(campaign_id, "Aktív", processed_count=processed)
+            db.create_call_attempt(tenant_id_now, phone, "answered", scenario="campaign",
+                                   campaign_id=campaign_id, client_id=client.get("id"),
+                                   session_id=session_id)
             print(f"[PhoneCampaign] Hivas inditva ({processed}/{len(clients)}): {client_name} -> {phone}")
 
             # Wait between calls (15 sec) to avoid overwhelming + let calls finish
@@ -6376,11 +6425,16 @@ async def _run_phone_campaign(campaign: dict):
 
         except Exception as e:
             failed += 1
-            print(f"[PhoneCampaign] Hivas sikertelen ({client_name} -> {phone}): {e}")
+            _result = _classify_sip_error(e)
+            db.create_call_attempt(tenant_id_now, phone, _result, scenario="campaign",
+                                   campaign_id=campaign_id, client_id=client.get("id"),
+                                   detail=str(e)[:400])
+            print(f"[PhoneCampaign] Hivas sikertelen ({client_name} -> {phone}) [{_result}]: {e}")
             await asyncio.sleep(3)
 
-    db.update_campaign_status(campaign_id, "Befejezett", processed_count=processed)
-    print(f"[PhoneCampaign] Kampany befejezve: {campaign_name} - {processed} hivas, {failed} sikertelen")
+    _final = "Befejezett" if failed == 0 else ("Részben sikeres" if processed else "Sikertelen")
+    db.update_campaign_status(campaign_id, _final, processed_count=processed)
+    print(f"[PhoneCampaign] Kampany befejezve: {campaign_name} - {processed} hivas, {failed} sikertelen, {skipped} mar hivva")
 
 
 @app.get('/api/public/cancel')

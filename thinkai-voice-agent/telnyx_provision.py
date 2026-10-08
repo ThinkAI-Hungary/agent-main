@@ -13,6 +13,8 @@ import secrets
 import urllib.request
 import urllib.error
 
+from loguru import logger
+
 TELNYX_BASE = "https://api.telnyx.com/v2"
 _HEADERS_UA = {"User-Agent": "Mozilla/5.0"}  # Cloudflare-védett hívásokhoz kell
 _TIMEOUT = 20
@@ -85,35 +87,84 @@ def list_numbers(api_key: str) -> list[dict]:
     return out
 
 
+DEFAULT_WHITELISTED_DESTINATIONS = ["HU"]
+
+
+def classify_sip_error(exc: Exception) -> str:
+    """A create_sip_participant kivételéből hívás-eredmény kategória
+    (2026-10-09: eddig minden hiba generikus 500/'failed' volt, DB nélkül).
+    web_server importálja a kimenő hívási végpontokhoz."""
+    msg = str(exc or "").lower()
+    if "not included in whitelisted" in msg or "whitelisted countries" in msg:
+        return "rejected_whitelist"
+    if "486" in msg or "busy" in msg:
+        return "busy"
+    if "404" in msg and "not found" in msg:
+        return "invalid_number"
+    if "no answer" in msg or "did not answer" in msg or "timeout" in msg or "unavailable" in msg:
+        return "no_answer"
+    if "declin" in msg or "rejected" in msg or "603" in msg:
+        return "rejected"
+    return "failed"
+
+
 def ensure_outbound_voice_profile(api_key: str, saved_id: str | None, name: str) -> str:
-    """Kimenő hívási profil — ha van elmentett ID, azt adja vissza."""
+    """Kimenő hívási profil — ha van elmentett ID, azt adja vissza.
+    2026-10-09: az új profilok a Telnyx alapértelmezés szerint csak USA/CAN
+    hívásra vannak engedélyezve (magyar számra SIP 403) — create-nél rögtön
+    HU whitelist megy rá."""
     if saved_id:
+        ensure_whitelist(api_key, saved_id)
         return saved_id
     data = _request("POST", "/outbound_voice_profiles", api_key, {
         "name": name,
         "traffic_type": "conversational",
         "service_plan": "global",
+        "whitelisted_destinations": DEFAULT_WHITELISTED_DESTINATIONS,
     })
     return data.get("data", {}).get("id", "")
 
 
+def ensure_whitelist(api_key: str, ovp_id: str,
+                     destinations: list | None = None) -> list | None:
+    """Az OVP whitelisted_destinations tartalmazzon legalább HU-t (idempotens).
+    Meglévő értékhez HOZZÁAD (nem írja felül — más forgalom nem törik). None,
+    ha az API nem engedi (portál-munka marad). Sosem dob."""
+    try:
+        want = sorted(set(destinations or DEFAULT_WHITELISTED_DESTINATIONS) | {"HU"})
+        cur = _request("GET", f"/outbound_voice_profiles/{ovp_id}", api_key) \
+            .get("data", {})
+        current = cur.get("whitelisted_destinations") or []
+        if set(want).issubset(set(current)):
+            return current
+        merged = sorted(set(current) | set(want))
+        patched = _request("PATCH", f"/outbound_voice_profiles/{ovp_id}", api_key,
+                           {"whitelisted_destinations": merged}).get("data", {})
+        result = patched.get("whitelisted_destinations")
+        logger.info(f"Telnyx OVP {ovp_id} whitelisted_destinations → {result}")
+        return result
+    except Exception as e:
+        logger.warning(f"ensure_whitelist hiba (fail-open): {e}")
+        return None
+
+
 def ensure_fqdn_connection(api_key: str, saved_id: str | None, ovp_id: str, name: str) -> str:
     """FQDN connection (TCP, +E.164 ANI/DNIS formátumok). Visszaad: connection_id.
-    NOTE: a CreateFqdnConnection sémához NEM tartoznak user_name/password mezők
-    (azok a credential_connections-hoz valók) — a digest-auth külön FQDN auth
-    endpointokon kezelhető, ha egyszer szükség lesz rá."""
+    2026-10-09: ha van ovp_id, a connection LÉTREHOZÁSKOR rá is linkelődik
+    (korábban None maradt → az account-default OVP szabályozott, USA/CAN-only
+    whitelist 403-at adott magyar számra)."""
     if saved_id:
+        if ovp_id:
+            _request("PATCH", f"/fqdn_connections/{saved_id}", api_key,
+                     {"outbound_voice_profile_id": ovp_id})
         return saved_id
-    # V1: outbound profile NEM megy a create-be — a Telnyx megköveteli, hogy a
-    # connection előbb teljesen konfigurált legyen (FQDN rekord), és a
-    # 'short duration' profilokat 422-vel elutasítja call-control connectionnél.
-    # Az ovp_id V2-ben PATCH-elhető rá, miután a FQDN felkerült.
     data = _request("POST", "/fqdn_connections", api_key, {
         "active": True,
         "anchorsite_override": "Latency",
         "connection_name": name,
         "inbound": {"ani_number_format": "+E.164", "dnis_number_format": "+e164"},
         "transport_protocol": "TCP",
+        **({"outbound_voice_profile_id": ovp_id} if ovp_id else {}),
     })
     return data.get("data", {}).get("id", "")
 

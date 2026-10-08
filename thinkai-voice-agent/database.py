@@ -3102,6 +3102,56 @@ DEFAULT_OUTBOUND_AUTOMATIONS = [
      "message_template": "Kedves {nev}!\n\nLemondta korábbi időpontját ({szolgaltatas}). Szeretne új időpontot foglalni?\n\nVárjuk visszajelzését!\n\nÜdvözlettel,\nA csapat"},
 ]
 
+def create_call_attempt(tenant_id, phone: str, result: str, scenario: str = "campaign",
+                        campaign_id=None, client_id=None, session_id=None,
+                        detail: str = "") -> bool:
+    """Kimenő hívási KÍSÉRLET rögzítése (2026-10-09): sikertelen kampány-hívások
+    eddig DB nélkül 'elillantak' és a kampány 'Befejezett'-re állt. Fail-open."""
+    try:
+        payload = {
+            "tenant_id": tenant_id, "phone": phone, "result": result,
+            "scenario": scenario, "detail": (detail or "")[:500],
+        }
+        if campaign_id:
+            payload["campaign_id"] = campaign_id
+        if client_id:
+            payload["client_id"] = client_id
+        if session_id:
+            payload["session_id"] = session_id
+        _tenant_eq(supabase.table("call_attempts").insert(payload), tenant_id).execute()
+        return True
+    except Exception as e:
+        logger.warning(f"create_call_attempt hiba (fail-open): {e}")
+        return False
+
+
+def count_call_attempts_today(tenant_id, scenario: str | None = None) -> int:
+    """A mai napi kimenő hívási kísérletek száma tenantonként (limit-védelemhez)."""
+    try:
+        today = datetime.now(ZoneInfo("Europe/Budapest")).strftime("%Y-%m-%d")
+        q = _tenant_eq(supabase.table("call_attempts").select("id", count="exact"), tenant_id)
+        q = q.gte("created_at", f"{today}T00:00:00+02:00")
+        if scenario:
+            q = q.eq("scenario", scenario)
+        res = q.execute()
+        return getattr(res, "count", None) or 0
+    except Exception as e:
+        logger.warning(f"count_call_attempts_today hiba (fail-open): {e}")
+        return 0
+
+
+def campaign_already_called(campaign_id: int, client_id: int) -> bool:
+    """Dedup: ebbe a kampányba ezt az ügyfelet már hívták (bármilyen eredménnyel)
+    — kampány-újraindítás ne úrahívja. Fail-open (hiba → False = hívható)."""
+    try:
+        res = (supabase.table("call_attempts").select("id", count="exact")
+               .eq("campaign_id", campaign_id).eq("client_id", client_id).execute())
+        return (getattr(res, "count", None) or 0) > 0
+    except Exception as e:
+        logger.warning(f"campaign_already_called hiba (fail-open): {e}")
+        return False
+
+
 def get_outbound_automations() -> list[dict]:
     if not supabase: return []
     try:
