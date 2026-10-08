@@ -112,6 +112,10 @@ async def entrypoint(ctx: JobContext):
     # késleltetéssel érkezik — VÁRAKOZÓS ciklus kell, különben a prompt a
     # telefonszám nélkül épül fel (gemini-3.1 nem enged mid-session
     # instruction-update-et), és az agent újra elkéri a számot.
+    # ELŐZŐ hívó száma itt törlődik (anti-leak) — a 2026-10-08-ig a korai
+    # feloldás UTÁN állt, és törölte az imént megtalált számot → a verify-run
+    # üres hívószámmal futott → SMS helyett fallback opt-in email ment.
+    set_caller_phone("")    # ne szivárogjon át az ELŐZŐ hívó telefonszáma
     early_caller_phone = ""
     try:
         import re as _re_early
@@ -144,7 +148,6 @@ async def entrypoint(ctx: JobContext):
     db.init_db()
     set_session_id(session_id)
     reset_session_alerts()  # EAISY-241: tiszta kontextus minden új sessionnél
-    set_caller_phone("")    # ne szivárogjon át az ELŐZŐ hívó telefonszáma
 
     # Log call type + detect campaign calls
     is_outbound_call = room_name.startswith("call-out-")
