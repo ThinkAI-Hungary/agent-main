@@ -1,5 +1,13 @@
 # HANDOFF — eaisyDesk | 2026-09-14
 
+## 🧰 FOGLALÁS-EGYEZTETÉSI HARNESS (`d1425ec`, 2026-10-09, staging+prod — EL) — a 'foglaltam'-tool nélkül eset determinisztikus fedése
+
+Az 5. szabály (prompt) MELLETT most már kódoldali háló is van: hívás végén, ha a klasszifikáció foglalást állít ('Új időpont'), de a `book_meeting` nem futott, a `booking_reconcile` a leiratból (Gemini flash, temperature=0) ellenőrzi, hogy az agent KONKRÉT időpontot erősített-e meg:
+- **igen** → az esemény pótolva ugyanazokkal az üzleti kapukkal (`booking_mode` kapu, nyitvatartás/ütközés `_validate_slot`, cím-normalizálás, ellátó + időtartam feloldás, múltbeli dátum tiltás) → a foglalás-lista visszatöltődik → az SMS/email-visszaigazolás rendes foglalásként fut (a mai hibajelenség így öngyógyító);
+- **nem / ütközés / múltbeli** → a klasszifikáció őszintén 'Foglalási szándék rögzítve / Nyitott / Időpont véglegesítése'-re javítódik (sosem marad hamis 'Új időpont / Lezárt');
+- handoff/none módban NEM pótol foglalást (ott az igényrögzítés a helyes út); `BOOKING_RECONCILE=0` kill-switch; mindenhol fail-open.
+Bekötés: worker → HTTP-payload `classification` mező → `run_and_apply_email_verification(classification=…)`. +7 teszt (409/409 zöld).
+
 ## 📞 'FOGLALTAM'-TOOL NÉLKÜL (`7e40f82`, 2026-10-09, staging+prod — EL)
 
 A staging-teszthívásnál (Rivergate, auto mód) az agent szóban „rögzítem az időpontot"-ot mondott, a `book_meeting` eszközt **soha nem hívta** → naptárba semmi sem került; foglalás nélkül az SMS-visszaigazolás helyesen nem indult (csak opt-in email ment — az ügyfél meg is kapta, aláírta). Ez a 09-21-es hibamód újraélése — a régi szigorítás csak a MÓDOSÍTÁS/LEMONDÁS-t fedte. Fix: **5. szabály** — új foglalást kizárólag a `book_meeting` SIKERES visszajelzése után lehet kimondani (a tool hívása nélkül „hamis ígéret", tilos). Megjegyzés: a klasszifikátor ennek a hívásnak ellenére „Új időpont / Lezárt / autonomous"-t állapított meg — az agent (hamis) megerősítését hitte el; ha újra előjön, a klasszifikátor promptját is szigorítani kell („Új időpont csak tool-visszajelzés alapján").
