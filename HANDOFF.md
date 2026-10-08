@@ -1,5 +1,9 @@
 # HANDOFF — eaisyDesk | 2026-09-14
 
+## 📞 'FOGLALTAM'-TOOL NÉLKÜL (`7e40f82`, 2026-10-09, staging+prod — EL)
+
+A staging-teszthívásnál (Rivergate, auto mód) az agent szóban „rögzítem az időpontot"-ot mondott, a `book_meeting` eszközt **soha nem hívta** → naptárba semmi sem került; foglalás nélkül az SMS-visszaigazolás helyesen nem indult (csak opt-in email ment — az ügyfél meg is kapta, aláírta). Ez a 09-21-es hibamód újraélése — a régi szigorítás csak a MÓDOSÍTÁS/LEMONDÁS-t fedte. Fix: **5. szabály** — új foglalást kizárólag a `book_meeting` SIKERES visszajelzése után lehet kimondani (a tool hívása nélkül „hamis ígéret", tilos). Megjegyzés: a klasszifikátor ennek a hívásnak ellenére „Új időpont / Lezárt / autonomous"-t állapított meg — az agent (hamis) megerősítését hitte el; ha újra előjön, a klasszifikátor promptját is szigorítani kell („Új időpont csak tool-visszajelzés alapján").
+
 ## ▶️ MEMBER DASHBOARD — HIÁNYZÓ HÍVÁSVISSZAHALLGATÁS (`64fe8b1`, 2026-10-09, staging+prod — EL)
 
 User-jelzés: „Windowson a member profiloknál nincs call-visszahallgatás". Gyökér (OS-FÜGGETLEN hiba volt): a MemberDashboardPage sorfelépítése átadta a `sessionId`-t, de a `recording_url`-t és a `transcript_turns`-t NEM — a modál lejátszó-feltétele (`Telefon && recording_url && sessionId`) sosem teljesült a member dashboardon. Fix: a két mező átadva (`parseTranscriptTurns`-szel, mint az InteractionsPage-en). Megjegyzés: a „Windowson" megfigyelés véletlen egybeesés — a feltétel OS-független; a WAV-lejátszás minden platformon működik.
