@@ -466,6 +466,21 @@ async def check_calendar(
     """Naptár ellenőrzése a következő napokra."""
     logger.info(f"Checking calendar for next {days_ahead} days")
 
+    # ── IGÉNYRÖGZÍTÉS MÓD: a fogadó KÜLSŐ naptárat használ — a modell „vak" ──
+    # (2026-10-08 user-spec: a 391-es hívásban a modell egy MÁSIK ügyfél foglalt
+    # sávját a hívóhoz rendelte. Handoff/none módban a naptár-tartalom nem
+    # használható: a hívó által említett időpontot NE igazolja vissza.)
+    try:
+        if db.get_booking_mode() in ("handoff", "none"):
+            return ("IGÉNYRÖGZÍTÉS MÓD: a naptár-betekintés most nem elérhető (a fogadó "
+                    "külső naptárat használ, annak tartalmát nem ismerheted). A hívó által "
+                    "említett meglévő időpontot NE igazold vissza (se dátum, se óra, se "
+                    "szolgáltatás), és ne ajánlj fel időpontot — az igényt szó szerint "
+                    "rögzítsd, pl.: 'Foglalási szándékát ezzel együtt rögzítem: …', és "
+                    "jelezd, hogy az átütemezésről kollégáid döntenek.")
+    except Exception:
+        pass  # a mód olvasása sosem blokkolhat
+
     events = db.get_calendar_events()
     if not events:
         return f"A következő {days_ahead} napban nincsenek rögzített események — teljesen szabad a naptár!"
