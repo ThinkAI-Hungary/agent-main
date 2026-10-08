@@ -92,7 +92,8 @@ export default function OutboundPage() {
       'Tervezet': campaigns.filter(c => c.status === 'Vázlat').length,
       'Aktív': campaigns.filter(c => c.status === 'Aktív').length,
       'Ütemezett': campaigns.filter(c => c.status === 'Ütemezett').length,
-      'Lezárt': campaigns.filter(c => c.status === 'Befejezett' || c.status === 'Megállítva').length,
+      'Lezárt': campaigns.filter(c => c.status === 'Befejezett' || c.status === 'Megállítva'
+        || c.status === 'Részben sikeres' || c.status === 'Sikertelen').length,
     };
     return counts;
   }, [campaigns]);
@@ -101,7 +102,8 @@ export default function OutboundPage() {
   const filteredCampaigns = useMemo(() => {
     if (activeFilter === 'Összes') return campaigns;
     if (activeFilter === 'Lezárt') {
-      return campaigns.filter(c => c.status === 'Befejezett' || c.status === 'Megállítva');
+      return campaigns.filter(c => c.status === 'Befejezett' || c.status === 'Megállítva'
+        || c.status === 'Részben sikeres' || c.status === 'Sikertelen');
     }
     const targetStatus = STATUS_MAP[activeFilter];
     return campaigns.filter(c => c.status === targetStatus);
