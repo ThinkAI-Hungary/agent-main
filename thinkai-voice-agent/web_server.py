@@ -6766,7 +6766,10 @@ async def public_verify_email(token: str):
             approval_status="approved",
             client_id=client["id"] if client else None,
             classification={
-                "ugytipus": "Időpont",
+                # 2026-10-09: ez NEM időpont-művelet — az 'Időpont' típus
+                # 'Lezárt / Nincs teendő' sorokat gyártott az ügyféllistán,
+                # pedig csak az e-mail cím lett jóváhagyva
+                "ugytipus": "Egyéb",
                 "eredmeny": "Email cím megerősítve",
                 "statusz": "Lezárt",
                 "teendo": "Nincs további teendő",
