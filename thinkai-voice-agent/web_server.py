@@ -6353,12 +6353,21 @@ async def _run_sms_campaign(campaign: dict):
     changed = True
     while changed:
         changed = False
-        for prefix in ("SCHED:", "SUBJECT:", "MODE:"):
-            if instructions.startswith(prefix):
-                pipe_idx = instructions.find("|")
-                if pipe_idx >= 0:
-                    instructions = instructions[pipe_idx + 1:]
-                    changed = True
+        if instructions.startswith("SCHED:"):
+            pipe_idx = instructions.find("|")
+            if pipe_idx >= 0:
+                instructions = instructions[pipe_idx + 1:]
+                changed = True
+        if instructions.startswith("MODE:"):
+            colon_idx = instructions.find(":", 5)
+            if colon_idx >= 0:
+                instructions = instructions[colon_idx + 1:]
+                changed = True
+        if instructions.startswith("SUBJECT:"):
+            pipe_idx = instructions.find("|")
+            if pipe_idx >= 0:
+                instructions = instructions[pipe_idx + 1:]
+                changed = True
 
     clients = db.get_clients_by_ids(campaign.get("client_ids", []))
     if not clients:

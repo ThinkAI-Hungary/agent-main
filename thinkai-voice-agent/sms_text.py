@@ -78,9 +78,18 @@ def strip_hungarian_accents(text: str) -> str:
         return text or ""
 
 
+_TYPO_MAP = str.maketrans({
+    "—": "-", "–": "-", "‒": "-",
+    "\u201c": '"', "\u201d": '"', "\u2018": "'", "\u2019": "'",
+    "…": "...",
+})
+
+
 def sms_body_prep(text: str) -> str:
-    """Kampány-SMS véglegesítő: ékezet-levágás + többszörös szóközök rende.
+    """Kampány-SMS véglegesítő: ékezet-levágás + tipográfiai karakterek
+    (em-dash, okos-idézőjelek,ellipsis) GSM-7-barátra + szóközök rende.
     Vissza: (tiszta_szöveg, szegmensszám, kódolás)."""
-    clean = re.sub(r"[ \t]+", " ", strip_hungarian_accents(text or "")).strip()
+    clean = strip_hungarian_accents(text or "").translate(_TYPO_MAP)
+    clean = re.sub(r"[ \t]+", " ", clean).strip()
     segs, enc = count_segments(clean)
     return clean, segs, enc

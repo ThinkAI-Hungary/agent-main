@@ -41,5 +41,5 @@ def test_sms_text_ekezet_levagas():
     t = "Kedves Pál! Rögzítettük ő: ű — á, í, ó, ú."
     clean = strip_hungarian_accents(t)
     assert clean == "Kedves Pal! Rogzitettuk o: u — a, i, o, u."
-    body, segs, enc = sms_body_prep("  Kedves  Pál!  Ez   egy  teszt.")
-    assert body == "Kedves Pal! Ez egy teszt." and segs == 1 and enc == "GSM7"
+    body, segs, enc = sms_body_prep("  Kedves  Pál!  Ez   egy  teszt — vége…")
+    assert body == "Kedves Pal! Ez egy teszt - vege..." and segs == 1 and enc == "GSM7"
