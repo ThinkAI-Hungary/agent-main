@@ -240,6 +240,28 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
     return aiResult.trim() ? aiResult.trim().split(/\s+/).length : 0;
   }, [messageContent, aiResult, messageMode]);
 
+  // ── SMS szegmens-számláló (2026-10-09) — az sms_text.py count_segments portja.
+  // A küldés előtt a backend ékezet-levágást is csinál, ezért a számláló az
+  // ÉKEZET NÉLKÜLI változatra számol (GSM-7 = olcsóbb).
+  const smsSegments = useMemo(() => {
+    if (!selectedChannels.has('SMS')) return null;
+    const raw = (messageMode === 'manual' ? messageContent : aiResult)
+      .replace(/<[^>]*>/g, ' ').trim();
+    if (!raw) return null;
+    const map: Record<string, string> = {
+      'á': 'a', 'é': 'e', 'í': 'i', 'ó': 'o', 'ö': 'o', 'ő': 'o',
+      'ú': 'u', 'ü': 'u', 'ű': 'u',
+      'Á': 'A', 'É': 'E', 'Í': 'I', 'Ó': 'O', 'Ö': 'O', 'Ő': 'O',
+      'Ú': 'U', 'Ü': 'U', 'Ű': 'U',
+    };
+    const text = raw.replace(/[áéíóöőúüűÁÉÍÓÖŐÚÜŰ]/g, ch => map[ch] ?? ch);
+    const gsm7 = /^[@£$¥èéùìòÇ\nØø\rÅåΔ_ΦΓΛΩΠΨΣΘΞÆæßÉ !"#¤%&'()*+,\-./0-9:;<=>?¡ÄÖÑÜ§¿äöñüà^{}\\[~\]|€]*$/i;
+    const enc = gsm7.test(text) ? 'GSM7' : 'UCS2';
+    const per = enc === 'GSM7' ? 153 : 67;
+    const segs = Math.max(1, Math.ceil(text.length / per));
+    return { segs, enc, len: text.length };
+  }, [selectedChannels, messageContent, aiResult, messageMode]);
+
   // AI generate
   const generateAiMessage = useCallback(async () => {
     if (!aiPrompt.trim()) {
@@ -787,6 +809,13 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                               opacity: aiGenerating ? 0.6 : 1
                             }}
                           />
+                        </div>
+                      )}
+
+                      {smsSegments && (
+                        <div style={{ marginTop: 8, fontSize: 12.5, color: smsSegments.segs > 2 ? '#DC2626' : '#6b7280' }}>
+                          📱 SMS: {smsSegments.len} karakter — {smsSegments.segs} szegmens ({smsSegments.enc})
+                          {smsSegments.segs > 2 ? ' — a költség miatt rövidítsd!' : ' (ékezetek nélkül küldjük)'}
                         </div>
                       )}
 

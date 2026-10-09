@@ -3,6 +3,7 @@
 szegmensszámítás. Közös modul — az sms_sender és a sablon-validáció is ezt
 használja. Pure függvények, sosem dobnak."""
 import math
+import re
 
 # GSM 03.38 alapkészlet (7 bites alap + bővített karakterek — a bővített
 # kettőt foglal: ^{}\[~]|€)
@@ -55,3 +56,31 @@ def validate_template(template: str, max_segments: int = 2) -> tuple[bool, int, 
     if seg > max_segments:
         return False, seg, f"a sablon {seg} szegmens ({enc}) — maximum {max_segments} megengedett"
     return True, seg, "ok"
+
+
+# ——— Ékezet-levágás (kampány-SMS költség-optimalizálás, 2026-10-09) ———
+# A magyar á/í/ó/ú/ő/ű NEM GSM-7 → UCS-2 (70 kar/szegmens a 160 helyett =
+# 2-3-szoros költség). Az ékezet nélküli küldés a meglévő sablonokkal is
+# konzisztens (email_confirm_tokens.py).
+_ACCENT_MAP = str.maketrans({
+    "á": "a", "é": "e", "í": "i", "ó": "o", "ö": "o", "ő": "o",
+    "ú": "u", "ü": "u", "ű": "u",
+    "Á": "A", "É": "E", "Í": "I", "Ó": "O", "Ö": "O", "Ő": "O",
+    "Ú": "U", "Ü": "U", "Ű": "U",
+})
+
+
+def strip_hungarian_accents(text: str) -> str:
+    """Ékezetes magyar karakterek GSM-7-barát alakra váltása. Sosem dob."""
+    try:
+        return (text or "").translate(_ACCENT_MAP)
+    except Exception:
+        return text or ""
+
+
+def sms_body_prep(text: str) -> str:
+    """Kampány-SMS véglegesítő: ékezet-levágás + többszörös szóközök rende.
+    Vissza: (tiszta_szöveg, szegmensszám, kódolás)."""
+    clean = re.sub(r"[ \t]+", " ", strip_hungarian_accents(text or "")).strip()
+    segs, enc = count_segments(clean)
+    return clean, segs, enc

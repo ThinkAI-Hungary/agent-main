@@ -3152,6 +3152,30 @@ def campaign_already_called(campaign_id: int, client_id: int) -> bool:
         return False
 
 
+def count_sms_sent_today(tenant_id) -> int:
+    '''A mai napi kampány-SMS-ek száma tenantonként (limit-védelemhez). Fail-open → 0.'''
+    try:
+        today = datetime.now(ZoneInfo("Europe/Budapest")).strftime("%Y-%m-%d")
+        res = (_tenant_eq(supabase.table("sms_logs").select("id", count="exact"), tenant_id)
+               .eq("purpose", "campaign").gte("created_at", f"{today}T00:00:00+02:00").execute())
+        return getattr(res, "count", None) or 0
+    except Exception as e:
+        logger.warning(f"count_sms_sent_today hiba (fail-open): {e}")
+        return 0
+
+
+def sms_campaign_already_sent(campaign_id: int, client_id: int) -> bool:
+    '''Dedup: ebbe a kampányba ennek az ügyfélnek már ment kampány-SMS
+    (session_id = campaign_sms_{campaign_id}_{client_id} minta). Fail-open → False.'''
+    try:
+        res = (supabase.table("sms_logs").select("id", count="exact")
+               .eq("session_id", f"campaign_sms_{campaign_id}_{client_id}").execute())
+        return (getattr(res, "count", None) or 0) > 0
+    except Exception as e:
+        logger.warning(f"sms_campaign_already_sent hiba (fail-open): {e}")
+        return False
+
+
 def get_outbound_automations() -> list[dict]:
     if not supabase: return []
     try:

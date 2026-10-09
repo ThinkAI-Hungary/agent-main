@@ -213,7 +213,7 @@ async def campaign_scheduler_worker():
                             pass
                         # Start the campaign
                         channels = c.get("channels", [c.get("channel", "email")])
-                        supported = {"email", "messenger", "telefon"}
+                        supported = {"email", "messenger", "telefon", "sms"}
                         active_channels = [ch for ch in channels if ch in supported]
                         if not active_channels:
                             logger.warning(f"[Scheduler] Nem támogatott csatorna: {channels}")
@@ -228,6 +228,10 @@ async def campaign_scheduler_worker():
                             phone_task = asyncio.create_task(_run_phone_campaign(c))
                             background_tasks.add(phone_task)
                             phone_task.add_done_callback(background_tasks.discard)
+                        if "sms" in active_channels:
+                            sms_task = asyncio.create_task(_run_sms_campaign(c))
+                            background_tasks.add(sms_task)
+                            sms_task.add_done_callback(background_tasks.discard)
                         logger.info(f"[Scheduler] Kampány sikeresen elindítva: {c['name']}")
                 except Exception as parse_err:
                     logger.error(f"[Scheduler] Dátum parse hiba: {sched} - {parse_err}")
@@ -5903,7 +5907,7 @@ async def start_campaign_api(campaign_id: int, _auth = Depends(require_admin)):
     if not campaign:
         raise HTTPException(status_code=404, detail="Kampány nem található")
     channels = campaign.get("channels", [campaign.get("channel", "email")])
-    supported = {"email", "messenger", "telefon"}
+    supported = {"email", "messenger", "telefon", "sms"}
     
     active_channels = []
     for ch in channels:
@@ -5914,7 +5918,7 @@ async def start_campaign_api(campaign_id: int, _auth = Depends(require_admin)):
             active_channels.append(ch_clean)
             
     if not active_channels:
-        raise HTTPException(status_code=400, detail="Jelenleg csak email, messenger és telefon kampányok támogatottak")
+        raise HTTPException(status_code=400, detail="Jelenleg csak email, SMS, messenger és telefon kampányok támogatottak")
 
     # 2026-10-09 (user-döntés): telefon-kampány indítása CSAK JÓVÁHAGYOTT
     # scripttel — az ai_instructions elején lévő 'APPROVED:<iso>|' prefixet a
@@ -5936,13 +5940,19 @@ async def start_campaign_api(campaign_id: int, _auth = Depends(require_admin)):
         background_tasks.add(task)
         task.add_done_callback(background_tasks.discard)
 
+    # SMS channel → campaign SMS-ek (2026-10-09)
+    if "sms" in active_channels:
+        sms_task = asyncio.create_task(_run_sms_campaign(campaign))
+        background_tasks.add(sms_task)
+        sms_task.add_done_callback(background_tasks.discard)
+
     # Phone channel → outbound SIP calls with campaign script
     if "telefon" in active_channels:
         phone_task = asyncio.create_task(_run_phone_campaign(campaign))
         background_tasks.add(phone_task)
         phone_task.add_done_callback(background_tasks.discard)
 
-    channel_names = {"email": "Email", "messenger": "Messenger", "telefon": "Telefon (AI hívás)"}
+    channel_names = {"email": "Email", "messenger": "Messenger", "telefon": "Telefon (AI hívás)", "sms": "SMS"}
     ch_str = ", ".join(channel_names.get(c, c) for c in active_channels)
     msg_parts = []
     if text_channels:
@@ -6307,6 +6317,137 @@ async def _run_campaign(campaign: dict, active_channels: list[str]):
 
     db.update_campaign_status(campaign_id, "Befejezett", processed_count=processed)
     print(f"[Campaign] Kampány befejezve: {campaign_name} – {processed} email elküldve, {failed} hiba")
+
+
+async def _run_sms_campaign(campaign: dict):
+    """SMS-kampány futtató (2026-10-09): a telefon-kampány mintájára, de
+    hívási időablak és 60 mp szünet NÉLKÜL (1,5 mp elég); a küldés a meglévő
+    sms_sender.send_sms-en megy (purpose='campaign', sms_logs napló, Twilio
+    delivered callback). Üzenet: ékezet-levágás (GSM-7 = olcsóbb) +
+    {name}/{rendelo} személyre szabás. Dedup: kampányonként ügyfelenként 1."""
+    import re as _re
+    from sms_sender import send_sms
+    from sms_text import sms_body_prep
+
+    campaign_id = campaign["id"]
+    campaign_name = campaign["name"]
+    tenant_id_now = db.get_current_tenant()
+
+    rendelo = "Rendelo"
+    try:
+        _trow = (db._tenant_eq(db.supabase.table("tenants").select("name"), tenant_id_now)
+                 .limit(1).execute().data or [])
+        rendelo = (_trow[0].get("name") if _trow else "") or "Rendelo"
+    except Exception:
+        pass
+    # rendelo-név a greetinghez/personalizációhoz (env → tenants.name → Rendelo)
+    try:
+        _trow = (db._tenant_eq(db.supabase.table("tenants").select("name"), tenant_id_now)
+                 .limit(1).execute().data or [])
+        rendelo = (_trow[0].get("name") if _trow else "") or "Rendelo"
+    except Exception:
+        rendelo = "Rendelo"
+
+    # prefix-bontás (SUBJECT:/SCHED:/MODE:) — a _run_campaign mintája
+    instructions = campaign.get("ai_instructions") or ""
+    changed = True
+    while changed:
+        changed = False
+        for prefix in ("SCHED:", "SUBJECT:", "MODE:"):
+            if instructions.startswith(prefix):
+                pipe_idx = instructions.find("|")
+                if pipe_idx >= 0:
+                    instructions = instructions[pipe_idx + 1:]
+                    changed = True
+
+    clients = db.get_clients_by_ids(campaign.get("client_ids", []))
+    if not clients:
+        print(f"[SmsCampaign] Nem találhatók ügyfelek, kampány lezárva: {campaign_name}")
+        db.update_campaign_status(campaign_id, "Befejezett", processed_count=0)
+        return
+
+    daily_limit = int(os.getenv("SMS_DAILY_SEND_LIMIT", "200") or "200")
+    daily_used = db.count_sms_sent_today(tenant_id_now)
+    if daily_used >= daily_limit:
+        print(f"[SmsCampaign] Napi SMS-limit elérve ({daily_used}/{daily_limit}), kampány szünetel: {campaign_name}")
+        db.update_campaign_status(campaign_id, "Megállítva", processed_count=0)
+        return
+
+    processed = 0
+    failed = 0
+    skipped = 0
+
+    for client in clients:
+        current = db.get_campaign(campaign_id)
+        if not current or current.get("status") == "Megállítva":
+            print(f"[SmsCampaign] Kampány megállítva: {campaign_name}")
+            return
+
+        if processed + failed >= daily_limit - daily_used:
+            print(f"[SmsCampaign] Napi limit elérve ({daily_limit}), kampány szünetel: {campaign_name}")
+            db.update_campaign_status(campaign_id, "Megállítva", processed_count=processed)
+            return
+
+        custom_data = client.get("custom_data", {})
+        if isinstance(custom_data, str):
+            try:
+                custom_data = json.loads(custom_data)
+            except Exception:
+                custom_data = {}
+
+        client_name = custom_data.get("name") or client.get("name", "Névtelen")
+        raw_phone = (custom_data.get("phone") or custom_data.get("telefonszam")
+                     or custom_data.get("telefon") or client.get("phone") or "")
+
+        # Szóköz-mentes E.164 (a DB-ben '+36 30 234 5678' alak van — a Twilio
+        # szóköznél 21211-es hibát ad)
+        digits = _re.sub(r"\D", "", raw_phone)
+        if digits.startswith("06"):
+            phone = "+36" + digits[2:]
+        elif digits.startswith("36"):
+            phone = "+" + digits
+        elif digits:
+            phone = "+" + digits
+        else:
+            skipped += 1
+            print(f"[SmsCampaign] Nincs használható telefonszám: {client_name}, kihagyva")
+            continue
+
+        if len(digits) < 9:
+            skipped += 1
+            continue
+
+        # dedup: ebbe a kampányba már ment SMS ennek az ügyfélnek
+        if db.sms_campaign_already_sent(campaign_id, client.get("id")):
+            skipped += 1
+            continue
+
+        session_id = f"campaign_sms_{campaign_id}_{client.get('id')}"
+        body_raw = instructions.replace("{name}", client_name).replace("{rendelo}", rendelo)
+        body, segs, enc = sms_body_prep(body_raw)
+
+        try:
+            res = await asyncio.to_thread(
+                send_sms, phone, body,
+                session_id=session_id, tenant_id=tenant_id_now, purpose="campaign")
+            if res.get("ok"):
+                processed += 1
+                print(f"[SmsCampaign] SMS elküldve ({processed}/{len(clients)}): "
+                      f"{client_name} -> {phone} ({segs} szegmens, {enc})")
+            else:
+                failed += 1
+                print(f"[SmsCampaign] SMS küldés sikertelen: {client_name} -> {phone}: "
+                      f"{res.get('error')}")
+        except Exception as send_err:
+            failed += 1
+            print(f"[SmsCampaign] SMS küldés kivétel: {client_name} -> {phone}: {send_err}")
+
+        await asyncio.sleep(1.5)
+
+    _final = "Befejezett" if failed == 0 else ("Részben sikeres" if processed else "Sikertelen")
+    db.update_campaign_status(campaign_id, _final, processed_count=processed)
+    print(f"[SmsCampaign] Kampany befejezve: {campaign_name} - {processed} sms, "
+          f"{failed} sikertelen, {skipped} kihagyva")
 
 
 async def _run_phone_campaign(campaign: dict):
