@@ -1,5 +1,14 @@
 # HANDOFF — eaisyDesk | 2026-10-09 (kampány-üzemeltetés)
 
+## 📱 SMS-KAMPÁNY MEGÉPÍTVE + ÉLŐBEN TESZTELVE (`c14c584`, 2026-10-09, staging) — user-döntésekkel
+
+Research (SMS_CAMPAIGN_RESEARCH_REPORT.md) + user-döntések: **ékezet-levágás** (olcsóbb GSM-7), **STOP/leiratkozás-infra backlogba**, **napi limit 200 marad**; teszthívás-előkészítés: **Medgyesi Zoltán, +36209530441** (még nem futtattuk — a hívás-indítás készen áll, lásd lent).
+
+- **`_run_sms_campaign`** (web_server): a telefon-runner mintájára, de 1,5 mp szünettel, időablak NÉLKÜL; szóköz-mentes E.164 normalizálás (a DB-ben `+36 30 …` szóközös — Twilio 21211-hiba ellen); dedup `session_id=campaign_sms_{id}_{client}` mintával (séma NÉLKÜL); napi limit `SMS_DAILY_SEND_LIMIT` (default 200, sms_logs-ból számolva); üzenet: `{name}`/`{rendelo}` csere + `sms_text.sms_body_prep` (ékezet-levágás + tipográfiai karakterek —/„”/… GSM-7-barátra) + `send_sms(purpose='campaign')`.
+- **Bekötve**: `supported` setek (start + scheduler) = +`"sms"`; `channel_names` +SMS; wizard: élő SMS szegmens-számláló (ékezet-levágott változatra számol, >2 szegmensnél piros figyelmeztetés).
+- **Élő teszt (2 futás)**: 1. futás — hibás prefix-bontás (`MODE:ai:` kettőspontos, a pipe-os bontóm nem fogta) → SMS UCS2-ben, prefix a body-ban. Fix: az email-runner pontos prefix-bontása + tipográfiai transzlate. 2. futás — **delivered, 1 szegmens GSM7, tiszta body** („Kedves Orosz Erika! Koszonjuk…"), dedup: második indítás 0 küldés / 1 kihagyva ✓. Teszt-kampányok törölve (a delivered sms_logs napló marad — valós küldés audit-a).
+- **Nyitott (backlog / user-döntés)**: SMS opt-out (STOP) infra — most manuális; wizard várható-darabszám kijelzés; Twilio HU-ár 0,091 USD/szegmens (origin-based).
+
 ## 🖥️ UI: ŐSZINTE ZÁRÓSTÁTUSZOK + SMS-KAMPÁNY RESEARCH INDÍTVA (`694251d`, 2026-10-09, staging)
 
 - **UI státusz-leképezés befejezve** (a research A/8/1 jelzett hézag): `CampaignMenu.campaignStatusKey` + `campaignStatusDisplay` ('Sikertelen' → piros badge), `CampaignDetailPanel` STATUS_COLORS, és most az `OutboundPage` Lezárt-chip/szűrő is számolja a `Részben sikeres`/`Sikertelen` kampányokat — **additív változtatás, a meglévő státuszok viselkedése változatlan**. Build zöld, staging deploy (694251d).
