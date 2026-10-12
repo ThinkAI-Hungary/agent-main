@@ -1,5 +1,9 @@
 # HANDOFF — eaisyDesk | 2026-10-09 (kampány-üzemeltetés)
 
+## 🔊 GEMINI 3.8 LIVE RESEARCH KÉSZ (`GEMINI_LIVE_RESEARCH_REPORT.md`, 2026-10-09) — ajánlás: feltételes váltás
+
+A hangmodell-váltás (3.1-flash-live-preview → `gemini-3.8-live`) kutatása elkészült (jelentés + migrációs terv + A/B tesztterv + rollback a fájlban). Lényeg: a 3.8-live **GA** (2026-09-15), **ár azonos** ($0 delta), tool-hívás **aszinkron non-blocking defaulttal** (a mi 1-es fájdalmunk — tool nélküli „foglaltam" — legnagyobb javulási iránya), Puck hang megmarad. DE: a keret-frissítés (livekit-agents 1.5.16 → 1.8.6, OTel breaking change + NON_BLOCKING viselkedésváltás) staging-visszatesztet kötelez. **Döntés: useré** — zöld jelzésre a jelentés E) szakaszában a migrációs lépések + A/B tesztterv (2×30 hívás) + rollback (env-var: `GEMINI_LIVE_MODEL`).
+
 ## 🏢 ÚJ PROD TENANT: MAURONI EVENTS (2026-10-09, user-kérésre) — KÉSZ
 
 - **Prod-on új, ÜRES tenant**: `Mauroni Events` (slug `mauroni-events`, id `27c7d6ec-32b8-46a2-99a7-73bbe0ea06c2`, plan=pro) + **1 admin user: `mauroni_admin`** (a telepítő script 3 usert hoz létre — a felesleges member/manager törölve, user-kérés: 1 user). Bejelentkezés: `https://desk.eaisy.hu/admin/`, jelszó (visszaállítva + _verify_password-öszzel ellenőrizve): `Mauroni-SKM0jodxlaDh` — **a usernek átadandó / cserélendő első belépéskor**.
