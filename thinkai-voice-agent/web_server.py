@@ -5633,7 +5633,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, current_user: dict 
     except Exception as e:
         print(f"[Approval Error] Hiba a kiküldéskor: {e}")
         # Küldés sikertelen, de az approve-ot azért mentsük el
-        _stamp_approved_draft(draft, final_text, req.modified_drafts, _auth)
+        _stamp_approved_draft(draft, final_text, req.modified_drafts, current_user)
         new_draft_json = json.dumps(draft)
         db.update_approval_status(id, "approved", new_draft=new_draft_json)
         return {"status": "warning", "message": f"Jóváhagyva, de a küldés sikertelen: {str(e)[:150]}"}
@@ -5642,7 +5642,7 @@ async def approve_approval_api(id: int, req: ApproveRequest, current_user: dict 
     # A bélyegzés az AI eredeti szövegét (original_body) törölhetetlenül megőrzi,
     # és rögzíti, hogy a kiküldött választ emberi kéz szerkesztette-e
     # (sent_by='human', edited_by=<jóváhagyó felhasználó>).
-    _stamp_approved_draft(draft, final_text, req.modified_drafts, _auth)
+    _stamp_approved_draft(draft, final_text, req.modified_drafts, current_user)
     new_draft_json = json.dumps(draft)
     success = db.update_approval_status(id, "approved", new_draft=new_draft_json)
 
