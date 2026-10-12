@@ -6605,27 +6605,14 @@ async def _run_phone_campaign(campaign: dict):
 
             await lk.aclose()
 
-            # Log the interaction
-            session_id = f"campaign_phone_{campaign_id}_{client['id']}"
-            db.create_session(session_id=session_id, room_name=f"Kampány hívás: {campaign_name}", participant=client_name)
-            db.log_interaction(
-                type="telefon",
-                topic=f"Kampány: {campaign_name}",
-                summary=f"Kimenő AI telefonhívás – {client_name} ({phone})",
-                result="Hívás indítva",
-                tool_name="phone_campaign_worker",
-                session_id=session_id,
-                direction="outbound",
-                funnel_stage="relevant",
-                alert_tags=[],
-                handover_reason=None,
-            )
-
+            # NINCS saját interakció/session napló: a kampányhívást az AGENT
+            # session-je (call-out-camp-… leirat + tool sorok) fedi le — a futtató
+            # saját sora duplikátum sort csinált a profilnézetben (2026-10-08).
+            # Az ÜRES call_attempt sor dedup/limit célra marad.
             processed += 1
             db.update_campaign_status(campaign_id, "Aktív", processed_count=processed)
             db.create_call_attempt(tenant_id_now, phone, "answered", scenario="campaign",
-                                   campaign_id=campaign_id, client_id=client.get("id"),
-                                   session_id=session_id)
+                                   campaign_id=campaign_id, client_id=client.get("id"))
             print(f"[PhoneCampaign] Hivas inditva ({processed}/{len(clients)}): {client_name} -> {phone}")
 
             # Wait between calls (60 sec) — arányos terhelés + költség-fék
@@ -6638,6 +6625,23 @@ async def _run_phone_campaign(campaign: dict):
             db.create_call_attempt(tenant_id_now, phone, _result, scenario="campaign",
                                    campaign_id=campaign_id, client_id=client.get("id"),
                                    detail=str(e)[:400])
+            # Sikertelen dispatch naplózása (embernek láthatóan) — ügyfélhez kötve
+            try:
+                _fail_sid = f"campaign_phone_{campaign_id}_{client.get('id')}"
+                db.create_session(session_id=_fail_sid, room_name=f"Kampány hívás sikertelen: {campaign_name}", participant=client_name)
+                db.log_interaction(
+                    type="telefon",
+                    topic=f"Kampány hívás sikertelen: {campaign_name}",
+                    summary=f"Kimenő AI telefonhívás nem jött létre – {client_name} ({phone})",
+                    result=str(e)[:300],
+                    tool_name="phone_campaign_worker",
+                    session_id=_fail_sid,
+                    direction="outbound",
+                    funnel_stage="relevant",
+                    client_id=client.get("id"),
+                )
+            except Exception:
+                pass
             print(f"[PhoneCampaign] Hivas sikertelen ({client_name} -> {phone}) [{_result}]: {e}")
             await asyncio.sleep(3)
 

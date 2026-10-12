@@ -71,6 +71,7 @@ interface InteractionRowDetail {
   received_at?: string | null;
   sent_at?: string | null;
   diary_fragment?: string | null;
+  transcript_turns?: unknown;
   classification?: { closed_manually?: boolean } | Record<string, unknown> | null;
 }
 
@@ -482,6 +483,7 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
             received_at: (r as Record<string, unknown>).received_at as string | null || null,
             sent_at: (r as Record<string, unknown>).sent_at as string | null || null,
             diary_fragment: (r as Record<string, unknown>).diary_fragment as string | null || null,
+            transcript_turns: (r as Record<string, unknown>).transcript_turns ?? null,
             classification: (r as Record<string, unknown>).classification as InteractionRowDetail['classification'] ?? null,
           });
         });
