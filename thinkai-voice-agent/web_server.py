@@ -5201,7 +5201,10 @@ async def sip_outbound_call(req: SipCallRequest, _auth = Depends(require_admin))
     lk_secret = os.getenv("LIVEKIT_API_SECRET")
     trunk_id, caller_number = _voice_outbound_params()  # Telnyx HD Voice outbound (tenant-saját)
 
-    phone = req.phone_number.strip()
+    # E.164 normalizálás (2026-10-08): szóköz/kötőjel tartalmú szám 408-as
+    # SIP-hibát adott — minden nem-számjegy törlése, 00 → +, hiányzó + pótlása
+    _digits = re.sub(r'\D', '', req.phone_number or '')
+    phone = ('+' + _digits[2:] if _digits.startswith('00') else '+' + _digits) if _digits else ''
     if not phone.startswith("+"):
         phone = "+" + phone
 
@@ -6542,10 +6545,16 @@ async def _run_phone_campaign(campaign: dict):
             print(f"[PhoneCampaign] Nincs telefonszám: {client_name}, kihagyva")
             continue
 
-        # Normalize phone number
-        phone = client_phone.strip()
-        if not phone.startswith("+"):
-            phone = "+" + phone
+        # Normalize phone number (E.164, 2026-10-08): minden nem-számjegy törlése —
+        # a '+36 70 320 0236' szóközös tárolási alak SIP-hívásban 408-as
+        # időtúllépést okozott (TwirpError → Sikertelen kampány)
+        digits = re.sub(r'\D', '', client_phone)
+        if not digits:
+            print(f"[PhoneCampaign] Érvénytelen telefonszám: {client_name} ({client_phone}), kihagyva")
+            continue
+        if digits.startswith('00'):
+            digits = digits[2:]
+        phone = '+' + digits
 
         # Build campaign metadata for the agent
         campaign_metadata = json.dumps({
