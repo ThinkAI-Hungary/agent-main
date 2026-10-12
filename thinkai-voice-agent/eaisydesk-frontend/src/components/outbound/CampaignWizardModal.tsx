@@ -576,13 +576,10 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
                       <button
                         key={ch}
                         onClick={() => {
-                          const next = new Set(selectedChannels);
-                          if (isActive) {
-                            if (next.size > 1) next.delete(ch);
-                          } else {
-                            next.add(ch);
-                          }
-                          setSelectedChannels(next);
+                          // SINGLE SELECT (2026-10-08 user-kérés): egyszerre egy
+                          // csatorna választható — az aktívra kattintva is az marad
+                          // (a kampánynak mindig legyen csatornája).
+                          setSelectedChannels(new Set([ch]));
                         }}
                         style={{
                           flex: '1 1 calc(33.333% - 12px)',
