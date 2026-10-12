@@ -6300,6 +6300,9 @@ async def _run_campaign(campaign: dict, active_channels: list[str]):
                         "to": [{"email": client_email, "name": client_name}],
                         "subject": subject,
                         "htmlContent": html_body,
+                        # Nyitás/kattintás/visszapattanás kampányhoz rendelése:
+                        # a Brevo webhook payload visszatükrözi a tag-eket
+                        "tags": [f"campaign_{campaign_id}"],
                     },
                     timeout=20,
                 )
@@ -6648,6 +6651,88 @@ async def _run_phone_campaign(campaign: dict):
     _final = "Befejezett" if failed == 0 else ("Részben sikeres" if processed else "Sikertelen")
     db.update_campaign_status(campaign_id, _final, processed_count=processed)
     print(f"[PhoneCampaign] Kampany befejezve: {campaign_name} - {processed} hivas, {failed} sikertelen, {skipped} mar hivva")
+
+
+@app.post("/api/webhooks/brevo")
+async def brevo_webhook(request: Request):
+    """Brevo tranzakciós email események fogadása (delivered/opened/clicked/
+    hard_bounce/soft_bounce/...) — a kampány-statisztikák (Megnyitás/Kattintás/
+    Visszapattant) adatforrása. A kampány-korreáció a küldéskor beállított
+    'campaign_<id>' tagből ered. Nyilvános endpoint (a Brevo nem authentikál),
+    csak ismert eseménytípus + ismert kampány esetén ír."""
+    try:
+        payload = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="Érvénytelen payload")
+
+    events = payload if isinstance(payload, list) else [payload]
+    accepted = {"delivered", "opened", "clicked", "hard_bounce", "soft_bounce",
+                "blocked", "spam", "deferred", "invalid_email", "unsubscribed"}
+    inserted = 0
+    for ev in events:
+        try:
+            if not isinstance(ev, dict):
+                continue
+            email = (ev.get("email") or "").strip().lower()
+            event = (ev.get("event") or "").strip().lower()
+            if not email or event not in accepted:
+                continue
+            campaign_id = None
+            for tag in (ev.get("tags") or []):
+                t = str(tag).strip().lower()
+                if t.startswith("campaign_"):
+                    try:
+                        campaign_id = int(t[len("campaign_"):])
+                        break
+                    except ValueError:
+                        pass
+            if campaign_id is None:
+                continue
+            brevo_ts = str(ev.get("ts") or "")
+            # dedup: ugyanazon esemény (azonos ts) Brevo-retrynál ne duplázódjon
+            dup = (db.supabase.table("campaign_events").select("id")
+                   .eq("campaign_id", campaign_id).eq("email", email)
+                   .eq("event", event).eq("brevo_ts", brevo_ts).limit(1).execute())
+            if (getattr(dup, "count", None) or 0) > 0 or dup.data:
+                continue
+            tenant_id = None
+            try:
+                crow = db.supabase.table("campaigns").select("tenant_id").eq("id", campaign_id).limit(1).execute()
+                tenant_id = crow.data[0]["tenant_id"] if crow.data else None
+            except Exception:
+                pass
+            db.supabase.table("campaign_events").insert({
+                "campaign_id": campaign_id, "tenant_id": tenant_id,
+                "email": email, "event": event,
+                "brevo_message_id": str(ev.get("id") or "") or None,
+                "brevo_ts": brevo_ts or None,
+            }).execute()
+            inserted += 1
+        except Exception as ev_err:
+            logger.warning(f"[Brevo webhook] esemény feldolgozási hiba: {ev_err}")
+    return {"status": "ok", "inserted": inserted}
+
+
+@app.get("/admin/api/campaigns/{campaign_id}/stats")
+def campaign_email_stats(campaign_id: int, username: str = Depends(verify_jwt)):
+    """Kampány email-statisztika a Brevo webhook-eseményekből: delivered/opened/
+    clicked/bounced — email-címenkénti egyediséggel (többszörös megnyitás egyszer
+    számít), bounce eseményekkel (hard+soft)."""
+    if not db.supabase:
+        raise HTTPException(status_code=503, detail="DB nem elérhető")
+    evs = (db.supabase.table("campaign_events")
+           .select("email,event").eq("campaign_id", campaign_id).execute().data) or []
+
+    def _uniq(event: str) -> int:
+        return len({(e.get("email") or "").lower() for e in evs
+                    if e.get("event") == event and e.get("email")})
+
+    return {
+        "delivered": _uniq("delivered"),
+        "opened": _uniq("opened"),
+        "clicked": _uniq("clicked"),
+        "bounced": _uniq("hard_bounce") + _uniq("soft_bounce"),
+    }
 
 
 @app.get('/api/public/cancel')

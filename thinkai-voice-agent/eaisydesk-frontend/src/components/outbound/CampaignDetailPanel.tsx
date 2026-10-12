@@ -3,7 +3,7 @@
  * Extracted from OutboundPage to keep the parent component lean.
  * Only rendered when a campaign is selected (showDetail !== null).
  */
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { useClients } from '../../hooks/useClients';
 import { parseCustomData, bestClientName } from '../../helpers/clientResolvers';
 import { authFetch } from '../../api/client';
@@ -90,6 +90,18 @@ export default function CampaignDetailPanel({ campaign: c, canManage = true, can
   const [isEditingContent, setIsEditingContent] = useState(false);
   const [editContent, setEditContent] = useState(emailContent);
   const [editSubject, setEditSubject] = useState(parsedSubject || c.subject || c.email_subject || '');
+  // Valós kampány-statisztika (Brevo webhook eseményekből — campaign_events)
+  const [emailStats, setEmailStats] = useState<{ opened: number; clicked: number; bounced: number } | null>(null);
+
+  useEffect(() => {
+    if (delivered <= 0 && !(c.status || '').toLowerCase().includes('befejez')) return;
+    let alive = true;
+    authFetch(`/admin/api/campaigns/${c.id}/stats`)
+      .then(r => (r.ok ? r.json() : null))
+      .then(d => { if (alive && d) setEmailStats({ opened: d.opened || 0, clicked: d.clicked || 0, bounced: d.bounced || 0 }); })
+      .catch(() => {});
+    return () => { alive = false; };
+  }, [c.id, delivered, c.status]);
   const [savingContent, setSavingContent] = useState(false);
 
   // Script-jóváhagyás (2026-10-09): telefon-kampány indítása ELŐTT adminnak
@@ -211,17 +223,17 @@ export default function CampaignDetailPanel({ campaign: c, canManage = true, can
               </div>
               <div className="cpv-stat-divider" />
               <div className="cpv-stat-inline">
-                <span className="cpv-stat-val cpv-stat-val--green">0</span>
+                <span className="cpv-stat-val cpv-stat-val--green">{emailStats?.opened ?? 0}</span>
                 <span className="cpv-stat-lbl">Megnyitás</span>
               </div>
               <div className="cpv-stat-divider" />
               <div className="cpv-stat-inline">
-                <span className="cpv-stat-val cpv-stat-val--blue">0</span>
+                <span className="cpv-stat-val cpv-stat-val--blue">{emailStats?.clicked ?? 0}</span>
                 <span className="cpv-stat-lbl">Kattintás</span>
               </div>
               <div className="cpv-stat-divider" />
               <div className="cpv-stat-inline">
-                <span className="cpv-stat-val cpv-stat-val--red">0</span>
+                <span className="cpv-stat-val cpv-stat-val--red">{emailStats?.bounced ?? 0}</span>
                 <span className="cpv-stat-lbl">Visszapattant</span>
               </div>
             </div>
