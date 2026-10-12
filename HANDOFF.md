@@ -1,5 +1,12 @@
 # HANDOFF — eaisyDesk | 2026-10-09 (kampány-üzemeltetés)
 
+## 🏢 ÚJ PROD TENANT: MAURONI EVENTS (2026-10-09, user-kérésre) — KÉSZ
+
+- **Prod-on új, ÜRES tenant**: `Mauroni Events` (slug `mauroni-events`, id `27c7d6ec-32b8-46a2-99a7-73bbe0ea06c2`, plan=pro) + **1 admin user: `mauroni_admin`** (a telepítő script 3 usert hoz létre — a felesleges member/manager törölve, user-kérés: 1 user). Bejelentkezés: `https://desk.eaisy.hu/admin/`, jelszó (visszaállítva + _verify_password-öszzel ellenőrizve): `Mauroni-SKM0jodxlaDh` — **a usernek átadandó / cserélendő első belépéskor**.
+- **Seed-állapot**: business_info (practice_name=Mauroni Events), agent_settings (Puck hang + greeting), knowledge_base (üres), text_configs (system_prompt placeholder + written_behavior=approval), triage_rules (5 alap ügytípus), reminder_settings (kikapcsolva), kanban (5 saját oszlop: Új megkeresés/Kapcsolatfelvétel/Egyeztetés/Lefoglalva/Elveszett — **prefixelt ID-kkal** `mauroni-*`, mert a kanban PK csak id és a fix seed-ID-k ütköznek a Rivergate-sorokkal). Ügyfelek: 0 (üres cég ✓).
+- **Tanulság — az `onboard_tenant.py` elavult**: a `seed_config` dikt-t adott az `update_reminder_settings`-nek, aminek mára pozicionális szignatúrája van (crash), és a `_seed_kanban_columns` fix ID-jai ütköznek (PK id). Következő onboarding előtt javítandó: (1) update_reminder_settings hívás új szignatúrára, (2) kanban seed → tenant-prefixelt ID-k, (3) opcionális `--single-admin` mód. (A kettes futásnál a kézi befejezés Ellie által történt: reminder_settings új szignatúrával + kanban prefixelt ID-kkal + temp-user törlés.)
+- **Telefónia/email megjegyzés**: a tenantnak NINCS Telnyx/Twilio/Brevo kredje (üres cég) — kimenő híváshoz/SMS-hez/emailhez a kredenciákat pótolni kell (tenant_credentials), és a közös trunk OVP US/CA whitelistjére figyelni.
+
 ## 📱 SMS-KAMPÁNY MEGÉPÍTVE + ÉLŐBEN TESZTELVE (`c14c584`, 2026-10-09, staging) — user-döntésekkel
 
 Research (SMS_CAMPAIGN_RESEARCH_REPORT.md) + user-döntések: **ékezet-levágás** (olcsóbb GSM-7), **STOP/leiratkozás-infra backlogba**, **napi limit 200 marad**; teszthívás-előkészítés: **Medgyesi Zoltán, +36209530441** (még nem futtattuk — a hívás-indítás készen áll, lásd lent).
