@@ -293,16 +293,19 @@ Kampány neve: {campaign_name}
 Az ügyfél neve: {client_name}
 
 A FELADATOD:
-Telefonon hívtad fel az ügyfelet egy kampány keretében. A következő üzenetet/ajánlatot kell elmondanod:
+Telefonon hívtad fel az ügyfelet egy kampány keretében. A beszélgetést a lenti
+FORGATÓKÖNYV szerint vezeted — az első lépés a NYITÓ megszólítás, amit TE mondasz
+ki elsőként, közvetlenül a hívás felvételének pillanatában.
 
 ---
 {script}
 ---
 
 SZABÁLYOK:
-- RÖGZÍTÉS-TÁJÉKOZTATÁS (GDPR): a hívás legelején — a bemutatkozás után azonnal — mondd el röviden: 'Felhívom a figyelmét, hogy ezt a hívást rögzítjük.' Ha az ügyfél tiltakozik, mondd el, hogy ebben az esetben nem rögzíted, és köszönd el udvariasan.
-- Köszönj és mutatkozz be röviden (a cég asszisztense vagy)
-- Mondd el az ajánlatot/üzenetet természetesen, beszélgetős stílusban — NE olvasd fel szó szerint!
+- A BESZÉLGETÉST TE KEZDD a FORGATÓKÖNYV nyitó lépésével (pl. 'Jó napot kívánok! X-vel szeretnék beszélni.') — ne köszönts beégetett 'Szia…' üdvözléssel, és ne említs ajánlatot, ha a forgatókönyv nyitója nem szól róla!
+- A forgatókönyv lépéseit kövesd sorban; elágazásnál (pl. nem az ügyfél szólal meg) a megadott alternatív ágat válaszd.
+- RÖGZÍTÉS-TÁJÉKOZTATÁS (GDPR): ha a forgatókönyv rögzítési tájékoztatót ír elő, azt a bemutatkozásban mondd el. Ha az ügyfél tiltakozik, mondd el, hogy ebben az esetben nem rögzíted, és köszönd el udvariasan.
+- Mondd el a szöveget természetesen, beszélgetős stílusban — NE olvasd fel szó szerint!
 - Személyre szabd: használd az ügyfél nevét ({client_name})
 - Ha az ügyfél kérdez, válaszolj a kampány kontextusában
 - Ha az ügyfél nem érdeklődik, köszönd meg az idejét és búcsúzz el udvariasan
@@ -403,6 +406,11 @@ SZABÁLYOK:
     # ── Greeting: inject into system instructions so the model speaks first ──
     # generate_reply() is not supported on gemini-3.1 models, so we tell the
     # model to greet the caller as its first action via the system prompt.
+    # 2026-10-08 (user-jelzés): KAMPÁNYHÍVÁSNÁL a nyitót a kampány SAJÁT
+    # scriptje adja (a FELADAT első lépése — pl. követeléskezelésnél a
+    # „Jó napot kívánok! X-yzal szeretnék beszélni." nyitás) — a beégetett
+    # „Szia… ajánlatunkról" üdvözlés irreleváns volt nem-marketing kampánynál.
+    campaign_opening_from_script = False
     if campaign_data and campaign_data.get("script"):
         call_type = campaign_data.get("type", "campaign_call")
         client_name = campaign_data.get("client_name", "")
@@ -410,11 +418,19 @@ SZABÁLYOK:
         if call_type == "outbound_script_call":
             greeting_text = f"Szia {client_name}! Itt a {practice} virtuális asszisztense. Van egy pillanatod?" if client_name else f"Szia! Itt a {practice} virtuális asszisztense. Van egy pillanatod?"
         else:
-            greeting_text = f"Szia {client_name}! Itt a {practice} virtuális asszisztense. Van egy pillanatod? Szeretnék mesélni egy aktuális ajánlatunkról." if client_name else f"Szia! Itt a {practice} virtuális asszisztense. Van egy pillanatod? Szeretnék mesélni egy aktuális ajánlatunkról."
+            campaign_opening_from_script = True
+            greeting_text = ""
     else:
         greeting_text = settings.get("greeting", "Szia! Miben segíthetek?")
 
-    system_instruction += f"\n\nFONTOS: Amikor a beszélgetés elindul, AZONNAL köszöntsd az ügyfelet a következő üdvözléssel (ne várj, amíg megszólal): \"{greeting_text}\""
+    if campaign_opening_from_script:
+        system_instruction += (
+            "\n\nFONTOS: Amikor a beszélgetés elindul, TE kezdd: mondd el a FELADAT-ban "
+            "szereplő nyitó megszólítást/első lépést (pl. 'Jó napot kívánok! …') — ne várd "
+            "meg, amíg a hívó szólal meg, és NE köszönts más, beégetett üdvözléssel."
+        )
+    else:
+        system_instruction += f"\n\nFONTOS: Amikor a beszélgetés elindul, AZONNAL köszöntsd az ügyfelet a következő üdvözléssel (ne várj, amíg megszólal): \"{greeting_text}\""
 
     # ── Connection options for resilient API calls ────────────────────────
     conn_options = APIConnectOptions(max_retry=3, timeout=10.0)
