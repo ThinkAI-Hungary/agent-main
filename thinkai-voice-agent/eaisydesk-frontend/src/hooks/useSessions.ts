@@ -159,6 +159,7 @@ export function useSessions(limit = 100): UseSessionsReturn {
           alert_tags: row.alert_tags,
           funnel_stage: row.funnel_stage,
           classification: row.classification,
+          transcript_turns: row.transcript_turns ?? null,
         });
       }
 
