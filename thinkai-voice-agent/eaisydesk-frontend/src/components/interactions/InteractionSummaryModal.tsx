@@ -277,7 +277,19 @@ export default function InteractionSummaryModal({
       // csatornánál (telefon stb.) a napló-marad.
       const isSingleEmail = mode === 'single' && (row.channel || '').toLowerCase() === 'email';
       let fullLog = '';
-      if (mode === 'single' && !isSingleEmail) {
+      // 2026-10-08: EMAIL soroknál a saját diary_fragment az ELSŐDLEGES (mindkét
+      // módban) — a gördülő beszelgetes_naplo bejegyzései íráskor 150 karakterre
+      // csonkolva, emiatt a listából nyitott popupban levágott üzenet + hiányzó
+      // tárgy jelent meg (user-jelzés: listából nyitott popup vs. profil).
+      const isEmailRow = (row.channel || '').toLowerCase() === 'email';
+      if (isEmailRow && row.diary_fragment && String(row.diary_fragment).trim()) {
+        let frag = String(row.diary_fragment);
+        if (!frag.trimStart().startsWith('[')) {
+          const fragTs = (row.received_at || row.date || '').replace('T', ' ').slice(0, 16);
+          if (fragTs) frag = `[${fragTs}]\n${frag}`;
+        }
+        fullLog = frag;
+      } else if (mode === 'single' && !isSingleEmail) {
         // Single mód, nem-email (telefon stb.): az interakció SAJÁT tartalma
         // (átirat a result mezőben) az ELSŐDLEGES — az ügyfél-napló csak
         // fallback. Különben idegen/üres naplónál az átirat nem látszik
