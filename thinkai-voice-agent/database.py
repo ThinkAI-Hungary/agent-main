@@ -2794,6 +2794,31 @@ def get_business_info() -> dict:
         return {}
 
 
+def get_tenant_display_name() -> str:
+    """A bérlő megjelenítendő (hivatkozási) neve — 2026-10-14 user-szabály:
+    a Céginfó 'Cég rövid (hivatkozási) neve' (markanev) a MÉRVADÓ az SMS-ben
+    és a megerősítő oldalon egyaránt; üresen sender_name, practice_name,
+    majd a tenants.name (régi belső név — csak tartalék). Tenant-kontextus
+    szerint old fel. Hibánál üres string (a hívó ad generic fallbacket)."""
+    try:
+        bi = get_business_info() or {}
+        for key in ("markanev", "sender_name", "practice_name"):
+            name = (bi.get(key) or "").strip()
+            if name:
+                return name
+        tid = get_current_tenant()
+        if tid and supabase:
+            res = (supabase.table("tenants").select("name")
+                   .eq("id", tid).limit(1).execute())
+            rows = getattr(res, "data", None) or []
+            name = (rows[0].get("name") or "").strip() if rows else ""
+            if name:
+                return name
+    except Exception:
+        pass
+    return ""
+
+
 def update_business_info(data: dict) -> bool:
     """Upsert the current tenant's business_info row (match on tenant_id, not id=1)."""
     if not supabase: return False

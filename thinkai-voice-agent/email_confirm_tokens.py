@@ -31,11 +31,13 @@ DEFAULT_SMS_TEMPLATE_NO_EMAIL = (
     "{rendelo}: idopontja rogzitve ({datum} {ido}). Kerjuk, adja meg "
     "e-mail cimet a visszaigazolashoz: {link}"
 )
-# Handoff (igényrögzítés) mód: NINCS naptári időpont — a "rogzitve" a KÉRÉS-re
-# vonatkozik, és a jóváhagyás a későbbi kapcsolatfelvétel e-mail címét erősíti.
+# Handoff (igényrögzítés) mód: NINCS naptári időpont — a "Rogzitettuk kereset"
+# a KÉRÉS-re vonatkozik, és a jóváhagyás a későbbi kapcsolatfelvétel e-mail
+# címét erősíti. Szöveg: 2026-10-14 user-diktált (GSM-7, ékezetek nélkül).
 DEFAULT_SMS_TEMPLATE_HANDOFF = (
-    "{rendelo}: kereset rogzitve. Kollagaink hamarosan felveszik Onnnel "
-    "a kapcsolatot. Email cime: {email}. Ha helyes, erositse meg itt: {link}"
+    "{rendelo}: Rogzitettuk kereset; kollegaink hamarosan felveszik Onnel "
+    "a kapcsolatot. Kerjuk, email-cimet erositse meg vagy javitsa az alabbi "
+    "linkre kattintva: {link}"
 )
 
 # ── Token-paraméterek ────────────────────────────────────────────────────────

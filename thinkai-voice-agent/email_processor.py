@@ -2531,14 +2531,15 @@ async def send_email_verification_email(session_id: str, event_ids: list, attend
     verify_url = f"{SERVER_URL}/api/public/verify-email?token={token}"
     name = (attendee or "").strip() or "Ügyfelünk"
     subject = "Kérjük, erősítse meg az e-mail címét"
-    # Tenant-márkanév (2026-10-14): a levélben a bérlő SAJÁT neve szerepeljen,
-    # ne generikus 'rendelőnk' — és foglalás-független fogalmazás (a cím
+    # Tenant-márkanév (2026-10-14): a levélben a bérlő SAJÁT hivatkozási neve
+    # szerepeljen (markanev — mint az SMS-ben és a megerősítő oldalon), ne
+    # generikus 'rendelőnk' — és foglalás-független fogalmazás (a cím
     # megerősítése igényrögzítésnél is kimegy, amikor NEM történt foglalás).
     try:
-        _brand = (_get_sender() or {}).get("name") or ""
+        _brand = (db.get_tenant_display_name() or "").strip()
     except Exception:
         _brand = ""
-    _brand = (_brand or "").strip() or "virtuális asszisztensünk"
+    _brand = _brand or "virtuális asszisztensünk"
     html_content = f"""
     <html>
     <body style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; padding: 0; background: #f9fafb;">

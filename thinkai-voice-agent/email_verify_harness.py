@@ -1885,29 +1885,18 @@ def _send_handoff_confirm_sms(session_id: str, tenant_id, caller_number: str,
 
 
 def _rendelo_name() -> str:
-    """Az SMS {rendelo} helyettesítője: RENDELO_NAME env → a TENANT business_info
-    márkaneve (sender_name / practice_name — ezt karbantartja a felhasználó a
-    felületen) → tenants.name → 'Rendelo'. A tenants.name sok bérlőnél régi
-    belső név (pl. átbrandelt bérlőnél is a régi cég szerepel benne), ezért
-    csak tartalék. Fail-open."""
+    """Az SMS {rendelo} helyettesítője: RENDELO_NAME env → a bérlő megjelenítendő
+    márkaneve (database.get_tenant_display_name — a Céginfó 'Cég rövid
+    (hivatkozási) neve' a mérvadó, 2026-10-14 user-szabály) → 'Rendelo'.
+    Fail-open."""
     try:
         env_name = (os.getenv("RENDELO_NAME") or "").strip()
         if env_name:
             return env_name
         import database as _db
-        bi = _db.get_business_info() or {}
-        name = ((bi.get("sender_name") or "").strip()
-                or (bi.get("practice_name") or "").strip())
+        name = (_db.get_tenant_display_name() or "").strip()
         if name:
             return name
-        tid = _db.get_current_tenant()
-        if tid:
-            res = (_db.supabase.table("tenants").select("name")
-                   .eq("id", tid).limit(1).execute())
-            rows = getattr(res, "data", None) or []
-            name = (rows[0].get("name") or "").strip() if rows else ""
-            if name:
-                return name
     except Exception:
         pass
     return "Rendelo"

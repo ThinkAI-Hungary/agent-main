@@ -125,28 +125,19 @@ def validate_confirmation_email(email: str) -> dict:
 
 # ── Token-kontextus ──────────────────────────────────────────────────────────
 def _rendelo_name() -> str:
-    """A rendelő megjelenítendő neve: RENDELO_NAME env → a TENANT business_info
-    márkaneve (sender_name / practice_name — ezt karbantartja a felhasználó)
-    → tenants.name → általános 'Rendelő'. A tenants.name sok bérlőnél régi
-    belső név, ezért csak tartalék. Fail-open: hibánál 'Rendelő'."""
+    """A megjelenítendő cégnév: RENDELO_NAME env → a bérlő megjelenítendő
+    márkaneve (database.get_tenant_display_name — a Céginfó 'Cég rövid
+    (hivatkozási) neve' a mérvadó, 2026-10-14 user-szabály: az SMS és ez az
+    oldal EGYARÁNT ebből veszi a nevet) → általános 'Rendelő'.
+    Fail-open: hibánál 'Rendelő'."""
     try:
         env_name = (os.getenv("RENDELO_NAME") or "").strip()
         if env_name:
             return env_name
         import database as db
-        bi = db.get_business_info() or {}
-        name = ((bi.get("sender_name") or "").strip()
-                or (bi.get("practice_name") or "").strip())
+        name = (db.get_tenant_display_name() or "").strip()
         if name:
             return name
-        tid = db.get_current_tenant()
-        if tid:
-            res = (db.supabase.table("tenants").select("name")
-                   .eq("id", tid).limit(1).execute())
-            rows = getattr(res, "data", None) or []
-            name = (rows[0].get("name") or "").strip() if rows else ""
-            if name:
-                return name
     except Exception:
         pass
     return "Rendelő"
@@ -345,27 +336,36 @@ def render_confirm_page(ctx: dict, error: str = "", suggestion: str = "",
                 "<button type=\"submit\" class=\"ghost\">Erre gondolt: "
                 + _esc(sugg) + "?</button></form>"
             )
+        # 2026-10-14 user-diktált szövegek (prod-jelzés alapján): a lap a cím
+        # ELLENŐRZÉSÉT kéri; az időpont-visszaigazolás jegyzetsor csak akkor
+        # jár, ha van tényleges foglalás (igényrögzítésnél nincs időpont).
+        jegyzet = (
+            "<p class=\"jegyzet\">Az e-mail címre küldjük el az időpont "
+            "visszaigazolását.</p>" if ev_line else ""
+        )
         form = (
             f"<p class=\"idopont\">{_esc(ev_line)}</p>"
+            "<p>A telefonbeszélgetés során az alábbi e-mail-címet "
+            "rögzítettük. Ha helyes, erősítse meg. Ha hibás, javítsa a "
+            "mezőben, majd erősítse meg a módosított címet.</p>"
             "<form method=\"post\" action=\"/e/"
             + _esc(token) + "\">"
-            "<label for=\"em\">E-mail cím</label>"
+            "<label for=\"em\">E-mail-cím</label>"
             "<input id=\"em\" name=\"email\" type=\"email\" "
             "inputmode=\"email\" autocomplete=\"email\" required value=\""
             + _esc(candidate) + "\">"
             + sugg_html +
-            "<button type=\"submit\" class=\"fob\">Megerősítem</button>"
+            "<button type=\"submit\" class=\"fob\">E-mail-cím megerősítése</button>"
             "</form>"
-            "<p class=\"jegyzet\">Az e-mail címre küldjük el az időpont "
-            "visszaigazolását.</p>"
+            + jegyzet
             + err_html
         )
         head = (
             "<div class=\"piktogram\">✉️</div>"
-            "<h1>Erősítse meg e-mail címét</h1>"
+            "<h1>Ellenőrizze e-mail-címét</h1>"
             f"<p class=\"rendelo\">{_esc(rendelo)}</p>"
         )
-        return _page("E-mail cím megerősítése", head + form)
+        return _page("Ellenőrizze e-mail-címét", head + form)
     except Exception as exc:
         logger.warning("render_confirm_page hiba (fail-open): {}", exc)
         return _page("Hiba", "<h1>Hoppá!</h1><p>Kérjük, próbálja újra "
