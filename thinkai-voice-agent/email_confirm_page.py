@@ -125,13 +125,20 @@ def validate_confirmation_email(email: str) -> dict:
 
 # ── Token-kontextus ──────────────────────────────────────────────────────────
 def _rendelo_name() -> str:
-    """A rendelő megjelenítendő neve: RENDELO_NAME env → tenants.name →
-    általános 'Rendelő'. Fail-open: hibánál 'Rendelő'."""
+    """A rendelő megjelenítendő neve: RENDELO_NAME env → a TENANT business_info
+    márkaneve (sender_name / practice_name — ezt karbantartja a felhasználó)
+    → tenants.name → általános 'Rendelő'. A tenants.name sok bérlőnél régi
+    belső név, ezért csak tartalék. Fail-open: hibánál 'Rendelő'."""
     try:
         env_name = (os.getenv("RENDELO_NAME") or "").strip()
         if env_name:
             return env_name
         import database as db
+        bi = db.get_business_info() or {}
+        name = ((bi.get("sender_name") or "").strip()
+                or (bi.get("practice_name") or "").strip())
+        if name:
+            return name
         tid = db.get_current_tenant()
         if tid:
             res = (db.supabase.table("tenants").select("name")
@@ -170,12 +177,22 @@ def load_token_context(token: str) -> dict:
      "expired": bool, "already_confirmed": bool, "rendelo": str}.
     Ismeretlen token → row=None (a render hibaoldalt ad). SOSEM dob."""
     ctx = {"row": None, "events": [], "expired": False,
-           "already_confirmed": False, "rendelo": _rendelo_name()}
+           "already_confirmed": False, "rendelo": "Rendelő"}
     try:
         row = get_confirm_token(token)
         if not row:
             return ctx
         ctx["row"] = row
+        # A token tenantja állítja a kontextust, MIELŐTT a megjelenítendő nevet
+        # olvassuk — különben a default tenant (pl. Rivergate) márkaneve kerül
+        # a fejlécbe egy másik bérlő megerősítő oldalán (2026-10-14 incidens).
+        try:
+            import database as _db
+            if row.get("tenant_id"):
+                _db.set_current_tenant(row["tenant_id"])
+        except Exception:
+            pass
+        ctx["rendelo"] = _rendelo_name()
         expires = _parse_dt(row.get("expires_at"))
         ctx["expired"] = bool(expires and expires < datetime.now(timezone.utc))
         ctx["already_confirmed"] = token_is_confirmed(row)

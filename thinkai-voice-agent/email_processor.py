@@ -2493,7 +2493,7 @@ def get_cancellation_html(event_id: int) -> str:
     <div style="font-family: 'Segoe UI', Arial, sans-serif; max-width: 600px; color: #333; line-height: 1.6; margin-top: 30px;">
         <p style="font-size: 12px; color: #6b7280; font-style: italic;">
             * Kérjük, vegye figyelembe, hogy időpont módosítására az időpont előtti 48 órával van lehetőség. 
-            Tájékoztatjuk, hogy 24 órán belüli lemondás esetén rendelőnk külön szabályzata lehet érvényben.
+            Tájékoztatjuk, hogy 24 órán belüli lemondás esetén szolgáltatónk külön szabályzata lehet érvényben.
         </p>
         <hr style="border: 0; border-top: 1px solid #e5e7eb; margin: 30px 0;">
         <div style="text-align: center;">
@@ -2531,6 +2531,14 @@ async def send_email_verification_email(session_id: str, event_ids: list, attend
     verify_url = f"{SERVER_URL}/api/public/verify-email?token={token}"
     name = (attendee or "").strip() or "Ügyfelünk"
     subject = "Kérjük, erősítse meg az e-mail címét"
+    # Tenant-márkanév (2026-10-14): a levélben a bérlő SAJÁT neve szerepeljen,
+    # ne generikus 'rendelőnk' — és foglalás-független fogalmazás (a cím
+    # megerősítése igényrögzítésnél is kimegy, amikor NEM történt foglalás).
+    try:
+        _brand = (_get_sender() or {}).get("name") or ""
+    except Exception:
+        _brand = ""
+    _brand = (_brand or "").strip() or "virtuális asszisztensünk"
     html_content = f"""
     <html>
     <body style="font-family: 'Segoe UI', Arial, sans-serif; color: #333; margin: 0; padding: 0; background: #f9fafb;">
@@ -2539,7 +2547,7 @@ async def send_email_verification_email(session_id: str, event_ids: list, attend
                 <div style="font-size: 48px; margin-bottom: 20px;">✉️</div>
                 <h1 style="color: #111827; font-size: 22px; margin-bottom: 16px;">Kedves {name}!</h1>
                 <p style="font-size: 16px; line-height: 1.6; color: #6b7280; margin-bottom: 10px;">
-                    Nemrég telefonon időpontot foglalt Önnek a rendelőnk virtuális asszisztense.
+                    Nemrég telefonon beszélt Önnel a {_brand} virtuális asszisztense.
                     A visszaigazolás elküldése előtt kérjük, erősítse meg, hogy a következő
                     e-mail címet helyesen értettük-e:
                 </p>
@@ -2547,7 +2555,8 @@ async def send_email_verification_email(session_id: str, event_ids: list, attend
                     {attendee_email}
                 </p>
                 <p style="font-size: 15px; line-height: 1.6; color: #6b7280; margin-bottom: 24px;">
-                    A lenti gombra kattintva visszaigazoljuk az időpontját erre a címre.
+                    A lenti gombra kattintva megerősítheti a címet — ezt követően
+                    elküldjük Önnek a visszaigazolást.
                 </p>
                 <a href="{verify_url}" style="background-color: #2563eb; color: #ffffff; padding: 14px 36px; text-decoration: none; border-radius: 8px; font-weight: bold; display: inline-block; font-size: 16px;">E-mail cím megerősítése</a>
                 <p style="font-size: 12px; color: #9ca3af; margin-top: 24px;">
@@ -2559,9 +2568,9 @@ async def send_email_verification_email(session_id: str, event_ids: list, attend
     </body>
     </html>
     """
-    plain = (f"Kedves {name}! Nemrég telefonon időpontot foglalt Önnek a rendelőnk. "
-             f"A visszaigazolás előtt kérjük, erősítse meg az e-mail címét ({attendee_email}) "
-             f"itt: {verify_url}")
+    plain = (f"Kedves {name}! Nemrég telefonon beszélt Önnel a {_brand} virtuális "
+             f"asszisztense. A visszaigazolás előtt kérjük, erősítse meg az e-mail "
+             f"címét ({attendee_email}) itt: {verify_url}")
 
     api_key = _get_brevo_api_key()
     if not api_key:

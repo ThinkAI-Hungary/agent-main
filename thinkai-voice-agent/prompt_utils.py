@@ -171,10 +171,11 @@ def _format_patient_rules(pi: dict) -> str:
                 "délután szeretne érkezni, kérjük, írja meg nekünk.' A kapcsolatfelvételi ígéret "
                 "mindig ÖNMAGÁBAN álljon, a preferencia-kérdés csak utána, külön mondatban jöjjön. "
                 "E-MAIL CÍM A RÖGZÍTÉSHEZ: a beszélgetés végén — ha még nem tudod — kérd el az "
-                "ügyfél e-mail címét ('Hová küldhetjük a megerősítést?'), mert a rendszer SMS-ben "
-                "visszaigazolja a rögzítést; a címet NE kérj betűzésenként, NE ismételd vissza, "
+                "ügyfél e-mail címét ('Hová küldhetjük a megerősítést?'), mert a rendszer az "
+                "ügyfél megadott TELEFONSZÁMÁRA küld SMS-t, amiben a rögzített e-mail cím "
+                "erősíthető meg egy kattintással; a címet NE kérj betűzésenként, NE ismételd vissza, "
                 "NE igazoltasd vissza szó szerint — a rendszer a hívás után automatikusan "
-                "ellenőrzi és SMS-ben erősíti meg.")
+                "ellenőrzi, és a telefonszámra küldött SMS-ben kéri a megerősítést.")
     if mode == "custom":
         _hun = {"book": "időpontFOGLALÁS", "modify": "időpont-MÓDOSÍTÁS", "delete": "időpont-LEMONDÁS"}
         _lines = [f"   - {_hun[op]}: {'önállóan kezelheted' if op in self_ops else 'NE kezeld önállóan — rögzítsd az igényt és jelezd, hogy munkatársunk felveszi a kapcsolatot'}" for op in ("book", "modify", "delete")]
@@ -205,7 +206,7 @@ def _format_patient_rules(pi: dict) -> str:
     rules.append("3b. HA A HÍVÓNAK MÁR VAN KÖZELGŐ IDŐPONTJA (find_client vagy naptár szerint): ezt CSAK TÁJÉKOZTATÁSKÉPPEN említsd ('Látom, várjuk kedden 16:30-kor — foglaljak még egy időpontot?'), és az ÚJ foglalást SOHA ne utasítsd el, ne kérdőjelezd meg, és ne hivatkozz rá a beszélgetés visszaterelésére! Ütközéses időpontnál ajánld fel a tool által javasolt szabad időpontot.")
 
     # Email bekérése kötelező
-    rules.append("4. IDŐPONTFOGLALÁS ESETÉN: Szigorúan kötelező elkérned az ügyfél e-mail címét a foglalás véglegesítése előtt! A FOLYAMAT RENDJE — amit az ügyfélnek is így közölsz: (1) az e-mail cím rögzítése után a rendszer SMS-t küld, amiben egy kattintással jóváhagyhatja, hogy a címet helyesen értettük-e; (2) CSAK a jóváhagyás után érkezik meg a hivatalos visszaigazoló e-mail a naptárfájllal és az esetleges lemondáshoz szükséges linkkel. A visszaigazoló e-mail AZONNALI küldését SOHA ne ígérd — az a jóváhagyást KÖVETI (se 'küldünk egy visszaigazoló emailt', se 'SMS-t ÉS emailt is kap' — egyetlen sorrend van: először SMS, aztán az email). AZ E-MAIL CÍMET TERMÉSZETESEN KÉRD BE: NE kérj betűzésenkénti diktálást, NE mondatd vissza betűnként vagy részenként, és NE igazoltasd vissza szó szerint — a rendszer a hívás után automatikusan ellenőrzi a címet. Csak akkor kérj pontosítást, ha a hívó maga javít, vagy amit mondott, annyira érthetetlen, hogy teljes egészében kimaradt. A RÖGZÍTÉS UTÁN NE ISMÉTELD VISSZA a bemondott címet vagy más adatokat (név, telefonszám, időpont) ellenőrzésképpen — elég egy rövid, udvarias igazolás; a pontos ellenőrzést a rendszer végzi el a hívás után.")
+    rules.append("4. IDŐPONTFOGLALÁS ESETÉN: Szigorúan kötelező elkérned az ügyfél e-mail címét a foglalás véglegesítése előtt! A FOLYAMAT RENDJE — amit az ügyfélnek is így közölsz: (1) az e-mail cím rögzítése után a rendszer az ügyfél MEGADOTT TELEFONSZÁMÁRA küld SMS-t, amiben egy kattintással jóváhagyhatja, hogy a címet helyesen értettük-e; (2) CSAK a jóváhagyás után érkezik meg a hivatalos visszaigazoló e-mail a naptárfájllal és az esetleges lemondáshoz szükséges linkkel. Az SMS-t tehát a telefonszámra küldjük — az e-mail címre CSAK a jóváhagyás UTÁN megy e-mail. A visszaigazoló e-mail AZONNALI küldését SOHA ne ígérd — az a jóváhagyást KÖVETI (se 'küldünk egy visszaigazoló emailt', se 'SMS-t ÉS emailt is kap' — egyetlen sorrend van: először SMS a telefonszámra, aztán az email). AZ E-MAIL CÍMET TERMÉSZETESEN KÉRD BE: NE kérj betűzésenkénti diktálást, NE mondatd vissza betűnként vagy részenként, és NE igazoltasd vissza szó szerint — a rendszer a hívás után automatikusan ellenőrzi a címet. Csak akkor kérj pontosítást, ha a hívó maga javít, vagy amit mondott, annyira érthetetlen, hogy teljes egészében kimaradt. A RÖGZÍTÉS UTÁN NE ISMÉTELD VISSZA a bemondott címet vagy más adatokat (név, telefonszám, időpont) ellenőrzésképpen — elég egy rövid, udvarias igazolás; a pontos ellenőrzést a rendszer végzi el a hívás után.")
 
     # 2026-10-08 staging-teszt: az agent szóban 'rögzítem az időpontot'-ot
     # mondott, a book_meeting eszközt MEGHÍVTA SEM — naptárba semmi nem került,
@@ -410,9 +411,9 @@ def get_system_prompt(channel: str = None) -> str:
             "   b) Második lépés — időpont-preferencia: „Esetleg van elképzelése arról, hogy "
             "melyik napon, illetve délelőtt vagy délután szeretne érkezni?” — VÁRJ a válaszra.\n"
             "   c) Harmadik lépés — ügyfél biztosítása a kimenetről: „Köszönöm, rögzítettem "
-            "foglalási igényét és hogy mikor szeretne jönni. E-mail címének megerősítéséről "
-            "hamarosan SMS-t fog kapni, kérjük, igazolja majd vissza, hogy helyesen "
-            "rögzítettük-e.”\n"
+            "foglalási igényét és hogy mikor szeretne jönni. A megadott telefonszámára "
+            "hamarosan SMS érkezik — abban egy kattintással erősítheti meg, hogy e-mail "
+            "címét jól rögzítettük-e.”\n"
             "   d) Lezárás (mindig): „Tehetek még valamit Önért?”"
         )
 
@@ -535,8 +536,9 @@ def _format_eljaras_rules(pi: dict | None = None, channel: str | None = None) ->
                 "átadsd embernek, a hívó NEVÉT, TELEFONSZÁMÁT és E-MAIL CÍMÉT mindig "
                 "kérdezd meg, ha még nincsenek meg — a visszaigazoló SMS és email "
                 "ezekre az adatokra megy. Az e-mail címet NE olvasd vissza: csak "
-                "ennyit jelizz — 'E-mail címének megerősítéséről SMS-t fog kapni, "
-                "kérjük, igazolja vissza, hogy helyesen rögzítettük-e.' Név, "
+                "ennyit jelizz — 'A megadott telefonszámára hamarosan SMS érkezik, "
+                "abban egy kattintással erősítheti meg, hogy e-mail címét jól "
+                "rögzítettük-e.' Név, "
                 "telefonszám vagy érvényes e-mail cím nélkül NE zárd le az igényt."
             ]
         )
