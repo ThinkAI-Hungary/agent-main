@@ -699,6 +699,30 @@ SZABÁLYOK:
                 recording_path = await recorder.finish_and_upload(tenant_slug, session_id)
                 if recording_path:
                     db.set_session_recording(session_id, recording_path)
+                    # ── Transzkript-véglegesítés handoff (2026-10-08, user-spec) ──
+                    # A valós idejű transzkript prototípus: a hívó csatornát utólag
+                    # magyarra hangolt kötegelt STT írja újra, a bubble-sorrend a
+                    # rögzített start_s horgonyok szerinti. A web_server hosszú
+                    # életű folyamatában fut (CALLER_TRANSCRIBE_FINAL env kapu).
+                    if (os.getenv("CALLER_TRANSCRIBE_FINAL", "0") == "1"):
+                        try:
+                            import urllib.request as _ureq_tr
+                            _tr_req = _ureq_tr.Request(
+                                "http://127.0.0.1:8000/api/internal/transcribe-caller",
+                                data=json.dumps({
+                                    "session_id": session_id,
+                                    "tenant_id": tenant_id,
+                                    "recording_path": recording_path,
+                                    "turns": (recorder.turns if recorder and recorder.turns else []),
+                                    "script": (campaign_data or {}).get("script", "") if campaign_data else "",
+                                }).encode("utf-8"),
+                                headers={"Content-Type": "application/json"},
+                                method="POST",
+                            )
+                            await asyncio.to_thread(_ureq_tr.urlopen, _tr_req, timeout=10)
+                            logger.info("📝 Transcribe-caller handoff elküldve (session: %s)", session_id)
+                        except Exception as tr_e:
+                            logger.warning(f"Transcribe-caller handoff hiba (fail-open): {tr_e}")
             except Exception as rec_e:
                 logger.error(f"Hívásrögzítés feldolgozása sikertelen (a hívás lezárul): {rec_e}")
 

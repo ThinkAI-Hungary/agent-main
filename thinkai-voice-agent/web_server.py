@@ -6935,6 +6935,47 @@ _SMS_ALREADY_CONFIRMED_HTML = """
 """
 
 
+@app.post("/api/internal/transcribe-caller")
+async def internal_transcribe_caller(request: Request):
+    """2026-10-08: a hívás utáni transzkript-véglegesítés ITT fut (mint az
+    email-verify harness) — a worker-folyamatnak a LiveKit csak ~15 s-ot ad,
+    a szeletenkénti STT ott nem férne bele. Csak LOCALHOZRÓL hívható; a válasz
+    azonnal megy, a munka háttér-taskban fut (fail-open: hiba csak log).
+    A végleges transcript_turns felülírja a prototípus-sort; hibánál a
+    prototípus marad."""
+    client_host = request.client.host if request.client else ""
+    if client_host not in ("127.0.0.1", "::1", "localhost"):
+        logger.warning("internal transcribe-caller nem-localhost hívás (%s) — 403", client_host)
+        raise HTTPException(status_code=403, detail="internal only")
+    try:
+        body = await request.json()
+    except Exception:
+        raise HTTPException(status_code=400, detail="invalid json")
+    session_id = str(body.get("session_id") or "")
+    if not session_id:
+        raise HTTPException(status_code=400, detail="session_id required")
+
+    async def _run_transcribe():
+        try:
+            from transcription_refine import refine_caller_transcript
+            result = await refine_caller_transcript(
+                session_id=session_id,
+                tenant_id=body.get("tenant_id"),
+                recording_path=body.get("recording_path") or "",
+                turns=body.get("turns") or [],
+                campaign_script=body.get("script") or "",
+                client_name=body.get("client_name") or "",
+            )
+            logger.info("HTTP-triggeres transzkript-véglegesítés kész (%s) → %s",
+                        session_id, result)
+        except Exception as exc:
+            logger.warning("HTTP-triggeres transzkript-véglegesítés hiba (%s, fail-open): %s",
+                           session_id, exc)
+
+    asyncio.create_task(_run_transcribe())
+    return {"ok": True, "triggered": session_id}
+
+
 @app.post("/api/internal/run-email-verify")
 async def internal_run_email_verify(request: Request):
     """WP-E hotfix (2026-10-08): a hívás utáni email-ellenőrző harness ITT,
