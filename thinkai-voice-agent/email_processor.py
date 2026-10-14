@@ -1504,7 +1504,9 @@ async def _poll_tenant_mailbox(tenant: dict):
     (client-lookup, klasszifikáció, sender) a helyes tenant scope-ban fussanak."""
     tid = tenant["id"]
     db.set_current_tenant(tid)
-    server, user, pwd, port = _imap_credentials(tid)
+    # 2026-10-14 incident: a get_credential szinkron PostgREST-hívás az event
+    # loopon futva egy beragadt kapcsolatnál az egész szervert lefagyasztotta.
+    server, user, pwd, port = await asyncio.to_thread(_imap_credentials, tid)
     if not server or not user or not pwd:
         return  # nincs IMAP konfigurálva ennél a tenantnál
 
@@ -1552,7 +1554,10 @@ async def email_worker_loop():
     logger.info("E-mail figyelő worker elindítva (multi-mailbox).")
     while True:
         try:
-            for tenant in db.get_active_tenants():
+            # Szinkron PostgREST-hívás — to_thread, hogy a loop soha ne blokkoljon
+            # (2026-10-14 incident: loopon futtatva az egész admin felület fagyott).
+            tenants = await asyncio.to_thread(db.get_active_tenants)
+            for tenant in tenants:
                 await _poll_tenant_mailbox(tenant)
         except asyncio.CancelledError:
             logger.info("E-mail figyelő worker megszakítva.")

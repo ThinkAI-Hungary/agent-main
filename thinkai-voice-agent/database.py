@@ -13,8 +13,9 @@ import contextvars
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
+import httpx
 from loguru import logger
-from supabase import create_client, Client
+from supabase import create_client, Client, ClientOptions
 from dotenv import load_dotenv
 
 THIS_DIR = Path(__file__).resolve().parent
@@ -27,7 +28,16 @@ if not SUPABASE_URL or not SUPABASE_KEY:
     logger.warning("SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY missing from .env!")
     supabase: Client = None
 else:
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+    supabase: Client = create_client(
+        SUPABASE_URL, SUPABASE_KEY,
+        # 2026-10-14 incident: a default timeout nélküli kliens egy beragadt
+        # HTTP/2 PostgREST-kapcsolaton örökre elakadt, és mivel a szinkron
+        # hívások az asyncio event loopon futnak, az egész admin felület
+        # lefagyott. Itt alsó határ; a loop-védő to_thread az email_processorban.
+        options=ClientOptions(
+            postgrest_client_timeout=httpx.Timeout(20.0, connect=10.0),
+        ),
+    )
 
 # ═══════════════════════════════════════════════════════════════════════════
 # MULTI-TENANCY (FÁZIS 2) — tenant-kontextus + credential store

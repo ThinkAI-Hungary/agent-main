@@ -19,6 +19,8 @@ import io
 import sys
 import wave
 
+from loguru import logger
+
 
 def split_stereo_to_caller(wav_bytes: bytes) -> tuple[bytes, int]:
     """Sztereó 16-bit WAV → (BAL csatorna PCM, sample_rate). Mono → self."""
