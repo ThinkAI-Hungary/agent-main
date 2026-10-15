@@ -525,7 +525,9 @@ async def _detect_intent_llm(message_text: str) -> dict:
     4. osszefoglalas: Rövid, 1 mondatos összefoglalás magyarul.
     5. client_name: A hívó/ügyfél NEVE, ha elhangzott a beszélgetésben (pl. "Balyos Judit").
        Ha nem derült ki a név, akkor null. CSAK a ténylegesen elhangzott nevet add meg,
-       ne találj ki!
+       ne találj ki! Ha az ügyfél a CÉGÉT is megnevezte (B2B bemutatkozás, pl.
+       „Orosz Erika vagyok a MetalPro Kft-től"), a nevet ÍGY írd: „Vezetéknév Keresztnév
+       (Cégnév)" — pl. „Orosz Erika (MetalPro Kft)". A cégnév zárójelben, a név után álljon.
 
     Szabályok:
     - FONTOS: a FIZIKAI/ORVOSI tünet (fogfájás, erős fájdalom, bölcsességfog-fájdalom,

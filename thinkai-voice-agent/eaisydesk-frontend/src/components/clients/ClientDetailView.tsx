@@ -441,7 +441,13 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     const rows: InteractionRowDetail[] = [];
     matchingSessions.forEach((s) => {
       if (s.interactions && s.interactions.length > 0) {
+        // voice_alert (Riasztás) sorok kihagyása, HA a sessionben van valódi
+        // interakciós sor is (leirat/email) — különben a riasztás üres popupot
+        // adott a profilon (2026-10-15 user-jelzés). Ha a riasztás az EGYETLEN
+        // sor, megmarad (nehogy a session láthatatlan legyen).
+        const hasRealRow = s.interactions.some((r) => r.type !== 'voice_alert');
         s.interactions.forEach((r) => {
+          if (hasRealRow && r.type === 'voice_alert') return;
           // Skip spam interactions
           if (r.approval_status === 'spam') return;
           // Client-újraszűrés: a behúzott sessionben másik ügyfélhez kapcsolt
