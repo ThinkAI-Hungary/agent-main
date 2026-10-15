@@ -356,7 +356,7 @@ def test_sikeres_kuldes_update_row_id_alapjan(monkeypatch):
     monkeypatch.setenv("TWILIO_ACCOUNT_SID", "ACtest")
     monkeypatch.setenv("TWILIO_AUTH_TOKEN", "tok")
     monkeypatch.setenv("TWILIO_FROM", "+15005550006")
-    res = ss.send_sms("+36709436426", "teszt", session_id="s", purpose="t")
+    res = ss.send_sms("+3670000001", "teszt", session_id="s", purpose="t")
     assert res["ok"] is True
     # az update a SOR-ID-n futott, nem a (még üres) provider_sid-en
     assert ("id", "row-42") in calls["eq"]

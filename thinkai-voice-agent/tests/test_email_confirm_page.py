@@ -389,7 +389,7 @@ def test_suggestion_blokkolja_majr_az_elfogadas_megerosit(monkeypatch):
     monkeypatch.setattr(ecp, "validate_confirmation_email", fake_validate, raising=False)
     monkeypatch.setattr(ecp, "get_confirm_token", lambda t: {
         "token": t, "session_id": "s1", "tenant_id": None, "event_ids": [7],
-        "phone": "+36709436426", "candidate_email": "x@gmial.com",
+        "phone": "+3670000001", "candidate_email": "x@gmial.com",
         "expires_at": "2099-01-01T00:00:00Z", "confirmed_at": None,
         "client_id": 31}, raising=False)
     monkeypatch.setattr(ecp, "token_is_confirmed", lambda r: False, raising=False)

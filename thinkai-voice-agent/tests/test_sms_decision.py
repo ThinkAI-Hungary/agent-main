@@ -48,7 +48,7 @@ BOOKINGS = [{"event_id": 7, "title": "Konzultáció", "date": "2026-10-01",
 _prev_tools = sys.modules.get("tools")
 sys.modules.pop("tools", None)
 TOOLS = _stub("tools", pop_session_bookings=lambda sid: list(BOOKINGS),
-              get_caller_phone=lambda: "+36709436426",
+              get_caller_phone=lambda: "+3670000001",
               send_session_confirmations=None)
 
 import email_verify_harness as evh  # noqa: E402
@@ -125,7 +125,7 @@ def _verdict(status="non_green", winner="jelolt@citromail.hu"):
             "name": None, "llm": {}}
 
 
-def _run(monkeypatch, verdict, caller="+36709436426"):
+def _run(monkeypatch, verdict, caller="+3670000001"):
     monkeypatch.setattr(evh, "run_harness", lambda **kw: verdict, raising=False)
     if caller is not None:
         monkeypatch.setattr(TOOLS, "get_caller_phone", lambda: caller, raising=False)
@@ -159,7 +159,7 @@ def test_nongreen_jogosult_sms_megy_optin_nem(env, monkeypatch):
     _run(monkeypatch, _verdict("non_green", "jelolt@citromail.hu"))
     assert len(calls) == 1
     assert calls[0]["candidate"] == "jelolt@citromail.hu"
-    assert calls[0]["phone"] == "+36709436426"
+    assert calls[0]["phone"] == "+3670000001"
     assert env.optin == []
     assert env.notes and "függőben" in env.notes[0][1]  # recepció-jelzés az eseményen
 
@@ -185,7 +185,7 @@ def test_nincs_email_jogosult_ures_sms(env, monkeypatch):
     BOOKINGS[0]["attendee_email"] = ""
     try:
         calls = _sms_ok(monkeypatch)
-        _run(monkeypatch, _verdict("non_green", ""), caller="+36709436426")
+        _run(monkeypatch, _verdict("non_green", ""), caller="+3670000001")
     finally:
         BOOKINGS[0]["attendee_email"] = "live@freemail.hu"
     assert len(calls) == 1
@@ -207,7 +207,7 @@ def test_nincs_email_nem_jogosult_nincs_kuldes(env, monkeypatch):
 def test_error_jogosult_sms_legacy_nem_megy(env, monkeypatch):
     # 2.3: error/no_recording + jogosult → SMS a foglalási élő címmel előtöltve
     calls = _sms_ok(monkeypatch)
-    _run(monkeypatch, _verdict("error", ""), caller="+36709436426")
+    _run(monkeypatch, _verdict("error", ""), caller="+3670000001")
     assert len(calls) == 1
     assert calls[0]["candidate"] == "live@freemail.hu"  # a foglalási (élő) cím
     assert env.legacy == []
@@ -231,7 +231,7 @@ def test_sms_mode_off_regi_viselkedes(env, monkeypatch):
 
 class TestSmsEligible:
     def test_magyar_mobil_ok(self):
-        ok, _ = evh.sms_eligible("+36709436426", BOOKINGS, "sess-1")
+        ok, _ = evh.sms_eligible("+3670000001", BOOKINGS, "sess-1")
         assert ok is True
 
     def test_vezetekes_nem(self):
@@ -248,13 +248,13 @@ class TestSmsEligible:
             assert ok is False
 
     def test_nincs_foglalas_nem(self):
-        ok, _ = evh.sms_eligible("+36709436426", [], "sess-1")
+        ok, _ = evh.sms_eligible("+3670000001", [], "sess-1")
         assert ok is False
 
     def test_idempotencia_masodik_sms_nem_megy(self, monkeypatch):
         monkeypatch.setitem(sys.modules, "database", evh.db)
         monkeypatch.setattr(evh.db, "session_has_sms", lambda sid: True, raising=False)
-        ok, reason = evh.sms_eligible("+36709436426", BOOKINGS, "sess-1")
+        ok, reason = evh.sms_eligible("+3670000001", BOOKINGS, "sess-1")
         assert ok is False and "már ment SMS" in reason
 
 
@@ -460,10 +460,10 @@ def test_http_triggeres_futtatas_explicit_bookings(env, monkeypatch):
     monkeypatch.setattr(evh, "run_harness", lambda **kw: _verdict("non_green", ""),
                         raising=False)
     asyncio.run(evh.run_and_apply_email_verification(
-        "sess-http", caller_number="+36709436426", bookings=explicit))
+        "sess-http", caller_number="+3670000001", bookings=explicit))
     assert len(calls) == 1
     assert calls[0]["candidate"] == "http@freemail.hu"  # az explicit foglalásból
-    assert calls[0]["phone"] == "+36709436426"          # a paraméterből
+    assert calls[0]["phone"] == "+3670000001"          # a paraméterből
     assert pops == []                                   # a pop nem hívódott
 
 
@@ -515,7 +515,7 @@ def test_handoff_sms_megy_optin_nem(handoff_env, monkeypatch):
     asyncio.run(evh.run_and_apply_email_verification("sess-handoff"))
     assert len(calls) == 1
     assert calls[0]["candidate"] == "handoff@freemail.hu"
-    assert calls[0]["phone"] == "+36709436426"
+    assert calls[0]["phone"] == "+3670000001"
     assert handoff_env.optin == [] and handoff_env.confirm == []
 
 
