@@ -281,6 +281,27 @@ LANGUAGE_INSTRUCTIONS = {
     "it": "REGOLA RIGIDA: DEVI rispondere ESCLUSIVAMENTE in italiano. Tutte le tue risposte — saluti, informazioni, domande — devono essere in italiano. NON rispondere MAI in ungherese!",
 }
 
+
+def _language_rule(lang_code: str, is_text_channel: bool) -> str:
+    """A {language_rule} sablonváltozó szövege.
+
+    2026-10-15 (user-döntés): SZÖVEGES csatornán (email, messenger, …) az
+    ügyfél megkeresésének nyelve FELÜLÍRJA a tenant-nyelvet — az idegen
+    nyelvű megkeresésre a válasz a megkeresés nyelvén készül; a belső mezők
+    (összefoglalás, teendő, besorolás) ettől függetlenül magyarul maradnak.
+    Hangcsatornán a régi viselkedés marad (a nyelvváltást a server.py hint
+    adja)."""
+    if lang_code == "hu":
+        if is_text_channel:
+            return ("Alapértelmezésben magyarul kommunikálsz, udvariasan és segítőkészen. "
+                    "KIVÉTEL: ha az ügyfél megkeresése MÁS nyelven érkezett (a bejövő "
+                    "levél/üzenet tárgya és szövege az irányadó), a neki szánt választ "
+                    "AZ Ő NYELVÉN írd meg. A belső mezők (összefoglalás, teendő, "
+                    "besorolás) ettől függetlenül magyarul maradnak.")
+        return "Mindig magyarul kommunikálj, udvariasan és segítőkészen."
+    lang_name = LANGUAGE_NAMES.get(lang_code, lang_code)
+    return f"Always communicate in {lang_name}, politely and helpfully. NEVER respond in Hungarian."
+
 def get_system_prompt(channel: str = None) -> str:
     """Load system prompt from system_prompt.md and inject runtime variables.
     
@@ -308,11 +329,7 @@ def get_system_prompt(channel: str = None) -> str:
         lang_code = "hu"
 
     # Build the language_rule for the {language_rule} template variable
-    if lang_code == "hu":
-        language_rule = "Mindig magyarul kommunikálj, udvariasan és segítőkészen."
-    else:
-        lang_name = LANGUAGE_NAMES.get(lang_code, lang_code)
-        language_rule = f"Always communicate in {lang_name}, politely and helpfully. NEVER respond in Hungarian."
+    language_rule = _language_rule(lang_code, bool(is_text_channel))
 
     # Telephelyek lekérdezése
     clinics_str = ""
