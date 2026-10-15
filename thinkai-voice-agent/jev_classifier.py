@@ -19,31 +19,60 @@ _RETRY_DELAYS = (1, 3)
 _BODY_HEAD_LEN = 1500
 _sleep = time.sleep  # tesztelhetőség: a tesztek ezt cserélik ki
 
-# Magyar címkék a naplózáshoz / interakció-témához
+# Magyar címkék a naplózáshoz / interakció-témához. A 'paciens' belső
+# címkekulcs marad (protokoll-kompatibilitás: payload, should_filter, DB),
+# jelentése iparágfüggetlenül ÜGYFÉL (2026-10-14).
 LABEL_HU = {
-    "paciens": "Páciens",
+    "paciens": "Ügyfél",
     "munkatars": "Munkatárs",
     "szolgaltato": "Szolgáltató",
     "marketing": "Marketing",
 }
 
-_INSTRUCTIONS = (
+# Iparágfüggetlen instrukció (2026-10-14): a klasszifikáció a FOGADÓ cég
+# szemszögéből történik, a tenant Céginfó-profiljával — korábban beégetett
+# fogászati megfogalmazás volt, ami B2B tenantnál (pl. speditőr) a valódi
+# ügyfél-leveleket 'szolgáltató'-ként szűrte ki.
+_INSTRUCTIONS_WITH_PROFILE = (
     "Döntsd el, hogy ennek az e-mailnek a FELADÓJA (nem a levélben említett "
-    "személyek) melyik kategóriába tartozik egy fogászati rendelő szemszögéből."
+    "személyek) melyik kategóriába tartozik az alábbi cég szemszögéből — "
+    "'ügyfél' az, aki a cég profilban felsorolt szolgáltatásait igényli vagy "
+    "azokról érdeklődik."
 )
+_INSTRUCTIONS_GENERIC = (
+    "Döntsd el, hogy ennek az e-mailnek a FELADÓJA (nem a levélben említett "
+    "személyek) melyik kategóriába tartozik a fogadó cég szemszögéből — "
+    "'ügyfél' az, aki a cég szolgáltatásait igényli vagy azokról érdeklődik."
+)
+
+_PROFILE_MAX_LEN = 400
+
+
+def _instructions(tenant_profile: str = "") -> str:
+    """Az instrukció a fogadó tenant rövid Céginfó-profiljával; üres profilnál
+    generikus (profil nélküli) megfogalmazás."""
+    profile = " ".join((tenant_profile or "").split())[:_PROFILE_MAX_LEN]
+    if profile:
+        return f"{_INSTRUCTIONS_WITH_PROFILE}\nCégprofil: {profile}"
+    return _INSTRUCTIONS_GENERIC
+
 
 _CRITERIA = {
     "paciens": (
-        "Páciens vagy hozzátartozója, aki SAJÁT ügyében ír: időpont-kérés vagy "
-        "módosítás, egészségügyi kérdés, fájdalom, ár- vagy szolgáltatás-érdeklődés, panasz."
+        "Ügyfél vagy ügyfél-képviselő (akár egy cég kontakt személye), aki a "
+        "cég szolgáltatásait igényli vagy azokról érdeklődik: ajánlatkérés, "
+        "időpont-/foglaláskérés vagy -módosítás, szolgáltatással kapcsolatos "
+        "kérdés, számla- vagy fizetési ügy, panasz."
     ),
     "munkatars": (
-        "A rendelő SAJÁT munkatársa vagy belső kolléga: belső ügyintézés, "
-        "műszakbeosztás, belső egyeztetés, irodai levél."
+        "A cég SAJÁT munkatársa vagy belső kollégája: belső ügyintézés, "
+        "beosztás, belső egyeztetés, irodai levél."
     ),
     "szolgaltato": (
-        "B2B partner, beszállító vagy szolgáltató: számlázás, IT, karbantartás, "
-        "dental labor, marketing ügynökség, alvállalkozó, hivatalos levelezés cégek között."
+        "A cég működését kiszolgáló beszállító, alvállalkozó, tanácsadó vagy "
+        "ügynökség (számlázás, IT, karbantartás, labor, marketing, toborzás): "
+        "aki a cégNEK nyújt szolgáltatást — nem a cég kínált szolgáltatását "
+        "szeretné igénybe venni."
     ),
     "marketing": (
         "Marketing, hírlevél, promóció vagy automatikus tömeges küldemény "
@@ -92,8 +121,11 @@ def _parse_decision(data) -> dict:
     return {"label": choice, "confidence": confidence, "probabilities": probabilities, "raw": data, "error": ""}
 
 
-def classify_sender(from_email: str, from_name: str, subject: str, text_content: str) -> dict:
-    """A feladó JEV-osztályozása. SOHA nem dob kivételt — hibánál fail-open paciens."""
+def classify_sender(from_email: str, from_name: str, subject: str, text_content: str,
+                    tenant_profile: str = "") -> dict:
+    """A feladó JEV-osztályozása. SOHA nem dob kivételt — hibánál fail-open paciens.
+    tenant_profile: a fogadó tenant rövid Céginfó-leírása (név + szakterület +
+    kulcsszavak) — üresen generikus, iparágfüggetlen instrukcióval fut."""
     api_key = os.getenv("OPENROUTER_API_KEY", "")
     if not api_key:
         logger.warning("JEV küldő-szűrő: nincs OPENROUTER_API_KEY — fail-open (paciens)")
@@ -110,7 +142,7 @@ def classify_sender(from_email: str, from_name: str, subject: str, text_content:
         "questions": {
             "sender_class": {
                 "type": "choice",
-                "instructions": _INSTRUCTIONS,
+                "instructions": _instructions(tenant_profile),
                 "criteria": _CRITERIA,
             }
         },

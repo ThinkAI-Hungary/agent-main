@@ -390,6 +390,29 @@ def is_spam_email(from_email: str, from_name: str, subject: str, text_content: s
     return False
 
 
+def _tenant_profile_for_jev() -> str:
+    """A fogadó tenant rövid Céginfó-profilja a JEV küldő-szűrőhöz (név +
+    szakterület + kulcsszavak) — iparágfüggetlen klasszifikációhoz. Hibánál
+    vagy üres Céginfónál üres string: a klasszifikátor generikus instrukcióval
+    fut (fail-open irány: semmi ne akadjon el a profil-olvasáson)."""
+    try:
+        bi = db.get_business_info() or {}
+    except Exception as e:
+        logger.warning(f"JEV-profil olvasás hiba (fail-open, üres profil): {e}")
+        return ""
+    parts = []
+    for key in ("markanev", "practice_name", "sender_name"):
+        val = " ".join(str(bi.get(key) or "").split())
+        if val:
+            parts.append(val)
+            break  # egy cégnév elég — a három mező ugyanazt a céget jelöli
+    for key in ("szakterulet", "kulcsszavak"):
+        val = " ".join(str(bi.get(key) or "").split())
+        if val:
+            parts.append(val)
+    return ", ".join(parts)
+
+
 async def process_single_email(from_email: str, from_name: str, subject: str, text_content: str, message_id: str = "", received_at: str = ""):
     # ── SPAM CHECK — before any AI call ──────────────────────────────
     if is_spam_email(from_email, from_name, subject, text_content):
@@ -430,8 +453,11 @@ async def process_single_email(from_email: str, from_name: str, subject: str, te
     # ── JEV küldő-szűrő — nem-ügyfél feladók (munkatárs / szolgáltató / marketing)
     # kiszűrése ügyfél-lookup és AI-hívás ELŐTT. Fail-open: hibánál paciens. ──
     # A requests-hívás blokkol, ezért thread-ben fut (a scheduler ne álljon le).
+    # Iparágfüggetlen kritériumok: a klasszifikáció a fogadó tenant Céginfó-
+    # profiljának szemszögéből történik (2026-10-14).
     classification = await asyncio.to_thread(
-        jev_classifier.classify_sender, from_email, from_name, subject, text_content
+        jev_classifier.classify_sender, from_email, from_name, subject, text_content,
+        _tenant_profile_for_jev()
     )
     if jev_classifier.should_filter(classification):
         label = classification.get("label", "")
@@ -1245,6 +1271,12 @@ esetben NE válassz címkét.
                 ), name="escalation-email")
 
 
+# IMAP-kapcsolat timeout (2026-10-14): az imaplib alapértelmezetten
+# timeout NÉLKÜL olvas — egy beragadt/kiszakadt kapcsolat a worker-taskot
+# véglegesen fagyasztotta (a reggeli PostgREST-incidens IMAP-oldali párja).
+_IMAP_TIMEOUT = 30
+
+
 def _imap_credentials(tenant_id: str | None = None) -> tuple[str, str, str, int]:
     """IMAP hitelesítés feloldása tenantonként (FÁZIS 4 multi-mailbox).
     Sorrend: tenant_credentials (imap_server/user/pass/port) → globális .env.
@@ -1286,7 +1318,7 @@ def check_imap_sync(server: str = "", user: str = "", pwd: str = "", port: int =
     emails_to_process = []
 
     try:
-        mail = imaplib.IMAP4_SSL(server, port=port)
+        mail = imaplib.IMAP4_SSL(server, port=port, timeout=_IMAP_TIMEOUT)
         mail.login(user, pwd)
         mail.select("inbox")
 
@@ -1298,17 +1330,14 @@ def check_imap_sync(server: str = "", user: str = "", pwd: str = "", port: int =
         from datetime import timedelta as _td
         since_date = (datetime.now() - _td(days=3)).strftime("%d-%b-%Y")
         status, messages = mail.uid("search", None, f'(SINCE "{since_date}")')
-        if status == "OK" and messages[0]:
-            uids = messages[0].split()
-            hw_key = (server, user, port)
-            hw = _imap_highwater.get(hw_key, 0)
-            new_uids = [u for u in uids if int(u) > hw]
-            logger.info(f"IMAP poll: {len(uids)} levél a 3 napos ablakban, ebből új: {len(new_uids)}")
-            if not new_uids:
-                mail.logout()
-                return []
-            uids = new_uids
-            for uid in uids:
+        uids = messages[0].split() if (status == "OK" and messages and messages[0]) else []
+        hw_key = (server, user, port)
+        new_uids = [u for u in uids if int(u) > _imap_highwater.get(hw_key, 0)]
+        # Életjelző-log üres ablaknál is (2026-10-14): a tiszta postafiók
+        # korábban megkülönböztethetetlen volt a leállt workertől.
+        logger.info(f"IMAP poll: {len(uids)} levél a 3 napos ablakban, ebből új: {len(new_uids)}")
+        if new_uids:
+            for uid in new_uids:
                 try:
                     res, msg_data = mail.uid("fetch", uid, "(RFC822)")
                     if res != "OK":
@@ -1435,7 +1464,7 @@ def mark_emails_seen_sync(uids: list, server: str = "", user: str = "", pwd: str
     if not server or not user or not pwd:
         return
     try:
-        mail = imaplib.IMAP4_SSL(server, port=port)
+        mail = imaplib.IMAP4_SSL(server, port=port, timeout=_IMAP_TIMEOUT)
         mail.login(user, pwd)
         mail.select("inbox")
         for uid in uids:

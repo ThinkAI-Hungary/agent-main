@@ -241,3 +241,49 @@ class TestClassifySenderRequest:
         monkeypatch.setenv("OPENROUTER_API_KEY", "teszt-kulcs")
         classify_sender("paciens@example.com", "Név", "Tárgy", "Szöveg")
         assert fake.payloads[0]["model"] == "typesafe/jev-1.13"
+
+
+class TestTenantProfileInstructions:
+    """Iparágfüggetlen instrukciók (2026-10-14): a klasszifikáció a fogadó
+    tenant Céginfó-profiljával történik — fogászati hardcode nem maradhat."""
+
+    @staticmethod
+    def _capture_instructions(monkeypatch, *args, **kwargs):
+        fake = _FakeDecisions([_FakeResponse(200, _ok_payload("paciens", 0.9))])
+        monkeypatch.setattr(jev_classifier, "_post_decisions", fake)
+        monkeypatch.setenv("OPENROUTER_API_KEY", "teszt-kulcs")
+        classify_sender(*args, **kwargs)
+        return fake.payloads[0]["questions"]["sender_class"]["instructions"]
+
+    def test_tenant_profile_lands_in_instructions(self, monkeypatch):
+        instr = self._capture_instructions(
+            monkeypatch, "ceg@pelda.hu", "Név", "Tárgy", "Szöveg",
+            tenant_profile="UltraLog, szállítmányozás, közúti fuvar",
+        )
+        assert "FELADÓJA" in instr
+        assert "Cégprofil: UltraLog, szállítmányozás, közúti fuvar" in instr
+
+    def test_no_profile_generic_instructions(self, monkeypatch):
+        instr = self._capture_instructions(
+            monkeypatch, "ceg@pelda.hu", "Név", "Tárgy", "Szöveg",
+        )
+        assert "FELADÓJA" in instr
+        assert "Cégprofil" not in instr
+
+    def test_industry_neutral_no_dental_wording(self):
+        """Az instrukciók és kritériumok nem tartalmaznak iparág-hardcode-ot."""
+        for text in (jev_classifier._INSTRUCTIONS_WITH_PROFILE,
+                     jev_classifier._INSTRUCTIONS_GENERIC,
+                     *jev_classifier._CRITERIA.values()):
+            lowered = text.lower()
+            assert "fogászat" not in lowered
+            assert "rendelő" not in lowered
+            assert "dental" not in lowered
+            assert "páciens" not in lowered
+
+    def test_empty_profile_whitespace_only_is_generic(self, monkeypatch):
+        instr = self._capture_instructions(
+            monkeypatch, "ceg@pelda.hu", "Név", "Tárgy", "Szöveg",
+            tenant_profile="   ",
+        )
+        assert "Cégprofil" not in instr
