@@ -17,7 +17,7 @@ from loguru import logger
 THIS_DIR = Path(__file__).resolve().parent
 load_dotenv(THIS_DIR / ".env")
 
-from prompt_utils import load_agent_settings, get_system_prompt
+from prompt_utils import load_agent_settings, get_system_prompt, get_campaign_context
 
 # ── LiveKit Agents ────────────────────────────────────────────────────────────
 from livekit.agents import (
@@ -283,7 +283,7 @@ SZABÁLYOK:
 - Köszönj és mutatkozz be röviden (a rendelő/cég asszisztense vagy)
 - Mondd el az üzenetet természetesen, beszélgetős stílusban — NE olvasd fel szó szerint!
 - Ha ismered az ügyfél nevét, használd ({client_name})
-- Ha az ügyfél kérdez, válaszolj a hívás kontextusában
+- Ha az ügyfél kérdez, válaszolj a hívás és a lenti CÉG-KONTEXTUS alapján
 - Ha az ügyfél nem érdeklődik, köszönd meg az idejét és búcsúzz el udvariasan
 - Legyél kedves, természetes és rövid (max 2-3 mondat egyszerre)
 - Magyarul beszélj"""
@@ -307,12 +307,28 @@ SZABÁLYOK:
 - RÖGZÍTÉS-TÁJÉKOZTATÁS (GDPR): ha a forgatókönyv rögzítési tájékoztatót ír elő, azt a bemutatkozásban mondd el. Ha az ügyfél tiltakozik, mondd el, hogy ebben az esetben nem rögzíted, és köszönd el udvariasan.
 - Mondd el a szöveget természetesen, beszélgetős stílusban — NE olvasd fel szó szerint!
 - Személyre szabd: használd az ügyfél nevét ({client_name})
-- Ha az ügyfél kérdez, válaszolj a kampány kontextusában
+- Ha az ügyfél kérdez, válaszolj a kampány és a lenti CÉG-KONTEXTUS alapján
 - Ha az ügyfél nem érdeklődik, köszönd meg az idejét és búcsúzz el udvariasan
 - Legyél kedves, természetes és rövid (max 2-3 mondat egyszerre)
 - Magyarul beszélj"""
     else:
         system_instruction = get_system_prompt()
+
+    # ── Kampány-hívások céges kontextusa (2026-10-15): a kampány-prompt eddig
+    # teljesen lecserélte a standard promptot — a modell nem tudta, melyik
+    # céget képviseli (cégnév, aktív kedvezmények, tudástár hiányzott). Most a
+    # forgatókönyv mellé kompakt céges kontextus kerül; a NYITÓT továbbra is a
+    # forgatókönyv adja (2026-10-08-as szabály változatlan). ──
+    if campaign_data and campaign_data.get("script"):
+        _camp_ctx = get_campaign_context()
+        if _camp_ctx:
+            system_instruction += (
+                "\n\n--- CÉG- ÉS TUDÁSTÁR-KONTEXTUS ---\n"
+                "A fenti feladatot e cég nevében végzed: bemutatkozásnál, ha a forgatókönyv "
+                "másként nem rendelkezik, a cég rövid nevét mondd, és az ügyfél kérdéseire "
+                "ezzel a kontextussal együtt válaszolj. Amit itt nem találsz, arra mondd, "
+                "hogy kollégáid utánanéznek és visszahívnak.\n\n" + _camp_ctx
+            )
 
     # ── Language bias: default Hungarian, auto-switch if caller uses another language ──
     language_hint = (

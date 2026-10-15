@@ -425,6 +425,56 @@ def get_system_prompt(channel: str = None) -> str:
     return result
 
 
+def get_campaign_context(max_chars: int = 2000) -> str:
+    """Kompakt cég- és tudástár-kontextus KAMPÁNY-hívások promptjához (2026-10-15).
+
+    A kampány-hívás rendszerpromptja a FORGATÓKÖNYVRE épül (a nyitót a script
+    adja — ez marad), de a modell tudnia kell, melyik céget képviseli és milyen
+    ajánlatok élnek, különben nem tud bemutatkozni cégnévvel és az ügyfél
+    kérdéseire üres kézzel válaszol. Ezért ez a karcsú kivonat: cégnév
+    (markanev a mérvadó), tevékenység, aktív ajánlatok/kedvezmények,
+    árlista-jegyzet, tudástár-részlet. A foglalási/beteg-szabályok szándékosan
+    NEM jönnek. Hibánál üres string — a kampány-prompt enélkül is működik."""
+    try:
+        pi = _load_praxisinfo() or {}
+        settings = load_agent_settings() or {}
+    except Exception as e:
+        logger.warning(f"get_campaign_context: Céginfó-olvasás hiba ({e}) — üres kontextus")
+        return ""
+
+    def _clean(val) -> str:
+        return " ".join(str(val or "").split())
+
+    parts = []
+    cegnev = ""
+    for key in ("markanev", "practice_name", "sender_name"):
+        v = _clean(pi.get(key))
+        if v:
+            cegnev = v
+            break
+    if cegnev:
+        parts.append(f"A cég, amelyet képviselsz: {cegnev}")
+    if _clean(pi.get("szakterulet")):
+        parts.append(f"Tevékenység: {_clean(pi.get('szakterulet'))}")
+    if _clean(pi.get("kulcsszavak")):
+        parts.append(f"Kulcsszavak: {_clean(pi.get('kulcsszavak'))}")
+    akt = _format_campaigns(pi.get("campaigns", []))
+    if akt and akt != "Nincs aktív kampány":
+        parts.append(f"Aktív ajánlatok/kedvezmények:\n{akt}")
+    if _clean(pi.get("price_list")):
+        parts.append(f"Árlista-jegyzet: {_clean(pi.get('price_list'))[:300]}")
+    try:
+        knowledge = _load_knowledge(settings)
+    except Exception:
+        knowledge = ""
+    k_clean = _clean(knowledge)
+    if k_clean and k_clean not in ("{}", "Nincs megadva"):
+        parts.append(f"Tudástár (részlet): {k_clean[:600]}")
+
+    text = "\n".join(parts).strip()
+    return text[:max_chars]
+
+
 def _format_eljaras_rules(pi: dict | None = None, channel: str | None = None) -> str:
     """
     EAISY-241 — A triage_rules eljárás (onallo/jovahagyas/ember) értékeiből
