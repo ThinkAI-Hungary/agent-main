@@ -1,5 +1,12 @@
 # HANDOFF — eaisyDesk | 2026-10-09 (kampány-üzemeltetés)
 
+## 🚀 2026-10-15 — PROD-DEPLOY `fac6f35` (40 commit) + JEV iparágfüggetlenítés + IMAP-hardening — részletek: `HANDOFF-2026-10-15.md`
+
+- **Prod-deploy lefutott** (user-kérés): `d95a80f` → `fac6f35`; 2 prod-migráció (`campaign_events` + `call_attempts`/RPC), prod `.env` `DEFAULT_TENANT_SLUG=rivergate`; kézi maradék a Brevo-admin beállítás (`balazs_backlog_1014.md`).
+- **JEV küldő-szűrő iparágfüggetlenítve**: a fogászati beégetett prompt B2B tenantnál (Ultralog) a valódi ügyfél-leveleket szűrte — most a tenant Céginfó-profiljával klasszifikál (4-levés validáció + élő E2E zöld).
+- **IMAP-hardening**: 30 s connection-timeout + életjelző poll-log üres postafióknál is (a „worker elhallgatott" téves riasztás volt — a log csak nem-üres ablaknál íródott).
+- **Tiszta tesztkörnyezet** erika@feedbacks.hu-hoz: DB (12 tábla, minden minta 0) + postafiók (2 levél expunge) — visszaellenőrizve, nem hozható vissza.
+
 ## 🔊 GEMINI 3.8 LIVE RESEARCH KÉSZ (`GEMINI_LIVE_RESEARCH_REPORT.md`, 2026-10-09) — ajánlás: feltételes váltás
 
 A hangmodell-váltás (3.1-flash-live-preview → `gemini-3.8-live`) kutatása elkészült (jelentés + migrációs terv + A/B tesztterv + rollback a fájlban). Lényeg: a 3.8-live **GA** (2026-09-15), **ár azonos** ($0 delta), tool-hívás **aszinkron non-blocking defaulttal** (a mi 1-es fájdalmunk — tool nélküli „foglaltam" — legnagyobb javulási iránya), Puck hang megmarad. DE: a keret-frissítés (livekit-agents 1.5.16 → 1.8.6, OTel breaking change + NON_BLOCKING viselkedésváltás) staging-visszatesztet kötelez. **Döntés: useré** — zöld jelzésre a jelentés E) szakaszában a migrációs lépések + A/B tesztterv (2×30 hívás) + rollback (env-var: `GEMINI_LIVE_MODEL`).
