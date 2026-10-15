@@ -78,7 +78,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
 
   // Collect all unique tags from clients + default tags
   const allTags = useMemo(() => {
-    const defaultTags = ['árkérdés', 'kampánylead', 'ajánlatkérés', 'törölt időpont', 'no-show', 'VIP'];
+    const defaultTags = ['árkérdés', 'kampánylead', 'ajánlatkérés', 'spot', 'törölt időpont', 'no-show', 'VIP'];
     const tags = new Set<string>(defaultTags);
     clients.forEach(c => {
       const cd = parseCustomData(c.custom_data);
@@ -373,7 +373,7 @@ export default function CampaignWizardModal({ onClose, onCreated, initialSelecte
 
   // Tag colors
   const TAG_COLORS: Record<string, string> = {
-    'árkérdés': '#ef4444', 'kampánylead': '#22c55e', 'ajánlatkérés': '#f59e0b',
+    'árkérdés': '#ef4444', 'kampánylead': '#22c55e', 'ajánlatkérés': '#f59e0b', 'spot': '#b26a00',
     'törölt időpont': '#8b5cf6', 'no-show': '#ec4899', 'VIP': '#6366f1',
   };
 

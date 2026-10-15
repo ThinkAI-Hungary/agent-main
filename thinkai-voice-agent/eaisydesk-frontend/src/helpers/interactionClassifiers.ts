@@ -454,6 +454,8 @@ export const SALES_TAGS = [
   'kampánylead',
   'potenciális ügyfél',
   'árkérdés',
+  'ajánlatkérés',
+  'spot',
   'törölt időpont',
   'no-show',
 ];
@@ -490,9 +492,9 @@ export const TAG_COLORS: Record<string, { bg: string; color: string }> = {
   árkérdés: { bg: '#fce4ec', color: '#c62828' },
   kampánylead: { bg: '#e8f5e9', color: '#2e7d32' },
   'potenciális ügyfél': { bg: '#e3f2fd', color: '#1565c0' },
-  // Legacy címkék — a régi adatok megjelenítéséhez (újat már nem osztunk ki)
-  'kampány lead': { bg: '#e8f5e9', color: '#2e7d32' },
   ajánlatkérés: { bg: '#fff3e0', color: '#e65100' },
+  spot: { bg: '#fff3e0', color: '#b26a00' },
+  // Legacy címkék — a régi adatok megjelenítéséhez (újat már nem osztunk ki)
   'törölt időpont': { bg: '#fce4ec', color: '#c62828' },
   'no-show': { bg: '#fff8e1', color: '#f57f17' },
   VIP: { bg: '#ede7f6', color: '#4527a0' },

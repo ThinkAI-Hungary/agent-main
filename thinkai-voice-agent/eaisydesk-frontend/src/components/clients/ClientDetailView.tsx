@@ -674,6 +674,8 @@ export default function ClientDetailView({ client, clientsMap, sessions, events,
     'kampánylead',
     'potenciális ügyfél',
     'árkérdés',
+    'ajánlatkérés',
+    'spot',
     'no-show',
     'törölt időpont',
   ];

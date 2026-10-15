@@ -1685,14 +1685,18 @@ async def find_client(
 
 # Kanonikus értékesítési címkekör (user-döntés 2026-09-13) + VIP attribútum-címke.
 # A sales-címkék (VIP kivételével) az érdeklődőkezelés első oszlopába triggerelnek.
-PREDEFINED_CLIENT_TAGS = ["árkérdés", "kampánylead", "potenciális ügyfél", "törölt időpont", "no-show", "VIP"]
+# 2026-10-15 (Ultralog demo): +ajánlatkérés (konkrét árajánlat-kérés), +spot
+# (sürgető, hamar esedékes igény — kiegészítő címke, nem önálló téma).
+PREDEFINED_CLIENT_TAGS = ["árkérdés", "kampánylead", "potenciális ügyfél", "törölt időpont", "no-show", "ajánlatkérés", "spot", "VIP"]
 
 @function_tool(description=(
     "Ügyfél címkézése a beszélgetés témája alapján. "
     "HASZNÁLD AUTOMATIKUSAN a háttérben, amikor a beszélgetés során felismered az alábbi témákat:\n"
-    "- 'árkérdés': ha az ügyfél árakról, költségekről, díjakról érdeklődik\n"
+    "- 'árkérdés': KONKRÉT díjkérdés esetén (pl. 'mennyibe kerül?', 'milyen áron vállalnák?') — nem zárja ki az 'ajánlatkérés' címkét\n"
     "- 'kampánylead': ha az ügyfél egy kampány/akció hatására keresi a rendelőt\n"
-    "- 'potenciális ügyfél': ha az ügyfél érdeklődik a szolgáltatások iránt, de még nem foglalt\n"
+    "- 'potenciális ügyfél': ha az ügyfél általánosan érdeklődik a szolgáltatások iránt, de konkrét ajánlatkérés NINCS (pl. 'foglalkoznak-e spot szállítással?')\n"
+    "- 'ajánlatkérés': ha az ügyfél KONKRÉT árajánlatot kér egy szolgáltatásra (pl. 'szeretnék ajánlatot kérni Budapest-Bécs fuvart')\n"
+    "- 'spot': ha az igény sürgető, hamar esedékes (pl. 'holnapra kellene', 'mihamarabb') — KIEGÉSZÍTŐ címke: mindig a fő címke (potenciális ügyfél vagy ajánlatkérés) MELLÉ add\n"
     "- 'törölt időpont': ha az ügyfél időpontot mondott le vagy módosított\n"
     "- 'no-show': ha az ügyfél nem jelent meg egy foglalt időponton\n"
     "- 'VIP': ha az ügyfél rendszeres, fontos, vagy kiemelt ügyfél\n"
