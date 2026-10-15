@@ -544,9 +544,10 @@ async def _detect_intent_llm(message_text: str) -> dict:
       NE szerepeljen, mert nem időpont-akció történt! (257-es ügy tanulsága.)
     - Ha az ügyfél konkrétan kér valamit (pl. visszahívást, leletet), az "Kérés".
     - Egy üzenet lehet több típusú egyszerre: sorold fel mindegyiket a detected_types-ban.
-    6. urgens: true | false — true, ha ORVOSI sürgősség van (erős fájdalom, duzzanat,
-       vérzés, láz, baleset) vagy az ügyfél sürgősséget jelez ("mihamarabb", "azonnal");
-       egyébként false.
+    6. urgens: true | false — true, ha sürgősség van: időkritikus helyzet a cég
+       szolgáltatásának természetéből (egészségügyi cégnél pl. erős fájdalom,
+       duzzanat, vérzés, láz, baleset), VAGY az ügyfél sürgősséget jelez
+       ("sürgős", "mihamarabb", "azonnal", "holnap kell"); egyébként false.
     """
 
     try:
@@ -714,6 +715,21 @@ def _detect_intent_keyword(message_text: str) -> dict:
 # MAIN ENTRY POINT
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def _apply_urgens_status(result: dict, urgens: bool) -> dict:
+    """Sürgősség → STÁTUSZ (2026-10-06 user-elv, 2026-10-15 általánosítva): ha az
+    ügyfél sürgősséget jelez (urgens), az BÁRMELY ügytípusnál (Kérés, Kérdés,
+    Időpont, …) a státuszon jelenik meg — az eredmény és a teendő NEM tér el a
+    mátrixtól, és Lezált (autonóm módon elintézett) ügyet nem nyitunk újra
+    Sürgősre. (Korábban csak Időpont/Új-ra volt élesben — egy sürgős B2B
+    fuvar-Kérés 'Nyitott'-ként jelent meg, pedig az agent 'Sürgős ügyként
+    rögzítem'-et ígért a hívásban.)"""
+    if urgens:
+        result["urgens"] = True
+        if result.get("statusz") != "Lezárt":
+            result["statusz"] = "Sürgős"
+    return result
+
+
 async def classify_interaction(
     message_text: str,
     channel: str,
@@ -813,14 +829,8 @@ async def classify_interaction(
         **{k: v for k, v in decision.items() if k != "automation"},
     }
 
-    # Sürgős fizikai panasz + új időpont-kérés (254-es ügy): az ügy típusa Időpont
-    # marad (nem Panasz), és a sürgősség a STÁTUSZON jelenik meg — az eredmény és
-    # teendő NEM tér el a mátrixtól (2026-10-06 user-elv). Lezárt (autonóm foglalás
-    # megtörtént) ügyet nem nyitunk újra Sürgősre.
-    if urgens and dominant_ugytipus == "Időpont" and altipus == "Új":
-        result["urgens"] = True
-        if result.get("statusz") != "Lezárt":
-            result["statusz"] = "Sürgős"
+    # Sürgősség → STÁTUSZ (2026-10-06 user-elv, 2026-10-15 általánosítva)
+    result = _apply_urgens_status(result, urgens)
 
     logger.info(f"🏷️ Classification [{channel}]: {result}")
     return result

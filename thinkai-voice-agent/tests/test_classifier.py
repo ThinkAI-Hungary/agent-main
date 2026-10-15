@@ -11,6 +11,7 @@ import classifier
 from classifier import (
     _determine_restriction,
     _apply_decision_tree,
+    _apply_urgens_status,
     _lookup_rule,
     _rule_channel_matches,
     _rule_kb_matches,
@@ -20,6 +21,35 @@ from classifier import (
     _priority_type_to_restriction,
     TYPE_PRIORITY,
 )
+
+
+class TestUrgensStatusAltalanositva:
+    """2026-10-15: az urgens jelző BÁRMELY ügytípusnál a státuszra kerül — az
+    eredmény/teendő a mátrixból jön, Lezártat nem nyitjuk újra (2026-10-06
+    user-elv általánosítása; egy sürgős B2B fuvar-Kérés 'Nyitott' lett)."""
+
+    def test_surgos_keres_surgos_statusz(self):
+        r = _apply_urgens_status(
+            {"eredmeny": "Igény rögzítve", "statusz": "Nyitott", "teendo": "Intézkedés"}, True)
+        assert r["statusz"] == "Sürgős"
+        assert r["urgens"] is True
+        assert r["eredmeny"] == "Igény rögzítve"   # eredmény NEM tér el a mátrixtól
+        assert r["teendo"] == "Intézkedés"          # teendő NEM tér el a mátrixtól
+
+    def test_surgos_kerdes_surgos_statusz(self):
+        r = _apply_urgens_status(
+            {"eredmeny": "Kérdés rögzítve", "statusz": "Nyitott", "teendo": "Válasz/visszahívás szükséges"}, True)
+        assert r["statusz"] == "Sürgős"
+
+    def test_lezart_nem_nyitjuk_ujra_surgosre(self):
+        r = _apply_urgens_status({"eredmeny": "Új időpont", "statusz": "Lezárt"}, True)
+        assert r["statusz"] == "Lezárt"
+        assert r["urgens"] is True
+
+    def test_nem_urgens_erven_marad(self):
+        r = _apply_urgens_status({"eredmeny": "Igény rögzítve", "statusz": "Nyitott", "teendo": "Intézkedés"}, False)
+        assert r["statusz"] == "Nyitott"
+        assert "urgens" not in r
 
 
 # A booking_mode-override a valós DB-módot olvasná — a tesztek mindig auto-val
