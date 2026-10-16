@@ -15,10 +15,7 @@ const MKT_NAV_ITEMS = [
   { id: 'mkt-email', label: 'E-mail kampányok', path: '/marketing/email', icon: 'M3 8l7.89 5.26a2 2 0 002.22 0L21 8M5 19h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v10a2 2 0 002 2z' },
   { id: 'mkt-segments', label: 'Szegmentáció', path: '/marketing/segments', icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 3a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75' },
   { id: 'mkt-social', label: 'Közösségi Média', path: '/marketing/social', icon: 'M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z' },
-  { id: 'mkt-seo', label: 'SEO / SEM', path: '/marketing/seo', icon: 'M11 11m-8 0a8 8 0 1016 0 8 8 0 00-16 0zM21 21l-4.35-4.35' },
-  { id: 'mkt-loyalty', label: 'Hűségprogram', path: '/marketing/loyalty', icon: 'M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z' },
-  { id: 'mkt-competitor', label: 'Árfigyelő', path: '/marketing/competitor', icon: 'M13 7h8m0 0v8m0-8l-8 8-4-4-6 6' },
-  { id: 'mkt-zombo', label: 'Zombo Audit', path: '/marketing/zombo', icon: 'M12 12m-10 0a10 10 0 1020 0 10 10 0 00-20 0zM12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10zM2 12h20' },
+  { id: 'mkt-zombo', label: 'Zombo Audit', path: '/marketing/zombo', icon: 'M12 12m-10 0a10 10 0 1020 0 10 10 0 00-20 0zM12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4 10 15.3 15.3 0 014-10zM2 12h20' },
 ];
 
 export default function MarketingSidebar() {

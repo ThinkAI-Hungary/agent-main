@@ -2888,11 +2888,14 @@ def update_text_config(key: str, content: str) -> bool:
 def get_excluded_senders() -> dict:
     """WP-E3 review utáni user-kezelt kizárólista: a tenant által kizárt
     feladó e-mailek és domainek (text_configs 'excluded_senders' kulcs).
-    Fail-open: üres lista."""
+    Fail-open: üres lista.
+
+    2026-10-16 (Mauroni-incidens): TENANT-SZŰRT — korábban a text_configs
+    key-only PK miatt globális volt, így minden tenant egy másik ügyfél
+    kizárólistáját látta ÉS a feldolgozásukra is érvényesült (a tenant
+    feladói csendben kiszűrődtek volna)."""
     try:
-        # GLOBÁLIS lista (text_configs PK = key): a kizárt stáf-/forwardoló
-        # címek rendszerszintűek — a feldolgozás tenantjától függetlenül él.
-        res = supabase.table("text_configs").select("content").eq("key", "excluded_senders").limit(1).execute()
+        res = _tenant_eq(supabase.table("text_configs").select("content")).eq("key", "excluded_senders").limit(1).execute()
         if res.data:
             import json as _json
             raw = (res.data[0].get("content") or "{}")

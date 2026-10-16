@@ -180,12 +180,6 @@ export default function MarketingDashboardPage() {
               </div>
               <div className="mkt-action-btn-text"><div className="mkt-action-btn-label">Új poszt</div><div className="mkt-action-btn-sub">Közösségi média tartalom</div></div>
             </button>
-            <button className="mkt-action-btn" onClick={() => navigate('/admin/marketing/seo')}>
-              <div className="mkt-action-btn-icon mkt-action-btn-icon--blue">
-                <svg fill="none" stroke="#3b82f6" strokeWidth="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
-              </div>
-              <div className="mkt-action-btn-text"><div className="mkt-action-btn-label">SEO Audit</div><div className="mkt-action-btn-sub">Kulcsszó pozíciók</div></div>
-            </button>
             <button className="mkt-action-btn" onClick={() => navigate('/admin/marketing/segments')}>
               <div className="mkt-action-btn-icon mkt-action-btn-icon--green">
                 <svg fill="none" stroke="#22c55e" strokeWidth="2" viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></svg>

@@ -1587,6 +1587,14 @@ async def marketing_social_analytics():
 async def logo():
     return FileResponse(THIS_DIR / "thinkai-logo.png", media_type="image/png")
 
+
+@app.get("/eaisydesk-logo.png")
+async def eaisydesk_logo():
+    """eaisyDesk logó a widgethez (2026-10-16, Mauroni-incidens utáni
+    arculati javítás — a widget eaisy-arculatú, a tenant saját agentjét
+    mutatja)."""
+    return FileResponse(THIS_DIR / "eaisydesk_logo.png", media_type="image/png")
+
 @app.get("/login-bg.jpg")
 async def bg():
     return FileResponse(THIS_DIR / "login-bg.jpg", media_type="image/jpeg")
@@ -4360,13 +4368,33 @@ def admin_delete_kanban_column(col_id: str, _admin = Depends(require_admin)):
 
 
 # ── Legacy public API (for backward compat with voice-widget.html) ────────────
+# 2026-10-16 (Mauroni-incidens): a két publikus végpont tenant-paramétert kap —
+# korábban a default tenant (rivergate) naptárát/email-naplóját szolgálták MINDEN
+# látogatónak, mert a widget nem adott tenantot. A ?tenant=<slug> a widget-config
+# mintájára slugból old fel; ismeretlen slug → a default tenant (változatlan).
+def _resolve_widget_tenant(slug: str) -> None:
+    """Widget-végpontok tenant-feloldása slugból (a widget ?tenant= paraméteréből).
+    Ismeretlen/üres slug → a hívó ambient (default) tenant marad."""
+    slug = (slug or "").strip()
+    if not slug:
+        return
+    try:
+        res = db.supabase.table("tenants").select("id").eq("slug", slug).limit(1).execute()
+        if res.data:
+            db.set_current_tenant(res.data[0]["id"])
+    except Exception as e:
+        logger.warning(f"Widget tenant feloldás sikertelen ({slug}): {e}")
+
+
 @app.get("/api/calendar")
-def get_calendar():
+def get_calendar(tenant: str = ""):
+    _resolve_widget_tenant(tenant)
     events = db.get_calendar_events()
     return JSONResponse({"events": events})
 
 @app.get("/api/emails")
-def get_emails():
+def get_emails(tenant: str = ""):
+    _resolve_widget_tenant(tenant)
     return JSONResponse({"emails": db.get_email_logs()})
 
 

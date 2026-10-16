@@ -634,7 +634,7 @@
 
         <!-- CENTER: Voice -->
         <div class="voice-panel">
-            <img class="logo-img" src="/thinkai-logo.png" alt="ThinkAI">
+            <img class="logo-img" src="/eaisydesk-logo.png" alt="eaisyDesk">
             <div class="subtitle" id="widgetSubtitle">AI Ügyfélszolgálat Demo</div>
 
             <div class="visualizer" id="visualizer">
@@ -659,7 +659,7 @@
                 <div class="transcript-text" id="agentTranscriptText">—</div>
             </div>
 
-            <div class="powered-by">Powered by <a href="https://thinkai.hu" target="_blank">ThinkAI</a></div>
+            <div class="powered-by">Powered by <a href="https://eaisy.hu" target="_blank">eaisyDesk</a></div>
         </div>
 
         <!-- RIGHT: Emails -->
@@ -1019,7 +1019,7 @@
 
         async function fetchCalendar() {
             try {
-                const resp = await fetch('/api/calendar');
+                const resp = await fetch('/api/calendar' + (WIDGET_TENANT ? `?tenant=${encodeURIComponent(WIDGET_TENANT)}` : ''));
                 const { events } = await resp.json();
                 renderCalendar(events || []);
             } catch (e) { }
@@ -1027,7 +1027,7 @@
 
         async function fetchEmails() {
             try {
-                const resp = await fetch('/api/emails');
+                const resp = await fetch('/api/emails' + (WIDGET_TENANT ? `?tenant=${encodeURIComponent(WIDGET_TENANT)}` : ''));
                 const { emails } = await resp.json();
                 renderEmails(emails || []);
             } catch (e) { }
