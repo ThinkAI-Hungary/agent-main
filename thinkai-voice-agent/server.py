@@ -184,14 +184,23 @@ async def entrypoint(ctx: JobContext):
 
     # FÁZIS 6: tenant-feloldás widget session-öknél (room-name '<tenant_slug>-<uuid>' prefix)
     if not tenant_id and not is_outbound_call and not is_inbound_call and "-" in room_name:
-        maybe_slug = room_name.split("-", 1)[0]
-        if maybe_slug and maybe_slug != "thinkai":
-            try:
-                resolved = db.supabase.table("tenants").select("id").eq("slug", maybe_slug).limit(1).execute()
-                if resolved.data:
-                    tenant_id = resolved.data[0]["id"]
-            except Exception as e:
-                logger.warning(f"Tenant slug feloldás sikertelen ({maybe_slug}): {e}")
+        # 2026-10-16: a slug TÖBBTAGÚ is lehet (pl. 'mauroni-events') — a korábbi
+        # split('-',1)[0] az első tagra vágott ('mauroni'), ami nem talált tenantot,
+        # és a hívás a DEFAULT tenantra esett (a visszaigazoló email pl. a default
+        # tenant feladójával/brandingjével ment ki). Most a leghosszabb ILLESZKEDŐ
+        # slug prefixet keressük a valódi tenant-slugok közül.
+        try:
+            _slugs_res = db.supabase.table("tenants").select("id,slug").execute()
+            _best = None
+            for _t in (_slugs_res.data or []):
+                _s = (_t.get("slug") or "").strip()
+                if _s and _s != "thinkai" and room_name.startswith(_s + "-"):
+                    if _best is None or len(_s) > len(_best[0]):
+                        _best = (_s, _t.get("id"))
+            if _best:
+                tenant_id = _best[1]
+        except Exception as e:
+            logger.warning(f"Tenant slug feloldás sikertelen ({room_name}): {e}")
 
     # FÁZIS 0: bejövő SIP — tenant feloldás a HÍVOTT számból (sip.trunkPhoneNumber).
     # A catch-all dispatch rule miatt a room név nem hordoz tenantot; a hívott szám
