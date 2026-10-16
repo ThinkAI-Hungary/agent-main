@@ -450,16 +450,24 @@ def _update_events(event_ids, new_email: str) -> None:
                            eid, exc)
 
 
-def _send_emails(events, email: str) -> None:
+def _send_emails(events, email: str, tenant_id: str | None = None) -> None:
     """Visszaigazoló email MOST, minden eseményre, az ÚJ címre.
     Az email_processor.send_booking_confirmation_email ASYNC — sima kontextusból
-    asyncio.run, FastAPI (futó loop) kontextusból külön szál + új loop."""
+    asyncio.run, FastAPI (futó loop) kontextusból külön szál + új loop.
+    2026-10-16: a tenant_id-t a SZÁLON BELÜL állítjuk — a contextvar NEM
+    öröklődik új threadbe, enélkül a feladó/branding a DEFAULT tenantról jött."""
     if not events or not email:
         return
     try:
         import email_processor
 
         async def _send_all():
+            if tenant_id:
+                try:
+                    import database as _db
+                    _db.set_current_tenant(tenant_id)  # contextvar: a szál sajátja
+                except Exception:
+                    pass  # teszt-stub környezetben nincs ilyen — a küldés menjen
             from tztime import local_date, local_time
             for ev in events:
                 start = ev.get("start_dt") or ""
@@ -517,16 +525,23 @@ def _update_verify_runs(session_id: str, email: str, action: str) -> None:
                        session_id, exc)
 
 
-def _send_handoff_ack(email: str) -> None:
+def _send_handoff_ack(email: str, tenant_id: str | None = None) -> None:
     """Handoff (igényrögzítés) 'rögzítettük' email a címjóváhagyás után.
     Ugyanaz a loop-minta, mint a _send_emails: sima kontextusból asyncio.run,
-    FastAPI (futó loop) kontextusból külön szál + új loop. Sosem dob."""
+    FastAPI (futó loop) kontextusból külön szál + új loop. Sosem dob.
+    2026-10-16: tenant_id a szálon belül állítva (contextvar nem öröklődik)."""
     if not email:
         return
     try:
         import email_processor
 
         async def _send():
+            if tenant_id:
+                try:
+                    import database as _db
+                    _db.set_current_tenant(tenant_id)
+                except Exception:
+                    pass
             await email_processor.send_handoff_ack_email(email)
 
         try:
@@ -583,9 +598,11 @@ def apply_confirmation(token: str, email: str) -> dict:
 
         # M6-fix: a token tenant_id-je beállítja a kontextust — multi-tenant
         # prodnál enélkül a frissítések 0 sort találnának (default tenant).
+        _token_tenant = None
         try:
             import database as _db
             if row.get("tenant_id"):
+                _token_tenant = row["tenant_id"]
                 _db.set_current_tenant(row["tenant_id"])
         except Exception:
             pass
@@ -627,11 +644,11 @@ def apply_confirmation(token: str, email: str) -> dict:
         except Exception as _note_err:
             logger.warning("naptár-note frissítés kihagyva: {}", _note_err)
         if events:
-            _send_emails(events, clean)
+            _send_emails(events, clean, tenant_id=_token_tenant)
         else:
             # HANDOFF igényrögzítés: nincs naptári esemény — a jóváhagyás után
             # a 'rögzítettük' email megy (nincs visszaigazolandó időpont-adat)
-            _send_handoff_ack(clean)
+            _send_handoff_ack(clean, tenant_id=_token_tenant)
         _update_verify_runs(row.get("session_id") or "", clean, action)
         logger.info("SMS-es e-mail-megerősítés: action={} token=…{}",
                     action, str(token)[:4])
